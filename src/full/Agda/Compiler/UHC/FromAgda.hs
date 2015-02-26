@@ -338,16 +338,20 @@ compileClauses qnm clsArgs projArgs c = do
     compileClauses' :: [HsName] -> Maybe Expr -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Expr
     compileClauses' env omniDefault cc = case cc of
         CC.Case n nc -> do
-            (env', tf) <- case length env <= n of
-               True ->
+            (env', tf, omniDefault') <- case length env <= n of
+               True -> do
                     -- happens if clauses have different number of arguments.
-                    addLambdas env ((n - length env) + 1)
-               False -> return (env, id)
+                    (args, tf) <- addLambdas ((n - length env) + 1)
+                    -- the propagated catch all doesn't know that we consumed any arguments,
+                    -- so just apply it immediately again to the captured args
+                    let def = (\x -> apps x (map Var args)) <$> omniDefault
+                    return (env ++ args, tf, def)
+               False -> return (env, id, omniDefault)
             case CC.catchAllBranch nc of
                 Nothing -> let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env' !!! n))
-                            in tf <$> compileCase env' omniDefault n nc cont
+                            in tf <$> compileCase env' omniDefault' n nc cont
                 Just de -> do
-                    def <- compileClauses' env' omniDefault de
+                    def <- compileClauses' env' omniDefault' de
                     body <- bindExpr def $ \ var ->
                       let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env' !!! n))
                        in compileCase env' (Just $ Var var) n nc cont
@@ -356,8 +360,8 @@ compileClauses qnm clsArgs projArgs c = do
                 -- requiring additional lambdas happens if clauses have different number of arguments.
                 let nLams = length ps - (length env - projArgs)
                 if nLams >= 0 then do
-                    (env', tf) <- addLambdas env nLams
-                    tf <$> substTerm env' t
+                    (args, tf) <- addLambdas nLams
+                    tf <$> substTerm (env ++ args) t
                 else
                     __IMPOSSIBLE__
         CC.Fail     -> return IMPOSSIBLE
@@ -394,13 +398,13 @@ compileClauses qnm clsArgs projArgs c = do
         return $ cont cb omniDefault cty
 
     -- creates new lambas and puts the new arguments into the environment
-    addLambdas :: [HsName] -> Int -> FreshNameT (CompileT TCM) ([HsName], (Expr -> Expr))
-    addLambdas env n | n == 0 = return (env, id)
-    addLambdas env n | n > 0 = do
+    addLambdas :: Int -> FreshNameT (CompileT TCM) ([HsName], (Expr -> Expr))
+    addLambdas n | n == 0 = return ([], id)
+    addLambdas n | n > 0 = do
         args <- replicateM n freshLocalName
         let tf = foldl1 (.) (map Lam args)
-        return (env ++ args, tf)
-    addLambdas env n | otherwise = __IMPOSSIBLE__
+        return (args, tf)
+    addLambdas n | otherwise = __IMPOSSIBLE__
     
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables
