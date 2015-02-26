@@ -635,7 +635,8 @@ interpret (Cmd_intro pmLambda ii rng _) = do
             ]
 
 interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
-  (if null s then Cmd_intro pmLambda else Cmd_refine) ii r s
+  let s' = trim s
+  in (if null s' then Cmd_intro pmLambda else Cmd_refine) ii r s'
 
 interpret (Cmd_auto ii rng s) = do
   -- Andreas, 2014-07-05 Issue 1226:
@@ -869,8 +870,12 @@ give_gen
   -> String
   -> GiveRefine
   -> CommandM ()
-give_gen ii rng s giveRefine = do
+give_gen ii rng s0 giveRefine = do
+  let s = trim s0
   lift $ reportSLn "interaction.give" 20 $ "give_gen  " ++ s
+  -- Andreas, 2015-02-26 if string is empty do nothing rather
+  -- than giving a parse error.
+  unless (null s) $ do
   let give_ref =
         case giveRefine of
           Give   -> B.give
