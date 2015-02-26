@@ -31,3 +31,5 @@ test/epic/RunTests
 test/epic/tests/bin/
 test/latex-backend/succeed/latex/
 test/succeed/latex/
+test/succeed/EpicNat
+test/succeed/Issue1441
