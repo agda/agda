@@ -40,6 +40,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
@@ -160,13 +161,26 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
 
 -- | Types are terms with a sort annotation.
 --
-data Type' a = El { getSort :: Sort, unEl :: a }
+data Type' a = El { _getSort :: Sort, unEl :: a }
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Type = Type' Term
 
 instance Decoration Type' where
   traverseF f (El s a) = El s <$> f a
+
+class LensSort a where
+  lensSort ::  Lens' Sort a
+  getSort  :: a -> Sort
+  getSort a = a ^. lensSort
+
+instance LensSort (Type' a) where
+  lensSort f (El s a) = f s <&> \ s' -> El s' a
+
+-- General instance leads to overlapping instances.
+-- instance (Decoration f, LensSort a) => LensSort (f a) where
+instance LensSort a => LensSort (Common.Dom c a) where
+  lensSort = traverseF . lensSort
 
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
