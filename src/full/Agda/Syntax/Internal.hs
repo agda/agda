@@ -190,9 +190,10 @@ data Tele a = EmptyTel
 
 type Telescope = Tele (Dom Type)
 
+-- | A traversal for the names in a telescope.
 mapAbsNamesM :: Applicative m => (ArgName -> m ArgName) -> Tele a -> m (Tele a)
 mapAbsNamesM f EmptyTel                  = pure EmptyTel
-mapAbsNamesM f (ExtendTel a (Abs x b))   = ExtendTel a <$> (Abs <$> f x <*> mapAbsNamesM f b)
+mapAbsNamesM f (ExtendTel a (  Abs x b)) = ExtendTel a <$> (  Abs <$> f x <*> mapAbsNamesM f b)
 mapAbsNamesM f (ExtendTel a (NoAbs x b)) = ExtendTel a <$> (NoAbs <$> f x <*> mapAbsNamesM f b)
   -- Ulf, 2013-11-06: Last case is really impossible but I'd rather find out we
   --                  violated that invariant somewhere other than here.

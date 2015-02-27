@@ -193,8 +193,13 @@ smallParams tel s = do
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 --   Returns the non-linear parameters.
-checkConstructor :: QName -> Telescope -> Nat -> Sort
-                 -> A.Constructor -> TCM [Int]
+checkConstructor
+  :: QName         -- ^ Name of data type.
+  -> Telescope     -- ^ Parameter telescope.
+  -> Nat           -- ^ Number of indices of the data type.
+  -> Sort          -- ^ Sort of the data type.
+  -> A.Constructor -- ^ Constructor declaration (type signature).
+  -> TCM [Int]     -- ^ Non-linear parameters.
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
