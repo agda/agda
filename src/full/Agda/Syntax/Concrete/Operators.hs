@@ -128,7 +128,8 @@ localNames flat = do
   where
     localOp (x, y) = namesToNotation (QName x) y
     split ops      = partitionEithers $ concatMap opOrNot ops
-    opOrNot n      = [Left (notaName n), Right n]
+    opOrNot n      = Left (notaName n) :
+                     if null (notation n) then [] else [Right n]
 
 -- | Data structure filled in by @buildParsers@.
 --   The top-level parser @pTop@ is of primary interest,
@@ -154,8 +155,7 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     rebound). See test/succeed/OpBind.agda for an example.
 -}
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
-buildParsers r flat use =
-  Bench.billTo [Bench.Parsing, Bench.Operators, Bench.BuildParser] $ do
+buildParsers r flat use = do
     (names, ops) <- localNames flat
     let cons = getDefinedNames [ConName, PatternSynName] flat
     reportSLn "scope.operators" 50 $ unlines
