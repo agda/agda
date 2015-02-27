@@ -836,7 +836,7 @@ telePi' reAbs = telePi where
   telePi (ExtendTel u tel) t = el $ Pi u $ reAbs b
     where
       b  = (`telePi` t) <$> tel
-      s1 = getSort $ unDom u
+      s1 = getSort u
       s2 = getSort <$> b
       el = El $ dLub s1 s2
 

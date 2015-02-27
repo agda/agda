@@ -911,12 +911,14 @@ instance EmbPrj Agda.Syntax.Common.Hiding where
 instance EmbPrj Agda.Syntax.Common.Relevance where
   icod_ Relevant   = icode0'
   icod_ Irrelevant = icode0 1
-  icod_ Forced     = icode0 2
+  icod_ (Forced Small) = icode0 2
+  icod_ (Forced Big)   = icode0 5
   icod_ NonStrict  = icode0 3
   icod_ UnusedArg  = icode0 4
   value = vcase valu where valu []  = valu0 Relevant
                            valu [1] = valu0 Irrelevant
-                           valu [2] = valu0 Forced
+                           valu [2] = valu0 (Forced Small)
+                           valu [5] = valu0 (Forced Big)
                            valu [3] = valu0 NonStrict
                            valu [4] = valu0 UnusedArg
                            valu _   = malformed

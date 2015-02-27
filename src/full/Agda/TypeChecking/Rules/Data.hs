@@ -195,8 +195,13 @@ smallParams tel s = do
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 --   Returns the non-linear parameters.
-checkConstructor :: QName -> Telescope -> Nat -> Sort
-                 -> A.Constructor -> TCM [Int]
+checkConstructor
+  :: QName         -- ^ Name of data type.
+  -> Telescope     -- ^ Parameter telescope.
+  -> Nat           -- ^ Number of indices of the data type.
+  -> Sort          -- ^ Sort of the data type.
+  -> A.Constructor -- ^ Constructor declaration (type signature).
+  -> TCM [Int]     -- ^ Non-linear parameters.
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
@@ -303,10 +308,14 @@ fitsIn t s = do
   case ignoreSharing $ unEl t of
     Pi dom b -> do
       withoutK <- optWithoutK <$> pragmaOptions
-      when (withoutK || Forced /= getRelevance dom) $
-        getSort (unDom dom) `leqSort` s
+      -- Forced constructor arguments are ignored in size-checking.
+      when (withoutK || notForced (getRelevance dom)) $
+        getSort dom `leqSort` s
       addContext (absName b, dom) $ fitsIn (absBody b) (raise 1 s)
     _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type
+  where
+    notForced Forced{} = False
+    notForced _        = True
 
 -- | Return the parameters that share variables with the indices
 -- nonLinearParameters :: Int -> Type -> TCM [Int]

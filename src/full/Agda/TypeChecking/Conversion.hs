@@ -701,7 +701,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
           -- compare arg1 and arg2
           pid <- newProblem_ $ applyRelevanceToContext r $
               case r of
-                Forced     -> return ()
+                Forced{}   -> return ()
                 r | irrelevantOrUnused r ->
                               compareIrrelevant b (unArg arg1) (unArg arg2)
                 _          -> compareWithPol pol (flip compareTerm b)

@@ -21,7 +21,7 @@ import Data.Monoid
 import Data.Traversable
 import Data.Typeable (Typeable)
 
-import Test.QuickCheck
+import Test.QuickCheck hiding (Small)
 
 import Agda.Syntax.Position
 
@@ -166,6 +166,22 @@ makeInstance = setHiding Instance
 -- * Relevance
 ---------------------------------------------------------------------------
 
+-- | An constructor argument is big if the sort of its type is bigger than
+--   the sort of the data type.  Only parameters (and maybe forced arguments)
+--   are allowed to be big.
+--   @
+--      List : Set -> Set
+--      nil  : (A : Set) -> List A
+--   @
+--   @A@ is big in constructor @nil@ as the sort @Set1@ of its type @Set@
+--   is bigger than the sort @Set@ of the data type @List@.
+data Big = Big | Small
+  deriving (Typeable, Show, Eq, Enum, Bounded)
+
+instance Ord Big where
+  Big <= Small = False
+  _   <= _     = True
+
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
@@ -174,19 +190,31 @@ data Relevance
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
   | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
-  | Forced      -- ^ The argument can be skipped during equality checking
+  | Forced Big  -- ^ The argument can be skipped during equality checking
                 --   because its value is already determined by the type.
+                --   If a constructor argument is big, it has to be regarded
+                --   absent, otherwise we get into paradoxes.
   | UnusedArg   -- ^ The polarity checker has determined that this argument
                 --   is unused in the definition.  It can be skipped during
                 --   equality checking but should be mined for solutions
                 --   of meta-variables with relevance 'UnusedArg'
-    deriving (Typeable, Show, Eq, Enum, Bounded)
+    deriving (Typeable, Show, Eq)
+
+allRelevances :: [Relevance]
+allRelevances =
+  [ Relevant
+  , NonStrict
+  , Irrelevant
+  , Forced Small
+  , Forced Big
+  , UnusedArg
+  ]
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
 
 instance Arbitrary Relevance where
-  arbitrary = elements [minBound..maxBound]
+  arbitrary = elements allRelevances
 
 instance Ord Relevance where
   (<=) = moreRelevant
@@ -233,8 +261,8 @@ moreRelevant r r' =
     (UnusedArg, _)  -> True
     (_, UnusedArg)  -> False
     -- third bottom
-    (Forced, _)     -> True
-    (_, Forced)     -> False
+    (Forced{}, _)   -> True
+    (_, Forced{})   -> False
     -- remaining case
     (NonStrict,NonStrict) -> True
 
@@ -335,11 +363,13 @@ instance (Show a, Show c) => Show (Arg c a) where
         showH Hidden     s = "{" ++ s ++ "}"
         showH NotHidden  s = "(" ++ s ++ ")"
         showH Instance   s = "{{" ++ s ++ "}}"
-        showR Irrelevant s = "." ++ s
-        showR NonStrict  s = "?" ++ s
-        showR Forced     s = "!" ++ s
-        showR UnusedArg  s = "k" ++ s -- constant
-        showR Relevant   s = "r" ++ s -- Andreas: I want to see it explicitly
+        showR r s = case r of
+          Irrelevant   -> "." ++ s
+          NonStrict    -> "?" ++ s
+          Forced Big   -> "!b" ++ s
+          Forced Small -> "!" ++ s
+          UnusedArg    -> "k" ++ s -- constant
+          Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showC cs         s = show cs ++ s
 
 instance LensHiding (Arg c e) where

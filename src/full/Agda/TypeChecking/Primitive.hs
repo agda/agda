@@ -145,7 +145,7 @@ instance ToTerm I.ArgInfo where
           Relevant   -> rel
           Irrelevant -> irr
           NonStrict  -> rel
-          Forced     -> irr
+          Forced{}   -> irr
           UnusedArg  -> irr
       ]
 
@@ -291,7 +291,8 @@ primTrustMe = do
             primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
   Con rf [] <- ignoreSharing <$> primRefl
   n         <- conPars . theDef <$> getConInfo rf
-  let refl x | n == 2    = Con rf [setRelevance Forced $ hide $ defaultArg x]
+  -- Andreas, 2015-02-27  Forced Big vs. Forced Small should not matter here
+  let refl x | n == 2    = Con rf [setRelevance (Forced Small) $ hide $ defaultArg x]
              | n == 3    = Con rf []
              | otherwise = __IMPOSSIBLE__
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->

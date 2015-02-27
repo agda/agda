@@ -113,7 +113,7 @@ quotingKit = do
       quoteRelevance Relevant   = pure relevant
       quoteRelevance Irrelevant = pure irrelevant
       quoteRelevance NonStrict  = pure relevant
-      quoteRelevance Forced     = pure relevant
+      quoteRelevance Forced{}   = pure relevant
       quoteRelevance UnusedArg  = pure relevant
 
 --      quoteColors _ = nil -- TODO guilhem

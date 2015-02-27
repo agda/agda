@@ -28,7 +28,7 @@ makeForcedArgs (T.El _ term) = case T.ignoreSharing term of
       Common.Irrelevant -> Forced
       Common.UnusedArg  -> Forced
       Common.NonStrict  -> Forced  -- can never be executed
-      Common.Forced     -> Forced  -- It can be inferred
+      Common.Forced{}   -> Forced  -- It can be inferred
 
 -- | Remove forced arguments from constructors and branches
 forceConstrs :: [Fun] -> Compile TCM [Fun]

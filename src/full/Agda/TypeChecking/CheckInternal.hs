@@ -209,7 +209,7 @@ checkRelevance r0 r0' = unless (r == r') $ typeError $ RelevanceMismatch r r'
   where
     r  = canon r0
     r' = canon r0'
-    canon Forced    = Relevant
+    canon Forced{}  = Relevant
     canon UnusedArg = Relevant
     canon r         = r
 

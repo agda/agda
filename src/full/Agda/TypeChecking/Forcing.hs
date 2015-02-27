@@ -62,6 +62,7 @@ import Prelude hiding (elem, maximum)
 
 import Control.Applicative
 import Data.Foldable
+import Data.Traversable
 
 import Agda.Interaction.Options
 
@@ -71,6 +72,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Conversion
 
 import Agda.Utils.Function
 import Agda.Utils.Monad
@@ -79,7 +81,8 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Given the type of a constructor, decide which arguments are forced.
+-- | Given the type of a constructor (excluding the parameters),
+--   decide which arguments are forced.
 --   Update the relevance info in the domains accordingly.
 --   Precondition: the type is of the form @Γ → D vs@ and the @vs@
 --   are in normal form.
@@ -88,7 +91,7 @@ addForcingAnnotations t =
   ifM (not . optForcing <$> commandLineOptions)
       (return t) $ do
   -- t <- normalise t
-  let TelV tel (El _ a) = telView' t
+  let TelV tel (El s a) = telView' t
       vs = case ignoreSharing a of
         Def _ us -> us
         _        -> __IMPOSSIBLE__
@@ -96,7 +99,7 @@ addForcingAnnotations t =
       indexToLevel x = n - x - 1
   -- Note: data parameters will be negative levels.
   let xs = filter (>=0) $ map indexToLevel $ forcedVariables vs
-  let t' = force xs t
+  t' <- force (raise (0 - size tel) s) xs t
   reportSLn "tc.force" 60 $ unlines
     [ "Forcing analysis"
     , "  xs = " ++ show xs
@@ -119,16 +122,22 @@ instance ForcedVariables Term where
     Con _ vs -> forcedVariables vs
     _        -> []
 
--- | @force xs t@ marks the domains @xs@ in function type @t@ as forced.
+-- | @force s xs t@ marks the domains @xs@ in function type @t@ as forced.
+--   Domains bigger than @s@ are marked as @'Forced' 'Big'@, others as
+--   @'Forced' 'Small'@.
 --   Counting left-to-right, starting with 0.
 --   Precondition: function type is exposed.
-force :: [Nat] -> Type -> Type
-force xs t = loop 0 t
+force :: Sort -> [Nat] -> Type -> TCM Type
+force s0 xs t = loop 0 t
   where
     m = maximum (-1:xs)  -- number of domains to look at
-    loop i t | i > m = t
+    loop i t | i > m = return t
     loop i t = case ignoreSharingType t of
-      El s (Pi a b) -> El s $ Pi a' $ loop (i + 1) <$> b
-        where
-          a' = applyWhen (i `elem` xs) (mapRelevance $ composeRelevance Forced) a
+      El s (Pi a b) -> do
+        a' <- if not (i `elem` xs) then return a else do
+          -- If the sort of the data type is >= the sort of the argument type
+          -- then the index is small, else big.
+          b <- ifM (tryConversion $ leqSort (getSort a) (raise i s0)) (return Small) (return Big)
+          return $ mapRelevance (composeRelevance $ Forced b) a
+        El s . Pi a' <$> traverse (loop $ i + 1) b
       _ -> __IMPOSSIBLE__

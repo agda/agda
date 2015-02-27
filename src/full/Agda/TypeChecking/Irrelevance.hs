@@ -27,7 +27,7 @@ irrelevantOrUnused Irrelevant = True
 irrelevantOrUnused UnusedArg  = True
 irrelevantOrUnused NonStrict  = False
 irrelevantOrUnused Relevant   = False
-irrelevantOrUnused Forced     = False
+irrelevantOrUnused Forced{}   = False
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
 unusableRelevance :: Relevance -> Bool
@@ -42,8 +42,9 @@ composeRelevance r r' =
     (_, Irrelevant) -> Irrelevant
     (NonStrict, _)  -> NonStrict
     (_, NonStrict)  -> NonStrict
-    (Forced, _)     -> Forced
-    (_, Forced)     -> Forced
+    (Forced b, Forced b') -> Forced (max b b')  -- prefer Big over Small
+    (Forced b, _)     -> Forced b
+    (_, Forced b)     -> Forced b
     (UnusedArg, _)  -> UnusedArg
     (_, UnusedArg)  -> UnusedArg
     (Relevant, Relevant) -> Relevant
@@ -58,16 +59,17 @@ inverseComposeRelevance r x =
   case (r, x) of
     (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
     _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
+    (Forced{}, Forced{}) -> Relevant   -- same, but (==) does not ignore Big
     (UnusedArg, x)       -> x
-    (Forced, UnusedArg)  -> Relevant
-    (Forced, x)          -> x
+    (Forced{}, UnusedArg)  -> Relevant
+    (Forced{}, x)          -> x
     (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
 
 -- | For comparing @Relevance@ ignoring @Forced@ and @UnusedArg@.
 ignoreForced :: Relevance -> Relevance
-ignoreForced Forced     = Relevant
+ignoreForced Forced{}   = Relevant
 ignoreForced UnusedArg  = Relevant
 ignoreForced Relevant   = Relevant
 ignoreForced NonStrict  = NonStrict
@@ -129,7 +131,7 @@ applyRelevanceToContext :: Relevance -> TCM a -> TCM a
 applyRelevanceToContext rel =
   case rel of
     Relevant -> id
-    Forced   -> id
+    Forced{} -> id
     _        -> local $ \ e -> e
       { envContext   = modifyContextEntries (inverseApplyRelevance rel) (envContext e)
       , envLetBindings = Map.map

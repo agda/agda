@@ -109,7 +109,7 @@ isType_ e =
     A.Fun i (Arg info t) b -> do
       a <- Dom info <$> isType_ t
       b <- isType_ b
-      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi (convColor a) (NoAbs underscore b))
+      return $ El (sLub (getSort a) (getSort b)) (Pi (convColor a) (NoAbs underscore b))
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e

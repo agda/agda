@@ -600,8 +600,10 @@ unifyIndices flex a us vs = liftTCM $ do
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
       uHH <- if getRelevance a == Irrelevant then return $ Hom u else
-             -- Andreas, 2015-01-19 forced constructor arguments are not unified
-             if getRelevance a == Forced     then liftTCM $ tryHom bHH u v else
+             -- Andreas, 2015-01-19 Forced constructor arguments are not unified.
+             -- Andreas, 2015-02-26 Restricting this to big forced arguments;
+             -- this still addresses issue 1406.
+             if getRelevance a == Forced Big then liftTCM $ tryHom bHH u v else
                ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
 
       liftTCM $ reportSDoc "tc.lhs.unify" 25 $
