@@ -259,34 +259,45 @@ buildParsers r flat use = do
             -> Parser e e
         mkP key p0 ops higher =
             memoise (NodeK key) $
-              Fold.asum [nonAssoc, preRights, postLefts]
+              Fold.asum $ catMaybes [nonAssoc, preRights, postLefts]
             where
             choice f = Fold.asum . map (f . opP p0)
 
-            nonAssoc = do
-              x <- higher
-              f <- choice binop (filter isinfix ops)
-              y <- higher
-              return (f x y)
+            nonAssoc = case filter isinfix ops of
+              []  -> Nothing
+              ops -> Just $ do
+                x <- higher
+                f <- choice binop ops
+                y <- higher
+                return (f x y)
+
+            or p1 []   p2 []   = Nothing
+            or p1 []   p2 ops2 = Just (p2 ops2)
+            or p1 ops1 p2 []   = Just (p1 ops1)
+            or p1 ops1 p2 ops2 = Just (p1 ops1 <|> p2 ops2)
 
             preRight =
-              choice preop (filter isprefix ops)
-              <|>
-              flip ($) <$> higher
-                       <*> choice binop (filter isinfixr ops)
+              or (choice preop)
+                 (filter isprefix ops)
+                 (\ops -> flip ($) <$> higher <*> choice binop ops)
+                 (filter isinfixr ops)
 
-            preRights =
-              preRight <*> (preRights <|> higher)
+            preRights = do
+              preRight <- preRight
+              return $ Data.Function.fix $ \preRights ->
+                preRight <*> (preRights <|> higher)
 
             postLeft =
-              choice postop (filter ispostfix ops)
-              <|>
-              flip <$> choice binop (filter isinfixl ops)
-                   <*> higher
+              or (choice postop)
+                 (filter ispostfix ops)
+                 (\ops -> flip <$> choice binop ops <*> higher)
+                 (filter isinfixl ops)
 
-            postLefts =
-              memoise (PostLeftsK key) $
-                flip ($) <$> (postLefts <|> higher) <*> postLeft
+            postLefts = do
+              postLeft <- postLeft
+              return $ Data.Function.fix $ \postLefts ->
+                memoise (PostLeftsK key) $
+                  flip ($) <$> (postLefts <|> higher) <*> postLeft
 
 
 ---------------------------------------------------------------------------
