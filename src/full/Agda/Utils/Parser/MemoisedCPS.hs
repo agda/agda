@@ -52,12 +52,7 @@ import Data.IntMap (IntMap)
 #endif
 import Data.List
 
-#if !MIN_VERSION_mtl(2,2,0)
-modify' :: MonadState s m => (s -> s) -> m ()
-modify' f = do
-  x <- get
-  put $! f x
-#endif
+import Agda.Utils.Monad (modify')
 
 -- | Positions.
 
