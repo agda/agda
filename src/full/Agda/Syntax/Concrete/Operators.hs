@@ -170,8 +170,7 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     will stay this way until people start complaining about it.
 -}
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
-buildParsers r flat use =
-  Bench.billTo [Bench.Parsing, Bench.Operators, Bench.BuildParser] $ do
+buildParsers r flat use = do
     (names, ops) <- localNames flat
     let cons = getDefinedNames [ConName, PatternSynName] flat
     reportSLn "scope.operators" 50 $ unlines
