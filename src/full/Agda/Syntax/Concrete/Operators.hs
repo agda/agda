@@ -47,7 +47,6 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
-import Agda.TypeChecking.Monad.Benchmark (billSub)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
@@ -62,6 +61,15 @@ import Agda.Utils.List
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+---------------------------------------------------------------------------
+-- * Billing
+---------------------------------------------------------------------------
+
+-- | Bills the operator parser.
+
+billToParser :: ScopeM a -> ScopeM a
+billToParser = Bench.billTo [Bench.Parsing, Bench.Operators]
 
 ---------------------------------------------------------------------------
 -- * Building the parser
@@ -147,7 +155,7 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
 -}
 buildParsers :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (Parsers e)
 buildParsers r flat use =
-  billSub [Bench.Parsing, Bench.Operators, Bench.BuildParser] $ do
+  Bench.billTo [Bench.Parsing, Bench.Operators, Bench.BuildParser] $ do
     (names, ops) <- localNames flat
     let cons = getDefinedNames [ConName, PatternSynName] flat
     reportSLn "scope.operators" 50 $ unlines
@@ -511,7 +519,7 @@ classifyPattern conf p =
 --      intended _* applied to true, or as true applied to a variable *. If we
 --      check arities this problem won't appear.
 parseLHS :: Name -> Pattern -> ScopeM LHSCore
-parseLHS top p = do
+parseLHS top p = billToParser $ do
   res <- parseLHS' IsLHS (Just top) p
   case res of
     Right (f, lhs) -> return lhs
@@ -530,7 +538,7 @@ parsePatternSyn :: Pattern -> ScopeM Pattern
 parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
-parsePatternOrSyn lhsOrPatSyn p = do
+parsePatternOrSyn lhsOrPatSyn p = billToParser $ do
   res <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     Left p -> return p
@@ -587,7 +595,7 @@ qualifierModules qs =
 -- | Parse a list of expressions into an application.
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
-parseApplication es = do
+parseApplication es  = billToParser $ do
     -- Build the parser
     let ms = qualifierModules [ q | Ident q <- es ]
     flat <- flattenScope ms <$> getScope
@@ -606,7 +614,7 @@ parseModuleIdentifier (Ident m) = return m
 parseModuleIdentifier e = typeError $ NotAModuleExpr e
 
 parseRawModuleApplication :: [Expr] -> ScopeM (QName, [NamedArg Expr])
-parseRawModuleApplication es = do
+parseRawModuleApplication es = billToParser $ do
     let e : es_args = es
     m <- parseModuleIdentifier e
 

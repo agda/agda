@@ -31,7 +31,6 @@ import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -312,7 +311,7 @@ instantiateDefinitionType q = do
 highlight_ :: A.Declaration -> TCM ()
 highlight_ d = do
   let highlight d = generateAndPrintSyntaxInfo d Full
-  reimburseTop Bench.Typing $ billTop Bench.Highlighting $ case d of
+  Bench.billTo [Bench.Highlighting] $ case d of
     A.Axiom{}                -> highlight d
     A.Field{}                -> __IMPOSSIBLE__
     A.Primitive{}            -> highlight d
@@ -344,7 +343,7 @@ highlight_ d = do
 
 -- | Termination check a declaration.
 checkTermination_ :: A.Declaration -> TCM ()
-checkTermination_ d = reimburseTop Bench.Typing $ billTop Bench.Termination $ do
+checkTermination_ d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
   whenM (optTerminationCheck <$> pragmaOptions) $ do
     case d of
@@ -357,7 +356,7 @@ checkTermination_ d = reimburseTop Bench.Typing $ billTop Bench.Termination $ do
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Set QName -> TCM ()
-checkPositivity_ names = reimburseTop Bench.Typing $ billTop Bench.Positivity $ do
+checkPositivity_ names = Bench.billTo [Bench.Positivity] $ do
   -- Positivity checking.
   reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
   checkStrictlyPositive names
@@ -390,7 +389,7 @@ checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
 
 -- | Check a set of mutual names for constructor-headedness.
 checkInjectivity_ :: Set QName -> TCM ()
-checkInjectivity_ names = reimburseTop Bench.Typing $ billTop Bench.Injectivity $ do
+checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking injectivity..."
 
   -- OLD CODE, REFACTORED using for-loop
@@ -413,7 +412,7 @@ checkInjectivity_ names = reimburseTop Bench.Typing $ billTop Bench.Injectivity 
 
 -- | Check a set of mutual names for projection likeness.
 checkProjectionLikeness_ :: Set QName -> TCM ()
-checkProjectionLikeness_ names = reimburseTop Bench.Typing $ billTop Bench.ProjectionLikeness $ do
+checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
       -- Non-mutual definitions can be considered for
       -- projection likeness
       reportSLn "tc.decl" 20 $ "checkDecl: checking projection-likeness..."

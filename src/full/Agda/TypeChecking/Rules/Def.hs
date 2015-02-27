@@ -25,7 +25,6 @@ import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primRefl, primEqualityName)
-import Agda.TypeChecking.Monad.Benchmark (billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -220,7 +219,7 @@ checkFunDef' t ai delayed extlam with i name cs =
 
         -- Check if the function is injective
         reportSLn "tc.inj.def" 20 $ "checkFunDef': checking injectivity..."
-        inv <- reimburseTop Bench.Typing $ billTop Bench.Injectivity $
+        inv <- Bench.billTo [Bench.Injectivity] $
           checkInjectivity name cs
         -- inv <- return NotInjective
 
@@ -233,7 +232,7 @@ checkFunDef' t ai delayed extlam with i name cs =
         addClauses name cs
 
         -- Coverage check and compile the clauses
-        cc <- reimburseTop Bench.Typing $ billTop Bench.Coverage $
+        cc <- Bench.billTo [Bench.Coverage] $
           compileClauses (Just (name, t)) cs
 
         reportSDoc "tc.cc" 10 $ do

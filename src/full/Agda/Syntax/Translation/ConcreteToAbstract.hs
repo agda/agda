@@ -64,7 +64,6 @@ import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
   , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
   )
-import Agda.TypeChecking.Monad.Benchmark (billTo, billTop, reimburseTop)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Trace (traceCall, setCurrentRange)
@@ -91,26 +90,6 @@ import Agda.Utils.Maybe
 #include "undefined.h"
 import Agda.Utils.Impossible
 import Agda.ImpossibleTest (impossibleTest)
-
-{--------------------------------------------------------------------------
-    Billing
- --------------------------------------------------------------------------}
-
--- | Moves some billing from scoping to parsing.
-
--- NOTE: I suspect that some functions below are not called with the
--- scoping account active, so reimbursing the scoping account isn't
--- always correct (or rather, the scoping account should be activated
--- by the callers). I don't intend to fix this. I think that the
--- benchmarking machinery should keep track of what account is active,
--- and do the reimbursing automatically. That way we can also handle
--- billing in the callees, rather than the callers. I suspect that
--- this would be less error prone.
-
-billToParser :: ScopeM a -> ScopeM a
-billToParser =
-  reimburseTop Bench.Scoping .
-  billTo [Bench.Parsing, Bench.Operators]
 
 {--------------------------------------------------------------------------
     Exceptions
@@ -219,7 +198,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
   -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
     -- Check that expression @e@ is of the form @m args@.
-    (m, args) <- billToParser $ parseModuleApplication e
+    (m, args) <- parseModuleApplication e
     -- Scope check the telescope (introduces bindings!).
     tel' <- toAbstract tel
     -- Scope check the old module name and the module args.
@@ -520,7 +499,7 @@ toAbstractDot prec e = do
         return (e, True)
 
       C.RawApp r es -> do
-        e <- billToParser $ parseApplication es
+        e <- parseApplication es
         toAbstractDot prec e
 
       C.Paren _ e -> toAbstractDot TopCtx e
@@ -626,7 +605,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Raw application
       C.RawApp r es -> do
-        e <- billToParser $ parseApplication es
+        e <- parseApplication es
         toAbstract e
 
   -- Application
@@ -994,7 +973,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
               mp  <- setCurrentRange p $
-                       (Right <$> billToParser (parsePattern p))
+                       (Right <$> parsePattern p)
                          `catchError`
                        (return . Left)
               case mp of
@@ -1052,11 +1031,11 @@ instance ToAbstract LetDef [A.LetBinding] where
         where
             letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
 {-
-                p    <- billToParser $ parseLHS top p
+                p    <- parseLHS top p
                 localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
                 (x, args) <- do
-                  res <- setCurrentRange p $ billToParser $ parseLHS top p
+                  res <- setCurrentRange p $ parseLHS top p
                   case res of
                     C.LHSHead x args -> return (x, args)
                     C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
@@ -1315,7 +1294,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
       defn@(as, p) <- withLocalVars $ do
-         p  <- toAbstract =<< toAbstract =<< billToParser (parsePatternSyn p)
+         p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
@@ -1571,7 +1550,7 @@ data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
-        lhscore <- billToParser $ parseLHS top lhs
+        lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but no --copatterns option
@@ -1583,7 +1562,7 @@ instance ToAbstract LeftHandSide A.LHS where
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
-        wps  <- toAbstract =<< mapM (billToParser . parsePattern) wps
+        wps  <- toAbstract =<< mapM parsePattern wps
         checkPatternLinearity $ lhsCoreAllPatterns lhscore ++ wps
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
