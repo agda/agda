@@ -126,7 +126,8 @@ localNames flat = do
   where
     localOp (x, y) = namesToNotation (QName x) y
     split ops      = partitionEithers $ concatMap opOrNot ops
-    opOrNot n      = [Left (notaName n), Right n]
+    opOrNot n      = Left (notaName n) :
+                     if null (notation n) then [] else [Right n]
 
 -- | Data structure filled in by @buildParsers@.
 --   The top-level parser @pTop@ is of primary interest,
