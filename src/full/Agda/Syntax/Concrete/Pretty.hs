@@ -92,7 +92,7 @@ instance Pretty a => Pretty (WithHiding a) where
   pretty w = prettyHiding w id $ pretty $ dget w
 
 instance Pretty Relevance where
-  pretty Forced     = empty
+  pretty Forced{}   = empty
   pretty UnusedArg  = empty
   pretty Relevant   = empty
   pretty Irrelevant = text "."

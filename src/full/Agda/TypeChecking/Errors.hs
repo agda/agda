@@ -1214,7 +1214,7 @@ instance Verbalize Relevance where
       Relevant   -> "relevant"
       Irrelevant -> "irrelevant"
       NonStrict  -> "shape-irrelevant"
-      Forced     -> __IMPOSSIBLE__
+      Forced{}   -> __IMPOSSIBLE__
       UnusedArg  -> __IMPOSSIBLE__
 
 -- | Indefinite article.

@@ -185,7 +185,7 @@ instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
   prettyTCM NonStrict  = text ".."
   prettyTCM Relevant   = empty
-  prettyTCM Forced     = empty
+  prettyTCM Forced{}   = empty
   prettyTCM UnusedArg  = empty
 
 instance PrettyTCM ProblemConstraint where
