@@ -393,10 +393,6 @@ instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
       return $ C.Underscore noRange (Just $ prettyShow i)
 
-judgToOutputForm :: Judgement a c -> OutputConstraint a c
-judgToOutputForm (HasType e t) = OfType e t
-judgToOutputForm (IsSort  s t) = JustSort s
-
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = liftTCM $ do
     cs <- M.getAllConstraints
@@ -449,7 +445,7 @@ typeOfMetaMI norm mi =
         withMetaInfo (getMetaInfo mv) $
           rewriteJudg mv (mvJudgement mv)
    where
-    rewriteJudg :: MetaVariable -> Judgement Type MetaId ->
+    rewriteJudg :: MetaVariable -> Judgement MetaId ->
                    TCM (OutputConstraint Expr NamedMeta)
     rewriteJudg mv (HasType i t) = do
       ms <- getMetaNameSuggestion i

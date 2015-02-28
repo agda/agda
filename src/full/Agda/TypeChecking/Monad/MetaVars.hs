@@ -253,16 +253,16 @@ lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
     err2 = typeError $ GenericError $ "No type nor action available for hole " ++ show ii
 
 -- | Generate new meta variable.
-newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> TCM MetaId
+newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement a -> TCM MetaId
 newMeta = newMeta' Open
 
 -- | Generate a new meta variable with some instantiation given.
 --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
 newMeta' :: MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
-            Judgement Type a -> TCM MetaId
+            Judgement a -> TCM MetaId
 newMeta' inst mi p perm j = do
   x <- fresh
-  let j' = fmap (const x) j  -- fill the identifier part of the judgement
+  let j' = j { jMetaId = x }  -- fill the identifier part of the judgement
       mv = MetaVar mi p perm j' inst Set.empty Instantiable
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ text "new meta" <+> prettyTCM j'

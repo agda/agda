@@ -148,7 +148,7 @@ instance PrettyTCM ClauseBody where
         (bs, v) <- underAbstraction_ b walk
         return (text (argNameToString $ absName b) : bs, v)
 
-instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
+instance PrettyTCM a => PrettyTCM (Judgement a) where
   prettyTCM (HasType a t) = prettyTCM a <+> text ":" <+> prettyTCM t
   prettyTCM (IsSort  a t) = text "Sort" <+> prettyTCM a <+> text ":" <+> prettyTCM t
 
