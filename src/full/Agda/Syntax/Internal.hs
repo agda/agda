@@ -1074,9 +1074,6 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 instance Pretty MetaId where
   pretty (MetaId n) = text $ "_" ++ show n
 
-showTerm :: Term -> String
-showTerm = show . pretty
-
 instance Pretty Term where
   prettyPrec p v =
     case ignoreSharing v of

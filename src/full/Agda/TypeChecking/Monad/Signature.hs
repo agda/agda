@@ -247,9 +247,10 @@ applySection new ptel old ts rd rm = do
       where
         copyDef' np d = do
           reportSLn "tc.mod.apply" 80 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args"
-          reportSLn "tc.mod.apply" 80 $ "args = " ++ show ts' ++ "\n" ++
-                                        "old type = " ++ showTerm (unEl $ defType d) ++ "\n" ++
-                                        "new type = " ++ showTerm (unEl t)
+          reportSLn "tc.mod.apply" 80 $
+            "args = " ++ show ts' ++ "\n" ++
+            "old type = " ++ prettyShow (defType d) ++ "\n" ++
+            "new type = " ++ prettyShow t
           addConstant y =<< nd y
           makeProjection y
           -- Set display form for the old name if it's not a constructor.
