@@ -1074,6 +1074,17 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 instance Pretty MetaId where
   pretty (MetaId n) = text $ "_" ++ show n
 
+instance Pretty Substitution where
+  prettyPrec p rho = brackets $ pr rho
+    where
+    pr rho = case rho of
+      IdS              -> text "idS"
+      EmptyS           -> text "ε"
+      t :# rho         -> prettyPrec 1 t <+> text ":#" <+> pr rho
+      Strengthen _ rho -> text "↓" <+> pr rho
+      Wk n rho         -> text ("↑" ++ show n) <+> pr rho
+      Lift n rho       -> text ("⇑" ++ show n) <+> pr rho
+
 instance Pretty Term where
   prettyPrec p v =
     case ignoreSharing v of
