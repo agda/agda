@@ -23,7 +23,7 @@ import Control.Monad.Identity hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Parallel
 
-import Data.Foldable ( Foldable )
+import Data.Foldable ( Foldable, foldMap )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
@@ -863,40 +863,10 @@ instance Show MetaId where
 --   showsPrec p (NotBlocked x) = showsPrec p x
 
 ---------------------------------------------------------------------------
--- * Sized instances.
+-- * Sized instances and TermSize.
 ---------------------------------------------------------------------------
 
-instance Sized Term where
-  size v = case v of
-    Var _ vs    -> 1 + Prelude.sum (map size vs)
-    Def _ vs    -> 1 + Prelude.sum (map size vs)
-    Con _ vs    -> 1 + Prelude.sum (map size vs)
-    MetaV _ vs  -> 1 + Prelude.sum (map size vs)
-    Level l     -> size l
-    Lam _ f     -> 1 + size f
-    Lit _       -> 1
-    Pi a b      -> 1 + size a + size b
-    Sort s      -> 1
-    DontCare mv -> size mv
-    Shared p    -> size (derefPtr p)
-    ExtLam{}    -> __IMPOSSIBLE__
-
-instance Sized Type where
-  size = size . unEl
-
-instance Sized Level where
-  size (Max as) = 1 + Prelude.sum (map size as)
-
-instance Sized PlusLevel where
-  size (ClosedLevel _) = 1
-  size (Plus _ a)      = size a
-
-instance Sized LevelAtom where
-  size (MetaLevel _   vs) = 1 + Prelude.sum (map size vs)
-  size (BlockedLevel _ v) = size v
-  size (NeutralLevel _ v) = size v
-  size (UnreducedLevel v) = size v
-
+-- | The size of a telescope is its length (as a list).
 instance Sized (Tele a) where
   size  EmptyTel         = 0
   size (ExtendTel _ tel) = 1 + size tel
@@ -904,9 +874,68 @@ instance Sized (Tele a) where
 instance Sized a => Sized (Abs a) where
   size = size . unAbs
 
-instance Sized a => Sized (Elim' a) where
-  size (Apply v) = size v
-  size  Proj{}   = 1
+-- | The size of a term is roughly the number of nodes in its
+--   syntax tree.  This number need not be precise for logical
+--   correctness of Agda, it is only used for reporting
+--   (and maybe decisions regarding performance).
+--
+--   Not counting towards the term size are:
+--
+--     * sort and color annotations,
+--     * projections.
+--
+class TermSize a where
+  termSize :: a -> Int
+  termSize = getSum . tsize
+
+  tsize :: a -> Sum Int
+
+instance (Foldable t, TermSize a) => TermSize (t a) where
+  tsize = foldMap tsize
+
+instance TermSize Term where
+  tsize v = case v of
+    Var _ vs    -> 1 + tsize vs
+    Def _ vs    -> 1 + tsize vs
+    Con _ vs    -> 1 + tsize vs
+    MetaV _ vs  -> 1 + tsize vs
+    Level l     -> tsize l
+    Lam _ f     -> 1 + tsize f
+    Lit _       -> 1
+    Pi a b      -> 1 + tsize a + tsize b
+    Sort s      -> tsize s
+    DontCare mv -> tsize mv
+    Shared p    -> tsize (derefPtr p)
+    ExtLam{}    -> __IMPOSSIBLE__
+
+instance TermSize Sort where
+  tsize s = case s of
+    Type l    -> 1 + tsize l
+    Prop      -> 1
+    Inf       -> 1
+    SizeUniv  -> 1
+    DLub s s' -> 1 + tsize s + tsize s'
+
+instance TermSize Level where
+  tsize (Max as) = 1 + tsize as
+
+instance TermSize PlusLevel where
+  tsize (ClosedLevel _) = 1
+  tsize (Plus _ a)      = tsize a
+
+instance TermSize LevelAtom where
+  tsize (MetaLevel _   vs) = 1 + tsize vs
+  tsize (BlockedLevel _ v) = tsize v
+  tsize (NeutralLevel _ v) = tsize v
+  tsize (UnreducedLevel v) = tsize v
+
+instance TermSize Substitution where
+  tsize IdS                = 1
+  tsize EmptyS             = 1
+  tsize (Wk _ rho)         = 1 + tsize rho
+  tsize (t :# rho)         = 1 + tsize t + tsize rho
+  tsize (Strengthen _ rho) = 1 + tsize rho
+  tsize (Lift _ rho)       = 1 + tsize rho
 
 ---------------------------------------------------------------------------
 -- * KillRange instances.
@@ -953,6 +982,14 @@ instance KillRange Sort where
     SizeUniv   -> SizeUniv
     Type a     -> killRange1 Type a
     DLub s1 s2 -> killRange2 DLub s1 s2
+
+instance KillRange Substitution where
+  killRange IdS                  = IdS
+  killRange EmptyS               = EmptyS
+  killRange (Wk n rho)           = killRange1 (Wk n) rho
+  killRange (t :# rho)           = killRange2 (:#) t rho
+  killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
+  killRange (Lift n rho)         = killRange1 (Lift n) rho
 
 instance KillRange Pattern where
   killRange p =

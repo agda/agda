@@ -642,7 +642,7 @@ assign dir x args v = do
 
         reportSLn "tc.meta.assign" 15 "passed occursCheck"
         verboseS "tc.meta.assign" 30 $ do
-          let n = size v
+          let n = termSize v
           when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
             sep [ text "size" <+> text (show n)
 --                , nest 2 $ text "type" <+> prettyTCM t
