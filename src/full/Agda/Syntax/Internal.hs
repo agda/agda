@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 
@@ -888,6 +889,10 @@ class TermSize a where
   termSize = getSum . tsize
 
   tsize :: a -> Sum Int
+
+#if !MIN_VERSION_base(4,7,0)
+deriving instance Num a => Num (Sum a)
+#endif
 
 instance (Foldable t, TermSize a) => TermSize (t a) where
   tsize = foldMap tsize
