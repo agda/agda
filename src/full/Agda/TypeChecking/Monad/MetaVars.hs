@@ -32,6 +32,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
 import Agda.Utils.Size
 
@@ -52,7 +53,7 @@ modifyMetaStore f = stMetaStore %= f
 -- | Lookup a meta variable
 lookupMeta :: MetaId -> TCM MetaVariable
 lookupMeta m = fromMaybeM failure $ Map.lookup m <$> getMetaStore
-  where failure = fail $ "no such meta variable " ++ show m
+  where failure = fail $ "no such meta variable " ++ prettyShow m
 
 updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
 updateMetaVar m f = modifyMetaStore $ Map.adjust f m
@@ -170,7 +171,7 @@ getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 setMetaNameSuggestion :: MetaId -> MetaNameSuggestion -> TCM ()
 setMetaNameSuggestion mi s = do
   reportSLn "tc.meta.name" 20 $
-    "setting name of meta " ++ show mi ++ " to " ++ s
+    "setting name of meta " ++ prettyShow mi ++ " to " ++ s
   updateMetaVar mi $ \ mvar ->
     mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = s }}
 

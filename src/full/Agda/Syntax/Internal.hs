@@ -882,8 +882,10 @@ instance Show a => Show (Abs a) where
   showsPrec p (NoAbs x a) = showParen (p > 0) $
     showString "NoAbs " . shows x . showString " " . showsPrec 10 a
 
+-- | Show non-record version of this newtype.
 instance Show MetaId where
-    show (MetaId n) = "_" ++ show n
+  showsPrec p (MetaId n) = showParen (p > 0) $
+    showString "MetaId " . shows n
 
 -- instance Show t => Show (Blocked t) where
 --   showsPrec p (Blocked m x) = showParen (p > 0) $
@@ -1069,6 +1071,9 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
 
+instance Pretty MetaId where
+  pretty (MetaId n) = text $ "_" ++ show n
+
 showTerm :: Term -> String
 showTerm = show . pretty
 
@@ -1091,7 +1096,7 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Sort s      -> pretty s
       Level l     -> pretty l
-      MetaV x els -> text (show x) `pApp` els
+      MetaV x els -> pretty x `pApp` els
       DontCare v  -> pretty v
       Shared{}    -> __IMPOSSIBLE__
       ExtLam{}    -> __IMPOSSIBLE__

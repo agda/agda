@@ -815,9 +815,9 @@ data NamedMeta = NamedMeta
   , nmid         :: MetaId
   }
 
-instance Show NamedMeta where
-  show (NamedMeta "" x) = show x
-  show (NamedMeta s  x) = "_" ++ s ++ show x
+instance Pretty NamedMeta where
+  pretty (NamedMeta "" x) = pretty x
+  pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
 type MetaStore = Map MetaId MetaVariable
 

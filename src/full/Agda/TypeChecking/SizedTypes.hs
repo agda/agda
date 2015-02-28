@@ -514,7 +514,7 @@ oldSolver metas cs = do
                 v = term e
 
             reportSDoc "tc.size.solve" 20 $ sep
-              [ text (show m) <+> text ":="
+              [ pretty m <+> text ":="
               , nest 2 $ prettyTCM v
               ]
 

@@ -63,6 +63,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
+import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -368,7 +369,7 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
-        show . NamedMeta (metaNameSuggestion i) . MetaId <$> metaNumber i
+        prettyShow . NamedMeta (metaNameSuggestion i) . MetaId <$> metaNumber i
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e

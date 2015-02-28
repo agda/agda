@@ -155,7 +155,7 @@ instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
 instance PrettyTCM MetaId where
   prettyTCM x = do
     mn <- getMetaNameSuggestion x
-    text $ show (NamedMeta mn x)
+    pretty $ NamedMeta mn x
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
@@ -229,11 +229,11 @@ instance PrettyTCM Constraint where
             mi <- mvInstantiation <$> lookupMeta m
             case mi of
               BlockedConst t ->
-                sep [ text (show m) <+> text ":="
+                sep [ pretty m <+> text ":="
                     , nest 2 $ prettyTCM t
                     ]
               PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p ->
-                sep [ text (show m) <+> text ":="
+                sep [ pretty m <+> text ":="
                     , nest 2 $ prettyTCM p ]
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
@@ -241,11 +241,13 @@ instance PrettyTCM Constraint where
               InstV{} -> __IMPOSSIBLE__
         FindInScope m Nothing -> do
             t <- getMetaType m
-            sep [ text $ "Find in scope " ++ (show m) ++ " :" ++ (show t) ++ " (no candidate for now)"
+            sep [ text "Find in scope" <+> pretty m <+> text ":"
+                , prettyTCM t
+                , text " (no candidate for now)"
                 ]
         FindInScope m (Just cands) -> do
             t <- getMetaType m
-            sep [ text $ "Find in scope " ++ (show m) ++ " :"
+            sep [ text "Find in scope" <+> pretty m <+> text ":"
                 , nest 2 $ prettyTCM t
                 , sep $ flip map cands $ \(t,ty) ->
                            prettyTCM t <+> text ": " <+> prettyTCM ty

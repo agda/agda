@@ -391,7 +391,7 @@ instance ToConcrete InteractionId C.Expr where
 
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
-      return $ C.Underscore noRange (Just $ show i)
+      return $ C.Underscore noRange (Just $ prettyShow i)
 
 judgToOutputForm :: Judgement a c -> OutputConstraint a c
 judgToOutputForm (HasType e t) = OfType e t
@@ -462,7 +462,7 @@ typeOfMetaMI norm mi =
           [ TP.text "len  =" TP.<+> TP.text (show $ length vs)
           , TP.text "args =" TP.<+> prettyTCM vs
           , TP.text "t    =" TP.<+> prettyTCM t
-          , TP.text "x    =" TP.<+> TP.text (show x)
+          , TP.text "x    =" TP.<+> TP.pretty x
           ]
         ]
       OfType x <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
