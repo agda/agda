@@ -1176,23 +1176,3 @@ unLevelAtom (MetaLevel x es)   = MetaV x es
 unLevelAtom (NeutralLevel _ v) = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
-
----------------------------------------------------------------------------
--- * Boring instances
----------------------------------------------------------------------------
-
-instance Sized Substitution where
-  size IdS                = 1
-  size EmptyS             = 1
-  size (Wk _ rho)         = 1 + size rho
-  size (t :# rho)         = 1 + size t + size rho
-  size (Strengthen _ rho) = 1 + size rho
-  size (Lift _ rho)       = 1 + size rho
-
-instance KillRange Substitution where
-  killRange IdS                  = IdS
-  killRange EmptyS               = EmptyS
-  killRange (Wk n rho)           = killRange1 (Wk n) rho
-  killRange (t :# rho)           = killRange2 (:#) t rho
-  killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
-  killRange (Lift n rho)         = killRange1 (Lift n) rho

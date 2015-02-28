@@ -27,7 +27,6 @@ import Agda.Syntax.Position
 
 import Agda.Utils.Functor
 import Agda.Utils.Pretty
-import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -351,9 +350,6 @@ instance SetRange a => SetRange (Arg c a) where
 instance (KillRange c, KillRange a) => KillRange (Arg c a) where
   killRange (Arg info a) = killRange2 Arg info a
 
-instance Sized a => Sized (Arg c a) where
-  size = size . unArg
-
 instance (Eq a, Eq c) => Eq (Arg c a) where
   Arg (ArgInfo h1 _ cs1) x1 == Arg (ArgInfo h2 _ cs2) x2 = (h1, cs1, x1) == (h2, cs2, x2)
 
@@ -472,9 +468,6 @@ instance HasRange a => HasRange (Dom c a) where
 instance (KillRange c, KillRange a) => KillRange (Dom c a) where
   killRange (Dom info a) = killRange2 Dom info a
 
-instance Sized a => Sized (Dom c a) where
-  size = size . unDom
-
 instance (Show a, Show c) => Show (Dom c a) where
   show = show . argFromDom
 
@@ -532,9 +525,6 @@ instance SetRange a => SetRange (Named name a) where
 
 instance (KillRange name, KillRange a) => KillRange (Named name a) where
   killRange (Named n a) = Named (killRange n) (killRange a)
-
-instance Sized a => Sized (Named name a) where
-  size = size . namedThing
 
 instance Show a => Show (Named_ a) where
     show (Named Nothing x)  = show x

@@ -1,3 +1,7 @@
+-- | Collection size.
+--
+--   For 'TermSize' see "Agda.Syntax.Internal".
+
 module Agda.Utils.Size
   ( Sized(..)
   , SizedThing(..)
@@ -20,10 +24,9 @@ import qualified Data.List as List
 
 import Agda.Utils.Null
 
--- | The size of an object.
+-- | The size of a collection (i.e., its length).
 --
---   For collections, it returns the length of the collection,
---   not the overall size including the elements.
+--   Should fit into an @Int@.  TODO: change to @Int@.
 
 class Sized a where
   size :: Integral n => a -> n
