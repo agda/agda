@@ -48,7 +48,7 @@ import Prelude hiding (null)
 import Control.Monad
 import Control.Monad.Reader (local)
 
-import Data.Foldable
+import Data.Foldable ( Foldable, foldMap )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
