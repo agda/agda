@@ -122,7 +122,7 @@ putSerializeFile = __IMPOSSIBLE__
 serialize :: Serialize x => x -> Put
 serialize = __IMPOSSIBLE__
 
-unserialize :: Serialize x => Get x 
+unserialize :: Serialize x => Get x
 unserialize = __IMPOSSIBLE__
 
 -- UHC.Light.Compiler.Base.API
@@ -261,7 +261,7 @@ mkImport = __IMPOSSIBLE__
 mkExport :: HsName -> CExport
 mkExport = __IMPOSSIBLE__
 
-mkMetaData :: HsName -> [CDataCon] -> CDeclMeta   
+mkMetaData :: HsName -> [CDataCon] -> CDeclMeta
 mkMetaData = __IMPOSSIBLE__
 
 mkMetaDataCon :: HsName -> Int -> Int -> CDataCon

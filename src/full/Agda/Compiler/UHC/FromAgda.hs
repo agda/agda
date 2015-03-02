@@ -405,7 +405,7 @@ compileClauses qnm clsArgs projArgs c = do
         let tf = foldl1 (.) (map Lam args)
         return (args, tf)
     addLambdas n | otherwise = __IMPOSSIBLE__
-    
+
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new

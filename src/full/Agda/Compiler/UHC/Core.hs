@@ -110,7 +110,7 @@ funToBind (Fun _ name mqname comment vars e) = do
   ifTracing 10
     (do
       vars' <- replicateM (length vars) freshLocalName
-      
+
       let body' = (mkApp body [coreTrace ("Eval arg: " ++ show name ++ " :: " ++ show i) (mkVar v) | (v, i) <- zip vars' [0..]])
       return $ mkBind1 name $ mkLam vars' body'
       )

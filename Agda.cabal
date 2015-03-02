@@ -77,7 +77,7 @@ library
   include-dirs:     src/full
 
   if flag(uhc)
-    build-depends:    uhc-light >= 1.1.8.8 && < 1.2 
+    build-depends:    uhc-light >= 1.1.8.8 && < 1.2
                     , uhc-util >= 0.1.5.0
                     , uulib >= 0.9.16
     cpp-options:    -DUHC_BACKEND
@@ -196,7 +196,6 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
-                    Agda.Compiler.UHC.Compiler
                     Agda.Compiler.UHC.AuxAST
                     Agda.Compiler.UHC.AuxASTUtil
                     Agda.Compiler.UHC.Bridge

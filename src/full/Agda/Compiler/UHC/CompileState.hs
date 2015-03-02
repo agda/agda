@@ -78,7 +78,7 @@ newtype CompileT m a = CompileT { unCompileT :: StateT CompileState m a }
   deriving (Monad, MonadIO, MonadTrans, Applicative, Functor)
 
 -- | Used to run the Agda-to-AuxAST transformation.
--- During this transformation, 
+-- During this transformation,
 runCompileT :: MonadIO m
     => Maybe CoinductionKit
     -> ModuleName   -- ^ The module to compile.
