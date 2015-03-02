@@ -19,13 +19,15 @@ import Data.Maybe
 import Data.Monoid
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , getCurrentDirectory, setCurrentDirectory
+                        , createDirectory, doesDirectoryExist
                         )
 import Data.Version
 import Data.List as L
 import System.Exit
 import System.FilePath hiding (normalise)
 import System.Process hiding (env)
-
+import Control.Exception (try)
+import System.IO.Error (isAlreadyExistsError)
 import Paths_Agda
 import Agda.Compiler.CallCompiler
 import Agda.Interaction.FindFile
@@ -77,24 +79,42 @@ compileUHCAgdaBase = do
     case pkgSuc of
         ExitSuccess -> do
                 let pkgDbDir = head $ lines pkgDbOut
-                liftIO $ setCurrentDirectory dataDir
 
                 let vers = showVersion version
                     pkgName = "uhc-agda-base-" ++ vers
                     hsFiles = ["src/UHC/Agda/Builtins.hs"]
-                reportSLn "uhc" 10 $ unlines $
-                    [ "Compiling " ++ pkgName ++ ", installing into package db " ++ pkgDbDir ++ "."
-                    ]
+                -- make sure pkg db dir exists
+                liftIO $ createDirectoryIfMissing True pkgDbDir
 
 
-                callUHC1 (  ["--odir=" ++ pkgDbDir ++""
-                            , "--pkg-build=" ++ pkgName
-                            , "--pkg-build-exposed=UHC.Agda.Builtins"
-                            , "--pkg-expose=base-3.0.0.0"
-                            ] ++ hsFiles)
+                agdaBaseInstalling <- liftIO (try $ createDirectory (pkgDbDir </> "installing_" ++ pkgName))
 
+                case agdaBaseInstalling of
+                  Left e | isAlreadyExistsError e -> do
+                        -- check if install finished, else abort compilation
+                        agdaBaseInstalled <- liftIO (doesDirectoryExist (pkgDbDir </> "installed_" ++ pkgName))
+                        case agdaBaseInstalled of
+                            True  -> reportSLn "uhc" 10 $ "Agda base library " ++ pkgName ++ " is already installed."
+                            False -> internalError $ unlines
+                                [ "It looks like the agda base library is currently being installed by another Agda process."
+                                , "Aborting this compile run, please try it again after the other Agda process finished."
+                                , "You can also try deleting the directory \""
+                                    ++ (pkgDbDir </> "installing_" ++ pkgName) ++ "\""
+                                    ++ ", to force reinstallation of the agda base library."
+                                ]
+                  Left e | otherwise -> __IMPOSSIBLE__
+                  Right _ -> do
+                      liftIO $ setCurrentDirectory dataDir
+                      reportSLn "uhc" 10 $ "Agda base library " ++ pkgName ++ " missing, installing into package db at " ++ pkgDbDir ++ "."
 
-                liftIO $ setCurrentDirectory pwd
+                      callUHC1 (  ["--odir=" ++ pkgDbDir ++""
+                                  , "--pkg-build=" ++ pkgName
+                                  , "--pkg-build-exposed=UHC.Agda.Builtins"
+                                  , "--pkg-expose=base-3.0.0.0"
+                                  ] ++ hsFiles)
+                      liftIO $ createDirectory (pkgDbDir </> "installed_" ++ pkgName)
+
+                      liftIO $ setCurrentDirectory pwd
         ExitFailure _ -> internalError $ unlines
             [ "Agda couldn't find the UHC user package directory."
             ]
