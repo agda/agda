@@ -223,7 +223,7 @@ unqualifyQ qnm = do
 
 newtype FreshNameT m a = FreshNameT
   { unFreshNameT :: StateT FreshNameState m a}
-  deriving (Monad, MonadTrans, Functor, MonadFix, MonadPlus, MonadIO, Applicative)
+  deriving (Monad, MonadTrans, Functor, MonadFix, MonadPlus, MonadIO, Applicative, Alternative)
 
 data FreshNameState
   = FreshNameState
