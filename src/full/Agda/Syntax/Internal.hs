@@ -496,33 +496,56 @@ properlyMatching ProjP{} = True
 
 -- | Substitutions.
 
-infixr 4 :#
 data Substitution
 
-  = IdS                     -- Γ ⊢ IdS : Γ
+  = IdS
+    -- ^ Identity substitution.
+    --   @Γ ⊢ IdS : Γ@
 
-  | EmptyS                  -- Γ ⊢ EmptyS : ()
+  | EmptyS
+    -- ^ Empty substitution, lifts from the empty context.
+    --   Apply this to closed terms you want to use in a non-empty context.
+    --   @Γ ⊢ EmptyS : ()@
 
-                            --      Γ ⊢ ρ : Δ
-  | Wk !Int Substitution    -- -------------------
-                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
+  | Term :# Substitution
+    -- ^ Substitution extension, ``cons''.
+    --   @
+    --     Γ ⊢ u : Aρ   Γ ⊢ ρ : Δ
+    --     ----------------------
+    --     Γ ⊢ u :# ρ : Δ, A
+    --   @
 
-                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
-  | Term :# Substitution    -- ---------------------
-                            --   Γ ⊢ u :# ρ : Δ, A
+  | Strengthen Empty Substitution
+    -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
+    --   Apply this to a term which does not contain variable 0
+    --   to lower all de Bruijn indices by one.
+    --   @
+    --             Γ ⊢ ρ : Δ
+    --     ---------------------------
+    --     Γ ⊢ Strengthen ρ : Δ, A
+    --   @
 
-    -- First argument is __IMPOSSIBLE__ -- we insert it when
-    -- constructing a Substitution so that applying Strengthen fails we
-    -- get the site which constructed the substitution, not the thing
-    -- that tried to apply it.
-  | Strengthen Empty Substitution        --         Γ ⊢ ρ : Δ
-                                         -- ---------------------------
-                                         --   Γ ⊢ Strengthen ρ : Δ, A
+  | Wk !Int Substitution
+    -- ^ Weakning substitution, lifts to an extended context.
+    --   @
+    --         Γ ⊢ ρ : Δ
+    --     -------------------
+    --     Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
+    --   @
 
-                            --        Γ ⊢ ρ : Δ
-  | Lift !Int Substitution  -- -------------------------
-                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
+
+  | Lift !Int Substitution
+    -- ^ Lifting substitution.  Use this to go under a binder.
+    --   @Lift 1 ρ == var 0 :# Wk 1 ρ@.
+    --   @
+    --            Γ ⊢ ρ : Δ
+    --     -------------------------
+    --     Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
+    --   @
+
   deriving (Show)
+
+infixr 4 :#
 
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
@@ -666,6 +689,7 @@ impossibleTerm file line = Lit $ LitString noRange $ unlines
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
 
+-- | Constructing a singleton telescope.
 class SgTel a where
   sgTel :: a -> Telescope
 
@@ -854,8 +878,10 @@ instance Show a => Show (Abs a) where
   showsPrec p (NoAbs x a) = showParen (p > 0) $
     showString "NoAbs " . shows x . showString " " . showsPrec 10 a
 
+-- | Show non-record version of this newtype.
 instance Show MetaId where
-    show (MetaId n) = "_" ++ show n
+  showsPrec p (MetaId n) = showParen (p > 0) $
+    showString "MetaId " . shows n
 
 -- instance Show t => Show (Blocked t) where
 --   showsPrec p (Blocked m x) = showParen (p > 0) $
@@ -1039,8 +1065,19 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
 
-showTerm :: Term -> String
-showTerm = show . pretty
+instance Pretty MetaId where
+  pretty (MetaId n) = text $ "_" ++ show n
+
+instance Pretty Substitution where
+  prettyPrec p rho = brackets $ pr rho
+    where
+    pr rho = case rho of
+      IdS              -> text "idS"
+      EmptyS           -> text "ε"
+      t :# rho         -> prettyPrec 1 t <+> text ":#" <+> pr rho
+      Strengthen _ rho -> text "↓" <+> pr rho
+      Wk n rho         -> text ("↑" ++ show n) <+> pr rho
+      Lift n rho       -> text ("⇑" ++ show n) <+> pr rho
 
 instance Pretty Term where
   prettyPrec p v =
@@ -1061,7 +1098,7 @@ instance Pretty Term where
             , nest 2 $ pretty (unAbs b) ]
       Sort s      -> pretty s
       Level l     -> pretty l
-      MetaV x els -> text (show x) `pApp` els
+      MetaV x els -> pretty x `pApp` els
       DontCare v  -> pretty v
       Shared{}    -> __IMPOSSIBLE__
     where

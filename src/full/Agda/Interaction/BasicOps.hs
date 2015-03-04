@@ -391,11 +391,7 @@ instance ToConcrete InteractionId C.Expr where
 
 instance ToConcrete NamedMeta C.Expr where
     toConcrete i = do
-      return $ C.Underscore noRange (Just $ show i)
-
-judgToOutputForm :: Judgement a c -> OutputConstraint a c
-judgToOutputForm (HasType e t) = OfType e t
-judgToOutputForm (IsSort  s t) = JustSort s
+      return $ C.Underscore noRange (Just $ prettyShow i)
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = liftTCM $ do
@@ -449,7 +445,7 @@ typeOfMetaMI norm mi =
         withMetaInfo (getMetaInfo mv) $
           rewriteJudg mv (mvJudgement mv)
    where
-    rewriteJudg :: MetaVariable -> Judgement Type MetaId ->
+    rewriteJudg :: MetaVariable -> Judgement MetaId ->
                    TCM (OutputConstraint Expr NamedMeta)
     rewriteJudg mv (HasType i t) = do
       ms <- getMetaNameSuggestion i
@@ -462,7 +458,7 @@ typeOfMetaMI norm mi =
           [ TP.text "len  =" TP.<+> TP.text (show $ length vs)
           , TP.text "args =" TP.<+> prettyTCM vs
           , TP.text "t    =" TP.<+> prettyTCM t
-          , TP.text "x    =" TP.<+> TP.text (show x)
+          , TP.text "x    =" TP.<+> TP.pretty x
           ]
         ]
       OfType x <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)

@@ -54,6 +54,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.VarSet as Set
 
 #include "undefined.h"
@@ -70,7 +71,7 @@ findIdx vs v = findIndex (==v) (reverse vs)
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MetaId -> TCM Bool
 isBlockedTerm x = do
-    reportSLn "tc.meta.blocked" 12 $ "is " ++ show x ++ " a blocked term? "
+    reportSLn "tc.meta.blocked" 12 $ "is " ++ prettyShow x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
             BlockedConst{}                 -> True
@@ -110,7 +111,7 @@ assignTerm x tel v = do
 -- | Skip frozen check.  Used for eta expanding frozen metas.
 assignTerm' :: MetaId -> [I.Arg ArgName] -> Term -> TCM ()
 assignTerm' x tel v = do
-    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show v ++ "\n  in " ++ show tel
+    reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
      -- verify (new) invariants
     whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
 
@@ -133,7 +134,7 @@ assignTerm' x tel v = do
     modifyMetaStore $ ins x i
     etaExpandListeners x
     wakeupConstraints x
-    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
+    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ prettyShow x
   where
     metaInstance tel v = InstV tel v
     ins x i store = Map.adjust (inst i) x store
@@ -201,7 +202,7 @@ newIFSMetaCtx s t vs cands = do
   let perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
+    [ nest 2 $ pretty x <+> text ":" <+> prettyTCM t
     ]
   addConstraint $ FindInScope x Nothing cands
   return $ MetaV x $ map Apply vs
@@ -241,7 +242,7 @@ newValueMetaCtx' b t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
-    , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
+    , nest 2 $ pretty x <+> text ":" <+> prettyTCM t
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
@@ -440,7 +441,7 @@ allMetaKinds = [minBound .. maxBound]
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
-  verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ show m) $ do
+  verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
   let waitFor x = do
         reportSDoc "tc.meta.eta" 20 $ do
           text "postponing eta-expansion of meta variable" <+>
@@ -469,7 +470,10 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
               inTopContext $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
-                  reportSLn "tc.meta.eta" 15 $ "eta expanding: " ++ show m ++ " --> " ++ show du
+                  reportSDoc "tc.meta.eta" 15 $ sep
+                    [ text "eta expanding: " <+> pretty m <+> text " --> "
+                    , nest 2 $ prettyTCM u
+                    ]
                 -- Andreas, 2012-03-29: No need for occurrence check etc.
                 -- we directly assign the solution for the meta
                 -- 2012-05-23: We also bypass the check for frozen.

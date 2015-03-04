@@ -53,6 +53,7 @@ import Agda.Utils.List (takeWhileJust)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 import qualified Agda.Utils.VarSet as VarSet
 
@@ -197,19 +198,19 @@ occursCheck m xs v = disableDestructiveUpdate $ liftTCM $ do
     TypeError _ cl -> case clValue cl of
       MetaOccursInItself{} ->
         typeError . GenericError . show =<<
-          fsep [ text ("Refuse to construct infinite term by instantiating " ++ show m ++ " to")
+          fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
                , prettyTCM =<< instantiateFull v
                ]
       MetaCannotDependOn _ _ i ->
         ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
         ( typeError . GenericError . show =<<
-          fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
+          fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
                , prettyTCM v
                , text "since universe polymorphism is disabled"
                ]
         ) {- else -}
         ( typeError . GenericError . show =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to solution")
+            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
                  , prettyTCM v
                  , text "since it contains the variable"
                  , enterClosure cl $ \_ -> prettyTCM (Var i [])
@@ -231,7 +232,7 @@ instance Occurs Term where
     where
       occurs' ctx v = do
       reportSDoc "tc.meta.occurs" 45 $
-        text ("occursCheck " ++ show m ++ " (" ++ show ctx ++ ") of ") <+> prettyTCM v
+        text ("occursCheck " ++ prettyShow m ++ " (" ++ show ctx ++ ") of ") <+> prettyTCM v
       reportSDoc "tc.meta.occurs" 70 $
         nest 2 $ text $ show v
       case v of
@@ -272,7 +273,7 @@ instance Occurs Term where
             -- WAS:
             -- when (m == m') $ if ctx == Top then patternViolation else
             --   abort ctx $ MetaOccursInItself m'
-            when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ show m
+            when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ prettyShow m
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs es) `catchError` \err -> do
@@ -285,7 +286,7 @@ instance Occurs Term where
                 -- flexible occurrences (if not already in a flexible context)
                 PatternErr{} | ctx /= Flex -> do
                   reportSLn "tc.meta.kill" 20 $
-                    "oops, pattern violation for " ++ show m'
+                    "oops, pattern violation for " ++ prettyShow m'
                   -- Andreas, 2014-03-02, see issue 1070:
                   -- Do not prune when meta is projected!
                   caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
@@ -320,7 +321,7 @@ instance Occurs Term where
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
       Shared p   -> metaOccurs m $ derefPtr p
-      MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ show m
+      MetaV m' vs | m == m' -> patternViolation' 50 $ "Found occurrence of " ++ prettyShow m
                   | otherwise -> metaOccurs m vs
 
 instance Occurs QName where
@@ -467,7 +468,7 @@ prune m' vs xs = do
   reportSDoc "tc.meta.kill" 10 $ vcat
     [ text "attempting kills"
     , nest 2 $ vcat
-      [ text "m'    =" <+> text (show m')
+      [ text "m'    =" <+> pretty m'
       -- , text "xs    =" <+> text (show xs)
       , text "xs    =" <+> prettyList (map (prettyTCM . var) xs)
       , text "vs    =" <+> prettyList (map prettyTCM vs)
@@ -728,8 +729,8 @@ performKill kills m a = do
     dbg m' u = reportSDoc "tc.meta.kill" 10 $ vcat
       [ text "actual killing"
       , nest 2 $ vcat
-        [ text "new meta:" <+> text (show m')
+        [ text "new meta:" <+> pretty m'
         , text "kills   :" <+> text (show kills)
-        , text "inst    :" <+> text (show m) <+> text ":=" <+> prettyTCM u
+        , text "inst    :" <+> pretty m <+> text ":=" <+> prettyTCM u
         ]
       ]

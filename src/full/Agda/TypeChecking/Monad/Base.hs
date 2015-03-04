@@ -740,12 +740,13 @@ data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
 -- Used exclusively for typing of meta variables.
 ---------------------------------------------------------------------------
 
-data Judgement t a
-        = HasType { jMetaId :: a, jMetaType :: t }
-        | IsSort  { jMetaId :: a, jMetaType :: t } -- Andreas, 2011-04-26: type needed for higher-order sort metas
-    deriving (Typeable, Functor, Foldable, Traversable)
+-- | Parametrized since it is used without MetaId when creating a new meta.
+data Judgement a
+  = HasType { jMetaId :: a, jMetaType :: Type }
+  | IsSort  { jMetaId :: a, jMetaType :: Type } -- Andreas, 2011-04-26: type needed for higher-order sort metas
+  deriving (Typeable)
 
-instance (Show t, Show a) => Show (Judgement t a) where
+instance Show a => Show (Judgement a) where
     show (HasType a t) = show a ++ " : " ++ show t
     show (IsSort  a t) = show a ++ " :sort " ++ show t
 
@@ -760,7 +761,7 @@ data MetaVariable =
                   -- ^ a metavariable doesn't have to depend on all variables
                   --   in the context, this "permutation" will throw away the
                   --   ones it does not depend on
-                , mvJudgement     :: Judgement Type MetaId
+                , mvJudgement     :: Judgement MetaId
                 , mvInstantiation :: MetaInstantiation
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
@@ -853,9 +854,9 @@ data NamedMeta = NamedMeta
   , nmid         :: MetaId
   }
 
-instance Show NamedMeta where
-  show (NamedMeta "" x) = show x
-  show (NamedMeta s  x) = "_" ++ s ++ show x
+instance Pretty NamedMeta where
+  pretty (NamedMeta "" x) = pretty x
+  pretty (NamedMeta s  x) = text $ "_" ++ s ++ prettyShow x
 
 type MetaStore = Map MetaId MetaVariable
 

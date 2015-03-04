@@ -24,6 +24,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty
 import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -178,7 +179,7 @@ solveConstraint_ (UnBlock m)                =
     case inst of
       BlockedConst t -> do
         reportSDoc "tc.constr.blocked" 15 $
-          text ("blocked const " ++ show m ++ " :=") <+> prettyTCM t
+          text ("blocked const " ++ prettyShow m ++ " :=") <+> prettyTCM t
         assignTerm m [] t
       PostponedTypeCheckingProblem cl unblock -> enterClosure cl $ \prob -> do
         ifNotM unblock (addConstraint $ UnBlock m) $ do

@@ -957,8 +957,3 @@ instance (Reify i1 a1, Reify i2 a2, Reify i3 a3) => Reify (i1,i2,i3) (a1,a2,a3) 
 
 instance (Reify i1 a1, Reify i2 a2, Reify i3 a3, Reify i4 a4) => Reify (i1,i2,i3,i4) (a1,a2,a3,a4) where
     reify (x,y,z,w) = (,,,) <$> reify x <*> reify y <*> reify z <*> reify w
-
-instance (Reify t t', Reify a a')
-         => Reify (Judgement t a) (Judgement t' a') where
-    reify (HasType i t) = HasType <$> reify i <*> reify t
-    reify (IsSort  i t) = IsSort  <$> reify i <*> reify t

@@ -33,6 +33,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError), runExceptT )
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -151,7 +152,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
     mv <- lookupMeta m
     setCurrentRange mv $ do
     reportSLn "tc.instance" 15 $
-      "findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands)
+      "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
     t <- normalise =<< getMetaTypeInContext m
     reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
@@ -322,7 +323,7 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m
       setCurrentRange mv $ do
-      verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ show m) $ do
+      verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
       liftTCM $ flip catchError handle $ do
         reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
         reportSDoc "tc.instance" 20 $ vcat

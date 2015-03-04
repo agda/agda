@@ -148,14 +148,14 @@ instance PrettyTCM ClauseBody where
         (bs, v) <- underAbstraction_ b walk
         return (text (argNameToString $ absName b) : bs, v)
 
-instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
+instance PrettyTCM a => PrettyTCM (Judgement a) where
   prettyTCM (HasType a t) = prettyTCM a <+> text ":" <+> prettyTCM t
   prettyTCM (IsSort  a t) = text "Sort" <+> prettyTCM a <+> text ":" <+> prettyTCM t
 
 instance PrettyTCM MetaId where
   prettyTCM x = do
     mn <- getMetaNameSuggestion x
-    text $ show (NamedMeta mn x)
+    pretty $ NamedMeta mn x
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)
@@ -229,23 +229,27 @@ instance PrettyTCM Constraint where
             mi <- mvInstantiation <$> lookupMeta m
             case mi of
               BlockedConst t ->
-                sep [ text (show m) <+> text ":="
+                sep [ pretty m <+> text ":="
                     , nest 2 $ prettyTCM t
                     ]
               PostponedTypeCheckingProblem cl _ -> enterClosure cl $ \p ->
-                sep [ text (show m) <+> text ":="
+                sep [ pretty m <+> text ":="
                     , nest 2 $ prettyTCM p ]
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
               InstS{} -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
-        FindInScope m b Nothing -> do
+        FindInScope m mb Nothing -> do
             t <- getMetaType m
-            sep [ text $ "Find in scope " ++ (show m) ++ " blocked on " ++ (show b) ++ " :" ++ (show t) ++ " (no candidate for now)"
+            sep [ text "Find in scope" <+> pretty m
+                  <+> maybe (text ":") (\ b -> text "blocked on" <+> pretty b <+> text ":") mb
+                , prettyTCM t
+                , text " (no candidate for now)"
                 ]
-        FindInScope m b (Just cands) -> do
+        FindInScope m mb (Just cands) -> do
             t <- getMetaType m
-            sep [ text $ "Find in scope " ++ (show m) ++ " blocked on " ++ (show b) ++ " :"
+            sep [ text "Find in scope" <+> pretty m
+                  <+> maybe (text ":") (\ b -> text "blocked on" <+> pretty b <+> text ":") mb
                 , nest 2 $ prettyTCM t
                 , sep $ flip map cands $ \(t,ty) ->
                            prettyTCM t <+> text ": " <+> prettyTCM ty
