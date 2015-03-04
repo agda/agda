@@ -75,21 +75,6 @@ billToParser = Bench.billTo [Bench.Parsing, Bench.Operators]
 -- * Building the parser
 ---------------------------------------------------------------------------
 
-partsInScope :: FlatScope -> ScopeM (Set QName)
-partsInScope flat = do
-    (names, ops) <- localNames flat
-    let xs = concatMap parts names ++ concatMap notationNames ops
-    return $ Set.fromList xs
-    where
-        qual xs x = foldr Qual (QName x) xs
-        parts q = parts' (init $ qnameParts q) (unqualify q)
-        parts' ms (NoName _ _)   = []
-        parts' ms x@(Name _ [_]) = [qual ms x]
-                                   -- The first part should be qualified, but not the rest
-        parts' ms x@(Name _ xs)  = qual ms x : qual ms (Name noRange [first]) : [ QName $ Name noRange [i] | i <- iparts ]
-          where
-            first:iparts = [ i | i@(Id {}) <- xs ]
-
 type FlatScope = Map QName [AbstractName]
 
 -- | Compute all defined names in scope and their fixities/notations.

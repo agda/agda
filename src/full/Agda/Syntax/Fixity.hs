@@ -106,10 +106,10 @@ noFixity' = Fixity' noFixity noNotation
 -- then this fixity is preserved, and otherwise it is replaced by
 -- 'noFixity'.
 --
--- Precondition: No 'A.QName' may occur in more than one list element.
+-- Precondition: No 'A.Name' may occur in more than one list element.
 -- Every 'NewNotation' must have the same 'notaName'.
 --
--- Postcondition: No 'A.QName' occurs in more than one list element.
+-- Postcondition: No 'A.Name' occurs in more than one list element.
 mergeNotations :: [NewNotation] -> [NewNotation]
 mergeNotations = map (merge . fixFixities) . groupOn notation
   where
