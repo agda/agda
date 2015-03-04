@@ -210,7 +210,7 @@ buildParsers r flat use = do
         , pNonfix = memoise NonfixK $
                     Fold.asum $
                       pAtom p :
-                      map (nonfixP . opP (pTop p)) non
+                      map (opP Non (pTop p)) non
         , pAtom   = atomP isAtom
         }
     where
@@ -246,13 +246,13 @@ buildParsers r flat use = do
             memoise (NodeK key) $
               Fold.asum $ catMaybes [nonAssoc, preRights, postLefts]
             where
-            choice f = Fold.asum . map (f . opP p0)
+            choice k = Fold.asum . map (opP k p0)
 
             nonAssoc = case filter isinfix ops of
               []  -> Nothing
               ops -> Just $ do
                 x <- higher
-                f <- choice binop ops
+                f <- choice In ops
                 y <- higher
                 return (f x y)
 
@@ -262,9 +262,9 @@ buildParsers r flat use = do
             or p1 ops1 p2 ops2 = Just (p1 ops1 <|> p2 ops2)
 
             preRight =
-              or (choice preop)
+              or (choice Pre)
                  (filter isprefix ops)
-                 (\ops -> flip ($) <$> higher <*> choice binop ops)
+                 (\ops -> flip ($) <$> higher <*> choice In ops)
                  (filter isinfixr ops)
 
             preRights = do
@@ -273,9 +273,9 @@ buildParsers r flat use = do
                 preRight <*> (preRights <|> higher)
 
             postLeft =
-              or (choice postop)
+              or (choice Post)
                  (filter ispostfix ops)
-                 (\ops -> flip <$> choice binop ops <*> higher)
+                 (\ops -> flip <$> choice In ops <*> higher)
                  (filter isinfixl ops)
 
             postLefts = do

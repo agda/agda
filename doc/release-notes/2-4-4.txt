@@ -125,6 +125,18 @@ Operator syntax
     accepted : Σ ℕ λ i → Σ ℕ λ j → Σ (i ≡ j) λ _ → Σ ℕ λ k → j ≡ k
     accepted = 5 , , refl , , refl
 
+* The classification of notations with binders into the categories
+  infix, prefix, postfix or closed has changed. [Issue 1450]
+
+  The difference is that, when classifying the notation, only
+  /regular/ holes are taken into account, not /binding/ ones.
+
+  Example: The notation
+
+    syntax m >>= (λ x → f) = x <- m , f
+
+  was previously treated as infix, but is now treated as prefix.
+
 Other changes
 -------------
 

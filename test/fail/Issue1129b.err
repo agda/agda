@@ -1,2 +1,5 @@
-Issue1129b.agda:23,7-12
-Expected variable name in binding position
+Issue1129b.agda:22,3-24,20
+Could not parse the application do (a , b) ← mAB , return $ b , a
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking do (a , b) ← mAB , return $ b , a

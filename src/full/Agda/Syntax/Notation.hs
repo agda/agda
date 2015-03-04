@@ -77,6 +77,12 @@ holeTarget IdPart{}       = Nothing
 isAHole :: GenPart -> Bool
 isAHole = isJust . holeTarget
 
+-- | Is the part a normal hole?
+isNormalHole :: GenPart -> Bool
+isNormalHole NormalHole{} = True
+isNormalHole BindHole{}   = False
+isNormalHole IdPart{}     = False
+
 -- | Is the part a binder?
 isBindingHole :: GenPart -> Bool
 isBindingHole (BindHole _) = True
@@ -92,11 +98,12 @@ data NotationKind
   | NoNotation
    deriving (Eq)
 
--- | Classify a notation by presence of leading and/or trailing hole.
+-- | Classify a notation by presence of leading and/or trailing
+-- /normal/ holes.
 notationKind :: Notation -> NotationKind
 notationKind []  = NoNotation
 notationKind syn =
-  case (isAHole $ head syn, isAHole $ last syn) of
+  case (isNormalHole $ head syn, isNormalHole $ last syn) of
     (True , True ) -> InfixNotation
     (True , False) -> PostfixNotation
     (False, True ) -> PrefixNotation

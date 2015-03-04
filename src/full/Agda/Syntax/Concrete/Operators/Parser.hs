@@ -1,12 +1,16 @@
 {-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Applicative
 import Control.Exception (throw)
 
+import Data.Either
 import Data.Hashable
 import Data.Maybe
 import Data.Set (Set)
@@ -15,6 +19,7 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
+import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -80,80 +85,97 @@ partP ms s = do
             LocalV y | str == show y -> Just (getRange y)
             _                        -> Nothing
 
-binop ::
-  IsExpr e =>
-  Parser e (NewNotation,Range,[e]) -> Parser e (e -> e -> e)
-binop middleP = do
-  (nsyn,r,es) <- middleP
-  return $ \x y -> rebuild nsyn r (x : es ++ [y])
+-- | Used to define the return type of 'opP'.
 
-preop, postop ::
-  IsExpr e =>
-  Parser e (NewNotation,Range,[e]) -> Parser e (e -> e)
-preop middleP = do
-  (nsyn,r,es) <- middleP
-  return $ \x -> rebuild nsyn r (es ++ [x])
+type family OperatorType (k :: NotationKind) (e :: *) :: *
+type instance OperatorType InfixNotation   e = e -> e -> e
+type instance OperatorType PrefixNotation  e = e -> e
+type instance OperatorType PostfixNotation e = e -> e
+type instance OperatorType NonfixNotation  e = e
 
-postop middleP = do
-  (nsyn,r,es) <- middleP
-  return $ \x -> rebuild nsyn r (x : es)
+-- | A singleton type for 'NotationKind' (except for the constructor
+-- 'NoNotation').
 
+data NK (k :: NotationKind) :: * where
+  In   :: NK InfixNotation
+  Pre  :: NK PrefixNotation
+  Post :: NK PostfixNotation
+  Non  :: NK NonfixNotation
 
--- | Parse the "operator part" of the given syntax.
--- holes at beginning and end are IGNORED.
+-- | Parse the \"operator part\" of the given syntax. Normal holes
+-- (but not binders) at the beginning and end are ignored.
+opP :: forall e k. IsExpr e =>
+       NK k -> Parser e e -> NewNotation -> Parser e (OperatorType k e)
+opP kind p (NewNotation q names _ syn) = do
 
--- Note: it would be better to take the decision of "postprocessing" at the same
--- place as where the holes are discarded, however that would require a dependently
--- typed function (or duplicated code)
-opP :: IsExpr e =>
-       Parser e e -> NewNotation -> Parser e (NewNotation,Range,[e])
-opP p nsyn@(NewNotation q _ _ syn) = do
-  (range,es) <- worker (init $ qnameParts q) $ removeExternalHoles syn
-  return (nsyn,range,es)
- where worker ms [IdPart x] = do r <- partP ms x; return (r,[])
-       worker ms (IdPart x : _ : xs) = do
-            r1        <- partP ms x
-            e         <- p
-            (r2 , es) <- worker [] xs -- only the first part is qualified
-            return (fuseRanges r1 r2, e : es)
-       worker _ x = __IMPOSSIBLE__ -- holes and non-holes must be alternated.
+  (range, hs) <- worker (init $ qnameParts q) withoutExternalHoles
 
-       removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
-           where removeLeadingHoles = dropWhile isAHole
+  let (normal, binders) = partitionEithers hs
+      lastHole          = maximum $ mapMaybe holeTarget syn
 
--- | Given a name with a syntax spec, and a list of parsed expressions
--- fitting it, rebuild the expression.
-rebuild :: forall e. IsExpr e => NewNotation -> Range -> [e] -> e
-rebuild (NewNotation name names _ syn) r es =
-  unExprView $ OpAppV (setRange r name) names exprs
+      app :: ([(e, C.NamedArg () Int)] -> [(e, C.NamedArg () Int)]) -> e
+      app f = unExprView $
+              OpAppV (setRange range q) names $
+              map (findExprFor (f normal) binders) [0..lastHole]
+
+  return $ case kind of
+    In   -> \x y -> app (\es -> (x, leadingHole) : es ++ [(y, trailingHole)])
+    Pre  -> \  y -> app (\es ->                    es ++ [(y, trailingHole)])
+    Post -> \x   -> app (\es -> (x, leadingHole) : es)
+    Non  ->         app (\es ->                    es)
+
   where
-    exprs = map findExprFor [0..lastHole]
-    filledHoles = zip es (filter isAHole syn)
-    lastHole = maximum $ mapMaybe holeTarget syn
-    findExprFor :: Int -> NamedArg (OpApp e)
-    findExprFor n =
-      case [setArgColors [] $ fmap (e <$) m | (e, NormalHole m) <- filledHoles, namedArg m == n] of
-        [x] -> case [e | (e, BindHole m) <- filledHoles, m == n] of
-                 [] -> (fmap . fmap) Ordinary x -- no variable to bind
-                 vars ->
-                  let bs = map (rebuildBinding . exprView) vars in
-                  (fmap . fmap) (SyntaxBindingLambda (fuseRange bs x) bs) x
-        _  -> __IMPOSSIBLE__
 
-rebuildBinding :: IsExpr e => ExprView e -> LamBinding
-  -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
-rebuildBinding (LocalV (QName name)) = DomainFree defaultArgInfo $ mkBoundName_ name
-rebuildBinding (WildV e) =
-  DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
-rebuildBinding e = throw $ Exception (getRange e) "Expected variable name in binding position"
+  (leadingHoles,  syn1) = span isNormalHole syn
+  (trailingHoles, syn2) = span isNormalHole (reverse syn1)
+  withoutExternalHoles  = reverse syn2
 
--- | Parse a \"nonfix\" operator application, given a parser parsing
--- the operator part, the name of the operator, and a parser of
--- subexpressions.
-nonfixP :: IsExpr e => Parser e (NewNotation,Range,[e]) -> Parser e e
-nonfixP op = do
-  (nsyn,r,es) <- op
-  return $ rebuild nsyn r es
+  leadingHole = case leadingHoles of
+    [NormalHole h] -> h
+    _              -> __IMPOSSIBLE__
+
+  trailingHole = case trailingHoles of
+    [NormalHole h] -> h
+    _              -> __IMPOSSIBLE__
+
+  worker ::
+    [Name] -> Notation ->
+    Parser e (Range, [Either (e, C.NamedArg () Int) (LamBinding, Int)])
+  worker ms []                  = return (noRange, [])
+  worker ms (IdPart x     : xs) = do r1       <- partP ms x
+                                     (r2, es) <- worker [] xs
+                                                 -- Only the first
+                                                 -- part is qualified.
+                                     return (fuseRanges r1 r2, es)
+  worker ms (NormalHole h : xs) = do e       <- p
+                                     (r, es) <- worker ms xs
+                                     return (r, Left (e, h) : es)
+  worker ms (BindHole h   : xs) = do
+    e <- token
+    case exprView e of
+      LocalV (QName name) -> ret name
+      WildV e             -> ret (Name noRange [Hole])
+      _                   -> empty
+        -- Old error message: "Expected variable name in binding
+        -- position".
+    where
+    ret x = do
+      (r, es) <- worker ms xs
+      return (r, Right (DomainFree defaultArgInfo $ mkBoundName_ x, h) : es)
+      -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
+
+  findExprFor ::
+    [(e, C.NamedArg () Int)] -> [(LamBinding, Int)] -> Int ->
+    NamedArg (OpApp e)
+  findExprFor normalHoles binders n =
+    case [ setArgColors [] $ fmap (e <$) m
+         | (e, m) <- normalHoles, namedArg m == n
+         ] of
+      [x] -> case [e | (e, m) <- binders, m == n] of
+               [] -> (fmap . fmap) Ordinary x -- no variable to bind
+               bs ->
+                 (fmap . fmap) (SyntaxBindingLambda (fuseRange bs x) bs) x
+      _   -> __IMPOSSIBLE__
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
 argsP p = many (nothidden <|> hidden <|> instanceH)
