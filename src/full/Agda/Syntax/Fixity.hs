@@ -10,6 +10,7 @@
 module Agda.Syntax.Fixity where
 
 import Data.Foldable
+import Data.Function
 import Data.Hashable
 import Data.List as List
 import Data.Set (Set)
@@ -127,7 +128,7 @@ mergeNotations = map (merge . fixFixities) . groupOn notation
 -- | Precedence levels for operators.
 
 data PrecedenceLevel = Unrelated | Related Integer
-  deriving (Eq, Show, Typeable)
+  deriving (Eq, Ord, Show, Typeable)
 
 -- | Fixity of operators.
 
@@ -138,10 +139,14 @@ data Fixity
   deriving (Typeable, Show)
 
 instance Eq Fixity where
-    LeftAssoc  _ n == LeftAssoc  _ m = n == m
-    RightAssoc _ n == RightAssoc _ m = n == m
-    NonAssoc   _ n == NonAssoc   _ m = n == m
-    _              == _              = False
+  f1 == f2 = compare f1 f2 == EQ
+
+instance Ord Fixity where
+  compare = compare `on` (\f -> (kind f, fixityLevel f))
+    where
+    kind LeftAssoc{}  = 0
+    kind RightAssoc{} = 1
+    kind NonAssoc{}   = 2
 
 -- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
 
