@@ -187,6 +187,9 @@ instance HasTags (BasicTypes.Origin) where
 #endif
 
 instance TagName name => HasTags (TyClDecl name) where
+#if MIN_VERSION_ghc(7,8,0)
+  tags (FamDecl d) = tags d
+#endif
   tags d = tagsLN (tcdLName d) ++
     case d of
 #if MIN_VERSION_ghc(7,8,0)
