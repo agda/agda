@@ -335,34 +335,9 @@ instance IsExpr Pattern where
         WildV e        -> e
         OtherV e       -> e
 
-{- TRASH
-instance IsExpr LHSCore where
-    exprView e = case e of
-        LHSHead f ps -> foldl AppV (LocalV f) $ map exprView ps
-        LHSProj d ps1 e ps2 -> foldl AppV (LocalV d) $
-          map exprView ps1 ++ exprView e : map exprView ps2
-    unExprView e = LHSHead f ps
-      where p :: Pattern
-            p = unExprView
-            (f, ps) = lhsArgs p
--}
-
 ---------------------------------------------------------------------------
 -- * Helpers for pattern and lhs parsing
 ---------------------------------------------------------------------------
-
--- Andreas, 2011-11-24 moved here from ConcreteToAbstract
-lhsArgs :: Pattern -> (Name, [NamedArg Pattern])
-lhsArgs p = case lhsArgs' p of
-              Just (x, args) -> (x, args)
-              Nothing        -> __IMPOSSIBLE__
-
--- | @lhsArgs' p@ splits a lhs @f ps@, given as a pattern @p@,
---   into @(f, ps)@.
-lhsArgs' :: Pattern -> Maybe (Name, [NamedArg Pattern])
-lhsArgs' p = case patternAppView p of
-    Common.Arg _ (Named _ (IdentP (QName x))) : ps -> Just (x, ps)
-    _                                              -> Nothing
 
 -- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
 --   (in most cases a constructor).
