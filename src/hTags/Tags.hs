@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Tags where
 
@@ -55,7 +57,7 @@ showETags = concatMap showFile
   showFile (f, contents, ts) =
     unlines ["\x0c", f ++ "," ++ show bytes] ++ ts'
     where
-    ts' = unlines $ catMaybes $ map showTag ts
+    ts' = unlines $ mapMaybe showTag ts
 
     -- TODO: This should be the length in _bytes_ of ts'. However,
     -- since the rest of this program seems to assume an 8-bit
@@ -98,10 +100,10 @@ srcLocTag UnhelpfulLoc{} t         = t
 srcLocTag (RealSrcLoc l) (NoLoc t) =
   Tag t
       (unpackFS $ srcLocFile l)
-      (Pos { line   = srcLocLine l
-             -- GHC 7 counts columns starting from 1.
-           , column = srcLocCol l - 1
-           })
+      Pos { line   = srcLocLine l
+            -- GHC 7 counts columns starting from 1.
+          , column = srcLocCol l - 1
+          }
 srcLocTag _ t@Tag{}   = t
 
 class TagName a where
@@ -249,7 +251,7 @@ instance TagName name => HasTags (Pat name) where
     SplicePat{}            -> []
 #endif
 
-instance (HasTags arg, HasTags rec) => HasTags (HsConDetails arg rec) where
+instance (HasTags arg, HasTags recc) => HasTags (HsConDetails arg recc) where
   tags d = case d of
     PrefixCon as   -> tags as
     RecCon r       -> tags r
@@ -278,4 +280,4 @@ instance TagName name => HasTags (Sig name) where
 instance TagName name => HasTags (ForeignDecl name) where
   tags d = case d of
     ForeignImport x _ _ _ -> tagsLN x
-    ForeignExport _ _ _ _ -> []
+    ForeignExport{}       -> []
