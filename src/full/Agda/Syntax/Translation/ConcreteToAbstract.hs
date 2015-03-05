@@ -362,9 +362,13 @@ instance ToAbstract c a => ToAbstract (Maybe c) (Maybe a) where
 -- Names ------------------------------------------------------------------
 
 newtype NewName a = NewName a
-newtype OldQName  = OldQName C.QName
+data OldQName     = OldQName C.QName (Maybe (Set A.Name))
+  -- ^ If a set is given, then the first name must correspond to one
+  -- of the names in the set.
 newtype OldName   = OldName C.Name
-newtype PatName   = PatName C.QName
+data PatName      = PatName C.QName (Maybe (Set A.Name))
+  -- ^ If a set is given, then the first name must correspond to one
+  -- of the names in the set.
 
 instance ToAbstract (NewName C.Name) A.Name where
   toAbstract (NewName x) = do
@@ -379,8 +383,8 @@ instance ToAbstract (NewName C.BoundName) A.Name where
     return y
 
 instance ToAbstract OldQName A.Expr where
-  toAbstract (OldQName x) = do
-    qx <- resolveName x
+  toAbstract (OldQName x ns) = do
+    qx <- resolveName' allKindsOfNames ns x
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
       VarName x'          -> return $ A.Var x'
@@ -395,9 +399,11 @@ data APatName = VarPatName A.Name
               | PatternSynPatName AbstractName
 
 instance ToAbstract PatName APatName where
-  toAbstract (PatName x) = do
+  toAbstract (PatName x ns) = do
     reportSLn "scope.pat" 10 $ "checking pattern name: " ++ show x
-    rx <- resolveName' [ConName, PatternSynName] x -- Andreas, 2013-03-21 ignore conflicting names which cannot be meant since we are in a pattern
+    rx <- resolveName' [ConName, PatternSynName] ns x
+          -- Andreas, 2013-03-21 ignore conflicting names which cannot
+          -- be meant since we are in a pattern
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
       (VarName y,       C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
@@ -577,7 +583,7 @@ instance ToAbstract C.Expr A.Expr where
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
 
   -- Names
-      Ident x -> toAbstract (OldQName x)
+      Ident x -> toAbstract (OldQName x Nothing)
 
   -- Literals
       C.Lit l -> return $ A.Lit l
@@ -1354,7 +1360,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImpossiblePragma _) = impossibleTest
     toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
     toAbstract (C.RewritePragma _ x) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       case e of
         A.Def x          -> return [ A.RewritePragma x ]
         A.Proj x         -> return [ A.RewritePragma x ]
@@ -1363,17 +1369,17 @@ instance ToAbstract C.Pragma [A.Pragma] where
         A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
         _       -> __IMPOSSIBLE__
     toAbstract (C.CompiledTypePragma _ x hs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       case e of
         A.Def x -> return [ A.CompiledTypePragma x hs ]
         _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
     toAbstract (C.CompiledDataPragma _ x hs hcs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       case e of
         A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
         _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
     toAbstract (C.CompiledPragma _ x hs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       y <- case e of
             A.Def x -> return x
             A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
@@ -1381,19 +1387,19 @@ instance ToAbstract C.Pragma [A.Pragma] where
             _       -> __IMPOSSIBLE__
       return [ A.CompiledPragma y hs ]
     toAbstract (C.CompiledExportPragma _ x hs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       y <- case e of
             A.Def x -> return x
             _       -> __IMPOSSIBLE__
       return [ A.CompiledExportPragma y hs ]
     toAbstract (C.CompiledEpicPragma _ x ep) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       y <- case e of
             A.Def x -> return x
             _       -> __IMPOSSIBLE__
       return [ A.CompiledEpicPragma y ep ]
     toAbstract (C.CompiledJSPragma _ x ep) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       y <- case e of
             A.Def x -> return x
             A.Proj x -> return x
@@ -1403,7 +1409,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
             _       -> __IMPOSSIBLE__
       return [ A.CompiledJSPragma y ep ]
     toAbstract (C.StaticPragma _ x) = do
-        e <- toAbstract $ OldQName x
+        e <- toAbstract $ OldQName x Nothing
         y <- case e of
             A.Def x -> return x
             _       -> __IMPOSSIBLE__
@@ -1431,7 +1437,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       addHaskellImport i
       return []
     toAbstract (C.EtaPragma _ x) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       case e of
         A.Def x -> return [ A.EtaPragma x ]
         _       -> do
@@ -1634,22 +1640,27 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.ImplicitP i)        = return $ A.ImplicitP i
     toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
 
+resolvePatternIdentifier ::
+  Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
+resolvePatternIdentifier r x ns = do
+  px <- toAbstract (PatName x ns)
+  case px of
+    VarPatName y        -> return $ VarP y
+    ConPatName ds       -> return $ ConP (ConPatInfo False $ PatRange r)
+                                         (AmbQ $ map anameName ds)
+                                         []
+    PatternSynPatName d -> return $ PatternSynP (PatRange r)
+                                                (anameName d) []
+
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
-    toAbstract p@(C.IdentP x) = do
-        px <- toAbstract (PatName x)
-        case px of
-            VarPatName y        -> return $ VarP y
-            ConPatName ds       -> return $ ConP (ConPatInfo False $ PatRange (getRange p))
-                                                 (AmbQ $ map anameName ds)
-                                                 []
-            PatternSynPatName d -> return $ PatternSynP (PatRange (getRange p))
-                                                        (anameName d) []
+    toAbstract (C.IdentP x) =
+      resolvePatternIdentifier (getRange x) x Nothing
 
     toAbstract (AppP (QuoteP _) p)
       | IdentP x <- namedArg p,
         getHiding p == NotHidden = do
-      e <- toAbstract (OldQName x)
+      e <- toAbstract (OldQName x Nothing)
       let quoted (A.Def x) = return x
           quoted (A.Proj x) = return x
           quoted (A.Con (AmbQ [x])) = return x
@@ -1673,20 +1684,15 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             info = PatRange r
 
     toAbstract p0@(OpAppP r op ns ps) = do
-        p <- toAbstract (IdentP op)
+        p  <- resolvePatternIdentifier (getRange op) op (Just ns)
         ps <- toAbstract ps
         case p of
-          ConP i (AmbQ xs) as -> return $ ConP (i {patInfo = info})
-                                               (AmbQ $ filter (\q -> Set.member
-                                                                       (qnameName q) ns)
-                                                              xs)
-                                               (as ++ ps)
-          DefP        _ x  as -> return $ DefP info x (as ++ ps)
-          PatternSynP _ x  as -> return $ PatternSynP info x (as ++ ps)
-          _                   -> __IMPOSSIBLE__
+          ConP        i x as -> return $ ConP (i {patInfo = info}) x (as ++ ps)
+          DefP        _ x as -> return $ DefP               info   x (as ++ ps)
+          PatternSynP _ x as -> return $ PatternSynP        info   x (as ++ ps)
+          _                  -> __IMPOSSIBLE__
         where
-            r    = getRange p0
-            info = PatRange r
+        info = PatRange r
 
     -- Removed when parsing
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
@@ -1724,11 +1730,7 @@ toAbstractOpApp op ns es = do
     -- If not, crash.
     unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__
     -- Translate operator and its arguments (each in the right context).
-    op <- toAbstract (OldQName op)
-    op <- return $ case op of
-            A.Con (AmbQ qs) -> A.Con $ AmbQ $
-                                 filter (\q -> Set.member (qnameName q) ns) qs
-            op              -> op
+    op <- toAbstract (OldQName op (Just ns))
     foldl' app op <$> left (notaFixity nota) nonBindingParts es
   where
     -- Build an application in the abstract syntax, with correct Range.
