@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, ScopedTypeVariables #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
@@ -20,7 +21,7 @@ import System.Console.GetOpt
 
 import GHC
 import Parser as P
-import Lexer as Lexer
+import Lexer
 import DriverPipeline
 import FastString
 import DriverPhases
@@ -34,14 +35,14 @@ import GhcMonad (GhcT(..), Ghc(..))
 import Tags
 
 instance MonadTrans GhcT where
-  lift m = GhcT $ \_ -> m
+  lift m = GhcT $ const m
 
 #if !(MIN_VERSION_ghc(7,8,0))
 instance MonadIO m => MonadIO (GhcT m) where
   liftIO = lift . liftIO
 
 instance MonadIO Ghc where
-  liftIO m = Ghc $ \_ -> m
+  liftIO m = Ghc $ const m
 #endif
 
 #if MIN_VERSION_ghc(7,8,0)
@@ -90,7 +91,7 @@ main = do
   opts <- getOptions
   let go | optHelp opts = do
             printUsage stdout
-            exitWith ExitSuccess
+            exitSuccess
          | otherwise = do
             top : _ <- lines <$> runCmd "ghc --print-libdir"
             ts <- runGhc (Just top) $ do
@@ -107,7 +108,7 @@ main = do
                                           (goFile f)) $
                          optFiles opts
             when (optCTags opts) $
-              let sts = sort $ concat $ map (\(_, _, t) -> t) ts in
+              let sts = sort $ concatMap (\(_, _, t) -> t) ts in
               writeFile (optCTagsFile opts) $ unlines $ map show sts
             when (optETags opts) $
               writeFile (optETagsFile opts) $ showETags ts
@@ -119,7 +120,7 @@ getOptions = do
   case getOpt Permute options args of
     ([], [], []) -> do
       printUsage stdout
-      exitWith ExitSuccess
+      exitSuccess
     (opts, files, []) -> return $ foldr ($) (defaultOptions files) opts
     (_, _, errs) -> do
       hPutStr stderr $ unlines errs
