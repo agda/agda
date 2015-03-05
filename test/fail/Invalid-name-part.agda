@@ -1,0 +1,2 @@
+postulate
+  _→_ : Set
