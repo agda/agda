@@ -204,25 +204,39 @@ data ResolvedName = VarName A.Name
 
 -- | Look up the abstract name referred to by a given concrete name.
 resolveName :: C.QName -> ScopeM ResolvedName
-resolveName = resolveName' allKindsOfNames
+resolveName = resolveName' allKindsOfNames Nothing
 
 -- | Look up the abstract name corresponding to a concrete name of
---   a certain kind.
+--   a certain kind and/or from a given set of names.
 --   Sometimes we know already that we are dealing with a constructor
 --   or pattern synonym (e.g. when we have parsed a pattern).
 --   Then, we can ignore conflicting definitions of that name
 --   of a different kind. (See issue 822.)
-resolveName' :: [KindOfName] -> C.QName -> ScopeM ResolvedName
-resolveName' kinds x = do
+resolveName' ::
+  [KindOfName] -> Maybe (Set A.Name) -> C.QName -> ScopeM ResolvedName
+resolveName' kinds names x = do
   scope <- getScope
-  let vars = AssocList.mapKeysMonotonic C.QName $ scopeLocals scope
+  let vars     = AssocList.mapKeysMonotonic C.QName $ scopeLocals scope
+      retVar y = return $ VarName $ y { nameConcrete = unqualify x }
+      aName    = A.qnameName . anameName
   case lookup x vars of
     -- Case: we have a local variable x.
-    Just (LocalVar y)  -> return $ VarName $ y { nameConcrete = unqualify x }
-    -- Case: ... but is shadowed by some imports.
-    Just (ShadowedVar y ys) -> typeError $ AmbiguousName x $ A.qualify_ y : map anameName ys
+    Just (LocalVar y)  -> retVar y
+    -- Case: ... but is (perhaps) shadowed by some imports.
+    Just (ShadowedVar y ys) -> case names of
+      Nothing -> shadowed ys
+      Just ns -> case filter (\y -> aName y `Set.member` ns) ys of
+        [] -> retVar y
+        ys -> shadowed ys
+      where
+      shadowed ys =
+        typeError $ AmbiguousName x $ A.qualify_ y : map anameName ys
     -- Case: we do not have a local variable x.
-    Nothing -> case filter ((`elem` kinds) . anameKind . fst) $ scopeLookup' x scope of
+    Nothing -> case filter (\y -> anameKind (fst y) `elem` kinds
+                                    &&
+                                  maybe True (Set.member (aName (fst y)))
+                                        names)
+                           (scopeLookup' x scope) of
       [] -> return UnknownName
       ds | all ((==ConName) . anameKind . fst) ds ->
         return $ ConstructorName
@@ -253,13 +267,12 @@ getNotation
      -- ^ The name must correspond to one of the names in this set.
   -> ScopeM NewNotation
 getNotation x ns = do
-  r <- resolveName x
+  r <- resolveName' allKindsOfNames (Just ns) x
   case r of
     VarName y           -> return $ namesToNotation x y
     DefinedName _ d     -> return $ notation d
     FieldName d         -> return $ notation d
-    ConstructorName ds  -> case filter (Set.isSubsetOf ns . notaNames) $
-                                  mergeNotations $ map notation ds of
+    ConstructorName ds  -> case mergeNotations $ map notation ds of
                              [n] -> return n
                              _   -> __IMPOSSIBLE__
     PatternSynResName n -> return $ notation n

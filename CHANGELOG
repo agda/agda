@@ -39,6 +39,9 @@ Language
     {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_     : Size → Size
     {-# BUILTIN SIZEINF  ∞        #-}  --  ∞      : Size
 
+* Unambiguous notations (coming from syntax declarations) that resolve
+  to ambiguous names are now parsed unambiguously [Issue 1194].
+
 * If only some instances of an overloaded constructor have a given
   associated notation (coming from syntax declarations), then this
   notation can only be resolved to the given instances of the
