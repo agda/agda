@@ -23,7 +23,7 @@ bad4 ._ ._ _ (refl3 {._}) = refl3
 bad3 : {A : Set}(a b c : A) -> Id3 a b c -> Id3 a b c
 bad3 ._ _ ._ (refl3 {._}) = refl3
 
--- This still doesn't work:
+-- Now this works as well:
 
--- bad1 : {A : Set}(a b c : A) -> Id3 a b c -> Id3 a b c
--- bad1 ._ ._ ._ (refl3) = refl3
+bad1 : {A : Set}(a b c : A) -> Id3 a b c -> Id3 a b c
+bad1 ._ ._ ._ (refl3) = refl3
