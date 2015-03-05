@@ -8,6 +8,7 @@ setup		= dist/setup-config
 default : $(bin)
 
 $(setup) : hTags.cabal
+	cabal install --only-dependencies
 	cabal configure
 
 $(bin) : $(setup) $(sources)
