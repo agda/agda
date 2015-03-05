@@ -101,24 +101,15 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 noFixity' :: Fixity'
 noFixity' = Fixity' noFixity noNotation
 
--- | Merges all 'NewNotation's that have the same notation.
---
--- If all 'NewNotation's with a given notation have the same fixity,
--- then this fixity is preserved, and otherwise it is replaced by
--- 'noFixity'.
+-- | Merges all 'NewNotation's that have the same fixity and notation.
 --
 -- Precondition: No 'A.Name' may occur in more than one list element.
 -- Every 'NewNotation' must have the same 'notaName'.
 --
 -- Postcondition: No 'A.Name' occurs in more than one list element.
 mergeNotations :: [NewNotation] -> [NewNotation]
-mergeNotations = map (merge . fixFixities) . groupOn notation
+mergeNotations = map merge . groupOn (\n -> (notation n, notaFixity n))
   where
-  fixFixities ns
-    | allEqual (map notaFixity ns) = ns
-    | otherwise                    =
-        map (\n -> n { notaFixity = noFixity }) ns
-
   merge :: [NewNotation] -> NewNotation
   merge []         = __IMPOSSIBLE__
   merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }

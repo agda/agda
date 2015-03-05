@@ -1,5 +1,0 @@
-Issue1436-3.agda:27,12-19
-Could not parse the application ● ↑ ↓ ●
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
-when scope checking ● ↑ ↓ ●

@@ -1,5 +1,9 @@
-Issue1194d.agda:33,8-17
-Could not parse the application ! b + ! b
+Issue1194d.agda:31,8-17
+Don't know how to parse ! b + ! b. Could mean any one of:
+  (c b) + (c b)
+  (c b) + (c b)
+  (c b) + (c b)
+  (c b) + (c b)
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking ! b + ! b

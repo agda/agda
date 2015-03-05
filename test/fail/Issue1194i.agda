@@ -28,5 +28,3 @@ test₁ = + + + b
 test₂ : D₂ → D₁
 test₂ (+ + x) = x
 test₂ (+ b)   = + + + b
-
--- Should work.

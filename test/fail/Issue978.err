@@ -1,6 +1,8 @@
-Issue978.agda:29,1-18
-Could not parse the left-hand side test (Γ , a , a₁)
+Issue978.agda:28,1-13
+Don't know how to parse test (ε , a). Could mean any one of:
+  test (_,_ ε a)
+  test (_,_ ε a)
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
-when scope checking the left-hand side test (Γ , a , a₁) in the
+when scope checking the left-hand side test (ε , a) in the
 definition of test

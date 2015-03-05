@@ -9,7 +9,7 @@ module A where
     b : D₁
     c : D₁ → D₁
 
-  infix 19 c
+  infix 20 c
 
   syntax c x = ! x
 
@@ -26,8 +26,6 @@ module B where
 
 open A
 open B
-
--- Should work, because parentheses are used.
 
 test : D₂
 test = (! b) + (! b)

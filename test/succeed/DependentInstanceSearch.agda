@@ -6,6 +6,8 @@ data Maybe (A : Set) : Set where
   nothing : Maybe A
   just    : A → Maybe A
 
+infixr 40 _∷_
+
 data Vec (A : Set) : Nat → Set where
   [] : Vec A zero
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)

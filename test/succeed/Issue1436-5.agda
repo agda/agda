@@ -23,7 +23,5 @@ module B where
 open A
 open B
 
--- The following expression should be rejected.
-
 rejected : A.D
 rejected = ● ↑ ↓ ●

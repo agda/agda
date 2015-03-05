@@ -19,6 +19,8 @@ predFin (suc n) zero    = zero
 predFin (suc n) (suc i) = wk i
 -- predFin should be covering
 
+infixr 40 _∷_
+
 data Vec (A : Set) : Nat → Set where
   []  : Vec A zero
   _∷_ : {n : Nat} (x : A) (xs : Vec A n) → Vec A (suc n)

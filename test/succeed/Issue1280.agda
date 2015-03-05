@@ -3,6 +3,8 @@ module Issue1280 where
 open import Common.Prelude
 open import Common.Reflection
 
+infixr 40 _∷_
+
 data Vec (A : Set) : Nat → Set where
   [] : Vec A 0
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)

@@ -28,4 +28,4 @@ open A
 open B
 
 test : D₂
-test = ! b + ! b
+test = (! b) + (! b)

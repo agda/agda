@@ -1,0 +1,7 @@
+Issue1194h.agda:31,9-12
+Don't know how to parse ! b. Could mean any one of:
+  c b
+  c b
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking ! b

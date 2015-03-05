@@ -137,6 +137,16 @@ Operator syntax
 
   was previously treated as infix, but is now treated as prefix.
 
+* If an overloaded operator is in scope with several distinct
+  fixities, then several instances of this operator will be included
+  in the operator grammar, possibly leading to ambiguity. Previously
+  the operator was given the default fixity [Issue 1436].
+
+  Similarly, if two or more identical notations (coming from syntax
+  declarations) for a given overloaded constructor are in scope, and
+  these notations do not all have the same fixity, then several
+  instances of the notation will be included in the operator grammar.
+
 Other changes
 -------------
 
