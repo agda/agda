@@ -96,7 +96,7 @@ data NotationKind
   | PostfixNotation -- ^ Ex: @bla_blub_@.
   | NonfixNotation  -- ^ Ex: @bla_blub@.
   | NoNotation
-   deriving (Eq)
+   deriving (Eq, Show)
 
 -- | Classify a notation by presence of leading and/or trailing
 -- /normal/ holes.
