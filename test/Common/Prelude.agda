@@ -79,7 +79,7 @@ _++_ : ∀ {A : Set} → List A → List A → List A
 data Bool : Set where
   true false : Bool
 
-if_then_else_ : ∀ {A : Set} → Bool → A → A → A
+if_then_else_ : ∀ {a} {A : Set a} → Bool → A → A → A
 if true  then t else f = t
 if false then t else f = f
 
