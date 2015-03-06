@@ -116,15 +116,11 @@ Important changes since 0.9:
   Category.Monad.Partiality.All._⟨_⟩P, was changed from infix 2 to
   infix 3.
 
-* The fixity of all _∎ and finally operators, as well as
-  Category.Monad.Partiality.All._⟨_⟩P, was changed from infix 2 to
-  infix 3.
-
 * The fixity of Category.Monad.Partiality._≟-Kind_, Data.AVL._∈?_,
   Data.AVL.IndexedMap._∈?_, Data.AVL.Sets._∈?_, Data.Bool._≟_,
   Data.Char._≟_, Data.Float._≟_, Data.Nat._≤?_,
   Data.Nat.Divisibility._∣?_, Data.Sign._≟_, Data.String._≟_,
-  Data.Unit._≟_, Data.Unit._≤?_,
+  Data.Unit._≟_, Data.Unit._≤?_ and
   Data.Vec.Equality.DecidableEquality._≟_ was changed from the default
   to infix 4.
 
