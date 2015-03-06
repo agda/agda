@@ -121,28 +121,30 @@ mergeNotations = map merge . groupOn (\n -> (notation n, notaFixity n))
 data PrecedenceLevel = Unrelated | Related Integer
   deriving (Eq, Ord, Show, Typeable)
 
+-- | Associativity.
+
+data Associativity = NonAssoc | LeftAssoc | RightAssoc
+   deriving (Eq, Ord, Show, Typeable)
+
 -- | Fixity of operators.
 
-data Fixity
-  = LeftAssoc  { fixityRange :: Range, fixityLevel :: PrecedenceLevel }
-  | RightAssoc { fixityRange :: Range, fixityLevel :: PrecedenceLevel }
-  | NonAssoc   { fixityRange :: Range, fixityLevel :: PrecedenceLevel }
+data Fixity =
+  Fixity { fixityRange :: Range
+         , fixityLevel :: PrecedenceLevel
+         , fixityAssoc :: Associativity
+         }
   deriving (Typeable, Show)
 
 instance Eq Fixity where
   f1 == f2 = compare f1 f2 == EQ
 
 instance Ord Fixity where
-  compare = compare `on` (\f -> (kind f, fixityLevel f))
-    where
-    kind LeftAssoc{}  = 0
-    kind RightAssoc{} = 1
-    kind NonAssoc{}   = 2
+  compare = compare `on` (\f -> (fixityLevel f, fixityAssoc f))
 
 -- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
 
 noFixity :: Fixity
-noFixity = NonAssoc noRange Unrelated
+noFixity = Fixity noRange Unrelated NonAssoc
 
 -- * Precendence
 
@@ -163,10 +165,10 @@ hiddenArgumentCtx Instance  = TopCtx
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
 opBrackets :: Fixity -> Precedence -> Bool
-opBrackets                  (LeftAssoc  _ (Related n1))
-           (LeftOperandCtx  (LeftAssoc  _ (Related n2))) | n1 >= n2 = False
-opBrackets                  (RightAssoc _ (Related n1))
-           (RightOperandCtx (RightAssoc _ (Related n2))) | n1 >= n2 = False
+opBrackets                   (Fixity _ (Related n1) LeftAssoc)
+           (LeftOperandCtx   (Fixity _ (Related n2) LeftAssoc))  | n1 >= n2 = False
+opBrackets                   (Fixity _ (Related n1) RightAssoc)
+           (RightOperandCtx  (Fixity _ (Related n2) RightAssoc)) | n1 >= n2 = False
 opBrackets f1
            (LeftOperandCtx  f2) | Related f1 <- fixityLevel f1
                                 , Related f2 <- fixityLevel f2
@@ -221,9 +223,7 @@ instance HasRange Fixity where
   getRange = fixityRange
 
 instance KillRange Fixity where
-  killRange (LeftAssoc  _ n) = LeftAssoc  noRange n
-  killRange (RightAssoc _ n) = RightAssoc noRange n
-  killRange (NonAssoc   _ n) = NonAssoc   noRange n
+  killRange f = f { fixityRange = noRange }
 
 instance KillRange Fixity' where
   killRange (Fixity' f n) = killRange2 Fixity' f n

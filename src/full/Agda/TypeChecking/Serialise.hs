@@ -113,7 +113,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150218 * 10 + 0
+currentInterfaceVersion = 20150306 * 10 + 1
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -630,6 +630,15 @@ instance EmbPrj KindOfName where
                            valu [4] = valu0 QuotableName
                            valu _   = malformed
 
+instance EmbPrj Agda.Syntax.Fixity.Associativity where
+  icod_ LeftAssoc  = icode0'
+  icod_ RightAssoc = icode0 1
+  icod_ NonAssoc   = icode0 2
+  value = vcase valu where valu []  = valu0 LeftAssoc
+                           valu [1] = valu0 RightAssoc
+                           valu [2] = valu0 NonAssoc
+                           valu _   = malformed
+
 instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
   icod_ Unrelated   = icode0'
   icod_ (Related a) = icode1' a
@@ -638,12 +647,8 @@ instance EmbPrj Agda.Syntax.Fixity.PrecedenceLevel where
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
-  icod_ (LeftAssoc  a b) = icode2 0 a b
-  icod_ (RightAssoc a b) = icode2 1 a b
-  icod_ (NonAssoc   a b) = icode2' a b
-  value = vcase valu where valu [0, a, b] = valu2 LeftAssoc  a b
-                           valu [1, a, b] = valu2 RightAssoc a b
-                           valu [a, b]    = valu2 NonAssoc   a b
+  icod_ (Fixity a b c) = icode3' a b c
+  value = vcase valu where valu [a, b, c] = valu3 Fixity a b c
                            valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity' where

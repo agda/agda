@@ -217,23 +217,16 @@ buildParsers r flat use = do
         level :: NewNotation -> PrecedenceLevel
         level = fixityLevel . notaFixity
 
-        isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
-
-        isinfixl (NewNotation _ _ (LeftAssoc _ _)  syn) = isInfix syn
-        isinfixl _ = False
-
-        isinfixr (NewNotation _ _ (RightAssoc _ _) syn) = isInfix syn
-        isinfixr _ = False
-
-        isinfix (NewNotation _ _ (NonAssoc _ _)    syn) = isInfix syn
-        isinfix _ = False
-
+        nonfix, isprefix, ispostfix :: NewNotation -> Bool
         nonfix    = (== NonfixNotation)  . notationKind . notation
         isprefix  = (== PrefixNotation)  . notationKind . notation
         ispostfix = (== PostfixNotation) . notationKind . notation
 
-        isInfix :: Notation -> Bool
-        isInfix syn = notationKind syn == InfixNotation
+        isinfix :: Associativity -> NewNotation -> Bool
+        isinfix ass syn =
+          notationKind (notation syn) == InfixNotation
+            &&
+          fixityAssoc (notaFixity syn) == ass
 
         mkP :: Either Integer Integer
                -- ^ Memoisation key.
@@ -248,7 +241,7 @@ buildParsers r flat use = do
             where
             choice k = Fold.asum . map (opP k p0)
 
-            nonAssoc = case filter isinfix ops of
+            nonAssoc = case filter (isinfix NonAssoc) ops of
               []  -> Nothing
               ops -> Just $ do
                 x <- higher
@@ -265,7 +258,7 @@ buildParsers r flat use = do
               or (choice Pre)
                  (filter isprefix ops)
                  (\ops -> flip ($) <$> higher <*> choice In ops)
-                 (filter isinfixr ops)
+                 (filter (isinfix RightAssoc) ops)
 
             preRights = do
               preRight <- preRight
@@ -276,7 +269,7 @@ buildParsers r flat use = do
               or (choice Post)
                  (filter ispostfix ops)
                  (\ops -> flip <$> choice In ops <*> higher)
-                 (filter isinfixl ops)
+                 (filter (isinfix LeftAssoc) ops)
 
             postLefts = do
               postLeft <- postLeft

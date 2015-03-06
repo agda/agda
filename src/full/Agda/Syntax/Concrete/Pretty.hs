@@ -460,12 +460,13 @@ instance Pretty Pragma where
     pretty (CatchallPragma _) = text "CATCHALL"
 
 instance Pretty Fixity where
-    pretty (LeftAssoc  _ (Related n)) = text "infixl" <+> text (show n)
-    pretty (LeftAssoc  _ Unrelated)   = __IMPOSSIBLE__
-    pretty (RightAssoc _ (Related n)) = text "infixr" <+> text (show n)
-    pretty (RightAssoc _ Unrelated)   = __IMPOSSIBLE__
-    pretty (NonAssoc   _ (Related n)) = text "infix"  <+> text (show n)
-    pretty (NonAssoc   _ Unrelated)   = __IMPOSSIBLE__
+    pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
+    pretty (Fixity _ (Related n) ass) = text s <+> text (show n)
+      where
+      s = case ass of
+            LeftAssoc  -> "infixl"
+            RightAssoc -> "infixr"
+            NonAssoc   -> "infix"
 
 instance Pretty GenPart where
     pretty (IdPart x)   = text x
