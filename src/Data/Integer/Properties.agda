@@ -108,12 +108,12 @@ private
     - i + i  ≡⟨ inverseˡ i ⟩
     + 0      ∎
 
-  +-isAbelianGroup : IsAbelianGroup _≡_ _+_ (+ 0) -_
+  +-isAbelianGroup : IsAbelianGroup _≡_ _+_ (+ 0) (-_)
   +-isAbelianGroup = record
     { isGroup = record
       { isMonoid = +-isMonoid
       ; inverse  = inverseˡ , inverseʳ
-      ; ⁻¹-cong  = cong -_
+      ; ⁻¹-cong  = cong (-_)
       }
     ; comm = +-comm
     }

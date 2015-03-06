@@ -62,7 +62,7 @@ record _-Ring⟶_ {r₁ r₂ r₃ r₄}
       ⟦ F._+_ F.0# F.0# ⟧     ≈⟨ ⟦⟧-cong (proj₁ F.+-identity F.0#) ⟩
       ⟦ F.0# ⟧                ∎)
 
-  -‿homo : Homomorphic₁ ⟦_⟧ F.-_ T.-_
+  -‿homo : Homomorphic₁ ⟦_⟧ (F.-_) (T.-_)
   -‿homo x =
     GroupP.left-inverse-unique T.+-group ⟦ F.-_ x ⟧ ⟦ x ⟧ (begin
       T._+_ ⟦ F.-_ x ⟧ ⟦ x ⟧ ≈⟨ T.sym (+-homo (F.-_ x) x) ⟩
