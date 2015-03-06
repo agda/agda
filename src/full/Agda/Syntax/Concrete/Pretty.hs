@@ -451,9 +451,12 @@ instance Pretty Pragma where
         TerminationMeasure _ x -> hsep $ [text "MEASURE", pretty x]
 
 instance Pretty Fixity where
-    pretty (LeftAssoc  _ n) = text "infixl" <+> text (show n)
-    pretty (RightAssoc _ n) = text "infixr" <+> text (show n)
-    pretty (NonAssoc   _ n) = text "infix"  <+> text (show n)
+    pretty (Fixity _ n ass) = text s <+> text (show n)
+      where
+      s = case ass of
+            LeftAssoc  -> "infixl"
+            RightAssoc -> "infixr"
+            NonAssoc   -> "infix"
 
 instance Pretty GenPart where
     pretty (IdPart x)   = text x

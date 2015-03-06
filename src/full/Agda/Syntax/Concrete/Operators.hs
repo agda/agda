@@ -188,23 +188,16 @@ buildParsers r flat use = do
         level :: NewNotation -> Integer
         level = fixityLevel . notaFixity
 
-        isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
-
-        isinfixl (NewNotation _ _ (LeftAssoc _ _)  syn) = isInfix syn
-        isinfixl _ = False
-
-        isinfixr (NewNotation _ _ (RightAssoc _ _) syn) = isInfix syn
-        isinfixr _ = False
-
-        isinfix (NewNotation _ _ (NonAssoc _ _)    syn) = isInfix syn
-        isinfix _ = False
-
+        nonfix, isprefix, ispostfix :: NewNotation -> Bool
         nonfix    = (== NonfixNotation)  . notationKind . notation
         isprefix  = (== PrefixNotation)  . notationKind . notation
         ispostfix = (== PostfixNotation) . notationKind . notation
 
-        isInfix :: Notation -> Bool
-        isInfix syn = notationKind syn == InfixNotation
+        isinfix :: Associativity -> NewNotation -> Bool
+        isinfix ass syn =
+          notationKind (notation syn) == InfixNotation
+            &&
+          fixityAssoc (notaFixity syn) == ass
 
         -- | Group operators by precedence level
         order :: [NewNotation] -> [[NewNotation]]
@@ -217,9 +210,9 @@ buildParsers r flat use = do
             []      -> [id]
             fs      -> fs
             where
-                inlfx   = fixP infixlP  isinfixl
-                inrfx   = fixP infixrP  isinfixr
-                infx    = fixP infixP   isinfix
+                inlfx   = fixP infixlP  (isinfix LeftAssoc)
+                inrfx   = fixP infixrP  (isinfix RightAssoc)
+                infx    = fixP infixP   (isinfix NonAssoc)
                 prefx   = fixP prefixP  isprefix
                 postfx  = fixP postfixP ispostfix
 

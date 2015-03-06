@@ -123,33 +123,35 @@ mergeNotations = map (merge . fixFixities) . groupOn notation
 
 -- * Fixity
 
+-- | Associativity.
+
+data Associativity = NonAssoc | LeftAssoc | RightAssoc
+   deriving (Eq, Ord, Show, Typeable)
+
 -- | Fixity of operators.
 
-data Fixity
-  = LeftAssoc  { fixityRange :: Range, fixityLevel :: Integer }
-  | RightAssoc { fixityRange :: Range, fixityLevel :: Integer }
-  | NonAssoc   { fixityRange :: Range, fixityLevel :: Integer }
+data Fixity =
+  Fixity { fixityRange :: Range
+         , fixityLevel :: Integer
+         , fixityAssoc :: Associativity
+         }
   deriving (Typeable, Show)
 
 instance Eq Fixity where
   f1 == f2 = compare f1 f2 == EQ
 
 instance Ord Fixity where
-  compare = compare `on` (\f -> (kind f, fixityLevel f))
-    where
-    kind LeftAssoc{}  = 0
-    kind RightAssoc{} = 1
-    kind NonAssoc{}   = 2
+  compare = compare `on` (\f -> (fixityLevel f, fixityAssoc f))
 
 -- For @instance Pretty Fixity@, see Agda.Syntax.Concrete.Pretty
 
 -- | The default fixity. Currently defined to be @'NonAssoc' 20@.
 defaultFixity :: Fixity
-defaultFixity = NonAssoc noRange 20
+defaultFixity = Fixity noRange 20 NonAssoc
 
 -- | Hack used for @syntax@ facility.
 noFixity :: Fixity
-noFixity = NonAssoc noRange (negate 666)
+noFixity = Fixity noRange (negate 666) NonAssoc
   -- Ts,ts,ts, why the number of the beast?  Revelation 13, 18
   --
   -- It's not the number of the beast, it's the negation of the
@@ -178,10 +180,10 @@ hiddenArgumentCtx Instance  = TopCtx
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.
 opBrackets :: Fixity -> Precedence -> Bool
-opBrackets (LeftAssoc _ n1)
-           (LeftOperandCtx   (LeftAssoc   _ n2)) | n1 >= n2       = False
-opBrackets (RightAssoc _ n1)
-           (RightOperandCtx  (RightAssoc  _ n2)) | n1 >= n2       = False
+opBrackets (Fixity _ n1 LeftAssoc)
+           (LeftOperandCtx   (Fixity _ n2 LeftAssoc))  | n1 >= n2       = False
+opBrackets (Fixity _ n1 RightAssoc)
+           (RightOperandCtx  (Fixity _ n2 RightAssoc)) | n1 >= n2       = False
 opBrackets f1
            (LeftOperandCtx  f2) | fixityLevel f1 > fixityLevel f2 = False
 opBrackets f1
@@ -232,9 +234,7 @@ instance HasRange Fixity where
   getRange = fixityRange
 
 instance KillRange Fixity where
-  killRange (LeftAssoc  _ n) = LeftAssoc  noRange n
-  killRange (RightAssoc _ n) = RightAssoc noRange n
-  killRange (NonAssoc   _ n) = NonAssoc   noRange n
+  killRange f = f { fixityRange = noRange }
 
 instance KillRange Fixity' where
   killRange (Fixity' f n) = killRange2 Fixity' f n
