@@ -80,6 +80,24 @@ Operator syntax
     ok : ℤ
     ok = - - - - - - - n
 
+* Sections.
+
+  Operators can be sectioned by replacing arguments with underscores.
+  There must not be any whitespace between these underscores and the
+  adjacent nameparts. Examples:
+
+    pred : ℕ → ℕ
+    pred = _∸ 1
+
+    T : Bool → Set
+    T = if_then ⊤ else ⊥
+
+  Operator sections are unrelated to all other operators.
+
+  Operator sections are not supported in patterns (with the exception
+  of dot patterns), and notations coming from syntax declarations
+  cannot be sectioned.
+
 * A long-standing operator fixity bug has been fixed. As a consequence
   some programs that used to parse no longer do.
 

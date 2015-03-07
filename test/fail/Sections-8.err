@@ -1,0 +1,6 @@
+Sections-8.agda:5,1-17
+Could not parse the left-hand side Test ((⟨_⟩ X) _)
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking the left-hand side Test ((⟨_⟩ X) _) in the
+definition of Test

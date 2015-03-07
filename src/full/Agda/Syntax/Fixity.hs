@@ -45,26 +45,30 @@ data ThingWithFixity x = ThingWithFixity x Fixity'
 
 -- | All the notation information related to a name.
 data NewNotation = NewNotation
-  { notaName   :: QName
-  , notaNames  :: Set A.Name
+  { notaName  :: QName
+  , notaNames :: Set A.Name
     -- ^ The names the syntax and/or fixity belong to.
     --
     -- Invariant: The set is non-empty. Every name in the list matches
     -- 'notaName'.
   , notaFixity :: Fixity
     -- ^ Associativity and precedence (fixity) of the names.
-  , notation   :: Notation
+  , notation :: Notation
     -- ^ Syntax associated with the names.
+  , notaIsOperator :: Bool
+    -- ^ True if the notation comes from an operator (rather than a
+    -- syntax declaration).
   } deriving (Typeable, Show)
 
 -- | If an operator has no specific notation, then it is computed from
 -- its name.
 namesToNotation :: QName -> A.Name -> NewNotation
 namesToNotation q n = NewNotation
-  { notaName   = q
-  , notaNames  = Set.singleton n
-  , notaFixity = f
-  , notation   = if null syn then syntaxOf $ unqualify q else syn
+  { notaName       = q
+  , notaNames      = Set.singleton n
+  , notaFixity     = f
+  , notation       = if null syn then syntaxOf (unqualify q) else syn
+  , notaIsOperator = null syn
   }
   where Fixity' f syn = A.nameFixity n
 
@@ -73,7 +77,7 @@ namesToNotation q n = NewNotation
 --   This allows for qualified use of operators, e.g.,
 --   @M.for x ∈ xs return e@, or @x ℕ.+ y@.
 notationNames :: NewNotation -> [QName]
-notationNames (NewNotation q _ _ parts) =
+notationNames (NewNotation q _ _ parts _) =
   zipWith ($) (reQualify : repeat QName) [Name noRange [Id x] | IdPart x <- parts ]
   where
     -- The qualification of @q@.
@@ -101,14 +105,18 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 noFixity' :: Fixity'
 noFixity' = Fixity' noFixity noNotation
 
--- | Merges all 'NewNotation's that have the same fixity and notation.
+-- | Merges all 'NewNotation's that have the same fixity and notation,
+-- with the exception that operators and notations coming from syntax
+-- declarations are kept separate.
 --
 -- Precondition: No 'A.Name' may occur in more than one list element.
 -- Every 'NewNotation' must have the same 'notaName'.
 --
 -- Postcondition: No 'A.Name' occurs in more than one list element.
 mergeNotations :: [NewNotation] -> [NewNotation]
-mergeNotations = map merge . groupOn (\n -> (notation n, notaFixity n))
+mergeNotations =
+  map merge .
+  groupOn (\n -> (notation n, notaFixity n, notaIsOperator n))
   where
   merge :: [NewNotation] -> NewNotation
   merge []         = __IMPOSSIBLE__

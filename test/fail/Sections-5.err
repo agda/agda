@@ -1,0 +1,5 @@
+Sections-5.agda:4,8-25
+Not in scope:
+  _Common.Prelude.+
+  at Sections-5.agda:4,8-25
+when scope checking _Common.Prelude.+

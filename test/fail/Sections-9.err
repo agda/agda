@@ -1,0 +1,6 @@
+Sections-9.agda:4,1-7
+Could not parse the left-hand side ⟨ _ ⟩_
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking the left-hand side ⟨ _ ⟩_ in the definition of
+⟨_⟩_

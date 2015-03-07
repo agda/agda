@@ -1,0 +1,5 @@
+Sections-1.agda:9,8-26
+Could not parse the application _* 5 ∘ 6 +_ ∘ 2 ∸_
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking _* 5 ∘ 6 +_ ∘ 2 ∸_

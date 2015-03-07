@@ -97,7 +97,7 @@ proveNonZero = proveNonZeroFrom (fromNat 1)
 -- Negation
 
 negateCts : Base ==> Base
-negateCts = uniformCts id -_
+negateCts = uniformCts id (-_)
 
 realNegate : CReal -> CReal
 realNegate = mapCR negateCts
@@ -217,4 +217,3 @@ showReal n x =
     p = splitAt (len -' n) $ toList s
     i = fromList $ fst p
     f = fromList $ snd p
-
