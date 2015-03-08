@@ -16,9 +16,6 @@ import Text.PrettyPrint
 import System.Directory
 import System.FilePath
 
-import Paths_Agda (getDataFileName)
--- NB: find Paths_Agda.hs in $(BUILD_DIR)/build/autogen/
-
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -188,7 +185,7 @@ setIncludeDirs incs relativeTo = do
   incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-  libdir <- liftIO $ getDataFileName ("lib")
+  libdir <- liftIO $ defaultLibDir
       -- NB: This is an absolute file name, but
       -- Agda.Utils.FilePath wants to check absoluteness anyway.
   let primdir = mkAbsolute $ libdir </> "prim"

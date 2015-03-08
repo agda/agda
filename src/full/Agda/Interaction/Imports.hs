@@ -29,8 +29,6 @@ import System.FilePath ((</>))
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
-import Paths_Agda (getDataFileName)
-
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
@@ -181,8 +179,8 @@ typeCheckMain f = do
   -- liftIO $ putStrLn $ "This is typeCheckMain " ++ show f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 $ "Importing the primitive modules."
-  libpath <- liftIO $ getDataFileName "lib"
-  reportSLn "import.main" 20 $ "Library path = " ++ show libpath
+  libdir <- liftIO defaultLibDir
+  reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
   -- To allow posulating the built-ins, check the primitive module
   -- in unsafe mode
   bracket_ (gets $ Lens.getSafeMode) Lens.putSafeMode $ do
@@ -196,7 +194,7 @@ typeCheckMain f = do
       withHighlightingLevel None $
         getInterface_ =<< do
           moduleName $ mkAbsolute $
-            libpath </> "prim" </> "Agda" </> "Primitive.agda"
+            libdir </> "prim" </> "Agda" </> "Primitive.agda"
   reportSLn "import.main" 10 $ "Done importing the primitive modules."
 
   -- Now do the type checking via getInterface.
