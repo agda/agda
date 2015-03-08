@@ -26,6 +26,7 @@ module Agda.Interaction.Options
     , mapFlag
     , usage
     , tests
+    , defaultLibDir
     -- Reused by PandocAgda
     , inputFlag
     , standardOptions
@@ -38,19 +39,23 @@ import Data.List                ( isSuffixOf , intercalate )
 import System.Console.GetOpt    ( getOpt, usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
+import System.Directory         ( doesDirectoryExist )
 
 import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
-import Agda.Utils.FileName      ( AbsolutePath )
-import Agda.Utils.Monad         ( readM )
+import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
+import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.List          ( wordsBy )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
+
+-- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
+import Paths_Agda ( getDataFileName )
 
 -- | This should probably go somewhere else.
 isLiterate :: FilePath -> Bool
@@ -620,6 +625,18 @@ usage options pluginInfos progName =
                 inheritedOptions [] = ""
                 inheritedOptions pls =
                     "\n    Inherits options from: " ++ unwords pls
+
+------------------------------------------------------------------------
+-- Some paths
+
+-- | Returns the absolute default lib dir. This directory is used to
+-- store the Primitive.agda file.
+defaultLibDir :: IO FilePath
+defaultLibDir = do
+  libdir <- fmap filePath (absolute =<< getDataFileName "lib")
+  ifM (doesDirectoryExist libdir)
+      (return libdir)
+      (error $ "The lib directory " ++ libdir ++ " does not exist")
 
 ------------------------------------------------------------------------
 -- All tests
