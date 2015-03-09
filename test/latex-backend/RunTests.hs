@@ -21,16 +21,16 @@ main = do
   args <- getArgs
 
   case args of
-    ["runTests"] -> runTests
-    ["clean"]    -> clean
-    _            -> do
-      putStrLn "Wrong argument."
+    [agdaBin, "runTests"] -> runTests agdaBin
+    ["clean"]             -> clean
+    _                     -> do
+      putStrLn "Wrong argument(s)."
       exitFailure
 
 ------------------------------------------------------------------------
 
-runTests :: IO ()
-runTests = do
+runTests :: FilePath -> IO ()
+runTests agdaBin = do
 
   dir   <- getCurrentDirectory
   files <- getDirectoryContents $ dir </> succeedDir
@@ -46,7 +46,7 @@ runTests = do
   forM_ (zip lagdas texs) $ \(lagda, tex) -> do
 
     setCurrentDirectory $ dir </> succeedDir
-    rawSystem "agda" ["--latex", lagda]
+    rawSystem agdaBin ["--latex", lagda]
     exit <- rawSystem "diff" [ "-u", latexDir </> tex, tex ]
 
     when (isFailure exit) $ do
