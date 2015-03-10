@@ -92,6 +92,18 @@ Operator syntax
     T : Bool → Set
     T = if_then ⊤ else ⊥
 
+    if : {A : Set} (b : Bool) → A → A → A
+    if b = if b then_else_
+
+  Sections are translated into lambda expressions. Examples:
+
+    _∸ 1              ↦  λ .section₀ → .section₀ ∸ 1
+
+    if_then ⊤ else ⊥  ↦  λ .section₀ → if .section₀ then ⊤ else ⊥
+
+    if b then_else_   ↦  λ .section₀ .section₁ →
+                             if b then .section₀ else .section₁
+
   Operator sections are unrelated to all other operators.
 
   Operator sections are not supported in patterns (with the exception

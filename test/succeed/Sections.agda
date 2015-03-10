@@ -7,6 +7,9 @@ pred = _∸ 1
 T : Bool → Set
 T = if_then ⊤ else ⊥
 
+if : {A : Set} (b : Bool) → A → A → A
+if b = if b then_else_
+
 test₁ : Nat → Nat
 test₁ = 5 +_
 
@@ -103,3 +106,13 @@ f $ x = f x
 
 test₁₅ : (((⊤ → Bool) → Bool) → Nat) → Nat
 test₁₅ = _$ _$ _
+
+postulate
+  -_  : Nat → Nat
+  _-_ : Nat → Nat → Nat
+
+test₁₆ : Nat → Nat
+test₁₆ = (-_)
+
+test₁₆-test : ∀ x → test₁₆ x ≡ (- x)
+test₁₆-test _ = refl
