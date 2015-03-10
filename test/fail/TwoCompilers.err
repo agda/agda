@@ -13,7 +13,7 @@ Usage: agda [OPTIONS...] [FILE]
           --epic                                      compile program using the Epic backend
           --js                                        compile program using the JS backend
           --uhc                                       compile program using the UHC backend
-          --uhc-ehc-bin=EHC                           The ehc binary to use when compiling with the uhc backend.
+          --uhc-bin=UHC                               The uhc binary to use when compiling with the UHC backend.
           --uhc-textual-core                          Use textual core as intermediate representation instead of binary core.
           --uhc-dont-call-uhc                         Don't call uhc, just write the UHC Core files.
           --uhc-gen-trace=TRACE                       Add tracing code to generated executable.

@@ -8,6 +8,7 @@
 module Agda.Compiler.UHC.Compiler(compilerMain) where
 
 import Control.Applicative
+import Control.Exception (try)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
@@ -20,14 +21,18 @@ import Data.Monoid
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , getCurrentDirectory, setCurrentDirectory
                         , createDirectory, doesDirectoryExist
+                        , getDirectoryContents, copyFile
+                        , getTemporaryDirectory, removeDirectoryRecursive
                         )
 import Data.Version
 import Data.List as L
 import System.Exit
 import System.FilePath hiding (normalise)
 import System.Process hiding (env)
-import Control.Exception (try)
+import System.Info (os)
 import System.IO.Error (isAlreadyExistsError)
+import System.IO.Temp
+
 import Paths_Agda
 import Agda.Compiler.CallCompiler
 import Agda.Interaction.FindFile
@@ -65,16 +70,16 @@ type CompiledModules = M.Map ModuleName (AModuleInfo, AModuleInterface)
 putCompModule :: Monad m => AModuleInfo -> AModuleInterface -> CompModT m ()
 putCompModule mod modTrans = modify (M.insert (amiModule mod) (mod, modTrans))
 
-compileUHCAgdaBase :: TCM ()
-compileUHCAgdaBase = do
+installUHCAgdaBase :: TCM ()
+installUHCAgdaBase = do
     -- TODO we should not do this in the data directory, it may be read only...
     -- TODO only compile uhc-agda-base when we have to
-    dataDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
+    srcDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
     pwd <- liftIO $ getCurrentDirectory
 
     -- get user package dir
-    ehcBin <- getEhcBin
-    (pkgSuc, pkgDbOut, _) <- liftIO $ readProcessWithExitCode ehcBin ["--meta-pkgdir-user"] ""
+    uhcBin <- getUhcBin
+    (pkgSuc, pkgDbOut, _) <- liftIO $ readProcessWithExitCode uhcBin ["--meta-pkgdir-user"] ""
 
     case pkgSuc of
         ExitSuccess -> do
@@ -104,21 +109,41 @@ compileUHCAgdaBase = do
                                 ]
                   Left e | otherwise -> __IMPOSSIBLE__
                   Right _ -> do
-                      liftIO $ setCurrentDirectory dataDir
                       reportSLn "uhc" 10 $ "Agda base library " ++ pkgName ++ " missing, installing into package db at " ++ pkgDbDir ++ "."
 
+                      -- UHC requires the source folder to be writable (see UHC bug #51)
+                      -- If Agda is installed system-wide or using Nix, the cabal data files
+                      -- will be readonly.
+                      -- As a work around, we always copy the sources to a temporary directory for the time being.
+                      -- liftIO $ setCurrentDirectory dataDir
+                      -- TODO we should at least use bracket or withTempDir.. functions here, but this is tricky because
+                      -- of the monad transformers...
+                      dir <- liftIO $ getTemporaryDirectory >>= \t -> createTempDirectory t "uhc-agda-base-src"
+                      liftIO $ copyDirContent srcDir dir
+                      when (os == "linux") (liftIO $ system ("chmod -R +w \"" ++ dir ++ "\"/*") >> return ())
+                      let hsFiles' = map (dir </>) hsFiles
                       callUHC1 (  ["--odir=" ++ pkgDbDir ++""
                                   , "--pkg-build=" ++ pkgName
                                   , "--pkg-build-exposed=UHC.Agda.Builtins"
                                   , "--pkg-expose=base-3.0.0.0"
-                                  ] ++ hsFiles)
+                                  ] ++ hsFiles')
+                      liftIO $ removeDirectoryRecursive dir
+                        -- liftIO $ setCurrentDirectory pwd
                       liftIO $ createDirectory (pkgDbDir </> "installed_" ++ pkgName)
-
-                      liftIO $ setCurrentDirectory pwd
         ExitFailure _ -> internalError $ unlines
             [ "Agda couldn't find the UHC user package directory."
             ]
-
+  where copyDirContent :: FilePath -> FilePath -> IO ()
+        copyDirContent src dest = do
+            createDirectoryIfMissing True dest
+            chlds <- getDirectoryContents src
+            mapM_ (\x -> do
+                isDir <- doesDirectoryExist (src </> x)
+                case isDir of
+                    _ | x == "." || x == ".." -> return ()
+                    True  -> copyDirContent (src </> x) (dest </> x)
+                    False -> copyFile (src </> x) (dest </> x)
+              ) chlds
 -- | Compile an interface into an executable using Epic
 compilerMain :: Interface -> TCM ()
 compilerMain inter = do
@@ -127,7 +152,7 @@ compilerMain inter = do
     let uhc_exist = ExitSuccess
     case uhc_exist of
         ExitSuccess -> do
-            compileUHCAgdaBase
+            installUHCAgdaBase
 
             setUHCDir inter
             (modInfo, _) <- evalStateT (compileModule inter) M.empty
@@ -322,16 +347,12 @@ runUhcMain mainMod mainName = do
     -- TODO drop the RTS args as soon as we don't need the additional memory anymore
     callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp', "+RTS", "-K50m", "-RTS"]
 
-callUHC :: Bool -> FilePath -> TCM ()
-callUHC isMain fp = callUHC1 $ catMaybes
-    [ if isMain then Nothing else Just "--compile-only", Just fp]
-
 callUHC1 :: [String] -> TCM ()
 callUHC1 args = do
-    ehcBin <- getEhcBin
+    uhcBin <- getUhcBin
     doCall <- optUHCCallUHC <$> commandLineOptions
-    when doCall (callCompiler ehcBin args)
+    when doCall (callCompiler uhcBin args)
 
-getEhcBin :: TCM FilePath
-getEhcBin = fromMaybe ("uhc") . optUHCEhcBin <$> commandLineOptions
+getUhcBin :: TCM FilePath
+getUhcBin = fromMaybe ("uhc") . optUHCBin <$> commandLineOptions
 

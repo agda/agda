@@ -91,7 +91,7 @@ data CommandLineOptions = Options
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
   , optUHCCompile       :: Bool
-  , optUHCEhcBin        :: Maybe FilePath
+  , optUHCBin           :: Maybe FilePath
   , optUHCTextualCore   :: Bool
   , optUHCCallUHC       :: Bool
   , optUHCTraceLevel    :: Int
@@ -174,7 +174,7 @@ defaultOptions = Options
   , optEpicCompile      = False
   , optJSCompile        = False
   , optUHCCompile       = False
-  , optUHCEhcBin        = Nothing
+  , optUHCBin           = Nothing
   , optUHCTextualCore   = False
   , optUHCCallUHC       = True
   , optUHCTraceLevel    = 0
@@ -270,9 +270,9 @@ checkOpts opts
   | (not . null . optEpicFlags $ opts)
       && not (optEpicCompile opts) =
       Left "Cannot set Epic flags without using the Epic backend.\n"
-  | (isJust $ optUHCEhcBin opts)
+  | (isJust $ optUHCBin opts)
       && not (optUHCCompile opts) =
-      Left "Cannot set ehc binary without using UHC backend.\n"
+      Left "Cannot set uhc binary without using UHC backend.\n"
   | (optUHCTextualCore opts)
       && not (optUHCCompile opts) =
       Left "Cannot set --uhc-textual-core without using UHC backend.\n"
@@ -445,8 +445,8 @@ ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
 epicFlagsFlag :: String -> Flag CommandLineOptions
 epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
 
-uhcEhcBinFlag :: String -> Flag CommandLineOptions
-uhcEhcBinFlag s o = return $ o { optUHCEhcBin  = Just s }
+uhcBinFlag :: String -> Flag CommandLineOptions
+uhcBinFlag s o = return $ o { optUHCBin  = Just s }
 
 uhcTextualCoreFlag :: Flag CommandLineOptions
 uhcTextualCoreFlag o = return $ o { optUHCTextualCore = True }
@@ -516,7 +516,7 @@ standardOptions =
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
-    , Option []     ["uhc-ehc-bin"] (ReqArg uhcEhcBinFlag "EHC") "The ehc binary to use when compiling with the uhc backend."
+    , Option []     ["uhc-bin"] (ReqArg uhcBinFlag "UHC") "The uhc binary to use when compiling with the UHC backend."
     , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
     , Option []     ["uhc-dont-call-uhc"] (NoArg uhcCallUHCFlag) "Don't call uhc, just write the UHC Core files."
     , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
