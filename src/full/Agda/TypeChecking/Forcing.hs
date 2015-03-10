@@ -71,6 +71,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Conversion
 
@@ -90,7 +91,8 @@ addForcingAnnotations :: Type -> TCM Type
 addForcingAnnotations t =
   ifM (not . optForcing <$> commandLineOptions)
       (return t) $ do
-  -- t <- normalise t
+  -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
+  t <- normalise t
   let TelV tel (El s a) = telView' t
       vs = case ignoreSharing a of
         Def _ us -> us
