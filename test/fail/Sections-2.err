@@ -1,4 +1,4 @@
 Sections-2.agda:7,16-17
-Nat !=< (if .section-variable-0 then Nat else Bool) of type Set
+Nat !=< (if .section₀ then Nat else Bool) of type Set
 when checking that the expression 5 has type
-if .section-variable-0 then Nat else Bool
+if .section₀ then Nat else Bool

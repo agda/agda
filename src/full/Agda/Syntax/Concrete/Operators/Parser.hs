@@ -28,6 +28,7 @@ import Agda.TypeChecking.Monad.Base (TCErr(Exception))
 import qualified Agda.Utils.Parser.MemoisedCPS as MemoisedCPS
 import Agda.Utils.Parser.MemoisedCPS hiding (Parser)
 import Agda.Utils.Monad
+import Agda.Utils.Suffix
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -304,8 +305,9 @@ opP exprKind p (NewNotation q names _ syn isOp) kind = do
       ((b :) -*- (set (Ordinary (unExprView (LocalV (QName x)))) a :))
         (replacePlaceholders (succ n) as)
       where
-      x = Name noRange [Id $ ".section-variable-" ++ show n]
-      b = DomainFree (argInfo a) (mkBoundName_ x)
+      name = ".section" ++ map toSubscriptDigit (show n)
+      x    = Name noRange [Id name]
+      b    = DomainFree (argInfo a) (mkBoundName_ x)
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
 argsP p = many (nothidden <|> hidden <|> instanceH)
