@@ -8,3 +8,4 @@ postulate
 
 bad = if x thenn x else x
 
+-- The error message should /not/ claim that "if" is out of scope.

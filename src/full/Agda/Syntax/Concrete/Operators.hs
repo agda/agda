@@ -154,26 +154,56 @@ noSection n = Section n (notationKind (notation n))
 -- (@_+_@ is replaced by @_@, @+@ and @_@), and if we were to support
 -- sections in patterns, then we would have to accept certain such
 -- sequences of tokens as single pattern variables.
+--
+-- The list of names must include every name part in the
+-- expression/pattern to be parsed (excluding name parts inside things
+-- like parenthesised subexpressions that are treated as atoms). The
+-- list is used to optimise the parser. For instance, a given notation
+-- is only included in the generated grammar if all of the notation's
+-- name parts are present in the list of names.
 
 buildParsers ::
   forall e. IsExpr e =>
-  Range -> FlatScope -> ExprKind -> ScopeM (Parsers e)
-buildParsers r flat kind = do
+  Range -> FlatScope -> ExprKind -> [QName] -> ScopeM (Parsers e)
+buildParsers r flat kind exprNames = do
     (names, ops) <- localNames flat
-    let cons = getDefinedNames [ConName, PatternSynName] flat
-    reportSLn "scope.operators" 50 $ unlines
-      [ "names = " ++ show names
-      , "ops   = " ++ show ops
-      , "cons  = " ++ show cons ]
-    let conparts   = Set.fromList $ concatMap notationNames $ concat cons
-        opsparts   = Set.fromList $ concatMap notationNames ops
-        allParts   = Set.union conparts opsparts
-        connames   = Set.fromList $ map (notaName . head) cons
-        (non, fix) = partition nonfix ops
-        set        = Set.fromList names
+
+    let namesInExpr = Set.fromList exprNames
+        partsInExpr = Set.fromList $
+          concatMap (nameStringParts . unqualify) exprNames
+
+        partsPresent n =
+          [ Set.member p partsInExpr
+          | p <- stringParts (notation n)
+          ]
+
+        -- If "or" is replaced by "and" in conParts/allParts below,
+        -- then the misspelled operator application "if x thenn x else
+        -- x" can be parsed as "if" applied to five arguments,
+        -- resulting in a confusing error message claiming that "if"
+        -- is not in scope.
+
+        (non, fix) = partition nonfix (filter (and . partsPresent) ops)
+
+        cons       = getDefinedNames [ConName, PatternSynName] flat
+        conNames   = Set.fromList $
+                       filter (flip Set.member namesInExpr) $
+                       map (notaName . head) cons
+        conParts   = Set.fromList $
+                       concatMap notationNames $
+                       filter (or . partsPresent) $
+                       concat cons
+
+        allNames   = Set.fromList $
+                       filter (flip Set.member namesInExpr) names
+        allParts   = Set.union conParts
+                       (Set.fromList $
+                        concatMap notationNames $
+                        filter (or . partsPresent) ops)
+
         isAtom   x = case kind of
-                       IsExpr    -> not (Set.member x allParts) || Set.member x set
-                       IsPattern -> not (Set.member x conparts) || Set.member x connames
+                       IsExpr    -> not (Set.member x allParts) || Set.member x allNames
+                       IsPattern -> not (Set.member x conParts) || Set.member x conNames
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
 
@@ -492,9 +522,10 @@ type ParseLHS = Either Pattern (Name, LHSCore)
 
 parseLHS' :: LHSOrPatSyn -> Maybe Name -> Pattern -> ScopeM ParseLHS
 parseLHS' lhsOrPatSyn top p = do
-    let ms = qualifierModules $ patternQNames p
+    let names = patternQNames p
+        ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
-    parsers <- buildParsers (getRange p) flat IsPattern
+    parsers <- buildParsers (getRange p) flat IsPattern names
     let patP = pTop parsers
     let cons = getNames [ConName, PatternSynName] flat
     let flds = getNames [FldName] flat
@@ -647,9 +678,10 @@ parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
 parseApplication es  = billToParser $ do
     -- Build the parser
-    let ms = qualifierModules [ q | Ident q <- es ]
+    let names = [ q | Ident q <- es ]
+        ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
-    p <- buildParsers (getRange es) flat IsExpr
+    p <- buildParsers (getRange es) flat IsExpr names
 
     -- Parse
     case force $ parseWithPlaceholders (pTop p) es of
@@ -672,9 +704,10 @@ parseRawModuleApplication es = billToParser $ do
     m <- parseModuleIdentifier e
 
     -- Build the arguments parser
-    let ms = qualifierModules [ q | Ident q <- es_args ]
+    let names = [ q | Ident q <- es_args ]
+        ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
-    p <- buildParsers (getRange es_args) flat IsExpr
+    p <- buildParsers (getRange es_args) flat IsExpr names
 
     -- Parse
     -- TODO: not sure about forcing
