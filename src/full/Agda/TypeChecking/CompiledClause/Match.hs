@@ -195,7 +195,10 @@ unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
 unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion v = do
   v <- instantiate' v
-  case v of
+  case compressPointerChain v of
     Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
-    Shared{} -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
-    _          -> reduceB' v
+    v@(Shared p) ->
+      case derefPtr p of
+        Def{} -> updateSharedFM unfoldCorecursion v
+        _     -> reduceB' v
+    _ -> reduceB' v
