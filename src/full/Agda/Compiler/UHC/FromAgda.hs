@@ -280,6 +280,9 @@ translateDefn (n, defini) = do
         return $ Fun True name (Just qn) (sh primname) vars (comb primname (map Var vars))
 
 
+-- | Adds the offset from the projection args to all indexes.
+-- The de-Bruijn indices in the function body are converted
+-- here to de-Bruin levels.
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody c cc = case cc of
   CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case (c+n)
