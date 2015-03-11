@@ -36,7 +36,6 @@ import Agda.Utils.Impossible
 
 data MemoKey = NodeK      (Either Integer Integer)
              | PostLeftsK (Either Integer Integer)
-             | HigherK Integer
              | TopK
              | AppK
              | NonfixK

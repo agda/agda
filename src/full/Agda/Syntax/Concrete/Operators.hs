@@ -125,8 +125,6 @@ localNames flat = do
 --   from concrete to abstract syntax.
 data Parsers e = Parsers
   { pTop    :: Parser e e
-  , pNodes  :: Map Integer (Parser e e)
-  , pHigher :: Map Integer (Parser e e)
   , pApp    :: Parser e e
   , pArgs   :: Parser e [NamedArg e]
   , pNonfix :: Parser e e
@@ -203,10 +201,10 @@ buildParsers r flat kind = do
                          , notaIsOperator n
                          ]
 
-        -- Highest level first.
+        -- The triples have the form (level, operators). The lowest
+        -- level comes first.
         relatedOperators :: [(Integer, [Section])]
         relatedOperators =
-          reverse .
           map (\((l, n) : ns) -> (l, map noSection (n : map snd ns))) .
           groupBy ((==) `on` fst) .
           sortBy (compare `on` fst) .
@@ -215,38 +213,22 @@ buildParsers r flat kind = do
                             Related l -> Just (l, n)) $
           fix
 
-        -- Same levels as in relatedOperators.
-        higher  :: [(Integer, [Integer])]
-        higher  = zip levels (init $ inits levels)
-                  where levels = map fst relatedOperators
-
     reportSLn "scope.operators" 50 $ unlines
       [ "unrelatedOperators = " ++ show unrelatedOperators
       , "nonWithSections    = " ++ show nonWithSections
       , "relatedOperators   = " ++ show relatedOperators
-      , "higher             = " ++ show higher
       ]
 
     return $ Data.Function.fix $ \p -> Parsers
         { pTop    = memoise TopK $
                     Fold.asum $
-                      pApp p :
+                      foldr ($) (pApp p)
+                        (map (\(l, ns) higher ->
+                                 mkP (Right l) (pTop p) ns higher True)
+                             relatedOperators) :
                       map (\(k, n) ->
-                              mkP (Left k) (pTop p) [n] (pApp p))
-                          (zip [0..] unrelatedOperators) ++
-                      Map.elems (pNodes p)
-        , pNodes  = Map.fromList $
-                      map (\(l, ns) ->
-                              (l, mkP (Right l) (pTop p) ns
-                                      (pHigher p Map.! l)))
-                          relatedOperators
-        , pHigher = Map.fromList $
-                      map (\(l, ls) ->
-                              (l, memoise (HigherK l) $
-                                  Fold.asum $
-                                    pApp p :
-                                    map (pNodes p Map.!) ls))
-                          higher
+                              mkP (Left k) (pTop p) [n] (pApp p) False)
+                          (zip [0..] unrelatedOperators)
         , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
         , pArgs   = argsP (pNonfix p)
         , pNonfix = memoise NonfixK $
@@ -299,10 +281,15 @@ buildParsers r flat kind = do
             -> [Section]
             -> Parser e e
                -- ^ A parser for an expression of higher precedence.
+            -> Bool
+               -- ^ Include the \"expression of higher precedence\"
+               -- parser as one of the choices?
             -> Parser e e
-        mkP key p0 ops higher =
+        mkP key p0 ops higher includeHigher =
             memoise (NodeK key) $
-              Fold.asum $ catMaybes [nonAssoc, preRights, postLefts]
+              Fold.asum $
+                (if includeHigher then (higher :) else id) $
+                catMaybes [nonAssoc, preRights, postLefts]
             where
             choice :: forall k.
                       NK k -> [Section] -> Parser e (OperatorType k e)
