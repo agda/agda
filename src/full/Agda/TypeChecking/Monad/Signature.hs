@@ -5,6 +5,7 @@
 
 module Agda.TypeChecking.Monad.Signature where
 
+import Control.Arrow (first, second, (***))
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
@@ -351,15 +352,20 @@ applySection new ptel old ts rd rm = do
 
     copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
     copySec ts (x, y) = do
-      np  <- argsToUse x
-      tel <- lookupSection x
-      let fv = size tel - np
+      totalArgs <- argsToUse x
+      tel       <- lookupSection x
+      ptel      <- lookupSection $ mnameFromList $ init $ mnameToList x
+      let parentParams = size ptel
+          childParams  = size tel - parentParams
+          argsToChild  = max 0 $ totalArgs - parentParams
+      let fv = childParams - argsToChild
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
       reportSLn "tc.mod.apply" 80 $ "  free variables: " ++ show fv
       reportSLn "tc.mod.apply" 80 $ "  ts  = " ++ show ts
-      reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show tel
-      reportSLn "tc.mod.apply" 80 $ "  np  = " ++ show np
-      addCtxTel (apply tel $ take np ts) $ addSection y fv
+      reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show (map (second unEl . unDom) $ telToList tel)
+      reportSLn "tc.mod.apply" 80 $ "  ptel = " ++ show (map (second unEl . unDom) $ telToList ptel)
+      reportSLn "tc.mod.apply" 80 $ "  np  = " ++ show totalArgs
+      addCtxTel (apply tel $ take totalArgs ts) $ addSection y fv
 
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
