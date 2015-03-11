@@ -124,7 +124,7 @@ data Axiom
   deriving (Typeable, Eq, Ord, Show)
 
 -- | Renaming (generic).
-type Ren a = Map a a
+type Ren a = [(a, a)]
 
 data Declaration
   = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)

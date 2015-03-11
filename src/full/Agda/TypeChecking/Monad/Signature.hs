@@ -5,6 +5,7 @@
 
 module Agda.TypeChecking.Monad.Signature where
 
+import Control.Arrow (first, second, (***))
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
@@ -217,9 +218,9 @@ applySection new ptel old ts rd rm = do
   reportSLn "tc.mod.apply" 80 $ render $ vcat
     [ text "arguments:  " <+> text (show ts)
     ]
-  mapM_ (copyDef ts) $ Map.toList rd
-  mapM_ (copySec ts) $ Map.toList rm
-  mapM_ computePolarity (Map.elems rd)
+  mapM_ (copyDef ts) rd
+  mapM_ (copySec ts) rm
+  mapM_ computePolarity (map snd rd)
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
@@ -229,7 +230,7 @@ applySection new ptel old ts rd rm = do
     -- I guess it would make sense to mark non-imported names
     -- as such (out-of-scope) and let splitting fail if it would
     -- produce out-of-scope constructors.
-    copyName x = Map.findWithDefault x x rd
+    copyName x = fromMaybe x $ lookup x rd
 
     argsToUse new = do
       let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
@@ -352,15 +353,20 @@ applySection new ptel old ts rd rm = do
 
     copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
     copySec ts (x, y) = do
-      np  <- argsToUse x
-      tel <- lookupSection x
-      let fv = size tel - np
+      totalArgs <- argsToUse x
+      tel       <- lookupSection x
+      ptel      <- lookupSection $ mnameFromList $ init $ mnameToList x
+      let parentParams = size ptel
+          childParams  = size tel - parentParams
+          argsToChild  = max 0 $ totalArgs - parentParams
+      let fv = childParams - argsToChild
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
       reportSLn "tc.mod.apply" 80 $ "  free variables: " ++ show fv
       reportSLn "tc.mod.apply" 80 $ "  ts  = " ++ show ts
-      reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show tel
-      reportSLn "tc.mod.apply" 80 $ "  np  = " ++ show np
-      addCtxTel (apply tel $ take np ts) $ addSection y fv
+      reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show (map (second unEl . unDom) $ telToList tel)
+      reportSLn "tc.mod.apply" 80 $ "  ptel = " ++ show (map (second unEl . unDom) $ telToList ptel)
+      reportSLn "tc.mod.apply" 80 $ "  np  = " ++ show totalArgs
+      addCtxTel (apply tel $ take totalArgs ts) $ addSection y fv
 
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
