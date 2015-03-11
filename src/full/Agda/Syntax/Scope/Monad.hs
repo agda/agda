@@ -342,7 +342,7 @@ type WSM = StateT Out ScopeM
 --   alternative to qualification by their module).
 --   (See Issue 836).
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, (A.Ren A.ModuleName, A.Ren A.QName))
-copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) (Map.empty, Map.empty)
+copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) ([], [])
   where
     -- | A memoizing algorithm, the renamings serving as memo structure.
     copy :: A.ModuleName -> Scope -> StateT (A.Ren A.ModuleName, A.Ren A.QName) ScopeM Scope
@@ -374,35 +374,29 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y = modify $ second $ Map.insert x y
-        addMod  x y = modify $ first  $ Map.insert x y
+        addName x y = modify $ second $ ((x, y):)
+        addMod  x y = modify $ first  $ ((x, y):)
 
         -- Querying the memo structure.
-        findName x = Map.lookup x <$> gets snd
-        findMod  x = Map.lookup x <$> gets fst
+        findName x = lookup x <$> gets snd
+        findMod  x = lookup x <$> gets fst
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
         renName x = do
-          lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x
-          -- If we've seen it already, just return its copy.
-          (`fromMaybeM` findName x) $ do
-          -- We have not processed this name @x@, so copy it to some @y@.
           -- Check whether we have already seen a module of the same name.
           -- If yes, use its copy as @y@.
           y <- ifJustM (findMod $ qnameToMName x) (return . mnameToQName) $ {- else -} do
             -- First time, generate a fresh name for it.
             i <- lift fresh
             return $ A.qualify new' $ (qnameName x) { nameId = i }
+          lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
           addName x y
           return y
 
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renMod :: A.ModuleName -> WSM A.ModuleName
         renMod x = do
-          -- If we've seen it already, just return its copy.
-          (`fromMaybeM` findMod x) $ do
-          -- We have not processed this name @x@, so copy it to some @y@.
           -- Check whether we have seen it already, yet as  name.
           -- If yes, use its copy as @y@.
           y <- ifJustM (findName $ mnameToQName x) (return . qnameToMName) $ {- else -} do

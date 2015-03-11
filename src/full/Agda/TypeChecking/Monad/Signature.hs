@@ -218,9 +218,9 @@ applySection new ptel old ts rd rm = do
   reportSLn "tc.mod.apply" 80 $ render $ vcat
     [ text "arguments:  " <+> text (show ts)
     ]
-  mapM_ (copyDef ts) $ Map.toList rd
-  mapM_ (copySec ts) $ Map.toList rm
-  mapM_ computePolarity (Map.elems rd)
+  mapM_ (copyDef ts) rd
+  mapM_ (copySec ts) rm
+  mapM_ computePolarity (map snd rd)
   where
     -- Andreas, 2013-10-29
     -- Here, if the name x is not imported, it persists as
@@ -230,7 +230,7 @@ applySection new ptel old ts rd rm = do
     -- I guess it would make sense to mark non-imported names
     -- as such (out-of-scope) and let splitting fail if it would
     -- produce out-of-scope constructors.
-    copyName x = Map.findWithDefault x x rd
+    copyName x = fromMaybe x $ lookup x rd
 
     argsToUse new = do
       let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
