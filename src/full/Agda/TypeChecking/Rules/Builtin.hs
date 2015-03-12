@@ -127,7 +127,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
   , (builtinSizeUniv           |-> builtinPostulate tset)
   , (builtinSize               |-> builtinPostulate tset)
-  , (builtinSizeLt             |-> builtinPostulate (tsize --> tset))
+  , (builtinSizeLt             |-> builtinPostulate (tsize ..--> tset))
   , (builtinSizeSuc            |-> builtinPostulate (tsize --> tsize))
   , (builtinSizeInf            |-> builtinPostulate tsize)
   -- postulate max : {i : Size} -> Size< i -> Size< i -> Size< i

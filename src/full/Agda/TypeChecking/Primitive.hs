@@ -477,22 +477,22 @@ mkPrimFun4 f = do
         _ -> __IMPOSSIBLE__
 
 -- Type combinators
+
 infixr 4 -->
-
-(-->) :: TCM Type -> TCM Type -> TCM Type
-a --> b = do
-    a' <- a
-    b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Dom defaultArgInfo a') (NoAbs "_" b')
-
 infixr 4 .-->
+infixr 4 ..-->
 
-(.-->) :: TCM Type -> TCM Type -> TCM Type
-a .--> b = do
-    a' <- a
-    b' <- b
-    return $ El (getSort a' `sLub` getSort b') $
-             Pi (Dom (setRelevance Irrelevant defaultArgInfo) a') (NoAbs "_" b')
+(-->), (.-->), (..-->) :: TCM Type -> TCM Type -> TCM Type
+a --> b = garr id a b
+a .--> b = garr (const $ Irrelevant) a b
+a ..--> b = garr (const $ NonStrict) a b
+
+garr :: (Relevance -> Relevance) -> TCM Type -> TCM Type -> TCM Type
+garr f a b = do
+  a' <- a
+  b' <- b
+  return $ El (getSort a' `sLub` getSort b') $
+           Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
 
 gpi :: I.ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
 gpi info name a b = do
