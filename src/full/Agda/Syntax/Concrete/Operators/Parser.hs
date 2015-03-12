@@ -26,7 +26,8 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 import Agda.TypeChecking.Monad.Base (TCErr(Exception))
 import qualified Agda.Utils.Parser.MemoisedCPS as MemoisedCPS
-import Agda.Utils.Parser.MemoisedCPS hiding (Parser)
+import Agda.Utils.Parser.MemoisedCPS hiding (Parser, parse)
+import qualified Agda.Utils.Parser.MemoisedCPS as Parser
 import Agda.Utils.Monad
 import Agda.Utils.Suffix
 import Agda.Utils.Tuple
@@ -87,9 +88,6 @@ sat' p = do
   tok <- notPlaceholder
   if p tok then return tok else empty
 
-data ExprKind = IsPattern | IsExpr
-  deriving (Eq, Show)
-
 data ExprView e
     = LocalV QName
     | WildV e
@@ -111,11 +109,14 @@ class HasRange e => IsExpr e where
 instance IsExpr e => HasRange (ExprView e) where
   getRange = getRange . unExprView
 
-parseWithoutPlaceholders :: IsExpr e => Parser e a -> [e] -> [a]
-parseWithoutPlaceholders p es = parse p (map NoPlaceholder es)
+-- | Should sections be parsed?
+data ParseSections = ParseSections | DoNotParseSections
+  deriving (Eq, Show)
 
-parseWithPlaceholders :: (Show e, IsExpr e) => Parser e a -> [e] -> [a]
-parseWithPlaceholders p es = parse p (concat $ map splitExpr es)
+parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
+parse (DoNotParseSections, p) es = Parser.parse p (map NoPlaceholder es)
+parse (ParseSections,      p) es = Parser.parse p
+                                     (concat $ map splitExpr es)
   where
   splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
   splitExpr e = case exprView e of
@@ -190,9 +191,9 @@ data NK (k :: NotationKind) :: * where
 -- If the notation does not contain any binders, then a section
 -- notation is allowed.
 opP :: forall e k. IsExpr e
-    => ExprKind  -- ^ Sections are disallowed in pattern grammars.
+    => ParseSections
     -> Parser e e -> NewNotation -> NK k -> Parser e (OperatorType k e)
-opP exprKind p (NewNotation q names _ syn isOp) kind = do
+opP parseSections p (NewNotation q names _ syn isOp) kind = do
 
   (range, hs) <- worker (init $ qnameParts q) withoutExternalHoles
 
@@ -242,19 +243,21 @@ opP exprKind p (NewNotation q names _ syn isOp) kind = do
     [Name] -> Notation ->
     Parser e (Range, [Either (MaybePlaceholder e, C.NamedArg () Int)
                              (LamBinding, Int)])
-  worker ms []                  = return (noRange, [])
-  worker ms (IdPart x     : xs) = do r1       <- partP ms x
-                                     (r2, es) <- worker [] xs
-                                                 -- Only the first
-                                                 -- part is qualified.
-                                     return (fuseRanges r1 r2, es)
-  worker ms (NormalHole h : xs) = do e <- maybePlaceholder
-                                            (if isOp && exprKind == IsExpr
-                                             then Just Middle else Nothing)
-                                            p
-                                     (r, es) <- worker ms xs
-                                     return (r, Left (e, h) : es)
-  worker ms (BindHole h   : xs) = do
+  worker ms []              = return (noRange, [])
+  worker ms (IdPart x : xs) = do
+    r1       <- partP ms x
+    (r2, es) <- worker [] xs
+                -- Only the first
+                -- part is qualified.
+    return (fuseRanges r1 r2, es)
+  worker ms (NormalHole h : xs) = do
+    e <- maybePlaceholder
+           (if isOp && parseSections == ParseSections
+            then Just Middle else Nothing)
+           p
+    (r, es) <- worker ms xs
+    return (r, Left (e, h) : es)
+  worker ms (BindHole h : xs) = do
     e <- notPlaceholder
     case exprView e of
       LocalV (QName name) -> ret name
