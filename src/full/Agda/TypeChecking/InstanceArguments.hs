@@ -293,22 +293,27 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 filterResetingState :: MetaId -> Candidates -> (Candidate -> TCM Bool) -> TCM Candidates
 filterResetingState m cands f = disableDestructiveUpdate $ do
   result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
-  result <- dropSameCandidates m result
-  case List.filter (\ (c, (b, s)) -> b) result of
-    [(c, (_, s))] -> do put s; return [c]
-    l -> return (map (\ (c, (b, s)) -> c) l)
+  let result' = [ (c, s) | (c, (True, s)) <- result ]
+  result <- dropSameCandidates m result'
+  case result of
+    [(c, s)] -> [c] <$ put s
+    _        -> return $ map fst result
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, a)] -> TCM [(Candidate, a)]
 dropSameCandidates m cands = do
+  reportSDoc "tc.instance" 50 $ text "valid candidates:" $$ nest 2 (vcat $ map (prettyTCM . fst . fst) cands)
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
     ((v,a), d) : vas -> (((v,a), d):) <$> dropWhileM equal vas
       where
         equal _ | isIrrelevant rel = return True
-        equal ((v',a'), _) = localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+        equal ((v',a'), _) =
+          verboseBracket "tc.instance" 30 "checkEqualCandidates" $ do
+          reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> text "==", nest 2 $ prettyTCM v' ]
+          localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
                              {- then -} (return True)
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
