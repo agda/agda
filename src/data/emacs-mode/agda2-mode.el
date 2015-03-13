@@ -1610,7 +1610,12 @@ the argument is a positive number, otherwise turn it off."
 ;; this function unloads the Emacs mode.
 
 (defun agda2-set-program-version (version)
-  "Tries to switch to Agda version VERSION."
+  "Tries to switch to Agda version VERSION.
+
+This command assumes that the agda and agda-mode executables for
+Agda version VERSION are called agda-VERSION and
+agda-mode-VERSION, and that they are located on the PATH. (If
+VERSION is empty, then agda and agda-mode are used instead.)"
   (interactive "M")
 
   (let*
@@ -1621,10 +1626,15 @@ the argument is a positive number, otherwise turn it off."
                       (list buf))))
                 (buffer-list)))
 
-       ;; Run agda-mode-<version> and make sure that it returns
+       (version-suffix (if (or (equal version "")
+                               (equal version nil))
+                           ""
+                         (concat "-" version)))
+
+       ;; Run agda-mode<version-suffix> and make sure that it returns
        ;; successfully.
        (coding-system-for-read 'utf-8)
-       (agda-mode-prog (concat "agda-mode-" version))
+       (agda-mode-prog (concat "agda-mode" version-suffix))
        (agda-mode-path
         (condition-case nil
             (with-temp-buffer
@@ -1638,7 +1648,7 @@ the argument is a positive number, otherwise turn it off."
           (file-error
            (error "%s" (concat "Could not find " agda-mode-prog))))))
 
-    ;; Make sure that agda-mode-<version> returns a valid file.
+    ;; Make sure that agda-mode<version-suffix> returns a valid file.
     (unless (file-readable-p agda-mode-path)
       (error "%s" (concat "Could not read " agda-mode-path)))
 
@@ -1670,7 +1680,7 @@ the argument is a positive number, otherwise turn it off."
     ;; Load the new version of Agda.
     (load-file agda-mode-path)
     (require 'agda2-mode)
-    (setq agda2-program-name (concat "agda-" version))
+    (setq agda2-program-name (concat "agda" version-suffix))
 
     ;; Restart the Agda mode in all former Agda mode buffers.
     (mapc (lambda (buf)
