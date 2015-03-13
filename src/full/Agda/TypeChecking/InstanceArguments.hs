@@ -308,7 +308,7 @@ dropSameCandidates m cands = do
     ((v,a), d) : vas -> (((v,a), d):) <$> dropWhileM equal vas
       where
         equal _ | isIrrelevant rel = return True
-        equal ((v',a'), _) = dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
+        equal ((v',a'), _) = localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
                              {- then -} (return True)
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
