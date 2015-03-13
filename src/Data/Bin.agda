@@ -73,10 +73,24 @@ fromBits (zero       ∷ bs) | 0#     = 0#
 fromBits ((1+ zero)  ∷ bs) | 0#     = [] 1#
 fromBits ((1+ 1+ ()) ∷ bs) | _
 
+private
+  pattern 2+_ n = 1+ 1+ n
+
+  ntoBits′ : ℕ → ℕ → List Bit
+  ntoBits′     0      _  = []
+  ntoBits′     1      0  = 0b ∷ 1b ∷ []
+  ntoBits′     1      1  = 1b ∷ []
+  ntoBits′ (2+ k)     0  = 0b ∷ ntoBits′ (1+ k) k
+  ntoBits′ (2+ k)     1  = 1b ∷ ntoBits′ (1+ k) (1+ k)
+  ntoBits′ (1+ k) (2+ n) = ntoBits′ k n
+
+  ntoBits : ℕ → List Bit
+  ntoBits n = ntoBits′ n n
+
 -- Converting from a natural number.
 
 fromℕ : ℕ → Bin
-fromℕ n = fromBits $ proj₁ $ toDigits 2 n
+fromℕ n = fromBits $ ntoBits n
 
 ------------------------------------------------------------------------
 -- (Bin, _≡_, _<_) is a strict total order
