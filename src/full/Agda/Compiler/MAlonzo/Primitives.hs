@@ -245,6 +245,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primQNameDefinition" |-> return "MAlonzo.RTE.qnameDefinition"
 
   , "primDataConstructors" |-> return "(error \"primDataConstructors: not implemented\")"
+  , "primDataNumberOfParameters" |-> return "(error \"primDataNumberOfParameters: not implemented\")"
 
   -- Trust me
   , ("primTrustMe"       , Right <$> do
