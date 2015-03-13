@@ -334,6 +334,7 @@ argpatts ps0 bvs = evalStateT (concat <$> mapM pat' ps0) bvs
       lift $ typeError $ NotImplemented $ "Compilation of copatterns"
   pat   (VarP _   ) = do v <- gets head; modify tail; return [v]
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
+  pat   (LitP (LitQName _ x)) = return [litqnamepat x]
   pat   (LitP l   ) = return [HS.PLit HS.Signless $ hslit l]
 
   pat p@(ConP c _ ps) = do
@@ -425,7 +426,7 @@ literal l = case l of
   LitInt    _ _   -> do toN <- bltQual "NATURAL" mazIntegerToNat
                         return $ HS.Var toN `HS.App` typed "Integer"
   LitFloat  _ _   -> return $ typed "Double"
-  LitQName  _ x   -> litqname x
+  LitQName  _ x   -> return $ litqname x
   _               -> return $ l'
   where l'    = HS.Lit $ hslit l
         typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
@@ -437,13 +438,22 @@ hslit l = case l of LitInt    _ x -> HS.Int    x
                     LitChar   _ x -> HS.Char   x
                     LitQName  _ x -> __IMPOSSIBLE__
 
-litqname :: QName -> TCM HS.Exp
-litqname x = return $
+litqname :: QName -> HS.Exp
+litqname x =
   HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
   HS.Lit (HS.Int n) `HS.App`
   HS.Lit (HS.Int m) `HS.App`
   (rtmError "primQNameType: not implemented") `HS.App`
   (rtmError "primQNameDefinition: not implemented")
+  where
+    NameId n m = nameId $ qnameName x
+
+litqnamepat :: QName -> HS.Pat
+litqnamepat x =
+  HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
+          [ HS.PLit HS.Signless (HS.Int n)
+          , HS.PLit HS.Signless (HS.Int m)
+          , HS.PWildCard, HS.PWildCard ]
   where
     NameId n m = nameId $ qnameName x
 

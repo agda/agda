@@ -28,6 +28,8 @@ check_UniversePolymorphicIO = ./checkOutput ./UniversePolymorphicIO ok
 check_Issue481 = diff Issue481.dot.orig Issue481.dot
 cleanup_Issue481 = rm Issue481.dot
 
+check_CompilingQNamePats = ./checkOutput ./CompilingQNamePats yesno
+
 does_compile = $(shell if [ -e $1.flags ]; then grep compile $1.flags; fi)
 cleanup	     = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
 
