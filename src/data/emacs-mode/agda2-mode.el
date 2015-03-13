@@ -252,6 +252,7 @@ constituents.")
     (describe-char                           nil                  (global)       "Information about the character at point")
     (agda2-comment-dwim-rest-of-buffer       ,(kbd "C-c C-x M-;") (global)       "Comment/uncomment the rest of the buffer")
     (agda2-display-program-version           nil                  (global)       "Version")
+    (agda2-set-program-version               nil                  (global)       "Switch to another version of Agda")
     (eri-indent                  ,(kbd "TAB"))
     (eri-indent-reverse          [S-iso-lefttab])
     (eri-indent-reverse          [S-lefttab])
@@ -988,11 +989,12 @@ is inserted, and point is placed before this text."
 (defun agda2-term ()
   "Send a SIGTERM signal to the Agda2 process, then kill its buffer."
   (interactive)
-  (with-current-buffer agda2-process-buffer
-    (condition-case nil
-        (signal-process agda2-process 'SIGTERM)
-      (error nil))
-    (kill-buffer)))
+  (when (buffer-live-p agda2-process-buffer)
+    (with-current-buffer agda2-process-buffer
+      (condition-case nil
+          (signal-process agda2-process 'SIGTERM)
+        (error nil))
+      (kill-buffer))))
 
 (defmacro agda2-maybe-normalised (name comment cmd want)
   "This macro constructs a function NAME which runs CMD.
@@ -1600,6 +1602,81 @@ the argument is a positive number, otherwise turn it off."
            (setq choice (x-popup-menu ev agda2-goal-map))
            (call-interactively
             (lookup-key agda2-goal-map (apply 'vector choice)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Switching to a different version of Agda
+
+;; Note that other versions of Agda may use different protocols, so
+;; this function unloads the Emacs mode.
+
+(defun agda2-set-program-version (version)
+  "Tries to switch to Agda version VERSION."
+  (interactive "M")
+
+  (let*
+      ((agda-buffers
+        (mapcan (lambda (buf)
+                  (with-current-buffer buf
+                    (when (equal major-mode 'agda2-mode)
+                      (list buf))))
+                (buffer-list)))
+
+       ;; Run agda-mode-<version> and make sure that it returns
+       ;; successfully.
+       (coding-system-for-read 'utf-8)
+       (agda-mode-prog (concat "agda-mode-" version))
+       (agda-mode-path
+        (condition-case nil
+            (with-temp-buffer
+              (unless
+                  (equal 0 (call-process agda-mode-prog
+                                         nil (current-buffer) nil
+                                         "locate"))
+                (error "%s" (concat "Error when running "
+                                    agda-mode-prog)))
+              (buffer-string))
+          (file-error
+           (error "%s" (concat "Could not find " agda-mode-prog))))))
+
+    ;; Make sure that agda-mode-<version> returns a valid file.
+    (unless (file-readable-p agda-mode-path)
+      (error "%s" (concat "Could not read " agda-mode-path)))
+
+    ;; Kill some processes/buffers related to Agda.
+    (when (and agda2-process
+               (process-status agda2-process))
+      (kill-process agda2-process))
+    (when (buffer-live-p agda2-process-buffer)
+      (kill-buffer agda2-process-buffer))
+    (when (buffer-live-p agda2-info-buffer)
+      (kill-buffer agda2-info-buffer))
+    (when (and agda2-debug-buffer-name
+               (get-buffer agda2-debug-buffer-name))
+      (kill-buffer agda2-debug-buffer-name))
+
+    ;; Remove the Agda mode directory from the load path.
+    (setq load-path (delete agda2-directory load-path))
+
+    ;; Unload the Agda mode and its dependencies.
+    (unload-feature 'agda2-mode      'force)
+    (unload-feature 'agda2           'force)
+    (unload-feature 'eri             'force)
+    (unload-feature 'annotation      'force)
+    (unload-feature 'agda-input      'force)
+    (unload-feature 'agda2-highlight 'force)
+    (unload-feature 'agda2-abbrevs   'force)
+    (unload-feature 'agda2-queue     'force)
+
+    ;; Load the new version of Agda.
+    (load-file agda-mode-path)
+    (require 'agda2-mode)
+    (setq agda2-program-name (concat "agda-" version))
+
+    ;; Restart the Agda mode in all former Agda mode buffers.
+    (mapc (lambda (buf)
+            (with-current-buffer buf
+              (agda2-mode)))
+          agda-buffers)))
 
 (provide 'agda2-mode)
 ;;; agda2-mode.el ends here

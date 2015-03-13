@@ -103,6 +103,12 @@ Type checking
   constructors, they will also not be unified by the constraint
   `Fin (suc n) = Fin (suc m)`.
 
+Emacs mode
+==========
+
+* The new menu option "Switch to another version of Agda" tries to do
+  what it says.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.2
 ------------------------------------------------------------------------

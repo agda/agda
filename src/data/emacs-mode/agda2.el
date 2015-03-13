@@ -2,8 +2,10 @@
 ;; Agda mode code which should run before the first Agda file is
 ;; loaded
 
-(add-to-list 'load-path
-              (or (file-name-directory load-file-name) (car load-path)))
+(defvar agda2-directory (file-name-directory load-file-name)
+  "Path to the directory that contains agda2.el(c).")
+
+(add-to-list 'load-path (or agda2-directory (car load-path)))
 
 (autoload 'agda2-mode "agda2-mode"
   "Major mode for editing Agda files (version ≥ 2)." t)
