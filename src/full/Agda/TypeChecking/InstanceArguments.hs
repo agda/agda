@@ -153,6 +153,8 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
     setCurrentRange mv $ do
     reportSLn "tc.instance" 15 $
       "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
+    reportSDoc "tc.instance" 70 $ nest 2 $ vcat
+      [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | (v, t) <- cands ]
     t <- normalise =<< getMetaTypeInContext m
     reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
     reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
