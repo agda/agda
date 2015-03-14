@@ -6,7 +6,7 @@
 
 module Function.Equality where
 
-open import Function as Fun using (_on_)
+import Function as Fun
 open import Level
 import Relation.Binary as B
 import Relation.Binary.Indexed as I
