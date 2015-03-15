@@ -991,6 +991,8 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
                         , prettyTCM s2 ]
         ]
   case (s1, s2) of
+      (SizeUniv, _       ) -> equalSort s1 s2
+      (_       , SizeUniv) -> equalSort s1 s2
 
       (_       , Inf     ) -> yes
 
@@ -1000,9 +1002,9 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (Prop    , Type _  ) -> yes
       (Type _  , Prop    ) -> no
 
-      (SizeUniv, SizeUniv) -> yes
-      (SizeUniv, _       ) -> no
-      (_       , SizeUniv) -> no
+      -- (SizeUniv, SizeUniv) -> yes
+      -- (SizeUniv, _       ) -> no
+      -- (_       , SizeUniv) -> no
 
       (Inf     , _       ) -> unlessM typeInType $ equalSort s1 s2
       (DLub{}  , _       ) -> unlessM typeInType $ postpone
@@ -1288,6 +1290,7 @@ equalSort s1 s2 = do
         let postpone = addConstraint (SortCmp CmpEq s1 s2)
             yes      = return ()
             no       = typeError $ UnequalSorts s1 s2
+
             -- Test whether a level is infinity.
             isInf ClosedLevel{}   = no
             isInf (Plus _ l) = case l of
@@ -1298,6 +1301,16 @@ equalSort s1 s2 = do
               NeutralLevel _ v -> case ignoreSharing v of
                 Sort Inf -> yes
                 _        -> no
+              _ -> no
+
+            -- Equate a level with SizeUniv.
+            eqSizeUniv l0 = case l0 of
+              Plus 0 l -> case l of
+                MetaLevel x es -> assignE DirEq x es (Sort SizeUniv) $ equalAtom topSort
+                NeutralLevel _ v -> case ignoreSharing v of
+                  Sort SizeUniv -> yes
+                  _ -> no
+                _ -> no
               _ -> no
 
         reportSDoc "tc.conv.sort" 30 $ sep
@@ -1314,6 +1327,8 @@ equalSort s1 s2 = do
             (Type a  , Type b  ) -> equalLevel a b
 
             (SizeUniv, SizeUniv) -> yes
+            (SizeUniv, Type (Max as@(_:_))) -> mapM_ eqSizeUniv as
+            (Type (Max as@(_:_)), SizeUniv) -> mapM_ eqSizeUniv as
             (SizeUniv, _       ) -> no
             (_       , SizeUniv) -> no
 

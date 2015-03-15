@@ -1156,17 +1156,18 @@ sortTm s        = Sort s
 
 levelSort :: Level -> Sort
 levelSort (Max as)
-  | List.any isInf as = Inf
+  | List.any (levelIs Inf     ) as = Inf
+  | List.any (levelIs SizeUniv) as = SizeUniv
   where
-    isInf ClosedLevel{}        = False
-    isInf (Plus _ l)           = infAtom l
-    infAtom (NeutralLevel _ a) = infTm a
-    infAtom (UnreducedLevel a) = infTm a
-    infAtom MetaLevel{}        = False
-    infAtom BlockedLevel{}     = False
-    infTm (Sort Inf)           = True
-    infTm (Shared p)           = infTm $ derefPtr p
-    infTm _                    = False
+    levelIs s ClosedLevel{}     = False
+    levelIs s (Plus _ l)        = atomIs s l
+    atomIs s (NeutralLevel _ a) = tmIs s a
+    atomIs s (UnreducedLevel a) = tmIs s a
+    atomIs s MetaLevel{}        = False
+    atomIs s BlockedLevel{}     = False
+    tmIs s (Sort s')            = s == s'
+    tmIs s (Shared p)           = tmIs s $ derefPtr p
+    tmIs s _                    = False
 levelSort l =
   case ignoreSharing $ levelTm l of
     Sort s -> s
