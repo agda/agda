@@ -1,0 +1,4 @@
+Issue1428a.agda:9,20-31
+Functions may not return sizes, thus, function type
+(i : Size) → Size< i is illegal
+when checking that the expression ∀ i → Size< i is a type
