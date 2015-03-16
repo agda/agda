@@ -102,6 +102,7 @@ isType_ e =
       a <- Dom info <$> isType_ t
       b <- isType_ b
       return $ El (sLub (getSort a) (getSort b)) (Pi (convColor a) (NoAbs underscore b))
+    A.Pi _ tel e | null tel -> isType_ e
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
@@ -723,6 +724,7 @@ checkExpr e t0 =
 
         A.Lit lit    -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr e t
+        A.Pi _ tel e | null tel -> checkExpr e t
         A.Pi _ tel e -> do
             t' <- checkTelescope_ tel $ \tel -> do
                     t   <- instantiateFull =<< isType_ e
