@@ -537,7 +537,12 @@ tSetOmega :: TCM Type
 tSetOmega = return $ sort Inf
 
 tSizeUniv :: TCM Type
-tSizeUniv = return $ sort SizeUniv
+tSizeUniv = return $ El SizeUniv $ Sort SizeUniv
+-- Andreas, 2015-03-16 Since equality checking for types
+-- includes equality checking for sorts, we cannot put
+-- SizeUniv in Setω.  (SizeUniv : Setω) == (_0 : suc _0)
+-- will first instantiate _0 := Setω, which is wrong.
+-- tSizeUniv = return $ El Inf $ Sort SizeUniv
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
 argN :: e -> I.Arg e

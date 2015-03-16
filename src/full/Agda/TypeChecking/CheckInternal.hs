@@ -38,28 +38,31 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- -- | Entry point for e.g. checking WithFunctionType.
+-- checkType :: Type -> TCM ()
+-- checkType t = -- dontAssignMetas $ ignoreSorts $
+--   checkInternal (unEl t) (sort Inf)
+
 -- | Entry point for e.g. checking WithFunctionType.
-checkType :: Type -> TCM ()
-checkType t = -- dontAssignMetas $ ignoreSorts $
-  checkInternal (unEl t) (sort Inf)
-
-{- Alternative algorithm (does not buy us much)
---
---   This algorithm follows
---     Abel, Coquand, Dybjer, MPC 08
---     Verifying a Semantic βη-Conversion Test for Martin-Löf Type Theory
-
 checkType :: Type -> TCM ()
 checkType t = void $ checkType' t
 
 -- | Check a type and infer its sort.
+--
+--   Necessary because of PTS rule @(SizeUniv, Set i, Set i)@
+--   but @SizeUniv@ is not included in any @Set i@.
+--
+--   This algorithm follows
+--     Abel, Coquand, Dybjer, MPC 08,
+--     Verifying a Semantic βη-Conversion Test for Martin-Löf Type Theory
+--
 checkType' :: Type -> TCM Sort
 checkType' t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ text "checking internal type "
     , prettyTCM t
     ]
-  v <- elimView $ unEl t -- bring projection-like funs in post-fix form
+  v <- elimView True $ unEl t -- bring projection-like funs in post-fix form
   case ignoreSharing v of
     Pi a b -> do
       s1 <- checkType' $ unDom a
@@ -88,7 +91,6 @@ checkType' t = do
 
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< inferSpine a self es
--}
 
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
@@ -105,7 +107,7 @@ checkInternal v t = do
   case ignoreSharing v of
     Var i es   -> do
       a <- typeOfBV i
-      checkSpine a (Var i   []) es t
+      checkSpine a (Var i []) es t
     Def f es   -> do  -- f is not projection(-like)!
       a <- defType <$> getConstInfo f
       checkSpine a (Def f []) es t
@@ -130,7 +132,7 @@ checkInternal v t = do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
       let st = sort s
-      checkInternal (unEl $ unDom a) st
+      checkInternal (unEl $ unDom a) st  -- This does not work with SizeUniv
       addContext (absName b, a) $ do
         checkInternal (unEl $ absBody b) $ raise 1 st
     Sort s     -> do

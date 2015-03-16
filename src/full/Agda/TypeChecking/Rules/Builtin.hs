@@ -125,9 +125,11 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinVisible            |-> BuiltinDataCons thiding)
   , (builtinRelevant           |-> BuiltinDataCons trelevance)
   , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
-  , (builtinSizeUniv           |-> builtinPostulate tset)
-  , (builtinSize               |-> builtinPostulate tset)
-  , (builtinSizeLt             |-> builtinPostulate (tsize ..--> tset))
+  , (builtinSizeUniv           |-> builtinPostulate tSizeUniv) -- SizeUniv : SizeUniv
+-- See comment on tSizeUniv: the following does not work currently.
+--  , (builtinSizeUniv           |-> builtinPostulate tSetOmega) -- SizeUniv : Setω
+  , (builtinSize               |-> builtinPostulate tSizeUniv)
+  , (builtinSizeLt             |-> builtinPostulate (tsize ..--> tSizeUniv))
   , (builtinSizeSuc            |-> builtinPostulate (tsize --> tsize))
   , (builtinSizeInf            |-> builtinPostulate tsize)
   -- postulate max : {i : Size} -> Size< i -> Size< i -> Size< i
@@ -193,7 +195,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tchar      = el primChar
         tstring    = el primString
         tqname     = el primQName
-        tsize      = el primSize
+        tsize      = El SizeUniv <$> primSize
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance

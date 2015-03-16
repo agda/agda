@@ -159,6 +159,10 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
            | NoAbs { absName :: ArgName, unAbs :: a }
   deriving (Typeable, Functor, Foldable, Traversable)
 
+instance Decoration Abs where
+  traverseF f (Abs   x a) = Abs   x <$> f a
+  traverseF f (NoAbs x a) = NoAbs x <$> f a
+
 -- | Types are terms with a sort annotation.
 --
 data Type' a = El { _getSort :: Sort, unEl :: a }
@@ -180,6 +184,9 @@ instance LensSort (Type' a) where
 -- General instance leads to overlapping instances.
 -- instance (Decoration f, LensSort a) => LensSort (f a) where
 instance LensSort a => LensSort (Common.Dom c a) where
+  lensSort = traverseF . lensSort
+
+instance LensSort a => LensSort (Abs a) where
   lensSort = traverseF . lensSort
 
 -- | Sequence of types. An argument of the first type is bound in later types

@@ -4,18 +4,19 @@
 
 open import Common.Size
 
-Size≤ : Size → Set
-Size≤ i = Size< (↑ i)
+-- Andreas, 2015-03-16: currently forbidden
+-- Size≤ : Size → SizeUniv
+-- Size≤ i = Size< ↑ i
 
 postulate
   Dom    : Size → Set
-  mapDom : ∀ i (j : Size≤ i) → Dom i → Dom j
+  mapDom : ∀ i (j : Size< (↑ i)) → Dom i → Dom j
 
 record ∞Dom i : Set where
   field
     force : ∀ (j : Size< i) → Dom j
 
-∞mapDom : ∀ i (j : Size≤ i) → ∞Dom i → ∞Dom j
+∞mapDom : ∀ i (j : Size< (↑ i)) → ∞Dom i → ∞Dom j
 ∞Dom.force (∞mapDom i j x) k = mapDom k k (∞Dom.force x k)
 
 -- The second k on the rhs has type

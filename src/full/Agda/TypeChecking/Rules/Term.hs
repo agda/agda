@@ -109,12 +109,17 @@ isType_ e =
     A.Fun i (Arg info t) b -> do
       a <- Dom info <$> isType_ t
       b <- isType_ b
-      return $ El (sLub (getSort a) (getSort b)) (Pi (convColor a) (NoAbs underscore b))
+      let t' = El (getSort a `sLub` getSort b) $ Pi (convColor a) $ NoAbs underscore b
+      noFunctionsIntoSize b t'
+      return t'
+    A.Pi _ tel e | null tel -> isType_ e
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
         tel <- instantiateFull tel
-        return $ telePi tel t
+        let t' = telePi tel t
+        noFunctionsIntoSize t t'
+        return t'
     A.Set _ n    -> do
       n <- ifM typeInType (return 0) (return n)
       return $ sort (mkType n)
@@ -131,6 +136,21 @@ isType_ e =
             checkExpr (namedThing l) lvl
         return $ sort (Type n)
     _ -> fallback
+
+-- | Ensure that a (freshly created) function type does not inhabit 'SizeUniv'.
+noFunctionsIntoSize :: Type -> Type -> TCM ()
+noFunctionsIntoSize t tBlame = do
+  reportSDoc "tc.fun" 20 $ do
+    let El s (Pi dom b) = ignoreSharing <$> tBlame
+    sep [ text "created function type " <+> prettyTCM tBlame
+        , text "with pts rule" <+> prettyTCM (getSort dom, getSort b, s)
+        ]
+  s <- reduce $ getSort t
+  when (s == SizeUniv) $ do
+    -- Andreas, 2015-02-14
+    -- We have constructed a function type in SizeUniv
+    -- which is illegal to prevent issue 1428.
+    typeError $ FunctionTypeInSizeUniv $ unEl tBlame
 
 -- | Check that an expression is a type which is equal to a given type.
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
@@ -759,11 +779,14 @@ checkExpr e t0 =
 
         A.Lit lit    -> checkLiteral lit t
         A.Let i ds e -> checkLetBindings ds $ checkExpr e t
+        A.Pi _ tel e | null tel -> checkExpr e t
         A.Pi _ tel e -> do
             t' <- checkTelescope_ tel $ \tel -> do
                     t   <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
-                    return $ telePi tel t
+                    let t' = telePi tel t
+                    noFunctionsIntoSize t t'
+                    return t'
             let s = getSort t'
                 v = unEl t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
@@ -771,22 +794,13 @@ checkExpr e t0 =
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-            when (s == SizeUniv) $ do
-              -- Andreas, 2015-02-14
-              -- We have constructed a function type in SizeUniv
-              -- which is illegal to prevent issue 1428.
-              typeError $ FunctionTypeInSizeUniv v
             coerce v (sort s) t
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
-            s <- reduce $ getSort a' `sLub` getSort b'
+            s <- reduce $ getSort a' `pts` getSort b'
             let v = Pi (convColor $ Dom info a') (NoAbs underscore b')
-            when (s == SizeUniv) $ do
-              -- Andreas, 2015-02-14
-              -- We have constructed a function type in SizeUniv
-              -- which is illegal to prevent issue 1428.
-              typeError $ FunctionTypeInSizeUniv v
+            noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
         A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
