@@ -1093,6 +1093,17 @@ instance (Subst a, Ord a) => Ord (Abs a) where
 -- * Level stuff
 ---------------------------------------------------------------------------
 
+-- | The ``rule'', if Agda is considered as a functional
+--   pure type system (pts).
+--
+--   TODO: This needs to be properly implemented, requiring
+--   refactoring of Agda's handling of levels.
+--   Without impredicativity or 'SizeUniv', Agda's pts rule is
+--   just the least upper bound, which is total and commutative.
+--   The handling of levels relies on this simplification.
+pts :: Sort -> Sort -> Sort
+pts = sLub
+
 sLub :: Sort -> Sort -> Sort
 sLub s Prop = s
 sLub Prop s = s
@@ -1101,7 +1112,9 @@ sLub _ Inf = Inf
 sLub SizeUniv s = s         -- one can freely quantify over sizes in any Set
 sLub _ SizeUniv = SizeUniv  -- but everything resulting in a size lives in the SizeUniv
 sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
-sLub (DLub a b) c = DLub (sLub a c) b
+-- sLub (DLub a b) c = DLub (sLub a c) b -- no longer commutative!
+sLub (DLub a NoAbs{}) c = __IMPOSSIBLE__
+sLub (DLub a (Abs x b)) c = DLub a $ Abs x $ sLub b $ raise 1 c
 sLub a (DLub b c) = DLub (sLub a b) c
 
 lvlView :: Term -> Level

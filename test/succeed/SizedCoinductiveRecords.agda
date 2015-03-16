@@ -11,10 +11,10 @@ sizeSuc : (i : Size) → Size< (↑ (↑ i))
 sizeSuc i = ↑ i
 -}
 
--- Subtyping for Size<
-
-emb< : {i : Size} → Size< i → Size
-emb< {i} j = j
+-- -- Subtyping for Size<
+-- Andreas, 2015-03-15: Functions returning sizes are now illegal:
+-- emb< : {i : Size} → Size< i → Size
+-- emb< {i} j = j
 
 -- Use Size< hypotheses
 
@@ -28,10 +28,10 @@ subEmpty x = x
 -- fail : {i : Size}{j : Size< i} → Empty {i} → Empty {j}
 -- fail x = x
 
--- Covariance for Size<
-
-co : {i : Size}{j : Size< i} → Size< j → Size< i
-co k = k
+-- -- Covariance for Size<
+-- Andreas, 2015-03-15: Functions returning sizes are now illegal:
+-- co : {i : Size}{j : Size< i} → Size< j → Size< i
+-- co k = k
 
 -- Contravariance for bounded quantification
 
@@ -92,7 +92,7 @@ div : {i : Size} → Nat {i} → Nat → Nat {i}
 div zero    y = zero
 div (suc x) y = suc (div (monus x y) y)
 
-postulate _∪_ : {i : Size} → Size< i → Size< i → Size< i
+-- postulate _∪_ : {i : Size} → Size< i → Size< i → Size< i
 
 {-
 max : {i : Size} → Nat {i} → Nat {i} → Nat {i}

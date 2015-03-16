@@ -496,6 +496,7 @@ compareAtom cmp t m n =
           case (ignoreSharing m, ignoreSharing n) of
             (Pi{}, Pi{}) -> equalFun m n
 
+            (Sort s1, Sort Inf) -> return ()
             (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
             (Lit l1, Lit l2) | l1 == l2 -> return ()
@@ -991,10 +992,11 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
                         , prettyTCM s2 ]
         ]
   case (s1, s2) of
-      (SizeUniv, _       ) -> equalSort s1 s2
-      (_       , SizeUniv) -> equalSort s1 s2
 
       (_       , Inf     ) -> yes
+
+      (SizeUniv, _       ) -> equalSort s1 s2
+      (_       , SizeUniv) -> equalSort s1 s2
 
       (Type a  , Type b  ) -> unlessM typeInType $ leqLevel a b
 

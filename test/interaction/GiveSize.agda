@@ -4,5 +4,9 @@ module GiveSize where
 
 {-# BUILTIN SIZE Size #-}
 
-id : Size → Size
-id i = {!i!}
+postulate
+  A : Size → Set
+  c : ∀ i → A i
+
+k : ∀ i → A i
+k i = c {!i!}
