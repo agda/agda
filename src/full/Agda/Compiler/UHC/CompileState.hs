@@ -138,7 +138,7 @@ getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
 getConstrInfo n = CompileT $ do
   instMp <- gets (amifConInstMp . moduleInterface)
-  M.findWithDefault __IMPOSSIBLE__ (M.findWithDefault (error $ show n) n instMp) <$> gets (amifConMp . moduleInterface)
+  M.findWithDefault __IMPOSSIBLE__ (M.findWithDefault __IMPOSSIBLE__ n instMp) <$> gets (amifConMp . moduleInterface)
 
 isConstrInstantiated :: (Functor m, Monad m) => QName -> CompileT m Bool
 isConstrInstantiated n =  CompileT $ ((n /=) . M.findWithDefault __IMPOSSIBLE__ n) <$> gets (amifConInstMp . moduleInterface)

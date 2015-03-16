@@ -144,7 +144,7 @@ installUHCAgdaBase = do
                     True  -> copyDirContent (src </> x) (dest </> x)
                     False -> copyFile (src </> x) (dest </> x)
               ) chlds
--- | Compile an interface into an executable using Epic
+-- | Compile an interface into an executable using UHC
 compilerMain :: Interface -> TCM ()
 compilerMain inter = do
     when (not uhcBackendEnabled) $ internalError "Agda has been built without UHC support."
@@ -166,8 +166,6 @@ compilerMain inter = do
 
         ExitFailure _ -> internalError $ unlines
            [ "Agda cannot find the UHC compiler."
---           , "This can perhaps be fixed by running `cabal install epic'."
---           , "See the README for more information."
            ]
 
 auiFile :: CN.TopLevelModuleName -> TCM FilePath
@@ -288,7 +286,7 @@ idPrint s m x = do
   reportSLn "uhc.phases" 10 s
   m x
 
--- | Perform the chain of compilation stages, from definitions to epic code
+-- | Perform the chain of compilation stages, from definitions to UHC Core code
 compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
     -> AModuleInterface -- ^ transitive iface
@@ -325,7 +323,7 @@ writeCoreFile f mod = do
   liftIO $ putSerializeFile f' mod
   return f'
 
--- | Change the current directory to Epic folder, create it if it doesn't already
+-- | Change the current directory to UHC folder, create it if it doesn't already
 --   exist.
 setUHCDir :: Interface -> TCM ()
 setUHCDir mainI = do

@@ -111,7 +111,7 @@ collectNames conInstMp defs = do
             -- but for the datatypes themselves we still want to create the type-dummy function
             in case theDef def of
                   _ | ty == EtConstructor && isForeign -> Nothing
-                  (Constructor {}) | (M.findWithDefault (error $ show qnm) qnm conInstMp) /= qnm -> Nothing -- constructor is instantiated
+                  (Constructor {}) | (M.findWithDefault __IMPOSSIBLE__ qnm conInstMp) /= qnm -> Nothing -- constructor is instantiated
                   _ | otherwise -> Just AgdaName
                         { anName = qnm
                         , anType = ty
@@ -190,7 +190,7 @@ isDtInstantiated (r@Record {recClause = Just _}) = True
 isDtInstantiated _ = False
 
 
--- | Translate an Agda definition to an Epic function where applicable
+-- | Translate an Agda definition to an UHC Core function where applicable
 translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
 translateDefn (n, defini) = do
   crName <- lift $ getCoreName n
@@ -249,11 +249,11 @@ translateDefn (n, defini) = do
             Nothing -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
                 (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.")
             Just (CrDefn x)  -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("COMPILED_CORE: " ++ show n) x
-            _       -> error "Compiled core must be def, something went wrong."
+            _       -> internalError "Compiled core must be def, something went wrong."
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
 
       case primName p `M.lookup` primFunctions of
-        Nothing     -> error $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
+        Nothing     -> internalError $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just expr) -> do
                 expr' <- lift expr
                 return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("primitive: " ++ primName p) expr'
@@ -321,7 +321,7 @@ reverseCCBody c cc = case cc of
 --   This replacement is what is done using the replaceAt function.
 --
 --   CompiledClauses also have default branches for when all branches fail (even
---   inner branches), the catchAllBranch. Epic does not support this, so
+--   inner branches), the catchAllBranch. UHC Core does not support this, so
 --   we have to add the catchAllBranch to each inner case (here we are calling
 --   it omniDefault). To avoid code duplication it is first bound by a let
 --   expression.
