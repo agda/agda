@@ -61,8 +61,7 @@ addConstant q d = do
               _             -> tel
   let d' = abstract tel' $ d { defName = q }
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
-  modifySignature $ \sig -> sig
-    { sigDefinitions = HMap.insertWith (+++) q d' $ sigDefinitions sig }
+  modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
   where
@@ -367,16 +366,13 @@ applySection new ptel old ts rd rm = do
       reportSLn "tc.mod.apply" 80 $ "  np  = " ++ show totalArgs
       addCtxTel (apply tel $ take totalArgs ts) $ addSection y fv
 
+-- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeOpen df
-  modifyImportedSignature (add d)
-  modifySignature (add d)
-  where
-    add df sig = sig { sigDefinitions = HMap.adjust addDf x defs }
-      where
-        addDf def = def { defDisplay = df : defDisplay def }
-        defs      = sigDefinitions sig
+  let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
+  modifyImportedSignature add
+  modifySignature add
 
 canonicalName :: QName -> TCM QName
 canonicalName x = do

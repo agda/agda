@@ -4,14 +4,17 @@ module Agda.TypeChecking.Monad.Mutual where
 
 import Control.Monad.Reader
 import Control.Monad.State
+
 import qualified Data.Map as Map
 import Data.Set (Set)
 import Data.Functor ((<$>))
 import qualified Data.Set as Set
-import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.State
+
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 
 noMutualBlock :: TCM a -> TCM a
@@ -31,9 +34,7 @@ inMutualBlock m = do
 setMutualBlock :: MutualId -> QName -> TCM ()
 setMutualBlock i x = do
   stMutualBlocks %= Map.insertWith Set.union i (Set.singleton x)
-  stSignature    %= \sig -> sig { sigDefinitions = setMutId x i $ sigDefinitions sig }
-  where
-    setMutId x i = flip HMap.adjust x $ \defn -> defn { defMutual = i }
+  stSignature    %= updateDefinition x (\ defn -> defn { defMutual = i })
 
 -- | Get all mutual blocks
 getMutualBlocks :: TCM [Set QName]
