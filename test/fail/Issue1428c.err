@@ -1,2 +1,3 @@
-Issue1428c.agda:8,5-19
-We don't like postulated sizes in parametrized modules.
+Issue1428c.agda:8,3-20
+SizeUniv != Set
+when checking the constructor c in the declaration of D
