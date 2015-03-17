@@ -34,10 +34,19 @@ Language
   The BUILTIN pragmas for size stuff now also declare the identifiers
   they bind to.
 
-    {-# BUILTIN SIZE     Size     #-}  --  Size   : Set
-    {-# BUILTIN SIZELT   Size<_   #-}  --  Size<_ : Size → Set
-    {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_     : Size → Size
-    {-# BUILTIN SIZEINF  ∞        #-}  --  ∞      : Size
+    {-# BUILTIN SIZEUNIV SizeUniv #-}  --  SizeUniv : SizeUniv
+    {-# BUILTIN SIZE     Size     #-}  --  Size     : SizeUniv
+    {-# BUILTIN SIZELT   Size<_   #-}  --  Size<_   : ..Size → SizeUniv
+    {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_       : Size → Size
+    {-# BUILTIN SIZEINF  ∞        #-}  --  ∞       : Size
+
+  Size and Size< now live in the new universe SizeUniv.
+  It is forbidden to build function spaces in this universe,
+  in order to prevent the malicious assumption of a size predecessor
+
+    pred : (i : Size) → Size< i
+
+  [Issue 1428].
 
 * Unambiguous notations (coming from syntax declarations) that resolve
   to ambiguous names are now parsed unambiguously [Issue 1194].
