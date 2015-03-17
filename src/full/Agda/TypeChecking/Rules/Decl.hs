@@ -436,7 +436,14 @@ checkAxiom funSig i info0 x e = do
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
+    , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
+  -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
+  -- modules!
+  when (funSig == A.NoFunSig) $ do
+    whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
+      whenM ((> 0) <$> getContextSize) $ do
+        typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
   addConstant x =<< do
