@@ -1,16 +1,3 @@
-language: haskell
-
-ghc: 7.8.4
-
-install:
-  - cabal install alex
-  - cabal install happy
-  - cabal install Agda-2.4.2.2 --only-dependencies
-  - cabal install Agda-2.4.2.2 -v1
-
-script:
-  - make test
-
 branches:
   only:
-    - 2.4.2.2
+    - master

@@ -1,9 +1,7 @@
 AGDA=agda
 
 test: Everything.agda
-# We don't have the `fix-agda-whitespace` command on Travis, so we
-# ignore the error using `-`.
-	-fix-agda-whitespace --check
+	fix-agda-whitespace --check
 	$(AGDA) -i. -isrc README.agda
 
 setup: Everything.agda agda-lib-ffi
