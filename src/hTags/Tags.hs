@@ -206,10 +206,19 @@ instance TagName name => HasTags (TyClDecl name) where
       _ -> []
 
 instance TagName name => HasTags (ConDecl name) where
+#if MIN_VERSION_ghc(7,10,0)
+  tags d = concatMap tagsLN (con_names d) ++ tags (con_details d)
+#else
   tags d = tagsLN (con_name d) ++ tags (con_details d)
+#endif
 
 instance TagName name => HasTags (ConDeclField name) where
-  tags (ConDeclField x _ _) = tagsLN x
+  tags (ConDeclField x _ _) =
+#if MIN_VERSION_ghc(7,10,0)
+     concatMap tagsLN x
+#else
+     tagsLN x
+#endif
 
 -- Dummy instance.
 instance HasTags (HsType name) where
@@ -221,8 +230,10 @@ instance TagName name => HasTags (HsBind name) where
     PatBind  { pat_lhs   = lhs } -> tags lhs
     VarBind  { var_id    = x   } -> tagsN x
     AbsBinds { abs_binds = bs  } -> tags bs
-#if MIN_VERSION_ghc(7,8,0)
-    PatSynBind{ patsyn_id = x  } -> tagsLN x
+#if MIN_VERSION_ghc(7,10,0)
+    PatSynBind (PSB { psb_id = x }) -> tagsLN x
+#elif MIN_VERSION_ghc(7,8,0)
+    PatSynBind { patsyn_id = x } -> tagsLN x
 #endif
 
 instance TagName name => HasTags (Pat name) where
@@ -269,15 +280,19 @@ instance HasTags arg => HasTags (HsRecField name arg) where
 instance TagName name => HasTags (Sig name) where
   tags d = case d of
     GenericSig x _ -> concatMap tagsLN x
-    TypeSig x _    -> concatMap tagsLN x
-    FixSig{}       -> []
-    InlineSig{}    -> []
-    SpecSig{}      -> []
-    SpecInstSig{}  -> []
-    IdSig{}        -> []
+#if MIN_VERSION_ghc(7,10,0)
+    TypeSig x _ _ -> concatMap tagsLN x
+#else
+    TypeSig x _ -> concatMap tagsLN x
+#endif
+    FixSig{}      -> []
+    InlineSig{}   -> []
+    SpecSig{}     -> []
+    SpecInstSig{} -> []
+    IdSig{}       -> []
 #if MIN_VERSION_ghc(7,8,0)
     PatSynSig x _ _ _ _ -> tagsLN x
-    MinimalSig{}   -> []
+    MinimalSig{}        -> []
 #endif
 
 instance TagName name => HasTags (ForeignDecl name) where
