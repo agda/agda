@@ -34,10 +34,19 @@ Language
   The BUILTIN pragmas for size stuff now also declare the identifiers
   they bind to.
 
-    {-# BUILTIN SIZE     Size     #-}  --  Size   : Set
-    {-# BUILTIN SIZELT   Size<_   #-}  --  Size<_ : Size → Set
-    {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_     : Size → Size
-    {-# BUILTIN SIZEINF  ∞        #-}  --  ∞      : Size
+    {-# BUILTIN SIZEUNIV SizeUniv #-}  --  SizeUniv : SizeUniv
+    {-# BUILTIN SIZE     Size     #-}  --  Size     : SizeUniv
+    {-# BUILTIN SIZELT   Size<_   #-}  --  Size<_   : ..Size → SizeUniv
+    {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_       : Size → Size
+    {-# BUILTIN SIZEINF  ∞        #-}  --  ∞       : Size
+
+  Size and Size< now live in the new universe SizeUniv.
+  It is forbidden to build function spaces in this universe,
+  in order to prevent the malicious assumption of a size predecessor
+
+    pred : (i : Size) → Size< i
+
+  [Issue 1428].
 
 * Unambiguous notations (coming from syntax declarations) that resolve
   to ambiguous names are now parsed unambiguously [Issue 1194].
@@ -80,28 +89,7 @@ Language
 Type checking
 =============
 
-* Forced constructor arguments are no longer generating unification
-  constraints [Issue 1406].
-
-    data Fin : (n : Nat) → Set where
-      zero : {n : Nat}             → Fin (suc n)
-      suc  : {n : Nat} (i : Fin n) → Fin (suc n)
-
-   Here, the hidden argument `{n : Nat}` is forced in both
-   constructors by the target type `Fin (suc n)`.
-   After the fix of issue 1406, the following no longer passes:
-
-    data HEq (A : Set) (a : A) : (B : Set) (b : B) → Set1 where
-      refl : HEq A a A a
-
-    inj-Fin-≅ : ∀ {n m} {i : Fin n} {j : Fin m} → HEq (Fin n) i (Fin m) j → n ≡ m
-    inj-Fin-≅ {i = zero} {j = zero} refl = ...
-
-  The match on `refl` requires us to unify `zero {n} : Fin (suc n)`
-  with `zero {m} : Fin (suc m)`.  Since `{n}` and `{m}` are forced, they
-  will not be unified.  Since we do not have injectivity of type
-  constructors, they will also not be unified by the constraint
-  `Fin (suc n) = Fin (suc m)`.
+*
 
 Emacs mode
 ==========
