@@ -304,7 +304,7 @@ fitsIn t s = do
   t <- reduce t
   case ignoreSharing $ unEl t of
     Pi dom b -> do
-      let sa = getSort dom
+      sa <- reduce $ getSort dom
       unless (sa == SizeUniv) $ sa `leqSort` s
       addContext (absName b, dom) $ fitsIn (absBody b) (raise 1 s)
     _ -> return () -- getSort t `leqSort` s  -- Andreas, 2013-04-13 not necessary since constructor type ends in data type

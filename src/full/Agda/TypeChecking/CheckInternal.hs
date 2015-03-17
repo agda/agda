@@ -289,6 +289,7 @@ shouldBePi t = do
     Pi a b -> return (a, b)
     _      -> typeError $ ShouldBePi t
 
+-- | Result is in reduced form.
 shouldBeSort :: Type -> TCM Sort
 shouldBeSort t = ifIsSort t return (typeError $ ShouldBeASort t)
 
