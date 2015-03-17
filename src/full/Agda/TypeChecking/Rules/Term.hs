@@ -109,7 +109,8 @@ isType_ e =
     A.Fun i (Arg info t) b -> do
       a <- Dom info <$> isType_ t
       b <- isType_ b
-      let t' = El (getSort a `sLub` getSort b) $ Pi (convColor a) $ NoAbs underscore b
+      s <- ptsRule a b
+      let t' = El s $ Pi (convColor a) $ NoAbs underscore b
       noFunctionsIntoSize b t'
       return t'
     A.Pi _ tel e | null tel -> isType_ e
@@ -136,6 +137,9 @@ isType_ e =
             checkExpr (namedThing l) lvl
         return $ sort (Type n)
     _ -> fallback
+
+ptsRule :: (LensSort a, LensSort b) => a -> b -> TCM Sort
+ptsRule a b = pts <$> reduce (getSort a) <*> reduce (getSort b)
 
 -- | Ensure that a (freshly created) function type does not inhabit 'SizeUniv'.
 noFunctionsIntoSize :: Type -> Type -> TCM ()
@@ -798,7 +802,7 @@ checkExpr e t0 =
         A.Fun _ (Arg info a) b -> do
             a' <- isType_ a
             b' <- isType_ b
-            s <- reduce $ getSort a' `pts` getSort b'
+            s <- ptsRule a' b'
             let v = Pi (convColor $ Dom info a') (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
