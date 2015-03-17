@@ -68,8 +68,8 @@ findInjection defs = do
 
 replaceFunCC :: QName -> CompiledClauses -> Compile TCM ()
 replaceFunCC name cc = lift $ do
-    stSignature %= \sig -> sig {sigDefinitions = HM.adjust replaceDef name (sigDefinitions sig)}
-    stImports   %= \imp -> imp {sigDefinitions = HM.adjust replaceDef name (sigDefinitions imp)}
+    stSignature %= updateDefinition name replaceDef
+    stImports   %= updateDefinition name replaceDef
   where
     replaceDef :: Definition -> Definition
     replaceDef def = case theDef def of

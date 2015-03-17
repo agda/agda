@@ -191,8 +191,11 @@ withSignature sig m = do
 lookupDefinition :: QName -> Signature -> Maybe Definition
 lookupDefinition q sig = HMap.lookup q $ sigDefinitions sig
 
+updateDefinitions :: (Definitions -> Definitions) -> Signature -> Signature
+updateDefinitions f sig = sig { sigDefinitions = f (sigDefinitions sig) }
+
 updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
-updateDefinition q f sig = sig { sigDefinitions = HMap.adjust f q (sigDefinitions sig) }
+updateDefinition q f = updateDefinitions $ HMap.adjust f q
 
 updateTheDef :: (Defn -> Defn) -> (Definition -> Definition)
 updateTheDef f def = def { theDef = f (theDef def) }
