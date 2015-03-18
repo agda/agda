@@ -62,7 +62,8 @@ data Fun
       , xfunName    :: HsName
       , xfunQName   :: Maybe QName
       , xfunComment :: Comment
-      , xfunArgs    :: [HsName]
+      , xfunArgs    :: [HsName] -- this will always be empty right now, and use lambdas inside the body instead.
+                                -- Would be nicer to have them here, but copatterns/coinduction make this tricky.
       , xfunExpr    :: Expr
       }
   | CoreFun

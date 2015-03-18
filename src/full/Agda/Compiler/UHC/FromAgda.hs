@@ -7,8 +7,6 @@
 -- flat = id
 -- sharp = id
 -- -> There is no runtime representation of Coinductive values.
--- The coinduction kit is always a postulate, so we don't have to
--- worry about clauses trying to pattern match on Infinity-values.
 module Agda.Compiler.UHC.FromAgda where
 
 import Control.Applicative
@@ -176,9 +174,10 @@ translateDataTypes defs = do
         x | isDtInstantiated x -> do
                     lift $ reportSLn "uhc.fromAgda" 30 $ "Datatype " ++ show n ++ " is instantiated, skipping it."
                     return Nothing
-        (Record{}) -> handleDataRecDef n def
+        (Record{}) | Just n /= (nameOfInf <$> kit)
+                -> handleDataRecDef n def
         -- coinduction kit gets erased in the translation to AuxAST
-        (Datatype {}) | Just n /= (nameOfInf <$> kit)
+        (Datatype {})
                 -> handleDataRecDef n def
         _       -> return Nothing
     ) defs
@@ -202,7 +201,7 @@ translateDefn (n, defini) = do
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
     f@(Function{}) | Just n == (nameOfFlat <$> kit) -> do
         -- ignore the two type arguments
-        Just <$> mkIdentityFun n "coind-sharp" 2
+        Just <$> mkIdentityFun n "coind-flat" 2
     f@(Function{}) | otherwise -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
@@ -210,6 +209,7 @@ translateDefn (n, defini) = do
         let clens = map (length . clausePats) (funClauses f)
             len   = minimum clens
             ty    = (defType defini)
+        coindcs <- lift $ removeCoindCopatterns ccs
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "lens:" <+> (text . show) (len, clens)
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "pats:" <+> (text . show) (map clausePats
@@ -217,7 +217,9 @@ translateDefn (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
 
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "ccs: " <+> (text . show) ccs
-        return <$> compileClauses n len projArgs ccs
+        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "coindCC: " <+> (text . show) coindcs
+
+        return <$> compileClauses n len projArgs coindcs
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         Just <$> mkIdentityFun n "coind-sharp" 0
@@ -295,6 +297,27 @@ reverseCCBody c cc = case cc of
                               t)
   CC.Fail     -> CC.Fail
 
+-- | Coinduction is now implemented using Copatterns. We don't properly
+-- support copatterns; for the time being, just drop the Coinduction
+-- cases on Infinity / flat constructor.
+removeCoindCopatterns :: CC.CompiledClauses -> CompileT TCM CC.CompiledClauses
+removeCoindCopatterns cc = do
+
+  flatName <- fmap nameOfFlat <$> getCoinductionKit
+
+  case flatName of
+    Just x  -> return $ go x cc
+    Nothing -> return cc
+  where go :: QName -> CC.CompiledClauses -> CC.CompiledClauses
+        go flat (CC.Case n (CC.Branches cbr lbr cabr)) =
+                case flat `M.lookup` cbr of
+                    (Just flatCon) -> go flat $ CC.content flatCon
+                    Nothing -> CC.Case n $ CC.Branches
+                            (fmap (fmap (go flat)) cbr)
+                            (fmap (go flat) lbr)
+                            (fmap (go flat) cabr)
+        go flat x = x
+
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
 --   This is all done by magic. It uses 'substTerm' to translate the actual
 --   terms when the cases have been gone through.
@@ -334,34 +357,31 @@ compileClauses :: QName
                 -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Fun
 compileClauses qnm clsArgs projArgs c = do
   crName <- lift $ getCoreName1 qnm
-  vars <- replicateM (clsArgs + projArgs) freshLocalName
-  e    <- compileClauses' vars Nothing c
-  return $ Fun False crName (Just qnm) ("function: " ++ show qnm) vars e
+  e    <- compileClauses' [] Nothing c
+  return $ Fun False crName (Just qnm) ("function: " ++ show qnm) [] e
   where
     compileClauses' :: [HsName] -> Maybe Expr -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Expr
     compileClauses' env omniDefault cc = case cc of
-        CC.Case n nc -> do
-            (env', tf, omniDefault') <- case length env <= n of
-               True -> do
-                    -- happens if clauses have different number of arguments.
-                    (args, tf) <- addLambdas ((n - length env) + 1)
-                    -- the propagated catch all doesn't know that we consumed any arguments,
-                    -- so just apply it immediately again to the captured args
-                    let def = (\x -> apps x (map Var args)) <$> omniDefault
-                    return (env ++ args, tf, def)
-               False -> return (env, id, omniDefault)
+        CC.Case n nc | length env <= n -> do
+            -- happens if the current subtree expects more arguments
+            (args, tf) <- addLambdas ((n - length env) + 1)
+            -- the propagated catch all doesn't know that we consumed any arguments,
+            -- so just apply it immediately again to the captured args
+            let def = (\x -> apps x (map Var args)) <$> omniDefault
+            -- now compile the case in the correct env
+            tf <$> compileClauses' (env ++ args) def cc
+        CC.Case n nc | otherwise -> do
             case CC.catchAllBranch nc of
-                Nothing -> let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env' !!! n))
-                            in tf <$> compileCase env' omniDefault' n nc cont
-                Just de -> do
-                    def <- compileClauses' env' omniDefault' de
-                    body <- bindExpr def $ \ var ->
-                      let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env' !!! n))
-                       in compileCase env' (Just $ Var var) n nc cont
-                    return $ tf body
+              Nothing -> let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
+                          in compileCase env omniDefault n nc cont
+              Just de -> do
+                  def <- compileClauses' env omniDefault de
+                  bindExpr def $ \ var ->
+                    let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
+                     in compileCase env (Just $ Var var) n nc cont
         CC.Done ps t -> do
                 -- requiring additional lambdas happens if clauses have different number of arguments.
-                let nLams = length ps - (length env - projArgs)
+                let nLams = length ps - length env + projArgs
                 if nLams >= 0 then do
                     (args, tf) <- addLambdas nLams
                     tf <$> substTerm (env ++ args) t

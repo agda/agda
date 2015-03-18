@@ -52,7 +52,7 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistentState)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 import Agda.Compiler.UHC.Naming
@@ -138,7 +138,8 @@ getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
 getConstrInfo n = CompileT $ do
   instMp <- gets (amifConInstMp . moduleInterface)
-  M.findWithDefault __IMPOSSIBLE__ (M.findWithDefault __IMPOSSIBLE__ n instMp) <$> gets (amifConMp . moduleInterface)
+  let realConNm = M.findWithDefault __IMPOSSIBLE__ n instMp
+  M.findWithDefault __IMPOSSIBLE__ realConNm <$> gets (amifConMp . moduleInterface)
 
 isConstrInstantiated :: (Functor m, Monad m) => QName -> CompileT m Bool
 isConstrInstantiated n =  CompileT $ ((n /=) . M.findWithDefault __IMPOSSIBLE__ n) <$> gets (amifConInstMp . moduleInterface)

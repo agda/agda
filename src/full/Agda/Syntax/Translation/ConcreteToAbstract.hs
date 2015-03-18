@@ -1409,18 +1409,18 @@ instance ToAbstract C.Pragma [A.Pragma] where
             _       -> __IMPOSSIBLE__
       return [ A.CompiledJSPragma y ep ]
     toAbstract (C.CompiledCorePragma _ x cr) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       y <- case e of
             A.Def x -> return x
             _       -> __IMPOSSIBLE__
       return [ A.CompiledCorePragma y cr ]
     toAbstract (C.CompiledCoreDataPragma _ x crd crcs) = do
-      e <- toAbstract $ OldQName x
+      e <- toAbstract $ OldQName x Nothing
       case e of
         A.Def x -> return [ A.CompiledCoreDataPragma x crd crcs ]
         _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
     toAbstract (C.DontSmashPragma _ x) = do
-        e <- toAbstract $ OldQName x
+        e <- toAbstract $ OldQName x Nothing
         y <- case e of
             A.Def x -> return x
             _       -> __IMPOSSIBLE__
