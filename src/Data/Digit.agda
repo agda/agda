@@ -91,9 +91,6 @@ fromDigits {base} (d ∷ ds) = toℕ d + fromDigits ds * base
 -- _least_ significant digit.
 --
 -- Note that the list of digits is always non-empty.
---
--- This function should be linear in n, if optimised properly (see
--- Data.Nat.DivMod).
 
 toDigits : (base : ℕ) {base≥2 : True (2 ≤? base)} (n : ℕ) →
            ∃ λ (ds : List (Fin base)) → fromDigits ds ≡ n
