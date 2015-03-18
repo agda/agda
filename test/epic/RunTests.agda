@@ -1,4 +1,5 @@
 {-# OPTIONS --no-termination-check #-}
+
 module RunTests where
 
 open import Prelude.Bool
@@ -11,12 +12,12 @@ open import Prelude.Unit
 open import Prelude.Product
 
 postulate
-  Stream : Set
-  popen  : String -> String -> IO Stream
-  pclose : Stream -> IO Unit
+  Stream   : Set
+  popen    : String -> String -> IO Stream
+  pclose   : Stream -> IO Unit
   readChar : Stream -> IO Char
-  strLen : String -> Nat
-  charAt : (s : String) -> Nat -> Char
+  strLen   : String -> Nat
+  charAt   : (s : String) -> Nat -> Char
 
 _`_`_ : {A B C : Set}(x : A)(f : A -> B -> C)(y : B) -> C
 x ` f ` y = f x y
@@ -41,18 +42,18 @@ f $ x = f x
 
 readStream : Stream -> IO (List Char)
 readStream stream =
-    c <- readChar stream ,
-    if' charEq eof c
-        then pclose stream ,, return []
-        else ( cs <- readStream stream
-             , return (c :: cs))
+  c <- readChar stream ,
+  if' charEq eof c
+    then pclose stream ,, return []
+    else ( cs <- readStream stream
+           , return (c :: cs) )
 
 system : String -> IO (List Char)
 system s =
-    putStrLn $ "system " +S+ s ,,
-    x <- popen s "r" ,
-    y <- readStream x ,
-    return y
+  putStrLn $ "system " +S+ s ,,
+  x <- popen s "r" ,
+  y <- readStream x ,
+  return y
 
 span : {A : Set} -> (p : A -> Bool) -> List A -> List A × List A
 span p [] = [] , []
@@ -73,16 +74,16 @@ FilePath : Set
 FilePath = String
 
 and : List Bool -> Bool
-and [] = true
+and []           = true
 and (true :: xs) = and xs
 and (false :: _) = false
 
 sequence : {A : Set} -> List (IO A) -> IO (List A)
 sequence [] = return []
 sequence (x :: xs) =
-    r <- x ,
-    rs <- sequence xs ,
-    return (r :: rs)
+  r <- x ,
+  rs <- sequence xs ,
+  return (r :: rs)
 
 mapM : {A B : Set} -> (A -> IO B) -> List A -> IO (List B)
 mapM f xs = sequence (map f xs)
@@ -97,14 +98,16 @@ printResult filename l1 l2 with l1 ` listEq charEq ` l2
 ... | true  = putStrLn (filename +S+ ": Success!")
 ... | false = putStrLn (filename +S+ ": Fail!") ,,
               putStrLn "Expected:" ,,
-              printList l2       ,,
-              putStrLn "Got:"      ,,
+              printList l2 ,,
+              putStrLn "Got:" ,,
               printList l1
 
+-- The environment variable `AGDA_PATH` is defined in the Makefile.
 compile : FilePath -> FilePath -> IO Unit
 compile dir file =
-    system $ "agda --epic --compile-dir=" +S+ dir +S+ "bin/ " +S+ dir +S+ file ,,
-    return unit
+  system $ (getEnv "AGDA_PATH") +S+
+           " --epic --compile-dir=" +S+ dir +S+ "bin/ " +S+ dir +S+ file ,,
+  return unit
 
 readFile : FilePath -> IO (List Char)
 readFile file = system $ "cat " +S+ file
@@ -124,15 +127,16 @@ stripFileEnding fp = fromList $ fst $ span (not ∘ charEq '.') (fromString fp)
 
 testFile : FilePath -> FilePath -> FilePath -> IO Bool
 testFile outdir agdafile outfile =
-    compile outdir (agdafile)           ,,
-    out      <- system $ outdir +S+ "bin/" +S+ stripFileEnding agdafile ,
-    expected <- readFile (outdir +S+ outfile)    ,
-    printResult agdafile out expected ,,
-    return (out ` listEq charEq ` expected)
+  compile outdir (agdafile) ,,
+  out      <- system $ outdir +S+ "bin/" +S+ stripFileEnding agdafile ,
+  expected <- readFile (outdir +S+ outfile) ,
+  printResult agdafile out expected ,,
+  return (out ` listEq charEq ` expected)
 
 testFile' : FilePath -> List (List Char) -> IO Bool
-testFile' outdir (agdafile :: outfile :: _) = testFile outdir (fromList agdafile) (fromList outfile)
-testFile' _      _                          = return true
+testFile' outdir (agdafile :: outfile :: _) =
+  testFile outdir (fromList agdafile) (fromList outfile)
+testFile' _ _ = return true
 
 isNewline : Char -> Bool
 isNewline '\n' = true
@@ -140,15 +144,15 @@ isNewline _    = false
 
 lines : List Char -> List (List Char)
 lines list with span (not ∘ isNewline) list
-... | l , [] = l :: []
+... | l , []      = l :: []
 ... | l , _ :: s' = l :: lines s'
 
 getFiles : FilePath -> IO (List (List Char))
 getFiles dir =
-    out <- system $ "ls " +S+ dir ,
-    putStrLn "getFiles after ls" ,,
-   -- mapM (printList ∘ snd) $ map (span (not ∘ charEq '.')) $ lines out ,,
-    return $ lines out -- filter validFile $ lines out
+  out <- system $ "ls " +S+ dir ,
+  putStrLn "getFiles after ls" ,,
+  -- mapM (printList ∘ snd) $ map (span (not ∘ charEq '.')) $ lines out ,,
+  return $ lines out -- filter validFile $ lines out
 
 isDot : Char -> Bool
 isDot '.' = true
@@ -156,28 +160,27 @@ isDot _   = false
 
 testFiles : FilePath -> IO Bool
 testFiles dir =
-    files <- getFiles dir ,
-    putStrLn "Found the following files in the tests directory:" ,,
-    mapM printList files   ,,
-    res   <- mapM (testFile' dir) (groupBy (comparing (fst ∘ span (not ∘ isDot)) (listEq charEq)) files) ,
-    return $ and res
+  files <- getFiles dir ,
+  putStrLn "Found the following files in the tests directory:" ,,
+  mapM printList files ,,
+  res <- mapM (testFile' dir) (groupBy (comparing (fst ∘ span (not ∘ isDot)) (listEq charEq)) files) ,
+  return $ and res
 
 getCurrentDirectory : IO FilePath
-getCurrentDirectory =
-   fromList <$> system "pwd"
+getCurrentDirectory = fromList <$> system "pwd"
 
 main : IO Unit
 main =
-    dir' <- getCurrentDirectory ,
-    putStrLn (fromList (fromString dir')) ,,
-    putStrLn "hello" ,,
-    putStrLn (fromList (tail ('h' :: 'e' :: 'j' :: []))) ,,
-    printList (fromString "hej igen") ,,
-    putStrLn (fromList (tail (fromString "hello"))) ,,
-    dir <- fromList ∘ init ∘ fromString <$> getCurrentDirectory ,
-    putStrLn dir ,,
-    system ("rm " +S+ dir +S+ "/tests/*.agdai") ,,
-    res <- testFiles (dir +S+ "/tests/") ,
-    (if res
-      then putStrLn "All tests succeeded! "
-      else putStrLn "Not all tests succeeded ")
+  dir' <- getCurrentDirectory ,
+  putStrLn (fromList (fromString dir')) ,,
+  putStrLn "hello" ,,
+  putStrLn (fromList (tail ('h' :: 'e' :: 'j' :: []))) ,,
+  printList (fromString "hej igen") ,,
+  putStrLn (fromList (tail (fromString "hello"))) ,,
+  dir <- fromList ∘ init ∘ fromString <$> getCurrentDirectory ,
+  putStrLn dir ,,
+  system ("rm " +S+ dir +S+ "/tests/*.agdai") ,,
+  res <- testFiles (dir +S+ "/tests/") ,
+  (if res
+     then putStrLn "All tests succeeded! "
+     else putStrLn "Not all tests succeeded ")

@@ -21,6 +21,16 @@ postulate
   numArgs : Nat
   getArg  : Nat -> String
 
+{-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
+
+{-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) ->
+                        Any = iobind(x,f)
+#-}
+
+{-# COMPILED_EPIC numArgs () -> BigInt = foreign BigInt "numArgsBig" () #-}
+
+{-# COMPILED_EPIC getArg (n : BigInt) -> Any = foreign Any "getArgBig" (n : BigInt) #-}
+
 args : Vec String numArgs
 args = buildArgs numArgs
   where
@@ -28,23 +38,36 @@ args = buildArgs numArgs
     buildArgs Z     = []
     buildArgs (S n) = snoc (buildArgs n) (getArg n)
 
-{-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
-{-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any = iobind(x,f) #-}
-{-# COMPILED_EPIC numArgs () -> BigInt = foreign BigInt "numArgsBig" () #-}
-{-# COMPILED_EPIC getArg  (n : BigInt) -> Any = foreign Any "getArgBig" (n : BigInt) #-}
-
 postulate
+  getEnv      : String -> String
   natToString : Nat -> String
-  readNat    : IO Nat
-  readStr    : IO String
-  putStr     : String -> IO Unit
-  printChar  : Char   -> IO Unit
+  printChar   : Char -> IO Unit
+  putStr      : String -> IO Unit
+  readNat     : IO Nat
+  readStr     : IO String
 
+{-# COMPILED_EPIC getEnv (a : String) ->
+                         String = foreign String "getenv" (a : String)
+#-}
 
-putStrLn   : String -> IO Unit
+{-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}
+
+{-# COMPILED_EPIC printChar (c : Int, u : Unit) -> Unit = printChar(c) #-}
+
+{-# COMPILED_EPIC readNat (u : Unit) -> Any = strToBig(readStr(u)) #-}
+
+{-# COMPILED_EPIC putStr (a : String, u : Unit) ->
+                         Unit = foreign Int "wputStr" (a : String); primUnit
+#-}
+
+{-# COMPILED_EPIC readStr (u : Unit) -> Data = readStr(u) #-}
+
+putStrLn : String -> IO Unit
 putStrLn s = putStr s >>= \_ -> putStr "\n"
 
-printFloat : Float  -> IO Unit
+-- {-# COMPILED_EPIC putStrLn (a : String, u : Unit) -> Unit = putStrLn (a) #-}
+
+printFloat : Float -> IO Unit
 printFloat f = putStr (floatToString f)
 
 printNat : Nat -> IO Unit
@@ -53,14 +76,6 @@ printNat n = putStr (natToString n)
 printBool : Bool -> IO Unit
 printBool true = putStr "true"
 printBool false = putStr "false"
-
-{-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}
-{-# COMPILED_EPIC readNat (u : Unit) -> Any = strToBig(readStr(u)) #-}
-
-{-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
--- {-# COMPILED_EPIC putStrLn (a : String, u : Unit) -> Unit = putStrLn (a) #-}
-{-# COMPILED_EPIC readStr (u : Unit) -> Data = readStr(u) #-}
-{-# COMPILED_EPIC printChar (c : Int, u : Unit) -> Unit = printChar(c) #-}
 
 infixr 2 _<$>_
 _<$>_ : {A B : Set}(f : A -> B)(m : IO A) -> IO B
