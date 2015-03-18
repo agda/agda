@@ -168,6 +168,15 @@ fromℕ-def : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
 fromℕ-def zero    = refl
 fromℕ-def (suc n) = cong suc (fromℕ-def n)
 
+-- fromℕ≤ and fromℕ≤″ give the same result.
+
+fromℕ≤≡fromℕ≤″ :
+  ∀ {m n} (m<n : m N.< n) (m<″n : m N.<″ n) →
+  fromℕ≤ m<n ≡ fromℕ≤″ m m<″n
+fromℕ≤≡fromℕ≤″ (s≤s z≤n)       (N.less-than-or-equal refl) = refl
+fromℕ≤≡fromℕ≤″ (s≤s (s≤s m<n)) (N.less-than-or-equal refl) =
+  cong suc (fromℕ≤≡fromℕ≤″ (s≤s m<n) (N.less-than-or-equal refl))
+
 ------------------------------------------------------------------------
 -- Operations
 
