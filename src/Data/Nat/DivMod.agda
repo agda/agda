@@ -6,55 +6,22 @@
 
 module Data.Nat.DivMod where
 
+open import Data.Fin as Fin using (Fin; toℕ)
+import Data.Fin.Properties as FinP
 open import Data.Nat as Nat
-open import Data.Nat.Properties
-open SemiringSolver
-open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
-import Data.Fin.Properties as Fin
-open import Induction.Nat
+open import Data.Nat.Properties as NatP
+open import Data.Nat.Properties.Simple
 open import Relation.Nullary.Decidable
-open import Relation.Binary.PropositionalEquality
-open ≡-Reasoning
-open import Function
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
+import Relation.Binary.PropositionalEquality.TrustMe as TrustMe
+  using (erase)
 
-------------------------------------------------------------------------
--- Some boring lemmas
+open NatP.SemiringSolver
+open P.≡-Reasoning
+open Nat.≤-Reasoning
+  renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩′_)
 
-private
-
-  lem₁ : (m k : ℕ) →
-         Nat.suc m ≡ suc (toℕ (Fin.inject+ k (fromℕ m)) + 0)
-  lem₁ m k = cong suc $ begin
-    m
-      ≡⟨ sym $ Fin.to-from m ⟩
-    toℕ (fromℕ m)
-      ≡⟨ Fin.inject+-lemma k (fromℕ m) ⟩
-    toℕ (Fin.inject+ k (fromℕ m))
-      ≡⟨ solve 1 (λ x → x := x :+ con 0) refl _ ⟩
-    toℕ (Fin.inject+ k (fromℕ m)) + 0
-      ∎
-
-  lem₂ : ∀ n → _
-  lem₂ = solve 1 (λ n → con 1 :+ n  :=  con 1 :+ (n :+ con 0)) refl
-
-  lem₃ : ∀ n k q (r : Fin n) eq → suc n + k ≡ toℕ r + suc q * n
-  lem₃ n k q r eq = begin
-      suc n + k
-        ≡⟨ solve 2 (λ n k → con 1 :+ n :+ k  :=  n :+ (con 1 :+ k))
-                   refl n k ⟩
-      n + suc k
-        ≡⟨ cong (_+_ n) eq ⟩
-      n + (toℕ r + q * n)
-        ≡⟨ solve 3 (λ n r q → n :+ (r :+ q :* n)  :=
-                              r :+ (con 1 :+ q) :* n)
-                   refl n (toℕ r) q ⟩
-      toℕ r + suc q * n
-        ∎
-
-------------------------------------------------------------------------
--- Division
-
-infixl 7 _divMod_ _div_ _mod_
+infixl 7 _div_ _mod_ _divMod_
 
 -- A specification of integer division.
 
@@ -65,43 +32,133 @@ record DivMod (dividend divisor : ℕ) : Set where
     remainder : Fin divisor
     property  : dividend ≡ toℕ remainder + quotient * divisor
 
--- Integer division with remainder.
-
--- Note that Induction.Nat.<-rec is used to establish termination of
--- division. The run-time complexity of this implementation of integer
--- division should be linear in the size of the dividend, assuming
--- that well-founded recursion and the equality type are optimised
--- properly (see "Inductive Families Need Not Store Their Indices"
--- (Brady, McBride, McKinna, TYPES 2003)).
-
-_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
-           DivMod dividend divisor
-_divMod_ m n {≢0} = <-rec Pred dm m n {≢0}
-  where
-  Pred : ℕ → Set
-  Pred dividend = (divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
-                  DivMod dividend divisor
-
-  1+_ : ∀ {k n} → DivMod (suc k) n → DivMod (suc n + k) n
-  1+_ {k} {n} (result q r eq) = result (1 + q) r (lem₃ n k q r eq)
-
-  dm : (dividend : ℕ) → <-Rec Pred dividend → Pred dividend
-  dm m       rec zero    {≢0 = ()}
-  dm zero    rec (suc n)            = result 0 zero refl
-  dm (suc m) rec (suc n)            with compare m n
-  dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r (lem₁ m k)
-                                        where r = suc (Fin.inject+ k (fromℕ m))
-  dm (suc m) rec (suc .m)           | equal .m     = result 1 zero (lem₂ m)
-  dm (suc .(suc n + k)) rec (suc n) | greater .n k =
-    1+ rec (suc k) le (suc n)
-    where le = s≤′s (s≤′s (n≤′m+n n k))
-
 -- Integer division.
 
+private
+
+  div-helper : ℕ → ℕ → ℕ → ℕ → ℕ
+  div-helper ack s zero    n       = ack
+  div-helper ack s (suc d) zero    = div-helper (suc ack) s d s
+  div-helper ack s (suc d) (suc n) = div-helper ack       s d n
+
+  {-# BUILTIN NATDIVSUCAUX div-helper #-}
+
 _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → ℕ
-_div_ m n {≢0} = DivMod.quotient $ _divMod_ m n {≢0}
+(d div 0) {}
+(d div suc s) = div-helper 0 s d s
 
 -- The remainder after integer division.
 
+private
+
+  mod-helper : ℕ → ℕ → ℕ → ℕ → ℕ
+  mod-helper ack s zero    n       = ack
+  mod-helper ack s (suc d) zero    = mod-helper zero      s d s
+  mod-helper ack s (suc d) (suc n) = mod-helper (suc ack) s d n
+
+  {-# BUILTIN NATMODSUCAUX mod-helper #-}
+
+  -- The remainder is not too large.
+
+  mod-lemma : (ack d n : ℕ) →
+              let s = ack + n in
+              mod-helper ack s d n ≤ s
+
+  mod-lemma ack zero n = start
+    ack      ≤⟨ m≤m+n ack n ⟩
+    ack + n  □
+
+  mod-lemma ack (suc d) zero = start
+    mod-helper zero (ack + 0) d (ack + 0)  ≤⟨ mod-lemma zero d (ack + 0) ⟩
+    ack + 0                                □
+
+  mod-lemma ack (suc d) (suc n) =
+    P.subst (λ x → mod-helper (suc ack) x d n ≤ x)
+            (P.sym (+-suc ack n))
+            (mod-lemma (suc ack) d n)
+
 _mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → Fin divisor
-_mod_ m n {≢0} = DivMod.remainder $ _divMod_ m n {≢0}
+(d mod 0) {}
+(d mod suc s) =
+  Fin.fromℕ≤″ (mod-helper 0 s d s)
+              (Nat.erase (≤⇒≤″ (s≤s (mod-lemma 0 d s))))
+
+-- Integer division with remainder.
+
+private
+
+  -- The quotient and remainder are related to the dividend and
+  -- divisor in the right way.
+
+  division-lemma :
+    (mod-ack div-ack d n : ℕ) →
+    let s = mod-ack + n in
+    mod-ack + div-ack * suc s + d
+      ≡
+    mod-helper mod-ack s d n + div-helper div-ack s d n * suc s
+
+  division-lemma mod-ack div-ack zero n = begin
+
+    mod-ack + div-ack * suc s + zero  ≡⟨ +-right-identity _ ⟩
+
+    mod-ack + div-ack * suc s         ∎
+
+    where s = mod-ack + n
+
+  division-lemma mod-ack div-ack (suc d) zero = begin
+
+    mod-ack + div-ack * suc s + suc d                ≡⟨ solve 3
+                                                              (λ mod-ack div-ack d →
+                                                                   let s = mod-ack :+ con 0 in
+                                                                   mod-ack :+ div-ack :* (con 1 :+ s) :+ (con 1 :+ d)
+                                                                     :=
+                                                                   (con 1 :+ div-ack) :* (con 1 :+ s) :+ d)
+                                                              P.refl mod-ack div-ack d ⟩
+    suc div-ack * suc s + d                          ≡⟨ division-lemma zero (suc div-ack) d s ⟩
+
+    mod-helper zero          s      d  s    +
+    div-helper (suc div-ack) s      d  s    * suc s  ≡⟨⟩
+
+    mod-helper      mod-ack  s (suc d) zero +
+    div-helper      div-ack  s (suc d) zero * suc s  ∎
+
+    where s = mod-ack + 0
+
+  division-lemma mod-ack div-ack (suc d) (suc n) = begin
+
+    mod-ack + div-ack * suc s + suc d                   ≡⟨ solve 4
+                                                                 (λ mod-ack div-ack n d →
+                                                                      mod-ack :+ div-ack :* (con 1 :+ (mod-ack :+ (con 1 :+ n))) :+ (con 1 :+ d)
+                                                                        :=
+                                                                      con 1 :+ mod-ack :+ div-ack :* (con 2 :+ mod-ack :+ n) :+ d)
+                                                                 P.refl mod-ack div-ack n d ⟩
+    suc mod-ack + div-ack * suc s′ + d                  ≡⟨ division-lemma (suc mod-ack) div-ack d n ⟩
+
+    mod-helper (suc mod-ack) s′ d n +
+    div-helper      div-ack  s′ d n * suc s′            ≡⟨ P.cong (λ s → mod-helper (suc mod-ack) s d n +
+                                                                         div-helper div-ack s d n * suc s)
+                                                                  (P.sym (+-suc mod-ack n)) ⟩
+
+    mod-helper (suc mod-ack) s d n +
+    div-helper      div-ack  s d n * suc s              ≡⟨⟩
+
+    mod-helper      mod-ack  s (suc d) (suc n) +
+    div-helper      div-ack  s (suc d) (suc n) * suc s  ∎
+
+    where
+    s  = mod-ack + suc n
+    s′ = suc mod-ack + n
+
+_divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
+           DivMod dividend divisor
+(d divMod 0) {}
+(d divMod suc s) =
+  result (d div suc s) (d mod suc s) (TrustMe.erase (begin
+    d                                                        ≡⟨ division-lemma 0 0 d s ⟩
+    mod-helper 0 s d s         + div-helper 0 s d s * suc s  ≡⟨ P.cong₂ _+_ (P.sym (FinP.toℕ-fromℕ≤ lemma)) P.refl ⟩
+    toℕ (Fin.fromℕ≤    lemma)  + div-helper 0 s d s * suc s  ≡⟨ P.cong (λ n → toℕ n + div-helper 0 s d s * suc s)
+                                                                       (FinP.fromℕ≤≡fromℕ≤″ lemma _) ⟩
+    toℕ (Fin.fromℕ≤″ _ lemma′) + div-helper 0 s d s * suc s  ∎))
+  where
+  lemma  = s≤s (mod-lemma 0 d s)
+  lemma′ = Nat.erase (≤⇒≤″ lemma)

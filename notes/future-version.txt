@@ -14,3 +14,5 @@ future release. Don't remove this message please!
 * Added Data.Nat.Base.{_≤″_,_≥″_,_<″_,_>″_,erase},
   Data.Nat.Properties.{≤⇒≤″,≤″⇒≤}, Data.Fin.fromℕ≤″, and
   Data.Fin.Properties.fromℕ≤≡fromℕ≤″.
+
+* The functions in Data.Nat.DivMod have been optimised.
