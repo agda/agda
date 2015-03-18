@@ -19,6 +19,8 @@ backends.
 
 Important changes since 0.10:
 
+* Relation.Binary.PropositionalEquality.TrustMe.erase was added.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.10
 ------------------------------------------------------------------------
