@@ -18,6 +18,7 @@ open import Function
 import Level
 open import Relation.Nullary.Decidable
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 ------------------------------------------------------------------------
 -- Types
@@ -55,6 +56,13 @@ fromℕ (suc n) = suc (fromℕ n)
 fromℕ≤ : ∀ {m n} → m N< n → Fin n
 fromℕ≤ (Nat.s≤s Nat.z≤n)       = zero
 fromℕ≤ (Nat.s≤s (Nat.s≤s m≤n)) = suc (fromℕ≤ (Nat.s≤s m≤n))
+
+-- fromℕ≤″ m _ = "m".
+
+fromℕ≤″ : ∀ m {n} → m Nat.<″ n → Fin n
+fromℕ≤″ zero    (Nat.less-than-or-equal P.refl) = zero
+fromℕ≤″ (suc m) (Nat.less-than-or-equal P.refl) =
+  suc (fromℕ≤″ m (Nat.less-than-or-equal P.refl))
 
 -- # m = "m".
 

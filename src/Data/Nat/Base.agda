@@ -8,6 +8,7 @@ module Data.Nat.Base where
 
 import Level using (zero)
 open import Relation.Binary.Core
+import Relation.Binary.PropositionalEquality.TrustMe as TrustMe
 open import Relation.Nullary using (¬_)
 
 infix 4 _≤_ _<_ _≥_ _>_ _≰_ _≮_ _≱_ _≯_
@@ -85,6 +86,28 @@ m ≥′ n = n ≤′ m
 
 _>′_ : Rel ℕ Level.zero
 m >′ n = n <′ m
+
+-- Another alternative definition of _≤_.
+
+record _≤″_ (m n : ℕ) : Set where
+  constructor less-than-or-equal
+  field
+    {k}   : ℕ
+    proof : m + k ≡ n
+
+infix 4 _≤″_ _<″_ _≥″_ _>″_
+
+_<″_ : Rel ℕ Level.zero
+m <″ n = suc m ≤″ n
+
+_≥″_ : Rel ℕ Level.zero
+m ≥″ n = n ≤″ m
+
+_>″_ : Rel ℕ Level.zero
+m >″ n = n <″ m
+
+erase : ∀ {m n} → m ≤″ n → m ≤″ n
+erase (less-than-or-equal eq) = less-than-or-equal (TrustMe.erase eq)
 
 ------------------------------------------------------------------------
 -- A generalisation of the arithmetic operations

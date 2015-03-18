@@ -342,6 +342,24 @@ m≤m⊔n (suc m) (suc n) = s≤s $ m≤m⊔n m n
 ≰⇒> {suc m} {suc n} m≰n = s≤s (≰⇒> (m≰n ∘ s≤s))
 
 ------------------------------------------------------------------------
+-- Converting between ≤ and ≤″
+
+≤″⇒≤ : _≤″_ ⇒ _≤_
+≤″⇒≤ (less-than-or-equal refl) = m≤m+n _ _
+
+≤⇒≤″ : _≤_ ⇒ _≤″_
+≤⇒≤″ m≤n = less-than-or-equal (proof m≤n)
+  where
+  k : ∀ m n → m ≤ n → ℕ
+  k zero    n       _   = n
+  k (suc m) zero    ()
+  k (suc m) (suc n) m≤n = k m n (≤-pred m≤n)
+
+  proof : ∀ {m n} (m≤n : m ≤ n) → m + k m n m≤n ≡ n
+  proof z≤n       = refl
+  proof (s≤s m≤n) = cong suc (proof m≤n)
+
+------------------------------------------------------------------------
 -- (ℕ, _≡_, _<_) is a strict total order
 
 m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
