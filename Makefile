@@ -10,7 +10,7 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
-CABAL_OPTS=--builddir=$(BUILD_DIR)
+override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 CABAL_CMD=cabal
 override CABAL_OPTS+=$(CABAL_OPTIONS)
 
