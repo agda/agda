@@ -9,4 +9,4 @@ test:
 	-rm -r tests/bin
 	mkdir tests/bin
 	$(AGDA_BIN) --epic RunTests.agda
-	export AGDA_PATH=$(AGDA_BIN) && ./RunTests
+	export AGDA_BIN=$(AGDA_BIN) && ./RunTests

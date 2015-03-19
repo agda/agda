@@ -102,10 +102,10 @@ printResult filename l1 l2 with l1 ` listEq charEq ` l2
               putStrLn "Got:" ,,
               printList l1
 
--- The environment variable `AGDA_PATH` is defined in the Makefile.
+-- The environment variable `AGDA_BIN` is defined in the Makefile.
 compile : FilePath -> FilePath -> IO Unit
 compile dir file =
-  system $ (getEnv "AGDA_PATH") +S+
+  system $ (getEnv "AGDA_BIN") +S+
            " --epic --compile-dir=" +S+ dir +S+ "bin/ " +S+ dir +S+ file ,,
   return unit
 
