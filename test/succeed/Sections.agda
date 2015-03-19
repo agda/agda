@@ -116,3 +116,6 @@ test₁₆ = (-_)
 
 test₁₆-test : ∀ x → test₁₆ x ≡ (- x)
 test₁₆-test _ = refl
+
+test₁₇ : (f : Nat → Nat) → f ≡ suc → Set₁
+test₁₇ .(1 +_) refl = Set
