@@ -3,7 +3,7 @@ module Issue846.Imports where
 open import Data.Nat public using (ℕ; zero; suc; _≤_; _∸_)
 open import Data.List public using (List; []; _∷_)
 open import Data.Bool public using (Bool; true; false; not)
-open import Data.Nat.DivMod public using (_mod_)
+open import Issue846.OldDivMod public using (_mod_)
 open import Data.Fin public using (Fin; toℕ; zero; suc)
 open import Relation.Binary.PropositionalEquality public using (_≡_; _≢_; cong)
 
