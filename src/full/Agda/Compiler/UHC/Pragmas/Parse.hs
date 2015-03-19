@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 -- | Defines UHC Core functions used in other parts of Agda.
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
@@ -13,8 +14,6 @@ where
 
 import Data.Maybe
 import Data.List
-import Data.List (intercalate)
-import Data.Typeable
 import qualified Data.Map as M
 
 import Agda.TypeChecking.Monad
@@ -49,7 +48,7 @@ parseCoreData dt css = do
                        in return $ CCNormal dtCrNm' (mkHsName1 cs) __IMPOSSIBLE__ -- tag gets assigned after we have parsed all ctors
         parseConstr (Just _) _ cs | not (isMagic cs) = typeError $ GenericError $ "A primitive datatype can only have primitive constructors."
         parseConstr (Just mp) _ cs | otherwise = do
-                (Just (nm, ctg)) <- isMagicEntity mp cs "constructor"
+                (Just (_, ctg)) <- isMagicEntity mp cs "constructor"
                 return $ CCMagic ctg
         ccOrd :: CoreConstr -> CoreConstr -> Ordering
         ccOrd (CCNormal dtNm1 ctNm1 _) (CCNormal dtNm2 ctNm2 _) | dtNm1 == dtNm2 = compare ctNm1 ctNm2

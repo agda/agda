@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 -- | Defines some magic builtin datatypes.
 module Agda.Compiler.UHC.MagicTypes
@@ -10,19 +11,9 @@ module Agda.Compiler.UHC.MagicTypes
 where
 
 import Data.List
-import Agda.Compiler.UHC.AuxAST
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
-import qualified Agda.Syntax.Internal as T
-
-#include "undefined.h"
-import Agda.Utils.Impossible
-
-
-import Control.Applicative
 import qualified Data.Map as M
-import Data.Maybe
 
+import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Bridge
 
 

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 -- has it's own module to break dependency loop
 module Agda.Compiler.UHC.AuxASTUtil

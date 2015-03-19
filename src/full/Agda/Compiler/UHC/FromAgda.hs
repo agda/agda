@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
@@ -12,12 +13,9 @@ module Agda.Compiler.UHC.FromAgda where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import Data.Char
 import qualified Data.Map as M
 import Data.Maybe
-import Data.List
 import Data.Either
-import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (Term(..))
@@ -30,14 +28,12 @@ import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty
 import Agda.Utils.List
 import Agda.TypeChecking.Monad.Builtin
-import Agda.Syntax.Scope.Base
 
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
-import Agda.Compiler.UHC.MagicTypes
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.Core
 import Agda.Compiler.UHC.Naming
@@ -78,11 +74,11 @@ fromAgdaModule modNm curModImps transModIface defs cont = do
 
     funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM translateDefn defs)
 
-    let mod = AMod { xmodName = modNm
+    let amod = AMod { xmodName = modNm
                   , xmodFunDefs = funs
                   , xmodDataTys = dats
                   }
-    cont mod
+    cont amod
     )
 
   return (mod', modInfo')
@@ -135,31 +131,35 @@ translateDataTypes :: [(QName, Definition)] -> CompileT TCM [ADataTy]
 translateDataTypes defs = do
   kit <- getCoinductionKit
   -- first, collect all constructors
+  -- Right elements are foreign datatype constructors,
+  -- Lefts are normally compiled Agda datatype constructors.
   constrMp <- M.unionsWith (++)
     <$> mapM (\(n, def) ->
         case theDef def of
             d@(Constructor {}) -> do
                 let foreign = compiledCore $ defCompiledRep def
-                arity <- lift $ (fst <$> conArityAndPars n)
+                arity' <- lift $ (fst <$> conArityAndPars n)
                 let conFun = ADataCon n
                 con <- case foreign of
-                    (Just (CrConstr crcon)) -> return $ Right (conFun $ coreConstrToCTag crcon arity)
+                    (Just (CrConstr crcon)) -> return $ Right (conFun $ coreConstrToCTag crcon arity')
                     (Nothing)   -> do
                         conCrNm <- getCoreName1 n
-                        return $ Left (\tyCrNm tag -> conFun (mkCTag tyCrNm conCrNm tag arity))
+                        return $ Left (\tyCrNm tag -> conFun (mkCTag tyCrNm conCrNm tag arity'))
                     _ -> __IMPOSSIBLE__
                 return $ M.singleton (conData d) [con]
             _ -> return M.empty
         ) defs
 
+  -- now extract all datatypes, and use the constructor info
+  -- collected before
   let handleDataRecDef = (\n def -> do
             let foreign = compiledCore $ defCompiledRep def
             let cons = M.findWithDefault [] n constrMp
             case (foreign, partitionEithers cons) of
               (Just (CrType crty), ([], cons')) -> do -- foreign datatypes (COMPILED_CORE_DATA)
                     let (tyNm, impl) = case crty of
-                                CTMagic tyNm nm -> (tyNm, ADataImplMagic nm)
-                                CTNormal tyNm -> (tyNm, ADataImplForeign)
+                                CTMagic tyNm' nm -> (tyNm', ADataImplMagic nm)
+                                CTNormal tyNm' -> (tyNm', ADataImplForeign)
                     return $ Just (ADataTy tyNm n cons' impl)
               (Nothing, (cons', [])) -> do
                     tyCrNm <- getCoreName1 n
@@ -184,8 +184,8 @@ translateDataTypes defs = do
 
 
 isDtInstantiated :: Defn -> Bool
-isDtInstantiated (d@Datatype {dataClause = Just _}) = True
-isDtInstantiated (r@Record {recClause = Just _}) = True
+isDtInstantiated (Datatype {dataClause = Just _}) = True
+isDtInstantiated (Record {recClause = Just _}) = True
 isDtInstantiated _ = False
 
 
@@ -199,7 +199,7 @@ translateDefn (n, defini) = do
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
-    f@(Function{}) | Just n == (nameOfFlat <$> kit) -> do
+    (Function{}) | Just n == (nameOfFlat <$> kit) -> do
         -- ignore the two type arguments
         Just <$> mkIdentityFun n "coind-flat" 2
     f@(Function{}) | otherwise -> do
@@ -224,10 +224,10 @@ translateDefn (n, defini) = do
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         Just <$> mkIdentityFun n "coind-sharp" 0
 
-    c@(Constructor{}) | otherwise -> do -- become functions returning a constructor with their tag
+    (Constructor{}) | otherwise -> do -- become functions returning a constructor with their tag
 
         case crName of
-          (Just crNm) -> do
+          (Just _) -> do
                 -- check if the constructor is in an instantiated module
                 -- There will be no constructor info entry, if it is indeed an instantiated constructor.
                 isInst <- lift $ isConstrInstantiated n
@@ -236,9 +236,9 @@ translateDefn (n, defini) = do
                   False -> do
                     conInfo <- lift $ getConstrInfo n
                     let conCon = aciDataCon conInfo
-                        arity = xconArity conCon
+                        arity' = xconArity conCon
 
-                    vars <- replicateM arity freshLocalName
+                    vars <- replicateM arity' freshLocalName
                     return $ Just $ Fun True (ctagCtorName $ xconCTag conCon) (Just n)
                             ("constructor: " ++ show n) vars (Con (aciDataType conInfo) conCon (map Var vars))
           Nothing -> return Nothing -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
@@ -246,7 +246,7 @@ translateDefn (n, defini) = do
     r@(Record{}) -> do
         vars <- replicateM (recPars r) freshLocalName
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("record: " ++ show n) vars UNIT
-    a@(Axiom{}) -> do -- Axioms get their code from COMPILED_CORE pragmas
+    (Axiom{}) -> do -- Axioms get their code from COMPILED_CORE pragmas
         case crRep of
             Nothing -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
                 (coreImpossible $ "Axiom " ++ show n ++ " used but has no computation.")
@@ -269,17 +269,6 @@ translateDefn (n, defini) = do
         crName <- lift $ getCoreName1 nm
         xs <- replicateM (ignArgs + 1) freshLocalName
         return $ Fun False crName (Just n) comment xs (Var $ last xs)
-    modOf = reverse . dropWhile (/='.') . reverse
-    mkFunGen :: QName                    -- ^ Original name
-            -> (name -> [Expr] -> Expr) -- ^ combinator
-            -> (name -> String)         -- ^ make comment
-            -> HsName                      -- ^ Name of the function
-            -> name                     -- ^ Primitive function name
-            -> Int                      -- ^ Arity ofthe function
-            -> FreshNameT (CompileT TCM) Fun            -- ^ Result?
-    mkFunGen qn comb sh name primname arit = do
-        vars <- replicateM arit freshLocalName
-        return $ Fun True name (Just qn) (sh primname) vars (comb primname (map Var vars))
 
 
 -- | Adds the offset from the projection args to all indexes.
@@ -316,7 +305,7 @@ removeCoindCopatterns cc = do
                             (fmap (fmap (go flat)) cbr)
                             (fmap (go flat) lbr)
                             (fmap (go flat) cabr)
-        go flat x = x
+        go _ x = x
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
 --   This is all done by magic. It uses 'substTerm' to translate the actual
@@ -355,14 +344,14 @@ compileClauses :: QName
                 -> Int -- ^ Number of arguments in the definition
                 -> Int -- ^ Number of projection arguments.
                 -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Fun
-compileClauses qnm clsArgs projArgs c = do
+compileClauses qnm _ projArgs c = do
   crName <- lift $ getCoreName1 qnm
   e    <- compileClauses' [] Nothing c
   return $ Fun False crName (Just qnm) ("function: " ++ show qnm) [] e
   where
     compileClauses' :: [HsName] -> Maybe Expr -> CC.CompiledClauses -> FreshNameT (CompileT TCM) Expr
     compileClauses' env omniDefault cc = case cc of
-        CC.Case n nc | length env <= n -> do
+        CC.Case n _ | length env <= n -> do
             -- happens if the current subtree expects more arguments
             (args, tf) <- addLambdas ((n - length env) + 1)
             -- the propagated catch all doesn't know that we consumed any arguments,
@@ -376,9 +365,9 @@ compileClauses qnm clsArgs projArgs c = do
                           in compileCase env omniDefault n nc cont
               Just de -> do
                   def <- compileClauses' env omniDefault de
-                  bindExpr def $ \ var ->
+                  bindExpr def $ \ defVar ->
                     let cont = Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n))
-                     in compileCase env (Just $ Var var) n nc cont
+                     in compileCase env (Just $ Var defVar) n nc cont
         CC.Done ps t -> do
                 -- requiring additional lambdas happens if clauses have different number of arguments.
                 let nLams = length ps - length env + projArgs
@@ -406,11 +395,11 @@ compileClauses qnm clsArgs projArgs c = do
                 return (brs, CTChar)
             ([], cbs) -> do
                 -- Con branch
-                brs <- forM cbs $ \(b, CC.WithArity ar cc) -> do
+                brs <- forM cbs $ \(b, CC.WithArity _ cc) -> do
 
                     conInfo <- lift $ getConstrInfo b
-                    let arity = xconArity $ aciDataCon conInfo
-                    vars <- replicateM arity freshLocalName
+                    let arity' = xconArity $ aciDataCon conInfo
+                    vars <- replicateM arity' freshLocalName
                     cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
                     return $ BrCon (aciDataCon conInfo) (Just b) vars cc'
                 -- get datatype info from first branch
@@ -427,7 +416,7 @@ compileClauses qnm clsArgs projArgs c = do
         args <- replicateM n freshLocalName
         let tf = foldl1 (.) (map Lam args)
         return (args, tf)
-    addLambdas n | otherwise = __IMPOSSIBLE__
+    addLambdas _ | otherwise = __IMPOSSIBLE__
 
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables

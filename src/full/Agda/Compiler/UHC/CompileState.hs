@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -33,33 +34,24 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader.Class
 import Data.List
-import Data.Map(Map)
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Monoid
-import Data.Set(Set)
-import qualified Data.Set as S
 import Data.Time.Clock.POSIX
 
 import Agda.Compiler.UHC.AuxAST as AuxAST
 import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.MagicTypes
-import Agda.Interaction.Options
 import Agda.Syntax.Internal
-import Agda.Syntax.Concrete(TopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistentState)
+import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
-import Agda.TypeChecking.Reduce
 import Agda.Compiler.UHC.Naming
 import Agda.TypeChecking.Serialise (currentInterfaceVersion)
-
-import qualified Agda.Utils.HashMap as HM
-import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -88,7 +80,7 @@ runCompileT :: MonadIO m
     -> ConInstMp
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind mod curImpMods transImpIface nmMp conIMp comp = do
+runCompileT coind amod curImpMods transImpIface nmMp conIMp comp = do
   (result, state') <- runStateT (unCompileT comp) initial
 
   version <- liftIO getPOSIXTime
@@ -96,7 +88,7 @@ runCompileT coind mod curImpMods transImpIface nmMp conIMp comp = do
   let modInfo = AModuleInfo
         { amiFileVersion = currentModInfoVersion
         , amiAgdaVersion = currentInterfaceVersion
-        , amiModule = mod
+        , amiModule = amod
         , amiInterface = curModuleInterface state'
         , amiVersion = version
         , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- curImpMods]
@@ -105,7 +97,7 @@ runCompileT coind mod curImpMods transImpIface nmMp conIMp comp = do
   return (result, modInfo)
   where initialModIface = mempty { amifNameMp = nmMp, amifConInstMp = conIMp }
         initial = CompileState
-            { curModule     = mod
+            { curModule     = amod
             , moduleInterface =
                 initialModIface `mappend` transImpIface
             , curModuleInterface = initialModIface

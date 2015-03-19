@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 -- | Defines some primitive functions.
 module Agda.Compiler.UHC.Primitives
@@ -5,7 +6,6 @@ module Agda.Compiler.UHC.Primitives
   )
 where
 
-import Data.List
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.CompileState
 import Agda.TypeChecking.Monad

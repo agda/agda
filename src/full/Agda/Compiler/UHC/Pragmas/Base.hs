@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 -- | Defines UHC Core functions used in other parts of Agda.
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
@@ -10,14 +11,9 @@ module Agda.Compiler.UHC.Pragmas.Base
     setTag,
     HsName
   )
-
 where
 
 
-
-import Data.Maybe
-import Data.List
-import Data.List (intercalate)
 import Data.Typeable
 
 import Agda.Compiler.UHC.AuxAST

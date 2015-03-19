@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 -- | UHC compiler backend.
 
@@ -14,12 +15,10 @@ import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as M
-import Data.Set(Set)
-import qualified Data.Set as Set
 import Data.Maybe
 import Data.Monoid
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
-                        , getCurrentDirectory, setCurrentDirectory
+                        , setCurrentDirectory
                         , createDirectory, doesDirectoryExist
                         , getDirectoryContents, copyFile
                         , getTemporaryDirectory, removeDirectoryRecursive
@@ -38,17 +37,14 @@ import Agda.Compiler.CallCompiler
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Imports
-import Agda.Syntax.Common (Delayed(..))
 import qualified Agda.Syntax.Concrete.Name as CN
 import Agda.Syntax.Internal hiding (Term(..))
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.UHC.Bridge as UB
-import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Core
@@ -60,22 +56,17 @@ import Agda.Compiler.UHC.AuxAST
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-type CoreCode = String
-
 -- we should use a proper build system to ensure that things get only built once instead....
 -- but better than nothing
 type CompModT = StateT CompiledModules
 type CompiledModules = M.Map ModuleName (AModuleInfo, AModuleInterface)
 
 putCompModule :: Monad m => AModuleInfo -> AModuleInterface -> CompModT m ()
-putCompModule mod modTrans = modify (M.insert (amiModule mod) (mod, modTrans))
+putCompModule amod modTrans = modify (M.insert (amiModule amod) (amod, modTrans))
 
 installUHCAgdaBase :: TCM ()
 installUHCAgdaBase = do
-    -- TODO we should not do this in the data directory, it may be read only...
-    -- TODO only compile uhc-agda-base when we have to
     srcDir <- (</> "uhc-agda-base") <$> liftIO getDataDir
-    pwd <- liftIO $ getCurrentDirectory
 
     -- get user package dir
     uhcBin <- getUhcBin
@@ -107,7 +98,7 @@ installUHCAgdaBase = do
                                     ++ (pkgDbDir </> "installing_" ++ pkgName) ++ "\""
                                     ++ ", to force reinstallation of the agda base library."
                                 ]
-                  Left e | otherwise -> __IMPOSSIBLE__
+                  Left _ | otherwise -> __IMPOSSIBLE__
                   Right _ -> do
                       reportSLn "uhc" 10 $ "Agda base library " ++ pkgName ++ " missing, installing into package db at " ++ pkgDbDir ++ "."
 
@@ -169,13 +160,12 @@ compilerMain inter = do
            ]
 
 auiFile :: CN.TopLevelModuleName -> TCM FilePath
-auiFile mod = do
-  let (dir, fn) = splitFileName . foldl1 (</>) $ ("Cache" : (CN.moduleNameParts mod))
+auiFile modNm = do
+  let (dir, fn) = splitFileName . foldl1 (</>) $ ("Cache" : (CN.moduleNameParts modNm))
       fp  | dir == "./"  = fn
           | otherwise = dir </> fn
   liftIO $ createDirectoryIfMissing True dir
   return $ fp
-  where repldot c = map (\c' -> if c' == '.' then c else c')
 
 outFile :: [String] -> TCM FilePath
 outFile modParts = do
@@ -184,7 +174,6 @@ outFile modParts = do
           | otherwise = dir </> fn
   liftIO $ createDirectoryIfMissing True dir
   return $ fp
-  where repldot c = map (\c' -> if c' == '.' then c else c')
 
 -- | Compiles a module and it's imports. Returns the module info
 -- of this module, and the accumulating module interface.
@@ -195,11 +184,10 @@ compileModule i = do
     -- (well, we could just compute the module name and use that, that's
     -- probably better? )
     cm <- get
-    let moduleName = iModuleName i
-    let topModuleName = toTopLevelModuleName moduleName
-    inFile <- lift $ findFile topModuleName
-    auiFile <- lift $ auiFile topModuleName
-    case M.lookup moduleName cm of
+    let modNm = iModuleName i
+    let topModuleName = toTopLevelModuleName modNm
+    auiFile' <- lift $ auiFile topModuleName
+    case M.lookup modNm cm of
         Just x -> return x
         Nothing  -> do
             imports <- map miInterface . catMaybes
@@ -207,10 +195,10 @@ compileModule i = do
                                                      (iImportedModules i))
             (curModInfos, transModInfos) <- (fmap mconcat) . unzip <$> mapM compileModule imports
             ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile topModuleName)
-            let uifFile = auiFile <.> "aui"
+            let uifFile = auiFile' <.> "aui"
             uptodate <- liftIO $ isNewerThan uifFile ifile
             lift $ reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
-            modInfo <- case uptodate of
+            modInfoCached <- case uptodate of
               True  -> do
                     lift $ reportSLn "" 5 $
                         show moduleName ++ " : UHC backend interface file is up to date."
@@ -231,18 +219,18 @@ compileModule i = do
                           return Nothing
               False -> return Nothing
 
-            case modInfo of
+            case modInfoCached of
               Just x  -> let tmi' = transModInfos `mappend` (amiInterface x) in putCompModule x tmi' >> return (x, tmi')
               Nothing -> do
                     lift $ reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
                     let defns = HMap.toList $ sigDefinitions $ iSignature i
                     opts <- lift commandLineOptions
-                    (code, modInfo, amod) <- lift $ compileDefns moduleName curModInfos transModInfos opts defns
+                    (code, modInfo, _) <- lift $ compileDefns modNm curModInfos transModInfos opts defns
                     lift $ do
-                        let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) moduleName
+                        let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) modNm
                         crFile <- outFile modParts
-                        writeCoreFile crFile code
+                        _ <- writeCoreFile crFile code
                         writeModInfoFile uifFile modInfo
 
                     let tmi' = transModInfos `mappend` amiInterface modInfo
@@ -292,35 +280,35 @@ compileDefns :: ModuleName
     -> AModuleInterface -- ^ transitive iface
     -> CommandLineOptions
     -> [(QName, Definition)] -> TCM (UB.CModule, AModuleInfo, AMod)
-compileDefns mod curModImps transModIface opts defs = do
+compileDefns modNm curModImps transModIface opts defs = do
 
-    (amod', modInfo) <- FAgda.fromAgdaModule mod curModImps transModIface defs $ \mod ->
-                   return mod
+    (amod', modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface defs $ \amod ->
+                   return amod
                >>= optim optOptimSmashing "smashing"      Smash.smash'em
                >>= idPrint "done" return
-    reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show mod ++ "\"."
+    reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show modNm ++ "\"."
     crMod <- toCore amod' modInfo (transModIface `mappend` (amiInterface modInfo)) curModImps
 
-    reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show mod ++ "\"."
+    reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
     return (crMod, modInfo, amod')
   where optim :: (CommandLineOptions -> Bool) -> String -> Transform -> Transform
         optim p s m x | p opts = idPrint s m x
                       | otherwise = return x
 
 writeCoreFile :: String -> UB.CModule -> TCM FilePath
-writeCoreFile f mod = do
+writeCoreFile f cmod = do
   useTextual <- optUHCTextualCore <$> commandLineOptions
 
   -- dump textual core, useful for debugging.
   when useTextual (do
     let f' = f <.> ".dbg.tcr"
     reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
-    liftIO $ putPPFile f' (UB.printModule defaultEHCOpts mod) 200
+    liftIO $ putPPFile f' (UB.printModule defaultEHCOpts cmod) 200
     )
 
   let f' = f <.> ".bcr"
   reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
-  liftIO $ putSerializeFile f' mod
+  liftIO $ putSerializeFile f' cmod
   return f'
 
 -- | Change the current directory to UHC folder, create it if it doesn't already
@@ -340,8 +328,8 @@ setUHCDir mainI = do
 runUhcMain :: AModuleInfo -> HsName -> TCM ()
 runUhcMain mainMod mainName = do
     let fp = "Main"
-    let mod = createMainModule mainMod mainName
-    fp' <- writeCoreFile fp mod
+    let mmod = createMainModule mainMod mainName
+    fp' <- writeCoreFile fp mmod
     -- TODO drop the RTS args as soon as we don't need the additional memory anymore
     callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod), fp', "+RTS", "-K50m", "-RTS"]
 

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 -- | Contains all information required to link Agda modules.
 --

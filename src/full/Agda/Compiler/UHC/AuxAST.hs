@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 -- | Intermediate abstract syntax tree used in the compiler. Pretty close to
@@ -131,7 +132,7 @@ lett v e        e' = if v `elem` fv e' then Let v e e' else e'
 -- | If casing on the same expression in a sub-expression, we know what branch to
 --   pick
 casee :: ADataTy -> Expr -> [Branch] -> Maybe Expr -> CaseType -> Expr
-casee ty x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs] def cty
+casee _ x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs] def cty
   where
     casingE br expr = let rec = casingE br in case expr of
       Var v -> Var v
@@ -139,11 +140,11 @@ casee ty x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs
       Lam v e -> Lam v (rec e)
       Con t n es -> Con t n (map rec es)
       App v es   -> App v (map rec es)
-      Case e brs def' cty' | expr == e -> case filter (sameCon br) brs of
-        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs] (fmap rec def') cty'
+      Case e brs' def' cty' | expr == e -> case filter (sameCon br) brs' of
+        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (fmap rec def') cty'
         [b] -> substs (getBrVars br `zip` getBrVars b) (brExpr b)
         _   -> __IMPOSSIBLE__
-                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs] (fmap rec def') cty'
+                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (fmap rec def') cty'
       Let v e1 e2 -> Let v (rec e1) (rec e2)
       UNIT        -> UNIT
       IMPOSSIBLE  -> IMPOSSIBLE

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 
 -- | Smash functions which return something that can be inferred
@@ -6,7 +7,6 @@
 module Agda.Compiler.UHC.Smashing where
 
 import Control.Monad.State
-import Control.Monad.Identity
 import Control.Monad.Trans.Maybe
 
 import Data.List
@@ -25,7 +25,6 @@ import Agda.TypeChecking.Reduce
 
 import Agda.Compiler.UHC.AuxAST as AA
 import Agda.Compiler.UHC.Transform
-import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Naming
 
 import Agda.Utils.Lens
@@ -41,12 +40,12 @@ type SmashT m = FreshNameT (TransformT m)
 defnPars :: Integral n => Defn -> n
 defnPars (Record      {recPars = p}) = fromIntegral p
 defnPars (Constructor {conPars = p}) = fromIntegral p
-defnPars d                           = 0
+defnPars _                           = 0
 
 smash'em :: Transform
-smash'em mod = do
-  fs' <- smashFuns (xmodFunDefs mod)
-  return $ (mod { xmodFunDefs = fs' })
+smash'em amod = do
+  fs' <- smashFuns (xmodFunDefs amod)
+  return $ (amod { xmodFunDefs = fs' })
 
 -- | Main function, smash as much as possible
 smashFuns :: [Fun] -> TransformT TCM [Fun]
@@ -85,7 +84,7 @@ xs +++ ys = unflattenTel names $ map (raise (size ys)) (flattenTel xs) ++ flatte
 
 -- | Can a datatype be inferred? If so, return the only possible value.
 inferable :: Set QName -> QName -> [SI.Arg Term] ->  MaybeT (SmashT TCM) Expr
-inferable visited dat args | dat `Set.member` visited = fail'
+inferable visited dat _    | dat `Set.member` visited = fail'
 inferable visited dat args = do
   reportSLn "uhc.smashing" 10 $ "  inferring:" ++ (show dat)
   defs <- sigDefinitions <$> use stImports
@@ -96,7 +95,7 @@ inferable visited dat args = do
             [c] -> inferableArgs c (dataPars d)
             _   -> fail'
       r@Record{}   -> inferableArgs (recCon r) (recPars r)
-      f@Function{ funSmashable = True } -> do
+      (Function{ funSmashable = True }) -> do
         term <- liftTCM $ normalise $ Def dat $ map SI.Apply args
         inferableTerm visited' term
       d -> do
@@ -129,14 +128,13 @@ inferableTerm visited t = do
         t' <- inferableTerm visited (unEl $ unAbs b)
         lift $ buildLambda 1 t'
     Sort {}     -> return AA.UNIT
-    t           -> do
-      reportSLn "uhc.smashing" 10 $ "  failed to infer: " ++ show t
+    t'          -> do
+      reportSLn "uhc.smashing" 10 $ "  failed to infer: " ++ show t'
       fail'
 
 -- | Find the only possible value for a certain type. If we fail return Nothing
 smashable :: Int -> Type -> MaybeT (SmashT TCM) Expr
 smashable origArity typ = do
-    defs <- sigDefinitions <$> use stImports
     TelV tele retType <- liftTCM $ telView typ
     retType' <- return retType
 
@@ -148,7 +146,7 @@ smashable origArity typ = do
       ]
     lift $ buildLambda (size tele - origArity) inf
 
-buildLambda :: (Ord n, Num n) => n -> Expr -> SmashT TCM Expr
+buildLambda :: Int -> Expr -> SmashT TCM Expr
 buildLambda n e | n <= 0    = return e
 buildLambda n e | otherwise = do
   v <- freshLocalName

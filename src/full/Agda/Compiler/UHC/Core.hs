@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 
 -- | Convert the AuxAST code to UHC Core code.
@@ -9,18 +10,13 @@ module Agda.Compiler.UHC.Core
 --  , getExportedExprs
   ) where
 
-import Data.Char
 import Data.List
 import qualified Data.Map as M
-import Data.Maybe (fromJust, catMaybes, fromMaybe)
 import Control.Applicative
-import qualified Data.Set as S
+import Data.Maybe (fromMaybe, catMaybes)
 
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Abstract.Name
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.State.Class
 import Control.Monad.State
 import Control.Monad.Reader
 import Agda.Interaction.Options
@@ -65,12 +61,12 @@ toCore :: AMod      -- ^ The current module to compile.
     -> AModuleInterface -- ^ Transitive interface.
     -> [AModuleInfo] -- ^ Top level imports
     -> TCM CModule
-toCore mod modInfo transModIface modImps = do
+toCore amod modInfo transModIface modImps = do
 
   traceLvl <- optUHCTraceLevel <$> commandLineOptions
-  funs <- flip runReaderT traceLvl $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs mod)
+  funs <- flip runReaderT traceLvl $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs amod)
 
-  let cMetaDeclL = buildCMetaDeclL (xmodDataTys mod)
+  let cMetaDeclL = buildCMetaDeclL (xmodDataTys amod)
 
   let imps = [ mkHsName1 x | x <-
         [ "UHC.Base"
@@ -78,7 +74,7 @@ toCore mod modInfo transModIface modImps = do
         ]] ++ map (mnmToCrNm . amiModule) modImps
   let impsCr = map mkImport imps
       exps = getExports modInfo
-      crModNm = mnmToCrNm $ xmodName mod
+      crModNm = mnmToCrNm $ xmodName amod
       cmod = mkModule crModNm exps impsCr cMetaDeclL funs
   return cmod
   where mnmToCrNm :: ModuleName -> HsName
@@ -102,7 +98,7 @@ buildCMetaDeclL dts = catMaybes $ map f dts
 
 
 funToBind :: Monad m => Fun -> ToCoreT m CBind
-funToBind (Fun _ name mqname comment vars e) = do
+funToBind (Fun _ name _ _ vars e) = do
   e' <- exprToCore e
 
   body <- coreTrace1 5 ("Eval fun: " ++ show name) $ mkLam vars e'
@@ -111,7 +107,10 @@ funToBind (Fun _ name mqname comment vars e) = do
     (do
       vars' <- replicateM (length vars) freshLocalName
 
-      let body' = (mkApp body [coreTrace ("Eval arg: " ++ show name ++ " :: " ++ show i) (mkVar v) | (v, i) <- zip vars' [0..]])
+      let body' = (mkApp body
+            [coreTrace ("Eval arg: " ++ show name ++ " :: " ++ show i) (mkVar v)
+                | (v, i) <- zip vars' [(0 :: Integer)..]
+            ])
       return $ mkBind1 name $ mkLam vars' body'
       )
     (return $ mkBind1 name body)
@@ -121,13 +120,13 @@ exprToCore :: Monad m => Expr -> ToCoreT m CExpr
 exprToCore (Var v)      = return $ mkVar v
 exprToCore (Lit l)      = return $ litToCore l
 exprToCore (Lam v body) = exprToCore body >>= return . mkLam [v]
-exprToCore (Con ty con es) = do
+exprToCore (Con _ con es) = do
     es' <- mapM exprToCore es
     return $ mkTagTup (xconCTag con) es'
-exprToCore (App fv es)   = do
-    fv' <- exprToCore fv
+exprToCore (App f es)   = do
+    f' <- exprToCore f
     es' <- mapM exprToCore es
-    return $ mkApp fv' es'
+    return $ mkApp f' es'
 exprToCore (Case e brs def CTChar) = do
   e' <- exprToCore e
   var <- freshLocalName
@@ -141,7 +140,7 @@ exprToCore (Case e brs def CTChar) = do
 exprToCore (Case e brs def (CTCon dt)) = do
   caseScr <- freshLocalName
   defVar <- freshLocalName
-  def <- case def of
+  def' <- case def of
         Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
         Just x -> exprToCore x
 
@@ -150,7 +149,7 @@ exprToCore (Case e brs def (CTCon dt)) = do
   defBranches <- defaultBranches dt brs (mkVar defVar)
   let cas = mkCase (mkVar caseScr) (branches ++ defBranches)
   e' <- exprToCore e
-  return $ mkLet1Plain defVar def (mkLet1Strict caseScr e' cas)
+  return $ mkLet1Plain defVar def' (mkLet1Strict caseScr e' cas)
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
     e2' <- exprToCore e2

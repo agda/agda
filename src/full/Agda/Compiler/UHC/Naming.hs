@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -44,11 +45,9 @@ where
 
 import Data.Char
 import Data.List
-import Data.Maybe (fromJust)
 import qualified Data.Map as M
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Reader.Class
 import Control.Applicative
 import Data.Monoid
 import Data.Typeable (Typeable)
@@ -209,8 +208,8 @@ localCrIdent et as =
 -- If the name is not module-qualified, returns the full name as left. (TODO investigate when this happens)
 unqualifyQ :: Monad m => QName -> AssignM m (Either [Name] [Name])
 unqualifyQ qnm = do
-  mod <- gets asAgdaModuleName
-  let modNs = mnameToList mod
+  amod <- gets asAgdaModuleName
+  let modNs = mnameToList amod
       qnms = qnameToList qnm
   case stripPrefix modNs qnms of
     -- not sure when the name doesn't have a module prefix... just force generation of a name for the time being
@@ -227,8 +226,8 @@ newtype FreshNameT m a = FreshNameT
 
 data FreshNameState
   = FreshNameState
-  { nameSupply :: Integer
-  , prefix :: String    -- prefix to use
+  { fnNameSupply :: Integer
+  , fnPrefix :: String    -- prefix to use
   }
 
 
@@ -240,9 +239,9 @@ evalFreshNameT prefix comp = evalStateT (unFreshNameT comp) (FreshNameState 0 pr
 
 freshLocalName :: Monad m => FreshNameT m HsName
 freshLocalName = FreshNameT $ do
-    i <- gets nameSupply
-    prefix' <- gets prefix
-    modify (\s -> s { nameSupply = i + 1 } )
+    i <- gets fnNameSupply
+    prefix' <- gets fnPrefix
+    modify (\s -> s { fnNameSupply = i + 1 } )
     return $ mkUniqueHsName prefix' [] ("gen_loc_" ++ show i)
 
 instance MonadReader s m => MonadReader s (FreshNameT m) where
