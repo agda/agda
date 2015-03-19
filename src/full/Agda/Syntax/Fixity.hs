@@ -24,6 +24,7 @@ import {-# SOURCE #-} qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Notation
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 
 #include "undefined.h"
@@ -105,9 +106,12 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 noFixity' :: Fixity'
 noFixity' = Fixity' noFixity noNotation
 
--- | Merges all 'NewNotation's that have the same fixity and notation,
--- with the exception that operators and notations coming from syntax
--- declarations are kept separate.
+-- | Merges 'NewNotation's that have the same precedence level and
+-- notation, with the exception that operators and notations coming
+-- from syntax declarations are kept separate.
+--
+-- If 'NewNotation's that are merged have distinct associativities,
+-- then they get 'NonAssoc' as their associativity.
 --
 -- Precondition: No 'A.Name' may occur in more than one list element.
 -- Every 'NewNotation' must have the same 'notaName'.
@@ -115,9 +119,17 @@ noFixity' = Fixity' noFixity noNotation
 -- Postcondition: No 'A.Name' occurs in more than one list element.
 mergeNotations :: [NewNotation] -> [NewNotation]
 mergeNotations =
-  map merge .
-  groupOn (\n -> (notation n, notaFixity n, notaIsOperator n))
+  map (merge . fixAssocs) .
+  groupOn (\n -> ( notation n
+                 , fixityLevel (notaFixity n)
+                 , notaIsOperator n
+                 ))
   where
+  fixAssocs ns
+    | allEqual (map (fixityAssoc . notaFixity) ns) = ns
+    | otherwise                                    =
+        map (set (_notaFixity . _fixityAssoc) NonAssoc) ns
+
   merge :: [NewNotation] -> NewNotation
   merge []         = __IMPOSSIBLE__
   merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
@@ -261,3 +273,12 @@ instance KillRange Fixity where
 
 instance KillRange Fixity' where
   killRange (Fixity' f n) = killRange2 Fixity' f n
+
+------------------------------------------------------------------------
+-- * Some lenses
+
+_notaFixity :: Lens' Fixity NewNotation
+_notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
+
+_fixityAssoc :: Lens' Associativity Fixity
+_fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }

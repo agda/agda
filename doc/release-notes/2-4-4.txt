@@ -168,14 +168,55 @@ Operator syntax
   was previously treated as infix, but is now treated as prefix.
 
 * If an overloaded operator is in scope with several distinct
-  fixities, then several instances of this operator will be included
-  in the operator grammar, possibly leading to ambiguity. Previously
-  the operator was given the default fixity [Issue 1436].
+  precedence levels, then several instances of this operator will be
+  included in the operator grammar, possibly leading to ambiguity.
+  Previously the operator was given the default fixity [Issue 1436].
 
-  Similarly, if two or more identical notations (coming from syntax
-  declarations) for a given overloaded constructor are in scope, and
-  these notations do not all have the same fixity, then several
-  instances of the notation will be included in the operator grammar.
+  If some instances of an overloaded operator have distinct
+  associativities (but equal precedence levels), then these instances
+  are treated as being non-associative.
+
+  The two paragraphs above also apply to identical notations (coming
+  from syntax declarations) for a given overloaded name.
+
+  Examples:
+
+    module A where
+
+      infixr 5 _∷_
+      infixr 5 _∙_
+      infix  1 bind
+
+      syntax bind c (λ x → d) = x ← c , d
+
+    module B where
+
+      infix  5 _∷_
+      infixr 4 _∙_
+      infixl 2 bind
+
+      syntax bind c d = c ∙ d
+
+    module C where
+
+      infixr 2 bind
+
+      syntax bind c d = c ∙ d
+
+    open A
+    open B
+    open C
+
+    -- _∷_ is infix 5.
+    -- _∙_ has two fixities: infixr 4 and infixr 5.
+    -- A.bind's notation is infix 1.
+    -- B.bind and C.bind's notations are infix 2.
+
+    -- There is one instance of "_ ∷ _" in the grammar.
+
+    -- There are three instances of "_ ∙ _" in the grammar, one
+    -- corresponding to A._∙_, one corresponding to B._∙_, and one
+    -- corresponding to both B.bind and C.bind.
 
 Other changes
 -------------
