@@ -440,7 +440,6 @@ library
                     Agda.Utils.Warshall
                     Agda.Version
 
-
   other-modules:    Paths_Agda
 
   if impl(ghc >= 7.4.2)

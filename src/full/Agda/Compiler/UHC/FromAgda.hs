@@ -46,7 +46,7 @@ import Agda.Utils.Impossible
 -- | Convert from Agda's internal representation to our auxiliary AST.
 fromAgdaModule :: ModuleName
     -> [AModuleInfo]     -- Module info of imported modules.
-    -> AModuleInterface  -- Transitive module interface.
+    -> AModuleInterface  -- Transitive module interface of all dependencies.
     -> [(QName, Definition)]
     -> (AMod -> CompileT TCM a) -- continuation, normally program transforms
     -> TCM (a, AModuleInfo)
@@ -113,9 +113,7 @@ collectNames conInstMp defs = do
                         , anForceName = Nothing -- TODO add pragma to force name
                         }
 
--- | A mapping from constructor names
--- to the actual ctor implementation names. Different names for a constructor can
--- happen when instantiated modules are used.
+-- | Computes the constructor instantiation map.
 getInstantiationMap :: [(QName, Definition)] -> ConInstMp
 getInstantiationMap defs =
   M.unions $ map (\(n, def) ->

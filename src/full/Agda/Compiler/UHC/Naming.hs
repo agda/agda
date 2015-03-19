@@ -19,9 +19,6 @@
 -- At the moment, auto-generated names are used for all identifiers. Manual
 -- forcing of a Core name is possible, but currently not used.
 --
--- If clashes in the names are found, an error is thrown. Unless a name is
--- manually forced, this should never happen.
---
 -- We also try to incorporate the original Agda name into the generated name
 -- as far as possible.
 --
@@ -88,7 +85,7 @@ data CoreName
 -- The mapping is authorative for functions. For constructors and datatypes,
 -- you must consult the constructor mapping instead (see ModuleInfo).
 --
--- (We sitll assign core names here for normal constructors/datatypes, but builtin/foreign
+-- (We still assign core names here for normal constructors/datatypes, but builtin/foreign
 -- datatypes/constructors are not always present in the naming db)
 data NameMap
   = NameMap
@@ -165,8 +162,7 @@ mnameToCoreName nmMp mnm = mnm `M.lookup` (modMapping nmMp)
 getNameMappingFor :: NameMap -> EntityType -> M.Map QName CoreName
 getNameMappingFor nmMp ty = M.filter ((ty ==) . cnType) $ entMapping nmMp
 
--- | Assigns the proper names for entities. There might be
--- name clashes in the generated names, which will be recitified by 'resolveClashes'.
+-- | Assigns the proper names for entities.
 assignNameProper :: (Monad m, Functor m) => AgdaName -> AssignM m CoreName
 assignNameProper anm = do
   nm <- case anForceName anm of
@@ -178,7 +174,7 @@ assignNameProper anm = do
                     , cnAgdaExported = anNeedsAgdaExport anm
                     }
 
--- | Creates a unique fresh core name. (not core exportable)
+-- | Creates a unique fresh core name.
 freshCrName :: (Functor m, Monad m) => AgdaName -> AssignM m HsName
 freshCrName anm = do
   i <- gets asNextIdent

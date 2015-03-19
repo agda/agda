@@ -26,6 +26,7 @@ import Agda.Compiler.UHC.Bridge as CA
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Parse a COMPILED_CORE_DATA specification.
 parseCoreData :: MonadTCM m => String -> [String] -> m (CoreType, [CoreConstr])
 parseCoreData dt css = do
   let mgcTys = getMagicTypes
@@ -35,6 +36,7 @@ parseCoreData dt css = do
                 let dtCrNm = Just $ mkHsName1 dt
                 constrs <- mapM (parseConstr Nothing dtCrNm) css
                 -- UHC assigns tags in lexographical order.
+                -- Requires that the mapping is complete, else it will break.
                 let constrs' = zipWith setTag (sortBy ccOrd constrs) [0..]
                 return (CTNormal dtCrNm, constrs')
     Just (mgcNm, (dtCrNm, constrMp)) -> do
@@ -54,6 +56,7 @@ parseCoreData dt css = do
         ccOrd (CCNormal dtNm1 ctNm1 _) (CCNormal dtNm2 ctNm2 _) | dtNm1 == dtNm2 = compare ctNm1 ctNm2
         ccOrd _ _ = __IMPOSSIBLE__
 
+-- | Parse a COMPILED_CORE expression.
 parseCoreExpr :: String -> Either String CoreExpr
 parseCoreExpr str = case CA.parseExpr defaultEHCOpts str of
     (Left errs) -> Left $ intercalate "\n" errs
@@ -62,6 +65,7 @@ parseCoreExpr str = case CA.parseExpr defaultEHCOpts str of
 printCoreExpr :: CoreExpr -> String
 printCoreExpr e = disp (pp e) 200 ""
 
+-- | Check if the given name is a valid Magic entity.
 isMagicEntity :: MonadTCM m
     => M.Map MagicName a    -- ^ lookup table
     -> String   -- ^ name to lookup.
@@ -74,5 +78,7 @@ isMagicEntity tbl xs ty | isMagic xs =
   where nm = init $ init $ drop 2 xs
 isMagicEntity _ _ _ | otherwise = return Nothing
 
+-- | Checks if the given name is syntactically a Magic name.
+-- A syntactally correct magic name is NOT necessarily a valid magic name.
 isMagic :: String -> Bool
 isMagic xs = "__" `isPrefixOf` xs && "__" `isSuffixOf` xs

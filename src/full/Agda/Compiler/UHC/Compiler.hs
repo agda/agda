@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
--- | UHC compiler backend.
+-- | UHC compiler backend, main entry point.
 
 -- In the long term, it would be nice if we could use e.g. shake to build individual Agda modules. The problem with that is that
 -- some parts need to be in the TCM Monad, which doesn't easily work in shake. We would need a way to extract the information
@@ -56,7 +56,7 @@ import Agda.Compiler.UHC.AuxAST
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- we should use a proper build system to ensure that things get only built once instead....
+-- we should use a proper build system to ensure that things get only built once,
 -- but better than nothing
 type CompModT = StateT CompiledModules
 type CompiledModules = M.Map ModuleName (AModuleInfo, AModuleInterface)
@@ -108,7 +108,7 @@ installUHCAgdaBase = do
                       -- As a work around, we always copy the sources to a temporary directory for the time being.
                       -- liftIO $ setCurrentDirectory dataDir
                       -- TODO we should at least use bracket or withTempDir.. functions here, but this is tricky because
-                      -- of the monad transformers...
+                      -- of the monad transformers.
                       dir <- liftIO $ getTemporaryDirectory >>= \t -> createTempDirectory t "uhc-agda-base-src"
                       liftIO $ copyDirContent srcDir dir
                       when (os == "linux") (liftIO $ system ("chmod -R +w \"" ++ dir ++ "\"/*") >> return ())
@@ -183,11 +183,12 @@ compileModule i = do
     -- as we don't know the Core module name before we loaded/compiled the file.
     -- (well, we could just compute the module name and use that, that's
     -- probably better? )
-    cm <- get
+    compMods <- get
     let modNm = iModuleName i
     let topModuleName = toTopLevelModuleName modNm
     auiFile' <- lift $ auiFile topModuleName
-    case M.lookup modNm cm of
+    -- check if this module has already been compiled
+    case M.lookup modNm compMods of
         Just x -> return x
         Nothing  -> do
             imports <- map miInterface . catMaybes
@@ -198,6 +199,7 @@ compileModule i = do
             let uifFile = auiFile' <.> "aui"
             uptodate <- liftIO $ isNewerThan uifFile ifile
             lift $ reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
+            -- check for uhc interface file
             modInfoCached <- case uptodate of
               True  -> do
                     lift $ reportSLn "" 5 $

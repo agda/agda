@@ -45,9 +45,10 @@ data ADataTy
 
 data ADataImplType
   = ADataImplNormal  -- normal agda datatype
-  | ADataImplMagic String -- special data types. COMPILED_CORE_DATA when
-                              -- using one of the special builtin types, eg __UNIT__.
-  | ADataImplForeign -- COMPILED_CORE pragma
+  | ADataImplMagic String -- COMPILED_CORE_DATA mapping to one of the
+                          -- magic builtin types, eg __UNIT__.
+  | ADataImplForeign -- COMPILED_CORE pragma mapping to a normal UHC Core datatype
+                     -- defined by non-Agda code (e.g. Haskell).
   deriving (Eq, Ord, Show, Typeable)
 
 data ADataCon
@@ -63,8 +64,8 @@ data Fun
       , xfunName    :: HsName
       , xfunQName   :: Maybe QName
       , xfunComment :: Comment
-      , xfunArgs    :: [HsName] -- this will always be empty right now, and use lambdas inside the body instead.
-                                -- Would be nicer to have them here, but copatterns/coinduction make this tricky.
+      , xfunArgs    :: [HsName] -- args will always be empty right now, we use lambdas inside the body instead.
+                                -- Would be nicer to have them here, but coinduction (copatterns) make this tricky.
       , xfunExpr    :: Expr
       }
   | CoreFun

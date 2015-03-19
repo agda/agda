@@ -9,7 +9,6 @@ module Agda.Compiler.UHC.Transform
 
   , Transform
   , TransformT
---  , runTransformT
 
   , getCoreName
   , getCoreName1

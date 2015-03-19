@@ -25,10 +25,9 @@ import Agda.Utils.Impossible
 
 type CoreTypeName = Maybe HsName -- nothing for unit, else the name.
 
--- if it is a magic type, then the name of the magic dataype.
 data CoreType
-  = CTMagic CoreTypeName String -- Magic name
-  | CTNormal CoreTypeName
+  = CTMagic CoreTypeName String -- ^ UHC Core name, Magic name
+  | CTNormal CoreTypeName -- ^ UHC Core name
   deriving (Eq, Show, Typeable)
 
 type CoreExpr = CExpr
@@ -37,8 +36,8 @@ type CoreExpr = CExpr
 -- to store it inside agdai files. Else we could just use a partially applied
 -- CTag constructor instead (we don't know the arity yet...).
 data CoreConstr
-  = CCMagic CTag -- special well-known type with fixed arity (e.g. Bool, List, etc.)
-  | CCNormal HsName HsName Int -- datatype, constr, tag
+  = CCMagic CTag -- Magic type constructor with fixed arity (e.g. Bool, List, etc.)
+  | CCNormal HsName HsName Int -- Normall UHC Core Constructor; (datatype, constr, tag)
   deriving (Eq, Show, Typeable)
 
 

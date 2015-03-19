@@ -24,7 +24,8 @@ import Agda.Compiler.UHC.AuxAST
 import Data.Word
 
 -- | Maps constructor names to their actual implementation names.
--- Used for instantiated modules.
+-- Used for instantiated modules, where datatype definitions gets duplicated,
+-- but we want to use the original definition when compiling.
 type ConInstMp = M.Map QName QName
 
 type ModVersion = POSIXTime
@@ -49,9 +50,9 @@ data AModuleInfo
 -- of this module to get the actual interface to use.
 data AModuleInterface
   = AModuleInterface
-  { amifConMp :: M.Map QName AConInfo  -- ^ Maps agda constructor qnames to types/constructor. (accumulating)
-  , amifNameMp :: NameMap    -- ^ Maps Agda module-level names to core name. (accumulating)
-  , amifConInstMp :: ConInstMp
+  { amifConMp :: M.Map QName AConInfo  -- ^ Maps agda constructor qnames to types/constructor.
+  , amifNameMp :: NameMap    -- ^ Maps Agda module-level names to core name.
+  , amifConInstMp :: ConInstMp -- ^ Constructor instantiation map.
   }
   deriving (Show, Typeable)
 

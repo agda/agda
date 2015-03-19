@@ -21,8 +21,8 @@ import Agda.Compiler.UHC.Bridge
 type MagicName = String
 
 
-type MagicConstrInfo = M.Map MagicName CTag -- maps primitive names to ctags
-type MagicTypeInfo = M.Map MagicName (Maybe HsName, MagicConstrInfo) -- maps types to the cr name
+type MagicConstrInfo = M.Map MagicName CTag -- maps primitive names to constructor ctags
+type MagicTypeInfo = M.Map MagicName (Maybe HsName, MagicConstrInfo) -- maps types to the UHC Core name
 -- (or nothing for unit) and to their constructors.
 
 getMagicTypes :: MagicTypeInfo
@@ -35,7 +35,7 @@ ctagDataTyNm :: CTag -> Maybe HsName
 ctagDataTyNm = destructCTag Nothing (\dt _ _ _ -> Just dt)
 
 
--- don't expose this. we might wan't to replace the Nat translation by something more clever in the future.
+-- Implementation of Nat might change later, we may want to optimize Nat in the future
 primAgdaTys1 :: [(MagicName -- see primCrTys1
     , [(MagicName, CTag)]
     )]
@@ -52,8 +52,8 @@ primAgdaTys1 = map fixConstrs
 
 
 primCrTys1 :: [(
-      MagicName    -- the name of the dt in COMPILED_CORE_DATA pragmas
-    , [(MagicName, CTag)] -- constructors. (COMPILED_CORE_DATA nm, ctag)
+      MagicName    -- the magic name of the dt in COMPILED_CORE_DATA pragmas
+    , [(MagicName, CTag)] -- constructors. Maps magic name to constructor tags.
     )]
 primCrTys1 =
           [( "BOOL",

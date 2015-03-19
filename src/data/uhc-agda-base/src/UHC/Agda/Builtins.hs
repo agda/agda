@@ -52,7 +52,7 @@ primShowInteger :: Integer -> String
 primShowInteger = show
 
 -- ====================
--- LEvels
+-- Levels
 -- ====================
 
 primLevelZero :: ()
@@ -109,7 +109,6 @@ primNatMinus Zero _ = Zero
 
 -- Calling haskell functions with class constraints from Agda
 -- isn't supported yet, so just remove the class constraints on return/bind
-
 
 primReturn :: a -> IO a
 primReturn = return
@@ -172,7 +171,7 @@ primShowChar c = [c]
 -- Float
 -- ====================
 primShowFloat :: Double -> String
--- GHC drops trailing zeroes, UHC doesn't seem to do so. Quich fix for now...
+-- GHC drops trailing zeroes, UHC doesn't seem to do so. Quick fix for now...
 primShowFloat = reverse . dropWhile (=='0') . reverse . show
 
 primMkFloat :: String -> Double
