@@ -17,10 +17,13 @@ import Control.Monad.State
 import Data.Function
 import Data.List (nub, sortBy, intercalate)
 import Data.Maybe
+import qualified Data.Set as Set
+import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as A
 import qualified Agda.Syntax.Concrete as C
@@ -204,6 +207,7 @@ errorString err = case err of
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
   OperatorChangeMessage {}                 -> "OperatorChangeMessage"
+  OperatorInformation {}                   -> "OperatorInformation"
   PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
   PropMustBeSingleton                      -> "PropMustBeSingleton"
   RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
@@ -857,6 +861,91 @@ instance PrettyTCM TypeError where
         unambiguousP (C.AsP r n x)        = C.AsP r n $ unambiguousP x
         unambiguousP (C.OpAppP r op _ xs) = foldl C.AppP (C.IdentP op) xs
         unambiguousP e                    = e
+
+    OperatorInformation sects err ->
+      prettyTCM err
+        $+$
+      fsep (pwords "Operators used in the grammar:")
+        $$
+      nest 2
+        (if null sects then text "None" else
+         vcat (map text $
+               lines $
+               Boxes.render $
+               (\(col1, col2, col3) ->
+                   Boxes.hsep 1 Boxes.top $
+                   map (Boxes.vcat Boxes.left) [col1, col2, col3]) $
+               unzip3 $
+               map prettySect $
+               sortBy (compare `on` show . notaName . sectNotation) $
+               filter (not . closedWithoutHoles) sects))
+      where
+      trimLeft  = dropWhile isNormalHole
+      trimRight = reverse . dropWhile isNormalHole . reverse
+
+      closedWithoutHoles sect =
+        sectKind sect == NonfixNotation
+          &&
+        null [ () | NormalHole {} <- trimLeft $ trimRight $
+                                       notation (sectNotation sect) ]
+
+      prettyName n = Boxes.text $
+        P.render (P.pretty n) ++
+        " (" ++ P.render (P.pretty (nameBindingSite n)) ++ ")"
+
+      prettySect sect =
+        ( Boxes.text (P.render (P.pretty section))
+            Boxes.//
+          strut
+        , Boxes.text
+            ("(" ++
+             kind ++ " " ++
+             (if notaIsOperator nota
+              then "operator"
+              else "notation") ++
+             (if sectIsSection sect
+              then " section"
+              else "") ++
+             (case sectLevel sect of
+                Nothing          -> ""
+                Just Unrelated   -> ", unrelated"
+                Just (Related n) -> ", level " ++ show n) ++
+             ")")
+            Boxes.//
+          strut
+        , Boxes.text "["
+            Boxes.<>
+          Boxes.vcat Boxes.left
+            (map (\n -> prettyName n Boxes.<> Boxes.text ",") names ++
+             [prettyName name Boxes.<> Boxes.text "]"])
+        )
+        where
+        nota    = sectNotation sect
+        section = trim (notation nota)
+
+        trim = case sectKind sect of
+          InfixNotation   -> trimLeft . trimRight
+          PrefixNotation  -> trimRight
+          PostfixNotation -> trimLeft
+          NonfixNotation  -> id
+          NoNotation      -> __IMPOSSIBLE__
+
+        (names, name) = case Set.toList $ notaNames nota of
+          [] -> __IMPOSSIBLE__
+          ns -> (init ns, last ns)
+
+        strut = Boxes.emptyBox (length names) 0
+
+        kind = case sectKind sect of
+          PrefixNotation  -> "prefix"
+          PostfixNotation -> "postfix"
+          NonfixNotation  -> "closed"
+          NoNotation      -> __IMPOSSIBLE__
+          InfixNotation   ->
+            case fixityAssoc $ notaFixity nota of
+              NonAssoc   -> "infix"
+              LeftAssoc  -> "infixl"
+              RightAssoc -> "infixr"
 
     OperatorChangeMessage err ->
       prettyTCM err

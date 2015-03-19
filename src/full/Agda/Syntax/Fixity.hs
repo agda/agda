@@ -122,6 +122,32 @@ mergeNotations =
   merge []         = __IMPOSSIBLE__
   merge ns@(n : _) = n { notaNames = Set.unions $ map notaNames ns }
 
+-- * Sections
+
+-- | Sections, as well as non-sectioned operators.
+
+data NotationSection = NotationSection
+  { sectNotation  :: NewNotation
+  , sectKind      :: NotationKind
+    -- ^ For non-sectioned operators this should match the notation's
+    -- 'notationKind'.
+  , sectLevel     :: Maybe PrecedenceLevel
+    -- ^ Effective precedence level. 'Nothing' for closed notations.
+  , sectIsSection :: Bool
+    -- ^ 'False' for non-sectioned operators.
+  }
+  deriving Show
+
+-- | Converts a notation to a (non-)section.
+
+noSection :: NewNotation -> NotationSection
+noSection n = NotationSection
+  { sectNotation  = n
+  , sectKind      = notationKind (notation n)
+  , sectLevel     = Just (fixityLevel (notaFixity n))
+  , sectIsSection = False
+  }
+
 -- * Fixity
 
 -- | Precedence levels for operators.

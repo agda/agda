@@ -1,5 +1,7 @@
 Issue1129.agda:8,5-12
 Could not parse the application [ ? ] x
+Operators used in the grammar:
+  [_] (prefix notation, unrelated) [F (Issue1129.agda:3,3-4)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking [ ? ] x

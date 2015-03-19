@@ -1,5 +1,12 @@
 Same-Precedence-Different-Associativity.agda:20,22-31
 Could not parse the application 1 + 0 ∸ 1
+Operators used in the grammar:
+  +  (infixl operator, level 6)            [_+_ (Same-Precedence-Different-Associativity.agda:10,1-4)]
+  _+ (prefix operator section, unrelated)  [_+_ (Same-Precedence-Different-Associativity.agda:10,1-4)]
+  +_ (postfix operator section, unrelated) [_+_ (Same-Precedence-Different-Associativity.agda:10,1-4)]
+  ∸  (infix operator, level 6)             [_∸_ (Same-Precedence-Different-Associativity.agda:14,1-4)]
+  _∸ (prefix operator section, unrelated)  [_∸_ (Same-Precedence-Different-Associativity.agda:14,1-4)]
+  ∸_ (postfix operator section, unrelated) [_∸_ (Same-Precedence-Different-Associativity.agda:14,1-4)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking 1 + 0 ∸ 1

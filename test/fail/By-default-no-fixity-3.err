@@ -1,5 +1,8 @@
 By-default-no-fixity-3.agda:10,12-17
 Could not parse the application n ! ¡
+Operators used in the grammar:
+  ! (postfix operator, unrelated) [_! (By-default-no-fixity-3.agda:4,3-5)]
+  ¡ (postfix operator, unrelated) [_¡ (By-default-no-fixity-3.agda:4,6-8)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking n ! ¡

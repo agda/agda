@@ -131,15 +131,6 @@ data Parsers e = Parsers
   , pAtom   :: Parser e e
   }
 
-data Section = Section
-  { sectNotation :: NewNotation
-  , sectKind     :: NotationKind
-  }
-  deriving Show
-
-noSection :: NewNotation -> Section
-noSection n = Section n (notationKind (notation n))
-
 data ExprKind = IsPattern | IsExpr
   deriving (Eq, Show)
 
@@ -164,11 +155,14 @@ data ExprKind = IsPattern | IsExpr
 -- list is used to optimise the parser. For instance, a given notation
 -- is only included in the generated grammar if all of the notation's
 -- name parts are present in the list of names.
+--
+-- The returned list contains all operators/notations/sections that
+-- were used to generate the grammar.
 
 buildParsers ::
   forall e. IsExpr e =>
   Range -> FlatScope -> ExprKind -> [QName] ->
-  ScopeM (ParseSections, Parsers e)
+  ScopeM (ParseSections, [NotationSection], Parsers e)
 buildParsers r flat kind exprNames = do
     (names, ops) <- localNames flat
 
@@ -215,34 +209,34 @@ buildParsers r flat kind exprNames = do
           IsPattern -> DoNotParseSections
           IsExpr    -> ParseSections
 
-    let unrelatedOperators :: [Section]
+    let unrelatedOperators :: [NotationSection]
         unrelatedOperators =
           map noSection (filter ((== Unrelated) . level) fix)
             ++
           case parseSections of
             DoNotParseSections -> []
             ParseSections      ->
-              [ Section n k
+              [ NotationSection n k (Just Unrelated) True
               | n <- fix
               , isinfix n && notaIsOperator n
               , k <- [PrefixNotation, PostfixNotation]
               ]
 
-        nonWithSections :: [Section]
+        nonWithSections :: [NotationSection]
         nonWithSections =
-          map noSection non
+          map (\n -> (noSection n) { sectLevel = Nothing }) non
             ++
           case parseSections of
             DoNotParseSections -> []
             ParseSections      ->
-              [ Section n NonfixNotation
+              [ NotationSection n NonfixNotation Nothing True
               | n <- fix
               , notaIsOperator n
               ]
 
         -- The triples have the form (level, operators). The lowest
         -- level comes first.
-        relatedOperators :: [(Integer, [Section])]
+        relatedOperators :: [(Integer, [NotationSection])]
         relatedOperators =
           map (\((l, n) : ns) -> (l, map noSection (n : map snd ns))) .
           groupBy ((==) `on` fst) .
@@ -252,13 +246,19 @@ buildParsers r flat kind exprNames = do
                             Related l -> Just (l, n)) $
           fix
 
+        everything :: [NotationSection]
+        everything =
+          concatMap snd relatedOperators ++
+          unrelatedOperators ++
+          nonWithSections
+
     reportSLn "scope.operators" 50 $ unlines
       [ "unrelatedOperators = " ++ show unrelatedOperators
       , "nonWithSections    = " ++ show nonWithSections
       , "relatedOperators   = " ++ show relatedOperators
       ]
 
-    return (parseSections, Data.Function.fix $ \p -> Parsers
+    return (parseSections, everything, Data.Function.fix $ \p -> Parsers
         { pTop    = memoise TopK $
                     Fold.asum $
                       foldr ($) (pApp p)
@@ -306,11 +306,11 @@ buildParsers r flat kind exprNames = do
         isprefix  = (== PrefixNotation)  . notationKind . notation
         ispostfix = (== PostfixNotation) . notationKind . notation
 
-        isPrefix, isPostfix :: Section -> Bool
+        isPrefix, isPostfix :: NotationSection -> Bool
         isPrefix  = (== PrefixNotation)  . sectKind
         isPostfix = (== PostfixNotation) . sectKind
 
-        isInfix :: Associativity -> Section -> Bool
+        isInfix :: Associativity -> NotationSection -> Bool
         isInfix ass s =
           sectKind s == InfixNotation
              &&
@@ -320,7 +320,7 @@ buildParsers r flat kind exprNames = do
                -- ^ Memoisation key.
             -> ParseSections
             -> Parser e e
-            -> [Section]
+            -> [NotationSection]
             -> Parser e e
                -- ^ A parser for an expression of higher precedence.
             -> Bool
@@ -334,7 +334,8 @@ buildParsers r flat kind exprNames = do
                 catMaybes [nonAssoc, preRights, postLefts]
             where
             choice :: forall k.
-                      NK k -> [Section] -> Parser e (OperatorType k e)
+                      NK k -> [NotationSection] ->
+                      Parser e (OperatorType k e)
             choice k =
               Fold.asum .
               map (\sect ->
@@ -533,12 +534,17 @@ parsePat prs p = case p of
 
 type ParseLHS = Either Pattern (Name, LHSCore)
 
-parseLHS' :: LHSOrPatSyn -> Maybe Name -> Pattern -> ScopeM ParseLHS
+-- | The returned list contains all operators/notations/sections that
+-- were used to generate the grammar.
+
+parseLHS' ::
+  LHSOrPatSyn -> Maybe Name -> Pattern ->
+  ScopeM (ParseLHS, [NotationSection])
 parseLHS' lhsOrPatSyn top p = do
     let names = patternQNames p
         ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
-    (parseSections, parsers) <-
+    (parseSections, ops, parsers) <-
       buildParsers (getRange p) flat IsPattern names
     let patP = (parseSections, pTop parsers)
     let cons = getNames [ConName, PatternSynName] flat
@@ -547,11 +553,13 @@ parseLHS' lhsOrPatSyn top p = do
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
                           text "Parsed lhs:" <+> pretty lhs
-                        return lhs
-        []        -> typeError $ OperatorChangeMessage $
-                                   NoParseForLHS lhsOrPatSyn p
-        rs        -> typeError $ OperatorChangeMessage $
-                                   AmbiguousParseForLHS lhsOrPatSyn p $
+                        return (lhs, ops)
+        []        -> typeError $ OperatorChangeMessage
+                               $ OperatorInformation ops
+                               $ NoParseForLHS lhsOrPatSyn p
+        rs        -> typeError $ OperatorChangeMessage
+                               $ OperatorInformation ops
+                               $ AmbiguousParseForLHS lhsOrPatSyn p $
                        map (fullParen . fst) rs
     where
         getNames kinds flat =
@@ -615,10 +623,12 @@ classifyPattern conf p =
 --      check arities this problem won't appear.
 parseLHS :: Name -> Pattern -> ScopeM LHSCore
 parseLHS top p = billToParser $ do
-  res <- parseLHS' IsLHS (Just top) p
+  (res, ops) <- parseLHS' IsLHS (Just top) p
   case res of
     Right (f, lhs) -> return lhs
-    _ -> typeError $ OperatorChangeMessage $ NoParseForLHS IsLHS p
+    _ -> typeError $ OperatorChangeMessage
+                   $ OperatorInformation ops
+                   $ NoParseForLHS IsLHS p
 
 -- | Parses a pattern.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
@@ -634,11 +644,12 @@ parsePatternSyn = parsePatternOrSyn IsPatSyn
 
 parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
 parsePatternOrSyn lhsOrPatSyn p = billToParser $ do
-  res <- parseLHS' lhsOrPatSyn Nothing p
+  (res, ops) <- parseLHS' lhsOrPatSyn Nothing p
   case res of
     Left p -> return p
-    _      -> typeError $ OperatorChangeMessage $
-                            NoParseForLHS lhsOrPatSyn p
+    _      -> typeError $ OperatorChangeMessage
+                        $ OperatorInformation ops
+                        $ NoParseForLHS lhsOrPatSyn p
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 validConPattern :: [QName] -> Pattern -> Bool
@@ -695,7 +706,7 @@ parseApplication es  = billToParser $ do
     let names = [ q | Ident q <- es ]
         ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
-    (parseSections, p) <- buildParsers (getRange es) flat IsExpr names
+    (parseSections, ops, p) <- buildParsers (getRange es) flat IsExpr names
 
     -- Parse
     case force $ parse (parseSections, pTop p) es of
@@ -703,10 +714,13 @@ parseApplication es  = billToParser $ do
           reportSDoc "scope.operators" 50 $ return $
             text "Parsed an operator application:" <+> pretty e
           return e
-        []  -> typeError $ OperatorChangeMessage $
-                             NoParseForApplication es
-        es' -> typeError $ OperatorChangeMessage $
-                 AmbiguousParseForApplication es $ map fullParen es'
+        []  -> typeError $ OperatorChangeMessage
+                         $ OperatorInformation ops
+                         $ NoParseForApplication es
+        es' -> typeError $ OperatorChangeMessage
+                         $ OperatorInformation ops
+                         $ AmbiguousParseForApplication es
+                         $ map fullParen es'
 
 parseModuleIdentifier :: Expr -> ScopeM QName
 parseModuleIdentifier (Ident m) = return m
@@ -721,18 +735,20 @@ parseRawModuleApplication es = billToParser $ do
     let names = [ q | Ident q <- es_args ]
         ms    = qualifierModules names
     flat <- flattenScope ms <$> getScope
-    (parseSections, p) <-
+    (parseSections, ops, p) <-
       buildParsers (getRange es_args) flat IsExpr names
 
     -- Parse
     -- TODO: not sure about forcing
     case {-force $-} parse (parseSections, pArgs p) es_args of
         [as] -> return (m, as)
-        []   -> typeError $ OperatorChangeMessage $
-                              NoParseForApplication es
+        []   -> typeError $ OperatorChangeMessage
+                          $ OperatorInformation ops
+                          $ NoParseForApplication es
         ass -> do
           let f = fullParen . foldl (App noRange) (Ident m)
           typeError $ OperatorChangeMessage
+                    $ OperatorInformation ops
                     $ AmbiguousParseForApplication es
                     $ map f ass
 

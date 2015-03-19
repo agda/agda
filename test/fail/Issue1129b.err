@@ -1,5 +1,11 @@
 Issue1129b.agda:22,3-24,20
 Could not parse the application do (a , b) ← mAB , return $ b , a
+Operators used in the grammar:
+  ,    (infix operator, unrelated)           [_,_ (Issue1129b.agda:3,3-6)]  
+  _,   (prefix operator section, unrelated)  [_,_ (Issue1129b.agda:3,3-6)]  
+  ,_   (postfix operator section, unrelated) [_,_ (Issue1129b.agda:3,3-6)]  
+  _←_, (prefix notation, level 1)            [bind (Issue1129b.agda:10,1-5)]
+  do   (prefix notation, level 0)            [id (Issue1129b.agda:14,1-3)]  
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking do (a , b) ← mAB , return $ b , a

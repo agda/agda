@@ -4,6 +4,12 @@ Don't know how to parse ! b + ! b. Could mean any one of:
   (c b) + (c b)
   (c b) + (c b)
   (c b) + (c b)
+Operators used in the grammar:
+  +  (infix operator, level 10)            [_+_ (Issue1194d.agda:19,5-8)]
+  _+ (prefix operator section, unrelated)  [_+_ (Issue1194d.agda:19,5-8)]
+  +_ (postfix operator section, unrelated) [_+_ (Issue1194d.agda:19,5-8)]
+  !  (prefix notation, level 19)           [c (Issue1194d.agda:10,5-6)]  
+  !  (prefix notation, level 20)           [c (Issue1194d.agda:20,5-6)]  
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking ! b + ! b
