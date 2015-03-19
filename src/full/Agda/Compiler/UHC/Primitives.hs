@@ -38,6 +38,10 @@ primFunctions = M.fromList $
         , "primNatPlus"
         , "primNatTimes"
         , "primNatMinus"
+        , "primNatDivSuc"
+        , "primNatDivSucAux"
+        , "primNatModSuc"
+        , "primNatModSucAux"
         , "primNatToInteger"
         , "primIntegerToNat"
         -- String

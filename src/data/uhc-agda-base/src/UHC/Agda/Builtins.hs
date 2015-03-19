@@ -12,6 +12,10 @@ module UHC.Agda.Builtins
   , primNatMinus
   , primNatPlus
   , primNatTimes
+  , primNatDivSuc
+  , primNatDivSucAux
+  , primNatModSuc
+  , primNatModSucAux
     -- IO
   , primReturn
   , primBind
@@ -102,6 +106,21 @@ primNatMinus :: Nat -> Nat -> Nat
 primNatMinus a Zero = a
 primNatMinus (Suc a) (Suc b) = a `primNatMinus` b
 primNatMinus Zero _ = Zero
+
+primNatDivSuc :: Nat -> Nat -> Nat
+primNatDivSuc x y = primIntegerToNat $ div (primNatToInteger x) (primNatToInteger y + 1)
+
+primNatDivSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
+primNatDivSucAux k m n j = primIntegerToNat $ k' + div (max 0 $ n' + m' - j') (m' + 1)
+  where [k', m', n', j'] = fmap primNatToInteger [k, m, n, j]
+
+primNatModSuc :: Nat -> Nat -> Nat
+primNatModSuc x y = primIntegerToNat $ mod (primNatToInteger x) (primNatToInteger y + 1)
+
+primNatModSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
+primNatModSucAux k m n j = primIntegerToNat $ if n' > j' then mod (n' - j' - 1) (m' + 1) else k' + n'
+  where [k', m', n', j'] = fmap primNatToInteger [k, m, n, j]
+
 
 -- ====================
 -- IO
