@@ -3,7 +3,7 @@ module Issue846.DivModUtils where
 open import Data.Nat
 open import Data.Bool
 
-open import Data.Nat.DivMod
+open import Issue846.OldDivMod
 open import Relation.Nullary
 open import Data.Nat.Properties
 open import Data.Fin using (Fin; toℕ; zero; suc; fromℕ≤)
