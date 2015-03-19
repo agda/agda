@@ -51,12 +51,12 @@ Language
 * Unambiguous notations (coming from syntax declarations) that resolve
   to ambiguous names are now parsed unambiguously [Issue 1194].
 
-* If only some instances of an overloaded constructor have a given
+* If only some instances of an overloaded name have a given
   associated notation (coming from syntax declarations), then this
-  notation can only be resolved to the given instances of the
-  constructor, not to other instances [Issue 1194].
+  name can only be resolved to the given instances of the
+  name, not to other instances [Issue 1194].
 
-  Previously, if different instances of an overloaded constructor had
+  Previously, if different instances of an overloaded name had
   /different/ associated notations, then none of the notations could
   be used. Now all of them can be used.
 
@@ -83,7 +83,7 @@ Language
   fixities, then it gets the default fixity [Issue 1436].
 
   Similarly, if two or more identical notations for a given overloaded
-  constructor are in scope, and these notations do not all have the
+  name are in scope, and these notations do not all have the
   same fixity, then they get the default fixity.
 
 Type checking
