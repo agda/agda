@@ -16,6 +16,7 @@ import Text.PrettyPrint
 import System.Directory
 import System.FilePath
 
+import Agda.Syntax.Internal
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
@@ -236,6 +237,20 @@ proofIrrelevance = optProofIrrelevance <$> pragmaOptions
 {-# SPECIALIZE hasUniversePolymorphism :: TCM Bool #-}
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
+
+{-# SPECIALIZE shared :: Term -> TCM Term #-}
+sharedFun :: HasOptions m => m (Term -> Term)
+sharedFun = do
+  sharing <- optSharing <$> commandLineOptions
+  return $ if sharing then shared_ else id
+
+{-# SPECIALIZE shared :: Term -> TCM Term #-}
+shared :: HasOptions m => Term -> m Term
+shared v = ($ v) <$> sharedFun
+
+{-# SPECIALIZE sharedType :: Type -> TCM Type #-}
+sharedType :: HasOptions m => Type -> m Type
+sharedType (El s v) = El s <$> shared v
 
 showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions

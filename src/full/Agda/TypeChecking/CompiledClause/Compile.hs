@@ -36,8 +36,9 @@ compileClauses ::
   -> [Clause] -> TCM CompiledClauses
 compileClauses mt cs = do
   let cls = [(clausePats c, clauseBody c) | c <- cs]
+  shared <- sharedFun
   case mt of
-    Nothing -> return $ compile cls
+    Nothing -> return $ compile shared cls
     Just (q, t)  -> do
       splitTree <- coverageCheck q t cs
 
@@ -48,7 +49,7 @@ compileClauses mt cs = do
         sep [ text "clauses before compilation"
             , (nest 2 . text . show) cs
             ]
-      let cc = compileWithSplitTree splitTree cls
+      let cc = compileWithSplitTree shared splitTree cls
       reportSDoc "tc.cc" 12 $ sep
         [ text "compiled clauses (still containing record splits)"
         , nest 2 $ text (show cc)
@@ -59,8 +60,8 @@ compileClauses mt cs = do
 type Cl  = ([I.Arg Pattern], ClauseBody)
 type Cls = [Cl]
 
-compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
-compileWithSplitTree t cs = case t of
+compileWithSplitTree :: (Term -> Term) -> SplitTree -> Cls -> CompiledClauses
+compileWithSplitTree shared t cs = case t of
   SplitAt i ts ->
     -- the coverage checker does not count dot patterns as variables
     -- in case trees however, they count as variable patterns
@@ -69,7 +70,7 @@ compileWithSplitTree t cs = case t of
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
-  SplittingDone n -> compile cs
+  SplittingDone n -> compile shared cs
     -- after end of split tree, continue with left-to-right strategy
 
   where
@@ -81,8 +82,8 @@ compileWithSplitTree t cs = case t of
       where
         updCons = Map.mapWithKey $ \ c cl -> case lookup c ts of
                     Nothing -> __IMPOSSIBLE__
-                    Just t  -> fmap (compileWithSplitTree t) cl
-    compiles ts br    = fmap compile br
+                    Just t  -> fmap (compileWithSplitTree shared t) cl
+    compiles ts br    = fmap (compile shared) br
 
     -- increase split index by number of dot patterns we have skipped
     countInDotPatterns :: Int -> [Cl] -> Int
@@ -94,9 +95,9 @@ compileWithSplitTree t cs = case t of
       loop i (_      : ps) = loop (i - 1) ps
 
 
-compile :: Cls -> CompiledClauses
-compile cs = case nextSplit cs of
-  Just n  -> Case n $ fmap compile $ splitOn False n cs
+compile :: (Term -> Term) -> Cls -> CompiledClauses
+compile shared cs = case nextSplit cs of
+  Just n  -> Case n $ fmap (compile shared) $ splitOn False n cs
   Nothing -> case map (getBody . snd) cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.

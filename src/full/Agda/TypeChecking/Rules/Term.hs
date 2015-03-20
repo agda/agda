@@ -103,7 +103,7 @@ isType e s =
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e =
-  traceCall (IsType_ e) $ sharedType <$> do
+  traceCall (IsType_ e) $ sharedType =<< do
   let fallback = isType e =<< do workOnTypes $ newSortMeta
   case unScope e of
     A.Fun i (Arg info t) b -> do
@@ -664,7 +664,7 @@ checkArguments' exph expIFS r args t0 t k = do
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared <$> do
+  traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared =<< do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
           [ fsep [ prettyTCM e, text ":", prettyTCM t0 ]
@@ -1504,7 +1504,7 @@ defOrVar _     = False
 checkDontExpandLast :: A.Expr -> Type -> TCM Term
 checkDontExpandLast e t = case e of
   _ | Application hd args <- appView e,  defOrVar hd ->
-    traceCall (CheckExprCall e t) $ localScope $ dontExpandLast $ shared <$> do
+    traceCall (CheckExprCall e t) $ localScope $ dontExpandLast $ shared =<< do
       checkApplication hd args e t
   _ -> checkExpr e t -- note that checkExpr always sets ExpandLast
 

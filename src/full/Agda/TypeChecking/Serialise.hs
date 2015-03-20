@@ -208,6 +208,7 @@ data St = St
     -- of the state which is updated by the decoder.
   , includes  :: [AbsolutePath]
     -- ^ The include directories.
+  , mkShared  :: Term -> Term
   }
 
 -- | Monad used by the encoder.
@@ -335,6 +336,8 @@ decode s = do
   -- input is malformed. The decoder is (intended to be) strict enough
   -- to ensure that all such errors can be caught by the handler here.
 
+  shared <- sharedFun
+
   (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
     (ver, s, _) <- return $ runGetState B.get s 0
@@ -353,6 +356,7 @@ decode s = do
         st <- St (ar nL) (ar sL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
+                <*> return shared
         (r, st) <- runStateT (runExceptT (value r)) st
         return (Just (modFile st), r)
 
@@ -972,7 +976,7 @@ instance EmbPrj I.Term where
 
   value r = vcase valu' r
     where
-      valu' xs = shared <$> valu xs
+      valu' xs = gets mkShared <*> valu xs
       valu [0, a, b] = valu2 Var   a b
       valu [1, a, b] = valu2 Lam   a b
       valu [2, a]    = valu1 Lit   a

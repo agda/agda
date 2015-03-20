@@ -84,6 +84,8 @@ match' ((c, es, patch) : stack) = do
   -- traceSLn "reduce.compiled" 95 "CompiledClause.Match.match'" $ do
   debug $ do
 
+  shared <- sharedFun
+
   case c of
 
     -- impossible case

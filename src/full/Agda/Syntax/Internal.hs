@@ -587,15 +587,10 @@ ignoreSharingType (El s v) = El s (ignoreSharing v)
 -- ignoreSharingType v = v
 
 -- | Introduce sharing.
-shared :: Term -> Term
-shared v@Shared{}   = v
-shared v@(Var _ []) = v
-shared v            = Shared (newPtr v)
--- shared v = v
-
-sharedType :: Type -> Type
-sharedType (El s v) = El s (shared v)
--- sharedType v = v
+shared_ :: Term -> Term
+shared_ v@Shared{}   = v
+shared_ v@(Var _ []) = v
+shared_ v            = Shared (newPtr v)
 
 -- | Typically m would be TCM and f would be Blocked.
 updateSharedFM :: (Monad m, Applicative m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)

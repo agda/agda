@@ -246,7 +246,7 @@ newValueMetaCtx' b t vs = do
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
-  let u = shared $ MetaV x $ map Apply vs
+  u <- shared $ MetaV x $ map Apply vs
   boundedSizeMetaHook u tel a
   return u
 

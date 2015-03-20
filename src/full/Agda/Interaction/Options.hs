@@ -105,6 +105,7 @@ data CommandLineOptions = Options
   , optPragmaOptions    :: PragmaOptions
   , optEpicFlags        :: [String]
   , optSafe             :: Bool
+  , optSharing          :: Bool
   }
   deriving Show
 
@@ -181,6 +182,7 @@ defaultOptions = Options
   , optPragmaOptions    = defaultPragmaOptions
   , optEpicFlags        = []
   , optSafe             = False
+  , optSharing          = True
   }
 
 defaultPragmaOptions :: PragmaOptions
@@ -305,6 +307,9 @@ helpFlag o = return $ o { optShowHelp = True }
 
 safeFlag :: Flag CommandLineOptions
 safeFlag o = return $ o { optSafe = True }
+
+sharingFlag :: Bool -> Flag CommandLineOptions
+sharingFlag b o = return $ o { optSharing = b }
 
 proofIrrelevanceFlag :: Flag PragmaOptions
 proofIrrelevanceFlag o = return $ o { optProofIrrelevance = True }
@@ -510,6 +515,10 @@ standardOptions =
                     "disable the forcing optimisation"
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
+    , Option []     ["sharing"] (NoArg $ sharingFlag True)
+                    "enable sharing and call-by-need evaluation (default: ON)"
+    , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
+                    "disable sharing and call-by-need evaluation"
     ] ++ map (fmap lift) pragmaOptions
   where
   lift :: Flag PragmaOptions -> Flag CommandLineOptions
