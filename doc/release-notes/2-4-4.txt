@@ -43,6 +43,18 @@ Pragmas and options
   This option can be used to override a global --exact-split in a
   file, by adding a pragma {-# OPTIONS --no-exact-split #-}.
 
+* New options: --sharing and --no-sharing.
+
+  These options are used to enable/disable sharing and call-by-need evaluation.
+  The default is --no-sharing.
+
+  Note that they cannot appear in an OPTIONS pragma, but have to be given as
+  command line arguments or added to the Agda Program Args from Emacs with M-x
+  customize-group agda2.
+
+  TODO REMOVE THIS: the default is --sharing on master, but should be
+                    --no-sharing for the 2.4.4 release.
+
 Language
 ========
 
