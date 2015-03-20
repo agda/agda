@@ -59,6 +59,9 @@ followed:
       emacs --batch -L . -f batch-byte-compile *.el; \
       rm -f *.elc)
 
+* Disable sharing by default. Change the message "(default: ON)" to
+  "(default: OFF)".
+
 * Run make test (and accept the updates the Agda version in the files
   test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).
 
@@ -129,6 +132,9 @@ followed:
 
 * Remove the release notes for the released version from doc/release-notes and
   create a template for the next version.
+
+* Enable sharing by default. Change the message "(default: OFF)" to
+  "(default: OFF)".
 
 * Push all changes
 
