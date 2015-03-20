@@ -121,7 +121,13 @@ instance ToAbstract Term Expr where
       return $ A.Pi exprNoRange [a] b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
-    R.Unknown  -> return $ Underscore emptyMetaInfo
+    R.QuoteGoal t -> do
+      (e, name) <- toAbstract t
+      return $ A.QuoteGoal exprNoRange name e
+    R.QuoteTerm t  -> toAbstract (A.QuoteTerm exprNoRange, Apply $ defaultArg t)
+    R.QuoteContext -> return $ A.QuoteContext exprNoRange
+    R.Unquote t    -> toAbstract (A.Unquote exprNoRange, Apply $ defaultArg t)
+    R.Unknown      -> return $ Underscore emptyMetaInfo
 
 instance ToAbstract Type Expr where
   toAbstract (El _ x) = toAbstract x

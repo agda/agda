@@ -82,7 +82,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                      [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
                                      , builtinAgdaTermDef, builtinAgdaTermCon
                                      , builtinAgdaTermPi, builtinAgdaTermSort
-                                     , builtinAgdaTermLit, builtinAgdaTermUnsupported])
+                                     , builtinAgdaTermLit, builtinAgdaTermQuoteTerm, builtinAgdaTermQuoteGoal
+                                     , builtinAgdaTermQuoteContext, builtinAgdaTermUnquote
+                                     , builtinAgdaTermUnsupported])
   , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
@@ -114,6 +116,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaTermPi         |-> BuiltinDataCons (targ ttype --> tabs ttype --> tterm))
   , (builtinAgdaTermSort       |-> BuiltinDataCons (tsort --> tterm))
   , (builtinAgdaTermLit        |-> BuiltinDataCons (tliteral --> tterm))
+  , (builtinAgdaTermQuoteGoal    |-> BuiltinDataCons (tabs tterm --> tterm))
+  , (builtinAgdaTermQuoteTerm    |-> BuiltinDataCons (tterm --> tterm))
+  , (builtinAgdaTermQuoteContext |-> BuiltinDataCons tterm)
+  , (builtinAgdaTermUnquote      |-> BuiltinDataCons (tterm --> tterm))
   , (builtinAgdaTermUnsupported|-> BuiltinDataCons tterm)
   , (builtinAgdaLitNat    |-> BuiltinDataCons (tnat --> tliteral))
   , (builtinAgdaLitFloat  |-> BuiltinDataCons (tfloat --> tliteral))

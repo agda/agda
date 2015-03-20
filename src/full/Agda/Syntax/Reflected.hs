@@ -33,6 +33,10 @@ data Term = Var Int Elims
           | Pi (Dom Type) (Abs Type)
           | Sort Sort
           | Lit Literal
+          | QuoteContext
+          | QuoteGoal (Abs Term)
+          | QuoteTerm Term
+          | Unquote Term
           | Unknown
   deriving (Show)
 

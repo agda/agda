@@ -68,15 +68,19 @@ data Sort : Set
 data Clause : Set
 
 data Term : Set where
-  var     : ℕ → Args → Term
-  con     : QName → Args → Term
-  def     : QName → Args → Term
-  lam     : Hiding → Abs Term → Term
-  extLam  : List Clause → Args → Term
-  pi      : Arg Type → Abs Type → Term
-  sort    : Sort → Term
-  lit     : Literal → Term
-  unknown : Term
+  var           : ℕ → Args → Term
+  con           : QName → Args → Term
+  def           : QName → Args → Term
+  lam           : Hiding → Abs Term → Term
+  extLam        : List Clause → Args → Term
+  pi            : Arg Type → Abs Type → Term
+  sort          : Sort → Term
+  lit           : Literal → Term
+  quote-term    : Term → Term
+  quote-goal    : Abs Term → Term
+  quote-context : Term
+  unquote-term  : Term → Term
+  unknown       : Term
 
 Args = List (Arg Term)
 
@@ -114,6 +118,10 @@ data Clause where
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
+{-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
+{-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
+{-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
+{-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
 {-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}

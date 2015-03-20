@@ -290,13 +290,17 @@ instance Unquote R.Term where
     case ignoreSharing t of
       Con c [] ->
         choice
-          [(c `isCon` primAgdaTermUnsupported, return R.Unknown)]
+          [ (c `isCon` primAgdaTermUnsupported, return R.Unknown)
+          , (c `isCon` primAgdaTermQuoteContext, return R.QuoteContext) ]
           __IMPOSSIBLE__
 
       Con c [x] -> do
         choice
-          [ (c `isCon` primAgdaTermSort,   R.Sort <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,    R.Lit  <$> unquoteN x) ]
+          [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
+          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x)
+          , (c `isCon` primAgdaTermQuoteGoal, R.QuoteGoal <$> unquoteN x)
+          , (c `isCon` primAgdaTermQuoteTerm, R.QuoteTerm <$> unquoteN x)
+          , (c `isCon` primAgdaTermUnquote,   R.Unquote   <$> unquoteN x) ]
           __IMPOSSIBLE__
 
       Con c [x, y] ->
