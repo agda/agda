@@ -134,7 +134,7 @@ followed:
   create a template for the next version.
 
 * Enable sharing by default. Change the message "(default: OFF)" to
-  "(default: OFF)".
+  "(default: ON)".
 
 * Push all changes
 
