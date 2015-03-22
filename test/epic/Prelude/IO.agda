@@ -39,14 +39,14 @@ args = buildArgs numArgs
     buildArgs (S n) = snoc (buildArgs n) (getArg n)
 
 postulate
-  getEnv      : String -> String
+  getEnv      : String -> IO String
   natToString : Nat -> String
   printChar   : Char -> IO Unit
   putStr      : String -> IO Unit
   readNat     : IO Nat
   readStr     : IO String
 
-{-# COMPILED_EPIC getEnv (a : String) ->
+{-# COMPILED_EPIC getEnv (a : String, u : Unit) ->
                          String = foreign String "getenv" (a : String) #-}
 
 {-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}

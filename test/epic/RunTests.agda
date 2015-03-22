@@ -115,7 +115,8 @@ printResult filename l1 l2 with l1 ` listEq charEq ` l2
 -- The environment variable `AGDA_BIN` is defined in the Makefile.
 compile : FilePath -> FilePath -> IO Unit
 compile dir file =
-  system $ (getEnv "AGDA_BIN") +S+
+  agda-bin <- getEnv "AGDA_BIN" ,
+  system $ agda-bin +S+
            " --epic --compile-dir=" +S+ dir +S+ "bin/ " +S+ dir +S+ file ,,
   return unit
 
