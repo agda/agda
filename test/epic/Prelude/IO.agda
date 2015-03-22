@@ -24,12 +24,12 @@ postulate
 {-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
 
 {-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) ->
-                        Any = iobind(x,f)
-#-}
+                        Any = iobind(x,f) #-}
 
 {-# COMPILED_EPIC numArgs () -> BigInt = foreign BigInt "numArgsBig" () #-}
 
-{-# COMPILED_EPIC getArg (n : BigInt) -> Any = foreign Any "getArgBig" (n : BigInt) #-}
+{-# COMPILED_EPIC getArg (n : BigInt) ->
+                         Any = foreign Any "getArgBig" (n : BigInt) #-}
 
 args : Vec String numArgs
 args = buildArgs numArgs
@@ -39,16 +39,15 @@ args = buildArgs numArgs
     buildArgs (S n) = snoc (buildArgs n) (getArg n)
 
 postulate
-  getEnv      : String -> String
+  getEnv      : String -> IO String
   natToString : Nat -> String
   printChar   : Char -> IO Unit
   putStr      : String -> IO Unit
   readNat     : IO Nat
   readStr     : IO String
 
-{-# COMPILED_EPIC getEnv (a : String) ->
-                         String = foreign String "getenv" (a : String)
-#-}
+{-# COMPILED_EPIC getEnv (a : String, u : Unit) ->
+                         String = foreign String "getenv" (a : String) #-}
 
 {-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}
 
@@ -57,8 +56,7 @@ postulate
 {-# COMPILED_EPIC readNat (u : Unit) -> Any = strToBig(readStr(u)) #-}
 
 {-# COMPILED_EPIC putStr (a : String, u : Unit) ->
-                         Unit = foreign Int "wputStr" (a : String); primUnit
-#-}
+                         Unit = foreign Int "wputStr" (a : String); primUnit #-}
 
 {-# COMPILED_EPIC readStr (u : Unit) -> Data = readStr(u) #-}
 
@@ -74,7 +72,7 @@ printNat : Nat -> IO Unit
 printNat n = putStr (natToString n)
 
 printBool : Bool -> IO Unit
-printBool true = putStr "true"
+printBool true  = putStr "true"
 printBool false = putStr "false"
 
 infixr 2 _<$>_
