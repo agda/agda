@@ -19,6 +19,22 @@ postulate
   strLen   : String -> Nat
   charAt   : (s : String) -> Nat -> Char
 
+{-# COMPILED_EPIC popen (s : String, m : String, u : Unit) ->
+                        Ptr = foreign Ptr "popen" (s : String, m : String) #-}
+
+{-# COMPILED_EPIC pclose (s : Ptr, u : Unit) ->
+                         Unit = foreign Int "pclose" (s : Ptr) ; u #-}
+
+{-# COMPILED_EPIC readChar (s : Ptr, u : Unit) ->
+                           Int = foreign Int "fgetc" (s : Ptr) #-}
+
+{-# COMPILED_EPIC strLen (s : Any) ->
+                         BigInt = foreign BigInt "intToBig"
+                                    (foreign Int "strlen" (s : String) : Int) #-}
+
+{-# COMPILED_EPIC charAt (s : Any, n : BigInt) ->
+                         Int = foreign Int "charAtBig" (s : String, n : BigInt) #-}
+
 _`_`_ : {A B C : Set}(x : A)(f : A -> B -> C)(y : B) -> C
 x ` f ` y = f x y
 
@@ -33,12 +49,6 @@ infixr 1 _$_
 
 _$_ : {A : Set}{B : A -> Set}(f : (x : A) -> B x)(x : A) -> B x
 f $ x = f x
-
-{-# COMPILED_EPIC popen (s : String, m : String, u : Unit) -> Ptr = foreign Ptr "popen" (s : String, m : String) #-}
-{-# COMPILED_EPIC pclose (s : Ptr, u : Unit) -> Unit = foreign Int "pclose" (s : Ptr) ; u #-}
-{-# COMPILED_EPIC readChar (s : Ptr, u : Unit) -> Int = foreign Int "fgetc" (s : Ptr) #-}
-{-# COMPILED_EPIC strLen (s : Any) -> BigInt = foreign BigInt "intToBig" (foreign Int "strlen" (s : String) : Int) #-}
-{-# COMPILED_EPIC charAt (s : Any, n : BigInt) -> Int = foreign Int "charAtBig" (s : String, n : BigInt) #-}
 
 readStream : Stream -> IO (List Char)
 readStream stream =
