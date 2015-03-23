@@ -3,24 +3,29 @@ language: haskell
 # We build with all the latest GHC versions for each 7.X, so we reduce
 # build times, possibly avoid compiler bugs and still test all the major
 # interface changes.
+
+# Travis have no GHC 7.2.* installed because it is considered a technology
+# preview (as per https://www.haskell.org/ghc/download_ghc_7_2_2). If
+# necessary, we could use use the approach described in
+# https://github.com/hvr/multi-ghc-travis.
+
 ghc:
-  - 7.8.3
+  - 7.8.4
   - 7.6.3
   - 7.4.2
-  - 7.2.2
-  - 7.0.4
 
 install:
   # Apparently travis doesn't have "time".
   - sudo apt-get install time
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
+  - export PATH=$HOME/.cabal/bin:$PATH
+  # Showing Cabal configuration
+  - cat $HOME/.cabal/config
   # New happy needed for haskell-src-exts
   - cabal install happy
   # New new alex for us
   - cabal install alex
-  # And cpphs
-  - cabal install cpphs
   # And epic
   - sudo apt-get install libgc-dev
   - cabal install epic
@@ -31,22 +36,28 @@ install:
   - make install-fix-agda-whitespace
 
 script:
-  - cabal configure --disable-library-profiling -v2
+  - cabal configure -v2
   - cabal build -v2
   - cabal install -v2
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
-  - yes q | make BUILD_DIR=$PWD/dist check-whitespace succeed fail interaction examples library-test lib-succeed compiler-test epic-test api-test tests
+  - yes q | make BUILD_DIR=$PWD/dist check-whitespace succeed fail interaction examples library-test lib-succeed compiler-test epic-test api-test tests TAGS
   # Travis doesn't have latex, not sure if we should install it
   # - make latex-test
+  # Testing compilation with transformers 0.3.0.0 which is shipped with
+  # GHC 7.8.* (see issue 1156).
+  - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --constraint=transformers==0.3.0.0 && cabal -v2 build; fi
 
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
   fast_finish: true
+  # allow_failures:
+    # - ghc: A.B.C
 
-# Every master and maintenance branches >= 2.4.3 must be here.  You can
-# also add your private branches if you want travis to test them.
+# Every master and maintenance branches >= 2.4.3 or >= maint-2.4.2 must
+# be here. You can also add your private branches if you want travis to
+# test them.
 branches:
   only:
-    - master
+    - maint-2.4.2

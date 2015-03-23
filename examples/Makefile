@@ -2,7 +2,6 @@
 TOP = ..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting malonzo relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2 # epic
 

@@ -17,10 +17,9 @@
 TOP = ../..
 
 include $(TOP)/mk/paths.mk
-include $(TOP)/mk/config.mk
 
 # Path to Agda
-agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
+agda=$(AGDA_BIN) --ignore-interfaces
 
 # use gsed on Mac OS instead of sed
 ifeq (Darwin,$(findstring Darwin,$(shell uname)))
@@ -37,11 +36,9 @@ V = 0
 # Enable read -n
 SHELL=bash
 
-# Getting all agda files
+# Getting all agda files.  This is a placeholder in case you want to
+# exclude some tests.  But don't push it.
 excluded=
-# This is a placeholder for test cases you want to skip, e.g.
-# # Andreas 2013-10-27 skip over Epic testcase
-# excluded=Issue390.agda
 allagda=$(filter-out $(excluded),$(shell ls *agda))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
