@@ -26,7 +26,6 @@ module Agda.TypeChecking.Serialise
   ( encode, encodeFile, encodeInterface
   , decode, decodeFile, decodeInterface, decodeHashes
   , EmbPrj
-  , currentInterfaceVersion
   )
   where
 
@@ -1511,9 +1510,9 @@ instance EmbPrj Epic.Tag where
 -- Used by UHC backend. Will be stored in a seperate file,
 -- not part of the .agdai files. Should be moved somewhere else.
 instance EmbPrj UHC.AModuleInfo where
-  icod_ (UHC.AModuleInfo a b c d e f) = icode6' a b c d e f
+  icod_ (UHC.AModuleInfo a b c d e) = icode5' a b c d e
   value = vcase valu where
-    valu [a, b, c, d, e, f] = valu6 UHC.AModuleInfo a b c d e f
+    valu [a, b, c, d, e] = valu5 UHC.AModuleInfo a b c d e
     valu _ = malformed
 
 instance EmbPrj UHC.AModuleInterface where

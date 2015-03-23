@@ -31,12 +31,13 @@ type ConInstMp = M.Map QName QName
 type ModVersion = POSIXTime
 
 currentModInfoVersion :: Word64
-currentModInfoVersion = 20141022 * 10 + 0
+currentModInfoVersion = 20150323 * 10 + 0
 
 data AModuleInfo
   = AModuleInfo
-  { amiFileVersion :: Word64
-  , amiAgdaVersion :: Word64 -- same version as in Typechecking/Serialise
+  { amiFileVersion :: Word64    -- ^ We don't explicitly store the agda interface version, but this is done by the EmbPrj
+                                -- serialization for us. If we were to not use EmbPrj anymore, the
+                                -- Agda interface version would need to be stored explicitly!
   , amiModule :: ModuleName
   , amiInterface :: AModuleInterface    -- ^ Contains linking information for the current module (non-transitive).
   , amiVersion :: ModVersion

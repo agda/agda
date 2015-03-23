@@ -250,8 +250,7 @@ readModInfoFile :: String -> TCM (Maybe AModuleInfo)
 readModInfoFile f = do
   modInfo <- liftIO (BS.readFile f) >>= decode
   return $ maybe Nothing (\mi ->
-    if amiFileVersion mi == currentModInfoVersion
-        && amiAgdaVersion mi == currentInterfaceVersion then
+    if amiFileVersion mi == currentModInfoVersion then
       Just mi
     else
       Nothing) modInfo

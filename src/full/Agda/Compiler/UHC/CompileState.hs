@@ -51,7 +51,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.Compiler.UHC.Naming
-import Agda.TypeChecking.Serialise (currentInterfaceVersion)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -87,7 +86,6 @@ runCompileT coind amod curImpMods transImpIface nmMp conIMp comp = do
 
   let modInfo = AModuleInfo
         { amiFileVersion = currentModInfoVersion
-        , amiAgdaVersion = currentInterfaceVersion
         , amiModule = amod
         , amiInterface = curModuleInterface state'
         , amiVersion = version
