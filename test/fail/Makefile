@@ -19,7 +19,7 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 
 # Path to Agda
-agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
+agda=$(AGDA_BIN) --ignore-interfaces
 
 # use gsed on Mac OS instead of sed
 ifeq (Darwin,$(findstring Darwin,$(shell uname)))
