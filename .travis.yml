@@ -60,4 +60,4 @@ matrix:
 # test them.
 branches:
   only:
-    - maint-2.4.2
+    - master
