@@ -35,6 +35,18 @@ module UHC.Agda.Builtins
   , primCharToNat
   , primCharEquality
   , primShowChar
+    -- for Data.Char.Utils
+  , primIsLower
+  , primIsDigit
+  , primIsAlpha
+  , primIsSpace
+  , primIsAscii
+  , primIsLatin1
+  , primIsPrint
+  , primIsHexDigit
+  , primToUpper
+  , primToLower
+  , primNatToChar
     -- Float
   , primShowFloat
   , primMkFloat
@@ -178,13 +190,38 @@ primShowString = id
 -- ====================
 
 primCharToNat :: Char -> Nat
-primCharToNat c = primIntegerToNat (read [c] :: Integer)
+primCharToNat c = primIntegerToNat (fromIntegral (fromEnum c))
+
+primNatToChar :: Nat -> Char
+primNatToChar i = toEnum (fromInteger (primNatToInteger i))
 
 primCharEquality :: Char -> Char -> Bool
 primCharEquality = (==)
 
 primShowChar :: Char -> String
-primShowChar c = [c]
+primShowChar c = show c
+
+import qualified Data.Char as C
+primIsLower     :: Char -> Bool
+primIsLower     = C.isLower
+primIsDigit     :: Char -> Bool
+primIsDigit     = C.isDigit
+primIsAlpha     :: Char -> Bool
+primIsAlpha     = C.isAlpha
+primIsSpace     :: Char -> Bool
+primIsSpace     = C.isSpace
+primIsAscii     :: Char -> Bool
+primIsAscii     = C.isAscii
+primIsLatin1    :: Char -> Bool
+primIsLatin1    = C.isLatin1
+primIsPrint     :: Char -> Bool
+primIsPrint     = C.isPrint
+primIsHexDigit  :: Char -> Bool
+primIsHexDigit  = C.isHexDigit
+primToUpper     :: Char -> Char
+primToUpper     = C.toUpper
+primToLower     :: Char -> Char
+primToLower     = C.toLower
 
 -- ====================
 -- Float

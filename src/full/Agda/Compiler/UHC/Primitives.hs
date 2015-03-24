@@ -54,6 +54,17 @@ primFunctions = M.fromList $
         , "primCharToNat"
         , "primCharEquality"
         , "primShowChar"
+        , "primIsLower"
+        , "primIsDigit"
+        , "primIsAlpha"
+        , "primIsSpace"
+        , "primIsAscii"
+        , "primIsLatin1"
+        , "primIsPrint"
+        , "primIsHexDigit"
+        , "primToUpper"
+        , "primToLower"
+        , "primNatToChar"
         -- Float
         , "primShowFloat"
         ]
