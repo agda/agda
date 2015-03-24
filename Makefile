@@ -90,7 +90,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs
 
 .PHONY : quicktest
 quicktest : succeed fail
