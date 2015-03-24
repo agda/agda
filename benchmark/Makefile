@@ -1,5 +1,6 @@
+TOP=../
 
-AGDA = agda
+include $(TOP)/mk/paths.mk
 
 include tests.mk
 
@@ -37,7 +38,7 @@ $(logDir) :
 
 $(LOG_DIR)/$(TAG)/% :
 	@echo Running benchmark $*
-	@$(AGDA) $(verbose) $($*) +RTS -slogs/.tmp > $@
+	@$(AGDA_BIN) $(verbose) $($*) +RTS -slogs/.tmp > $@
 	@cat logs/.tmp >> $@
 	@rm logs/.tmp
 	@echo "──────────────────────────────────────────────────────────────────" >> $@
