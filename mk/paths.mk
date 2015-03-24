@@ -1,13 +1,13 @@
 include $(TOP)/mk/version.mk
 
-MACRO_DIR		= $(TOP)/macros
+MACRO_DIR = $(TOP)/macros
 
-SRC_DIR			= $(TOP)/src
-MAIN_SRC_DIR	= $(SRC_DIR)/main
-FULL_SRC_DIR	= $(SRC_DIR)/full
-CORE_SRC_DIR	= $(SRC_DIR)/core
-TRANSL_SRC_DIR	= $(SRC_DIR)/transl
-COMPAT_SRC_DIR	= $(SRC_DIR)/compat
+SRC_DIR        = $(TOP)/src
+MAIN_SRC_DIR   = $(SRC_DIR)/main
+FULL_SRC_DIR   = $(SRC_DIR)/full
+CORE_SRC_DIR   = $(SRC_DIR)/core
+TRANSL_SRC_DIR = $(SRC_DIR)/transl
+COMPAT_SRC_DIR = $(SRC_DIR)/compat
 
 # Note: To use "dist" as the build directory (the default), modify
 # BUILD_DIR below. At the time of writing GHC's recompilation checker
@@ -21,15 +21,15 @@ COMPAT_SRC_DIR	= $(SRC_DIR)/compat
 #
 # Thus it may be worthwhile to keep the present infrastructure with
 # different build directories for different versions of Agda.
-BUILD_DIR       = $(TOP)/dist-$(VERSION)
+BUILD_DIR = $(TOP)/dist-$(VERSION)
 
-OUT_DIR			= $(TOP)/out
-FULL_OUT_DIR	= $(OUT_DIR)/full
-CORE_OUT_DIR	= $(OUT_DIR)/core
-TRANSL_OUT_DIR	= $(OUT_DIR)/transl
+OUT_DIR        = $(TOP)/out
+FULL_OUT_DIR   = $(OUT_DIR)/full
+CORE_OUT_DIR   = $(OUT_DIR)/core
+TRANSL_OUT_DIR = $(OUT_DIR)/transl
 
-DOC_DIR			= $(TOP)/doc
-HADDOCK_DIR		= $(DOC_DIR)/haddock
+DOC_DIR     = $(TOP)/doc
+HADDOCK_DIR = $(DOC_DIR)/haddock
 
-AGDA_BIN		?= $(BUILD_DIR)/build/agda/agda
-AGDA_BIN		:= $(abspath $(AGDA_BIN))
+AGDA_BIN ?= $(BUILD_DIR)/build/agda/agda
+AGDA_BIN := $(abspath $(AGDA_BIN))
