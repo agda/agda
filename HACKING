@@ -84,7 +84,8 @@ Working with Git (from 2014-06-15)
     git bisect start <bad commit> <good commit>
     cp <some path>/Module-that-should-be-accepted.agda .
     git bisect run sh -c \
-      "cabal install --disable-library-profiling \
+      "cabal install --force-reinstalls \
+                     --disable-library-profiling \
                      --disable-documentation || exit 125; \
        .cabal-sandbox/bin/agda --ignore-interfaces \
          Module-that-should-be-accepted.agda"
