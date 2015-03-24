@@ -3,7 +3,7 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 
 # Path to Agda
-agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
+agda=$(AGDA_BIN) --ignore-interfaces
 
 all : compiled-export Issue1252 ExportAndUse # time-compilation
 
