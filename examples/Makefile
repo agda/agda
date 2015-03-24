@@ -7,7 +7,7 @@ default : test polydep hello path regexp-talk aim4-bag ac effects minmax real vi
 
 agda = $(AGDA_BIN)
 
-run_agda = $(agda) -v0 --vim $(AGDA_TEST_FLAGS)
+run_agda = $(agda) -v0 --vim --ignore-interfaces
 
 # the other instance-arguments examples use the standard library,
 # seemingly no way to include it during test run...

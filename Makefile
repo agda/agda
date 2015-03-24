@@ -162,7 +162,7 @@ library-test : # up-to-date-std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	@(cd std-lib && runhaskell GenerateEverything.hs && \
-          time $(AGDA_BIN) --ignore-interfaces -v profile:$(PROFVERB) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
+          time $(AGDA_BIN) --ignore-interfaces -v profile:$(PROFVERB) -i. -isrc README.agda \
             +RTS -s -H1G -M1.5G)
 
 .PHONY : continue-library-test

@@ -5,7 +5,7 @@ TOP=../..
 
 include $(TOP)/mk/paths.mk
 
-AGDA = $(AGDA_BIN) -I -i. -i.. $(AGDA_TEST_FLAGS)
+AGDA = $(AGDA_BIN) -I -i. -i.. --ignore-interfaces
 
 all : Naked Issue1430
 

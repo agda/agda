@@ -26,7 +26,7 @@ all : remove_interface_files $(allagda) # $(alllagda)
 remove_interface_files :
 	find . -type f -name '*.agdai' -delete
 
-#  --vim $(AGDA_TEST_FLAGS)
+#  --vim
 
 RUN_AGDA = time $(AGDA_BIN) -i. -i../../std-lib -i../../std-lib/src -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) +RTS -H1G -M1.5G -RTS
 
