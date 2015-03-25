@@ -59,8 +59,14 @@ followed:
       emacs --batch -L . -f batch-byte-compile *.el; \
       rm -f *.elc)
 
-* Disable sharing by default. Change the message "(default: ON)" to
-  "(default: OFF)".
+* Disable sharing by default. Note that this change induces some
+  changes in the test suite.
+
+  ** Disable sharing by default in the Agda.Interaction.Options
+     module.
+
+  ** Change the message "(default: ON)" to "(default: OFF)" in the
+  above module.
 
 * Run make test (and accept the updates the Agda version in the files
   test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).
@@ -133,8 +139,17 @@ followed:
 * Remove the release notes for the released version from doc/release-notes and
   create a template for the next version.
 
+* Enable sharing by default. Note that this change induces some
+  changes in the test suite.
+
+  ** Enable sharing by default in the Agda.Interaction.Options module.
+
+  ** Change the message "(default: OFF)" to "(default: ON)" in the
+  above module.
+
 * Enable sharing by default. Change the message "(default: OFF)" to
-  "(default: ON)".
+  "(default: ON)". Note that this change induces some changes to the
+  test suite.
 
 * Push all changes
 
