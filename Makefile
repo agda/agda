@@ -17,6 +17,10 @@ override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 CABAL_CMD=cabal
 override CABAL_OPTS+=$(CABAL_OPTIONS)
 
+# --program-suffix is not for the executable name in
+# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+override CABAL_OPTS+=--program-suffix=-$(VERSION)
+
 ## Default target #########################################################
 
 .PHONY : default
