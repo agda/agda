@@ -833,6 +833,13 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.CompiledJSPragma x e -> do
           x <- toConcrete x
           return $ C.CompiledJSPragma r x e
+        A.CompiledCorePragma x cr -> do
+          x <- toConcrete x
+          return $ C.CompiledCorePragma r x cr
+        A.CompiledCoreDataPragma x crd crcs -> do
+          x <- toConcrete x
+          return $ C.CompiledCoreDataPragma r x crd crcs
+        A.DontSmashPragma x -> C.DontSmashPragma r <$> toConcrete x
         A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
         A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
 

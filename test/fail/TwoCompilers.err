@@ -12,6 +12,12 @@ Usage: agda [OPTIONS...] [FILE]
           --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
           --epic                                      compile program using the Epic backend
           --js                                        compile program using the JS backend
+          --uhc                                       compile program using the UHC backend
+          --uhc-bin=UHC                               The uhc binary to use when compiling with the UHC backend.
+          --uhc-textual-core                          Use textual core as intermediate representation instead of binary core.
+          --uhc-dont-call-uhc                         Don't call uhc, just write the UHC Core files.
+          --uhc-gen-trace=TRACE                       Add tracing code to generated executable.
+          --no-smashing                               Don't apply the smashing optimization.
           --compile-dir=DIR                           directory for compiler output (default: the project root)
           --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
           --epic-flag=EPIC-FLAG                       give the flag EPIC-FLAG to Epic when compiling using Epic

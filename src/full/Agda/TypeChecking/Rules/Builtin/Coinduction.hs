@@ -154,6 +154,7 @@ bindBuiltinFlat e =
                    , funAbstr      = ConcreteDef
                    , funDelayed    = NotDelayed
                    , funProjection = Just projection
+                   , funSmashable  = False
                    , funStatic     = False
                    , funCopy       = False
                    , funTerminates = Just True

@@ -121,6 +121,9 @@ import Agda.Utils.Tuple
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
     'COMPILED_JS'   { TokKeyword KwCOMPILED_JS $$ }
+    'COMPILED_CORE' { TokKeyword KwCOMPILED_CORE $$ }
+    'COMPILED_CORE_DATA'   { TokKeyword KwCOMPILED_CORE_DATA $$ }
+    'DONT_SMASH'    { TokKeyword KwDONT_SMASH $$ }
     'STATIC'        { TokKeyword KwSTATIC $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quoteContext'  { TokKeyword KwQuoteContext $$ }
@@ -229,6 +232,9 @@ Token
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_EPIC'{ TokKeyword KwCOMPILED_EPIC $1 }
     | 'COMPILED_JS'  { TokKeyword KwCOMPILED_JS $1 }
+    | 'COMPILED_CORE' { TokKeyword KwCOMPILED_CORE $1 }
+    | 'COMPILED_CORE_DATA' {TokKeyword KwCOMPILED_CORE_DATA $1 }
+    | 'DONT_SMASH'   { TokKeyword KwDONT_SMASH $1 }
     | 'STATIC'       { TokKeyword KwSTATIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
@@ -1298,6 +1304,9 @@ DeclarationPragma
   | CompiledTypePragma       { $1 }
   | CompiledEpicPragma       { $1 }
   | CompiledJSPragma         { $1 }
+  | CompiledCorePragma       { $1 }
+  | CompiledCoreDataPragma   { $1 }
+  | DontSmashPragma          { $1 }
   | StaticPragma             { $1 }
   | ImportPragma             { $1 }
   | ImpossiblePragma         { $1 }
@@ -1357,6 +1366,21 @@ CompiledJSPragma :: { Pragma }
 CompiledJSPragma
   : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
     { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+
+CompiledCorePragma :: { Pragma }
+CompiledCorePragma
+  : '{-#' 'COMPILED_CORE' PragmaQName PragmaStrings '#-}'
+    { CompiledCorePragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+
+CompiledCoreDataPragma :: { Pragma }
+CompiledCoreDataPragma
+  : '{-#' 'COMPILED_CORE_DATA' PragmaQName string PragmaStrings '#-}'
+    { CompiledCoreDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
+
+DontSmashPragma :: { Pragma }
+DontSmashPragma
+  : '{-#' 'DONT_SMASH' PragmaQName '#-}'
+    { DontSmashPragma (getRange ($1,$2,$3,$4)) $3 }
 
 StaticPragma :: { Pragma }
 StaticPragma

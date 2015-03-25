@@ -44,6 +44,9 @@ data-files:         Agda.css
                     EpicInclude/AgdaPrelude.e
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
+                    uhc-agda-base/LICENSE
+                    uhc-agda-base/uhc-agda-base.cabal
+                    uhc-agda-base/src/UHC/Agda/*.hs
                     agda.sty
                     postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
@@ -63,9 +66,21 @@ flag epic
   description:
     Install the Epic compiler.
 
+flag uhc
+  default: False
+  manual:  True
+  description:
+    Install the UHC compiler.
+
 library
   hs-source-dirs:   src/full
   include-dirs:     src/full
+
+  if flag(uhc)
+    build-depends:    uhc-light >= 1.1.8.7 && < 1.2
+                    , uhc-util >= 0.1.5.0
+                    , uulib >= 0.9.16
+    cpp-options:    -DUHC_BACKEND
 
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
@@ -118,6 +133,7 @@ library
     -- , STMonadTrans >= 0.3.2 && < 0.4
     , strict >= 0.3.2 && < 0.4
     , template-haskell >= 2.5 && < 2.11
+    , temporary >= 1.1 && < 1.3
     , text >= 0.11 && < 1.3
     -- tranformers 0.4.0.0 was deprecated.
     , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.5
@@ -142,6 +158,10 @@ library
   build-tools:
     alex >= 3.1.0 && < 3.2
     , happy >= 1.19.4 && < 2
+
+  -- required to make the code compile, as the EH library is not present when the uhc backend is disabled
+  if flag(uhc)
+    cpp-options:    -DUHC_BACKEND
 
   exposed-modules:  Agda.Auto.Auto
                     Agda.Auto.CaseSplit
@@ -178,6 +198,20 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Compiler.UHC.AuxAST
+                    Agda.Compiler.UHC.AuxASTUtil
+                    Agda.Compiler.UHC.Bridge
+                    Agda.Compiler.UHC.Compiler
+                    Agda.Compiler.UHC.CompileState
+                    Agda.Compiler.UHC.Core
+                    Agda.Compiler.UHC.FromAgda
+                    Agda.Compiler.UHC.MagicTypes
+                    Agda.Compiler.UHC.ModuleInfo
+                    Agda.Compiler.UHC.Naming
+                    Agda.Compiler.UHC.Pragmas.Base
+                    Agda.Compiler.UHC.Pragmas.Parse
+                    Agda.Compiler.UHC.Primitives
+                    Agda.Compiler.UHC.Smashing
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
                     Agda.Interaction.CommandLine

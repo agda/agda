@@ -22,6 +22,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
 import qualified Agda.Compiler.JS.Parser as JS
+import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
@@ -119,6 +120,29 @@ addJSCode q jsDef =
       typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
   where
     addJS e crep = crep { compiledJS = e }
+
+addCoreCode :: QName -> CR.CoreExpr -> TCM ()
+addCoreCode q crDef =  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore crDef
+  where
+    addCore e crep = crep { compiledCore = Just $ CrDefn e }
+
+addCoreConstr :: QName -> CR.CoreConstr -> TCM ()
+addCoreConstr q con = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore
+  where
+    addCore crep = crep {compiledCore = Just $ CrConstr con }
+
+addCoreType :: QName -> CR.CoreType -> TCM ()
+addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCr
+  -- TODO: sanity checking
+  where
+    addCr crep = crep { compiledCore = Just $ CrType crTy }
+
+markDontSmash :: QName -> TCM ()
+markDontSmash q = modifySignature $ updateDefinition q $ mark
+  where
+    mark def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funSmashable = False}}
+    mark def = def
 
 markStatic :: QName -> TCM ()
 markStatic q = modifySignature $ updateDefinition q $ mark
@@ -328,6 +352,7 @@ applySection new ptel old ts rd rm = do
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
                         , funStatic         = False
+                        , funSmashable      = True
                         , funCopy           = True
                         , funTerminates     = Just True
                         , funExtLam         = extlam

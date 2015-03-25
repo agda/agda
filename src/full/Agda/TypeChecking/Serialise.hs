@@ -54,8 +54,15 @@ import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 import qualified Codec.Compression.GZip as G
+import Data.Time.Clock
+import Data.Ratio
 
 import qualified Agda.Compiler.Epic.Interface as Epic
+import qualified Agda.Compiler.UHC.Pragmas.Base as CR
+import qualified Agda.Compiler.UHC.ModuleInfo as UHC
+import qualified Agda.Compiler.UHC.AuxAST as UHCA
+import qualified Agda.Compiler.UHC.Naming as UHCN
+import qualified Agda.Compiler.UHC.Bridge as UHCB
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
@@ -152,11 +159,13 @@ lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 data Dict = Dict
   { nodeD        :: !(HashTable Node    Int32)
   , stringD      :: !(HashTable String  Int32)
+  , bstringD     :: !(HashTable L.ByteString Int32)
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
   , termD        :: !(HashTable (Ptr Term) Int32)
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
+  , bstringC     :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
@@ -181,6 +190,8 @@ emptyDict collectStats fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -200,6 +211,7 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 data St = St
   { nodeE     :: !(Array Int32 Node)
   , stringE   :: !(Array Int32 String)
+  , bstringE  :: !(Array Int32 L.ByteString)
   , integerE  :: !(Array Int32 Integer)
   , doubleE   :: !(Array Int32 Double)
   , nodeMemo  :: !Memo
@@ -253,11 +265,12 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ nC sC iC dC tC stats _ _) <- liftIO $
+    newD@(Dict nD sD bD iD dD _ nC sC bC iC dC tC stats _ _) <- liftIO $
       emptyDict collectStats fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
+    bL <- benchSort $ l bD
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
     -- Record reuse statistics.
@@ -266,6 +279,7 @@ encode a = do
     verboseS "profile.serialize" 10 $ do
       statistics "Integer"  iC
       statistics "String"   sC
+      statistics "ByteString" bC
       statistics "Double"   dC
       statistics "Node"     nC
     when collectStats $ do
@@ -274,7 +288,7 @@ encode a = do
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      returnForcedByteString $ B.encode (root, nL, sL, iL, dL)
+      returnForcedByteString $ B.encode (root, nL, sL, bL, iL, dL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -345,7 +359,7 @@ decode s = do
      then noResult "Wrong interface version."
      else do
 
-      ((r, nL, sL, iL, dL), s, _) <-
+      ((r, nL, sL, bL, iL, dL), s, _) <-
         return $ runGetState B.get (G.decompress s) 0
       if s /= L.empty
          -- G.decompress seems to throw away garbage at the end, so
@@ -353,7 +367,7 @@ decode s = do
        then noResult "Garbage at end."
        else do
 
-        st <- St (ar nL) (ar sL) (ar iL) (ar dL)
+        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
                 <*> return shared
@@ -417,6 +431,10 @@ instance EmbPrj String where
   icod_   = icodeString
   value i = (! i) `fmap` gets stringE
 
+instance EmbPrj L.ByteString where
+  icod_   = icodeX bstringD bstringC
+  value i = (! i) `fmap` gets bstringE
+
 instance EmbPrj Integer where
   icod_   = icodeInteger
   value i = (! i) `fmap` gets integerE
@@ -445,6 +463,12 @@ instance EmbPrj Char where
 instance EmbPrj Double where
   icod_   = icodeDouble
   value i = (! i) `fmap` gets doubleE
+
+instance EmbPrj Rational where
+  icod_ r = icode2' (numerator r) (denominator r)
+  value = vcase valu where
+    valu [a, b] = valu2 (%) a b
+    valu _      = malformed
 
 instance EmbPrj () where
   icod_ () = icode0'
@@ -481,6 +505,12 @@ instance EmbPrj Bool where
   value = vcase valu where valu []  = valu0 True
                            valu [0] = valu0 False
                            valu _   = malformed
+
+instance EmbPrj NominalDiffTime where
+  icod_ a = icode1' (toRational a)
+  value = vcase valu where
+    valu [a] = valu1 fromRational a
+    valu _   = malformed
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
@@ -1157,6 +1187,41 @@ instance EmbPrj JS.MemberId where
   icod_ (JS.MemberId l) = icode l
   value n = JS.MemberId `fmap` value n
 
+instance EmbPrj CoreRepresentation where
+  icod_ (CrDefn a)   = icode1 1 a
+  icod_ (CrType a)   = icode1 2 a
+  icod_ (CrConstr a) = icode1 3 a
+
+  value = vcase valu where
+    valu [1, a] = valu1 CrDefn a
+    valu [2, a] = valu1 CrType a
+    valu [3, a] = valu1 CrConstr a
+    valu _      = malformed
+
+instance EmbPrj CR.CoreType where
+  icod_ (CR.CTMagic a b) = icode2 1 a b
+  icod_ (CR.CTNormal a)  = icode1 2 a
+  value = vcase valu where
+    valu [1, a, b] = valu2 CR.CTMagic a b
+    valu [2, a]    = valu1 CR.CTNormal a
+    valu _         = malformed
+
+instance EmbPrj CR.CoreConstr where
+  icod_ (CR.CCMagic a) = icode1 1 a
+  icod_ (CR.CCNormal a b c) = icode3 2 a b c
+  value = vcase valu where
+    valu [1, a]       = valu1 CR.CCMagic a
+    valu [2, a, b, c] = valu3 CR.CCNormal a b c
+    valu _            = malformed
+
+instance EmbPrj CR.CoreExpr where
+  icod_ = icode . B.runPut . UHCB.serialize
+  value n = value n >>= return . (B.runGet UHCB.unserialize)
+
+instance EmbPrj CR.HsName where
+  icod_ = icode . B.runPut . UHCB.serialize
+  value n = value n >>= return . (B.runGet UHCB.unserialize)
+
 instance EmbPrj Polarity where
   icod_ Covariant     = icode0'
   icod_ Contravariant = icode0 1
@@ -1188,20 +1253,20 @@ instance EmbPrj Occurrence where
     valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icod_ (CompiledRep a b c d) = icode4' a b c d
-  value = vcase valu where valu [a, b, c, d] = valu4 CompiledRep a b c d
+  icod_ (CompiledRep a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
                            valu _         = malformed
 
 instance EmbPrj Defn where
   icod_ Axiom                                   = icode0 0
-  icod_ (Function    a b c d e f g h i j k l m) = icode13 1 a b c d e f g h i j k l m
+  icod_ (Function    a b c d e f g h i j k l m n) = icode14 1 a b c d e f g h i j k l m n
   icod_ (Datatype    a b c d e f g h i j)       = icode10 2 a b c d e f g h i j
   icod_ (Record      a b c d e f g h i j k l)   = icode12 3 a b c d e f g h i j k l
   icod_ (Constructor a b c d e)                 = icode5 4 a b c d e
   icod_ (Primitive   a b c d)                   = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                     = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j, k, l, m] = valu13 Function a b c d e f g h i j k l m
+    valu [1, a, b, c, d, e, f, g, h, i, j, k, l, m, n] = valu14 Function a b c d e f g h i j k l m n
     valu [2, a, b, c, d, e, f, g, h, i, j]       = valu10 Datatype a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e]                      = valu5 Constructor a b c d e
@@ -1445,6 +1510,74 @@ instance EmbPrj Epic.Tag where
     valu [0, a] = valu1 Epic.Tag a
     valu [1, a] = valu1 Epic.PrimTag a
     valu _      = malformed
+
+-- Used by UHC backend. Will be stored in a seperate file,
+-- not part of the .agdai files. Should be moved somewhere else.
+instance EmbPrj UHC.AModuleInfo where
+  icod_ (UHC.AModuleInfo a b c d e) = icode5' a b c d e
+  value = vcase valu where
+    valu [a, b, c, d, e] = valu5 UHC.AModuleInfo a b c d e
+    valu _ = malformed
+
+instance EmbPrj UHC.AModuleInterface where
+  icod_ (UHC.AModuleInterface a b c) = icode3' a b c
+  value = vcase valu where
+    valu [a, b, c] = valu3 UHC.AModuleInterface a b c
+    valu _         = malformed
+
+instance EmbPrj UHC.AConInfo where
+  icod_ (UHC.AConInfo a b) = icode2' a b
+  value = vcase valu where
+    valu [a, b] = valu2 UHC.AConInfo a b
+    valu _      = malformed
+
+instance EmbPrj UHCA.ADataTy where
+  icod_ (UHCA.ADataTy a b c d) = icode4' a b c d
+  value = vcase valu where
+    valu [a, b, c, d] = valu4 UHCA.ADataTy a b c d
+    valu _            = malformed
+
+instance EmbPrj UHCA.ADataCon where
+  icod_ (UHCA.ADataCon a b) = icode2' a b
+  value = vcase valu where
+    valu [a, b] = valu2 UHCA.ADataCon a b
+    valu _         = malformed
+
+instance EmbPrj UHCA.ADataImplType where
+  icod_ (UHCA.ADataImplNormal)    = icode0 0
+  icod_ (UHCA.ADataImplMagic a)   = icode1 1 a
+  icod_ (UHCA.ADataImplForeign)   = icode0 2
+  value = vcase valu where
+    valu [0]    = valu0 UHCA.ADataImplNormal
+    valu [1, a] = valu1 UHCA.ADataImplMagic a
+    valu [2]    = valu0 UHCA.ADataImplForeign
+    valu _      = malformed
+
+instance EmbPrj UHCN.NameMap where
+  icod_ (UHCN.NameMap a b) = icode2' a b
+  value = vcase valu where
+    valu [a, b] = valu2 UHCN.NameMap a b
+    valu _      = malformed
+
+instance EmbPrj UHCA.CTag where
+  icod_ = icode . B.runPut . UHCB.serialize
+  value n = value n >>= return . (B.runGet UHCB.unserialize)
+
+instance EmbPrj UHCN.CoreName where
+  icod_ (UHCN.CoreName a b c) = icode3' a b c
+  value = vcase valu where
+    valu [a, b, c] = valu3 UHCN.CoreName a b c
+    valu _         = malformed
+
+instance EmbPrj UHCN.EntityType where
+  icod_ UHCN.EtDatatype     = icode0 0
+  icod_ UHCN.EtConstructor  = icode0 1
+  icod_ UHCN.EtFunction     = icode0 2
+  value = vcase valu where
+    valu [0] = valu0 UHCN.EtDatatype
+    valu [1] = valu0 UHCN.EtConstructor
+    valu [2] = valu0 UHCN.EtFunction
+    valu _   = malformed
 
 -- Specializing icodeX leads to Warning like
 -- src/full/Agda/TypeChecking/Serialise.hs:1297:1: Warning:

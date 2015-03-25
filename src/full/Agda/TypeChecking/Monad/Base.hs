@@ -68,6 +68,7 @@ import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
 import qualified Agda.Compiler.JS.Syntax as JS
+import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
 import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
@@ -1068,6 +1069,12 @@ data HaskellRepresentation
 
 data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
 
+data CoreRepresentation
+      = CrDefn CR.CoreExpr -- ^ Core code for functions.
+      | CrType CR.CoreType -- ^ Core type for agda type.
+      | CrConstr CR.CoreConstr  -- ^ Core constructor for agda constructor.
+    deriving (Typeable, Show)
+
 -- | Polarity for equality and subtype checking.
 data Polarity
   = Covariant      -- ^ monotone
@@ -1081,11 +1088,12 @@ data CompiledRepresentation = CompiledRep
   , exportHaskell   :: Maybe HaskellExport
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
+  , compiledCore    :: Maybe CoreRepresentation
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing Nothing
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
@@ -1150,6 +1158,8 @@ data Defn = Axiom
               --   checker.
             , funStatic         :: Bool
               -- ^ Should calls to this function be normalised at compile-time?
+            , funSmashable      :: Bool
+              -- ^ Are we allowed to smash this function?
             , funCopy           :: Bool
               -- ^ Has this function been created by a module
                                    -- instantiation?
@@ -1225,6 +1235,7 @@ emptyFunction = Function
   , funDelayed     = NotDelayed
   , funProjection  = Nothing
   , funStatic      = False
+  , funSmashable   = True
   , funCopy        = False
   , funTerminates  = Nothing
   , funExtLam      = Nothing
@@ -1338,6 +1349,9 @@ defJSDef = compiledJS . defCompiledRep
 
 defEpicDef :: Definition -> Maybe EpicCode
 defEpicDef = compiledEpic . defCompiledRep
+
+defCoreDef :: Definition -> Maybe CoreRepresentation
+defCoreDef = compiledCore . defCompiledRep
 
 -- | Are the clauses of this definition delayed?
 defDelayed :: Definition -> Delayed

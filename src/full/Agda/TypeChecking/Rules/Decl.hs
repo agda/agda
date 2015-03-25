@@ -16,7 +16,7 @@ import Data.Set (Set)
 import Data.Sequence ((|>))
 
 import Agda.Compiler.HaskellTypes
-
+import Agda.Compiler.UHC.Pragmas.Parse
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 
@@ -567,6 +567,47 @@ checkPragma r p =
             _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates"
         A.CompiledJSPragma x ep ->
           addJSCode x ep
+        A.CompiledCorePragma x cr -> do
+          def <- getConstInfo x
+          case theDef def of
+            Axiom{} -> case parseCoreExpr cr of
+                    Left msg -> typeError $ GenericError $ "Could not parse COMPILED_CORE pragma: " ++ msg
+                    Right cr -> addCoreCode x cr
+            _ -> typeError $ GenericError "COMPILED_CORE directive only works on postulates" -- only allow postulates for the time being
+        A.CompiledCoreDataPragma x crd crcs -> do
+          -- TODO mostly copy-paste from the CompiledDataPragma, should be refactored into a seperate function
+          def <- getConstInfo x
+          -- Check that the pragma appears in the same module
+          -- as the datatype.
+          m <- currentModule
+          let m' = qnameModule $ defName def
+          unless (m == m') $ typeError $ GenericError $
+              "COMPILED_CORE_DATA directives must appear in the same module " ++
+              "as their corresponding datatype definition,"
+          case theDef def of
+            Datatype{dataCons = cs}
+              | length cs /= length crcs -> do
+                  let n_forms_are = case length crcs of
+                        1 -> "1 compiled form is"
+                        n -> show n ++ " compiled forms are"
+                      only | null crcs               = ""
+                           | length crcs < length cs = "only "
+                           | otherwise               = ""
+
+                  err <- fsep $ [prettyTCM x] ++ pwords ("has " ++ show (length cs) ++
+                                " constructors, but " ++ only ++ n_forms_are ++ " given [" ++ unwords crcs ++ "]")
+                  typeError $ GenericError $ show err
+              | otherwise -> do
+                -- Remark: core pragmas are not type-checked
+                (dt', cons') <- parseCoreData crd crcs
+                addCoreType x dt'
+                sequence_ $ zipWith addCoreConstr cs cons'
+            _ -> typeError $ GenericError "COMPILED_CORE_DATA on non datatype"
+        A.DontSmashPragma x -> do
+          def <- getConstInfo x
+          case theDef def of
+            Function{} -> markDontSmash x
+            _          -> typeError $ GenericError "DONT_SMASH directive only works on functions"
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of

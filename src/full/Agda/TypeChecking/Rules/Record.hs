@@ -439,6 +439,7 @@ checkRecordProjections m r con tel ftel fs = do
                      , funAbstr          = ConcreteDef
                      , funMutual         = []
                      , funProjection     = Just projection
+                     , funSmashable      = True
                      , funStatic         = False
                      , funCopy           = False
                      , funTerminates     = Just True

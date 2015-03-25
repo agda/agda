@@ -90,6 +90,12 @@ data CommandLineOptions = Options
   , optCompileNoMain    :: Bool
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
+  , optUHCCompile       :: Bool
+  , optUHCBin           :: Maybe FilePath
+  , optUHCTextualCore   :: Bool
+  , optUHCCallUHC       :: Bool
+  , optUHCTraceLevel    :: Int
+  , optOptimSmashing    :: Bool
   , optCompileDir       :: Maybe FilePath
   -- ^ In the absence of a path the project root is used.
   , optGenerateVimFile  :: Bool
@@ -168,6 +174,12 @@ defaultOptions = Options
   , optCompileNoMain    = False
   , optEpicCompile      = False
   , optJSCompile        = False
+  , optUHCCompile       = False
+  , optUHCBin           = Nothing
+  , optUHCTextualCore   = False
+  , optUHCCallUHC       = True
+  , optUHCTraceLevel    = 0
+  , optOptimSmashing    = True
   , optCompileDir       = Nothing
   , optGenerateVimFile  = False
   , optGenerateLaTeX    = False
@@ -260,6 +272,12 @@ checkOpts opts
   | (not . null . optEpicFlags $ opts)
       && not (optEpicCompile opts) =
       Left "Cannot set Epic flags without using the Epic backend.\n"
+  | (isJust $ optUHCBin opts)
+      && not (optUHCCompile opts) =
+      Left "Cannot set uhc binary without using UHC backend.\n"
+  | (optUHCTextualCore opts)
+      && not (optUHCCompile opts) =
+      Left "Cannot set --uhc-textual-core without using UHC backend.\n"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
@@ -418,6 +436,9 @@ compileEpicFlag o = return $ o { optEpicCompile = True}
 compileJSFlag :: Flag CommandLineOptions
 compileJSFlag  o = return $ o { optJSCompile = True }
 
+compileUHCFlag :: Flag CommandLineOptions
+compileUHCFlag o = return $ o { optUHCCompile = True}
+
 compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 
@@ -428,6 +449,22 @@ ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
 -- NOTE: Quadratic in number of flags.
 epicFlagsFlag :: String -> Flag CommandLineOptions
 epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
+
+uhcBinFlag :: String -> Flag CommandLineOptions
+uhcBinFlag s o = return $ o { optUHCBin  = Just s }
+
+uhcTextualCoreFlag :: Flag CommandLineOptions
+uhcTextualCoreFlag o = return $ o { optUHCTextualCore = True }
+
+uhcCallUHCFlag :: Flag CommandLineOptions
+uhcCallUHCFlag o = return $ o { optUHCCallUHC = False }
+
+uhcTraceLevelFlag :: String -> Flag CommandLineOptions
+-- TODO proper parsing and error handling
+uhcTraceLevelFlag i o = return $ o { optUHCTraceLevel = read i }
+
+optimNoSmashing :: Flag CommandLineOptions
+optimNoSmashing o = return $ o {optOptimSmashing = False }
 
 htmlFlag :: Flag CommandLineOptions
 htmlFlag o = return $ o { optGenerateHTML = True }
@@ -483,6 +520,12 @@ standardOptions =
                     "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
+    , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
+    , Option []     ["uhc-bin"] (ReqArg uhcBinFlag "UHC") "The uhc binary to use when compiling with the UHC backend."
+    , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
+    , Option []     ["uhc-dont-call-uhc"] (NoArg uhcCallUHCFlag) "Don't call uhc, just write the UHC Core files."
+    , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
+    , Option []     ["no-smashing"] (NoArg optimNoSmashing) "Don't apply the smashing optimization."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
