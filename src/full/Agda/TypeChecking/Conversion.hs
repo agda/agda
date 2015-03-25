@@ -665,8 +665,8 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
     (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
     ([]         , Apply{} : _) -> failure -- not impossible, see issue 878
     (Apply{} : _, []         ) -> failure
-    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ -- NB: popped up in  issue 889
-    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ -- but should be impossible
+    (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- NB: popped up in issue 889
+    (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
     (Apply arg1 : els1, Apply arg2 : els2) ->
       verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
       reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat

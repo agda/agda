@@ -1,0 +1,3 @@
+Issue1467.agda:25,6-11
+(D → D) × D !=< D → D of type Set
+when checking that the expression foo H has type D → D
