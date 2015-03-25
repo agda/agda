@@ -16,8 +16,10 @@ import Control.Monad.Trans
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-
+#if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
+#endif
+
 import qualified Data.Map as M
 import Data.Maybe
 

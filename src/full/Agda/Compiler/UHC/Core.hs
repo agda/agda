@@ -12,8 +12,11 @@ module Agda.Compiler.UHC.Core
 
 import Data.List
 import qualified Data.Map as M
-import Control.Applicative
 import Data.Maybe (fromMaybe, catMaybes)
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative
+#endif
 
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Abstract.Name

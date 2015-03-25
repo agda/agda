@@ -46,7 +46,11 @@ import qualified Data.Map as M
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
+
+#if __GLASGOW_HASKELL__ <= 708
 import Data.Monoid
+#endif
+
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name

@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
+
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+
 -- | Contains all information required to link Agda modules.
 --
 module Agda.Compiler.UHC.ModuleInfo
@@ -13,7 +16,11 @@ module Agda.Compiler.UHC.ModuleInfo
 where
 
 import qualified Data.Map as M
+
+#if __GLASGOW_HASKELL__ <= 708
 import Data.Monoid
+#endif
+
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Internal

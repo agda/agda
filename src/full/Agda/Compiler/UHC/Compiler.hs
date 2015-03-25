@@ -8,7 +8,11 @@
 -- problem might be error reporting?
 module Agda.Compiler.UHC.Compiler(compilerMain) where
 
+#if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
+import Data.Monoid
+#endif
+
 import Control.Exception (try)
 import Control.Monad
 import Control.Monad.Reader
@@ -16,7 +20,7 @@ import Control.Monad.State
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as M
 import Data.Maybe
-import Data.Monoid
+
 import System.Directory ( canonicalizePath, createDirectoryIfMissing
                         , setCurrentDirectory
                         , createDirectory, doesDirectoryExist

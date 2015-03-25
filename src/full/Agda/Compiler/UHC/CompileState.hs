@@ -30,13 +30,16 @@ module Agda.Compiler.UHC.CompileState
   )
 where
 
-import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader.Class
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative
 import Data.Monoid
+#endif
 
 import Agda.Compiler.UHC.AuxAST as AuxAST
 import Agda.Compiler.UHC.AuxASTUtil

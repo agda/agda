@@ -10,7 +10,10 @@
 -- -> There is no runtime representation of Coinductive values.
 module Agda.Compiler.UHC.FromAgda where
 
+#if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
+#endif
+
 import Control.Monad
 import Control.Monad.State
 import qualified Data.Map as M

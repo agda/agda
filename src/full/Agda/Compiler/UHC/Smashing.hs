@@ -28,7 +28,11 @@ import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.Naming
 
 import Agda.Utils.Lens
+
+#if __GLASGOW_HASKELL__ <= 708
 import Agda.Utils.Monad
+#endif
+
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HM
 
