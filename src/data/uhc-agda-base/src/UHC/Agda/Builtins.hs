@@ -59,6 +59,7 @@ module UHC.Agda.Builtins
 where
 
 import Prelude
+import qualified Data.Char as C
 import Debug.Trace
 -- ====================
 -- Integer
@@ -201,7 +202,6 @@ primCharEquality = (==)
 primShowChar :: Char -> String
 primShowChar c = show c
 
-import qualified Data.Char as C
 primIsLower     :: Char -> Bool
 primIsLower     = C.isLower
 primIsDigit     :: Char -> Bool
