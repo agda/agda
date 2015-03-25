@@ -377,11 +377,14 @@ compileClauses qnm _ projArgs c = do
         CC.Fail     -> return IMPOSSIBLE
 
     compileCase :: [HsName] -> Maybe Expr -> Int -> CC.Case CC.CompiledClauses
-                -> ([Branch] -> Maybe Expr -> CaseType -> a) -- ^ continuation
-                -> FreshNameT (CompileT TCM) a
+                -> ([Branch] -> Maybe Expr -> CaseType -> Expr) -- ^ continuation
+                -> FreshNameT (CompileT TCM) Expr
     compileCase env omniDefault casedvar nc cont = do
-        (cb, cty) <- case (M.toList $ CC.litBranches nc, M.toList $ CC.conBranches nc) of
-            ([], []) -> __IMPOSSIBLE__ -- can this actually happen? just fail for now.
+        case (M.toList $ CC.litBranches nc, M.toList $ CC.conBranches nc) of
+            ([], []) -> do
+                -- there are no branches, but there might be a catchAll branch
+                -- if not, we return the IMPOSSIBLE error term
+                return $ fromMaybe IMPOSSIBLE omniDefault
             (lbs, []) -> do
                 -- Lit branch
                 brs <- forM lbs $ \(l, cc) -> do
@@ -390,7 +393,7 @@ compileClauses qnm _ projArgs c = do
                        TL.LitChar _ cha -> return $ BrChar cha cc'
                        -- TODO: Handle other literals
                        _ -> lift $ uhcError $ "case on literal not supported: " ++ show l
-                return (brs, CTChar)
+                return $ cont brs omniDefault CTChar
             ([], cbs) -> do
                 -- Con branch
                 brs <- forM cbs $ \(b, CC.WithArity _ cc) -> do
@@ -402,10 +405,8 @@ compileClauses qnm _ projArgs c = do
                     return $ BrCon (aciDataCon conInfo) (Just b) vars cc'
                 -- get datatype info from first branch
                 fstConInfo <- lift $ getConstrInfo $ fst $ head cbs
-                return (brs, CTCon $ aciDataType fstConInfo)
+                return $ cont brs omniDefault (CTCon $ aciDataType fstConInfo)
             _ -> __IMPOSSIBLE__ -- having both constructor and lit branches for the same argument doesn't make sense
-
-        return $ cont cb omniDefault cty
 
     -- creates new lambas and puts the new arguments into the environment
     addLambdas :: Int -> FreshNameT (CompileT TCM) ([HsName], (Expr -> Expr))
