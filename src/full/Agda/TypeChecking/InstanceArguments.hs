@@ -221,7 +221,7 @@ rigidlyConstrainedMetas = do
           Pi{}       -> return True
           Level{}    -> return False
           DontCare{} -> return False
-          Lam{}      -> __IMPOSSIBLE__
+          Lam{}      -> return False  -- for instance in fst _p == λ x -> x (when fst is a projection)
           Shared{}   -> __IMPOSSIBLE__
     rigidMetas c =
       case clValue $ theConstraint c of
