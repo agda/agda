@@ -227,8 +227,7 @@ check-whitespace :
 
 .PHONY : install-fix-agda-whitespace
 install-fix-agda-whitespace :
-	cd src/fix-agda-whitespace && \
-	$(CABAL_CMD) install $(CABAL_OPTS)
+	cd src/fix-agda-whitespace && $(CABAL_CMD) install
 
 ########################################################################
 # HPC
