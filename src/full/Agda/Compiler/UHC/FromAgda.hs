@@ -387,13 +387,15 @@ compileClauses qnm _ projArgs c = do
                 return $ fromMaybe IMPOSSIBLE omniDefault
             (lbs, []) -> do
                 -- Lit branch
-                brs <- forM lbs $ \(l, cc) -> do
+                (brs, ctys) <- unzip <$> (forM lbs $ \(l, cc) -> do
                    cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
                    case l of
-                       TL.LitChar _ cha -> return $ BrChar cha cc'
+                       TL.LitChar _ cha     -> return $ (BrChar cha cc', CTChar)
+                       TL.LitString _ str   -> return $ (BrString str cc', CTString)
                        -- TODO: Handle other literals
                        _ -> lift $ uhcError $ "case on literal not supported: " ++ show l
-                return $ cont brs omniDefault CTChar
+                    )
+                return $ cont brs omniDefault (head ctys)
             ([], cbs) -> do
                 -- Con branch
                 brs <- forM cbs $ \(b, CC.WithArity _ cc) -> do

@@ -127,16 +127,6 @@ exprToCore (App f es)   = do
     f' <- exprToCore f
     es' <- mapM exprToCore es
     return $ mkApp f' es'
-exprToCore (Case e brs def CTChar) = do
-  e' <- exprToCore e
-  var <- freshLocalName
-  def' <- case def of
-        Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
-        Just x -> exprToCore x
-
-  css <- buildPrimCases eq (mkVar var) brs def'
-  return $ mkLet1Strict var e' css
-  where eq = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
 exprToCore (Case e brs def (CTCon dt)) = do
   caseScr <- freshLocalName
   defVar <- freshLocalName
@@ -150,6 +140,24 @@ exprToCore (Case e brs def (CTCon dt)) = do
   let cas = mkCase (mkVar caseScr) (branches ++ defBranches)
   e' <- exprToCore e
   return $ mkLet1Plain defVar def' (mkLet1Strict caseScr e' cas)
+-- cases on literals
+exprToCore (Case e brs def ct) = do
+  e' <- exprToCore e
+  var <- freshLocalName
+  def' <- case def of
+        Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
+        Just x -> exprToCore x
+
+  css <- buildPrimCases (eq ct) (mkVar var) brs (getLit ct) def'
+  return $ mkLet1Strict var e' css
+  where eq :: CaseType -> CExpr
+        eq CTChar = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
+        eq CTString = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primStringEquality"
+        eq _ = __IMPOSSIBLE__
+        getLit :: CaseType -> Branch -> CExpr
+        getLit CTChar   = mkChar . brChar
+        getLit CTString = mkString opts . brStr
+        getLit _ = __IMPOSSIBLE__
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
     e2' <- exprToCore e2
@@ -161,15 +169,16 @@ buildPrimCases :: Monad m
     => CExpr -- ^ equality function
     -> CExpr    -- ^ case scrutinee (in WHNF)
     -> [Branch]
+    -> (Branch -> CExpr) -- extract literal expr from branch
     -> CExpr    -- ^ default value
     -> ToCoreT m CExpr
-buildPrimCases _ _ [] def = return def
-buildPrimCases eq scr (b:brs) def = do
+buildPrimCases _ _ [] _ def = return def
+buildPrimCases eq scr (b:brs) getLit def = do
     var <- freshLocalName
     e' <- exprToCore (brExpr b)
-    rec' <- buildPrimCases eq scr brs def
+    rec' <- buildPrimCases eq scr brs getLit def
 
-    let eqTest = mkApp eq [scr, mkChar (brChar b)]
+    let eqTest = mkApp eq [scr, getLit b]
 
     return $ mkLet1Strict var eqTest (mkIfThenElse (mkVar var) e' rec')
 

@@ -87,6 +87,7 @@ data Lit
 data CaseType
   = CTCon ADataTy
   | CTChar
+  | CTString
   deriving (Show, Ord, Eq)
 
 data Expr
@@ -106,6 +107,7 @@ data Expr
 data Branch
   = BrCon   {brCon  :: ADataCon, brName :: Maybe QName, brVars :: [HsName], brExpr :: Expr}
   | BrChar  {brChar :: Char, brExpr :: Expr}
+  | BrString {brStr :: String, brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
 -- | Returns the arity of a constructor.
@@ -120,6 +122,7 @@ getCTagArity = destructCTag 0 (\_ _ _ ar -> ar)
 getBrVars :: Branch -> [HsName]
 getBrVars (BrCon {brVars = vs}) = vs
 getBrVars (BrChar {})            = []
+getBrVars (BrString {})          = []
 
 --------------------------------------------------------------------------------
 -- * Some smart constructors
@@ -208,3 +211,4 @@ fv = S.toList . fv'
     fvBr b = case b of
       BrCon _ _ vs e -> fv' e S.\\ S.fromList vs
       BrChar _ e -> fv' e
+      BrString _ e -> fv' e
