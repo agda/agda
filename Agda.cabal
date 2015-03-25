@@ -70,7 +70,7 @@ flag uhc
   default: False
   manual:  True
   description:
-    Install the UHC compiler.
+    Install the UHC backend (requires GHC 7.6 or newer).
 
 library
   hs-source-dirs:   src/full

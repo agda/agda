@@ -54,8 +54,6 @@ import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 import qualified Codec.Compression.GZip as G
-import Data.Time.Clock
-import Data.Ratio
 
 import qualified Agda.Compiler.Epic.Interface as Epic
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
@@ -120,7 +118,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150320 * 10 + 2
+currentInterfaceVersion = 20150325 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -464,12 +462,6 @@ instance EmbPrj Double where
   icod_   = icodeDouble
   value i = (! i) `fmap` gets doubleE
 
-instance EmbPrj Rational where
-  icod_ r = icode2' (numerator r) (denominator r)
-  value = vcase valu where
-    valu [a, b] = valu2 (%) a b
-    valu _      = malformed
-
 instance EmbPrj () where
   icod_ () = icode0'
   value = vcase valu where valu [] = valu0 ()
@@ -505,12 +497,6 @@ instance EmbPrj Bool where
   value = vcase valu where valu []  = valu0 True
                            valu [0] = valu0 False
                            valu _   = malformed
-
-instance EmbPrj NominalDiffTime where
-  icod_ a = icode1' (toRational a)
-  value = vcase valu where
-    valu [a] = valu1 fromRational a
-    valu _   = malformed
 
 instance EmbPrj AbsolutePath where
   icod_ file = do

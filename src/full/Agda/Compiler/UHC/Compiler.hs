@@ -138,6 +138,9 @@ installUHCAgdaBase = do
 -- | Compile an interface into an executable using UHC
 compilerMain :: Interface -> TCM ()
 compilerMain inter = do
+#if __GLASGOW_HASKELL__ < 706
+    _ <- internalError "UHC backend requires GHC 7.6 or newer."
+#endif
     when (not uhcBackendEnabled) $ internalError "Agda has been built without UHC support."
     -- TODO do proper check for uhc existance
     let uhc_exist = ExitSuccess
