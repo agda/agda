@@ -221,14 +221,14 @@ rigidlyConstrainedMetas = do
           Pi{}       -> return True
           Level{}    -> return False
           DontCare{} -> return False
-          Lam{}      -> return False  -- for instance in fst _p == λ x -> x (when fst is a projection)
+          Lam{}      -> __IMPOSSIBLE__
           Shared{}   -> __IMPOSSIBLE__
     rigidMetas c =
       case clValue $ theConstraint c of
         ValueCmp _ _ u v ->
           case (ignoreSharing u, ignoreSharing v) of
-            (MetaV m _, _) -> ifM (isRigid v) (return $ Just m) (return Nothing)
-            (_, MetaV m _) -> ifM (isRigid u) (return $ Just m) (return Nothing)
+            (MetaV m us, _) | isJust (allApplyElims us) -> ifM (isRigid v) (return $ Just m) (return Nothing)
+            (_, MetaV m vs) | isJust (allApplyElims vs) -> ifM (isRigid u) (return $ Just m) (return Nothing)
             _              -> return Nothing
         ElimCmp{}     -> return Nothing
         TypeCmp{}     -> return Nothing
