@@ -1021,13 +1021,12 @@ compareArgs es = do
   -- matrix <- forM es $ \ e -> forM apats $ \ (b, p) -> terSetUseSizeLt b $ compareElim e p
   matrix <- withUsableVars pats $ forM es $ \ e -> forM pats $ \ p -> compareElim e p
 
-  -- Count the number of coinductive projection(pattern)s in caller and callee
+  -- Count the number of coinductive projection(pattern)s in caller and callee.
+  -- Only recursive coinductive projections are eligible (Issue 1209).
   projsCaller <- genericLength <$> do
-    filterM isCoinductiveProjection $ mapMaybe (isProjP . getMasked) pats
-    -- filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjP pats
+    filterM (isCoinductiveProjection True) $ mapMaybe (isProjP . getMasked) pats
   projsCallee <- genericLength <$> do
-    filterM isCoinductiveProjection $ mapMaybe isProjElim es
-    -- filterM (not <.> isProjectionButNotCoinductive) $ mapMaybe isProjElim es
+    filterM (isCoinductiveProjection True) $ mapMaybe isProjElim es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   let guardedness = decr $ projsCaller - projsCallee

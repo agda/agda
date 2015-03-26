@@ -53,7 +53,7 @@ import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty (Pretty)
+import Agda.Utils.Pretty (Pretty, prettyShow)
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
@@ -367,6 +367,7 @@ terSetUseSizeLt = terModifyUseSizeLt . const
 withUsableVars :: UsableSizeVars a => a -> TerM b -> TerM b
 withUsableVars pats m = do
   vars <- usableSizeVars pats
+  reportSLn "term.size" 20 $ "usableSizeVars = " ++ show vars
   terSetUsableVars vars $ m
 
 -- | Set 'terUseSizeLt' when going under constructor @c@.
@@ -377,12 +378,14 @@ conUseSizeLt c m = do
     (const $ terSetUseSizeLt False m)
 
 -- | Set 'terUseSizeLt' for arguments following projection @q@.
+--   We disregard j<i after a non-coinductive projection.
+--   However, the projection need not be recursive (Issue 1470).
 projUseSizeLt :: QName -> TerM a -> TerM a
-projUseSizeLt q m = isCoinductiveProjection q >>= (`terSetUseSizeLt` m)
--- projUseSizeLt q m = do
---   ifM (liftTCM $ isProjectionButNotCoinductive q)
---     (terSetUseSizeLt False m)
---     (terSetUseSizeLt True  m)
+projUseSizeLt q m = do
+  co <- isCoinductiveProjection False q
+  reportSLn "term.size" 20 $ applyUnless co ("not " ++) $
+    "using SIZELT vars after projection " ++ prettyShow q
+  terSetUseSizeLt co m
 
 -- | For termination checking purposes flat should not be considered a
 --   projection. That is, it flat doesn't preserve either structural order
@@ -417,8 +420,8 @@ isProjectionButNotCoinductive qn = liftTCM $ do
 --
 --      isCoinductiveProjection (Stream.tail) = return True
 --   @
-isCoinductiveProjection :: MonadTCM tcm => QName -> tcm Bool
-isCoinductiveProjection q = liftTCM $ do
+isCoinductiveProjection :: MonadTCM tcm => Bool -> QName -> tcm Bool
+isCoinductiveProjection mustBeRecursive q = liftTCM $ do
   flat <- fmap nameOfFlat <$> coinductionKit
   -- yes for ♭
   if Just q == flat then return True else do
@@ -428,6 +431,7 @@ isCoinductiveProjection q = liftTCM $ do
       -> caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
            -- no for inductive or non-recursive record
            if recInduction rdef /= Just CoInductive then return False else do
+           if not mustBeRecursive then return True else do
            if not (recRecursive rdef) then return False else do
            -- TODO: the following test for recursiveness of a projection should be cached.
            -- E.g., it could be stored in the @Projection@ component.
