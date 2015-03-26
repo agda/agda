@@ -210,19 +210,19 @@ compileModule i = do
             modInfoCached <- case uptodate of
               True  -> do
                     lift $ reportSLn "" 5 $
-                        show moduleName ++ " : UHC backend interface file is up to date."
+                        show modNm ++ " : UHC backend interface file is up to date."
                     uif <- lift $ readModInfoFile uifFile
                     case uif of
                       Nothing -> do
                         lift $ reportSLn "" 5 $
-                            show moduleName ++ " : Could not read UHC interface file, will compile this module from scratch."
+                            show modNm ++ " : Could not read UHC interface file, will compile this module from scratch."
                         return Nothing
                       Just uif' -> do
                         -- now check if the versions inside modInfos match with the dep info
                         let deps = amiDepsVersion uif'
                         if depsMatch deps curModInfos then do
                           lift $ reportSLn "" 1 $
-                            show moduleName ++ " : module didn't change, skipping it."
+                            show modNm ++ " : module didn't change, skip compiling it."
                           return $ Just uif'
                         else
                           return Nothing
