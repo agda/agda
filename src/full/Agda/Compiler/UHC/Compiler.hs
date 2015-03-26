@@ -294,7 +294,9 @@ callUHC1 :: [String] -> TCM ()
 callUHC1 args = do
     uhcBin <- getUhcBin
     doCall <- optUHCCallUHC <$> commandLineOptions
-    when doCall (callCompiler uhcBin args)
+    if doCall
+    then callCompiler uhcBin args
+    else reportSLn "" 1 $ "NOT Calling: " ++ intercalate " " (uhcBin : args)
 
 getUhcBin :: TCM FilePath
 getUhcBin = fromMaybe ("uhc") . optUHCBin <$> commandLineOptions
