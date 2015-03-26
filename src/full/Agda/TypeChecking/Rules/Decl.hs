@@ -224,7 +224,11 @@ mutualChecks i d ds names = do
   -- to avoid making the injectivity checker loop.
   checkTermination_        d
   checkPositivity_         names
-  checkCoinductiveRecords  ds
+  -- Andreas, 2015-03-26 Issue 1470:
+  -- Restricting coinduction to recursive does not solve the
+  -- actual problem, and prevents interesting sound applications
+  -- of sized types.
+  -- checkCoinductiveRecords  ds
   -- Andreas, 2012-09-11:  Injectivity check stores clauses
   -- whose 'Relevance' is affected by polarity computation,
   -- so do it here.
