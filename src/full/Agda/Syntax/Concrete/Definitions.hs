@@ -98,7 +98,7 @@ data NiceDeclaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
     --   The 'Declaration' is the actual 'FunClause'.
-  | FunSig Range Fixity' Access IsInstance ArgInfo TerminationCheck Name Expr
+  | FunSig Range Fixity' Access IsInstance IsMacro ArgInfo TerminationCheck Name Expr
   | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause]
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
@@ -155,6 +155,7 @@ data DeclarationException
           --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
         | InvalidCatchallPragma Range
         | UnquoteDefRequiresSignature Name
+        | BadMacroDef NiceDeclaration
     deriving (Typeable)
 
 instance HasRange DeclarationException where
@@ -179,6 +180,7 @@ instance HasRange DeclarationException where
     getRange (PragmaNoTerminationCheck r)  = r
     getRange (InvalidCatchallPragma r)     = r
     getRange (UnquoteDefRequiresSignature x) = getRange x
+    getRange (BadMacroDef d)               = getRange d
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)           = r
@@ -190,7 +192,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceImport r _ _ _ _)          = r
   getRange (NicePragma r _)                = r
   getRange (PrimitiveFunction r _ _ _ _ _) = r
-  getRange (FunSig r _ _ _ _ _ _ _)        = r
+  getRange (FunSig r _ _ _ _ _ _ _ _)      = r
   getRange (FunDef r _ _ _ _ _ _)          = r
   getRange (DataDef r _ _ _ _ _)           = r
   getRange (RecDef r _ _ _ _ _ _ _)        = r
@@ -250,32 +252,35 @@ instance Show DeclarationException where
     pwords "The CATCHALL pragma can only preceed a function clause."
   show (UnquoteDefRequiresSignature x) = show $ fsep $
     pwords "Missing type signature for unquoteDef" ++ [pretty x]
+  show (BadMacroDef nd) = show $ fsep $
+    [text $ declName nd] ++ pwords "are not allowed in macro blocks"
   show (NotAllowedInMutual nd) = show $ fsep $
-    [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
-    where
-      decl Axiom{}             = "Postulates"
-      decl NiceField{}         = "Fields"
-      decl NiceMutual{}        = "Mutual blocks"
-      decl NiceModule{}        = "Modules"
-      decl NiceModuleMacro{}   = "Modules"
-      decl NiceOpen{}          = "Open declarations"
-      decl NiceImport{}        = "Import statements"
-      decl NicePragma{}        = "Pragmas"
-      decl PrimitiveFunction{} = "Primitive declarations"
-      decl NicePatternSyn{}    = "Pattern synonyms"
-      decl NiceUnquoteDecl{}   = "Unquoted declarations"
-      decl NiceUnquoteDef{}    = __IMPOSSIBLE__
-      decl NiceRecSig{}        = __IMPOSSIBLE__
-      decl NiceDataSig{}       = __IMPOSSIBLE__
-      decl NiceFunClause{}     = __IMPOSSIBLE__
-      decl FunSig{}            = __IMPOSSIBLE__
-      decl FunDef{}            = __IMPOSSIBLE__
-      decl RecDef{}            = __IMPOSSIBLE__
-      decl DataDef{}           = __IMPOSSIBLE__
+    [text $ declName nd] ++ pwords "are not allowed in mutual blocks"
   show (Codata _) =
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
   show (DeclarationPanic s) = s
+
+declName :: NiceDeclaration -> String
+declName Axiom{}             = "Postulates"
+declName NiceField{}         = "Fields"
+declName NiceMutual{}        = "Mutual blocks"
+declName NiceModule{}        = "Modules"
+declName NiceModuleMacro{}   = "Modules"
+declName NiceOpen{}          = "Open declarations"
+declName NiceImport{}        = "Import statements"
+declName NicePragma{}        = "Pragmas"
+declName PrimitiveFunction{} = "Primitive declarations"
+declName NicePatternSyn{}    = "Pattern synonyms"
+declName NiceUnquoteDecl{}   = "Unquoted declarations"
+declName NiceUnquoteDef{}    = "Unquoted definitions"
+declName NiceRecSig{}        = "Records"
+declName NiceDataSig{}       = "Data types"
+declName NiceFunClause{}     = "Functions without a type signature"
+declName FunSig{}            = "Type signatures"
+declName FunDef{}            = "Function definitions"
+declName RecDef{}            = "Records"
+declName DataDef{}           = "Data types"
 
 {--------------------------------------------------------------------------
     The niceifier
@@ -416,7 +421,7 @@ data DeclKind
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig _ _ _ _ _ tc x _)       = LoneSig (FunName tc) x
+declKind (FunSig _ _ _ _ _ _ tc x _)     = LoneSig (FunName tc) x
 declKind (NiceRecSig _ _ _ x pars _)     = LoneSig (RecName $ parameters pars) x
 declKind (NiceDataSig _ _ _ x pars _)    = LoneSig (DataName $ parameters pars) x
 declKind (FunDef _ _ _ _ tc x _)         = LoneDef (FunName tc) x
@@ -483,6 +488,7 @@ niceDeclarations ds = do
       Abstract  _ ds       -> concatMap declaredNames ds
       Private   _ ds       -> concatMap declaredNames ds
       InstanceB _ ds       -> concatMap declaredNames ds
+      Macro     _ ds       -> concatMap declaredNames ds
       Postulate _ ds       -> concatMap declaredNames ds
       Primitive _ ds       -> concatMap declaredNames ds
       Open{}               -> []
@@ -591,6 +597,9 @@ niceDeclarations ds = do
         InstanceB r ds' ->
           (++) <$> (instanceBlock r =<< nice ds') <*> nice ds
 
+        Macro r ds' ->
+          (++) <$> (macroBlock r =<< nice ds') <*> nice ds
+
         Postulate _ ds' -> (++) <$> niceAxioms ds' <*> nice ds
 
         Primitive _ ds' -> (++) <$> (map toPrim <$> niceAxioms ds') <*> nice ds
@@ -679,7 +688,7 @@ niceDeclarations ds = do
       -- register x as lone type signature, to recognize clauses later
       addLoneSig (FunName termCheck) x
       ds <- nice ds
-      return $ FunSig (getRange d) fx PublicAccess NotInstanceDef info termCheck x t : ds
+      return $ FunSig (getRange d) fx PublicAccess NotInstanceDef NotMacroDef info termCheck x t : ds
     niceTypeSig _ _ _ = __IMPOSSIBLE__
 
     -- We could add a default type signature here, but at the moment we can't
@@ -730,7 +739,7 @@ niceDeclarations ds = do
     mkFunDef info termCheck x mt ds0 = do
       cs <- mkClauses x (expandEllipsis ds0) False
       f  <- getFixity x
-      return [ FunSig (fuseRange x t) f PublicAccess NotInstanceDef info termCheck x t
+      return [ FunSig (fuseRange x t) f PublicAccess NotInstanceDef NotMacroDef info termCheck x t
              , FunDef (getRange ds0) ds0 f ConcreteDef termCheck x cs ]
         where
           t = case mt of
@@ -873,7 +882,7 @@ niceDeclarations ds = do
         -- Andreas, 2013-02-28 (issue 804):
         -- do not termination check a mutual block if any of its
         -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
-        termCheck (FunSig _ _ _ _ _ tc _ _)        = tc
+        termCheck (FunSig _ _ _ _ _ _ tc _ _)      = tc
         termCheck (FunDef _ _ _ _ tc _ _)          = tc
         termCheck (NiceMutual _ tc _)              = tc
         termCheck (NiceUnquoteDecl _ _ _ _ tc _ _) = tc
@@ -964,7 +973,7 @@ niceDeclarations ds = do
         NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkPrivate ds
         NiceModule r p a x tel ds        -> (\ p -> NiceModule r p a x tel ds) <$> setPrivate p
         NiceModuleMacro r p x ma op is   -> (\ p -> NiceModuleMacro r p x ma op is) <$> setPrivate p
-        FunSig r f p i rel tc x e        -> (\ p -> FunSig r f p i rel tc x e) <$> setPrivate p
+        FunSig r f p i m rel tc x e      -> (\ p -> FunSig r f p i m rel tc x e) <$> setPrivate p
         NiceRecSig r f p x ls t          -> (\ p -> NiceRecSig r f p x ls t) <$> setPrivate p
         NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
         NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> setPrivate p
@@ -1000,13 +1009,12 @@ niceDeclarations ds = do
       let (ds', anyChange) = runChange $ mapM mkInstance ds
       if anyChange then return ds' else throwError $ UselessInstance r
 
-
     -- Make a declaration eligible for instance search.
     mkInstance :: Updater NiceDeclaration
     mkInstance d =
       case d of
         Axiom r f p i rel x e            -> (\ i -> Axiom r f p i rel x e) <$> setInstance i
-        FunSig r f p i rel tc x e        -> (\ i -> FunSig r f p i rel tc x e) <$> setInstance i
+        FunSig r f p i m rel tc x e      -> (\ i -> FunSig r f p i m rel tc x e) <$> setInstance i
         NiceMutual{}                     -> return d
         NiceFunClause{}                  -> return d
         FunDef{}                         -> return d
@@ -1028,7 +1036,16 @@ niceDeclarations ds = do
     setInstance :: Updater IsInstance
     setInstance i = case i of
       InstanceDef -> return i
-      _             -> dirty $ InstanceDef
+      _           -> dirty $ InstanceDef
+
+    macroBlock r ds = mapM mkMacro ds
+
+    mkMacro :: NiceDeclaration -> Nice NiceDeclaration
+    mkMacro d =
+      case d of
+        FunSig r f p i _ rel tc x e -> return $ FunSig r f p i MacroDef rel tc x e
+        FunDef{}                    -> return d
+        _                           -> throwError (BadMacroDef d)
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
@@ -1082,6 +1099,7 @@ fixities = foldMap $ \ d -> case d of
   Abstract  _ ds' -> fixities ds'
   Private   _ ds' -> fixities ds'
   InstanceB _ ds' -> fixities ds'
+  Macro     _ ds' -> fixities ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -1124,7 +1142,7 @@ notSoNiceDeclaration d =
       NiceRecSig r _ _ x bs e          -> RecordSig r x bs e
       NiceDataSig r _ _ x bs e         -> DataSig r Inductive x bs e
       NiceFunClause _ _ _ _ _ d        -> d
-      FunSig _ _ _ _ rel tc x e        -> TypeSig rel x e
+      FunSig _ _ _ _ _ rel tc x e      -> TypeSig rel x e
       FunDef r [d] _ _ _ _ _           -> d
       FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
       DataDef r _ _ x bs cs            -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs

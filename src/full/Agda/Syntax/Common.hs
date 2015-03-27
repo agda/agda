@@ -626,6 +626,13 @@ instance KillRange IsInstance where
 instance HasRange IsInstance where
   getRange _ = noRange
 
+-- | Is this a macro definition?
+data IsMacro = MacroDef | NotMacroDef
+  deriving (Typeable, Show, Eq, Ord)
+
+instance KillRange IsMacro where killRange = id
+instance HasRange  IsMacro where getRange _ = noRange
+
 type Nat    = Int
 type Arity  = Nat
 

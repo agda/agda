@@ -99,6 +99,7 @@ import Agda.Utils.Tuple
     'abstract'      { TokKeyword KwAbstract $$ }
     'private'       { TokKeyword KwPrivate $$ }
     'instance'      { TokKeyword KwInstance $$ }
+    'macro'         { TokKeyword KwMacro $$ }
     'Prop'          { TokKeyword KwProp $$ }
     'Set'           { TokKeyword KwSet $$ }
     'forall'        { TokKeyword KwForall $$ }
@@ -216,7 +217,8 @@ Token
     | 'mutual'      { TokKeyword KwMutual $1 }
     | 'abstract'    { TokKeyword KwAbstract $1 }
     | 'private'     { TokKeyword KwPrivate $1 }
-    | 'instance'        { TokKeyword KwInstance $1 }
+    | 'instance'    { TokKeyword KwInstance $1 }
+    | 'macro'       { TokKeyword KwMacro $1 }
     | 'Prop'        { TokKeyword KwProp $1 }
     | 'Set'         { TokKeyword KwSet $1 }
     | 'forall'      { TokKeyword KwForall $1 }
@@ -1002,6 +1004,7 @@ Declaration
     | Abstract      { [$1] }
     | Private       { [$1] }
     | Instance      { [$1] }
+    | Macro         { [$1] }
     | Postulate     { [$1] }
     | Primitive     { [$1] }
     | Open          {  $1  }
@@ -1111,6 +1114,11 @@ Private : 'private' Declarations        { Private (fuseRange $1 $2) $2 }
 -- Instance declarations.
 Instance :: { Declaration }
 Instance : 'instance' Declarations  { InstanceB (fuseRange $1 $2) $2 }
+
+
+-- Macro declarations.
+Macro :: { Declaration }
+Macro : 'macro' Declarations { Macro (fuseRange $1 $2) $2 }
 
 
 -- Postulates.

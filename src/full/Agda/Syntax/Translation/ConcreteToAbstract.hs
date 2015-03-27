@@ -965,7 +965,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ _ d@[C.FunSig _ fx _ instanc info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+            NiceMutual _ _ d@[C.FunSig _ fx _ instanc _ info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
                 do  when (abstract == AbstractDef) $ do
                       genericError $ "abstract not allowed in let expressions"
                     when (instanc == InstanceDef) $ do
@@ -994,7 +994,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                   case definedName p of
                     Nothing -> throwError err
                     Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
-                      [ C.FunSig r noFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                      [ C.FunSig r noFixity' PublicAccess NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                         [C.Clause x catchall lhs (C.RHS rhs) NoWhere []]
                       ]
@@ -1136,7 +1136,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p i rel tc x t -> toAbstractNiceAxiom A.FunSig (C.Axiom r f p i rel x t)
+    C.FunSig r f p i _ rel tc x t -> toAbstractNiceAxiom A.FunSig (C.Axiom r f p i rel x t)
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x

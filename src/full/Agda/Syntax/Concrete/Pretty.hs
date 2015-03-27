@@ -383,6 +383,7 @@ instance Pretty Declaration where
             Abstract _ ds   -> namedBlock "abstract" ds
             Private _ ds    -> namedBlock "private" ds
             InstanceB _ ds  -> namedBlock "instance" ds
+            Macro _ ds      -> namedBlock "macro" ds
             Postulate _ ds  -> namedBlock "postulate" ds
             Primitive _ ds  -> namedBlock "primitive" ds
             Module _ x tel ds ->

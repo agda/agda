@@ -388,6 +388,7 @@ data Declaration
   | Abstract    !Range [Declaration]
   | Private     !Range [Declaration]
   | InstanceB   !Range [Declaration]
+  | Macro       !Range [Declaration]
   | Postulate   !Range [TypeSignatureOrInstanceBlock]
   | Primitive   !Range [TypeSignature]
   | Open        !Range QName ImportDirective
@@ -633,6 +634,7 @@ instance HasRange Declaration where
   getRange (ModuleMacro r _ _ _ _) = r
   getRange (Import r _ _ _ _)      = r
   getRange (InstanceB r _)         = r
+  getRange (Macro r _)             = r
   getRange (Private r _)           = r
   getRange (Postulate r _)         = r
   getRange (Primitive r _)         = r
@@ -759,6 +761,7 @@ instance KillRange Declaration where
   killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
   killRange (Private _ d)           = killRange1 (Private noRange) d
   killRange (InstanceB _ d)         = killRange1 (InstanceB noRange) d
+  killRange (Macro _ d)             = killRange1 (Macro noRange) d
   killRange (Postulate _ t)         = killRange1 (Postulate noRange) t
   killRange (Primitive _ t)         = killRange1 (Primitive noRange) t
   killRange (Open _ q i)            = killRange2 (Open noRange) q i
