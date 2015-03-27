@@ -232,6 +232,9 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     patsyn n = nameToFileA modMap file n True $ \isOp ->
                   mempty { aspect = Just $ Name (Just $ Constructor Common.Inductive) isOp }
 
+    macro n = nameToFileA modMap file n True $ \isOp ->
+                  mempty { aspect = Just $ Name (Just Macro) isOp }
+
     field m n = nameToFile modMap file m n
                            (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                            Nothing
@@ -287,6 +290,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
     getExpr :: A.Expr -> File
     getExpr (A.PatternSyn q) = patsyn q
+    getExpr (A.Macro q)      = macro q
     getExpr _                = mempty
 
     getFieldDecl :: A.Declaration -> File
@@ -386,7 +390,7 @@ nameKinds hlLevel decl = do
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
   let syntax = foldr ($) HMap.empty $ map declToKind $ universeBi decl
-  let merged = HMap.unions [local, imported, syntax]
+  let merged = unions [local, imported, syntax]
   return (\n -> HMap.lookup n merged)
   where
   fix = HMap.map (defnToKind . theDef) . sigDefinitions
@@ -396,10 +400,12 @@ nameKinds hlLevel decl = do
   -- are thrown away whenever possible. The 'declToKind' function
   -- below can return several explanations for one qualified name; the
   -- 'Postulate's are bogus.
-  insert = HMap.insertWith dropPostulates
-    where
-    dropPostulates Postulate k = k
-    dropPostulates k         _ = k
+  merge Postulate k = k
+  merge _     Macro = Macro  -- If the abstract syntax says macro, it's a macro.
+  merge k         _ = k
+
+  unions = foldr (HMap.unionWith merge) HMap.empty
+  insert = HMap.insertWith merge
 
   defnToKind :: Defn -> NameKind
   defnToKind   M.Axiom{}                           = Postulate
@@ -412,7 +418,9 @@ nameKinds hlLevel decl = do
 
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind
-  declToKind (A.Axiom _ _ _ q _)    = insert q Postulate
+  declToKind (A.Axiom _ i _ q _)
+    | SI.defMacro i == Common.MacroDef = insert q Macro
+    | otherwise                        = insert q Postulate
   declToKind (A.Field _ q _)        = insert q Field -- Function
     -- Note that the name q can be used both as a field name and as a
     -- projection function. Highlighting of field names is taken care
@@ -426,7 +434,7 @@ nameKinds hlLevel decl = do
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
   declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
-  declToKind (A.FunDef  _ q _ _)    = insert q Function
+  declToKind (A.FunDef  _ q _ _)     = insert q Function
   declToKind (A.UnquoteDecl _ _ q _) = insert q Function
   declToKind (A.UnquoteDef _ q _)    = insert q Function
   declToKind (A.DataSig _ q _ _)    = insert q Datatype

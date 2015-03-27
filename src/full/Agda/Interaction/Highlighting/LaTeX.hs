@@ -368,6 +368,7 @@ code = do
         Primitive                 -> s
         Record                    -> s
         Argument                  -> s
+        Macro                     -> s
 
 -- Escapes special characters.
 escape :: Text -> Text

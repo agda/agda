@@ -1363,6 +1363,7 @@ instance EmbPrj HP.NameKind where
   icod_ HP.Primitive       = icode0 7
   icod_ HP.Record          = icode0 8
   icod_ HP.Argument        = icode0 9
+  icod_ HP.Macro           = icode0 10
 
   value = vcase valu where
     valu []      = valu0 HP.Bound
@@ -1375,6 +1376,7 @@ instance EmbPrj HP.NameKind where
     valu [7]     = valu0 HP.Primitive
     valu [8]     = valu0 HP.Record
     valu [9]     = valu0 HP.Argument
+    valu [10]    = valu0 HP.Macro
     valu _       = malformed
 
 instance EmbPrj HP.Aspect where

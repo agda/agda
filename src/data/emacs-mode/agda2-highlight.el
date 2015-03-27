@@ -112,6 +112,8 @@ Also sets the default value of VARIABLE to GROUP."
              :foreground "darkgreen")
             (agda2-highlight-primitive-face
              :foreground "darkgreen")
+            (agda2-highlight-macro-face
+             :foreground "aquamarine4")
             (agda2-highlight-record-face
              :foreground "medium blue")
             (agda2-highlight-dotted-face)
@@ -176,6 +178,9 @@ Also sets the default value of VARIABLE to GROUP."
                 (cons 'agda2-highlight-primitive-face
                       (agda2-highlight-face-attributes
                        font-lock-constant-face))
+                (cons 'agda2-highlight-macro-face
+                      (agda2-highlight-face-attributes
+                       font-lock-function-name-face))
                 (cons 'agda2-highlight-record-face
                       (agda2-highlight-face-attributes
                        font-lock-variable-name-face))
@@ -292,6 +297,11 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for primitive functions."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-macro-face
+  '((t (:foreground "aquamarine4")))
+  "The face used for macros."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-record-face
   '((t (:foreground "medium blue")))
   "The face used for record types."
@@ -357,6 +367,7 @@ If `agda2-highlight-face-groups' is nil."
     (module                 . agda2-highlight-module-face)
     (postulate              . agda2-highlight-postulate-face)
     (primitive              . agda2-highlight-primitive-face)
+    (macro                  . agda2-highlight-macro-face)
     (record                 . agda2-highlight-record-face)
     (dotted                 . agda2-highlight-dotted-face)
     (operator               . agda2-highlight-operator-face)
@@ -386,6 +397,7 @@ The aspects currently recognised are the following:
 `postulate'              Postulates.
 `primitive'              Primitive functions.
 `primitivetype'          Primitive types (like Set and Prop).
+`macro'                  Macros.
 `record'                 Record types.
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
