@@ -11,44 +11,37 @@ maintenance branch is maint-2.4.0.
   git checkout -b ghc-X.Y.Z
   ````
 
-* Install the tools in the `build-tools` field of the `Agda.cabal`
+* Install the tools in the `build-tools` field(s) of the `Agda.cabal`
   file.
 
 * Install Agda using GHC X.Y.Z.
 
   `make install-bin`
 
-* Run the test-suite, using `make test` (which does not work properly
-  unless you run `autoreconf` and `./configure` first).
+* Run the test-suite, using `make test`.
+
+* Test the different flags for installing Agda describes in the
+  `Agda.cabal` file.
 
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
 
   `cabal configure && cabal haddock`
 
-* Update the `tested-with` field in the `Agda.cabal` file.
-
 * Test the fix-agda-whitespace program:
 
   `make install-fix-agda-whitespace`
 
-* Update the `tested-with` field in the `fix-agda-whitespace.cabal` file.
-
 * Test the hTags program:
 
-  ````bash
-  cd src/hTags/ && cabal clean
-  rm -f src/full/TAGS
-  make TAGS
-  ````
-
-* Update the `tested-with` field in the `hTags.cabal` file.
+  `make TAGS`
 
 * Commit your changes.
 
 * Merge the ghc-X.Y.Z branch in the maint-2.4.0 branch and push it:
 
 ````bash
+  git checkout maint-2.4.0
   git merge ghc-X.Y.Z
   git push
   ````
@@ -62,18 +55,28 @@ maintenance branch is maint-2.4.0.
 
 * Delete the ghc-X.Y.Z branch.
 
-* If necessary, install new tools in the `build-tools` field of the
+* If necessary, install new tools in the `build-tools` field(s) of the
   `Agda.cabal` file.
 
 * Run the test-suite, using `make test`.
+
+* Test the different flags for installing Agda describes in the
+  `Agda.cabal` file.
 
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
 
   `cabal configure && cabal haddock`
 
-* Add X.Y.Z to the `.travis.yml` file.
-
 * If necessary, commit your changes.
 
 * Push to the master branch.
+
+* Travis:
+
+  - Add GHC X.Y.Z to the `.travis.yml` file in both branches.
+
+  - When the Travis instance for GHC X.Y.Z have passed in both
+    branches, update the `tested-with` field in the `Agda.cabal`,
+    `fix-agda-whitespace.cabal` and `hTags.cabal` files in both
+    branches.
