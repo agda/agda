@@ -210,7 +210,7 @@ benchmark-without-logs :
 
 .PHONY : clean
 clean :
-	$(CABAL_CMD) clean $(CABAL_OPTS)
+	$(CABAL_CMD) clean --builddir=$(BUILD_DIR)
 
 ## Whitespace-related #####################################################
 
