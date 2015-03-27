@@ -811,7 +811,8 @@ instance DotVars A.Expr where
     A.Unquote {}           -> __IMPOSSIBLE__
     A.Tactic {}            -> __IMPOSSIBLE__
     A.DontCare v           -> dotVars v
-    A.PatternSyn n         -> Set.empty
+    A.PatternSyn {}        -> Set.empty
+    A.Macro {}             -> Set.empty
 
 instance DotVars A.Assign where
   dotVars (A.Assign _ e) = dotVars e

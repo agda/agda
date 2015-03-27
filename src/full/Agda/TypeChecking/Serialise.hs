@@ -118,7 +118,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150325 * 10 + 0
+currentInterfaceVersion = 20150327 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -643,11 +643,13 @@ instance EmbPrj KindOfName where
   icod_ FldName        = icode0 2
   icod_ PatternSynName = icode0 3
   icod_ QuotableName   = icode0 4
+  icod_ MacroName      = icode0 5
   value = vcase valu where valu []  = valu0 DefName
                            valu [1] = valu0 ConName
                            valu [2] = valu0 FldName
                            valu [3] = valu0 PatternSynName
                            valu [4] = valu0 QuotableName
+                           valu [5] = valu0 MacroName
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Associativity where
@@ -756,6 +758,7 @@ instance EmbPrj A.Expr where
   icod_ (A.DontCare a)          = icode1 25 a
   icod_ (A.PatternSyn a)        = icode1 26 a
   icod_ (A.Proj a)              = icode1 27 a
+  icod_ (A.Macro a)             = icode1 28 a
 
   value = vcase valu
     where
@@ -785,6 +788,7 @@ instance EmbPrj A.Expr where
       valu [25, a]    = valu1 A.DontCare a
       valu [26, a]    = valu1 A.PatternSyn a
       valu [27, a]    = valu1 A.Proj a
+      valu [28, a]    = valu1 A.Macro a
       valu _          = malformed
 
       i = ExprRange noRange

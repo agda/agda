@@ -69,6 +69,7 @@ data Expr
   | Proj QName                         -- ^ Projection.
   | Con  AmbiguousQName                -- ^ Constructor.
   | PatternSyn QName                   -- ^ Pattern synonym.
+  | Macro QName                        -- ^ Macro.
   | Lit Literal                        -- ^ Literal.
   | QuestionMark MetaInfo InteractionId
     -- ^ Meta variable for interaction.
@@ -474,6 +475,7 @@ instance HasRange Expr where
     getRange (Tactic i _ _ _)      = getRange i
     getRange (DontCare{})          = noRange
     getRange (PatternSyn x)        = getRange x
+    getRange (Macro x)             = getRange x
 
 instance HasRange Declaration where
     getRange (Axiom    _ i _ _ _    ) = getRange i
@@ -592,6 +594,7 @@ instance KillRange Expr where
   killRange (Tactic i e xs ys)     = killRange4 Tactic i e xs ys
   killRange (DontCare e)           = killRange1 DontCare e
   killRange (PatternSyn x)         = killRange1 PatternSyn x
+  killRange (Macro x)              = killRange1 Macro x
 
 instance KillRange Declaration where
   killRange (Axiom    p i rel a b     ) = killRange4 (Axiom p)  i rel a b
@@ -759,7 +762,8 @@ instance AllNames Expr where
   allNames Unquote{}               = Seq.empty
   allNames (Tactic _ e xs ys)      = allNames e >< allNames xs >< allNames ys
   allNames DontCare{}              = Seq.empty
-  allNames (PatternSyn x)          = Seq.empty
+  allNames PatternSyn{}            = Seq.empty
+  allNames Macro{}                 = Seq.empty
 
 instance AllNames LamBinding where
   allNames DomainFree{}       = Seq.empty
@@ -821,6 +825,7 @@ nameExpr d = mk (anameKind d) $ anameName d
     mk FldName        x = Proj x
     mk ConName        x = Con $ AmbQ [x]
     mk PatternSynName x = PatternSyn x
+    mk MacroName      x = Macro x
     mk QuotableName   x = App i (Quote i) (defaultNamedArg $ Def x)
       where i = ExprRange (getRange x)
 
@@ -924,7 +929,8 @@ instance SubstExpr Expr where
     Unquote i             -> e
     Tactic i e xs ys      -> Tactic i (substExpr s e) (substExpr s xs) (substExpr s ys)
     DontCare e            -> DontCare (substExpr s e)
-    PatternSyn x          -> e
+    PatternSyn{}          -> e
+    Macro{}               -> e
 
 instance SubstExpr LetBinding where
   substExpr s lb = case lb of

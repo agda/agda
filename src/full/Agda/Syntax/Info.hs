@@ -112,16 +112,17 @@ data DefInfo = DefInfo
   , defAccess   :: Access
   , defAbstract :: IsAbstract
   , defInstance :: IsInstance
+  , defMacro    :: IsMacro
   , defInfo     :: DeclInfo
   }
   deriving (Typeable, Show, Eq)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
-mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef (DeclInfo x r)
+mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef NotMacroDef (DeclInfo x r)
 
 -- | Same as @mkDefInfo@ but where we can also give the @IsInstance@
-mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> Range -> DefInfo
-mkDefInfoInstance x f a ab i r = DefInfo f a ab i (DeclInfo x r)
+mkDefInfoInstance :: Name -> Fixity' -> Access -> IsAbstract -> IsInstance -> IsMacro -> Range -> DefInfo
+mkDefInfoInstance x f a ab i m r = DefInfo f a ab i m (DeclInfo x r)
 
 instance HasRange DefInfo where
   getRange = getRange . defInfo

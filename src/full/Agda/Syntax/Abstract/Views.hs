@@ -76,6 +76,7 @@ instance ExprLike Expr where
       Proj{}               -> m
       Con{}                -> m
       PatternSyn{}         -> m
+      Macro{}              -> m
       Lit{}                -> m
       QuestionMark{}       -> m
       Underscore{}         -> m
@@ -136,6 +137,7 @@ instance ExprLike Expr where
       Tactic ei e xs ys       -> f =<< Tactic ei <$> trav e <*> trav xs <*> trav ys
       DontCare e              -> f =<< DontCare <$> trav e
       PatternSyn{}            -> f e
+      Macro{}                 -> f e
 
 -- | TODO: currently does not go into colors.
 instance ExprLike a => ExprLike (Common.Arg c a) where

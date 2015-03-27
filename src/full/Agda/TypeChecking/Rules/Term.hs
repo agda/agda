@@ -951,6 +951,14 @@ checkApplication hd args e t = do
               e' = A.lambdaLiftExpr (map unArg ns) (A.substExpr s p')
           checkExpr e' t
 
+    -- Subcase: macro
+    A.Macro x -> do
+      -- First go: no parameters
+      let unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
+          q e = A.App (A.ExprRange (getRange e)) (A.QuoteTerm A.exprNoRange) (defaultNamedArg e)
+          desugared = unq $ unAppView $ Application (A.Def x) $ (map . fmap . fmap) q args
+      checkExpr desugared t
+
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
