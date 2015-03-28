@@ -169,19 +169,19 @@ partP ms s = do
 -- | Used to define the return type of 'opP'.
 
 type family OperatorType (k :: NotationKind) (e :: *) :: *
-type instance OperatorType InfixNotation   e = MaybePlaceholder e -> MaybePlaceholder e -> e
-type instance OperatorType PrefixNotation  e = MaybePlaceholder e -> e
-type instance OperatorType PostfixNotation e = MaybePlaceholder e -> e
-type instance OperatorType NonfixNotation  e = e
+type instance OperatorType 'InfixNotation   e = MaybePlaceholder e -> MaybePlaceholder e -> e
+type instance OperatorType 'PrefixNotation  e = MaybePlaceholder e -> e
+type instance OperatorType 'PostfixNotation e = MaybePlaceholder e -> e
+type instance OperatorType 'NonfixNotation  e = e
 
 -- | A singleton type for 'NotationKind' (except for the constructor
 -- 'NoNotation').
 
 data NK (k :: NotationKind) :: * where
-  In   :: NK InfixNotation
-  Pre  :: NK PrefixNotation
-  Post :: NK PostfixNotation
-  Non  :: NK NonfixNotation
+  In   :: NK 'InfixNotation
+  Pre  :: NK 'PrefixNotation
+  Post :: NK 'PostfixNotation
+  Non  :: NK 'NonfixNotation
 
 -- | Parse the \"operator part\" of the given notation.
 --
