@@ -1,6 +1,9 @@
-{-# LANGUAGE CPP              #-}
-{-# LANGUAGE FlexibleContexts #-}  -- This will be required by GHC 7.10.
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE TupleSections #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
 
 module Agda.Auto.Auto (auto) where
 

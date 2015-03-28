@@ -1,11 +1,14 @@
 {-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleContexts      #-}  -- This will be required by GHC 7.10.
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE TupleSections         #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
 
 module Agda.TypeChecking.Rules.Term where
 

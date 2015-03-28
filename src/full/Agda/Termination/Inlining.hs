@@ -1,5 +1,8 @@
-{-# LANGUAGE CPP              #-}
-{-# LANGUAGE FlexibleContexts #-}  -- It will be required by GHC 7.10.
+{-# LANGUAGE CPP #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
 
 -- Author:  Ulf Norell
 -- Created: 2013-11-09

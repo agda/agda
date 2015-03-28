@@ -1,6 +1,9 @@
-{-# LANGUAGE CPP              #-}
-{-# LANGUAGE FlexibleContexts #-}  -- This will be required by GHC 7.10.
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE TupleSections #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
 
 {-| This module deals with finding imported modules and loading their
     interface files.
