@@ -92,7 +92,11 @@ addForcingAnnotations t =
   ifM (not . optForcing <$> commandLineOptions)
       (return t) $ do
   -- Andreas, 2015-03-10  Normalization prevents Issue 1454.
-  t <- normalise t
+  -- t <- normalise t
+  -- Andreas, 2015-03-28  Issue 1469: Normalization too costly.
+  -- Instantiation also fixes Issue 1454.
+  -- Note that normalization of s0 below does not help.
+  t <- instantiateFull t
   let TelV tel (El s a) = telView' t
       vs = case ignoreSharing a of
         Def _ us -> us
@@ -101,7 +105,8 @@ addForcingAnnotations t =
       indexToLevel x = n - x - 1
   -- Note: data parameters will be negative levels.
   let xs = filter (>=0) $ map indexToLevel $ forcedVariables vs
-  t' <- force (raise (0 - size tel) s) xs t
+  let s0 = raise (0 - size tel) s
+  t' <- force s0 xs t
   reportSLn "tc.force" 60 $ unlines
     [ "Forcing analysis"
     , "  xs = " ++ show xs
