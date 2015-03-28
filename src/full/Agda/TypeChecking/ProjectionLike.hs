@@ -1,8 +1,11 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleContexts     #-}  -- This will be required by GHC 7.10.
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
 
 module Agda.TypeChecking.ProjectionLike where
 

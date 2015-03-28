@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                       #-}
-{-# LANGUAGE FlexibleContexts          #-}  -- This will be required by GHC 7.10.
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -7,6 +6,10 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
+
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
 
 module Agda.TypeChecking.SizedTypes.WarshallSolver where
 
