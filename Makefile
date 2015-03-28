@@ -147,7 +147,8 @@ latex-test :
 .PHONY : std-lib
 std-lib :
 	if [ ! -d $@ ]; then \
-	   git clone https://github.com/agda/agda-stdlib.git $@; \
+	   git clone https://github.com/agda/agda-stdlib.git \
+	             --single-branch $@; \
 	fi
 
 .PHONY : up-to-date-std-lib
