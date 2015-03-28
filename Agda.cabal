@@ -473,6 +473,10 @@ library
                  -fwarn-typed-holes
                  -fwarn-inline-rule-shadowing
 
+  if impl(ghc >= 7.10)
+     ghc-options: -fwarn-context-quantification
+                  -fwarn-unticked-promoted-constructors
+
   -- The -fwarn-amp flag will be deprected in GHC 7.10.
   if impl(ghc >= 7.8) && impl(ghc < 7.10)
     ghc-options: -fwarn-amp
