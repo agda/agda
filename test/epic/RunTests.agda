@@ -4,6 +4,7 @@ module RunTests where
 
 open import Prelude.Bool
 open import Prelude.Char
+open import Prelude.Exit
 open import Prelude.IO
 open import Prelude.List
 open import Prelude.Nat
@@ -193,5 +194,11 @@ main =
   system ("rm " +S+ dir +S+ "/tests/*.agdai") ,,
   res <- testFiles (dir +S+ "/tests/") ,
   if res
-     then putStrLn "All tests succeeded!"
-     else putStrLn "Not all tests succeeded"
+     then (
+       putStrLn "All tests succeeded!" ,,
+       exit exitSuccess
+     )
+     else (
+       putStrLn "Not all tests succeeded" ,,
+       exit exitFailure
+     )
