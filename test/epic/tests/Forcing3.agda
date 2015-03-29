@@ -7,6 +7,8 @@ open import Prelude.Product
 open import Prelude.Unit
 -- -}
 
+infixr 4 _,_
+
 data _**_ (A B : Set) : Set where
   _,_ : A -> B -> A ** B
 
