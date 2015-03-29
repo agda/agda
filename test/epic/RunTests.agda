@@ -4,12 +4,13 @@ module RunTests where
 
 open import Prelude.Bool
 open import Prelude.Char
-open import Prelude.Nat
-open import Prelude.List
+open import Prelude.Exit
 open import Prelude.IO
+open import Prelude.List
+open import Prelude.Nat
+open import Prelude.Product
 open import Prelude.String
 open import Prelude.Unit
-open import Prelude.Product
 
 postulate
   Stream   : Set
@@ -60,7 +61,7 @@ readStream stream =
 
 system : String -> IO (List Char)
 system s =
-  putStrLn $ "system " +S+ s ,,
+  putStrLn $ "running " +S+ s ,,
   x <- popen s "r" ,
   y <- readStream x ,
   return y
@@ -138,7 +139,7 @@ stripFileEnding fp = fromList $ fst $ span (not ∘ charEq '.') (fromString fp)
 
 testFile : FilePath -> FilePath -> FilePath -> IO Bool
 testFile outdir agdafile outfile =
-  compile outdir (agdafile) ,,
+  compile outdir agdafile ,,
   out      <- system $ outdir +S+ "bin/" +S+ stripFileEnding agdafile ,
   expected <- readFile (outdir +S+ outfile) ,
   printResult agdafile out expected ,,
@@ -192,6 +193,12 @@ main =
   putStrLn dir ,,
   system ("rm " +S+ dir +S+ "/tests/*.agdai") ,,
   res <- testFiles (dir +S+ "/tests/") ,
-  (if res
-     then putStrLn "All tests succeeded! "
-     else putStrLn "Not all tests succeeded ")
+  if res
+     then (
+       putStrLn "All tests succeeded!" ,,
+       exit exitSuccess
+     )
+     else (
+       putStrLn "Not all tests succeeded" ,,
+       exit exitFailure
+     )

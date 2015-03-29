@@ -16,7 +16,6 @@ postulate
 
 {-# COMPILED_EPIC eof () -> Int = foreign Int "eof" () #-}
 
-
 charEq : Char -> Char -> Bool
 charEq = primCharEquality
 
