@@ -62,6 +62,8 @@ followed:
 * Disable sharing by default. Note that this change induces some
   changes in the test suite.
 
+  N.B. that the succeed/Issue1351.agda fails when sharing is disable.
+
   ** Disable sharing by default in the Agda.Interaction.Options
      module.
 
