@@ -4,6 +4,10 @@
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+#if __GLASGOW_HASKELL__ <= 704
+{-# LANGUAGE OverlappingInstances #-}
+#endif
+
 module Agda.Compiler.Epic.Injection where
 
 import Control.Monad.State
