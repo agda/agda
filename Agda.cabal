@@ -86,7 +86,7 @@ library
     build-depends:  epic >= 0.1.13 && < 0.10
 
   if flag(cpphs)
-    build-tools: cpphs >= 1.18.9 && < 1.19
+    build-tools: cpphs >= 1.19 && < 1.20
     ghc-options: -pgmP cpphs -optP --cpp
 
   if os(windows)
