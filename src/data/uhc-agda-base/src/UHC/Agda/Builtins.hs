@@ -25,6 +25,7 @@ module UHC.Agda.Builtins
   , primAppendFile
   , primPutStr
   , primPutStrLn
+  , primReadFiniteFile
     -- String
   , primStringAppend
   , primStringEquality
@@ -35,7 +36,6 @@ module UHC.Agda.Builtins
   , primCharToNat
   , primCharEquality
   , primShowChar
-    -- for Data.Char.Utils
   , primIsLower
   , primIsDigit
   , primIsAlpha
@@ -61,6 +61,8 @@ where
 import Prelude
 import qualified Data.Char as C
 import Debug.Trace
+import UHC.OldException (onException)
+import System.IO (openFile, IOMode (ReadMode), hClose, hFileSize, hGetContents)
 -- ====================
 -- Integer
 -- ====================
@@ -166,6 +168,11 @@ primPutStr = putStr
 primPutStrLn :: String -> IO ()
 primPutStrLn = putStrLn
 
+primReadFiniteFile :: FilePath -> IO String
+primReadFiniteFile f = do
+  h <- openFile f ReadMode
+  hFileSize h `onException` hClose h
+  hGetContents h
 
 -- ====================
 -- String
@@ -204,22 +211,31 @@ primShowChar c = show c
 
 primIsLower     :: Char -> Bool
 primIsLower     = C.isLower
+
 primIsDigit     :: Char -> Bool
 primIsDigit     = C.isDigit
+
 primIsAlpha     :: Char -> Bool
 primIsAlpha     = C.isAlpha
+
 primIsSpace     :: Char -> Bool
 primIsSpace     = C.isSpace
+
 primIsAscii     :: Char -> Bool
 primIsAscii     = C.isAscii
+
 primIsLatin1    :: Char -> Bool
 primIsLatin1    = C.isLatin1
+
 primIsPrint     :: Char -> Bool
 primIsPrint     = C.isPrint
+
 primIsHexDigit  :: Char -> Bool
 primIsHexDigit  = C.isHexDigit
+
 primToUpper     :: Char -> Char
 primToUpper     = C.toUpper
+
 primToLower     :: Char -> Char
 primToLower     = C.toLower
 
