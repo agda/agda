@@ -1,3 +1,5 @@
+-- This test case is outdated. See issue 1472.
+
 {-# OPTIONS --universe-polymorphism #-}
 module tests.Coind where
 
