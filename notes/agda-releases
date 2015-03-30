@@ -66,7 +66,7 @@ followed:
      module.
 
   ** Change the message "(default: ON)" to "(default: OFF)" in the
-  above module.
+     above module.
 
 * Run make test (and accept the updates the Agda version in the files
   test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).
@@ -145,11 +145,7 @@ followed:
   ** Enable sharing by default in the Agda.Interaction.Options module.
 
   ** Change the message "(default: OFF)" to "(default: ON)" in the
-  above module.
-
-* Enable sharing by default. Change the message "(default: OFF)" to
-  "(default: ON)". Note that this change induces some changes to the
-  test suite.
+     above module.
 
 * Push all changes
 
