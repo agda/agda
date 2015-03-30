@@ -121,7 +121,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150327 * 10 + 0
+currentInterfaceVersion = 20150330 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -1192,24 +1192,20 @@ instance EmbPrj CoreRepresentation where
     valu _      = malformed
 
 instance EmbPrj CR.CoreType where
-  icod_ (CR.CTMagic a b) = icode2 1 a b
+  icod_ (CR.CTMagic a) = icode1 1 a
   icod_ (CR.CTNormal a)  = icode1 2 a
   value = vcase valu where
-    valu [1, a, b] = valu2 CR.CTMagic a b
+    valu [1, a]    = valu1 CR.CTMagic a
     valu [2, a]    = valu1 CR.CTNormal a
     valu _         = malformed
 
 instance EmbPrj CR.CoreConstr where
-  icod_ (CR.CCMagic a) = icode1 1 a
+  icod_ (CR.CCMagic a b) = icode2 1 a b
   icod_ (CR.CCNormal a b c) = icode3 2 a b c
   value = vcase valu where
-    valu [1, a]       = valu1 CR.CCMagic a
+    valu [1, a, b]    = valu2 CR.CCMagic a b
     valu [2, a, b, c] = valu3 CR.CCNormal a b c
     valu _            = malformed
-
-instance EmbPrj CR.CoreExpr where
-  icod_ = icode . B.runPut . UHCB.serialize
-  value n = value n >>= return . (B.runGet UHCB.unserialize)
 
 instance EmbPrj CR.HsName where
   icod_ = icode . B.runPut . UHCB.serialize

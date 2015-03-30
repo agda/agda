@@ -15,9 +15,11 @@ where
 
 
 import Data.Typeable
+import qualified Data.Map as M
 
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Bridge as CA
+import Agda.Compiler.UHC.MagicTypes
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -26,17 +28,22 @@ import Agda.Utils.Impossible
 type CoreTypeName = Maybe HsName -- nothing for unit, else the name.
 
 data CoreType
-  = CTMagic CoreTypeName String -- ^ UHC Core name, Magic name
+  = CTMagic MagicName -- ^ Magic name
   | CTNormal CoreTypeName -- ^ UHC Core name
   deriving (Eq, Show, Typeable)
 
-type CoreExpr = CExpr
+-- We store the COMPILED_CORE pragmas as string,
+-- as storing the UHC AST makes the serialization
+-- format dependent on uhc-light. This also makes it
+-- possible to just store COMPILED_CORE pragmas unchecked
+-- in the interface file, if the UHC backend is disabled.
+type CoreExpr = String
 
 -- We need an explicit representation for constructors, as we need to serialise the CoreConstr
 -- to store it inside agdai files. Else we could just use a partially applied
 -- CTag constructor instead (we don't know the arity yet...).
 data CoreConstr
-  = CCMagic CTag -- Magic type constructor with fixed arity (e.g. Bool, List, etc.)
+  = CCMagic MagicName MagicName -- Magic type constructor with fixed arity; (datatype, ctor)
   | CCNormal HsName HsName Int -- Normall UHC Core Constructor; (datatype, constr, tag)
   deriving (Eq, Show, Typeable)
 
@@ -48,6 +55,7 @@ setTag _ _ = __IMPOSSIBLE__
 coreConstrToCTag :: CoreConstr
     -> Int -- ^ Arity
     -> CTag
-coreConstrToCTag (CCMagic ctg) _ = ctg
+coreConstrToCTag (CCMagic dtMgcNm conMgcNm) _ = conMp M.! conMgcNm
+  where (_, conMp) = getMagicTypes M.! dtMgcNm
 coreConstrToCTag (CCNormal dt con tg) ar = mkCTag dt con tg ar
 

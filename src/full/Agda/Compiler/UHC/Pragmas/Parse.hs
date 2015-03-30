@@ -5,7 +5,7 @@
 module Agda.Compiler.UHC.Pragmas.Parse
   ( module Agda.Compiler.UHC.Pragmas.Base
   , parseCoreExpr
-  , printCoreExpr
+  , coreExprToCExpr
   , parseCoreData
   )
 
@@ -34,36 +34,52 @@ parseCoreData dt css = do
   case isDtMgc of
     Nothing -> do
                 let dtCrNm = Just $ mkHsName1 dt
-                constrs <- mapM (parseConstr Nothing dtCrNm) css
+                constrs <- mapM (parseNormalConstr dtCrNm) css
                 -- UHC assigns tags in lexographical order.
                 -- Requires that the mapping is complete, else it will break.
                 let constrs' = zipWith setTag (sortBy ccOrd constrs) [0..]
                 return (CTNormal dtCrNm, constrs')
-    Just (mgcNm, (dtCrNm, constrMp)) -> do
-                constrs <- mapM (parseConstr (Just constrMp) dtCrNm) css
-                return (CTMagic dtCrNm mgcNm, constrs)
+    Just (dtMgcNm, (_, constrMp)) -> do
+                constrs <- mapM (parseMagicConstr dtMgcNm constrMp) css
+                return (CTMagic dtMgcNm, constrs)
 
-  where parseConstr :: MonadTCM m => Maybe MagicConstrInfo -> CoreTypeName -> String -> m CoreConstr
-        parseConstr Nothing _ cs | isMagic cs = typeError $ GenericError $ "Primitive constructor " ++ (drop 2 $ init $ init cs) ++ " can only be used for primitive datatypes."
-        parseConstr Nothing dtCrNm cs | otherwise
-                    = let dtCrNm' = fromMaybe __IMPOSSIBLE__ dtCrNm
-                       in return $ CCNormal dtCrNm' (mkHsName1 cs) __IMPOSSIBLE__ -- tag gets assigned after we have parsed all ctors
-        parseConstr (Just _) _ cs | not (isMagic cs) = typeError $ GenericError $ "A primitive datatype can only have primitive constructors."
-        parseConstr (Just mp) _ cs | otherwise = do
-                (Just (_, ctg)) <- isMagicEntity mp cs "constructor"
-                return $ CCMagic ctg
+  where parseNormalConstr :: MonadTCM m => CoreTypeName -> String -> m CoreConstr
+        parseNormalConstr dtCrNm cs
+            | isMagic cs = typeError $
+                GenericError $ "Magic constructor " ++ (drop 2 $ init $ init cs) ++ " can only be used for magic datatypes."
+            | otherwise = let dtCrNm' = fromMaybe __IMPOSSIBLE__ dtCrNm
+                           -- tag gets assigned after we have parsed all ctors
+                           in return $ CCNormal dtCrNm' (mkHsName1 cs) __IMPOSSIBLE__
+
+        parseMagicConstr :: MonadTCM m => MagicName -> MagicConstrInfo -> String ->  m CoreConstr
+        parseMagicConstr dtMgcNm conMp cs
+            | not (isMagic cs) = typeError $
+                GenericError $ "A magic datatype can only have magic constructors."
+            | otherwise = do
+                (Just (conMgcNm, _)) <- isMagicEntity conMp cs "constructor"
+                return $ CCMagic dtMgcNm conMgcNm
+
         ccOrd :: CoreConstr -> CoreConstr -> Ordering
         ccOrd (CCNormal dtNm1 ctNm1 _) (CCNormal dtNm2 ctNm2 _) | dtNm1 == dtNm2 = compare ctNm1 ctNm2
         ccOrd _ _ = __IMPOSSIBLE__
 
 -- | Parse a COMPILED_CORE expression.
 parseCoreExpr :: String -> Either String CoreExpr
-parseCoreExpr str = case CA.parseExpr defaultEHCOpts str of
+#ifdef UHC_BACKEND
+parseCoreExpr str = either Left (const $ Right str) (coreExprToCExpr str)
+#else
+-- we don't have the uhc-light parser, so just succeed here.
+parseCoreExpr str = Right str
+#endif
+
+coreExprToCExpr :: CoreExpr -> Either String CExpr
+#ifdef UHC_BACKEND
+coreExprToCExpr str = case CA.parseExpr defaultEHCOpts str of
     (Left errs) -> Left $ intercalate "\n" errs
     (Right res) -> Right res
-
-printCoreExpr :: CoreExpr -> String
-printCoreExpr e = disp (pp e) 200 ""
+#else
+coreExprToCExpr = __IMPOSSIBLE__
+#endif
 
 -- | Check if the given name is a valid Magic entity.
 isMagicEntity :: MonadTCM m
