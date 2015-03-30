@@ -1,10 +1,10 @@
 Compilation error:
 
 customised/MAlonzo/Code/FFI.hs
-    Not in scope: 'nothing'
+    Not in scope: 'foo'
 
 customised/MAlonzo/Code/FFI.hs
-    Not in scope: 'nothing'
+    Not in scope: 'foo'
 
 customised/MAlonzo/Code/FFI.hs
-    Not in scope: 'nothing'
+    Not in scope: 'foo'

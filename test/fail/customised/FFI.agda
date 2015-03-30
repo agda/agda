@@ -16,7 +16,7 @@ postulate
 data Unit : Set where
   unit : Unit
 
-{-# COMPILED_DATA Unit () nothing #-}
+{-# COMPILED_DATA Unit () foo #-}
 
 main : IO Unit
 main = return unit
