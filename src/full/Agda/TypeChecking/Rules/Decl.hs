@@ -574,14 +574,14 @@ checkPragma r p =
             _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates"
         A.CompiledJSPragma x ep ->
           addJSCode x ep
-        A.CompiledCorePragma x cr -> do
+        A.CompiledUHCPragma x cr -> do
           def <- getConstInfo x
           case theDef def of
             Axiom{} -> case parseCoreExpr cr of
-                    Left msg -> typeError $ GenericError $ "Could not parse COMPILED_CORE pragma: " ++ msg
+                    Left msg -> typeError $ GenericError $ "Could not parse COMPILED_UHC pragma: " ++ msg
                     Right cr -> addCoreCode x cr
-            _ -> typeError $ GenericError "COMPILED_CORE directive only works on postulates" -- only allow postulates for the time being
-        A.CompiledCoreDataPragma x crd crcs -> do
+            _ -> typeError $ GenericError "COMPILED_UHC directive only works on postulates" -- only allow postulates for the time being
+        A.CompiledDataUHCPragma x crd crcs -> do
           -- TODO mostly copy-paste from the CompiledDataPragma, should be refactored into a seperate function
           def <- getConstInfo x
           -- Check that the pragma appears in the same module
@@ -589,7 +589,7 @@ checkPragma r p =
           m <- currentModule
           let m' = qnameModule $ defName def
           unless (m == m') $ typeError $ GenericError $
-              "COMPILED_CORE_DATA directives must appear in the same module " ++
+              "COMPILED_DATA_UHC directives must appear in the same module " ++
               "as their corresponding datatype definition,"
           case theDef def of
             Datatype{dataCons = cs}
@@ -609,12 +609,12 @@ checkPragma r p =
                 (dt', cons') <- parseCoreData crd crcs
                 addCoreType x dt'
                 sequence_ $ zipWith addCoreConstr cs cons'
-            _ -> typeError $ GenericError "COMPILED_CORE_DATA on non datatype"
-        A.DontSmashPragma x -> do
+            _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
+        A.NoSmashingPragma x -> do
           def <- getConstInfo x
           case theDef def of
-            Function{} -> markDontSmash x
-            _          -> typeError $ GenericError "DONT_SMASH directive only works on functions"
+            Function{} -> markNoSmashing x
+            _          -> typeError $ GenericError "NO_SMASHING directive only works on functions"
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of

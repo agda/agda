@@ -443,12 +443,12 @@ instance Pretty Pragma where
       hsep [ text "COMPILED_EPIC", pretty x, text e ]
     pretty (CompiledJSPragma _ x e) =
       hsep [ text "COMPILED_JS", pretty x, text e ]
-    pretty (CompiledCorePragma _ x e) =
-      hsep [ text "COMPILED_CORE", pretty x, text e ]
-    pretty (CompiledCoreDataPragma _ x crd crcs) =
-      hsep $ [ text "COMPILED_CORE_DATA", pretty x] ++ map text (crd : crcs)
-    pretty (DontSmashPragma _ i) =
-      hsep $ [text "DONT_SMASH", pretty i]
+    pretty (CompiledUHCPragma _ x e) =
+      hsep [ text "COMPILED_UHC", pretty x, text e ]
+    pretty (CompiledDataUHCPragma _ x crd crcs) =
+      hsep $ [ text "COMPILED_DATA_UHC", pretty x] ++ map text (crd : crcs)
+    pretty (NoSmashingPragma _ i) =
+      hsep $ [text "NO_SMASHING", pretty i]
     pretty (StaticPragma _ i) =
       hsep $ [text "STATIC", pretty i]
     pretty (ImportPragma _ i) =

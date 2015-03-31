@@ -32,10 +32,10 @@ data CoreType
   | CTNormal CoreTypeName -- ^ UHC Core name
   deriving (Eq, Show, Typeable)
 
--- We store the COMPILED_CORE pragmas as string,
+-- We store the COMPILED_UHC pragmas as string,
 -- as storing the UHC AST makes the serialization
 -- format dependent on uhc-light. This also makes it
--- possible to just store COMPILED_CORE pragmas unchecked
+-- possible to just store COMPILED_UHC pragmas unchecked
 -- in the interface file, if the UHC backend is disabled.
 type CoreExpr = String
 

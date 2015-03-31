@@ -52,7 +52,7 @@ primAgdaTys1 = map fixConstrs
 
 
 primCrTys1 :: [(
-      MagicName    -- the magic name of the dt in COMPILED_CORE_DATA pragmas
+      MagicName    -- the magic name of the dt in COMPILED_DATA_UHC pragmas
     , [(MagicName, CTag)] -- constructors. Maps magic name to constructor tags.
     )]
 primCrTys1 =

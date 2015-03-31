@@ -45,9 +45,9 @@ data ADataTy
 
 data ADataImplType
   = ADataImplNormal  -- normal agda datatype
-  | ADataImplMagic String -- COMPILED_CORE_DATA mapping to one of the
+  | ADataImplMagic String -- COMPILED_DATA_UHC mapping to one of the
                           -- magic builtin types, eg __UNIT__.
-  | ADataImplForeign -- COMPILED_CORE pragma mapping to a normal UHC Core datatype
+  | ADataImplForeign -- COMPILED_DATA_UHC pragma mapping to a normal UHC Core datatype
                      -- defined by non-Agda code (e.g. Haskell).
   deriving (Eq, Ord, Show, Typeable)
 

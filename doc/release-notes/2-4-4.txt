@@ -440,24 +440,28 @@ Compiler backends
 
 * UHC compiler backend
 
-  A new backend targeting the Utrecht Haskell Compiler (UHC) is available. It targets
-  the UHC Core language, and it's design is inspired by the Epic backend.
+  A new backend targeting the Utrecht Haskell Compiler (UHC) is available.
+  It targets the UHC Core language, and it's design is inspired by
+  the Epic backend.
 
   This backend is currently experimental, but should work for most Agda code.
+  The Agda Standard Library has been updated to support this new backend.
   It properly supports having function clauses with different arities.
 
-  The backend is disabled by default, as it will pull in some large dependencies.
-  To enable the backend, use the "uhc" cabal flag when installing Agda:
+  The backend is disabled by default, as it will pull in some large
+  dependencies. To enable the backend, use the "uhc" cabal flag when
+  installing Agda:
 
     cabal install Agda -fuhc
 
-  The backend also requires UHC to be installed. UHC is not available on Hackage and needs
-  to be installed manually. This version of Agda has been tested with UHC 1.1.8.7, using other
-  UHC versions may cause problems. To install UHC, the following commands can be used:
+  The backend also requires UHC to be installed. UHC is not available on
+  Hackage and needs to be installed manually. This version of Agda has been
+  tested with UHC 1.1.8.10, using other UHC versions may cause problems.
+  To install UHC, the following commands can be used:
 
     git clone https://github.com/UU-ComputerScience/uhc.git
     cd uhc
-    git checkout 0dec07e9cb60e78bbca63fc101f8fec6e249269f
+    git checkout 449d9578e06af1362d7f746798f0aed57ab6ca88
     cd EHC
     ./configure
     make
@@ -466,23 +470,26 @@ Compiler backends
 
   Smashing
 
-  The Smashing optimisation from the Epic backend has been ported to the UHC backend. Smashing
-  can be disabled globally using the --no-smashing command line option, or per definition using the
-  {-# DONT_SMASH myDef #-} pragma. The DONT_SMASH pragma has two effects:
+  The Smashing optimisation from the Epic backend has been ported to
+  the UHC backend. Smashing can be disabled globally using the --no-smashing
+  command line option, or per definition using the {-# NO_SMASHING myDef #-}
+  pragma. The NO_SMASHING pragma has two effects:
     1. The definition myDef will not be smashed.
-    2. Any definition where the myDef definition is used in the type will not be smashed.
+    2. Any definition where the myDef definition is used in the type will
+       not be smashed.
   The smashing optimisation is experimental and may change in later versions.
 
 
   FFI
 
-  The UHC backend has a FFI to Haskell similar to MAlonzo's. It is currently not possible
-  to bring arbitrary Haskell modules into scope, it is thus of limited usefulness outside
-  of defining some very basic functionality for Bools, Chars, etc. The target Haskell code
-  also needs to be compilable using UHC, which does not support the Haskell base library version 4.*.
+  The UHC backend has a FFI to Haskell similar to MAlonzo's. It is currently
+  not possible to bring arbitrary Haskell modules into scope, it is thus
+  of limited usefulness outside of defining some very basic functionality
+  for Bools, Chars, etc. The target Haskell code also needs to be compilable
+  using UHC, which does not support the Haskell base library version 4.*.
 
-  FFI pragmas for the UHC backend are not checked in any way. If the pragmas are wrong,
-  bad things will happen.
+  FFI pragmas for the UHC backend are not checked in any way. If the pragmas
+  are wrong, bad things will happen.
 
   Datatypes
   Agda datatypes can be bound to Haskell datatypes as follows:
@@ -492,17 +499,18 @@ Compiler backends
         data AgdaData (A : Set) : Set where
           AgdaCon1 : AgdaData A
           AgdaCon2 : AgdaData A -> AgdaData A
-        {-# COMPILED_CORE_DATA AgdaData HsData HsCon1 HsCon2 #-}
+        {-# COMPILED_DATA_UHC AgdaData HsData HsCon1 HsCon2 #-}
     The mapping has to cover all constructors of the used Haskell datatype,
     else runtime behavior is undefined!
 
   There are special reserved names to bind Agda datatypes to certain Haskell
-  datatypes. For example, this binds an Agda datatype to Haskell's list datatype:
+  datatypes. For example, this binds an Agda datatype
+  to Haskell's list datatype:
     Agda:
         data AgdaList (A : Set) : Set where
           Nil : AgdaList A
           Cons : A -> AgdaList A -> AgdaList A
-        {-# COMPILED_CORE_DATA AgdaList __LIST__ __NIL__ __CONS__ #-}
+        {-# COMPILED_DATA_UHC AgdaList __LIST__ __NIL__ __CONS__ #-}
 
   The following "magic" datatypes are available:
     HS Datatype | Datatype Pragma | HS Constructor | Constructor Pragma

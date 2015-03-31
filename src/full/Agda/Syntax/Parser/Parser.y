@@ -122,9 +122,9 @@ import Agda.Utils.Tuple
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
     'COMPILED_JS'   { TokKeyword KwCOMPILED_JS $$ }
-    'COMPILED_CORE' { TokKeyword KwCOMPILED_CORE $$ }
-    'COMPILED_CORE_DATA'   { TokKeyword KwCOMPILED_CORE_DATA $$ }
-    'DONT_SMASH'    { TokKeyword KwDONT_SMASH $$ }
+    'COMPILED_UHC'  { TokKeyword KwCOMPILED_UHC $$ }
+    'COMPILED_DATA_UHC'   { TokKeyword KwCOMPILED_DATA_UHC $$ }
+    'NO_SMASHING'   { TokKeyword KwNO_SMASHING $$ }
     'STATIC'        { TokKeyword KwSTATIC $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quoteContext'  { TokKeyword KwQuoteContext $$ }
@@ -234,9 +234,9 @@ Token
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_EPIC'{ TokKeyword KwCOMPILED_EPIC $1 }
     | 'COMPILED_JS'  { TokKeyword KwCOMPILED_JS $1 }
-    | 'COMPILED_CORE' { TokKeyword KwCOMPILED_CORE $1 }
-    | 'COMPILED_CORE_DATA' {TokKeyword KwCOMPILED_CORE_DATA $1 }
-    | 'DONT_SMASH'   { TokKeyword KwDONT_SMASH $1 }
+    | 'COMPILED_UHC' { TokKeyword KwCOMPILED_UHC $1 }
+    | 'COMPILED_DATA_UHC' {TokKeyword KwCOMPILED_DATA_UHC $1 }
+    | 'NO_SMASHING'  { TokKeyword KwNO_SMASHING $1 }
     | 'STATIC'       { TokKeyword KwSTATIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
@@ -1312,9 +1312,9 @@ DeclarationPragma
   | CompiledTypePragma       { $1 }
   | CompiledEpicPragma       { $1 }
   | CompiledJSPragma         { $1 }
-  | CompiledCorePragma       { $1 }
-  | CompiledCoreDataPragma   { $1 }
-  | DontSmashPragma          { $1 }
+  | CompiledUHCPragma        { $1 }
+  | CompiledDataUHCPragma    { $1 }
+  | NoSmashingPragma         { $1 }
   | StaticPragma             { $1 }
   | ImportPragma             { $1 }
   | ImpossiblePragma         { $1 }
@@ -1375,20 +1375,20 @@ CompiledJSPragma
   : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
     { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
-CompiledCorePragma :: { Pragma }
-CompiledCorePragma
-  : '{-#' 'COMPILED_CORE' PragmaQName PragmaStrings '#-}'
-    { CompiledCorePragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+CompiledUHCPragma :: { Pragma }
+CompiledUHCPragma
+  : '{-#' 'COMPILED_UHC' PragmaQName PragmaStrings '#-}'
+    { CompiledUHCPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
-CompiledCoreDataPragma :: { Pragma }
-CompiledCoreDataPragma
-  : '{-#' 'COMPILED_CORE_DATA' PragmaQName string PragmaStrings '#-}'
-    { CompiledCoreDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
+CompiledDataUHCPragma :: { Pragma }
+CompiledDataUHCPragma
+  : '{-#' 'COMPILED_DATA_UHC' PragmaQName string PragmaStrings '#-}'
+    { CompiledDataUHCPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
 
-DontSmashPragma :: { Pragma }
-DontSmashPragma
-  : '{-#' 'DONT_SMASH' PragmaQName '#-}'
-    { DontSmashPragma (getRange ($1,$2,$3,$4)) $3 }
+NoSmashingPragma :: { Pragma }
+NoSmashingPragma
+  : '{-#' 'NO_SMASHING' PragmaQName '#-}'
+    { NoSmashingPragma (getRange ($1,$2,$3,$4)) $3 }
 
 StaticPragma :: { Pragma }
 StaticPragma
