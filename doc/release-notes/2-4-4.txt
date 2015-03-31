@@ -520,6 +520,14 @@ Compiler backends
     Bool          __BOOL__          True             __TRUE__
                                     False            __FALSE__
 
+ Functions
+  Agda postulates can be bound to Haskell functions. Similar as in MAlonzo,
+  all arguments of type Set need to be dropped before calling Haskell
+  functions. An example calling the return function:
+    Agda:
+        postulate hs-return : {A : Set} -> A -> IO A
+        {-# COMPILED_UHC hs-return (\_ -> UHC.Agda.Builtins.primReturn) #-}
+
 
 Tools
 =====
