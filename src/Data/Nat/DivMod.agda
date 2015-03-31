@@ -37,9 +37,9 @@ record DivMod (dividend divisor : ℕ) : Set where
 private
 
   div-helper : ℕ → ℕ → ℕ → ℕ → ℕ
-  div-helper ack s zero    n       = ack
-  div-helper ack s (suc d) zero    = div-helper (suc ack) s d s
-  div-helper ack s (suc d) (suc n) = div-helper ack       s d n
+  div-helper acc s zero    n       = acc
+  div-helper acc s (suc d) zero    = div-helper (suc acc) s d s
+  div-helper acc s (suc d) (suc n) = div-helper acc       s d n
 
   {-# BUILTIN NATDIVSUCAUX div-helper #-}
 
@@ -52,30 +52,30 @@ _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → ℕ
 private
 
   mod-helper : ℕ → ℕ → ℕ → ℕ → ℕ
-  mod-helper ack s zero    n       = ack
-  mod-helper ack s (suc d) zero    = mod-helper zero      s d s
-  mod-helper ack s (suc d) (suc n) = mod-helper (suc ack) s d n
+  mod-helper acc s zero    n       = acc
+  mod-helper acc s (suc d) zero    = mod-helper zero      s d s
+  mod-helper acc s (suc d) (suc n) = mod-helper (suc acc) s d n
 
   {-# BUILTIN NATMODSUCAUX mod-helper #-}
 
   -- The remainder is not too large.
 
-  mod-lemma : (ack d n : ℕ) →
-              let s = ack + n in
-              mod-helper ack s d n ≤ s
+  mod-lemma : (acc d n : ℕ) →
+              let s = acc + n in
+              mod-helper acc s d n ≤ s
 
-  mod-lemma ack zero n = start
-    ack      ≤⟨ m≤m+n ack n ⟩
-    ack + n  □
+  mod-lemma acc zero n = start
+    acc      ≤⟨ m≤m+n acc n ⟩
+    acc + n  □
 
-  mod-lemma ack (suc d) zero = start
-    mod-helper zero (ack + 0) d (ack + 0)  ≤⟨ mod-lemma zero d (ack + 0) ⟩
-    ack + 0                                □
+  mod-lemma acc (suc d) zero = start
+    mod-helper zero (acc + 0) d (acc + 0)  ≤⟨ mod-lemma zero d (acc + 0) ⟩
+    acc + 0                                □
 
-  mod-lemma ack (suc d) (suc n) =
-    P.subst (λ x → mod-helper (suc ack) x d n ≤ x)
-            (P.sym (+-suc ack n))
-            (mod-lemma (suc ack) d n)
+  mod-lemma acc (suc d) (suc n) =
+    P.subst (λ x → mod-helper (suc acc) x d n ≤ x)
+            (P.sym (+-suc acc n))
+            (mod-lemma (suc acc) d n)
 
 _mod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → Fin divisor
 (d mod 0) {}
@@ -91,63 +91,63 @@ private
   -- divisor in the right way.
 
   division-lemma :
-    (mod-ack div-ack d n : ℕ) →
-    let s = mod-ack + n in
-    mod-ack + div-ack * suc s + d
+    (mod-acc div-acc d n : ℕ) →
+    let s = mod-acc + n in
+    mod-acc + div-acc * suc s + d
       ≡
-    mod-helper mod-ack s d n + div-helper div-ack s d n * suc s
+    mod-helper mod-acc s d n + div-helper div-acc s d n * suc s
 
-  division-lemma mod-ack div-ack zero n = begin
+  division-lemma mod-acc div-acc zero n = begin
 
-    mod-ack + div-ack * suc s + zero  ≡⟨ +-right-identity _ ⟩
+    mod-acc + div-acc * suc s + zero  ≡⟨ +-right-identity _ ⟩
 
-    mod-ack + div-ack * suc s         ∎
+    mod-acc + div-acc * suc s         ∎
 
-    where s = mod-ack + n
+    where s = mod-acc + n
 
-  division-lemma mod-ack div-ack (suc d) zero = begin
+  division-lemma mod-acc div-acc (suc d) zero = begin
 
-    mod-ack + div-ack * suc s + suc d                ≡⟨ solve 3
-                                                              (λ mod-ack div-ack d →
-                                                                   let s = mod-ack :+ con 0 in
-                                                                   mod-ack :+ div-ack :* (con 1 :+ s) :+ (con 1 :+ d)
+    mod-acc + div-acc * suc s + suc d                ≡⟨ solve 3
+                                                              (λ mod-acc div-acc d →
+                                                                   let s = mod-acc :+ con 0 in
+                                                                   mod-acc :+ div-acc :* (con 1 :+ s) :+ (con 1 :+ d)
                                                                      :=
-                                                                   (con 1 :+ div-ack) :* (con 1 :+ s) :+ d)
-                                                              P.refl mod-ack div-ack d ⟩
-    suc div-ack * suc s + d                          ≡⟨ division-lemma zero (suc div-ack) d s ⟩
+                                                                   (con 1 :+ div-acc) :* (con 1 :+ s) :+ d)
+                                                              P.refl mod-acc div-acc d ⟩
+    suc div-acc * suc s + d                          ≡⟨ division-lemma zero (suc div-acc) d s ⟩
 
     mod-helper zero          s      d  s    +
-    div-helper (suc div-ack) s      d  s    * suc s  ≡⟨⟩
+    div-helper (suc div-acc) s      d  s    * suc s  ≡⟨⟩
 
-    mod-helper      mod-ack  s (suc d) zero +
-    div-helper      div-ack  s (suc d) zero * suc s  ∎
+    mod-helper      mod-acc  s (suc d) zero +
+    div-helper      div-acc  s (suc d) zero * suc s  ∎
 
-    where s = mod-ack + 0
+    where s = mod-acc + 0
 
-  division-lemma mod-ack div-ack (suc d) (suc n) = begin
+  division-lemma mod-acc div-acc (suc d) (suc n) = begin
 
-    mod-ack + div-ack * suc s + suc d                   ≡⟨ solve 4
-                                                                 (λ mod-ack div-ack n d →
-                                                                      mod-ack :+ div-ack :* (con 1 :+ (mod-ack :+ (con 1 :+ n))) :+ (con 1 :+ d)
+    mod-acc + div-acc * suc s + suc d                   ≡⟨ solve 4
+                                                                 (λ mod-acc div-acc n d →
+                                                                      mod-acc :+ div-acc :* (con 1 :+ (mod-acc :+ (con 1 :+ n))) :+ (con 1 :+ d)
                                                                         :=
-                                                                      con 1 :+ mod-ack :+ div-ack :* (con 2 :+ mod-ack :+ n) :+ d)
-                                                                 P.refl mod-ack div-ack n d ⟩
-    suc mod-ack + div-ack * suc s′ + d                  ≡⟨ division-lemma (suc mod-ack) div-ack d n ⟩
+                                                                      con 1 :+ mod-acc :+ div-acc :* (con 2 :+ mod-acc :+ n) :+ d)
+                                                                 P.refl mod-acc div-acc n d ⟩
+    suc mod-acc + div-acc * suc s′ + d                  ≡⟨ division-lemma (suc mod-acc) div-acc d n ⟩
 
-    mod-helper (suc mod-ack) s′ d n +
-    div-helper      div-ack  s′ d n * suc s′            ≡⟨ P.cong (λ s → mod-helper (suc mod-ack) s d n +
-                                                                         div-helper div-ack s d n * suc s)
-                                                                  (P.sym (+-suc mod-ack n)) ⟩
+    mod-helper (suc mod-acc) s′ d n +
+    div-helper      div-acc  s′ d n * suc s′            ≡⟨ P.cong (λ s → mod-helper (suc mod-acc) s d n +
+                                                                         div-helper div-acc s d n * suc s)
+                                                                  (P.sym (+-suc mod-acc n)) ⟩
 
-    mod-helper (suc mod-ack) s d n +
-    div-helper      div-ack  s d n * suc s              ≡⟨⟩
+    mod-helper (suc mod-acc) s d n +
+    div-helper      div-acc  s d n * suc s              ≡⟨⟩
 
-    mod-helper      mod-ack  s (suc d) (suc n) +
-    div-helper      div-ack  s (suc d) (suc n) * suc s  ∎
+    mod-helper      mod-acc  s (suc d) (suc n) +
+    div-helper      div-acc  s (suc d) (suc n) * suc s  ∎
 
     where
-    s  = mod-ack + suc n
-    s′ = suc mod-ack + n
+    s  = mod-acc + suc n
+    s′ = suc mod-acc + n
 
 _divMod_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} →
            DivMod dividend divisor
