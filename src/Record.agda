@@ -72,58 +72,9 @@ mutual
   Record-fun (Sig , ℓ ∶ A) =          Σ (Record Sig) A
   Record-fun (Sig , ℓ ≔ a) = Manifest-Σ (Record Sig) a
 
-------------------------------------------------------------------------
--- Variants of Signature and Record
+-- Eta-equality is enabled for Record.
 
--- It may be easier to define values of type Record′ (Sig⇒Sig′ Sig)
--- than of type Record Sig.
-
-mutual
-
-  data Signature′ s : Set (suc s) where
-    ∅     : Signature′ s
-    _,_∶_ : (Sig : Signature′ s)
-            (ℓ : Label)
-            (A : Record′ Sig → Set s) →
-            Signature′ s
-    _,_≔_ : (Sig : Signature′ s)
-            (ℓ : Label)
-            {A : Record′ Sig → Set s}
-            (a : (r : Record′ Sig) → A r) →
-            Signature′ s
-
-  Record′ : ∀ {s} → Signature′ s → Set s
-  Record′ ∅             = Lift ⊤
-  Record′ (Sig , ℓ ∶ A) =          Σ (Record′ Sig) A
-  Record′ (Sig , ℓ ≔ a) = Manifest-Σ (Record′ Sig) a
-
--- We can convert between the two kinds of signatures/records.
-
-mutual
-
-  Sig′⇒Sig : ∀ {s} → Signature′ s → Signature s
-  Sig′⇒Sig ∅             = ∅
-  Sig′⇒Sig (Sig , ℓ ∶ A) = Sig′⇒Sig Sig , ℓ ∶ (A ∘ Rec⇒Rec′ _)
-  Sig′⇒Sig (Sig , ℓ ≔ a) = Sig′⇒Sig Sig , ℓ ≔ (a ∘ Rec⇒Rec′ _)
-
-  Rec⇒Rec′ : ∀ {s} (Sig : Signature′ s) →
-             Record (Sig′⇒Sig Sig) → Record′ Sig
-  Rec⇒Rec′ ∅             (rec r) = r
-  Rec⇒Rec′ (Sig , ℓ ∶ A) (rec r) = (Rec⇒Rec′ _ (Σ.proj₁ r) , Σ.proj₂ r)
-  Rec⇒Rec′ (Sig , ℓ ≔ a) (rec r) = (Rec⇒Rec′ _ (Manifest-Σ.proj₁ r) ,)
-
-mutual
-
-  Sig⇒Sig′ : ∀ {s} → Signature s → Signature′ s
-  Sig⇒Sig′ ∅             = ∅
-  Sig⇒Sig′ (Sig , ℓ ∶ A) = Sig⇒Sig′ Sig , ℓ ∶ (A ∘ Rec′⇒Rec _)
-  Sig⇒Sig′ (Sig , ℓ ≔ a) = Sig⇒Sig′ Sig , ℓ ≔ (a ∘ Rec′⇒Rec _)
-
-  Rec′⇒Rec : ∀ {s} (Sig : Signature s) →
-             Record′ (Sig⇒Sig′ Sig) → Record Sig
-  Rec′⇒Rec ∅             r = rec r
-  Rec′⇒Rec (Sig , ℓ ∶ A) r = rec (Rec′⇒Rec _ (Σ.proj₁ r) , Σ.proj₂ r)
-  Rec′⇒Rec (Sig , ℓ ≔ a) r = rec (Rec′⇒Rec _ (Manifest-Σ.proj₁ r) ,)
+{-# ETA Record #-}
 
 ------------------------------------------------------------------------
 -- Labels
