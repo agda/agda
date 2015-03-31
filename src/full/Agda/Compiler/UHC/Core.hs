@@ -41,8 +41,8 @@ opts = defaultEHCOpts
 type ToCoreT m = FreshNameT (ReaderT Int m)
 
 createMainModule :: AModuleInfo -> HsName -> CModule
-createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainMod'] [] (mkMain main)
-  where mainMod' = snd $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface mainMod) (amiModule mainMod)
+createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainModAux] [] (mkMain main)
+  where mainModAux = snd $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface mainMod) (amiModule mainMod)
 
 getExports :: AModuleInfo -> [CExport]
 getExports modInfo = map (mkExport . cnName) (expFuns ++ expDtFuns ++ expConFuns)
