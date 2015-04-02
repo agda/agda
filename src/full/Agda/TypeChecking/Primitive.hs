@@ -62,14 +62,14 @@ instance Integral Nat where
   quotRem (Nat a) (Nat b) = (Nat q, Nat r)
     where (q, r) = quotRem a b
 
+instance Show Nat where
+  show = show . toInteger
+
 newtype Lvl = Lvl { unLvl :: Integer }
   deriving (Eq, Ord)
 
 instance Show Lvl where
   show = show . unLvl
-
-instance Show Nat where
-  show = show . unNat
 
 class PrimType a where
   primType :: a -> TCM Type
@@ -106,7 +106,7 @@ class ToTerm a where
   toTermR = (pure .) <$> toTerm
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
-instance ToTerm Nat     where toTerm = return $ Lit . LitInt noRange . unNat
+instance ToTerm Nat     where toTerm = return $ Lit . LitInt noRange . toInteger
 instance ToTerm Lvl     where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
@@ -180,7 +180,7 @@ instance FromTerm Integer where
 
 instance FromTerm Nat where
   fromTerm = fromLiteral $ \l -> case l of
-    LitInt _ n -> Just $ Nat n
+    LitInt _ n -> Just $ fromInteger n
     _          -> Nothing
 
 instance FromTerm Lvl where
@@ -578,7 +578,7 @@ primitiveFunctions = Map.fromList
   , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
   , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
   , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
-  , "primNatToInteger"    |-> mkPrimFun1 (unNat      :: Nat -> Integer)
+  , "primNatToInteger"    |-> mkPrimFun1 (toInteger  :: Nat -> Integer)
   , "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
 
   -- Natural number functions
@@ -591,8 +591,10 @@ primitiveFunctions = Map.fromList
           aux k m n j | n > j     = mod (n - j - 1) (m + 1)
                       | otherwise = k + n
       in mkPrimFun4 aux
-  , "primNatEquality"     |-> mkPrimFun2 ((==)                    :: Rel Nat)
-  , "primNatLess"         |-> mkPrimFun2 ((<)                     :: Rel Nat)
+  , "primNatEquality"     |-> mkPrimFun2 ((==) :: Rel Nat)
+  , "primNatLess"         |-> mkPrimFun2 ((<)  :: Rel Nat)
+
+  -- Level functions
   , "primLevelZero"       |-> mkPrimLevelZero
   , "primLevelSuc"        |-> mkPrimLevelSuc
   , "primLevelMax"        |-> mkPrimLevelMax
