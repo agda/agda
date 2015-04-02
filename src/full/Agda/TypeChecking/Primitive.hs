@@ -55,8 +55,8 @@ data PrimitiveImpl = PrimImpl Type PrimFun
 newtype Nat = Nat { unNat :: Integer }
             deriving (Eq, Ord, Num, Enum, Real)
 
--- TODO: ghc-7.7 bug: deriving Integral causes an unnecessary toInteger
--- warning. Once 7.8 is out check if we can go back to deriving.
+-- In GHC > 7.8 deriving Integral causes an unnecessary toInteger
+-- warning.
 instance Integral Nat where
   toInteger = unNat
   quotRem (Nat a) (Nat b) = (Nat q, Nat r)
