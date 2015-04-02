@@ -43,7 +43,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Unquote
