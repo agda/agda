@@ -53,7 +53,7 @@ data PrimitiveImpl = PrimImpl Type PrimFun
 -- Haskell type to Agda type
 
 newtype Nat = Nat { unNat :: Integer }
-    deriving (Eq, Ord, Num, Enum, Real)
+            deriving (Eq, Ord, Num, Enum, Real)
 
 -- TODO: ghc-7.7 bug: deriving Integral causes an unnecessary toInteger
 -- warning. Once 7.8 is out check if we can go back to deriving.
@@ -69,16 +69,16 @@ instance Show Lvl where
   show = show . unLvl
 
 instance Show Nat where
-    show = show . unNat
+  show = show . unNat
 
 class PrimType a where
-    primType :: a -> TCM Type
+  primType :: a -> TCM Type
 
 instance (PrimType a, PrimType b) => PrimTerm (a -> b) where
-    primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
+  primTerm _ = unEl <$> (primType (undefined :: a) --> primType (undefined :: b))
 
 instance PrimTerm a => PrimType a where
-    primType _ = el $ primTerm (undefined :: a)
+  primType _ = el $ primTerm (undefined :: a)
 
 class    PrimTerm a       where primTerm :: a -> TCM Term
 instance PrimTerm Integer where primTerm _ = primInteger
@@ -92,18 +92,18 @@ instance PrimTerm QName   where primTerm _ = primQName
 instance PrimTerm Type    where primTerm _ = primAgdaType
 
 instance PrimTerm a => PrimTerm [a] where
-    primTerm _ = list (primTerm (undefined :: a))
+  primTerm _ = list (primTerm (undefined :: a))
 
 instance PrimTerm a => PrimTerm (IO a) where
-    primTerm _ = io (primTerm (undefined :: a))
+  primTerm _ = io (primTerm (undefined :: a))
 
 -- From Agda term to Haskell value
 
 class ToTerm a where
-    toTerm  :: TCM (a -> Term)
-    toTermR :: TCM (a -> ReduceM Term)
+  toTerm  :: TCM (a -> Term)
+  toTermR :: TCM (a -> ReduceM Term)
 
-    toTermR = (pure .) <$> toTerm
+  toTermR = (pure .) <$> toTerm
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Nat     where toTerm = return $ Lit . LitInt noRange . unNat
@@ -114,18 +114,18 @@ instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
 
 instance ToTerm Bool where
-    toTerm = do
-        true  <- primTrue
-        false <- primFalse
-        return $ \b -> if b then true else false
+  toTerm = do
+    true  <- primTrue
+    false <- primFalse
+    return $ \b -> if b then true else false
 
 instance ToTerm Term where
-    toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
-    toTermR = do kit <- quotingKit; return (quoteTermWithKit kit)
+  toTerm  = do kit <- quotingKit; runReduceF (quoteTermWithKit kit)
+  toTermR = do kit <- quotingKit; return (quoteTermWithKit kit)
 
 instance ToTerm Type where
-    toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
-    toTermR = do kit <- quotingKit; return (quoteTypeWithKit kit)
+  toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
+  toTermR = do kit <- quotingKit; return (quoteTypeWithKit kit)
 
 instance ToTerm I.ArgInfo where
   toTerm = do
@@ -160,52 +160,53 @@ buildList = do
     return $ foldr cons nil
 
 instance (PrimTerm a, ToTerm a) => ToTerm [a] where
-    toTerm = do
-        mkList <- buildList
-        fromA  <- toTerm
-        return $ mkList . map fromA
+  toTerm = do
+    mkList <- buildList
+    fromA  <- toTerm
+    return $ mkList . map fromA
 
 -- From Haskell value to Agda term
 
-type FromTermFunction a = I.Arg Term -> ReduceM (Reduced (MaybeReduced (I.Arg Term)) a)
+type FromTermFunction a = I.Arg Term ->
+                          ReduceM (Reduced (MaybeReduced (I.Arg Term)) a)
 
 class FromTerm a where
-    fromTerm :: TCM (FromTermFunction a)
+  fromTerm :: TCM (FromTermFunction a)
 
 instance FromTerm Integer where
-    fromTerm = fromLiteral $ \l -> case l of
-        LitInt _ n -> Just n
-        _          -> Nothing
+  fromTerm = fromLiteral $ \l -> case l of
+    LitInt _ n -> Just n
+    _          -> Nothing
 
 instance FromTerm Nat where
-    fromTerm = fromLiteral $ \l -> case l of
-        LitInt _ n -> Just $ Nat n
-        _          -> Nothing
+  fromTerm = fromLiteral $ \l -> case l of
+    LitInt _ n -> Just $ Nat n
+    _          -> Nothing
 
 instance FromTerm Lvl where
-    fromTerm = fromReducedTerm $ \l -> case l of
-        Level (Max [ClosedLevel n]) -> Just $ Lvl n
-        _                           -> Nothing
+  fromTerm = fromReducedTerm $ \l -> case l of
+    Level (Max [ClosedLevel n]) -> Just $ Lvl n
+    _                           -> Nothing
 
 instance FromTerm Double where
-    fromTerm = fromLiteral $ \l -> case l of
-        LitFloat _ x -> Just x
-        _            -> Nothing
+  fromTerm = fromLiteral $ \l -> case l of
+    LitFloat _ x -> Just x
+    _            -> Nothing
 
 instance FromTerm Char where
-    fromTerm = fromLiteral $ \l -> case l of
-        LitChar _ c -> Just c
-        _           -> Nothing
+  fromTerm = fromLiteral $ \l -> case l of
+    LitChar _ c -> Just c
+    _           -> Nothing
 
 instance FromTerm Str where
-    fromTerm = fromLiteral $ \l -> case l of
-        LitString _ s -> Just $ Str s
-        _             -> Nothing
+  fromTerm = fromLiteral $ \l -> case l of
+    LitString _ s -> Just $ Str s
+    _             -> Nothing
 
 instance FromTerm QName where
-    fromTerm = fromLiteral $ \l -> case l of
-        LitQName _ x -> Just x
-        _             -> Nothing
+  fromTerm = fromLiteral $ \l -> case l of
+    LitQName _ x -> Just x
+    _             -> Nothing
 
 instance FromTerm Bool where
     fromTerm = do
@@ -258,7 +259,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
 redBind :: ReduceM (Reduced a a') -> (a -> b) ->
-             (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
+           (a' -> ReduceM (Reduced b b')) -> ReduceM (Reduced b b')
 redBind ma f k = do
     r <- ma
     case r of
@@ -389,7 +390,8 @@ mkPrimLevelMax = do
     Max bs <- levelView' $ unArg b
     redReturn $ Level $ levelMax $ as ++ bs
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b) => TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
+mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
+                 TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
     fromB <- toTermR
@@ -403,7 +405,7 @@ mkPrimFun1TCM mt f = do
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
-mkPrimFun1 :: (PrimType a, PrimType b, FromTerm a, ToTerm b) =>
+mkPrimFun1 :: (PrimType a, FromTerm a, PrimType b, ToTerm b) =>
               (a -> b) -> TCM PrimitiveImpl
 mkPrimFun1 f = do
     toA   <- fromTerm
@@ -417,7 +419,9 @@ mkPrimFun1 f = do
           redReturn $ fromB $ f x
         _ -> __IMPOSSIBLE__
 
-mkPrimFun2 :: (PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
+mkPrimFun2 :: ( PrimType a, FromTerm a, ToTerm a
+              , PrimType b, FromTerm b
+              , PrimType c, ToTerm c ) =>
               (a -> b -> c) -> TCM PrimitiveImpl
 mkPrimFun2 f = do
     toA   <- fromTerm
@@ -440,7 +444,7 @@ mkPrimFun4 :: ( PrimType a, FromTerm a, ToTerm a
               , PrimType b, FromTerm b, ToTerm b
               , PrimType c, FromTerm c, ToTerm c
               , PrimType d, FromTerm d
-              , PrimType e, ToTerm e) =>
+              , PrimType e, ToTerm e ) =>
               (a -> b -> c -> d -> e) -> TCM PrimitiveImpl
 mkPrimFun4 f = do
     (toA, fromA) <- (,) <$> fromTerm <*> toTerm
@@ -565,85 +569,85 @@ type Pred a = a -> Bool
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
 primitiveFunctions = Map.fromList
 
-    -- Integer functions
-    [ "primIntegerPlus"     |-> mkPrimFun2 ((+)        :: Op Integer)
-    , "primIntegerMinus"    |-> mkPrimFun2 ((-)        :: Op Integer)
-    , "primIntegerTimes"    |-> mkPrimFun2 ((*)        :: Op Integer)
-    , "primIntegerDiv"      |-> mkPrimFun2 (div        :: Op Integer)    -- partial
-    , "primIntegerMod"      |-> mkPrimFun2 (mod        :: Op Integer)    -- partial
-    , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
-    , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
-    , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
-    , "primNatToInteger"    |-> mkPrimFun1 (unNat      :: Nat -> Integer)
-    , "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
+  -- Integer functions
+  [ "primIntegerPlus"     |-> mkPrimFun2 ((+)        :: Op Integer)
+  , "primIntegerMinus"    |-> mkPrimFun2 ((-)        :: Op Integer)
+  , "primIntegerTimes"    |-> mkPrimFun2 ((*)        :: Op Integer)
+  , "primIntegerDiv"      |-> mkPrimFun2 (div        :: Op Integer)    -- partial
+  , "primIntegerMod"      |-> mkPrimFun2 (mod        :: Op Integer)    -- partial
+  , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
+  , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
+  , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
+  , "primNatToInteger"    |-> mkPrimFun1 (unNat      :: Nat -> Integer)
+  , "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
 
-    -- Natural number functions
-    , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)
-    , "primNatMinus"        |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
-    , "primNatTimes"        |-> mkPrimFun2 ((*)                     :: Op Nat)
-    , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (max 0 $ n + m - j) (m + 1)) :: Nat -> Nat -> Nat -> Nat -> Nat)
-    , "primNatModSucAux"    |->
-        let aux :: Nat -> Nat -> Nat -> Nat -> Nat
-            aux k m n j | n > j     = mod (n - j - 1) (m + 1)
-                        | otherwise = k + n
-        in mkPrimFun4 aux
-    , "primNatEquality"     |-> mkPrimFun2 ((==)                    :: Rel Nat)
-    , "primNatLess"         |-> mkPrimFun2 ((<)                     :: Rel Nat)
-    , "primLevelZero"       |-> mkPrimLevelZero
-    , "primLevelSuc"        |-> mkPrimLevelSuc
-    , "primLevelMax"        |-> mkPrimLevelMax
+  -- Natural number functions
+  , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)
+  , "primNatMinus"        |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
+  , "primNatTimes"        |-> mkPrimFun2 ((*)                     :: Op Nat)
+  , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (max 0 $ n + m - j) (m + 1)) :: Nat -> Nat -> Nat -> Nat -> Nat)
+  , "primNatModSucAux"    |->
+      let aux :: Nat -> Nat -> Nat -> Nat -> Nat
+          aux k m n j | n > j     = mod (n - j - 1) (m + 1)
+                      | otherwise = k + n
+      in mkPrimFun4 aux
+  , "primNatEquality"     |-> mkPrimFun2 ((==)                    :: Rel Nat)
+  , "primNatLess"         |-> mkPrimFun2 ((<)                     :: Rel Nat)
+  , "primLevelZero"       |-> mkPrimLevelZero
+  , "primLevelSuc"        |-> mkPrimLevelSuc
+  , "primLevelMax"        |-> mkPrimLevelMax
 
-    -- Floating point functions
-    , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
-    , "primFloatPlus"       |-> mkPrimFun2 ((+)          :: Op Double)
-    , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
-    , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
-    , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
-    , "primFloatEquality"   |-> mkPrimFun2 ((==)         :: Rel Double)
-    , "primFloatLess"       |-> mkPrimFun2 ((<)          :: Rel Double)
-    , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
-    , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
-    , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)
-    , "primExp"             |-> mkPrimFun1 (exp          :: Fun Double)
-    , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)    -- partial
-    , "primSin"             |-> mkPrimFun1 (sin          :: Fun Double)
-    , "primShowFloat"       |-> mkPrimFun1 (Str . show   :: Double -> Str)
+  -- Floating point functions
+  , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
+  , "primFloatPlus"       |-> mkPrimFun2 ((+)          :: Op Double)
+  , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
+  , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
+  , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
+  , "primFloatEquality"   |-> mkPrimFun2 ((==)         :: Rel Double)
+  , "primFloatLess"       |-> mkPrimFun2 ((<)          :: Rel Double)
+  , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
+  , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
+  , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)
+  , "primExp"             |-> mkPrimFun1 (exp          :: Fun Double)
+  , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)    -- partial
+  , "primSin"             |-> mkPrimFun1 (sin          :: Fun Double)
+  , "primShowFloat"       |-> mkPrimFun1 (Str . show   :: Double -> Str)
 
-    -- Character functions
-    , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
-    , "primIsLower"         |-> mkPrimFun1 isLower
-    , "primIsDigit"         |-> mkPrimFun1 isDigit
-    , "primIsAlpha"         |-> mkPrimFun1 isAlpha
-    , "primIsSpace"         |-> mkPrimFun1 isSpace
-    , "primIsAscii"         |-> mkPrimFun1 isAscii
-    , "primIsLatin1"        |-> mkPrimFun1 isLatin1
-    , "primIsPrint"         |-> mkPrimFun1 isPrint
-    , "primIsHexDigit"      |-> mkPrimFun1 isHexDigit
-    , "primToUpper"         |-> mkPrimFun1 toUpper
-    , "primToLower"         |-> mkPrimFun1 toLower
-    , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
-    , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral   :: Nat -> Char)
-    , "primShowChar"        |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
+  -- Character functions
+  , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
+  , "primIsLower"         |-> mkPrimFun1 isLower
+  , "primIsDigit"         |-> mkPrimFun1 isDigit
+  , "primIsAlpha"         |-> mkPrimFun1 isAlpha
+  , "primIsSpace"         |-> mkPrimFun1 isSpace
+  , "primIsAscii"         |-> mkPrimFun1 isAscii
+  , "primIsLatin1"        |-> mkPrimFun1 isLatin1
+  , "primIsPrint"         |-> mkPrimFun1 isPrint
+  , "primIsHexDigit"      |-> mkPrimFun1 isHexDigit
+  , "primToUpper"         |-> mkPrimFun1 toUpper
+  , "primToLower"         |-> mkPrimFun1 toLower
+  , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
+  , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral   :: Nat -> Char)
+  , "primShowChar"        |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
-    -- String functions
-    , "primStringToList"    |-> mkPrimFun1 unStr
-    , "primStringFromList"  |-> mkPrimFun1 Str
-    , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
-    , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
-    , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+  -- String functions
+  , "primStringToList"    |-> mkPrimFun1 unStr
+  , "primStringFromList"  |-> mkPrimFun1 Str
+  , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
+  , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
+  , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
-    -- Reflection
-    , "primQNameType"       |-> primQNameType
-    , "primQNameDefinition" |-> primQNameDefinition
-    , "primDataConstructors"|-> primDataConstructors
+  -- Reflection
+  , "primQNameType"       |-> primQNameType
+  , "primQNameDefinition" |-> primQNameDefinition
+  , "primDataConstructors"|-> primDataConstructors
 
-    -- Other stuff
-    , "primTrustMe"         |-> primTrustMe
-    , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
-    , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
-    ]
-    where
-        (|->) = (,)
+  -- Other stuff
+  , "primTrustMe"         |-> primTrustMe
+  , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
+  , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
+  ]
+  where
+    (|->) = (,)
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
