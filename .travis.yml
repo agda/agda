@@ -38,7 +38,7 @@ install:
 script:
   - cabal configure -v2
   - cabal build -v2
-  - make install-bin CABAL_OPTS=-v2
+  - travis_wait make install-bin CABAL_OPTS=-v2
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
