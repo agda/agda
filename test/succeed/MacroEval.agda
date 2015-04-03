@@ -11,7 +11,7 @@ pattern _`+_ a b = def (quote _+_) (vArg a ∷ vArg b ∷ [])
 macro
   -- The unquoted type is also Term → Term.
   eval : Term → Term
-  eval u = quote-term (unquote-term u)
+  eval u = quote-term (unquote-term u [])
 
 t : Term
 t = lam visible (abs "n" (lit (nat 1) `+ var 0 []))

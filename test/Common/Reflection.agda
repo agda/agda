@@ -79,7 +79,7 @@ data Term : Set where
   quote-term    : Term → Term
   quote-goal    : Abs Term → Term
   quote-context : Term
-  unquote-term  : Term → Term
+  unquote-term  : Term → Args → Term
   unknown       : Term
 
 Args = List (Arg Term)

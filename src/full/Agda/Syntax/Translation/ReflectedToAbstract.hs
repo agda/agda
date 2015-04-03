@@ -126,7 +126,7 @@ instance ToAbstract Term Expr where
       return $ A.QuoteGoal exprNoRange name e
     R.QuoteTerm t  -> toAbstract (A.QuoteTerm exprNoRange, Apply $ defaultArg t)
     R.QuoteContext -> return $ A.QuoteContext exprNoRange
-    R.Unquote t    -> toAbstract (A.Unquote exprNoRange, Apply $ defaultArg t)
+    R.Unquote t es -> toAbstract (A.Unquote exprNoRange, Apply (defaultArg t) : es)
     R.Unknown      -> return $ Underscore emptyMetaInfo
 
 instance ToAbstract Type Expr where

@@ -18,13 +18,13 @@ qqq-zero = quoteTerm qq-zero
 qqq-zero′ : Term
 qqq-zero′ = quote-term qq-zero
 
-double-unquote : unquote (unquote-term qq-zero) ≡ 0
+double-unquote : unquote (unquote-term qq-zero []) ≡ 0
 double-unquote = refl
 
-triple-unquote : unquote (unquote-term (unquote-term qqq-zero)) ≡ 0
+triple-unquote : unquote (unquote-term (unquote-term qqq-zero []) []) ≡ 0
 triple-unquote = refl
 
-triple-unquote′ : unquote (unquote-term (unquote-term qqq-zero′)) ≡ 0
+triple-unquote′ : unquote (unquote-term (unquote-term qqq-zero′ []) []) ≡ 0
 triple-unquote′ = refl
 
 pattern vArg x = arg (argInfo visible relevant) x
@@ -32,7 +32,7 @@ pattern vArg x = arg (argInfo visible relevant) x
 -- We can now define a version of the tactic keyword
 
 `tactic : QName → Term
-`tactic x = quote-goal (abs "g" (unquote-term (def x (vArg (var 0 []) ∷ []))))
+`tactic x = quote-goal (abs "g" (unquote-term (def x (vArg (var 0 []) ∷ [])) []))
 
 default-tactic : Term → Term
 default-tactic (def (quote Nat) []) = quoteTerm 42
