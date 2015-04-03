@@ -12,6 +12,7 @@
 
 module Agda.TypeChecking.Rules.Term where
 
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
@@ -957,9 +958,23 @@ checkApplication hd args e t = do
     -- Subcase: macro
     A.Macro x -> do
       -- First go: no parameters
-      let unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
+      TelV tel _ <- telView . defType =<< getConstInfo x
+      let visibleArgs = length [ arg | arg <- telToList tel, getHiding arg == NotHidden ]
+          splitVisible 0 args = ([], args)
+          splitVisible n []   = ([], [])
+          splitVisible n (arg : args) = first (arg :) $ splitVisible n' args
+            where
+              n' | getHiding arg == NotHidden = n - 1
+                 | otherwise                  = n
+          (quotedArgs, otherArgs) = splitVisible visibleArgs args
+          unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
           q e = A.App (A.ExprRange (getRange e)) (A.QuoteTerm A.exprNoRange) (defaultNamedArg e)
-          desugared = unq $ unAppView $ Application (A.Def x) $ (map . fmap . fmap) q args
+          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ (map . fmap . fmap) q quotedArgs) otherArgs
+      unless (length quotedArgs == visibleArgs) $ do
+        err <- fsep $ pwords "The macro" ++ [prettyTCM x] ++
+                      pwords ("expects " ++ show visibleArgs ++
+                              " arguments, but has been given only " ++ show (length quotedArgs))
+        typeError $ GenericError $ show err
       checkExpr desugared t
 
     -- Subcase: unquote
