@@ -167,11 +167,11 @@ leqType_ t t' = workOnTypes $ leqType t t'
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
 
-forcePi :: Hiding -> String -> Type -> TCM (Type, Constraints)
+forcePi :: Hiding -> String -> Type -> TCM Type
 forcePi h name (El s t) =
     do  t' <- reduce t
         case t' of
-            Pi _ _      -> return (El s t', [])
+            Pi _ _      -> return $ El s t'
             _           -> do
                 sa <- newSortMeta
                 sb <- newSortMeta
@@ -179,12 +179,12 @@ forcePi h name (El s t) =
 
                 a <- newTypeMeta sa
                 x <- freshName_ name
-                let arg = Arg h Relevant a
+                let arg = setHiding h $ defaultDom a
                 b <- addCtx x arg $ newTypeMeta sb
                 let ty = El s' $ Pi arg (Abs (show x) b)
-                cs <- equalType (El s t') ty
+                equalType (El s t') ty
                 ty' <- reduce ty
-                return (ty', cs)
+                return ty'
 -}
 
 ---------------------------------------------------------------------------
@@ -1351,7 +1351,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
               -- c) We inserted implicits, but did not find his one.
               | otherwise = lift $ typeError $ WrongNamedArgument arg
 
-        -- (t0', cs) <- forcePi h (name e) t0
+        -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case ignoreSharing $ unEl t0' of
           Pi (Dom info' a) b
             | getHiding info == getHiding info'
