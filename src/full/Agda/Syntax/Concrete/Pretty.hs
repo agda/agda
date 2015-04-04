@@ -479,6 +479,7 @@ instance Pretty GenPart where
     pretty (IdPart x)   = text x
     pretty BindHole{}   = underscore
     pretty NormalHole{} = underscore
+    pretty WildHole{}   = underscore
 
 instance Pretty Notation where
     pretty = hcat . map pretty

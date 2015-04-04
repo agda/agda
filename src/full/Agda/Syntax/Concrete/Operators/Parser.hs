@@ -257,6 +257,9 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
            p
     (r, es) <- worker ms xs
     return (r, Left (e, h) : es)
+  worker ms (WildHole h : xs) = do
+    (r, es) <- worker ms xs
+    return (r, Right (mkBinding h $ Name noRange [Hole]) : es)
   worker ms (BindHole h : xs) = do
     e <- notPlaceholder
     case exprView e of
@@ -268,8 +271,10 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
     where
     ret x = do
       (r, es) <- worker ms xs
-      return (r, Right (DomainFree defaultArgInfo $ mkBoundName_ x, h) : es)
+      return (r, Right (mkBinding h x) : es)
       -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
+
+  mkBinding h x = (DomainFree defaultArgInfo $ mkBoundName_ x, h)
 
   set x arg = fmap (fmap (const x)) arg
 

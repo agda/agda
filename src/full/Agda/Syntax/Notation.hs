@@ -54,6 +54,8 @@ data GenPart
     -- ^ Argument is the position of the hole (with binding) where the binding should occur.
   | NormalHole (NamedArg () Int)
     -- ^ Argument is where the expression should go.
+  | WildHole Int
+    -- ^ An underscore in binding position.
   | IdPart RawName
   deriving (Typeable, Show, Eq, Ord)
 
@@ -61,6 +63,7 @@ instance KillRange GenPart where
   killRange p = case p of
     IdPart x     -> IdPart x
     BindHole i   -> BindHole i
+    WildHole i   -> WildHole i
     NormalHole x -> NormalHole $ killRange x
 
 -- | Get a flat list of identifier parts of a notation.
@@ -70,22 +73,29 @@ stringParts gs = [ x | IdPart x <- gs ]
 -- | Target argument position of a part (Nothing if it is not a hole).
 holeTarget :: GenPart -> Maybe Int
 holeTarget (BindHole   n) = Just n
+holeTarget (WildHole   n) = Just n
 holeTarget (NormalHole n) = Just $ namedArg n
 holeTarget IdPart{}       = Nothing
 
--- | Is the part a hole?
+-- | Is the part a hole? WildHoles don't count since they don't correspond to
+--   anything the user writes.
 isAHole :: GenPart -> Bool
-isAHole = isJust . holeTarget
+isAHole BindHole{}   = True
+isAHole NormalHole{} = True
+isAHole WildHole{}   = False
+isAHole IdPart{}     = False
 
 -- | Is the part a normal hole?
 isNormalHole :: GenPart -> Bool
 isNormalHole NormalHole{} = True
 isNormalHole BindHole{}   = False
+isNormalHole WildHole{}   = False
 isNormalHole IdPart{}     = False
 
 -- | Is the part a binder?
 isBindingHole :: GenPart -> Bool
 isBindingHole (BindHole _) = True
+isBindingHole (WildHole _) = True
 isBindingHole _ = False
 
 -- | Classification of notations.
@@ -131,12 +141,28 @@ mkNotation holes ids = do
   unless (isAlternating xs)  $ throwError "syntax must alternate holes and non-holes"
   unless (isExprLinear xs)   $ throwError "syntax must use holes exactly once"
   unless (isLambdaLinear xs) $ throwError "syntax must use binding holes exactly once"
-  return xs
+  return $ insertWildHoles xs
     where
       mkPart ident = fromMaybe (IdPart ident) $ lookup ident holeMap
 
       holeNumbers   = [0 .. length holes - 1]
       numberedHoles = zip holeNumbers holes
+
+      -- The WildHoles don't correspond to anything in the right-hand side so
+      -- we add them next to their corresponding body. Slightly subtle: due to
+      -- the way the operator parsing works they can't be added first or last.
+      insertWildHoles xs = foldr ins xs wilds
+        where
+          wilds = [ i | (_, WildHole i) <- holeMap ]
+          ins w (NormalHole h : hs)
+            | namedArg h == w = NormalHole h : WildHole w : hs
+          ins w (h : hs) = h : insBefore w hs
+          ins _ [] = __IMPOSSIBLE__
+
+          insBefore w (NormalHole h : hs)
+            | namedArg h == w = WildHole w : NormalHole h : hs
+          insBefore w (h : hs) = h : insBefore w hs
+          insBefore _ [] = __IMPOSSIBLE__
 
       -- Create a map (association list) from hole names to holes.
       -- A @LambdaHole@ contributes two entries:
@@ -146,15 +172,18 @@ mkNotation holes ids = do
         (i, h) <- numberedHoles
         let normalHole = NormalHole $ setArgColors [] $ fmap (i <$) h
         case namedArg h of
-          ExprHole y     -> [(y, normalHole)]
-          LambdaHole x y -> [(x, BindHole i), (y, normalHole)]
+          ExprHole y       -> [(y, normalHole)]
+          LambdaHole "_" y -> [("_", WildHole i), (y, normalHole)]
+          LambdaHole x y   -> [(x, BindHole i), (y, normalHole)]
 
       -- Check whether all hole names are distinct.
       -- The hole names are the keys of the @holeMap@.
-      uniqueHoleNames = distinct $ map fst holeMap
+      uniqueHoleNames = distinct [ x | (x, _) <- holeMap, x /= "_" ]
 
-      isExprLinear   xs = sort [ namedArg x | NormalHole x <- xs] == holeNumbers
-      isLambdaLinear xs = sort [ x          | BindHole   x <- xs] == [ i | (i, h) <- numberedHoles, isLambdaHole (namedArg h) ]
+      isExprLinear   xs = sort [ i | x <- xs, isNormalHole x, let Just i = holeTarget x ] == holeNumbers
+      isLambdaLinear xs = sort [ x | BindHole x <- xs ] ==
+                          [ i | (i, h) <- numberedHoles,
+                                LambdaHole x _ <- [namedArg h], x /= "_" ]
 
       isAlternating :: [GenPart] -> Bool
       isAlternating []       = __IMPOSSIBLE__

@@ -1177,11 +1177,13 @@ SimpleTopHole :: { HoleName }
 SimpleTopHole
   : SimpleId { ExprHole (rangedThing $1) }
   | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole (rangedThing $3) (rangedThing $5) }
+  | '(' '\\' '_'      '->' SimpleId ')' { LambdaHole "_" (rangedThing $5) }
 
 SimpleHole :: { HoleName }
 SimpleHole
   : SimpleId { ExprHole (rangedThing $1) }
   | '\\' SimpleId '->' SimpleId { LambdaHole (rangedThing $2) (rangedThing $4) }
+  | '\\' '_'      '->' SimpleId { LambdaHole "_" (rangedThing $4) }
 -- Variable name hole to be implemented later.
 
 -- Discard the interval.
