@@ -342,9 +342,11 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
       where paren s | elem ' ' s = "(" ++ s ++ ")"
                     | otherwise  = s
     show (IsEmptyType a)        = "Is empty: " ++ show a
-    show (FindInScopeOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ". Candidates: [" ++
-                                    intercalate ", " (map showCand cs) ++ "]"
-      where showCand (tm,ty) = show tm ++ " : " ++ show ty
+    show (FindInScopeOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ".\n  Candidates:\n    [ " ++
+                                    intercalate "\n    , " (map showCand cs) ++ " ]"
+      where showCand (tm,ty) = indent 6 $ show tm ++ " : " ++ show ty
+            indent n s = intercalate ("\n" ++ replicate n ' ') (l:ls)
+              where l:ls = lines s
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
