@@ -10,6 +10,7 @@ postulate Float : Set
 postulate QName : Set
 {-# BUILTIN QNAME QName #-}
 primitive primQNameEquality : QName → QName → Bool
+primitive primQNameLess : QName → QName → Bool
 
 data Hiding : Set where
   hidden visible inst : Hiding
