@@ -116,7 +116,7 @@ checkDeclCached d = do
    ignoreChanges m = do
      cs <- gets $ stLoadedFileCache . stPersistentState
      cleanCachedLog
-     m
+     _ <- m
      modifyPersistentState $ \st -> st{stLoadedFileCache = cs}
    checkDeclWrap d@A.RecDef{} = ignoreChanges $ checkDecl d
    checkDeclWrap d@A.Mutual{} = ignoreChanges $ checkDecl d
