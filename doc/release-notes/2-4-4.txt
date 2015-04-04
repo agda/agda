@@ -303,6 +303,10 @@ Operator syntax
 
   was previously treated as infix, but is now treated as prefix.
 
+* Notation can now include wildcard binders.
+
+  Example: syntax Σ A (λ _ → B) = A × B
+
 * If an overloaded operator is in scope with several distinct
   precedence levels, then several instances of this operator will be
   included in the operator grammar, possibly leading to ambiguity.
