@@ -75,7 +75,7 @@ callCompiler' cmd args = do
   exitcode <- liftIO $ do
     -- Ensure that the output has been read before waiting for the
     -- process.
-    E.evaluate (length errors)
+    _ <- E.evaluate (length errors)
     waitForProcess p
 
   case exitcode of

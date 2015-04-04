@@ -859,7 +859,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         lift $ A.VarP <$> nameOfBV (size tel - 1 - j)
       I.DotP v -> do
         t <- lift $ reify v
-        tick
+        _ <- tick
         let vars = Set.map show (dotVars t)
             t'   = if Set.member "()" vars then underscore else t
         return $ A.DotP patNoRange t'

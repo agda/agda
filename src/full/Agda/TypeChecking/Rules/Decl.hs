@@ -138,8 +138,7 @@ checkDecl d = setCurrentRange d $ do
       whenJust finalChecks $ \ theMutualChecks -> do
         solveSizeConstraints
         wakeupConstraints_   -- solve emptiness constraints
-        freezeMetas
-
+        _ <- freezeMetas
         theMutualChecks
 
     where

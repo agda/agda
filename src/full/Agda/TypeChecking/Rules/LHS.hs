@@ -246,7 +246,7 @@ noShadowingOfConstructors mkCall problem =
     let pat = map (snd . asView . namedArg) $
                   problemInPat problem
         tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
-    zipWithM noShadowing pat tel -- TODO: does not work for flexible arity and projection patterns
+    zipWithM_ noShadowing pat tel -- TODO: does not work for flexible arity and projection patterns
     return ()
   where
   noShadowing (A.WildP     {}) t = return ()

@@ -170,9 +170,8 @@ type GM = State Graph
 addFlex :: FlexId -> Scope -> GM ()
 addFlex x scope = do
   modify $ \ st -> st { flexScope = Map.insert x scope (flexScope st) }
-  addNode (Flex x)
+  _ <- addNode (Flex x)
   return ()
-
 
 -- | Lookup identifier of a node.
 --   If not present, it is added first.

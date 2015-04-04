@@ -140,7 +140,7 @@ instance Error () where
 finally :: (Error e, MonadError e m) => m a -> m b -> m a
 first `finally` after = do
   r <- catchError (liftM Right first) (return . Left)
-  after
+  _ <- after
   case r of
     Left e  -> throwError e
     Right r -> return r
@@ -156,7 +156,7 @@ bracket_ :: Monad m
 bracket_ acquire release compute = do
   resource <- acquire
   result <- compute
-  release resource
+  _ <- release resource
   return result
 
 -- | Restore state after computation.
