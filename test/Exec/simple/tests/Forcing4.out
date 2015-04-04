@@ -1,0 +1,6 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > refl
+out > 2 <= 3
+out >

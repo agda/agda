@@ -21,6 +21,9 @@ override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 override CABAL_OPTS+=--program-suffix=-$(VERSION)
 
+# Run in interactive and parallel mode by default
+AGDA_TESTS_OPTIONS ?=-i -j $(shell getconf _NPROCESSORS_ONLN)
+
 ## Default target #########################################################
 
 .PHONY : default
@@ -36,7 +39,7 @@ prof : install-prof-bin
 
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install --enable-tests --disable-library-profiling --disable-documentation $(CABAL_OPTS)
 
 .PHONY : install-O0-bin
 install-O0-bin :
@@ -94,7 +97,7 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs exec-test
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -200,6 +203,14 @@ epic-test :
 	@echo "============================ Epic backend ============================"
 	@echo "======================================================================"
 	@$(MAKE) -C test/epic
+
+
+.PHONY : exec-test
+exec-test :
+	@echo "======================================================================"
+	@echo "======================== Compiler/exec tests ========================="
+	@echo "======================================================================"
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS)
 
 .PHONY : api-test
 api-test :

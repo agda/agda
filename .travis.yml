@@ -31,13 +31,14 @@ install:
   - cabal install epic
   # Get the std-lib
   - make std-lib
-  # GO GO GO
-  - cabal install --only-dependencies -j
+  # cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
+  # breaking previously installed packages.
+  - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
   - make install-fix-agda-whitespace
 
 script:
   - export BUILD_DIR=$PWD/dist
-  - cabal configure -v2 --builddir=$BUILD_DIR
+  - cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
   - cabal build -v2 --builddir=$BUILD_DIR
   # "make install-bin" shouldn't take longer than 20-30 seconds, as it
   # reuses the build output from the above "cabal build". For this to
@@ -50,6 +51,9 @@ script:
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
+  # Install MAlonzo ffi lib for tests
+  - cabal install test/agda-tests-ffi.cabal
+  - make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR exec-test
   - yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive examples library-test lib-succeed compiler-test epic-test api-test tests benchmark TAGS
   # Travis doesn't have latex, not sure if we should install it
   # - make latex-test
@@ -57,7 +61,7 @@ script:
   # GHC 7.8.* (see Issue 1156).
   # (comment above at "make install-bin" about avoiding recompilation
   # also applies here!)
-  - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi
+  - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi
 
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
