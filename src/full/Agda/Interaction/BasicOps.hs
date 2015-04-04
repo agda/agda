@@ -136,7 +136,7 @@ give ii mr e = liftTCM $ do
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnScope e
   -- Try to give mi := e
-  giveExpr mi e `catchError` \ err -> case err of
+  _ <- catchError (giveExpr mi e) $ \ err -> case err of
     -- Turn PatternErr into proper error:
     PatternErr{} -> do
       err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e

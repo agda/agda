@@ -30,14 +30,14 @@ class (Functor m, Applicative m, Monad m) => HasBuiltins m where
 
 litType :: Literal -> TCM Type
 litType l = case l of
-    LitInt _ n    -> do
-      primZero
-      when_ (n > 0) $ primSuc
-      el <$> primNat
-    LitFloat _ _  -> el <$> primFloat
-    LitChar _ _   -> el <$> primChar
-    LitString _ _ -> el <$> primString
-    LitQName _ _  -> el <$> primQName
+  LitInt _ n    -> do
+    _ <- primZero
+    when_ (n > 0) $ primSuc
+    el <$> primNat
+  LitFloat _ _  -> el <$> primFloat
+  LitChar _ _   -> el <$> primChar
+  LitString _ _ -> el <$> primString
+  LitQName _ _  -> el <$> primQName
   where
     el t = El (mkType 0) t
 

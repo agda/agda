@@ -261,7 +261,7 @@ string :: Eq t => [t] -> ReadP t [t]
 string this = do s <- look; scan this s
  where
   scan []     _               = do return this
-  scan (x:xs) (y:ys) | x == y = do get; scan xs ys
+  scan (x:xs) (y:ys) | x == y = do _ <- get; scan xs ys
   scan _      _               = do pfail
 
 eof :: ReadP tok ()
@@ -281,7 +281,7 @@ munch p =
   do s <- look
      scan s
  where
-  scan (c:cs) | p c = do get; s <- scan cs; return (c:s)
+  scan (c:cs) | p c = do _ <- get; s <- scan cs; return (c:s)
   scan _            = do return []
 
 munch1 :: (t -> Bool) -> ReadP t [t]
@@ -302,7 +302,7 @@ skipSpaces =
   do s <- look
      skip s
  where
-  skip (c:s) | isSpace c = do get; skip s
+  skip (c:s) | isSpace c = do _ <- get; skip s
   skip _                 = do return ()
 
 count :: Int -> ReadP t a -> ReadP t [a]
@@ -313,10 +313,11 @@ count n p = sequence (replicate n p)
 between :: ReadP t open -> ReadP t close -> ReadP t a -> ReadP t a
 -- ^ @between open close p@ parses @open@, followed by @p@ and finally
 --   @close@. Only the value of @p@ is returned.
-between open close p = do open
-                          x <- p
-                          close
-                          return x
+between open close p = do
+  _ <- open
+  x <- p
+  _ <- close
+  return x
 
 option :: a -> ReadP t a -> ReadP t a
 -- ^ @option x p@ will either parse @p@ or return @x@ without consuming
@@ -356,12 +357,12 @@ sepBy1 p sep = liftM2 (:) p (many (sep >> p))
 endBy :: ReadP t a -> ReadP t sep -> ReadP t [a]
 -- ^ @endBy p sep@ parses zero or more occurrences of @p@, separated and ended
 --   by @sep@.
-endBy p sep = many (do x <- p ; sep ; return x)
+endBy p sep = many (do x <- p ; _ <- sep ; return x)
 
 endBy1 :: ReadP t a -> ReadP t sep -> ReadP t [a]
 -- ^ @endBy p sep@ parses one or more occurrences of @p@, separated and ended
 --   by @sep@.
-endBy1 p sep = many1 (do x <- p ; sep ; return x)
+endBy1 p sep = many1 (do x <- p ; _ <- sep ; return x)
 
 chainr :: ReadP t a -> ReadP t (a -> a -> a) -> a -> ReadP t a
 -- ^ @chainr p op x@ parses zero or more occurrences of @p@, separated by @op@.

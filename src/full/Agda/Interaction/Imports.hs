@@ -186,7 +186,7 @@ typeCheckMain f = do
   reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
   -- To allow posulating the built-ins, check the primitive module
   -- in unsafe mode
-  bracket_ (gets $ Lens.getSafeMode) Lens.putSafeMode $ do
+  _ <- bracket_ (gets $ Lens.getSafeMode) Lens.putSafeMode $ do
     Lens.putSafeMode False
     -- Turn off import-chasing messages.
     -- We have to modify the persistent verbosity setting, since
