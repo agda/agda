@@ -66,6 +66,10 @@ followed:
     make install
     make test
 
+* Test compilation using cpp instead of cpphs:
+
+    make install CABAL_OPTS='-f -cpphs'
+
 * Tag and build source distributions. (Do not forget to record the
   changes above first.)
 
