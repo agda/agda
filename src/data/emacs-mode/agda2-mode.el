@@ -1697,9 +1697,5 @@ VERSION is empty, then agda and agda-mode are used instead.)"
               (agda2-mode)))
           agda-buffers)))
 
-;; Local Variables:
-;; lisp-indent-function: common-lisp-indent-function
-;; End:
-
 (provide 'agda2-mode)
 ;;; agda2-mode.el ends here
