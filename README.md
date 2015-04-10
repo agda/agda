@@ -186,7 +186,7 @@ not build with certain recent versions of GHC):
 
 ### Installing from development sources using make
 
-    make CABAL_OPTIONS=-fepic install
+    make install CABAL_OPTS=-fepic
 
 You can also install Epic directly:
 

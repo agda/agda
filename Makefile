@@ -13,9 +13,9 @@ TOP=.
 # mk/path.mk uses TOP, so include after the definition of TOP.
 include ./mk/paths.mk
 
-override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 CABAL_CMD=cabal
-override CABAL_OPTS+=$(CABAL_OPTIONS)
+
+override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
