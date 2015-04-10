@@ -117,6 +117,8 @@ followed:
 * Add program suffix option to Makefile on maintenance branch
     CABAL_OPTS+=--program-suffix=-$(VERSION)
 
+* Update the branches whitelist in .travis.yml.
+
 * Merge maint-$VERSION. Comment the CABAL_OPTS line in
   the Makefile.
 
@@ -139,8 +141,6 @@ followed:
     git push
     git checkout maint-$VERSION
     git push -u origin maint-$VERSION
-
-* Add maint-$VERSION to the branches whitelist in .travis.yml
 
 * Update the Agda Wiki:
 
