@@ -128,11 +128,18 @@ followed:
 * Add program suffix option to Makefile on maintenance branch
     CABAL_OPTS+=--program-suffix=-$(VERSION)
 
-* Merge maint-2.4.2. Comment the CABAL_OPTS line in
+* Update the branches whitelist in .travis.yml.
+
+* Update with maint-$VERSION the branch used for reporting the build
+  status in README.md.
+
+* Commit the above changes.
+
+* Merge maint-$VERSION. Comment the CABAL_OPTS line in
   the Makefile.
 
     git checkout master
-    git merge maint-2.4.2
+    git merge maint-$VERSION
 
 * Update the version numbers in master.
 
@@ -158,8 +165,6 @@ followed:
     git push
     git checkout maint-$VERSION
     git push -u origin maint-$VERSION
-
-* Add maint-$VERSION to the branches whitelist in .travis.yml
 
 * Update the Agda Wiki:
 
