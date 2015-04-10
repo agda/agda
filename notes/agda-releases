@@ -119,6 +119,11 @@ followed:
 
 * Update the branches whitelist in .travis.yml.
 
+* Update with maint-$VERSION the branch used for reporting the build
+  status in README.md.
+
+* Commit the above changes.
+
 * Merge maint-$VERSION. Comment the CABAL_OPTS line in
   the Makefile.
 

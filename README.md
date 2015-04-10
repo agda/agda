@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/agda/agda.svg?branch=maint-2.4.2)](https://travis-ci.org/agda/agda)
+
 Agda 2
 ======
 
