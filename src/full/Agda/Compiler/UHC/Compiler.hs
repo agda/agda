@@ -91,7 +91,7 @@ compilerMain inter = do
 #if __GLASGOW_HASKELL__ < 706
     _ <- internalError "UHC backend requires GHC 7.6 or newer."
 #endif
-    when (not uhcBackendEnabled) $ internalError "Agda has been built without UHC support."
+    when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
     -- TODO do proper check for uhc existance
     let uhc_exist = ExitSuccess
     case uhc_exist of
