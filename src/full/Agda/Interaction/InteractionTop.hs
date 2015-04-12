@@ -1,6 +1,6 @@
 {-# OPTIONS -fno-cse #-}
 
-{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
 {-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveTraversable     #-}

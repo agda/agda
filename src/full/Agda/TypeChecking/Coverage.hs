@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 
-{-# LANGUAGE CPP              #-}
+{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards    #-}
 {-# LANGUAGE TupleSections    #-}

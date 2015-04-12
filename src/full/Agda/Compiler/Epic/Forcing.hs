@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.Epic.Forcing where
