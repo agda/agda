@@ -8,7 +8,6 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal

@@ -5,7 +5,6 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
