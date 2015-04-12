@@ -4,7 +4,6 @@
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 
 -- | Solving size constraints under hypotheses.
 --

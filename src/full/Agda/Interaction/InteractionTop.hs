@@ -1,3 +1,5 @@
+{-# OPTIONS -fno-cse #-}
+
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
@@ -7,9 +9,7 @@
 {-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 
-{-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.InteractionTop
   ( module Agda.Interaction.InteractionTop

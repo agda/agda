@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).

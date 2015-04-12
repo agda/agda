@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE PatternGuards        #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards     #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}

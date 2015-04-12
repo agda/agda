@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE PatternGuards        #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards     #-}
 
 module Agda.TypeChecking.Polarity where
 

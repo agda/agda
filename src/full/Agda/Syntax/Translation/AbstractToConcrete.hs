@@ -4,7 +4,6 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE TupleSections          #-}
-{-# LANGUAGE TypeSynonymInstances   #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}

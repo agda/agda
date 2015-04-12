@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | Extract used definitions from terms.
 module Agda.Syntax.Internal.Defs where

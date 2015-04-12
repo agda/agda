@@ -11,7 +11,6 @@
 {-# LANGUAGE NamedFieldPuns             #-}
 {-# LANGUAGE Rank2Types                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 module Agda.TypeChecking.Monad.Base where

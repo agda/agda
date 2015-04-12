@@ -1,8 +1,7 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-| Pretty printer for the concrete syntax.
 -}

@@ -8,7 +8,6 @@
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}

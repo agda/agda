@@ -1,6 +1,5 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 ------------------------------------------------------------------------------
 -- | Wrapper for Control.Monad.Except from the mtl package

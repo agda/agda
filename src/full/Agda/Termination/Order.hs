@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE ImplicitParams       #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ImplicitParams    #-}
 
 -- | An Abstract domain of relative sizes, i.e., differences
 --   between size of formal function parameter and function argument

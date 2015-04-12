@@ -1,5 +1,3 @@
-{-# LANGUAGE KindSignatures #-}
-
 module Agda.TypeChecking.Monad.Base where
 
 import Data.IORef (IORef)

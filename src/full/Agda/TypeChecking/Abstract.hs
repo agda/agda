@@ -1,7 +1,6 @@
-{-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE PatternGuards        #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards     #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where

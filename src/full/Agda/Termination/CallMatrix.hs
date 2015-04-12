@@ -7,7 +7,6 @@
 {-# LANGUAGE ImplicitParams             #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 
 module Agda.Termination.CallMatrix where
 

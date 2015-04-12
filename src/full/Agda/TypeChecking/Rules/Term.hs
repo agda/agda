@@ -3,7 +3,6 @@
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE TupleSections         #-}
 
 #if __GLASGOW_HASKELL__ >= 710

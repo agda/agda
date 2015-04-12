@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveTraversable  #-}
-{-# LANGUAGE TypeOperators      #-}
 
 -- | Case trees.
 --
