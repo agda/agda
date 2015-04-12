@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-| The parser doesn't know about operators and parses everything as normal
