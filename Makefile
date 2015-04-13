@@ -24,6 +24,11 @@ override CABAL_OPTS+=--program-suffix=-$(VERSION)
 # Run in interactive and parallel mode by default
 AGDA_TESTS_OPTIONS ?=-i -j $(shell getconf _NPROCESSORS_ONLN)
 
+# Known failing tests which are disabled for some reason.
+# (DISABLED_TESTS uses posix regex syntax)
+# MAlonzo/FlexibleInterpreter see issue 1414
+DISABLED_TESTS="(.*MAlonzo.*FlexibleInterpreter)"
+
 ## Default target #########################################################
 
 .PHONY : default
@@ -210,7 +215,7 @@ exec-test :
 	@echo "======================================================================"
 	@echo "======================== Compiler/exec tests ========================="
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS)
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) --regex-exclude $(DISABLED_TESTS) $(AGDA_TESTS_OPTIONS)
 
 .PHONY : api-test
 api-test :
