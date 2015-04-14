@@ -14,6 +14,8 @@ import Control.Applicative
 import System.Environment
 import Data.Maybe
 import Data.Char
+import qualified Data.Set as S
+import System.Directory (getDirectoryContents)
 
 type ProgramResult = (ExitCode, T.Text, T.Text)
 
@@ -51,17 +53,19 @@ getProg1 prog = do
       Nothing -> return Nothing
       (Just x) -> return $ Just x
 
+agdaExts :: S.Set String
+agdaExts = S.fromList [".agda", ".lagda"]
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
   let testDir = "test" </> "Exec" </> "simple"
-  inps <- findByExtension [".agda", ".lagda"] (testDir </> "tests")
-  testGroup "simple" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir]) inps
+  inps <- map (testDir </>) . filter (flip S.member agdaExts . takeExtension) <$> getDirectoryContents testDir
+  testGroup "simple" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "test/"]) inps
 
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Exec" </> "with-stdlib"
-  inps <- findByExtension [".agda", ".lagda"] testDir
+  inps <- findByExtension (S.toList agdaExts) testDir
   testGroup "WithStdlib" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "std-lib" </> "src"]) inps
 
 agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.

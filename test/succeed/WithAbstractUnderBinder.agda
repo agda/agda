@@ -1,6 +1,6 @@
 -- Andreas, 2015-02-07
 
-open import Common.Prelude
+open import Common.Prelude hiding (not)
 
 not : Bool → Bool
 not true = false

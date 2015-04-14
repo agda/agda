@@ -13,8 +13,5 @@ open import Common.MAlonzo using ()
 primitive
   primIsDigit : Char → Bool
 
-postulate
-  return : ∀ {A} → A → IO A
-
 main : IO Bool
 main = return true

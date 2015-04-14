@@ -7,7 +7,7 @@ module CopatternTrailingImplicit where
 
 import Common.Level
 open import Common.Size
-open import Common.Prelude
+open import Common.Prelude hiding (map)
 
 -- Sized streams
 

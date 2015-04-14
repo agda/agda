@@ -8,7 +8,7 @@
 module CoPatStream where
 
 import Common.Level
-open import Common.Prelude
+open import Common.Prelude hiding (map)
 open import Common.Equality
 
 record Stream (A : Set) : Set where
