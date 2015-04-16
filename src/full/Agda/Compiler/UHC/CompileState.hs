@@ -1,3 +1,4 @@
+-- Don't remove this line! It is needed by GHC 7.4.2. See  Issue 1460 .
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
