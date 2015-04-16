@@ -39,7 +39,14 @@ script:
   - export BUILD_DIR=$PWD/dist
   - cabal configure -v2 --builddir=$BUILD_DIR
   - cabal build -v2 --builddir=$BUILD_DIR
-  - travis_wait make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
+  # "make install-bin" shouldn't take longer than 20-30 seconds, as it
+  # reuses the build output from the above "cabal build". For this to
+  # work, the exact same configure flags and build dir has to be used.
+  # If the "make install-bin" runs longer than about a minute, it is
+  # probably recompiling Agda and the Makefile or this file needs to
+  # be fixed to make sure the same configure flags/build dir are
+  # used everywhere.
+  - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
@@ -48,6 +55,8 @@ script:
   # - make latex-test
   # Testing compilation with transformers 0.3.0.0 which is shipped with
   # GHC 7.8.* (see Issue 1156).
+  # (comment above at "make install-bin" about avoiding recompilation
+  # also applies here!)
   - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi
 
 # Builds are loooong, we want to send an email as fast as possible.
