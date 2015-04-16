@@ -37,7 +37,7 @@ install:
 
 script:
   - export BUILD_DIR=$PWD/dist
-  - cabal configure -v2
+  - cabal configure -v2 --builddir=$BUILD_DIR
   - cabal build -v2 --builddir=$BUILD_DIR
   - travis_wait make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
   # Right now haddock doesn't work, presumably because it consumes too
@@ -48,7 +48,7 @@ script:
   # - make latex-test
   # Testing compilation with transformers 0.3.0.0 which is shipped with
   # GHC 7.8.* (see Issue 1156).
-  - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi
+  - if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi
 
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
