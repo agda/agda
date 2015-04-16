@@ -4,9 +4,12 @@
 -- {-# OPTIONS -v tc.cover:20 #-}
 module FlexibleInterpreter where
 
-open import Common.Prelude using (Nat; zero; suc)
-open import Common.MAlonzo hiding (main)
 open import Common.Equality
+open import Common.IO
+open import Common.Nat renaming (zero to Z; suc to S) hiding (pred)
+--open import Common.Prelude using (Nat; zero; suc)
+--open import Common.MAlonzo hiding (main)
+--open import Common.Equality
 
 data Ty : Set where
   nat : Ty
@@ -26,36 +29,36 @@ module Flex where
   -- Haskell does not seem to handle this
 
   eval' : (a : Ty) -> Exp a -> Sem a
-  eval' ._ zero = zero
-  eval' ._ suc  = suc
+  eval' ._ zero = Z
+  eval' ._ suc  = S
   eval' b (app f e) = eval' _ f (eval' _ e)
-  eval' .(arr nat nat) pred zero = zero
-  eval' ._ pred (suc n) = n
+  eval' .(arr nat nat) pred Z = Z
+  eval' ._ pred (S n) = n
 
   eval : {a : Ty} -> Exp a -> Sem a
-  eval zero         = zero
-  eval suc          = suc
-  eval pred zero    = zero
-  eval pred (suc n) = n
+  eval zero         = Z
+  eval suc          = S
+  eval pred Z       = Z
+  eval pred (S n)   = n
   eval (app f e)    = eval f (eval e)
 
-  testEvalSuc : ∀ {n} → eval suc n ≡ suc n
+  testEvalSuc : ∀ {n} → eval suc n ≡ S n
   testEvalSuc = refl
 
-  testEvalPredZero : eval pred zero ≡ zero
+  testEvalPredZero : eval pred Z ≡ Z
   testEvalPredZero = refl
 
-  testEvalPredSuc : ∀ {n} → eval pred (suc n) ≡ n
+  testEvalPredSuc : ∀ {n} → eval pred (S n) ≡ n
   testEvalPredSuc = refl
 
 module Rigid where
   -- This executes fine
 
   eval : {a : Ty} -> Exp a -> Sem a
-  eval zero      = zero
-  eval suc       = suc
-  eval pred      = λ { zero    -> zero
-                     ; (suc n) -> n
+  eval zero      = Z
+  eval suc       = S
+  eval pred      = λ { Z    -> Z
+                     ; (S n) -> n
                      }
   eval (app f e) = eval f (eval e)
 
@@ -63,5 +66,5 @@ open Flex
 
 expr = (app pred (app suc (app suc zero)))
 test = eval expr
-main = mainPrintNat test
+main = printNat test
 -- should print 1

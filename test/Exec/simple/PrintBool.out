@@ -1,0 +1,6 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > aabc
+out > printBool
+out > truefalse

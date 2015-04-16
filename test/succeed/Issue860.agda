@@ -1,5 +1,5 @@
 
-open import Common.Prelude
+open import Common.Prelude hiding (length; map)
 
 pattern [_] x = x ∷ []
 pattern tail {x} xs = x ∷ xs

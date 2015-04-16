@@ -6,7 +6,7 @@
 -- {-# OPTIONS -v term:20 #-}
 
 open import Common.Coinduction
-open import Common.Prelude renaming (Nat to ℕ) hiding (_∷_)
+open import Common.Prelude renaming (Nat to ℕ) hiding (_∷_; map)
 
 infixr 5 _∷_
 

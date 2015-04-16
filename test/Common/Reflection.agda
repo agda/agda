@@ -4,9 +4,6 @@ module Common.Reflection where
 open import Common.Level
 open import Common.Prelude renaming (Nat to ℕ)
 
-postulate Float : Set
-{-# BUILTIN FLOAT Float #-}
-
 postulate QName : Set
 {-# BUILTIN QNAME QName #-}
 primitive primQNameEquality : QName → QName → Bool

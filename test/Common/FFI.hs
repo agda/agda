@@ -1,5 +1,7 @@
 module Common.FFI where
 
+type AgdaIO a b = IO b
+
 type Level = Nat
 data Nat = Zero | Suc Nat
 

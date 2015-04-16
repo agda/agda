@@ -5,7 +5,7 @@
 module _ where
 
 open import Common.Size
-open import Common.Prelude
+open import Common.Prelude hiding (map)
 
 record Stream (A : Set) : Set where
   coinductive

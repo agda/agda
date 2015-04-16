@@ -1,7 +1,7 @@
 
 module Issue326 where
 
-open import Common.Prelude
+open import Common.Prelude hiding (printBool)
 open import Common.MAlonzo using () -- see issue 561
 
 postulate

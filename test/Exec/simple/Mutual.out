@@ -1,0 +1,6 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > (FA (GA (FA GB)))
+out > (GA (FA (GA (FA (GA FB)))))
+out >

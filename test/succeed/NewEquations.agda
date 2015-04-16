@@ -1,6 +1,6 @@
 module NewEquations where
 
-open import Common.Prelude
+open import Common.Prelude hiding (map)
 open import Common.Equality
 
 map : ∀ {A B} → (A → B) → List A → List B

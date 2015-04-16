@@ -1,6 +1,6 @@
 
 open import Common.Reflection
-open import Common.Prelude
+open import Common.Prelude hiding (_<$>_)
 open import Common.Equality
 
 data Maybe A : Set where
