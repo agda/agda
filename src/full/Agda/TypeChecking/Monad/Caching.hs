@@ -9,6 +9,7 @@ module Agda.TypeChecking.Monad.Caching
 
     -- * Activating
   , activateLoadedFileCache
+  , cachingStarts
 
     -- * Restoring the 'PostScopeState'
   , restorePostScopeState
@@ -23,6 +24,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 
+import Agda.Syntax.Common
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 
@@ -31,6 +34,11 @@ import Agda.Utils.Lens
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | To be called before any write or restore calls.
+cachingStarts :: TCM ()
+cachingStarts = do
+    NameId _ m <- use stFreshNameId
+    stFreshNameId .= NameId 1 m
 
 -- | Writes a 'TypeCheckAction' to the current log, using the current
 -- 'PostScopeState'

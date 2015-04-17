@@ -564,6 +564,7 @@ createInterface file mname =
     -- Type checking.
 
     -- invalidate cache if pragmas change, TODO move
+    cachingStarts
     opts <- use stPragmaOptions
     me <- readFromCachedLog
     case me of

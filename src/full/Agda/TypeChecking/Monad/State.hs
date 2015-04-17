@@ -384,4 +384,3 @@ addNamedInstance x n = do
   modifySignature $ updateDefinition x $ \ d -> d { defInstance = Just n }
   -- Add x to n's instances.
   modifyInstanceDefs $ mapFst $ Map.insertWith (++) n [x]
-
