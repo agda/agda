@@ -65,7 +65,7 @@ script:
   # - cabal haddock
 
   # Testing hTags.
-  - make BUILD_DIR=$BUILD_DIR make TAGS
+  - make BUILD_DIR=$BUILD_DIR TAGS
 
   # Testing compilation with transformers 0.3.0.0 which is shipped with
   # GHC 7.8.* (see Issue 1156).
