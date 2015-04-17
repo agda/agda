@@ -57,15 +57,15 @@ install:
   - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
 
 script:
+  # Travis doesn't have LaTeX, not sure if we should include `latex-test`.
+  - yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive examples library-test lib-succeed compiler-test epic-test api-test tests benchmark exec-test
+
   # Right now Haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
 
-  - make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR exec-test
-  - yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive examples library-test lib-succeed compiler-test epic-test api-test tests benchmark TAGS
-
-  # Travis doesn't have LaTeX, not sure if we should install it
-  # - make latex-test
+  # Testing hTags.
+  - make BUILD_DIR=$BUILD_DIR make TAGS
 
   # Testing compilation with transformers 0.3.0.0 which is shipped with
   # GHC 7.8.* (see Issue 1156).
