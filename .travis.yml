@@ -43,8 +43,6 @@ install:
   - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
 
   - make install-fix-agda-whitespace
-
-script:
   - export BUILD_DIR=$PWD/dist
   - cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
   - cabal build -v2 --builddir=$BUILD_DIR
@@ -58,6 +56,7 @@ script:
   # used everywhere.
   - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
 
+script:
   # Right now Haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
