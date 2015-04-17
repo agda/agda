@@ -1,4 +1,9 @@
-{-# LANGUAGE DoAndIfThenElse, TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
+{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
+{-# LANGUAGE DoAndIfThenElse      #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Exec.Tests where
 
 import Test.Tasty
@@ -10,7 +15,11 @@ import System.IO.Temp
 import System.FilePath
 import System.Exit
 import System.Process.Text as PT
-import Control.Applicative
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ((<$>))
+#endif
+
 import System.Environment
 import Data.Maybe
 import Data.Char
@@ -108,7 +117,6 @@ agdaRunProgGoldenTest dir comp incDirs inp = do
         -- gets the generated executable path
         getExecForComp MAlonzo compDir inpFile = compDir </> (takeFileName $ dropExtension inpFile)
         getExecForComp UHC compDir inpFile = compDir </> "UHC" </> (takeFileName $ dropExtension inpFile)
-
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
