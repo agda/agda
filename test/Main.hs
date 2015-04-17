@@ -1,11 +1,18 @@
-{-# LANGUAGE DoAndIfThenElse, TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
+{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
+{-# LANGUAGE DoAndIfThenElse      #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Main where
 
 import qualified Exec.Tests as EXEC
 import Test.Tasty
 import Test.Tasty.Silver.Interactive as TM
-import Control.Applicative
 
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ((<$>))
+#endif
 
 main :: IO ()
 main = tests >>= TM.defaultMain
