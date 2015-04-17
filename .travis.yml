@@ -51,8 +51,6 @@ script:
   # Right now haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
-  # Install MAlonzo ffi lib for tests
-  - cabal install test/agda-tests-ffi.cabal
   - make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR exec-test
   - yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive examples library-test lib-succeed compiler-test epic-test api-test tests benchmark TAGS
   # Travis doesn't have latex, not sure if we should install it
