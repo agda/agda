@@ -200,13 +200,15 @@ epic-test :
 	@echo "======================================================================"
 	@$(MAKE) -C test/epic
 
-
 .PHONY : exec-test
 exec-test :
 	@echo "======================================================================"
 	@echo "======================== Compiler/exec tests ========================="
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) --regex-exclude $(DISABLED_TESTS) $(AGDA_TESTS_OPTIONS)
+        # Install MAlonzo ffi lib for tests.
+	@$(CABAL_CMD) install test/agda-tests-ffi.cabal
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) --regex-exclude \
+                              $(DISABLED_TESTS) $(AGDA_TESTS_OPTIONS)
 
 .PHONY : api-test
 api-test :
