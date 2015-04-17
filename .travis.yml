@@ -15,31 +15,40 @@ ghc:
   - 7.4.2
 
 install:
-  # Apparently travis doesn't have "time".
+  # Apparently Travis doesn't have "time".
   - sudo apt-get install time
+
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   - export PATH=$HOME/.cabal/bin:$PATH
+
   # Showing Cabal configuration
   - cat $HOME/.cabal/config
-  # New happy needed for haskell-src-exts
+
+  # New Happy needed for haskell-src-exts
   - cabal install happy
-  # New new alex for us
+
+  # New new Alex for us
   - cabal install alex
-  # And epic
+
+  # And Epic
   - sudo apt-get install libgc-dev
   - cabal install epic
+
   # Get the std-lib
   - make std-lib
+
   # cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
   # breaking previously installed packages.
   - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
+
   - make install-fix-agda-whitespace
 
 script:
   - export BUILD_DIR=$PWD/dist
   - cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
   - cabal build -v2 --builddir=$BUILD_DIR
+
   # "make install-bin" shouldn't take longer than 20-30 seconds, as it
   # reuses the build output from the above "cabal build". For this to
   # work, the exact same configure flags and build dir has to be used.
@@ -48,13 +57,17 @@ script:
   # be fixed to make sure the same configure flags/build dir are
   # used everywhere.
   - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
-  # Right now haddock doesn't work, presumably because it consumes too
+
+  # Right now Haddock doesn't work, presumably because it consumes too
   # much memory.
   # - cabal haddock
+
   - make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR exec-test
   - yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive examples library-test lib-succeed compiler-test epic-test api-test tests benchmark TAGS
-  # Travis doesn't have latex, not sure if we should install it
+
+  # Travis doesn't have LaTeX, not sure if we should install it
   # - make latex-test
+
   # Testing compilation with transformers 0.3.0.0 which is shipped with
   # GHC 7.8.* (see Issue 1156).
   # (comment above at "make install-bin" about avoiding recompilation
