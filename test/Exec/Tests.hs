@@ -45,7 +45,7 @@ tests :: IO TestTree
 tests = do
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Exec" ts
-  where forComp comp = testGroup (show comp) <$> sequence [simpleTests comp {-, stdlibTests comp-} ]
+  where forComp comp = testGroup (show comp) <$> sequence [simpleTests comp, stdlibTests comp ]
 
 
 -- | Gets the program executable. If an environment variable
@@ -65,17 +65,20 @@ getProg1 prog = do
 agdaExts :: S.Set String
 agdaExts = S.fromList [".agda", ".lagda"]
 
+getAgdaFilesInDir :: String -> IO [FilePath]
+getAgdaFilesInDir dir = map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$> getDirectoryContents dir
+
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
   let testDir = "test" </> "Exec" </> "simple"
-  inps <- map (testDir </>) . filter (flip S.member agdaExts . takeExtension) <$> getDirectoryContents testDir
+  inps <- getAgdaFilesInDir testDir
   testGroup "simple" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "test/"]) inps
 
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Exec" </> "with-stdlib"
-  inps <- findByExtension (S.toList agdaExts) testDir
-  testGroup "WithStdlib" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "std-lib" </> "src"]) inps
+  inps <- getAgdaFilesInDir testDir
+  testGroup "with-stdlib" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "std-lib" </> "src"]) inps
 
 agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
     -> Compiler
