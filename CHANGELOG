@@ -97,6 +97,14 @@ Emacs mode
 * The new menu option "Switch to another version of Agda" tries to do
   what it says.
 
+Compiler backends
+=================
+
+Epic
+----
+
+* The Epic backend has been disabled. See Issue 1481.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.2
 ------------------------------------------------------------------------
