@@ -2,14 +2,11 @@ module Prelude.Nat where
 
 open import Prelude.Bool
 
-{-# IMPORT PrimNat #-}
-
 data Nat : Set where
   Z : Nat
   S : Nat -> Nat
 
 {-# BUILTIN NATURAL Nat #-}
-{-# COMPILED_DATA Nat PrimNat.N PrimNat.Z PrimNat.S #-}
 
 infixl 30 _+_
 
