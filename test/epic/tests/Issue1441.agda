@@ -1,3 +1,6 @@
+-- Moved from the successfull test-suite. See Issue 1481.
+
+module tests.Issue1441 where
 
 data Nat : Set where
   zero : Nat
@@ -19,8 +22,9 @@ printNat n = putStr (natToString n)
 {-# COMPILED_TYPE IO IO #-}
 
 {-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}
-{-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
 
+{-# COMPILED_EPIC putStr (a : String, u : Unit) ->
+                         Unit = foreign Int "wputStr" (a : String); primUnit #-}
 
 data Sing : (n : Nat) → Set where
   sing : ∀ n → Sing n
