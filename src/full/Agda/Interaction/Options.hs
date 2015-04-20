@@ -430,8 +430,10 @@ compileFlag o = return $ o { optCompile = True }
 compileFlagNoMain :: Flag CommandLineOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
 
+-- The Epic backend has been disabled. See Issue 1481.
 compileEpicFlag :: Flag CommandLineOptions
-compileEpicFlag o = return $ o { optEpicCompile = True}
+-- compileEpicFlag o = return $ o { optEpicCompile = True}
+compileEpicFlag o = throwError "the Epic backend has been disabled"
 
 compileJSFlag :: Flag CommandLineOptions
 compileJSFlag  o = return $ o { optJSCompile = True }
@@ -518,7 +520,11 @@ standardOptions =
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
-    , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
+
+    -- The Epic backend has been disabled. See Issue 1481.
+    -- , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
+    , Option []     ["epic"] (NoArg compileEpicFlag) "the Epic backend has been disabled"
+
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
     , Option []     ["uhc-bin"] (ReqArg uhcBinFlag "UHC") "The uhc binary to use when compiling with the UHC backend."

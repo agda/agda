@@ -99,7 +99,9 @@ TAGS :
 quick : install-O0-bin quicktest
 
 .PHONY : test
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark-without-logs exec-test
+# We don't run the `epic-test` because the Epic backend has been
+# disabled. See Issue 1481.
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test api-test tests benchmark-without-logs exec-test
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -197,6 +199,7 @@ lib-succeed :
 	@echo "======================================================================"
 	@$(MAKE) -C test/$@
 
+# The Epic backend has been disabled. See Issue 1481.
 .PHONY : epic-test
 epic-test :
 	@echo "======================================================================"

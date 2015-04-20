@@ -41,15 +41,15 @@ extra-source-files: src/full/undefined.h
 data-dir:           src/data
 data-files:         Agda.css
                     emacs-mode/*.el
-                    EpicInclude/AgdaPrelude.e
-                    EpicInclude/stdagda.c
-                    EpicInclude/stdagda.h
-                    uhc-agda-base/LICENSE
-                    uhc-agda-base/uhc-agda-base.cabal
-                    uhc-agda-base/src/UHC/Agda/*.hs
+                    -- EpicInclude/AgdaPrelude.e
+                    -- EpicInclude/stdagda.c
+                    -- EpicInclude/stdagda.h
                     agda.sty
                     postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
+                    uhc-agda-base/LICENSE
+                    uhc-agda-base/uhc-agda-base.cabal
+                    uhc-agda-base/src/UHC/Agda/*.hs
 
 source-repository head
   type:     git
@@ -60,11 +60,12 @@ flag cpphs
   manual:      True
   description: Use cpphs instead of cpp.
 
-flag epic
-  default: False
-  manual:  True
-  description:
-    Install the Epic compiler.
+-- The Epic backend has been disabled. See Issue 1481.
+-- flag epic
+--   default: False
+--   manual:  True
+--   description:
+--     Install the Epic compiler.
 
 flag uhc
   default: False
@@ -76,18 +77,18 @@ library
   hs-source-dirs:   src/full
   include-dirs:     src/full
 
+  if flag(cpphs)
+    build-tools: cpphs >= 1.19 && < 1.20
+    ghc-options: -pgmP cpphs -optP --cpp
+
+  -- if flag(epic)
+  --   build-depends:  epic >= 0.1.13 && < 0.10
+
   if flag(uhc)
     build-depends:    uhc-light >= 1.1.8.7 && < 1.2
                     , uhc-util >= 0.1.5.0
                     , uulib >= 0.9.16
     cpp-options:    -DUHC_BACKEND
-
-  if flag(epic)
-    build-depends:  epic >= 0.1.13 && < 0.10
-
-  if flag(cpphs)
-    build-tools: cpphs >= 1.19 && < 1.20
-    ghc-options: -pgmP cpphs -optP --cpp
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4

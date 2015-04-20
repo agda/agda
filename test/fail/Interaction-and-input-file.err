@@ -10,7 +10,7 @@ Usage: agda [OPTIONS...] [FILE]
           --interaction                               for use with the Emacs mode
   -c      --compile                                   compile program using the MAlonzo backend (experimental)
           --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
-          --epic                                      compile program using the Epic backend
+          --epic                                      the Epic backend has been disabled
           --js                                        compile program using the JS backend
           --uhc                                       compile program using the UHC backend
           --uhc-bin=UHC                               The uhc binary to use when compiling with the UHC backend.

@@ -8,7 +8,6 @@ Table of contents:
 * [Prerequisites](#prerequisites)
 * [Installing Agda](#installing-agda)
 * [Configuring the Emacs mode](#configuring-the-emacs-mode)
-* [Installing the Epic backend's dependencies](#installing-the-epic-backends-dependencies)
 * [Installing Emacs under Windows](#installing-emacs-under-windows)
 
 Note that this README only discusses installation of Agda, not its standard
@@ -163,44 +162,6 @@ the current frame in order to enable many Unicode symbols to be
 displayed. This only works if the right fonts are available, though.
 If you want to turn off this feature, then you should customise the
 agda2-fontset-name variable.
-
-
-------------------------------------------------------------------------
-Installing the Epic backend's dependencies
-------------------------------------------------------------------------
-
-The Epic backend is experimental and requires that the Epic program is
-installed. You can install this program by giving the epic flag to
-cabal (but note that, at the time of writing, the Epic program does
-not build with certain recent versions of GHC):
-
-### Installing from Hackage:
-
-    cabal update
-    cabal install Agda -fepic
-    agda-mode setup
-
-### Installing from development sources using cabal
-
-    cabal update
-    cabal install -fepic
-    agda-mode setup
-
-### Installing from development sources using make
-
-    make install CABAL_OPTS=-fepic
-
-You can also install Epic directly:
-
-    cabal install epic
-
-Note that Epic depends on other software:
-
-* The Boehm garbage collector: http://www.hpl.hp.com/personal/Hans_Boehm/gc/
-* The GNU Multiple Precision Arithmetic Library: http://gmplib.org/
-* GCC, the GNU Compiler Collection: http://gcc.gnu.org/
-
-For more information about Epic: http://www.cs.st-andrews.ac.uk/~eb/epic.php
 
 ------------------------------------------------------------------------
 Installing Emacs under Windows

@@ -31,9 +31,10 @@ install:
   # New new Alex for us
   - cabal install alex
 
-  # And Epic
-  - sudo apt-get install libgc-dev
-  - cabal install epic
+  # The Epic backend has been disabled. See Issue 1481.
+  # Epic installation.
+  # - sudo apt-get install libgc-dev
+  # - cabal install epic
 
   # Required packages for running the LaTeX test-suite.
   #
@@ -70,7 +71,9 @@ install:
   - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
 
 script:
-  - yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test epic-test api-test tests benchmark exec-test
+  # We don't run the `epic-test` because the Epic backend has been
+  # disabled. See Issue 1481.
+  - yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test api-test tests benchmark exec-test
 
   # Right now Haddock doesn't work, presumably because it consumes too
   # much memory.
