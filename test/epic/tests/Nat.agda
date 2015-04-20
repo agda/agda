@@ -1,18 +1,23 @@
+-- Moved from the successfull test-suite. See Issue 1481.
+
+module tests.Nat where
 
 data Nat : Set where
   Z : Nat
   S : Nat → Nat
 
+{-# BUILTIN NATURAL Nat #-}
+
 _+_ : Nat → Nat → Nat
-Z + m = m
+Z   + m = m
 S n + m = S (n + m)
 
+{-# BUILTIN NATPLUS _+_ #-}
+
 _*_ : Nat → Nat → Nat
-Z * m = Z
+Z   * m = Z
 S n * m = m + (n * m)
 
-{-# BUILTIN NATURAL Nat #-}
-{-# BUILTIN NATPLUS _+_ #-}
 {-# BUILTIN NATTIMES _*_ #-}
 
 data Unit : Set where
@@ -30,8 +35,9 @@ printNat n = putStr (natToString n)
 {-# COMPILED_TYPE IO IO #-}
 
 {-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}
-{-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
 
+{-# COMPILED_EPIC putStr (a : String, u : Unit) ->
+                  Unit = foreign Int "wputStr" (a : String); primUnit #-}
 
 main : IO Unit
 main = printNat (7 * 191)
