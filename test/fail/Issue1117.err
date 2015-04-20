@@ -11,6 +11,12 @@ Usage: agda [OPTIONS...] [FILE]
           --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
           --epic                                      the Epic backend has been disabled
           --js                                        compile program using the JS backend
+          --uhc                                       compile program using the UHC backend
+          --uhc-bin=UHC                               The uhc binary to use when compiling with the UHC backend.
+          --uhc-textual-core                          Use textual core as intermediate representation instead of binary core.
+          --uhc-dont-call-uhc                         Don't call uhc, just write the UHC Core files.
+          --uhc-gen-trace=TRACE                       Add tracing code to generated executable.
+          --no-smashing                               Don't apply the smashing optimization.
           --compile-dir=DIR                           directory for compiler output (default: the project root)
           --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
           --epic-flag=EPIC-FLAG                       give the flag EPIC-FLAG to Epic when compiling using Epic
@@ -26,6 +32,8 @@ Usage: agda [OPTIONS...] [FILE]
   -i DIR  --include-path=DIR                          look for imports in DIR
           --no-forcing                                disable the forcing optimisation
           --safe                                      disable postulates, unsafe OPTION pragmas and primTrustMe
+          --sharing                                   enable sharing and call-by-need evaluation (default: ON)
+          --no-sharing                                disable sharing and call-by-need evaluation
           --show-implicit                             show implicit arguments when printing
           --show-irrelevant                           show irrelevant arguments when printing
   -v N    --verbose=N                                 set verbosity level to N
@@ -47,5 +55,7 @@ Usage: agda [OPTIONS...] [FILE]
           --without-K                                 disable the K rule in pattern matching
           --copatterns                                enable definitions by copattern matching
           --no-pattern-matching                       disable pattern matching completely
+          --exact-split                               require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)
+          --no-exact-split                            do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)
 
 Plugins:
