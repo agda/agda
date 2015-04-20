@@ -46,7 +46,7 @@ install:
   - sudo apt-get install texlive-latex-extra
   - sudo apt-get install texlive-xetex
   - sudo apt-get install texlive-math-extra
-  - sudo apt-get install fonts-oflb-asana-math
+  - sudo apt-get install texlive-fonts-extra
 
   # Get the std-lib
   - make std-lib
