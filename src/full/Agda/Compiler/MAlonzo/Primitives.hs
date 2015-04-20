@@ -241,7 +241,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName () ()"
   , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName () ()"
-  , "primShowQName"       |-> return "(show :: QName -> String)"
+  , "primShowQName"       |-> return "(error \"primShowQName: not implemented\")"
   , "primQNameType"       |-> return "MAlonzo.RTE.qnameType"
   , "primQNameDefinition" |-> return "MAlonzo.RTE.qnameDefinition"
 
