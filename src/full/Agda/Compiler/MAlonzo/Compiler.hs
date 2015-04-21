@@ -444,7 +444,8 @@ litqname x =
   HS.Lit (HS.Int n) `HS.App`
   HS.Lit (HS.Int m) `HS.App`
   (rtmError "primQNameType: not implemented") `HS.App`
-  (rtmError "primQNameDefinition: not implemented")
+  (rtmError "primQNameDefinition: not implemented") `HS.App`
+  HS.Lit (HS.String $ show x )
   where
     NameId n m = nameId $ qnameName x
 
@@ -453,7 +454,9 @@ litqnamepat x =
   HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
           [ HS.PLit HS.Signless (HS.Int n)
           , HS.PLit HS.Signless (HS.Int m)
-          , HS.PWildCard, HS.PWildCard ]
+          , HS.PWildCard
+          , HS.PWildCard
+          , HS.PWildCard]
   where
     NameId n m = nameId $ qnameName x
 
@@ -548,11 +551,11 @@ rteModule = ok $ parse $ unlines
   , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
   , ""
   , "-- Builtin QNames, the third field is for the type."
-  , "data QName a b = QName { nameId, moduleId :: Integer, qnameType :: a, qnameDefinition :: b }"
+  , "data QName a b = QName { nameId, moduleId :: Integer, qnameType :: a, qnameDefinition :: b, qnameString :: String}"
   , "instance Eq (QName a b) where"
-  , "  QName a b _ _ == QName c d _ _ = (a, b) == (c, d)"
+  , "  QName a b _ _ _ == QName c d _ _ _ = (a, b) == (c, d)"
   , "instance Ord (QName a b) where"
-  , "  compare (QName a b _ _) (QName c d _ _) = compare (a, b) (c, d)"
+  , "  compare (QName a b _ _ _) (QName c d _ _ _) = compare (a, b) (c, d)"
   , ""
   , "mazIncompleteMatch :: String -> a"
   , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
