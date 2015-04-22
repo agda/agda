@@ -55,6 +55,7 @@ import Agda.Utils.Tuple
 %name tokensParser Tokens
 %name exprParser Expr
 %name moduleParser File
+%name funclauseParser FunClause
 %tokentype { Token }
 %monad { Parser }
 %lexer { lexer } { TokEOF }
@@ -116,6 +117,7 @@ import Agda.Utils.Tuple
     'TERMINATING'   { TokKeyword KwTERMINATING $$ }
     'MEASURE'       { TokKeyword KwMEASURE $$ }
     'CATCHALL'      { TokKeyword KwCATCHALL $$ }
+    'DISPLAY'       { TokKeyword KwDISPLAY $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_EXPORT'      { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
@@ -245,6 +247,7 @@ Token
     | 'TERMINATING'   { TokKeyword KwTERMINATING $1 }
     | 'MEASURE'       { TokKeyword KwMEASURE $1 }
     | 'CATCHALL'      { TokKeyword KwCATCHALL $1 }
+    | 'DISPLAY'       { TokKeyword KwDISPLAY $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quoteContext'     { TokKeyword KwQuoteContext $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
@@ -1326,6 +1329,7 @@ DeclarationPragma
   | NoTerminationCheckPragma { $1 }
   | MeasurePragma            { $1 }
   | CatchallPragma           { $1 }
+  | DisplayPragma            { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1396,6 +1400,11 @@ StaticPragma :: { Pragma }
 StaticPragma
   : '{-#' 'STATIC' PragmaQName '#-}'
     { StaticPragma (getRange ($1,$2,$3,$4)) $3 }
+
+DisplayPragma :: { Pragma }
+DisplayPragma
+  : '{-#' 'DISPLAY' PragmaStrings '#-}'
+    {% parseDisplayPragma (fuseRange $1 $4) (unwords $3) }
 
 RecordEtaPragma :: { Pragma }
 RecordEtaPragma
@@ -1781,6 +1790,13 @@ funClauseOrTypeSigs lhs (TypeSigsRHS e) wh
     LHS p [] [] [] <- lhs,
     Just names <- namesOfPattern p = return $ map (\(x,y) -> TypeSig x y e) names
   | otherwise                      = parseError "Illegal function clause or type signature"
+
+parseDisplayPragma :: Range -> String -> Parser Pragma
+parseDisplayPragma r s =
+  case parse defaultParseFlags [normal] funclauseParser s of
+    ParseOk s [FunClause (LHS lhs [] [] []) (RHS rhs) NoWhere] | null (parseInp s) ->
+      return $ DisplayPragma r lhs rhs
+    _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 
 {--------------------------------------------------------------------------
     Tests

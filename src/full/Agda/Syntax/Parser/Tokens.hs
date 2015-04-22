@@ -21,7 +21,7 @@ data Keyword
         | KwCOMPILED_EPIC | KwCOMPILED_JS | KwCOMPILED_UHC | KwCOMPILED_DATA_UHC
         | KwIMPORT | KwIMPOSSIBLE | KwETA | KwSTATIC | KwNO_SMASHING
         | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
-        | KwMEASURE
+        | KwMEASURE | KwDISPLAY
         | KwREWRITE
         | KwQuoteGoal | KwQuoteContext | KwQuote | KwQuoteTerm
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef

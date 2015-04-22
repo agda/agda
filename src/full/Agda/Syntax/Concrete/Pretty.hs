@@ -464,6 +464,7 @@ instance Pretty Pragma where
         Terminating            -> text "TERMINATING"
         TerminationMeasure _ x -> hsep $ [text "MEASURE", pretty x]
     pretty (CatchallPragma _) = text "CATCHALL"
+    pretty (DisplayPragma _ lhs rhs) = text "DISPLAY" <+> sep [ pretty lhs <+> text "=", nest 2 $ pretty rhs ]
 
 instance Pretty Fixity where
     pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__

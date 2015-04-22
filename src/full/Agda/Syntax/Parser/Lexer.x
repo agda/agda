@@ -95,6 +95,7 @@ tokens :-
 <pragma_>   "COMPILED_JS"          { keyword KwCOMPILED_JS }
 <pragma_>   "COMPILED_UHC"         { keyword KwCOMPILED_UHC }
 <pragma_>   "COMPILED_DATA_UHC"    { keyword KwCOMPILED_DATA_UHC }
+<pragma_>   "DISPLAY"              { keyword KwDISPLAY }
 <pragma_>   "NO_SMASHING"          { keyword KwNO_SMASHING }
 <pragma_>   "STATIC"               { keyword KwSTATIC }
 <pragma_>   "IMPORT"               { keyword KwIMPORT }

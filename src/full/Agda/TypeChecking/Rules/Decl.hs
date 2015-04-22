@@ -60,6 +60,7 @@ import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
 import Agda.TypeChecking.Rules.Def     ( checkFunDef, useTerPragma )
 import Agda.TypeChecking.Rules.Builtin
+import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
@@ -628,6 +629,7 @@ checkPragma r p =
             setEta d = case d of
               Record{} -> d { recEtaEquality = True }
               _        -> __IMPOSSIBLE__
+        A.DisplayPragma f ps e -> checkDisplayPragma f ps e
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

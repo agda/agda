@@ -193,6 +193,7 @@ data Pragma
   | NoSmashingPragma QName
   | StaticPragma QName
   | EtaPragma QName
+  | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Typeable, Show, Eq)
 
 -- | Bindings that are valid in a @let@.
