@@ -17,9 +17,8 @@ import Agda.TypeChecking.Pretty
 
 checkDisplayPragma :: QName -> [A.NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = inTopContext $ do
-  a <- defType <$> getConstInfo f
-  TelV tel _ <- telView a
-  displayLHS tel ps $ \n lhs -> do
+  pappToTerm f id ps $ \n args -> do
+    let lhs = map unArg args
     v <- exprToTerm e
     let df = Display n lhs (DTerm v)
     reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df
@@ -49,7 +48,7 @@ patternsToTerms (ExtendTel a tel) (p : ps) ret = do
 inheritHiding :: LensHiding a => a -> b -> I.Arg b
 inheritHiding a b = setHiding (getHiding a) (defaultArg b)
 
-pappToTerm :: QName -> (Args -> Term) -> [A.NamedArg A.Pattern] -> (Int -> Term -> TCM a) -> TCM a
+pappToTerm :: QName -> (Args -> b) -> [A.NamedArg A.Pattern] -> (Int -> b -> TCM a) -> TCM a
 pappToTerm x f ps ret = do
   def <- getConstInfo x
   TelV tel _ <- telView $ defType def
