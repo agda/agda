@@ -449,8 +449,10 @@ ghcFlag :: String -> Flag CommandLineOptions
 ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
 
 -- NOTE: Quadratic in number of flags.
+-- The Epic backend has been disabled. See Issue 1481.
 epicFlagsFlag :: String -> Flag CommandLineOptions
-epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
+-- epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
+epicFlagsFlag s o = throwError "the Epic backend has been disabled"
 
 uhcBinFlag :: String -> Flag CommandLineOptions
 uhcBinFlag s o = return $ o { optUHCBin  = Just s }
@@ -522,8 +524,9 @@ standardOptions =
                     "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
 
     -- The Epic backend has been disabled. See Issue 1481.
-    -- , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
-    , Option []     ["epic"] (NoArg compileEpicFlag) "the Epic backend has been disabled"
+    , Option []     ["epic"] (NoArg compileEpicFlag)
+    --                "compile program using the Epic backend"
+                    "the Epic backend has been disabled"
 
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
@@ -536,8 +539,12 @@ standardOptions =
                     ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
+
+    -- The Epic backend has been disabled. See Issue 1481.
     , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")
-                    "give the flag EPIC-FLAG to Epic when compiling using Epic"
+    --                "give the flag EPIC-FLAG to Epic when compiling using Epic"
+                    "the Epic backend has been disabled"
+
     , Option []     ["test"] (NoArg runTestsFlag)
                     "run internal test suite"
     , Option []     ["vim"] (NoArg vimFlag)

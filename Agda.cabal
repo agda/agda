@@ -60,13 +60,6 @@ flag cpphs
   manual:      True
   description: Use cpphs instead of cpp.
 
--- The Epic backend has been disabled. See Issue 1481.
--- flag epic
---   default: False
---   manual:  True
---   description:
---     Install the Epic compiler.
-
 flag uhc
   default: False
   manual:  True
@@ -80,9 +73,6 @@ library
   if flag(cpphs)
     build-tools: cpphs >= 1.19 && < 1.20
     ghc-options: -pgmP cpphs -optP --cpp
-
-  -- if flag(epic)
-  --   build-depends:  epic >= 0.1.13 && < 0.10
 
   if flag(uhc)
     build-depends:    uhc-light >= 1.1.8.7 && < 1.2
