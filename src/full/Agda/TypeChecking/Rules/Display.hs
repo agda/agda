@@ -6,6 +6,7 @@ import Data.Maybe
 import Data.List
 
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
@@ -90,13 +91,14 @@ exprToTerm e =
   case unScope e of
     A.Var x  -> fst <$> getVarInfo x
     A.Def f  -> pure $ Def f []
-    A.Proj f -> pure $ Def f []  -- TODO: is this right?
     A.Con (AmbQ (c:_)) -> pure $ Con (ConHead c Inductive []) [] -- Don't care too much about ambiguity here
     A.Lit l -> pure $ Lit l
-    A.App _ e arg -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
+    A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
-    A.PatternSyn f   -> notAllowed $ "pattern synonym " ++ show f   -- TODO: allow
-    A.Macro f        -> notAllowed $ "macro " ++ show f
+    A.Proj f       -> pure $ Def f []   -- only for printing so we don't have to worry too much here
+    A.PatternSyn f -> pure $ Def f []
+    A.Macro f      -> pure $ Def f []
+
     A.WithApp{}      -> notAllowed "with application"
     A.QuestionMark{} -> notAllowed "holes"
     A.Underscore{}   -> notAllowed "metavariables"
