@@ -1403,8 +1403,9 @@ StaticPragma
 
 DisplayPragma :: { Pragma }
 DisplayPragma
-  : '{-#' 'DISPLAY' PragmaStrings '#-}'
-    {% parseDisplayPragma (fuseRange $1 $4) (unwords $3) }
+  : '{-#' 'DISPLAY' string PragmaStrings '#-}' {%
+      let (r, s) = $3 in
+      parseDisplayPragma (fuseRange $1 $5) (iStart r) (unwords (s : $4)) }
 
 RecordEtaPragma :: { Pragma }
 RecordEtaPragma
@@ -1791,9 +1792,9 @@ funClauseOrTypeSigs lhs (TypeSigsRHS e) wh
     Just names <- namesOfPattern p = return $ map (\(x,y) -> TypeSig x y e) names
   | otherwise                      = parseError "Illegal function clause or type signature"
 
-parseDisplayPragma :: Range -> String -> Parser Pragma
-parseDisplayPragma r s =
-  case parse defaultParseFlags [normal] funclauseParser s of
+parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
+parseDisplayPragma r pos s =
+  case parsePosString pos defaultParseFlags [normal] funclauseParser s of
     ParseOk s [FunClause (LHS lhs [] [] []) (RHS rhs) NoWhere] | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
