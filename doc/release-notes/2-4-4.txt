@@ -55,6 +55,27 @@ Pragmas and options
   TODO REMOVE THIS: the default is --sharing on master, but should be
                     --no-sharing for the 2.4.4 release.
 
+* New pragma DISPLAY.
+
+  {-# DISPLAY f e1 .. en = e #-}
+
+  This causes f e1 .. en to be printed as e, where ei can bind variables used
+  in e. The expressions ei and e are scope checked, but not type checked.
+
+  Example
+
+    {-# DISPLAY _∷_ x [] = [ x ] #-}
+
+  Limitations
+
+    Left-hand sides are restricted to variables, constructors, defined
+    functions or types, and literals. In particular, lambdas are not allowed in
+    left-hand sides.
+
+    Since DISPLAY pragmas are not type checked implicit argument insertion may
+    not work properly if the type of f computes to an implicit function space
+    after pattern matching.
+
 Language
 ========
 
