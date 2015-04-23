@@ -508,6 +508,11 @@ executable agda-mode
 -- https://github.com/haskell/cabal/issues/1938
 -- https://github.com/haskell/cabal/issues/2214
 -- https://github.com/haskell/cabal/issues/1953
+--
+-- This test suite should only be run using the Makefile.
+-- The Makefile sets up the required environment,
+-- executing the tests using cabal directly is almost
+-- guarantued to fail. See also Issue 1490.
 test-suite agda-tests
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test/
