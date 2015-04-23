@@ -48,6 +48,13 @@ tests = do
   where forComp comp = testGroup (show comp) <$> sequence [simpleTests comp, stdlibTests comp ]
 
 
+getAgdaBin :: IO FilePath
+getAgdaBin = do
+  agda <- getProg1 "AGDA_BIN"
+  case agda of
+    Just x -> return x
+    Nothing -> fail "AGDA_BIN environment variable not set, aborting..."
+
 -- | Gets the program executable. If an environment variable
 -- YYY_BIN is defined (with yyy converted to upper case),
 -- the value of it is returned. Otherwise, the input value
@@ -70,23 +77,25 @@ getAgdaFilesInDir dir = map (dir </>) . filter (flip S.member agdaExts . takeExt
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
+  agdaBin <- getAgdaBin
   let testDir = "test" </> "Exec" </> "simple"
   inps <- getAgdaFilesInDir testDir
-  testGroup "simple" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "test/"]) inps
+  testGroup "simple" <$> mapM (agdaRunProgGoldenTest agdaBin testDir comp [testDir, "test/"]) inps
 
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
+  agdaBin <- getAgdaBin
   let testDir = "test" </> "Exec" </> "with-stdlib"
   inps <- getAgdaFilesInDir testDir
-  testGroup "with-stdlib" <$> mapM (agdaRunProgGoldenTest testDir comp [testDir, "std-lib" </> "src"]) inps
+  testGroup "with-stdlib" <$> mapM (agdaRunProgGoldenTest agdaBin testDir comp [testDir, "std-lib" </> "src"]) inps
 
-agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
+agdaRunProgGoldenTest :: FilePath -- ^ path to the agda executable.
+    -> FilePath     -- ^ directory where to run the tests.
     -> Compiler
     -> [FilePath] -- ^ Agda include paths.
     -> FilePath -- ^ relative path to agda input file.
     -> IO TestTree
-agdaRunProgGoldenTest dir comp incDirs inp = do
-  agdaBin <- getProg "agda"
+agdaRunProgGoldenTest agdaBin dir comp incDirs inp = do
 
   let inpFile = (dropExtension inp) <.> ".inp"
   let goldenFile = (dropExtension inp) <.> ".out"
