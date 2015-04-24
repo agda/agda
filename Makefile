@@ -215,8 +215,9 @@ exec-test :
 	# Install MAlonzo ffi lib for tests.
 	@$(CABAL_CMD) install test/agda-tests-ffi.cabal
 	@$(CABAL_CMD) install std-lib/ffi/agda-lib-ffi.cabal
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) --regex-exclude \
-                              '$(DISABLED_TESTS)' $(AGDA_TESTS_OPTIONS)
+	@AGDA_BIN=$(AGDA_BIN) AGDA_TESTS_PROPERLY_SETUP=YES \
+		$(AGDA_TESTS_BIN) --regex-exclude '$(DISABLED_TESTS)' \
+		$(AGDA_TESTS_OPTIONS)
 
 .PHONY : api-test
 api-test :
