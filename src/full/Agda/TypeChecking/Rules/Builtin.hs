@@ -7,6 +7,8 @@ module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin
   , bindBuiltinNoDef
   , bindPostulatedName
+  , isUntypedBuiltin
+  , bindUntypedBuiltin
   ) where
 
 import Control.Applicative hiding (empty)
@@ -14,6 +16,7 @@ import Control.Monad
 import Data.List (find)
 
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
@@ -482,6 +485,15 @@ bindBuiltin b e = do
       "Builtin " ++ b ++ " does no longer exist. " ++
       "It is now bound by BUILTIN " ++ builtinNat
 
+isUntypedBuiltin :: String -> Bool
+isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg]
+
+bindUntypedBuiltin :: String -> A.Expr -> TCM ()
+bindUntypedBuiltin b e =
+  case A.unScope e of
+    A.Def q  -> bindBuiltinName b (Def q [])
+    A.Proj q -> bindBuiltinName b (Def q [])
+    e        -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined name"
 
 -- | Bind a builtin thing to a new name.
 bindBuiltinNoDef :: String -> A.QName -> TCM ()

@@ -382,6 +382,25 @@ Operator syntax
 Other changes
 -------------
 
+* Overloaded number literals.
+
+  You can now overload natural number literals using the new builtin FROMNAT:
+
+    {-# BUILTIN FROMNAT fromNat #-}
+
+  The target of the builtin should be a defined name. Typically you would do
+  something like
+
+    record Number (A : Set) : Set where
+      field fromNat : Nat → A
+
+    open Number {{...}} public
+
+    {-# BUILTIN FROMNAT fromNat #-}
+
+  This will cause number literals 'n' to be desugared to 'fromNat n' before
+  type checking.
+
 * Building records from modules.
 
   The "record { <fields> }" syntax is now extended to accept module names as
