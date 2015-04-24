@@ -1,5 +1,4 @@
 NegativeIntegerLiteral.agda:9,5-7
-Not in scope:
-  -1
-  at NegativeIntegerLiteral.agda:9,5-7
+No binding for builtin thing FROMNEG, use {-# BUILTIN FROMNEG name
+#-} to bind it to 'name'
 when scope checking -1
