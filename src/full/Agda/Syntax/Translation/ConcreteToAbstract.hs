@@ -1274,13 +1274,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
             }
       return [ A.Import minfo m ]
 
-    NiceUnquoteDecl r fx p a tc x e -> do
+    NiceUnquoteDecl r fx p i a tc x e -> do
       y <- freshAbstractQName fx x
       bindName p QuotableName x y
       e <- toAbstract e
       rebindName p DefName x y
       let mi = MutualInfo tc r
-      return [A.UnquoteDecl mi (mkDefInfo x fx p a r) y e]
+      return [A.UnquoteDecl mi (mkDefInfoInstance x fx p a i NotMacroDef r) y e]
 
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r

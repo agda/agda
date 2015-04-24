@@ -86,6 +86,8 @@ Language
   name are in scope, and these notations do not all have the
   same fixity, then they get the default fixity.
 
+* Fixed bug with unquoteDecl not working in instance blocks [Issue 1491].
+
 Type checking
 =============
 

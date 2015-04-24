@@ -107,7 +107,7 @@ data NiceDeclaration
   | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
   | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
-  | NiceUnquoteDecl Range Fixity' Access IsAbstract TerminationCheck Name Expr
+  | NiceUnquoteDecl Range Fixity' Access IsInstance IsAbstract TerminationCheck Name Expr
   deriving (Typeable, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -192,7 +192,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceDataSig r _ _ _ _ _)       = r
   getRange (NicePatternSyn r _ _ _ _)      = r
   getRange (NiceFunClause r _ _ _ _)       = r
-  getRange (NiceUnquoteDecl r _ _ _ _ _ _) = r
+  getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -520,8 +520,8 @@ niceDeclarations ds = do
     nice (Pragma (TerminationCheckPragma r tc) : d@FunClause{} : ds) | notMeasure tc =
       niceFunClause tc d ds
     nice (Pragma (TerminationCheckPragma r tc) : ds@(UnquoteDecl{} : _)) | notMeasure tc = do
-      NiceUnquoteDecl r f p a _ x e : ds <- nice ds
-      return $ NiceUnquoteDecl r f p a tc x e : ds
+      NiceUnquoteDecl r f p a i _ x e : ds <- nice ds
+      return $ NiceUnquoteDecl r f p a i tc x e : ds
 
     nice (d@TypeSig{} : Pragma (TerminationCheckPragma r (TerminationMeasure _ x)) : ds) =
       niceTypeSig (TerminationMeasure r x) d ds
@@ -588,7 +588,7 @@ niceDeclarations ds = do
 
         UnquoteDecl r x e -> do
           fx <- getFixity x
-          (NiceUnquoteDecl r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds
+          (NiceUnquoteDecl r fx PublicAccess NotInstanceDef ConcreteDef TerminationCheck x e :) <$> nice ds
         -- Andreas, AIM XX: do not forbid NO_TERMINATION_CHECK in maintenance version.
         -- Pragma (TerminationCheckPragma r NoTerminationCheck) ->
         --   throwError $ PragmaNoTerminationCheck r
@@ -828,7 +828,7 @@ niceDeclarations ds = do
         termCheck (FunSig _ _ _ _ _ tc _ _) = tc
         termCheck (FunDef _ _ _ _ tc _ _)   = tc
         termCheck (NiceMutual _ tc _)       = tc
-        termCheck (NiceUnquoteDecl _ _ _ _ tc _ _) = tc
+        termCheck (NiceUnquoteDecl _ _ _ _ _ tc _ _) = tc
         termCheck _                       = TerminationCheck
 
         -- A mutual block cannot have a measure,
@@ -854,7 +854,7 @@ niceDeclarations ds = do
         -- no effect on fields or primitives, the InAbstract field there is unused
         NiceField r f p _ x e            -> return $ NiceField r f p AbstractDef x e
         PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
-        NiceUnquoteDecl r f p _ t x e    -> return $ NiceUnquoteDecl r f p AbstractDef t x e
+        NiceUnquoteDecl r f p i _ t x e  -> return $ NiceUnquoteDecl r f p i AbstractDef t x e
         NiceModule{}                     -> return $ d
         NiceModuleMacro{}                -> return $ d
         Axiom{}                          -> return $ d
@@ -905,7 +905,7 @@ niceDeclarations ds = do
         NiceRecSig r f p x ls t          -> (\ p -> NiceRecSig r f p x ls t) <$> setPrivate p
         NiceDataSig r f p x ls t         -> (\ p -> NiceDataSig r f p x ls t) <$> setPrivate p
         NiceFunClause r p a termCheck d  -> (\ p -> NiceFunClause r p a termCheck d) <$> setPrivate p
-        NiceUnquoteDecl r f p a t x e    -> (\ p -> NiceUnquoteDecl r f p a t x e) <$> setPrivate p
+        NiceUnquoteDecl r f p i a t x e  -> (\ p -> NiceUnquoteDecl r f p i a t x e) <$> setPrivate p
         NicePragma _ _                   -> return $ d
         NiceOpen _ _ _                   -> return $ d
         NiceImport _ _ _ _ _             -> return $ d
@@ -943,12 +943,12 @@ niceDeclarations ds = do
       case d of
         Axiom r f p i rel x e            -> (\ i -> Axiom r f p i rel x e) <$> setInstance i
         FunSig r f p i rel tc x e        -> (\ i -> FunSig r f p i rel tc x e) <$> setInstance i
+        NiceUnquoteDecl r f p i a tc x e -> (\ i -> NiceUnquoteDecl r f p i a tc x e) <$> setInstance i
         NiceMutual{}                     -> return $ d
         NiceFunClause{}                  -> return $ d
         FunDef{}                         -> return $ d
         NiceField{}                      -> return $ d
         PrimitiveFunction{}              -> return $ d
-        NiceUnquoteDecl{}                -> return $ d
         NiceRecSig{}                     -> return $ d
         NiceDataSig{}                    -> return $ d
         NiceModuleMacro{}                -> return $ d
@@ -1065,4 +1065,4 @@ notSoNiceDeclaration d =
       RecDef r _ _ x i c bs ds         -> Record r x i (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
         where unThing (ThingWithFixity c _) = c
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
-      NiceUnquoteDecl r _ _ _ _ x e    -> UnquoteDecl r x e
+      NiceUnquoteDecl r _ _ _ _ _ x e  -> UnquoteDecl r x e
