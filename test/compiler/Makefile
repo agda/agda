@@ -18,10 +18,12 @@ compiled-export :
                 --compile-dir=ExportTestMAlonzo ExportTestAgda.agda \
                 --ghc-flag=-i.. --ghc-flag=-i../../std-lib/ffi
 	runghc -iExportTestMAlonzo -i../ -i../../std-lib/ffi ExportTest.hs | grep -q "It works!"
-	rm -rf ExportTestMAlonzo
+	rm -rf ExportTestMAlonzo MAlonzo
 
 Issue1252 :
 	$(agda) --compile --no-main Issue1252.agda
+	rm -rf MAlonzo
 
 ExportAndUse :
 	$(agda) --compile --no-main ExportAndUse.agda
+	rm -rf MAlonzo

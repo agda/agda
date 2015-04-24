@@ -8,6 +8,7 @@ data Dec {a} (A : Set a) : Set a where
   no  : Dec A
 
 record Eq {a} (A : Set a) : Set a where
+  constructor eqDict
   field
     _==_ : (x y : A) → Dec (x ≡ y)
 
@@ -17,20 +18,22 @@ module M {a} {A : Set a} {{EqA : Eq A}} where
 
 open Eq {{...}}
 
-instance
-  EqNat : Eq Nat
-  EqNat = record { _==_ = eqNat }
-    where
-      eqNat : ∀ x y → Dec (x ≡ y)
-      eqNat zero zero = yes refl
-      eqNat zero (suc y) = no
-      eqNat (suc x) zero = no
-      eqNat (suc x) (suc y) with eqNat x y
-      eqNat (suc x) (suc .x) | yes refl = yes refl
-      ... | no     = no
+private
+  eqNat : ∀ x y → Dec (x ≡ y)
+  eqNat zero zero = yes refl
+  eqNat zero (suc y) = no
+  eqNat (suc x) zero = no
+  eqNat (suc x) (suc y) with eqNat x y
+  eqNat (suc x) (suc .x) | yes refl = yes refl
+  ... | no     = no
 
 pattern vArg a = arg (argInfo visible relevant) a
 pattern iArg a = arg (argInfo inst relevant) a
+
+instance
+  unquoteDecl EqNat =
+    funDef (el unknown (def (quote Eq) (vArg (def (quote Nat) []) ∷ [])))
+           (clause [] (con (quote eqDict) (vArg (def (quote eqNat) []) ∷ [])) ∷ [])
 
 id : {A : Set} → A → A
 id x = x
