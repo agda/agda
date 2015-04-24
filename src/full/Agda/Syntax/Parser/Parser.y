@@ -344,13 +344,6 @@ Int : literal   {% case $1 of {
                      _          -> fail $ "Expected integer"
                    }
                 }
-   | id {% case $1 of {
-             (_, s) -> case readM s of {
-                         Right i  -> return i;
-                         Left (err :: String) -> fail $ "Expected integer"
-                       }
-           }
-        }
 
 
 {--------------------------------------------------------------------------

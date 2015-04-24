@@ -593,11 +593,11 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Literals
       C.Lit l@(LitInt r n) -> do
-        let builtin | n < 0     = builtinFromNeg
-                    | otherwise = builtinFromNat
+        let builtin | n < 0     = Just <$> getBuiltin builtinFromNeg    -- negative literals are only allowed if FROMNEG is defined
+                    | otherwise = getBuiltin' builtinFromNat
             l'   = LitInt r (abs n)
             info = ExprRange r
-        conv <- getBuiltin' builtin
+        conv <- builtin
         case conv of
           Just (I.Def q _) -> return $ A.App info (A.Def q) $ defaultNamedArg (A.Lit l')
           _                -> return $ A.Lit l

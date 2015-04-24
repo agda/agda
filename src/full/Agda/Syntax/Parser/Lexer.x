@@ -51,8 +51,9 @@ $white_notab = $white # \t
 $white_nonl  = $white_notab # \n
 
 @number      = $digit+ | "0x" $hexdigit+
+@integer     = [\-]? @number
 @exponent    = [eE] [\-\+]? @number
-@float       = @number \. @number @exponent? | @number @exponent
+@float       = @integer \. @number @exponent? | @number @exponent
 
 -- A name can't start with \x (to allow \x -> x).
 -- Bug in alex: [ _ op ]+ doesn't seem to work!
@@ -229,7 +230,7 @@ tokens :-
 -- Literals
 <0,code> \'             { litChar }
 <0,code> \"             { litString }
-<0,code> @number        { literal LitInt }
+<0,code> @integer       { literal LitInt }
 <0,code> @float         { literal LitFloat }
 
 -- Identifiers

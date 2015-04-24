@@ -401,6 +401,16 @@ Other changes
   This will cause number literals 'n' to be desugared to 'fromNat n' before
   type checking.
 
+* Negative number literals.
+
+  Number literals can now be negative. For floating point literals it works as
+  expected. For integer literals there is a new builtin FROMNEG that enables
+  negative integer literals:
+
+    {-# BUILTIN FROMNEG fromNeg #-}
+
+  This causes negative literals '-n' to be desugared to 'fromNeg n'.
+
 * Building records from modules.
 
   The "record { <fields> }" syntax is now extended to accept module names as
