@@ -104,9 +104,9 @@ module Height-invariants where
 
   -- i ⊕ n -1 = pred (i ⊕ n).
 
-  _⊕_-1 : ℕ₂ → ℕ → ℕ
-  i ⊕ zero  -1 = 0
-  i ⊕ suc n -1 = i ⊕ n
+  _⊕_sub1 : ℕ₂ → ℕ → ℕ
+  i ⊕ zero  sub1 = 0
+  i ⊕ suc n sub1 = i ⊕ n
 
   infix 4 _∼_⊔_
 
@@ -218,7 +218,7 @@ module Indexed where
 
   joinˡ⁻ : ∀ {l u} hˡ {hʳ h} →
            (k : KV) →
-           (∃ λ i → Tree l [ proj₁ k ] (i ⊕ hˡ -1)) →
+           (∃ λ i → Tree l [ proj₁ k ] (i ⊕ hˡ sub1)) →
            Tree [ proj₁ k ] u hʳ →
            (bal : hˡ ∼ hʳ ⊔ h) →
            ∃ λ i → Tree l u (i ⊕ h)
@@ -232,7 +232,7 @@ module Indexed where
   joinʳ⁻ : ∀ {l u hˡ} hʳ {h} →
            (k : KV) →
            Tree l [ proj₁ k ] hˡ →
-           (∃ λ i → Tree [ proj₁ k ] u (i ⊕ hʳ -1)) →
+           (∃ λ i → Tree [ proj₁ k ] u (i ⊕ hʳ sub1)) →
            (bal : hˡ ∼ hʳ ⊔ h) →
            ∃ λ i → Tree l u (i ⊕ h)
   joinʳ⁻ zero    k₂ t₁ (0# , t₃) bal = (1# , node k₂ t₁ t₃ bal)
@@ -313,7 +313,7 @@ module Indexed where
   -- comparisons).
 
   delete : ∀ {l u h} → Key → Tree l u h →
-           ∃ λ i → Tree l u (i ⊕ h -1)
+           ∃ λ i → Tree l u (i ⊕ h sub1)
   delete k (leaf l<u)         = (0# , leaf l<u)
   delete k (node p lp pu bal) with compare k (proj₁ p)
   ... | tri< _ _ _ = joinˡ⁻ _ p (delete k lp) pu bal
