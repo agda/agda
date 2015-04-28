@@ -273,3 +273,19 @@ agda.tix: ./examples/agda.tix ./test/succeed/agda.tix ./test/compiler/agda.tix .
 hpc: hpc-build test agda.tix
 	hpc report --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda.tix
 	hpc markup --hpcdir=$(BUILD_DIR)/hpc/mix/Agda-$(VERSION) agda --destdir=hpc-report
+
+## Lines of Code ##########################################################
+
+agdalocfiles=$(shell find . \( \( -name '*.agda' -o -name '*.in' \) ! -name '.*' \) )
+
+# Agda files (tests) in this project
+
+agda-loc :
+	@wc $(agdalocfiles)
+
+# Source code of Agda
+
+loc :
+	make -C src/full loc
+
+# EOF
