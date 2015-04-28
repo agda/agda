@@ -13,7 +13,7 @@ allsources=$(src_files) $(lexparse)
 locfiles=$(filter-out $(generated),$(allsources))
 
 loc :
-	wc $(locfiles)
+	@wc $(locfiles)
 
 debug_loc :
 	@echo "lexparse=$(lexparse)"
