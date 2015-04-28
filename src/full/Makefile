@@ -1,8 +1,27 @@
-## Tags ###################################################################
 
 TOP=../..
 
 include $(TOP)/mk/paths.mk
+
+src_files=$(shell find . \( \( -name '*.hs' -o -name '*.lhs' \) ! -name '.*' \) )
+
+## Lines of Code ##########################################################
+
+lexparse=./Agda/Syntax/Parser/Lexer.x ./Agda/Syntax/Parser/Parser.y
+generated=./Agda/Syntax/Parser/Lexer.hs ./Agda/Syntax/Parser/Parser.hs
+allsources=$(src_files) $(lexparse)
+locfiles=$(filter-out $(generated),$(allsources))
+
+loc :
+	wc $(locfiles)
+
+debug_loc :
+	@echo "lexparse=$(lexparse)"
+	@echo "generated=$(generated)"
+	@echo "allsources=$(allsources)"
+	@echo "locfiles=$(locfiles)"
+
+## Tags ###################################################################
 
 hTags=../hTags/dist/build/hTags/hTags
 hTags_include=$(BUILD_DIR)/build/autogen/cabal_macros.h ./undefined.h
@@ -18,10 +37,6 @@ tags : $(src_files) $(hTags) $(hTags_include)
 # create tags for emacs
 TAGS : $(src_files) $(hTags) $(hTags_include)
 	$(hTags) $(hTags_flags) -e $(src_files)
-
-src_files=$(shell find . \( \( -name '*.hs' -o -name '*.lhs' \) ! -name '.*' \) )
-
-src_files=$(shell find . -name '*.hs' -o -name '*.lhs')
 
 # Andreas: create tags for everything exept Auto and Compilers
 # ignore = $(patsubst ./%,%,$(shell find ./Agda/Auto ./Agda/Compiler -name '*.hs' -o -name '*.lhs'))
