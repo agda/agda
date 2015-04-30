@@ -75,9 +75,9 @@ library
     ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(uhc)
-    build-depends:    uhc-light >= 1.1.8.7 && < 1.2
-                    , uhc-util >= 0.1.5.0
-                    , uulib >= 0.9.16
+    build-depends:    uhc-light >= 1.1.9.0 && < 1.2
+                    , uhc-util >= 0.1.5.5
+                    , uulib >= 0.9.20
     cpp-options:    -DUHC_BACKEND
 
   if os(windows)

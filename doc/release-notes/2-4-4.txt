@@ -510,12 +510,12 @@ Compiler backends
 
   The backend also requires UHC to be installed. UHC is not available on
   Hackage and needs to be installed manually. This version of Agda has been
-  tested with UHC 1.1.8.10, using other UHC versions may cause problems.
+  tested with UHC 1.1.9.0, using other UHC versions may cause problems.
   To install UHC, the following commands can be used:
 
     git clone https://github.com/UU-ComputerScience/uhc.git
     cd uhc
-    git checkout 449d9578e06af1362d7f746798f0aed57ab6ca88
+    git checkout 0363bbcf4cf8c47d30c3a188e3e53b3f8454bbe4
     cd EHC
     ./configure
     make
