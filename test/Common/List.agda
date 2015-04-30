@@ -17,6 +17,7 @@ _++_ : ∀ {A : Set} → List A → List A → List A
 {-# BUILTIN CONS _∷_  #-}
 
 {-# COMPILED_DATA List [] [] (:) #-}
+{-# COMPILED_DATA_UHC List __LIST__ __NIL__ __CONS__ #-}
 
 map : ∀ {A B} -> (A -> B) -> List A -> List B
 map _ []        = []

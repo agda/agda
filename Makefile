@@ -26,6 +26,10 @@ DISABLED_TESTS=(.*MAlonzo.*FlexibleInterpreter)
 # slow at the moment (1min or more per test case).
 # Disable them by default for now.
 DISABLED_TESTS:=$(DISABLED_TESTS)|(Exec/.*/with-stdlib)
+
+# Disabled for now, until the UHC backend is a bit more stable.
+DISABLED_TESTS:=$(DISABLED_TESTS)|(Exec/UHC/.*)
+
 ## Default target #########################################################
 
 .PHONY : default

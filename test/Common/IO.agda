@@ -26,12 +26,15 @@ postulate
 {-# COMPILED _>>=_ (\_ _ _ _ -> (>>=)) #-}
 {-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
 {-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any = iobind(x,f) #-}
+{-# COMPILED_UHC return (\_ _ x -> UHC.Agda.Builtins.primReturn x) #-}
+{-# COMPILED_UHC _>>=_ (\_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y) #-}
 
 postulate
   putStr     : String -> IO Unit
 
 {-# COMPILED putStr putStr #-}
 {-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
+{-# COMPILED_UHC putStr (UHC.Agda.Builtins.primPutStr) #-}
 
 
 printChar : Char -> IO Unit
