@@ -20,6 +20,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.List
+import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Traversable as Trav
 
@@ -60,15 +61,16 @@ import Agda.Utils.Impossible
 recordPatternToProjections :: Pattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
-    VarP{}             -> return [ \ x -> x ]
-    LitP{}             -> typeError $ ShouldBeRecordPattern p
-    DotP{}             -> typeError $ ShouldBeRecordPattern p
-    ConP c Nothing  ps -> typeError $ ShouldBeRecordPattern p
-    ConP c (Just (_, t)) ps -> do
-      t <- reduce t
+    VarP{}       -> return [ \ x -> x ]
+    LitP{}       -> typeError $ ShouldBeRecordPattern p
+    DotP{}       -> typeError $ ShouldBeRecordPattern p
+    ConP c ci ps -> do
+      unless (isJust $ conPRecord ci) $
+        typeError $ ShouldBeRecordPattern p
+      t <- reduce $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       fields <- getRecordTypeFields (unArg t)
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
-    ProjP{}            -> __IMPOSSIBLE__ -- copattern cannot appear here
+    ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
     proj p = (`applyE` [Proj $ unArg p])
 --    proj p = \ x -> Def (unArg p) [defaultArg x]
@@ -646,14 +648,15 @@ removeTree tree = do
 -- This function assumes that literals are never of record type.
 
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
-translatePattern (ConP c Nothing ps) = do
-  (ps, s, cs) <- translatePatterns ps
-  return (ConP c Nothing ps, s, cs)
-translatePattern p@(ConP _ (Just _) _) = do
-  r <- recordTree p
-  case r of
-    Left  r -> r
-    Right t -> removeTree t
+translatePattern p@(ConP c ci ps)
+  | Nothing <- conPRecord ci = do
+      (ps, s, cs) <- translatePatterns ps
+      return (ConP c ci ps, s, cs)
+  | otherwise = do
+      r <- recordTree p
+      case r of
+        Left  r -> r
+        Right t -> removeTree t
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
@@ -681,8 +684,9 @@ translatePatterns ps = do
 recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
-recordTree p@(ConP _ Nothing _) = return $ Left $ translatePattern p
-recordTree (ConP c ci@(Just (_, t)) ps) = do
+recordTree p@(ConP _ ci _) | Nothing <- conPRecord ci = return $ Left $ translatePattern p
+recordTree (ConP c ci ps) = do
+  let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
     Nothing ->

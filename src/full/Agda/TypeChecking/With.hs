@@ -65,15 +65,22 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.
-buildWithFunction :: QName -> Telescope -> [I.NamedArg Pattern] -> Permutation ->
-                     Nat -> Nat -> [A.SpineClause] -> TCM [A.SpineClause]
-buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
+buildWithFunction
+  :: QName                -- ^ Name of the with-function.
+  -> Type                 -- ^ Types of the parent function.
+  -> [I.NamedArg Pattern] -- ^ Parent patterns.
+  -> Permutation          -- ^ Final permutation.
+  -> Nat                  -- ^ Number of needed vars.
+  -> Nat                  -- ^ Number of with expressions.
+  -> [A.SpineClause]      -- ^ With-clauses.
+  -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
+buildWithFunction aux t qs perm n1 n cs = mapM buildWithClause cs
   where
     buildWithClause (A.Clause (A.SpineLHS i _ ps wps) rhs wh catchall) = do
       let (wps0, wps1) = genericSplitAt n wps
           ps0          = map defaultNamedArg wps0
       rhs <- buildRHS rhs
-      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
+      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns t qs perm ps
       let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
@@ -86,36 +93,39 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
       mapM (A.spineToLhs <.> buildWithClause . A.lhsToSpine) cs
     buildRHS (A.RewriteRHS qes rhs wh) = flip (A.RewriteRHS qes) wh <$> buildRHS rhs
 
-{-| @stripWithClausePatterns Γ qs π ps = ps'@
+{-| @stripWithClausePatterns t qs π ps = ps'@
 
     @Δ@ - context bound by lhs of original function (not an argument)
 
-    @Γ@ - type of arguments to original function
+    @t@ - type of the original function
 
     @qs@ - internal patterns for original function
 
     @π@ - permutation taking @vars(qs)@ to @support(Δ)@
 
-    @ps@ - patterns in with clause (presumably of type @Γ@)
+    @ps@ - patterns in with clause (eliminating type @t@)
 
     @ps'@ - patterns for with function (presumably of type @Δ@)
 -}
 -- TODO: this does not work for varying arity or copatterns.
 -- Need to do s.th. like in Split.hs with ProblemRest etc.
-stripWithClausePatterns :: Telescope -> [I.NamedArg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
-stripWithClausePatterns gamma qs perm ps = do
+stripWithClausePatterns
+  :: Type                       -- ^ @t@
+  -> [I.NamedArg Pattern]       -- ^ @qs@
+  -> Permutation                -- ^ @π@
+  -> [A.NamedArg A.Pattern]     -- ^ @ps@
+  -> TCM [A.NamedArg A.Pattern] -- ^ @ps'@
+stripWithClausePatterns t qs perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
-  psi <- insertImplicitPatterns ExpandLast ps gamma
-  unless (size psi == size gamma) $
-    typeError $ GenericError $ "Wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
+  psi <- insertImplicitPatternsT ExpandLast ps t
   reportSDoc "tc.with.strip" 10 $ vcat
     [ text "stripping patterns"
-    , nest 2 $ text "gamma = " <+> prettyTCM gamma
+    , nest 2 $ text "t   = " <+> prettyTCM t
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
     ]
-  ps' <- strip gamma psi qs
+  ps' <- strip t psi qs
   let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
@@ -140,27 +150,38 @@ stripWithClausePatterns gamma qs perm ps = do
       _ -> return ()
   return psp
   where
-    -- implicit args inserted at top level
-    -- all three arguments should have the same size
-    strip :: Telescope -> [A.NamedArg A.Pattern] -> [I.NamedArg Pattern] -> TCM [A.NamedArg A.Pattern]
-    strip _           []      (_ : _) = __IMPOSSIBLE__
-    strip _           (_ : _) []      = __IMPOSSIBLE__
-    strip EmptyTel    (_ : _) _       = __IMPOSSIBLE__
-    strip ExtendTel{} []      _       = __IMPOSSIBLE__
-    strip EmptyTel    []      []      = return []
-    strip tel0@(ExtendTel a tel) ps0@(p0 : ps) qs0@(q : qs) = do
+
+    strip :: Type -> [A.NamedArg A.Pattern] -> [I.NamedArg Pattern] -> TCM [A.NamedArg A.Pattern]
+    -- Case: out of with-clause patterns.
+    strip _ []      (_ : _) =
+      typeError $ GenericError $ "Too few arguments given in with-clause"
+
+    -- Case: out of parent-clause patterns.
+    -- This is only ok if all remaining with-clause patterns
+    -- are implicit patterns (we inserted too many).
+    strip _ ps      []      = do
+      let implicit (A.ImplicitP{}) = True
+          implicit (A.ConP ci _ _) = patImplicit ci
+          implicit _               = False
+      unless (all (implicit . namedArg) ps) $
+        typeError $ GenericError $ "Too many arguments given in with-clause"
+      return []
+
+    -- Case: both parent-clause pattern and with-clause pattern present.
+    -- Make sure they match, and decompose into subpatterns.
+    strip t ps0@(p0 : ps) qs0@(q : qs) = do
       p <- expandLitPattern p0
       reportSDoc "tc.with.strip" 15 $ vcat
         [ text "strip"
         , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
         , nest 2 $ text "exp =" <+> prettyA p
         , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs0)
-        , nest 2 $ text "tel0=" <+> prettyTCM tel0
+        , nest 2 $ text "t   =" <+> prettyTCM t
         ]
       case namedArg q of
-        ProjP{} -> strip tel0 ps qs
+        ProjP{} -> typeError $ NotImplemented $ "with clauses with copatterns"
         VarP _  -> do
-          ps <- underAbstraction a tel $ \tel -> strip tel ps qs
+          ps <- intro1 t $ \ t -> strip t ps qs
           return $ p : ps
 
         DotP v  -> case namedArg p of
@@ -182,17 +203,20 @@ stripWithClausePatterns gamma qs perm ps = do
                 "also be inaccessible in the with clause, when checking the " ++
                 "pattern " ++ show d ++ ","
           where
-            ok p = (p :) <$> strip (tel `absApp` v) ps qs
+            ok p = do
+              t' <- piApply1 t v
+              (p :) <$> strip t' ps qs
 
         ConP c ci qs' -> do
          reportSDoc "tc.with.strip" 60 $
            text "parent pattern is constructor " <+> prettyTCM c
+         (a, b) <- mustBePi t
          case namedArg p of
 
           -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
           -- that has been expanded in the parent clause, we expand it and restart
-          A.ImplicitP _ | Just (True, _) <- ci -> do
-            maybe __IMPOSSIBLE__ (\ p -> strip tel0 (p : ps) qs0) =<<
+          A.ImplicitP _ | Just True <- conPRecord ci -> do
+            maybe __IMPOSSIBLE__ (\ p -> strip t (p : ps) qs0) =<<
               expandImplicitPattern' (unDom a) p
 
 
@@ -218,14 +242,14 @@ stripWithClausePatterns gamma qs perm ps = do
                    , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
                    ]
 
-            -- Compute the new telescope
+            -- Compute the new type
             let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
-                tel'' = tel' `abstract` absApp (raise (size tel') tel) v
+                t' = tel' `abstract` absApp (raise (size tel') b) v
 
             reportSDoc "tc.with.strip" 15 $ sep
               [ text "inserting implicit"
               , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
-              , nest 2 $ text ":" <+> prettyTCM tel''
+              , nest 2 $ text ":" <+> prettyTCM t'
               ]
 
             -- Insert implicit patterns (just for the constructor arguments)
@@ -234,10 +258,10 @@ stripWithClausePatterns gamma qs perm ps = do
               WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
 
             -- Do it again for everything (is this necessary?)
-            psi' <- insertImplicitPatterns ExpandLast (psi' ++ ps) tel''
+            psi' <- insertImplicitPatternsT ExpandLast (psi' ++ ps) t'
 
             -- Keep going
-            strip tel'' psi' (qs' ++ qs)
+            strip t' psi' (qs' ++ qs)
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $
@@ -250,7 +274,9 @@ stripWithClausePatterns gamma qs perm ps = do
            mismatch
 
         LitP lit -> case namedArg p of
-          A.LitP lit' | lit == lit' -> strip (tel `absApp` Lit lit) ps qs
+          A.LitP lit' | lit == lit' -> do
+            (a, b) <- mustBePi t
+            strip (b `absApp` Lit lit) ps qs
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
@@ -362,22 +388,3 @@ patsToTerms perm ps = toTerms $ numberPatVars perm ps
       DotP t      -> DDot   $ t
       ConP c _ ps -> DCon c $ toTerms ps
       LitP l      -> DTerm  $ Lit l
-
--- -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
--- -- The permutation is the one of the original clause.
--- patsToTerms :: Permutation -> [I.NamedArg Pattern] -> [I.Arg DisplayTerm]
--- patsToTerms perm ps = evalState (toTerms ps) xs
---   where
---     xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
---     tick = do x : xs <- get; put xs; return x
-
---     toTerms :: [I.NamedArg Pattern] -> State [Nat] [I.Arg DisplayTerm]
---     toTerms ps = mapM (Trav.traverse $ toTerm . namedThing) ps
-
---     toTerm :: Pattern -> State [Nat] DisplayTerm
---     toTerm p = case p of
---       ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
---       VarP _      -> DTerm . var <$> tick
---       DotP t      -> DDot t <$ tick
---       ConP c _ ps -> DCon c <$> toTerms ps
---       LitP l      -> return $ DTerm (Lit l)

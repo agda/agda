@@ -1,3 +1,4 @@
+
 {-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards     #-}
@@ -542,9 +543,8 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
         [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
-        cl@Clause{ clauseBody = body } : cls -> do
-          let pats = namedClausePats cl
-              n    = length pats
+        Clause{ namedClausePats = pats, clauseBody = body } : cls -> do
+          let n = length pats
           -- if clause is underapplied, skip to next clause
           if length es < n then goCls cls es else do
             let (es0, es1) = splitAt n es
@@ -735,13 +735,18 @@ instance Simplify Constraint where
 instance Simplify Bool where
   simplify' = return
 
-instance Simplify Pattern where
-  simplify' p = case p of
-    VarP _       -> return p
-    LitP _       -> return p
-    ConP c mt ps -> ConP c <$> simplify' mt <*> simplify' ps
-    DotP v       -> DotP <$> simplify' v
-    ProjP _      -> return p
+-- UNUSED
+-- instance Simplify ConPatternInfo where
+--   simplify' (ConPatternInfo mr mt) = ConPatternInfo mr <$> simplify' mt
+
+-- UNUSED
+-- instance Simplify Pattern where
+--   simplify' p = case p of
+--     VarP _       -> return p
+--     LitP _       -> return p
+--     ConP c ci ps -> ConP c <$> simplify' ci <*> simplify' ps
+--     DotP v       -> DotP <$> simplify' v
+--     ProjP _      -> return p
 
 instance Simplify ClauseBody where
     simplify' (Body   t) = Body   <$> simplify' t
@@ -868,6 +873,9 @@ instance Normalise Constraint where
 instance Normalise Bool where
   normalise' = return
 
+instance Normalise ConPatternInfo where
+  normalise' (ConPatternInfo mr mt) = ConPatternInfo mr <$> normalise' mt
+
 instance Normalise Pattern where
   normalise' p = case p of
     VarP _       -> return p
@@ -965,6 +973,9 @@ instance InstantiateFull Substitution where
 
 instance InstantiateFull Bool where
     instantiateFull' = return
+
+instance InstantiateFull ConPatternInfo where
+  instantiateFull' (ConPatternInfo mr mt) = ConPatternInfo mr <$> instantiateFull' mt
 
 instance InstantiateFull Pattern where
     instantiateFull' v@VarP{}       = return v
@@ -1154,4 +1165,3 @@ instance InstantiateFull QName where
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull' = mapM instantiateFull'
-

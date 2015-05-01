@@ -154,6 +154,7 @@ instantiatePattern sub perm ps
     merge (Just qs) ps = zipWith mergeA qs ps
       where
         mergeA a1 a2 = fmap (mergeP (namedArg a1) (namedArg a2) <$) a1
+
         mergeP (DotP s)  (DotP t)
           | s == t                    = DotP s
           | otherwise                 = __IMPOSSIBLE__
@@ -163,8 +164,9 @@ instantiatePattern sub perm ps
         -- the rest is homomorphical
         mergeP (DotP _)  _            = __IMPOSSIBLE__
         mergeP _         (DotP _)     = __IMPOSSIBLE__
-        mergeP (ConP c1 mt1 ps) (ConP c2 mt2 qs)
-          | c1 == c2                  = ConP (c1 `withRangeOf` c2) (mplus mt1 mt2) $ zipWith mergeA ps qs
+        mergeP (ConP c1 i1 ps) (ConP c2 i2 qs)
+          | c1 == c2                  = ConP (c1 `withRangeOf` c2) (mergeCPI i1 i2) $
+                                          zipWith mergeA ps qs
           | otherwise                 = __IMPOSSIBLE__
         mergeP (LitP l1) (LitP l2)
           | l1 == l2                  = LitP (l1 `withRangeOf` l2)
@@ -183,6 +185,9 @@ instantiatePattern sub perm ps
           | otherwise                 = __IMPOSSIBLE__
         mergeP ProjP{} _              = __IMPOSSIBLE__
         mergeP _       ProjP{}        = __IMPOSSIBLE__
+
+        mergeCPI (ConPatternInfo mr1 mt1) (ConPatternInfo mr2 mt2) =
+          ConPatternInfo (mplus mr1 mr2) (mplus mt1 mt2)
 
 
 -- | In an internal pattern, replace some pattern variables
@@ -362,27 +367,24 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
-
+-- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
-  { lhsPatternTele :: Maybe Telescope   -- ^ Γ: The types of the patterns.
-                                        -- 'Nothing' if more patterns than domain types in @a@.
-                                        -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
-  , lhsVarTele :: Telescope             -- ^ Δ : The types of the pattern variables.
-  , lhsSubstitution :: S.Substitution   -- ^ σ : The patterns in form of a substitution Δ ⊢ σ : Γ
-  , lhsVarNames :: [String]             -- ^ Names for the variables in Δ, for binding the body.
-  , lhsPatterns :: [I.NamedArg Pattern] -- ^ The patterns in internal syntax.
-  , lhsBodyType :: I.Arg Type           -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
-                                        -- 'Irrelevant' to indicate the rhs must be checked
-                                        -- in irrelevant mode.
-  , lhsPermutation :: Permutation       -- ^ The permutation from pattern vars to @Δ@.
+  { lhsVarTele      :: Telescope
+    -- ^ Δ : The types of the pattern variables, in internal dependency order.
+    -- Corresponds to 'clauseTel'.
+  , lhsPatterns     :: [I.NamedArg Pattern]
+    -- ^ The patterns in internal syntax.
+  , lhsBodyType     :: I.Arg Type
+    -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
+    -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
+  , lhsPermutation  :: Permutation
+    -- ^ The permutation from pattern vars to @Δ@.
+    -- Corresponds to 'clausePerm'.
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult mtel tel sub xs ps t perm) = LHSResult
-    <$> instantiateFull' mtel
-    <*> instantiateFull' tel
-    <*> instantiateFull' sub
-    <*> return xs
+  instantiateFull' (LHSResult tel ps t perm) = LHSResult
+    <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' t
     <*> return perm
@@ -410,7 +412,6 @@ checkLeftHandSide c f ps a ret = do
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
-  let mgamma = if noProblemRest problem0 then Just $ problemTel problem0 else Nothing
 
   -- doing the splits:
   LHSState problem@(Problem ps (perm, qs) delta rest) sigma dpi asb
@@ -442,9 +443,7 @@ checkLeftHandSide c f ps a ret = do
     -- Check dot patterns
     mapM_ checkDotPattern dpi
 
-    let rho = renamingR perm -- I'm not certain about this...
-        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..permRange perm - 1] ]
-    lhsResult <- return $ LHSResult mgamma delta rho xs qs b' perm
+    lhsResult <- return $ LHSResult delta qs b' perm
     applyRelevanceToContext (getRelevance b') $ ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
@@ -668,18 +667,19 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
           ]
 
-      -- Andreas, 2010-09-09, save the type a of record pattern.
+      -- Andreas, 2010-09-09, save the type.
       -- It is relative to delta1, but it should be relative to
       -- all variables which will be bound by patterns.
       -- Thus, it has to be raised by 1 (the "hole" variable)
       -- plus the length of delta2 (the variables coming after the hole).
-      storedPatternType <- ifM (isJust <$> isRecord d)
-        (return $ Just (impl, raise (1 + size delta2) typeOfSplitVar))
-        (return $ Nothing)
+      let storedPatternType = raise (1 + size delta2) typeOfSplitVar
+      -- Also remember if we are a record pattern and from an implicit pattern.
+      isRec <- isRecord d
+      let cpi = ConPatternInfo (isRec $> impl) (Just storedPatternType)
 
       -- Plug the hole in the out pattern with c ys
       let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
-          ip  = plugHole (ConP c storedPatternType ysp) iph
+          ip  = plugHole (ConP c cpi ysp) iph
           ip0 = applySubst rho0 ip
 
       -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂

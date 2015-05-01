@@ -123,11 +123,14 @@ bindBuiltinFlat e =
                    ExtendTel (domH $ sort $ varSort 0)       $ Abs "A" $
                    ExtendTel (domN $ El (varSort 1) $ var 0) $ Abs "x" $
                    EmptyTel
+        infA     = El (varSort 2) $ Def inf [ Apply $ defaultArg $ var 1 ]
+        cpi      = ConPatternInfo Nothing $ Just $ defaultArg infA
     let clause   = Clause
           { clauseRange     = noRange
           , clauseTel       = tel
           , clausePerm      = idP 1
-          , namedClausePats = [ argN $ Named Nothing $ ConP sharpCon Nothing [ argN $ Named Nothing $ VarP "x" ] ]
+          , namedClausePats = [ argN $ Named Nothing $
+              ConP sharpCon cpi [ argN $ Named Nothing $ VarP "x" ] ]
           , clauseBody      = Bind $ Abs "x" $ Body $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False

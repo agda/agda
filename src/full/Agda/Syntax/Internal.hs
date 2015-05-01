@@ -379,7 +379,7 @@ stuckOn e r =
 --  the patterns to the order they occur in the telescope. The body
 --  binds the variables in the order they appear in the patterns.
 --
---  @clauseTel ~ permute clausePerm (patternVars clausPats)@
+--  @clauseTel ~ permute clausePerm (patternVars namedClausePats)@
 --
 --  Terms in dot patterns are valid in the clause telescope.
 --
@@ -387,12 +387,16 @@ stuckOn e r =
 --  as variables. TODO: Change this!
 data Clause = Clause
     { clauseRange     :: Range
-    , clauseTel       :: Telescope     -- ^ The types of the pattern variables.
+    , clauseTel       :: Telescope
+      -- ^ @Δ@: The types of the pattern variables.
     , clausePerm      :: Permutation
+      -- ^ @π@ with @Γ ⊢ renamingR π : Δ@, which means @Δ ⊢ renaming π : Γ@.
     , namedClausePats :: [NamedArg Pattern]
+      -- ^ @let Γ = patternVars namedClausePats@
     , clauseBody      :: ClauseBody
+      -- ^ @λΓ.v@
     , clauseType      :: Maybe (Arg Type)
-      -- ^ The type of the rhs under @clauseTel@.
+      -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
@@ -476,7 +480,23 @@ namedVarP x = Named named $ VarP x
 --   The @Type@ is the type of the whole record pattern.
 --   The scope used for the type is given by any outer scope
 --   plus the clause's telescope ('clauseTel').
-type ConPatternInfo = Maybe (Bool, Arg Type)
+data ConPatternInfo = ConPatternInfo
+  { conPRecord :: Maybe Bool
+    -- ^ @Nothing@ if data constructor.
+    --   @Just@ if record constructor, then @True@ if pattern
+    --   was expanded from an implicit pattern.
+  , conPType   :: Maybe (Arg Type)
+    -- ^ The type of the whole constructor pattern.
+    --   Should be present (@Just@) if constructor pattern is
+    --   is generated ordinarily by type-checking.
+    --   Could be absent (@Nothing@) if pattern comes from some
+    --   plugin (like Agsy).
+    --   Needed e.g. for with-clause stripping.
+  }
+  deriving (Typeable, Show)
+
+noConPatternInfo :: ConPatternInfo
+noConPatternInfo = ConPatternInfo Nothing Nothing
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
@@ -492,7 +512,7 @@ properlyMatching :: Pattern -> Bool
 properlyMatching VarP{} = False
 properlyMatching DotP{} = False
 properlyMatching LitP{} = True
-properlyMatching (ConP _ mt ps) = isNothing mt || -- not a record cons
+properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
 
@@ -1019,6 +1039,9 @@ instance KillRange Substitution where
   killRange (t :# rho)           = killRange2 (:#) t rho
   killRange (Strengthen err rho) = killRange1 (Strengthen err) rho
   killRange (Lift n rho)         = killRange1 (Lift n) rho
+
+instance KillRange ConPatternInfo where
+  killRange (ConPatternInfo mr mt) = killRange1 (ConPatternInfo mr) mt
 
 instance KillRange Pattern where
   killRange p =

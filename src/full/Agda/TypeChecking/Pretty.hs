@@ -321,14 +321,15 @@ instance PrettyTCM Context where
 instance PrettyTCM Pattern where
   prettyTCM = showPat
     where
-      showPat (VarP x)                  = text $ patVarNameToString x
-      showPat (DotP t)                  = text $ ".(" ++ show t ++ ")"
-      showPat (ConP c Nothing ps)       = parens $
+      showPat (VarP x)      = text $ patVarNameToString x
+      showPat (DotP t)      = text $ ".(" ++ show t ++ ")"
+      showPat (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (showPat . namedArg) ps)
-      showPat (ConP c (Just (b, t)) ps) = (if b then braces else parens) $
-        prettyTCM c <+> fsep (map (showPat . namedArg) ps) <+> text ":" <+> prettyTCM t
-      showPat (LitP l)                  = text (show l)
-      showPat (ProjP q)                 = text (show q)
+        where
+        b = fromMaybe False $ conPRecord i
+        prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t
+      showPat (LitP l)      = text (show l)
+      showPat (ProjP q)     = text (show q)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)

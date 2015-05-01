@@ -178,15 +178,35 @@ telViewUpTo' n p t = do
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
+-- | Decomposing a function type.
+
+mustBePi :: MonadTCM tcm => Type -> tcm (Dom Type, Abs Type)
+mustBePi t = liftTCM $ do
+  t <- reduce t
+  case ignoreSharing $ unEl t of
+    Pi a b -> return (a, b)
+    _      -> __IMPOSSIBLE__
+
 -- | A safe variant of piApply.
 
 piApplyM :: Type -> Args -> TCM Type
 piApplyM t []           = return t
 piApplyM t (arg : args) = do
-  t <- reduce t
-  case ignoreSharing $ unEl t of
-    Pi  _ b -> absApp b (unArg arg) `piApplyM` args
-    _       -> __IMPOSSIBLE__
+  (_, b) <- mustBePi t
+  absApp b (unArg arg) `piApplyM` args
+
+piApply1 :: MonadTCM tcm => Type -> Term -> tcm Type
+piApply1 t v = do
+  (_, b) <- mustBePi t
+  return $ absApp b v
+
+-- | Given a function type, introduce its domain into
+--   the context and continue with its codomain.
+
+intro1 :: (MonadTCM tcm) => Type -> (Type -> tcm a) -> tcm a
+intro1 t cont = do
+  (a, b) <- mustBePi t
+  underAbstraction a b cont
 
 ---------------------------------------------------------------------------
 -- * Instance definitions

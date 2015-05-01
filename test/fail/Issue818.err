@@ -1,5 +1,5 @@
 Issue818.agda:8,1-9,23
-Unexpected implicit argument
+Too many arguments given in with-clause
 when checking that the clause
 Foo with tt
 Foo {x = _} | tt = Set

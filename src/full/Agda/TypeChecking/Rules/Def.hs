@@ -302,19 +302,19 @@ insertPatterns pats rhs = rhs
 data WithFunctionProblem
   = NoWithFunction
   | WithFunction
-    { wfParentName :: QName                -- ^ parent function name
-    , wfName       :: QName                -- ^ with function name
-    , wfParentTel  :: Telescope            -- ^ arguments to parent function
-    , wfBeforeTel  :: Telescope            -- ^ arguments to the with function before the with expressions
-    , wfAfterTel   :: Telescope            -- ^ arguments to the with function after the with expressions
-    , wfExprs      :: [Term]               -- ^ with expressions
-    , wfExprTypes  :: [Type]               -- ^ types of the with expressions
-    , wfRHSType    :: Type                 -- ^ type of the right hand side
-    , wfParentPats :: [I.NamedArg Pattern] -- ^ parent patterns
-    , wfPermSplit  :: Permutation          -- ^ permutation resulting from splitting the telescope into needed and unneeded vars
-    , wfPermParent :: Permutation          -- ^ permutation reordering the variables in the parent pattern
-    , wfPermFinal  :: Permutation          -- ^ final permutation (including permutation for the parent clause)
-    , wfClauses    :: [A.Clause]           -- ^ the given clauses for the with function
+    { wfParentName :: QName                -- ^ Parent function name.
+    , wfName       :: QName                -- ^ With function name.
+    , wfParentType :: Type                 -- ^ Type of the parent function.
+    , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
+    , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
+    , wfExprs      :: [Term]               -- ^ With expressions.
+    , wfExprTypes  :: [Type]               -- ^ Types of the with expressions.
+    , wfRHSType    :: Type                 -- ^ Type of the right hand side.
+    , wfParentPats :: [I.NamedArg Pattern] -- ^ Parent patterns.
+    , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
+    , wfPermParent :: Permutation          -- ^ Permutation reordering the variables in the parent pattern.
+    , wfPermFinal  :: Permutation          -- ^ Final permutation (including permutation for the parent clause).
+    , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
 -- | Type check a function clause.
@@ -324,10 +324,18 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
     aps <- expandPatternSynonyms aps
-    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult mgamma delta sub xs ps trhs perm) -> do
+    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult delta ps trhs perm) -> do
       -- Note that we might now be in irrelevant context,
       -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-      let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
+
+      -- As we will be type-checking the @rhs@ in @delta@, but the final
+      -- body should have bindings in the order of the pattern variables,
+      -- we need to apply the permutation to the checked rhs @v@.
+      let mkBody v  = foldr (\ x t -> Bind $ Abs x t) b xs
+           where b  = Body $ applySubst (renamingR perm) v
+                 xs = [ stringToArgName $ "h" ++ show n
+                        | n <- [0..permRange perm - 1] ]
+
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) (not . visible) $ unArg trhs
       let n = size htel
@@ -526,8 +534,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                   reportSDoc "tc.with.top" 20 $
                     text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
 
-                  gamma <- maybe (typeError $ NotImplemented "with clauses for functions with unfolding arity") return mgamma
-                  return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' perm finalPerm cs)
+                  return (mkBody v, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
           in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with
 
@@ -555,14 +562,14 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
-checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm finalPerm cs) = do
+checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm finalPerm cs) = do
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
     , nest 2 $ vcat
       [ text "delta1 =" <+> prettyTCM delta1
       , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
-      , text "gamma  =" <+> prettyTCM gamma
+      , text "t      =" <+> prettyTCM t
       , text "as     =" <+> addCtxTel delta1 (prettyTCM as)
       , text "vs     =" <+> addCtxTel delta1 (prettyTCM vs)
       , text "b      =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM b
@@ -643,7 +650,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction aux gamma qs finalPerm (size delta1) (size as) cs
+  cs <- buildWithFunction aux t qs finalPerm (size delta1) (size as) cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function

@@ -450,8 +450,10 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
              -- ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
 
       -- Plug the hole with the constructor and apply ρ
-      -- TODO: Is it really correct to use Nothing here?
-      let conp = ConP con Nothing $ map (fmap namedVarP) $ teleArgNames gamma
+      -- Andreas, 2015-05-01  I guess it is fine to use @noConPatternInfo@
+      -- as the result of splitting is never used further down the pipeline.
+      -- After splitting, Agda reloads the file.
+      let conp = ConP con noConPatternInfo $ map (fmap namedVarP) $ teleArgNames gamma
           ps   = plugHole conp hps
           ps'  = applySubst rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
       debugPlugged ps ps'
