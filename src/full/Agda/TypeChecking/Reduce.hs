@@ -1,3 +1,4 @@
+
 {-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards     #-}
@@ -543,9 +544,8 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
         [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
-        cl@Clause{ clauseBody = body } : cls -> do
-          let pats = namedClausePats cl
-              n    = length pats
+        Clause{ namedClausePats = pats, clauseBody = body } : cls -> do
+          let n = length pats
           -- if clause is underapplied, skip to next clause
           if length es < n then goCls cls es else do
             let (es0, es1) = splitAt n es
@@ -1157,4 +1157,3 @@ instance InstantiateFull QName where
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull' = mapM instantiateFull'
-

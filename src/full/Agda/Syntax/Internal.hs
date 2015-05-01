@@ -380,7 +380,7 @@ stuckOn e r =
 --  the patterns to the order they occur in the telescope. The body
 --  binds the variables in the order they appear in the patterns.
 --
---  @clauseTel ~ permute clausePerm (patternVars clausPats)@
+--  @clauseTel ~ permute clausePerm (patternVars namedClausePats)@
 --
 --  Terms in dot patterns are valid in the clause telescope.
 --
@@ -388,12 +388,16 @@ stuckOn e r =
 --  as variables. TODO: Change this!
 data Clause = Clause
     { clauseRange     :: Range
-    , clauseTel       :: Telescope     -- ^ The types of the pattern variables.
+    , clauseTel       :: Telescope
+      -- ^ @Δ@: The types of the pattern variables.
     , clausePerm      :: Permutation
+      -- ^ @π@ with @Γ ⊢ renamingR π : Δ@, which means @Δ ⊢ renaming π : Γ@.
     , namedClausePats :: [NamedArg Pattern]
+      -- ^ @let Γ = patternVars namedClausePats@
     , clauseBody      :: ClauseBody
+      -- ^ @λΓ.v@
     , clauseType      :: Maybe (Arg Type)
-      -- ^ The type of the rhs under @clauseTel@.
+      -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.

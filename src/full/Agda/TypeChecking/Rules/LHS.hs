@@ -363,19 +363,25 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding defaultArgInfo x v a $ bindAsPatterns asb ret
 
-
+-- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
-  { lhsPatternTele :: Maybe Telescope   -- ^ Γ: The types of the patterns.
-                                        -- 'Nothing' if more patterns than domain types in @a@.
-                                        -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
-  , lhsVarTele :: Telescope             -- ^ Δ : The types of the pattern variables.
-  , lhsSubstitution :: S.Substitution   -- ^ σ : The patterns in form of a substitution Δ ⊢ σ : Γ
-  , lhsVarNames :: [String]             -- ^ Names for the variables in Δ, for binding the body.
-  , lhsPatterns :: [I.NamedArg Pattern] -- ^ The patterns in internal syntax.
-  , lhsBodyType :: I.Arg Type           -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
-                                        -- 'Irrelevant' to indicate the rhs must be checked
-                                        -- in irrelevant mode.
-  , lhsPermutation :: Permutation       -- ^ The permutation from pattern vars to @Δ@.
+  { lhsPatternTele  :: Maybe Telescope
+    -- ^ Γ: The types of the patterns.
+    -- 'Nothing' if more patterns than domain types in @a@.
+    -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
+  , lhsVarTele      :: Telescope
+    -- ^ Δ : The types of the pattern variables.
+  , lhsSubstitution :: S.Substitution
+    -- ^ σ : The patterns in form of a substitution Δ ⊢ σ : Γ
+  , lhsVarNames     :: [String]
+    -- ^ Names for the variables in Δ, for binding the body.
+  , lhsPatterns     :: [I.NamedArg Pattern]
+    -- ^ The patterns in internal syntax.
+  , lhsBodyType     :: I.Arg Type
+    -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
+    -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
+  , lhsPermutation  :: Permutation
+    -- ^ The permutation from pattern vars to @Δ@.
   }
 
 instance InstantiateFull LHSResult where

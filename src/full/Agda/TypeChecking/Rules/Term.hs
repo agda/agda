@@ -1509,7 +1509,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         , text "t     =" <+> prettyTCM t
         ]
       ]
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 $ \ (LHSResult mgamma delta sub xs ps t' perm) -> do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 $ \ (LHSResult _mgamma delta _sub _xs ps _t _perm) -> do
       -- A single pattern in internal syntax is returned.
       let p = case ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
