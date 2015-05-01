@@ -321,10 +321,18 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
     aps <- expandPatternSynonyms aps
-    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult mgamma delta sub xs ps trhs perm) -> do
+    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult mgamma delta ps trhs perm) -> do
       -- Note that we might now be in irrelevant context,
       -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-      let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
+
+      -- As we will be type-checking the @rhs@ in @delta@, but the final
+      -- body should have bindings in the order of the pattern variables,
+      -- we need to apply the permutation to the checked rhs @v@.
+      let mkBody v  = foldr (\ x t -> Bind $ Abs x t) b xs
+           where b  = Body $ applySubst (renamingR perm) v
+                 xs = [ stringToArgName $ "h" ++ show n
+                        | n <- [0..permRange perm - 1] ]
+
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) (not . visible) $ unArg trhs
       let n = size htel

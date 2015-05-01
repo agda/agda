@@ -370,11 +370,8 @@ data LHSResult = LHSResult
     -- 'Nothing' if more patterns than domain types in @a@.
     -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
   , lhsVarTele      :: Telescope
-    -- ^ Δ : The types of the pattern variables.
-  , lhsSubstitution :: S.Substitution
-    -- ^ σ : The patterns in form of a substitution Δ ⊢ σ : Γ
-  , lhsVarNames     :: [String]
-    -- ^ Names for the variables in Δ, for binding the body.
+    -- ^ Δ : The types of the pattern variables, in internal dependency order.
+    -- Corresponds to 'clauseTel'.
   , lhsPatterns     :: [I.NamedArg Pattern]
     -- ^ The patterns in internal syntax.
   , lhsBodyType     :: I.Arg Type
@@ -382,14 +379,13 @@ data LHSResult = LHSResult
     -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
   , lhsPermutation  :: Permutation
     -- ^ The permutation from pattern vars to @Δ@.
+    -- Corresponds to 'clausePerm'.
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult mtel tel sub xs ps t perm) = LHSResult
+  instantiateFull' (LHSResult mtel tel ps t perm) = LHSResult
     <$> instantiateFull' mtel
     <*> instantiateFull' tel
-    <*> instantiateFull' sub
-    <*> return xs
     <*> instantiateFull' ps
     <*> instantiateFull' t
     <*> return perm
@@ -449,9 +445,7 @@ checkLeftHandSide c f ps a ret = do
     -- Check dot patterns
     mapM_ checkDotPattern dpi
 
-    let rho = renamingR perm -- I'm not certain about this...
-        xs  = [ stringToArgName $ "h" ++ show n | n <- [0..permRange perm - 1] ]
-    lhsResult <- return $ LHSResult mgamma delta rho xs qs b' perm
+    lhsResult <- return $ LHSResult mgamma delta qs b' perm
     applyRelevanceToContext (getRelevance b') $ ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
