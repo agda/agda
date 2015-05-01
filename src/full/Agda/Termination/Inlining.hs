@@ -211,14 +211,15 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
     dtermToPat v =
       case v of
         DWithApp{}       -> __IMPOSSIBLE__   -- I believe
-        DCon c vs        -> ConP c Nothing . map (fmap unnamed)
+        DCon c vs        -> ConP c noConPatternInfo . map (fmap unnamed)
                               <$> mapM (traverse dtermToPat) vs
         DDef{}           -> DotP (dtermToTerm v) <$ skip
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->
           ifM (bindVar i) (VarP . nameToPatVarName <$> lift (nameOfBV i))
                           (pure $ DotP (Var i []))
-        DTerm (Con c vs) -> ConP c Nothing . map (fmap unnamed) <$> mapM (traverse (dtermToPat . DTerm)) vs
+        DTerm (Con c vs) -> ConP c noConPatternInfo . map (fmap unnamed) <$>
+                              mapM (traverse (dtermToPat . DTerm)) vs
         DTerm v          -> DotP v <$ skip
 
 isWithFunction :: MonadTCM tcm => QName -> tcm (Maybe QName)
@@ -241,4 +242,3 @@ dtermToTerm (DCon c args)          = Con c $ map (fmap dtermToTerm) args
 dtermToTerm (DDef f args)          = Def f $ map (Apply . fmap dtermToTerm) args
 dtermToTerm (DDot v)               = v
 dtermToTerm (DTerm v)              = v
-

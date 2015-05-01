@@ -685,6 +685,9 @@ instance Subst Bool where
 instance Subst Name where
   applySubst rho = id
 
+instance Subst ConPatternInfo where
+  applySubst rho (ConPatternInfo mr mt) = ConPatternInfo mr $ applySubst rho mt
+
 instance Subst Pattern where
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps

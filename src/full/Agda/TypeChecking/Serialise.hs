@@ -115,7 +115,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150306 * 10 + 0
+currentInterfaceVersion = 20150501 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -1255,6 +1255,11 @@ instance EmbPrj Delayed where
   value = vcase valu where valu [0] = valu0 Delayed
                            valu []  = valu0 NotDelayed
                            valu _   = malformed
+
+instance EmbPrj I.ConPatternInfo where
+  icod_ (ConPatternInfo a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 ConPatternInfo a b
+                           valu _      = malformed
 
 instance EmbPrj I.Pattern where
   icod_ (VarP a    ) = icode1' a

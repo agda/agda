@@ -737,13 +737,18 @@ instance Simplify Constraint where
 instance Simplify Bool where
   simplify' = return
 
-instance Simplify Pattern where
-  simplify' p = case p of
-    VarP _       -> return p
-    LitP _       -> return p
-    ConP c mt ps -> ConP c <$> simplify' mt <*> simplify' ps
-    DotP v       -> DotP <$> simplify' v
-    ProjP _      -> return p
+-- UNUSED
+-- instance Simplify ConPatternInfo where
+--   simplify' (ConPatternInfo mr mt) = ConPatternInfo mr <$> simplify' mt
+
+-- UNUSED
+-- instance Simplify Pattern where
+--   simplify' p = case p of
+--     VarP _       -> return p
+--     LitP _       -> return p
+--     ConP c ci ps -> ConP c <$> simplify' ci <*> simplify' ps
+--     DotP v       -> DotP <$> simplify' v
+--     ProjP _      -> return p
 
 instance Simplify ClauseBody where
     simplify' (Body   t) = Body   <$> simplify' t
@@ -871,6 +876,9 @@ instance Normalise Constraint where
 instance Normalise Bool where
   normalise' = return
 
+instance Normalise ConPatternInfo where
+  normalise' (ConPatternInfo mr mt) = ConPatternInfo mr <$> normalise' mt
+
 instance Normalise Pattern where
   normalise' p = case p of
     VarP _       -> return p
@@ -969,6 +977,9 @@ instance InstantiateFull Substitution where
 
 instance InstantiateFull Bool where
     instantiateFull' = return
+
+instance InstantiateFull ConPatternInfo where
+  instantiateFull' (ConPatternInfo mr mt) = ConPatternInfo mr <$> instantiateFull' mt
 
 instance InstantiateFull Pattern where
     instantiateFull' v@VarP{}       = return v

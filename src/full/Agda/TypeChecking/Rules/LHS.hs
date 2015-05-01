@@ -154,6 +154,7 @@ instantiatePattern sub perm ps
     merge (Just qs) ps = zipWith mergeA qs ps
       where
         mergeA a1 a2 = fmap (mergeP (namedArg a1) (namedArg a2) <$) a1
+
         mergeP (DotP s)  (DotP t)
           | s == t                    = DotP s
           | otherwise                 = __IMPOSSIBLE__
@@ -163,8 +164,9 @@ instantiatePattern sub perm ps
         -- the rest is homomorphical
         mergeP (DotP _)  _            = __IMPOSSIBLE__
         mergeP _         (DotP _)     = __IMPOSSIBLE__
-        mergeP (ConP c1 mt1 ps) (ConP c2 mt2 qs)
-          | c1 == c2                  = ConP (c1 `withRangeOf` c2) (mplus mt1 mt2) $ zipWith mergeA ps qs
+        mergeP (ConP c1 i1 ps) (ConP c2 i2 qs)
+          | c1 == c2                  = ConP (c1 `withRangeOf` c2) (mergeCPI i1 i2) $
+                                          zipWith mergeA ps qs
           | otherwise                 = __IMPOSSIBLE__
         mergeP (LitP l1) (LitP l2)
           | l1 == l2                  = LitP (l1 `withRangeOf` l2)
@@ -183,6 +185,9 @@ instantiatePattern sub perm ps
           | otherwise                 = __IMPOSSIBLE__
         mergeP ProjP{} _              = __IMPOSSIBLE__
         mergeP _       ProjP{}        = __IMPOSSIBLE__
+
+        mergeCPI (ConPatternInfo mr1 mt1) (ConPatternInfo mr2 mt2) =
+          ConPatternInfo (mplus mr1 mr2) (mplus mt1 mt2)
 
 
 -- | In an internal pattern, replace some pattern variables
@@ -669,18 +674,19 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
           ]
 
-      -- Andreas, 2010-09-09, save the type a of record pattern.
+      -- Andreas, 2010-09-09, save the type.
       -- It is relative to delta1, but it should be relative to
       -- all variables which will be bound by patterns.
       -- Thus, it has to be raised by 1 (the "hole" variable)
       -- plus the length of delta2 (the variables coming after the hole).
-      storedPatternType <- ifM (isJust <$> isRecord d)
-        (return $ Just (impl, raise (1 + size delta2) typeOfSplitVar))
-        (return $ Nothing)
+      let storedPatternType = raise (1 + size delta2) typeOfSplitVar
+      -- Also remember if we are a record pattern and from an implicit pattern.
+      isRec <- isRecord d
+      let cpi = ConPatternInfo (isRec $> impl) (Just storedPatternType)
 
       -- Plug the hole in the out pattern with c ys
       let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
-          ip  = plugHole (ConP c storedPatternType ysp) iph
+          ip  = plugHole (ConP c cpi ysp) iph
           ip0 = applySubst rho0 ip
 
       -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂

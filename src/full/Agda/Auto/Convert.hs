@@ -671,7 +671,7 @@ frommyClause (ids, pats, mrhs) = do
         let (Just ndrop, name) = cdorigin cdef
         ps' <- cnvps ndrop ps
         let con = I.ConHead name Common.Inductive [] -- TODO: restore record fields!
-        return (I.ConP con Nothing ps')
+        return (I.ConP con I.noConPatternInfo ps')
        CSPatExp e -> do
         e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
         return (I.DotP e')

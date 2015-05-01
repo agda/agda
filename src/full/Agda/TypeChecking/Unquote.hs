@@ -317,7 +317,7 @@ instance Unquote Pattern where
           __IMPOSSIBLE__
       Con c [x, y] -> do
         choice
-          [ (c `isCon` primAgdaPatCon, flip ConP Nothing <$> unquoteN x <*> (map (fmap unnamed) <$> unquoteN y)) ]
+          [ (c `isCon` primAgdaPatCon, flip ConP noConPatternInfo <$> unquoteN x <*> (map (fmap unnamed) <$> unquoteN y)) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Pattern" t

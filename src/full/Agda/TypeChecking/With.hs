@@ -203,7 +203,7 @@ stripWithClausePatterns gamma qs perm ps = do
 
           -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
           -- that has been expanded in the parent clause, we expand it and restart
-          A.ImplicitP _ | Just (True, _) <- ci -> do
+          A.ImplicitP _ | Just True <- conPRecord ci -> do
             maybe __IMPOSSIBLE__ (\ p -> strip tel0 (p : ps) qs0) =<<
               expandImplicitPattern' (unDom a) p
 
