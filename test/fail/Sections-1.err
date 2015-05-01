@@ -1,18 +1,18 @@
 Sections-1.agda:9,8-26
 Could not parse the application _* 5 ∘ 6 +_ ∘ 2 ∸_
 Operators used in the grammar:
-  *  (infixl operator, level 7)            [_*_ (Nat.agda:24,1-4)]    
-  _* (prefix operator section, unrelated)  [_*_ (Nat.agda:24,1-4)]    
-  *_ (postfix operator section, unrelated) [_*_ (Nat.agda:24,1-4)]    
-  +  (infixl operator, level 6)            [_+_ (Nat.agda:17,1-4)]    
-  _+ (prefix operator section, unrelated)  [_+_ (Nat.agda:17,1-4)]    
-  +_ (postfix operator section, unrelated) [_+_ (Nat.agda:17,1-4)]    
+  *  (infixl operator, level 7)            [_*_ (Nat.agda:25,1-4)]    
+  _* (prefix operator section, unrelated)  [_*_ (Nat.agda:25,1-4)]    
+  *_ (postfix operator section, unrelated) [_*_ (Nat.agda:25,1-4)]    
+  +  (infixl operator, level 6)            [_+_ (Nat.agda:18,1-4)]    
+  _+ (prefix operator section, unrelated)  [_+_ (Nat.agda:18,1-4)]    
+  +_ (postfix operator section, unrelated) [_+_ (Nat.agda:18,1-4)]    
   ∘  (infixr operator, level 9)            [_∘_ (Sections-1.agda:5,1-4)]
   _∘ (prefix operator section, unrelated)  [_∘_ (Sections-1.agda:5,1-4)]
   ∘_ (postfix operator section, unrelated) [_∘_ (Sections-1.agda:5,1-4)]
-  ∸  (infixl operator, level 6)            [_∸_ (Nat.agda:31,1-4)]    
-  _∸ (prefix operator section, unrelated)  [_∸_ (Nat.agda:31,1-4)]    
-  ∸_ (postfix operator section, unrelated) [_∸_ (Nat.agda:31,1-4)]    
+  ∸  (infixl operator, level 6)            [_∸_ (Nat.agda:32,1-4)]    
+  _∸ (prefix operator section, unrelated)  [_∸_ (Nat.agda:32,1-4)]    
+  ∸_ (postfix operator section, unrelated) [_∸_ (Nat.agda:32,1-4)]    
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking _* 5 ∘ 6 +_ ∘ 2 ∸_

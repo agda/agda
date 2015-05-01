@@ -39,7 +39,7 @@ data Compiler = MAlonzo | UHC
   deriving (Show, Read, Eq)
 
 enabledCompilers :: [Compiler]
-enabledCompilers = [ MAlonzo{-, UHC -} ]
+enabledCompilers = [ MAlonzo, UHC ]
 
 tests :: IO TestTree
 tests = do

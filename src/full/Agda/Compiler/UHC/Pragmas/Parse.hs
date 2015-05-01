@@ -7,6 +7,7 @@ module Agda.Compiler.UHC.Pragmas.Parse
   , parseCoreExpr
   , coreExprToCExpr
   , parseCoreData
+  , parseCoreConstrs
   )
 
 where
@@ -27,41 +28,43 @@ import Agda.Compiler.UHC.Bridge as CA
 import Agda.Utils.Impossible
 
 -- | Parse a COMPILED_DATA_UHC specification.
-parseCoreData :: MonadTCM m => String -> [String] -> m (CoreType, [CoreConstr])
-parseCoreData dt css = do
-  let mgcTys = getMagicTypes
-  isDtMgc <- isMagicEntity mgcTys dt "datatype"
-  case isDtMgc of
-    Nothing -> do
-                let dtCrNm = Just $ mkHsName1 dt
-                constrs <- mapM (parseNormalConstr dtCrNm) css
-                -- UHC assigns tags in lexographical order.
-                -- Requires that the mapping is complete, else it will break.
-                let constrs' = zipWith setTag (sortBy ccOrd constrs) [0..]
-                return (CTNormal dtCrNm, constrs')
-    Just (dtMgcNm, (_, constrMp)) -> do
-                constrs <- mapM (parseMagicConstr dtMgcNm constrMp) css
-                return (CTMagic dtMgcNm, constrs)
+parseCoreData :: MonadTCM m => String -> m CoreType
+parseCoreData dt = do
+  isDtMgc <- isMagicEntity getMagicTypes dt "datatype"
+  return $ case isDtMgc of
+    Nothing         -> CTNormal (Just $ mkHsName1 dt)
+    Just (dtMgc, _) -> CTMagic dtMgc
 
-  where parseNormalConstr :: MonadTCM m => CoreTypeName -> String -> m CoreConstr
-        parseNormalConstr dtCrNm cs
-            | isMagic cs = typeError $
-                GenericError $ "Magic constructor " ++ (drop 2 $ init $ init cs) ++ " can only be used for magic datatypes."
+parseCoreConstrs :: MonadTCM m => CoreType -> [String] -> m [CoreConstr]
+parseCoreConstrs (CTNormal dtCrNm) cs = do
+  constrs <- mapM parseNormalConstr cs
+  -- UHC assigns tags in lexographical order.
+  -- Requires that the mapping is complete, else it will break.
+  return $ zipWith setTag (sortBy ccOrd constrs) [0..]
+    where
+        parseNormalConstr :: MonadTCM m => String -> m CoreConstr
+        parseNormalConstr c
+            | isMagic c =  typeError $
+                GenericError $ "Magic constructor " ++ (drop 2 $ init $ init c) ++ " can only be used for magic datatypes."
             | otherwise = let dtCrNmAux = fromMaybe __IMPOSSIBLE__ dtCrNm
                            -- tag gets assigned after we have parsed all ctors
-                           in return $ CCNormal dtCrNmAux (mkHsName1 cs) __IMPOSSIBLE__
-
-        parseMagicConstr :: MonadTCM m => MagicName -> MagicConstrInfo -> String ->  m CoreConstr
-        parseMagicConstr dtMgcNm conMp cs
-            | not (isMagic cs) = typeError $
-                GenericError $ "A magic datatype can only have magic constructors."
-            | otherwise = do
-                (Just (conMgcNm, _)) <- isMagicEntity conMp cs "constructor"
-                return $ CCMagic dtMgcNm conMgcNm
-
+                           in return $ CCNormal dtCrNmAux (mkHsName1 c) __IMPOSSIBLE__
         ccOrd :: CoreConstr -> CoreConstr -> Ordering
         ccOrd (CCNormal dtNm1 ctNm1 _) (CCNormal dtNm2 ctNm2 _) | dtNm1 == dtNm2 = compare ctNm1 ctNm2
         ccOrd _ _ = __IMPOSSIBLE__
+
+parseCoreConstrs (CTMagic dtMgcNm) cs = do
+  mapM parseMagicConstr cs
+    where
+        (_, conMp) = getMagicTypes M.! dtMgcNm
+        parseMagicConstr :: MonadTCM m => String ->  m CoreConstr
+        parseMagicConstr c
+            | not (isMagic c) = typeError $
+                GenericError $ "A magic datatype can only have magic constructors."
+            | otherwise = do
+                (Just (conMgcNm, _)) <- isMagicEntity conMp c "constructor"
+                return $ CCMagic dtMgcNm conMgcNm
+
 
 -- | Parse a COMPILED_UHC expression.
 parseCoreExpr :: String -> Either String CoreExpr

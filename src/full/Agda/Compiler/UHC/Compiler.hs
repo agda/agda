@@ -39,6 +39,7 @@ import Agda.Syntax.Internal hiding (Term(..))
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
+import Agda.Utils.Pretty
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.UHC.Bridge as UB
@@ -98,8 +99,22 @@ compilerMain inter = do
         ExitSuccess -> do
             outDir <- setUHCDir inter
 
+            -- look for the Agda.Primitive interface in visited modules.
+            -- (It will not be in ImportedModules, if it has not been
+            -- explicitly imported)
+            -- TODO this should be done in a more clean way
+            [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName) . map (miInterface) . M.elems
+                <$> getVisitedModules
+
+
             copyUHCAgdaBase outDir
-            (modInfo, _) <- evalStateT (compileModule inter) M.empty
+            (modInfo, _) <- evalStateT (do
+                -- first compile the Agda.Primitive module
+                _ <- compileModule [] agdaPrimInter
+                -- Always implicitly import Agda.Primitive now
+                compileModule [agdaPrimInter] inter
+                )
+                M.empty
             main <- getMain inter
 
             -- get core name from modInfo
@@ -130,8 +145,10 @@ outFile modParts = do
 
 -- | Compiles a module and it's imports. Returns the module info
 -- of this module, and the accumulating module interface.
-compileModule :: Interface -> CompModT TCM (AModuleInfo, AModuleInterface)
-compileModule i = do
+compileModule :: [Interface] -- additional modules to import. Used to bring Agda.Primitive in scope.
+    -> Interface
+    -> CompModT TCM (AModuleInfo, AModuleInterface)
+compileModule addImps i = do
     -- we can't use the Core module name to get the name of the aui file,
     -- as we don't know the Core module name before we loaded/compiled the file.
     -- (well, we could just compute the module name and use that, that's
@@ -144,10 +161,10 @@ compileModule i = do
     case M.lookup modNm compMods of
         Just x -> return x
         Nothing  -> do
-            imports <- map miInterface . catMaybes
+            imports <- (addImps ++) . map miInterface . catMaybes
                                       <$> lift (mapM (getVisitedModule . toTopLevelModuleName . fst)
                                                      (iImportedModules i))
-            (curModInfos, transModInfos) <- (fmap mconcat) . unzip <$> mapM compileModule imports
+            (curModInfos, transModInfos) <- (fmap mconcat) . unzip <$> mapM (compileModule addImps) imports
             ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile topModuleName)
             let uifFile = auiFile' <.> "aui"
             uptodate <- liftIO $ isNewerThan uifFile ifile

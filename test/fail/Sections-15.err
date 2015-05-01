@@ -1,10 +1,10 @@
 Sections-15.agda:4,8-39
 Could not parse the application if_then 4 Common.Prelude.else 5
 Operators used in the grammar:
-  if_then_else  (prefix operator, unrelated) [if_then_else_ (Bool.agda:24,1-14)]
-  if_then_else_ (closed operator section)    [if_then_else_ (Bool.agda:24,1-14)]
-  if_then_else  (prefix operator, unrelated) [if_then_else_ (Bool.agda:24,1-14)]
-  if_then_else_ (closed operator section)    [if_then_else_ (Bool.agda:24,1-14)]
+  if_then_else  (prefix operator, unrelated) [if_then_else_ (Bool.agda:25,1-14)]
+  if_then_else_ (closed operator section)    [if_then_else_ (Bool.agda:25,1-14)]
+  if_then_else  (prefix operator, unrelated) [if_then_else_ (Bool.agda:25,1-14)]
+  if_then_else_ (closed operator section)    [if_then_else_ (Bool.agda:25,1-14)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking if_then 4 Common.Prelude.else 5

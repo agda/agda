@@ -606,7 +606,8 @@ checkPragma r p =
                   typeError $ GenericError $ show err
               | otherwise -> do
                 -- Remark: core pragmas are not type-checked
-                (dt', cons') <- parseCoreData crd crcs
+                dt' <- parseCoreData crd
+                cons' <- parseCoreConstrs dt' crcs
                 addCoreType x dt'
                 sequence_ $ zipWith addCoreConstr cs cons'
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
