@@ -65,8 +65,15 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.
-buildWithFunction :: QName -> Telescope -> [I.NamedArg Pattern] -> Permutation ->
-                     Nat -> Nat -> [A.SpineClause] -> TCM [A.SpineClause]
+buildWithFunction
+  :: QName                -- ^ Name of the with-function.
+  -> Telescope            -- ^ Types of the parent patterns.
+  -> [I.NamedArg Pattern] -- ^ Parent patterns.
+  -> Permutation          -- ^ Final permutation.
+  -> Nat                  -- ^ Number of needed vars.
+  -> Nat                  -- ^ Number of with expressions.
+  -> [A.SpineClause]      -- ^ With-clauses.
+  -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
 buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
     buildWithClause (A.Clause (A.SpineLHS i _ ps wps) rhs wh) = do
@@ -102,7 +109,12 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 -}
 -- TODO: this does not work for varying arity or copatterns.
 -- Need to do s.th. like in Split.hs with ProblemRest etc.
-stripWithClausePatterns :: Telescope -> [I.NamedArg Pattern] -> Permutation -> [A.NamedArg A.Pattern] -> TCM [A.NamedArg A.Pattern]
+stripWithClausePatterns
+  :: Telescope                  -- ^ @Γ@
+  -> [I.NamedArg Pattern]       -- ^ @qs@
+  -> Permutation                -- ^ @π@
+  -> [A.NamedArg A.Pattern]     -- ^ @ps@
+  -> TCM [A.NamedArg A.Pattern] -- ^ @ps'@
 stripWithClausePatterns gamma qs perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps

@@ -299,19 +299,19 @@ insertPatterns pats rhs = rhs
 data WithFunctionProblem
   = NoWithFunction
   | WithFunction
-    { wfParentName :: QName                -- ^ parent function name
-    , wfName       :: QName                -- ^ with function name
-    , wfParentTel  :: Telescope            -- ^ arguments to parent function
-    , wfBeforeTel  :: Telescope            -- ^ arguments to the with function before the with expressions
-    , wfAfterTel   :: Telescope            -- ^ arguments to the with function after the with expressions
-    , wfExprs      :: [Term]               -- ^ with expressions
-    , wfExprTypes  :: [Type]               -- ^ types of the with expressions
-    , wfRHSType    :: Type                 -- ^ type of the right hand side
-    , wfParentPats :: [I.NamedArg Pattern] -- ^ parent patterns
-    , wfPermSplit  :: Permutation          -- ^ permutation resulting from splitting the telescope into needed and unneeded vars
-    , wfPermParent :: Permutation          -- ^ permutation reordering the variables in the parent pattern
-    , wfPermFinal  :: Permutation          -- ^ final permutation (including permutation for the parent clause)
-    , wfClauses    :: [A.Clause]           -- ^ the given clauses for the with function
+    { wfParentName :: QName                -- ^ Parent function name.
+    , wfName       :: QName                -- ^ With function name.
+    , wfParentTel  :: Telescope            -- ^ Types of arguments to parent function.
+    , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
+    , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
+    , wfExprs      :: [Term]               -- ^ With expressions.
+    , wfExprTypes  :: [Type]               -- ^ Types of the with expressions.
+    , wfRHSType    :: Type                 -- ^ Type of the right hand side.
+    , wfParentPats :: [I.NamedArg Pattern] -- ^ Parent patterns.
+    , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
+    , wfPermParent :: Permutation          -- ^ Permutation reordering the variables in the parent pattern.
+    , wfPermFinal  :: Permutation          -- ^ Final permutation (including permutation for the parent clause).
+    , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
 -- | Type check a function clause.
