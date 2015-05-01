@@ -370,11 +370,7 @@ bindAsPatterns (AsB x v a : asb) ret = do
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
-  { lhsPatternTele  :: Maybe Telescope
-    -- ^ Γ: The types of the patterns.
-    -- 'Nothing' if more patterns than domain types in @a@.
-    -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
-  , lhsVarTele      :: Telescope
+  { lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
   , lhsPatterns     :: [I.NamedArg Pattern]
@@ -388,9 +384,8 @@ data LHSResult = LHSResult
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult mtel tel ps t perm) = LHSResult
-    <$> instantiateFull' mtel
-    <*> instantiateFull' tel
+  instantiateFull' (LHSResult tel ps t perm) = LHSResult
+    <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' t
     <*> return perm
@@ -418,7 +413,6 @@ checkLeftHandSide c f ps a ret = do
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
-  let mgamma = if noProblemRest problem0 then Just $ problemTel problem0 else Nothing
 
   -- doing the splits:
   LHSState problem@(Problem ps (perm, qs) delta rest) sigma dpi asb
@@ -450,7 +444,7 @@ checkLeftHandSide c f ps a ret = do
     -- Check dot patterns
     mapM_ checkDotPattern dpi
 
-    lhsResult <- return $ LHSResult mgamma delta qs b' perm
+    lhsResult <- return $ LHSResult delta qs b' perm
     applyRelevanceToContext (getRelevance b') $ ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved

@@ -179,7 +179,7 @@ stripWithClausePatterns t qs perm ps = do
         , nest 2 $ text "t   =" <+> prettyTCM t
         ]
       case namedArg q of
-        ProjP{} -> __IMPOSSIBLE__ -- TODO!  strip t ps qs
+        ProjP{} -> typeError $ NotImplemented $ "with clauses with copatterns"
         VarP _  -> do
           ps <- intro1 t $ \ t -> strip t ps qs
           return $ p : ps

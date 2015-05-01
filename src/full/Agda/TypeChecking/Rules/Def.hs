@@ -321,7 +321,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
     aps <- expandPatternSynonyms aps
-    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult mgamma delta ps trhs perm) -> do
+    checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult delta ps trhs perm) -> do
       -- Note that we might now be in irrelevant context,
       -- in case checkLeftHandSide walked over an irrelevant projection pattern.
 
@@ -531,7 +531,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                   reportSDoc "tc.with.top" 20 $
                     text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
 
-                  gamma <- maybe (typeError $ NotImplemented "with clauses for functions with unfolding arity") return mgamma
                   return (mkBody v, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
           in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with
