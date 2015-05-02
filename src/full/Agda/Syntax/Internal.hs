@@ -468,6 +468,8 @@ data Pattern' x
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
 
+-- | Type used when numbering pattern variables.
+type DeBruijnPattern = Pattern' (Int, PatVarName)
 
 namedVarP :: PatVarName -> Named (Ranged PatVarName) Pattern
 namedVarP x = Named named $ VarP x
