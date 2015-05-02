@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards     #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Monad.Signature where
 

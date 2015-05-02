@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}

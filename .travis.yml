@@ -54,7 +54,7 @@ install:
 
   # cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
   # breaking previously installed packages.
-  - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
+  - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi
 
   - make install-fix-agda-whitespace
   - export BUILD_DIR=$PWD/dist
