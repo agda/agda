@@ -1,4 +1,6 @@
-{-# LANGUAGE NamedFieldPuns, ExistentialQuantification #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 import Control.Applicative hiding (optional, many)
 import Control.Monad
@@ -9,6 +11,12 @@ import Text.PrettyPrint hiding (char)
 import Text.Printf
 import Data.Monoid
 import System.Environment
+
+#if __GLASGOW_HASKELL__ <= 704
+instance Applicative ReadP where
+  pure  = return
+  (<*>) = ap
+#endif
 
 type Bytes = Integer
 type MegaBytes = Integer
