@@ -383,7 +383,7 @@ patsToTerms perm ps = toTerms $ numberPatVars perm ps
 
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
-      ProjP d     -> __IMPOSSIBLE__ -- TODO: convert spine to non-spine ... DDef d . defaultArg
+      ProjP d     -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
       VarP (i, x) -> DTerm  $ var i
       DotP t      -> DDot   $ t
       ConP c _ ps -> DCon c $ toTerms ps

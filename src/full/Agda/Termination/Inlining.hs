@@ -208,12 +208,16 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
 
     skip = modify $ \(j, is) -> (j + 1, is)
 
+    dtermToPat :: DisplayTerm -> StateT (Int, [(Int, Int)]) TCM Pattern
     dtermToPat v =
       case v of
         DWithApp{}       -> __IMPOSSIBLE__   -- I believe
         DCon c vs        -> ConP c noConPatternInfo . map (fmap unnamed)
                               <$> mapM (traverse dtermToPat) vs
-        DDef{}           -> DotP (dtermToTerm v) <$ skip
+        DDef d vs        -> do
+          ifM (return (null vs) `and2M` do isJust <$> lift (isProjection d))
+            {-then-} (return $ ProjP d)
+            {-else-} (DotP (dtermToTerm v) <$ skip)
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->
           ifM (bindVar i) (VarP . nameToPatVarName <$> lift (nameOfBV i))
