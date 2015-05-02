@@ -421,6 +421,7 @@ isProjectionButNotCoinductive qn = liftTCM $ do
 --   @
 isCoinductiveProjection :: MonadTCM tcm => Bool -> QName -> tcm Bool
 isCoinductiveProjection mustBeRecursive q = liftTCM $ do
+  reportSLn "term.guardedness" 40 $ "checking isCoinductiveProjection " ++ prettyShow q
   flat <- fmap nameOfFlat <$> coinductionKit
   -- yes for ♭
   if Just q == flat then return True else do
@@ -430,8 +431,11 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
       -> caseMaybeM (isRecord r) __IMPOSSIBLE__ $ \ rdef -> do
            -- no for inductive or non-recursive record
            if recInduction rdef /= Just CoInductive then return False else do
+           reportSLn "term.guardedness" 40 $ prettyShow q ++ " is coinductive"
            if not mustBeRecursive then return True else do
+           reportSLn "term.guardedness" 40 $ prettyShow q ++ " must be recursive"
            if not (recRecursive rdef) then return False else do
+           reportSLn "term.guardedness" 40 $ prettyShow q ++ " has been declared recursive, doing actual check now..."
            -- TODO: the following test for recursiveness of a projection should be cached.
            -- E.g., it could be stored in the @Projection@ component.
            -- Now check if type of field mentions mutually recursive symbol.
@@ -440,9 +444,19 @@ isCoinductiveProjection mustBeRecursive q = liftTCM $ do
                tel' = drop n $ telToList tel
            -- Check if any recursive symbols appear in the record type.
            -- Q (2014-07-01): Should we normalize the type?
+           reportSDoc "term.guardedness" 40 $ sep
+             [ text "looking for recursive occurrences in"
+             , prettyTCM (telFromList tel')
+             , text "and"
+             , prettyTCM core
+             ]
            names <- anyDefs (r : recMutual rdef) (map (snd . unDom) tel', core)
+           reportSDoc "term.guardedness" 40 $
+             text "found" <+> sep (map prettyTCM names)
            return $ not $ null names
-    _ -> return False
+    _ -> do
+      reportSLn "term.guardedness" 40 $ prettyShow q ++ " is not a proper projection"
+      return False
 
 
 -- * De Bruijn patterns.

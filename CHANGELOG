@@ -91,7 +91,8 @@ Language
 Type checking
 =============
 
-* Functions of varying arity can now have with-clauses.  Example:
+* Functions of varying arity can now have with-clauses and use rewrite.
+  Example:
 
     NPred : Nat → Set
     NPred 0       = Bool
@@ -106,6 +107,40 @@ Type checking
     allOdd (suc n) m with even m
     ... | true  = const false
     ... | false = allOdd n
+
+* Function defined by copattern matching can now have with-clauses
+  and use rewrite.  Example:
+
+    {-# OPTIONS --copatterns #-}
+
+    record Stream (A : Set) : Set where
+      coinductive
+      constructor delay
+      field
+        force : A × Stream A
+    open Stream
+
+    map : ∀{A B} → (A → B) → Stream A → Stream B
+    force (map f s) with force s
+    ... | a , as = f a , map f as
+
+    record Bisim {A B} (R : A → B → Set) (s : Stream A) (t : Stream B) : Set where
+      coinductive
+      constructor ~delay
+      field
+        ~force : let a , as = force s
+                     b , bs = force t
+                 in  R a b × Bisim R as bs
+    open Bisim
+
+    SEq : ∀{A} (s t : Stream A) → Set
+    SEq = Bisim (_≡_)
+
+    -- Slightly weird definition of symmetry to demonstrate rewrite.
+
+    ~sym' : ∀{A} {s t : Stream A} → SEq s t → SEq t s
+    ~force (~sym' {s = s} {t} p) with force s | force t | ~force p
+    ... | a , as | b , bs | r , q rewrite r = refl , ~sym' q
 
 
 Emacs mode

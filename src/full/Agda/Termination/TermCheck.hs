@@ -1029,8 +1029,12 @@ compareArgs es = do
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   let guardedness = decr $ projsCaller - projsCallee
-  liftTCM $ reportSLn "term.guardedness" 30 $
-    "compareArgs: guardedness of call: " ++ show guardedness
+  liftTCM $ reportSDoc "term.guardedness" 30 $ sep
+    [ text "compareArgs:"
+    , nest 2 $ text $ "projsCaller = " ++ show projsCaller
+    , nest 2 $ text $ "projsCallee = " ++ show projsCallee
+    , nest 2 $ text $ "guardedness of call: " ++ show guardedness
+    ]
   return $ addGuardedness guardedness (size es) (size pats) matrix
 
 -- | Traverse patterns from left to right.
