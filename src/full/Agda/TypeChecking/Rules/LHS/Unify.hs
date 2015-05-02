@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
@@ -61,7 +62,7 @@ import Agda.Utils.Except
   ( Error(noMsg, strMsg)
   , MonadError(catchError, throwError)
   )
-
+import Agda.Utils.Either
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -176,15 +177,24 @@ constructorMismatch :: Type -> Term -> Term -> Unify a
 constructorMismatch a u v = throwException $ ConstructorMismatch a u v
 
 constructorMismatchHH :: TypeHH -> Term -> Term -> Unify a
-constructorMismatchHH aHH u v = ifM (canCompare aHH)
-                                (constructorMismatch (leftHH aHH) u v) -- do not report heterogenity
-                                (throwException (UnclearOccurrence (leftHH aHH) u v))
+constructorMismatchHH aHH u v = do
+  ifM (liftTCM fullyApplied `and2M` canCompare aHH)
+    {- then -} (constructorMismatch (leftHH aHH) u v) -- do not report heterogenity
+    {- else -} (throwException (UnclearOccurrence (leftHH aHH) u v))
   where
     -- Comparing constructors at different types is incompatible with univalence
     canCompare (Het s t) = ifM (liftTCM $ optWithoutK <$> pragmaOptions)
                                (liftTCM $ tryConversion $ equalType s t)  -- no constraints left
                                (return True)
     canCompare Hom{} = return True
+    -- Issue 1497: only fully applied constructors can mismatch
+    fullyApplied = case (ignoreSharing u, ignoreSharing v) of
+      (Con c us, Con d vs) -> do
+        when (c == d) __IMPOSSIBLE__
+        car <- fromLeft length <$> getConstructorArity (conName c)
+        dar <- fromLeft length <$> getConstructorArity (conName d)
+        return $ length us == car && length vs == dar
+      _ -> return True  -- could be literals
 
 instance Subst Equality where
   applySubst rho (Equal a s t) =
