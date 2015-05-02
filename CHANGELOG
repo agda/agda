@@ -122,6 +122,12 @@ Epic
 
 * The Epic backend has been disabled. See Issue 1481.
 
+Bug fixes
+=========
+
+* Issues fixed ( see https://code.google.com/p/agda/issues )
+  1497
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.2
 ------------------------------------------------------------------------

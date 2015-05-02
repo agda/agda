@@ -1,3 +1,8 @@
+-- Andreas, 2015-05-02
+-- To fix Issue 1497, I sacrificed this formerly passing test.
+-- Which is rather far-fetched anyway: Relying on disunification
+-- of higher-order indices.
+
 module PartiallyAppliedConstructorInIndex where
 
 data Nat : Set where
