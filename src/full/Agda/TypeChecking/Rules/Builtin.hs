@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE PatternGuards       #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin

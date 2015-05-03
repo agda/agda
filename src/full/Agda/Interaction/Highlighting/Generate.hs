@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RelaxedPolyRec   #-}
+{-# LANGUAGE RelaxedPolyRec #-}
 
 -- | Generates data used for precise syntax highlighting.
 

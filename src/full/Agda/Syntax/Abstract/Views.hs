@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE PatternGuards             #-}
-{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.Syntax.Abstract.Views where
 

@@ -1,7 +1,7 @@
 -- RETIRED, Graph libraries now under Agda.Utils.Graph.AdjacencyMap
 
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).

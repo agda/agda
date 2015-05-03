@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards     #-}
-{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces

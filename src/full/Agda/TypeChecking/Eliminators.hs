@@ -1,8 +1,8 @@
 -- RETIRED
 -- Andreas, 2013-10-18
 
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Eliminators where

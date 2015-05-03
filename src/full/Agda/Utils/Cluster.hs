@@ -1,6 +1,6 @@
--- {-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE TemplateHaskell     #-}
--- {-# LANGUAGE TupleSections       #-}
+-- {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
+-- {-# LANGUAGE TupleSections #-}
 
 -- | Create clusters of non-overlapping things.
 

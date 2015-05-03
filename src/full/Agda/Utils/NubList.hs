@@ -3,8 +3,8 @@
 {-# LANGUAGE DeriveFoldable #-}
 
 -- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- {-# LANGUAGE DeriveFunctor              #-}
--- {-# LANGUAGE DeriveTraversable          #-}
+-- {-# LANGUAGE DeriveFunctor #-}
+-- {-# LANGUAGE DeriveTraversable #-}
 
 -- | Lists without duplicates.
 --

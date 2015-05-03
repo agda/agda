@@ -1,8 +1,8 @@
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE UndecidableInstances  #-}  -- Due to limitations of funct.dep.
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UndecidableInstances #-}  -- Due to limitations of funct.dep.
 
 -- | @ListT@ done right,
 --   see https://www.haskell.org/haskellwiki/ListT_done_right_alternative

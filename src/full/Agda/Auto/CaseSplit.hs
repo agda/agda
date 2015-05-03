@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE Rank2Types          #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Auto.CaseSplit where

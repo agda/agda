@@ -1,8 +1,8 @@
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.Utils.Tuple where
 

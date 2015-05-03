@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 
 #if __GLASGOW_HASKELL__ >= 710
