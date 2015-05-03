@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns       #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Agda.Utils.Pointer

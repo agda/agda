@@ -1,5 +1,6 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+
 module Agda.TypeChecking.Monad.Caching
   ( -- * Log reading/writing operations
     writeToCurrentLog
