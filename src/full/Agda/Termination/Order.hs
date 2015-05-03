@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ImplicitParams    #-}
+{-# LANGUAGE ImplicitParams #-}
 
 -- | An Abstract domain of relative sizes, i.e., differences
 --   between size of formal function parameter and function argument

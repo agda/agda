@@ -2,10 +2,10 @@
 
 -- | Parser combinator parser for constraints
 
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.SizedTypes.Parser where
 

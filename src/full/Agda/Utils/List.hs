@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE PatternGuards   #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-| Utitlity functions on lists.

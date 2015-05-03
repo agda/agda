@@ -1,10 +1,9 @@
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE TupleSections       #-}
-
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
