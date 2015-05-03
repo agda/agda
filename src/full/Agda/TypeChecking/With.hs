@@ -11,7 +11,7 @@ import Data.List
 import Data.Maybe
 import qualified Data.Traversable as Trav (traverse)
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
@@ -371,7 +371,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   -- Build the rhs of the display form.
   wild <- freshNoName_ <&> \ x -> Def (qualify_ x) []
   let -- Convert the parent patterns to terms.
-      tqs0       = patsToTerms lhsPerm qs
+      tqs0       = patsToElims lhsPerm qs
       -- Build a substitution to replace the parent pattern vars
       -- by the pattern vars of the with-function.
       (ys0, ys1) = splitAt (size delta1) $ permute perm $ downFrom m
@@ -379,9 +379,9 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       rho        = sub top ys wild
       tqs        = applySubst rho tqs0
       -- Build the arguments to the with function.
-      vs         = map (fmap DTerm) topArgs ++ tqs
+      es         = map (Apply . fmap DTerm) topArgs ++ tqs
       withArgs   = map var $ take n $ downFrom $ size delta2 + n
-      dt         = DWithApp (DDef f vs) (map DTerm withArgs) []
+      dt         = DWithApp (DDef f es) (map DTerm withArgs) []
 
   -- Build the lhs of the display form and finish.
   -- @var 0@ is the pattern variable (hole).
@@ -432,9 +432,17 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 -- Andreas, 2014-12-05 refactored using numberPatVars
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
 -- The permutation is the one of the original clause.
-patsToTerms :: Permutation -> [I.NamedArg Pattern] -> [I.Arg DisplayTerm]
-patsToTerms perm ps = toTerms $ numberPatVars perm ps
+patsToElims :: Permutation -> [I.NamedArg Pattern] -> [I.Elim' DisplayTerm]
+patsToElims perm ps = toElims $ numberPatVars perm ps
   where
+    toElims :: [I.NamedArg DeBruijnPattern] -> [I.Elim' DisplayTerm]
+    toElims = map $ toElim . fmap namedThing
+
+    toElim :: I.Arg DeBruijnPattern -> I.Elim' DisplayTerm
+    toElim (Common.Arg ai p) = case p of
+      ProjP d -> I.Proj d
+      p       -> I.Apply $ Common.Arg ai $ toTerm p
+
     toTerms :: [I.NamedArg DeBruijnPattern] -> [I.Arg DisplayTerm]
     toTerms = map $ fmap $ toTerm . namedThing
 

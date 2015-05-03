@@ -940,7 +940,7 @@ data DisplayTerm
     --   (possible in case the with-application is of function type).
   | DCon ConHead [Arg DisplayTerm]
     -- ^ @c vs@.
-  | DDef QName [Arg DisplayTerm]
+  | DDef QName [Elim' DisplayTerm]
     -- ^ @d vs@.
   | DDot Term
     -- ^ @.v@.

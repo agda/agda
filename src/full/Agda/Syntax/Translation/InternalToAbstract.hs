@@ -99,6 +99,22 @@ reifyIArg' e = flip Common.Arg (unArg e) <$> reify (argInfo e)
 reifyIArgs' :: [I.Arg e] -> TCM [A.Arg e]
 reifyIArgs' = mapM reifyIArg'
 
+-- Composition of reified eliminations ------------------------------------
+
+elims :: Expr -> [I.Elim' Expr] -> TCM Expr
+elims e [] = return e
+elims e (I.Apply arg : es) = do
+  arg <- reifyIArg' arg
+  elims (A.App exprInfo e $ fmap unnamed arg) es
+elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj d) $ defaultNamedArg e) es
+
+reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
+reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
+reifyIElim (I.Proj d)  = return $ I.Proj d
+
+reifyIElims :: Reify i a => [I.Elim' i] -> TCM [I.Elim' a]
+reifyIElims = mapM reifyIElim
+
 -- Omitting information ---------------------------------------------------
 
 exprInfo :: ExprInfo
@@ -146,13 +162,18 @@ instance Reify MetaId Expr where
         caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
           return $ A.QuestionMark (mi' {metaNumber = Just n}) ii
 
+-- Does not print with-applications correctly:
+-- instance Reify DisplayTerm Expr where
+--   reifyWhen = reifyWhenE
+--   reify d = reifyTerm False $ dtermToTerm d
+
 instance Reify DisplayTerm Expr where
   reifyWhen = reifyWhenE
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reifyIArgs vs
-    DDef f vs -> apps (A.Def f) =<< reifyIArgs vs
+    DDef f es -> elims (A.Def f) =<< reifyIElims es
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
       reifyApp (if null es then e else A.WithApp exprInfo e es) vs
@@ -197,10 +218,12 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         reifyDisplayFormP =<< displayLHS (map namedArg ps) wps d
       _ -> return lhs
   where
+    -- Andreas, 2015-05-03: Ulf, please comment on what
+    -- is the idea behind okDisplayForm.
     okDisplayForm (DWithApp d ds []) =
       okDisplayForm d && all okDisplayTerm ds
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
-    okDisplayForm (DDef f vs) = all okDArg vs
+    okDisplayForm (DDef f es) = all okDElim es
     okDisplayForm DDot{} = False
     okDisplayForm DCon{} = False
     okDisplayForm DTerm{} = True -- False?
@@ -212,7 +235,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okDisplayTerm DDef{} = False
     okDisplayTerm _ = False
 
-    okDArg = okDisplayTerm . unArg
+    okDElim (I.Apply v) = okDisplayTerm $ unArg v
+    okDElim I.Proj{}    = True  -- True, man, or False?  No clue what I am implementing here --Andreas, 2015-05-03
     okArg = okTerm . unArg
 
     okElim (I.Apply a) = okArg a
@@ -223,27 +247,27 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
     okTerm _            = True -- False
 
-    -- Flatten a dt into (parentName, parentArgs, withArgs).
-    flattenWith :: DisplayTerm -> (QName, [I.Arg DisplayTerm], [DisplayTerm])
+    -- Flatten a dt into (parentName, parentElims, withArgs).
+    flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [DisplayTerm])
     flattenWith (DWithApp d ds1 ds2) = case flattenWith d of
-      (f, vs, ds0) -> (f, vs, ds0 ++ ds1 ++ map (DTerm . unArg) ds2)
-    flattenWith (DDef f vs) = (f, vs, [])     -- .^ hacky, but we should only hit this when printing debug info
-    flattenWith (DTerm (I.Def f es)) =
-      let vs = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es
-      in (f, map (fmap DTerm) vs, [])
+      (f, es, ds0) -> (f, es, ds0 ++ ds1 ++ map (DTerm . unArg) ds2)
+    flattenWith (DDef f es) = (f, es, [])     -- .^ hacky, but we should only hit this when printing debug info
+    flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
     displayLHS ps wps d = case flattenWith d of
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
-        vs <- mapM argToPat vs
+        vs <- mapM elimToPat vs
         vs <- reifyIArgs' vs
         return $ SpineLHS i f vs (ds ++ wps)
---        return $ LHS i (LHSHead f vs) (ds ++ wps)
       where
         ci   = ConPatInfo False patNoRange
+
         argToPat arg = fmap unnamed <$> traverse termToPat arg
+        elimToPat (I.Apply arg) = argToPat arg
+        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.DefP patNoRange d []
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
@@ -302,10 +326,9 @@ instance Reify Term Expr where
 
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs0 v = do
-    hasDisplayForms <- displayFormsEnabled
     -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
     -- (i.e. when we don't care about nice printing)
-    let expandAnonDefs = expandAnonDefs0 && hasDisplayForms
+    expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
     v <- unSpine <$> instantiate v
     case v of
       _ | isHackReifyToMeta v -> return $ A.Underscore emptyMetaInfo

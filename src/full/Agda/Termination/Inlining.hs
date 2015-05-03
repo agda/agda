@@ -58,7 +58,7 @@ import Data.Foldable (foldMap)
 import Data.Traversable (traverse)
 import Data.List as List
 
-import Agda.Syntax.Common hiding (NamedArg)
+import Agda.Syntax.Common as Common hiding (NamedArg)
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad
@@ -191,12 +191,11 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
           where n' = n - 1
 
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
-    dispToPats (DWithApp (DDef _ vs) ws zs) = do
-      let us = vs ++ map defaultArg ws ++ map (fmap DTerm) zs
-      (ps, (j, ren)) <- (`runStateT` (0, [])) $
-                        map (fmap unnamed) <$> mapM (traverse dtermToPat) us
+    dispToPats (DWithApp (DDef _ es) ws zs) = do
+      let es' = es ++ map Apply (map defaultArg ws ++ map (fmap DTerm) zs)
+      (ps, (j, ren)) <- (`runStateT` (0, [])) $ mapM (traverse dtermToPat) es'
       let perm = Perm j (map snd $ List.sort ren)
-      return (ps, perm)
+      return (map ePatToPat ps, perm)
     dispToPats t = __IMPOSSIBLE__
 
     bindVar i = do
@@ -208,14 +207,18 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
 
     skip = modify $ \(j, is) -> (j + 1, is)
 
+    ePatToPat :: Elim' Pattern -> NamedArg Pattern
+    ePatToPat (Apply p) = fmap unnamed p
+    ePatToPat (Proj  d) = defaultNamedArg $ ProjP d
+
     dtermToPat :: DisplayTerm -> StateT (Int, [(Int, Int)]) TCM Pattern
     dtermToPat v =
       case v of
         DWithApp{}       -> __IMPOSSIBLE__   -- I believe
         DCon c vs        -> ConP c noConPatternInfo . map (fmap unnamed)
                               <$> mapM (traverse dtermToPat) vs
-        DDef d vs        -> do
-          ifM (return (null vs) `and2M` do isJust <$> lift (isProjection d))
+        DDef d es        -> do
+          ifM (return (null es) `and2M` do isJust <$> lift (isProjection d))
             {-then-} (return $ ProjP d)
             {-else-} (DotP (dtermToTerm v) <$ skip)
         DDot v           -> DotP v <$ skip
@@ -239,10 +242,3 @@ expandWithFunctionCall f es = do
   return $ dtermToTerm disp `applyE` es'
   where
     (vs, es') = splitApplyElims es
-
-dtermToTerm :: DisplayTerm -> Term
-dtermToTerm (DWithApp d ds vs)     = dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
-dtermToTerm (DCon c args)          = Con c $ map (fmap dtermToTerm) args
-dtermToTerm (DDef f args)          = Def f $ map (Apply . fmap dtermToTerm) args
-dtermToTerm (DDot v)               = v
-dtermToTerm (DTerm v)              = v
