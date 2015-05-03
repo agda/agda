@@ -9,7 +9,7 @@ Usage: agda [OPTIONS...] [FILE]
   -I      --interactive                               start in interactive mode
           --interaction                               for use with the Emacs mode
   -c      --compile                                   compile program using the MAlonzo backend (experimental)
-          --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
+          --no-main                                   when compiling using the MAlonzo or UHC backend (experimental), do not treat the requested module as the main module of a program
           --epic                                      the Epic backend has been disabled
           --js                                        compile program using the JS backend
           --uhc                                       compile program using the UHC backend

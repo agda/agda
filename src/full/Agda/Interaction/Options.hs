@@ -253,7 +253,7 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | optCompileNoMain opts && not (optCompile opts) = Left
+  | optCompileNoMain opts && (not (optCompile opts || optUHCCompile opts)) = Left
       "--no-main only allowed in combination with --compile.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       Left "Choose at most one: input file or --interaction.\n"
@@ -521,7 +521,7 @@ standardOptions =
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
-                    "when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program"
+                    "when compiling using the MAlonzo or UHC backend (experimental), do not treat the requested module as the main module of a program"
 
     -- The Epic backend has been disabled. See Issue 1481.
     , Option []     ["epic"] (NoArg compileEpicFlag)
