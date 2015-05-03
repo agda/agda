@@ -338,6 +338,10 @@ showPat' showVar = showPat
       showPat (LitP l)      = text (show l)
       showPat (ProjP q)     = text (show q)
 
+instance PrettyTCM (Elim' DisplayTerm) where
+  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
+  prettyTCM (Proj f)  = text "." <> prettyTCM f
+
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
   prettyTCM (Proj f)  = text "." <> prettyTCM f

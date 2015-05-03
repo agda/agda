@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+-- | Tools for 'DisplayTerm' and 'DisplayForm'.
+
 module Agda.TypeChecking.DisplayForm where
 
 import Control.Applicative
@@ -22,6 +24,15 @@ import Agda.Utils.Except
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-- | Convert a 'DisplayTerm' into a 'Term'.
+dtermToTerm :: DisplayTerm -> Term
+dtermToTerm dt = case dt of
+  DWithApp d ds vs -> dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
+  DCon c args      -> Con c $ map (fmap dtermToTerm) args
+  DDef f es        -> Def f $ map (fmap dtermToTerm) es
+  DDot v           -> v
+  DTerm v          -> v
 
 -- | Find a matching display form for @q vs@.
 --   In essence this tries to reqwrite @q vs@ with any

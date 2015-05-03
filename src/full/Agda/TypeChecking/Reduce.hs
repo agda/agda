@@ -1094,7 +1094,7 @@ instance InstantiateFull DisplayTerm where
   instantiateFull' (DTerm v)       = DTerm <$> instantiateFull' v
   instantiateFull' (DDot  v)       = DDot  <$> instantiateFull' v
   instantiateFull' (DCon c vs)     = DCon c <$> instantiateFull' vs
-  instantiateFull' (DDef c vs)     = DDef c <$> instantiateFull' vs
+  instantiateFull' (DDef c es)     = DDef c <$> instantiateFull' es
   instantiateFull' (DWithApp v vs ws) = uncurry3 DWithApp <$> instantiateFull' (v, vs, ws)
 
 instance InstantiateFull Defn where
