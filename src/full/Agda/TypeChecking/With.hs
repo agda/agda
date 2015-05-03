@@ -110,9 +110,48 @@ buildWithFunction aux t qs perm n1 n cs = mapM buildWithClause cs
     @ps@  - patterns in with clause (eliminating type @t@)
 
     @ps'@ - patterns for with function (presumably of type @Δ@)
+
+Example:
+@
+record Stream (A : Set) : Set where
+  coinductive
+  constructor delay
+  field       force : A × Stream A
+
+record SEq (s t : Stream A) : Set where
+  coinductive
+  field
+    ~force : let a , as = force s
+                 b , bs = force t
+             in  a ≡ b × SEq as bs
+
+test : (s : Nat × Stream Nat) (t : Stream Nat) → SEq (delay s) t → SEq t (delay s)
+~force (test (a     , as) t p) with force t
+~force (test (suc n , as) t p) | b , bs = {!!}
+
+With function:
+
+  f : (t : Stream Nat) (w : Nat × Stream Nat) (a : Nat) (as : Stream Nat)
+      (p : SEq (delay (a , as)) t) → (fst w ≡ a) × SEq (snd w) as
+
+  Δ  = t a as p   -- reorder to bring with-relevant (= needed) vars first
+  π  = a as t p → Δ
+  qs = (a     , as) t p ~force
+  ps = (suc n , as) t p ~force
+  ps' = (suc n) as t p
+
+Resulting with-function clause is:
+
+  f t (b , bs) (suc n) as t p
+
+Note: stripWithClausePatterns factors ps through qs, thus
+
+  ps = qs[ps']
+
+where [..] is to be understood as substitution.
+The projection patterns have vanished from ps' (as they are already in qs).
+@
 -}
--- TODO: this does not work for varying arity or copatterns.
--- Need to do s.th. like in Split.hs with ProblemRest etc.
 stripWithClausePatterns
   :: QName                      -- ^ @f@
   -> Type                       -- ^ @t@
