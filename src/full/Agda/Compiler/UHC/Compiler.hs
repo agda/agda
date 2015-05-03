@@ -56,11 +56,18 @@ import Agda.Utils.Impossible
 
 -- we should use a proper build system to ensure that things get only built once,
 -- but better than nothing
-type CompModT = StateT CompiledModules
-type CompiledModules = M.Map ModuleName (AModuleInfo, AModuleInterface)
+type CompModT = StateT CompModState
+
+data CompModState = CompModState
+  { compileInfo :: M.Map ModuleName (AModuleInfo, AModuleInterface)
+  }
 
 putCompModule :: Monad m => AModuleInfo -> AModuleInterface -> CompModT m ()
-putCompModule amod modTrans = modify (M.insert (amiModule amod) (amod, modTrans))
+putCompModule amod modTrans = modify (\s -> s
+    { compileInfo = M.insert (amiModule amod) (amod, modTrans) (compileInfo s) })
+
+emptyCompModState :: CompModState
+emptyCompModState = CompModState M.empty
 
 -- for the time being, we just copy the base library into the generated code.
 -- We don't install it into the user db anymore, as that gets complicated when
@@ -87,8 +94,13 @@ copyUHCAgdaBase outDir = do
               ) chlds
 
 -- | Compile an interface into an executable using UHC
-compilerMain :: Interface -> TCM ()
-compilerMain inter = do
+compilerMain
+    :: [Interface] -- modules to compile. Imported modules will also be compiled,
+                   -- no matter if they are mentioned here or not. The main module
+                   -- should not be in this list.
+    -> Maybe Interface -- The main module.
+    -> TCM ()
+compilerMain inters mainInter = do
 #if __GLASGOW_HASKELL__ < 706
     _ <- internalError "UHC backend requires GHC 7.6 or newer."
 #endif
@@ -97,7 +109,7 @@ compilerMain inter = do
     let uhc_exist = ExitSuccess
     case uhc_exist of
         ExitSuccess -> do
-            outDir <- setUHCDir inter
+            outDir <- setUHCDir (fromMaybe (head inters) mainInter)
 
             -- look for the Agda.Primitive interface in visited modules.
             -- (It will not be in ImportedModules, if it has not been
@@ -108,19 +120,25 @@ compilerMain inter = do
 
 
             copyUHCAgdaBase outDir
-            (modInfo, _) <- evalStateT (do
+            (modInfos, mainInfo) <- evalStateT (do
                 -- first compile the Agda.Primitive module
-                _ <- compileModule [] agdaPrimInter
+                agdaPrimModInfo <- fst <$> compileModule [] agdaPrimInter
                 -- Always implicitly import Agda.Primitive now
-                compileModule [agdaPrimInter] inter
+                modInfos <- fst . unzip <$> mapM (compileModule [agdaPrimInter]) inters
+                let modInfos' = agdaPrimModInfo : modInfos
+
+                case mainInter of
+                  Nothing -> return (modInfos', Nothing)
+                  Just mainInter' -> do
+                    mainModInfo <- fst <$> compileModule [agdaPrimInter] mainInter'
+                    main <- lift $ getMain mainInter'
+                    -- get core name from modInfo
+                    let crMain = cnName $ fromJust $ qnameToCoreName (amifNameMp $ amiInterface mainModInfo) main
+                    return (modInfos', Just (mainModInfo, crMain))
                 )
-                M.empty
-            main <- getMain inter
+                emptyCompModState
 
-            -- get core name from modInfo
-            let crMain = cnName $ fromJust $ qnameToCoreName (amifNameMp $ amiInterface modInfo) main
-
-            runUhcMain modInfo crMain
+            runUhcMain modInfos mainInfo
             return ()
 
         ExitFailure _ -> internalError $ unlines
@@ -135,13 +153,6 @@ auiFile modNm = do
   liftIO $ createDirectoryIfMissing True dir
   return $ fp
 
-outFile :: [String] -> TCM FilePath
-outFile modParts = do
-  let (dir, fn) = splitFileName $ foldl1 (</>) modParts
-      fp  | dir == "./"  = fn
-          | otherwise = dir </> fn
-  liftIO $ createDirectoryIfMissing True dir
-  return $ fp
 
 -- | Compiles a module and it's imports. Returns the module info
 -- of this module, and the accumulating module interface.
@@ -153,7 +164,7 @@ compileModule addImps i = do
     -- as we don't know the Core module name before we loaded/compiled the file.
     -- (well, we could just compute the module name and use that, that's
     -- probably better? )
-    compMods <- get
+    compMods <- gets compileInfo
     let modNm = iModuleName i
     let topModuleName = toTopLevelModuleName modNm
     auiFile' <- lift $ auiFile topModuleName
@@ -200,8 +211,7 @@ compileModule addImps i = do
                     opts <- lift commandLineOptions
                     (code, modInfo, _) <- lift $ compileDefns modNm curModInfos transModInfos opts defns
                     lift $ do
-                        let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface modInfo) modNm
-                        crFile <- outFile modParts
+                        crFile <- getCorePath modInfo
                         _ <- writeCoreFile crFile code
                         writeModInfoFile uifFile modInfo
 
@@ -215,6 +225,20 @@ compileModule addImps i = do
         checkDep otherMods (nm, v) = case find ((nm==) . amiModule) otherMods of
                     Just v' -> (amiVersion v') == v
                     Nothing -> False
+
+getCorePath :: AModuleInfo -> TCM FilePath
+getCorePath amod = do
+  let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface amod) (amiModule amod)
+  outFile modParts
+  where
+    outFile :: [String] -> TCM FilePath
+    outFile modParts = do
+      let (dir, fn) = splitFileName $ foldl1 (</>) modParts
+          fp  | dir == "./"  = fn
+              | otherwise = dir </> fn
+      liftIO $ createDirectoryIfMissing True dir
+      return $ fp
+
 
 readModInfoFile :: String -> TCM (Maybe AModuleInfo)
 readModInfoFile f = do
@@ -297,15 +321,29 @@ setUHCDir mainI = do
     return $ compileDir </> "UHC"
 
 -- | Create the UHC Core main file, which calls the Agda main function
-runUhcMain :: AModuleInfo -> HsName -> TCM ()
-runUhcMain mainMod mainName = do
-    let fp = "Main"
-    let mmod = createMainModule mainMod mainName
-    fp' <- writeCoreFile fp mmod
+runUhcMain
+    :: [AModuleInfo]    -- other modules to compile
+    -> Maybe (AModuleInfo, HsName)  -- main module
+    -> TCM ()
+runUhcMain otherMods mainInfo = do
+    otherFps <- mapM getCorePath otherMods
+    allFps <- (otherFps++)
+        <$> case mainInfo of
+            Nothing -> return []
+            Just (mainMod, mainName) -> do
+                let fp = "Main"
+                let mmod = createMainModule mainMod mainName
+                fp' <- writeCoreFile fp mmod
+                return [fp']
+
+    let extraOpts = maybe
+            ["--compile-only"]
+            ((\x -> [x]) . ("--output="++) . prettyShow . last . mnameToList . amiModule . fst)
+            mainInfo
+
     -- TODO drop the RTS args as soon as we don't need the additional memory anymore
-    callUHC1 ["--output=" ++ (show $ last $ mnameToList $ amiModule mainMod)
-             , "--pkg-hide-all", "--pkg-expose=uhcbase", "--pkg-expose=base"
-             , fp', "+RTS", "-K50m", "-RTS"]
+    callUHC1 $  ["--pkg-hide-all", "--pkg-expose=uhcbase", "--pkg-expose=base"
+                ] ++ extraOpts ++ allFps ++ ["+RTS", "-K50m", "-RTS"]
 
 callUHC1 :: [String] -> TCM ()
 callUHC1 args = do

@@ -111,7 +111,7 @@ runAgdaWithOptions generateHTML progName opts
                       | compile       = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
                       | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
-                      | uhc           = (UHC.compilerMain     =<<) . (failIfNoInt =<<)
+                      | uhc           = (UHC.compilerMain [] . Just =<<) . (failIfNoInt =<<)
                       | otherwise     = (() <$)
       interaction $ do
         hasFile <- hasInputFile
