@@ -50,6 +50,12 @@ module UHC.Agda.Builtins
     -- Float
   , primShowFloat
   , primMkFloat
+    -- Reflection
+  , QName (..)
+  , primMkQName
+  , primQNameEquality
+  , primQNameLess
+  , primShowQName
 
     -- Debugging
   , primTrace
@@ -248,6 +254,29 @@ primShowFloat = reverse . dropWhile (=='0') . reverse . show
 
 primMkFloat :: String -> Double
 primMkFloat = read
+
+-- ====================
+-- Reflection
+-- ====================
+data QName = QName { nameId, moduleId ::Integer, qnameString :: String }
+
+primMkQName :: Integer -> Integer -> String -> QName
+primMkQName = QName
+
+instance Eq QName where
+  (QName a b _) == (QName c d _) = (a, b) == (c, d)
+instance Ord QName where
+  compare (QName a b _) (QName c d _) = compare (a, b) (c, d)
+
+primQNameEquality :: QName -> QName -> Bool
+primQNameEquality = (==)
+
+primQNameLess :: QName -> QName -> Bool
+primQNameLess = (<)
+
+primShowQName :: QName -> String
+primShowQName = qnameString
+
 
 -- ====================
 -- Debugging

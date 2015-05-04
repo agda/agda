@@ -475,5 +475,5 @@ substLit lit = case lit of
   TL.LitString _ s -> return $ LString s
   TL.LitChar   _ c -> return $ LChar c
   TL.LitFloat  _ f -> return $ LFloat f
-  _ -> uhcError $ "literal not supported: " ++ show lit
+  TL.LitQName  _ q -> return $ LQName q
 

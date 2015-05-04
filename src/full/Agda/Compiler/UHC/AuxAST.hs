@@ -81,6 +81,7 @@ data Lit
   | LChar   Char
   | LString String
   | LFloat  Double
+  | LQName  QName
   deriving (Show, Ord, Eq)
 
 

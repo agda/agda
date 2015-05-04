@@ -13,16 +13,17 @@ module Agda.Compiler.UHC.Core
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe, catMaybes)
-
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
 #endif
-
-import Agda.TypeChecking.Monad
-import Agda.Syntax.Abstract.Name
 import Control.Monad.State
 import Control.Monad.Reader
+
 import Agda.Interaction.Options
+import Agda.TypeChecking.Monad
+import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common
+import Agda.Utils.Pretty
 
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Naming
@@ -223,6 +224,9 @@ litToCore (LString s) = mkString opts s
 litToCore (LChar c) = mkChar c
 -- TODO this is just a dirty work around
 litToCore (LFloat f) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkFloat") [mkString opts (show f)]
+litToCore (LQName q) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkQName")
+                             [mkInteger opts n, mkInteger opts m, mkString opts $ prettyShow q]
+  where NameId n m = nameId $ qnameName q
 
 ifTracing :: Monad m => Int -> ToCoreT m a -> ToCoreT m a -> ToCoreT m a
 ifTracing lvl i e = do
