@@ -12,6 +12,6 @@ Agda2> (agda2-status-action "")
 ((last . 1) . (agda2-goals-action '(0 1)))
 Agda2> ((last . 2) . (agda2-make-case-action '("proj₁ (test a b) = ?" "proj₂ (test a b) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-Agda2> ((last . 2) . (agda2-make-case-action '("proj₁ (testFun a b) = ?" "proj₂ (testFun a b) = ?")))
+Agda2> ((last . 2) . (agda2-make-case-action '("testFun a b = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
 Agda2> Agda2> Agda2> Agda2> Agda2> Agda2> 
