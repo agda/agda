@@ -41,6 +41,7 @@ module Agda.Syntax.Position
   , rangeToInterval
   , continuous
   , continuousPerLine
+  , PrintRange(..)
   , HasRange(..)
   , SetRange(..)
   , KillRange(..)
@@ -166,6 +167,10 @@ rightMargin :: Range -> Range
 rightMargin r@(Range is) =
   if null is then r else
   let i = last is in Range [ i { iStart = iEnd i } ]
+
+-- | Wrapper to indicate that range should be printed.
+newtype PrintRange a = PrintRange a
+  deriving (Eq, Ord, HasRange, SetRange, KillRange)
 
 -- | Things that have a range are instances of this class.
 class HasRange t where
@@ -474,6 +479,9 @@ instance Pretty a => Pretty (Range' (Maybe a)) where
   pretty r = case rangeToInterval r of
     Nothing -> empty
     Just i  -> pretty i
+
+instance (Pretty a, HasRange a) => Pretty (PrintRange a) where
+  pretty (PrintRange a) = pretty a <+> parens (text "at" <+> pretty (getRange a))
 
 {--------------------------------------------------------------------------
     Functions on postitions and ranges

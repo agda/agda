@@ -44,7 +44,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 
-import Agda.Utils.Pretty ( prettyShow )
+import Agda.Utils.Pretty
 
 {--------------------------------------------------------------------------
     The parse monad
@@ -92,12 +92,11 @@ data ParseFlags = ParseFlags
 
 -- | What you get if parsing fails.
 data ParseError = ParseError
-                    { errPos        :: Position -- ^ where the error occured
-                    , errInput      :: String   -- ^ the remaining input
-                    , errPrevToken  :: String   -- ^ the previous token
-                    , errMsg        :: String   -- ^ hopefully an explanation
-                                                --   of what happened
-                    }
+  { errPos        :: Position -- ^ where the error occured
+  , errInput      :: String   -- ^ the remaining input
+  , errPrevToken  :: String   -- ^ the previous token
+  , errMsg        :: String   -- ^ hopefully an explanation of what happened
+  }
     deriving (Typeable)
 
 instance Exception ParseError
@@ -143,23 +142,14 @@ instance MonadState ParseState Parser where
   put s = P $ \_ -> ParseOk s ()
 
 instance Show ParseError where
-  show err =
-    unlines
-      [ pos ++ ": " ++ errMsg err
-        --, replicate (length pos + 2) ' ' ++ "on '" ++ errPrevToken err ++ "'"
-      , errPrevToken err ++ "<ERROR>\n" ++ take 30 (errInput err) ++ "..."
-      ]
-    where
-      pos = prettyShow (errPos err)
+  show = prettyShow
 
---    showInp ""  = "at end of file"
---    showInp t   = "on input " ++ elide 5 t
---
---    elide 3 s
---        | length (take 4 s) < 4 = s
---        | otherwise                 = "..."
---    elide n (c:s)                   = c : elide (n - 1) s
---    elide _ ""              = ""
+instance Pretty ParseError where
+  pretty err = vcat
+      [ pretty (errPos err) <> colon <+> text (errMsg err)
+      , text $ errPrevToken err ++ "<ERROR>"
+      , text $ take 30 (errInput err) ++ "..."
+      ]
 
 instance HasRange ParseError where
   getRange err = posToRange (errPos err) (errPos err)

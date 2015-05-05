@@ -116,7 +116,7 @@ nameWithBinding q =
 tcErrString :: TCErr -> String
 tcErrString err = show (getRange err) ++ " " ++ case err of
   TypeError _ cl  -> errorString $ clValue cl
-  Exception r s   -> show r ++ " " ++ s
+  Exception r s   -> show r ++ " " ++ show s
   IOException r e -> show r ++ " " ++ show e
   PatternErr{}    -> "PatternErr"
   {- AbortAssign _   -> "AbortAssign" -- UNUSED -}
@@ -274,7 +274,7 @@ instance PrettyTCM TCErr where
     TypeError s e -> localState $ do
       put s
       sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
-    Exception r s   -> sayWhere r $ fwords s
+    Exception r s   -> sayWhere r $ return s
     IOException r e -> sayWhere r $ fwords $ show e
     PatternErr{}    -> sayWhere err $ panic "uncaught pattern violation"
     {- AbortAssign _   -> sayWhere err $ panic "uncaught aborted assignment" -- UNUSED -}

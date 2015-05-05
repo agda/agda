@@ -252,8 +252,9 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
     -- | Handle nasty errors like stack space overflow (issue 637)
     -- We assume that the input action handles other kind of errors.
     handleNastyErrors :: CommandM () -> CommandM ()
-    handleNastyErrors m = commandMToIO $ \toIO ->
-        toIO m `E.catch` (toIO . handleErr . Exception noRange . (show :: E.SomeException -> String))
+    handleNastyErrors m = commandMToIO $ \ toIO ->
+        toIO m `E.catch` \ (e :: E.SomeException) ->
+          toIO $ handleErr $ Exception noRange $ text $ show e
 
     -- | Displays an error and instructs Emacs to jump to the site of the
     -- error. Because this function may switch the focus to another file

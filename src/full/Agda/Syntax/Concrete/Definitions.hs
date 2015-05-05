@@ -211,57 +211,60 @@ instance Error DeclarationException where
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
-instance Show DeclarationException where
-  show (MultipleFixityDecls xs) = show $
+instance Pretty DeclarationException where
+  pretty (MultipleFixityDecls xs) =
     sep [ fsep $ pwords "Multiple fixity or syntax declarations for"
         , vcat $ map f xs
         ]
       where
         f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
-  show (MissingDefinition x) = show $ fsep $
+  pretty (MissingDefinition x) = fsep $
     pwords "Missing definition for" ++ [pretty x]
-  show (MissingWithClauses x) = show $ fsep $
+  pretty (MissingWithClauses x) = fsep $
     pwords "Missing with-clauses for function" ++ [pretty x]
-  show (MissingTypeSignature x) = show $ fsep $
+  pretty (MissingTypeSignature x) = fsep $
     pwords "Missing type signature for left hand side" ++ [pretty x]
-  show (MissingDataSignature x) = show $ fsep $
+  pretty (MissingDataSignature x) = fsep $
     pwords "Missing type signature for " ++ [pretty x]
-  show (WrongDefinition x k k') = show $ fsep $ pretty x :
+  pretty (WrongDefinition x k k') = fsep $ pretty x :
     pwords ("has been declared as a " ++ show k ++
       ", but is being defined as a " ++ show k')
-  show (WrongParameters x) = show $ fsep $
+  pretty (WrongParameters x) = fsep $
     pwords "List of parameters does not match previous signature for" ++ [pretty x]
-  show (AmbiguousFunClauses lhs xs) = show $ fsep $
-    pwords "More than one matching type signature for left hand side" ++ [pretty lhs] ++
-    pwords "it could belong to any of:" ++ map pretty xs
-  show (UnknownNamesInFixityDecl xs) = show $ fsep $
+  pretty (AmbiguousFunClauses lhs xs) = sep
+    [ fsep $
+        pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
+        pwords "it could belong to any of:"
+    , vcat $ map (pretty . PrintRange) xs
+    ]
+  pretty (UnknownNamesInFixityDecl xs) = fsep $
     pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
-  show (UselessPrivate _)      = show $ fsep $
+  pretty (UselessPrivate _)      = fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
-  show (UselessAbstract _)      = show $ fsep $
+  pretty (UselessAbstract _)      = fsep $
     pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
-  show (UselessInstance _)      = show $ fsep $
+  pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
-  show (WrongContentPostulateBlock _)      = show $ fsep $
+  pretty (WrongContentPostulateBlock _)      = fsep $
     pwords "A postulate block can only contain type signatures or instance blocks"
-  show (PragmaNoTerminationCheck _) = show $ fsep $
+  pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
-  show (InvalidTerminationCheckPragma _) = show $ fsep $
+  pretty (InvalidTerminationCheckPragma _) = fsep $
     pwords "Termination checking pragmas can only precede a mutual block or a function definition."
-  show (InvalidMeasureMutual _) = show $ fsep $
+  pretty (InvalidMeasureMutual _) = fsep $
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
-  show (InvalidCatchallPragma _) = show $ fsep $
+  pretty (InvalidCatchallPragma _) = fsep $
     pwords "The CATCHALL pragma can only preceed a function clause."
-  show (UnquoteDefRequiresSignature x) = show $ fsep $
+  pretty (UnquoteDefRequiresSignature x) = fsep $
     pwords "Missing type signature for unquoteDef" ++ [pretty x]
-  show (BadMacroDef nd) = show $ fsep $
+  pretty (BadMacroDef nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in macro blocks"
-  show (NotAllowedInMutual nd) = show $ fsep $
+  pretty (NotAllowedInMutual nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in mutual blocks"
-  show (Codata _) =
+  pretty (Codata _) = text $
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
-  show (DeclarationPanic s) = s
+  pretty (DeclarationPanic s) = text s
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -681,7 +684,7 @@ niceDeclarations ds = do
                return $ d : ds1
 
             -- case: clauses match more than one sigs (ambiguity)
-            l -> throwError $ AmbiguousFunClauses lhs (map fst l) -- "ambiguous function clause; cannot assign it uniquely to one type signature"
+            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l -- "ambiguous function clause; cannot assign it uniquely to one type signature"
     niceFunClause _ _ _ _ = __IMPOSSIBLE__
 
     niceTypeSig :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
