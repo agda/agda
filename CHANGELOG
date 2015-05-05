@@ -149,6 +149,34 @@ Emacs mode
 * The new menu option "Switch to another version of Agda" tries to do
   what it says.
 
+* Changed feature: Interactively split result.
+
+  [ This is as before: ]
+  Make-case (C-c C-c) with no variables given tries to split on the
+  result to introduce projection patterns.  The hole needs to be of
+  record type, of course.
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test a b = ?
+
+  Result-splitting ? will produce the new clauses:
+
+    proj₁ (test a b) = ?
+    proj₂ (test a b) = ?
+
+  [ This has changed: ]
+  If hole is of function type, make-case will introduce only pattern
+  variables (as much as it can).
+
+    testFun : {A B : Set} (a : A) (b : B) → A × B
+    testFun = ?
+
+  Result-splitting ? will produce the new clause:
+
+    testFun a b = ?
+
+  A second invocation of make-case will then introduce projection patterns.
+
 Compiler backends
 =================
 
