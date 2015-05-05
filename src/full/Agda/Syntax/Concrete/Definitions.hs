@@ -220,9 +220,12 @@ instance Pretty DeclarationException where
       ", but is being defined as a " ++ show k')
   pretty (WrongParameters x) = fsep $
     pwords "List of parameters does not match previous signature for" ++ [pretty x]
-    pwords "More than one matching type signature for left hand side" ++ [pretty lhs] ++
-    pwords "it could belong to any of:" ++ map pretty xs
   pretty (AmbiguousFunClauses lhs xs) = sep
+    [ fsep $
+        pwords "More than one matching type signature for left hand side " ++ [pretty lhs] ++
+        pwords "it could belong to any of:"
+    , vcat $ map (pretty . PrintRange) xs
+    ]
   pretty (UnknownNamesInFixityDecl xs) = fsep $
     pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
   pretty (UselessPrivate _)      = fsep $
@@ -634,7 +637,7 @@ niceDeclarations ds = do
                return $ d : ds1
 
             -- case: clauses match more than one sigs (ambiguity)
-            l -> throwError $ AmbiguousFunClauses lhs (map fst l) -- "ambiguous function clause; cannot assign it uniquely to one type signature"
+            l -> throwError $ AmbiguousFunClauses lhs $ reverse $ map fst l -- "ambiguous function clause; cannot assign it uniquely to one type signature"
     niceFunClause _ _ _ = __IMPOSSIBLE__
 
     niceTypeSig :: TerminationCheck -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
