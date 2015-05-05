@@ -14,9 +14,12 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
+
 import Agda.TypeChecking.Monad.Base (TCErr(Exception))
-import Agda.Utils.ReadP
+
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
+import Agda.Utils.ReadP
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -124,7 +127,8 @@ rebuildBinding :: IsExpr e => ExprView e -> LamBinding
 rebuildBinding (LocalV (QName name)) = DomainFree defaultArgInfo $ mkBoundName_ name
 rebuildBinding (WildV e) =
   DomainFree defaultArgInfo $ mkBoundName_ $ Name noRange [Hole]
-rebuildBinding e = throw $ Exception (getRange e) "Expected variable name in binding position"
+rebuildBinding e = throw $ Exception (getRange e) $
+  text "Expected variable name in binding position"
 
 -- | Parse using the appropriate fixity, given a parser parsing the
 -- operator part, the name of the operator, and a parser of
