@@ -132,6 +132,7 @@ data Clause = Clause Name LHS RHS WhereClause [Clause]
 -- | The exception type.
 data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
+        | DuplicateDefinition Name
         | MissingDefinition Name
         | MissingWithClauses Name
         | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while -- Fredrik 2012-09-20: now used, can we keep it?
@@ -158,6 +159,7 @@ data DeclarationException
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs)      = getRange (fst $ head xs)
+    getRange (DuplicateDefinition x)       = getRange x
     getRange (MissingDefinition x)         = getRange x
     getRange (MissingWithClauses x)        = getRange x
     getRange (MissingTypeSignature x)      = getRange x
@@ -210,6 +212,8 @@ instance Pretty DeclarationException where
         ]
       where
         f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
+  pretty (DuplicateDefinition x) = fsep $
+    pwords "Duplicate definition of" ++ [pretty x]
   pretty (MissingDefinition x) = fsep $
     pwords "Missing definition for" ++ [pretty x]
   pretty (MissingWithClauses x) = fsep $
@@ -371,7 +375,11 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 -- | Adding a lone signature to the state.
 
 addLoneSig :: Name -> DataRecOrFun -> Nice ()
-addLoneSig x k = loneSigs %= Map.insert x k
+addLoneSig x k = loneSigs %== \ s -> do
+   let (mr, s') = Map.insertLookupWithKey (\ k new old -> new) x k s
+   case mr of
+     Nothing -> return s'
+     Just{}  -> throwError $ DuplicateDefinition x
 
 -- | Remove a lone signature from the state.
 
