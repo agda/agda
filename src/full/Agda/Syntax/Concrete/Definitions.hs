@@ -42,8 +42,10 @@ module Agda.Syntax.Concrete.Definitions
     , Measure
     ) where
 
+import Prelude hiding (null)
+
 import Control.Arrow ((***))
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
@@ -51,7 +53,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import Data.Monoid ( Monoid(mappend, mempty) )
-import Data.List as List
+import Data.List as List hiding (null)
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 
@@ -67,6 +69,7 @@ import Agda.Utils.Except ( Error(noMsg, strMsg), MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Tuple
 import Agda.Utils.Update
@@ -133,6 +136,7 @@ data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
 -- | The exception type.
 data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
+        | DuplicateDefinition Name
         | MissingDefinition Name
         | MissingWithClauses Name
         | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while -- Fredrik 2012-09-20: now used, can we keep it?
@@ -162,6 +166,7 @@ data DeclarationException
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs)      = getRange (fst $ head xs)
+    getRange (DuplicateDefinition x)       = getRange x
     getRange (MissingDefinition x)         = getRange x
     getRange (MissingWithClauses x)        = getRange x
     getRange (MissingTypeSignature x)      = getRange x
@@ -218,6 +223,8 @@ instance Pretty DeclarationException where
         ]
       where
         f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
+  pretty (DuplicateDefinition x) = fsep $
+    pwords "Duplicate definition of" ++ [pretty x]
   pretty (MissingDefinition x) = fsep $
     pwords "Missing definition for" ++ [pretty x]
   pretty (MissingWithClauses x) = fsep $
@@ -366,15 +373,15 @@ data NiceEnv = NiceEnv
   , fixs     :: Fixities
   }
 
-type LoneSigs = [(DataRecOrFun, Name)]
+type LoneSigs = Map Name DataRecOrFun
 type Fixities = Map Name Fixity'
 
 -- | Initial nicifier state.
 
 initNiceEnv :: NiceEnv
 initNiceEnv = NiceEnv
-  { _loneSigs = []
-  , fixs     = Map.empty
+  { _loneSigs = empty
+  , fixs      = empty
   }
 
 -- * Handling the lone signatures, stored to infer mutual blocks.
@@ -386,18 +393,22 @@ loneSigs f e = f (_loneSigs e) <&> \ s -> e { _loneSigs = s }
 
 -- | Adding a lone signature to the state.
 
-addLoneSig :: DataRecOrFun -> Name -> Nice ()
-addLoneSig k x = loneSigs %= ((k, x) :)
+addLoneSig :: Name -> DataRecOrFun -> Nice ()
+addLoneSig x k = loneSigs %== \ s -> do
+   let (mr, s') = Map.insertLookupWithKey (\ k new old -> new) x k s
+   case mr of
+     Nothing -> return s'
+     Just{}  -> throwError $ DuplicateDefinition x
 
 -- | Remove a lone signature from the state.
 
 removeLoneSig :: Name -> Nice ()
-removeLoneSig x = loneSigs %= filter (\ (k', x') -> x /= x')
+removeLoneSig x = loneSigs %= Map.delete x
 
 -- | Search for forward type signature.
 
 getSig :: Name -> Nice (Maybe DataRecOrFun)
-getSig n = fmap fst . List.find (\ (k, x) -> x == n) <$> use loneSigs
+getSig x = Map.lookup x <$> use loneSigs
 
 -- | Check that no lone signatures are left in the state.
 
@@ -406,11 +417,11 @@ noLoneSigs = null <$> use loneSigs
 
 -- | Ensure that all forward declarations have been given a definition.
 
-checkLoneSigs :: LoneSigs -> Nice ()
+checkLoneSigs :: [(Name, a)] -> Nice ()
 checkLoneSigs xs =
   case xs of
     []       -> return ()
-    (_, x):_ -> throwError $ MissingDefinition x
+    (x, _):_ -> throwError $ MissingDefinition x
 
 
 getFixity :: Name -> Nice Fixity'
@@ -467,7 +478,7 @@ niceDeclarations ds = do
       put $ initNiceEnv { fixs = fixs }
       ds <- nice ds
       -- Check that every signature got its definition.
-      checkLoneSigs =<< use loneSigs
+      checkLoneSigs . Map.toList =<< use loneSigs
       -- Note that loneSigs is ensured to be empty.
       -- (Important, since inferMutualBlocks also uses loneSigs state).
       inferMutualBlocks ds
@@ -511,7 +522,7 @@ niceDeclarations ds = do
         OtherDecl   -> (d :) <$> inferMutualBlocks ds
         LoneDef _ x -> __IMPOSSIBLE__
         LoneSig k x -> do
-          addLoneSig k x
+          addLoneSig x k
           (tcs, (ds0, ds1)) <- untilAllDefined [terminationCheck k] ds
           tc <- combineTermChecks (getRange d) tcs
 
@@ -530,9 +541,9 @@ niceDeclarations ds = do
           done <- noLoneSigs
           if done then return (tc, ([], ds)) else
             case ds of
-              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs =<< use loneSigs)
+              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs . Map.toList =<< use loneSigs)
               d : ds -> case declKind d of
-                LoneSig k x -> addLoneSig  k x >> cons d (untilAllDefined (terminationCheck k : tc) ds)
+                LoneSig k x -> addLoneSig  x k >> cons d (untilAllDefined (terminationCheck k : tc) ds)
                 LoneDef k x -> removeLoneSig x >> cons d (untilAllDefined (terminationCheck k : tc) ds)
                 OtherDecl   -> cons d (untilAllDefined tc ds)
           where
@@ -573,7 +584,7 @@ niceDeclarations ds = do
         DataSig r CoInductive x tel t -> throwError (Codata r)
         Data r CoInductive x tel t cs -> throwError (Codata r)
         DataSig r Inductive   x tel t -> do
-          addLoneSig (DataName $ parameters tel) x
+          addLoneSig x (DataName $ parameters tel)
           (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel (Just t) Nothing
                <*> nice ds
         Data r Inductive x tel t cs -> do
@@ -581,7 +592,7 @@ niceDeclarations ds = do
           (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel t (Just cs)
                <*> nice ds
         RecordSig r x tel t -> do
-          addLoneSig (RecName $ parameters tel) x
+          addLoneSig x (RecName $ parameters tel)
           fx <- getFixity x
           (NiceRecSig r fx PublicAccess x tel t :) <$> nice ds
         Record r x i c tel t cs -> do
@@ -632,7 +643,7 @@ niceDeclarations ds = do
 
         UnquoteDef r x e -> do
           fx <- getFixity x
-          ifM (elem x <$> map snd . filter (isFunName . fst) <$> use loneSigs)
+          ifM (elem x <$> map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs)
           {- then -} (do
             removeLoneSig x
             (NiceUnquoteDef r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds)
@@ -648,7 +659,7 @@ niceDeclarations ds = do
 
     niceFunClause :: TerminationCheck -> Catchall -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
     niceFunClause termCheck catchall d@(FunClause lhs _ _) ds = do
-          xs <- map snd . filter (isFunName . fst) <$> use loneSigs
+          xs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           fixs <- gets fixs
@@ -691,7 +702,7 @@ niceDeclarations ds = do
     niceTypeSig termCheck d@(TypeSig info x t) ds = do
       fx <- getFixity x
       -- register x as lone type signature, to recognize clauses later
-      addLoneSig (FunName termCheck) x
+      addLoneSig x (FunName termCheck)
       ds <- nice ds
       return $ FunSig (getRange d) fx PublicAccess NotInstanceDef NotMacroDef info termCheck x t : ds
     niceTypeSig _ _ _ = __IMPOSSIBLE__
@@ -879,10 +890,10 @@ niceDeclarations ds = do
         isTypeSig d | LoneSig{} <- declKind d = True
         isTypeSig _                           = False
 
-        sigNames  = [ (k, x) | LoneSig k x <- map declKind ds ]
-        defNames  = [ (k, x) | LoneDef k x <- map declKind ds ]
+        sigNames  = [ (x, k) | LoneSig k x <- map declKind ds ]
+        defNames  = [ (x, k) | LoneDef k x <- map declKind ds ]
         -- compute the set difference with equality just on names
-        loneNames = [ (k, x) | (k, x) <- sigNames, List.all ((x /=) . snd) defNames ]
+        loneNames = [ (x, k) | (x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
 
         -- Andreas, 2013-02-28 (issue 804):
         -- do not termination check a mutual block if any of its
