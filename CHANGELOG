@@ -12,6 +12,11 @@ Installation and infrastructure
 Language
 ========
 
+* _ is no longer a valid name for a definition.  The following fails now:
+  [Issue 1465]
+
+    postulate _ : Set
+
 * Typed bindings can now contain hiding information [Issue 1391].
   This means you can now write
 
@@ -85,8 +90,6 @@ Language
   Similarly, if two or more identical notations for a given overloaded
   name are in scope, and these notations do not all have the
   same fixity, then they get the default fixity.
-
-* Fixed bug with unquoteDecl not working in instance blocks [Issue 1491].
 
 Type checking
 =============
@@ -188,7 +191,9 @@ Epic
 Bug fixes
 =========
 
-* Issues fixed ( see https://code.google.com/p/agda/issues )
+* Fixed bug with unquoteDecl not working in instance blocks [Issue 1491].
+
+* Other issues fixed ( see https://code.google.com/p/agda/issues )
   1497
   1500
 
