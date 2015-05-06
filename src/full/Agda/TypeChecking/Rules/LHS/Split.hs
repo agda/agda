@@ -100,7 +100,8 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       caseMaybe (isProjP p) failure $ \ d -> do
         -- So it is a projection pattern (d = projection name), is it?
         caseMaybeM (lift $ isProjection d) notProjP $ \p -> case p of
-          Projection{projProper = Nothing} -> __IMPOSSIBLE__
+          -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
+          Projection{projProper = Nothing} -> notProjP
           Projection{projProper = Just d, projFromType = _, projIndex = n} -> do
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
