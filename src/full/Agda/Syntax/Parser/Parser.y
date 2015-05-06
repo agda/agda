@@ -739,7 +739,7 @@ AbsurdLamBindings
       Left lb -> case reverse lb of
                    Right _ : _ -> parseError "Missing body for lambda"
                    Left h  : _ -> return $ Left ([ b | Right b <- init lb], h)
-                   _           -> parsePanic "Empty LamBindsAbsurd"
+                   _           -> parseError "Unsupported variant of lambda"
       Right es -> return $ Right es
     }
 
