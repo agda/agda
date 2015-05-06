@@ -132,6 +132,7 @@ data Clause = Clause Name LHS RHS WhereClause [Clause]
 -- | The exception type.
 data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
+        | InvalidName Name
         | DuplicateDefinition Name
         | MissingDefinition Name
         | MissingWithClauses Name
@@ -159,6 +160,7 @@ data DeclarationException
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs)      = getRange (fst $ head xs)
+    getRange (InvalidName x)               = getRange x
     getRange (DuplicateDefinition x)       = getRange x
     getRange (MissingDefinition x)         = getRange x
     getRange (MissingWithClauses x)        = getRange x
@@ -212,6 +214,8 @@ instance Pretty DeclarationException where
         ]
       where
         f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
+  pretty (InvalidName x) = fsep $
+    pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
     pwords "Duplicate definition of" ++ [pretty x]
   pretty (MissingDefinition x) = fsep $
@@ -404,9 +408,11 @@ checkLoneSigs xs =
     []       -> return ()
     (x, _):_ -> throwError $ MissingDefinition x
 
-
+-- | Check whether name is not "_" and return its fixity.
 getFixity :: Name -> Nice Fixity'
-getFixity x = gets $ Map.findWithDefault defaultFixity' x . fixs
+getFixity x = do
+  when (isUnderscore x) $ throwError $ InvalidName x
+  gets $ Map.findWithDefault defaultFixity' x . fixs
 
 runNice :: Nice a -> Either DeclarationException a
 runNice nice = nice `evalStateT` initNiceEnv
