@@ -13,12 +13,15 @@ import Data.Functor
 import Data.Functor.Identity
 import Data.Functor.Compose
 import Data.Functor.Constant
+import Data.Functor.Classes
 
--- ASR (15 October 2014): See issue 1304.
-#if !MIN_VERSION_transformers(0,4,1)
-instance Eq a => Eq (Identity a) where
-  Identity x == Identity x' = x == x'
-#endif
+-- Andreas, 2015-05-06, see issue 1501.
+-- This instance can be obtained from transformers-compat.
+-- -- ASR (15 October 2014): See issue 1304.
+-- #if !MIN_VERSION_transformers(0,4,1)
+-- instance Eq a => Eq (Identity a) where
+--   Identity x == Identity x' = x == x'
+-- #endif
 
 infixr 4 $>
 
