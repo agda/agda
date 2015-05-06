@@ -54,6 +54,9 @@ import Data.Foldable hiding
   , elem
   , mapM_
   , notElem
+#if MIN_VERSION_base(4,8,0)
+  , null
+#endif
   )
 
 import qualified Data.Map as Map
