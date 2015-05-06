@@ -48,7 +48,14 @@ import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 
-import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
+import Data.Foldable hiding
+  ( all
+  , concatMap
+  , elem
+  , mapM_
+  , notElem
+  )
+
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
