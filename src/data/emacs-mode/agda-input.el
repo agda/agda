@@ -163,7 +163,7 @@ order for the change to take effect."
                (agda-input-drop-prefix "\\")
                (agda-input-or
                 (agda-input-compose
-                 (agda-input-drop '("^o"))
+                 (agda-input-drop '("^l" "^o" "^r" "^v"))
                  (agda-input-prefix "^"))
                 (agda-input-prefix "_")))))
     )
@@ -539,7 +539,6 @@ order for the change to take effect."
   ("\\"         . ("\\"))
   ("en"         . ("–"))
   ("em"         . ("—"))
-  ("^i"         . ("ⁱ"))
   ("!!"         . ("‼"))
   ("??"         . ("⁇"))
   ("?!"         . ("‽" "⁈"))
