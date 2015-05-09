@@ -28,6 +28,7 @@ import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
+import Data.Orphans ()
 import Data.Traversable
 import Data.Typeable (Typeable)
 
@@ -947,10 +948,6 @@ class TermSize a where
   termSize = getSum . tsize
 
   tsize :: a -> Sum Int
-
-#if !MIN_VERSION_base(4,7,0)
-deriving instance Num a => Num (Sum a)
-#endif
 
 instance (Foldable t, TermSize a) => TermSize (t a) where
   tsize = foldMap tsize
