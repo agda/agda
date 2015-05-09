@@ -70,7 +70,6 @@ install:
         ;;
 
       "require_stdlib")
-       sudo apt-get install time;
        make std-lib;
        make up-to-date-std-lib;
        ;;

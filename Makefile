@@ -1,6 +1,8 @@
 # Top-level Makefile for Agda 2
 # Authors: Ulf Norell, Nils Anders Danielsson, Francesco Mazzoli
 
+SHELL=bash
+
 # Profiling verbosity for library-test
 PROFVERB=7
 
