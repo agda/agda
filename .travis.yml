@@ -114,7 +114,9 @@ install:
   # probably recompiling Agda and the Makefile or this file needs to
   # be fixed to make sure the same configure flags/build dir are
   # used everywhere.
-  - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
+
+  # We use cpp instead of cpphs with GHC 7.4.2 for fixing issue 1460.
+  - if [ `ghc --numeric-version` == 7.4.2 ]; then make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS='-f cpphs -v2'; else make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2; fi
 
 script:
   # Right now Haddock doesn't work, presumably because it consumes too
