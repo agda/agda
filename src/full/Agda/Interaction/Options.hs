@@ -1,10 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ <= 706
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE StandaloneDeriving #-}
-#endif
-
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , PragmaOptions(..)
@@ -34,6 +29,12 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad            ( when )
+
+-- base-4.7 defines the Functor instances for OptDescr and ArgDescr
+#if !(MIN_VERSION_base(4,7,0))
+import Data.Orphans             ()
+#endif
+
 import Data.Maybe               ( isJust )
 import Data.List                ( isSuffixOf , intercalate )
 import System.Console.GetOpt    ( getOpt, usageInfo, ArgOrder(ReturnInOrder)
@@ -62,12 +63,6 @@ isLiterate :: FilePath -> Bool
 isLiterate file = ".lagda" `isSuffixOf` file
 
 -- OptDescr is a Functor --------------------------------------------------
-
--- base-4.7 defines these
-#if !(MIN_VERSION_base(4,7,0))
-deriving instance Functor OptDescr
-deriving instance Functor ArgDescr
-#endif
 
 type Verbosity = Trie String Int
 
