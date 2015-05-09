@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , PragmaOptions(..)
@@ -27,7 +29,12 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad            ( when )
+
+-- base-4.7 defines the Functor instances for OptDescr and ArgDescr
+#if !(MIN_VERSION_base(4,7,0))
 import Data.Orphans             ()
+#endif
+
 import Data.Maybe               ( isJust )
 import Data.List                ( isSuffixOf , intercalate )
 import System.Console.GetOpt    ( getOpt, usageInfo, ArgOrder(ReturnInOrder)
