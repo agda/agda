@@ -35,12 +35,14 @@ import Control.Monad            ( when )
 import Data.Orphans             ()
 #endif
 
-import Data.Maybe               ( isJust )
+import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
-import System.Console.GetOpt    ( getOpt, usageInfo, ArgOrder(ReturnInOrder)
+import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
 import System.Directory         ( doesDirectoryExist )
+
+import Text.EditDistance
 
 import Agda.Termination.CutOff  ( CutOff(..) )
 
@@ -48,7 +50,7 @@ import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Monad         ( ifM, readM )
-import Agda.Utils.List          ( wordsBy )
+import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
@@ -576,10 +578,46 @@ getOptSimple
   -> [OptDescr (Flag opts)] -- ^ options handlers
   -> (String -> Flag opts)  -- ^ handler of non-options (only one is allowed)
   -> Flag opts              -- ^ combined opts data structure transformer
-getOptSimple argv opts fileArg = \defaults ->
-    case getOpt (ReturnInOrder fileArg) opts argv of
-        (o,_,[])    -> foldl (>>=) (return defaults) o
-        (_,_,errs)  -> throwError $ concat errs
+getOptSimple argv opts fileArg = \ defaults ->
+  case getOpt' (ReturnInOrder fileArg) opts argv of
+    (o, _, []          , [] )  -> foldl (>>=) (return defaults) o
+    (_, _, unrecognized, errs) -> throwError $ umsg ++ emsg
+
+      where
+      ucap = "Unrecognized " ++ plural unrecognized "option" ++ ":"
+      ecap = plural errs "Option error" ++ ":"
+      umsg = if null unrecognized then "" else unlines $
+       ucap : map suggest unrecognized
+      emsg = if null errs then "" else unlines $
+       ecap : errs
+      plural [_] x = x
+      plural _   x = x ++ "s"
+
+      -- Suggest alternatives that are at most 3 typos away
+
+      longopts :: [String]
+      longopts = map ("--" ++) $ concat $ map (\ (Option _ long _ _) -> long) opts
+
+      dist :: String -> String -> Int
+      dist s t = restrictedDamerauLevenshteinDistance defaultEditCosts s t
+
+      close :: String -> String -> Maybe (Int, String)
+      close s t = let d = dist s t in if d <= 3 then Just (d, t) else Nothing
+
+      closeopts :: String -> [(Int, String)]
+      closeopts s = mapMaybe (close s) longopts
+
+      alts :: String -> [[String]]
+      alts s = map (map snd) $ groupOn fst $ closeopts s
+
+      suggest :: String -> String
+      suggest s = case alts s of
+        []     -> s
+        as : _ -> s ++ " (did you mean " ++ sugs as ++ " ?)"
+
+      sugs :: [String] -> String
+      sugs [a] = a
+      sugs as  = "any of " ++ intercalate " " as
 
 -- | Parse the standard options.
 parseStandardOptions :: [String] -> Either String CommandLineOptions

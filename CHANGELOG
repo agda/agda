@@ -180,11 +180,26 @@ Emacs mode
 
   A second invocation of make-case will then introduce projection patterns.
 
+Error messages
+==============
+
+* Agda now suggests corrections of misspelled options, e.g.
+
+    {-# OPTIONS
+      --dont-termination-check
+      --without-k
+      --senf-gurke
+      #-}
+
+    Unrecognized options:
+    --dont-termination-check (did you mean --no-termination-check ?)
+    --without-k (did you mean --without-K ?)
+    --senf-gurke
+
+  Nothing close to --senf-gurke, I am afraid.
+
 Compiler backends
 =================
-
-Epic
-----
 
 * The Epic backend has been disabled. See Issue 1481.
 

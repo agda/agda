@@ -1,0 +1,5 @@
+Unrecognized options: --dont-termination-check (did you mean
+--no-termination-check ?) --not-termination-check (did you mean
+--no-termination-check ?) --without-k (did you mean --without-K ?)
+--senf-gurke Option error: option '--without-K' doesn't allow an
+argument

@@ -82,6 +82,7 @@ library
     , containers >= 0.4.2.1 && < 0.6
     , data-hash == 0.2.0.0
     , deepseq >= 1.3.0.0 && < 1.5
+    , edit-distance >= 0.2.1.2 && < 0.3
     , equivalence >= 0.2.5  && < 0.4
     , filepath >= 1.3.0.0 && < 1.5
     , geniplate-mirror >= 0.6.0.6 && < 0.7
