@@ -70,7 +70,6 @@ install:
         ;;
 
       "require_stdlib")
-       sudo apt-get install time;
        make std-lib;
        make up-to-date-std-lib;
        ;;
@@ -104,10 +103,7 @@ install:
     esac
 
   - export BUILD_DIR=$PWD/dist
-
-  # We use cpp instead of cpphs with GHC 7.4.2 for fixing issue 1460.
-  - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal configure -v2 --builddir=$BUILD_DIR --enable-tests -f -cpphs; else cabal configure -v2 --builddir=$BUILD_DIR --enable-tests; fi
-
+  - cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
   - cabal build -v2 --builddir=$BUILD_DIR
 
   # "make install-bin" shouldn't take longer than 20-30 seconds, as it
@@ -117,9 +113,7 @@ install:
   # probably recompiling Agda and the Makefile or this file needs to
   # be fixed to make sure the same configure flags/build dir are
   # used everywhere.
-
-  # We use cpp instead of cpphs with GHC 7.4.2 for fixing issue 1460.
-  - if [ `ghc --numeric-version` == 7.4.2 ]; then make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS='-f cpphs -v2'; else make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2; fi
+  - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
 
 script:
   # Right now Haddock doesn't work, presumably because it consumes too
