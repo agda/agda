@@ -103,10 +103,7 @@ install:
     esac
 
   - export BUILD_DIR=$PWD/dist
-
-  # We use cpp instead of cpphs with GHC 7.4.2 for fixing issue 1460.
-  - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal configure -v2 --builddir=$BUILD_DIR --enable-tests -f -cpphs; else cabal configure -v2 --builddir=$BUILD_DIR --enable-tests; fi
-
+  - cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
   - cabal build -v2 --builddir=$BUILD_DIR
 
   # "make install-bin" shouldn't take longer than 20-30 seconds, as it
