@@ -10,6 +10,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
@@ -86,6 +87,13 @@ insertImplicitPatternsT :: ExpandHidden -> [A.NamedArg A.Pattern] -> Type ->
 insertImplicitPatternsT DontExpandLast [] a = return []
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a
+  reportSDoc "tc.lhs.imp" 20 $
+    sep [ text "insertImplicitPatternsT"
+        , nest 2 $ text "ps  = " <+> do
+            brackets $ fsep $ punctuate comma $ map prettyA ps
+        , nest 2 $ text "tel = " <+> prettyTCM tel
+        , nest 2 $ text "b   = " <+> prettyTCM b
+        ]
   case ps of
     [] -> do
       i <- insImp dummy tel
@@ -106,12 +114,13 @@ insertImplicitPatternsT exh            ps a = do
               (p :) <$> insertImplicitPatternsT exh ps (absBody b)
             _ -> return (p : ps)
   where
-    dummy = defaultNamedArg ()
+    dummy = defaultNamedArg (A.VarP __IMPOSSIBLE__)
 
-    insImp x EmptyTel
-      | visible x = return Nothing
-      | otherwise = typeError WrongHidingInLHS
-    insImp x tel = case insertImplicit x $ map (argFromDom . fmap fst) $ telToList tel of
+    insImp p EmptyTel
+      | visible p          = return Nothing
+      | isJust (isProjP p) = return Nothing
+      | otherwise          = typeError WrongHidingInLHS
+    insImp p tel = case insertImplicit p $ map (argFromDom . fmap fst) $ telToList tel of
       BadImplicits   -> typeError WrongHidingInLHS
       NoSuchName x   -> typeError WrongHidingInLHS
       ImpInsert n    -> return $ Just (map implicitArg n)

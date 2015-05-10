@@ -1,0 +1,3 @@
+Issue1413WrongHiding.agda:12,1-18
+Wrong hiding used for projection  Foo.foo
+when checking that the clause Foo.foo {bar} = _ has type Foo ⊤
