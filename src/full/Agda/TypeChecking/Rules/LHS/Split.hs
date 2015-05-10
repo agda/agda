@@ -87,9 +87,12 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     -- Result splitting
     splitRest :: ProblemRest -> ListT TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
-      let failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
-          notProjP  = lift $ typeError $ NotAProjectionPattern p
+      let failure   = typeError $ CannotEliminateWithPattern p $ unArg b
+          notProjP  = typeError $ NotAProjectionPattern p
           notRecord = failure -- lift $ typeError $ ShouldBeRecordType $ unArg b
+          wrongHiding :: MonadTCM tcm => QName -> tcm a
+          wrongHiding d = typeError . GenericDocError =<< do
+            liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
       lift $ reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "pattern         p =" <+> prettyA p
@@ -99,14 +102,15 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
       -- Probably then there were too many arguments.
       caseMaybe (isProjP p) failure $ \ d -> do
         -- So it is a projection pattern (d = projection name), is it?
-        caseMaybeM (lift $ isProjection d) notProjP $ \p -> case p of
+        caseMaybeM (lift $ isProjection d) notProjP $ \ proj -> case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
           Projection{projProper = Nothing} -> notProjP
-          Projection{projProper = Just d, projFromType = _, projIndex = n} -> do
+          Projection{projProper = Just d, projIndex = n, projArgInfo = ai} -> do
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
             unless (n > 0) notProjP
+            unless (getHiding p == getHiding ai) $ wrongHiding d
             lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
