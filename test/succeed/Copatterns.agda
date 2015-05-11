@@ -58,6 +58,61 @@ record Monad (M : Set → Set) : Set1 where
     return : {A : Set}   → A → M A
     _>>=_  : {A B : Set} → M A → (A → M B) → M B
 
+module StateMonad {S : Set} where
+
+  open Monad {{...}}
+
+  -- State is an instance of Monad.
+
+  instance
+    stateMonad : Monad (State S)
+    runState (return {{stateMonad}} a  ) s  = a , s
+    runState (_>>=_  {{stateMonad}} m k) s₀ =
+      let a , s₁ = runState m s₀
+      in  runState (k a) s₁
+
+  -- The stateMonad fulfills the monad laws.
+
+  leftId : {A B : Set}(a : A)(k : A → State S B) →
+    (return a >>= k) ≡ k a
+  leftId a k = refl
+
+  rightId : {A B : Set}(m : State S A) →
+    (m >>= return) ≡ m
+  rightId m = refl
+
+  assoc : {A B C : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
+     ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
+  assoc m k l = refl
+
+module InstanceArgument where
+
+  open Monad {{...}}
+
+  -- State is an instance of Monad
+
+  instance
+    stateMonad : {S : Set} → Monad (State S)
+    runState (return {{stateMonad}} a  ) s  = a , s
+    runState (_>>=_  {{stateMonad}} m k) s₀ =
+      let a , s₁ = runState m s₀
+      in  runState (k a) s₁
+
+  _~_ : {S A : Set} → State S A → State S A → Set
+  m ~ m' = ∀ {s} → runState m s ≡ runState m' s
+
+  leftId : {A B S : Set}(a : A)(k : A → State S B) →
+    (return a >>= k) ≡ k a
+  leftId a k = refl
+
+  rightId : {A B S : Set}(m : State S A) →
+    (m >>= return) ≡ m
+  rightId m = refl
+
+  assoc : {A B C S : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
+     ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
+  assoc m k l = refl
+
 module NoInstance where
 
 -- State is an instance of Monad
@@ -126,35 +181,3 @@ module NoInstance where
        ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
     assoc m k l = refl
   -}
-
-{- WORKS NOT YET
-module InstanceArgument where
-
-  open Monad {{...}}
-
-  -- State is an instance of Monad
-
-  -- TODO: this does not work with hidden argument yet
-  stateMonad : {S : Set} → Monad (State S)
-  runState (return {{stateMonad {S}}} a  ) s  = a , s
-  runState (_>>=_  {{stateMonad {S}}} m k) s₀ =
-    let a , s₁ = runState m s₀
-    in  runState (k a) s₁
-
-  _~_ : {S A : Set} → State S A → State S A → Set
-  m ~ m' = ∀ {s} → runState m s ≡ runState m' s
-
-  -- the following identities should also hold with _≡_
-  -- but that would need a back-translation of copatterns to
-  -- record expressions, which does not preserve SN for recursive cases
-  leftId : {A B S : Set}(a : A)(k : A → State S B) → (return a >>= k) ≡ k a
-  leftId a k = refl
-
-  rightId : {A B S : Set}(m : State S A) → (m >>= return) ~ m
-  rightId m = refl
-
-  assoc : {A B C S : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
-     ((m >>= k) >>= l) ~ (m >>= λ a → k a >>= l)
-  assoc m k l = refl
--}
-
