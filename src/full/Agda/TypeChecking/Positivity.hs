@@ -20,6 +20,8 @@ import qualified Data.Map as Map
 import Data.List as List hiding (null)
 import Data.Maybe (mapMaybe, fromMaybe)
 
+import Debug.Trace
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -371,19 +373,13 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
-    let ps = map unArg $ clausePats cl
+    let ps = clausePats cl
     (concatOccurs (mapMaybe matching (zip [0..] ps)) >+<) <$>
       walk (patItems ps) (clauseBody cl)
     where
       matching (i, p)
-        | properlyMatching p = Just $ occursAs Matched $ here $ AnArg i
-        | otherwise          = Nothing
-{-
-      matching (i, VarP{}) = Nothing
-      matching (i, DotP{}) = Nothing
-      matching (i, ConP _ Just{} _) = Nothing -- record patterns are not matches
-      matching (i, _     ) = Just (occursAs Matched $ here (AnArg i))
--}
+        | properlyMatching (unArg p) = Just $ occursAs Matched $ here $ AnArg i
+        | otherwise                  = Nothing
 
       walk _         NoBody     = return empty
       walk []        (Body v)   = occurrences v
@@ -397,24 +393,23 @@ instance ComputeOccurrences Clause where
       patItems ps = concat $ zipWith patItem [0..] ps
 
       -- @patItem i p@ replicates index @i@ as often as there are
-      -- pattern variables in @p@
-      patItem i p = replicate (nVars p) (Just (AnArg i))
-
-      -- @nVars p@ computes the number of variables bound by pattern @p@
-      nVars p = case p of
-        VarP{}      -> 1
-        DotP{}      -> 1
-        ConP _ _ ps -> sum $ map (nVars . namedArg) ps
-        LitP{}      -> 0
-        ProjP{}     -> 0
+      -- pattern variables in @p@ (dot patterns count as variable)
+      patItem :: Int -> I.Arg Pattern -> [Maybe Item]
+      patItem i p = map (const $ Just $ AnArg i) $ patternVars p
 
 instance ComputeOccurrences Term where
   occurrences v = case v of
     Var i args -> do
       vars <- asks vars
       occs <- occurrences args
-      return $ maybe empty here (index vars i)
-               >+< occursAs VarArg occs
+      -- Apparently some development version of GHC chokes if the
+      -- following line is replaced by vars ! i.
+      let mi | i < length vars = vars !! i
+             | otherwise       = flip trace __IMPOSSIBLE__ $
+                 "impossible: occurrence of de Bruijn index " ++ show i ++
+                 " in vars " ++ show vars ++ " is unbound"
+      return $ maybe empty here mi >+< occursAs VarArg occs
+
     Def d args   -> do
       inf <- asks inf
       let occsAs = if Just d /= inf then occursAs . DefArg d else \ n ->
@@ -436,12 +431,6 @@ instance ComputeOccurrences Term where
     DontCare _   -> return empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
     Shared p     -> occurrences $ derefPtr p
     ExtLam{}     -> __IMPOSSIBLE__
-    where
-      -- Apparently some development version of GHC chokes if the
-      -- following line is replaced by vs ! i.
-      index vs i
-        | i < length vs = vs !! i
-        | otherwise     = __IMPOSSIBLE__
 
 instance ComputeOccurrences Level where
   occurrences (Max as) = occurrences as
