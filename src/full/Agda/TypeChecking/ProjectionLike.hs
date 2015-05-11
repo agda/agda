@@ -114,18 +114,6 @@ elimView loneProjToLambda v = do
       | otherwise         -> return v
     ProjectionView f a es -> (`applyE` (Proj f : es)) <$> elimView loneProjToLambda (unArg a)
 
-{- Andreas, 2013-11-01: Use of unLevel no longer necessary, since we do not reduce!
-  case ignoreSharing v of
-    Def f (Apply (Arg _ rv) : es) -> do
-      flip (maybeM (return v)) (isProjection f) $ \ _ -> do
-        (`applyE` (Proj f : es)) <$> do elimView =<< unLevel =<< reduce rv
-          -- domi 2012-7-24: Add unLevel to handle neutral levels.
-          -- The problem is that reduce turns @suc (neutral)@
-          -- into @Level (Max [Plus 1 (NeutralLevel neutral)])@
-          -- which the below pattern match does not handle.
-    _ -> return v
--}
-
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?
 eligibleForProjectionLike :: QName -> TCM Bool
@@ -287,17 +275,3 @@ makeProjection x = inTopContext $ do
       where
         candidateRec NoAbs{}   = []
         candidateRec (Abs x t) = candidateArgs (var (size vs) : vs) t
-
-{-
-    candidateArgs :: [Term] -> Term -> [(QName,Int)]
-    candidateArgs vs (Shared p) = candidateArgs vs $ derefPtr p
-    candidateArgs vs (Pi (Dom info (El _ def)) b)
-      | Def d es <- ignoreSharing def,
-        Just us <- allApplyElims es,
-        vs == map unArg us    = (d, length vs) : candidateRec vs b
-    candidateArgs vs (Pi _ b) = candidateRec vs b
-    candidateArgs _ _ = []
-
-    candidateRec vs NoAbs{} = []
-    candidateRec vs b       = candidateArgs (var (size vs) : vs) (unEl $ absBody b)
--}

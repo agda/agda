@@ -152,13 +152,6 @@ addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   def  <- getConstInfo x
   args <- getContextArgs
-{- OLD
-  n    <- do
-    proj <- isProjection x
-    return $ case proj of
-      Just (_, n) -> n
-      Nothing     -> 0
--}
   add (drop (projectionArgs $ theDef def) args) x x []
   where
     add args top x vs0 = do
