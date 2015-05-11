@@ -145,6 +145,50 @@ Type checking
     ~force (~sym' {s = s} {t} p) with force s | force t | ~force p
     ... | a , as | b , bs | r , q rewrite r = refl , ~sym' q
 
+* Instances can now be defined by copattern matching. [Issue 1413]
+  The following example extends the one in
+  [Abel, Pientka, Thibodeau, Setzer, POPL 2013, Section 2.2]:
+
+    {-# OPTIONS --copatterns #-}
+
+    -- The Monad type class
+
+    record Monad (M : Set → Set) : Set1 where
+      field
+        return : {A : Set}   → A → M A
+        _>>=_  : {A B : Set} → M A → (A → M B) → M B
+    open Monad {{...}}
+
+    -- The State newtype
+
+    record State (S A : Set) : Set where
+      field
+        runState : S → A × S
+    open State
+
+    -- State is an instance of Monad
+
+    instance
+      stateMonad : {S : Set} → Monad (State S)
+      runState (return {{stateMonad}} a  ) s  = a , s    -- NEW
+      runState (_>>=_  {{stateMonad}} m k) s₀ =          -- NEW
+        let a , s₁ = runState m s₀
+        in  runState (k a) s₁
+
+    -- stateMonad fulfills the monad laws
+
+    leftId : {A B S : Set}(a : A)(k : A → State S B) →
+      (return a >>= k) ≡ k a
+    leftId a k = refl
+
+    rightId : {A B S : Set}(m : State S A) →
+      (m >>= return) ≡ m
+    rightId m = refl
+
+    assoc : {A B C S : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
+       ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
+    assoc m k l = refl
+
 
 Emacs mode
 ==========

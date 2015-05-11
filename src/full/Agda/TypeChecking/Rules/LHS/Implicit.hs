@@ -24,6 +24,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Function
 import Agda.Utils.Maybe
 
 #include "undefined.h"
@@ -102,7 +103,11 @@ insertImplicitPatternsT exh            ps a = do
         Just hs -> return hs
         Nothing -> return []
     p : ps -> do
-      i <- insImp p tel
+      -- Andreas, 2015-05-11.
+      -- If p is a projection pattern, make it visible for the purpose of
+      -- calling insImp / insertImplicit, to get correct behavior.
+      let p' = applyWhen (isJust $ isProjP p) (setHiding NotHidden) p
+      i <- insImp p' tel
       case i of
         Just [] -> __IMPOSSIBLE__
         Just hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)
@@ -118,7 +123,7 @@ insertImplicitPatternsT exh            ps a = do
 
     insImp p EmptyTel
       | visible p          = return Nothing
-      | isJust (isProjP p) = return Nothing
+      | isJust (isProjP p) = __IMPOSSIBLE__
       | otherwise          = typeError WrongHidingInLHS
     insImp p tel = case insertImplicit p $ map (argFromDom . fmap fst) $ telToList tel of
       BadImplicits   -> typeError WrongHidingInLHS
