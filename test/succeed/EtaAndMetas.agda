@@ -1,7 +1,10 @@
-
+-- {-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v tc:20 -v tc.pos.occ:20 -v tc.mod.apply:80 -v tc.signature:30 #-}
 module EtaAndMetas where
 
-record Functor : Set₁ where
+record ⊤ : Set where
+
+record Functor {_ : ⊤} : Set₁ where
   field
     F : Set → Set
 

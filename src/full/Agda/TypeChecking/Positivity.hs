@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
@@ -36,6 +37,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Utils.Permutation as Perm
 import Agda.Utils.SemiRing
 import qualified Agda.Utils.Graph.AdjacencyMap as Graph
 import Agda.Utils.Graph.AdjacencyMap (Graph)
@@ -356,8 +358,11 @@ withExtendedOccEnv :: Maybe Item -> OccM a -> OccM a
 withExtendedOccEnv i = local $ \ e -> e { vars = i : vars e }
 
 -- | Running the monad
-getOccurrences :: ComputeOccurrences a => [Maybe Item] -> a -> TCM Occurrences
+getOccurrences
+  :: (PrettyTCM a, ComputeOccurrences a)
+  => [Maybe Item] -> a -> TCM Occurrences
 getOccurrences vars a = do
+  reportSDoc "tc.pos.occ" 20 $ text "computing occurrences in " <+> prettyTCM a
   kit <- coinductionKit
   return $ runReader (occurrences a) $ OccEnv vars $ fmap nameOfInf kit
 
@@ -528,11 +533,12 @@ computeOccurrences q = do
 etaExpandClause :: Nat -> Clause -> Clause
 etaExpandClause n c@Clause{ namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
-  | otherwise = c { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP underscore)
-                  , clauseBody      = liftBody m b
-                  , clauseTel       = __IMPOSSIBLE__
-                  , clausePerm      = __IMPOSSIBLE__
-                  }
+  | otherwise = c
+      { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP underscore)
+      , clauseBody      = liftBody m b
+      , clauseTel       = telFromList $ replicate n $ (underscore,) <$> dummyDom -- Not __IMPOSSIBLE__ because of debug printing
+      , clausePerm      = Perm.idP n  -- ditto
+      }
   where
     m = n - genericLength ps
 

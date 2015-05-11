@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Agda.TypeChecking.Pretty where
@@ -140,13 +141,18 @@ instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 instance PrettyTCM Permutation where prettyTCM = text . show
 
+instance PrettyTCM Clause where
+  prettyTCM cl = do
+    x <- qualify_ <$> freshName_ "<unnamedclause>"
+    prettyTCM (QNamed x cl)
+
 instance PrettyTCM ClauseBody where
   prettyTCM b = do
     (binds, body) <- walk b
     sep [ brackets (fsep binds), return body ]
     where
       walk NoBody = return ([], P.text "()")
-      walk (Body v) = (,) [] <$> prettyTCM v
+      walk (Body v) = ([],) <$> prettyTCM v
       walk (Bind b) = do
         (bs, v) <- underAbstraction_ b walk
         return (text (argNameToString $ absName b) : bs, v)
