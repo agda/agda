@@ -159,8 +159,8 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = case theDef def of
-  Function{ funClauses = cs, funProjection = proj } -> do
-    let dropped = maybe 0 (subtract 1 . projIndex) proj
+  defn@Function{} -> do
+    let dropped = projectionArgs defn
     subtract dropped . arity <$> instantiateFull (defType def)
   Datatype{ dataPars = n } -> return n
   Record{ recPars = n }    -> return n

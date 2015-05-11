@@ -64,6 +64,7 @@ projView v = do
   let fallback = return $ NoProjection v
   case ignoreSharing v of
     Def f es -> caseMaybeM (isProjection f) fallback $ \ isP -> do
+      if projIndex isP <= 0 then fallback else do
       case es of
         []           -> return $ LoneProjectionLike f $ projArgInfo isP
         Apply a : es -> return $ ProjectionView f a es

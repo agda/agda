@@ -498,7 +498,7 @@ reifyTerm expandAnonDefs0 v = do
               -- These are the dropped projection arguments
               (np, pad, dom) <-
                   case def of
-                      Function{ funProjection = Just Projection{ projIndex = np } } -> do
+                      Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
                         TelV tel _ <- telView (defType defn)
                         scope <- getScope
                         let (as, dom:_) = splitAt (np - 1) $ telToList tel
