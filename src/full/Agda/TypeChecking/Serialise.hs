@@ -120,7 +120,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150501 * 10 + 0
+currentInterfaceVersion = 20150511 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 

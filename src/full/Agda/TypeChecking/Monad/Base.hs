@@ -1126,13 +1126,15 @@ data Projection = Projection
   , projIndex     :: Int
     -- ^ Index of the record argument.
     --   Start counting with 1, because 0 means that
-    --   it is already applied to the record.
-    --   (Can happen in module instantiation.)
+    --   it is already applied to the record value.
+    --   This can happen in module instantiation, but
+    --   then either the record value is @var 0@, or @funProjection == Nothing@.
   , projDropPars  :: Term
     -- ^ Term @t@ to be be applied to record parameters and record value.
     --   The parameters will be dropped.
     --   In case of a proper projection, a postfix projection application
     --   will be created: @t = \ pars r -> r .p@
+    --   (Invariant: the number of abstractions equals 'projIndex'.)
     --   In case of a projection-like function, just the function symbol
     --   is returned as 'Def':  @t = \ pars -> f@.
   , projArgInfo   :: I.ArgInfo

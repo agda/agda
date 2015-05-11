@@ -47,7 +47,6 @@ translateDefn msharp (n, defini) =
     f@(Function{}) -> do
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
-        -- let projArgs = maybe 0 (pred . projIndex) (funProjection f)
         ccs  <- reverseCCBody projArgs <$> normaliseStatic cc
         let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
             toEta = arity (defType defini) - len
@@ -242,11 +241,6 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
       del <- getDelayed q
       def <- theDef <$> lift (getConstInfo q)
       let nr = projectionArgs def
-{- MOVED to Signature.hs
-             case def of
-                Function{funProjection = Just p} -> pred $ projIndex p
-                _ -> 0
- -}
       f <- apps name . (replicate nr UNIT ++) <$> mapM (substTerm env . unArg) args
       return $ case del of
         True  -> Lazy f

@@ -195,20 +195,23 @@ instance Apply Defn where
         }
 
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just p} ->
-      case p `apply` args of
+            , funProjection = Just p0} ->
+      case p0 `apply` args of
         p@Projection{ projIndex = n }
           | n < 0     -> __IMPOSSIBLE__
           -- case: applied only to parameters
           | n > 0     -> d { funProjection = Just p }
-          -- case: applied also to record value
+          -- case: applied also to record value (n == 0)
           | otherwise ->
               d { funClauses        = apply cs args'
                 , funCompiled       = apply cc args'
                 , funInv            = apply inv args'
-                , funProjection     = Nothing -- WAS: Just $ p { projIndex = 0 }
+                , funProjection     = if isVar0 then Just p{ projIndex = 0 } else Nothing
                 }
-              where args' = [last args]  -- the record value
+              where
+                larg  = last args -- the record value
+                args' = [larg]
+                isVar0 = case ignoreSharing $ unArg larg of Var 0 [] -> True; _ -> False
 {-
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just p@Projection{ projIndex = n } }
@@ -413,6 +416,8 @@ instance Abstract Projection where
   abstract tel p = p
     { projIndex    = size tel + projIndex p
     , projDropPars = abstract tel $ projDropPars p
+    , projArgInfo  = if projIndex p > 0 then projArgInfo p else
+       domInfo $ last $ telToList tel
     }
 
 instance Abstract Defn where
@@ -424,8 +429,19 @@ instance Abstract Defn where
         , funCompiled = abstract tel cc
         , funInv      = abstract tel inv
         }
-    Function{ funProjection = Just p } ->
-      d { funProjection = Just $ abstract tel p }
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funProjection = Just p } ->
+      -- Andreas, 2015-05-11 if projection was applied to Var 0
+      -- then abstract over last element of tel (the others are params).
+      if projIndex p > 0 then d' else
+        d' { funClauses  = abstract tel1 cs
+           , funCompiled = abstract tel1 cc
+           , funInv      = abstract tel1 inv
+           }
+        where
+          d' = d { funProjection = Just $ abstract tel p }
+          tel1 = telFromList $ drop (size tel - 1) $ telToList tel
+
     Datatype{ dataPars = np, dataSmallPars = sps, dataNonLinPars = nlps, dataClause = cl } ->
       d { dataPars       = np + size tel
         , dataSmallPars  = abstract tel sps

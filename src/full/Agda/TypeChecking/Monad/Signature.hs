@@ -176,13 +176,6 @@ addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   def  <- getConstInfo x
   args <- getContextArgs
-{- OLD
-  n    <- do
-    proj <- isProjection x
-    return $ case proj of
-      Just (_, n) -> n
-      Nothing     -> 0
--}
   add (drop (projectionArgs $ theDef def) args) x x []
   where
     add args top x vs0 = do
@@ -303,27 +296,18 @@ applySection new ptel old ts rd rm = do
             mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
             extlam = case oldDef of { Function{funExtLam = e} -> e              ; _ -> Nothing }
             with   = case oldDef of { Function{funWith = w}   -> copyName <$> w ; _ -> Nothing }
-{- THIS BREAKS A LOT OF THINGS:
-            -- Andreas, 2013-10-21:
-            -- Even if we apply the record argument, we stay a projection.
+            -- Andreas, 2015-05-11, to fix issue 1413:
+            -- Even if we apply the record argument (must be @var 0@), we stay a projection.
             -- This is because we may abstract the record argument later again.
             -- See succeed/ProjectionNotNormalized.agda
+            isVar0 t = case ignoreSharing $ unArg t of Var 0 [] -> True; _ -> False
             proj   = case oldDef of
               Function{funProjection = Just p@Projection{projIndex = n}}
+                | size ts < n || (size ts == n && isVar0 (last ts))
                 -> Just $ p { projIndex    = n - size ts
                             , projDropPars = projDropPars p `apply` ts
                             }
               _ -> Nothing
--}
-            -- NB (Andreas, 2013-10-19):
-            -- If we apply the record argument, we are no longer a projection!
-            proj   = case oldDef of
-              Function{funProjection = Just p@Projection{projIndex = n}} | size ts < n
-                -> Just $ p { projIndex    = n - size ts
-                            , projDropPars = projDropPars p `apply` ts
-                            }
-              _ -> Nothing
-
             def =
               case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
@@ -707,23 +691,27 @@ isProjection_ def =
     Function { funProjection = result } -> result
     _                                   -> Nothing
 
+-- | Returns @True@ if we are dealing with a proper projection,
+--   i.e., not a projection-like function nor a record field value
+--   (projection applied to argument).
 isProperProjection :: Defn -> Bool
-isProperProjection = isJust . (projProper <=< isProjection_)
--- isProperProjection = maybe False projProper . isProjection_
+isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
+  if projIndex isP <= 0 then False else isJust $ projProper isP
 
 -- | Number of dropped initial arguments.
 projectionArgs :: Defn -> Int
-projectionArgs = maybe 0 (pred . projIndex) . isProjection_
+projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.
 applyDef :: QName -> I.Arg Term -> TCM Term
 applyDef f a = do
-  -- get the original projection, if existing
-  res <- (projProper =<<) <$> isProjection f
-  case res of
-    Nothing -> return $ Def f [Apply a]
-    Just f' -> return $ unArg a `applyE` [Proj f']
+  let fallback = return $ Def f [Apply a]
+  caseMaybeM (isProjection f) fallback $ \ isP -> do
+  if projIndex isP <= 0 then fallback else do
+  -- Get the original projection, if existing.
+  caseMaybe (projProper isP) fallback $ \ f' -> do
+  return $ unArg a `applyE` [Proj f']
 
 -- | @getDefType f t@ computes the type of (possibly projection-(like))
 --   function @t@ whose first argument has type @t@.
@@ -739,8 +727,9 @@ getDefType f t = do
   def <- getConstInfo f
   let a = defType def
   -- if @f@ is not a projection (like) function, @a@ is the correct type
-  caseMaybe (isProjection_ $ theDef def) (return $ Just a) $
-    \ (Projection{ projIndex = n }) -> do
+      fallback = return $ Just a
+  caseMaybe (isProjection_ $ theDef def) fallback $
+    \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
       -- otherwise, we have to instantiate @a@ to the "parameters" of @f@
       let npars | n == 0    = __IMPOSSIBLE__
                 | otherwise = n - 1

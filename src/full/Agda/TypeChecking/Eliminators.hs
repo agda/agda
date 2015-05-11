@@ -60,8 +60,8 @@ elimView' conf v = do
       let defElim = DefElim f `app` vs
       proj <- isProjection f
       case proj of
-        Just Projection{ projProper = proper }
-          | proper || elViewProjLike conf -> do
+        Just Projection{ projProper = proper, projIndex = n }
+          | n > 0 && (proper || elViewProjLike conf) -> do
                 ev <- elimView (unArg rv)
                 case ev of
                  -- Andreas, 2013-10-14 Since the termination checker does not reduce,

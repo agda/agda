@@ -6,6 +6,8 @@
 module ProjectionNotNormalized where
 
 open import Common.Level renaming (lsuc to suc)
+open import Common.Product
+open Σ public
 
 record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
@@ -22,19 +24,6 @@ setoid A = record
   ; _≈_           = _≡_
   ; refl          = refl
   }
-
-infixr 4 _,_
-
-record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
-  constructor _,_
-  field
-    proj₁ : A
-    proj₂ : B proj₁
-
-open Σ public
-
-∃ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
-∃ = Σ _
 
 pmap : ∀ {a b p q}
          {A : Set a} {B : Set b} {P : A → Set p} {Q : B → Set q} →

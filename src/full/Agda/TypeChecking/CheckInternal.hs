@@ -170,11 +170,11 @@ checkDef' :: QName -> I.Arg Term -> Elims -> Type -> TCM ()
 checkDef' f a es t = do
   isProj <- isProjection f
   case isProj of
-    Nothing -> checkDef f (Apply a : es) t
-    Just Projection{} -> do
+    Just Projection{ projIndex = n} | n > 0 -> do
       let self = unArg a
       b <- infer self
       checkSpine b self (Proj f : es) t
+    _ -> checkDef f (Apply a : es) t
 -}
 
 checkSpine :: Type -> Term -> Elims -> Type -> TCM ()
@@ -246,11 +246,11 @@ inferDef' :: QName -> I.Arg Term -> Elims -> TCM Type
 inferDef' f a es = do
   isProj <- isProjection f
   case isProj of
-    Nothing -> inferDef f (Apply a : es)
-    Just Projection{} -> do
+    Just Projection{ projIndex = n } | n > 0 -> do
       let self = unArg a
       b <- infer self
       inferSpine b self (Proj f : es)
+    _ -> inferDef f (Apply a : es)
 -}
 
 -- | @inferSpine t self es@ checks that spine @es@ eliminates

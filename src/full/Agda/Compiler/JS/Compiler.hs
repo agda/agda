@@ -443,21 +443,6 @@ isSingleton t = case unEl t of
       _ -> return (Nothing)
   _              -> return (Nothing)
 
-{- OBSOLETE, see Signature.hs
-defProjection :: Definition -> Maybe (QName, Int)
-defProjection Defn { theDef = Function { funProjection = p } } = p
-defProjection _                                                = Nothing
--}
-
-{-
-args :: Maybe Projection -> Args -> TCM [Exp]
-args Nothing as =
-  mapM (term . unArg) as
-args (Just p) as = do
-  es <- mapM (term . unArg) as
-  return (replicate (projIndex p - 1) Undefined ++ es)
--}
-
 args :: Int -> Args -> TCM [Exp]
 args n as = (replicate n Undefined ++) <$>
   mapM (term . unArg) as
