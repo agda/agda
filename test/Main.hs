@@ -27,9 +27,9 @@ main = do
             [ "The AGDA_TESTS_PROPERLY_SETUP environment variable is not set. Do not execute"
             , "these tests directly using \"cabal test\" or \"cabal install --run-tests\", instead"
             , "use the Makefile."
-            , "Are you maybe using the Makefile together with an old cabal version?"
-            , "Versions of cabal before 1.20.0.0 have a bug and will trigger this error. The Makefile"
-            , "requries cabal 1.20.0.0 or later to work properly."
+            , "Are you maybe using the Makefile together with an old cabal-install version?"
+            , "Versions of cabal-install before 1.20.0.0 have a bug and will trigger this error."
+            , "The Makefile requries cabal-install 1.20.0.0 or later to work properly."
             , "See also Issue 1489 and 1490."
             ]
         exitWith (ExitFailure 1)
