@@ -1,13 +1,13 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE CPP,
+             DeriveDataTypeable,
+             DeriveFoldable,
+             DeriveFunctor,
+             DeriveTraversable,
+             FlexibleInstances,
+             GeneralizedNewtypeDeriving,
+             NoMonomorphismRestriction,
+             ScopedTypeVariables,
+             TemplateHaskell #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
