@@ -7,7 +7,7 @@
 module Main where
 
 import qualified Exec.Tests as EXEC
-import Test.Tasty
+import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
 
 #if __GLASGOW_HASKELL__ <= 708
