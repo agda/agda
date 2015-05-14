@@ -9,6 +9,7 @@ module Exec.Tests where
 import Test.Tasty
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Test.Tasty.Silver
+import Test.Tasty.Silver.Filter
 import qualified Data.Text as T
 import Data.Text.Encoding
 import System.IO.Temp
@@ -47,6 +48,16 @@ data Compiler = MAlonzo | UHC
 
 enabledCompilers :: [Compiler]
 enabledCompilers = [ MAlonzo{-, UHC -} ]
+
+disabledTests :: [RegexFilter]
+disabledTests =
+-- The Exec tests using the standard library are horribly
+-- slow at the moment (1min or more per test case).
+-- Disable them by default for now.
+  [ RFInclude "Exec/.*/with-stdlib"
+-- See issue 1414
+  , RFInclude "Exec/MAlonzo/simple/FlexibleInterpreter"
+  ]
 
 tests :: IO TestTree
 tests = do
