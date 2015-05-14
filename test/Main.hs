@@ -9,6 +9,7 @@ module Main where
 import qualified Exec.Tests as EXEC
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
+import Test.Tasty.Silver.Filter (RegexFilter)
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative ((<$>))
@@ -21,7 +22,7 @@ main :: IO ()
 main = do
   env <- getEnvironment
   case "AGDA_BIN" `lookup` env of
-    Just _ -> tests >>= TM.defaultMain
+    Just _ -> tests >>= TM.defaultMain1 disabledTests
     Nothing -> do
         putStrLn $ unlines
             [ "The AGDA_BIN environment variable is not set. Do not execute"
@@ -37,3 +38,5 @@ main = do
 tests :: IO TestTree
 tests = testGroup "all" <$> sequence [EXEC.tests]
 
+disabledTests :: [RegexFilter]
+disabledTests = EXEC.disabledTests
