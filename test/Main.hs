@@ -7,7 +7,7 @@
 module Main where
 
 import qualified Exec.Tests as EXEC
-import Test.Tasty
+import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -20,11 +20,11 @@ import System.Exit
 main :: IO ()
 main = do
   env <- getEnvironment
-  case "AGDA_TESTS_PROPERLY_SETUP" `lookup` env of
+  case "AGDA_BIN" `lookup` env of
     Just _ -> tests >>= TM.defaultMain
     Nothing -> do
         putStrLn $ unlines
-            [ "The AGDA_TESTS_PROPERLY_SETUP environment variable is not set. Do not execute"
+            [ "The AGDA_BIN environment variable is not set. Do not execute"
             , "these tests directly using \"cabal test\" or \"cabal install --run-tests\", instead"
             , "use the Makefile."
             , "Are you maybe using the Makefile together with an old cabal-install version?"

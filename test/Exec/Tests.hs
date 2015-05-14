@@ -15,6 +15,12 @@ import System.IO.Temp
 import System.FilePath
 import System.Exit
 import System.Process.Text as PT
+#if MIN_VERSION_process(1,2,3)
+import System.Process (callProcess, proc, readCreateProcess, CreateProcess (..))
+#else
+import System.Process (callProcess)
+#endif
+
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative ((<$>))
@@ -24,9 +30,10 @@ import System.Environment
 import Data.Maybe
 import Data.Char
 import qualified Data.Set as S
-import System.Directory (getDirectoryContents)
+import System.Directory
 
 type ProgramResult = (ExitCode, T.Text, T.Text)
+type AgdaArgs = [String]
 
 data ExecResult
   = CompileFailed
@@ -64,8 +71,8 @@ getProg prog = fromMaybe prog <$> getProg1 (map toUpper prog ++ "_BIN")
 
 getProg1 :: String -> IO (Maybe FilePath)
 getProg1 prog = do
-  env <- getEnvironment
-  case lookup prog env of
+  env' <- getEnvironment
+  case lookup prog env' of
       Nothing -> return Nothing
       (Just x) -> return $ Just x
 
@@ -80,55 +87,109 @@ simpleTests comp = do
   agdaBin <- getAgdaBin
   let testDir = "test" </> "Exec" </> "simple"
   inps <- getAgdaFilesInDir testDir
-  testGroup "simple" <$> mapM (agdaRunProgGoldenTest agdaBin testDir comp [testDir, "test/"]) inps
+
+  let mkTest = (\args inp ->
+        agdaRunProgGoldenTest agdaBin testDir comp ((["-i" ++ testDir, "-itest/"] ++) <$> args) inp
+        )
+  setup comp (\args -> testGroup "simple"
+        $ map (mkTest args) inps)
+  where setup :: Compiler -> (IO AgdaArgs -> TestTree) -> IO TestTree
+        setup UHC tree = return $ tree (return [])
+        setup MAlonzo tree = withGhcLibs ["test/"] tree
 
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   agdaBin <- getAgdaBin
   let testDir = "test" </> "Exec" </> "with-stdlib"
   inps <- getAgdaFilesInDir testDir
-  testGroup "with-stdlib" <$> mapM (agdaRunProgGoldenTest agdaBin testDir comp [testDir, "std-lib" </> "src"]) inps
+
+  let mkTest = (\args inp ->
+        agdaRunProgGoldenTest agdaBin testDir comp ((["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] ++) <$> args) inp
+        )
+  setup comp (\args -> testGroup "with-stdlib"
+        $ map (mkTest args) inps)
+  where setup :: Compiler -> (IO AgdaArgs -> TestTree) -> IO TestTree
+        setup UHC tree = return $ tree (return [])
+        setup MAlonzo tree = withGhcLibs ["std-lib/ffi/"] tree
+
+
+
+-- Sets up a temporary package db and installs the given packages there.
+withGhcLibs :: [String] -- ^ path to the package directories to install.
+    -> (IO AgdaArgs -> TestTree)
+    -> IO TestTree
+withGhcLibs pkgDirs mkTree = do
+  let createPkgDb = (do
+        pwd <- getCurrentDirectory
+        tempDir <- createTempDirectory pwd "exec-test-pkgs"
+        let pkgDb = tempDir </> "pkgdb"
+        callProcess "ghc-pkg" ["init", pkgDb]
+        mapM_ (installPkg tempDir pkgDb) pkgDirs
+        return (tempDir, pkgDb)
+        )
+  let rmPkgDb = removeDirectoryRecursive . fst
+
+  return $ withResource createPkgDb rmPkgDb (\si -> mkTree (mkArgs <$> si))
+  where installPkg :: FilePath -> FilePath -> FilePath -> IO ()
+        installPkg tempDir pkgDb pkgDir = do
+            callProcess1 pkgDir "runhaskell" ["Setup.hs", "configure", "--prefix=" ++ tempDir, "--package-db=" ++ pkgDb]
+            callProcess1 pkgDir "runhaskell" ["Setup.hs", "build"]
+            callProcess1 pkgDir "runhaskell" ["Setup.hs", "install"]
+        mkArgs :: (FilePath, FilePath) -> AgdaArgs
+        mkArgs (_, pkgDb) = ["--ghc-flag=-package-db=" ++ pkgDb]
+        callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
+#if MIN_VERSION_process(1,2,3)
+        callProcess1 wd cmd args = readCreateProcess ((proc cmd args) {cwd = Just wd}) "" >> return ()
+#else
+        -- trying to use process 1.2.3.0 with GHC 7.4 leads to cabal hell,
+        -- so we really want to support older versions of process for the time being.
+        callProcess1 wd cmd args = do
+            oldPwd <- getCurrentDirectory
+            setCurrentDirectory wd
+            callProcess cmd args
+            setCurrentDirectory oldPwd
+#endif
 
 agdaRunProgGoldenTest :: FilePath -- ^ path to the agda executable.
     -> FilePath     -- ^ directory where to run the tests.
     -> Compiler
-    -> [FilePath] -- ^ Agda include paths.
+    -> IO AgdaArgs     -- ^ extra Agda arguments
     -> FilePath -- ^ relative path to agda input file.
-    -> IO TestTree
-agdaRunProgGoldenTest agdaBin dir comp incDirs inp = do
+    -> TestTree
+agdaRunProgGoldenTest agdaBin dir comp extraArgs inp =
+  goldenVsAction testName goldenFile doRun printExecResult
+  where inpFile = (dropExtension inp) <.> ".inp"
+        goldenFile = (dropExtension inp) <.> ".out"
+        testName = dropExtension $ takeFileName inp
 
-  let inpFile = (dropExtension inp) <.> ".inp"
-  let goldenFile = (dropExtension inp) <.> ".out"
-  let testName = dropExtension $ takeFileName inp
+        doRun = withTempDirectory dir testName (\compDir -> do
+          -- get extra arguments
+          extraArgs' <- extraArgs
+          -- compile file
+          let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ extraArgs' ++ [inp]
+          args <- (++ defArgs) <$> argsForComp comp
+          res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin args T.empty
+          -- maybe we should write sout to a file instead, so that we can actually inspect it more easily
+          if ret /= ExitSuccess then
+            return $ CompileFailed res
+          else do
+            -- read input file, if it exists
+            inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
+            -- now run the new program
+            let exec = getExecForComp comp compDir
+            res' <- PT.readProcessWithExitCode exec [] inp'
+            return $ ExecutedProg res'
+          )
 
-  let doRun = withTempDirectory dir testName (\compDir -> do
-      -- compile file
-      let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ map ("-i" ++) incDirs ++ [inp]
-      args <- (++ defArgs) <$> argsForComp comp
-      res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin args T.empty
-      -- maybe we should write sout to a file instead, so that we can actually inspect it more easily
-      if ret /= ExitSuccess then
-        return $ CompileFailed res
-      else do
-        -- read input file, if it exists
-        inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
-        -- now run the new program
-        let exec = getExecForComp comp compDir inp
-        res' <- PT.readProcessWithExitCode exec [] inp'
-        return $ ExecutedProg res'
-      )
-
-  return $ goldenVsAction testName goldenFile doRun printExecResult
-
-  where argsForComp MAlonzo = return ["--compile"]
+        argsForComp MAlonzo = return ["--compile"]
         argsForComp UHC     = do
             uhc <- getProg1 "UHC_BIN"
             let uhcBinArg = maybe [] (\x -> ["--uhc-bin", x]) uhc
             -- TODO remove the memory arg again, as soon as we fixed the memory leak
             return $ ["--uhc"] ++ uhcBinArg ++ ["+RTS", "-K50m", "-RTS"]
         -- gets the generated executable path
-        getExecForComp MAlonzo compDir inpFile = compDir </> (takeFileName $ dropExtension inpFile)
-        getExecForComp UHC compDir inpFile = compDir </> "UHC" </> (takeFileName $ dropExtension inpFile)
+        getExecForComp MAlonzo compDir  = compDir </> (takeFileName $ dropExtension inpFile)
+        getExecForComp UHC compDir = compDir </> "UHC" </> (takeFileName $ dropExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
