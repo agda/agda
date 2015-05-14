@@ -223,7 +223,7 @@ exec-test :
 	@echo "======================================================================"
 	@echo "======================== Compiler/exec tests ========================="
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) AGDA_TESTS_PROPERLY_SETUP=YES \
+	@AGDA_BIN=$(AGDA_BIN) \
 		$(AGDA_TESTS_BIN) --regex-exclude '$(DISABLED_TESTS)' \
 		$(AGDA_TESTS_OPTIONS)
 
