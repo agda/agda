@@ -71,10 +71,10 @@ install:
 # Note: `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
-# The `enable-test` option is required only if $TEST=require-stdlib.
+# The `enable-test` option is required only if $TEST=require-stdlib or latex-test.
 
   - case $TEST in
-      "latex-test" | "non-require-stdlib")
+      "non-require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.6.3 -o $GHC_VERSION_TRAVIS = 7.8.4 ]; then
            cabal install --avoid-reinstalls --only-dependencies;
         else
@@ -82,7 +82,7 @@ install:
         fi
         ;;
 
-      "require-stdlib")
+      "latex-test" | "require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.6.3 -o $GHC_VERSION_TRAVIS = 7.8.4 ]; then
            cabal install --enable-tests --avoid-reinstalls --only-dependencies;
         else
@@ -112,14 +112,14 @@ install:
 
   - export BUILD_DIR=$PWD/dist
 
-# The `enable-test` option is required only if $TEST=require-stdlib.
+# The `enable-test` option is required if $TEST=require-stdlib or latex-test.
 
   - case $TEST in
-      "latex-test" | "non-require-stdlib")
+      "non-require-stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR
         ;;
 
-      "require-stdlib")
+      "latex-test" | "require-stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
         ;;
     esac
@@ -209,7 +209,7 @@ script:
 ##############################################################################
 
   - if [ $TEST = "latex-test" ]; then
-       make BUILD_DIR=$BUILD_DIR latex-test;
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR latex-test;
     fi
 
 ##############################################################################
