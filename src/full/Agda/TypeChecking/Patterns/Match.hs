@@ -1,6 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             DeriveFunctor,
+             ScopedTypeVariables #-}
 
 -- | Pattern matcher used in the reducer for clauses that
 --   have not been compiled to case trees yet.
