@@ -68,7 +68,7 @@ parseCoreConstrs (CTMagic dtMgcNm) cs = do
 
 -- | Parse a COMPILED_UHC expression.
 parseCoreExpr :: String -> Either String CoreExpr
-#ifdef UHC_BACKEND
+#if defined(UHC_BACKEND)
 parseCoreExpr str = either Left (const $ Right str) (coreExprToCExpr str)
 #else
 -- we don't have the uhc-light parser, so just succeed here.
@@ -76,7 +76,7 @@ parseCoreExpr str = Right str
 #endif
 
 coreExprToCExpr :: CoreExpr -> Either String CExpr
-#ifdef UHC_BACKEND
+#if defined(UHC_BACKEND)
 coreExprToCExpr str = case CA.parseExpr defaultEHCOpts str of
     (Left errs) -> Left $ intercalate "\n" errs
     (Right res) -> Right res

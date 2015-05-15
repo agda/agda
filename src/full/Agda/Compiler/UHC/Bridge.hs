@@ -87,7 +87,7 @@ import Data.Binary.Put
 import Data.Binary.Get
 import Data.Typeable
 
-#ifdef UHC_BACKEND
+#if defined(UHC_BACKEND)
 import UHC.Util.Pretty
 import UHC.Util.Serialize
 import UHC.Util.ParseUtils
@@ -286,7 +286,7 @@ printModule = __IMPOSSIBLE__
 
 
 uhcBackendEnabled :: Bool
-#ifdef UHC_BACKEND
+#if defined(UHC_BACKEND)
 uhcBackendEnabled = True
 #else
 uhcBackendEnabled = False
