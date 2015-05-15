@@ -1,8 +1,9 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             FlexibleInstances,
+             GeneralizedNewtypeDeriving,
+             PatternGuards,
+             TupleSections #-}
 
 -- | Code which replaces pattern matching on record constructors with
 -- uses of projection functions.
