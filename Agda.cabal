@@ -539,4 +539,7 @@ test-suite agda-tests
       build-depends:
         directory >= 1.2.0.0 && < 1.3
 
+  if flag(uhc)
+    cpp-options:    -DUHC_BACKEND
+
   ghc-options:      -threaded -Wall -Werror

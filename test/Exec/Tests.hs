@@ -58,8 +58,10 @@ disabledTests =
   [ RFInclude "Exec/.*/with-stdlib"
 -- See issue 1414
   , RFInclude "Exec/MAlonzo/simple/FlexibleInterpreter"
--- Disabled for now, until the UHC backend is a bit more stable.
+-- Disable UHC backend tests if the backend is also disabled.
+#if !defined(UHC_BACKEND)
   , RFInclude "Exec/UHC/"
+#endif
   ]
 
 tests :: IO TestTree
