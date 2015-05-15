@@ -19,7 +19,7 @@ import System.Process.Text as PT
 #if MIN_VERSION_process(1,2,3)
 import System.Process (callProcess, proc, readCreateProcess, CreateProcess (..))
 #else
-import System.Process (callProcess)
+import System.Process (callProcess, proc, createProcess, waitForProcess, CreateProcess (..))
 #endif
 
 
@@ -155,10 +155,12 @@ withGhcLibs pkgDirs mkTree = do
         -- trying to use process 1.2.3.0 with GHC 7.4 leads to cabal hell,
         -- so we really want to support older versions of process for the time being.
         callProcess1 wd cmd args = do
-            oldPwd <- getCurrentDirectory
-            setCurrentDirectory wd
-            callProcess cmd args
-            setCurrentDirectory oldPwd
+            -- note: the new process will inherit stdout/stdin/stderr from us,
+            -- and will spam the console a bit. This will make the UI a bit
+            -- ugly, but shouldn't cause any problems.
+            (_, _, _, pHandle) <- createProcess (proc cmd args) {cwd = Just wd}
+            ExitSuccess <- waitForProcess pHandle
+            return ()
 #endif
 
 agdaRunProgGoldenTest :: FilePath -- ^ path to the agda executable.
