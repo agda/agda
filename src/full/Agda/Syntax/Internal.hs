@@ -1,13 +1,14 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TemplateHaskell #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             DeriveDataTypeable,
+             DeriveFoldable,
+             DeriveFunctor,
+             DeriveTraversable,
+             FlexibleInstances,
+             GeneralizedNewtypeDeriving,
+             MultiParamTypeClasses,
+             StandaloneDeriving,
+             TemplateHaskell #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
