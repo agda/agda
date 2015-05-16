@@ -63,14 +63,15 @@ followed:
       emacs --batch -L . -f batch-byte-compile *.el; \
       rm -f *.elc)
 
+* Test compilation using cpp instead of cpphs:
+
+    make install-bin CABAL_OPTS='-f -cpphs'
+    make clean
+
 * Run the test-suite:
 
     make install
     make test
-
-* Test compilation using cpp instead of cpphs:
-
-    make install CABAL_OPTS='-f -cpphs'
 
 * Build source distributions:
 

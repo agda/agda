@@ -65,7 +65,8 @@ followed:
 
 * Test compilation using cpp instead of cpphs:
 
-    make install CABAL_OPTS='-f -cpphs'
+    make install-bin CABAL_OPTS='-f -cpphs'
+    make clean
 
 * Run make test (and accept the updates the Agda version in the files
   test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).
