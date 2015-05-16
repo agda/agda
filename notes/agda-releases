@@ -43,8 +43,13 @@ followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Remove the agda-tests test suite in Agda.cabal. Keep the
-  removed cabal snippet around to add it back later on.
+* Remove the Cabal test-suite:
+
+  ** Remove the agda-tests test suite in Agda.cabal.
+
+  ** Remove --enable-tests from the install-bin rule in Makefile.
+
+  ** Remove exec-test from the tests rule in Makefile.
 
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
@@ -99,7 +104,13 @@ followed:
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-* Add back the agda-tests test suite in Agda.cabal.
+* Restore the Cabal test-suite:
+
+  ** Restore the agda-tests test suite in Agda.cabal.
+
+  ** Add --enable-tests to the install-bin rule in Makefile.
+
+  ** Add exec-test to the tests rule in Makefile.
 
 * Add back -Werror and -fprof-auto in Agda.cabal.
 
