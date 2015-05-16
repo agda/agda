@@ -505,9 +505,6 @@ executable agda-mode
     , filepath >= 1.3.0.0 && < 1.5
     , process >= 1.0.1.0 && < 1.3
 
-
-
-
 -- Cabal testsuite integration has some serious bugs, but we
 -- can still make it work. See also:
 -- https://github.com/haskell/cabal/issues/1938
