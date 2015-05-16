@@ -148,7 +148,11 @@ withGhcLibs pkgDirs mkTree = do
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "build"]
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "install"]
         mkArgs :: (FilePath, FilePath) -> AgdaArgs
-        mkArgs (_, pkgDb) = ["--ghc-flag=-package-db=" ++ pkgDb]
+#if __GLASGOW_HASKELL__ > 704
+        mkArgs (_, pkgDb) = ["--ghc-flag=-no-user-package-db",   "--ghc-flag=-package-db=" ++ pkgDb]
+#else
+        mkArgs (_, pkgDb) = ["--ghc-flag=-no-user-package-conf", "--ghc-flag=-package-conf=" ++ pkgDb]
+#endif
         callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
 #if MIN_VERSION_process(1,2,3)
         callProcess1 wd cmd args = readCreateProcess ((proc cmd args) {cwd = Just wd}) "" >> return ()
