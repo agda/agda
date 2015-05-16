@@ -72,24 +72,27 @@ followed:
 
     make install CABAL_OPTS='-f -cpphs'
 
-* Tag and build source distributions. (Do not forget to record the
-  changes above first.)
+* Build source distributions:
 
-    VERSION=<version>
     cabal sdist && cabal check
     cabal install
-    git tag -a $VERSION -m "Agda $VERSION maintenance release"
 
 * Ensure that the package builds properly (with multiple versions of GHC if
   possible) in Linux, MacOS X and Windows.
 
     BASE=`pwd`
+    VERSION=<version>
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
     cabal install
 
   Do not forget to test the Emacs mode.
+
+* Tag the relase (do not forget to record the changes above first):
+
+    cd $BASE
+    git tag -a $VERSION -m "Agda $VERSION maintenance release"
 
 * Upload the Cabal package using cabal upload.
 
