@@ -99,7 +99,7 @@ followed:
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-* * Add back the agda-tests test suite in Agda.cabal.
+* Add back the agda-tests test suite in Agda.cabal.
 
 * Add back -Werror and -fprof-auto in Agda.cabal.
 
