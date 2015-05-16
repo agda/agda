@@ -1,4 +1,4 @@
-2014-11-13, adapted from agda-releases
+2015-05-15, adapted from agda-releases
 
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
@@ -17,11 +17,9 @@ followed:
     git checkout maint-$MAJORVERSION
 
 * Clone the standard library branch related to the Agda bugfix
-  version. Use the branch used by the `std-lib` target rule in the
-  Makefile file. For example,
+  version.
 
-    (git clone https://github.com/agda/agda-stdlib.git --branch 2.4.2.1 \
-      --single-branch std-lib)
+    make std-lib
 
 * Create Everything.agda in the standard library
 

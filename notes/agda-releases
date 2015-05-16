@@ -11,11 +11,9 @@ followed:
     git clone git@github.com:agda/agda Agda.release
     cd Agda.release
 
-* Clone the standard library branch related to the Agda new
-  version. Use the branch used by the `std-lib` target rule in the
-  Makefile file. For example,
+* Clone the standard library branch related to the Agda new version.
 
-    git clone git@github.com:Agda/agda-stdlib std-lib
+    make std-lib
 
 * Create Everything.agda in the standard library
 
