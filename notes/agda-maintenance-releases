@@ -75,6 +75,7 @@ followed:
 
 * Build source distributions:
 
+    cabal configure
     cabal sdist && cabal check
     cabal install
 
