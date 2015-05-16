@@ -76,7 +76,8 @@ followed:
 * Build source distributions:
 
     cabal configure
-    cabal sdist && cabal check
+    cabal check
+    cabal sdist
     cabal install
 
 * Ensure that the package builds properly (with multiple versions of GHC if

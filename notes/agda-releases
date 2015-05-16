@@ -75,7 +75,9 @@ followed:
   changes above first.)
 
     VERSION=<version>
-    cabal configure && cabal sdist && cabal check
+    cabal configure
+    cabal check
+    cabal sdist
     cabal install
     git tag -a $VERSION -m "Agda $VERSION release"
 
