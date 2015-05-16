@@ -60,8 +60,6 @@ followed:
 
 * Run the test-suite:
 
-    autoconf
-    ./configure
     make install
     make test
 
