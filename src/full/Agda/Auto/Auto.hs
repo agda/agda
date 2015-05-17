@@ -147,17 +147,23 @@ auto ii rng argstr = do
   let (mainm, _, _, _) = tccons Map.! mi
   case mode of
    MNormal listmode disprove -> do
+      let numsols = if listmode then 10 else 1
+        -- Andreas, 2015-05-17 Issue 1504:
+        -- wish to produce several solutions, as
+        -- the first one might be ill-typed.
+        -- However, currently changing the 1 to something higher makes Agsy loop.
       sols <- liftIO $ newIORef ([] :: [[I.Term]])
-      nsol <- liftIO $ newIORef $ if listmode then pick + 10 else pick + 1
+      nsol <- liftIO $ newIORef $ pick + numsols
       let hsol = do
            nsol' <- readIORef nsol
-           let cond = if listmode then nsol' <= 10 else nsol' == 1
+           let cond = nsol' <= numsols
            when cond $ do
              trms <- runExceptT $ mapM (\ (m, _, _, _) -> frommy (Meta m)) $ Map.elems tccons
              case trms of
                Left{}     -> writeIORef nsol $! nsol' + 1
-               Right trms -> if listmode then modifyIORef sols (trms :)
-                                         else writeIORef sols [trms]
+               Right trms -> modifyIORef sols (trms :)
+               -- Right trms -> if listmode then modifyIORef sols (trms :)
+               --                           else writeIORef sols [trms]
       ticks <- liftIO $ newIORef 0
 
       let exsearch initprop recinfo defdfv =
@@ -211,7 +217,7 @@ auto ii rng argstr = do
               rsols <- liftM reverse $ liftIO $ readIORef sols
               if null rsols then do
                 nsol' <- liftIO $ readIORef nsol
-                dispmsg $ insuffsols (pick + (if listmode then 10 else 1) - nsol')
+                dispmsg $ insuffsols (pick + numsols - nsol')
                else do
                 aexprss <- mapM getsols rsols
                 cexprss <- forM aexprss $ mapM $ \(mi, e) -> do
@@ -265,7 +271,7 @@ auto ii rng argstr = do
           rsols <- liftM reverse $ liftIO $ readIORef sols
           if null rsols then do
             nsol' <- liftIO $ readIORef nsol
-            dispmsg $ insuffsols (pick + 10 - nsol') ++ timeoutString
+            dispmsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
            else do
             aexprss <- mapM getsols rsols
             -- cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
@@ -276,7 +282,7 @@ auto ii rng argstr = do
                   e' <- abstractToConcrete_ e
                   return (mi, e')
             let disp [(_, cexpr)] = show cexpr
-                disp cexprs = concat $ for cexprs $ \(mi, cexpr) ->
+                disp cexprs = concat $ for cexprs $ \ (mi, cexpr) ->
                   maybe (show mi) show (lookup mi riis)
                     ++ " := " ++ show cexpr ++ " "
             ticks <- liftIO $ readIORef ticks
@@ -286,7 +292,7 @@ auto ii rng argstr = do
           case res of
            Nothing -> do
             nsol' <- liftIO $ readIORef nsol
-            dispmsg $ insuffsols (pick + 1 - nsol') ++ timeoutString
+            dispmsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
            Just depthreached -> do
             ticks <- liftIO $ readIORef ticks
             rsols <- liftIO $ readIORef sols
