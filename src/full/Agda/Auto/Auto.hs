@@ -308,6 +308,10 @@ auto ii rng argstr = do
                                 ce <- abstractToConcreteEnv (makeEnv scope) ae
                                 let cmnt = if ii' == ii then agsyinfo ticks else ""
                                 return (Just (ii', show ce ++ cmnt), Nothing)
+                   -- Andreas, 2015-05-17, Issue 1504
+                   -- When Agsy produces an ill-typed solution, return nothing.
+                   -- TODO: try other solution.
+                   `catchError` const (return (Nothing, Nothing))
               let msg = if length exprs == 1 then
                          Nothing
                         else
