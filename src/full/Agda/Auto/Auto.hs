@@ -268,13 +268,21 @@ auto ii rng argstr = do
             dispmsg $ insuffsols (pick + 10 - nsol') ++ timeoutString
            else do
             aexprss <- mapM getsols rsols
-            cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
+            -- cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
+            cexprss <- forM aexprss $ do
+              mapM $ \ (mi, e) -> do
+                mv <- lookupMeta mi
+                withMetaInfo (getMetaInfo mv) $ do
+                  e' <- abstractToConcrete_ e
+                  return (mi, e')
             let disp [(_, cexpr)] = show cexpr
-                disp cexprs = concat (map (\(mi, cexpr) -> case lookup mi riis of {Nothing -> show mi; Just ii -> show ii} ++ " := " ++ show cexpr ++ " ") cexprs)
+                disp cexprs = concat $ for cexprs $ \(mi, cexpr) ->
+                  maybe (show mi) show (lookup mi riis)
+                    ++ " := " ++ show cexpr ++ " "
             ticks <- liftIO $ readIORef ticks
             dispmsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
                       "\n" ++ unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
-         else
+         else {- not listmode -}
           case res of
            Nothing -> do
             nsol' <- liftIO $ readIORef nsol
@@ -288,8 +296,7 @@ auto ii rng argstr = do
               dispmsg $ insuffsols (pick + 1 - nsol')
              (term : _) -> do
               exprs <- getsols term
-              giveress <-
-               mapM (\(mi, expr) ->
+              giveress <- forM exprs $ \ (mi, expr) ->
                 case lookup mi riis of
                  Nothing ->
                   catchError
@@ -301,7 +308,6 @@ auto ii rng argstr = do
                                 ce <- abstractToConcreteEnv (makeEnv scope) ae
                                 let cmnt = if ii' == ii then agsyinfo ticks else ""
                                 return (Just (ii', show ce ++ cmnt), Nothing)
-                ) exprs
               let msg = if length exprs == 1 then
                          Nothing
                         else
