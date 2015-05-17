@@ -14,6 +14,28 @@ ghc:
 # of dependencies, the testing of other programs like `hTags`, etc.) The
 # tests are divided according to whether or not require the standard
 # library.
+#
+# The current tests non-requiring the standard library are:
+#
+# make check-whitespace
+# make succeed
+# make fail
+# make interaction
+# make interactive
+# make latex-test
+# make examples
+# make compiler-test
+# make api-test
+# make tests
+# make benchmark-without-logs
+# make TAGS (testing the hTags program)
+# Compilation with GHC 7.8.4 using transformers 0.3.0.0 [Issue 1156]
+#
+# The current tests requiring the standard library are:
+#
+# make library-test
+# make lib-succeed
+# make exec
 env:
   - TEST=non_require_stdlib
   - TEST=require_stdlib
@@ -121,9 +143,9 @@ script:
 
   # TODO (07 May 2015): I couldn't add the following documentation inside the
   # case statement:
-  # 1. Testing hTags.
+  # 1. Testing the hTags program.
   # 2. Testing compilation with transformers 0.3.0.0 which is shipped with
-  # GHC 7.8.* (see Issue 1156).
+  # GHC 7.8.* [Issue 1156].
   # (comment above at "make install-bin" about avoiding recompilation
   # also applies here!)
 
