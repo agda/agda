@@ -101,12 +101,24 @@ install:
         ;;
     esac
 
-  # cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
+  # Cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
   # breaking previously installed packages.
 
-  # TODO (07 May 2015): To use $TEST for avoiding to use `enable-test` when
-  # $TEST=non_require_stdlib.
-  - if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
+  # The `enable-test` option is required only if $TEST=require_stdlib.
+  - case "$TEST" in
+      "non_require_stdlib")
+        if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
+        ;;
+
+      "require_stdlib")
+        if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
+       ;;
+
+      *)
+        echo "Unrecognised TEST";
+        exit 1;
+        ;;
+    esac
 
   # The `check-whitespace` test doesn't require the standard library.
   - case "$TEST" in
@@ -124,17 +136,40 @@ install:
     esac
 
   - export BUILD_DIR=$PWD/dist
-  - cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
+
+  # The `enable-test` option is required only if $TEST=require_stdlib.
+  - case "$TEST" in
+      "non_require_stdlib")
+        cabal configure -v2 --builddir=$BUILD_DIR;
+        ;;
+
+      "require_stdlib")
+        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests;
+       ;;
+
+      *)
+        echo "Unrecognised TEST";
+        exit 1;
+        ;;
+    esac
+
   - cabal build -v2 --builddir=$BUILD_DIR
 
-  # "make install-bin" shouldn't take longer than 20-30 seconds, as it
-  # reuses the build output from the above "cabal build". For this to
-  # work, the exact same configure flags and build dir has to be used.
-  # If the "make install-bin" runs longer than about a minute, it is
-  # probably recompiling Agda and the Makefile or this file needs to
-  # be fixed to make sure the same configure flags/build dir are
-  # used everywhere.
-  - make BUILD_DIR=$BUILD_DIR install-bin CABAL_OPTS=-v2
+  # The `enable-test` option is required only if $TEST=require_stdlib.
+  - case "$TEST" in
+      "non_require_stdlib")
+        cabal install -v2 --builddir=$BUILD_DIR;
+        ;;
+
+      "require_stdlib")
+        cabal install -v2 --builddir=$BUILD_DIR --enable-tests;
+       ;;
+
+      *)
+        echo "Unrecognised TEST";
+        exit 1;
+        ;;
+    esac
 
 script:
   # Right now Haddock doesn't work, presumably because it consumes too
@@ -146,8 +181,6 @@ script:
   # 1. Testing the hTags program.
   # 2. Testing compilation with transformers 0.3.0.0 which is shipped with
   # GHC 7.8.* [Issue 1156].
-  # (comment above at "make install-bin" about avoiding recompilation
-  # also applies here!)
 
   - case "$TEST" in
       "non_require_stdlib")
@@ -155,7 +188,7 @@ script:
 
         make BUILD_DIR=$BUILD_DIR TAGS;
 
-        if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi;
+        if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi;
         ;;
 
       "require_stdlib")
