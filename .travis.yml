@@ -70,7 +70,6 @@ install:
         ;;
 
       "require_stdlib")
-       make std-lib;
        make up-to-date-std-lib;
        ;;
 
