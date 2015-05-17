@@ -19,14 +19,16 @@ import Data.Functor
 import qualified Data.Traversable as Trav
 
 import Agda.Utils.Permutation (permute, takeP)
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.MetaVars
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Monad.Signature
+import Agda.TypeChecking.Monad hiding (withCurrentModule)
+-- import Agda.TypeChecking.Monad.Base
+-- import Agda.TypeChecking.Monad.MetaVars
+-- import Agda.TypeChecking.Monad.Context
+-- import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Substitute
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Text.PrettyPrint as PP
+import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
