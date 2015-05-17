@@ -299,39 +299,51 @@ auto ii rng argstr = do
             ticks <- liftIO $ readIORef ticks
             rsols <- liftIO $ readIORef sols
             case rsols of
-             [] -> do
-              nsol' <- liftIO $ readIORef nsol
-              dispmsg $ insuffsols (pick + 1 - nsol')
-             (term : _) -> do
-              exprs <- getsols term
-              giveress <- forM exprs $ \ (mi, expr) ->
-                case lookup mi riis of
-                 Nothing ->
-                  catchError
-                   (giveExpr mi expr >>= \_ -> return (Nothing, Nothing))
-                   (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
-                 Just ii' -> do ae <- give ii' Nothing expr
-                                mv <- lookupMeta mi
-                                let scope = getMetaScope mv
-                                ce <- abstractToConcreteEnv (makeEnv scope) ae
-                                let cmnt = if ii' == ii then agsyinfo ticks else ""
-                                return (Just (ii', show ce ++ cmnt), Nothing)
-                   -- Andreas, 2015-05-17, Issue 1504
-                   -- When Agsy produces an ill-typed solution, return nothing.
-                   -- TODO: try other solution.
-                   `catchError` const (return (Nothing, Nothing))
-              let msg = if length exprs == 1 then
-                         Nothing
-                        else
-                         Just $ "Also gave solution(s) for hole(s)" ++
-                                 concatMap (\(mi', _) ->
-                                  if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
-                                 ) exprs
-              let msgs = catMaybes $ msg : map snd giveress
-                  msg' = case msgs of
-                          [] -> Nothing
-                          _ -> Just $ unlines msgs
-              return (Left $ catMaybes $ map fst giveress, msg')
+              [] -> do
+                nsol' <- liftIO $ readIORef nsol
+                dispmsg $ insuffsols (pick + numsols - nsol')
+              terms -> loop terms where
+                -- Andreas, 2015-05-17  Issue 1504
+                -- If giving a solution failed (e.g. ill-typed)
+                -- we could try the next one.
+                -- However, currently @terms@ is always a singleton list.
+                -- Thus, the following @loop@ is not doing something very
+                -- meaningful.
+                loop [] = return (Left [], Just "")
+                loop (term : terms') = do
+                  -- On exception, try next solution
+                  flip catchError (const $ loop terms') $ do
+                  exprs <- getsols term
+                  reportSDoc "auto" 20 $ TCM.text "Trying solution " TCM.<+> TCM.prettyTCM exprs
+                  giveress <- forM exprs $ \ (mi, expr) ->
+                    case lookup mi riis of
+                     Nothing ->
+                      -- catchError
+                       (giveExpr mi expr >> return (Nothing, Nothing))
+                       -- (const retry)
+                       -- (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
+                     Just ii' -> do ae <- give ii' Nothing expr
+                                    mv <- lookupMeta mi
+                                    let scope = getMetaScope mv
+                                    ce <- abstractToConcreteEnv (makeEnv scope) ae
+                                    let cmnt = if ii' == ii then agsyinfo ticks else ""
+                                    return (Just (ii', show ce ++ cmnt), Nothing)
+                       -- Andreas, 2015-05-17, Issue 1504
+                       -- When Agsy produces an ill-typed solution, return nothing.
+                       -- TODO: try other solution.
+                       -- `catchError` const retry -- (return (Nothing, Nothing))
+                  let msg = if length exprs == 1 then
+                             Nothing
+                            else
+                             Just $ "Also gave solution(s) for hole(s)" ++
+                                     concatMap (\(mi', _) ->
+                                      if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
+                                     ) exprs
+                  let msgs = catMaybes $ msg : map snd giveress
+                      msg' = case msgs of
+                              [] -> Nothing
+                              _ -> Just $ unlines msgs
+                  return (Left $ catMaybes $ map fst giveress, msg')
 
    MCaseSplit -> do
     case thisdefinfo of
