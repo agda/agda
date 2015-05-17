@@ -19,14 +19,16 @@ import Data.Functor
 import qualified Data.Traversable as Trav
 
 import Agda.Utils.Permutation (permute, takeP)
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.MetaVars
-import Agda.TypeChecking.Monad.Context
-import Agda.TypeChecking.Monad.Signature
+import Agda.TypeChecking.Monad hiding (withCurrentModule)
+-- import Agda.TypeChecking.Monad.Base
+-- import Agda.TypeChecking.Monad.MetaVars
+-- import Agda.TypeChecking.Monad.Context
+-- import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Substitute
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Pretty (prettyA)
 import qualified Text.PrettyPrint as PP
+import qualified Agda.TypeChecking.Pretty as TCM
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
@@ -147,17 +149,23 @@ auto ii rng argstr = do
   let (mainm, _, _, _) = tccons Map.! mi
   case mode of
    MNormal listmode disprove -> do
+      let numsols = if listmode then 10 else 1
+        -- Andreas, 2015-05-17 Issue 1504:
+        -- wish to produce several solutions, as
+        -- the first one might be ill-typed.
+        -- However, currently changing the 1 to something higher makes Agsy loop.
       sols <- liftIO $ newIORef ([] :: [[I.Term]])
-      nsol <- liftIO $ newIORef $ if listmode then pick + 10 else pick + 1
+      nsol <- liftIO $ newIORef $ pick + numsols
       let hsol = do
            nsol' <- readIORef nsol
-           let cond = if listmode then nsol' <= 10 else nsol' == 1
+           let cond = nsol' <= numsols
            when cond $ do
              trms <- runExceptT $ mapM (\ (m, _, _, _) -> frommy (Meta m)) $ Map.elems tccons
              case trms of
                Left{}     -> writeIORef nsol $! nsol' + 1
-               Right trms -> if listmode then modifyIORef sols (trms :)
-                                         else writeIORef sols [trms]
+               Right trms -> modifyIORef sols (trms :)
+               -- Right trms -> if listmode then modifyIORef sols (trms :)
+               --                           else writeIORef sols [trms]
       ticks <- liftIO $ newIORef 0
 
       let exsearch initprop recinfo defdfv =
@@ -211,7 +219,7 @@ auto ii rng argstr = do
               rsols <- liftM reverse $ liftIO $ readIORef sols
               if null rsols then do
                 nsol' <- liftIO $ readIORef nsol
-                dispmsg $ insuffsols (pick + (if listmode then 10 else 1) - nsol')
+                dispmsg $ insuffsols (pick + numsols - nsol')
                else do
                 aexprss <- mapM getsols rsols
                 cexprss <- forM aexprss $ mapM $ \(mi, e) -> do
@@ -265,55 +273,77 @@ auto ii rng argstr = do
           rsols <- liftM reverse $ liftIO $ readIORef sols
           if null rsols then do
             nsol' <- liftIO $ readIORef nsol
-            dispmsg $ insuffsols (pick + 10 - nsol') ++ timeoutString
+            dispmsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
            else do
             aexprss <- mapM getsols rsols
-            cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
+            -- cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
+            cexprss <- forM aexprss $ do
+              mapM $ \ (mi, e) -> do
+                mv <- lookupMeta mi
+                withMetaInfo (getMetaInfo mv) $ do
+                  e' <- abstractToConcrete_ e
+                  return (mi, e')
             let disp [(_, cexpr)] = show cexpr
-                disp cexprs = concat (map (\(mi, cexpr) -> case lookup mi riis of {Nothing -> show mi; Just ii -> show ii} ++ " := " ++ show cexpr ++ " ") cexprs)
+                disp cexprs = concat $ for cexprs $ \ (mi, cexpr) ->
+                  maybe (show mi) show (lookup mi riis)
+                    ++ " := " ++ show cexpr ++ " "
             ticks <- liftIO $ readIORef ticks
             dispmsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ timeoutString ++
                       "\n" ++ unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
-         else
+         else {- not listmode -}
           case res of
            Nothing -> do
             nsol' <- liftIO $ readIORef nsol
-            dispmsg $ insuffsols (pick + 1 - nsol') ++ timeoutString
+            dispmsg $ insuffsols (pick + numsols - nsol') ++ timeoutString
            Just depthreached -> do
             ticks <- liftIO $ readIORef ticks
             rsols <- liftIO $ readIORef sols
             case rsols of
-             [] -> do
-              nsol' <- liftIO $ readIORef nsol
-              dispmsg $ insuffsols (pick + 1 - nsol')
-             (term : _) -> do
-              exprs <- getsols term
-              giveress <-
-               mapM (\(mi, expr) ->
-                case lookup mi riis of
-                 Nothing ->
-                  catchError
-                   (giveExpr mi expr >>= \_ -> return (Nothing, Nothing))
-                   (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
-                 Just ii' -> do ae <- give ii' Nothing expr
-                                mv <- lookupMeta mi
-                                let scope = getMetaScope mv
-                                ce <- abstractToConcreteEnv (makeEnv scope) ae
-                                let cmnt = if ii' == ii then agsyinfo ticks else ""
-                                return (Just (ii', show ce ++ cmnt), Nothing)
-                ) exprs
-              let msg = if length exprs == 1 then
-                         Nothing
-                        else
-                         Just $ "Also gave solution(s) for hole(s)" ++
-                                 concatMap (\(mi', _) ->
-                                  if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
-                                 ) exprs
-              let msgs = catMaybes $ msg : map snd giveress
-                  msg' = case msgs of
-                          [] -> Nothing
-                          _ -> Just $ unlines msgs
-              return (Left $ catMaybes $ map fst giveress, msg')
+              [] -> do
+                nsol' <- liftIO $ readIORef nsol
+                dispmsg $ insuffsols (pick + numsols - nsol')
+              terms -> loop terms where
+                -- Andreas, 2015-05-17  Issue 1504
+                -- If giving a solution failed (e.g. ill-typed)
+                -- we could try the next one.
+                -- However, currently @terms@ is always a singleton list.
+                -- Thus, the following @loop@ is not doing something very
+                -- meaningful.
+                loop [] = return (Left [], Just "")
+                loop (term : terms') = do
+                  -- On exception, try next solution
+                  flip catchError (const $ loop terms') $ do
+                  exprs <- getsols term
+                  reportSDoc "auto" 20 $ TCM.text "Trying solution " TCM.<+> TCM.prettyTCM exprs
+                  giveress <- forM exprs $ \ (mi, expr) ->
+                    case lookup mi riis of
+                     Nothing ->
+                      -- catchError
+                       (giveExpr mi expr >> return (Nothing, Nothing))
+                       -- (const retry)
+                       -- (\_ -> return (Nothing, Just ("Failed to give expr for side solution of " ++ show mi)))
+                     Just ii' -> do ae <- give ii' Nothing expr
+                                    mv <- lookupMeta mi
+                                    let scope = getMetaScope mv
+                                    ce <- abstractToConcreteEnv (makeEnv scope) ae
+                                    let cmnt = if ii' == ii then agsyinfo ticks else ""
+                                    return (Just (ii', show ce ++ cmnt), Nothing)
+                       -- Andreas, 2015-05-17, Issue 1504
+                       -- When Agsy produces an ill-typed solution, return nothing.
+                       -- TODO: try other solution.
+                       -- `catchError` const retry -- (return (Nothing, Nothing))
+                  let msg = if length exprs == 1 then
+                             Nothing
+                            else
+                             Just $ "Also gave solution(s) for hole(s)" ++
+                                     concatMap (\(mi', _) ->
+                                      if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
+                                     ) exprs
+                  let msgs = catMaybes $ msg : map snd giveress
+                      msg' = case msgs of
+                              [] -> Nothing
+                              _ -> Just $ unlines msgs
+                  return (Left $ catMaybes $ map fst giveress, msg')
 
    MCaseSplit -> do
     case thisdefinfo of
