@@ -134,12 +134,12 @@ findInScope m Nothing = do
   -- current instance meta, thus, we set the range.
   mv <- lookupMeta m
   setCurrentRange mv $ do
-  reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
-  t <- getMetaType m
-  cands <- initialIFSCandidates t
-  case cands of
-    Nothing -> addConstraint $ FindInScope m Nothing Nothing
-    Just {} -> findInScope m cands
+    reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
+    t <- getMetaType m
+    cands <- initialIFSCandidates t
+    case cands of
+      Nothing -> addConstraint $ FindInScope m Nothing Nothing
+      Just {} -> findInScope m cands
 findInScope m (Just cands) =
   whenJustM (findInScope' m cands) $ (\ (cands, b) -> addConstraint $ FindInScope m b $ Just cands)
 
@@ -147,60 +147,60 @@ findInScope m (Just cands) =
 --   remaining candidates and an eventual blocking metavariable.
 findInScope' :: MetaId -> Candidates -> TCM (Maybe (Candidates, Maybe MetaId))
 findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
-    -- Andreas, 2013-12-28 issue 1003:
-    -- If instance meta is already solved, simply discard the constraint.
-    ifM (isInstantiatedMeta m) (return Nothing) $ do
+  -- Andreas, 2013-12-28 issue 1003:
+  -- If instance meta is already solved, simply discard the constraint.
+  ifM (isInstantiatedMeta m) (return Nothing) $ do
     -- Andreas, 2015-02-07: New metas should be created with range of the
     -- current instance meta, thus, we set the range.
     mv <- lookupMeta m
     setCurrentRange mv $ do
-    reportSLn "tc.instance" 15 $
-      "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
-    reportSDoc "tc.instance" 70 $ nest 2 $ vcat
-      [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | (v, t) <- cands ]
-    t <- normalise =<< getMetaTypeInContext m
-    reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
-    reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
+      reportSLn "tc.instance" 15 $
+        "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
+      reportSDoc "tc.instance" 70 $ nest 2 $ vcat
+        [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | (v, t) <- cands ]
+      t <- normalise =<< getMetaTypeInContext m
+      reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
+      reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
 
-    -- If one of the arguments of the typeclass is a meta which is not rigidly
-    -- constrained, then don’t do anything because it may loop.
-    ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
+      -- If one of the arguments of the typeclass is a meta which is not rigidly
+      -- constrained, then don’t do anything because it may loop.
+      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
 
-    cands <- checkCandidates m t cands
-    reportSLn "tc.instance" 15 $
-      "findInScope 4: cands left: " ++ show (length cands)
-    case cands of
+      cands <- checkCandidates m t cands
+      reportSLn "tc.instance" 15 $
+        "findInScope 4: cands left: " ++ show (length cands)
+      case cands of
 
-      [] -> do
-        reportSDoc "tc.instance" 15 $
-          text "findInScope 5: not a single candidate found..."
-        typeError $ IFSNoCandidateInScope t
+        [] -> do
+          reportSDoc "tc.instance" 15 $
+            text "findInScope 5: not a single candidate found..."
+          typeError $ IFSNoCandidateInScope t
 
-      [(term, t')] -> do
-        reportSDoc "tc.instance" 15 $ vcat
-          [ text "findInScope 5: solved by instance search using the only candidate"
-          , nest 2 $ prettyTCM term
-          , text "of type " <+> prettyTCM t'
-          , text "for type" <+> prettyTCM t
-          ]
+        [(term, t')] -> do
+          reportSDoc "tc.instance" 15 $ vcat
+            [ text "findInScope 5: solved by instance search using the only candidate"
+            , nest 2 $ prettyTCM term
+            , text "of type " <+> prettyTCM t'
+            , text "for type" <+> prettyTCM t
+            ]
 
-        return Nothing  -- We’re done
+          return Nothing  -- We’re done
 
-      cs -> do
-        reportSDoc "tc.instance" 15 $
-          text ("findInScope 5: more than one candidate found: ") <+>
-          prettyTCM (List.map fst cs)
-        return (Just (cs, Nothing))
-    where
-      -- | Check whether a type is a function type with an instance domain.
-      isRecursive :: Term -> TCM Bool
-      isRecursive v = do
-        v <- reduce v
-        case ignoreSharing v of
-          Pi (Dom info _) t ->
-            if getHiding info == Instance then return True else
-              isRecursive $ unEl $ unAbs t
-          _ -> return False
+        cs -> do
+          reportSDoc "tc.instance" 15 $
+            text ("findInScope 5: more than one candidate found: ") <+>
+            prettyTCM (List.map fst cs)
+          return (Just (cs, Nothing))
+      where
+        -- | Check whether a type is a function type with an instance domain.
+        isRecursive :: Term -> TCM Bool
+        isRecursive v = do
+          v <- reduce v
+          case ignoreSharing v of
+            Pi (Dom info _) t ->
+              if getHiding info == Instance then return True else
+                isRecursive $ unEl $ unAbs t
+            _ -> return False
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
@@ -333,44 +333,44 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m
       setCurrentRange mv $ do
-      verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
-      liftTCM $ flip catchError handle $ do
-        reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
-        reportSDoc "tc.instance" 20 $ vcat
-          [ text "checkCandidateForMeta"
-          , text "t    =" <+> prettyTCM t
-          , text "t'   =" <+> prettyTCM t'
-          , text "term =" <+> prettyTCM term
-          ]
+        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
+        liftTCM $ flip catchError handle $ do
+          reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+          reportSDoc "tc.instance" 20 $ vcat
+            [ text "checkCandidateForMeta"
+            , text "t    =" <+> prettyTCM t
+            , text "t'   =" <+> prettyTCM t'
+            , text "term =" <+> prettyTCM term
+            ]
 
-        -- Apply hidden and instance arguments (recursive inst. search!).
-        (args, t'') <- implicitArgs (-1) notVisible t'
+          -- Apply hidden and instance arguments (recursive inst. search!).
+          (args, t'') <- implicitArgs (-1) notVisible t'
 
-        reportSDoc "tc.instance" 20 $
-          text "instance search: checking" <+> prettyTCM t''
-          <+> text "<=" <+> prettyTCM t
-        ctxElims <- map Apply <$> getContextArgs
-        v <- (`applyDroppingParameters` args) =<< reduce term
-        reportSDoc "tc.instance" 15 $ vcat
-          [ text "instance search: attempting"
-          , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
-          ]
-        -- if constraints remain, we abort, but keep the candidate
-        -- Jesper, 05-12-2014: When we abort, we should add a constraint to
-        -- instantiate the meta at a later time (see issue 1377).
-        guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
-        -- make a pass over constraints, to detect cases where some are made
-        -- unsolvable by the assignment, but don't do this for FindInScope's
-        -- to prevent loops. We currently also ignore UnBlock constraints
-        -- to be on the safe side.
-        solveAwakeConstraints' True
-        return True
-      where
-        handle :: TCErr -> TCM Bool
-        handle err = do
-          reportSDoc "tc.instance" 50 $
-            text "assignment failed:" <+> prettyTCM err
-          return False
+          reportSDoc "tc.instance" 20 $
+            text "instance search: checking" <+> prettyTCM t''
+            <+> text "<=" <+> prettyTCM t
+          ctxElims <- map Apply <$> getContextArgs
+          v <- (`applyDroppingParameters` args) =<< reduce term
+          reportSDoc "tc.instance" 15 $ vcat
+            [ text "instance search: attempting"
+            , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
+            ]
+          -- if constraints remain, we abort, but keep the candidate
+          -- Jesper, 05-12-2014: When we abort, we should add a constraint to
+          -- instantiate the meta at a later time (see issue 1377).
+          guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
+          -- make a pass over constraints, to detect cases where some are made
+          -- unsolvable by the assignment, but don't do this for FindInScope's
+          -- to prevent loops. We currently also ignore UnBlock constraints
+          -- to be on the safe side.
+          solveAwakeConstraints' True
+          return True
+        where
+          handle :: TCErr -> TCM Bool
+          handle err = do
+            reportSDoc "tc.instance" 50 $
+              text "assignment failed:" <+> prettyTCM err
+            return False
 
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
