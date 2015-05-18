@@ -3,6 +3,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
 #if __GLASGOW_HASKELL__ >= 710
@@ -238,9 +239,8 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-        dom :: I.Dom Type
-        dom = convColor $ Dom info' t
-    addContext (xs, dom) $ ret $ bindsWithHidingToTel xs (convColor $ Dom info t)
+    addContext (xs, convColor (Dom info' t) :: I.Dom Type) $
+      ret $ bindsWithHidingToTel xs (convColor $ Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -264,7 +264,7 @@ checkLambda (Arg _ (A.TLet _ lbs)) body target =
 checkLambda (Arg info (A.TBind _ xs typ)) body target = do
   let numbinds = length xs
   TelV tel btyp <- telViewUpTo numbinds target
-  if size tel < size xs || numbinds /= 1
+  if size tel < numbinds || numbinds /= 1
     then dontUseTargetType
     else useTargetType tel btyp
   where
