@@ -1459,7 +1459,7 @@ icodeX dict counter key = do
   d <- asks dict
   c <- asks counter
   liftIO $ do
-  mi    <- H.lookup d key
+  mi <- H.lookup d key
   case mi of
     Just i  -> do
       modifyIORef' c $ over lensReuse (+1)
