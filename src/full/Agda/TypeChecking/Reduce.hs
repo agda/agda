@@ -433,12 +433,12 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
                   , text "    es =  " <+> sep (map (prettyTCM . ignoreReduced) es)
 --                  [ text "*** tried to reduce' " <+> prettyTCM vfull
                   , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]) $ do
-                retSimpl v
+                  retSimpl v
               YesReduction simpl v -> performedSimplification' simpl $ do
                 traceSDoc "tc.reduce'"  90 (text "*** reduced definition: " <+> prettyTCM f) $ do
-                traceSDoc "tc.reduce'"  95 (text "    result" <+> prettyTCM v) $ do
-                traceSDoc "tc.reduce'" 100 (text "    raw   " <+> text (show v)) $ do
-                keepGoing v
+                  traceSDoc "tc.reduce'"  95 (text "    result" <+> prettyTCM v) $ do
+                    traceSDoc "tc.reduce'" 100 (text "    raw   " <+> text (show v)) $ do
+                      keepGoing v
       where defaultResult = retSimpl $ NotBlocked AbsurdMatch vfull
             vfull         = v0 `applyE` map ignoreReduced es
 
