@@ -272,38 +272,38 @@ etaExpandBoundVar i = do
           text " is not a record type"
         return Nothing
   caseMaybeM (isRecordType a) failure $ \ (r, pars, def) -> do
-  if not (recEtaEquality def) then return Nothing else Just <$> do
-  -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
-  -- TODO: compose argInfo ai with tel.
-  let tel = recTel def `apply` pars
-      m   = size tel
-      fs  = recFields def
-  -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
-      ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
-      u   = Con (recConHead def) ys
-  -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
-      tau0 = consS u $ raiseS m
-  -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
-      tau  = liftS (size gamma2) tau0
+    if not (recEtaEquality def) then return Nothing else Just <$> do
+      -- Get the record fields @Γ₁ ⊢ tel@ (@tel = Γ'@).
+      -- TODO: compose argInfo ai with tel.
+      let tel = recTel def `apply` pars
+          m   = size tel
+          fs  = recFields def
+      -- Construct the record pattern @Γ₁, Γ' ⊢ u := c ys@.
+          ys  = zipWith (\ f i -> f $> var i) fs $ downFrom m
+          u   = Con (recConHead def) ys
+      -- @Γ₁, Γ' ⊢ τ₀ : Γ₁, x:_@
+          tau0 = consS u $ raiseS m
+      -- @Γ₁, Γ', Γ₂ ⊢ τ₀ : Γ₁, x:_, Γ₂@
+          tau  = liftS (size gamma2) tau0
 
-  --  Fields are in order first-first.
-      zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
-  --  We need to reverse the field sequence to build the substitution.
-  -- @Γ₁, x:_ ⊢ σ₀ : Γ₁, Γ'@
-      sigma0 = parallelS $ reverse $ map unArg zs
-  -- @Γ₁, x:_, Γ₂ ⊢ σ₀ : Γ₁, Γ', Γ₂@
-      sigma  = liftS (size gamma2) sigma0
+      --  Fields are in order first-first.
+          zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
+      --  We need to reverse the field sequence to build the substitution.
+      -- @Γ₁, x:_ ⊢ σ₀ : Γ₁, Γ'@
+          sigma0 = parallelS $ reverse $ map unArg zs
+      -- @Γ₁, x:_, Γ₂ ⊢ σ₀ : Γ₁, Γ', Γ₂@
+          sigma  = liftS (size gamma2) sigma0
 
-  -- Construct @Δ@ as telescope.
-  -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
+      -- Construct @Δ@ as telescope.
+      -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
 
-      rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (nameToArgName n, t) : l) []
-      -- Use "f(x)" as variable name for the projection f(x).
-      s     = prettyShow x
-      tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
-      delta = telFromList $ rev gamma1 ++ telToList tel' ++ rev (applySubst tau0 gamma2)
+          rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (nameToArgName n, t) : l) []
+          -- Use "f(x)" as variable name for the projection f(x).
+          s     = prettyShow x
+          tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
+          delta = telFromList $ rev gamma1 ++ telToList tel' ++ rev (applySubst tau0 gamma2)
 
-  return (delta, sigma, tau)
+      return (delta, sigma, tau)
 
 -- | @curryAt v (Γ (y : R pars) -> B) n =
 --     ( \ v -> λ Γ ys → v Γ (c ys)            {- curry   -}
