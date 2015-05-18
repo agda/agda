@@ -326,218 +326,218 @@ instance Reify Term Expr where
 
 reifyTerm :: Bool -> Term -> TCM Expr
 reifyTerm expandAnonDefs0 v = do
-    -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
-    -- (i.e. when we don't care about nice printing)
-    expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
-    v <- unSpine <$> instantiate v
-    case v of
-      _ | isHackReifyToMeta v -> return $ A.Underscore emptyMetaInfo
-      I.Var n es   -> do
-          let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-          reifyApp (A.Var x) vs
-      I.Def x es   -> do
+  -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
+  -- (i.e. when we don't care about nice printing)
+  expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
+  v <- unSpine <$> instantiate v
+  case v of
+    _ | isHackReifyToMeta v -> return $ A.Underscore emptyMetaInfo
+    I.Var n es   -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
-      I.Con c vs   -> do
-        let x = conName c
-        isR <- isGeneratedRecordConstructor x
-        case isR of
-          True -> do
-            showImp <- showImplicitArguments
-            let keep (a, v) = showImp || notHidden a
-            r  <- getConstructorData x
-            xs <- getRecordFieldNames r
-            vs <- map unArg <$> reifyIArgs vs
-            return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
-          False -> reifyDisplayForm x vs $ do
-            ci <- getConstInfo x
-            let Constructor{conPars = np} = theDef ci
-            -- if we are the the module that defines constructor x
-            -- then we have to drop at least the n module parameters
-            n  <- getDefFreeVars x
-            -- the number of parameters is greater (if the data decl has
-            -- extra parameters) or equal (if not) to n
-            when (n > np) __IMPOSSIBLE__
-            let h = A.Con (AmbQ [x])
-            if null vs then return h else do
-            es <- reifyIArgs vs
-            -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
-            -- if the first regular constructor argument is hidden
-            -- we turn it into a named argument, in order to avoid confusion
-            -- with the parameter arguments which can be supplied in abstract syntax
-            --
-            -- Andreas, 2012-09-17: this does not remove all sources of confusion,
-            -- since parameters could have the same name as regular arguments
-            -- (see for example the parameter {i} to Data.Star.Star, which is also
-            -- the first argument to the cons).
-            -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
-            -- Ulf, 2014-07-19: Don't do any of this if we're reifying an
-            -- unquoted term (issue 1237).
-            unquote <- isReifyingUnquoted
-            if np == 0 || unquote then apps h es else do
-              -- Get name of first argument from type of constructor.
-              -- Here, we need the reducing version of @telView@
-              -- because target of constructor could be a definition
-              -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
-              TelV tel _ <- telView (defType ci)
-              case genericDrop np $ telToList tel of
-                -- Andreas, 2012-09-18
-                -- If the first regular constructor argument is hidden,
-                -- we keep the parameters to avoid confusion.
-                (Common.Dom info _ : _) | isHidden info -> do
-                  let us = genericReplicate (np - n) $
-                             setRelevance Relevant $ Common.Arg info underscore
-                  apps h $ us ++ es
-                -- otherwise, we drop all parameters
-                _ -> apps h es
+        x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
+        reifyApp (A.Var x) vs
+    I.Def x es   -> do
+      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
+    I.Con c vs   -> do
+      let x = conName c
+      isR <- isGeneratedRecordConstructor x
+      case isR of
+        True -> do
+          showImp <- showImplicitArguments
+          let keep (a, v) = showImp || notHidden a
+          r  <- getConstructorData x
+          xs <- getRecordFieldNames r
+          vs <- map unArg <$> reifyIArgs vs
+          return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
+        False -> reifyDisplayForm x vs $ do
+          ci <- getConstInfo x
+          let Constructor{conPars = np} = theDef ci
+          -- if we are the the module that defines constructor x
+          -- then we have to drop at least the n module parameters
+          n  <- getDefFreeVars x
+          -- the number of parameters is greater (if the data decl has
+          -- extra parameters) or equal (if not) to n
+          when (n > np) __IMPOSSIBLE__
+          let h = A.Con (AmbQ [x])
+          if null vs then return h else do
+          es <- reifyIArgs vs
+          -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
+          -- if the first regular constructor argument is hidden
+          -- we turn it into a named argument, in order to avoid confusion
+          -- with the parameter arguments which can be supplied in abstract syntax
+          --
+          -- Andreas, 2012-09-17: this does not remove all sources of confusion,
+          -- since parameters could have the same name as regular arguments
+          -- (see for example the parameter {i} to Data.Star.Star, which is also
+          -- the first argument to the cons).
+          -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
+          -- Ulf, 2014-07-19: Don't do any of this if we're reifying an
+          -- unquoted term (issue 1237).
+          unquote <- isReifyingUnquoted
+          if np == 0 || unquote then apps h es else do
+            -- Get name of first argument from type of constructor.
+            -- Here, we need the reducing version of @telView@
+            -- because target of constructor could be a definition
+            -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
+            TelV tel _ <- telView (defType ci)
+            case genericDrop np $ telToList tel of
+              -- Andreas, 2012-09-18
+              -- If the first regular constructor argument is hidden,
+              -- we keep the parameters to avoid confusion.
+              (Common.Dom info _ : _) | isHidden info -> do
+                let us = genericReplicate (np - n) $
+                           setRelevance Relevant $ Common.Arg info underscore
+                apps h $ us ++ es
+              -- otherwise, we drop all parameters
+              _ -> apps h es
 {- CODE FROM 2012-04-xx
-              let doms = genericDrop np $ telToList tel
-              reportSLn "syntax.reify.con" 30 $ unlines
-                [ "calling nameFirstIfHidden"
-                , "doms = " ++ show doms
-                , "es   = " ++ show es
-                , "n    = " ++ show n
-                , "np   = " ++ show np
-                ]
-              napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
+            let doms = genericDrop np $ telToList tel
+            reportSLn "syntax.reify.con" 30 $ unlines
+              [ "calling nameFirstIfHidden"
+              , "doms = " ++ show doms
+              , "es   = " ++ show es
+              , "n    = " ++ show n
+              , "np   = " ++ show np
+              ]
+            napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 -}
---      I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
-      I.Lam info b    -> do
-        (x,e) <- reify b
-        info <- reify info
-        return $ A.Lam exprInfo (DomainFree info x) e
-        -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
-      I.Lit l        -> reify l
-      I.Level l      -> reify l
-      I.Pi a b       -> case b of
-          NoAbs _ b'
-            | notHidden a -> uncurry (A.Fun $ exprInfo) <$> reify (a, b')
-              -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
-              -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
-              -- and (b) the name of the binder might matter.
-              -- See issue 951 (a) and 952 (b).
-            | otherwise   -> mkPi b =<< reify a
-          b               -> mkPi b =<< do
-            ifM (domainFree a (absBody b))
-              {- then -} (Common.Arg <$> reify (domInfo a) <*> pure underscore)
-              {- else -} (reify a)
-        where
-          mkPi b (Common.Arg info a) = do
-            (x, b) <- reify b
-            return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [pure x] a)] b
-          -- We can omit the domain type if it doesn't have any free variables
-          -- and it's mentioned in the target type.
-          domainFree a b = do
-            df <- asks envPrintDomainFreePi
-            return $ and [df, freeIn 0 b, VSet.null $ allVars $ freeVars a]
+--    I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
+    I.Lam info b    -> do
+      (x,e) <- reify b
+      info <- reify info
+      return $ A.Lam exprInfo (DomainFree info x) e
+      -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
+    I.Lit l        -> reify l
+    I.Level l      -> reify l
+    I.Pi a b       -> case b of
+        NoAbs _ b'
+          | notHidden a -> uncurry (A.Fun $ exprInfo) <$> reify (a, b')
+            -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
+            -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
+            -- and (b) the name of the binder might matter.
+            -- See issue 951 (a) and 952 (b).
+          | otherwise   -> mkPi b =<< reify a
+        b               -> mkPi b =<< do
+          ifM (domainFree a (absBody b))
+            {- then -} (Common.Arg <$> reify (domInfo a) <*> pure underscore)
+            {- else -} (reify a)
+      where
+        mkPi b (Common.Arg info a) = do
+          (x, b) <- reify b
+          return $ A.Pi exprInfo [TypedBindings noRange $ Common.Arg info (TBind noRange [pure x] a)] b
+        -- We can omit the domain type if it doesn't have any free variables
+        -- and it's mentioned in the target type.
+        domainFree a b = do
+          df <- asks envPrintDomainFreePi
+          return $ and [df, freeIn 0 b, VSet.null $ allVars $ freeVars a]
 
-      I.Sort s     -> reify s
-      I.MetaV x es -> do
-        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        x' <- reify x
-        apps x' =<< reifyIArgs vs
-      I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
-      I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
-      I.ExtLam cls args -> do
-        x <- freshName_ "extlam"
-        reifyExtLam (qnameFromList [x]) 0 cls (map (fmap unnamed) args)
-    where
-      -- Andreas, 2012-10-20  expand a copy in an anonymous module
-      -- to improve error messages.
-      -- Don't do this if we have just expanded into a display form,
-      -- otherwise we loop!
-      reifyDef :: Bool -> QName -> I.Args -> TCM Expr
-      reifyDef True x@(QName m name) vs | A.isAnonymousModuleName m = do
-        r <- reduceDefCopy x vs
-        case r of
-          YesReduction _ v -> do
-            reportSLn "reify.anon" 60 $ unlines
-              [ "reduction on defined ident. in anonymous module"
-              , "x = " ++ show x
-              , "v = " ++ show v
-              ]
-            reify v
-          NoReduction () -> do
-            reportSLn "reify.anon" 60 $ unlines
-              [ "no reduction on defined ident. in anonymous module"
-              , "x  = " ++ show x
-              , "vs = " ++ show vs
-              ]
-            reifyDef' x vs
-      reifyDef _ x vs = reifyDef' x vs
+    I.Sort s     -> reify s
+    I.MetaV x es -> do
+      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      x' <- reify x
+      apps x' =<< reifyIArgs vs
+    I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
+    I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
+    I.ExtLam cls args -> do
+      x <- freshName_ "extlam"
+      reifyExtLam (qnameFromList [x]) 0 cls (map (fmap unnamed) args)
+  where
+    -- Andreas, 2012-10-20  expand a copy in an anonymous module
+    -- to improve error messages.
+    -- Don't do this if we have just expanded into a display form,
+    -- otherwise we loop!
+    reifyDef :: Bool -> QName -> I.Args -> TCM Expr
+    reifyDef True x@(QName m name) vs | A.isAnonymousModuleName m = do
+      r <- reduceDefCopy x vs
+      case r of
+        YesReduction _ v -> do
+          reportSLn "reify.anon" 60 $ unlines
+            [ "reduction on defined ident. in anonymous module"
+            , "x = " ++ show x
+            , "v = " ++ show v
+            ]
+          reify v
+        NoReduction () -> do
+          reportSLn "reify.anon" 60 $ unlines
+            [ "no reduction on defined ident. in anonymous module"
+            , "x  = " ++ show x
+            , "vs = " ++ show vs
+            ]
+          reifyDef' x vs
+    reifyDef _ x vs = reifyDef' x vs
 
-      reifyDef' :: QName -> I.Args -> TCM Expr
-      reifyDef' x@(QName _ name) vs = do
-        -- We should drop this many arguments from the local context.
-        n <- getDefFreeVars x
-        mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
-        -- check if we have an absurd lambda
-        let reifyAbsurdLambda cont =
-              case theDef <$> mdefn of
-                Just Function{ funCompiled = Just Fail, funClauses = [cl] }
-                  | isAbsurdLambdaName x -> do
-                    -- get hiding info from last pattern, which should be ()
-                    let h = getHiding $ last (clausePats cl)
-                    apps (A.AbsurdLam exprInfo h) =<< reifyIArgs vs
-                _ -> cont
-        reifyAbsurdLambda $ do
-        (pad, vs :: [I.NamedArg Term]) <- do
-          case mdefn of
-            Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)
-            Just defn -> do
-              let def = theDef defn
-              -- This is tricky:
-              --  * getDefFreeVars x tells us how many arguments
-              --    are part of the local context
-              --  * some of those arguments might have been dropped
-              --    due to projection likeness
-              --  * when showImplicits is on we'd like to see the dropped
-              --    projection arguments
+    reifyDef' :: QName -> I.Args -> TCM Expr
+    reifyDef' x@(QName _ name) vs = do
+      -- We should drop this many arguments from the local context.
+      n <- getDefFreeVars x
+      mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
+      -- check if we have an absurd lambda
+      let reifyAbsurdLambda cont =
+            case theDef <$> mdefn of
+              Just Function{ funCompiled = Just Fail, funClauses = [cl] }
+                | isAbsurdLambdaName x -> do
+                  -- get hiding info from last pattern, which should be ()
+                  let h = getHiding $ last (clausePats cl)
+                  apps (A.AbsurdLam exprInfo h) =<< reifyIArgs vs
+              _ -> cont
+      reifyAbsurdLambda $ do
+      (pad, vs :: [I.NamedArg Term]) <- do
+        case mdefn of
+          Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)
+          Just defn -> do
+            let def = theDef defn
+            -- This is tricky:
+            --  * getDefFreeVars x tells us how many arguments
+            --    are part of the local context
+            --  * some of those arguments might have been dropped
+            --    due to projection likeness
+            --  * when showImplicits is on we'd like to see the dropped
+            --    projection arguments
 
-              -- These are the dropped projection arguments
-              (np, pad, dom) <-
-                  case def of
-                      Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
-                        TelV tel _ <- telView (defType defn)
-                        scope <- getScope
-                        let (as, dom:_) = splitAt (np - 1) $ telToList tel
-                            whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-                        return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
-                      _ -> return (0, [], __IMPOSSIBLE__)
-              -- Now pad' ++ vs' = drop n (pad ++ vs)
-              pad' <- reifyIArgs' $ genericDrop n pad
-              let vs'  :: [I.Arg Term]
-                  vs'  = genericDrop (max 0 (n - size pad)) vs
-              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
-              -- Keep non-hidden arguments of the padding
-              showImp <- showImplicitArguments
-              return (filter visible pad',
-                if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden [dom] vs'
-                   else map (fmap unnamed) vs')
-        df <- displayFormsEnabled
-        let extLam = case mdefn of
-                      Nothing -> Nothing
-                      Just defn -> case theDef defn of
-                                    Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
-                                    _                                    -> Nothing
-        case extLam of
-          Just pars | df -> do
-            info <- getConstInfo x
-            reifyExtLam x pars (defClauses info) vs
-          _ -> do
-           let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
-           napps (A.Def x `apps` pad) =<< reifyIArgs vs
+            -- These are the dropped projection arguments
+            (np, pad, dom) <-
+                case def of
+                    Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
+                      TelV tel _ <- telView (defType defn)
+                      scope <- getScope
+                      let (as, dom:_) = splitAt (np - 1) $ telToList tel
+                          whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
+                      return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
+                    _ -> return (0, [], __IMPOSSIBLE__)
+            -- Now pad' ++ vs' = drop n (pad ++ vs)
+            pad' <- reifyIArgs' $ genericDrop n pad
+            let vs'  :: [I.Arg Term]
+                vs'  = genericDrop (max 0 (n - size pad)) vs
+            -- Andreas, 2012-04-21: get rid of hidden underscores {_}
+            -- Keep non-hidden arguments of the padding
+            showImp <- showImplicitArguments
+            return (filter visible pad',
+              if not (null pad) && showImp && notVisible (last pad)
+                 then nameFirstIfHidden [dom] vs'
+                 else map (fmap unnamed) vs')
+      df <- displayFormsEnabled
+      let extLam = case mdefn of
+                    Nothing -> Nothing
+                    Just defn -> case theDef defn of
+                                  Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
+                                  _                                    -> Nothing
+      case extLam of
+        Just pars | df -> do
+          info <- getConstInfo x
+          reifyExtLam x pars (defClauses info) vs
+        _ -> do
+         let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
+         napps (A.Def x `apps` pad) =<< reifyIArgs vs
 
-      reifyExtLam :: QName -> Int -> [I.Clause] -> [I.NamedArg Term] -> TCM Expr
-      reifyExtLam x n cls vs = do
-        reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
-        -- drop lambda lifted arguments
-        cls <- mapM (reify . QNamed x . dropArgs n) $ cls
-        let cx    = nameConcrete $ qnameName x
-            dInfo = mkDefInfo cx defaultFixity' PublicAccess ConcreteDef (getRange x)
-        napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs vs
+    reifyExtLam :: QName -> Int -> [I.Clause] -> [I.NamedArg Term] -> TCM Expr
+    reifyExtLam x n cls vs = do
+      reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
+      -- drop lambda lifted arguments
+      cls <- mapM (reify . QNamed x . dropArgs n) $ cls
+      let cx    = nameConcrete $ qnameName x
+          dInfo = mkDefInfo cx defaultFixity' PublicAccess ConcreteDef (getRange x)
+      napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
 nameFirstIfHidden :: [I.Dom (ArgName, t)] -> [I.Arg a] -> [I.NamedArg a]
