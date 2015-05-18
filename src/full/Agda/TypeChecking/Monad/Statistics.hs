@@ -61,11 +61,11 @@ modifyCounter x f = modifyStatistics $ force . update
 printStatistics :: Int -> Maybe C.TopLevelModuleName -> Statistics -> TCM ()
 printStatistics vl mmname stats = verboseS "profile" vl $ do
   unlessNull (Map.toList stats) $ \ stats -> do
-  let -- First column (left aligned) is accounts.
-      col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
-      -- Second column (right aligned) is numbers.
-      col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
-      table = Boxes.hsep 1 Boxes.left [col1, col2]
-  reportSLn "profile" 1 $ caseMaybe mmname "Accumlated statistics" $ \ mname ->
-    "Statistics for " ++ prettyShow mname
-  reportSLn "profile" 1 $ Boxes.render table
+    let -- First column (left aligned) is accounts.
+        col1 = Boxes.vcat Boxes.left  $ map (Boxes.text . fst) stats
+        -- Second column (right aligned) is numbers.
+        col2 = Boxes.vcat Boxes.right $ map (Boxes.text . showThousandSep . snd) stats
+        table = Boxes.hsep 1 Boxes.left [col1, col2]
+    reportSLn "profile" 1 $ caseMaybe mmname "Accumlated statistics" $ \ mname ->
+      "Statistics for " ++ prettyShow mname
+    reportSLn "profile" 1 $ Boxes.render table
