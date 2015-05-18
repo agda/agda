@@ -185,7 +185,7 @@ instance Reify DisplayTerm Expr where
 reifyDisplayForm :: QName -> I.Args -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm f vs fallback = do
   ifNotM displayFormsEnabled fallback $ {- else -} do
-  caseMaybeM (liftTCM $ displayForm f vs) fallback reify
+    caseMaybeM (liftTCM $ displayForm f vs) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
 --   rewrite a lhs with a display form.
@@ -359,43 +359,43 @@ reifyTerm expandAnonDefs0 v = do
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (AmbQ [x])
           if null vs then return h else do
-          es <- reifyIArgs vs
-          -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
-          -- if the first regular constructor argument is hidden
-          -- we turn it into a named argument, in order to avoid confusion
-          -- with the parameter arguments which can be supplied in abstract syntax
-          --
-          -- Andreas, 2012-09-17: this does not remove all sources of confusion,
-          -- since parameters could have the same name as regular arguments
-          -- (see for example the parameter {i} to Data.Star.Star, which is also
-          -- the first argument to the cons).
-          -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
-          if np == 0 then apps h es else do
-            -- Get name of first argument from type of constructor.
-            -- Here, we need the reducing version of @telView@
-            -- because target of constructor could be a definition
-            -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
-            TelV tel _ <- telView (defType ci)
-            case genericDrop np $ telToList tel of
-              -- Andreas, 2012-09-18
-              -- If the first regular constructor argument is hidden,
-              -- we keep the parameters to avoid confusion.
-              (Common.Dom info _ : _) | isHidden info -> do
-                let us = genericReplicate (np - n) $
-                           setRelevance Relevant $ Common.Arg info underscore
-                apps h $ us ++ es
-              -- otherwise, we drop all parameters
-              _ -> apps h es
+            es <- reifyIArgs vs
+            -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
+            -- if the first regular constructor argument is hidden
+            -- we turn it into a named argument, in order to avoid confusion
+            -- with the parameter arguments which can be supplied in abstract syntax
+            --
+            -- Andreas, 2012-09-17: this does not remove all sources of confusion,
+            -- since parameters could have the same name as regular arguments
+            -- (see for example the parameter {i} to Data.Star.Star, which is also
+            -- the first argument to the cons).
+            -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
+            if np == 0 then apps h es else do
+              -- Get name of first argument from type of constructor.
+              -- Here, we need the reducing version of @telView@
+              -- because target of constructor could be a definition
+              -- expanding into a function type.  See test/succeed/NameFirstIfHidden.agda.
+              TelV tel _ <- telView (defType ci)
+              case genericDrop np $ telToList tel of
+                -- Andreas, 2012-09-18
+                -- If the first regular constructor argument is hidden,
+                -- we keep the parameters to avoid confusion.
+                (Common.Dom info _ : _) | isHidden info -> do
+                  let us = genericReplicate (np - n) $
+                             setRelevance Relevant $ Common.Arg info underscore
+                  apps h $ us ++ es
+                -- otherwise, we drop all parameters
+                _ -> apps h es
 {- CODE FROM 2012-04-xx
-            let doms = genericDrop np $ telToList tel
-            reportSLn "syntax.reify.con" 30 $ unlines
-              [ "calling nameFirstIfHidden"
-              , "doms = " ++ show doms
-              , "es   = " ++ show es
-              , "n    = " ++ show n
-              , "np   = " ++ show np
-              ]
-            napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
+              let doms = genericDrop np $ telToList tel
+              reportSLn "syntax.reify.con" 30 $ unlines
+                [ "calling nameFirstIfHidden"
+                , "doms = " ++ show doms
+                , "es   = " ++ show es
+                , "n    = " ++ show n
+                , "np   = " ++ show np
+                ]
+              napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 -}
 --    I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
     I.Lam info b    -> do
@@ -474,53 +474,53 @@ reifyTerm expandAnonDefs0 v = do
                   apps (A.AbsurdLam exprInfo h) =<< reifyIArgs vs
               _ -> cont
       reifyAbsurdLambda $ do
-      (pad, vs :: [I.NamedArg Term]) <- do
-        case mdefn of
-          Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)
-          Just defn -> do
-            let def = theDef defn
-            -- This is tricky:
-            --  * getDefFreeVars x tells us how many arguments
-            --    are part of the local context
-            --  * some of those arguments might have been dropped
-            --    due to projection likeness
-            --  * when showImplicits is on we'd like to see the dropped
-            --    projection arguments
+        (pad, vs :: [I.NamedArg Term]) <- do
+          case mdefn of
+            Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)
+            Just defn -> do
+              let def = theDef defn
+              -- This is tricky:
+              --  * getDefFreeVars x tells us how many arguments
+              --    are part of the local context
+              --  * some of those arguments might have been dropped
+              --    due to projection likeness
+              --  * when showImplicits is on we'd like to see the dropped
+              --    projection arguments
 
-            -- These are the dropped projection arguments
-            (np, pad, dom) <-
-                case def of
-                    Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
-                      TelV tel _ <- telView (defType defn)
-                      scope <- getScope
-                      let (as, dom:_) = splitAt (np - 1) $ telToList tel
-                          whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-                      return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
-                    _ -> return (0, [], __IMPOSSIBLE__)
-            -- Now pad' ++ vs' = drop n (pad ++ vs)
-            pad' <- reifyIArgs' $ genericDrop n pad
-            let vs'  :: [I.Arg Term]
-                vs'  = genericDrop (max 0 (n - size pad)) vs
-            -- Andreas, 2012-04-21: get rid of hidden underscores {_}
-            -- Keep non-hidden arguments of the padding
-            showImp <- showImplicitArguments
-            return (filter visible pad',
-              if not (null pad) && showImp && notVisible (last pad)
-                 then nameFirstIfHidden [dom] vs'
-                 else map (fmap unnamed) vs')
-      df <- displayFormsEnabled
-      let extLam = case mdefn of
-                    Nothing -> Nothing
-                    Just defn -> case theDef defn of
-                                  Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
-                                  _                                    -> Nothing
-      case extLam of
-        Just pars | df -> do
-          info <- getConstInfo x
-          reifyExtLam x pars (defClauses info) vs
-        _ -> do
-         let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
-         napps (A.Def x `apps` pad) =<< reifyIArgs vs
+              -- These are the dropped projection arguments
+              (np, pad, dom) <-
+                  case def of
+                      Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
+                        TelV tel _ <- telView (defType defn)
+                        scope <- getScope
+                        let (as, dom:_) = splitAt (np - 1) $ telToList tel
+                            whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
+                        return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
+                      _ -> return (0, [], __IMPOSSIBLE__)
+              -- Now pad' ++ vs' = drop n (pad ++ vs)
+              pad' <- reifyIArgs' $ genericDrop n pad
+              let vs'  :: [I.Arg Term]
+                  vs'  = genericDrop (max 0 (n - size pad)) vs
+              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
+              -- Keep non-hidden arguments of the padding
+              showImp <- showImplicitArguments
+              return (filter visible pad',
+                if not (null pad) && showImp && notVisible (last pad)
+                   then nameFirstIfHidden [dom] vs'
+                   else map (fmap unnamed) vs')
+        df <- displayFormsEnabled
+        let extLam = case mdefn of
+                      Nothing -> Nothing
+                      Just defn -> case theDef defn of
+                                    Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
+                                    _                                    -> Nothing
+        case extLam of
+          Just pars | df -> do
+            info <- getConstInfo x
+            reifyExtLam x pars (defClauses info) vs
+          _ -> do
+           let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
+           napps (A.Def x `apps` pad) =<< reifyIArgs vs
 
     reifyExtLam :: QName -> Int -> [I.Clause] -> [I.NamedArg Term] -> TCM Expr
     reifyExtLam x n cls vs = do
@@ -662,95 +662,95 @@ stripImplicits :: ([A.NamedArg A.Pattern], [A.Pattern]) ->
                   TCM ([A.NamedArg A.Pattern], [A.Pattern])
 stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the names
   ifM showImplicitArguments (return (map (unnamed . namedThing <$>) ps, wps)) $ do
-  let vars = dotVars (ps, wps)
-  reportSLn "reify.implicit" 30 $ unlines
-    [ "stripping implicits"
-    , "  ps   = " ++ show ps
-    , "  wps  = " ++ show wps
-    , "  vars = " ++ show vars
-    ]
-  let allps       = ps ++ map defaultNamedArg wps
-      sps         = blankDots $ foldl (.) (strip Set.empty) (map rearrangeBinding $ Set.toList vars) $ allps
-      (ps', wps') = splitAt (length sps - length wps) sps
-  reportSLn "reify.implicit" 30 $ unlines
-    [ "  ps'  = " ++ show ps'
-    , "  wps' = " ++ show (map namedArg wps')
-    ]
-  return (ps', map namedArg wps')
-  where
-    argsVars = Set.unions . map argVars
-    argVars = patVars . namedArg
-    patVars p = case p of
-      A.VarP x      -> Set.singleton x
-      A.ConP _ _ ps -> argsVars ps
-      A.DefP _ _ ps -> Set.empty
-      A.DotP _ e    -> Set.empty
-      A.WildP _     -> Set.empty
-      A.AbsurdP _   -> Set.empty
-      A.LitP _      -> Set.empty
-      A.ImplicitP _ -> Set.empty
-      A.AsP _ _ p   -> patVars p
-      A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
+    let vars = dotVars (ps, wps)
+    reportSLn "reify.implicit" 30 $ unlines
+      [ "stripping implicits"
+      , "  ps   = " ++ show ps
+      , "  wps  = " ++ show wps
+      , "  vars = " ++ show vars
+      ]
+    let allps       = ps ++ map defaultNamedArg wps
+        sps         = blankDots $ foldl (.) (strip Set.empty) (map rearrangeBinding $ Set.toList vars) $ allps
+        (ps', wps') = splitAt (length sps - length wps) sps
+    reportSLn "reify.implicit" 30 $ unlines
+      [ "  ps'  = " ++ show ps'
+      , "  wps' = " ++ show (map namedArg wps')
+      ]
+    return (ps', map namedArg wps')
+    where
+      argsVars = Set.unions . map argVars
+      argVars = patVars . namedArg
+      patVars p = case p of
+        A.VarP x      -> Set.singleton x
+        A.ConP _ _ ps -> argsVars ps
+        A.DefP _ _ ps -> Set.empty
+        A.DotP _ e    -> Set.empty
+        A.WildP _     -> Set.empty
+        A.AbsurdP _   -> Set.empty
+        A.LitP _      -> Set.empty
+        A.ImplicitP _ -> Set.empty
+        A.AsP _ _ p   -> patVars p
+        A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
 
-    -- Replace dot variables by ._ if they use implicitly bound variables. This
-    -- is slightly nicer than making the implicts explicit.
-    blankDots ps = (map . fmap . fmap . fmap) blank ps
-      where
-        bound = argsVars ps
-        blank e | Set.null (Set.difference (dotVars e) bound) = e
-                | otherwise = A.Underscore emptyMetaInfo
+      -- Replace dot variables by ._ if they use implicitly bound variables. This
+      -- is slightly nicer than making the implicts explicit.
+      blankDots ps = (map . fmap . fmap . fmap) blank ps
+        where
+          bound = argsVars ps
+          blank e | Set.null (Set.difference (dotVars e) bound) = e
+                  | otherwise = A.Underscore emptyMetaInfo
 
-    -- Pick the "best" place to bind the variable. Best in this case
-    -- is the left-most explicit binding site. But, of course we can't
-    -- do this since binding site might be forced by a parent clause.
-    -- Why? Because the binding site we pick might not exist in the
-    -- generated with function if it corresponds to a dot pattern.
-    rearrangeBinding x ps = ps
+      -- Pick the "best" place to bind the variable. Best in this case
+      -- is the left-most explicit binding site. But, of course we can't
+      -- do this since binding site might be forced by a parent clause.
+      -- Why? Because the binding site we pick might not exist in the
+      -- generated with function if it corresponds to a dot pattern.
+      rearrangeBinding x ps = ps
 
-    strip dvs ps = stripArgs True ps
-      where
-        stripArgs _ [] = []
-        stripArgs fixedPos (a : as) =
-          case getHiding a of
-            Hidden   | canStrip a as -> stripArgs False as
-            Instance | canStrip a as -> stripArgs False as
-            _                        -> stripName fixedPos (stripArg a) :
-                                        stripArgs True as
+      strip dvs ps = stripArgs True ps
+        where
+          stripArgs _ [] = []
+          stripArgs fixedPos (a : as) =
+            case getHiding a of
+              Hidden   | canStrip a as -> stripArgs False as
+              Instance | canStrip a as -> stripArgs False as
+              _                        -> stripName fixedPos (stripArg a) :
+                                          stripArgs True as
 
-        stripName True  = fmap (unnamed . namedThing)
-        stripName False = id
+          stripName True  = fmap (unnamed . namedThing)
+          stripName False = id
 
-        canStrip a as = and
-          [ varOrDot p
-          , noInterestingBindings p
-          , all (flip canStrip []) $ takeWhile isUnnamedHidden as
-          ]
-          where p = namedArg a
+          canStrip a as = and
+            [ varOrDot p
+            , noInterestingBindings p
+            , all (flip canStrip []) $ takeWhile isUnnamedHidden as
+            ]
+            where p = namedArg a
 
-        isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing
+          isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing
 
-        stripArg a = fmap (fmap stripPat) a
+          stripArg a = fmap (fmap stripPat) a
 
-        stripPat p = case p of
-          A.VarP _      -> p
-          A.ConP i c ps -> A.ConP i c $ stripArgs True ps
-          A.DefP _ _ _  -> p
-          A.DotP _ e    -> p
-          A.WildP _     -> p
-          A.AbsurdP _   -> p
-          A.LitP _      -> p
-          A.ImplicitP _ -> p
-          A.AsP i x p   -> A.AsP i x $ stripPat p
-          A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
+          stripPat p = case p of
+            A.VarP _      -> p
+            A.ConP i c ps -> A.ConP i c $ stripArgs True ps
+            A.DefP _ _ _  -> p
+            A.DotP _ e    -> p
+            A.WildP _     -> p
+            A.AbsurdP _   -> p
+            A.LitP _      -> p
+            A.ImplicitP _ -> p
+            A.AsP i x p   -> A.AsP i x $ stripPat p
+            A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
 
-        noInterestingBindings p =
-          Set.null $ dvs `Set.intersection` patVars p
+          noInterestingBindings p =
+            Set.null $ dvs `Set.intersection` patVars p
 
-        varOrDot A.VarP{}      = True
-        varOrDot A.WildP{}     = True
-        varOrDot A.DotP{}      = True
-        varOrDot A.ImplicitP{} = True
-        varOrDot _             = False
+          varOrDot A.VarP{}      = True
+          varOrDot A.WildP{}     = True
+          varOrDot A.DotP{}      = True
+          varOrDot A.ImplicitP{} = True
+          varOrDot _             = False
 
 -- | @dotVars ps@ gives all the variables inside of dot patterns of @ps@
 --   It is only invoked for patternish things. (Ulf O-tone!)
