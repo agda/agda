@@ -28,12 +28,10 @@ module Agda.Utils.Maybe.Strict
   , module Agda.Utils.Maybe.Strict
   ) where
 
-import Data.Strict.Maybe
-
 -- The following code is copied from
 -- http://hackage.haskell.org/package/strict-base-types-0.3.0/docs/src/Data-Maybe-Strict.html
 
-import           Prelude             hiding (Maybe (..), maybe)
+import           Prelude             hiding (Maybe (..), maybe, null)
 import qualified Prelude             as Lazy
 
 import           Control.Applicative (pure, (<$>))
@@ -55,6 +53,7 @@ import           GHC.Generics        (Generic (..))
 #endif
 import           Test.QuickCheck     (Arbitrary (..))
 
+import Agda.Utils.Null
 
 toStrict :: Lazy.Maybe a -> Maybe a
 toStrict Lazy.Nothing  = Nothing
@@ -74,6 +73,10 @@ deriving instance Typeable1 Maybe
 #if __GLASGOW_HASKELL__ >= 706
 deriving instance Generic  (Maybe a)
 #endif
+
+instance Null (Maybe a) where
+  empty = Nothing
+  null = isNothing
 
 instance Monoid a => Monoid (Maybe a) where
   mempty = Nothing
