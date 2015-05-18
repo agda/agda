@@ -2184,8 +2184,8 @@ instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \s e -> do
                let r = envRange e
                liftIO $ wrap r $ do
-               x <- m
-               x `seq` return x
+                 x <- m
+                 x `seq` return x
     where
       wrap r m = failOnException handleException
                $ E.catch m (handleIOException r)
