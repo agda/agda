@@ -49,11 +49,11 @@ traceCall mkCall m = do
   unlessNull callRange $ \ (Range is) ->
     unlessNull (mapMaybe srcFile $ map iStart is ++ map iEnd is) $ \ files -> do
       whenJustM (asks envCurrentPath) $ \ currentFile -> do
-      unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
-        reportSLn "impossible" 10 $
-          "Someone is trying to set the current range to " ++ show callRange ++
-          " which is outside of the current file " ++ show currentFile
-        __IMPOSSIBLE__
+        unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
+          reportSLn "impossible" 10 $
+            "Someone is trying to set the current range to " ++ show callRange ++
+            " which is outside of the current file " ++ show currentFile
+          __IMPOSSIBLE__
   cl <- liftTCM $ buildClosure call
   let trace = local $ foldr (.) id $
         [ \e -> e { envCall = Just cl } | interestingCall cl ] ++

@@ -2257,9 +2257,9 @@ apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)
 {-# INLINE apTCMT #-}
 
 instance MonadIO m => MonadIO (TCMT m) where
-  liftIO m = TCM $ \s e ->
-              do let r = envRange e
-                 liftIO $ wrap r $ do
+  liftIO m = TCM $ \s e -> do
+               let r = envRange e
+               liftIO $ wrap r $ do
                  x <- m
                  x `seq` return x
     where

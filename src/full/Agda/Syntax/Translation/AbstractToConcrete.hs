@@ -700,9 +700,10 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do
     y  <- toConcreteCtx FunctionCtx y
     bindToConcrete tel $ \tel -> do
-    es <- toConcreteCtx ArgumentCtx es
-    let r = fuseRange y es
-    return $ C.SectionApp r (concat tel) (foldl (C.App r) (C.Ident y) es)
+      es <- toConcreteCtx ArgumentCtx es
+      let r = fuseRange y es
+      return $ C.SectionApp r (concat tel) (foldl (C.App r) (C.Ident y) es)
+
   toConcrete (A.RecordModuleIFS recm) = do
     recm <- toConcrete recm
     return $ C.RecordModuleIFS (getRange recm) recm
@@ -768,8 +769,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (A.Section i x tel ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
-    ds <- declsToConcrete ds
-    return [ C.Module (getRange i) x (concat tel) ds ]
+      ds <- declsToConcrete ds
+      return [ C.Module (getRange i) x (concat tel) ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
@@ -809,41 +810,41 @@ instance ToConcrete A.Declaration [C.Declaration] where
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
 instance ToConcrete RangeAndPragma C.Pragma where
-    toConcrete (RangeAndPragma r p) = case p of
-        A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
-        A.BuiltinPragma b e      -> C.BuiltinPragma r b <$> toConcrete e
-        A.BuiltinNoDefPragma b x -> C.BuiltinPragma r b . C.Ident <$>
-          toConcrete x
-        A.RewritePragma x        -> C.RewritePragma r <$> toConcrete x
-        A.CompiledTypePragma x hs -> do
-          x <- toConcrete x
-          return $ C.CompiledTypePragma r x hs
-        A.CompiledDataPragma x hs hcs -> do
-          x <- toConcrete x
-          return $ C.CompiledDataPragma r x hs hcs
-        A.CompiledPragma x hs -> do
-          x <- toConcrete x
-          return $ C.CompiledPragma r x hs
-        A.CompiledExportPragma x hs -> do
-          x <- toConcrete x
-          return $ C.CompiledExportPragma r x hs
-        A.CompiledEpicPragma x e -> do
-          x <- toConcrete x
-          return $ C.CompiledEpicPragma r x e
-        A.CompiledJSPragma x e -> do
-          x <- toConcrete x
-          return $ C.CompiledJSPragma r x e
-        A.CompiledUHCPragma x cr -> do
-          x <- toConcrete x
-          return $ C.CompiledUHCPragma r x cr
-        A.CompiledDataUHCPragma x crd crcs -> do
-          x <- toConcrete x
-          return $ C.CompiledDataUHCPragma r x crd crcs
-        A.NoSmashingPragma x -> C.NoSmashingPragma r <$> toConcrete x
-        A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
-        A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
-        A.DisplayPragma f ps rhs ->
-          C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) f ps) <*> toConcrete rhs
+  toConcrete (RangeAndPragma r p) = case p of
+    A.OptionsPragma xs  -> return $ C.OptionsPragma r xs
+    A.BuiltinPragma b e      -> C.BuiltinPragma r b <$> toConcrete e
+    A.BuiltinNoDefPragma b x -> C.BuiltinPragma r b . C.Ident <$>
+      toConcrete x
+    A.RewritePragma x        -> C.RewritePragma r <$> toConcrete x
+    A.CompiledTypePragma x hs -> do
+      x <- toConcrete x
+      return $ C.CompiledTypePragma r x hs
+    A.CompiledDataPragma x hs hcs -> do
+      x <- toConcrete x
+      return $ C.CompiledDataPragma r x hs hcs
+    A.CompiledPragma x hs -> do
+      x <- toConcrete x
+      return $ C.CompiledPragma r x hs
+    A.CompiledExportPragma x hs -> do
+      x <- toConcrete x
+      return $ C.CompiledExportPragma r x hs
+    A.CompiledEpicPragma x e -> do
+      x <- toConcrete x
+      return $ C.CompiledEpicPragma r x e
+    A.CompiledJSPragma x e -> do
+      x <- toConcrete x
+      return $ C.CompiledJSPragma r x e
+    A.CompiledUHCPragma x cr -> do
+      x <- toConcrete x
+      return $ C.CompiledUHCPragma r x cr
+    A.CompiledDataUHCPragma x crd crcs -> do
+      x <- toConcrete x
+      return $ C.CompiledDataUHCPragma r x crd crcs
+    A.NoSmashingPragma x -> C.NoSmashingPragma r <$> toConcrete x
+    A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
+    A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
+    A.DisplayPragma f ps rhs ->
+      C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) f ps) <*> toConcrete rhs
 
 -- Left hand sides --------------------------------------------------------
 

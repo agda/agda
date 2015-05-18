@@ -708,10 +708,10 @@ applyDef :: QName -> I.Arg Term -> TCM Term
 applyDef f a = do
   let fallback = return $ Def f [Apply a]
   caseMaybeM (isProjection f) fallback $ \ isP -> do
-  if projIndex isP <= 0 then fallback else do
-  -- Get the original projection, if existing.
-  caseMaybe (projProper isP) fallback $ \ f' -> do
-  return $ unArg a `applyE` [Proj f']
+    if projIndex isP <= 0 then fallback else do
+      -- Get the original projection, if existing.
+      caseMaybe (projProper isP) fallback $ \ f' -> do
+        return $ unArg a `applyE` [Proj f']
 
 -- | @getDefType f t@ computes the type of (possibly projection-(like))
 --   function @t@ whose first argument has type @t@.

@@ -537,7 +537,7 @@ toAbstractLam r bs e ctx = do
     e <- toAbstractCtx ctx e
     -- We have at least one binder.  Get first @b@ and rest @bs@.
     caseList bs __IMPOSSIBLE__ $ \ b bs -> do
-    return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
+      return $ A.Lam (ExprRange r) b $ foldr mkLam e bs
   where
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
