@@ -110,13 +110,13 @@ deepSizeView v = do
   Def inf [] <- ignoreSharing <$> primSizeInf
   Def suc [] <- ignoreSharing <$> primSizeSuc
   let loop v = do
-      v <- reduce v
-      case ignoreSharing v of
-        Def x []        | x == inf -> return $ DSizeInf
-        Def x [Apply u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
-        Var i []                   -> return $ DSizeVar i 0
-        MetaV x us                 -> return $ DSizeMeta x us 0
-        _                          -> return $ DOtherSize v
+        v <- reduce v
+        case ignoreSharing v of
+          Def x []        | x == inf -> return $ DSizeInf
+          Def x [Apply u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
+          Var i []                   -> return $ DSizeVar i 0
+          MetaV x us                 -> return $ DSizeMeta x us 0
+          _                          -> return $ DOtherSize v
   loop v
 
 sizeMaxView :: Term -> TCM SizeMaxView
@@ -125,14 +125,14 @@ sizeMaxView v = do
   suc <- getBuiltinDefName builtinSizeSuc
   max <- getBuiltinDefName builtinSizeMax
   let loop v = do
-      v <- reduce v
-      case ignoreSharing v of
-        Def x []                   | Just x == inf -> return $ [DSizeInf]
-        Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
-        Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
-        Var i []                      -> return $ [DSizeVar i 0]
-        MetaV x us                    -> return $ [DSizeMeta x us 0]
-        _                             -> return $ [DOtherSize v]
+        v <- reduce v
+        case ignoreSharing v of
+          Def x []                   | Just x == inf -> return $ [DSizeInf]
+          Def x [Apply u]            | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
+          Def x [Apply u1, Apply u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
+          Var i []                      -> return $ [DSizeVar i 0]
+          MetaV x us                    -> return $ [DSizeMeta x us 0]
+          _                             -> return $ [DOtherSize v]
   loop v
 
 ------------------------------------------------------------------------
@@ -268,7 +268,7 @@ getSizeMetas interactionMetas = do
             caseMaybe (test b) no $ \ _ -> do
               let yes = return $ Just (m, a, tel)
               if interactionMetas then yes else do
-              ifM (isJust <$> isInteractionMeta m) no yes
+                ifM (isJust <$> isInteractionMeta m) no yes
           _ -> no
 
 {- ROLLED BACK
@@ -433,48 +433,48 @@ solveSizeConstraints = whenM haveSizedTypes $ do
   ms <- getSizeMetas True -- get all size metas, also interaction metas
 
   when (not (null cs) || not (null ms)) $ do
-  reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
+    reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
 
-  cs <- return $ mapMaybe canonicalizeSizeConstraint cs
-  reportSLn "tc.size.solve" 10 $ "Canonicalized constraints: " ++ show cs
+    cs <- return $ mapMaybe canonicalizeSizeConstraint cs
+    reportSLn "tc.size.solve" 10 $ "Canonicalized constraints: " ++ show cs
 
-  let -- Error for giving up
-      cannotSolve = typeError . GenericDocError =<<
-        vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
+    let -- Error for giving up
+        cannotSolve = typeError . GenericDocError =<<
+          vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
 
-      -- Size metas in constraints.
-      metas0 :: [(MetaId, Int)]  -- meta id + arity
-      metas0 = nub $ map (mapSnd length) $ concatMap flexibleVariables cs
+        -- Size metas in constraints.
+        metas0 :: [(MetaId, Int)]  -- meta id + arity
+        metas0 = nub $ map (mapSnd length) $ concatMap flexibleVariables cs
 
-      -- Unconstrained size metas that do not occur in constraints.
-      metas1 :: [(MetaId, Int)]
-      metas1 = forMaybe ms $ \ (m, _, tel) ->
-        maybe (Just (m, size tel)) (const Nothing) $
-          lookup m metas0
+        -- Unconstrained size metas that do not occur in constraints.
+        metas1 :: [(MetaId, Int)]
+        metas1 = forMaybe ms $ \ (m, _, tel) ->
+          maybe (Just (m, size tel)) (const Nothing) $
+            lookup m metas0
 
-      -- All size metas
-      metas = metas0 ++ metas1
+        -- All size metas
+        metas = metas0 ++ metas1
 
-  reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas0 ++ ", " ++ show metas1
+    reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas0 ++ ", " ++ show metas1
 
-  verboseS "tc.size.solve" 20 $
-      -- debug print the type of all size metas
-      forM_ metas $ \ (m, _) ->
-          reportSDoc "tc.size.solve" 20 $ prettyTCM =<< mvJudgement <$> lookupMeta m
+    verboseS "tc.size.solve" 20 $
+        -- debug print the type of all size metas
+        forM_ metas $ \ (m, _) ->
+            reportSDoc "tc.size.solve" 20 $ prettyTCM =<< mvJudgement <$> lookupMeta m
 
-  -- Run the solver.
-  unlessM (oldSolver metas cs) cannotSolve
+    -- Run the solver.
+    unlessM (oldSolver metas cs) cannotSolve
 
-  -- Double-checking the solution.
+    -- Double-checking the solution.
 
-  -- Andreas, 2012-09-19
-  -- The returned solution might not be consistent with
-  -- the hypotheses on rigid vars (j : Size< i).
-  -- Thus, we double check that all size constraints
-  -- have been solved correctly.
-  flip catchError (const cannotSolve) $
-    noConstraints $
-      forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
+    -- Andreas, 2012-09-19
+    -- The returned solution might not be consistent with
+    -- the hypotheses on rigid vars (j : Size< i).
+    -- Thus, we double check that all size constraints
+    -- have been solved correctly.
+    flip catchError (const cannotSolve) $
+      noConstraints $
+        forM_ cs0 $ \ cl -> enterClosure cl solveConstraint
 
 
 -- | Old solver for size constraints using "Agda.Utils.Warshall".
