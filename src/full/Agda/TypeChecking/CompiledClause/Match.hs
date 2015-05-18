@@ -87,102 +87,102 @@ match' ((c, es, patch) : stack) = do
   -- traceSLn "reduce.compiled" 95 "CompiledClause.Match.match'" $ do
   debug $ do
 
-  shared <- sharedFun
+    shared <- sharedFun
 
-  case c of
+    case c of
 
-    -- impossible case
-    Fail -> no (NotBlocked AbsurdMatch) es
+      -- impossible case
+      Fail -> no (NotBlocked AbsurdMatch) es
 
-    -- done matching
-    Done xs t
-      -- if the function was partially applied, return a lambda
-      | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
-      -- otherwise, just apply instantiation to body
-      -- apply the result to any extra arguments
-      | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
-      where
-        n              = length xs
-        m              = length es
-        -- at least the first @n@ elims must be @Apply@s, so we can
-        -- turn them into a subsitution
-        toSubst        = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
-        -- Andreas, 2013-05-21 why introduce sharing only here,
-        -- and not in underapplied case also?
-        (es0, es1)     = splitAt n $ map (fmap $ fmap shared) es
-        lam x t        = Lam (argInfo x) (Abs (unArg x) t)
+      -- done matching
+      Done xs t
+        -- if the function was partially applied, return a lambda
+        | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
+        -- otherwise, just apply instantiation to body
+        -- apply the result to any extra arguments
+        | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
+        where
+          n              = length xs
+          m              = length es
+          -- at least the first @n@ elims must be @Apply@s, so we can
+          -- turn them into a subsitution
+          toSubst        = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
+          -- Andreas, 2013-05-21 why introduce sharing only here,
+          -- and not in underapplied case also?
+          (es0, es1)     = splitAt n $ map (fmap $ fmap shared) es
+          lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
-    -- splitting on the @n@th elimination
-    Case n bs -> do
-      case genericSplitAt n es of
-        -- if the @n@th elimination is not supplied, no match
-        (_, []) -> no (NotBlocked Underapplied) es
-        -- if the @n@th elimination is @e0@
-        (es0, MaybeRed red e0 : es1) -> do
-          -- get the reduced form of @e0@
-          eb :: Blocked Elim <- do
-                case red of
-                  Reduced b  -> return $ e0 <$ b
-                  NotReduced -> unfoldCorecursionE e0
-          let e = ignoreBlocking eb
-              -- replace the @n@th argument by its reduced form
-              es' = es0 ++ [MaybeRed red e] ++ es1
-              -- if a catch-all clause exists, put it on the stack
-              catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
-              -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
-              litFrame l stack =
-                case Map.lookup l (litBranches bs) of
-                  Nothing -> stack
-                  Just cc -> (cc, es0 ++ es1, patchLit) : stack
-              -- If our argument (or its constructor form) is @Con c vs@
-              -- we push @conFrame c vs@ onto the stack.
-              conFrame c vs stack =
-                case Map.lookup (conName c) (conBranches bs) of
+      -- splitting on the @n@th elimination
+      Case n bs -> do
+        case genericSplitAt n es of
+          -- if the @n@th elimination is not supplied, no match
+          (_, []) -> no (NotBlocked Underapplied) es
+          -- if the @n@th elimination is @e0@
+          (es0, MaybeRed red e0 : es1) -> do
+            -- get the reduced form of @e0@
+            eb :: Blocked Elim <- do
+                  case red of
+                    Reduced b  -> return $ e0 <$ b
+                    NotReduced -> unfoldCorecursionE e0
+            let e = ignoreBlocking eb
+                -- replace the @n@th argument by its reduced form
+                es' = es0 ++ [MaybeRed red e] ++ es1
+                -- if a catch-all clause exists, put it on the stack
+                catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
+                -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
+                litFrame l stack =
+                  case Map.lookup l (litBranches bs) of
+                    Nothing -> stack
+                    Just cc -> (cc, es0 ++ es1, patchLit) : stack
+                -- If our argument (or its constructor form) is @Con c vs@
+                -- we push @conFrame c vs@ onto the stack.
+                conFrame c vs stack =
+                  case Map.lookup (conName c) (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
                                , es0 ++ map (MaybeRed red . Apply) vs ++ es1
                                , patchCon c (length vs)
                                ) : stack
-              -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
-              projFrame p stack =
-                case Map.lookup p (conBranches bs) of
-                  Nothing -> stack
-                  Just cc -> (content cc, es0 ++ es1, patchLit) : stack
-              -- The new patch function restores the @n@th argument to @v@:
-              -- In case we matched a literal, just put @v@ back.
-              patchLit es = patch (es0 ++ [e] ++ es1)
-                where (es0, es1) = splitAt n es
-              -- In case we matched constructor @c@ with @m@ arguments,
-              -- contract these @m@ arguments @vs@ to @Con c vs@.
-              patchCon c m es = patch (es0 ++ [Con c vs <$ e] ++ es2)
-                where (es0, rest) = splitAt n es
-                      (es1, es2)  = splitAt m rest
-                      vs          = map argFromElim es1
+                -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
+                projFrame p stack =
+                  case Map.lookup p (conBranches bs) of
+                    Nothing -> stack
+                    Just cc -> (content cc, es0 ++ es1, patchLit) : stack
+                -- The new patch function restores the @n@th argument to @v@:
+                -- In case we matched a literal, just put @v@ back.
+                patchLit es = patch (es0 ++ [e] ++ es1)
+                  where (es0, es1) = splitAt n es
+                -- In case we matched constructor @c@ with @m@ arguments,
+                -- contract these @m@ arguments @vs@ to @Con c vs@.
+                patchCon c m es = patch (es0 ++ [Con c vs <$ e] ++ es2)
+                  where (es0, rest) = splitAt n es
+                        (es1, es2)  = splitAt m rest
+                        vs          = map argFromElim es1
 
-          -- Now do the matching on the @n@ths argument:
-          case fmap ignoreSharing <$> eb of
-            Blocked x _            -> no (Blocked x) es'
-            NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
+            -- Now do the matching on the @n@ths argument:
+            case fmap ignoreSharing <$> eb of
+              Blocked x _            -> no (Blocked x) es'
+              NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
-            -- In case of a literal, try also its constructor form
-            NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
-              cv <- constructorForm v
-              let cFrame stack = case ignoreSharing cv of
-                    Con c vs -> conFrame c vs stack
-                    _        -> stack
-              match' $ litFrame l $ cFrame $ catchAllFrame stack
+              -- In case of a literal, try also its constructor form
+              NotBlocked _ (Apply (Arg info v@(Lit l))) -> performedSimplification $ do
+                cv <- constructorForm v
+                let cFrame stack = case ignoreSharing cv of
+                      Con c vs -> conFrame c vs stack
+                      _        -> stack
+                match' $ litFrame l $ cFrame $ catchAllFrame stack
 
-            -- In case of a constructor, push the conFrame
-            NotBlocked _ (Apply (Arg info (Con c vs))) -> performedSimplification $
-              match' $ conFrame c vs $ catchAllFrame $ stack
+              -- In case of a constructor, push the conFrame
+              NotBlocked _ (Apply (Arg info (Con c vs))) -> performedSimplification $
+                match' $ conFrame c vs $ catchAllFrame $ stack
 
-            -- In case of a projection, push the litFrame
-            NotBlocked _ (Proj p) -> performedSimplification $
-              match' $ projFrame p $ stack
+              -- In case of a projection, push the litFrame
+              NotBlocked _ (Proj p) -> performedSimplification $
+                match' $ projFrame p $ stack
 
-            -- Otherwise, we are stuck.  If we were stuck before,
-            -- we keep the old reason, otherwise we give reason StuckOn here.
-            NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
+              -- Otherwise, we are stuck.  If we were stuck before,
+              -- we keep the old reason, otherwise we give reason StuckOn here.
+              NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
