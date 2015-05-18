@@ -688,9 +688,9 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
   toConcrete (A.SectionApp tel y es) = do
     y  <- toConcreteCtx FunctionCtx y
     bindToConcrete tel $ \tel -> do
-    es <- toConcreteCtx ArgumentCtx es
-    let r = fuseRange y es
-    return $ C.SectionApp r (concat tel) (foldl (C.App r) (C.Ident y) es)
+      es <- toConcreteCtx ArgumentCtx es
+      let r = fuseRange y es
+      return $ C.SectionApp r (concat tel) (foldl (C.App r) (C.Ident y) es)
 
   toConcrete (A.RecordModuleIFS recm) = do
     recm <- toConcrete recm
@@ -757,8 +757,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (A.Section i x tel ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
-    ds <- declsToConcrete ds
-    return [ C.Module (getRange i) x (concat tel) ds ]
+      ds <- declsToConcrete ds
+      return [ C.Module (getRange i) x (concat tel) ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
