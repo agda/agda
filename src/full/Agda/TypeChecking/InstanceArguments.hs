@@ -143,76 +143,76 @@ findInScope m (Just cands) = whenJustM (findInScope' m cands) $ addConstraint . 
 --   remaining candidates.
 findInScope' :: MetaId -> Candidates -> TCM (Maybe Candidates)
 findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
-    -- Andreas, 2013-12-28 issue 1003:
-    -- If instance meta is already solved, simply discard the constraint.
-    ifM (isInstantiatedMeta m) (return Nothing) $ do
-    -- Andreas, 2015-02-07: New metas should be created with range of the
-    -- current instance meta, thus, we set the range.
-    mv <- lookupMeta m
-    setCurrentRange mv $ do
-    reportSLn "tc.instance" 15 $
-      "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
-    t <- normalise =<< getMetaTypeInContext m
-    reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
-    reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
-    -- If there are recursive instances, it's not safe to instantiate
-    -- metavariables in the goal, so we freeze them before checking candidates.
-    -- Metas that are rigidly constrained need not be frozen.
-    isRec <- orM $ map (isRecursive . unEl . snd) cands
-    let shouldFreeze rigid m
-          | elem m rigid = return False
-          | otherwise    = not <$> isFrozen m
-    metas <- if not isRec then return [] else do
-      rigid <- rigidlyConstrainedMetas
-      filterM (shouldFreeze rigid) (allMetas t)
-    forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
-    cands <- checkCandidates m t cands
-    reportSLn "tc.instance" 15 $
-      "findInScope 4: cands left: " ++ show (length cands)
-    unfreezeMeta metas
-    case cands of
+  -- Andreas, 2013-12-28 issue 1003:
+  -- If instance meta is already solved, simply discard the constraint.
+  ifM (isInstantiatedMeta m) (return Nothing) $ do
+  -- Andreas, 2015-02-07: New metas should be created with range of the
+  -- current instance meta, thus, we set the range.
+  mv <- lookupMeta m
+  setCurrentRange mv $ do
+  reportSLn "tc.instance" 15 $
+    "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
+  t <- normalise =<< getMetaTypeInContext m
+  reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
+  reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
+  -- If there are recursive instances, it's not safe to instantiate
+  -- metavariables in the goal, so we freeze them before checking candidates.
+  -- Metas that are rigidly constrained need not be frozen.
+  isRec <- orM $ map (isRecursive . unEl . snd) cands
+  let shouldFreeze rigid m
+        | elem m rigid = return False
+        | otherwise    = not <$> isFrozen m
+  metas <- if not isRec then return [] else do
+    rigid <- rigidlyConstrainedMetas
+    filterM (shouldFreeze rigid) (allMetas t)
+  forM_ metas $ \ m -> updateMetaVar m $ \ mv -> mv { mvFrozen = Frozen }
+  cands <- checkCandidates m t cands
+  reportSLn "tc.instance" 15 $
+    "findInScope 4: cands left: " ++ show (length cands)
+  unfreezeMeta metas
+  case cands of
 
-      [] -> do
-        reportSDoc "tc.instance" 15 $
-          text "findInScope 5: not a single candidate found..."
-        typeError $ IFSNoCandidateInScope t
+    [] -> do
+      reportSDoc "tc.instance" 15 $
+        text "findInScope 5: not a single candidate found..."
+      typeError $ IFSNoCandidateInScope t
 
-      [(term, t')] -> do
-        reportSDoc "tc.instance" 15 $ vcat
-          [ text "findInScope 5: found one candidate"
-          , nest 2 $ prettyTCM term
-          , text "of type " <+> prettyTCM t'
-          , text "for type" <+> prettyTCM t
-          ]
+    [(term, t')] -> do
+      reportSDoc "tc.instance" 15 $ vcat
+        [ text "findInScope 5: found one candidate"
+        , nest 2 $ prettyTCM term
+        , text "of type " <+> prettyTCM t'
+        , text "for type" <+> prettyTCM t
+        ]
 
-        -- If t' takes initial hidden and instance arguments, apply them.
-        -- Taking also instance arguments facilitates recursive instance search.
-        (args, t'') <- implicitArgs (-1) notVisible t'
-        leqType t'' t
-        ctxArgs <- getContextArgs
-        v <- (`applyDroppingParameters` args) =<< reduce term
-        assignV DirEq m ctxArgs v
-        reportSDoc "tc.instance" 10 $ vcat
-          [ text "solved by instance search:"
-          , prettyTCM m <+> text ":=" <+> prettyTCM v
-          ]
-        return Nothing
+      -- If t' takes initial hidden and instance arguments, apply them.
+      -- Taking also instance arguments facilitates recursive instance search.
+      (args, t'') <- implicitArgs (-1) notVisible t'
+      leqType t'' t
+      ctxArgs <- getContextArgs
+      v <- (`applyDroppingParameters` args) =<< reduce term
+      assignV DirEq m ctxArgs v
+      reportSDoc "tc.instance" 10 $ vcat
+        [ text "solved by instance search:"
+        , prettyTCM m <+> text ":=" <+> prettyTCM v
+        ]
+      return Nothing
 
-      cs -> do
-        reportSDoc "tc.instance" 15 $
-          text ("findInScope 5: more than one candidate found: ") <+>
-          prettyTCM (List.map fst cs)
-        return (Just cs)
-    where
-      -- | Check whether a type is a function type with an instance domain.
-      isRecursive :: Term -> TCM Bool
-      isRecursive v = do
-        v <- reduce v
-        case ignoreSharing v of
-          Pi (Dom info _) t ->
-            if getHiding info == Instance then return True else
-              isRecursive $ unEl $ unAbs t
-          _ -> return False
+    cs -> do
+      reportSDoc "tc.instance" 15 $
+        text ("findInScope 5: more than one candidate found: ") <+>
+        prettyTCM (List.map fst cs)
+      return (Just cs)
+  where
+    -- | Check whether a type is a function type with an instance domain.
+    isRecursive :: Term -> TCM Bool
+    isRecursive v = do
+      v <- reduce v
+      case ignoreSharing v of
+        Pi (Dom info _) t ->
+          if getHiding info == Instance then return True else
+            isRecursive $ unEl $ unAbs t
+        _ -> return False
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
