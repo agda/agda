@@ -86,21 +86,21 @@ foldMatch
 foldMatch match = loop where
   loop :: [p] -> [v] -> ReduceM (Match Term, [v])
   loop ps0 vs0 = do
-  case (ps0, vs0) of
-    ([], []) -> return (empty, [])
-    (p : ps, v : vs) -> do
-      (r, v') <- match p v
-      case r of
-        No         -> return (No        , v' : vs)
-        DontKnow m -> return (DontKnow m, v' : vs)
-        Yes s us   -> do
-          (r', vs') <- loop ps vs
-          let vs1 = v' : vs'
-          case r' of
-            Yes s' us' -> return (Yes (s `mappend` s') (us ++ us'), vs1)
-            No         -> return (No                              , vs1)
-            DontKnow m -> return (DontKnow m                      , vs1)
-    _ -> __IMPOSSIBLE__
+    case (ps0, vs0) of
+      ([], []) -> return (empty, [])
+      (p : ps, v : vs) -> do
+        (r, v') <- match p v
+        case r of
+          No         -> return (No        , v' : vs)
+          DontKnow m -> return (DontKnow m, v' : vs)
+          Yes s us   -> do
+            (r', vs') <- loop ps vs
+            let vs1 = v' : vs'
+            case r' of
+              Yes s' us' -> return (Yes (s `mappend` s') (us ++ us'), vs1)
+              No         -> return (No                              , vs1)
+              DontKnow m -> return (DontKnow m                      , vs1)
+      _ -> __IMPOSSIBLE__
 
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --
@@ -122,9 +122,9 @@ matchCopatterns ps vs = do
            , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]) $ do
-    -- Buggy, see issue 1124:
-    -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
-    foldMatch (matchCopattern . namedArg) ps vs
+      -- Buggy, see issue 1124:
+      -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
+      foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
 matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
@@ -142,10 +142,10 @@ matchPatterns ps vs = do
            , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
            , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
            ]) $ do
-    -- Buggy, see issue 1124:
-    -- (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
-    -- return (mconcat ms, vs)
-    foldMatch (matchPattern . namedArg) ps vs
+      -- Buggy, see issue 1124:
+      -- (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
+      -- return (mconcat ms, vs)
+      foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
 matchPattern :: Pattern -> I.Arg Term -> ReduceM (Match Term, I.Arg Term)
