@@ -65,7 +65,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Datatypes
 
-import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
+import qualified Agda.Benchmarking as Benchmark
 import Agda.TypeChecking.Monad.Benchmark (billTo, billPureTo)
 
 import Agda.Interaction.Options

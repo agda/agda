@@ -40,10 +40,11 @@ import Control.Monad.Reader
 import Data.Foldable (foldMap)
 import Data.Monoid
 
+import qualified Agda.Benchmarking as Bench
+
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
-import Agda.Utils.Benchmark
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
@@ -330,7 +331,7 @@ instance Free Clause where
   freeVars' = freeVars' . clauseBody
 
 bench :: a -> a
-bench = benchmarkPure
+bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
 
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.

@@ -12,6 +12,8 @@ import Data.Set (Set)
 import Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Benchmarking
+
 -- import {-# SOURCE #-} Agda.Interaction.Response
 import Agda.Interaction.Response
   (InteractionOutputCallback, Response)
@@ -24,7 +26,6 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Base.Benchmark
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash

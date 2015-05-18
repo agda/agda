@@ -1,38 +1,135 @@
--- | Benchmark pure and IO computations.
+{-# LANGUAGE NoMonomorphismRestriction,
+             FunctionalDependencies,
+             MultiParamTypeClasses #-}
+
+-- | Tools for benchmarking and accumulating results.
+--   Nothing Agda-specific in here.
 
 module Agda.Utils.Benchmark where
 
+import Prelude hiding (null)
+
 import qualified Control.Exception as E (evaluate)
+import Control.Monad.State
 
-import Data.IORef
+import Data.Functor
+import qualified Data.List as List
 
-import System.IO.Unsafe
+import qualified Text.PrettyPrint.Boxes as Boxes
 
+import Agda.Utils.Null
+import Agda.Utils.Monad
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
 import Agda.Utils.Time
-import Agda.Utils.Trie
+import Agda.Utils.Trie (Trie)
+import qualified Agda.Utils.Trie as Trie
 
-type Benchmarks = CPUTime
 
-{-# NOINLINE benchmarks #-}
-benchmarks :: IORef Benchmarks
-benchmarks = unsafePerformIO $ newIORef 0
+-- * Benchmark trie
 
-modifyBenchmarks :: (Benchmarks -> Benchmarks) -> IO ()
-modifyBenchmarks f = do
-  x <- readIORef benchmarks
-  writeIORef benchmarks $! f x
+-- | Account we can bill computation time to.
+--   A word of 'Phase's.
+type Account a = [a]
 
-benchmark :: IO a -> IO a
-benchmark m = do
-  (x, t) <- measureTime $ E.evaluate =<< m
-  modifyBenchmarks (t +)
-  return x
+type CurrentAccount a = Strict.Maybe (Account a)
+type Timings        a = Trie a CPUTime
 
-benchmarkPure :: a -> a
-benchmarkPure a = unsafePerformIO $ benchmark $ return a
+-- | Benchmark structure is a trie, mapping accounts (phases and subphases)
+--   to CPU time spent on their performance.
+data Benchmark a = Benchmark
+  { benchmarkOn    :: !Bool
+    -- ^ Are we benchmarking at all?
+  , currentAccount :: !(CurrentAccount a)
+    -- ^ What are we billing to currently?
+  , timings        :: !(Timings a)
+    -- ^ The accounts and their accumulated timing bill.
+  }
 
-print :: IO ()
-print = do
-  t <- readIORef benchmarks
-  putStrLn $ "Time spent on non-TCM benchmarks: " ++ prettyShow t
+-- | Initial benchmark structure (empty).
+instance Null (Benchmark a) where
+  empty = Benchmark
+    { benchmarkOn = False
+    , currentAccount = Strict.Nothing
+    , timings = empty
+    }
+  null = null . timings
+
+-- | Semantic editor combinator.
+mapBenchmarkOn :: (Bool -> Bool) -> Benchmark a -> Benchmark a
+mapBenchmarkOn f b = b { benchmarkOn = f $ benchmarkOn b }
+
+-- | Semantic editor combinator.
+mapCurrentAccount ::
+  (CurrentAccount a -> CurrentAccount a) -> Benchmark a -> Benchmark a
+mapCurrentAccount f b = b { currentAccount = f (currentAccount b) }
+
+-- | Semantic editor combinator.
+mapTimings :: (Timings a -> Timings a) -> Benchmark a -> Benchmark a
+mapTimings f b = b { timings = f (timings b) }
+
+-- | Add to specified CPU time account.
+addCPUTime :: Ord a => Account a -> CPUTime -> Benchmark a -> Benchmark a
+addCPUTime acc t = mapTimings (Trie.insertWith (+) acc t)
+
+-- | Print benchmark as two-column table with totals.
+instance (Ord a, Pretty a) => Pretty (Benchmark a) where
+  pretty b = text $ Boxes.render table
+    where
+    (accounts, times) = unzip $ Trie.toList $ timings b
+
+    -- Generate a table.
+    table = Boxes.hsep 1 Boxes.left [col1, col2]
+
+    -- First column: Accounts.
+    col1 = Boxes.vcat Boxes.left $
+           map Boxes.text $
+           "Total" : map showAccount accounts
+    -- Second column: Times.
+    col2 = Boxes.vcat Boxes.right $
+           map (Boxes.text . prettyShow) $
+           sum times : times
+
+    showAccount [] = "Miscellaneous"
+    showAccount ks = List.intercalate "." $ map prettyShow ks
+
+
+-- * Benchmarking monad.
+
+-- | Monad with access to benchmarking data.
+
+class (Ord a, Functor m, MonadIO m) => MonadBench a m | m -> a where
+  getBenchmark :: m (Benchmark a)
+
+  getsBenchmark :: (Benchmark a -> c) -> m c
+  getsBenchmark f = f <$> getBenchmark
+
+  putBenchmark :: Benchmark a -> m ()
+  putBenchmark b = modifyBenchmark $ const b
+
+  modifyBenchmark :: (Benchmark a -> Benchmark a) -> m ()
+  modifyBenchmark f = do
+    b <- getBenchmark
+    putBenchmark $! f b
+
+-- | Turn benchmarking on/off.
+
+setBenchmarking :: MonadBench a m => Bool -> m ()
+setBenchmarking b = modifyBenchmark $ mapBenchmarkOn $ const b
+
+-- | Bill a computation to a specific account.
+
+billTo :: MonadBench a m => Account a -> m c -> m c
+billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
+  -- Switch to new account.
+  oldAccount <- getsBenchmark currentAccount
+  modifyBenchmark $ mapCurrentAccount $ const $ Strict.Just account
+  -- Compute.
+  (res, time) <- measureTime $ liftIO . E.evaluate =<< m
+  -- Bill to new account and subtract from old account.
+  modifyBenchmark $ addCPUTime account time
+  Strict.whenJust oldAccount $ \ acc ->
+    modifyBenchmark $ addCPUTime acc (- time)
+  -- Switch back to old account.
+  modifyBenchmark $ mapCurrentAccount $ const oldAccount
+  return res

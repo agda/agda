@@ -42,6 +42,8 @@ import Data.Foldable
 import Data.Traversable
 import Data.IORef
 
+import Agda.Benchmarking (Benchmark)
+
 import Agda.Syntax.Concrete (TopLevelModuleName)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -67,9 +69,6 @@ import Agda.Interaction.Highlighting.Precise
 
 import qualified Agda.Compiler.JS.Syntax as JS
 
-import Agda.TypeChecking.Monad.Base.Benchmark (Benchmark)
-import qualified Agda.TypeChecking.Monad.Base.Benchmark as Benchmark
-
 import Agda.Utils.Except
   ( Error(noMsg, strMsg)
   , ExceptT
@@ -77,7 +76,8 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.FileName
-import Agda.Utils.HashMap as HMap hiding (singleton)
+import Agda.Utils.HashMap (HashMap)
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.ListT
@@ -194,7 +194,7 @@ initPersistentState = PersistentTCSt
   { stPersistentOptions         = defaultOptions
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
-  , stBenchmark                 = Benchmark.empty
+  , stBenchmark                 = empty
   , stAccumStatistics           = Map.empty
   }
 
