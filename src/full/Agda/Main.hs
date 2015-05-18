@@ -33,6 +33,7 @@ import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
 
+import qualified Agda.Utils.Benchmark as PureBench
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.String
@@ -79,6 +80,9 @@ runAgdaWithOptions generateHTML progName opts
 
           -- Print benchmarks.
           Bench.print
+
+          whenM Bench.benchmarking $ liftIO $
+            PureBench.print
 
           -- Print accumulated statistics.
           printStatistics 20 Nothing =<< use lensAccumStatistics

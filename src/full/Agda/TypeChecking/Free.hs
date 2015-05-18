@@ -43,6 +43,7 @@ import Data.Monoid
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
+import Agda.Utils.Benchmark
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
@@ -336,23 +337,28 @@ instance Free ClauseBody where
 instance Free Clause where
   freeVars' = freeVars' . clauseBody
 
+bench :: a -> a
+bench = benchmarkPure
+
 freeIn :: Free a => Nat -> a -> Bool
-freeIn v t = v `Set.member` allVars (freeVars t)
+freeIn v t = bench $
+  v `Set.member` allVars (freeVars t)
 
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
-freeInIgnoringSorts v t =
+freeInIgnoringSorts v t = bench $
   v `Set.member` allVars (freeVarsIgnore IgnoreAll t)
 
 freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-freeInIgnoringSortAnn v t =
+freeInIgnoringSortAnn v t = bench $
   v `Set.member` allVars (freeVarsIgnore IgnoreInAnnotations t)
 
 relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
-relevantInIgnoringSortAnn v t =
+relevantInIgnoringSortAnn v t = bench $
   v `Set.member` relevantVars (freeVarsIgnore IgnoreInAnnotations t)
 
 relevantIn :: Free a => Nat -> a -> Bool
-relevantIn v t = v `Set.member` relevantVars (freeVarsIgnore IgnoreAll t)
+relevantIn v t = bench $
+  v `Set.member` relevantVars (freeVarsIgnore IgnoreAll t)
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
