@@ -109,7 +109,7 @@ isType_ e =
       return t'
     A.Pi _ tel e | null tel -> isType_ e
     A.Pi _ tel e -> do
-      checkTelescope_ tel $ \tel -> do
+      checkPiTelescope tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
         tel <- instantiateFull tel
         let t' = telePi tel t
@@ -190,20 +190,35 @@ forcePi h name (El s t) =
 -- * Telescopes
 ---------------------------------------------------------------------------
 
+-- | Type check a (module) telescope.
+--   Binds the variables defined by the telescope.
+checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
+checkTelescope = checkTelescope' LamNotPi
+
+-- | Type check the telescope of a dependent function type.
+--   Binds the resurrected variables defined by the telescope.
+--   The returned telescope is unmodified (not resurrected).
+checkPiTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
+checkPiTelescope = checkTelescope' PiNotLam
+
+-- | Flag to control resurrection on domains.
+data LamOrPi
+  = LamNotPi -- ^ We are checking a module telescope.
+             --   We pass into the type world to check the domain type.
+             --   This resurrects the whole context.
+  | PiNotLam -- ^ We are checking a telescope in a Pi-type.
+             --   We stay in the term world, but add resurrected
+             --   domains to the context to check the remaining
+             --   domains and codomain of the Pi-type.
+  deriving (Eq, Show)
+
 -- | Type check a telescope. Binds the variables defined by the telescope.
-checkTelescope_ :: A.Telescope -> (Telescope -> TCM a) -> TCM a
-checkTelescope_ [] ret = ret EmptyTel
-checkTelescope_ (b : tel) ret =
-    checkTypedBindings_ b $ \tel1 ->
-    checkTelescope_ tel   $ \tel2 ->
+checkTelescope' :: LamOrPi -> A.Telescope -> (Telescope -> TCM a) -> TCM a
+checkTelescope' lamOrPi []        ret = ret EmptyTel
+checkTelescope' lamOrPi (b : tel) ret =
+    checkTypedBindings lamOrPi b $ \tel1 ->
+    checkTelescope' lamOrPi tel  $ \tel2 ->
         ret $ abstract tel1 tel2
-
--- | Check a typed binding and extends the context with the bound variables.
---   The telescope passed to the continuation is valid in the original context.
-checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings_ = checkTypedBindings PiNotLam
-
-data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
@@ -751,7 +766,7 @@ checkExpr e t0 =
         A.Let i ds e -> checkLetBindings ds $ checkExpr e t
         A.Pi _ tel e | null tel -> checkExpr e t
         A.Pi _ tel e -> do
-            t' <- checkTelescope_ tel $ \tel -> do
+            t' <- checkPiTelescope tel $ \tel -> do
                     t   <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
                     let t' = telePi tel t
