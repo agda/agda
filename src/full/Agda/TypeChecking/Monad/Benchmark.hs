@@ -40,15 +40,17 @@ import Agda.Utils.Pretty (prettyShow)
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- -- | We store benchmark statistics in an IORef.
--- instance MonadTCM tcm => MonadBench Phase tcm where
---   getBenchmark = liftIO $ getBenchmark
---   putBenchmark = liftIO . putBenchmark
-
--- | We store benchmark statistics in the TCM.
+-- | We store benchmark statistics in an IORef.
+--   This enables benchmarking pure computation, see
+---  ''Agda.Benchmarking''.
 instance MonadTCM tcm => MonadBench Phase tcm where
-  getBenchmark    = liftTCM $ TCState.getBenchmark
-  modifyBenchmark = liftTCM . TCState.modifyBenchmark
+  getBenchmark = liftIO $ getBenchmark
+  putBenchmark = liftIO . putBenchmark
+
+-- -- | We store benchmark statistics in the TCM.
+-- instance MonadTCM tcm => MonadBench Phase tcm where
+--   getBenchmark    = liftTCM $ TCState.getBenchmark
+--   modifyBenchmark = liftTCM . TCState.modifyBenchmark
 
 benchmarkKey :: String
 benchmarkKey = "profile"
