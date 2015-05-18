@@ -1459,15 +1459,15 @@ icodeX dict counter key = do
   d <- asks dict
   c <- asks counter
   liftIO $ do
-  mi <- H.lookup d key
-  case mi of
-    Just i  -> do
-      modifyIORef' c $ over lensReuse (+1)
-      return i
-    Nothing -> do
-      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
-      H.insert d key fresh
-      return fresh
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+        modifyIORef' c $ over lensReuse (+1)
+        return i
+      Nothing -> do
+        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        H.insert d key fresh
+        return fresh
 
 -- Instead of inlining icodeX, we manually specialize it to
 -- its four uses: Integer, String, Double, Node.
@@ -1478,60 +1478,60 @@ icodeInteger key = do
   d <- asks integerD
   c <- asks integerC
   liftIO $ do
-  mi <- H.lookup d key
-  case mi of
-    Just i  -> do
-      modifyIORef' c $ over lensReuse (+1)
-      return i
-    Nothing -> do
-      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
-      H.insert d key fresh
-      return fresh
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+        modifyIORef' c $ over lensReuse (+1)
+        return i
+      Nothing -> do
+        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        H.insert d key fresh
+        return fresh
 
 icodeDouble :: Double -> S Int32
 icodeDouble key = do
   d <- asks doubleD
   c <- asks doubleC
   liftIO $ do
-  mi <- H.lookup d key
-  case mi of
-    Just i  -> do
-      modifyIORef' c $ over lensReuse (+1)
-      return i
-    Nothing -> do
-      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
-      H.insert d key fresh
-      return fresh
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+        modifyIORef' c $ over lensReuse (+1)
+        return i
+      Nothing -> do
+        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        H.insert d key fresh
+        return fresh
 
 icodeString :: String -> S Int32
 icodeString key = do
   d <- asks stringD
   c <- asks stringC
   liftIO $ do
-  mi <- H.lookup d key
-  case mi of
-    Just i  -> do
-      modifyIORef' c $ over lensReuse (+1)
-      return i
-    Nothing -> do
-      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
-      H.insert d key fresh
-      return fresh
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+        modifyIORef' c $ over lensReuse (+1)
+        return i
+      Nothing -> do
+        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        H.insert d key fresh
+        return fresh
 
 icodeN :: Node -> S Int32
 icodeN key = do
   d <- asks nodeD
   c <- asks nodeC
   liftIO $ do
-  mi <- H.lookup d key
-  case mi of
-    Just i  -> do
-      modifyIORef' c $ over lensReuse (+1)
-      return i
-    Nothing -> do
-      fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
-      H.insert d key fresh
-      return fresh
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+        modifyIORef' c $ over lensReuse (+1)
+        return i
+      Nothing -> do
+        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        H.insert d key fresh
+        return fresh
 
 -- icodeN :: [Int32] -> S Int32
 -- icodeN = icodeX nodeD nodeC
