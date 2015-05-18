@@ -837,38 +837,38 @@ solveGraph pols hg g = do
   -- iterate over all flexible variables
   xas <- catMaybes <$> do
     forM xs $ \ x -> do
-    -- get lower and upper bounds for flexible x
-    let lx = Set.toList $ Map.findWithDefault Set.empty x lbs
-        ux = Set.toList $ Map.findWithDefault Set.empty x ubs
-    traceM ("lower bounds for " ++ show x ++ ": " ++ show lx)
-    traceM ("upper bounds for " ++ show x ++ ": " ++ show ux)
-    -- compute maximum of lower bounds
-    lb <- do
-      case lx of
-        []     -> return $ Nothing
-        (a:as) -> do
-          case foldM (lub hg) a as of
-            Nothing -> Left $ "inconsistent lower bound for " ++ show x
-            Just l  -> return $ Just $ truncateOffset l
-    -- compute minimum of upper bounds
-    ub <- do
-      case ux of
-        []     -> return $ Nothing
-        (a:as) -> do
-          case foldM (glb hg) a as of
-            Nothing -> Left $ "inconsistent upper bound for " ++ show x
-            Just l | validOffset l -> return $ Just l
-                   | otherwise     -> return $ findRigidBelow hg l
-    case (lb, ub) of
-      (Just l, Nothing) -> return $ Just (x, l)  -- solve x = lower bound
-      (Nothing, Just u) -> return $ Just (x, u)  -- solve x = upper bound
-      (Just l,  Just u) -> do
-        traceM ("lower bound for " ++ show x ++ ": " ++ show l)
-        traceM ("upper bound for " ++ show x ++ ": " ++ show u)
-        case getPolarity pols x of
-          Least    -> return $ Just (x, l)
-          Greatest -> return $ Just (x, u)
-      _ -> return Nothing
+      -- get lower and upper bounds for flexible x
+      let lx = Set.toList $ Map.findWithDefault Set.empty x lbs
+          ux = Set.toList $ Map.findWithDefault Set.empty x ubs
+      traceM ("lower bounds for " ++ show x ++ ": " ++ show lx)
+      traceM ("upper bounds for " ++ show x ++ ": " ++ show ux)
+      -- compute maximum of lower bounds
+      lb <- do
+        case lx of
+          []     -> return $ Nothing
+          (a:as) -> do
+            case foldM (lub hg) a as of
+              Nothing -> Left $ "inconsistent lower bound for " ++ show x
+              Just l  -> return $ Just $ truncateOffset l
+      -- compute minimum of upper bounds
+      ub <- do
+        case ux of
+          []     -> return $ Nothing
+          (a:as) -> do
+            case foldM (glb hg) a as of
+              Nothing -> Left $ "inconsistent upper bound for " ++ show x
+              Just l | validOffset l -> return $ Just l
+                     | otherwise     -> return $ findRigidBelow hg l
+      case (lb, ub) of
+        (Just l, Nothing) -> return $ Just (x, l)  -- solve x = lower bound
+        (Nothing, Just u) -> return $ Just (x, u)  -- solve x = upper bound
+        (Just l,  Just u) -> do
+          traceM ("lower bound for " ++ show x ++ ": " ++ show l)
+          traceM ("upper bound for " ++ show x ++ ": " ++ show u)
+          case getPolarity pols x of
+            Least    -> return $ Just (x, l)
+            Greatest -> return $ Just (x, u)
+        _ -> return Nothing
   return $ Map.fromList xas
 
 -- | Solve a forest of constraint graphs relative to a hypotheses graph.
