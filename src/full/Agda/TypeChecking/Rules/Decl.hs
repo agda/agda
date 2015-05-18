@@ -40,6 +40,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Injectivity
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
@@ -439,7 +440,7 @@ checkAxiom funSig i info0 x e = do
   rel <- max (getRelevance info0) <$> asks envRelevance
   let info = setRelevance rel $ convColor info0
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
-  t <- isType_ e
+  t <- workOnTypes $ isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
@@ -665,7 +666,7 @@ checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 -- | Type check a module.
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
 checkSection i x tel ds =
-  checkTelescope_ tel $ \tel' -> do
+  checkTelescope tel $ \ tel' -> do
     addSection x (size tel')
     verboseS "tc.mod.check" 10 $ do
       dx   <- prettyTCM x
@@ -744,7 +745,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
     return (fv - mfv)
   when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
   -- Type-check the LHS (ptel) of the module macro.
-  checkTelescope_ ptel $ \ ptel -> do
+  checkTelescope ptel $ \ ptel -> do
   -- We are now in the context @ptel@.
   -- Get the correct parameter telescope of @m2@.
   tel <- lookupSection m2

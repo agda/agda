@@ -1,0 +1,3 @@
+Issue1114.agda:12,13-14
+Variable a is declared irrelevant, so it cannot be used here
+when checking that the expression a has type A
