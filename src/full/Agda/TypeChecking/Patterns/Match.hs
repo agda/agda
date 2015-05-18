@@ -117,14 +117,14 @@ foldMatch match = loop where
 --   to come to a decision).
 matchCopatterns :: [I.NamedArg Pattern] -> [Elim] -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
-    traceSDoc "tc.match" 50
-     (vcat [ text "matchCopatterns"
-           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
-           , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
-           ]) $ do
-      -- Buggy, see issue 1124:
-      -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
-      foldMatch (matchCopattern . namedArg) ps vs
+  traceSDoc "tc.match" 50
+    (vcat [ text "matchCopatterns"
+          , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) ps)
+          , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+          ]) $ do
+     -- Buggy, see issue 1124:
+     -- mapFst mconcat . unzip <$> zipWithM' (matchCopattern . namedArg) ps vs
+     foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
 matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
@@ -137,15 +137,15 @@ matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
 matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> ReduceM (Match Term, [I.Arg Term])
 matchPatterns ps vs = do
-    traceSDoc "tc.match" 50
-     (vcat [ text "matchPatterns"
-           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
-           , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
-           ]) $ do
-      -- Buggy, see issue 1124:
-      -- (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
-      -- return (mconcat ms, vs)
-      foldMatch (matchPattern . namedArg) ps vs
+  traceSDoc "tc.match" 50
+    (vcat [ text "matchPatterns"
+          , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
+          , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+          ]) $ do
+     -- Buggy, see issue 1124:
+     -- (ms,vs) <- unzip <$> zipWithM' (matchPattern . namedArg) ps vs
+     -- return (mconcat ms, vs)
+     foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
 matchPattern :: Pattern -> I.Arg Term -> ReduceM (Match Term, I.Arg Term)
