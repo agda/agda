@@ -214,14 +214,6 @@ initFreeConf = FreeConf
   , fcContext     = 0
   }
 
--- | Doesn't go inside solved metas, but collects the variables from a
--- metavariable application @X ts@ as @flexibleVars@.
-freeVars :: Free a => a -> FreeVars
-freeVars t = freeVars' t `runReader` initFreeConf
-
-freeVarsIgnore :: Free a => IgnoreSorts -> a -> FreeVars
-freeVarsIgnore i t = freeVars' t `runReader` initFreeConf{ fcIgnoreSorts = i }
-
 -- | Return type of fold over syntax.
 type FreeT = Reader FreeConf FreeVars
 
@@ -339,6 +331,16 @@ instance Free Clause where
 
 bench :: a -> a
 bench = benchmarkPure
+
+-- | Doesn't go inside solved metas, but collects the variables from a
+-- metavariable application @X ts@ as @flexibleVars@.
+freeVars :: Free a => a -> FreeVars
+freeVars t =
+  freeVars' t `runReader` initFreeConf
+
+freeVarsIgnore :: Free a => IgnoreSorts -> a -> FreeVars
+freeVarsIgnore i t =
+  freeVars' t `runReader` initFreeConf{ fcIgnoreSorts = i }
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = bench $

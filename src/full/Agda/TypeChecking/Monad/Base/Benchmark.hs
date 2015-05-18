@@ -54,40 +54,37 @@ data Phase
     -- ^ Subphase for 'Serialize'.
   | Operators
     -- ^ Subphase for 'Parsing'.
+  | Free
+    -- ^ Subphase for 'Typing': free variable computation.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Account we can bill computation time to.
 --   A word of 'Phase's.
 type Account = [Phase]
 
+type CurrentAccount = Strict.Maybe Account
+type Timings        = Trie Phase CPUTime
+
 -- | Benchmark structure is a trie, mapping accounts (phases and subphases)
 --   to CPU time spent on their performance.
 data Benchmark = Benchmark
-  { currentAccount :: !(Strict.Maybe Account)
-  , timings        :: !(Trie Phase CPUTime)
+  { currentAccount :: !CurrentAccount
+  , timings        :: !Timings
   }
 
 -- | Semantic editor combinator.
 modifyCurrentAccount ::
-  (Strict.Maybe Account -> Strict.Maybe Account) ->
-  Benchmark -> Benchmark
+  (CurrentAccount -> CurrentAccount) -> Benchmark -> Benchmark
 modifyCurrentAccount f b = b { currentAccount = f (currentAccount b) }
 
 -- | Semantic editor combinator.
-modifyTimings ::
-  (Trie Phase CPUTime -> Trie Phase CPUTime) ->
-  Benchmark -> Benchmark
+modifyTimings :: (Timings -> Timings) -> Benchmark -> Benchmark
 modifyTimings f b = b { timings = f (timings b) }
 
 -- | Initial benchmark structure (empty).
 empty :: Benchmark
-empty =
-  Benchmark { currentAccount = Strict.Nothing, timings = Trie.empty }
+empty = Benchmark { currentAccount = Strict.Nothing, timings = Trie.empty }
 
 -- | Add to specified CPU time account.
 addCPUTime :: Account -> CPUTime -> Benchmark -> Benchmark
 addCPUTime acc t = modifyTimings (Trie.insertWith (+) acc t)
-
--- -- | Lens modifier for specific entry in benchmark structure.
--- mapCPUTime :: [Phase] → (CPUTime -> CPUTime) -> Benchmark -> Benchmark
--- mapCPUtime k f = inserWith
