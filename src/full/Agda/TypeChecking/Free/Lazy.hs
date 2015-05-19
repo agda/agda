@@ -124,7 +124,7 @@ data IgnoreSorts
 
 -- | The current context.
 
-data FreeEnv = FreeEnv
+data FreeEnv c = FreeEnv
   { feIgnoreSorts   :: !IgnoreSorts
     -- ^ Ignore free variables in sorts.
   , feBinders       :: !Int
@@ -133,37 +133,43 @@ data FreeEnv = FreeEnv
     -- ^ Are we flexible or rigid?
   , feRelevance     :: !Relevance
     -- ^ What is the current relevance?
+  , feSingleton     :: SingleVar c
+    -- ^ Method to return a single variable.
   }
+
+type Variable    = (Int, VarOcc)
+type SingleVar c = Variable -> c
 
 -- | The initial context.
 
-initFreeEnv :: FreeEnv
-initFreeEnv = FreeEnv
+initFreeEnv :: SingleVar c -> FreeEnv c
+initFreeEnv sing = FreeEnv
   { feIgnoreSorts = IgnoreNot
   , feBinders     = 0
   , feFlexRig     = Unguarded
   , feRelevance   = Relevant
+  , feSingleton   = sing
   }
 
-type Variable = (Int, VarOcc)
-type FreeM = Reader FreeEnv
+type FreeM c = Reader (FreeEnv c) c
 
 instance Monoid c => Monoid (FreeM c) where
   mempty  = pure mempty
   mappend = liftA2 mappend
   mconcat = mconcat <.> sequence
 
-instance Singleton a c => Singleton a (FreeM c) where
-  singleton = pure . singleton
+-- instance Singleton a c => Singleton a (FreeM c) where
+--   singleton = pure . singleton
 
 -- | Base case: a variable.
-variable :: (Monoid c, Singleton Variable c) => Int -> FreeM c
+variable :: (Monoid c) => Int -> FreeM c
 variable n = do
   m <- (n -) <$> asks feBinders
   if m < 0 then mempty else do
     o <- asks feFlexRig
     r <- asks feRelevance
-    singleton (m, VarOcc o r)
+    s <- asks feSingleton
+    pure $ s (m, VarOcc o r)
 
 -- | Going under a binder.
 bind :: FreeM a -> FreeM a
@@ -191,10 +197,10 @@ underConstructor (ConHead c i fs) =
     (Inductive, (_:_)) -> id
 
 -- | Gather free variables in a collection.
-class Free a c where
-  freeVars' :: (Monoid c, Singleton Variable c) => a -> FreeM c
+class Free' a c where
+  freeVars' :: (Monoid c) => a -> FreeM c
 
-instance Free Term c where
+instance Free' Term c where
   freeVars' t = case t of
     Var n ts     -> variable n `mappend` do go WeaklyRigid $ freeVars' ts
     -- λ is not considered guarding, as
@@ -218,13 +224,13 @@ instance Free Term c where
     Shared p     -> freeVars' (derefPtr p)
     ExtLam cs ts -> freeVars' (cs, ts)
 
-instance Free Type c where
+instance Free' Type c where
   freeVars' (El s t) =
     ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
       {- then -} (freeVars' (s, t))
       {- else -} (freeVars' t)
 
-instance Free Sort c where
+instance Free' Sort c where
   freeVars' s =
     ifM ((IgnoreAll ==) <$> asks feIgnoreSorts) mempty $ {- else -}
     case s of
@@ -234,53 +240,53 @@ instance Free Sort c where
       SizeUniv   -> mempty
       DLub s1 s2 -> go WeaklyRigid $ freeVars' (s1, s2)
 
-instance Free Level c where
+instance Free' Level c where
   freeVars' (Max as) = freeVars' as
 
-instance Free PlusLevel c where
+instance Free' PlusLevel c where
   freeVars' ClosedLevel{} = mempty
   freeVars' (Plus _ l)    = freeVars' l
 
-instance Free LevelAtom c where
+instance Free' LevelAtom c where
   freeVars' l = case l of
     MetaLevel _ vs   -> go Flexible $ freeVars' vs
     NeutralLevel _ v -> freeVars' v
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
 
-instance Free a c => Free [a] c where
+instance Free' a c => Free' [a] c where
   freeVars' = foldMap freeVars'
 
-instance Free a c => Free (Maybe a) c where
+instance Free' a c => Free' (Maybe a) c where
   freeVars' = foldMap freeVars'
 
-instance (Free a c, Free b c) => Free (a,b) c where
+instance (Free' a c, Free' b c) => Free' (a,b) c where
   freeVars' (x,y) = freeVars' x `mappend` freeVars' y
 
-instance Free a c => Free (Elim' a) c where
+instance Free' a c => Free' (Elim' a) c where
   freeVars' (Apply a) = freeVars' a
   freeVars' (Proj{} ) = mempty
 
-instance Free a c => Free (Arg a) c where
+instance Free' a c => Free' (Arg a) c where
   freeVars' a = goRel (getRelevance a) $ freeVars' $ unArg a
 
-instance Free a c => Free (Dom a) c where
+instance Free' a c => Free' (Dom a) c where
   freeVars' = freeVars' . unDom
 
-instance Free a c => Free (Abs a) c where
+instance Free' a c => Free' (Abs a) c where
   freeVars' (Abs   _ b) = bind $ freeVars' b
   freeVars' (NoAbs _ b) = freeVars' b
 
-instance Free a c => Free (Tele a) c where
+instance Free' a c => Free' (Tele a) c where
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
-instance Free ClauseBody c where
+instance Free' ClauseBody c where
   freeVars' (Body t)   = freeVars' t
   freeVars' (Bind b)   = freeVars' b
   freeVars'  NoBody    = mempty
 
-instance Free Clause c where
+instance Free' Clause c where
   freeVars' = freeVars' . clauseBody
 
 -- -}

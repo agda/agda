@@ -267,6 +267,9 @@ library
                     Agda.TypeChecking.EtaContract
                     Agda.TypeChecking.Errors
                     Agda.TypeChecking.Free
+                    Agda.TypeChecking.Free.Lazy
+                    Agda.TypeChecking.Free.Old
+                    Agda.TypeChecking.Free.Tests
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity

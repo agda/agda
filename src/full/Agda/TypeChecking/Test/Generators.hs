@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -548,7 +549,7 @@ instance (KillVar a, KillVar b) => KillVar (a, b) where
 
 -- Tests ------------------------------------------------------------------
 
-isWellScoped :: Free a => TermConfiguration -> a -> Bool
+isWellScoped :: FreeV a => TermConfiguration -> a -> Bool
 isWellScoped conf t = allVars (freeVars t) `Set.isSubsetOf` Set.fromList (tcFreeVariables conf)
 
 -- | Check that the generated terms don't have any out of scope variables.
