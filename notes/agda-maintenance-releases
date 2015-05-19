@@ -33,6 +33,8 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
+* Remove --program-suffix=-$(VERSION) from Makefile [Issue 1511].
+
 * Add a second source-repository section to Agda.cabal:
 
     source-repository this
@@ -115,6 +117,8 @@ followed:
   ** Add exec-test to the tests rule in Makefile.
 
 * Add back -Werror and -fprof-auto in Agda.cabal.
+
+* Restore --program-suffix=-$(VERSION) in Makefile [Issue 1511].
 
 * Add a new header to CHANGELOG.
 
