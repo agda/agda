@@ -276,9 +276,8 @@ takeEqualities = U $ do
 --   TODO: later solutions may remove flexible occurences
 occursCheck :: Nat -> Term -> Type -> Unify ()
 occursCheck i u a = do
-  let fv = freeVars u
-      v  = var i
-  case occurrence i fv of
+  let v  = var i
+  case occurrence i u of
     -- Andreas, 2011-04-14
     -- a strongly rigid recursive occurrences signals unsolvability
     StronglyRigid -> do

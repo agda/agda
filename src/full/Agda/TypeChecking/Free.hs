@@ -103,11 +103,13 @@ data Occurrence
   | Unused
   deriving (Eq,Show)
 
-{- NO LONGER
--- | @occurrence x fv@ ignores irrelevant variables in @fv@
--}
-occurrence :: Nat -> FreeVars -> Occurrence
-occurrence x fv
+-- | Compute an occurrence of a single variable in a piece of internal syntax.
+occurrence :: Free a => Nat -> a -> Occurrence
+occurrence x v = occurrenceFV x $ freeVars v
+
+-- | Extract occurrence of a single variable from computed free variables.
+occurrenceFV :: Nat -> FreeVars -> Occurrence
+occurrenceFV x fv
   | x `Set.member` stronglyRigidVars fv = StronglyRigid
   | x `Set.member` unguardedVars     fv = Unguarded
   | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
@@ -125,7 +127,7 @@ flexible fv =
        , flexibleVars      = relevantVars fv
        }
 
--- | Mark rigid variables as non-strongly.  Useful when traversion arguments of variables.
+-- | Mark rigid variables as non-strongly.  Useful when traversing arguments of variables.
 weakly :: FreeVars -> FreeVars
 weakly fv = fv
   { stronglyRigidVars = Set.empty
@@ -133,7 +135,7 @@ weakly fv = fv
   , weaklyRigidVars   = rigidVars fv
   }
 
--- | Mark unguarded variables as strongly rigid.  Useful when traversion arguments of inductive constructors.
+-- | Mark unguarded variables as strongly rigid.  Useful when traversing arguments of inductive constructors.
 strongly :: FreeVars -> FreeVars
 strongly fv = fv
   { stronglyRigidVars = stronglyRigidVars fv `Set.union` unguardedVars fv
