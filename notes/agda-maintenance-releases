@@ -104,10 +104,6 @@ followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
-* Remove the "this" source-repository section from the Cabal
-  file. (This would be unnecessary if we had two repositories, one
-  stable and one for development.)
-
 * Restore the Cabal test-suite:
 
   ** Restore the agda-tests test suite in Agda.cabal.
@@ -116,7 +112,11 @@ followed:
 
   ** Add exec-test to the tests rule in Makefile.
 
-* Add back -Werror and -fprof-auto in Agda.cabal.
+* Restore -Werror and -fprof-auto in Agda.cabal.
+
+* Remove the "this" source-repository section from the Cabal
+  file. (This would be unnecessary if we had two repositories, one
+  stable and one for development.)
 
 * Restore --program-suffix=-$(VERSION) in Makefile [Issue 1511].
 
