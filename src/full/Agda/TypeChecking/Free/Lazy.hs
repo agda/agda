@@ -36,6 +36,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.Foldable (foldMap)
+import Data.IntMap (IntMap)
 import Data.Monoid
 
 import qualified Agda.Benchmarking as Bench
@@ -49,6 +50,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
+import Agda.Utils.VarSet (VarSet)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -111,6 +113,8 @@ topVarOcc = VarOcc StronglyRigid Relevant
 
 botVarOcc :: VarOcc
 botVarOcc = VarOcc Flexible Irrelevant
+
+type VarMap = IntMap VarOcc
 
 -- * Collecting free variables.
 

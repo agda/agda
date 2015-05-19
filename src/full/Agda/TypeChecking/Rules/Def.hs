@@ -468,7 +468,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
 
                   -- Split the telescope into the part needed to type the with arguments
                   -- and all the other stuff
-                  let fv = allVars $ freeVars (vs, as)
+                  let fv = allFreeVars (vs, as)
                       SplitTel delta1 delta2 perm' = splitTelescope fv delta
                       finalPerm = composeP perm' perm
 

@@ -23,19 +23,15 @@
 
 module Agda.TypeChecking.Free
     ( FreeVars(..)
-    , Free, FreeV
+    , Free, FreeV, FreeVS
     , IgnoreSorts(..)
-    , freeVars
-    , freeVarsIgnore
-    , allVars
-    , relevantVars
-    , rigidVars
-    , freeIn, isBinderUsed
-    , freeInIgnoringSorts, freeInIgnoringSortAnn
+    , allFreeVars, allRelevantVars, allRelevantVarsIgnoring
+    , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
     , occurrence
     , closed
+    , freeVars -- only for testing
     ) where
 
 import Control.Applicative hiding (empty)
@@ -227,6 +223,7 @@ bench = Bench.billToPure [ Bench.Typing , Bench.Free ]
 
 type Free a = Free' a Any
 type FreeV a = Free' a FreeVars
+type FreeVS a = Free' a VarSet
 
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
@@ -274,6 +271,19 @@ isBinderUsed (Abs _ x) = 0 `freeIn` x
 -- | Is the term entirely closed (no free variables)?
 closed :: Free' a All => a -> Bool
 closed t = getAll $ runFree (const $ All False) IgnoreNot t
+
+-- | Collect all free variables.
+allFreeVars :: Free' a VarSet => a -> VarSet
+allFreeVars = runFree (Set.singleton . fst) IgnoreNot
+
+-- | Collect all relevant free variables, possibly ignoring sorts.
+allRelevantVarsIgnoring :: Free' a VarSet => IgnoreSorts -> a -> VarSet
+allRelevantVarsIgnoring = runFree sg
+  where sg (i, VarOcc _ r) = if irrelevantOrUnused r then Set.empty else Set.singleton i
+
+-- | Collect all relevant free variables.
+allRelevantVars :: Free' a VarSet => a -> VarSet
+allRelevantVars = allRelevantVarsIgnoring IgnoreNot
 
 
 {- OLD

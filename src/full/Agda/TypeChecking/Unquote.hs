@@ -373,7 +373,7 @@ instance Unquote Clause where
 
       checkClause :: I.Clause -> UnquoteM I.Clause
       checkClause cl@Clause{ clausePerm = Perm n vs , clauseBody = body } = do
-        let freevs    = allVars $ freeVars $ fromMaybe __IMPOSSIBLE__ $ getBody body
+        let freevs    = allFreeVars $ fromMaybe __IMPOSSIBLE__ $ getBody body
             propervs  = Set.fromList $ map ((n-1)-) vs
             dottedvs  = Set.difference (Set.fromList [0..n-1]) propervs
             offending = Set.intersection freevs dottedvs

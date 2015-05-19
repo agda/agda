@@ -608,8 +608,7 @@ assign dir x args v = do
         -- Andreas, 2011-04-21 do the occurs check first
         -- e.g. _1 x (suc x) = suc (_2 x y)
         -- even though the lhs is not a pattern, we can prune the y from _2
-        let varsL = freeVars args
-        let relVL = Set.toList $ relevantVars varsL
+        let relVL = Set.toList $ allRelevantVars args
 {- Andreas, 2012-04-02: DontCare no longer present
         -- take away top-level DontCare constructors
         args <- return $ map (fmap stripDontCare) args
@@ -637,7 +636,7 @@ assign dir x args v = do
                  ]
 
         -- Check that the x doesn't occur in the right hand side.
-        -- Prune mvars on rhs such that they can only depend on varsL.
+        -- Prune mvars on rhs such that they can only depend on lhs vars.
         -- Herein, distinguish relevant and irrelevant vars,
         -- since when abstracting irrelevant lhs vars, they may only occur
         -- irrelevantly on rhs.
@@ -657,7 +656,7 @@ assign dir x args v = do
         -- free in v
         -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
         -- we'll build solutions where the irrelevant terms are not valid
-        let fvs = allVars $ freeVars v
+        let fvs = allFreeVars v
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
