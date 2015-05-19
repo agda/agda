@@ -53,7 +53,7 @@ prof : install-prof-bin
 
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install --enable-tests --disable-library-profiling --disable-documentation $(CABAL_OPTS)
 
 .PHONY : install-O0-bin
 install-O0-bin :
@@ -113,7 +113,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test api-test tests benchmark-without-logs
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test api-test tests benchmark-without-logs exec-test
 
 .PHONY : quicktest
 quicktest : succeed fail
