@@ -388,10 +388,10 @@ constructs nofPars t q = constrT 0 t
         nonLinearParams n pars ixs =
           -- compute the free de Bruijn indices in the data indices
           -- ALT: Ignore all sorts?
-          let fv = freeVarsIgnore IgnoreInAnnotations ixs
+          let fv = allRelevantVarsIgnoring IgnoreInAnnotations ixs
           -- keep relevant ones, convert to de Bruijn levels
           -- note: xs is descending list
-              xs = map ((n-1) -) $ VarSet.toList $ relevantVars fv
+              xs = map ((n-1) -) $ VarSet.toList fv
           -- keep those that correspond to parameters
           -- in ascending list
           in  reverse $ filter (< size pars) xs

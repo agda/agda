@@ -254,7 +254,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     Def n args -> do
       TelV tel _ <- telView . defType =<< getConstInfo n
       let varOccs EmptyTel           = []
-          varOccs (ExtendTel _ btel) = occurrence 0 (freeVars tel) : varOccs tel
+          varOccs (ExtendTel _ btel) = occurrence 0 tel : varOccs tel
             where tel = unAbs btel
           rigid StronglyRigid = True
           rigid Unguarded     = True

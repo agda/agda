@@ -59,7 +59,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records (isRecordType)
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Irrelevance
 
 import Agda.Interaction.Options
 

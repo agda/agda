@@ -19,6 +19,7 @@ import Agda.Termination.Order                 as TermOrd    (tests)
 import Agda.Termination.Semiring              as TermRing   (tests)
 import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.Termination.Termination           as TermTerm   (tests)
+import Agda.TypeChecking.Free.Tests           as Free       (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.TypeChecking.SizedTypes.Tests     as SizedTypes (tests)
@@ -38,7 +39,8 @@ import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
-  [ Irrel.tests
+  [ Free.tests
+  , Irrel.tests
   , SizedTypes.tests
   , UtilFav.tests
   , UtilListT.tests

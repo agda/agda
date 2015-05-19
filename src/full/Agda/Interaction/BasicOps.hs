@@ -509,7 +509,7 @@ metaHelperType norm ii rng s = case words s of
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
-          fv = allVars $ freeVars (vs, as)
+          fv = allFreeVars (vs, as)
           SplitTel delta1 delta2 perm = splitTelescope fv tel
           a' = renameP (reverseP perm) a
       (vs, as) <- do

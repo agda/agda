@@ -13,7 +13,7 @@ module Agda.Utils.Trie
   , lookupPath
   ) where
 
-import Prelude hiding (Maybe(..), maybe)
+import Prelude hiding (Maybe(..), maybe, null)
 import qualified Prelude as Lazy
 
 import Data.Function
@@ -31,6 +31,7 @@ import Test.QuickCheck
 
 import Agda.Utils.List (mcons)
 import Agda.Utils.Maybe.Strict
+import Agda.Utils.Null
 
 -- | Finite map from @[k]@ to @v@.
 --
@@ -39,8 +40,9 @@ data Trie k v = Trie !(Maybe v) !(Map k (Trie k v))
   deriving (Show, Eq)
 
 -- | Empty trie.
-empty :: Trie k v
-empty = Trie Nothing Map.empty
+instance Null (Trie k v) where
+  empty = Trie Nothing Map.empty
+  null (Trie v t) = null v && null t
 
 -- | Singleton trie.
 singleton :: [k] -> v -> Trie k v

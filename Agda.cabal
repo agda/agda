@@ -163,6 +163,7 @@ library
                     Agda.Auto.SearchControl
                     Agda.Auto.Syntax
                     Agda.Auto.Typecheck
+                    Agda.Benchmarking
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.Epic.AuxAST
                     Agda.Compiler.Epic.CaseOpts
@@ -301,6 +302,9 @@ library
                     Agda.TypeChecking.EtaContract
                     Agda.TypeChecking.Errors
                     Agda.TypeChecking.Free
+                    Agda.TypeChecking.Free.Lazy
+                    Agda.TypeChecking.Free.Old
+                    Agda.TypeChecking.Free.Tests
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
@@ -312,7 +316,6 @@ library
                     Agda.TypeChecking.MetaVars.Mention
                     Agda.TypeChecking.MetaVars.Occurs
                     Agda.TypeChecking.Monad.Base
-                    Agda.TypeChecking.Monad.Base.Benchmark
                     Agda.TypeChecking.Monad.Base.KillRange
                     Agda.TypeChecking.Monad.Benchmark
                     Agda.TypeChecking.Monad.Builtin
@@ -383,6 +386,7 @@ library
                     Agda.TypeChecking.With
                     Agda.Utils.AssocList
                     Agda.Utils.Bag
+                    Agda.Utils.Benchmark
                     Agda.Utils.BiMap
                     Agda.Utils.Char
                     Agda.Utils.Cluster

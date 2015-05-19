@@ -21,6 +21,7 @@ import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Monad.Benchmark
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
@@ -49,6 +50,7 @@ setPragmaOptions opts = do
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       stPragmaOptions .= optPragmaOptions opts
+      updateBenchmarkingStatus
 
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
@@ -75,6 +77,7 @@ setCommandLineOptions opts =
           getIncludeDirs
       modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
              . Lens.setPragmaOptions (optPragmaOptions opts)
+      updateBenchmarkingStatus
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the pragma options which are currently in effect.
