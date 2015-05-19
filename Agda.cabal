@@ -406,6 +406,7 @@ library
 
   if impl(ghc >= 7.4.2)
     ghc-options: -w
+                 -Werror
                  -fwarn-deprecated-flags
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
@@ -442,6 +443,8 @@ library
   -- The -fwarn-amp flag is deprected in GHC 7.10.1.
   if impl(ghc >= 7.8) && impl(ghc < 7.10)
     ghc-options: -fwarn-amp
+
+  ghc-prof-options: -fprof-auto
 
 executable agda
   hs-source-dirs: src/main
