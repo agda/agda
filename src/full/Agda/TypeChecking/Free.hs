@@ -235,6 +235,16 @@ freeVars = freeVarsIgnore IgnoreNot
 freeVarsIgnore :: (Monoid c, Singleton Variable c, Free' a c) => IgnoreSorts -> a -> c
 freeVarsIgnore = runFree singleton
 
+-- Specialization to typical monoids
+{-# SPECIALIZE runFree :: Free' a Any      => SingleVar Any      -> IgnoreSorts -> a -> Any #-}
+{-# SPECIALIZE runFree :: Free' a All      => SingleVar All      -> IgnoreSorts -> a -> All #-}
+{-# SPECIALIZE runFree :: Free' a VarSet   => SingleVar VarSet   -> IgnoreSorts -> a -> VarSet #-}
+{-# SPECIALIZE runFree :: Free' a FreeVars => SingleVar FreeVars -> IgnoreSorts -> a -> FreeVars #-}
+-- Specialization to Term
+{-# SPECIALIZE runFree :: SingleVar Any      -> IgnoreSorts -> Term -> Any #-}
+{-# SPECIALIZE runFree :: SingleVar All      -> IgnoreSorts -> Term -> All #-}
+{-# SPECIALIZE runFree :: SingleVar VarSet   -> IgnoreSorts -> Term -> VarSet #-}
+{-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
 runFree :: (Monoid c, Free' a c) => SingleVar c -> IgnoreSorts -> a -> c
 runFree singleton i t =
   freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
@@ -248,6 +258,7 @@ freeIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
 freeIn' ig x t = bench $
   getAny $ runFree (Any . (x ==) . fst) ig t
 
+{-# SPECIALIZE freeIn :: Nat -> Term -> Bool #-}
 freeIn :: Free a => Nat -> a -> Bool
 freeIn = freeIn' IgnoreNot
 
