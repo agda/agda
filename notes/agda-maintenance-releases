@@ -122,7 +122,7 @@ followed:
 
   Agda.cabal (twice),
   src/data/emacs-mode/agda2-mode.el, and
-  mk/paths.mk.
+  mk/version.mk.
   test/interaction/Issue1244a.out
   test/interaction/Issue1244b.out
 
@@ -138,7 +138,7 @@ followed:
 
     Agda.cabal (twice),
     src/data/emacs-mode/agda2-mode.el, and
-    mk/paths.mk.
+    mk/version.mk.
 
 * Push master
 
