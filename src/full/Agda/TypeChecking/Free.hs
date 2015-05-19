@@ -246,16 +246,16 @@ freeVarsIgnore = runFree singleton
 {-# SPECIALIZE runFree :: SingleVar VarSet   -> IgnoreSorts -> Term -> VarSet #-}
 {-# SPECIALIZE runFree :: SingleVar FreeVars -> IgnoreSorts -> Term -> FreeVars #-}
 runFree :: (Monoid c, Free' a c) => SingleVar c -> IgnoreSorts -> a -> c
-runFree singleton i t =
+runFree singleton i t = -- bench $  -- Benchmarking is expensive (4% on std-lib)
   freeVars' t `runReader` (initFreeEnv singleton) { feIgnoreSorts = i }
 
 freeIn'' :: Free a => (VarOcc -> Bool) -> IgnoreSorts -> Nat -> a -> Bool
-freeIn'' test ig x t = bench $
+freeIn'' test ig x t =
   getAny $ runFree (\ (y, o) -> Any $ x == y && test o) ig t
 
 -- | @freeIn' = freeIn'' (const True)@
 freeIn' :: Free a => IgnoreSorts -> Nat -> a -> Bool
-freeIn' ig x t = bench $
+freeIn' ig x t =
   getAny $ runFree (Any . (x ==) . fst) ig t
 
 {-# SPECIALIZE freeIn :: Nat -> Term -> Bool #-}
