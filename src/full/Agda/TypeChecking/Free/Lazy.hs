@@ -204,6 +204,7 @@ class Free' a c where
   freeVars' :: (Monoid c) => a -> FreeM c
 
 instance Free' Term c where
+  {-# SPECIALIZE instance Free' Term All #-}
   {-# SPECIALIZE freeVars' :: Term -> FreeM Any #-}
   freeVars' t = case t of
     Var n ts     -> variable n `mappend` do go WeaklyRigid $ freeVars' ts
@@ -229,6 +230,7 @@ instance Free' Term c where
     ExtLam cs ts -> freeVars' (cs, ts)
 
 instance Free' Type c where
+  {-# SPECIALIZE instance Free' Type All #-}
   {-# SPECIALIZE freeVars' :: Type -> FreeM Any #-}
   freeVars' (El s t) =
     ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
@@ -236,6 +238,7 @@ instance Free' Type c where
       {- else -} (freeVars' t)
 
 instance Free' Sort c where
+  {-# SPECIALIZE instance Free' Sort All #-}
   {-# SPECIALIZE freeVars' :: Sort -> FreeM Any #-}
   freeVars' s =
     ifM ((IgnoreAll ==) <$> asks feIgnoreSorts) mempty $ {- else -}
@@ -247,15 +250,18 @@ instance Free' Sort c where
       DLub s1 s2 -> go WeaklyRigid $ freeVars' (s1, s2)
 
 instance Free' Level c where
+  {-# SPECIALIZE instance Free' Level All #-}
   {-# SPECIALIZE freeVars' :: Level -> FreeM Any #-}
   freeVars' (Max as) = freeVars' as
 
 instance Free' PlusLevel c where
+  {-# SPECIALIZE instance Free' PlusLevel All #-}
   {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM Any #-}
   freeVars' ClosedLevel{} = mempty
   freeVars' (Plus _ l)    = freeVars' l
 
 instance Free' LevelAtom c where
+  {-# SPECIALIZE instance Free' LevelAtom All #-}
   {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM Any #-}
   freeVars' l = case l of
     MetaLevel _ vs   -> go Flexible $ freeVars' vs
@@ -264,47 +270,57 @@ instance Free' LevelAtom c where
     UnreducedLevel v -> freeVars' v
 
 instance Free' a c => Free' [a] c where
+  {-# SPECIALIZE instance Free' a All => Free' [a] All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => [a] -> FreeM Any #-}
   freeVars' = foldMap freeVars'
 
 instance Free' a c => Free' (Maybe a) c where
+  {-# SPECIALIZE instance Free' a All => Free' (Maybe a) All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => Maybe a -> FreeM Any #-}
   freeVars' = foldMap freeVars'
 
 instance (Free' a c, Free' b c) => Free' (a,b) c where
+  {-# SPECIALIZE instance (Free' a All, Free' b All) => Free' (a,b) All #-}
   {-# SPECIALIZE freeVars' :: (Free' a Any, Free' b Any) => (a,b) -> FreeM Any #-}
   freeVars' (x,y) = freeVars' x `mappend` freeVars' y
 
 instance Free' a c => Free' (Elim' a) c where
+  {-# SPECIALIZE instance Free' a All => Free' (Elim' a) All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => Elim' a -> FreeM Any #-}
   freeVars' (Apply a) = freeVars' a
   freeVars' (Proj{} ) = mempty
 
 instance Free' a c => Free' (Arg a) c where
+  {-# SPECIALIZE instance Free' a All => Free' (Arg a) All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => Arg a -> FreeM Any #-}
   freeVars' a = goRel (getRelevance a) $ freeVars' $ unArg a
 
 instance Free' a c => Free' (Dom a) c where
+  {-# SPECIALIZE instance Free' a All => Free' (Dom a) All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => Dom a -> FreeM Any #-}
   freeVars' = freeVars' . unDom
 
 instance Free' a c => Free' (Abs a) c where
+  {-# SPECIALIZE instance Free' a All => Free' (Abs a) All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => Abs a -> FreeM Any #-}
   freeVars' (Abs   _ b) = bind $ freeVars' b
   freeVars' (NoAbs _ b) = freeVars' b
 
 instance Free' a c => Free' (Tele a) c where
+  {-# SPECIALIZE instance Free' a All => Free' (Tele a) All #-}
   {-# SPECIALIZE freeVars' :: Free' a Any => Tele a -> FreeM Any #-}
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
 instance Free' ClauseBody c where
+  {-# SPECIALIZE instance Free' ClauseBody All #-}
   {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM Any #-}
   freeVars' (Body t)   = freeVars' t
   freeVars' (Bind b)   = freeVars' b
   freeVars'  NoBody    = mempty
 
 instance Free' Clause c where
+  {-# SPECIALIZE instance Free' Clause All #-}
   {-# SPECIALIZE freeVars' :: Clause -> FreeM Any #-}
   freeVars' = freeVars' . clauseBody
 

@@ -35,6 +35,7 @@ module Agda.TypeChecking.Free
     , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
     , occurrence
+    , closed
     ) where
 
 import Control.Applicative hiding (empty)
@@ -269,6 +270,11 @@ relevantIn = freeIn'' (not . irrelevantOrUnused . varRelevance) IgnoreAll
 isBinderUsed :: Free a => Abs a -> Bool
 isBinderUsed NoAbs{}   = False
 isBinderUsed (Abs _ x) = 0 `freeIn` x
+
+-- | Is the term entirely closed (no free variables)?
+closed :: Free' a All => a -> Bool
+closed t = getAll $ runFree (const $ All False) IgnoreNot t
+
 
 {- OLD
 
