@@ -160,73 +160,73 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
     , nest 2 $ text (show d)
     ]
   checkTypeOfMain q ty $ do
-  (infodecl q :) <$> case d of
+    (infodecl q :) <$> case d of
 
-    _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->
-      return $ fbWithType ty (fakeExp hs)
+      _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->
+        return $ fbWithType ty (fakeExp hs)
 
-    -- Special treatment of coinductive builtins.
-    Datatype{} | Just q == (nameOfInf <$> kit) -> do
-      let infT = unqhname "T" q
-          infV = unqhname "d" q
-          a    = ihname "a" 0
-          b    = ihname "a" 1
-          vars = [a, b]
-      return [ HS.TypeDecl dummy infT
-                           (List.map HS.UnkindedVar vars)
-                           (HS.TyVar b)
-             , HS.FunBind [HS.Match dummy infV
-                                    (List.map HS.PVar vars) Nothing
-                                    (HS.UnGuardedRhs HS.unit_con)
-                                    (HS.BDecls [])]
-             ]
-    Constructor{} | Just q == (nameOfSharp <$> kit) -> do
-      let sharp = unqhname "d" q
-          x     = ihname "x" 0
-      return $
-        [ HS.TypeSig dummy [sharp] $ fakeType $
-            "forall a. a -> a"
-        , HS.FunBind [HS.Match dummy sharp
-                               [HS.PVar x]
-                               Nothing
-                               (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                               (HS.BDecls [])]
-        ]
-    Function{} | Just q == (nameOfFlat <$> kit) -> do
-      let flat = unqhname "d" q
-          x    = ihname "x" 0
-      return $
-        [ HS.TypeSig dummy [flat] $ fakeType $
-            "forall a. a -> a"
-        , HS.FunBind [HS.Match dummy flat
-                               [HS.PVar x]
-                               Nothing
-                               (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                               (HS.BDecls [])]
-        ]
+      -- Special treatment of coinductive builtins.
+      Datatype{} | Just q == (nameOfInf <$> kit) -> do
+        let infT = unqhname "T" q
+            infV = unqhname "d" q
+            a    = ihname "a" 0
+            b    = ihname "a" 1
+            vars = [a, b]
+        return [ HS.TypeDecl dummy infT
+                             (List.map HS.UnkindedVar vars)
+                             (HS.TyVar b)
+               , HS.FunBind [HS.Match dummy infV
+                                      (List.map HS.PVar vars) Nothing
+                                      (HS.UnGuardedRhs HS.unit_con)
+                                      (HS.BDecls [])]
+               ]
+      Constructor{} | Just q == (nameOfSharp <$> kit) -> do
+        let sharp = unqhname "d" q
+            x     = ihname "x" 0
+        return $
+          [ HS.TypeSig dummy [sharp] $ fakeType $
+              "forall a. a -> a"
+          , HS.FunBind [HS.Match dummy sharp
+                                 [HS.PVar x]
+                                 Nothing
+                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
+                                 (HS.BDecls [])]
+          ]
+      Function{} | Just q == (nameOfFlat <$> kit) -> do
+        let flat = unqhname "d" q
+            x    = ihname "x" 0
+        return $
+          [ HS.TypeSig dummy [flat] $ fakeType $
+              "forall a. a -> a"
+          , HS.FunBind [HS.Match dummy flat
+                                 [HS.PVar x]
+                                 Nothing
+                                 (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
+                                 (HS.BDecls [])]
+          ]
 
-    Axiom{} -> return $ fb axiomErr
-    Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
-    Primitive{ primClauses = cls } -> function cls Nothing
-    Function{ funClauses =   cls } -> function cls (exportHaskell compiled)
-    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
-      | Just (HsType ty) <- compiledHaskell compiled -> do
-      ccs <- concat <$> mapM checkConstructorType cs
-      cov <- checkCover q ty np cs
-      return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
-    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
-      (ars, cds) <- unzip <$> mapM condecl cs
-      return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
-    Constructor{} -> return []
-    Record{ recClause = cl, recConHead = con, recFields = flds } -> do
-      let c = conName con
-      let noFields = genericLength flds
-      let ar = arity ty
-      cd <- snd <$> condecl c
---       cd <- case c of
---         Nothing -> return $ cdecl q noFields
---         Just c  -> snd <$> condecl c
-      return $ tvaldecl q Inductive noFields ar [cd] cl
+      Axiom{} -> return $ fb axiomErr
+      Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
+      Primitive{ primClauses = cls } -> function cls Nothing
+      Function{ funClauses =   cls } -> function cls (exportHaskell compiled)
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
+        | Just (HsType ty) <- compiledHaskell compiled -> do
+        ccs <- concat <$> mapM checkConstructorType cs
+        cov <- checkCover q ty np cs
+        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
+      Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
+        (ars, cds) <- unzip <$> mapM condecl cs
+        return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
+      Constructor{} -> return []
+      Record{ recClause = cl, recConHead = con, recFields = flds } -> do
+        let c = conName con
+        let noFields = genericLength flds
+        let ar = arity ty
+        cd <- snd <$> condecl c
+  --       cd <- case c of
+  --         Nothing -> return $ cdecl q noFields
+  --         Just c  -> snd <$> condecl c
+        return $ tvaldecl q Inductive noFields ar [cd] cl
   where
   function :: [Clause] -> Maybe HaskellExport -> TCM [HS.Decl]
   function cls (Just (HsExport t name)) =
