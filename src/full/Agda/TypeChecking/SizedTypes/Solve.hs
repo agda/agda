@@ -248,18 +248,18 @@ getSizeHypotheses :: Context -> TCM [(CtxId, SizeConstraint)]
 getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
   (_, msizelt) <- getBuiltinSize
   caseMaybe msizelt (return []) $ \ sizelt -> do
-  -- Traverse the context from newest to oldest de Bruijn Index
-  catMaybes <$> do
-    forM (zip [0..] gamma) $ \ (i, ce) -> do
-      -- Get name and type of variable i.
-      let xt = unDom $ ctxEntry ce
-          x  = show $ fst xt
-      t <- reduce . raise (1 + i) . unEl . snd $ xt
-      case ignoreSharing t of
-        Def d [Apply u] | d == sizelt -> do
-          caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
-            return $ Just $ (ctxId ce, Constraint (Rigid (NamedRigid x i) 0) Lt a)
-        _ -> return Nothing
+    -- Traverse the context from newest to oldest de Bruijn Index
+    catMaybes <$> do
+      forM (zip [0..] gamma) $ \ (i, ce) -> do
+        -- Get name and type of variable i.
+        let xt = unDom $ ctxEntry ce
+            x  = show $ fst xt
+        t <- reduce . raise (1 + i) . unEl . snd $ xt
+        case ignoreSharing t of
+          Def d [Apply u] | d == sizelt -> do
+            caseMaybeM (sizeExpr $ unArg u) (return Nothing) $ \ a ->
+              return $ Just $ (ctxId ce, Constraint (Rigid (NamedRigid x i) 0) Lt a)
+          _ -> return Nothing
 
 -- | Convert size constraint into form where each meta is applied
 --   to indices @0,1,..,n-1@ where @n@ is the arity of that meta.
@@ -397,20 +397,20 @@ computeSizeConstraint :: Closure TCM.Constraint -> TCM (Maybe HypSizeConstraint)
 computeSizeConstraint c = do
   let cxt = envContext $ clEnv c
   inTopContext $ modifyContext (const cxt) $ do
-  case clValue c of
-    ValueCmp CmpLeq _ u v -> do
-      reportSDoc "tc.size.solve" 50 $ sep $
-        [ text "converting size constraint"
-        , prettyTCM c
-        ]
-      ma <- sizeExpr u
-      mb <- sizeExpr v
-      (hids, hs) <- unzip <$> getSizeHypotheses cxt
-      let mk a b = HypSizeConstraint cxt hids hs $ Size.Constraint a Le b
-      -- We only create a size constraint if both terms can be
-      -- parsed to our format of size expressions.
-      return $ mk <$> ma <*> mb
-    _ -> __IMPOSSIBLE__
+    case clValue c of
+      ValueCmp CmpLeq _ u v -> do
+        reportSDoc "tc.size.solve" 50 $ sep $
+          [ text "converting size constraint"
+          , prettyTCM c
+          ]
+        ma <- sizeExpr u
+        mb <- sizeExpr v
+        (hids, hs) <- unzip <$> getSizeHypotheses cxt
+        let mk a b = HypSizeConstraint cxt hids hs $ Size.Constraint a Le b
+        -- We only create a size constraint if both terms can be
+        -- parsed to our format of size expressions.
+        return $ mk <$> ma <*> mb
+      _ -> __IMPOSSIBLE__
 
 -- | Turn a term into a size expression.
 --
