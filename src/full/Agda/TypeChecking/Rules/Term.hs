@@ -1072,42 +1072,42 @@ checkConstructorApplication org t c args = do
     t0 <- reduce (Def d [])
     case (ignoreSharing t0, ignoreSharing $ unEl t) of -- Only fully applied constructors get special treatment
       (Def d0 _, Def d' es) -> do
-       let ~(Just vs) = allApplyElims es
-       reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
-       reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
-       reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
-       if d' /= d0 then fallback else do
-        -- Issue 661: d' may take more parameters than d, in particular
-        -- these additional parameters could be a module parameter telescope.
-        -- Since we get the constructor type ctype from d but the parameters
-        -- from t = Def d' vs, we drop the additional parameters.
-        npars  <- getNumberOfParameters d
-        npars' <- getNumberOfParameters d'
-        caseMaybe (sequenceA $ List2 (npars, npars')) fallback $ \ (List2 (n,n')) -> do
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
-        reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
-        when (n > n')  -- preprocessor does not like ', so put on next line
-          __IMPOSSIBLE__
-        let ps    = genericTake n $ genericDrop (n' - n) vs
-            ctype = defType cdef
-        reportSDoc "tc.term.con" 20 $ vcat
-          [ text "special checking of constructor application of" <+> prettyTCM c
-          , nest 2 $ vcat [ text "ps     =" <+> prettyTCM ps
-                          , text "ctype  =" <+> prettyTCM ctype ] ]
-        let ctype' = ctype `piApply` ps
-        reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
-        -- get the parameter names
-        TelV ptel _ <- telViewUpTo n ctype
-        let pnames = map (fst . unDom) $ telToList ptel
-        -- drop the parameter arguments
-            args' = dropArgs pnames args
-        -- check the non-parameter arguments
-        expandLast <- asks envExpandLast
-        checkArguments' expandLast ExpandInstanceArguments (getRange c) args' ctype' t $ \us t' -> do
-          reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
-            [ text "us     =" <+> prettyTCM us
-            , text "t'     =" <+> prettyTCM t' ]
-          coerce (Con c us) t' t
+        let ~(Just vs) = allApplyElims es
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
+        if d' /= d0 then fallback else do
+         -- Issue 661: d' may take more parameters than d, in particular
+         -- these additional parameters could be a module parameter telescope.
+         -- Since we get the constructor type ctype from d but the parameters
+         -- from t = Def d' vs, we drop the additional parameters.
+         npars  <- getNumberOfParameters d
+         npars' <- getNumberOfParameters d'
+         caseMaybe (sequenceA $ List2 (npars, npars')) fallback $ \ (List2 (n,n')) -> do
+         reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
+         reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
+         when (n > n')  -- preprocessor does not like ', so put on next line
+           __IMPOSSIBLE__
+         let ps    = genericTake n $ genericDrop (n' - n) vs
+             ctype = defType cdef
+         reportSDoc "tc.term.con" 20 $ vcat
+           [ text "special checking of constructor application of" <+> prettyTCM c
+           , nest 2 $ vcat [ text "ps     =" <+> prettyTCM ps
+                           , text "ctype  =" <+> prettyTCM ctype ] ]
+         let ctype' = ctype `piApply` ps
+         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
+         -- get the parameter names
+         TelV ptel _ <- telViewUpTo n ctype
+         let pnames = map (fst . unDom) $ telToList ptel
+         -- drop the parameter arguments
+             args' = dropArgs pnames args
+         -- check the non-parameter arguments
+         expandLast <- asks envExpandLast
+         checkArguments' expandLast ExpandInstanceArguments (getRange c) args' ctype' t $ \us t' -> do
+           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
+             [ text "us     =" <+> prettyTCM us
+             , text "t'     =" <+> prettyTCM t' ]
+           coerce (Con c us) t' t
       _ -> do
         reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
         fallback
