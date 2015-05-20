@@ -5,6 +5,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+#if __GLASGOW_HASKELL__ <= 704
+{-# LANGUAGE ConstraintKinds #-}
+#endif
+
 module Agda.TypeChecking.Test.Generators where
 
 import Control.Applicative

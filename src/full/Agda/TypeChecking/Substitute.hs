@@ -7,6 +7,10 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
+#if __GLASGOW_HASKELL__ <= 704
+{-# LANGUAGE ConstraintKinds #-}
+#endif
+
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
 #endif

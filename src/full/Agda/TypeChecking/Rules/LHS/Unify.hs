@@ -10,6 +10,10 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
+#if __GLASGOW_HASKELL__ <= 704
+{-# LANGUAGE ConstraintKinds #-}
+#endif
+
 module Agda.TypeChecking.Rules.LHS.Unify where
 
 import Prelude hiding (null)
