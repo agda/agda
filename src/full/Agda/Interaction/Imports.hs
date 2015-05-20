@@ -236,64 +236,64 @@ getInterface'
   -> TCM (Interface, MaybeWarnings)
 getInterface' x isMain = do
   withIncreasedModuleNestingLevel $ do
-  -- Preserve the pragma options unless includeStateChanges is True.
-  bracket_ (use stPragmaOptions)
-           (unless includeStateChanges . setPragmaOptions) $ do
-   -- Forget the pragma options (locally).
-   setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
+    -- Preserve the pragma options unless includeStateChanges is True.
+    bracket_ (use stPragmaOptions)
+             (unless includeStateChanges . setPragmaOptions) $ do
+     -- Forget the pragma options (locally).
+     setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
 
-   alreadyVisited x $ addImportCycleCheck x $ do
-    file <- findFile x  -- requires source to exist
+     alreadyVisited x $ addImportCycleCheck x $ do
+      file <- findFile x  -- requires source to exist
 
-    reportSLn "import.iface" 10 $ "  Check for cycle"
-    checkForImportCycle
+      reportSLn "import.iface" 10 $ "  Check for cycle"
+      checkForImportCycle
 
-    uptodate <- Bench.billTo [Bench.Import] $ do
-      ignore <- ignoreInterfaces
-      cached <- isCached file -- if it's cached ignoreInterfaces has no effect
-                              -- to avoid typechecking a file more than once
-      sourceH <- liftIO $ hashFile file
-      ifaceH  <-
-        case cached of
-          Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
-          Just i  -> return $ Just $ iSourceHash i
-      let unchanged = Just sourceH == ifaceH
-      return $ unchanged && (not ignore || isJust cached)
+      uptodate <- Bench.billTo [Bench.Import] $ do
+        ignore <- ignoreInterfaces
+        cached <- isCached file -- if it's cached ignoreInterfaces has no effect
+                                -- to avoid typechecking a file more than once
+        sourceH <- liftIO $ hashFile file
+        ifaceH  <-
+          case cached of
+            Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
+            Just i  -> return $ Just $ iSourceHash i
+        let unchanged = Just sourceH == ifaceH
+        return $ unchanged && (not ignore || isJust cached)
 
-    reportSLn "import.iface" 5 $
-      "  " ++ render (pretty x) ++ " is " ++
-      (if uptodate then "" else "not ") ++ "up-to-date."
+      reportSLn "import.iface" 5 $
+        "  " ++ render (pretty x) ++ " is " ++
+        (if uptodate then "" else "not ") ++ "up-to-date."
 
-    -- Andreas, 2014-10-20 AIM XX:
-    -- Always retype-check the main file to get the iInsideScope
-    -- which is no longer serialized.
-    (stateChangesIncluded, (i, wt)) <-
-      if uptodate && isMain == NotMainInterface then skip file else typeCheckThe file
+      -- Andreas, 2014-10-20 AIM XX:
+      -- Always retype-check the main file to get the iInsideScope
+      -- which is no longer serialized.
+      (stateChangesIncluded, (i, wt)) <-
+        if uptodate && isMain == NotMainInterface then skip file else typeCheckThe file
 
-    -- Ensure that the given module name matches the one in the file.
-    let topLevelName = toTopLevelModuleName $ iModuleName i
-    unless (topLevelName == x) $ do
-      -- Andreas, 2014-03-27 This check is now done in the scope checker.
-      -- checkModuleName topLevelName file
-      typeError $ OverlappingProjects file topLevelName x
+      -- Ensure that the given module name matches the one in the file.
+      let topLevelName = toTopLevelModuleName $ iModuleName i
+      unless (topLevelName == x) $ do
+        -- Andreas, 2014-03-27 This check is now done in the scope checker.
+        -- checkModuleName topLevelName file
+        typeError $ OverlappingProjects file topLevelName x
 
-    visited <- isVisited x
-    reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
-                                 else "  New module. Let's check it out."
-    unless (visited || stateChangesIncluded) $ do
-      mergeInterface i
-      Bench.billTo [Bench.Highlighting] $
-        ifTopLevelAndHighlightingLevelIs NonInteractive $
-          highlightFromInterface i file
+      visited <- isVisited x
+      reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
+                                   else "  New module. Let's check it out."
+      unless (visited || stateChangesIncluded) $ do
+        mergeInterface i
+        Bench.billTo [Bench.Highlighting] $
+          ifTopLevelAndHighlightingLevelIs NonInteractive $
+            highlightFromInterface i file
 
-    stCurrentModule .= Just (iModuleName i)
+      stCurrentModule .= Just (iModuleName i)
 
-    -- Interfaces are only stored if no warnings were encountered.
-    case wt of
-      SomeWarnings w -> return ()
-      NoWarnings     -> storeDecodedModule i
+      -- Interfaces are only stored if no warnings were encountered.
+      case wt of
+        SomeWarnings w -> return ()
+        NoWarnings     -> storeDecodedModule i
 
-    return (i, wt)
+      return (i, wt)
 
     where
       includeStateChanges = isMain == MainInterface
@@ -556,9 +556,9 @@ createInterface file mname =
     -- Highlighting from scope checker.
     Bench.billTo [Bench.Highlighting] $ do
       ifTopLevelAndHighlightingLevelIs NonInteractive $ do
-      -- Generate and print approximate syntax highlighting info.
-      printHighlightingInfo fileTokenInfo
-      mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
+        -- Generate and print approximate syntax highlighting info.
+        printHighlightingInfo fileTokenInfo
+        mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
 
 
     -- Type checking.
