@@ -1,11 +1,12 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             DeriveDataTypeable,
+             DeriveFunctor,
+             FlexibleContexts,
+             FlexibleInstances,
+             PatternGuards,
+             StandaloneDeriving,
+             TupleSections #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
