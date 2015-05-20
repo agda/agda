@@ -130,42 +130,42 @@ compareTerm cmp a u v = do
   let equal = u == v
 -}
   if equal then unifyPointers cmp u v $ verboseS "profile.sharing" 20 $ tick "equal terms" else do
-  verboseS "profile.sharing" 20 $ tick "unequal terms"
-  let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
-        verboseS "profile.sharing" 10 $ tick "pointer equality"
-        return ()
-      checkPointerEquality def = def
-  checkPointerEquality $ do
-  reportSDoc "tc.conv.term" 15 $ sep
-    [ text "compareTerm (not syntactically equal)"
-    , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
-    , nest 2 $ text ":" <+> prettyTCM a
-    ]
-  -- If we are at type Size, we cannot short-cut comparison
-  -- against metas by assignment.
-  -- Andreas, 2014-04-12: this looks incomplete.
-  -- It seems to assume we are never comparing
-  -- at function types into Size.
-  let fallback = compareTerm' cmp a u v
-      unlessSubtyping cont =
-        if cmp == CmpEq then cont else do
-          -- Andreas, 2014-04-12 do not short cut if type is blocked.
-          ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
-          -- do not short circuit size comparison!
-          caseMaybeM (isSizeTypeTest <*> return a) cont (\ _ -> fallback)
+    verboseS "profile.sharing" 20 $ tick "unequal terms"
+    let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
+          verboseS "profile.sharing" 10 $ tick "pointer equality"
+          return ()
+        checkPointerEquality def = def
+    checkPointerEquality $ do
+      reportSDoc "tc.conv.term" 15 $ sep
+        [ text "compareTerm (not syntactically equal)"
+        , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
+        , nest 2 $ text ":" <+> prettyTCM a
+        ]
+      -- If we are at type Size, we cannot short-cut comparison
+      -- against metas by assignment.
+      -- Andreas, 2014-04-12: this looks incomplete.
+      -- It seems to assume we are never comparing
+      -- at function types into Size.
+      let fallback = compareTerm' cmp a u v
+          unlessSubtyping cont =
+            if cmp == CmpEq then cont else do
+                -- Andreas, 2014-04-12 do not short cut if type is blocked.
+                ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
+                  -- do not short circuit size comparison!
+                  caseMaybeM (isSizeTypeTest <*> return a) cont (\ _ -> fallback)
 
-      dir = fromCmp cmp
-      rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
-  case (ignoreSharing u, ignoreSharing v) of
-    (MetaV x us, MetaV y vs)
-      | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
-      | otherwise -> fallback
-      where
-        (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
-                         | otherwise = (assign rid y vs u, assign dir x us v)
-    (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
-    (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
-    _               -> fallback
+          dir = fromCmp cmp
+          rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
+      case (ignoreSharing u, ignoreSharing v) of
+        (MetaV x us, MetaV y vs)
+          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
+          | otherwise -> fallback
+          where
+            (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
+                             | otherwise = (assign rid y vs u, assign dir x us v)
+        (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
+        (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
+        _               -> fallback
   where
     assign dir x es v = do
       -- Andreas, 2013-10-19 can only solve if no projections
@@ -439,135 +439,135 @@ compareAtom cmp t m n =
 
     unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
-    reportSDoc "tc.conv.atom" 30 $
-      text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
-                                  , prettyTCM nb
-                                  , text ":" <+> prettyTCM t ]
-    case (ignoreSharing <$> mb, ignoreSharing <$> nb) of
-      -- equate two metas x and y.  if y is the younger meta,
-      -- try first y := x and then x := y
-      (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
-          | x == y ->
-            case intersectVars xArgs yArgs of
-              -- all relevant arguments are variables
-              Just kills -> do
-                -- kills is a list with 'True' for each different var
-                killResult <- killArgs kills x
-                case killResult of
-                  NothingToPrune   -> return ()
-                  PrunedEverything -> return ()
-                  PrunedNothing    -> postpone
-                  PrunedSomething  -> postpone
-                  -- OLD CODE: if killedAll then return () else checkSyntacticEquality
-              -- not all relevant arguments are variables
-              Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
-                              -- (same as for blocked terms)
-          | otherwise -> do
-              [p1, p2] <- mapM getMetaPriority [x,y]
-              -- instantiate later meta variables first
-              let (solve1, solve2)
-                    | (p1,x) > (p2,y) = (l,r)
-                    | otherwise       = (r,l)
-                    where l = assign dir x xArgs n
-                          r = assign rid y yArgs m
+      reportSDoc "tc.conv.atom" 30 $
+        text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
+                                    , prettyTCM nb
+                                    , text ":" <+> prettyTCM t ]
+      case (ignoreSharing <$> mb, ignoreSharing <$> nb) of
+        -- equate two metas x and y.  if y is the younger meta,
+        -- try first y := x and then x := y
+        (NotBlocked _ (MetaV x xArgs), NotBlocked _ (MetaV y yArgs))
+            | x == y ->
+              case intersectVars xArgs yArgs of
+                -- all relevant arguments are variables
+                Just kills -> do
+                  -- kills is a list with 'True' for each different var
+                  killResult <- killArgs kills x
+                  case killResult of
+                    NothingToPrune   -> return ()
+                    PrunedEverything -> return ()
+                    PrunedNothing    -> postpone
+                    PrunedSomething  -> postpone
+                    -- OLD CODE: if killedAll then return () else checkSyntacticEquality
+                -- not all relevant arguments are variables
+                Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
+                                -- (same as for blocked terms)
+            | otherwise -> do
+                [p1, p2] <- mapM getMetaPriority [x,y]
+                -- instantiate later meta variables first
+                let (solve1, solve2)
+                      | (p1,x) > (p2,y) = (l,r)
+                      | otherwise       = (r,l)
+                      where l = assign dir x xArgs n
+                            r = assign rid y yArgs m
 
-                  try m h = m `catchError_` \err -> case err of
-                    PatternErr{} -> h
-                    _            -> throwError err
+                    try m h = m `catchError_` \err -> case err of
+                      PatternErr{} -> h
+                      _            -> throwError err
 
-              -- First try the one with the highest priority. If that doesn't
-              -- work, try the low priority one.
-              try solve1 solve2
+                -- First try the one with the highest priority. If that doesn't
+                -- work, try the low priority one.
+                try solve1 solve2
 
-      -- one side a meta, the other an unblocked term
-      (NotBlocked _ (MetaV x es), _) -> assign dir x es n
-      (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
-      (Blocked{}, Blocked{})  -> checkSyntacticEquality
-      (Blocked{}, _)    -> useInjectivity cmp t m n
-      (_,Blocked{})     -> useInjectivity cmp t m n
-      _ -> do
-        -- Andreas, 2013-10-20 put projection-like function
-        -- into the spine, to make compareElims work.
-        -- 'False' means: leave (Def f []) unchanged even for
-        -- proj-like funs.
-        m <- elimView False m
-        n <- elimView False n
-        case (ignoreSharing m, ignoreSharing n) of
-          (Pi{}, Pi{}) -> equalFun m n
+        -- one side a meta, the other an unblocked term
+        (NotBlocked _ (MetaV x es), _) -> assign dir x es n
+        (_, NotBlocked _ (MetaV x es)) -> assign rid x es m
+        (Blocked{}, Blocked{})  -> checkSyntacticEquality
+        (Blocked{}, _)    -> useInjectivity cmp t m n
+        (_,Blocked{})     -> useInjectivity cmp t m n
+        _ -> do
+          -- Andreas, 2013-10-20 put projection-like function
+          -- into the spine, to make compareElims work.
+          -- 'False' means: leave (Def f []) unchanged even for
+          -- proj-like funs.
+          m <- elimView False m
+          n <- elimView False n
+          case (ignoreSharing m, ignoreSharing n) of
+            (Pi{}, Pi{}) -> equalFun m n
 
-          (Sort s1, Sort Inf) -> return ()
-          (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
+            (Sort s1, Sort Inf) -> return ()
+            (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
-          (Lit l1, Lit l2) | l1 == l2 -> return ()
-          (Var i es, Var i' es') | i == i' -> do
-              a <- typeOfBV i
-              -- Variables are invariant in their arguments
-              compareElims [] a (var i) es es'
-          (Def f es, Def f' es') | f == f' -> do
-              a   <- defType <$> getConstInfo f
-              pol <- getPolarity' cmp f
-              compareElims pol a (Def f []) es es'
-          (Def f es, Def f' es') ->
-            unlessM (bothAbsurd f f') $ do
-              trySizeUniv cmp t m n f es f' es'
+            (Lit l1, Lit l2) | l1 == l2 -> return ()
+            (Var i es, Var i' es') | i == i' -> do
+                a <- typeOfBV i
+                -- Variables are invariant in their arguments
+                compareElims [] a (var i) es es'
+            (Def f es, Def f' es') | f == f' -> do
+                a   <- defType <$> getConstInfo f
+                pol <- getPolarity' cmp f
+                compareElims pol a (Def f []) es es'
+            (Def f es, Def f' es') ->
+              unlessM (bothAbsurd f f') $ do
+                trySizeUniv cmp t m n f es f' es'
 {- RETIRED
-          (Def{}, Def{}) -> do
-            ev1 <- elimView m
-            ev2 <- elimView n
-            reportSDoc "tc.conv.atom" 50 $
-              sep [ text $ "ev1 = " ++ show ev1
-                  , text $ "ev2 = " ++ show ev2 ]
-            case (ev1, ev2) of
-              (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
-              (ConElim x args1, ConElim y args2) | x == y -> do
-                a <- conType x t
-                compareArgs [] a (Con x []) args1 args2
-                -- Andreas, 2013-05-23 Ok, if there cannot be
-                -- any projection eliminations from constructors,
-                -- let's be explicit about it!
---              (ConElim x els1, ConElim y els2) | x == y ->
---                cmpElim (conType x t) (Con x []) els1 els2
-                -- Andreas 2012-01-17 careful!  In the presence of
-                -- projection eliminations, t is NOT the datatype x belongs to
-                -- Ulf 2012-07-12: actually projection likeness is carefully
-                -- set up so that there can't be any projections from
-                -- constructor applications at this point, so t really is the
-                -- datatype of x. See issue 676 for an example where it
-                -- failed.
-              (DefElim x els1, DefElim y els2) | x == y ->
-                cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
-              (DefElim x els1, DefElim y els2) ->
-                unlessM (bothAbsurd x y) $ do
-                  trySizeUniv cmp t m n x els1 y els2
-              (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
-              (_, MetaElim{}) -> __IMPOSSIBLE__
-              _ -> typeError $ UnequalTerms cmp m n t
-              where
-                polarities (Def x _) = getPolarity' cmp x
-                polarities _         = return []
-                cmpElim t v els1 els2 = do
-                  a   <- t
-                  pol <- polarities v
-                  reportSDoc "tc.conv.elim" 10 $
-                    text "compareElim" <+> vcat
-                      [ text "pol  =" <+> text (show pol)
-                      , text "a    =" <+> prettyTCM a
-                      , text "v    =" <+> prettyTCM v
-                      , text "els1 =" <+> prettyTCM els1
-                      , text "els2 =" <+> prettyTCM els2
-                      ]
-                  reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
-                  compareElims pol a v els1 els2
+            (Def{}, Def{}) -> do
+              ev1 <- elimView m
+              ev2 <- elimView n
+              reportSDoc "tc.conv.atom" 50 $
+                sep [ text $ "ev1 = " ++ show ev1
+                    , text $ "ev2 = " ++ show ev2 ]
+              case (ev1, ev2) of
+                (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
+                (ConElim x args1, ConElim y args2) | x == y -> do
+                  a <- conType x t
+                  compareArgs [] a (Con x []) args1 args2
+                  -- Andreas, 2013-05-23 Ok, if there cannot be
+                  -- any projection eliminations from constructors,
+                  -- let's be explicit about it!
+--                (ConElim x els1, ConElim y els2) | x == y ->
+--                  cmpElim (conType x t) (Con x []) els1 els2
+                  -- Andreas 2012-01-17 careful!  In the presence of
+                  -- projection eliminations, t is NOT the datatype x belongs to
+                  -- Ulf 2012-07-12: actually projection likeness is carefully
+                  -- set up so that there can't be any projections from
+                  -- constructor applications at this point, so t really is the
+                  -- datatype of x. See issue 676 for an example where it
+                  -- failed.
+                (DefElim x els1, DefElim y els2) | x == y ->
+                  cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
+                (DefElim x els1, DefElim y els2) ->
+                  unlessM (bothAbsurd x y) $ do
+                    trySizeUniv cmp t m n x els1 y els2
+                (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
+                (_, MetaElim{}) -> __IMPOSSIBLE__
+                _ -> typeError $ UnequalTerms cmp m n t
+                where
+                  polarities (Def x _) = getPolarity' cmp x
+                  polarities _         = return []
+                  cmpElim t v els1 els2 = do
+                    a   <- t
+                    pol <- polarities v
+                    reportSDoc "tc.conv.elim" 10 $
+                      text "compareElim" <+> vcat
+                        [ text "pol  =" <+> text (show pol)
+                        , text "a    =" <+> prettyTCM a
+                        , text "v    =" <+> prettyTCM v
+                        , text "els1 =" <+> prettyTCM els1
+                        , text "els2 =" <+> prettyTCM els2
+                        ]
+                    reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
+                    compareElims pol a v els1 els2
 -}
-          (Con x xArgs, Con y yArgs)
-              | x == y -> do
-                  -- Get the type of the constructor instantiated to the datatype parameters.
-                  a' <- conType x t
-                  -- Constructors are invariant in their arguments
-                  -- (could be covariant).
-                  compareArgs [] a' (Con x []) xArgs yArgs
-          _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
---          _ -> typeError $ UnequalTerms cmp m n t
+            (Con x xArgs, Con y yArgs)
+                | x == y -> do
+                    -- Get the type of the constructor instantiated to the datatype parameters.
+                    a' <- conType x t
+                    -- Constructors are invariant in their arguments
+                    -- (could be covariant).
+                    compareArgs [] a' (Con x []) xArgs yArgs
+            _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
+--            _ -> typeError $ UnequalTerms cmp m n t
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
         conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
@@ -672,38 +672,38 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         ]
       let (pol, pols) = nextPolarity pols0
       ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
-      case ignoreSharing . unEl $ a of
-        (Pi (Dom info b) codom) -> do
-          mlvl <- mlevel
-          let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
-              freeInCoDom _         = False
-              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
-                -- Level-polymorphism (x : Level) -> ... does not count as dependency here
-                   -- NB: we could drop the free variable test and still be sound.
-                   -- It is a trade-off between the administrative effort of
-                   -- creating a blocking and traversing a term for free variables.
-                   -- Apparently, it is believed that checking free vars is cheaper.
-                   -- Andreas, 2013-05-15
-              r = getRelevance info
+        case ignoreSharing . unEl $ a of
+          (Pi (Dom info b) codom) -> do
+            mlvl <- mlevel
+            let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
+                freeInCoDom _         = False
+                dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
+                  -- Level-polymorphism (x : Level) -> ... does not count as dependency here
+                     -- NB: we could drop the free variable test and still be sound.
+                     -- It is a trade-off between the administrative effort of
+                     -- creating a blocking and traversing a term for free variables.
+                     -- Apparently, it is believed that checking free vars is cheaper.
+                     -- Andreas, 2013-05-15
+                r = getRelevance info
 
 -- NEW, Andreas, 2013-05-15
 
-          -- compare arg1 and arg2
-          pid <- newProblem_ $ applyRelevanceToContext r $
-              case r of
-                Forced{}   -> return ()
-                r | irrelevantOrUnused r ->
-                              compareIrrelevant b (unArg arg1) (unArg arg2)
-                _          -> compareWithPol pol (flip compareTerm b)
-                                (unArg arg1) (unArg arg2)
-          -- if comparison got stuck and function type is dependent, block arg
-          arg <- if dependent
-                 then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
-                 else return arg1
-          -- continue, possibly with blocked instantiation
-          compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
-          -- any left over constraints of arg are associatd to the comparison
-          stealConstraints pid
+            -- compare arg1 and arg2
+            pid <- newProblem_ $ applyRelevanceToContext r $
+                case r of
+                  Forced{}   -> return ()
+                  r | irrelevantOrUnused r ->
+                                compareIrrelevant b (unArg arg1) (unArg arg2)
+                  _          -> compareWithPol pol (flip compareTerm b)
+                                  (unArg arg1) (unArg arg2)
+            -- if comparison got stuck and function type is dependent, block arg
+            arg <- if dependent
+                   then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
+                   else return arg1
+            -- continue, possibly with blocked instantiation
+            compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
+            -- any left over constraints of arg are associatd to the comparison
+            stealConstraints pid
 
 {- Stealing solves this issue:
 
@@ -715,30 +715,30 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
 
 {- OLD, before 2013-05-15
 
-          let checkArg = applyRelevanceToContext r $
-                             case r of
-                Forced     -> return ()
-                r | irrelevantOrUnused r ->
-                              compareIrrelevant b (unArg arg1) (unArg arg2)
-                _          -> compareWithPol pol (flip compareTerm b)
-                                (unArg arg1) (unArg arg2)
+            let checkArg = applyRelevanceToContext r $
+                               case r of
+                  Forced     -> return ()
+                  r | irrelevantOrUnused r ->
+                                compareIrrelevant b (unArg arg1) (unArg arg2)
+                  _          -> compareWithPol pol (flip compareTerm b)
+                                  (unArg arg1) (unArg arg2)
 
-              theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
+                theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
 
-          if dependent
-            then guardConstraint theRest checkArg
-            else checkArg >> solveConstraint_ theRest
+            if dependent
+              then guardConstraint theRest checkArg
+              else checkArg >> solveConstraint_ theRest
 -}
 
-        a -> do
-          reportSDoc "impossible" 10 $
-            text "unexpected type when comparing apply eliminations " <+> prettyTCM a
-          reportSLn "impossible" 50 $ "raw type: " ++ show a
-          patternViolation
-          -- Andreas, 2013-10-22
-          -- in case of disabled reductions (due to failing termination check)
-          -- we might get stuck, so do not crash, but fail gently.
-          -- __IMPOSSIBLE__
+          a -> do
+            reportSDoc "impossible" 10 $
+              text "unexpected type when comparing apply eliminations " <+> prettyTCM a
+            reportSLn "impossible" 50 $ "raw type: " ++ show a
+            patternViolation
+            -- Andreas, 2013-10-22
+            -- in case of disabled reductions (due to failing termination check)
+            -- we might get stuck, so do not crash, but fail gently.
+            -- __IMPOSSIBLE__
 
     -- case: f == f' are projection (like) functions
     (Proj f : els1, Proj f' : els2)
@@ -937,30 +937,30 @@ coerceSize :: Term -> Type -> Type -> TCM Term
 coerceSize v t1 t2 = workOnTypes $ do
   let fallback = v <$ leqType t1 t2
   caseMaybeM (isSizeType t1) fallback $ \ b1 -> do
-  caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
-    -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
-    ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
-    -- A (most probably weaker) alternative is to just check syn.eq.
-    -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
-    case b2 of
-      -- @t2 = Size@.  We are done!
-      BoundedNo -> return v
-      -- @t2 = Size< v2@
-      BoundedLt v2 -> do
-        sv2 <- sizeView v2
-        case sv2 of
-          SizeInf     -> fallback
-          OtherSize{} -> do
-            -- Andreas, 2014-06-16:
-            -- Issue 1203: For now, just treat v < v2 as suc v <= v2
-            -- TODO: Need proper < comparison
-            vinc <- sizeSuc 1 v
-            compareSizes CmpLeq vinc v2
-            return v
-          -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
-          SizeSuc a2 -> do
-            compareSizes CmpLeq v a2
-            return v
+    caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+      -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
+      ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
+        -- A (most probably weaker) alternative is to just check syn.eq.
+        -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
+        case b2 of
+          -- @t2 = Size@.  We are done!
+          BoundedNo -> return v
+          -- @t2 = Size< v2@
+          BoundedLt v2 -> do
+            sv2 <- sizeView v2
+            case sv2 of
+              SizeInf     -> fallback
+              OtherSize{} -> do
+                -- Andreas, 2014-06-16:
+                -- Issue 1203: For now, just treat v < v2 as suc v <= v2
+                -- TODO: Need proper < comparison
+                vinc <- sizeSuc 1 v
+                compareSizes CmpLeq vinc v2
+                return v
+              -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
+              SizeSuc a2 -> do
+                compareSizes CmpLeq v a2
+                return v
 
 ---------------------------------------------------------------------------
 -- * Sorts and levels
