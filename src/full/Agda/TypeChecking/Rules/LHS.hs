@@ -458,12 +458,12 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
   -- since we might insert eta expanded record patterns.
   if isSolvedProblem problem then return $ st { lhsProblem = problem } else do
 
-  unlessM (optPatternMatching <$> gets getPragmaOptions) $
-    typeError $ GenericError $ "Pattern matching is disabled"
+    unlessM (optPatternMatching <$> gets getPragmaOptions) $
+      typeError $ GenericError $ "Pattern matching is disabled"
 
-  sp <- runListT $ splitProblem f problem
-  reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
-  foldListT trySplit nothingToSplit $ ListT $ return sp
+    sp <- runListT $ splitProblem f problem
+    reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
+    foldListT trySplit nothingToSplit $ ListT $ return sp
   where
 
     nothingToSplit = do
@@ -558,241 +558,241 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                                        (problemTel p0)
                                        (El Prop $ Def d $ map Apply $ vs ++ ws)) $ do
 
-      let delta1 = problemTel p0
-      let typeOfSplitVar = Arg info a
+        let delta1 = problemTel p0
+        let typeOfSplitVar = Arg info a
 
-      reportSDoc "tc.lhs.split" 10 $ sep
-        [ text "checking lhs"
-        , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
-        , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
-        ]
-
-      reportSDoc "tc.lhs.split" 15 $ sep
-        [ text "split problem"
-        , nest 2 $ vcat
-          [ text "delta1 = " <+> prettyTCM delta1
-          , text "typeOfSplitVar =" <+> prettyTCM typeOfSplitVar
-          , text "focusOutPat =" <+> (text . show) iph
-          , text "delta2 = " <+> prettyTCM (problemTel $ absBody p1)
+        reportSDoc "tc.lhs.split" 10 $ sep
+          [ text "checking lhs"
+          , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
+          , nest 2 $ text "rel =" <+> (text $ show $ argInfoRelevance info)
           ]
-        ]
 
-      c <- (`withRangeOf` c) <$> getConForm c
-      ca <- defType <$> getConInfo c
+        reportSDoc "tc.lhs.split" 15 $ sep
+          [ text "split problem"
+          , nest 2 $ vcat
+            [ text "delta1 = " <+> prettyTCM delta1
+            , text "typeOfSplitVar =" <+> prettyTCM typeOfSplitVar
+            , text "focusOutPat =" <+> (text . show) iph
+            , text "delta2 = " <+> prettyTCM (problemTel $ absBody p1)
+            ]
+          ]
 
-      reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat
-        [ text "ca =" <+> prettyTCM ca
-        , text "vs =" <+> prettyList (map prettyTCM vs)
-        ]
+        c <- (`withRangeOf` c) <$> getConForm c
+        ca <- defType <$> getConInfo c
 
-      -- Lookup the type of the constructor at the given parameters
-      let a = ca `piApply` vs
+        reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat
+          [ text "ca =" <+> prettyTCM ca
+          , text "vs =" <+> prettyList (map prettyTCM vs)
+          ]
 
-      -- It will end in an application of the datatype
-      (gamma', ca, d', us) <- do
-        TelV gamma' ca@(El _ def) <- telView a
-        let Def d' es = ignoreSharing def
-            Just us   = allApplyElims es
-        return (gamma', ca, d', us)
+        -- Lookup the type of the constructor at the given parameters
+        let a = ca `piApply` vs
 
-      -- This should be the same datatype as we split on
-      unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
+        -- It will end in an application of the datatype
+        (gamma', ca, d', us) <- do
+          TelV gamma' ca@(El _ def) <- telView a
+          let Def d' es = ignoreSharing def
+              Just us   = allApplyElims es
+          return (gamma', ca, d', us)
 
-      -- reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
-      --   [ text "gamma' =" <+> text (show gamma')
-      --   ]
+        -- This should be the same datatype as we split on
+        unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
-      -- Andreas 2010-09-07  propagate relevance info to new vars
-      let updRel = composeRelevance (getRelevance info)
-      gamma' <- return $ mapRelevance updRel <$> gamma'
+        -- reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
+        --   [ text "gamma' =" <+> text (show gamma')
+        --   ]
 
-      -- Insert implicit patterns
-      qs' <- insertImplicitPatterns ExpandLast qs gamma'
+        -- Andreas 2010-09-07  propagate relevance info to new vars
+        let updRel = composeRelevance (getRelevance info)
+        gamma' <- return $ mapRelevance updRel <$> gamma'
 
-      unless (size qs' == size gamma') $
-        typeError $ WrongNumberOfConstructorArguments (conName c) (size gamma') (size qs')
+        -- Insert implicit patterns
+        qs' <- insertImplicitPatterns ExpandLast qs gamma'
 
-      let gamma = useNamesFromPattern qs' gamma'
+        unless (size qs' == size gamma') $
+          typeError $ WrongNumberOfConstructorArguments (conName c) (size gamma') (size qs')
 
-      -- Get the type of the datatype.
-      da <- (`piApply` vs) . defType <$> getConstInfo d
+        let gamma = useNamesFromPattern qs' gamma'
 
-      -- Compute the flexible variables
-      flex <- flexiblePatterns (problemInPat p0 ++ qs')
+        -- Get the type of the datatype.
+        da <- (`piApply` vs) . defType <$> getConstInfo d
 
-      -- Compute the constructor indices by dropping the parameters
-      let us' = drop (size vs) us
+        -- Compute the flexible variables
+        flex <- flexiblePatterns (problemInPat p0 ++ qs')
 
-      reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
-        sep [ text "preparing to unify"
+        -- Compute the constructor indices by dropping the parameters
+        let us' = drop (size vs) us
+
+        reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
+          sep [ text "preparing to unify"
+              , nest 2 $ vcat
+                [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
+                , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
+                , text "gamma  =" <+> prettyTCM gamma
+                , text "gamma' =" <+> prettyTCM gamma'
+                , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
+                , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
+                , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+                ]
+              ]
+
+        -- Unify constructor target and given type (in Δ₁Γ)
+        res <- addCtxTel (delta1 `abstract` gamma) $
+                unifyIndices flex (raise (size gamma) da) us' (raise (size gamma) ws)
+        whenUnifies res $ \ sub0 -> do
+
+          -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
+          -- Andreas 2015-01-19  ... only after unification
+          gamma <- return $ mapRelevance ignoreForced <$> gamma
+
+          -- We should substitute c ys for x in Δ₂ and sigma
+          let ys     = teleArgs gamma
+              delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
+              rho0   = liftS (size delta2) $ consS (Con c ys) $ raiseS (size gamma)
+              -- rho0 = [ var i | i <- [0..size delta2 - 1] ]
+              --     ++ [ raise (size delta2) $ Con c ys ]
+              --     ++ [ var i | i <- [size delta2 + size gamma ..] ]
+              sigma0 = applySubst rho0 sigma
+              dpi0   = applySubst rho0 dpi
+              asb0   = applySubst rho0 asb
+              rest0  = applySubst rho0 (problemRest problem)
+
+          reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
+            [ text "delta2 =" <+> prettyTCM delta2
+            , text "sub0   =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub0)
+            ]
+          reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
+            nest 2 $ vcat
+              [ text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
+              , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
+              ]
+
+          -- Andreas, 2010-09-09, save the type.
+          -- It is relative to delta1, but it should be relative to
+          -- all variables which will be bound by patterns.
+          -- Thus, it has to be raised by 1 (the "hole" variable)
+          -- plus the length of delta2 (the variables coming after the hole).
+          let storedPatternType = raise (1 + size delta2) typeOfSplitVar
+          -- Also remember if we are a record pattern and from an implicit pattern.
+          isRec <- isRecord d
+          let cpi = ConPatternInfo (isRec $> impl) (Just storedPatternType)
+
+          -- Plug the hole in the out pattern with c ys
+          let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
+              ip  = plugHole (ConP c cpi ysp) iph
+              ip0 = applySubst rho0 ip
+
+          -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
+          -- Also needs to be padded with Nothing's to have the right length.
+          let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
+              newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
+              sub    = replicate (size delta2) Nothing ++
+                       pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
+
+          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+            [ text "newTel =" <+> prettyTCM newTel
+            , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
+            , text "ip   =" <+> text (show ip)
+            , text "ip0  =" <+> text (show ip0)
+            ]
+          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+            [ text "rho0 =" <+> text (show rho0)
+            ]
+
+          -- Instantiate the new telescope with the given substitution
+          (delta', perm, rho, instTypes) <- instantiateTel sub newTel
+
+
+          reportSDoc "tc.lhs.inst" 12 $
+            vcat [ sep [ text "instantiateTel"
+                       , nest 4 $ brackets $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub
+                       , nest 4 $ prettyTCM newTel
+                       ]
+                 , nest 2 $ text "delta' =" <+> prettyTCM delta'
+                 , nest 2 $ text "perm   =" <+> text (show perm)
+                 , nest 2 $ text "itypes =" <+> fsep (punctuate comma $ map prettyTCM instTypes)
+                 ]
+
+  {-      -- Andreas, 2010-09-09
+          -- temporary error message to find non-id perms
+          let sorted (Perm _ xs) = xs == List.sort xs
+          unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm
+  -}
+          -- Compute the new dot pattern instantiations
+          let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
+
+          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+            [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (applySubst rho sub))
+            , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+            ]
+
+          newDpi <- dotPatternInsts ps0' (applySubst rho sub) instTypes
+
+          -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
+          let dpi' = applySubst rho dpi0 ++ newDpi
+              asb' = applySubst rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
+
+          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+            [ text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
+            , text "asb' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
+            ]
+
+          -- Apply the substitution to the type
+          let sigma'   = applySubst rho sigma0
+              rest'    = applySubst rho rest0
+
+          reportSDoc "tc.lhs.inst" 15 $
+            nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
+
+          -- Permute the in patterns
+          let ps'  = permute perm ps0'
+
+          -- Compute the new permutation of the out patterns. This is the composition of
+          -- the new permutation with the expansion of the old permutation to
+          -- reflect the split.
+          let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
+              iperm' = perm `composeP` perm'
+
+          -- Instantiate the out patterns
+          let ip'    = instantiatePattern sub perm' ip0
+              newip  = applySubst rho ip'
+
+          -- Construct the new problem
+          let problem' = Problem ps' (iperm', newip) delta' rest'
+
+          reportSDoc "tc.lhs.top" 12 $ sep
+            [ text "new problem"
             , nest 2 $ vcat
-              [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
-              , text "d      =" <+> prettyTCM d <+> text ":" <+> prettyTCM da
-              , text "gamma  =" <+> prettyTCM gamma
-              , text "gamma' =" <+> prettyTCM gamma'
-              , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-              , text "us'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM us')
-              , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
+              [ text "ps'    = " <+> fsep (map prettyA ps')
+              , text "delta' = " <+> prettyTCM delta'
               ]
             ]
 
-      -- Unify constructor target and given type (in Δ₁Γ)
-      res <- addCtxTel (delta1 `abstract` gamma) $
-              unifyIndices flex (raise (size gamma) da) us' (raise (size gamma) ws)
-      whenUnifies res $ \ sub0 -> do
+          reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+            [ text "perm'  =" <+> text (show perm')
+            , text "iperm' =" <+> text (show iperm')
+            ]
+          reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+            [ text "ip'    =" <+> text (show ip')
+            , text "newip  =" <+> text (show newip)
+            ]
 
-      -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
-      -- Andreas 2015-01-19  ... only after unification
-      gamma <- return $ mapRelevance ignoreForced <$> gamma
+          -- if rest type reduces,
+          -- extend the split problem by previously not considered patterns
+          st'@(LHSState problem'@(Problem ps' (iperm', ip') delta' rest')
+                        sigma' dpi' asb')
+            <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
 
-      -- We should substitute c ys for x in Δ₂ and sigma
-      let ys     = teleArgs gamma
-          delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
-          rho0   = liftS (size delta2) $ consS (Con c ys) $ raiseS (size gamma)
-          -- rho0 = [ var i | i <- [0..size delta2 - 1] ]
-          --     ++ [ raise (size delta2) $ Con c ys ]
-          --     ++ [ var i | i <- [size delta2 + size gamma ..] ]
-          sigma0 = applySubst rho0 sigma
-          dpi0   = applySubst rho0 dpi
-          asb0   = applySubst rho0 asb
-          rest0  = applySubst rho0 (problemRest problem)
-
-      reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
-        [ text "delta2 =" <+> prettyTCM delta2
-        , text "sub0   =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub0)
-        ]
-      reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma `abstract` delta2) $
-        nest 2 $ vcat
-          [ text "dpi0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi0)
-          , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
-          ]
-
-      -- Andreas, 2010-09-09, save the type.
-      -- It is relative to delta1, but it should be relative to
-      -- all variables which will be bound by patterns.
-      -- Thus, it has to be raised by 1 (the "hole" variable)
-      -- plus the length of delta2 (the variables coming after the hole).
-      let storedPatternType = raise (1 + size delta2) typeOfSplitVar
-      -- Also remember if we are a record pattern and from an implicit pattern.
-      isRec <- isRecord d
-      let cpi = ConPatternInfo (isRec $> impl) (Just storedPatternType)
-
-      -- Plug the hole in the out pattern with c ys
-      let ysp = map (argFromDom . fmap (namedVarP . fst)) $ telToList gamma
-          ip  = plugHole (ConP c cpi ysp) iph
-          ip0 = applySubst rho0 ip
-
-      -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
-      -- Also needs to be padded with Nothing's to have the right length.
-      let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
-          newTel = problemTel p0 `abstract` (gamma `abstract` delta2)
-          sub    = replicate (size delta2) Nothing ++
-                   pad (size delta1 + size gamma) (raise (size delta2) sub0) Nothing
-
-      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-        [ text "newTel =" <+> prettyTCM newTel
-        , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
-        , text "ip   =" <+> text (show ip)
-        , text "ip0  =" <+> text (show ip0)
-        ]
-      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-        [ text "rho0 =" <+> text (show rho0)
-        ]
-
-      -- Instantiate the new telescope with the given substitution
-      (delta', perm, rho, instTypes) <- instantiateTel sub newTel
-
-
-      reportSDoc "tc.lhs.inst" 12 $
-        vcat [ sep [ text "instantiateTel"
-                   , nest 4 $ brackets $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub
-                   , nest 4 $ prettyTCM newTel
-                   ]
-             , nest 2 $ text "delta' =" <+> prettyTCM delta'
-             , nest 2 $ text "perm   =" <+> text (show perm)
-             , nest 2 $ text "itypes =" <+> fsep (punctuate comma $ map prettyTCM instTypes)
-             ]
-
-{-          -- Andreas, 2010-09-09
-      -- temporary error message to find non-id perms
-      let sorted (Perm _ xs) = xs == List.sort xs
-      unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm
--}
-      -- Compute the new dot pattern instantiations
-      let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
-
-      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-        [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (applySubst rho sub))
-        , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
-        ]
-
-      newDpi <- dotPatternInsts ps0' (applySubst rho sub) instTypes
-
-      -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
-      let dpi' = applySubst rho dpi0 ++ newDpi
-          asb' = applySubst rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
-
-      reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-        [ text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
-        , text "asb' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
-        ]
-
-      -- Apply the substitution to the type
-      let sigma'   = applySubst rho sigma0
-          rest'    = applySubst rho rest0
-
-      reportSDoc "tc.lhs.inst" 15 $
-        nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
-
-      -- Permute the in patterns
-      let ps'  = permute perm ps0'
-
-     -- Compute the new permutation of the out patterns. This is the composition of
-      -- the new permutation with the expansion of the old permutation to
-      -- reflect the split.
-      let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
-          iperm' = perm `composeP` perm'
-
-      -- Instantiate the out patterns
-      let ip'    = instantiatePattern sub perm' ip0
-          newip  = applySubst rho ip'
-
-      -- Construct the new problem
-      let problem' = Problem ps' (iperm', newip) delta' rest'
-
-      reportSDoc "tc.lhs.top" 12 $ sep
-        [ text "new problem"
-        , nest 2 $ vcat
-          [ text "ps'    = " <+> fsep (map prettyA ps')
-          , text "delta' = " <+> prettyTCM delta'
-          ]
-        ]
-
-      reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
-        [ text "perm'  =" <+> text (show perm')
-        , text "iperm' =" <+> text (show iperm')
-        ]
-      reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
-        [ text "ip'    =" <+> text (show ip')
-        , text "newip  =" <+> text (show newip)
-        ]
-
-      -- if rest type reduces,
-      -- extend the split problem by previously not considered patterns
-      st'@(LHSState problem'@(Problem ps' (iperm', ip') delta' rest')
-                    sigma' dpi' asb')
-        <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
-
-      reportSDoc "tc.lhs.top" 12 $ sep
-        [ text "new problem from rest"
-        , nest 2 $ vcat
-          [ text "ps'    = " <+> fsep (map prettyA ps')
-          , text "delta' = " <+> prettyTCM delta'
-          , text "ip'    =" <+> text (show ip')
-          , text "iperm' =" <+> text (show iperm')
-          ]
-        ]
-      return $ Unifies st'
+          reportSDoc "tc.lhs.top" 12 $ sep
+            [ text "new problem from rest"
+            , nest 2 $ vcat
+              [ text "ps'    = " <+> fsep (map prettyA ps')
+              , text "delta' = " <+> prettyTCM delta'
+              , text "ip'    =" <+> text (show ip')
+              , text "iperm' =" <+> text (show iperm')
+              ]
+            ]
+          return $ Unifies st'
 
 
 -- | Ensures that we are not performing pattern matching on codata.
