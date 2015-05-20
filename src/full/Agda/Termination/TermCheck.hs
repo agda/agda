@@ -283,50 +283,50 @@ reportCalls no calls = do
   -- We work in TCM exclusively.
   liftTCM $ do
 
-  reportS "term.lex" 20 $ unlines
-    [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
-    ]
+    reportS "term.lex" 20 $ unlines
+      [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
+      ]
 
-  -- Print the whole completion phase.
-  verboseS "term.matrices" 40 $ do
-    let header s = unlines
-          [ replicate n '='
-          , replicate k '=' ++ s ++ replicate k' '='
-          , replicate n '='
-          ]
-          where n  = 70
-                r  = n - length s
-                k  = r `div` 2
-                k' = r - k
-    let report s cs = reportSDoc "term.matrices" 40 $ vcat
-          [ text   $ header s
-          , nest 2 $ pretty cs
-          ]
-        cs0     = calls
-        step cs = do
-          let (new, cs') = completionStep cs0 cs
-          report " New call matrices " new
-          return $ if null new then Left () else Right cs'
-    report " Initial call matrices " cs0
-    trampolineM step cs0
+    -- Print the whole completion phase.
+    verboseS "term.matrices" 40 $ do
+      let header s = unlines
+            [ replicate n '='
+            , replicate k '=' ++ s ++ replicate k' '='
+            , replicate n '='
+            ]
+            where n  = 70
+                  r  = n - length s
+                  k  = r `div` 2
+                  k' = r - k
+      let report s cs = reportSDoc "term.matrices" 40 $ vcat
+            [ text   $ header s
+            , nest 2 $ pretty cs
+            ]
+          cs0     = calls
+          step cs = do
+            let (new, cs') = completionStep cs0 cs
+            report " New call matrices " new
+            return $ if null new then Left () else Right cs'
+      report " Initial call matrices " cs0
+      trampolineM step cs0
 
-  -- Print the result of completion.
-  let calls' = CallGraph.complete calls
-      idems = filter idempotent $ endos $ CallGraph.toList calls'
-  -- TODO
-  -- reportSDoc "term.behaviours" 20 $ vcat
-  --   [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
-  --   , nest 2 $ return $ Term.prettyBehaviour calls'
-  --   ]
-  reportSDoc "term.matrices" 30 $ vcat
-    [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):\n"
-    , nest 2 $ vcat $ punctuate (text "\n") $ map pretty idems
-    ]
-  -- reportSDoc "term.matrices" 30 $ vcat
-  --   [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
-  --   , nest 2 $ pretty $ CallGraph.fromList others
-  --   ]
-  return ()
+    -- Print the result of completion.
+    let calls' = CallGraph.complete calls
+        idems = filter idempotent $ endos $ CallGraph.toList calls'
+    -- TODO
+    -- reportSDoc "term.behaviours" 20 $ vcat
+    --   [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
+    --   , nest 2 $ return $ Term.prettyBehaviour calls'
+    --   ]
+    reportSDoc "term.matrices" 30 $ vcat
+      [ text $ "Idempotent call matrices (" ++ no ++ "dot patterns):\n"
+      , nest 2 $ vcat $ punctuate (text "\n") $ map pretty idems
+      ]
+    -- reportSDoc "term.matrices" 30 $ vcat
+    --   [ text $ "Other call matrices (" ++ no ++ "dot patterns):"
+    --   , nest 2 $ pretty $ CallGraph.fromList others
+    --   ]
+    return ()
 
 -- | @termFunction name@ checks @name@ for termination.
 
@@ -345,51 +345,51 @@ termFunction name = do
   reportTarget target
   terSetTarget target $ do
 
-  -- Collect the recursive calls in the block which (transitively)
-  -- involve @name@,
-  -- taking the target of @name@ into account for computing guardedness.
+    -- Collect the recursive calls in the block which (transitively)
+    -- involve @name@,
+    -- taking the target of @name@ into account for computing guardedness.
 
-  let collect = (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
-        if null todo then return $ Left calls else do
-        -- Extract calls originating from indices in @todo@.
-        new <- forM' todo $ \ i ->
-          termDef $ fromMaybe __IMPOSSIBLE__ $ allNames !!! i
-        -- Mark those functions as processed and add the calls to the result.
-        let done'  = done `mappend` todo
-            calls' = new  `mappend` calls
-        -- Compute the new todo list:
-            todo' = CallGraph.targetNodes new Set.\\ done'
-        -- Jump the trampoline.
-        return $ Right (todo', done', calls')
+    let collect = (`trampolineM` (Set.singleton index, mempty, mempty)) $ \ (todo, done, calls) -> do
+          if null todo then return $ Left calls else do
+            -- Extract calls originating from indices in @todo@.
+            new <- forM' todo $ \ i ->
+              termDef $ fromMaybe __IMPOSSIBLE__ $ allNames !!! i
+            -- Mark those functions as processed and add the calls to the result.
+            let done'  = done `mappend` todo
+                calls' = new  `mappend` calls
+            -- Compute the new todo list:
+                todo' = CallGraph.targetNodes new Set.\\ done'
+            -- Jump the trampoline.
+            return $ Right (todo', done', calls')
 
-  -- First try to termination check ignoring the dot patterns
-  calls1 <- terSetUseDotPatterns False $ collect
-  reportCalls "no " calls1
+    -- First try to termination check ignoring the dot patterns
+    calls1 <- terSetUseDotPatterns False $ collect
+    reportCalls "no " calls1
 
-  r <- do
-   cutoff <- terGetCutOff
-   let ?cutoff = cutoff
-   r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
-   case r of
-     Right () -> return $ Right ()
-     Left{}    -> do
-       -- Try again, but include the dot patterns this time.
-       calls2 <- terSetUseDotPatterns True $ collect
-       reportCalls "" calls2
-       billToTerGraph $ mapLeft callInfos $ Term.terminatesFilter (== index) calls2
+    r <- do
+     cutoff <- terGetCutOff
+     let ?cutoff = cutoff
+     r <- billToTerGraph $ Term.terminatesFilter (== index) calls1
+     case r of
+       Right () -> return $ Right ()
+       Left{}    -> do
+         -- Try again, but include the dot patterns this time.
+         calls2 <- terSetUseDotPatterns True $ collect
+         reportCalls "" calls2
+         billToTerGraph $ mapLeft callInfos $ Term.terminatesFilter (== index) calls2
 
-  names <- terGetUserNames
-  case r of
-    Left calls -> return $ singleton $ terminationError ([name] `intersect` names) calls
-    Right () -> do
-      liftTCM $ reportSLn "term.warn.yes" 2 $
-        show name ++ " does termination check"
-      return mempty
- where
-   reportTarget r = liftTCM $
-     reportSLn "term.target" 20 $ "  target type " ++
-       caseMaybe r "not recognized" (\ q ->
-         "ends in " ++ show q)
+    names <- terGetUserNames
+    case r of
+      Left calls -> return $ singleton $ terminationError ([name] `intersect` names) calls
+      Right () -> do
+        liftTCM $ reportSLn "term.warn.yes" 2 $
+          show name ++ " does termination check"
+        return mempty
+   where
+     reportTarget r = liftTCM $
+       reportSLn "term.target" 20 $ "  target type " ++
+         caseMaybe r "not recognized" (\ q ->
+           "ends in " ++ show q)
 
 -- | To process the target type.
 typeEndsInDef :: MonadTCM tcm => Type -> tcm (Maybe QName)
@@ -427,14 +427,14 @@ termDef name = terSetCurrent name $ do
   withoutKEnabled <- liftTCM $ optWithoutK <$> pragmaOptions
   applyWhen withoutKEnabled (setMasks t) $ do
 
-  -- If the result should be disregarded, set all calls to unguarded.
-  applyWhenM terGetMaskResult terUnguarded $ do
+    -- If the result should be disregarded, set all calls to unguarded.
+    applyWhenM terGetMaskResult terUnguarded $ do
 
-  case theDef def of
-    Function{ funClauses = cls, funDelayed = delayed } ->
-      terSetDelayed delayed $ forM' cls $ termClause
+      case theDef def of
+        Function{ funClauses = cls, funDelayed = delayed } ->
+          terSetDelayed delayed $ forM' cls $ termClause
 
-    _ -> return empty
+        _ -> return empty
 
 -- | Mask arguments and result for termination checking
 --   according to type of function.
@@ -580,7 +580,7 @@ termClause clause = do
   ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
     name <- terGetCurrent
     ifM (isJust <$> do isWithFunction name) (return mempty) $ do
-    mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
+      mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
@@ -604,8 +604,9 @@ termClause' clause = do
         dbpats <- mapM stripCoConstructors dbpats
         mdbpats <- maskNonDataArgs dbpats
         terSetPatterns mdbpats $ do
-        terSetSizeDepth tel $ do
-        reportBody v
+          terSetSizeDepth tel $ do
+            reportBody v
+            extract v
   {-
   -- if we are checking a delayed definition, we treat it as if there were
   -- a guarding coconstructor (sharp)
@@ -613,7 +614,7 @@ termClause' clause = do
         Delayed    -> Order.lt
         NotDelayed -> Order.le) $ do
   -}
-        extract v
+
   where
     reportBody :: Term -> TerM ()
     reportBody v = verboseS "term.check.clause" 6 $ do
