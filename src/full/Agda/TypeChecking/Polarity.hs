@@ -257,55 +257,55 @@ sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
   ifM (not . optSizedTypes <$> pragmaOptions) exit $ do
-  def <- getConstInfo d
-  case theDef def of
-    Datatype{ dataPars = np, dataCons = cons } -> do
-      let TelV tel _      = telView' $ defType def
-          (parTel, ixTel) = genericSplitAt np $ telToList tel
-      case ixTel of
-        []                 -> exit  -- No size index
-        Dom _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
-          -- we assume the size index to be 'Covariant' ...
-          let pol   = genericTake np pol0
-              polCo = pol ++ [Covariant]
-              polIn = pol ++ [Invariant]
-          setPolarity d $ polCo
-          -- and seek confirm it by looking at the constructor types
-          let check c = do
-                t <- defType <$> getConstInfo c
-                addCtxTel (telFromList parTel) $ do
---OLD:                  let pars = reverse [ defaultArg $ var i | i <- [0..np - 1] ]
-                  let pars = map (defaultArg . var) $ downFrom np
-                  TelV conTel target <- telView =<< (t `piApplyM` pars)
-                  case conTel of
-                    EmptyTel  -> return False  -- no size argument
-                    ExtendTel arg  tel ->
-                      ifM ((/= Just BoundedNo) <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
-                        -- First constructor argument has type Size
+    def <- getConstInfo d
+    case theDef def of
+      Datatype{ dataPars = np, dataCons = cons } -> do
+        let TelV tel _      = telView' $ defType def
+            (parTel, ixTel) = genericSplitAt np $ telToList tel
+        case ixTel of
+          []                 -> exit  -- No size index
+          Dom _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
+            -- we assume the size index to be 'Covariant' ...
+            let pol   = genericTake np pol0
+                polCo = pol ++ [Covariant]
+                polIn = pol ++ [Invariant]
+            setPolarity d $ polCo
+            -- and seek confirm it by looking at the constructor types
+            let check c = do
+                  t <- defType <$> getConstInfo c
+                  addCtxTel (telFromList parTel) $ do
+  --OLD:                  let pars = reverse [ defaultArg $ var i | i <- [0..np - 1] ]
+                    let pars = map (defaultArg . var) $ downFrom np
+                    TelV conTel target <- telView =<< (t `piApplyM` pars)
+                    case conTel of
+                      EmptyTel  -> return False  -- no size argument
+                      ExtendTel arg  tel ->
+                        ifM ((/= Just BoundedNo) <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
+                          -- First constructor argument has type Size
 
-                        -- check that only positive occurences in tel
-                        let isPos = underAbstraction arg tel $ \ tel -> do
-                              pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
-                              reportSDoc "tc.polarity.size" 25 $
-                                text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ show pols
-                              return $ all (`elem` [Nonvariant, Covariant]) pols
+                          -- check that only positive occurences in tel
+                          let isPos = underAbstraction arg tel $ \ tel -> do
+                                pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
+                                reportSDoc "tc.polarity.size" 25 $
+                                  text $ "to pass size polarity check, the following polarities need all to be covariant: " ++ show pols
+                                return $ all (`elem` [Nonvariant, Covariant]) pols
 
-                        -- check that the size argument appears in the
-                        -- right spot in the target type
-                        let sizeArg = size tel
-                            isLin = addContext conTel $ checkSizeIndex d np sizeArg target
+                          -- check that the size argument appears in the
+                          -- right spot in the target type
+                          let sizeArg = size tel
+                              isLin = addContext conTel $ checkSizeIndex d np sizeArg target
 
-                        ok <- isPos `and2M` isLin
-                        reportSDoc "tc.polarity.size" 15 $
-                          text "constructor" <+> prettyTCM c <+>
-                          text (if ok then "passes" else "fails") <+>
-                          text "size polarity check"
-                        return ok
+                          ok <- isPos `and2M` isLin
+                          reportSDoc "tc.polarity.size" 15 $
+                            text "constructor" <+> prettyTCM c <+>
+                            text (if ok then "passes" else "fails") <+>
+                            text "size polarity check"
+                          return ok
 
-          ifM (andM $ map check cons)
-              (return polCo) -- yes, we have a sized type here
-              (return polIn) -- no, does not conform to the rules of sized types
-    _ -> exit
+            ifM (andM $ map check cons)
+                (return polCo) -- yes, we have a sized type here
+                (return polIn) -- no, does not conform to the rules of sized types
+      _ -> exit
 
 -- | @checkSizeIndex d np i a@ checks that constructor target type @a@
 --   has form @d ps (↑ i) idxs@ where @|ps| = np@.
