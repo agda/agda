@@ -223,79 +223,79 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 | otherwise = keepGoing
           -- ifBlockedType reduces the type
           ifBlockedType a (const tryInstantiate) $ \ a' -> do
-          case ignoreSharing $ unEl a' of
+            case ignoreSharing $ unEl a' of
 
-            -- Subcase: split type is a Def.
-            Def d es    -> do
+              -- Subcase: split type is a Def.
+              Def d es    -> do
 
-              def <- liftTCM $ theDef <$> getConstInfo d
+                def <- liftTCM $ theDef <$> getConstInfo d
 
-              -- We cannot split on (shape-)irrelevant non-records.
-              -- Andreas, 2011-10-04 unless allowed by option
-              unless (defIsRecord def) $
-                when (unusableRelevance $ getRelevance ai) $
-                unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
-                typeError $ SplitOnIrrelevant p dom
+                -- We cannot split on (shape-)irrelevant non-records.
+                -- Andreas, 2011-10-04 unless allowed by option
+                unless (defIsRecord def) $
+                  when (unusableRelevance $ getRelevance ai) $
+                  unlessM (liftTCM $ optExperimentalIrrelevance <$> pragmaOptions) $
+                  typeError $ SplitOnIrrelevant p dom
 
-              -- Check that we are at record or data type and return
-              -- the number of parameters.
-              let mp = case def of
-                        Datatype{dataPars = np} -> Just np
-                        Record{recPars = np}    -> Just np
-                        _                       -> Nothing
-              case mp of
-                Nothing -> keepGoing
-                Just np -> do
-                  let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-                  traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
-                  -- Check that we construct something in the right datatype
-                  c <- lift $ do
-                      cs' <- mapM canonicalName cs
-                      d'  <- canonicalName d
-                      let cons def = case theDef def of
-                            Datatype{dataCons = cs} -> cs
-                            Record{recConHead = c}      -> [conName c]
-                            _                       -> __IMPOSSIBLE__
-                      cs0 <- cons <$> getConstInfo d'
-                      case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
-                        [c]   -> do
-                          -- If constructor pattern was ambiguous,
-                          -- remember our choice for highlighting info.
-                          when (length cs >= 2) $ storeDisambiguatedName c
-                          return c
-                        []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
-                        cs    -> -- if there are more than one we give up (they might have different types)
-                          typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
+                -- Check that we are at record or data type and return
+                -- the number of parameters.
+                let mp = case def of
+                          Datatype{dataPars = np} -> Just np
+                          Record{recPars = np}    -> Just np
+                          _                       -> Nothing
+                case mp of
+                  Nothing -> keepGoing
+                  Just np -> do
+                    let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                    traceCall (CheckPattern p EmptyTel a) $ do  -- TODO: wrong telescope
+                      -- Check that we construct something in the right datatype
+                      c <- lift $ do
+                          cs' <- mapM canonicalName cs
+                          d'  <- canonicalName d
+                          let cons def = case theDef def of
+                                Datatype{dataCons = cs} -> cs
+                                Record{recConHead = c}      -> [conName c]
+                                _                       -> __IMPOSSIBLE__
+                          cs0 <- cons <$> getConstInfo d'
+                          case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
+                            [c]   -> do
+                              -- If constructor pattern was ambiguous,
+                              -- remember our choice for highlighting info.
+                              when (length cs >= 2) $ storeDisambiguatedName c
+                              return c
+                            []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
+                            cs    -> -- if there are more than one we give up (they might have different types)
+                              typeError $ CantResolveOverloadedConstructorsTargetingSameDatatype d cs
 
-                  let (pars, ixs) = genericSplitAt np vs
-                  lift $ reportSDoc "tc.lhs.split" 10 $ vcat
-                    [ sep [ text "splitting on"
-                          , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
-                          ]
-                    , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
-                    , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
-                    ]
+                      let (pars, ixs) = genericSplitAt np vs
+                      lift $ reportSDoc "tc.lhs.split" 10 $ vcat
+                        [ sep [ text "splitting on"
+                              , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
+                              ]
+                        , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
+                        , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
+                        ]
 
-                  -- Andreas, 2013-03-22 fixing issue 279
-                  -- To resolve ambiguous constructors, Agda always looks up
-                  -- their original definition and reconstructs the parameters
-                  -- from the type @Def d vs@ we check against.
-                  -- However, the constructor could come from a module instantiation
-                  -- with some of the parameters already fixed.
-                  -- Agda did not make sure the two parameter lists coincide,
-                  -- so we add a check here.
-                  -- I guess this issue could be solved more systematically,
-                  -- but the extra check here is non-invasive to the existing code.
-                  checkParsIfUnambiguous cs d pars
+                      -- Andreas, 2013-03-22 fixing issue 279
+                      -- To resolve ambiguous constructors, Agda always looks up
+                      -- their original definition and reconstructs the parameters
+                      -- from the type @Def d vs@ we check against.
+                      -- However, the constructor could come from a module instantiation
+                      -- with some of the parameters already fixed.
+                      -- Agda did not make sure the two parameter lists coincide,
+                      -- so we add a check here.
+                      -- I guess this issue could be solved more systematically,
+                      -- but the extra check here is non-invasive to the existing code.
+                      checkParsIfUnambiguous cs d pars
 
-                  (return Split
-                    { splitLPats   = empty
-                    , splitAsNames = xs
-                    , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
-                    , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
-                    }) `mplus` keepGoing
-            -- Subcase: split type is not a Def.
-            _   -> keepGoing
+                      (return Split
+                        { splitLPats   = empty
+                        , splitAsNames = xs
+                        , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
+                        , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                        }) `mplus` keepGoing
+              -- Subcase: split type is not a Def.
+              _   -> keepGoing
 
         -- Case: neither literal nor constructor pattern.
         _ -> keepGoing

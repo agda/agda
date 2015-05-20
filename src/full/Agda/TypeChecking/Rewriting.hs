@@ -90,20 +90,20 @@ verifyBuiltinRewrite v t = do
   caseMaybeM (relView t)
     (failure $ text "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
-  case ignoreSharing (unEl core) of
-    Sort{} -> do
-      -- Check that the types of the last two arguments are equal.
-      unlessM (tryConversion $
-                 inTopContext $ addContext tel $ escapeContext 1 $
-                   equalType (raise 1 a) b) $
-        failure $ text $ "because the types of the last two arguments are different"
-    Con{}    -> __IMPOSSIBLE__
-    Level{}  -> __IMPOSSIBLE__
-    Lam{}    -> __IMPOSSIBLE__
-    Pi{}     -> __IMPOSSIBLE__
-    Shared{} -> __IMPOSSIBLE__
-    _ -> failure $ text "because its type does not end in a sort, but in "
-           <+> do inTopContext $ addContext tel $ prettyTCM core
+    case ignoreSharing (unEl core) of
+      Sort{} -> do
+        -- Check that the types of the last two arguments are equal.
+        unlessM (tryConversion $
+                   inTopContext $ addContext tel $ escapeContext 1 $
+                     equalType (raise 1 a) b) $
+          failure $ text $ "because the types of the last two arguments are different"
+      Con{}    -> __IMPOSSIBLE__
+      Level{}  -> __IMPOSSIBLE__
+      Lam{}    -> __IMPOSSIBLE__
+      Pi{}     -> __IMPOSSIBLE__
+      Shared{} -> __IMPOSSIBLE__
+      _ -> failure $ text "because its type does not end in a sort, but in "
+             <+> do inTopContext $ addContext tel $ prettyTCM core
 
 -- | Deconstructing a type into @Δ → t → t' → core@.
 data RelView = RelView
@@ -122,8 +122,8 @@ relView t = do
   let n                = size tel
       (delta, lastTwo) = splitAt (n - 2) $ telToList tel
   if size lastTwo < 2 then return Nothing else do
-  let [a, b] = snd . unDom <$> lastTwo
-  return $ Just $ RelView tel delta a b core
+    let [a, b] = snd . unDom <$> lastTwo
+    return $ Just $ RelView tel delta a b core
 
 -- | Add @q : Γ → rel us lhs rhs@ as rewrite rule
 --   @
@@ -142,8 +142,8 @@ addRewriteRule q = inTopContext $ do
     defType <$> getConstInfo rel
   reportSDoc "rewriting" 30 $ do
     text "rewrite relation at type " <+> do
-    inTopContext     $ prettyTCM (telFromList delta) <+> text " |- " <+> do
-    addContext delta $ prettyTCM a
+      inTopContext $ prettyTCM (telFromList delta) <+> text " |- " <+> do
+        addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
   t <- defType <$> getConstInfo q
   TelV gamma core <- telView t
@@ -245,40 +245,40 @@ rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
     [ text "attempting to rewrite term " <+> prettyTCM v
     , text " with rule " <+> prettyTCM q
     ]) $ do
-  let no = return Nothing
-  caseMaybeM (nonLinMatch lhs v) no $ \ sub -> do
-    let v' = applySubst sub rhs
-    Red.traceSDoc "rewriting" 90 (sep
-      [ text "rewrote " <+> prettyTCM v
-      , text " to " <+> prettyTCM v'
-      ]) $ do
-    return $ Just v'
+    let no = return Nothing
+    caseMaybeM (nonLinMatch lhs v) no $ \ sub -> do
+      let v' = applySubst sub rhs
+      Red.traceSDoc "rewriting" 90 (sep
+        [ text "rewrote " <+> prettyTCM v
+        , text " to " <+> prettyTCM v'
+        ]) $ do
+        return $ Just v'
 
-  {- OLD CODE:
-  -- Freeze all metas, remember which one where not frozen before.
-  -- This ensures that we do not instantiate metas while matching
-  -- on the rewrite lhs.
-  ms <- freezeMetas
-  res <- tryConversion' $ do
+    {- OLD CODE:
+    -- Freeze all metas, remember which one where not frozen before.
+    -- This ensures that we do not instantiate metas while matching
+    -- on the rewrite lhs.
+    ms <- freezeMetas
+    res <- tryConversion' $ do
 
-    -- Create new metas for the lhs variables of the rewriting rule.
-    xs <- newTelMeta gamma
-    let sigma        = parallelS $ map unArg xs
-        (lhs', rhs', b') = applySubst sigma (lhs, rhs, b)
-    -- Unify type and term with type and lhs of rewrite rule.
-    whenJust mt $ \ t -> leqType t b'
-    local (\ e -> e {envCompareBlocked = True}) $ equalTerm b' lhs' v
-    -- Check that all variables have been solved for.
-    unlessM (isInstantiatedMeta xs) $ do
-      reportSDoc "rewriting" 20 $ text "lhs variables solved with: " <+> do
-        sep $ map prettyTCM xs
-      -- The following error is caught immediately by tryConversion.
-      typeError $ GenericError $ "free variables not bound by left hand side"
-    return rhs'
+      -- Create new metas for the lhs variables of the rewriting rule.
+      xs <- newTelMeta gamma
+      let sigma        = parallelS $ map unArg xs
+          (lhs', rhs', b') = applySubst sigma (lhs, rhs, b)
+      -- Unify type and term with type and lhs of rewrite rule.
+      whenJust mt $ \ t -> leqType t b'
+      local (\ e -> e {envCompareBlocked = True}) $ equalTerm b' lhs' v
+      -- Check that all variables have been solved for.
+      unlessM (isInstantiatedMeta xs) $ do
+        reportSDoc "rewriting" 20 $ text "lhs variables solved with: " <+> do
+          sep $ map prettyTCM xs
+        -- The following error is caught immediately by tryConversion.
+        typeError $ GenericError $ "free variables not bound by left hand side"
+      return rhs'
 
-  -- Thaw metas that were frozen by a call to this function.
-  unfreezeMetas' (`elem` ms)
-  return res-}
+    -- Thaw metas that were frozen by a call to this function.
+    unfreezeMetas' (`elem` ms)
+    return res-}
 
 -- | @rewrite t@ tries to rewrite a reduced term.
 rewrite :: Term -> ReduceM (Maybe Term)
