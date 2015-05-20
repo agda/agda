@@ -550,159 +550,159 @@ assignWrapper dir x es v doAssign = do
 assign :: CompareDirection -> MetaId -> Args -> Term -> TCM ()
 assign dir x args v = do
 
-        mvar <- lookupMeta x  -- information associated with meta x
-        let t = jMetaType $ mvJudgement mvar
+  mvar <- lookupMeta x  -- information associated with meta x
+  let t = jMetaType $ mvJudgement mvar
 
-        -- Andreas, 2011-05-20 TODO!
-        -- full normalization  (which also happens during occurs check)
-        -- is too expensive! (see Issue 415)
-        -- need to do something cheaper, especially if
-        -- we are dealing with a Miller pattern that can be solved
-        -- immediately!
-        -- Ulf, 2011-08-25 DONE!
-        -- Just instantiating the top-level meta, which is cheaper. The occurs
-        -- check will first try without unfolding any definitions (treating
-        -- arguments to definitions as flexible), if that fails it tries again
-        -- with full unfolding.
-        v <- instantiate v
-        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: assigning to " ++ show v
+  -- Andreas, 2011-05-20 TODO!
+  -- full normalization  (which also happens during occurs check)
+  -- is too expensive! (see Issue 415)
+  -- need to do something cheaper, especially if
+  -- we are dealing with a Miller pattern that can be solved
+  -- immediately!
+  -- Ulf, 2011-08-25 DONE!
+  -- Just instantiating the top-level meta, which is cheaper. The occurs
+  -- check will first try without unfolding any definitions (treating
+  -- arguments to definitions as flexible), if that fails it tries again
+  -- with full unfolding.
+  v <- instantiate v
+  reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: assigning to " ++ show v
 
-        case (ignoreSharing v, mvJudgement mvar) of
-            (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
-            _                     -> return ()
+  case (ignoreSharing v, mvJudgement mvar) of
+      (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
+      _                     -> return ()
 
-        -- We don't instantiate frozen mvars
-        when (mvFrozen mvar == Frozen) $ do
-          reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
-          patternViolation
+  -- We don't instantiate frozen mvars
+  when (mvFrozen mvar == Frozen) $ do
+    reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
+    patternViolation
 
-        -- We never get blocked terms here anymore. TODO: we actually do. why?
-        whenM (isBlockedTerm x) patternViolation
+  -- We never get blocked terms here anymore. TODO: we actually do. why?
+  whenM (isBlockedTerm x) patternViolation
 
-        -- Andreas, 2010-10-15 I want to see whether rhs is blocked
-        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
-        reportSDoc "tc.meta.assign" 25 $ do
-          v0 <- reduceB v
-          case v0 of
-            Blocked m0 _ -> text "r.h.s. blocked on:" <+> prettyTCM m0
-            NotBlocked{} -> text "r.h.s. not blocked"
+  -- Andreas, 2010-10-15 I want to see whether rhs is blocked
+  reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
+  reportSDoc "tc.meta.assign" 25 $ do
+    v0 <- reduceB v
+    case v0 of
+      Blocked m0 _ -> text "r.h.s. blocked on:" <+> prettyTCM m0
+      NotBlocked{} -> text "r.h.s. not blocked"
 
-        -- Turn the assignment problem @_X args >= SizeLt u@ into
-        -- @_X args = SizeLt (_Y args@ and constraint
-        -- @_Y args >= u@.
-        subtypingForSizeLt dir x mvar t args v $ \ v -> do
+  -- Turn the assignment problem @_X args >= SizeLt u@ into
+  -- @_X args = SizeLt (_Y args@ and constraint
+  -- @_Y args >= u@.
+  subtypingForSizeLt dir x mvar t args v $ \ v -> do
 
-        -- Normalise and eta contract the arguments to the meta. These are
-        -- usually small, and simplifying might let us instantiate more metas.
+  -- Normalise and eta contract the arguments to the meta. These are
+  -- usually small, and simplifying might let us instantiate more metas.
 
-        -- MOVED TO expandProjectedVars:
-        -- args <- etaContract =<< normalise args
+  -- MOVED TO expandProjectedVars:
+  -- args <- etaContract =<< normalise args
 
-        -- Also, try to expand away projected vars in meta args.
-        expandProjectedVars args v $ \ args v -> do
+  -- Also, try to expand away projected vars in meta args.
+  expandProjectedVars args v $ \ args v -> do
 
-        -- If we had the type here we could save the work we put
-        -- into expanding projected variables.
-        -- catchConstraint (ValueCmp CmpEq ? (MetaV m $ map Apply args) v) $ do
+  -- If we had the type here we could save the work we put
+  -- into expanding projected variables.
+  -- catchConstraint (ValueCmp CmpEq ? (MetaV m $ map Apply args) v) $ do
 
-        -- Andreas, 2011-04-21 do the occurs check first
-        -- e.g. _1 x (suc x) = suc (_2 x y)
-        -- even though the lhs is not a pattern, we can prune the y from _2
-        let relVL = Set.toList $ allRelevantVars args
+  -- Andreas, 2011-04-21 do the occurs check first
+  -- e.g. _1 x (suc x) = suc (_2 x y)
+  -- even though the lhs is not a pattern, we can prune the y from _2
+  let relVL = Set.toList $ allRelevantVars args
 {- Andreas, 2012-04-02: DontCare no longer present
-        -- take away top-level DontCare constructors
-        args <- return $ map (fmap stripDontCare) args
+  -- take away top-level DontCare constructors
+  args <- return $ map (fmap stripDontCare) args
 -}
-        -- Andreas, 2011-10-06 only irrelevant vars that are direct
-        -- arguments to the meta, hence, can be abstracted over, may
-        -- appear on the rhs.  (test/fail/Issue483b)
-        -- Update 2011-03-27: Also irr. vars under record constructors.
-        let fromIrrVar (Var i [])   = return [i]
-            fromIrrVar (Con c vs)   =
-              ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
-                concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
-            fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
-            fromIrrVar _ = return []
-        irrVL <- concat <$> mapM fromIrrVar
-                   [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
-        reportSDoc "tc.meta.assign" 20 $
-            let pr (Var n []) = text (show n)
-                pr (Def c []) = prettyTCM c
-                pr _          = text ".."
-            in vcat
-                 [ text "mvar args:" <+> sep (map (pr . unArg) args)
-                 , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
-                 , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
-                 ]
+  -- Andreas, 2011-10-06 only irrelevant vars that are direct
+  -- arguments to the meta, hence, can be abstracted over, may
+  -- appear on the rhs.  (test/fail/Issue483b)
+  -- Update 2011-03-27: Also irr. vars under record constructors.
+  let fromIrrVar (Var i [])   = return [i]
+      fromIrrVar (Con c vs)   =
+        ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
+          concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
+      fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
+      fromIrrVar _ = return []
+  irrVL <- concat <$> mapM fromIrrVar
+             [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
+  reportSDoc "tc.meta.assign" 20 $
+      let pr (Var n []) = text (show n)
+          pr (Def c []) = prettyTCM c
+          pr _          = text ".."
+      in vcat
+           [ text "mvar args:" <+> sep (map (pr . unArg) args)
+           , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
+           , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
+           ]
 
-        -- Check that the x doesn't occur in the right hand side.
-        -- Prune mvars on rhs such that they can only depend on lhs vars.
-        -- Herein, distinguish relevant and irrelevant vars,
-        -- since when abstracting irrelevant lhs vars, they may only occur
-        -- irrelevantly on rhs.
-        v <- liftTCM $ occursCheck x (relVL, irrVL) v
+  -- Check that the x doesn't occur in the right hand side.
+  -- Prune mvars on rhs such that they can only depend on lhs vars.
+  -- Herein, distinguish relevant and irrelevant vars,
+  -- since when abstracting irrelevant lhs vars, they may only occur
+  -- irrelevantly on rhs.
+  v <- liftTCM $ occursCheck x (relVL, irrVL) v
 
-        reportSLn "tc.meta.assign" 15 "passed occursCheck"
-        verboseS "tc.meta.assign" 30 $ do
-          let n = termSize v
-          when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
-            sep [ text "size" <+> text (show n)
---                , nest 2 $ text "type" <+> prettyTCM t
-                , nest 2 $ text "term" <+> prettyTCM v
-                ]
+  reportSLn "tc.meta.assign" 15 "passed occursCheck"
+  verboseS "tc.meta.assign" 30 $ do
+    let n = termSize v
+    when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
+      sep [ text "size" <+> text (show n)
+--          , nest 2 $ text "type" <+> prettyTCM t
+          , nest 2 $ text "term" <+> prettyTCM v
+          ]
 
-        -- Check linearity of @ids@
-        -- Andreas, 2010-09-24: Herein, ignore the variables which are not
-        -- free in v
-        -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
-        -- we'll build solutions where the irrelevant terms are not valid
-        let fvs = allFreeVars v
-        reportSDoc "tc.meta.assign" 20 $
-          text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+  -- Check linearity of @ids@
+  -- Andreas, 2010-09-24: Herein, ignore the variables which are not
+  -- free in v
+  -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
+  -- we'll build solutions where the irrelevant terms are not valid
+  let fvs = allFreeVars v
+  reportSDoc "tc.meta.assign" 20 $
+    text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
-        -- Check that the arguments are variables
-        mids <- do
-          res <- runExceptT $ inverseSubst args
-          case res of
-            -- all args are variables
-            Right ids -> do
-              reportSDoc "tc.meta.assign" 50 $
-                text "inverseSubst returns:" <+> sep (map prettyTCM ids)
-              return $ Just ids
-            -- we have proper values as arguments which could be cased on
-            -- here, we cannot prune, since offending vars could be eliminated
-            Left CantInvert  -> return Nothing
-            -- we have non-variables, but these are not eliminateable
-            Left NeutralArg  -> Just <$> attemptPruning x args fvs
-            -- we have a projected variable which could not be eta-expanded away:
-            -- same as neutral
-            Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
+  -- Check that the arguments are variables
+  mids <- do
+    res <- runExceptT $ inverseSubst args
+    case res of
+      -- all args are variables
+      Right ids -> do
+        reportSDoc "tc.meta.assign" 50 $
+          text "inverseSubst returns:" <+> sep (map prettyTCM ids)
+        return $ Just ids
+      -- we have proper values as arguments which could be cased on
+      -- here, we cannot prune, since offending vars could be eliminated
+      Left CantInvert  -> return Nothing
+      -- we have non-variables, but these are not eliminateable
+      Left NeutralArg  -> Just <$> attemptPruning x args fvs
+      -- we have a projected variable which could not be eta-expanded away:
+      -- same as neutral
+      Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
 
-        case mids of
-          Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
-          Just ids -> do
-            -- Check linearity
-            ids <- do
-              res <- runExceptT $ checkLinearity {- (`Set.member` fvs) -} ids
-              case res of
-                -- case: linear
-                Right ids -> return ids
-                -- case: non-linear variables that could possibly be pruned
-                Left ()   -> attemptPruning x args fvs
+  case mids of
+    Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
+    Just ids -> do
+      -- Check linearity
+      ids <- do
+        res <- runExceptT $ checkLinearity {- (`Set.member` fvs) -} ids
+        case res of
+          -- case: linear
+          Right ids -> return ids
+          -- case: non-linear variables that could possibly be pruned
+          Left ()   -> attemptPruning x args fvs
 
-            -- Solve.
-            m <- getContextSize
-            assignMeta' m x t (length args) ids v
-    where
-        attemptPruning x args fvs = do
-          -- non-linear lhs: we cannot solve, but prune
-          killResult <- prune x args $ Set.toList fvs
-          reportSDoc "tc.meta.assign" 10 $
-            text "pruning" <+> prettyTCM x <+> do
-            text $
-              if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
-               else "failed"
-          patternViolation
+      -- Solve.
+      m <- getContextSize
+      assignMeta' m x t (length args) ids v
+  where
+    attemptPruning x args fvs = do
+      -- non-linear lhs: we cannot solve, but prune
+      killResult <- prune x args $ Set.toList fvs
+      reportSDoc "tc.meta.assign" 10 $
+        text "pruning" <+> prettyTCM x <+> do
+        text $
+          if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
+           else "failed"
+      patternViolation
 
 {- UNUSED
 -- | When faced with @_X us == D vs@ for an inert D we can solve this by
