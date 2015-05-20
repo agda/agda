@@ -103,48 +103,48 @@ parseVariables ii rng ss = do
   mi  <- getMetaInfo <$> lookupMeta mId
   enterClosure mi $ \ r -> do
 
-  -- Get printed representation of variables in context.
-  n  <- getContextSize
-  xs <- forM (downFrom n) $ \ i -> do
-    (,i) . P.render <$> prettyTCM (var i)
+    -- Get printed representation of variables in context.
+    n  <- getContextSize
+    xs <- forM (downFrom n) $ \ i -> do
+      (,i) . P.render <$> prettyTCM (var i)
 
-  -- Get number of module parameters.  These cannot be split on.
-  fv <- getModuleFreeVars =<< currentModule
-  let numSplittableVars = n - fv
+    -- Get number of module parameters.  These cannot be split on.
+    fv <- getModuleFreeVars =<< currentModule
+    let numSplittableVars = n - fv
 
-  -- Resolve each string to a variable.
-  forM ss $ \ s -> do
-    let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
-        done i
-          | i < numSplittableVars = return i
-          | otherwise             = failNotVar
+    -- Resolve each string to a variable.
+    forM ss $ \ s -> do
+      let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
+          done i
+            | i < numSplittableVars = return i
+            | otherwise             = failNotVar
 
-    -- Note: the range in the concrete name is only approximate.
-    resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
-    case resName of
+      -- Note: the range in the concrete name is only approximate.
+      resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
+      case resName of
 
-      -- Fail if s is a name, but not of a variable.
-      DefinedName{}       -> failNotVar
-      FieldName{}         -> failNotVar
-      ConstructorName{}   -> failNotVar
-      PatternSynResName{} -> failNotVar
+        -- Fail if s is a name, but not of a variable.
+        DefinedName{}       -> failNotVar
+        FieldName{}         -> failNotVar
+        ConstructorName{}   -> failNotVar
+        PatternSynResName{} -> failNotVar
 
-      -- If s is a variable name in scope, get its de Bruijn index
-      -- via the type checker.
-      VarName x -> do
-        (v, _) <- getVarInfo x
-        case ignoreSharing v of
-          Var i [] -> done i
-          _        -> failNotVar
+        -- If s is a variable name in scope, get its de Bruijn index
+        -- via the type checker.
+        VarName x -> do
+          (v, _) <- getVarInfo x
+          case ignoreSharing v of
+            Var i [] -> done i
+            _        -> failNotVar
 
-      -- If s is not a name, compare it to the printed variable representation.
-      -- This fallback is to enable splitting on hidden variables.
-      UnknownName -> do
-        case filter ((s ==) . fst) xs of
-          []      -> typeError $ GenericError $ "Unbound variable " ++ s
-          [(_,i)] -> done i
-          -- Issue 1325: Variable names in context can be ambiguous.
-          _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
+        -- If s is not a name, compare it to the printed variable representation.
+        -- This fallback is to enable splitting on hidden variables.
+        UnknownName -> do
+          case filter ((s ==) . fst) xs of
+            []      -> typeError $ GenericError $ "Unbound variable " ++ s
+            [(_,i)] -> done i
+            -- Issue 1325: Variable names in context can be ambiguous.
+            _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
 
 
 -- | Entry point for case splitting tactic.
