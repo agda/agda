@@ -191,33 +191,33 @@ occursCheck m xs v = disableDestructiveUpdate $ liftTCM $ do
   let redo m = m -- disableDestructiveUpdate m >> m
   -- First try without normalising the term
   redo (occurs NoUnfold  Top m xs v) `catchError` \_ -> do
-  initOccursCheck mv
-  redo (occurs YesUnfold Top m xs v) `catchError` \err -> case err of
-                          -- Produce nicer error messages
-    TypeError _ cl -> case clValue cl of
-      MetaOccursInItself{} ->
-        typeError . GenericError . show =<<
-          fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
-               , prettyTCM =<< instantiateFull v
-               ]
-      MetaCannotDependOn _ _ i ->
-        ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
-        ( typeError . GenericError . show =<<
-          fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
-               , prettyTCM v
-               , text "since universe polymorphism is disabled"
-               ]
-        ) {- else -}
-        ( typeError . GenericError . show =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
-                 , prettyTCM v
-                 , text "since it contains the variable"
-                 , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                 , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
+    initOccursCheck mv
+    redo (occurs YesUnfold Top m xs v) `catchError` \err -> case err of
+                            -- Produce nicer error messages
+      TypeError _ cl -> case clValue cl of
+        MetaOccursInItself{} ->
+          typeError . GenericError . show =<<
+            fsep [ text ("Refuse to construct infinite term by instantiating " ++ prettyShow m ++ " to")
+                 , prettyTCM =<< instantiateFull v
                  ]
-          )
+        MetaCannotDependOn _ _ i ->
+          ifM (isSortMeta m `and2M` (not <$> hasUniversePolymorphism))
+          ( typeError . GenericError . show =<<
+            fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to")
+                 , prettyTCM v
+                 , text "since universe polymorphism is disabled"
+                 ]
+          ) {- else -}
+          ( typeError . GenericError . show =<<
+              fsep [ text ("Cannot instantiate the metavariable " ++ prettyShow m ++ " to solution")
+                   , prettyTCM v
+                   , text "since it contains the variable"
+                   , enterClosure cl $ \_ -> prettyTCM (Var i [])
+                   , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
+                   ]
+            )
+        _ -> throwError err
       _ -> throwError err
-    _ -> throwError err
 
 instance Occurs Term where
   occurs red ctx m xs v = do
@@ -230,82 +230,82 @@ instance Occurs Term where
       Blocked _ v         -> occurs' Flex v
     where
       occurs' ctx v = do
-      reportSDoc "tc.meta.occurs" 45 $
-        text ("occursCheck " ++ prettyShow m ++ " (" ++ show ctx ++ ") of ") <+> prettyTCM v
-      reportSDoc "tc.meta.occurs" 70 $
-        nest 2 $ text $ show v
-      case v of
-        Var i es   -> do
-          if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) es else do
-            -- if the offending variable is of singleton type,
-            -- eta-expand it away
-            isST <- isSingletonType =<< typeOfBV i
-            case isST of
-              -- cannot decide, blocked by meta-var
-              Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
-              -- not a singleton type
-              Right Nothing -> -- abort Rigid turns this error into PatternErr
-                abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
-              -- is a singleton type with unique inhabitant sv
-              Right (Just sv) -> return $ sv `applyE` es
-        Lam h f     -> Lam h <$> occ (leaveTop ctx) f
-        Level l     -> Level <$> occ ctx l  -- stay in Top
-        Lit l       -> return v
-        DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
-        Def d es    -> Def d <$> occDef d (leaveTop ctx) es
-        Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
-        Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
-        Sort s      -> Sort <$> occ (leaveTop ctx) s
-        v@Shared{}  -> updateSharedTerm (occ ctx) v
-        MetaV m' es -> do
-            -- Check for loop
-            --   don't fail hard on this, since we might still be on the top-level
-            --   after some killing (Issue 442)
-            --
-            -- Andreas, 2013-02-18  Issue 795 demonstrates that a recursive
-            -- occurrence of a meta could be solved by the identity.
-            --   ? (Q A) = Q (? A)
-            -- So, do not throw an error.
-            -- I guess the error was there from times when occurrence check
-            -- was done after the "lhs=linear variables" check, but now
-            -- occurrence check comes first.
-            -- WAS:
-            -- when (m == m') $ if ctx == Top then patternViolation else
-            --   abort ctx $ MetaOccursInItself m'
-            when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ prettyShow m
+        reportSDoc "tc.meta.occurs" 45 $
+          text ("occursCheck " ++ prettyShow m ++ " (" ++ show ctx ++ ") of ") <+> prettyTCM v
+        reportSDoc "tc.meta.occurs" 70 $
+          nest 2 $ text $ show v
+        case v of
+          Var i es   -> do
+            if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) es else do
+              -- if the offending variable is of singleton type,
+              -- eta-expand it away
+              isST <- isSingletonType =<< typeOfBV i
+              case isST of
+                -- cannot decide, blocked by meta-var
+                Left mid -> patternViolation' 70 $ "Disallowed var " ++ show i ++ " not obviously singleton"
+                -- not a singleton type
+                Right Nothing -> -- abort Rigid turns this error into PatternErr
+                  abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
+                -- is a singleton type with unique inhabitant sv
+                Right (Just sv) -> return $ sv `applyE` es
+          Lam h f     -> Lam h <$> occ (leaveTop ctx) f
+          Level l     -> Level <$> occ ctx l  -- stay in Top
+          Lit l       -> return v
+          DontCare v  -> dontCare <$> occurs red Irrel m (goIrrelevant xs) v
+          Def d es    -> Def d <$> occDef d (leaveTop ctx) es
+          Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
+          Pi a b      -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
+          Sort s      -> Sort <$> occ (leaveTop ctx) s
+          v@Shared{}  -> updateSharedTerm (occ ctx) v
+          MetaV m' es -> do
+              -- Check for loop
+              --   don't fail hard on this, since we might still be on the top-level
+              --   after some killing (Issue 442)
+              --
+              -- Andreas, 2013-02-18  Issue 795 demonstrates that a recursive
+              -- occurrence of a meta could be solved by the identity.
+              --   ? (Q A) = Q (? A)
+              -- So, do not throw an error.
+              -- I guess the error was there from times when occurrence check
+              -- was done after the "lhs=linear variables" check, but now
+              -- occurrence check comes first.
+              -- WAS:
+              -- when (m == m') $ if ctx == Top then patternViolation else
+              --   abort ctx $ MetaOccursInItself m'
+              when (m == m') $ patternViolation' 50 $ "occursCheck failed: Found " ++ prettyShow m
 
-            -- The arguments of a meta are in a flexible position
-            (MetaV m' <$> occurs red Flex m xs es) `catchError` \err -> do
-              reportSDoc "tc.meta.kill" 25 $ vcat
-                [ text $ "error during flexible occurs check, we are " ++ show ctx
-                , text $ show err
-                ]
-              case err of
-                -- On pattern violations try to remove offending
-                -- flexible occurrences (if not already in a flexible context)
-                PatternErr{} | ctx /= Flex -> do
-                  reportSLn "tc.meta.kill" 20 $
-                    "oops, pattern violation for " ++ prettyShow m'
-                  -- Andreas, 2014-03-02, see issue 1070:
-                  -- Do not prune when meta is projected!
-                  caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
-                  killResult <- prune m' vs (takeRelevant xs)
-                  if (killResult == PrunedEverything)
-                    -- after successful pruning, restart occurs check
-                    then occurs red ctx m xs =<< instantiate (MetaV m' es)
-                    else throwError err
-                _ -> throwError err
-        where
-          occ ctx v = occurs red ctx m xs v
-          -- a data or record type constructor propagates strong occurrences
-          -- since e.g. x = List x is unsolvable
-          occDef d ctx vs = do
-            def <- theDef <$> getConstInfo d
-            whenM (defNeedsChecking d) $ do
-              tallyDef d
-              reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
-              metaOccurs m def
-            if (defIsDataOrRecord def) then (occ ctx vs) else (occ (defArgs red ctx) vs)
+              -- The arguments of a meta are in a flexible position
+              (MetaV m' <$> occurs red Flex m xs es) `catchError` \err -> do
+                reportSDoc "tc.meta.kill" 25 $ vcat
+                  [ text $ "error during flexible occurs check, we are " ++ show ctx
+                  , text $ show err
+                  ]
+                case err of
+                  -- On pattern violations try to remove offending
+                  -- flexible occurrences (if not already in a flexible context)
+                  PatternErr{} | ctx /= Flex -> do
+                    reportSLn "tc.meta.kill" 20 $
+                      "oops, pattern violation for " ++ prettyShow m'
+                    -- Andreas, 2014-03-02, see issue 1070:
+                    -- Do not prune when meta is projected!
+                    caseMaybe (allApplyElims es) (throwError err) $ \ vs -> do
+                      killResult <- prune m' vs (takeRelevant xs)
+                      if (killResult == PrunedEverything)
+                        -- after successful pruning, restart occurs check
+                        then occurs red ctx m xs =<< instantiate (MetaV m' es)
+                        else throwError err
+                  _ -> throwError err
+          where
+            occ ctx v = occurs red ctx m xs v
+            -- a data or record type constructor propagates strong occurrences
+            -- since e.g. x = List x is unsolvable
+            occDef d ctx vs = do
+              def <- theDef <$> getConstInfo d
+              whenM (defNeedsChecking d) $ do
+                tallyDef d
+                reportSLn "tc.meta.occurs" 30 $ "Checking for occurrences in " ++ show d
+                metaOccurs m def
+              if (defIsDataOrRecord def) then (occ ctx vs) else (occ (defArgs red ctx) vs)
 
   metaOccurs m v = do
     v <- instantiate v
@@ -464,17 +464,17 @@ prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
 prune m' vs xs = do
   caseEitherM (runExceptT $ mapM (hasBadRigid xs) $ map unArg vs)
     (const $ return PrunedNothing) $ \ kills -> do
-  reportSDoc "tc.meta.kill" 10 $ vcat
-    [ text "attempting kills"
-    , nest 2 $ vcat
-      [ text "m'    =" <+> pretty m'
-      -- , text "xs    =" <+> text (show xs)
-      , text "xs    =" <+> prettyList (map (prettyTCM . var) xs)
-      , text "vs    =" <+> prettyList (map prettyTCM vs)
-      , text "kills =" <+> text (show kills)
+    reportSDoc "tc.meta.kill" 10 $ vcat
+      [ text "attempting kills"
+      , nest 2 $ vcat
+        [ text "m'    =" <+> pretty m'
+        -- , text "xs    =" <+> text (show xs)
+        , text "xs    =" <+> prettyList (map (prettyTCM . var) xs)
+        , text "vs    =" <+> prettyList (map prettyTCM vs)
+        , text "kills =" <+> text (show kills)
+        ]
       ]
-    ]
-  killArgs kills m'
+    killArgs kills m'
 
 -- | @hasBadRigid xs v = Just True@ iff one of the rigid variables in @v@ is not in @xs@.
 --   Actually we can only prune if a bad variable is in the head. See issue 458.
