@@ -331,25 +331,25 @@ checkRecordProjections m r con tel ftel fs = do
       -- disabled by --no-irrelevant-projections
       ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
 
-      reportSDoc "tc.rec.proj" 10 $ sep
-        [ text "adding projection"
-        , nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)
-        ]
+        reportSDoc "tc.rec.proj" 10 $ sep
+          [ text "adding projection"
+          , nest 2 $ prettyTCM projname <+> text ":" <+> inTopContext (prettyTCM finalt)
+          ]
 
-      -- The body should be
-      --  P.xi {tel} (r _ .. x .. _) = x
-      -- Ulf, 2011-08-22: actually we're dropping the parameters from the
-      -- projection functions so the body is now
-      --  P.xi (r _ .. x .. _) = x
-      -- Andreas, 2012-01-12: irrelevant projections get translated to
-      --  P.xi (r _ .. x .. _) = irrAxiom {level of t} {t} x
-      -- PROBLEM: because of dropped parameters, cannot refer to t
+        -- The body should be
+        --  P.xi {tel} (r _ .. x .. _) = x
+        -- Ulf, 2011-08-22: actually we're dropping the parameters from the
+        -- projection functions so the body is now
+        --  P.xi (r _ .. x .. _) = x
+        -- Andreas, 2012-01-12: irrelevant projections get translated to
+        --  P.xi (r _ .. x .. _) = irrAxiom {level of t} {t} x
+        -- PROBLEM: because of dropped parameters, cannot refer to t
 
-      -- compute body modification for irrelevant projections
-      let bodyMod = case rel of
-            Relevant   -> id
-            Irrelevant -> DontCare
-            _          -> __IMPOSSIBLE__
+        -- compute body modification for irrelevant projections
+        let bodyMod = case rel of
+              Relevant   -> id
+              Irrelevant -> DontCare
+              _          -> __IMPOSSIBLE__
 
 {- 2012-04-02: DontCare instead of irrAxiom
           Irrelevant -> do
@@ -363,94 +363,94 @@ checkRecordProjections m r con tel ftel fs = do
                               in  apply irrAxiom [mkArg levelOfT, mkArg (unEl t), Arg NotHidden Irrelevant x]
 -}
 
-      let -- Andreas, 2010-09-09: comment for existing code
-          -- split the telescope into parameters (ptel) and the type or the record
-          -- (rt) which should be  R ptel
-          (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
-          projArgI    = domInfo rt
-          cpi    = ConPatternInfo (Just False) (Just $ argFromDom $ fmap snd rt)
-          conp   = defaultArg $ ConP con cpi $
-                   [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
-          nobind 0 = id
-          nobind n = Bind . Abs "_" . nobind (n - 1)
-          body   = nobind (size ftel1)
-                 $ Bind . Abs "x"
-                 $ nobind (size ftel2)
-                 $ Body $ bodyMod $ var (size ftel2)
-          cltel  = ftel
-          clause = Clause { clauseRange = getRange info
-                          , clauseTel       = killRange cltel
-                          , clausePerm      = idP $ size ftel
-                          , namedClausePats = [Named Nothing <$> conp]
-                          , clauseBody      = body
-                          , clauseType      = Just $ Arg ai t
-                          , clauseCatchall  = False
-                          }
+        let -- Andreas, 2010-09-09: comment for existing code
+            -- split the telescope into parameters (ptel) and the type or the record
+            -- (rt) which should be  R ptel
+            (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
+            projArgI    = domInfo rt
+            cpi    = ConPatternInfo (Just False) (Just $ argFromDom $ fmap snd rt)
+            conp   = defaultArg $ ConP con cpi $
+                     [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
+            nobind 0 = id
+            nobind n = Bind . Abs "_" . nobind (n - 1)
+            body   = nobind (size ftel1)
+                   $ Bind . Abs "x"
+                   $ nobind (size ftel2)
+                   $ Body $ bodyMod $ var (size ftel2)
+            cltel  = ftel
+            clause = Clause { clauseRange = getRange info
+                            , clauseTel       = killRange cltel
+                            , clausePerm      = idP $ size ftel
+                            , namedClausePats = [Named Nothing <$> conp]
+                            , clauseBody      = body
+                            , clauseType      = Just $ Arg ai t
+                            , clauseCatchall  = False
+                            }
 
-      -- Andreas, 2013-10-20
-      -- creating the projection construction function
-      let core = Lam projArgI $ Abs "r" $ bodyMod $ projcall
-          -- leading lambdas are to ignore parameter applications
-          proj = teleNoAbs ptel core
-          -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
-          projection = Projection
-            { projProper   = Just projname
-            -- name of the record type:
-            , projFromType = r
-            -- index of the record argument (in the type),
-            -- start counting with 1:
-            , projIndex    = size ptel + 1  -- which is @size tel@
-            , projDropPars = proj
-            , projArgInfo  = projArgI
-            }
+        -- Andreas, 2013-10-20
+        -- creating the projection construction function
+        let core = Lam projArgI $ Abs "r" $ bodyMod $ projcall
+            -- leading lambdas are to ignore parameter applications
+            proj = teleNoAbs ptel core
+            -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
+            projection = Projection
+              { projProper   = Just projname
+              -- name of the record type:
+              , projFromType = r
+              -- index of the record argument (in the type),
+              -- start counting with 1:
+              , projIndex    = size ptel + 1  -- which is @size tel@
+              , projDropPars = proj
+              , projArgInfo  = projArgI
+              }
 
-      reportSDoc "tc.rec.proj" 80 $ sep
-        [ text "adding projection"
-        , nest 2 $ prettyTCM projname <+> text (show clause)
-        ]
-      reportSDoc "tc.rec.proj" 70 $ sep
-        [ text "adding projection"
-        , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                     inTopContext (addCtxTel ftel (prettyTCM (clauseBody clause)))
-        ]
-      reportSDoc "tc.rec.proj" 10 $ sep
-        [ text "adding projection"
-        , nest 2 $ prettyTCM (QNamed projname clause)
-        ]
+        reportSDoc "tc.rec.proj" 80 $ sep
+          [ text "adding projection"
+          , nest 2 $ prettyTCM projname <+> text (show clause)
+          ]
+        reportSDoc "tc.rec.proj" 70 $ sep
+          [ text "adding projection"
+          , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
+                       inTopContext (addCtxTel ftel (prettyTCM (clauseBody clause)))
+          ]
+        reportSDoc "tc.rec.proj" 10 $ sep
+          [ text "adding projection"
+          , nest 2 $ prettyTCM (QNamed projname clause)
+          ]
 
-            -- Record patterns should /not/ be translated when the
-            -- projection functions are defined. Record pattern
-            -- translation is defined in terms of projection
-            -- functions.
-      cc <- compileClauses Nothing [clause]
+              -- Record patterns should /not/ be translated when the
+              -- projection functions are defined. Record pattern
+              -- translation is defined in terms of projection
+              -- functions.
+        cc <- compileClauses Nothing [clause]
 
-      reportSDoc "tc.cc" 10 $ do
-        sep [ text "compiled clauses of " <+> prettyTCM projname
-            , nest 2 $ text (show cc)
-            ]
+        reportSDoc "tc.cc" 10 $ do
+          sep [ text "compiled clauses of " <+> prettyTCM projname
+              , nest 2 $ text (show cc)
+              ]
 
-      escapeContext (size tel) $ do
-        addConstant projname $
-          (defaultDefn ai projname (killRange finalt)
-            Function { funClauses        = [clause]
-                     , funCompiled       = Just cc
-                     , funDelayed        = NotDelayed
-                     , funInv            = NotInjective
-                     , funAbstr          = ConcreteDef
-                     , funMutual         = []
-                     , funProjection     = Just projection
-                     , funSmashable      = True
-                     , funStatic         = False
-                     , funCopy           = False
-                     , funTerminates     = Just True
-                     , funExtLam         = Nothing
-                     , funWith           = Nothing
-                     , funCopatternLHS   = isCopatternLHS [clause]
-                     })
-            { defArgOccurrences = [StrictPos] }
-        computePolarity projname
+        escapeContext (size tel) $ do
+          addConstant projname $
+            (defaultDefn ai projname (killRange finalt)
+              Function { funClauses        = [clause]
+                       , funCompiled       = Just cc
+                       , funDelayed        = NotDelayed
+                       , funInv            = NotInjective
+                       , funAbstr          = ConcreteDef
+                       , funMutual         = []
+                       , funProjection     = Just projection
+                       , funSmashable      = True
+                       , funStatic         = False
+                       , funCopy           = False
+                       , funTerminates     = Just True
+                       , funExtLam         = Nothing
+                       , funWith           = Nothing
+                       , funCopatternLHS   = isCopatternLHS [clause]
+                       })
+              { defArgOccurrences = [StrictPos] }
+          computePolarity projname
 
-      recurse
+        recurse
 
     checkProjs ftel1 ftel2 (d : fs) = do
       checkDecl d
