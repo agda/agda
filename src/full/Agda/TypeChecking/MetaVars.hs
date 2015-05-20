@@ -441,61 +441,61 @@ allMetaKinds = [minBound .. maxBound]
 etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
-  let waitFor x = do
-        reportSDoc "tc.meta.eta" 20 $ do
-          text "postponing eta-expansion of meta variable" <+>
-            prettyTCM m <+>
-            text "which is blocked by" <+> prettyTCM x
-        listenToMeta (EtaExpand m) x
-      dontExpand = do
-        reportSDoc "tc.meta.eta" 20 $ do
-          text "we do not expand meta variable" <+> prettyTCM m <+>
-            text ("(requested was expansion of " ++ show kinds ++ ")")
-  meta           <- lookupMeta m
-  let HasType _ a = mvJudgement meta
-  TelV tel b     <- telView a
-  -- if the target type @b@ of @m@ is a meta variable @x@ itself
-  -- (@NonBlocked (MetaV{})@),
-  -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
-  -- eta expand now, we have to postpone this.  Once @x@ is
-  -- instantiated, we can continue eta-expanding m.  This is realized
-  -- by adding @m@ to the listeners of @x@.
-  ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ t -> case ignoreSharing t of
-    lvl@(Def r es) ->
-      ifM (isEtaRecord r) {- then -} (do
-        let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-        let expand = do
-              u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
-              inTopContext $ do
-                verboseS "tc.meta.eta" 15 $ do
-                  du <- prettyTCM u
-                  reportSDoc "tc.meta.eta" 15 $ sep
-                    [ text "eta expanding: " <+> pretty m <+> text " --> "
-                    , nest 2 $ prettyTCM u
-                    ]
-                -- Andreas, 2012-03-29: No need for occurrence check etc.
-                -- we directly assign the solution for the meta
-                -- 2012-05-23: We also bypass the check for frozen.
-                noConstraints $ assignTerm' m (telToArgs tel) u  -- should never produce any constraints
-        if Records `elem` kinds then
-          expand
-         else if (SingletonRecords `elem` kinds) then do
-           singleton <- isSingletonRecord r ps
-           case singleton of
-             Left x      -> waitFor x
-             Right False -> dontExpand
-             Right True  -> expand
-          else dontExpand
-      ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
-                      , typeInType
-                      , (Just lvl ==) <$> getBuiltin' builtinLevel
-                      ]) (do
-        reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
-        -- Andreas, 2012-03-30: No need for occurrence check etc.
-        -- we directly assign the solution for the meta
-        noConstraints $ assignTerm m (telToArgs tel) (Level $ Max [])
-     ) $ {- else -} dontExpand
-    _ -> dontExpand
+    let waitFor x = do
+          reportSDoc "tc.meta.eta" 20 $ do
+            text "postponing eta-expansion of meta variable" <+>
+              prettyTCM m <+>
+              text "which is blocked by" <+> prettyTCM x
+          listenToMeta (EtaExpand m) x
+        dontExpand = do
+          reportSDoc "tc.meta.eta" 20 $ do
+            text "we do not expand meta variable" <+> prettyTCM m <+>
+              text ("(requested was expansion of " ++ show kinds ++ ")")
+    meta           <- lookupMeta m
+    let HasType _ a = mvJudgement meta
+    TelV tel b     <- telView a
+    -- if the target type @b@ of @m@ is a meta variable @x@ itself
+    -- (@NonBlocked (MetaV{})@),
+    -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
+    -- eta expand now, we have to postpone this.  Once @x@ is
+    -- instantiated, we can continue eta-expanding m.  This is realized
+    -- by adding @m@ to the listeners of @x@.
+    ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ t -> case ignoreSharing t of
+      lvl@(Def r es) ->
+        ifM (isEtaRecord r) {- then -} (do
+          let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+          let expand = do
+                u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
+                inTopContext $ do
+                  verboseS "tc.meta.eta" 15 $ do
+                    du <- prettyTCM u
+                    reportSDoc "tc.meta.eta" 15 $ sep
+                      [ text "eta expanding: " <+> pretty m <+> text " --> "
+                      , nest 2 $ prettyTCM u
+                      ]
+                  -- Andreas, 2012-03-29: No need for occurrence check etc.
+                  -- we directly assign the solution for the meta
+                  -- 2012-05-23: We also bypass the check for frozen.
+                  noConstraints $ assignTerm' m (telToArgs tel) u  -- should never produce any constraints
+          if Records `elem` kinds then
+            expand
+           else if (SingletonRecords `elem` kinds) then do
+             singleton <- isSingletonRecord r ps
+             case singleton of
+               Left x      -> waitFor x
+               Right False -> dontExpand
+               Right True  -> expand
+            else dontExpand
+        ) $ {- else -} ifM (andM [ return $ Levels `elem` kinds
+                        , typeInType
+                        , (Just lvl ==) <$> getBuiltin' builtinLevel
+                        ]) (do
+          reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
+          -- Andreas, 2012-03-30: No need for occurrence check etc.
+          -- we directly assign the solution for the meta
+          noConstraints $ assignTerm m (telToArgs tel) (Level $ Max [])
+       ) $ {- else -} dontExpand
+      _ -> dontExpand
 
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
@@ -592,107 +592,107 @@ assign dir x args v = do
   -- @_Y args >= u@.
   subtypingForSizeLt dir x mvar t args v $ \ v -> do
 
-  -- Normalise and eta contract the arguments to the meta. These are
-  -- usually small, and simplifying might let us instantiate more metas.
+    -- Normalise and eta contract the arguments to the meta. These are
+    -- usually small, and simplifying might let us instantiate more metas.
 
-  -- MOVED TO expandProjectedVars:
-  -- args <- etaContract =<< normalise args
+    -- MOVED TO expandProjectedVars:
+    -- args <- etaContract =<< normalise args
 
-  -- Also, try to expand away projected vars in meta args.
-  expandProjectedVars args v $ \ args v -> do
+    -- Also, try to expand away projected vars in meta args.
+    expandProjectedVars args v $ \ args v -> do
 
-  -- If we had the type here we could save the work we put
-  -- into expanding projected variables.
-  -- catchConstraint (ValueCmp CmpEq ? (MetaV m $ map Apply args) v) $ do
+      -- If we had the type here we could save the work we put
+      -- into expanding projected variables.
+      -- catchConstraint (ValueCmp CmpEq ? (MetaV m $ map Apply args) v) $ do
 
-  -- Andreas, 2011-04-21 do the occurs check first
-  -- e.g. _1 x (suc x) = suc (_2 x y)
-  -- even though the lhs is not a pattern, we can prune the y from _2
-  let relVL = Set.toList $ allRelevantVars args
+      -- Andreas, 2011-04-21 do the occurs check first
+      -- e.g. _1 x (suc x) = suc (_2 x y)
+      -- even though the lhs is not a pattern, we can prune the y from _2
+      let relVL = Set.toList $ allRelevantVars args
 {- Andreas, 2012-04-02: DontCare no longer present
-  -- take away top-level DontCare constructors
-  args <- return $ map (fmap stripDontCare) args
+      -- take away top-level DontCare constructors
+      args <- return $ map (fmap stripDontCare) args
 -}
-  -- Andreas, 2011-10-06 only irrelevant vars that are direct
-  -- arguments to the meta, hence, can be abstracted over, may
-  -- appear on the rhs.  (test/fail/Issue483b)
-  -- Update 2011-03-27: Also irr. vars under record constructors.
-  let fromIrrVar (Var i [])   = return [i]
-      fromIrrVar (Con c vs)   =
-        ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
-          concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
-      fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
-      fromIrrVar _ = return []
-  irrVL <- concat <$> mapM fromIrrVar
-             [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
-  reportSDoc "tc.meta.assign" 20 $
-      let pr (Var n []) = text (show n)
-          pr (Def c []) = prettyTCM c
-          pr _          = text ".."
-      in vcat
-           [ text "mvar args:" <+> sep (map (pr . unArg) args)
-           , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
-           , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
-           ]
+      -- Andreas, 2011-10-06 only irrelevant vars that are direct
+      -- arguments to the meta, hence, can be abstracted over, may
+      -- appear on the rhs.  (test/fail/Issue483b)
+      -- Update 2011-03-27: Also irr. vars under record constructors.
+      let fromIrrVar (Var i [])   = return [i]
+          fromIrrVar (Con c vs)   =
+            ifM (isNothing <$> isRecordConstructor (conName c)) (return []) $
+              concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
+          fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
+          fromIrrVar _ = return []
+      irrVL <- concat <$> mapM fromIrrVar
+                 [ v | Arg info v <- args, irrelevantOrUnused (getRelevance info) ]
+      reportSDoc "tc.meta.assign" 20 $
+          let pr (Var n []) = text (show n)
+              pr (Def c []) = prettyTCM c
+              pr _          = text ".."
+          in vcat
+               [ text "mvar args:" <+> sep (map (pr . unArg) args)
+               , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
+               , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
+               ]
 
-  -- Check that the x doesn't occur in the right hand side.
-  -- Prune mvars on rhs such that they can only depend on lhs vars.
-  -- Herein, distinguish relevant and irrelevant vars,
-  -- since when abstracting irrelevant lhs vars, they may only occur
-  -- irrelevantly on rhs.
-  v <- liftTCM $ occursCheck x (relVL, irrVL) v
+      -- Check that the x doesn't occur in the right hand side.
+      -- Prune mvars on rhs such that they can only depend on lhs vars.
+      -- Herein, distinguish relevant and irrelevant vars,
+      -- since when abstracting irrelevant lhs vars, they may only occur
+      -- irrelevantly on rhs.
+      v <- liftTCM $ occursCheck x (relVL, irrVL) v
 
-  reportSLn "tc.meta.assign" 15 "passed occursCheck"
-  verboseS "tc.meta.assign" 30 $ do
-    let n = termSize v
-    when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
-      sep [ text "size" <+> text (show n)
---          , nest 2 $ text "type" <+> prettyTCM t
-          , nest 2 $ text "term" <+> prettyTCM v
-          ]
+      reportSLn "tc.meta.assign" 15 "passed occursCheck"
+      verboseS "tc.meta.assign" 30 $ do
+        let n = termSize v
+        when (n > 200) $ reportSDoc "tc.meta.assign" 30 $
+          sep [ text "size" <+> text (show n)
+--              , nest 2 $ text "type" <+> prettyTCM t
+              , nest 2 $ text "term" <+> prettyTCM v
+              ]
 
-  -- Check linearity of @ids@
-  -- Andreas, 2010-09-24: Herein, ignore the variables which are not
-  -- free in v
-  -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
-  -- we'll build solutions where the irrelevant terms are not valid
-  let fvs = allFreeVars v
-  reportSDoc "tc.meta.assign" 20 $
-    text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+      -- Check linearity of @ids@
+      -- Andreas, 2010-09-24: Herein, ignore the variables which are not
+      -- free in v
+      -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
+      -- we'll build solutions where the irrelevant terms are not valid
+      let fvs = allFreeVars v
+      reportSDoc "tc.meta.assign" 20 $
+        text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
-  -- Check that the arguments are variables
-  mids <- do
-    res <- runExceptT $ inverseSubst args
-    case res of
-      -- all args are variables
-      Right ids -> do
-        reportSDoc "tc.meta.assign" 50 $
-          text "inverseSubst returns:" <+> sep (map prettyTCM ids)
-        return $ Just ids
-      -- we have proper values as arguments which could be cased on
-      -- here, we cannot prune, since offending vars could be eliminated
-      Left CantInvert  -> return Nothing
-      -- we have non-variables, but these are not eliminateable
-      Left NeutralArg  -> Just <$> attemptPruning x args fvs
-      -- we have a projected variable which could not be eta-expanded away:
-      -- same as neutral
-      Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
-
-  case mids of
-    Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
-    Just ids -> do
-      -- Check linearity
-      ids <- do
-        res <- runExceptT $ checkLinearity {- (`Set.member` fvs) -} ids
+      -- Check that the arguments are variables
+      mids <- do
+        res <- runExceptT $ inverseSubst args
         case res of
-          -- case: linear
-          Right ids -> return ids
-          -- case: non-linear variables that could possibly be pruned
-          Left ()   -> attemptPruning x args fvs
+          -- all args are variables
+          Right ids -> do
+            reportSDoc "tc.meta.assign" 50 $
+              text "inverseSubst returns:" <+> sep (map prettyTCM ids)
+            return $ Just ids
+          -- we have proper values as arguments which could be cased on
+          -- here, we cannot prune, since offending vars could be eliminated
+          Left CantInvert  -> return Nothing
+          -- we have non-variables, but these are not eliminateable
+          Left NeutralArg  -> Just <$> attemptPruning x args fvs
+          -- we have a projected variable which could not be eta-expanded away:
+          -- same as neutral
+          Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
 
-      -- Solve.
-      m <- getContextSize
-      assignMeta' m x t (length args) ids v
+      case mids of
+        Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
+        Just ids -> do
+          -- Check linearity
+          ids <- do
+            res <- runExceptT $ checkLinearity {- (`Set.member` fvs) -} ids
+            case res of
+              -- case: linear
+              Right ids -> return ids
+              -- case: non-linear variables that could possibly be pruned
+              Left ()   -> attemptPruning x args fvs
+
+          -- Solve.
+          m <- getContextSize
+          assignMeta' m x t (length args) ids v
   where
     attemptPruning x args fvs = do
       -- non-linear lhs: we cannot solve, but prune
@@ -882,30 +882,30 @@ subtypingForSizeLt dir   x mvar t args v cont = do
   -- Check whether we have built-ins SIZE and SIZELT
   (mSize, mSizeLt) <- getBuiltinSize
   caseMaybe mSize   fallback $ \ qSize   -> do
-  caseMaybe mSizeLt fallback $ \ qSizeLt -> do
-  -- Check whether v is a SIZELT
-  v <- reduce v
-  case ignoreSharing v of
-    Def q [Apply (Arg ai u)] | q == qSizeLt -> do
-      -- Clone the meta into a new size meta @y@.
-      -- To this end, we swap the target of t for Size.
-      TelV tel _ <- telView t
-      let size = sizeType_ qSize
-          t'   = telePi tel size
-      y <- newMeta (mvInfo mvar) (mvPriority mvar) (mvPermutation mvar)
-                   (HasType __IMPOSSIBLE__ t')
-      -- Note: no eta-expansion of new meta possible/necessary.
-      -- Add the size constraint @y args `dir` u@.
-      let yArgs = MetaV y $ map Apply args
-      addConstraint $ dirToCmp (`ValueCmp` size) dir yArgs u
-      -- We continue with the new assignment problem, and install
-      -- an exception handler, since we created a meta and a constraint,
-      -- so we cannot fall back to the original handler.
-      let xArgs = MetaV x $ map Apply args
-          v'    = Def qSizeLt [Apply $ Arg ai yArgs]
-          c     = dirToCmp (`ValueCmp` sizeUniv) dir xArgs v'
-      catchConstraint c $ cont v'
-    _ -> fallback
+    caseMaybe mSizeLt fallback $ \ qSizeLt -> do
+      -- Check whether v is a SIZELT
+      v <- reduce v
+      case ignoreSharing v of
+        Def q [Apply (Arg ai u)] | q == qSizeLt -> do
+          -- Clone the meta into a new size meta @y@.
+          -- To this end, we swap the target of t for Size.
+          TelV tel _ <- telView t
+          let size = sizeType_ qSize
+              t'   = telePi tel size
+          y <- newMeta (mvInfo mvar) (mvPriority mvar) (mvPermutation mvar)
+                       (HasType __IMPOSSIBLE__ t')
+          -- Note: no eta-expansion of new meta possible/necessary.
+          -- Add the size constraint @y args `dir` u@.
+          let yArgs = MetaV y $ map Apply args
+          addConstraint $ dirToCmp (`ValueCmp` size) dir yArgs u
+          -- We continue with the new assignment problem, and install
+          -- an exception handler, since we created a meta and a constraint,
+          -- so we cannot fall back to the original handler.
+          let xArgs = MetaV x $ map Apply args
+              v'    = Def qSizeLt [Apply $ Arg ai yArgs]
+              c     = dirToCmp (`ValueCmp` sizeUniv) dir xArgs v'
+          catchConstraint c $ cont v'
+        _ -> fallback
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
 expandProjectedVars :: (Normalise a, TermLike a, PrettyTCM a, NoProjectedVar a, Subst a, PrettyTCM b, Subst b) =>

@@ -66,11 +66,11 @@ projView v = do
   case ignoreSharing v of
     Def f es -> caseMaybeM (isProjection f) fallback $ \ isP -> do
       if projIndex isP <= 0 then fallback else do
-      case es of
-        []           -> return $ LoneProjectionLike f $ projArgInfo isP
-        Apply a : es -> return $ ProjectionView f a es
-        -- Since a projection is a function, it cannot be projected itself.
-        Proj{}  : _  -> __IMPOSSIBLE__
+        case es of
+          []           -> return $ LoneProjectionLike f $ projArgInfo isP
+          Apply a : es -> return $ ProjectionView f a es
+          -- Since a projection is a function, it cannot be projected itself.
+          Proj{}  : _  -> __IMPOSSIBLE__
     _ -> fallback
 
 -- | Reduce away top-level projection like functions.
@@ -152,54 +152,54 @@ makeProjection x = inTopContext $ do
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ show ps0
       unless (null ps0) $ do
-      -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
-      -- Issue 700: problems with recursive funs. in term.checker and reduction
-      ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
-      ps <- return $ filter (checkOccurs cls . snd) ps0
-      when (null ps) $
-        reportSLn "tc.proj.like" 50 $
-          "  occurs check failed\n    clauses = " ++ show cls
-      case reverse ps of
-        []         -> return ()
-        (d, n) : _ -> do
-          reportSDoc "tc.proj.like" 10 $ sep
-            [ prettyTCM x <+> text " : " <+> prettyTCM t
-            , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
-            ]
+        -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
+        -- Issue 700: problems with recursive funs. in term.checker and reduction
+        ifM recursive (reportSLn "tc.proj.like" 30 $ "  recursive functions are not considered for projection-likeness") $ do
+          ps <- return $ filter (checkOccurs cls . snd) ps0
+          when (null ps) $
+            reportSLn "tc.proj.like" 50 $
+              "  occurs check failed\n    clauses = " ++ show cls
+          case reverse ps of
+            []         -> return ()
+            (d, n) : _ -> do
+              reportSDoc "tc.proj.like" 10 $ sep
+                [ prettyTCM x <+> text " : " <+> prettyTCM t
+                , text $ " is projection like in argument " ++ show n ++ " for type " ++ show d
+                ]
 {-
-          reportSLn "tc.proj.like" 10 $
-            show (defName defn) ++ " is projection like in argument " ++
-            show n ++ " for type " ++ show d
+              reportSLn "tc.proj.like" 10 $
+                show (defName defn) ++ " is projection like in argument " ++
+                show n ++ " for type " ++ show d
 -}
-          let cls' = map (dropArgs n) cls
-              cc   = dropArgs n cc0
-          -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
-          reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
+              let cls' = map (dropArgs n) cls
+                  cc   = dropArgs n cc0
+              -- cc <- compileClauses (Just (x, __IMPOSSIBLE__)) cls'
+              reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
-          -- Andreas, 2013-10-20 build parameter dropping function
-          let (ptel, Dom ai _ : _) = splitAt n $ telToList $ theTel $ telView' t
-              -- leading lambdas are to ignore parameter applications
-              proj = teleNoAbs ptel $ Def x []
-              -- proj = foldr (\ (Dom ai (y, _)) -> Lam ai . NoAbs y) (Def x []) ptel
+              -- Andreas, 2013-10-20 build parameter dropping function
+              let (ptel, Dom ai _ : _) = splitAt n $ telToList $ theTel $ telView' t
+                  -- leading lambdas are to ignore parameter applications
+                  proj = teleNoAbs ptel $ Def x []
+                  -- proj = foldr (\ (Dom ai (y, _)) -> Lam ai . NoAbs y) (Def x []) ptel
 
-          let projection = Projection
-                { projProper   = Nothing
-                , projFromType = d
-                , projIndex    = n + 1
-                , projDropPars = proj
-                , projArgInfo  = ai
-                }
-          let newDef = def
-                       { funProjection     = Just projection
-                       , funClauses        = cls'
-                       , funCompiled       = cc
-                       , funInv            = dropArgs n $ funInv def
-                       }
-          addConstant x $ defn { defPolarity       = drop n $ defPolarity defn
-                               , defArgOccurrences = drop n $ defArgOccurrences defn
-                               , defDisplay        = []
-                               , theDef            = newDef
-                               }
+              let projection = Projection
+                    { projProper   = Nothing
+                    , projFromType = d
+                    , projIndex    = n + 1
+                    , projDropPars = proj
+                    , projArgInfo  = ai
+                    }
+              let newDef = def
+                           { funProjection     = Just projection
+                           , funClauses        = cls'
+                           , funCompiled       = cc
+                           , funInv            = dropArgs n $ funInv def
+                           }
+              addConstant x $ defn { defPolarity       = drop n $ defPolarity defn
+                                   , defArgOccurrences = drop n $ defArgOccurrences defn
+                                   , defDisplay        = []
+                                   , theDef            = newDef
+                                   }
     Function{funInv = Inverse{}} ->
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
     Function{funAbstr = AbstractDef} ->

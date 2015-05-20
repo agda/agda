@@ -468,18 +468,18 @@ generateConstructorInfo modMap file kinds decl = do
   -- @noRange@ should be impossible, but in case of @noRange@
   -- it makes sense to return the empty File.
   ifNull (P.getRange decl) (return mempty) $ \ (P.Range is) -> do
-  let start = fromIntegral $ P.posPos $ P.iStart $ head is
-      end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
+    let start = fromIntegral $ P.posPos $ P.iStart $ head is
+        end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
 
-  -- Get all disambiguated names that fall within the range of decl.
-  m0 <- use stDisambiguatedNames
-  let (_, m1) = IntMap.split (pred start) m0
-      (m2, _) = IntMap.split end m1
-      constrs = IntMap.elems m2
+    -- Get all disambiguated names that fall within the range of decl.
+    m0 <- use stDisambiguatedNames
+    let (_, m1) = IntMap.split (pred start) m0
+        (m2, _) = IntMap.split end m1
+        constrs = IntMap.elems m2
 
-  -- Return suitable syntax highlighting information.
-  let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
-  return $ Fold.fold files
+    -- Return suitable syntax highlighting information.
+    let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
+    return $ Fold.fold files
 
 printSyntaxInfo :: P.Range -> TCM ()
 printSyntaxInfo r = do

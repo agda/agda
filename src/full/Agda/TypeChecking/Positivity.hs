@@ -86,39 +86,39 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
     checkPos g q = do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
-      reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
-      -- get all pathes from q to q that exhibit a non-strictly occurrence
-      -- or, in case of records, any recursive occurrence
-      let critical IsData   = \ (Edge o _) -> o <= JustPos
-          critical IsRecord = \ (Edge o _) -> o /= Unused
-          loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
+        reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
+        -- get all pathes from q to q that exhibit a non-strictly occurrence
+        -- or, in case of records, any recursive occurrence
+        let critical IsData   = \ (Edge o _) -> o <= JustPos
+            critical IsRecord = \ (Edge o _) -> o /= Unused
+            loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
 
-      -- if we have a negative loop, raise error
-      whenM positivityCheckEnabled $ do
-        forM_ [ how | Edge o how <- loops, o <= JustPos ] $ \ how -> do
-          err <- fsep $
-            [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
-            [prettyTCM how]
-          setCurrentRange q $ typeError $ GenericDocError err
+        -- if we have a negative loop, raise error
+        whenM positivityCheckEnabled $ do
+          forM_ [ how | Edge o how <- loops, o <= JustPos ] $ \ how -> do
+            err <- fsep $
+              [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
+              [prettyTCM how]
+            setCurrentRange q $ typeError $ GenericDocError err
 
-      -- if we find an unguarded record, mark it as such
-      when (dr == IsRecord) $ do
-       case headMaybe [ how | Edge o how <- loops, o <= StrictPos ] of
-        Just how -> do
-          reportSDoc "tc.pos.record" 5 $ sep
-            [ prettyTCM q <+> text "is not guarded, because it occurs"
-            , prettyTCM how
-            ]
-          unguardedRecord q
-          checkInduction q
-        -- otherwise, if the record is recursive, mark it as well
-        Nothing -> forM_ (take 1 [ how | Edge GuardPos how <- loops ]) $ \ how -> do
-          reportSDoc "tc.pos.record" 5 $ sep
-            [ prettyTCM q <+> text "is recursive, because it occurs"
-            , prettyTCM how
-            ]
-          recursiveRecord q
-          checkInduction q
+        -- if we find an unguarded record, mark it as such
+        when (dr == IsRecord) $ do
+         case headMaybe [ how | Edge o how <- loops, o <= StrictPos ] of
+          Just how -> do
+            reportSDoc "tc.pos.record" 5 $ sep
+              [ prettyTCM q <+> text "is not guarded, because it occurs"
+              , prettyTCM how
+              ]
+            unguardedRecord q
+            checkInduction q
+          -- otherwise, if the record is recursive, mark it as well
+          Nothing -> forM_ (take 1 [ how | Edge GuardPos how <- loops ]) $ \ how -> do
+            reportSDoc "tc.pos.record" 5 $ sep
+              [ prettyTCM q <+> text "is recursive, because it occurs"
+              , prettyTCM how
+              ]
+            recursiveRecord q
+            checkInduction q
 
     checkInduction q = whenM positivityCheckEnabled $ do
       -- Check whether the recursive record has been declared as
