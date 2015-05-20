@@ -406,48 +406,48 @@ compareAtomDir dir a = dirToCmp (`compareAtom` a) dir
 --
 compareAtom :: Comparison -> Type -> Term -> Term -> TCM ()
 compareAtom cmp t m n =
-    verboseBracket "tc.conv.atom" 20 "compareAtom" $
-    -- if a PatternErr is thrown, rebuild constraint!
-    catchConstraint (ValueCmp cmp t m n) $ do
-      reportSDoc "tc.conv.atom" 50 $
-        text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
-                                    , prettyTCM n
-                                    , text ":" <+> prettyTCM t ]
-      -- Andreas: what happens if I cut out the eta expansion here?
-      -- Answer: Triggers issue 245, does not resolve 348
-      (mb',nb') <- ifM (asks envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
-        mb' <- etaExpandBlocked =<< reduceB m
-        nb' <- etaExpandBlocked =<< reduceB n
-        return (mb', nb')
+  verboseBracket "tc.conv.atom" 20 "compareAtom" $
+  -- if a PatternErr is thrown, rebuild constraint!
+  catchConstraint (ValueCmp cmp t m n) $ do
+    reportSDoc "tc.conv.atom" 50 $
+      text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
+                                  , prettyTCM n
+                                  , text ":" <+> prettyTCM t ]
+    -- Andreas: what happens if I cut out the eta expansion here?
+    -- Answer: Triggers issue 245, does not resolve 348
+    (mb',nb') <- ifM (asks envCompareBlocked) ((notBlocked -*- notBlocked) <$> reduce (m,n)) $ do
+      mb' <- etaExpandBlocked =<< reduceB m
+      nb' <- etaExpandBlocked =<< reduceB n
+      return (mb', nb')
 
-      -- constructorForm changes literal to constructors
-      -- only needed if the other side is not a literal
-      (mb'', nb'') <- case (ignoreSharing $ ignoreBlocking mb', ignoreSharing $ ignoreBlocking nb') of
-        (Lit _, Lit _) -> return (mb', nb')
-        _ -> (,) <$> traverse constructorForm mb'
-                 <*> traverse constructorForm nb'
+    -- constructorForm changes literal to constructors
+    -- only needed if the other side is not a literal
+    (mb'', nb'') <- case (ignoreSharing $ ignoreBlocking mb', ignoreSharing $ ignoreBlocking nb') of
+      (Lit _, Lit _) -> return (mb', nb')
+      _ -> (,) <$> traverse constructorForm mb'
+               <*> traverse constructorForm nb'
 
-      mb <- traverse unLevel mb''
-      nb <- traverse unLevel nb''
+    mb <- traverse unLevel mb''
+    nb <- traverse unLevel nb''
 
-      let m = ignoreBlocking mb
-          n = ignoreBlocking nb
+    let m = ignoreBlocking mb
+        n = ignoreBlocking nb
 
-          postpone = addConstraint $ ValueCmp cmp t m n
+        postpone = addConstraint $ ValueCmp cmp t m n
 
-          checkSyntacticEquality = do
-            n <- normalise n    -- is this what we want?
-            m <- normalise m
-            if m == n
-                then return ()  -- Check syntactic equality for blocked terms
-                else postpone
+        checkSyntacticEquality = do
+          n <- normalise n    -- is this what we want?
+          m <- normalise m
+          if m == n
+              then return ()  -- Check syntactic equality for blocked terms
+              else postpone
 
-          dir = fromCmp cmp
-          rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
+        dir = fromCmp cmp
+        rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
 
-          assign dir x es v = assignE dir x es v $ compareAtomDir dir t
+        assign dir x es v = assignE dir x es v $ compareAtomDir dir t
 
-      unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
+    unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
       reportSDoc "tc.conv.atom" 30 $
         text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
@@ -682,38 +682,38 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         ]
       let (pol, pols) = nextPolarity pols0
       ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
-      case ignoreSharing . unEl $ a of
-        (Pi (Dom info b) codom) -> do
-          mlvl <- mlevel
-          let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
-              freeInCoDom _         = False
-              dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
-                -- Level-polymorphism (x : Level) -> ... does not count as dependency here
-                   -- NB: we could drop the free variable test and still be sound.
-                   -- It is a trade-off between the administrative effort of
-                   -- creating a blocking and traversing a term for free variables.
-                   -- Apparently, it is believed that checking free vars is cheaper.
-                   -- Andreas, 2013-05-15
-              r = getRelevance info
+        case ignoreSharing . unEl $ a of
+          (Pi (Dom info b) codom) -> do
+            mlvl <- mlevel
+            let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
+                freeInCoDom _         = False
+                dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom
+                  -- Level-polymorphism (x : Level) -> ... does not count as dependency here
+                     -- NB: we could drop the free variable test and still be sound.
+                     -- It is a trade-off between the administrative effort of
+                     -- creating a blocking and traversing a term for free variables.
+                     -- Apparently, it is believed that checking free vars is cheaper.
+                     -- Andreas, 2013-05-15
+                r = getRelevance info
 
 -- NEW, Andreas, 2013-05-15
 
-          -- compare arg1 and arg2
-          pid <- newProblem_ $ applyRelevanceToContext r $
-              case r of
-                Forced{}   -> return ()
-                r | irrelevantOrUnused r ->
-                              compareIrrelevant b (unArg arg1) (unArg arg2)
-                _          -> compareWithPol pol (flip compareTerm b)
-                                (unArg arg1) (unArg arg2)
-          -- if comparison got stuck and function type is dependent, block arg
-          arg <- if dependent
-                 then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
-                 else return arg1
-          -- continue, possibly with blocked instantiation
-          compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
-          -- any left over constraints of arg are associatd to the comparison
-          stealConstraints pid
+            -- compare arg1 and arg2
+            pid <- newProblem_ $ applyRelevanceToContext r $
+                case r of
+                  Forced{}   -> return ()
+                  r | irrelevantOrUnused r ->
+                                compareIrrelevant b (unArg arg1) (unArg arg2)
+                  _          -> compareWithPol pol (flip compareTerm b)
+                                  (unArg arg1) (unArg arg2)
+            -- if comparison got stuck and function type is dependent, block arg
+            arg <- if dependent
+                   then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
+                   else return arg1
+            -- continue, possibly with blocked instantiation
+            compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
+            -- any left over constraints of arg are associatd to the comparison
+            stealConstraints pid
 
 {- Stealing solves this issue:
 
@@ -725,30 +725,30 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
 
 {- OLD, before 2013-05-15
 
-          let checkArg = applyRelevanceToContext r $
-                             case r of
-                Forced     -> return ()
-                r | irrelevantOrUnused r ->
-                              compareIrrelevant b (unArg arg1) (unArg arg2)
-                _          -> compareWithPol pol (flip compareTerm b)
-                                (unArg arg1) (unArg arg2)
+            let checkArg = applyRelevanceToContext r $
+                               case r of
+                  Forced     -> return ()
+                  r | irrelevantOrUnused r ->
+                                compareIrrelevant b (unArg arg1) (unArg arg2)
+                  _          -> compareWithPol pol (flip compareTerm b)
+                                  (unArg arg1) (unArg arg2)
 
-              theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
+                theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
 
-          if dependent
-            then guardConstraint theRest checkArg
-            else checkArg >> solveConstraint_ theRest
+            if dependent
+              then guardConstraint theRest checkArg
+              else checkArg >> solveConstraint_ theRest
 -}
 
-        a -> do
-          reportSDoc "impossible" 10 $
-            text "unexpected type when comparing apply eliminations " <+> prettyTCM a
-          reportSLn "impossible" 50 $ "raw type: " ++ show a
-          patternViolation
-          -- Andreas, 2013-10-22
-          -- in case of disabled reductions (due to failing termination check)
-          -- we might get stuck, so do not crash, but fail gently.
-          -- __IMPOSSIBLE__
+          a -> do
+            reportSDoc "impossible" 10 $
+              text "unexpected type when comparing apply eliminations " <+> prettyTCM a
+            reportSLn "impossible" 50 $ "raw type: " ++ show a
+            patternViolation
+            -- Andreas, 2013-10-22
+            -- in case of disabled reductions (due to failing termination check)
+            -- we might get stuck, so do not crash, but fail gently.
+            -- __IMPOSSIBLE__
 
     -- case: f == f' are projection (like) functions
     (Proj f : els1, Proj f' : els2)
@@ -947,30 +947,30 @@ coerceSize :: Term -> Type -> Type -> TCM Term
 coerceSize v t1 t2 = workOnTypes $ do
   let fallback = v <$ leqType t1 t2
   caseMaybeM (isSizeType t1) fallback $ \ b1 -> do
-  caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
-    -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
-    ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
-    -- A (most probably weaker) alternative is to just check syn.eq.
-    -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
-    case b2 of
-      -- @t2 = Size@.  We are done!
-      BoundedNo -> return v
-      -- @t2 = Size< v2@
-      BoundedLt v2 -> do
-        sv2 <- sizeView v2
-        case sv2 of
-          SizeInf     -> fallback
-          OtherSize{} -> do
-            -- Andreas, 2014-06-16:
-            -- Issue 1203: For now, just treat v < v2 as suc v <= v2
-            -- TODO: Need proper < comparison
-            vinc <- sizeSuc 1 v
-            compareSizes CmpLeq vinc v2
-            return v
-          -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
-          SizeSuc a2 -> do
-            compareSizes CmpLeq v a2
-            return v
+    caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
+      -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
+      ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
+        -- A (most probably weaker) alternative is to just check syn.eq.
+        -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
+        case b2 of
+          -- @t2 = Size@.  We are done!
+          BoundedNo -> return v
+          -- @t2 = Size< v2@
+          BoundedLt v2 -> do
+            sv2 <- sizeView v2
+            case sv2 of
+              SizeInf     -> fallback
+              OtherSize{} -> do
+                -- Andreas, 2014-06-16:
+                -- Issue 1203: For now, just treat v < v2 as suc v <= v2
+                -- TODO: Need proper < comparison
+                vinc <- sizeSuc 1 v
+                compareSizes CmpLeq vinc v2
+                return v
+              -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
+              SizeSuc a2 -> do
+                compareSizes CmpLeq v a2
+                return v
 
 ---------------------------------------------------------------------------
 -- * Sorts and levels
