@@ -122,7 +122,11 @@ followed:
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
 
-* Restore --program-suffix=-$(VERSION) in Makefile [Issue 1511].
+* Remove the line
+
+    RELEASE=true
+
+  from the top of the Makefile.
 
 * Add a new header to CHANGELOG.
 
