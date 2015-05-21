@@ -875,50 +875,50 @@ give_gen ii rng s0 giveRefine = do
   -- Andreas, 2015-02-26 if string is empty do nothing rather
   -- than giving a parse error.
   unless (null s) $ do
-  let give_ref =
-        case giveRefine of
-          Give   -> B.give
-          Refine -> B.refine
-  -- save scope of the interaction point (for printing the given expr. later)
-  scope     <- lift $ getInteractionScope ii
-  -- parse string and "give", obtaining an abstract expression
-  -- and newly created interaction points
-  (time, (ae, iis)) <- maybeTimed (lift $ do
-      mis  <- getInteractionPoints
-      reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
-      ae   <- give_ref ii Nothing =<< B.parseExprIn ii rng s
-      mis' <- getInteractionPoints
-      reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
-      return (ae, mis' \\ mis))
-  -- favonia: backup the old scope for highlighting
-  insertOldInteractionScope ii scope
-  -- sort the new interaction points and put them into the state
-  -- in replacement of the old interaction point
-  iis       <- lift $ sortInteractionPoints iis
-  modifyTheInteractionPoints $ replace ii iis
-  -- print abstract expr
-  ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
-  lift $ reportSLn "interaction.give" 30 $ "ce = " ++ show ce
-  -- if the command was @Give@, use the literal user input;
-  -- Andreas, 2014-01-15, see issue 1020:
-  -- Refine could solve a goal by introducing the sole constructor
-  -- without arguments.  Then there are no interaction metas, but
-  -- we still cannot just `give' the user string (which may be empty).
-  -- WRONG: also, if no interaction metas were created by @Refine@
-  -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
-  let literally = giveRefine == Give && rng /= noRange
-  -- Ulf, 2014-01-24: This works for give since we're highlighting the string
-  -- that's already in the buffer. Doing it before the give action means that
-  -- the highlighting is moved together with the text when the hole goes away.
-  -- To make it work for refine we'd have to adjust the ranges.
-  when literally $ lift $ do
-    printHighlightingInfo =<< generateTokenInfoFromString rng s
-    highlightExpr ae
-  putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
-  lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
-  -- display new goal set (if not measuring time)
-  maybe (interpret Cmd_metas) (display_info . Info_Time) time
-  lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
+    let give_ref =
+          case giveRefine of
+            Give   -> B.give
+            Refine -> B.refine
+    -- save scope of the interaction point (for printing the given expr. later)
+    scope     <- lift $ getInteractionScope ii
+    -- parse string and "give", obtaining an abstract expression
+    -- and newly created interaction points
+    (time, (ae, iis)) <- maybeTimed (lift $ do
+        mis  <- getInteractionPoints
+        reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
+        ae   <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+        mis' <- getInteractionPoints
+        reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
+        return (ae, mis' \\ mis))
+    -- favonia: backup the old scope for highlighting
+    insertOldInteractionScope ii scope
+    -- sort the new interaction points and put them into the state
+    -- in replacement of the old interaction point
+    iis       <- lift $ sortInteractionPoints iis
+    modifyTheInteractionPoints $ replace ii iis
+    -- print abstract expr
+    ce        <- lift $ abstractToConcreteEnv (makeEnv scope) ae
+    lift $ reportSLn "interaction.give" 30 $ "ce = " ++ show ce
+    -- if the command was @Give@, use the literal user input;
+    -- Andreas, 2014-01-15, see issue 1020:
+    -- Refine could solve a goal by introducing the sole constructor
+    -- without arguments.  Then there are no interaction metas, but
+    -- we still cannot just `give' the user string (which may be empty).
+    -- WRONG: also, if no interaction metas were created by @Refine@
+    -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
+    let literally = giveRefine == Give && rng /= noRange
+    -- Ulf, 2014-01-24: This works for give since we're highlighting the string
+    -- that's already in the buffer. Doing it before the give action means that
+    -- the highlighting is moved together with the text when the hole goes away.
+    -- To make it work for refine we'd have to adjust the ranges.
+    when literally $ lift $ do
+      printHighlightingInfo =<< generateTokenInfoFromString rng s
+      highlightExpr ae
+    putResponse $ Resp_GiveAction ii $ mkNewTxt literally ce
+    lift $ reportSLn "interaction.give" 30 $ "putResponse GiveAction passed"
+    -- display new goal set (if not measuring time)
+    maybe (interpret Cmd_metas) (display_info . Info_Time) time
+    lift $ reportSLn "interaction.give" 30 $ "interpret Cmd_metas passed"
   where
     -- Substitutes xs for x in ys.
     replace x xs ys = concatMap (\ y -> if y == x then xs else [y]) ys

@@ -129,45 +129,45 @@ compareTerm cmp a u v = do
         return ()
       checkPointerEquality def = def
   checkPointerEquality $ do
-  -- Check syntactic equality. This actually saves us quite a bit of work.
-  ((u, v), equal) <- checkSyntacticEquality u v
+    -- Check syntactic equality. This actually saves us quite a bit of work.
+    ((u, v), equal) <- checkSyntacticEquality u v
 {- OLD CODE, traverses the *full* terms u v at each step, even if they
    are different somewhere.  Leads to infeasibility in issue 854.
-  (u, v) <- instantiateFull (u, v)
-  let equal = u == v
+    (u, v) <- instantiateFull (u, v)
+    let equal = u == v
 -}
-  unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
-  verboseS "profile.sharing" 20 $ tick "unequal terms"
-  reportSDoc "tc.conv.term" 15 $ sep
-    [ text "compareTerm (not syntactically equal)"
-    , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
-    , nest 2 $ text ":" <+> prettyTCM a
-    ]
-  -- If we are at type Size, we cannot short-cut comparison
-  -- against metas by assignment.
-  -- Andreas, 2014-04-12: this looks incomplete.
-  -- It seems to assume we are never comparing
-  -- at function types into Size.
-  let fallback = compareTerm' cmp a u v
-      unlessSubtyping cont =
-          if cmp == CmpEq then cont else do
-            -- Andreas, 2014-04-12 do not short cut if type is blocked.
-            ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
-            -- do not short circuit size comparison!
-            caseMaybeM (isSizeTypeTest <*> return a) cont (\ _ -> fallback)
+    unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
+      verboseS "profile.sharing" 20 $ tick "unequal terms"
+      reportSDoc "tc.conv.term" 15 $ sep
+        [ text "compareTerm (not syntactically equal)"
+        , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
+        , nest 2 $ text ":" <+> prettyTCM a
+        ]
+      -- If we are at type Size, we cannot short-cut comparison
+      -- against metas by assignment.
+      -- Andreas, 2014-04-12: this looks incomplete.
+      -- It seems to assume we are never comparing
+      -- at function types into Size.
+      let fallback = compareTerm' cmp a u v
+          unlessSubtyping cont =
+              if cmp == CmpEq then cont else do
+                -- Andreas, 2014-04-12 do not short cut if type is blocked.
+                ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
+                  -- do not short circuit size comparison!
+                  caseMaybeM (isSizeTypeTest <*> return a) cont (\ _ -> fallback)
 
-      dir = fromCmp cmp
-      rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
-  case (ignoreSharing u, ignoreSharing v) of
-    (MetaV x us, MetaV y vs)
-      | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
-      | otherwise -> fallback
-      where
-        (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
-                         | otherwise = (assign rid y vs u, assign dir x us v)
-    (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
-    (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
-    _               -> fallback
+          dir = fromCmp cmp
+          rid = flipCmp dir     -- The reverse direction.  Bad name, I know.
+      case (ignoreSharing u, ignoreSharing v) of
+        (MetaV x us, MetaV y vs)
+          | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
+          | otherwise -> fallback
+          where
+            (solve1, solve2) | x > y     = (assign dir x us v, assign rid y vs u)
+                             | otherwise = (assign rid y vs u, assign dir x us v)
+        (MetaV x us, _) -> unlessSubtyping $ assign dir x us v `orelse` fallback
+        (_, MetaV y vs) -> unlessSubtyping $ assign rid y vs u `orelse` fallback
+        _               -> fallback
   where
     assign dir x es v = do
       -- Andreas, 2013-10-19 can only solve if no projections

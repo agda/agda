@@ -166,31 +166,31 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       -- constrained, then don’t do anything because it may loop.
       ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
 
-      cands <- checkCandidates m t cands
-      reportSLn "tc.instance" 15 $
-        "findInScope 4: cands left: " ++ show (length cands)
-      case cands of
+        cands <- checkCandidates m t cands
+        reportSLn "tc.instance" 15 $
+          "findInScope 4: cands left: " ++ show (length cands)
+        case cands of
 
-        [] -> do
-          reportSDoc "tc.instance" 15 $
-            text "findInScope 5: not a single candidate found..."
-          typeError $ IFSNoCandidateInScope t
+          [] -> do
+            reportSDoc "tc.instance" 15 $
+              text "findInScope 5: not a single candidate found..."
+            typeError $ IFSNoCandidateInScope t
 
-        [(term, t')] -> do
-          reportSDoc "tc.instance" 15 $ vcat
-            [ text "findInScope 5: solved by instance search using the only candidate"
-            , nest 2 $ prettyTCM term
-            , text "of type " <+> prettyTCM t'
-            , text "for type" <+> prettyTCM t
-            ]
+          [(term, t')] -> do
+            reportSDoc "tc.instance" 15 $ vcat
+              [ text "findInScope 5: solved by instance search using the only candidate"
+              , nest 2 $ prettyTCM term
+              , text "of type " <+> prettyTCM t'
+              , text "for type" <+> prettyTCM t
+              ]
 
-          return Nothing  -- We’re done
+            return Nothing  -- We’re done
 
-        cs -> do
-          reportSDoc "tc.instance" 15 $
-            text ("findInScope 5: more than one candidate found: ") <+>
-            prettyTCM (List.map fst cs)
-          return (Just (cs, Nothing))
+          cs -> do
+            reportSDoc "tc.instance" 15 $
+              text ("findInScope 5: more than one candidate found: ") <+>
+              prettyTCM (List.map fst cs)
+            return (Just (cs, Nothing))
       where
         -- | Check whether a type is a function type with an instance domain.
         isRecursive :: Term -> TCM Bool
@@ -334,37 +334,37 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
       mv <- lookupMeta m
       setCurrentRange mv $ do
         verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
-        liftTCM $ flip catchError handle $ do
-          reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
-          reportSDoc "tc.instance" 20 $ vcat
-            [ text "checkCandidateForMeta"
-            , text "t    =" <+> prettyTCM t
-            , text "t'   =" <+> prettyTCM t'
-            , text "term =" <+> prettyTCM term
-            ]
+          liftTCM $ flip catchError handle $ do
+            reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+            reportSDoc "tc.instance" 20 $ vcat
+              [ text "checkCandidateForMeta"
+              , text "t    =" <+> prettyTCM t
+              , text "t'   =" <+> prettyTCM t'
+              , text "term =" <+> prettyTCM term
+              ]
 
-          -- Apply hidden and instance arguments (recursive inst. search!).
-          (args, t'') <- implicitArgs (-1) notVisible t'
+            -- Apply hidden and instance arguments (recursive inst. search!).
+            (args, t'') <- implicitArgs (-1) notVisible t'
 
-          reportSDoc "tc.instance" 20 $
-            text "instance search: checking" <+> prettyTCM t''
-            <+> text "<=" <+> prettyTCM t
-          ctxElims <- map Apply <$> getContextArgs
-          v <- (`applyDroppingParameters` args) =<< reduce term
-          reportSDoc "tc.instance" 15 $ vcat
-            [ text "instance search: attempting"
-            , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
-            ]
-          -- if constraints remain, we abort, but keep the candidate
-          -- Jesper, 05-12-2014: When we abort, we should add a constraint to
-          -- instantiate the meta at a later time (see issue 1377).
-          guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
-          -- make a pass over constraints, to detect cases where some are made
-          -- unsolvable by the assignment, but don't do this for FindInScope's
-          -- to prevent loops. We currently also ignore UnBlock constraints
-          -- to be on the safe side.
-          solveAwakeConstraints' True
-          return True
+            reportSDoc "tc.instance" 20 $
+              text "instance search: checking" <+> prettyTCM t''
+              <+> text "<=" <+> prettyTCM t
+            ctxElims <- map Apply <$> getContextArgs
+            v <- (`applyDroppingParameters` args) =<< reduce term
+            reportSDoc "tc.instance" 15 $ vcat
+              [ text "instance search: attempting"
+              , nest 2 $ prettyTCM m <+> text ":=" <+> prettyTCM v
+              ]
+            -- if constraints remain, we abort, but keep the candidate
+            -- Jesper, 05-12-2014: When we abort, we should add a constraint to
+            -- instantiate the meta at a later time (see issue 1377).
+            guardConstraint (ValueCmp CmpEq t'' (MetaV m ctxElims) v) $ leqType t'' t
+            -- make a pass over constraints, to detect cases where some are made
+            -- unsolvable by the assignment, but don't do this for FindInScope's
+            -- to prevent loops. We currently also ignore UnBlock constraints
+            -- to be on the safe side.
+            solveAwakeConstraints' True
+            return True
         where
           handle :: TCErr -> TCM Bool
           handle err = do
