@@ -4,8 +4,8 @@
 
 module Agda.Interaction.MakeCase where
 
-import Prelude hiding (mapM, mapM_)
-import Control.Applicative
+import Prelude hiding (mapM, mapM_, null)
+import Control.Applicative hiding (empty)
 import Control.Monad hiding (mapM, mapM_, forM)
 import Data.Maybe
 import Data.Traversable
@@ -34,6 +34,7 @@ import Agda.Interaction.BasicOps
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
@@ -165,10 +166,18 @@ makeCase hole rng s = withInteractionId hole $ do
   let vars = words s
   if null vars then do
     -- split result
-    (newPats, sc) <- fixTarget $ clauseToSplitClause clause
+    (piTel, sc) <- fixTarget $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
     -- To split on result, he can then C-c C-c again.
+    -- Andreas, 2015-05-21 Issue 1516:  However, if only hidden
+    -- arguments are introduced, C-c C-c virtually does nothing
+    -- (as they are not shown and get lost on the way to emacs and back).
+    newPats <- if null piTel then return False else do
+      -- If there were any pattern introduce, they will only have effect
+      -- if any of them is shown by the printer
+      imp <- optShowImplicit <$> pragmaOptions
+      return $ imp || any visible (telToList piTel)
     scs <- if newPats then return [sc] else do
       res <- splitResult f sc
       case res of
