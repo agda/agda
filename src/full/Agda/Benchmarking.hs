@@ -1,8 +1,12 @@
-{-# LANGUAGE NoMonomorphismRestriction,
+{-# LANGUAGE CPP,
              FunctionalDependencies,
              IncoherentInstances,
-             OverlappingInstances,
-             MultiParamTypeClasses #-}
+             MultiParamTypeClasses,
+             NoMonomorphismRestriction #-}
+
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 -- | Agda-specific benchmarking structure.
 

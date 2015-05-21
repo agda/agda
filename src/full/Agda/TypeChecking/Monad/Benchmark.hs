@@ -1,9 +1,12 @@
 {-# LANGUAGE CPP,
              FlexibleInstances,
-             OverlappingInstances,
              MultiParamTypeClasses,
              TypeSynonymInstances,
              UndecidableInstances #-}
+
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 -- | Measure CPU time for individual phases of the Agda pipeline.
 

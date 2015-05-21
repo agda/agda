@@ -1,5 +1,9 @@
 {-# LANGUAGE CPP #-}
 
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
+
 module Agda.TypeChecking.Rules.Data where
 
 import Control.Applicative
