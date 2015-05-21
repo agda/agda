@@ -33,7 +33,11 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-* Remove --program-suffix=-$(VERSION) from Makefile [Issue 1511].
+* Add the line
+
+    RELEASE=true
+
+  at the top of the Makefile.
 
 * Add a second source-repository section to Agda.cabal:
 
