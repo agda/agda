@@ -94,7 +94,7 @@ library
     -- even though it builds with older GHCs.
     , bytestring >= 0.9.2.1 && < 0.11
     , containers >= 0.4.2.1 && < 0.6
-    , data-hash == 0.2.0.0
+    , data-hash >= 0.2.0.0 && < 0.3
     , deepseq >= 1.3.0.0 && < 1.5
     , edit-distance >= 0.2.1.2 && < 0.3
     , equivalence >= 0.2.5  && < 0.4
