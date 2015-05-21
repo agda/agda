@@ -281,10 +281,10 @@ isDatatype ind at = do
 
 -- | Update the target type, add more patterns to split clause
 --   if target becomes a function type.
---   Returns @True@ if new patterns were added.
-fixTarget :: SplitClause -> TCM (Bool, SplitClause)
+--   Returns the domains of the function type (if any).
+fixTarget :: SplitClause -> TCM (Telescope, SplitClause)
 fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma, scTarget = target } =
-  caseMaybe target (return (False, sc)) $ \ a -> do
+  caseMaybe target (return (empty, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
       , text "old permutation       : " <+> prettyTCM perm
@@ -339,7 +339,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       [ text "new split clause"
       , prettyTCM sc'
       ]
-    return $ if n == 0 then (False, sc { scTarget = newTarget }) else (True, sc')
+    return $ if n == 0 then (empty, sc { scTarget = newTarget }) else (tel, sc')
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
