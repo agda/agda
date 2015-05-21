@@ -9,6 +9,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
+
 -- | Tests for free variable computations.
 
 module Agda.TypeChecking.Free.Tests (tests) where
