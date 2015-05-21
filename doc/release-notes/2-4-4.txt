@@ -15,6 +15,44 @@ Installation and infrastructure
 Pragmas and options
 ===================
 
+* New Pragma COMPILED_DECLARE_DATA for binding recursively defined
+  Haskell data types to recursively defined Agda data types.
+
+  If you have a Haskell type like
+
+    {-# LANGUAGE GADTs #-}
+
+    module Issue223 where
+
+    data A where
+      BA :: B -> A
+
+    data B where
+      AB :: A -> B
+      BB :: B
+
+  You can now bind it to corresponding mutual Agda inductive data
+  types as follows:
+
+    {-# IMPORT Issue223 #-}
+
+    data A : Set
+    {-# COMPILED_DECLARE_DATA A Issue223.A #-}
+    data B : Set
+    {-# COMPILED_DECLARE_DATA B Issue223.B #-}
+
+    data A where
+      BA : B → A
+
+    {-# COMPILED_DATA A Issue223.A Issue223.BA #-}
+    data B where
+      AB : A → B
+      BB : B
+
+    {-# COMPILED_DATA B Issue223.B Issue223.AB Issue223.BB #-}
+
+  This fixes issue 223.
+
 * New option --exact-split.
 
   The --exact-split flag causes Agda to raise an error whenever a clause in a

@@ -482,6 +482,13 @@ checkPrimitive i x e =
       defaultDefn defaultArgInfo x t $
         Primitive (Info.defAbstract i) s [] Nothing
 
+assertCurrentModule :: QName -> String -> TCM ()
+assertCurrentModule x err =
+  do def <- getConstInfo x
+     m <- currentModule
+     let m' = qnameModule $ defName def
+     unless (m == m') $ typeError $ GenericError err
+
 -- | Check a pragma.
 checkPragma :: Range -> A.Pragma -> TCM ()
 checkPragma r p =
@@ -489,6 +496,17 @@ checkPragma r p =
         A.BuiltinPragma x e -> bindBuiltin x e
         A.BuiltinNoDefPragma b x -> bindBuiltinNoDef b x
         A.RewritePragma q   -> addRewriteRule q
+        A.CompiledDeclareDataPragma x hs -> do
+          def <- getConstInfo x
+          assertCurrentModule x $
+              "COMPILED_DECLARE_DATA directives must appear in the same module " ++
+              "as their corresponding datatype definition,"
+          case theDef def of
+            Datatype{} -> addHaskellType x hs
+            Axiom{}    -> -- possible when the data type has only been declared yet
+              addHaskellType x hs
+            _          -> typeError $ GenericError
+                          "COMPILED_DECLARE_DATA directive only works on data types"
         A.CompiledTypePragma x hs -> do
           def <- getConstInfo x
           case theDef def of
@@ -499,9 +517,7 @@ checkPragma r p =
           def <- getConstInfo x
           -- Check that the pragma appears in the same module
           -- as the datatype.
-          do m <- currentModule
-             let m' = qnameModule $ defName def
-             unless (m == m') $ typeError $ GenericError $
+          assertCurrentModule x $
               "COMPILED_DATA directives must appear in the same module " ++
               "as their corresponding datatype definition,"
           let addCompiledData cs = do

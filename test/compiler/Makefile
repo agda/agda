@@ -27,3 +27,7 @@ Issue1252 :
 ExportAndUse :
 	$(agda) --compile --no-main ExportAndUse.agda
 	rm -rf MAlonzo
+
+Issue223 :
+	$(agda) --compile --no-main Issue223.agda
+	rm -rf MAlonzo
