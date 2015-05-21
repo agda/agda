@@ -19,9 +19,19 @@ CABAL_CMD=cabal
 
 override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 
-# --program-suffix is not for the executable name in
-# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
-override CABAL_OPTS+=--program-suffix=-$(VERSION)
+ifndef RELEASE
+
+  # --program-suffix is not for the executable name in
+  # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+  override CABAL_OPTS+=--program-suffix=-$(VERSION)
+
+  AGDA_MODE=agda-mode-$(VERSION)
+
+else
+
+  AGDA_MODE=agda-mode
+
+endif
 
 # Run in interactive and parallel mode by default
 AGDA_TESTS_OPTIONS ?=-i -j $(shell getconf _NPROCESSORS_ONLN)
@@ -58,7 +68,7 @@ install-prof-bin :
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
-	agda-mode compile
+	$(AGDA_MODE) compile
 
 .PHONY : setup-emacs-mode
 setup-emacs-mode : install-bin
@@ -66,7 +76,7 @@ setup-emacs-mode : install-bin
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
 	@echo
-	agda-mode setup
+	$(AGDA_MODE) setup
 
 ## Making the documentation ###############################################
 
