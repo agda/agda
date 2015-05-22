@@ -34,7 +34,7 @@ ghc:
 #
 # make library-test
 # make lib-succeed
-# make exec
+# make compiler-test
 env:
   - TEST=non_require_stdlib
   - TEST=require_stdlib

@@ -211,9 +211,13 @@ withGhcLibs pkgDirs mkTree =
           )
         installPkg :: FilePath -> FilePath -> FilePath -> IO ()
         installPkg tempDir pkgDb pkgDir = do
-            callProcess1 pkgDir "runhaskell" ["Setup.hs", "configure", "--prefix=" ++ tempDir, "--package-db=" ++ pkgDb]
-            callProcess1 pkgDir "runhaskell" ["Setup.hs", "build"]
-            callProcess1 pkgDir "runhaskell" ["Setup.hs", "install"]
+          pwd <- getCurrentDirectory
+          withTempDirectory pwd "pkg-build" $ \builddir -> (do
+            callProcess1 pkgDir "runhaskell" ["Setup.hs", "configure", "--builddir=" ++ builddir
+                                             , "--prefix=" ++ tempDir, "--package-db=" ++ pkgDb]
+            callProcess1 pkgDir "runhaskell" ["Setup.hs", "build", "--builddir=" ++ builddir]
+            callProcess1 pkgDir "runhaskell" ["Setup.hs", "install", "--builddir=" ++ builddir]
+            )
         mkArgs :: (FilePath, FilePath) -> AgdaArgs
 #if __GLASGOW_HASKELL__ > 704
         mkArgs (_, pkgDb) = ["-no-user-package-db",   "-package-db=" ++ pkgDb]
