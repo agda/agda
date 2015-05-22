@@ -13,6 +13,7 @@
 module Agda.Benchmarking where
 
 import Control.Monad.IO.Class
+import qualified Control.Exception as E
 
 import Data.IORef
 
@@ -73,6 +74,8 @@ data Phase
     -- ^ Subphase for 'Parsing'.
   | Free
     -- ^ Subphase for 'Typing': free variable computation.
+  | OccursCheck
+    -- ^ Subphase for 'Typing': occurs check for solving metas.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty Phase where
@@ -91,6 +94,7 @@ benchmarks = unsafePerformIO $ newIORef empty
 instance MonadBench Phase IO where
   getBenchmark = readIORef benchmarks
   putBenchmark = writeIORef benchmarks
+  finally = E.finally
 
 -- | Benchmark an IO computation and bill it to the given account.
 billToIO :: Account -> IO a -> IO a

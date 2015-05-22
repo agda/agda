@@ -29,7 +29,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.SyntacticEquality
+import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
@@ -134,7 +134,7 @@ compareTerm cmp a u v = do
       checkPointerEquality def = def
   checkPointerEquality $ do
     -- Check syntactic equality. This actually saves us quite a bit of work.
-    ((u, v), equal) <- checkSyntacticEquality u v
+    ((u, v), equal) <- SynEq.checkSyntacticEquality u v
 {- OLD CODE, traverses the *full* terms u v at each step, even if they
    are different somewhere.  Leads to infeasibility in issue 854.
     (u, v) <- instantiateFull (u, v)

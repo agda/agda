@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction,
              FunctionalDependencies,
-             MultiParamTypeClasses #-}
+             MultiParamTypeClasses,
+             TupleSections #-}
 
 -- | Tools for benchmarking and accumulating results.
 --   Nothing Agda-specific in here.
@@ -18,7 +19,7 @@ import qualified Data.List as List
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Utils.Null
-import Agda.Utils.Monad
+import Agda.Utils.Monad hiding (finally)
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Pretty
 import Agda.Utils.Time
@@ -32,7 +33,9 @@ import qualified Agda.Utils.Trie as Trie
 --   A word of 'Phase's.
 type Account a = [a]
 
-type CurrentAccount a = Strict.Maybe (Account a)
+-- | Record when we started billing the current account.
+type CurrentAccount a = Strict.Maybe (Account a, CPUTime)
+
 type Timings        a = Trie a CPUTime
 
 -- | Benchmark structure is a trie, mapping accounts (phases and subphases)
@@ -112,24 +115,37 @@ class (Ord a, Functor m, MonadIO m) => MonadBench a m | m -> a where
     b <- getBenchmark
     putBenchmark $! f b
 
+  -- | We need to be able to terminate benchmarking in case of an exception.
+  finally :: m b -> m c -> m b
+
 -- | Turn benchmarking on/off.
 
 setBenchmarking :: MonadBench a m => Bool -> m ()
 setBenchmarking b = modifyBenchmark $ mapBenchmarkOn $ const b
 
+-- | Bill current account with time up to now.
+--   Switch to new account.
+--   Return old account (if any).
+
+switchBenchmarking :: MonadBench a m
+  => Strict.Maybe (Account a)      -- ^ Maybe new account.
+  -> m (Strict.Maybe (Account a))  -- ^ Maybe old account.
+switchBenchmarking newAccount = do
+  now <- liftIO $ getCPUTime
+  -- Stop and bill current benchmarking.
+  oldAccount <- getsBenchmark currentAccount
+  Strict.whenJust oldAccount $ \ (acc, start) ->
+    modifyBenchmark $ addCPUTime acc $ now - start
+  -- Switch to new account.
+  modifyBenchmark $ mapCurrentAccount $ const $ (, now) <$> newAccount
+  return $ fst <$> oldAccount
+
 -- | Bill a computation to a specific account.
+--   Works even if the computation is aborted by an exception.
 
 billTo :: MonadBench a m => Account a -> m c -> m c
 billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
   -- Switch to new account.
-  oldAccount <- getsBenchmark currentAccount
-  modifyBenchmark $ mapCurrentAccount $ const $ Strict.Just account
-  -- Compute.
-  (res, time) <- measureTime $ liftIO . E.evaluate =<< m
-  -- Bill to new account and subtract from old account.
-  modifyBenchmark $ addCPUTime account time
-  Strict.whenJust oldAccount $ \ acc ->
-    modifyBenchmark $ addCPUTime acc (- time)
-  -- Switch back to old account.
-  modifyBenchmark $ mapCurrentAccount $ const oldAccount
-  return res
+  old <- switchBenchmarking $ Strict.Just account
+  -- Compute and switch back to old account.
+  (liftIO . E.evaluate =<< m) `finally` switchBenchmarking old

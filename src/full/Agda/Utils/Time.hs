@@ -9,12 +9,13 @@
 module Agda.Utils.Time
   ( ClockTime
   , getClockTime
+  , getCPUTime
   , measureTime
   , CPUTime(..)
   ) where
 
 import Control.Monad.Trans
-import System.CPUTime
+import qualified System.CPUTime as CPU
 
 #if MIN_VERSION_directory(1,1,1)
 import qualified Data.Time
@@ -55,10 +56,15 @@ instance Pretty CPUTime where
   pretty (CPUTime ps) =
     text $ showThousandSep (div ps 1000000000) ++ "ms"
 
--- | Measure the time of a computation. Returns the
+{-# SPECIALIZE getCPUTime :: IO CPUTime #-}
+getCPUTime :: MonadIO m => m CPUTime
+getCPUTime = liftIO $ CPUTime <$> CPU.getCPUTime
+
+-- | Measure the time of a computation.
+--   Of course, does not work with exceptions.
 measureTime :: MonadIO m => m a -> m (a, CPUTime)
 measureTime m = do
   start <- liftIO $ getCPUTime
   x     <- m
   stop  <- liftIO $ getCPUTime
-  return (x, CPUTime $ stop - start)
+  return (x, stop - start)

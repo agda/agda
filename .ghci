@@ -27,7 +27,6 @@
 :set -fwarn-wrong-do-bind
 :set -fwarn-identities
 :set -fwarn-pointless-pragmas
-:set -fwarn-amp
 :set -fwarn-duplicate-constraints
 :set -fwarn-empty-enumerations
 :set -fwarn-overflowed-literals

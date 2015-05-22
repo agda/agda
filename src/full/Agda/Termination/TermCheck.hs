@@ -269,7 +269,7 @@ terminationError names calls = TerminationError names' calls
 --
 -- @Either a b -> TerM (Either a b)@.
 billToTerGraph :: a -> TerM a
-billToTerGraph = billPureTo [Benchmark.Termination, Benchmark.Graph]
+billToTerGraph a = liftTCM $ billPureTo [Benchmark.Termination, Benchmark.Graph] a
 
 -- | @reportCalls@ for debug printing.
 --
@@ -862,7 +862,8 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
 
          -- Andreas, 2014-03-26 only 6% of termination time for library test
          -- spent on call matrix generation
-         (nrows, ncols, matrix) <- billTo [Benchmark.Termination, Benchmark.Compare] $ compareArgs es
+         (nrows, ncols, matrix) <- -- billTo [Benchmark.Termination, Benchmark.Compare] $
+           compareArgs es
          -- only a delayed definition can be guarded
          let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
                          | otherwise                                  = o

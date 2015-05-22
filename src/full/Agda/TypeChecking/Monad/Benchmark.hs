@@ -30,7 +30,7 @@ import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Benchmarking
 
-import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base as TCM
 import{-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import qualified Agda.TypeChecking.Monad.State as TCState
 
@@ -43,17 +43,26 @@ import Agda.Utils.Pretty (prettyShow)
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- Select one of the following two instances.
+-- For Benchmarking.billToPure to work, only the IORef alternative works.
+
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see
----  ''Agda.Benchmarking''.
-instance MonadTCM tcm => MonadBench Phase tcm where
+--   ''Agda.Benchmarking''.
+instance MonadBench Phase TCM where
+-- instance MonadTCM tcm => MonadBench Phase tcm where
   getBenchmark = liftIO $ getBenchmark
   putBenchmark = liftIO . putBenchmark
+  finally = TCM.finally_
 
 -- -- | We store benchmark statistics in the TCM.
--- instance MonadTCM tcm => MonadBench Phase tcm where
---   getBenchmark    = liftTCM $ TCState.getBenchmark
---   modifyBenchmark = liftTCM . TCState.modifyBenchmark
+-- instance MonadBench Phase TCM where
+--   getBenchmark    = TCState.getBenchmark
+--   modifyBenchmark = TCState.modifyBenchmark
+--   finally = TCM.finally_
+-- -- instance MonadTCM tcm => MonadBench Phase tcm where
+-- --   getBenchmark    = liftTCM $ TCState.getBenchmark
+-- --   modifyBenchmark = liftTCM . TCState.modifyBenchmark
 
 benchmarkKey :: String
 benchmarkKey = "profile"
@@ -81,10 +90,12 @@ print = liftTCM $ whenM benchmarking $ do
   reportSLn benchmarkKey benchmarkLevel $ prettyShow b
 
 -- | Bill a computation to a specific account.
-billTo :: MonadTCM tcm => Account -> tcm a -> tcm a
+billTo :: Account -> TCM a -> TCM a
+-- billTo :: MonadTCM tcm => Account -> tcm a -> tcm a
 billTo account m = B.billTo account m
 
 -- | Bill a pure computation to a specific account.
-{-# SPECIALIZE billPureTo :: Account -> a -> TCM a #-}
-billPureTo :: MonadTCM tcm => Account -> a -> tcm a
+billPureTo :: Account -> a -> TCM a
+-- {-# SPECIALIZE billPureTo :: Account -> a -> TCM a #-}
+-- billPureTo :: MonadTCM tcm => Account -> a -> tcm a
 billPureTo k a = billTo k $ return a

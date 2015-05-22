@@ -2167,12 +2167,15 @@ catchError_ m h = TCM $ \r e ->
   unTCM m r e
   `E.catch` \err -> unTCM (h err) r e
 
-finally_ :: TCM a -> TCM a -> TCM a
+-- | Execute a finalizer even when an exception is thrown.
+--   Does not catch any errors.
+--   In case both the regular computation and the finalizer
+--   throw an exception, the one of the finalizer is propagated.
+finally_ :: TCM a -> TCM b -> TCM a
 finally_ m f = do
-  _ <- catchError_ m $ \err -> do
+    x <- m `catchError_` \ err -> f >> throwError err
     _ <- f
-    throwError err
-  f
+    return x
 
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
