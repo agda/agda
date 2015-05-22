@@ -2104,10 +2104,9 @@ catchError_ m h = TCM $ \r e ->
 --   throw an exception, the one of the finalizer is propagated.
 finally_ :: TCM a -> TCM b -> TCM a
 finally_ m f = do
-    x <- m
+    x <- m `catchError_` \ err -> f >> throwError err
     _ <- f
     return x
-  `catchError_` \ err -> f >> throwError err
 
 {-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
