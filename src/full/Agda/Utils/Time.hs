@@ -17,6 +17,8 @@ module Agda.Utils.Time
 import Control.Monad.Trans
 import qualified System.CPUTime as CPU
 
+import Data.Functor
+
 #if MIN_VERSION_directory(1,1,1)
 import qualified Data.Time
 #else
