@@ -339,6 +339,7 @@ blockTermOnProblem t v pid =
         -- that we compare against the blocked term once it's unblocked. This way
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
+        -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
         v   <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
