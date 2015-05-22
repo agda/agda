@@ -28,9 +28,13 @@ import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+import qualified Agda.Benchmarking as Bench
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
@@ -184,7 +188,7 @@ class Occurs t where
 occursCheck
   :: (Occurs a, InstantiateFull a, PrettyTCM a)
   => MetaId -> Vars -> a -> TCM a
-occursCheck m xs v = liftTCM $ do
+occursCheck m xs v = Bench.billTo [ Bench.Typing, Bench.OccursCheck ] $ do
   mv <- lookupMeta m
   initOccursCheck mv
       -- TODO: Can we do this in a better way?

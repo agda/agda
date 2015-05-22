@@ -74,6 +74,8 @@ data Phase
     -- ^ Subphase for 'Parsing'.
   | Free
     -- ^ Subphase for 'Typing': free variable computation.
+  | OccursCheck
+    -- ^ Subphase for 'Typing': occurs check for solving metas.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty Phase where
