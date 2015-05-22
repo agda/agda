@@ -101,17 +101,20 @@ install:
         ;;
     esac
 
+  # The GHC version.
+  - GHC_VERSION=`ghc --numeric-version`
+
   # Cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
   # breaking previously installed packages.
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
   - case "$TEST" in
       "non_require_stdlib")
-        if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
+        if [ $GHC_VERSION == 7.4.2 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
         ;;
 
       "require_stdlib")
-        if [ `ghc --numeric-version` == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
+        if [ $GHC_VERSION == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
        ;;
 
       *)
@@ -188,7 +191,7 @@ script:
 
         make BUILD_DIR=$BUILD_DIR TAGS;
 
-        if [ `ghc --numeric-version` == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi;
+        if [ $GHC_VERSION == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi;
         ;;
 
       "require_stdlib")
