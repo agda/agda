@@ -160,7 +160,7 @@ withSetup setup agdaBin inps testDir extraArgs comp  testGrpNm = do
             agdaRunProgGoldenTest agdaBin testDir comp ((extraArgs  ++) <$> args) inp opts
             )
           )
-    
+
 
 
 -- Sets up a temporary package db and installs the given packages there.

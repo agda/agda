@@ -5,7 +5,7 @@ include $(TOP)/mk/paths.mk
 # Path to Agda
 agda=$(AGDA_BIN) --ignore-interfaces
 
-all : compiled-export Issue1252 ExportAndUse # time-compilation
+all : compiled-export # time-compilation
 
 
 time-compilation :
@@ -20,10 +20,3 @@ compiled-export :
 	runghc -iExportTestMAlonzo -i../ -i../../std-lib/ffi ExportTest.hs | grep -q "It works!"
 	rm -rf ExportTestMAlonzo MAlonzo
 
-Issue1252 :
-	$(agda) --compile --no-main Issue1252.agda
-	rm -rf MAlonzo
-
-ExportAndUse :
-	$(agda) --compile --no-main ExportAndUse.agda
-	rm -rf MAlonzo
