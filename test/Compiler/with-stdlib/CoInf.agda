@@ -1,7 +1,4 @@
-module Main where
-
--- Ensure that the entire library is compiled.
-import README
+module CoInf where
 
 open import Coinduction
 open import Data.String

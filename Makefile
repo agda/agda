@@ -94,7 +94,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed compiler-test api-test tests benchmark-without-logs exec-test
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed api-test tests benchmark-without-logs compiler-test
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -178,13 +178,6 @@ continue-library-test :
 	@(cd std-lib && \
           time $(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda +RTS -s -H1G -M1.5G)
 
-.PHONY : compiler-test
-compiler-test : # up-to-date-std-lib
-	@echo "======================================================================"
-	@echo "============================== Compiler =============================="
-	@echo "======================================================================"
-	@$(MAKE) -C test/compiler
-
 .PHONY : lib-succeed
 lib-succeed :
 	@echo "======================================================================"
@@ -200,10 +193,10 @@ epic-test :
 	@echo "======================================================================"
 	@$(MAKE) -C test/epic
 
-.PHONY : exec-test
-exec-test :
+.PHONY : compiler-test
+compiler-test :
 	@echo "======================================================================"
-	@echo "======================== Compiler/exec tests ========================="
+	@echo "========================== Compiler tests ============================"
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS)
 
