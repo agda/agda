@@ -106,8 +106,23 @@ modifyOccursCheckDefs f = stOccursCheckDefs %= f
 initOccursCheck :: MetaVariable -> TCM ()
 initOccursCheck mv = modifyOccursCheckDefs . const =<<
   if (miMetaOccursCheck (mvInfo mv) == DontRunMetaOccursCheck)
-   then return Set.empty
-   else maybe (return Set.empty) lookupMutualBlock =<< asks envMutualBlock
+   then do
+     reportSLn "tc.meta.occurs" 20 $
+       "initOccursCheck: we do not look into definitions"
+     return Set.empty
+   else do
+     reportSLn "tc.meta.occurs" 20 $
+       "initOccursCheck: we look into the following definitions:"
+     mb <- asks envMutualBlock
+     case mb of
+       Nothing -> do
+         reportSLn "tc.meta.occurs" 20 $ "(none)"
+         return Set.empty
+       Just b  -> do
+         ds <- lookupMutualBlock b
+         reportSDoc "tc.meta.occurs" 20 $ sep $ map prettyTCM $ Set.toList ds
+         return ds
+
 
 -- | Is a def in the list of stuff to be checked?
 defNeedsChecking :: QName -> TCM Bool
