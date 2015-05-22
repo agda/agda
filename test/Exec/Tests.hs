@@ -37,6 +37,7 @@ import System.Directory
 
 type ProgramResult = (ExitCode, T.Text, T.Text)
 type AgdaArgs = [String]
+type GHCArgs = [String]
 
 data ExecResult
   = CompileFailed
@@ -69,7 +70,7 @@ defaultOptions = TestOptions
   , executeProg = True
   }
   where co = CompilerOptions []
-  
+
 
 disabledTests :: [RegexFilter]
 disabledTests =
@@ -85,7 +86,11 @@ tests :: IO TestTree
 tests = do
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Exec" ts
-  where forComp comp = testGroup (show comp) <$> sequence [simpleTests comp, stdlibTests comp ]
+  where forComp comp = testGroup (show comp) . catMaybes
+            <$> sequence
+                [ Just <$> simpleTests comp
+                , Just <$> stdlibTests comp
+                , specialTests comp]
 
 
 getAgdaBin :: IO FilePath
@@ -138,6 +143,28 @@ stdlibTests comp = do
         setup MAlonzo tree = withGhcLibs ["std-lib/ffi/"] <$> tree
 
 
+specialTests :: Compiler -> IO (Maybe TestTree)
+specialTests MAlonzo = do
+  agdaBin <- getAgdaBin
+  let t = withGhcLibs ["test/"] $ (\args -> fromJust $
+            agdaRunProgGoldenTest1 agdaBin testDir MAlonzo ((extraArgs ++) . ghcArgsAsAgdaArgs <$> args)
+                        (testDir </> "ExportTestAgda.agda") defaultOptions (cont args)
+            )
+
+  return $ Just $ testGroup "special" [t]
+  where extraArgs = ["-i" ++ testDir, "-itest/", "--no-main"]
+        testDir = "test" </> "Exec" </> "special"
+        cont args compDir = do
+            args' <- args
+            (ret, sout, _) <- PT.readProcessWithExitCode "runghc"
+                    (args' ++ [ "-i" ++ compDir
+                     , testDir </> "ExportTest.hs"
+                     ])
+                    T.empty
+            -- ignore stderr, as there may be some GHC warnings in it
+            return $ ExecutedProg (ret, sout, T.empty)
+specialTests UHC = return Nothing
+
 withSetup :: (Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree) -- setup function
     -> FilePath -- Agda executable
     -> [FilePath] -- inputs
@@ -157,7 +184,7 @@ withSetup setup agdaBin inps testDir extraArgs comp  testGrpNm = do
         mkTest = (\inp -> do
           opts <- readOptions inp
           return (\args ->
-            agdaRunProgGoldenTest agdaBin testDir comp ((extraArgs  ++) <$> args) inp opts
+            agdaRunProgGoldenTest agdaBin testDir comp ((extraArgs  ++) . ghcArgsAsAgdaArgs <$> args) inp opts
             )
           )
 
@@ -165,7 +192,7 @@ withSetup setup agdaBin inps testDir extraArgs comp  testGrpNm = do
 
 -- Sets up a temporary package db and installs the given packages there.
 withGhcLibs :: [String] -- ^ path to the package directories to install.
-    -> (IO AgdaArgs -> TestTree)
+    -> (IO (GHCArgs) -> TestTree)
     -> TestTree
 withGhcLibs pkgDirs mkTree =
   withResource createPkgDb rmPkgDb (\si -> mkTree (mkArgs <$> si))
@@ -185,9 +212,9 @@ withGhcLibs pkgDirs mkTree =
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "install"]
         mkArgs :: (FilePath, FilePath) -> AgdaArgs
 #if __GLASGOW_HASKELL__ > 704
-        mkArgs (_, pkgDb) = ["--ghc-flag=-no-user-package-db",   "--ghc-flag=-package-db=" ++ pkgDb]
+        mkArgs (_, pkgDb) = ["-no-user-package-db",   "-package-db=" ++ pkgDb]
 #else
-        mkArgs (_, pkgDb) = ["--ghc-flag=-no-user-package-conf", "--ghc-flag=-package-conf=" ++ pkgDb]
+        mkArgs (_, pkgDb) = ["-no-user-package-conf", "-package-conf=" ++ pkgDb]
 #endif
         callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
 #if MIN_VERSION_process(1,2,3)
@@ -204,6 +231,10 @@ withGhcLibs pkgDirs mkTree =
             return ()
 #endif
 
+ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
+ghcArgsAsAgdaArgs = map f
+  where f = ("--ghc-flag=" ++)
+
 agdaRunProgGoldenTest :: FilePath -- ^ path to the agda executable.
     -> FilePath     -- ^ directory where to run the tests.
     -> Compiler
@@ -211,12 +242,33 @@ agdaRunProgGoldenTest :: FilePath -- ^ path to the agda executable.
     -> FilePath -- ^ relative path to agda input file.
     -> TestOptions
     -> Maybe TestTree
-agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts
+agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts =
+      agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts (\compDir -> do
+        if executeProg opts then do
+          -- read input file, if it exists
+          inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
+          -- now run the new program
+          let exec = getExecForComp comp compDir inpFile
+          res' <- PT.readProcessWithExitCode exec [] inp'
+          return $ ExecutedProg res'
+        else
+          return $ CompileSucceeded
+        )
+  where inpFile = (dropExtension inp) <.> ".inp"
+
+agdaRunProgGoldenTest1 :: FilePath -- ^ path to the agda executable.
+    -> FilePath     -- ^ directory where to run the tests.
+    -> Compiler
+    -> IO AgdaArgs     -- ^ extra Agda arguments
+    -> FilePath -- ^ relative path to agda input file.
+    -> TestOptions
+    -> (FilePath -> IO ExecResult) -- continuation if compile succeeds, gets the compilation dir
+    -> Maybe TestTree
+agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
       Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
-  where inpFile = (dropExtension inp) <.> ".inp"
-        goldenFile = (dropExtension inp) <.> ".out"
+  where goldenFile = (dropExtension inp) <.> ".out"
         testName = dropExtension $ takeFileName inp
 
         doRun cOpts = withTempDirectory dir testName (\compDir -> do
@@ -226,16 +278,9 @@ agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts
           let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ extraArgs' ++ (extraAgdaArgs cOpts) ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
           res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin args T.empty
-          -- maybe we should write sout to a file instead, so that we can actually inspect it more easily
+
           case ret of
-            ExitSuccess | executeProg opts -> do
-              -- read input file, if it exists
-              inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
-              -- now run the new program
-              let exec = getExecForComp comp compDir
-              res' <- PT.readProcessWithExitCode exec [] inp'
-              return $ ExecutedProg res'
-            ExitSuccess | otherwise -> return $ CompileSucceeded
+            ExitSuccess -> cont compDir
             ExitFailure _ -> return $ CompileFailed res
           )
 
@@ -245,15 +290,17 @@ agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts
             let uhcBinArg = maybe [] (\x -> ["--uhc-bin", x]) uhc
             -- TODO remove the memory arg again, as soon as we fixed the memory leak
             return $ ["--uhc"] ++ uhcBinArg ++ ["+RTS", "-K50m", "-RTS"]
-        -- gets the generated executable path
-        getExecForComp MAlonzo compDir  = compDir </> (takeFileName $ dropExtension inpFile)
-        getExecForComp UHC compDir = compDir </> "UHC" </> (takeFileName $ dropExtension inpFile)
 
 readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
 readOptions inpFile =
   maybe defaultOptions (read . T.unpack . decodeUtf8) <$> readFileMaybe optFile
   where optFile = dropExtension inpFile <.> ".options"
+
+-- gets the generated executable path
+getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
+getExecForComp MAlonzo compDir inpFile = compDir </> (takeFileName $ dropExtension inpFile)
+getExecForComp UHC compDir inpFile = compDir </> "UHC" </> (takeFileName $ dropExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
