@@ -194,7 +194,7 @@ script:
         ;;
 
       "require_stdlib")
-        yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed exec-test;
+        yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed compiler-test;
         ;;
 
       *)

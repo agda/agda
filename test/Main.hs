@@ -7,7 +7,7 @@
 
 module Main where
 
-import qualified Exec.Tests as EXEC
+import qualified Compiler.Tests as COMP
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
 import Test.Tasty.Silver.Filter (RegexFilter)
@@ -37,7 +37,7 @@ main = do
         exitWith (ExitFailure 1)
 
 tests :: IO TestTree
-tests = testGroup "all" <$> sequence [EXEC.tests]
+tests = testGroup "all" <$> sequence [COMP.tests]
 
 disabledTests :: [RegexFilter]
-disabledTests = EXEC.disabledTests
+disabledTests = COMP.disabledTests

@@ -111,7 +111,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed api-test tests benchmark-without-logs exec-test
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed api-test tests benchmark-without-logs compiler-test
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -212,10 +212,10 @@ epic-test :
 	@echo "======================================================================"
 	@$(MAKE) -C test/epic
 
-.PHONY : exec-test
-exec-test :
+.PHONY : compiler-test
+compiler-test :
 	@echo "======================================================================"
-	@echo "======================== Compiler/exec tests ========================="
+	@echo "========================== Compiler tests ============================"
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS)
 

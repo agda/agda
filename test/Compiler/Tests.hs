@@ -6,7 +6,7 @@
              TypeSynonymInstances,
              PatternGuards #-}
 
-module Exec.Tests where
+module Compiler.Tests where
 
 import Test.Tasty
 import Test.Tasty.Silver.Advanced (readFileMaybe)
@@ -74,18 +74,18 @@ defaultOptions = TestOptions
 
 disabledTests :: [RegexFilter]
 disabledTests =
--- The Exec tests using the standard library are horribly
+-- The Compiler tests using the standard library are horribly
 -- slow at the moment (1min or more per test case).
 -- Disable them by default for now.
-  [ RFInclude "Exec/.*/with-stdlib"
+  [ RFInclude "Compiler/.*/with-stdlib"
 -- See issue 1414
-  , RFInclude "Exec/MAlonzo/simple/FlexibleInterpreter"
+  , RFInclude "Compiler/MAlonzo/simple/FlexibleInterpreter"
   ]
 
 tests :: IO TestTree
 tests = do
   ts <- mapM forComp enabledCompilers
-  return $ testGroup "Exec" ts
+  return $ testGroup "Compiler" ts
   where forComp comp = testGroup (show comp) . catMaybes
             <$> sequence
                 [ Just <$> simpleTests comp
@@ -123,7 +123,7 @@ getAgdaFilesInDir dir = map (dir </>) . filter (flip S.member agdaExts . takeExt
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
   agdaBin <- getAgdaBin
-  let testDir = "test" </> "Exec" </> "simple"
+  let testDir = "test" </> "Compiler" </> "simple"
   inps <- getAgdaFilesInDir testDir
 
   withSetup setup agdaBin inps testDir ["-i" ++ testDir, "-itest/"] comp "simple"
@@ -134,7 +134,7 @@ simpleTests comp = do
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   agdaBin <- getAgdaBin
-  let testDir = "test" </> "Exec" </> "with-stdlib"
+  let testDir = "test" </> "Compiler" </> "with-stdlib"
   inps <- getAgdaFilesInDir testDir
 
   withSetup setup agdaBin inps testDir ["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] comp "with-stdlib"
@@ -153,7 +153,7 @@ specialTests MAlonzo = do
 
   return $ Just $ testGroup "special" [t]
   where extraArgs = ["-i" ++ testDir, "-itest/", "--no-main"]
-        testDir = "test" </> "Exec" </> "special"
+        testDir = "test" </> "Compiler" </> "special"
         cont args compDir = do
             args' <- args
             (ret, sout, _) <- PT.readProcessWithExitCode "runghc"
