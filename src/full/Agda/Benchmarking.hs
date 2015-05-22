@@ -13,6 +13,7 @@
 module Agda.Benchmarking where
 
 import Control.Monad.IO.Class
+import qualified Control.Exception as E
 
 import Data.IORef
 
@@ -91,6 +92,7 @@ benchmarks = unsafePerformIO $ newIORef empty
 instance MonadBench Phase IO where
   getBenchmark = readIORef benchmarks
   putBenchmark = writeIORef benchmarks
+  finally = E.finally
 
 -- | Benchmark an IO computation and bill it to the given account.
 billToIO :: Account -> IO a -> IO a
