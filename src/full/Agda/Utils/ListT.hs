@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -73,14 +74,22 @@ sgMListT ::  Monad m => m a -> ListT m a
 sgMListT ma = consMListT ma nilListT
 
 -- | Extending a monadic function to 'ListT'.
-mapMListT :: Monad m => (a -> m b) -> ListT m a -> ListT m b
+mapMListT :: ( Monad m
+#if __GLASGOW_HASKELL__ <= 708
+             , Functor m
+#endif
+             ) => (a -> m b) -> ListT m a -> ListT m b
 mapMListT f (ListT ml) = ListT $ do
   caseMaybeM ml (return Nothing) $ \ (a, as) -> do
     b  <- f a
     return $ Just (b , mapMListT f as)
 
 -- | Alternative implementation using 'foldListT'.
-mapMListT_alt :: Monad m => (a -> m b) -> ListT m a -> ListT m b
+mapMListT_alt :: ( Monad m
+#if __GLASGOW_HASKELL__ <= 708
+                 , Functor m
+#endif
+                 ) => (a -> m b) -> ListT m a -> ListT m b
 mapMListT_alt f = runMListT . foldListT cons (return nilListT)
   where cons a ml = consMListT (f a) <$> ml
 
