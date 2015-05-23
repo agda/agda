@@ -40,6 +40,9 @@ env:
   - TEST=require_stdlib
 
 install:
+  # Asking for the shell.
+  - echo $SHELL
+
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   - export PATH=$HOME/.cabal/bin:$PATH
