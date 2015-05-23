@@ -40,6 +40,9 @@ env:
   - TEST=require_stdlib
 
 install:
+  # Asking for the shell.
+  - echo $SHELL
+
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   - export PATH=$HOME/.cabal/bin:$PATH
@@ -103,17 +106,18 @@ install:
   # The GHC version.
   - GHC_VERSION=`ghc --numeric-version`
 
-  # Cabal needs the --avoid-reinstalls flag on GHC 7.4.2, else it will complain about
-  # breaking previously installed packages.
+  # In Travis (because the Haskell platform is installed?) Cabal needs the
+  # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
+  # about breaking previously installed packages [Issue 1520].
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
   - case "$TEST" in
       "non_require_stdlib")
-        if [ $GHC_VERSION == 7.4.2 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
+        if [ $GHC_VERSION == 7.4.2 -o $GHC_VERSION == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
         ;;
 
       "require_stdlib")
-        if [ $GHC_VERSION == 7.4.2 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
+        if [ $GHC_VERSION == 7.4.2 -o $GHC_VERSION == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
        ;;
 
       *)
