@@ -39,6 +39,7 @@ import Agda.Termination.Order (Order,le,unknown)
 import Agda.Termination.RecCheck (anyDefs)
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -185,7 +186,7 @@ class (Functor m, Monad m) => MonadTer m where
 -- | Termination monad.
 
 newtype TerM a = TerM { terM :: ReaderT TerEnv TCM a }
-  deriving (Functor, Applicative, Monad)
+  deriving (Functor, Applicative, Monad, MonadBench Phase)
 
 instance MonadTer TerM where
   terAsk     = TerM $ ask

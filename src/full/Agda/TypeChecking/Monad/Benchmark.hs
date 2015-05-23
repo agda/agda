@@ -12,9 +12,9 @@
 
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.Benchmarking
+  , MonadBench
   , getBenchmark
   , updateBenchmarkingStatus
-  -- , benchmarking
   , billTo, billPureTo
   , print
   ) where
@@ -34,7 +34,7 @@ import Agda.TypeChecking.Monad.Base as TCM
 import{-# SOURCE #-} Agda.TypeChecking.Monad.Options
 import qualified Agda.TypeChecking.Monad.State as TCState
 
-import Agda.Utils.Benchmark (MonadBench(..))
+import Agda.Utils.Benchmark (MonadBench(..), billTo, billPureTo)
 import qualified Agda.Utils.Benchmark as B
 
 import Agda.Utils.Monad
@@ -89,13 +89,19 @@ print = liftTCM $ whenM benchmarking $ do
   b <- getBenchmark
   reportSLn benchmarkKey benchmarkLevel $ prettyShow b
 
--- | Bill a computation to a specific account.
-billTo :: Account -> TCM a -> TCM a
+-- -- | Bill a computation to a specific account.
+-- {-# SPECIALIZE billTo :: Account -> TCM a -> TCM a #-}
 -- billTo :: MonadTCM tcm => Account -> tcm a -> tcm a
-billTo account m = B.billTo account m
+-- billTo account = lift1TCM $ B.billTo account
+   -- Andreas, 2015-05-23
+   -- FAILS as lift1TCM :: (TCM a -> TCM b) -> tcm a -> tcm b
+   -- cannot be implemented lazily in general.
+   -- With `lazily` I mean that embedded IO computations in @tcm a@ are
+   -- not executed, but passed on to @TCM a -> TCM b@ unevaluated.
+   -- If they are treated strictly, then the whole benchmarking is inaccurate
+   -- of course, as the computation is done before the clock is started.
 
--- | Bill a pure computation to a specific account.
-billPureTo :: Account -> a -> TCM a
+-- -- | Bill a pure computation to a specific account.
 -- {-# SPECIALIZE billPureTo :: Account -> a -> TCM a #-}
 -- billPureTo :: MonadTCM tcm => Account -> a -> tcm a
-billPureTo k a = billTo k $ return a
+-- billPureTo k a = billTo k $ return a

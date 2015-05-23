@@ -1,4 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction,
+             FlexibleInstances,
+             UndecidableInstances,
              FunctionalDependencies,
              MultiParamTypeClasses,
              TupleSections #-}
@@ -11,6 +13,7 @@ module Agda.Utils.Benchmark where
 import Prelude hiding (null)
 
 import qualified Control.Exception as E (evaluate)
+import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Functor
@@ -118,6 +121,14 @@ class (Ord a, Functor m, MonadIO m) => MonadBench a m | m -> a where
   -- | We need to be able to terminate benchmarking in case of an exception.
   finally :: m b -> m c -> m b
 
+-- needs UndecidableInstances because of weakness of FunctionalDependencies
+instance MonadBench a m => MonadBench a (ReaderT r m) where
+  getBenchmark    = lift $ getBenchmark
+  putBenchmark    = lift . putBenchmark
+  modifyBenchmark = lift . modifyBenchmark
+  finally m f = ReaderT $ \ r ->
+    finally (m `runReaderT` r) (f `runReaderT` r)
+
 -- | Turn benchmarking on/off.
 
 setBenchmarking :: MonadBench a m => Bool -> m ()
@@ -149,3 +160,7 @@ billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
   old <- switchBenchmarking $ Strict.Just account
   -- Compute and switch back to old account.
   (liftIO . E.evaluate =<< m) `finally` switchBenchmarking old
+
+-- | Bill a pure computation to a specific account.
+billPureTo :: MonadBench a m  => Account a -> c -> m c
+billPureTo account = billTo account . return

@@ -861,7 +861,7 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
 
          -- Andreas, 2014-03-26 only 6% of termination time for library test
          -- spent on call matrix generation
-         (nrows, ncols, matrix) <- -- billTo [Benchmark.Termination, Benchmark.Compare] $
+         (nrows, ncols, matrix) <- billTo [Benchmark.Termination, Benchmark.Compare] $
            compareArgs es
          -- only a delayed definition can be guarded
          let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le
