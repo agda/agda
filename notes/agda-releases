@@ -60,8 +60,9 @@ followed:
   warnings (except for the "cl package required at runtime" warning):
 
     (cd src/data/emacs-mode && \
-      emacs --batch -L . -f batch-byte-compile *.el; \
-      rm -f *.elc)
+    for file in *.el; do \
+        emacs --batch -L . -f batch-byte-compile $file; \
+        rm -f $(basename $file .el).elc; done)
 
 * Test compilation using cpp instead of cpphs:
 
