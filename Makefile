@@ -7,7 +7,7 @@ SHELL=bash
 PROFVERB=7
 
 # Agda standard library branch.
-STD_LIB_BRANCH = 2.4.2.3
+STD_LIB_BRANCH = 2.4.2.4
 
 # The GHC version.
 GHC_VERSION=$(shell ghc --numeric-version)
