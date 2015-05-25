@@ -6,6 +6,14 @@ SHELL=bash
 # Profiling verbosity for library-test
 PROFVERB=7
 
+# The GHC version.
+GHC_VERSION=$(shell ghc --numeric-version)
+
+# Stack size for library-test [Issue 1521].
+ifeq ($(GHC_VERSION), 7.4.2)
+STACK_SIZE=-K16M
+endif
+
 # Various paths and commands
 
 TOP=.
@@ -169,9 +177,10 @@ library-test : # up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && runhaskell GenerateEverything.hs && \
-          time $(AGDA_BIN) --ignore-interfaces -v profile:$(PROFVERB) -i. -isrc README.agda \
-            +RTS -s -H1G -M1.5G)
+	(cd std-lib && runhaskell GenerateEverything.hs && \
+          time $(AGDA_BIN) --ignore-interfaces -v profile:$(PROFVERB) \
+                           -i. -isrc README.agda \
+                           +RTS -s -H1G -M1.5G $(STACK_SIZE))
 
 .PHONY : continue-library-test
 continue-library-test :
