@@ -133,9 +133,9 @@ followed:
 
 * Update the version numbers in:
 
-  Agda.cabal (twice),
-  src/data/emacs-mode/agda2-mode.el, and
-  mk/version.mk.
+  Agda.cabal (twice)
+  src/data/emacs-mode/agda2-mode.el
+  mk/version.mk
   test/interaction/Issue1244a.out
   test/interaction/Issue1244b.out
 
