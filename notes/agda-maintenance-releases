@@ -133,11 +133,11 @@ followed:
 
 * Update the version numbers in:
 
-  Agda.cabal (twice)
-  src/data/emacs-mode/agda2-mode.el
-  mk/version.mk
-  test/interaction/Issue1244a.out
-  test/interaction/Issue1244b.out
+    Agda.cabal (twice)
+    src/data/emacs-mode/agda2-mode.el
+    mk/version.mk
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
 
 * Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
 
@@ -146,12 +146,14 @@ followed:
     git checkout master
     git merge maint-$MAJORVERSION
 
-* Restore version numbers in 'master'
-  (possibly by just resolving the merge conflicts).
+* Restore version numbers in 'master' (possibly by just resolving the
+  merge conflicts):
 
-    Agda.cabal (twice),
-    src/data/emacs-mode/agda2-mode.el, and
-    mk/version.mk.
+    Agda.cabal (twice)
+    src/data/emacs-mode/agda2-mode.el
+    mk/version.mk
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
 
 * Push master
 
