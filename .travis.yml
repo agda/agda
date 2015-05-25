@@ -104,7 +104,7 @@ install:
     esac
 
   # The GHC version.
-  - GHC_VERSION=`ghc --numeric-version`
+  - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
   # In Travis (because the Haskell platform is installed?) Cabal needs the
   # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
@@ -113,11 +113,11 @@ install:
   # The `enable-test` option is required only if $TEST=require_stdlib.
   - case "$TEST" in
       "non_require_stdlib")
-        if [ $GHC_VERSION == 7.4.2 -o $GHC_VERSION == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
+        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi;
         ;;
 
       "require_stdlib")
-        if [ $GHC_VERSION == 7.4.2 -o $GHC_VERSION == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
+        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi;
        ;;
 
       *)
@@ -194,7 +194,7 @@ script:
 
         make BUILD_DIR=$BUILD_DIR TAGS;
 
-        if [ $GHC_VERSION == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi;
+        if [ $GHC_VERSION_TRAVIS == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi;
         ;;
 
       "require_stdlib")
