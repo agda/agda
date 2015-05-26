@@ -26,7 +26,6 @@ ghc:
 # make examples
 # make api-test
 # make tests
-# make benchmark-without-logs
 # make TAGS (testing the hTags program)
 # Compilation with GHC 7.8.4 using transformers 0.3.0.0 [Issue 1156]
 #
@@ -35,6 +34,7 @@ ghc:
 # make library-test
 # make lib-succeed
 # make compiler-test
+# make benchmark-without-logs
 env:
   - TEST=non_require_stdlib
   - TEST=require_stdlib
@@ -190,7 +190,7 @@ script:
 
   - case "$TEST" in
       "non_require_stdlib")
-        yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples api-test tests benchmark-without-logs;
+        yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples api-test tests;
 
         make BUILD_DIR=$BUILD_DIR TAGS;
 
@@ -198,7 +198,7 @@ script:
         ;;
 
       "require_stdlib")
-        yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed compiler-test;
+        yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed compiler-test benchmark-without-logs;
         ;;
 
       *)
