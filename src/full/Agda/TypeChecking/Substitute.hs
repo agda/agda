@@ -750,6 +750,7 @@ instance Subst Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty r a              -> IsEmpty r (rf a)
+    CheckSizeLtSat t         -> CheckSizeLtSat (rf t)
     FindInScope m cands      -> FindInScope m (rf cands)
     UnBlock{}                -> c
     where

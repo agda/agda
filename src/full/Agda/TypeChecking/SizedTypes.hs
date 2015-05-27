@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.SizedTypes where
@@ -40,6 +41,72 @@ import Agda.Utils.Impossible
 ------------------------------------------------------------------------
 -- * SIZELT stuff
 ------------------------------------------------------------------------
+
+-- | Check whether a type is either not a SIZELT or a SIZELT that is non-empty.
+checkSizeLtSat :: Type -> TCM ()
+checkSizeLtSat t = do
+  reportSDoc "tc.size" 10 $ sep
+    [ text "checking that " <+> prettyTCM t <+> text " is not an empty type of sizes"
+    , text "in context " <+> do inTopContext . prettyTCM =<< getContextTelescope
+    ]
+  let postpone t = addConstraint $ CheckSizeLtSat t
+  ifBlockedType t (const postpone) $ \ t -> do
+    caseMaybeM (isSizeType t) (return ()) $ \ b -> do
+      case b of
+        BoundedNo -> return ()
+        BoundedLt b -> do
+          ifBlocked b (\ _ _ -> postpone t) $ \ b -> do
+            catchConstraint (CheckSizeLtSat t) $ do
+              unlessM (checkSizeNeverZero b) $ do
+                typeError . GenericDocError =<< do
+                  text "Possibly empty type of sizes " <+> prettyTCM t
+
+-- | Precondition: Term is reduced and not blocked.
+--   Throws a 'patternViolation' if undecided
+checkSizeNeverZero :: Term -> TCM Bool
+checkSizeNeverZero u = do
+  v <- sizeView u
+  case v of
+    SizeInf     -> return True  -- OK, infty is never 0.
+    SizeSuc{}   -> return True  -- OK, a + 1 is never 0.
+    OtherSize u ->
+      case ignoreSharing u of
+        Var i [] -> checkSizeVarNeverZero i
+        -- neutral sizes cannot be guaranteed > 0
+        _ -> return False
+
+-- | A size variable is never zero if it is the strict upper bound of
+--   some other size variable in context.
+--   Eg. @i : Size, j : Size< i@ |- i is never zero.
+--   Throws a 'patternViolation' if undecided.
+checkSizeVarNeverZero :: Int -> TCM Bool
+checkSizeVarNeverZero i = do
+  -- Looking for a variable j : Size< i, we can restrict to the last i
+  -- entries, as this variable necessarily has been defined later than i.
+  doms <- take i <$> getContext
+  -- We raise each type to make sense in the current context.
+  let ts = zipWith raise [1..] $ map (snd . unDom) doms
+  reportSDoc "tc.size" 15 $ sep
+    [ text "checking that size " <+> prettyTCM (var i) <+> text " is never 0"
+    , text "in context " <+> do sep $ map prettyTCM ts
+    ]
+  foldr f (return False) ts
+  where
+  f t cont = do
+    -- If we encounter a blocked type in the context, we cannot
+    -- definitely say no.
+    let yes     = return True
+        no      = cont
+        perhaps = cont >>= \ res -> if res then return res else patternViolation
+    ifBlockedType t (\ _ _ -> perhaps) $ \ t -> do
+      caseMaybeM (isSizeType t) no $ \ b -> do
+        case b of
+          BoundedNo -> no
+          BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ u -> do
+            case ignoreSharing u of
+               Var i' [] | i == i' -> yes
+               _ -> no
+
 
 -- | Check whether a variable in the context is bounded by a size expression.
 --   If @x : Size< a@, then @a@ is returned.

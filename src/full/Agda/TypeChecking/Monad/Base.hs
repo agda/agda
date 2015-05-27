@@ -623,7 +623,9 @@ data Constraint
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
-    -- ^ the range is the one of the absurd pattern
+    -- ^ The range is the one of the absurd pattern.
+  | CheckSizeLtSat Type
+    -- ^ Check that the 'Type' is either not a SIZELT or a non-empty SIZELT.
   | FindInScope MetaId (Maybe [(Term, Type)])
   deriving (Typeable, Show)
 

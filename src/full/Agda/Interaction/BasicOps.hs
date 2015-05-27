@@ -230,7 +230,9 @@ data OutputConstraint a b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a | PostponedCheckArgs b [a] a a
-      | IsEmptyType a | FindInScopeOF b a [(a,a)]
+      | IsEmptyType a
+      | SizeLtSat a
+      | FindInScopeOF b a [(a,a)]
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -258,6 +260,7 @@ outputFormId (OutputForm _ _ o) = out o
       TypedAssign i _ _          -> i
       PostponedCheckArgs i _ _ _ -> i
       IsEmptyType _              -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
+      SizeLtSat{}                -> __IMPOSSIBLE__
       FindInScopeOF _ _ _        -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
@@ -307,6 +310,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       <*> (forM (fromMaybe [] mcands) $ \ (tm, ty) -> do
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
+    reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a
 
 -- ASR TODO (28 December 2014): This function will be unnecessary when
 -- using a Pretty instance for OutputConstraint instead of the Show
@@ -342,6 +346,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
       where paren s | elem ' ' s = "(" ++ s ++ ")"
                     | otherwise  = s
     show (IsEmptyType a)        = "Is empty: " ++ show a
+    show (SizeLtSat a)          = "Not empty type of sizes: " ++ show a
     show (FindInScopeOF s t cs) = "Resolve instance argument " ++ showCand (s,t) ++ ".\n  Candidates:\n    [ " ++
                                     intercalate "\n    , " (map showCand cs) ++ " ]"
       where showCand (tm,ty) = indent 6 $ show tm ++ " : " ++ show ty
@@ -376,6 +381,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (PostponedCheckArgs m args t0 t1) =
       PostponedCheckArgs <$> toConcrete m <*> toConcrete args <*> toConcrete t0 <*> toConcrete t1
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
+    toConcrete (SizeLtSat a) = SizeLtSat <$> toConcreteCtx TopCtx a
     toConcrete (FindInScopeOF s t cs) =
       FindInScopeOF <$> toConcrete s <*> toConcrete t
                     <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs

@@ -250,6 +250,7 @@ rigidlyConstrainedMetas = do
         UnBlock{}     -> return Nothing
         Guarded{}     -> return Nothing  -- don't look inside Guarded, since the inner constraint might not fire
         IsEmpty{}     -> return Nothing
+        CheckSizeLtSat{} -> return Nothing
         FindInScope{} -> return Nothing
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
