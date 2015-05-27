@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -11,6 +12,8 @@
 
 module Agda.Syntax.Info where
 
+import Prelude hiding (null)
+
 import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Concrete.Name as C
@@ -19,6 +22,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
+
+import Agda.Utils.Null
 
 {--------------------------------------------------------------------------
     Meta information
@@ -51,7 +56,7 @@ instance KillRange MetaInfo where
  --------------------------------------------------------------------------}
 
 newtype ExprInfo = ExprRange Range
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Null)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
@@ -95,7 +100,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Null)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -172,7 +177,7 @@ instance KillRange MutualInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Null)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -204,6 +209,11 @@ instance HasRange PatInfo where
 instance KillRange PatInfo where
   killRange (PatRange r)    = PatRange noRange
   killRange (PatSource r f) = PatSource noRange f
+
+instance Null PatInfo where
+  empty = patNoRange
+  null (PatRange r) = null r
+  null PatSource{}  = False
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo
