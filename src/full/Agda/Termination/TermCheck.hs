@@ -630,8 +630,9 @@ termClause' clause = do
             ]
 
 -- | Rewrite a clause @f ps =tel= \ {xs} -> v@ to @f ps {xs} =(tel {xs})= v@.
---   The pupose is to move hidden bounded size quantifications {j : Size< i}
+--   The pupose is to move hidden size quantifications
 --   to the lhs such that the termination checker can make use of them.
+--   See, e.g., test/succeed/SizedTypesExtendedLambda.agda.
 introHiddenLambdas :: MonadTCM tcm => Clause -> tcm Clause
 introHiddenLambdas clause = liftTCM $ do
   case clause of
