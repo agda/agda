@@ -102,7 +102,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test lib-succeed api-test tests benchmark-without-logs compiler-test
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed
 
 .PHONY : quicktest
 quicktest : succeed fail

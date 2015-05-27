@@ -34,11 +34,14 @@ open _×_
 
 record Stream {i : Size} (A : Set) : Set where
   coinductive
-  constructor _∷_
   field
     head  : A
     tail  : ∀ {j : Size< i} → Stream {j} A
 open Stream public
+
+_∷ˢ_ : ∀ {i A} → A → Stream {i} A → Stream {↑ i} A
+head  (a ∷ˢ as) = a
+tail  (a ∷ˢ as) = as
 
 -- Streams and lists.
 
@@ -46,7 +49,7 @@ open Stream public
 
 _++ˢ_ : ∀ {i A} → List A → Stream {i} A → Stream {i} A
 []        ++ˢ s = s
-(a ∷ as)  ++ˢ s = a ∷ (as ++ˢ s)
+(a ∷ as)  ++ˢ s = a ∷ˢ (as ++ˢ s)
 
 -- Unfold which produces several outputs at one step
 

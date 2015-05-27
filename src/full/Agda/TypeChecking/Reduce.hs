@@ -187,6 +187,7 @@ instance Instantiate Constraint where
   instantiate' (UnBlock m)          = return $ UnBlock m
   instantiate' (FindInScope m b args) = FindInScope m b <$> mapM instantiate' args
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
+  instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
@@ -601,6 +602,7 @@ instance Reduce Constraint where
   reduce' (UnBlock m)           = return $ UnBlock m
   reduce' (FindInScope m b cands) = FindInScope m b <$> mapM reduce' cands
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
+  reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce' = traverse reduce'
@@ -730,6 +732,7 @@ instance Simplify Constraint where
   simplify' (UnBlock m)           = return $ UnBlock m
   simplify' (FindInScope m b cands) = FindInScope m b <$> mapM simplify' cands
   simplify' (IsEmpty r t)         = IsEmpty r <$> simplify' t
+  simplify' (CheckSizeLtSat t)    = CheckSizeLtSat <$> simplify' t
 
 instance Simplify Bool where
   simplify' = return
@@ -868,6 +871,7 @@ instance Normalise Constraint where
   normalise' (UnBlock m)           = return $ UnBlock m
   normalise' (FindInScope m b cands) = FindInScope m b <$> mapM normalise' cands
   normalise' (IsEmpty r t)         = IsEmpty r <$> normalise' t
+  normalise' (CheckSizeLtSat t)    = CheckSizeLtSat <$> normalise' t
 
 instance Normalise Bool where
   normalise' = return
@@ -1035,6 +1039,7 @@ instance InstantiateFull Constraint where
     UnBlock m           -> return $ UnBlock m
     FindInScope m b cands -> FindInScope m b <$> mapM instantiateFull' cands
     IsEmpty r t         -> IsEmpty r <$> instantiateFull' t
+    CheckSizeLtSat t    -> CheckSizeLtSat <$> instantiateFull' t
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v

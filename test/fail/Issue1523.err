@@ -1,0 +1,6 @@
+Issue1523.agda:28,26-30,23
+Possibly empty type of sizes  (Size< i)
+when checking that the expression
+λ (j : Size< i) (n : Nat j) →
+  case j n default (λ (h : Size< j) (_ : Nat h) → r (↑ h) (zero h))
+has type (j : Size< i) → Nat j → A

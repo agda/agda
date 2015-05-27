@@ -4,6 +4,7 @@
 {-# OPTIONS --copatterns --sized-types #-}
 
 -- {-# OPTIONS -v tc.def:100 -v tc.size:100 -v tc.meta.assign:20 #-}
+{-# OPTIONS -v tc.lhs:15 -v tc.size:15 -v term:20 #-}
 
 module SizedTypesExtendedLambda where
 
@@ -33,12 +34,17 @@ postulate
   something : ∀ {C : Set} → (Maybe A → C) → C
 
 mutual
+  -- To termination check, the hidden i has to be moved to the lhs.
+  --   test = \ {i} -> something...
+  -- becomes
+  --   test {i} = something ... (∞test {i} a) ...
   test : {i : Size} → Delay A i
   test = something λ
            { nothing  -> fail
            ; (just a) -> later (∞test a)
            }
 
+  -- Because of trailing bounded size quantification, this is already in the form:
+  --   force (∞test {i} a) {j} = test {j}
   ∞test : {i : Size} (a : A) → ∞Delay A i
-  force (∞test a) {j = _} = test
-  -- force (∞test a) = test  -- still fails, unfortunately
+  force (∞test a) = test

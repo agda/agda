@@ -66,6 +66,7 @@ import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
@@ -283,6 +284,10 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
 
       -- First check that argsT is a valid type
       argsT <- workOnTypes $ Dom info <$> isType_ typ
+      -- Andreas, 2015-05-28 Issue 1523
+      -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
+      -- TODO: do we need to block checkExpr?
+      checkSizeLtSat $ unDom argsT
 
       -- In order to have as much type information as possible when checking
       -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
@@ -316,11 +321,16 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         let r  = getRelevance info
             r' = getRelevance arg -- relevance of function type
         when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
+        -- Andreas, 2015-05-28 Issue 1523
+        -- Ensure we are not stepping under a possibly non-existing size.
+        -- TODO: do we need to block checkExpr?
+        let a = unDom arg
+        checkSizeLtSat a
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
-        (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
+        (pid, argT) <- newProblem $ isTypeEqualTo typ a
         v <- add y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
       where

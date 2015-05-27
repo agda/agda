@@ -241,6 +241,7 @@ rigidlyConstrainedMetas = do
         UnBlock{}     -> return Nothing
         Guarded{}     -> return Nothing  -- don't look inside Guarded, since the inner constraint might not fire
         IsEmpty{}     -> return Nothing
+        CheckSizeLtSat{} -> return Nothing
         FindInScope{} -> return Nothing
 
 isRigid :: MetaId -> TCM Bool

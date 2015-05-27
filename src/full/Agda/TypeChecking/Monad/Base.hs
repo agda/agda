@@ -664,7 +664,9 @@ data Constraint
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
-    -- ^ the range is the one of the absurd pattern
+    -- ^ The range is the one of the absurd pattern.
+  | CheckSizeLtSat Type
+    -- ^ Check that the 'Type' is either not a SIZELT or a non-empty SIZELT.
   | FindInScope MetaId (Maybe MetaId) (Maybe [(Term, Type)])
     -- ^ the first argument is the instance argument, the second one is the meta
     --   on which the constraint may be blocked on and the third one is the list

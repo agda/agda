@@ -265,6 +265,8 @@ instance PrettyTCM Constraint where
                 ]
         IsEmpty r t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
+        CheckSizeLtSat t ->
+            sep [ text "Is not empty type of sizes:", nest 2 $ prettyTCM t ]
 
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr e a) =

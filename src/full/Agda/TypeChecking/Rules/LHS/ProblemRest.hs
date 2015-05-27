@@ -109,14 +109,9 @@ problemFromPats ps a = do
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
-updateProblemRest_ p@(Problem _ _ _ (ProblemRest [] _)) = return (0, p)
 updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps a)) = do
-  TelV tel' b0 <- telView $ unArg a
-  case tel' of
-    EmptyTel -> return (0, p)  -- no progress
-    ExtendTel{} -> do     -- a did reduce to a pi-type
-      ps <- insertImplicitPatterns DontExpandLast ps tel'
-      -- Issue 734: Redo the telView to preserve clause types as much as possible.
+      ps <- insertImplicitPatternsT DontExpandLast ps $ unArg a
+      -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpTo (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
           as        = telToList gamma

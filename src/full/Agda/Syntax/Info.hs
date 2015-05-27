@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -11,6 +12,8 @@
 
 module Agda.Syntax.Info where
 
+import Prelude hiding (null)
+
 import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Concrete.Name as C
@@ -19,6 +22,8 @@ import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
+
+import Agda.Utils.Null
 
 {--------------------------------------------------------------------------
     Meta information
@@ -51,7 +56,7 @@ instance KillRange MetaInfo where
  --------------------------------------------------------------------------}
 
 newtype ExprInfo = ExprRange Range
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show, Eq, Null)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
@@ -95,7 +100,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show, Eq, Null)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -173,7 +178,7 @@ instance KillRange MutualInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show, Eq, Null)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -186,9 +191,9 @@ instance KillRange LHSInfo where
  --------------------------------------------------------------------------}
 
 -- | For a general pattern we remember the source code position.
-data PatInfo
+newtype PatInfo
   = PatRange Range
-  deriving (Typeable, Eq)
+  deriving (Typeable, Eq, Null)
 
 instance Show PatInfo where
   show (PatRange r) = "PatRange " ++ show r

@@ -11,6 +11,7 @@ module Agda.Utils.Except
   , mkExceptT
   , MonadError(catchError, throwError)
   , runExceptT
+  , mapExceptT
   ) where
 
 ------------------------------------------------------------------------
@@ -57,5 +58,8 @@ mkExceptT = ErrorT
 -- | 'runExcept' function using mtl 2.1.*.
 runExceptT ::  ExceptT e m a -> m (Either e a)
 runExceptT = runErrorT
+
+mapExceptT :: (m (Either e a) -> m' (Either e' a')) -> ExceptT e m a -> Except e' m' a'
+mapExceptT = mapErrorT
 
 #endif

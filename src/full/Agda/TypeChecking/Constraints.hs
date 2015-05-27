@@ -15,6 +15,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
+import Agda.TypeChecking.SizedTypes
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -172,6 +173,7 @@ solveConstraint_ c0@(Guarded c pid)         = do
   ifM (isProblemSolved pid) (solveConstraint_ c)
                             (addConstraint c0)
 solveConstraint_ (IsEmpty r t)              = isEmptyType r t
+solveConstraint_ (CheckSizeLtSat t)         = checkSizeLtSat t
 solveConstraint_ (UnBlock m)                =
   ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m

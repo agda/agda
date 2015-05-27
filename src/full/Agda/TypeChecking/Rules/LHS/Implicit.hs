@@ -3,7 +3,9 @@
 
 module Agda.TypeChecking.Rules.LHS.Implicit where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad (forM)
 
 import Agda.Syntax.Common
@@ -25,7 +27,10 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
+import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -78,14 +83,34 @@ implicitP :: Named_ A.Pattern
 implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
 
 -- | Insert implicit patterns in a list of patterns.
+--   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
 insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] ->
                           Telescope -> TCM [A.NamedArg A.Pattern]
 insertImplicitPatterns exh ps tel =
   insertImplicitPatternsT exh ps (telePi tel typeDontCare)
 
+-- | Insert trailing SizeLt patterns, if any.
+insertImplicitSizeLtPatterns :: Type -> TCM [A.NamedArg A.Pattern]
+insertImplicitSizeLtPatterns t = do
+  -- Testing for SizeLt.  In case of blocked type, we return no.
+  -- We assume that on the LHS, we know the type.  (TODO: Sufficient?)
+  isSize <- isSizeTypeTest
+  let isBounded BoundedNo   = False
+      isBounded BoundedLt{} = True
+      isSizeLt t = maybe False isBounded . isSize <$> reduce t
+
+  -- Search for the last SizeLt type among the hidden arguments.
+  TelV tel _ <- telView t
+  let ts = reverse $ takeWhile (not . visible) $ telToList tel
+  keep <- reverse <$> dropWhileM (not <.> isSizeLt . snd . unDom) ts
+  -- Insert implicit patterns upto (including) the last SizeLt type.
+  forM keep $ \ (Dom ai _) -> flip Arg implicitP <$> reify ai
+
+-- | Insert implicit patterns in a list of patterns.
+--   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
 insertImplicitPatternsT :: ExpandHidden -> [A.NamedArg A.Pattern] -> Type ->
                            TCM [A.NamedArg A.Pattern]
-insertImplicitPatternsT DontExpandLast [] a = return []
+insertImplicitPatternsT DontExpandLast [] a = insertImplicitSizeLtPatterns a
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a
   reportSDoc "tc.lhs.imp" 20 $

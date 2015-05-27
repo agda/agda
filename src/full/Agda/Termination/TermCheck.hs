@@ -631,8 +631,9 @@ termClause' clause = do
             ]
 
 -- | Rewrite a clause @f ps =tel= \ {xs} -> v@ to @f ps {xs} =(tel {xs})= v@.
---   The pupose is to move hidden bounded size quantifications {j : Size< i}
+--   The pupose is to move hidden size quantifications
 --   to the lhs such that the termination checker can make use of them.
+--   See, e.g., test/succeed/SizedTypesExtendedLambda.agda.
 introHiddenLambdas :: MonadTCM tcm => Clause -> tcm Clause
 introHiddenLambdas clause = liftTCM $ do
   case clause of
@@ -862,7 +863,7 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
 
          -- Andreas, 2014-03-26 only 6% of termination time for library test
          -- spent on call matrix generation
-         (nrows, ncols, matrix) <- -- billTo [Benchmark.Termination, Benchmark.Compare] $
+         (nrows, ncols, matrix) <- billTo [Benchmark.Termination, Benchmark.Compare] $
            compareArgs es
          -- only a delayed definition can be guarded
          let ifDelayed o | Order.decreasing o && delayed == NotDelayed = Order.le

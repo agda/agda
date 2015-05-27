@@ -105,6 +105,7 @@ instance MentionsMeta Constraint where
                                   -- what metas it depends on
     FindInScope{}       -> True   -- this needs to be woken up for any meta
     IsEmpty r t         -> mm t
+    CheckSizeLtSat t    -> mm t
     where
       mm v = mentionsMeta x v
 

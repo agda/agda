@@ -138,6 +138,7 @@ addConstraint' c = do
     isBlocking UnBlock{}     = True
     isBlocking FindInScope{} = False
     isBlocking IsEmpty{}     = True
+    isBlocking CheckSizeLtSat{} = True
 
 -- | Add already awake constraints
 addAwakeConstraints :: Constraints -> TCM ()
@@ -165,4 +166,3 @@ modifyAwakeConstraints = modify . mapAwakeConstraints
 
 modifySleepingConstraints  :: (Constraints -> Constraints) -> TCM ()
 modifySleepingConstraints = modify . mapSleepingConstraints
-
