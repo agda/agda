@@ -69,10 +69,14 @@ primFunctions = M.fromList $
         , "primNatToChar"
         -- Float
         , "primShowFloat"
+        , "primFloatEquality"
         -- Reflection
         , "primQNameEquality"
         , "primQNameLess"
         , "primShowQName"
+        , "primQNameType"
+        , "primQNameDefinition"
+        , "primDataConstructors"
         ]
     ] ++ [
         ("primTrustMe", mkTrustMe)

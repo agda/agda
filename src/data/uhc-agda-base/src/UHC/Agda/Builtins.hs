@@ -50,12 +50,16 @@ module UHC.Agda.Builtins
     -- Float
   , primShowFloat
   , primMkFloat
+  , primFloatEquality
     -- Reflection
   , QName (..)
   , primMkQName
   , primQNameEquality
   , primQNameLess
   , primShowQName
+  , primQNameType
+  , primQNameDefinition
+  , primDataConstructors
 
     -- Debugging
   , primTrace
@@ -69,6 +73,13 @@ import qualified Data.Char as C
 import Debug.Trace
 import UHC.OldException (onException)
 import System.IO (openFile, IOMode (ReadMode), hClose, hFileSize, hGetContents)
+
+
+-- internal helper for this file
+notImplError :: String -> a
+notImplError f = "Feature " ++ f ++ " is not implemented in the UHC backend!"
+
+
 -- ====================
 -- Integer
 -- ====================
@@ -255,6 +266,9 @@ primShowFloat = reverse . dropWhile (=='0') . reverse . show
 primMkFloat :: String -> Double
 primMkFloat = read
 
+primFloatEquality :: Double -> Double -> Bool
+primFloatEquality = (==)
+
 -- ====================
 -- Reflection
 -- ====================
@@ -277,6 +291,14 @@ primQNameLess = (<)
 primShowQName :: QName -> String
 primShowQName = qnameString
 
+primQNameType :: a
+primQNameType = notImplError "primQNameType"
+
+primQNameDefinition :: a
+primQNameDefinition = notImplError "primQNameDefinition"
+
+primDataConstructors :: a
+primDataConstructors = notImplError "primDataConstructors"
 
 -- ====================
 -- Debugging
