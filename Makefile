@@ -136,6 +136,7 @@ succeed :
 	@echo "======================================================================"
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
+	@$(MAKE) -C test/Common
 	@chmod +x test/succeed/checkOutput
 	@$(MAKE) -C test/succeed
 
