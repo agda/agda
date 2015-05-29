@@ -331,6 +331,9 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
   case namedArg p of
     A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
+                 -- @bindDummy underscore@ does not fix issue 819, but
+                 -- introduces unwanted underscores in error messages
+                 -- (Andreas, 2015-05-28)
     A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP pi  -> do
       -- Andreas, 2012-03-15: allow postponement of emptyness check

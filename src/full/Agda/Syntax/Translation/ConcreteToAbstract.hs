@@ -1777,6 +1777,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
+    -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
+    -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
     toAbstract p0@(C.AsP r x p) = typeError $ NotSupported "@-patterns"
