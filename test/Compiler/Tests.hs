@@ -80,6 +80,8 @@ disabledTests =
   [ RFInclude "Compiler/.*/with-stdlib"
 -- See issue 1414
   , RFInclude "Compiler/MAlonzo/simple/FlexibleInterpreter"
+-- See issue 1528
+  , RFInclude "Compiler/UHC/simple/Sharing"
 -- Disable UHC backend tests if the backend is also disabled.
 #if !defined(UHC_BACKEND)
   , RFInclude "Compiler/UHC/"
