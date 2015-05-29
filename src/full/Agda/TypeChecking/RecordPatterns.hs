@@ -16,7 +16,7 @@ module Agda.TypeChecking.RecordPatterns
   ) where
 
 import Control.Applicative
-import Control.Arrow ((***))
+import Control.Arrow (first, second)
 import Control.Monad.Fix
 import Control.Monad.Reader
 import Control.Monad.State
@@ -416,14 +416,6 @@ isRecordSplit _ = return Nothing
 -- projection functions. Does not remove record constructor patterns
 -- which have sub-patterns containing non-record constructor or
 -- literal patterns.
---
--- If the input clause contains dot patterns inside record patterns,
--- then the translation may yield clauses which are not type-correct.
--- However, we believe that it is safe to use the output as input to
--- 'Agda.TypeChecking.CompiledClause.Compile.compileClauses'. Perhaps
--- it would be better to perform record pattern translation on the
--- compiled clauses instead, but the code below has already been
--- implemented and seems to work.
 
 translateRecordPatterns :: Clause -> TCM Clause
 translateRecordPatterns clause = do
@@ -469,8 +461,9 @@ translateRecordPatterns clause = do
       -- The new telescope, still flattened, with types in the context
       -- of the new RHS, in textual left-to-right order, and with
       -- Nothing in place of dot patterns.
+      substTel = map . fmap . second . applySubst
       newTel' =
-        map (fmap (id *** applySubst rhsSubst')) $
+        substTel rhsSubst' $
         translateTel cs $
         flattenedOldTel
 
@@ -501,9 +494,9 @@ translateRecordPatterns clause = do
       -- The new telescope.
       newTel =
         uncurry unflattenTel . unzip $
-        map (maybe __IMPOSSIBLE__ id) $
+        map (fromMaybe __IMPOSSIBLE__) $
         permute newPerm $
-        map (fmap (id *** applySubst lhsSubst')) $
+        substTel lhsSubst' $
         newTel'
 
       -- New clause.
@@ -584,7 +577,7 @@ nextVar = RecPatM $ do
   n <- lift get
   lift $ put $ succ n
   noVars <- lift ask
-  return (VarP "r", Var (noVars - n - 1) [])
+  return (VarP "r", var $ noVars - n - 1)
 
 ------------------------------------------------------------------------
 -- Types used to record changes to a clause
@@ -642,8 +635,7 @@ projections (Leaf (DotP{})) = [(id, DotPat)]
 projections (Leaf (VarP{})) = [(id, VarPat)]
 projections (Leaf _)        = __IMPOSSIBLE__
 projections (RecCon _ args) =
-  concatMap (\(p, t) -> map (\(p', k) -> (p' . p, k))
-                            (projections t))
+  concatMap (\ (p, t) -> map (first (. p)) $ projections t)
             args
 
 -- | Converts a record tree to a single pattern along with information
