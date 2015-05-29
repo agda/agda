@@ -33,7 +33,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (pretty)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -44,6 +44,8 @@ import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
+import Agda.Utils.Pretty (Pretty(..))
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -512,6 +514,30 @@ translateRecordPatterns clause = do
             , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
             }
 
+  reportSDoc "tc.lhs.recpat" 20 $ vcat
+      [ text "Original clause:"
+      , nest 2 $ inTopContext $ vcat
+        [ text "delta =" <+> prettyTCM (clauseTel clause)
+        , text "perm  =" <+> prettyTCM (clausePerm clause)
+        , text "pats  =" <+> text (show $ clausePats clause)
+        ]
+      , text "Intermediate results:"
+      , nest 2 $ vcat
+        [ text "ps        =" <+> text (show ps)
+        , text "s         =" <+> prettyList (map prettyTCM s)
+        , text "cs        =" <+> prettyList (map prettyTCM cs)
+        , text "flattenedOldTel =" <+> (text . show) flattenedOldTel
+        , text "newTel'   =" <+> (text . show) newTel'
+        , text "newPerm   =" <+> prettyTCM newPerm
+        ]
+      ]
+
+  reportSDoc "tc.lhs.recpat" 20 $ vcat
+        [ text "lhsSubst' =" <+> (text . show) lhsSubst'
+        , text "lhsSubst  =" <+> (text . show) lhsSubst
+        , text "newTel  =" <+> prettyTCM newTel
+        ]
+
   reportSDoc "tc.lhs.recpat" 10 $
     escapeContext (size $ clauseTel clause) $ vcat
       [ text "Translated clause:"
@@ -575,7 +601,20 @@ data Kind = VarPat | DotPat
 -- patterns, should be removed, and a new variable, with the name @x@,
 -- inserted instead. The type of the new variable is @t@.
 
-type Changes = [Either Pattern (Kind -> Nat, ArgName, I.Dom Type)]
+type Change  = Either Pattern (Kind -> Nat, ArgName, I.Dom Type)
+type Changes = [Change]
+
+instance Pretty (Kind -> Nat) where
+  pretty f =
+    P.text "(VarPat:" P.<+> P.text (show $ f VarPat) P.<+>
+    P.text "DotPat:"  P.<+> P.text (show $ f DotPat) P.<> P.text ")"
+
+instance PrettyTCM (Kind -> Nat) where
+  prettyTCM = return . pretty
+
+instance PrettyTCM Change where
+  prettyTCM (Left  p) = prettyTCM p
+  prettyTCM (Right (f, x, t)) = text "Change" <+> prettyTCM f <+> text x <+> prettyTCM t
 
 -- | Record pattern trees.
 
