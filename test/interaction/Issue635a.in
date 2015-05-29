@@ -1,0 +1,2 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_make_case "w"
