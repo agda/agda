@@ -650,18 +650,19 @@ removeTree tree = do
 
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern p@(ConP c ci ps)
-  | Nothing <- conPRecord ci = do
-      (ps, s, cs) <- translatePatterns ps
-      return (ConP c ci ps, s, cs)
-  | otherwise = do
+  -- Andreas, 2015-05-28 only translated implicit record patterns
+  | Just True <- conPRecord ci = do
       r <- recordTree p
       case r of
         Left  r -> r
         Right t -> removeTree t
+  | otherwise = do
+      (ps, s, cs) <- translatePatterns ps
+      return (ConP c ci ps, s, cs)
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
-translatePattern p@ProjP{}= __IMPOSSIBLE__
+translatePattern p@ProjP{}= return (p, [], [])
 
 translatePatterns :: [I.NamedArg Pattern] -> RecPatM ([I.NamedArg Pattern], [Term], Changes)
 translatePatterns ps = do
@@ -685,8 +686,8 @@ translatePatterns ps = do
 recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
-recordTree p@(ConP _ ci _) | Nothing <- conPRecord ci = return $ Left $ translatePattern p
-recordTree (ConP c ci ps) = do
+-- Andreas, 2015-05-28 only translate implicit record patterns
+recordTree (ConP c ci ps) | Just True <- conPRecord ci = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
@@ -701,10 +702,11 @@ recordTree (ConP c ci ps) = do
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
       let proj p = (`applyE` [Proj $ unArg p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
+recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p
-recordTree p@ProjP{}= __IMPOSSIBLE__
+recordTree p@ProjP{}= return $ Left $ translatePattern p
 
 ------------------------------------------------------------------------
 -- Translation of the clause telescope and body

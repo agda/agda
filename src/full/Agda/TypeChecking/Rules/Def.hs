@@ -41,6 +41,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes.Solve
+import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
@@ -188,6 +189,9 @@ checkFunDef' t ai delayed extlam with i name cs =
               unless (isJust extlam) $ solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
+              -- Andreas, 2015-08-28 use old record pattern translation
+              -- to get rid of eta-expanded implicit patterns (Issue 635).
+              c <- translateRecordPatterns c
               addClauses name [c]
               return c
 
