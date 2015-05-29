@@ -78,6 +78,8 @@ disabledTests =
 -- slow at the moment (1min or more per test case).
 -- Disable them by default for now.
   [ RFInclude "Compiler/.*/with-stdlib"
+-- See issue 1528
+  , RFInclude "Compiler/.*/simple/Sharing"
 -- See issue 1414
   , RFInclude "Compiler/MAlonzo/simple/FlexibleInterpreter"
   ]
