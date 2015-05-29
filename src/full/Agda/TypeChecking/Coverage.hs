@@ -533,8 +533,8 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
         ]
 
 -- | Entry point from @Interaction.MakeCase@.
-splitClauseWithAbsurd :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive (clauseToSplitClause c) (BlockingVar x Nothing)
+splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
+splitClauseWithAbsurd c x = split' Inductive c (BlockingVar x Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 --   @splitLast CoInductive@ is used in the @refine@ tactics.

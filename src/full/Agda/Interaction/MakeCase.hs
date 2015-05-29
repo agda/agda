@@ -36,6 +36,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
@@ -188,13 +189,14 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     vars <- parseVariables hole rng vars
-    (casectxt,) <$> split f vars clause
+    (casectxt,) <$> do split f vars $ clauseToSplitClause clause
   where
+
   failNoCop = typeError $ GenericError $
     "OPTION --copatterns needed to split on result here"
-  split :: QName -> [Nat] -> Clause -> TCM [A.Clause]
-  split f [] clause =
-    (:[]) <$> makeAbstractClause f (clauseToSplitClause clause)
+
+  split :: QName -> [Nat] -> SplitClause -> TCM [A.Clause]
+  split f [] clause = singleton <$> makeAbstractClause f clause
   split f (var : vars) clause = do
     z <- splitClauseWithAbsurd clause var
     case z of
@@ -204,19 +206,7 @@ makeCase hole rng s = withInteractionId hole $ do
         | null vars -> mapM (makeAbstractClause f) $ splitClauses cov
         | otherwise -> concat <$> do
             forM (splitClauses cov) $ \ cl ->
-              split f (mapMaybe (newVar cl) vars) $ splitClauseToClause cl
-    where
-    -- Note that the body of the created clause is the body of the
-    -- argument to split.
-    splitClauseToClause :: SplitClause -> Clause
-    splitClauseToClause c = Clause
-      { clauseRange     = noRange
-      , clauseTel       = scTel c
-      , clausePerm      = scPerm c
-      , namedClausePats = scPats c
-      , clauseBody      = clauseBody clause
-      , clauseType      = scTarget c
-      }
+              split f (mapMaybe (newVar cl) vars) cl
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
@@ -224,7 +214,6 @@ makeCase hole rng s = withInteractionId hole $ do
     Var y [] -> Just y
     _        -> Nothing
 
-  -- NOTE: clauseToSplitClause moved to Coverage.hs
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _ t) = do
