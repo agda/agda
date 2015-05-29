@@ -220,7 +220,11 @@ compileElispFiles = do
                     [ "--no-init-file", "--no-site-file"
                     , "--directory", dataDir
                     , "--batch"
-                    , "--funcall", "batch-byte-compile"
+                    , "--eval"
+                    , "(progn \
+                         \(setq byte-compile-error-on-warn t) \
+                         \(byte-compile-disable-warning 'cl-functions) \
+                         \(batch-byte-compile))"
                     ] ++ elFiles
   unless (exit == ExitSuccess) $ do
     informLn "Unable to compile Emacs Lisp files."
