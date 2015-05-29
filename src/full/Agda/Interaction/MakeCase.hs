@@ -23,9 +23,11 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TheTypeChecker
 
 import Agda.Interaction.Options
@@ -227,9 +229,12 @@ makeAbsurdClause f (SClause tel perm ps _ t) = do
       ]
     ]
   withCurrentModule (qnameModule f) $ do
+    -- Andreas, 2015-05-29 Issue 635
+    -- Contract implicit record patterns before printing.
+    c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t
     -- Normalise the dot patterns
-    ps <- addCtxTel tel $ normalise ps
-    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody t
+    ps <- addCtxTel tel $ normalise $ namedClausePats c
+    inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
