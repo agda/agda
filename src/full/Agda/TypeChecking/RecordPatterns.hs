@@ -492,7 +492,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the new RHS's context
       -- to terms in the new telescope's context.
-      lhsSubst' = permToSubst (reverseP newPerm)
+      lhsSubst' = renaming (reverseP newPerm)
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new telescope's context.
@@ -785,16 +785,6 @@ translateBody _               _ _          = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Helper functions
-
--- | Turns a permutation into a substitution.
-
-permToSubst :: Permutation -> Substitution
-permToSubst (Perm n is) =
-  [ makeVar i | i <- [0..n - 1] ] ++# raiseS (size is)
-  where
-  makeVar i = case genericElemIndex i is of
-    Nothing -> __IMPOSSIBLE__
-    Just k  -> var k
 
 -- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' from @b@.
 --
