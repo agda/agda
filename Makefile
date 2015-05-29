@@ -239,14 +239,14 @@ api-test :
 .PHONY : benchmark
 benchmark :
 	@echo "======================================================================"
-	@echo "========================= Bencharmk suite ============================"
+	@echo "========================= Benchmark suite ============================"
 	@echo "======================================================================"
 	@$(MAKE) -C benchmark
 
 .PHONY : benchmark-without-logs
 benchmark-without-logs :
 	@echo "======================================================================"
-	@echo "============ Bencharmk suite without creating logs ==================="
+	@echo "============ Benchmark suite without creating logs ==================="
 	@echo "======================================================================"
 	@$(MAKE) -C benchmark without-creating-logs
 
