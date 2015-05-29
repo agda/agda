@@ -78,6 +78,36 @@ Type checking
    For i=0, there is no such j at runtime, leading to looping
    behavior.
 
+Interaction
+===========
+
+* Issue 635 has been fixed.  Case splitting does not spit out implicit
+  record patterns any more.
+
+    record Cont : Set₁ where
+      constructor _◃_
+      field
+        Sh  : Set
+        Pos : Sh → Set
+
+    open Cont
+
+    data W (C : Cont) : Set where
+      sup : (s : Sh C) (k : Pos C s → W C) → W C
+
+    bogus : {C : Cont} → W C → Set
+    bogus w = {!w!}
+
+  Case splitting on w yielded, since the fix of issue 473,
+
+    bogus {Sh ◃ Pos} (sup s k) = ?
+
+  Now it gives, as expected,
+
+    bogus (sup s k) = ?
+
+
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.3
 ------------------------------------------------------------------------

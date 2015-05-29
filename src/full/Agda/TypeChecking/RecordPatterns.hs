@@ -16,6 +16,7 @@ module Agda.TypeChecking.RecordPatterns
   ) where
 
 import Control.Applicative
+import Control.Arrow (first, second)
 import Control.Monad.Fix
 import Control.Monad.Reader
 import Control.Monad.State
@@ -32,7 +33,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding (pretty)
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -43,6 +44,8 @@ import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
+import Agda.Utils.Pretty (Pretty(..))
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -414,14 +417,6 @@ isRecordSplit _ = return Nothing
 -- projection functions. Does not remove record constructor patterns
 -- which have sub-patterns containing non-record constructor or
 -- literal patterns.
---
--- If the input clause contains dot patterns inside record patterns,
--- then the translation may yield clauses which are not type-correct.
--- However, we believe that it is safe to use the output as input to
--- 'Agda.TypeChecking.CompiledClause.Compile.compileClauses'. Perhaps
--- it would be better to perform record pattern translation on the
--- compiled clauses instead, but the code below has already been
--- implemented and seems to work.
 
 translateRecordPatterns :: Clause -> TCM Clause
 translateRecordPatterns clause = do
@@ -467,8 +462,9 @@ translateRecordPatterns clause = do
       -- The new telescope, still flattened, with types in the context
       -- of the new RHS, in textual left-to-right order, and with
       -- Nothing in place of dot patterns.
+      substTel = map . fmap . second . applySubst
       newTel' =
-        map (fmap (mapSnd (applySubst rhsSubst'))) $
+        substTel rhsSubst' $
         translateTel cs $
         flattenedOldTel
 
@@ -490,7 +486,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the new RHS's context
       -- to terms in the new telescope's context.
-      lhsSubst' = permToSubst (reverseP newPerm)
+      lhsSubst' = renaming (reverseP newPerm)
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new telescope's context.
@@ -499,9 +495,9 @@ translateRecordPatterns clause = do
       -- The new telescope.
       newTel =
         uncurry unflattenTel . unzip $
-        map (maybe __IMPOSSIBLE__ id) $
+        map (fromMaybe __IMPOSSIBLE__) $
         permute newPerm $
-        map (fmap (mapSnd (applySubst lhsSubst'))) $
+        substTel lhsSubst' $
         newTel'
 
       -- New clause.
@@ -511,6 +507,30 @@ translateRecordPatterns clause = do
             , namedClausePats = applySubst lhsSubst ps
             , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
             }
+
+  reportSDoc "tc.lhs.recpat" 20 $ vcat
+      [ text "Original clause:"
+      , nest 2 $ inTopContext $ vcat
+        [ text "delta =" <+> prettyTCM (clauseTel clause)
+        , text "perm  =" <+> prettyTCM (clausePerm clause)
+        , text "pats  =" <+> text (show $ clausePats clause)
+        ]
+      , text "Intermediate results:"
+      , nest 2 $ vcat
+        [ text "ps        =" <+> text (show ps)
+        , text "s         =" <+> prettyList (map prettyTCM s)
+        , text "cs        =" <+> prettyList (map prettyTCM cs)
+        , text "flattenedOldTel =" <+> (text . show) flattenedOldTel
+        , text "newTel'   =" <+> (text . show) newTel'
+        , text "newPerm   =" <+> prettyTCM newPerm
+        ]
+      ]
+
+  reportSDoc "tc.lhs.recpat" 20 $ vcat
+        [ text "lhsSubst' =" <+> (text . show) lhsSubst'
+        , text "lhsSubst  =" <+> (text . show) lhsSubst
+        , text "newTel  =" <+> prettyTCM newTel
+        ]
 
   reportSDoc "tc.lhs.recpat" 10 $
     escapeContext (size $ clauseTel clause) $ vcat
@@ -558,7 +578,7 @@ nextVar = RecPatM $ do
   n <- lift get
   lift $ put $ succ n
   noVars <- lift ask
-  return (VarP "r", Var (noVars - n - 1) [])
+  return (VarP "r", var $ noVars - n - 1)
 
 ------------------------------------------------------------------------
 -- Types used to record changes to a clause
@@ -575,7 +595,20 @@ data Kind = VarPat | DotPat
 -- patterns, should be removed, and a new variable, with the name @x@,
 -- inserted instead. The type of the new variable is @t@.
 
-type Changes = [Either Pattern (Kind -> Nat, ArgName, I.Dom Type)]
+type Change  = Either Pattern (Kind -> Nat, ArgName, I.Dom Type)
+type Changes = [Change]
+
+instance Pretty (Kind -> Nat) where
+  pretty f =
+    P.text "(VarPat:" P.<+> P.text (show $ f VarPat) P.<+>
+    P.text "DotPat:"  P.<+> P.text (show $ f DotPat) P.<> P.text ")"
+
+instance PrettyTCM (Kind -> Nat) where
+  prettyTCM = return . pretty
+
+instance PrettyTCM Change where
+  prettyTCM (Left  p) = prettyTCM p
+  prettyTCM (Right (f, x, t)) = text "Change" <+> prettyTCM f <+> text x <+> prettyTCM t
 
 -- | Record pattern trees.
 
@@ -603,8 +636,7 @@ projections (Leaf (DotP{})) = [(id, DotPat)]
 projections (Leaf (VarP{})) = [(id, VarPat)]
 projections (Leaf _)        = __IMPOSSIBLE__
 projections (RecCon _ args) =
-  concatMap (\(p, t) -> map (\(p', k) -> (p' . p, k))
-                            (projections t))
+  concatMap (\ (p, t) -> map (first (. p)) $ projections t)
             args
 
 -- | Converts a record tree to a single pattern along with information
@@ -650,18 +682,19 @@ removeTree tree = do
 
 translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern p@(ConP c ci ps)
-  | Nothing <- conPRecord ci = do
-      (ps, s, cs) <- translatePatterns ps
-      return (ConP c ci ps, s, cs)
-  | otherwise = do
+  -- Andreas, 2015-05-28 only translated implicit record patterns
+  | Just True <- conPRecord ci = do
       r <- recordTree p
       case r of
         Left  r -> r
         Right t -> removeTree t
+  | otherwise = do
+      (ps, s, cs) <- translatePatterns ps
+      return (ConP c ci ps, s, cs)
 translatePattern p@VarP{} = removeTree (Leaf p)
 translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
-translatePattern p@ProjP{}= __IMPOSSIBLE__
+translatePattern p@ProjP{}= return (p, [], [])
 
 translatePatterns :: [I.NamedArg Pattern] -> RecPatM ([I.NamedArg Pattern], [Term], Changes)
 translatePatterns ps = do
@@ -685,8 +718,8 @@ translatePatterns ps = do
 recordTree ::
   Pattern ->
   RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
-recordTree p@(ConP _ ci _) | Nothing <- conPRecord ci = return $ Left $ translatePattern p
-recordTree (ConP c ci ps) = do
+-- Andreas, 2015-05-28 only translate implicit record patterns
+recordTree (ConP c ci ps) | Just True <- conPRecord ci = do
   let t = fromMaybe __IMPOSSIBLE__ $ conPType ci
   rs <- mapM (recordTree . namedArg) ps
   case allRight rs of
@@ -701,10 +734,11 @@ recordTree (ConP c ci ps) = do
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
       let proj p = (`applyE` [Proj $ unArg p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
+recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p
-recordTree p@ProjP{}= __IMPOSSIBLE__
+recordTree p@ProjP{}= return $ Left $ translatePattern p
 
 ------------------------------------------------------------------------
 -- Translation of the clause telescope and body
@@ -744,16 +778,6 @@ translateBody _               _ _          = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Helper functions
-
--- | Turns a permutation into a substitution.
-
-permToSubst :: Permutation -> Substitution
-permToSubst (Perm n is) =
-  [ makeVar i | i <- [0..n - 1] ] ++# raiseS (size is)
-  where
-  makeVar i = case genericElemIndex i is of
-    Nothing -> __IMPOSSIBLE__
-    Just k  -> var k
 
 -- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' from @b@.
 --

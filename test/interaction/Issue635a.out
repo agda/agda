@@ -1,0 +1,11 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue635a (Issue635a.agda). " t)
+(agda2-info-action "*Type-checking*" "Finished Issue635a. " t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : Set " nil)
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> ((last . 2) . (agda2-make-case-action '("bogus (sup s k) = ?")))
+((last . 1) . (agda2-goals-action '(0)))
+Agda2> 

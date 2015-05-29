@@ -23,9 +23,11 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TheTypeChecker
 
 import Agda.Interaction.Options
@@ -36,6 +38,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
@@ -188,13 +191,14 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     vars <- parseVariables hole rng vars
-    (casectxt,) <$> split f vars clause
+    (casectxt,) <$> do split f vars $ clauseToSplitClause clause
   where
+
   failNoCop = typeError $ GenericError $
     "OPTION --copatterns needed to split on result here"
-  split :: QName -> [Nat] -> Clause -> TCM [A.Clause]
-  split f [] clause =
-    (:[]) <$> makeAbstractClause f (clauseToSplitClause clause)
+
+  split :: QName -> [Nat] -> SplitClause -> TCM [A.Clause]
+  split f [] clause = singleton <$> makeAbstractClause f clause
   split f (var : vars) clause = do
     z <- splitClauseWithAbsurd clause var
     case z of
@@ -204,20 +208,7 @@ makeCase hole rng s = withInteractionId hole $ do
         | null vars -> mapM (makeAbstractClause f) $ splitClauses cov
         | otherwise -> concat <$> do
             forM (splitClauses cov) $ \ cl ->
-              split f (mapMaybe (newVar cl) vars) $ splitClauseToClause cl
-    where
-    -- Note that the body of the created clause is the body of the
-    -- argument to split.
-    splitClauseToClause :: SplitClause -> Clause
-    splitClauseToClause c = Clause
-      { clauseRange     = noRange
-      , clauseTel       = scTel c
-      , clausePerm      = scPerm c
-      , namedClausePats = scPats c
-      , clauseBody      = clauseBody clause
-      , clauseType      = scTarget c
-      , clauseCatchall  = False
-      }
+              split f (mapMaybe (newVar cl) vars) cl
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
@@ -225,7 +216,6 @@ makeCase hole rng s = withInteractionId hole $ do
     Var y [] -> Just y
     _        -> Nothing
 
-  -- NOTE: clauseToSplitClause moved to Coverage.hs
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _ t) = do
@@ -239,9 +229,12 @@ makeAbsurdClause f (SClause tel perm ps _ t) = do
       ]
     ]
   withCurrentModule (qnameModule f) $ do
+    -- Andreas, 2015-05-29 Issue 635
+    -- Contract implicit record patterns before printing.
+    c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
     -- Normalise the dot patterns
-    ps <- addCtxTel tel $ normalise ps
-    inContext [] $ reify $ QNamed f $ Clause noRange tel perm ps NoBody t False
+    ps <- addCtxTel tel $ normalise $ namedClausePats c
+    inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
