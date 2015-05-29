@@ -77,7 +77,7 @@ import System.IO (openFile, IOMode (ReadMode), hClose, hFileSize, hGetContents)
 
 -- internal helper for this file
 notImplError :: String -> a
-notImplError f = "Feature " ++ f ++ " is not implemented in the UHC backend!"
+notImplError f = error $ "Feature " ++ f ++ " is not implemented in the UHC backend!"
 
 
 -- ====================
