@@ -66,11 +66,11 @@ install:
   # The `enable-test` option is required only if $TEST=require_stdlib.
   - case "$TEST" in
       "non_require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi
+        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies; fi
         ;;
 
       "require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
+        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies; fi
        ;;
 
       *)
