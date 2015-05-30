@@ -3,7 +3,11 @@ TOP=../..
 
 include $(TOP)/mk/paths.mk
 
-src_files=$(shell find . \( \( -name '*.hs' -o -name '*.lhs' \) ! -name '.*' \) )
+# src_files=$(shell find . \( \( -name '*.hs' -o -name '*.lhs' \) ! -name '.*' \) )
+# include hs-boot files
+find_filter=\( \( -name '*.*hs*' ! -name '*~' \) ! -name '.*' \)
+src_files=$(shell find . $(find_filter) )
+
 
 ## Lines of Code ##########################################################
 
@@ -12,6 +16,65 @@ generated=./Agda/Syntax/Parser/Lexer.hs ./Agda/Syntax/Parser/Parser.hs
 allsources=$(src_files) $(lexparse)
 locfiles=$(filter-out $(generated),$(allsources))
 
+utils=$(shell find Agda/Utils $(find_filter) )
+syntax=$(shell find Agda/Syntax $(find_filter) )
+typechecking=$(shell find Agda/TypeChecking $(find_filter) )
+termination=$(shell find Agda/Termination $(find_filter) )
+interaction=$(shell find Agda/Interaction $(find_filter) )
+agsy=$(shell find Agda/Auto $(find_filter) )
+compiler=$(shell find Agda/Compiler $(find_filter) )
+
+locs : loc_utils loc_syntax loc_lexparse loc_typechecking loc_termination loc_interaction loc_agsy loc_compiler
+
+loc_utils :
+	@echo "========================================================================"
+	@echo "== Lines of Code: Utils ================================================"
+	@echo "========================================================================"
+	@wc $(utils)
+
+loc_syntax :
+	@echo "========================================================================"
+	@echo "== Lines of Code: Syntax, Operator Parsing, Scope Checking, Printing ==="
+	@echo "========================================================================"
+	@wc $(syntax)
+
+loc_lexparse :
+	@echo "========================================================================"
+	@echo "== Lines of Code: ALexer and Happy-Parser =============================="
+	@echo "========================================================================"
+	@wc $(lexparse)
+
+loc_typechecking :
+	@echo "========================================================================"
+	@echo "== Lines of Code: TypeChecking, Evaluation, Coverage, Positivity ======="
+	@echo "========================================================================"
+	@wc $(typechecking)
+
+loc_termination :
+	@echo "========================================================================"
+	@echo "== Lines of Code: Termination =========================================="
+	@echo "========================================================================"
+	@wc $(termination)
+
+loc_interaction :
+	@echo "========================================================================"
+	@echo "== Lines of Code: Interaction =========================================="
+	@echo "========================================================================"
+	@wc $(interaction)
+
+loc_agsy :
+	@echo "========================================================================"
+	@echo "== Lines of Code: Agsy ================================================="
+	@echo "========================================================================"
+	@wc $(agsy)
+
+loc_compiler :
+	@echo "========================================================================"
+	@echo "== Lines of Code: Compiler ============================================="
+	@echo "========================================================================"
+	@wc $(compiler)
+
+# Total lines of code
 loc :
 	@wc $(locfiles)
 
