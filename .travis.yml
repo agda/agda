@@ -56,6 +56,29 @@ install:
   # New new Alex for us
   - cabal install alex
 
+  # The GHC version.
+  - GHC_VERSION_TRAVIS=`ghc --numeric-version`
+
+  # In Travis (because the Haskell platform is installed?) Cabal needs the
+  # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
+  # about breaking previously installed packages [Issue 1520].
+
+  # The `enable-test` option is required only if $TEST=require_stdlib.
+  - case "$TEST" in
+      "non_require_stdlib")
+        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi
+        ;;
+
+      "require_stdlib")
+        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
+       ;;
+
+      *)
+        echo "Unrecognised TEST";
+        exit 1
+        ;;
+    esac
+
   # The Epic backend has been disabled. See Issue 1481.
   # Epic installation.
   # - sudo apt-get install libgc-dev
@@ -95,29 +118,6 @@ install:
 
       "require_stdlib")
        make up-to-date-std-lib
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
-    esac
-
-  # The GHC version.
-  - GHC_VERSION_TRAVIS=`ghc --numeric-version`
-
-  # In Travis (because the Haskell platform is installed?) Cabal needs the
-  # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
-  # about breaking previously installed packages [Issue 1520].
-
-  # The `enable-test` option is required only if $TEST=require_stdlib.
-  - case "$TEST" in
-      "non_require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies -j; else cabal install --only-dependencies -j; fi
-        ;;
-
-      "require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies -j; else cabal install --enable-tests --only-dependencies -j; fi
        ;;
 
       *)
