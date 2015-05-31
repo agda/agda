@@ -37,6 +37,7 @@ import Data.Traversable (traverse)
 import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common as Common
@@ -819,7 +820,10 @@ function g es = ifM (terGetInlineWithFunctions `and2M` do isJust <$> isWithFunct
     -- First, look for calls in the arguments of the call gArgs.
 
     -- We have to reduce constructors in case they're reexported.
-    let reduceCon t = case ignoreSharing t of
+    -- Andreas, Issue 1530: constructors have to be reduced deep inside terms,
+    -- thus, we need to use traverseTermM.  Sharing is handled by traverseTermM,
+    -- so no ignoreSharing needed here.
+    let reduceCon = traverseTermM $ \ t -> case t of
            Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
            _        -> return t
 
