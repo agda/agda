@@ -120,12 +120,12 @@ isType_ e =
       return t'
     A.Pi _ tel e | null tel -> isType_ e
     A.Pi _ tel e -> do
-      checkPiTelescope tel $ \tel -> do
-        t   <- instantiateFull =<< isType_ e
+      (t0, t') <- checkPiTelescope tel $ \ tel -> do
+        t0  <- instantiateFull =<< isType_ e
         tel <- instantiateFull tel
-        let t' = telePi tel t
-        noFunctionsIntoSize t t'
-        return t'
+        return (t0, telePi tel t0)
+      noFunctionsIntoSize t0 t'
+      return t'
     A.Set _ n    -> do
       n <- ifM typeInType (return 0) (return n)
       return $ sort (mkType n)
@@ -147,6 +147,10 @@ ptsRule :: (LensSort a, LensSort b) => a -> b -> TCM Sort
 ptsRule a b = pts <$> reduce (getSort a) <*> reduce (getSort b)
 
 -- | Ensure that a (freshly created) function type does not inhabit 'SizeUniv'.
+--   Precondition:  When @noFunctionsIntoSize t tBlame@ is called,
+--   we are in the context of @tBlame@ in order to print it correctly.
+--   Not being in context of @t@ should not matter, as we are only
+--   checking whether its sort reduces to 'SizeUniv'.
 noFunctionsIntoSize :: Type -> Type -> TCM ()
 noFunctionsIntoSize t tBlame = do
   reportSDoc "tc.fun" 20 $ do
@@ -814,12 +818,11 @@ checkExpr e t0 =
         A.Let i ds e -> checkLetBindings ds $ checkExpr e t
         A.Pi _ tel e | null tel -> checkExpr e t
         A.Pi _ tel e -> do
-            t' <- checkPiTelescope tel $ \tel -> do
-                    t   <- instantiateFull =<< isType_ e
+            (t0, t') <- checkPiTelescope tel $ \ tel -> do
+                    t0  <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
-                    let t' = telePi tel t
-                    noFunctionsIntoSize t t'
-                    return t'
+                    return (t0, telePi tel t0)
+            noFunctionsIntoSize t0 t'
             let s = getSort t'
                 v = unEl t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
