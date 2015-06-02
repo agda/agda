@@ -82,6 +82,44 @@ install:
         ;;
     esac
 
+  - export BUILD_DIR=$PWD/dist
+
+  # The `enable-test` option is required only if $TEST=require_stdlib.
+  - case "$TEST" in
+      "non_require_stdlib")
+        cabal configure -v2 --builddir=$BUILD_DIR
+        ;;
+
+      "require_stdlib")
+        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
+       ;;
+
+      *)
+        echo "Unrecognised TEST";
+        exit 1
+        ;;
+    esac
+
+  # Note: `cabal build` sets up the number of jobs to $ncpus by default.
+  # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
+  - cabal build -v2 --builddir=$BUILD_DIR
+
+  # The `enable-test` option is required only if $TEST=require_stdlib.
+  - case "$TEST" in
+      "non_require_stdlib")
+        cabal install -v2 --builddir=$BUILD_DIR
+        ;;
+
+      "require_stdlib")
+        cabal install -v2 --builddir=$BUILD_DIR --enable-tests
+       ;;
+
+      *)
+        echo "Unrecognised TEST";
+        exit 1
+        ;;
+    esac
+
   # The Epic backend has been disabled. See Issue 1481.
   # Epic installation.
   # - sudo apt-get install libgc-dev
@@ -136,44 +174,6 @@ install:
         ;;
 
       "require_stdlib")
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
-    esac
-
-  - export BUILD_DIR=$PWD/dist
-
-  # The `enable-test` option is required only if $TEST=require_stdlib.
-  - case "$TEST" in
-      "non_require_stdlib")
-        cabal configure -v2 --builddir=$BUILD_DIR
-        ;;
-
-      "require_stdlib")
-        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
-    esac
-
-  # Note: `cabal build` sets up the number of jobs to $ncpus by default.
-  # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
-  - cabal build -v2 --builddir=$BUILD_DIR
-
-  # The `enable-test` option is required only if $TEST=require_stdlib.
-  - case "$TEST" in
-      "non_require_stdlib")
-        cabal install -v2 --builddir=$BUILD_DIR
-        ;;
-
-      "require_stdlib")
-        cabal install -v2 --builddir=$BUILD_DIR --enable-tests
        ;;
 
       *)
