@@ -4,7 +4,7 @@
 {-# OPTIONS --copatterns --sized-types #-}
 
 -- {-# OPTIONS -v tc.def:100 -v tc.size:100 -v tc.meta.assign:20 #-}
-{-# OPTIONS -v tc.lhs:15 -v tc.size:15 -v term:20 #-}
+-- {-# OPTIONS -v tc.lhs:15 -v tc.size:15 -v term:20 #-}
 
 module SizedTypesExtendedLambda where
 
