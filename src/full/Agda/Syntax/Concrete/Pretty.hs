@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 {-| Pretty printer for the concrete syntax.
@@ -104,6 +105,10 @@ instance Pretty Induction where
 instance Pretty (OpApp Expr) where
   pretty (Ordinary e) = pretty e
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)
+
+instance Pretty a => Pretty (MaybePlaceholder a) where
+  pretty Placeholder{}     = text "_"
+  pretty (NoPlaceholder e) = pretty e
 
 instance Pretty Expr where
     pretty e =
@@ -513,7 +518,7 @@ instance Pretty Pattern where
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty ps
-            OpAppP _ q _ ps -> fsep $ prettyOpApp q ps
+            OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap NoPlaceholder)) ps)
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p
             ParenP _ p      -> parens $ pretty p
@@ -524,18 +529,46 @@ instance Pretty Pattern where
             LitP l          -> pretty l
             QuoteP _        -> text "quote"
 
-prettyOpApp :: Pretty a => QName -> [a] -> [Doc]
-prettyOpApp q es = prOp ms xs es
+prettyOpApp ::
+  Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]
+prettyOpApp q es = merge [] $ prOp ms xs es
   where
     ms = init (qnameParts q)
     xs = case unqualify q of
            Name _ xs -> xs
            NoName{}  -> __IMPOSSIBLE__
-    prOp ms (Hole : xs) (e : es) = pretty e : prOp ms xs es
+
+    prOp ms (Hole : xs) (e : es) = (pretty e, case namedArg e of
+                                                Placeholder p -> Just p
+                                                _             -> Nothing) :
+                                   prOp ms xs es
     prOp _  (Hole : _)  []       = __IMPOSSIBLE__
-    prOp ms (Id x : xs) es       = pretty (foldr Qual (QName (Name noRange $ [Id x])) ms) : prOp [] xs es
+    prOp ms (Id x : xs) es       = ( pretty (foldr Qual (QName (Name noRange $ [Id x])) ms)
+                                   , Nothing
+                                   ) : prOp [] xs es
     prOp _  []       []          = []
-    prOp _  []       es          = map pretty es
+    prOp _  []       es          = map (\e -> (pretty e, Nothing)) es
+
+    -- Section underscores should be printed without surrounding
+    -- whitespace. This function takes care of that.
+    merge :: [Doc] -> [(Doc, Maybe Placeholder)] -> [Doc]
+    merge before []                            = reverse before
+    merge before ((d, Nothing) : after)        = merge (d : before) after
+    merge before ((d, Just Beginning) : after) = mergeRight before d after
+    merge before ((d, Just End)       : after) = case mergeLeft d before of
+                                                   (d, bs) -> merge (d : bs) after
+    merge before ((d, Just Middle)    : after) = case mergeLeft d before of
+                                                   (d, bs) -> mergeRight bs d after
+
+    mergeRight before d after =
+      reverse before ++
+      case merge [] after of
+        []     -> [d]
+        a : as -> (d <> a) : as
+
+    mergeLeft d before = case before of
+      []     -> (d,      [])
+      b : bs -> (b <> d, bs)
 
 instance Pretty ImportDirective where
     pretty i =

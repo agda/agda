@@ -83,10 +83,11 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
-import Agda.Utils.Maybe
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -519,13 +520,6 @@ toAbstractDot prec e = do
       e -> do
         e <- toAbstractCtx prec e
         return (e, False)
-
--- | An argument @OpApp C.Expr@ to an operator can have binders,
---   in case the operator is some @syntax@-notation.
---   For these binders, we have to create lambda-abstractions.
-toAbstractOpArg :: Precedence -> OpApp C.Expr -> ScopeM A.Expr
-toAbstractOpArg ctx (Ordinary e)                 = toAbstractCtx ctx e
-toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
 
 -- | Translate concrete expression under at least one binder into nested
 --   lambda abstraction in abstract syntax.
@@ -1803,10 +1797,21 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r
 
--- | Turn an operator application into abstract syntax. Make sure to record the
--- right precedences for the various arguments.
-toAbstractOpApp :: C.QName -> Set A.Name -> [C.NamedArg (OpApp C.Expr)] -> ScopeM A.Expr
+-- | An argument @OpApp C.Expr@ to an operator can have binders,
+--   in case the operator is some @syntax@-notation.
+--   For these binders, we have to create lambda-abstractions.
+toAbstractOpArg :: Precedence -> OpApp C.Expr -> ScopeM A.Expr
+toAbstractOpArg ctx (Ordinary e)                 = toAbstractCtx ctx e
+toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
+
+-- | Turn an operator application into abstract syntax. Make sure to
+-- record the right precedences for the various arguments.
+toAbstractOpApp :: C.QName -> Set A.Name ->
+                   [C.NamedArg (MaybePlaceholder (OpApp C.Expr))] ->
+                   ScopeM A.Expr
 toAbstractOpApp op ns es = do
+    -- Replace placeholders with bound variables.
+    (binders, es) <- replacePlaceholders es
     -- Get the notation for the operator.
     nota <- getNotation op ns
     let parts = notation nota
@@ -1818,13 +1823,20 @@ toAbstractOpApp op ns es = do
     unless (length (filter isAHole nonBindingParts) == length es) __IMPOSSIBLE__
     -- Translate operator and its arguments (each in the right context).
     op <- toAbstract (OldQName op (Just ns))
-    foldl' app op <$> left (notaFixity nota) nonBindingParts es
+    es <- left (notaFixity nota) nonBindingParts es
+    -- Prepend the generated section binders (if any).
+    let body = foldl' app op es
+    return $ foldr (A.Lam (ExprRange (getRange body))) body binders
   where
     -- Build an application in the abstract syntax, with correct Range.
     app e arg = A.App (ExprRange (fuseRange e arg)) e (setArgColors [] arg)
 
-    -- Translate an argument (inside @C.NamedArg . OpApp@).
-    toAbsOpArg cxt = traverse $ traverse $ toAbstractOpArg cxt
+    -- Translate an argument.
+    toAbsOpArg :: Precedence ->
+                  C.NamedArg (Either A.Expr (OpApp C.Expr)) ->
+                  ScopeM (C.NamedArg A.Expr)
+    toAbsOpArg cxt =
+      traverse $ traverse $ either return (toAbstractOpArg cxt)
 
     -- The hole left to the first @IdPart@ is filled with an expression in @LeftOperandCtx@.
     left f (IdPart _ : xs) es = inside f xs es
@@ -1851,3 +1863,21 @@ toAbstractOpApp op ns es = do
         e <- toAbsOpArg (RightOperandCtx f) e
         return [e]
     right _ _     _  = __IMPOSSIBLE__
+
+    replacePlaceholders ::
+      [C.NamedArg (MaybePlaceholder (OpApp e))] ->
+      ScopeM ([A.LamBinding], [C.NamedArg (Either A.Expr (OpApp e))])
+    replacePlaceholders []       = return ([], [])
+    replacePlaceholders (a : as) = case namedArg a of
+      NoPlaceholder x -> mapSnd (set (Right x) a :) <$>
+                           replacePlaceholders as
+      Placeholder p   -> do
+        x <- freshName noRange "section"
+        i <- toAbstract (argInfo a)
+        (ls, ns) <- replacePlaceholders as
+        return ( A.DomainFree i x : ls
+               , set (Left (Var x)) a : ns
+               )
+      where
+      set :: a -> C.NamedArg b -> C.NamedArg a
+      set x arg = fmap (fmap (const x)) arg

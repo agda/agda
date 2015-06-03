@@ -137,7 +137,8 @@ data Expr
   | RawApp !Range [Expr]                       -- ^ before parsing operators
   | App !Range Expr (NamedArg Expr)            -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
   | OpApp !Range QName (Set A.Name)
-          [NamedArg (OpApp Expr)]              -- ^ ex: @e + e@
+          [NamedArg
+             (MaybePlaceholder (OpApp Expr))]  -- ^ ex: @e + e@
                                                -- The 'QName' is
                                                -- possibly ambiguous,
                                                -- but it must

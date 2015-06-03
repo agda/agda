@@ -47,21 +47,6 @@ data MemoKey = NodeK      (Either Integer Integer)
 
 instance Hashable MemoKey
 
-data Placeholder
-  = Beginning
-    -- ^ @_foo@.
-  | Middle
-    -- ^ @foo_bar@.
-  | End
-    -- ^ @foo_@.
-  deriving (Eq, Ord, Show)
-
--- | Placeholders are used to represent the underscores in a section.
-data MaybePlaceholder e
-  = Placeholder Placeholder
-  | NoPlaceholder e
-  deriving (Eq, Ord, Show)
-
 type Parser tok a =
   MemoisedCPS.Parser MemoKey tok (MaybePlaceholder tok) a
 
@@ -96,7 +81,7 @@ data ExprView e
     | WildV e
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV QName (Set A.Name) [NamedArg (OpApp e)]
+    | OpAppV QName (Set A.Name) [NamedArg (MaybePlaceholder (OpApp e))]
       -- ^ The 'QName' is possibly ambiguous, but it must correspond
       -- to one of the names in the set.
     | HiddenArgV (Named_ e)
@@ -205,22 +190,19 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
 
       app :: ([(MaybePlaceholder e, C.NamedArg () Int)] ->
               [(MaybePlaceholder e, C.NamedArg () Int)]) -> e
-      app f = case bs of
-        [] -> opApp
-        bs -> -- Turn a section into a lambda, unless we have an
-              -- operator and there is exactly one placeholder for
-              -- every hole, in which case we only return the
-              -- operator.
-              if isOp && length bs == lastHole + 1
-              then -- Note that the information in the set
-                   -- "names" is thrown away here.
-                   unExprView (LocalV q')
-              else unExprView (LamV bs opApp)
+      app f =
+        -- If we have an operator and there is exactly one
+        -- placeholder for every hole, then we only return
+        -- the operator.
+        if isOp && noPlaceholders args == lastHole + 1 then
+          -- Note that the information in the set "names" is thrown
+          -- away here.
+          unExprView (LocalV q')
+        else
+          unExprView (OpAppV q' names args)
         where
-        args        = map (findExprFor (f normal) binders) [0..lastHole]
-        (bs, args') = replacePlaceholders 0 args
-        q'          = setRange range q
-        opApp       = unExprView (OpAppV q' names args')
+        args = map (findExprFor (f normal) binders) [0..lastHole]
+        q'   = setRange range q
 
   return $ case kind of
     In   -> \x y -> app (\es -> (x, leadingHole) : es ++ [(y, trailingHole)])
@@ -295,29 +277,11 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
         bs -> set (NoPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__
 
-
-  -- Note that the bound names introduced below have the form
-  -- .section_n (for some natural number n). These names must not
-  -- clash with any other names.
-  --
-  -- This hack can perhaps be avoided by translating sections to
-  -- lambda expressions in the type checker instead of in the parser.
-  -- Such a change could also lead to improved error messages.
-
-  replacePlaceholders ::
-    Integer ->
-    [NamedArg (MaybePlaceholder (OpApp e))] ->
-    ([LamBinding], [NamedArg (OpApp e)])
-  replacePlaceholders n []       = ([], [])
-  replacePlaceholders n (a : as) = case namedArg a of
-    NoPlaceholder x -> mapSnd (set x a :) (replacePlaceholders n as)
-    Placeholder p   ->
-      ((b :) -*- (set (Ordinary (unExprView (LocalV (QName x)))) a :))
-        (replacePlaceholders (succ n) as)
-      where
-      name = ".section" ++ map toSubscriptDigit (show n)
-      x    = Name noRange [Id name]
-      b    = DomainFree (argInfo a) (mkBoundName_ x)
+  noPlaceholders :: [NamedArg (MaybePlaceholder (OpApp e))] -> Int
+  noPlaceholders = sum . map (isPlaceholder . namedArg)
+    where
+    isPlaceholder NoPlaceholder{} = 0
+    isPlaceholder Placeholder{}   = 1
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
 argsP p = many (nothidden <|> hidden <|> instanceH)
