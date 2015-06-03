@@ -297,8 +297,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
 
 
   -- Note that the bound names introduced below have the form
-  -- .section-variable-n (for some natural number n). These names must
-  -- not clash with any other names.
+  -- .section_n (for some natural number n). These names must not
+  -- clash with any other names.
   --
   -- This hack can perhaps be avoided by translating sections to
   -- lambda expressions in the type checker instead of in the parser.
