@@ -100,9 +100,14 @@ Pragmas and options
   This causes f e1 .. en to be printed as e, where ei can bind variables used
   in e. The expressions ei and e are scope checked, but not type checked.
 
-  Example
+  For example this can be used to print overloaded (instance) functions with
+  the overloaded name:
 
-    {-# DISPLAY _∷_ x [] = [ x ] #-}
+    instance
+      NumNat : Num Nat
+      NumNat = record { ..; _+_ = natPlus }
+
+    {-# DISPLAY natPlus a b = a + b #-}
 
   Limitations
 
