@@ -1,0 +1,3 @@
+Issue473b.agda:30,4-8
+zero != fst p of type Nat
+when checking that the pattern zero has type Zero (fst p)
