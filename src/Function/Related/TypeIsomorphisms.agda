@@ -471,7 +471,7 @@ True↔ (no ¬p) _ = record
        Σ (proj₁ p₁ ≡ proj₁ p₂)
          (λ p → P.subst B p (proj₂ p₁) ≡ proj₂ p₂) →
        p₁ ≡ p₂
-  to (P.refl , P.refl) = P.refl
+  to {._ , ._} (P.refl , P.refl) = P.refl
 
   from : {p₁ p₂ : Σ A B} →
          p₁ ≡ p₂ →
@@ -483,7 +483,7 @@ True↔ (no ¬p) _ = record
                     (p : Σ (proj₁ p₁ ≡ proj₁ p₂)
                            (λ x → P.subst B x (proj₂ p₁) ≡ proj₂ p₂)) →
                     from (to p) ≡ p
-  left-inverse-of (P.refl , P.refl) = P.refl
+  left-inverse-of {._ , ._} (P.refl , P.refl) = P.refl
 
   right-inverse-of : {p₁ p₂ : Σ A B} (p : p₁ ≡ p₂) → to (from p) ≡ p
   right-inverse-of P.refl = P.refl
@@ -502,7 +502,7 @@ True↔ (no ¬p) _ = record
   where
   to : {p₁ p₂ : A × B} →
        (proj₁ p₁ ≡ proj₁ p₂) × (proj₂ p₁ ≡ proj₂ p₂) → p₁ ≡ p₂
-  to (P.refl , P.refl) = P.refl
+  to {._ , ._} (P.refl , P.refl) = P.refl
 
   from : {p₁ p₂ : A × B} → p₁ ≡ p₂ →
          (proj₁ p₁ ≡ proj₁ p₂) × (proj₂ p₁ ≡ proj₂ p₂)
@@ -511,7 +511,7 @@ True↔ (no ¬p) _ = record
   left-inverse-of : {p₁ p₂ : A × B} →
                     (p : (proj₁ p₁ ≡ proj₁ p₂) × (proj₂ p₁ ≡ proj₂ p₂)) →
                     from (to p) ≡ p
-  left-inverse-of (P.refl , P.refl) = P.refl
+  left-inverse-of {._ , ._} (P.refl , P.refl) = P.refl
 
   right-inverse-of : {p₁ p₂ : A × B} (p : p₁ ≡ p₂) → to (from p) ≡ p
   right-inverse-of P.refl = P.refl
