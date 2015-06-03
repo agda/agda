@@ -59,7 +59,7 @@ mkExceptT = ErrorT
 runExceptT ::  ExceptT e m a -> m (Either e a)
 runExceptT = runErrorT
 
-mapExceptT :: (m (Either e a) -> m' (Either e' a')) -> ExceptT e m a -> Except e' m' a'
+mapExceptT :: (m (Either e a) -> m' (Either e' a')) -> ExceptT e m a -> ExceptT e' m' a'
 mapExceptT = mapErrorT
 
 #endif
