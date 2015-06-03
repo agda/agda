@@ -216,13 +216,13 @@ private
           | proj₂ +-identity (sign y S* sign x ◃ ∣ y ∣ ℕ* ∣ x ∣)
           = refl
 
-  distribʳ -[1+ a ] -[1+ b ] -[1+ c ] = cong +_ $
+  distribʳ -[1+ a ] -[1+ b ] -[1+ c ] = cong (+_) $
     solve 3 (λ a b c → (con 2 :+ b :+ c) :* (con 1 :+ a)
                     := (con 1 :+ b) :* (con 1 :+ a) :+
                        (con 1 :+ c) :* (con 1 :+ a))
             refl a b c
 
-  distribʳ (+ suc a) (+ suc b) (+ suc c) = cong +_ $
+  distribʳ (+ suc a) (+ suc b) (+ suc c) = cong (+_) $
     solve 3 (λ a b c → (con 1 :+ b :+ (con 1 :+ c)) :* (con 1 :+ a)
                     := (con 1 :+ b) :* (con 1 :+ a) :+
                        (con 1 :+ c) :* (con 1 :+ a))

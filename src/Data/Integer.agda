@@ -236,7 +236,7 @@ decTotalOrder = record
   antisym : Antisymmetric _≡_ _≤_
   antisym -≤+       ()
   antisym (-≤- n≤m) (-≤- m≤n) = cong -[1+_] $ ℕO.antisym m≤n n≤m
-  antisym (+≤+ m≤n) (+≤+ n≤m) = cong +_     $ ℕO.antisym m≤n n≤m
+  antisym (+≤+ m≤n) (+≤+ n≤m) = cong (+_)   $ ℕO.antisym m≤n n≤m
 
   total : Total _≤_
   total (-[1+ m ]) (-[1+ n ]) = [ inj₂ ∘′ -≤- , inj₁ ∘′ -≤- ]′ $ ℕO.total m n
