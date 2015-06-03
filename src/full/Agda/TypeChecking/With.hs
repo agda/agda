@@ -272,8 +272,9 @@ stripWithClausePatterns f t qs perm ps = do
           -- that has been expanded in the parent clause, we expand it and restart
           A.ImplicitP _ | Just True <- conPRecord ci -> do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<<
-              expandImplicitPattern' (unDom a) p
-
+              -- Andreas, Ulf, 2015-06-03 unfix issue 473
+              -- expandImplicitPattern' (unDom a) p
+              return (Just p)
 
           A.ConP _ (A.AmbQ cs') ps' -> do
             c <- (`withRangeOf` c) <$> do getConForm $ conName c

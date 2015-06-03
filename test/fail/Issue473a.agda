@@ -11,6 +11,7 @@ record Rc : Set where
   constructor c
   field f : D
 
+-- Andreas, 2015-06-03, after unfixing Issue 473, this also fails:
 works : {r : Rc} → P (Rc.f r) → Set
 works p = D
 

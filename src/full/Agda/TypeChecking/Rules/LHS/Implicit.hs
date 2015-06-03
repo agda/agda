@@ -140,7 +140,8 @@ insertImplicitPatternsT exh            ps a = do
           a <- reduce a
           case ignoreSharing $ unEl a of
             Pi arg b -> do
-              p <- expandImplicitPattern (unDom arg) p
+              -- Andreas, Ulf, 2015-06-03 unfix issue 473
+              -- p <- expandImplicitPattern (unDom arg) p
               (p :) <$> insertImplicitPatternsT exh ps (absBody b)
             _ -> return (p : ps)
   where
