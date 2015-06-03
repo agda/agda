@@ -1,21 +1,21 @@
 Issue1436-17.agda:50,7-14
 Could not parse the application ∷ ∙ ← ,
 Operators used in the grammar:
-  ∙    (infixr operator, level 4)            [_∙_ (Issue1436-17.agda:17,9-12)]  
-  ∙    (infixr operator, level 5)            [_∙_ (Issue1436-17.agda:6,9-12)]   
-  _∙   (prefix operator section, unrelated)  [_∙_ (Issue1436-17.agda:17,9-12)]  
-  ∙_   (postfix operator section, unrelated) [_∙_ (Issue1436-17.agda:17,9-12)]  
-  _∙   (prefix operator section, unrelated)  [_∙_ (Issue1436-17.agda:6,9-12)]   
-  ∙_   (postfix operator section, unrelated) [_∙_ (Issue1436-17.agda:6,9-12)]   
-  ∷    (infix operator, level 5)             [_∷_ (Issue1436-17.agda:6,5-8),    
-                                              _∷_ (Issue1436-17.agda:17,5-8)]   
-  _∷   (prefix operator section, unrelated)  [_∷_ (Issue1436-17.agda:6,5-8),    
-                                              _∷_ (Issue1436-17.agda:17,5-8)]   
-  ∷_   (postfix operator section, unrelated) [_∷_ (Issue1436-17.agda:6,5-8),    
-                                              _∷_ (Issue1436-17.agda:17,5-8)]   
-  _←_, (prefix notation, level 1)            [bind (Issue1436-17.agda:6,13-17)] 
-  ∙    (infix notation, level 2)             [bind (Issue1436-17.agda:17,13-17),
-                                              bind (Issue1436-17.agda:28,5-9)]  
+  ∙    (infixr operator, level 4)          [_∙_ (Issue1436-17.agda:17,9-12)]  
+  _∙   (prefix operator section, level 4)  [_∙_ (Issue1436-17.agda:17,9-12)]  
+  ∙_   (postfix operator section, level 4) [_∙_ (Issue1436-17.agda:17,9-12)]  
+  ∙    (infixr operator, level 5)          [_∙_ (Issue1436-17.agda:6,9-12)]   
+  _∙   (prefix operator section, level 5)  [_∙_ (Issue1436-17.agda:6,9-12)]   
+  ∙_   (postfix operator section, level 5) [_∙_ (Issue1436-17.agda:6,9-12)]   
+  ∷    (infix operator, level 5)           [_∷_ (Issue1436-17.agda:6,5-8),    
+                                            _∷_ (Issue1436-17.agda:17,5-8)]   
+  _∷   (prefix operator section, level 5)  [_∷_ (Issue1436-17.agda:6,5-8),    
+                                            _∷_ (Issue1436-17.agda:17,5-8)]   
+  ∷_   (postfix operator section, level 5) [_∷_ (Issue1436-17.agda:6,5-8),    
+                                            _∷_ (Issue1436-17.agda:17,5-8)]   
+  _←_, (prefix notation, level 1)          [bind (Issue1436-17.agda:6,13-17)] 
+  ∙    (infix notation, level 2)           [bind (Issue1436-17.agda:17,13-17),
+                                            bind (Issue1436-17.agda:28,5-9)]  
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking ∷ ∙ ← ,

@@ -1,10 +1,10 @@
 Issue1109-2.agda:12,17-26
 Could not parse the application x ○ x ● x
 Operators used in the grammar:
-  ●  (infix operator, level -665)          [_●_ (Issue1109-2.agda:5,3-6)]
-  _● (prefix operator section, unrelated)  [_●_ (Issue1109-2.agda:5,3-6)]
-  ●_ (postfix operator section, unrelated) [_●_ (Issue1109-2.agda:5,3-6)]
-  ○  (infix notation, unrelated)           [f (Issue1109-2.agda:4,3-4)]  
+  ●  (infix operator, level -665)           [_●_ (Issue1109-2.agda:5,3-6)]
+  _● (prefix operator section, level -665)  [_●_ (Issue1109-2.agda:5,3-6)]
+  ●_ (postfix operator section, level -665) [_●_ (Issue1109-2.agda:5,3-6)]
+  ○  (infix notation, unrelated)            [f (Issue1109-2.agda:4,3-4)]  
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking x ○ x ● x

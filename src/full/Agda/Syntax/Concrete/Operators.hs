@@ -209,18 +209,23 @@ buildParsers r flat kind exprNames = do
           IsPattern -> DoNotParseSections
           IsExpr    -> ParseSections
 
-    let unrelatedOperators :: [NotationSection]
-        unrelatedOperators =
-          map noSection (filter ((== Unrelated) . level) fix)
-            ++
+    let nonClosedSections l ns =
           case parseSections of
             DoNotParseSections -> []
             ParseSections      ->
-              [ NotationSection n k (Just Unrelated) True
-              | n <- fix
+              [ NotationSection n k (Just l) True
+              | n <- ns
               , isinfix n && notaIsOperator n
               , k <- [PrefixNotation, PostfixNotation]
               ]
+
+        unrelatedOperators :: [NotationSection]
+        unrelatedOperators =
+          map noSection unrelated
+            ++
+          nonClosedSections Unrelated unrelated
+          where
+          unrelated = filter ((== Unrelated) . level) fix
 
         nonWithSections :: [NotationSection]
         nonWithSections =
@@ -238,12 +243,14 @@ buildParsers r flat kind exprNames = do
         -- level comes first.
         relatedOperators :: [(Integer, [NotationSection])]
         relatedOperators =
-          map (\((l, n) : ns) -> (l, map noSection (n : map snd ns))) .
+          map (\((l, ns) : rest) -> (l, ns ++ concat (map snd rest))) .
           groupBy ((==) `on` fst) .
           sortBy (compare `on` fst) .
           mapMaybe (\n -> case level n of
-                            Unrelated -> Nothing
-                            Related l -> Just (l, n)) $
+                            Unrelated     -> Nothing
+                            r@(Related l) ->
+                              Just (l, noSection n :
+                                       nonClosedSections r [n])) $
           fix
 
         everything :: [NotationSection]

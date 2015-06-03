@@ -304,7 +304,9 @@ Operator syntax
     if b then_else_   ↦  λ .section₀ .section₁ →
                              if b then .section₀ else .section₁
 
-  Operator sections are unrelated to all other operators.
+  Operator sections have the same fixity as the underlying operator
+  (except in cases like "if b then_else_", in which the section is
+  "closed", but the operator is not).
 
   Operator sections are not supported in patterns (with the exception
   of dot patterns), and notations coming from syntax declarations

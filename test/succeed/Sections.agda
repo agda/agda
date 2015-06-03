@@ -33,6 +33,17 @@ test₃ = (_* 5) ∘ (6 +_) ∘ (2 ∸_)
 test₃-test : ∀ x → test₃ x ≡ (6 + (2 ∸ x)) * 5
 test₃-test _ = refl
 
+infixr 0 _⊚_
+
+_⊚_ : {A B C : Set} → (B → C) → (A → B) → (A → C)
+f ⊚ g = λ x → f (g x)
+
+test₃½ : Nat → Nat
+test₃½ = _* 5 ⊚ 6 +_ ⊚ 2 ∸_
+
+test₃½-test : ∀ x → test₃½ x ≡ (6 + (2 ∸ x)) * 5
+test₃½-test _ = refl
+
 test₄ : Nat → Nat → Nat
 test₄ = Common.Prelude.if true then_else_
 
