@@ -431,6 +431,7 @@ data Pragma
     -- ^ Invariant: The string must be a valid Haskell module name.
   | ImpossiblePragma       !Range
   | EtaPragma              !Range QName
+  | NoEtaPragma            !Range QName
   | TerminationCheckPragma !Range (TerminationCheck Name)
   | CatchallPragma         !Range
   | DisplayPragma          !Range Pattern Expr
@@ -678,6 +679,7 @@ instance HasRange Pragma where
   getRange (ImportPragma r _)           = r
   getRange (ImpossiblePragma r)         = r
   getRange (EtaPragma r _)              = r
+  getRange (NoEtaPragma r _)            = r
   getRange (TerminationCheckPragma r _) = r
   getRange (CatchallPragma r)           = r
   getRange (DisplayPragma r _ _)        = r
@@ -869,6 +871,7 @@ instance KillRange Pragma where
   killRange (ImportPragma _ s)            = ImportPragma noRange s
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
   killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
+  killRange (NoEtaPragma _ q)             = killRange1 (NoEtaPragma noRange) q
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)            = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)     = killRange2 (DisplayPragma noRange) lhs rhs

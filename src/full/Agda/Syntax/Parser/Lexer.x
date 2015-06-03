@@ -103,6 +103,7 @@ tokens :-
 <pragma_>   "IMPORT"               { keyword KwIMPORT }
 <pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }
 <pragma_>   "ETA"                  { keyword KwETA }
+<pragma_>   "NO_ETA"               { keyword KwNO_ETA }
 <pragma_>   "NO_TERMINATION_CHECK" { keyword KwNO_TERMINATION_CHECK }
 <pragma_>   "NON_TERMINATING"      { keyword KwNON_TERMINATING }
 <pragma_>   "TERMINATING"          { keyword KwTERMINATING }

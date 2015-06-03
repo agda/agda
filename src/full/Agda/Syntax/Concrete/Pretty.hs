@@ -458,6 +458,8 @@ instance Pretty Pragma where
       hsep $ [text "IMPOSSIBLE"]
     pretty (EtaPragma _ x) =
       hsep $ [text "ETA", pretty x]
+    pretty (NoEtaPragma _ x) =
+      hsep $ [text "NO_ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__

@@ -1488,6 +1488,14 @@ instance ToAbstract C.Pragma [A.Pragma] where
          e <- showA e
          genericError $ "Pragma ETA: expected identifier, " ++
            "but found expression " ++ e
+    toAbstract (C.NoEtaPragma _ x) = do
+      e <- toAbstract $ OldQName x Nothing
+      case e of
+        A.Def x -> return [ A.NoEtaPragma x ]
+        _       -> do
+         e <- showA e
+         genericError $ "Pragma NO_ETA: expected identifier, " ++
+           "but found expression " ++ e
     toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
       let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
           getHead (C.IdentP x)          = return x

@@ -195,6 +195,7 @@ data Pragma
   | NoSmashingPragma QName
   | StaticPragma QName
   | EtaPragma QName
+  | NoEtaPragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Typeable, Show, Eq)
 

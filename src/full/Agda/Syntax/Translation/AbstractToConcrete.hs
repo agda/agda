@@ -846,6 +846,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.NoSmashingPragma x -> C.NoSmashingPragma r <$> toConcrete x
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
+    A.NoEtaPragma x  -> C.NoEtaPragma  r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) f ps) <*> toConcrete rhs
 

@@ -112,6 +112,7 @@ import Agda.Utils.Tuple
     'IMPORT'        { TokKeyword KwIMPORT $$ }
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'ETA'           { TokKeyword KwETA $$ }
+    'NO_ETA'        { TokKeyword KwNO_ETA $$ }
     'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $$ }
     'TERMINATING'   { TokKeyword KwTERMINATING $$ }
@@ -244,6 +245,7 @@ Token
     | 'STATIC'       { TokKeyword KwSTATIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
+    | 'NO_ETA'        { TokKeyword KwNO_ETA $1 }
     | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $1 }
     | 'TERMINATING'   { TokKeyword KwTERMINATING $1 }
@@ -1320,6 +1322,7 @@ DeclarationPragma
   | ImportPragma             { $1 }
   | ImpossiblePragma         { $1 }
   | RecordEtaPragma          { $1 }
+  | RecordNoEtaPragma        { $1 }
   | TerminatingPragma        { $1 }
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
@@ -1412,6 +1415,11 @@ RecordEtaPragma :: { Pragma }
 RecordEtaPragma
   : '{-#' 'ETA' PragmaQName '#-}'
     { EtaPragma (getRange ($1,$2,$3,$4)) $3 }
+
+RecordNoEtaPragma :: { Pragma }
+RecordNoEtaPragma
+  : '{-#' 'NO_ETA' PragmaQName '#-}'
+    { NoEtaPragma (getRange ($1,$2,$3,$4)) $3 }
 
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma
