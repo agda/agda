@@ -71,6 +71,9 @@ setup_Auto-Modules = $(setup_Auto)
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
 RTS_Issue637       = +RTS -K10000 -RTS
 RTS_Issue639       = --safe
+RTS_OneMeta        = +RTS -M25M -RTS
+RTS_OneMeta1       = +RTS -M12.5M -RTS
+RTS_OneMetaL       = +RTS -M12.5M -RTS
 
 # No recorded output
 $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
