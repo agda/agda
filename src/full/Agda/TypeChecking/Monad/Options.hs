@@ -295,6 +295,9 @@ positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 typeInType :: TCM Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
+etaEnabled :: TCM Bool
+etaEnabled = optEta <$> pragmaOptions
+
 ------------------------------------------------------------------------
 -- Verbosity
 

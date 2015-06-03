@@ -122,6 +122,8 @@ checkRecDef i name ind con ps contel fields =
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ text "adding record type to signature"
 
+      etaenabled <- etaEnabled
+
       let getName :: A.Declaration -> [A.Arg QName]
           getName (A.Field _ x arg)    = [x <$ arg]
           getName (A.ScopedDecl _ [f]) = getName f
@@ -133,7 +135,7 @@ checkRecDef i name ind con ps contel fields =
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          haveEta      = conInduction == Inductive
+          haveEta      = conInduction == Inductive && etaenabled
           con = ConHead conName conInduction $ map unArg fs
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)

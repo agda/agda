@@ -136,6 +136,7 @@ data PragmaOptions = PragmaOptions
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
+  , optEta                       :: Bool
   }
   deriving (Show,Eq)
 
@@ -216,6 +217,7 @@ defaultPragmaOptions = PragmaOptions
   , optCopatterns                = False
   , optPatternMatching           = True
   , optExactSplit                = False
+  , optEta                       = True
   }
 
 -- | The default termination depth.
@@ -375,6 +377,11 @@ dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
                                      , optUniversePolymorphism = False
                                      }
+etaFlag :: Flag PragmaOptions
+etaFlag o = return $ o { optEta = True }
+
+noEtaFlag :: Flag PragmaOptions
+noEtaFlag o = return $ o { optEta = False }
 
 sizedTypes :: Flag PragmaOptions
 sizedTypes o = return $ o { optSizedTypes = True }
@@ -629,6 +636,8 @@ pragmaOptions =
                     "require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)"
     , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
                     "do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)"
+    , Option []     ["no-eta"] (NoArg noEtaFlag)
+                    "disable eta rules for records"
     ]
 
 -- | Used for printing usage info.
