@@ -210,10 +210,10 @@ class Free' a c where
 instance Free' Term c where
   -- SPECIALIZE instance does not work as well, see
   -- https://ghc.haskell.org/trac/ghc/ticket/10434#ticket
-  {-# SPECIALIZE instance Free' Term All #-}
-  {-# SPECIALIZE freeVars' :: Term -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Term -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Term -> FreeM VarSet #-}
+  -- {-# SPECIALIZE instance Free' Term All #-}
+  -- {-# SPECIALIZE freeVars' :: Term -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Term -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Term -> FreeM VarSet #-}
   freeVars' t = case t of
     Var n ts     -> variable n `mappend` do go WeaklyRigid $ freeVars' ts
     -- λ is not considered guarding, as
@@ -237,22 +237,22 @@ instance Free' Term c where
     Shared p     -> freeVars' (derefPtr p)
 
 instance Free' Type c where
-  {-# SPECIALIZE instance Free' Type All #-}
-  {-# SPECIALIZE freeVars' :: Type -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Type -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Type -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Type -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' Type All #-}
+  -- {-# SPECIALIZE freeVars' :: Type -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Type -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Type -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Type -> FreeM VarMap #-}
   freeVars' (El s t) =
     ifM ((IgnoreNot ==) <$> asks feIgnoreSorts)
       {- then -} (freeVars' (s, t))
       {- else -} (freeVars' t)
 
 instance Free' Sort c where
-  {-# SPECIALIZE instance Free' Sort All #-}
-  {-# SPECIALIZE freeVars' :: Sort -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Sort -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Sort -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Sort -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' Sort All #-}
+  -- {-# SPECIALIZE freeVars' :: Sort -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Sort -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Sort -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Sort -> FreeM VarMap #-}
   freeVars' s =
     ifM ((IgnoreAll ==) <$> asks feIgnoreSorts) mempty $ {- else -}
     case s of
@@ -263,28 +263,28 @@ instance Free' Sort c where
       DLub s1 s2 -> go WeaklyRigid $ freeVars' (s1, s2)
 
 instance Free' Level c where
-  {-# SPECIALIZE instance Free' Level All #-}
-  {-# SPECIALIZE freeVars' :: Level -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Level -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Level -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Level -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' Level All #-}
+  -- {-# SPECIALIZE freeVars' :: Level -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Level -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Level -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Level -> FreeM VarMap #-}
   freeVars' (Max as) = freeVars' as
 
 instance Free' PlusLevel c where
-  {-# SPECIALIZE instance Free' PlusLevel All #-}
-  {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' PlusLevel All #-}
+  -- {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: PlusLevel -> FreeM VarMap #-}
   freeVars' ClosedLevel{} = mempty
   freeVars' (Plus _ l)    = freeVars' l
 
 instance Free' LevelAtom c where
-  {-# SPECIALIZE instance Free' LevelAtom All #-}
-  {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' LevelAtom All #-}
+  -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM VarMap #-}
   freeVars' l = case l of
     MetaLevel _ vs   -> go Flexible $ freeVars' vs
     NeutralLevel _ v -> freeVars' v
@@ -292,88 +292,88 @@ instance Free' LevelAtom c where
     UnreducedLevel v -> freeVars' v
 
 instance Free' a c => Free' [a] c where
-  {-# SPECIALIZE instance Free' a All => Free' [a] All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => [a] -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => [a] -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => [a] -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => [a] -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' [a] All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => [a] -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => [a] -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => [a] -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => [a] -> FreeM VarMap #-}
   freeVars' = foldMap freeVars'
 
 instance Free' a c => Free' (Maybe a) c where
-  {-# SPECIALIZE instance Free' a All => Free' (Maybe a) All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => Maybe a -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => Maybe a -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => Maybe a -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => Maybe a -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' (Maybe a) All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => Maybe a -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => Maybe a -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => Maybe a -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Maybe a -> FreeM VarMap #-}
   freeVars' = foldMap freeVars'
 
 instance (Free' a c, Free' b c) => Free' (a,b) c where
-  {-# SPECIALIZE instance (Free' a All, Free' b All) => Free' (a,b) All #-}
-  {-# SPECIALIZE freeVars' :: (Free' a Any, Free' b Any) => (a,b) -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: (Free' a All, Free' b All) => (a,b) -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: (Free' a VarSet, Free' b VarSet) => (a,b) -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: (Free' a VarMap, Free' b VarMap) => (a,b) -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance (Free' a All, Free' b All) => Free' (a,b) All #-}
+  -- {-# SPECIALIZE freeVars' :: (Free' a Any, Free' b Any) => (a,b) -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: (Free' a All, Free' b All) => (a,b) -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: (Free' a VarSet, Free' b VarSet) => (a,b) -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: (Free' a VarMap, Free' b VarMap) => (a,b) -> FreeM VarMap #-}
   freeVars' (x,y) = freeVars' x `mappend` freeVars' y
 
 instance Free' a c => Free' (Elim' a) c where
-  {-# SPECIALIZE instance Free' a All => Free' (Elim' a) All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => Elim' a -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => Elim' a -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => Elim' a -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => Elim' a -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' (Elim' a) All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => Elim' a -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => Elim' a -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => Elim' a -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Elim' a -> FreeM VarMap #-}
   freeVars' (Apply a) = freeVars' a
   freeVars' (Proj{} ) = mempty
 
 instance Free' a c => Free' (Arg a) c where
-  {-# SPECIALIZE instance Free' a All => Free' (Arg a) All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => Arg a -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => Arg a -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => Arg a -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => Arg a -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' (Arg a) All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => Arg a -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => Arg a -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => Arg a -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Arg a -> FreeM VarMap #-}
   freeVars' a = goRel (getRelevance a) $ freeVars' $ unArg a
 
 instance Free' a c => Free' (Dom a) c where
-  {-# SPECIALIZE instance Free' a All => Free' (Dom a) All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => Dom a -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => Dom a -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => Dom a -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => Dom a -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' (Dom a) All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => Dom a -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => Dom a -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => Dom a -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Dom a -> FreeM VarMap #-}
   freeVars' = freeVars' . unDom
 
 instance Free' a c => Free' (Abs a) c where
-  {-# SPECIALIZE instance Free' a All => Free' (Abs a) All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => Abs a -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => Abs a -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => Abs a -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => Abs a -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' (Abs a) All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => Abs a -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => Abs a -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => Abs a -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Abs a -> FreeM VarMap #-}
   freeVars' (Abs   _ b) = bind $ freeVars' b
   freeVars' (NoAbs _ b) = freeVars' b
 
 instance Free' a c => Free' (Tele a) c where
-  {-# SPECIALIZE instance Free' a All => Free' (Tele a) All #-}
-  {-# SPECIALIZE freeVars' :: Free' a Any => Tele a -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Free' a All => Tele a -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarSet => Tele a -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Free' a VarMap => Tele a -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' a All => Free' (Tele a) All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a Any => Tele a -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a All => Tele a -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarSet => Tele a -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Tele a -> FreeM VarMap #-}
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
 instance Free' ClauseBody c where
-  {-# SPECIALIZE instance Free' ClauseBody All #-}
-  {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' ClauseBody All #-}
+  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarMap #-}
   freeVars' (Body t)   = freeVars' t
   freeVars' (Bind b)   = freeVars' b
   freeVars'  NoBody    = mempty
 
 instance Free' Clause c where
-  {-# SPECIALIZE instance Free' Clause All #-}
-  {-# SPECIALIZE freeVars' :: Clause -> FreeM Any #-}
-  {-# SPECIALIZE freeVars' :: Clause -> FreeM All #-}
-  {-# SPECIALIZE freeVars' :: Clause -> FreeM VarSet #-}
-  {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
+  -- {-# SPECIALIZE instance Free' Clause All #-}
+  -- {-# SPECIALIZE freeVars' :: Clause -> FreeM Any #-}
+  -- {-# SPECIALIZE freeVars' :: Clause -> FreeM All #-}
+  -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarSet #-}
+  -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
   freeVars' = freeVars' . clauseBody
 
 -- -}
