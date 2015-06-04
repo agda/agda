@@ -185,10 +185,8 @@ match' ((c, es, patch) : stack) = do
               NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
 
 -- If we reach the empty stack, then pattern matching was incomplete
-match' [] = do  {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-  caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
-    error $ "Incomplete pattern matching when applying " ++ show f
-
+match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
+  __IMPOSSIBLE__
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
