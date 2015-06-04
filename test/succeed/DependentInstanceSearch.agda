@@ -47,11 +47,11 @@ instance
   EqNat : Eq Nat
   EqNat = record { _==_ = eqNat }
 
-  EqVec : ∀ {A n} {{EqA : Eq A}} → Eq (Vec A n)
-  EqVec {A} = record { _==_ = eqVec }
+  EqVec : ∀ {A n} → Eq A → Eq (Vec A n)
+  EqVec {A} _ = record { _==_ = eqVec }
 
-  EqSigma : ∀ {A B} {{EqA : Eq A}} {{EqB : ∀ {x} → Eq (B x)}} → Eq (Σ A B)
-  EqSigma {A} {B} = record { _==_ = eqSigma }
+  EqSigma : ∀ {A B} → Eq A → (∀ {x} → Eq (B x)) → Eq (Σ A B)
+  EqSigma {A} {B} _ _ = record { _==_ = eqSigma }
 
 cmpSigma : (xs ys : Σ Nat (Vec Nat)) → Maybe (xs ≡ ys)
 cmpSigma xs ys = xs == ys

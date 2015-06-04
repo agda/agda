@@ -1433,7 +1433,7 @@ checkArguments DontExpandLast DontExpandInstanceArguments _ [] t0 t1 = return ([
 checkArguments exh    expandIFS r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ lift $ do
       t1' <- unEl <$> reduce t1
-      implicitArgs (-1) (expand t1') t0
+      implicitArgs (-1) (expand t1') ExplicitStayExplicit t0
     where
       expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden &&
                                             exh == ExpandLast
@@ -1463,7 +1463,7 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
           -- insert a hidden argument if arg is not hidden or has different name
           -- insert an instance argument if arg is not instance  or has different name
           expand hy        y = hy /= hx || maybe False (y /=) mx
-      (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
+      (nargs, t) <- lift $ implicitNamedArgs (-1) expand ExplicitStayExplicit t0
       -- Separate names from args.
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
           xs        = catMaybes mxs
@@ -1618,7 +1618,7 @@ inferExprForWith e = do
         case res of
           Nothing -> return (v, t)
           Just{}  -> do
-            (args, t1) <- implicitArgs (-1) (NotHidden /=) t
+            (args, t1) <- implicitArgs (-1) (NotHidden /=) ExplicitStayExplicit t
             return (v `apply` args, t1)
       _ -> return (v, t)
 

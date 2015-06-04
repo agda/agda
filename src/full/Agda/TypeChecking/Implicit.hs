@@ -25,32 +25,38 @@ import Agda.Utils.Tuple
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | @implicitArgs n expand t@ generates up to @n@ implicit arguments
+-- | @implicitArgs n expand eti t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
---   and @expand@ holds on the hiding info of its domain.
-implicitArgs :: Int -> (Hiding -> Bool) -> Type -> TCM (Args, Type)
-implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
-  implicitNamedArgs n (\ h x -> expand h) t
+--   and @expand@ holds on the hiding info of its domain. If @eti@ is
+--   @ExplicitToInstance@, then explicit arguments are considered as instance
+--   arguments.
+implicitArgs :: Int -> (Hiding -> Bool) -> ExplicitToInstance -> Type -> TCM (Args, Type)
+implicitArgs n expand eti t = mapFst (map (fmap namedThing)) <$> do
+  implicitNamedArgs n (\ h x -> expand h) eti t
 
--- | @implicitNamedArgs n expand t@ generates up to @n@ named implicit arguments
+-- | @implicitNamedArgs n expand eti t@ generates up to @n@ named implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
---   and @expand@ holds on the hiding and name info of its domain.
-implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> Type -> TCM (NamedArgs, Type)
-implicitNamedArgs 0 expand t0 = return ([], t0)
-implicitNamedArgs n expand t0 = do
+--   and @expand@ holds on the hiding and name info of its domain. If @eti@ is
+--   @ExplicitToInstance@, then explicit arguments are considered as instance
+--   arguments.
+implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> ExplicitToInstance -> Type -> TCM (NamedArgs, Type)
+implicitNamedArgs 0 expand eti t0 = return ([], t0)
+implicitNamedArgs n expand eti t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
       Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
-          when (getHiding info == Instance) $ reportSDoc "tc.term.args.ifs" 15 $
+          when (getHiding info == Instance || (getHiding info == NotHidden && eti == ExplicitToInstance)) $
+            reportSDoc "tc.term.args.ifs" 15 $
             text "inserting instance meta for type" <+> prettyTCM a
           v  <- applyRelevanceToContext (getRelevance info) $
                 newMeta (getHiding info) (argNameToString x) a
           let narg = Arg info (Named (Just $ unranged x) v)
-          mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
+          mapFst (narg :) <$> implicitNamedArgs (n-1) expand eti (absApp b v)
       _ -> return ([], t0')
   where
     newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck
     newMeta Instance = initializeIFSMeta
+    newMeta NotHidden | eti == ExplicitToInstance = initializeIFSMeta
     newMeta _        = __IMPOSSIBLE__
 
 ---------------------------------------------------------------------------

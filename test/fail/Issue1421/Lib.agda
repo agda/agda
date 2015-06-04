@@ -69,8 +69,8 @@ postulate
 ↗-⊑-reflexivity {x = f} = ↗-monotonic f
 
 instance
-  ↗-PartialOrder : ∀ {ℓ₁ ℓ₁' ℓ₂ ℓ₂'} {α : Set ℓ₁} {{α-PO : PartialOrder ℓ₁' α}} {β : Set ℓ₂} {{β-PO : PartialOrder ℓ₂' β}} → PartialOrder (ℓ₁ l⊔ ℓ₁' l⊔ ℓ₂') (α ↗ β)
-  ↗-PartialOrder = record
+  ↗-PartialOrder : ∀ {ℓ₁ ℓ₁' ℓ₂ ℓ₂'} {α : Set ℓ₁} (α-PO : PartialOrder ℓ₁' α) {β : Set ℓ₂} (β-PO : PartialOrder ℓ₂' β) → PartialOrder (ℓ₁ l⊔ ℓ₁' l⊔ ℓ₂') (α ↗ β)
+  ↗-PartialOrder _ _ = record
     { _⊑_ = _↗-⊑_
     ; ⊑-reflexivity = λ {x} → ↗-⊑-reflexivity {x = x}
     ; ⊑-antisymmetry = ↗-⊑-antisymmetry

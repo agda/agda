@@ -34,24 +34,24 @@ instance
     aux (suc n) (suc m) = aux n m
     aux _ _ = false
 
-  eq-Maybe : {A : Set} {{_ : Eq A}} → Eq (Maybe A)
-  eq-Maybe {A} = eq aux  where
+  eq-Maybe : {A : Set} → Eq A → Eq (Maybe A)
+  eq-Maybe {A} _ = eq aux  where
 
     aux : Maybe A → Maybe A → Bool
     aux Nothing Nothing = true
     aux (Just y) (Just z) = (y == z)
     aux _ _ = false
 
-  eq-List : {A : Set} {{_ : Eq A}} → Eq (List A)
-  eq-List {A} {{_}} = eq aux  where
+  eq-List : {A : Set} → Eq A → Eq (List A)
+  eq-List {A} _ = eq aux  where
 
     aux : List A → List A → Bool
     aux [] [] = true
     aux (x ∷ l) (y ∷ l') = (x == y) && (aux l l')
     aux _ _ = false
 
-  eq-× : {A B : Set} {{_ : Eq A}} {{_ : Eq B}} → Eq (A × B)
-  eq-× {A} {B} = eq (λ x y → (proj₁ x == proj₁ y) && (proj₂ x == proj₂ y))
+  eq-× : {A B : Set} → Eq A → Eq B → Eq (A × B)
+  eq-× {A} {B} _ _ = eq (λ x y → (proj₁ x == proj₁ y) && (proj₂ x == proj₂ y))
 
 test₂ : Bool
 test₂ = (3 == 4)

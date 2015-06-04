@@ -1,7 +1,0 @@
-digraph dependencies {
-   m1[label="Common.Issue481ParametrizedModule"];
-   m2[label="Issue481Record"];
-   m0[label="Issue481"];
-   m0 -> m1;
-   m0 -> m2;
-}

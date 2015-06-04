@@ -1732,6 +1732,11 @@ data ExpandInstances
   | DontExpandInstanceArguments
     deriving (Eq)
 
+data ExplicitToInstance
+  = ExplicitToInstance    -- ^ Explicit arguments are considered as instance arguments
+  | ExplicitStayExplicit
+    deriving (Eq)
+
 ---------------------------------------------------------------------------
 -- * Type checking errors
 ---------------------------------------------------------------------------

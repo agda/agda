@@ -347,7 +347,7 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
               ]
 
             -- Apply hidden and instance arguments (recursive inst. search!).
-            (args, t'') <- implicitArgs (-1) notVisible t'
+            (args, t'') <- implicitArgs (-1) (\_ -> True) ExplicitToInstance t'
 
             reportSDoc "tc.instance" 20 $
               text "instance search: checking" <+> prettyTCM t''
