@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -22,6 +23,8 @@ import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
 import Data.Hashable
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -45,7 +48,7 @@ data Name = Name { nameId          :: NameId
                  , nameBindingSite :: Range
                  , nameFixity      :: Fixity'
                  }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -56,28 +59,28 @@ data Name = Name { nameId          :: NameId
 data QName = QName { qnameModule :: ModuleName
                    , qnameName   :: Name
                    }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 -- | Something preceeded by a qualified name.
 data QNamed a = QNamed
   { qname  :: QName
   , qnamed :: a
   }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 -- | A module name is just a qualified name.
 --
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable, Generic)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool

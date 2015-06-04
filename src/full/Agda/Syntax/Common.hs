@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -20,6 +21,8 @@ import Data.Monoid
 import Data.Traversable
 import Data.Typeable (Typeable)
 
+import GHC.Generics (Generic)
+
 import Test.QuickCheck hiding (Small)
 
 import Agda.Syntax.Position
@@ -36,7 +39,7 @@ import Agda.Utils.Impossible
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Generic, Show, Eq, Ord)
 
 instance KillRange Delayed where
   killRange = id
@@ -46,7 +49,7 @@ instance KillRange Delayed where
 ---------------------------------------------------------------------------
 
 data Induction = Inductive | CoInductive
-  deriving (Typeable, Eq, Ord)
+  deriving (Typeable, Generic, Eq, Ord)
 
 instance Show Induction where
   show Inductive   = "inductive"
@@ -70,7 +73,7 @@ instance CoArbitrary Induction where
 ---------------------------------------------------------------------------
 
 data Hiding  = Hidden | Instance | NotHidden
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Generic, Show, Eq, Ord)
 
 -- | 'Hiding' is an idempotent partial monoid, with unit 'NotHidden'.
 --   'Instance' and 'NotHidden' are incompatible.
@@ -87,7 +90,7 @@ instance KillRange Hiding where
 
 -- | Decorating something with 'Hiding' information.
 data WithHiding a = WithHiding Hiding a
-  deriving (Typeable, Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration WithHiding where
   traverseF f (WithHiding h a) = WithHiding h <$> f a
@@ -167,7 +170,7 @@ makeInstance = setHiding Instance
 --   @A@ is big in constructor @nil@ as the sort @Set1@ of its type @Set@
 --   is bigger than the sort @Set@ of the data type @List@.
 data Big = Big | Small
-  deriving (Typeable, Show, Eq, Enum, Bounded)
+  deriving (Typeable, Generic, Show, Eq, Enum, Bounded)
 
 instance Ord Big where
   Big <= Small = False
@@ -189,7 +192,7 @@ data Relevance
                 --   is unused in the definition.  It can be skipped during
                 --   equality checking but should be mined for solutions
                 --   of meta-variables with relevance 'UnusedArg'
-    deriving (Typeable, Show, Eq)
+    deriving (Typeable, Generic, Show, Eq)
 
 allRelevances :: [Relevance]
 allRelevances =
@@ -332,7 +335,7 @@ data ArgInfo c = ArgInfo
   { argInfoHiding    :: Hiding
   , argInfoRelevance :: Relevance
   , argInfoColors    :: [c]
-  } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
+  } deriving (Typeable, Generic, Eq, Ord, Functor, Foldable, Traversable, Show)
 
 instance KillRange c => KillRange (ArgInfo c) where
   killRange (ArgInfo h r cs) = killRange3 ArgInfo h r cs
@@ -393,7 +396,7 @@ defaultArgInfo =  ArgInfo { argInfoHiding    = NotHidden
 data Arg c e  = Arg
   { argInfo :: ArgInfo c
   , unArg :: e
-  } deriving (Typeable, Ord, Functor, Foldable, Traversable)
+  } deriving (Typeable, Generic, Ord, Functor, Foldable, Traversable)
 
 instance Decoration (Arg c) where
   traverseF f (Arg ai a) = Arg ai <$> f a
@@ -514,7 +517,7 @@ instance Underscore Doc where
 data Dom c e = Dom
   { domInfo   :: ArgInfo c
   , unDom     :: e
-  } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+  } deriving (Typeable, Generic, Eq, Ord, Functor, Foldable, Traversable)
 
 instance Decoration (Dom c) where
   traverseF f (Dom ai a) = Dom ai <$> f a
@@ -560,7 +563,7 @@ data Named name a =
     Named { nameOf     :: Maybe name
           , namedThing :: a
           }
-    deriving (Eq, Ord, Typeable, Functor, Foldable, Traversable)
+    deriving (Eq, Ord, Typeable, Generic, Functor, Foldable, Traversable)
 
 -- | Standard naming.
 type Named_ = Named RString
@@ -611,7 +614,7 @@ data Ranged a = Ranged
   { rangeOf     :: Range
   , rangedThing :: a
   }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 -- | Thing with no range info.
 unranged :: a -> Ranged a
@@ -658,24 +661,24 @@ type RString = Ranged RawName
 -- | Functions can be defined in both infix and prefix style. See
 --   'Agda.Syntax.Concrete.LHS'.
 data IsInfix = InfixDef | PrefixDef
-    deriving (Typeable, Show, Eq, Ord)
+    deriving (Typeable, Generic, Show, Eq, Ord)
 
 -- | Access modifier.
 data Access = PrivateAccess | PublicAccess
             | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
                              --   Used for qualified constructors.
-    deriving (Typeable, Show, Eq, Ord)
+    deriving (Typeable, Generic, Show, Eq, Ord)
 
 -- | Abstract or concrete
 data IsAbstract = AbstractDef | ConcreteDef
-    deriving (Typeable, Show, Eq, Ord)
+    deriving (Typeable, Generic, Show, Eq, Ord)
 
 instance KillRange IsAbstract where
   killRange = id
 
 -- | Is this definition eligible for instance search?
 data IsInstance = InstanceDef | NotInstanceDef
-    deriving (Typeable, Show, Eq, Ord)
+    deriving (Typeable, Generic, Show, Eq, Ord)
 
 type Nat    = Int
 type Arity  = Nat
@@ -683,7 +686,7 @@ type Arity  = Nat
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId Integer Integer
-    deriving (Eq, Ord, Typeable)
+    deriving (Eq, Ord, Typeable, Generic)
 
 instance KillRange NameId where
   killRange = id
@@ -731,7 +734,7 @@ data TerminationCheck m
     -- ^ Treat as terminating (unsafe).  Same effect as 'NoTerminationCheck'.
   | TerminationMeasure !Range m
     -- ^ Skip termination checking but use measure instead.
-    deriving (Typeable, Show, Eq, Functor)
+    deriving (Typeable, Generic, Show, Eq, Functor)
 
 instance KillRange m => KillRange (TerminationCheck m) where
   killRange (TerminationMeasure _ m) = TerminationMeasure noRange (killRange m)
