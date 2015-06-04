@@ -90,6 +90,13 @@ updateLast f [] = []
 updateLast f [a] = [f a]
 updateLast f (a : as@(_ : _)) = a : updateLast f as
 
+-- | Update nth element of a list, if it exists.
+--   Precondition: the index is >= 0.
+updateAt :: Int -> (a -> a) -> [a] -> [a]
+updateAt _ f [] = []
+updateAt 0 f (a : as) = f a : as
+updateAt n f (a : as) = updateAt (n-1) f as
+
 -- | A generalized version of @partition@.
 --   (Cf. @mapMaybe@ vs. @filter@).
 mapEither :: (a -> Either b c) -> [a] -> ([b],[c])

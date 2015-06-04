@@ -1,0 +1,3 @@
+Issue1523d.agda:9,29-38
+Possibly empty type of sizes  (Size< i)
+when checking that the expression λ l → f l has type Size< i → A
