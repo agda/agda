@@ -33,8 +33,6 @@ module Agda.TypeChecking.Serialise
   )
   where
 
-import GHC.Generics (Generic)
-
 import Control.Applicative
 import Control.Arrow (first, second)
 import Control.DeepSeq
@@ -42,6 +40,7 @@ import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+
 import Data.Array.IArray
 import Data.Word
 import qualified Data.ByteString.Lazy as L
@@ -60,7 +59,10 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+
 import qualified Codec.Compression.GZip as G
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Compiler.Epic.Interface as Epic
 
@@ -287,7 +289,7 @@ encode a = do
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      returnForcedByteString $ B.encode (root, nL, sL, iL, dL)
+      returnForcedByteString $ B.encode (root, nL, sL, iL, dL, qL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -419,34 +421,24 @@ decodeHashes s
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 
-
-deriving instance Generic NamePart
-deriving instance Generic C.Name
-deriving instance Generic NameId
--- deriving instance Generic AbsolutePath  -- in Agda.Utils.FileName
-deriving instance Generic a => Generic (Position' a)
-deriving instance Generic a => Generic (Interval' a)
-deriving instance Generic a => Generic (Range' a)
-deriving instance Generic Associativity
-deriving instance (Generic a, Generic b) => Generic (Common.Arg a b)
-deriving instance (Generic a, Generic b) => Generic (Common.Named a b)
-deriving instance Generic GenPart
-deriving instance Generic Fixity
-deriving instance Generic Fixity'
-deriving instance Generic A.Name
-deriving instance Generic A.ModuleName
-deriving instance Generic A.QName
-
+-- Andreas, 2015-06-04 AIM XXI: Memoize A.QName
+-- The following instances of Binary allow for a direct serialization of A.QName
+-- this is needed for serialization of HashTable A.QName Int32.
+instance Binary AbsolutePath
 instance Binary NamePart
 instance Binary C.Name
 instance Binary NameId
-instance Binary AbsolutePath
-instance (Binary a) => Binary (Position' a)
-instance (Binary a) => Binary (Interval' a)
-instance (Binary a) => Binary (Range' a)
 instance Binary Associativity
-instance (Binary a, Binary b) => Binary (Common.Arg a b)
-instance (Binary a, Binary b) => Binary (Common.Named a b)
+instance (Generic a, Binary a) => Binary (Position' a)
+instance (Generic a, Binary a) => Binary (Interval' a)
+instance (Generic a, Binary a) => Binary (Range' a)
+instance (Generic a, Binary a) => Binary (Common.Ranged a)
+instance (Generic a, Binary a) => Binary (Common.ArgInfo a)
+instance (Generic a, Generic b, Binary a, Binary b) => Binary (Common.Arg a b)
+instance (Generic a, Generic b, Binary a, Binary b) => Binary (Common.Named a b)
+instance Binary Common.Big
+instance Binary Common.Relevance
+instance Binary Common.Hiding
 instance Binary GenPart
 instance Binary Fixity
 instance Binary Fixity'
