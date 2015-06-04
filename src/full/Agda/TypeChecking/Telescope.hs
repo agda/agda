@@ -31,6 +31,7 @@ import Agda.Utils.Impossible
 
 data OutputTypeName
   = OutputTypeName QName
+  | OutputTypeVar
   | OutputTypeNameNotYetKnown
   | NoOutputTypeName
 
@@ -43,7 +44,7 @@ getOutputTypeName t = do
       -- Possible base types:
       Def n _  -> return $ OutputTypeName n
       Sort{}   -> return NoOutputTypeName
-      Var{}    -> return NoOutputTypeName
+      Var n _  -> return OutputTypeVar
       -- Not base types:
       Con{}    -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
@@ -220,7 +221,8 @@ addTypedInstance x t = do
   case n of
     OutputTypeName n -> addNamedInstance x n
     OutputTypeNameNotYetKnown -> addUnknownInstance x
-    NoOutputTypeName -> typeError $ GenericError $ "Terms marked as eligible for instance search should end with a name"
+    NoOutputTypeName -> typeError $ WrongInstanceDeclaration
+    OutputTypeVar -> typeError $ WrongInstanceDeclaration
 
 resolveUnknownInstanceDefs :: TCM ()
 resolveUnknownInstanceDefs = do

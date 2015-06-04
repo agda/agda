@@ -259,6 +259,7 @@ errorString err = case err of
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
   WrongHidingInLHS{}                       -> "WrongHidingInLHS"
   WrongHidingInLambda{}                    -> "WrongHidingInLambda"
+  WrongInstanceDeclaration{}               -> "WrongInstanceDeclaration"
   WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
   WrongNamedArgument{}                     -> "WrongNamedArgument"
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
@@ -364,6 +365,8 @@ instance PrettyTCM TypeError where
 
     WrongHidingInApplication t ->
       fwords "Found an implicit application where an explicit application was expected"
+
+    WrongInstanceDeclaration -> fwords "Terms marked as eligible for instance search should end with a name"
 
     HidingMismatch h h' -> fwords $
       "Expected " ++ verbalize (Indefinite h') ++ " argument, but found " ++

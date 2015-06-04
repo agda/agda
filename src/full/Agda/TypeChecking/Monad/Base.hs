@@ -1873,6 +1873,8 @@ data TypeError
             -- ^ A function is applied to a hidden named argument it does not have.
         | WrongIrrelevanceInLambda Type
             -- ^ Expected a relevant function and found an irrelevant lambda.
+        | WrongInstanceDeclaration
+            -- ^ A term is declared as an instance but it’s not allowed
         | HidingMismatch Hiding Hiding
             -- ^ The given hiding does not correspond to the expected hiding.
         | RelevanceMismatch Relevance Relevance

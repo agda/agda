@@ -523,6 +523,46 @@ Other changes
 * Unicode ellipsis character is allowed for the ellipsis token ... in
   `with` expressions.
 
+* Instance search
+
+  Performance has been improved, recursive instance search which was previously
+  exponential in the depth is now only quadratic.
+
+
+  Constructors of records and datatypes are not anymore automatically considered
+  as instances, you have to do so explicitely, for instance:
+
+    -- only [b] is an instance of D
+    data D : Set where
+      a : D
+      instance
+        b : D
+      c : D
+
+    -- the constructor is now an instance
+    record tt : Set where
+      instance constructor tt
+
+
+  Instance search can now find arguments in variable types (but such candidates can
+  only be lambda-bound variables, they can’t be declared as instances)
+
+    module _ {A : Set} (P : A → Set) where
+
+      postulate
+        bla : {x : A} {{_ : P x}} → Set → Set
+
+      -- Works, the instance argument is found in the context
+      test :  {x : A} {{_ : P x}} → Set → Set
+      test B = bla B
+
+      -- Still forbidden, because [P] could be instantiated later to anything
+      instance
+       postulate
+        forbidden : {x : A} → P x
+
+
+
 Goal and error display
 ======================
 

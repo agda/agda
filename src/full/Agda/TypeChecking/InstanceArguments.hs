@@ -55,6 +55,7 @@ initialIFSCandidates t = do
   case otn of
     NoOutputTypeName -> typeError $ GenericError $ "Instance search can only be used to find elements in a named type"
     OutputTypeNameNotYetKnown -> return Nothing
+    OutputTypeVar -> return $ Just cands1
     OutputTypeName n -> do
       cands2 <- getScopeDefs n
       return $ Just $ cands1 ++ cands2
@@ -264,8 +265,9 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
       reportSDoc "tc.instance.rigid" 70 $ text "class args:" <+> prettyTCM tel $$
                                           nest 2 (text $ "used: " ++ show (varOccs tel))
       areThereNonRigidMetaArgs [ arg | (o, arg) <- zip (varOccs tel) args, not $ rigid o ]
+    Var n args -> return Nothing  -- TODO check what’s the right thing to do, doing the same
+                                  -- thing as above makes some examples fail
     Sort{}   -> __IMPOSSIBLE__
-    Var{}    -> __IMPOSSIBLE__
     Con{}    -> __IMPOSSIBLE__
     Lam{}    -> __IMPOSSIBLE__
     Lit{}    -> __IMPOSSIBLE__
