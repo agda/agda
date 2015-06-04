@@ -6,9 +6,12 @@ module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
 
+import Control.Monad.Writer
+
 import Data.Function
 import Data.List hiding (null)
 import qualified Data.Map as Map
+import Data.Monoid
 
 import Agda.Interaction.Options
 
@@ -26,7 +29,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
-import Agda.Utils.List
+import Agda.Utils.List as List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -75,38 +78,79 @@ checkSizeNeverZero u = do
         -- neutral sizes cannot be guaranteed > 0
         _ -> return False
 
--- | A size variable is never zero if it is the strict upper bound of
---   some other size variable in context.
---   Eg. @i : Size, j : Size< i@ |- i is never zero.
+-- -- | A size variable is never zero if it is the strict upper bound of
+-- --   some other size variable in context.
+-- --   Eg. @i : Size, j : Size< i@ |- i is never zero.
+-- --   Throws a 'patternViolation' if undecided.
+-- checkSizeVarNeverZero :: Int -> TCM Bool
+-- checkSizeVarNeverZero i = do
+--   -- Looking for a variable j : Size< i, we can restrict to the last i
+--   -- entries, as this variable necessarily has been defined later than i.
+--   doms <- take i <$> getContext
+--   -- We raise each type to make sense in the current context.
+--   let ts = zipWith raise [1..] $ map (snd . unDom) doms
+--   reportSDoc "tc.size" 15 $ sep
+--     [ text "checking that size " <+> prettyTCM (var i) <+> text " is never 0"
+--     , text "in context " <+> do sep $ map prettyTCM ts
+--     ]
+--   foldr f (return False) ts
+--   where
+--   f t cont = do
+--     -- If we encounter a blocked type in the context, we cannot
+--     -- definitely say no.
+--     let yes     = return True
+--         no      = cont
+--         perhaps = cont >>= \ res -> if res then return res else patternViolation
+--     ifBlockedType t (\ _ _ -> perhaps) $ \ t -> do
+--       caseMaybeM (isSizeType t) no $ \ b -> do
+--         case b of
+--           BoundedNo -> no
+--           BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ u -> do
+--             case ignoreSharing u of
+--                Var i' [] | i == i' -> yes
+--                _ -> no
+
+
+-- | Checks that a size variable is ensured to be @> 0@.
+--   E.g. variable @i@ cannot be zero in context
+--   @(i : Size) (j : Size< ↑ ↑ i) (k : Size< j) (k' : Size< k)@.
 --   Throws a 'patternViolation' if undecided.
 checkSizeVarNeverZero :: Int -> TCM Bool
 checkSizeVarNeverZero i = do
-  -- Looking for a variable j : Size< i, we can restrict to the last i
-  -- entries, as this variable necessarily has been defined later than i.
-  doms <- take i <$> getContext
-  -- We raise each type to make sense in the current context.
-  let ts = zipWith raise [1..] $ map (snd . unDom) doms
-  reportSDoc "tc.size" 15 $ sep
-    [ text "checking that size " <+> prettyTCM (var i) <+> text " is never 0"
-    , text "in context " <+> do sep $ map prettyTCM ts
-    ]
-  foldr f (return False) ts
+  -- Looking for the minimal value for size variable i,
+  -- we can restrict to the last i
+  -- entries, as only these can contain i in an upper bound.
+  ts <- map (snd . unDom) . take i <$> getContext
+  -- If we encountered a blocking meta in the context, we cannot
+  -- say ``no'' for sure.
+  (n, Any meta) <- runWriterT $ minSizeVal' ts $ repeat 0
+  if n > 0 then return True else
+    if meta then patternViolation else return False
   where
-  f t cont = do
+  -- Compute the least valuation for size context ts above the
+  -- given valuation and return its last value.
+  minSizeVal' :: [Type] -> [Int] -> WriterT Any TCM Int
+  minSizeVal' _        []      = __IMPOSSIBLE__
+  minSizeVal' []       (n : _) = return n
+  minSizeVal' (t : ts) (n : ns) = do
+    -- n is the min. value for variable 0 which has type t.
+    let cont = minSizeVal' ts ns
+        perhaps = tell (Any True) >> cont
     -- If we encounter a blocked type in the context, we cannot
-    -- definitely say no.
-    let yes     = return True
-        no      = cont
-        perhaps = cont >>= \ res -> if res then return res else patternViolation
+    -- give a definite answer.
     ifBlockedType t (\ _ _ -> perhaps) $ \ t -> do
-      caseMaybeM (isSizeType t) no $ \ b -> do
+      caseMaybeM (liftTCM $ isSizeType t) cont $ \ b -> do
         case b of
-          BoundedNo -> no
+          BoundedNo -> cont
           BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ u -> do
-            case ignoreSharing u of
-               Var i' [] | i == i' -> yes
-               _ -> no
-
+            v <- liftTCM $ deepSizeView u
+            case v of
+              -- Variable 0 has bound @(< j + m)@
+              -- meaning that @minval(j) > n - m@, i.e., @minval(j) >= n+1-m@.
+              -- Thus, we update the min value for @j@ with function @(max (n+1-m))@.
+              DSizeVar j m -> minSizeVal' ts $ List.updateAt j (max $ n+1-m) ns
+              DSizeMeta{} -> perhaps
+              _ -> cont
 
 -- | Check whether a variable in the context is bounded by a size expression.
 --   If @x : Size< a@, then @a@ is returned.
