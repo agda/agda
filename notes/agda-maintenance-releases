@@ -62,14 +62,6 @@ followed:
 
     cabal configure && cabal haddock
 
-* Ensure that the Emacs mode can be compiled without errors or
-  warnings (except for the "cl package required at runtime" warning):
-
-    (cd src/data/emacs-mode && \
-    for file in *.el; do \
-        emacs --batch -L . -f batch-byte-compile $file; \
-        rm -f $(basename $file .el).elc; done)
-
 * Test compilation using cpp instead of cpphs:
 
     make install-bin CABAL_OPTS='-f -cpphs'
@@ -79,6 +71,10 @@ followed:
 
     make install
     make test
+
+  Note that "make install" invokes "agda-mode compile", which should
+  ensure that the Emacs mode can be compiled without errors or
+  warnings (except for the "cl package required at runtime" warning).
 
 * Build source distributions:
 
