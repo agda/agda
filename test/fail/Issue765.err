@@ -1,10 +1,9 @@
 Issue765.agda:63,11-15
 Cannot eliminate reflexive equation ⊥-elim = ⊥-elim of type
-[ Position (constC ((Shape ◃ Position) ⋆ X)) , Position ]₁
-(inj₁ m) →
+[ Position (constC (C ⋆ X)) , Position C ]₁ (inj₁ m) →
 μ
-((Shape (constC ((Shape ◃ Position) ⋆ X)) ⊎ Shape) ◃
- [ Position (constC ((Shape ◃ Position) ⋆ X)) , Position ]₁)
+((Shape (constC (C ⋆ X)) ⊎ Shape C) ◃
+ [ Position (constC (C ⋆ X)) , Position C ]₁)
 because K has been disabled.
 when checking that the pattern refl has type
 sup (inj₁ m) ⊥-elim ≡ sup (inj₁ n) ⊥-elim
