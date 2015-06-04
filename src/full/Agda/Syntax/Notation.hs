@@ -1,6 +1,7 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
+             DeriveGeneric,
              ScopedTypeVariables #-}
 
 {-| As a concrete name, a notation is a non-empty list of alternating 'IdPart's and holes.
@@ -22,6 +23,8 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Typeable (Typeable)
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -56,7 +59,7 @@ data GenPart
   | NormalHole (NamedArg () Int)
     -- ^ Argument is where the expression should go.
   | IdPart RawName
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Generic, Show, Eq, Ord)
 
 instance KillRange GenPart where
   killRange p = case p of

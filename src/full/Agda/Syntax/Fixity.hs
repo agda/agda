@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 
 {-| Definitions for fixity, precedence levels, and declared syntax.
@@ -15,6 +16,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable
 import Data.Typeable (Typeable)
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -35,11 +38,11 @@ data Fixity' = Fixity'
     { theFixity   :: Fixity
     , theNotation :: Notation
     }
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Generic, Show, Eq)
 
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
-  deriving (Functor, Foldable, Traversable, Typeable, Show)
+  deriving (Functor, Foldable, Traversable, Typeable, Generic, Show)
 
 -- | All the notation information related to a name.
 data NewNotation = NewNotation
@@ -53,7 +56,7 @@ data NewNotation = NewNotation
     -- ^ Associativity and precedence (fixity) of the names.
   , notation   :: Notation
     -- ^ Syntax associated with the names.
-  } deriving (Typeable, Show)
+  } deriving (Typeable, Generic, Show)
 
 -- | If an operator has no specific notation, then it is computed from
 -- its name.
@@ -126,7 +129,7 @@ mergeNotations = map (merge . fixFixities) . groupOn notation
 -- | Associativity.
 
 data Associativity = NonAssoc | LeftAssoc | RightAssoc
-   deriving (Eq, Ord, Show, Typeable)
+   deriving (Eq, Ord, Show, Typeable, Generic)
 
 -- | Fixity of operators.
 
@@ -135,7 +138,7 @@ data Fixity =
          , fixityLevel :: Integer
          , fixityAssoc :: Associativity
          }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 instance Eq Fixity where
   f1 == f2 = compare f1 f2 == EQ
@@ -168,7 +171,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
                 | LeftOperandCtx Fixity | RightOperandCtx Fixity
                 | FunctionCtx | ArgumentCtx | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
-    deriving (Show,Typeable)
+    deriving (Show, Typeable, Generic)
 
 
 -- | The precedence corresponding to a possibly hidden argument.
