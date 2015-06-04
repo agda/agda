@@ -56,14 +56,6 @@ followed:
 
     cabal configure && cabal haddock
 
-* Ensure that the Emacs mode can be compiled without errors or
-  warnings (except for the "cl package required at runtime" warning):
-
-    (cd src/data/emacs-mode && \
-    for file in *.el; do \
-        emacs --batch -L . -f batch-byte-compile $file; \
-        rm -f $(basename $file .el).elc; done)
-
 * Disable sharing by default. Note that this change induces some
   changes in the test suite.
 
@@ -79,6 +71,11 @@ followed:
 
     make install-bin CABAL_OPTS='-f -cpphs'
     make clean
+
+* Ensure that the Emacs mode can be compiled without errors or
+  warnings (except for the "cl package required at runtime" warning):
+
+    agda-mode compile
 
 * Run make test (and accept the updates the Agda version in the files
   test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).

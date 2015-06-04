@@ -9,6 +9,7 @@ import Control.Exception
 import Control.Monad
 import Data.Char
 import Data.List
+import Data.Maybe
 import Data.Version
 import Numeric
 import System.Directory
@@ -216,19 +217,27 @@ compileElispFiles = do
   dataDir <- (</> "emacs-mode") <$> getDataDir
   let elFiles = map (dataDir </>) emacsLispFiles
   elFiles <- filterM doesFileExist elFiles
-  exit <- rawSystem "emacs" $
-                    [ "--no-init-file", "--no-site-file"
-                    , "--directory", dataDir
-                    , "--batch"
-                    , "--eval"
-                    , "(progn \
-                         \(setq byte-compile-error-on-warn t) \
-                         \(byte-compile-disable-warning 'cl-functions) \
-                         \(batch-byte-compile))"
-                    ] ++ elFiles
-  unless (exit == ExitSuccess) $ do
-    informLn "Unable to compile Emacs Lisp files."
-    exitFailure
+  results <- mapM (compile dataDir) elFiles
+  case catMaybes results of
+    [] -> return ()
+    fs -> do
+      informLn "Unable to compile the following Emacs Lisp files:"
+      mapM_ (informLn . ("  " ++)) fs
+      exitFailure
+  where
+  compile dataDir f = do
+    exit <- rawSystem "emacs" $
+                      [ "--no-init-file", "--no-site-file"
+                      , "--directory", dataDir
+                      , "--batch"
+                      , "--eval"
+                      , "(progn \
+                           \(setq byte-compile-error-on-warn t) \
+                           \(byte-compile-disable-warning 'cl-functions) \
+                           \(batch-byte-compile))"
+                      , f
+                      ]
+    return $ if exit == ExitSuccess then Nothing else Just f
 
 ------------------------------------------------------------------------
 -- Helper functions
