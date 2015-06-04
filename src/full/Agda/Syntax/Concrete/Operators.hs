@@ -443,7 +443,8 @@ instance IsExpr Pattern where
     exprView e = case e of
         IdentP x         -> LocalV x
         AppP e1 e2       -> AppV e1 e2
-        OpAppP r d ns es -> OpAppV d ns ((map . fmap . fmap) Ordinary es)
+        OpAppP r d ns es -> OpAppV d ns ((map . fmap . fmap)
+                                           (NoPlaceholder . Ordinary) es)
         HiddenP _ e      -> HiddenArgV e
         InstanceP _ e    -> InstanceArgV e
         ParenP _ e       -> ParenV e
@@ -453,8 +454,12 @@ instance IsExpr Pattern where
         LocalV x       -> IdentP x
         AppV e1 e2     -> AppP e1 e2
         OpAppV d ns es -> let ess :: [NamedArg Pattern]
-                              ess = (map . fmap . fmap) (fromOrdinary __IMPOSSIBLE__) es
-                          in OpAppP (fuseRange d es) d ns ess
+                              ess = (map . fmap . fmap)
+                                      (\x -> case x of
+                                          Placeholder{}   -> __IMPOSSIBLE__
+                                          NoPlaceholder x -> fromOrdinary __IMPOSSIBLE__ x)
+                                      es
+                          in OpAppP (fuseRange d ess) d ns ess
         HiddenArgV e   -> HiddenP (getRange e) e
         InstanceArgV e -> InstanceP (getRange e) e
         ParenV e       -> ParenP (getRange e) e
@@ -793,7 +798,7 @@ fullParen' e = case exprView e of
                 Hidden    -> e2
                 Instance  -> e2
                 NotHidden -> fullParen' <$> e2
-    OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (map . fmap . fmap . fmap) fullParen' es
+    OpAppV x ns es -> par $ unExprView $ OpAppV x ns $ (map . fmap . fmap . fmap . fmap) fullParen' es
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV

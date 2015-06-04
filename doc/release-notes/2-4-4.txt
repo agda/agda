@@ -297,12 +297,12 @@ Operator syntax
 
   Sections are translated into lambda expressions. Examples:
 
-    _∸ 1              ↦  λ .section₀ → .section₀ ∸ 1
+    _∸ 1              ↦  λ section → section ∸ 1
 
-    if_then ⊤ else ⊥  ↦  λ .section₀ → if .section₀ then ⊤ else ⊥
+    if_then ⊤ else ⊥  ↦  λ section → if section then ⊤ else ⊥
 
-    if b then_else_   ↦  λ .section₀ .section₁ →
-                             if b then .section₀ else .section₁
+    if b then_else_   ↦  λ section section₁ →
+                             if b then section else section₁
 
   Operator sections have the same fixity as the underlying operator
   (except in cases like "if b then_else_", in which the section is

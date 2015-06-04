@@ -114,7 +114,7 @@ data CommandState = CommandState
     -- the file when it was last loaded.
   , optionsOnReload :: CommandLineOptions
     -- ^ Reset the options on each reload to these.
-  , oldInteractionScopes :: OldInteractionScopes
+  , oldInteractionScopes :: !OldInteractionScopes
     -- ^ We remember (the scope of) old interaction points to make it
     --   possible to parse and compute highlighting information for the
     --   expression that it got replaced by.

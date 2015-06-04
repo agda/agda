@@ -801,20 +801,29 @@ instance PrettyTCM TypeError where
         pretty' e = do
           p1 <- pretty_es
           p2 <- pretty e
-          pretty $ if show p1 == show p2 then unambiguous e else e
+          if show p1 == show p2 then unambiguous e else pretty e
 
-        unambiguous :: C.Expr -> C.Expr
-        unambiguous (C.OpApp r op _ xs) | all (isOrdinary . namedArg) xs
-            = foldl (C.App r) (C.Ident op) $ (map . fmap . fmap) fromOrdinary xs
-        unambiguous e = e
+        unambiguous :: C.Expr -> TCM Doc
+        unambiguous e@(C.OpApp r op _ xs)
+          | all (isOrdinary . namedArg) xs =
+            pretty $
+              foldl (C.App r) (C.Ident op) $
+                (map . fmap . fmap) fromOrdinary xs
+          | any (isPlaceholder . namedArg) xs =
+              pretty e <+> text "(section)"
+        unambiguous e = pretty e
 
-        isOrdinary :: C.OpApp e -> Bool
-        isOrdinary (C.Ordinary _) = True
-        isOrdinary _              = False
+        isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
+        isOrdinary (NoPlaceholder (C.Ordinary _)) = True
+        isOrdinary _                              = False
 
-        fromOrdinary :: C.OpApp e -> e
-        fromOrdinary (C.Ordinary e) = e
-        fromOrdinary _              = __IMPOSSIBLE__
+        fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
+        fromOrdinary (NoPlaceholder (C.Ordinary e)) = e
+        fromOrdinary _                              = __IMPOSSIBLE__
+
+        isPlaceholder :: MaybePlaceholder a -> Bool
+        isPlaceholder Placeholder{}   = True
+        isPlaceholder NoPlaceholder{} = False
 
     BadArgumentsToPatternSynonym x -> fsep $
       pwords "Bad arguments to pattern synonym " ++ [prettyTCM x]

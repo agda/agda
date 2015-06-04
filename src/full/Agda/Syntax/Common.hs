@@ -723,6 +723,29 @@ instance Hashable NameId where
 
 newtype Constr a = Constr a
 
+data Placeholder
+  = Beginning
+    -- ^ @_foo@.
+  | Middle
+    -- ^ @foo_bar@.
+  | End
+    -- ^ @foo_@.
+  deriving (Show, Eq, Ord)
+
+-- | Placeholders are used to represent the underscores in a section.
+data MaybePlaceholder e
+  = Placeholder Placeholder
+  | NoPlaceholder e
+  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
+
+instance HasRange a => HasRange (MaybePlaceholder a) where
+  getRange Placeholder{}     = noRange
+  getRange (NoPlaceholder e) = getRange e
+
+instance KillRange a => KillRange (MaybePlaceholder a) where
+  killRange p@Placeholder{}   = p
+  killRange (NoPlaceholder e) = killRange1 NoPlaceholder e
+
 ---------------------------------------------------------------------------
 -- * Interaction meta variables
 ---------------------------------------------------------------------------

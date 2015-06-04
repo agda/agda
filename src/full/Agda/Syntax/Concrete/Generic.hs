@@ -66,6 +66,11 @@ instance ExprLike a => ExprLike (Maybe a) where
   traverseExpr = traverse . traverseExpr
   foldExpr     = foldMap  . foldExpr
 
+instance ExprLike a => ExprLike (MaybePlaceholder a) where
+  mapExpr      = fmap     . mapExpr
+  traverseExpr = traverse . traverseExpr
+  foldExpr     = foldMap  . foldExpr
+
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
   mapExpr f      = mapEither (mapExpr f) (mapExpr f)
   traverseExpr f = traverseEither (traverseExpr f) (traverseExpr f)
