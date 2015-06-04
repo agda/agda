@@ -124,6 +124,9 @@ instance AddContext (Dom (String, Type)) where
   addContext = addContext . distributeF
   -- addContext dom = addContext (fst $ unDom dom, snd <$> dom)
 
+instance AddContext (Dom Type) where
+  addContext dom = addContext ("_", dom)
+
 instance AddContext Name where
   addContext x = addContext (x, dummyDom)
 
