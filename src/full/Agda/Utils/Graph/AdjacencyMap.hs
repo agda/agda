@@ -360,7 +360,7 @@ instance SemiRing E where
 -- | All tests.
 
 tests :: IO Bool
-tests = runTests "Agda.Utils.Graph"
+tests = runTests "Agda.Utils.Graph.AdjacencyMap"
 
     -- Make sure that the invariant is established/preserved.
   [ quickCheck' invariant'
