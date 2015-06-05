@@ -939,19 +939,7 @@ instance EmbPrj I.Term where
   icod_ ExtLam{}       = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icode1 8 a
   icod_ (Level    a  ) = icode1 9 a
-  icod_ (Shared p)     = do
-    h  <- asks termD
-    mi <- liftIO $ H.lookup h p
-    st <- asks termC
-    case mi of
-      Just i  -> liftIO $ do
-        modifyIORef' st $ over lensReuse (+ 1)
-        return i
-      Nothing -> do
-        liftIO $ modifyIORef' st $ over lensFresh (+1)
-        n <- icode (derefPtr p)
-        liftIO $ H.insert h p n
-        return n
+  icod_ (Shared p)     = icodeMemo termD termC p $ icode (derefPtr p)
 
   value r = vcase valu' r
     where
@@ -1535,6 +1523,28 @@ icodeN key = do
 
 -- icodeN :: [Int32] -> S Int32
 -- icodeN = icodeX nodeD nodeC
+
+-- | @icode@ only if thing has not seen before.
+icodeMemo
+  :: (Eq a, Ord a, Hashable a)
+  => (Dict -> HashTable a Int32)    -- ^ Memo structure for thing of key @a@.
+  -> (Dict -> IORef FreshAndReuse)  -- ^ Statistics.
+  -> a        -- ^ Key to the thing.
+  -> S Int32  -- ^ Fallback computation to encode the thing.
+  -> S Int32  -- ^ Encoded thing.
+icodeMemo getDict getCounter a icodeP = do
+    h  <- asks getDict
+    mi <- liftIO $ H.lookup h a
+    st <- asks getCounter
+    case mi of
+      Just i  -> liftIO $ do
+        modifyIORef' st $ over lensReuse (+ 1)
+        return i
+      Nothing -> do
+        liftIO $ modifyIORef' st $ over lensFresh (+1)
+        i <- icodeP
+        liftIO $ H.insert h a i
+        return i
 
 {-# INLINE vcase #-}
 -- | @vcase value ix@ decodes thing represented by @ix :: Int32@
