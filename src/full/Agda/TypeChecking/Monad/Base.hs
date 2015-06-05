@@ -155,6 +155,8 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
+  , stPostImportsDisplayForms :: !DisplayForms
+    -- ^ Display forms we add for imported identifiers
   , stPostCurrentModule       :: Maybe ModuleName
     -- ^ The current module is available after it has been type
     -- checked.
@@ -263,6 +265,7 @@ initPostScopeState = PostScopeState
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
+  , stPostImportsDisplayForms  = HMap.empty
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , [])
   , stPostStatistics           = Map.empty
@@ -395,6 +398,11 @@ stSignature :: Lens' Signature TCState
 stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
+
+stImportsDisplayForms :: Lens' DisplayForms TCState
+stImportsDisplayForms f s =
+  f (stPostImportsDisplayForms (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostImportsDisplayForms = x}}
 
 stCurrentModule :: Lens' (Maybe ModuleName) TCState
 stCurrentModule f s =
@@ -936,6 +944,7 @@ data Signature = Sig
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
+type DisplayForms = HashMap QName [Open DisplayForm]
 
 data Section = Section
       { secTelescope :: Telescope

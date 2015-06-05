@@ -381,8 +381,16 @@ addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeOpen df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
-  modifyImportedSignature add
-  modifySignature add
+  inCurrentSig <- isJust . HMap.lookup x . sigDefinitions <$> use stSignature
+  if inCurrentSig
+     then modifySignature add
+     else stImportsDisplayForms %= HMap.insertWith (++) x [d]
+
+getDisplayForms :: QName -> TCM [Open DisplayForm]
+getDisplayForms q = do
+  ds <- defDisplay <$> getConstInfo q
+  ds' <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
+  return $ ds ++ ds'
 
 canonicalName :: QName -> TCM QName
 canonicalName x = do

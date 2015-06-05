@@ -41,7 +41,7 @@ dtermToTerm dt = case dt of
 displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
 displayForm q vs = do
     -- Get display forms for name q.
-    odfs  <- (defDisplay <$> getConstInfo q) `catchError` \_ -> return []
+    odfs  <- getDisplayForms q `catchError` \_ -> return []
     -- Display debug info about the @Open@s.
     unless (null odfs) $ verboseS "tc.display.top" 100 $ do
       n <- getContextId
