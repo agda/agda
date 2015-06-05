@@ -13,8 +13,6 @@ import Agda.Syntax.Parser.Parser              as SyntPars   (tests)
 import Agda.Syntax.Position                   as SyntPosi   (tests)
 import Agda.Termination.CallGraph             as TermCall   (tests)
 import Agda.Termination.CallMatrix            as TermCM     (tests)
--- import Agda.Termination.Lexicographic         as TermLex    (tests)
--- import Agda.Termination.Matrix                as TermMatrix (tests)
 import Agda.Termination.Order                 as TermOrd    (tests)
 import Agda.Termination.Semiring              as TermRing   (tests)
 import Agda.Termination.SparseMatrix          as TermSparse (tests)
@@ -56,8 +54,6 @@ testSuite = runTests "QuickCheck test suite:"
   , SyntPosi.tests
   , TermCall.tests
   , TermCM.tests
---  , TermLex.tests
---  , TermMatrix.tests
   , TermOrd.tests
   , TermRing.tests
   , TermSparse.tests

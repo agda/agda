@@ -7,6 +7,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 module Agda.TypeChecking.SizedTypes.Parser where
 
 import Control.Applicative hiding (Const)
