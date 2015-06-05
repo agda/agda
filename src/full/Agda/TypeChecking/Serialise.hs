@@ -164,14 +164,16 @@ data Dict = Dict
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
   , termD        :: !(HashTable (Ptr Term) Int32)
-  , nameD        :: !(HashTable NameId Int32)
+  -- Andreas, Makoto, AIM XXI
+  -- Memoizing A.Name does not buy us much if we already memoize A.QName.
+  -- , nameD        :: !(HashTable NameId Int32)
   , qnameD       :: !(HashTable QNameId Int32)
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
-  , nameC        :: !(IORef FreshAndReuse)
+  -- , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int32)
   , collectStats :: Bool
@@ -195,8 +197,6 @@ emptyDict collectStats fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
-  <*> H.new
-  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -269,7 +269,7 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ _ _ nC sC iC dC tC nameC qnameC stats _ _) <- liftIO $
+    newD@(Dict nD sD iD dD _ _ nC sC iC dC tC qnameC stats _ _) <- liftIO $
       emptyDict collectStats fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
@@ -285,7 +285,6 @@ encode a = do
       statistics "Double"   dC
       statistics "Node"     nC
       statistics "Shared Term" tC
-      statistics "A.Name"   nameC
       statistics "A.QName"  qnameC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
@@ -685,7 +684,8 @@ instance EmbPrj A.ModuleName where
   value n = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
+  -- icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
+  icod_ (A.Name a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = malformed
 
