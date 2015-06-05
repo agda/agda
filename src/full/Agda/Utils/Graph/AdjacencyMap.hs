@@ -97,10 +97,6 @@ invariant g = connectedNodes `Set.isSubsetOf` nodes g
 edges :: Ord n => Graph n e -> [(n, n, e)]
 edges g = [ (from, to, w) | (from, es) <- Map.assocs (unGraph g)
                           , (to, w)    <- Map.assocs es ]
--- edges g = concatMap onNode $ Map.assocs $ unGraph g
---   where
---     onNode (from, es) = map (onNeighbour from) $ Map.assocs es
---     onNeighbour from (to, w) = (from, to, w)
 
 -- | All edges originating in the given nodes.
 --   (I.e., all outgoing edges for the given nodes.)
@@ -113,11 +109,6 @@ edgesFrom (Graph g) ns =
                 , m <- maybeToList $ Map.lookup n1 g
                 , (n2, w) <- Map.assocs m
                 ]
-  -- concat $
-  -- Maybe.catMaybes $
-  -- map (\n1 -> fmap (\m -> map (\(n2, w) -> (n1, n2, w)) (Map.assocs m))
-  --                  (Map.lookup n1 g))
-  --     ns
 
 -- | Returns all the nodes in the graph.  @O(n)@.
 
@@ -200,14 +191,6 @@ sccs' :: Ord n => Graph n e -> [Graph.SCC n]
 sccs' (Graph g) =
   Graph.stronglyConnComp [ (n, n, Map.keys m) | (n, m) <- Map.assocs g ]
 
--- sccs' :: Ord n => Graph n e -> [Graph.SCC n]
--- sccs' g =
---   Graph.stronglyConnComp .
---   map (\n -> (n, n, map fst $ neighbours n g)) .
---   Set.toList .
---   nodes $
---   g
-
 -- | The graph's strongly connected components, in reverse topological
 -- order.
 
@@ -239,18 +222,6 @@ transitiveClosure1 = iterateUntil (==) growGraph  where
     case Map.lookup t (unGraph g) of
       Just es -> Graph $ Map.singleton s $ Map.map (otimes e) es
       Nothing -> empty
-
--- transitiveClosure1 = loop
---   where
---   loop g | g == g'   = g
---          | otherwise = loop g'
---     where g' = growGraph g
-
---   growGraph g = List.foldl' union g $ map newEdges $ edges g
---     where
---     newEdges (a, b, w) = case Map.lookup b (unGraph g) of
---       Just es -> Graph $ Map.singleton a $ Map.map (otimes w) es
---       Nothing -> empty
 
 -- | Computes the transitive closure of the graph.
 --
