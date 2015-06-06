@@ -13,6 +13,7 @@ import Data.Foldable
 import Data.Function
 import Data.Hashable
 import Data.List as List
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable
@@ -107,8 +108,15 @@ noFixity' :: Fixity'
 noFixity' = Fixity' noFixity noNotation
 
 -- | Merges 'NewNotation's that have the same precedence level and
--- notation, with the exception that operators and notations coming
--- from syntax declarations are kept separate.
+-- notation, with two exceptions:
+--
+-- * Operators and notations coming from syntax declarations are kept
+--   separate.
+--
+-- * If /all/ instances of a given 'NewNotation' have the same
+--   precedence level or are \"unrelated\", then they are merged. They
+--   get the given precedence level, if any, and otherwise they become
+--   unrelated (but related to each other).
 --
 -- If 'NewNotation's that are merged have distinct associativities,
 -- then they get 'NonAssoc' as their associativity.
@@ -119,16 +127,43 @@ noFixity' = Fixity' noFixity noNotation
 -- Postcondition: No 'A.Name' occurs in more than one list element.
 mergeNotations :: [NewNotation] -> [NewNotation]
 mergeNotations =
-  map (merge . fixAssocs) .
+  map merge .
+  concatMap groupIfLevelsMatch .
   groupOn (\n -> ( notation n
-                 , fixityLevel (notaFixity n)
                  , notaIsOperator n
                  ))
   where
-  fixAssocs ns
-    | allEqual (map (fixityAssoc . notaFixity) ns) = ns
-    | otherwise                                    =
-        map (set (_notaFixity . _fixityAssoc) NonAssoc) ns
+  groupIfLevelsMatch :: [NewNotation] -> [[NewNotation]]
+  groupIfLevelsMatch []         = __IMPOSSIBLE__
+  groupIfLevelsMatch ns@(n : _) =
+    if allEqual (map fixityLevel related)
+    then [sameAssoc (sameLevel ns)]
+    else map (: []) ns
+    where
+    -- Fixities of operators whose precedence level is not Unrelated.
+    related = mapMaybe (\f -> case fixityLevel f of
+                                Unrelated  -> Nothing
+                                Related {} -> Just f)
+                       (map notaFixity ns)
+
+    -- Precondition: All related operators have the same precedence
+    -- level.
+    --
+    -- Gives all unrelated operators the same level.
+    sameLevel = map (set (_notaFixity . _fixityLevel) level)
+      where
+      level = case related of
+        f : _ -> fixityLevel f
+        []    -> Unrelated
+
+    -- If all related operators have the same associativity, then the
+    -- unrelated operators get the same associativity, and otherwise
+    -- all operators get the associativity NonAssoc.
+    sameAssoc = map (set (_notaFixity . _fixityAssoc) assoc)
+      where
+      assoc = case related of
+        f : _ | allEqual (map fixityAssoc related) -> fixityAssoc f
+        _                                          -> NonAssoc
 
   merge :: [NewNotation] -> NewNotation
   merge []         = __IMPOSSIBLE__
@@ -282,3 +317,6 @@ _notaFixity f r = f (notaFixity r) <&> \x -> r { notaFixity = x }
 
 _fixityAssoc :: Lens' Associativity Fixity
 _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
+
+_fixityLevel :: Lens' PrecedenceLevel Fixity
+_fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }

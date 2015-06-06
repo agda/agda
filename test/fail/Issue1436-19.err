@@ -1,0 +1,12 @@
+Issue1436-19.agda:23,7-16
+Could not parse the application • + • + •
+Operators used in the grammar:
+  +  (infix operator, level 0)           [_+_ (Issue1436-19.agda:9,5-8), 
+                                          _+_ (Issue1436-19.agda:17,5-8)]
+  _+ (prefix operator section, level 0)  [_+_ (Issue1436-19.agda:9,5-8), 
+                                          _+_ (Issue1436-19.agda:17,5-8)]
+  +_ (postfix operator section, level 0) [_+_ (Issue1436-19.agda:9,5-8), 
+                                          _+_ (Issue1436-19.agda:17,5-8)]
+(the treatment of operators has changed, so code that used to parse
+may have to be changed)
+when scope checking • + • + •

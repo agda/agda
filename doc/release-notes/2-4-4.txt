@@ -416,11 +416,18 @@ Operator syntax
   included in the operator grammar, possibly leading to ambiguity.
   Previously the operator was given the default fixity [Issue 1436].
 
-  If some instances of an overloaded operator have distinct
-  associativities (but equal precedence levels), then these instances
-  are treated as being non-associative.
+  There is an exception to this rule: If there are multiple
+  precedences, but all except for at most one is "unrelated", then
+  only one instance will be included in the grammar. If all
+  precedences are "unrelated", then the instance will get this
+  precedence, and otherwise the instance will get the related
+  precedence level.
 
-  The two paragraphs above also apply to identical notations (coming
+  If multiple occurrences of an operator are "merged" in the grammar,
+  and they have distinct associativities, then they are treated as
+  being non-associative.
+
+  The three paragraphs above also apply to identical notations (coming
   from syntax declarations) for a given overloaded name.
 
   Examples:
@@ -429,6 +436,7 @@ Operator syntax
 
       infixr 5 _∷_
       infixr 5 _∙_
+      infixl 3 _+_
       infix  1 bind
 
       syntax bind c (λ x → d) = x ← c , d
@@ -437,6 +445,7 @@ Operator syntax
 
       infix  5 _∷_
       infixr 4 _∙_
+      -- No fixity declaration for _+_.
       infixl 2 bind
 
       syntax bind c d = c ∙ d
@@ -453,10 +462,12 @@ Operator syntax
 
     -- _∷_ is infix 5.
     -- _∙_ has two fixities: infixr 4 and infixr 5.
+    -- _+_ is infixl 3.
     -- A.bind's notation is infix 1.
     -- B.bind and C.bind's notations are infix 2.
 
-    -- There is one instance of "_ ∷ _" in the grammar.
+    -- There is one instance of "_ ∷ _" in the grammar, and one
+    -- instance of "_ + _".
 
     -- There are three instances of "_ ∙ _" in the grammar, one
     -- corresponding to A._∙_, one corresponding to B._∙_, and one
