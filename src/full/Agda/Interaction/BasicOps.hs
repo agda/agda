@@ -296,7 +296,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
                        TBind noRange xs domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
-            CheckArgs _ _ _ args t0 t1 _ -> do
+            CheckArgs _ _ args t0 t1 _ -> do
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
@@ -307,7 +307,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (FindInScope m _b mcands) = FindInScopeOF
       <$> (reify $ MetaV m [])
       <*> (reify =<< getMetaType m)
-      <*> (forM (fromMaybe [] mcands) $ \ (tm, ty) -> do
+      <*> (forM (fromMaybe [] mcands) $ \ (Candidate tm ty eti) -> do
             (,) <$> reify tm <*> reify ty)
     reify (IsEmpty r a) = IsEmptyType <$> reify a
     reify (CheckSizeLtSat a) = SizeLtSat  <$> reify a

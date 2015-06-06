@@ -675,7 +675,7 @@ data Constraint
     -- ^ The range is the one of the absurd pattern.
   | CheckSizeLtSat Type
     -- ^ Check that the 'Type' is either not a SIZELT or a non-empty SIZELT.
-  | FindInScope MetaId (Maybe MetaId) (Maybe [(Term, Type)])
+  | FindInScope MetaId (Maybe MetaId) (Maybe [Candidate])
     -- ^ the first argument is the instance argument, the second one is the meta
     --   on which the constraint may be blocked on and the third one is the list
     --   of candidates (or Nothing if we haven’t determined the list of
@@ -819,7 +819,7 @@ data MetaInstantiation
 
 data TypeCheckingProblem
   = CheckExpr A.Expr Type
-  | CheckArgs ExpandHidden ExpandInstances Range [I.NamedArg A.Expr] Type Type (Args -> Type -> TCM Term)
+  | CheckArgs ExpandHidden Range [I.NamedArg A.Expr] Type Type (Args -> Type -> TCM Term)
   | CheckLambda (Arg ([WithHiding Name], Maybe Type)) A.Expr Type
     -- ^ @(λ (xs : t₀) → e) : t@
     --   This is not an instance of 'CheckExpr' as the domain type
@@ -1736,15 +1736,20 @@ data ExpandHidden
   | DontExpandLast  -- ^ Do not append implicit arguments.
   deriving (Eq)
 
-data ExpandInstances
-  = ExpandInstanceArguments
-  | DontExpandInstanceArguments
-    deriving (Eq)
-
 data ExplicitToInstance
   = ExplicitToInstance    -- ^ Explicit arguments are considered as instance arguments
   | ExplicitStayExplicit
-    deriving (Eq)
+    deriving (Eq, Show)
+
+-- | A candidate solution for an instance meta is a term with its type.
+--   It may be the case that the candidate is not fully applied yet or
+--   of the wrong type, hence the need for the type.
+data Candidate  = Candidate { candidateTerm :: Term
+                            , candidateType :: Type
+                            , candidateEti  :: ExplicitToInstance
+                            }
+  deriving (Show)
+
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

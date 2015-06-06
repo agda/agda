@@ -934,7 +934,7 @@ coerce v t1 t2 = blockTerm t2 $ do
   -- insert n many hidden args
   if n <= 0 then fallback else do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
-      (args, t1') <- implicitArgs n (NotHidden /=) ExplicitStayExplicit t1
+      (args, t1') <- implicitArgs n (NotHidden /=) t1
       coerceSize (v `apply` args) t1' t2
   where
     fallback = coerceSize v t1 t2

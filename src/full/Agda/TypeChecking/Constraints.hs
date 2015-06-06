@@ -203,5 +203,5 @@ solveConstraint_ (FindInScope m b cands)      = findInScope m cands
 checkTypeCheckingProblem :: TypeCheckingProblem -> TCM Term
 checkTypeCheckingProblem p = case p of
   CheckExpr e t                  -> checkExpr e t
-  CheckArgs eh ei r args t0 t1 k -> checkArguments' eh ei r args t0 t1 k
+  CheckArgs eh r args t0 t1 k    -> checkArguments' eh r args t0 t1 k
   CheckLambda args body target   -> checkPostponedLambda args body target

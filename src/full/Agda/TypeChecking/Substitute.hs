@@ -797,6 +797,9 @@ instance Subst ClauseBody where
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
 
+instance Subst Candidate where
+  applySubst rho (Candidate u t eti) = Candidate (applySubst rho u) (applySubst rho t) eti
+
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------
@@ -1025,6 +1028,7 @@ deriving instance Eq NotBlocked
 deriving instance Ord NotBlocked
 deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)
+deriving instance Eq Candidate
 
 deriving instance (Subst a, Eq a) => Eq (Elim' a)
 deriving instance (Subst a, Ord a) => Ord (Elim' a)

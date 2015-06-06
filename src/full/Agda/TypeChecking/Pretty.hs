@@ -260,8 +260,8 @@ instance PrettyTCM Constraint where
             sep [ text "Find in scope" <+> pretty m
                   <+> maybe (text ":") (\ b -> text "blocked on" <+> pretty b <+> text ":") mb
                 , nest 2 $ prettyTCM t
-                , sep $ flip map cands $ \(t,ty) ->
-                           prettyTCM t <+> text ": " <+> prettyTCM ty
+                , sep $ flip map cands $ \cand ->
+                           prettyTCM (candidateTerm cand) <+> text ": " <+> prettyTCM (candidateType cand)
                 ]
         IsEmpty r t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
@@ -271,7 +271,7 @@ instance PrettyTCM Constraint where
 instance PrettyTCM TypeCheckingProblem where
   prettyTCM (CheckExpr e a) =
     sep [ prettyA e <+> text ":?", prettyTCM a ]
-  prettyTCM (CheckArgs _ _ _ es t0 t1 _) =
+  prettyTCM (CheckArgs _ _ es t0 t1 _) =
     sep [ parens $ text "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ text ":?" <+> prettyTCM t1 ]

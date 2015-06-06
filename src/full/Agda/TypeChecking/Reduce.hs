@@ -192,6 +192,8 @@ instance Instantiate Constraint where
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
 
+instance Instantiate Candidate where
+  instantiate' (Candidate u t eti) = Candidate <$> instantiate' u <*> instantiate' t <*> return eti
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -607,6 +609,9 @@ instance Reduce Constraint where
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce' = traverse reduce'
 
+instance Reduce Candidate where
+  reduce' (Candidate u t eti) = Candidate <$> reduce' u <*> reduce' t <*> return eti
+
 ---------------------------------------------------------------------------
 -- * Simplification
 ---------------------------------------------------------------------------
@@ -758,6 +763,8 @@ instance Simplify ClauseBody where
 instance Simplify DisplayForm where
   simplify' (Display n ps v) = Display n <$> simplify' ps <*> return v
 
+instance Simplify Candidate where
+  simplify' (Candidate u t eti) = Candidate <$> simplify' u <*> simplify' t <*> return eti
 
 ---------------------------------------------------------------------------
 -- * Normalisation
@@ -895,6 +902,9 @@ instance (Ord k, Normalise e) => Normalise (Map k e) where
 
 instance Normalise a => Normalise (Maybe a) where
     normalise' = traverse normalise'
+
+instance Normalise Candidate where
+  normalise' (Candidate u t eti) = Candidate <$> normalise' u <*> normalise' t <*> return eti
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
@@ -1169,3 +1179,6 @@ instance InstantiateFull QName where
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull' = mapM instantiateFull'
+
+instance InstantiateFull Candidate where
+  instantiateFull' (Candidate u t eti) = Candidate <$> instantiateFull' u <*> instantiateFull' t <*> return eti

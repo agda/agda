@@ -28,7 +28,6 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
@@ -41,14 +40,10 @@ import Agda.Utils.Pretty (prettyShow)
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | A candidate solution for an instance meta is a term with its type.
-type Candidate  = (Term, Type)
-type Candidates = [Candidate]
-
 -- | Compute a list of instance candidates.
 --   'Nothing' if type is a meta, error if type is not eligible
 --   for instance search.
-initialIFSCandidates :: Type -> TCM (Maybe Candidates)
+initialIFSCandidates :: Type -> TCM (Maybe [Candidate])
 initialIFSCandidates t = do
   cands1 <- getContextVars
   otn <- getOutputTypeName t
@@ -61,23 +56,23 @@ initialIFSCandidates t = do
       return $ Just $ cands1 ++ cands2
   where
     -- get a list of variables with their type, relative to current context
-    getContextVars :: TCM Candidates
+    getContextVars :: TCM [Candidate]
     getContextVars = do
       ctx <- getContext
-      let vars = [ (var i, raise (i + 1) t)
+      let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit
                  | (Dom info (x, t), i) <- zip ctx [0..]
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
       -- get let bindings
       env <- asks envLetBindings
       env <- mapM (getOpen . snd) $ Map.toList env
-      let lets = [ (v,t)
+      let lets = [ Candidate v t ExplicitStayExplicit
                  | (v, Dom info t) <- env
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
       return $ vars ++ lets
 
-    getScopeDefs :: QName -> TCM Candidates
+    getScopeDefs :: QName -> TCM [Candidate]
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
       rel          <- asks envRelevance
@@ -105,7 +100,7 @@ initialIFSCandidates t = do
                -- Ulf, 2014-08-20: constructors are always instances.
                Constructor{ conSrcCon = c }       -> Con c []
                _                                  -> Def q $ map Apply args
-          return $ Just (v, t)
+          return $ Just $ Candidate v t ExplicitToInstance
       where
         -- unbound constant throws an internal error
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
@@ -129,7 +124,7 @@ initializeIFSMeta s t = do
 --   The list of candidates is equal to @Nothing@ when the type of the meta
 --   wasn't known when the constraint was generated. In that case, try to find
 --   its type again.
-findInScope :: MetaId -> Maybe Candidates -> TCM ()
+findInScope :: MetaId -> Maybe [Candidate] -> TCM ()
 findInScope m Nothing = do
   -- Andreas, 2015-02-07: New metas should be created with range of the
   -- current instance meta, thus, we set the range.
@@ -146,7 +141,7 @@ findInScope m (Just cands) =
 
 -- | Result says whether we need to add constraint, and if so, the set of
 --   remaining candidates and an eventual blocking metavariable.
-findInScope' :: MetaId -> Candidates -> TCM (Maybe (Candidates, Maybe MetaId))
+findInScope' :: MetaId -> [Candidate] -> TCM (Maybe ([Candidate], Maybe MetaId))
 findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
   -- Andreas, 2013-12-28 issue 1003:
   -- If instance meta is already solved, simply discard the constraint.
@@ -158,7 +153,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       reportSLn "tc.instance" 15 $
         "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
       reportSDoc "tc.instance" 70 $ nest 2 $ vcat
-        [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | (v, t) <- cands ]
+        [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- cands ]
       t <- normalise =<< getMetaTypeInContext m
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
@@ -177,7 +172,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               text "findInScope 5: not a single candidate found..."
             typeError $ IFSNoCandidateInScope t
 
-          [(term, t')] -> do
+          [Candidate term t' _] -> do
             reportSDoc "tc.instance" 15 $ vcat
               [ text "findInScope 5: solved by instance search using the only candidate"
               , nest 2 $ prettyTCM term
@@ -190,16 +185,16 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
           cs -> do
             reportSDoc "tc.instance" 15 $
               text ("findInScope 5: more than one candidate found: ") <+>
-              prettyTCM (List.map fst cs)
+              prettyTCM (List.map candidateTerm cs)
             return (Just (cs, Nothing))
       where
-        -- | Check whether a type is a function type with an instance domain.
+        -- | Check whether a type is a function type with an instance or explicit domain.
         isRecursive :: Term -> TCM Bool
         isRecursive v = do
           v <- reduce v
           case ignoreSharing v of
             Pi (Dom info _) t ->
-              if getHiding info == Instance then return True else
+              if getHiding info /= Hidden then return True else
                 isRecursive $ unEl $ unAbs t
             _ -> return False
 
@@ -296,7 +291,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 --   If the resulting list contains exactly one element, then the state is the
 --   same as the one obtained after running the corresponding computation. In
 --   all the other cases, the state is reseted.
-filterResetingState :: MetaId -> Candidates -> (Candidate -> TCM Bool) -> TCM Candidates
+filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM Bool) -> TCM [Candidate]
 filterResetingState m cands f = disableDestructiveUpdate $ do
   result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
   let result' = [ (c, s) | (c, (True, s)) <- result ]
@@ -309,14 +304,14 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, a)] -> TCM [(Candidate, a)]
 dropSameCandidates m cands = do
-  reportSDoc "tc.instance" 50 $ text "valid candidates:" $$ nest 2 (vcat $ map (prettyTCM . fst . fst) cands)
+  reportSDoc "tc.instance" 50 $ text "valid candidates:" $$ nest 2 (vcat $ map (prettyTCM . candidateTerm . fst) cands)
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
-    ((v,a), d) : vas -> (((v,a), d):) <$> dropWhileM equal vas
+    (Candidate v a eti, d) : vas -> ((Candidate v a eti, d):) <$> dropWhileM equal vas
       where
         equal _ | isIrrelevant rel = return True
-        equal ((v',a'), _) =
+        equal (Candidate v' a' eti', _) =
           verboseBracket "tc.instance" 30 "checkEqualCandidates" $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> text "==", nest 2 $ prettyTCM v' ]
           localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
@@ -326,12 +321,12 @@ dropSameCandidates m cands = do
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
-checkCandidates :: MetaId -> Type -> Candidates -> TCM Candidates
+checkCandidates :: MetaId -> Type -> [Candidate] -> TCM [Candidate]
 checkCandidates m t cands = disableDestructiveUpdate $ do
-  filterResetingState m cands (uncurry $ checkCandidateForMeta m t)
+  filterResetingState m cands (checkCandidateForMeta m t)
   where
-    checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
-    checkCandidateForMeta m t term t' = do
+    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM Bool
+    checkCandidateForMeta m t (Candidate term t' eti) = do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m
@@ -347,7 +342,7 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
               ]
 
             -- Apply hidden and instance arguments (recursive inst. search!).
-            (args, t'') <- implicitArgs (-1) (\_ -> True) ExplicitToInstance t'
+            (args, t'') <- implicitArgs (-1) (\h -> h /= NotHidden || eti == ExplicitToInstance) t'
 
             reportSDoc "tc.instance" 20 $
               text "instance search: checking" <+> prettyTCM t''

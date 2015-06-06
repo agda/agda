@@ -12,10 +12,10 @@ isType_ :: A.Expr -> TCM Type
 
 checkExpr :: A.Expr -> Type -> TCM Term
 
-checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
 
-checkArguments' :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                    (Args -> Type -> TCM Term) -> TCM Term
 
 checkPostponedLambda :: I.Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
