@@ -20,10 +20,11 @@
 -- the author of this module whether the change leads to more
 -- non-termination for grammars that are not cyclic.)
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             FlexibleInstances,
+             MultiParamTypeClasses,
+             RankNTypes #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
