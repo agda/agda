@@ -9,10 +9,12 @@
 -}
 module Agda.Syntax.Fixity where
 
+import Prelude hiding (concatMap)
+
 import Data.Foldable
 import Data.Function
 import Data.Hashable
-import Data.List as List
+import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
