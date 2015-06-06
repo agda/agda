@@ -245,6 +245,7 @@ constituents.")
     (agda2-why-in-scope-maybe-toplevel       "\C-c\C-w"           (local global) "Explain why a particular name is in scope")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
+    (agda2-search-about-toplevel             ,(kbd "C-c C-z")     (local global) "Search About")
     (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")     (local global) "Module contents")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"           (local global) "Evaluate term to normal form")
     (describe-char                           nil                  (global)       "Information about the character at point")
@@ -1144,6 +1145,13 @@ Along with their types."
 Along with their types."
   "Cmd_show_module_contents_toplevel"
   "Module name"
+)
+
+(agda2-maybe-normalised-toplevel
+  agda2-search-about-toplevel
+  "Search About an identifier"
+  "Cmd_search_about_toplevel"
+  "Name"
 )
 
 (defun agda2-module-contents-maybe-toplevel ()

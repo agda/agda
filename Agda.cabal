@@ -208,6 +208,7 @@ library
                     Agda.Compiler.UHC.Smashing
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
+                    Agda.Interaction.SearchAbout
                     Agda.Interaction.CommandLine
                     Agda.Interaction.EmacsCommand
                     Agda.Interaction.EmacsTop

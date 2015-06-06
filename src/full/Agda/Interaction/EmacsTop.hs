@@ -85,6 +85,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CurrentGoal s -> f (render s) "*Current Goal*"
     Info_GoalType s -> f (render s) "*Goal type etc.*"
     Info_ModuleContents s -> f (render s) "*Module contents*"
+    Info_SearchAbout s -> f (render s) "*Search About*"
     Info_WhyInScope s -> f (render s) "*Scope Info*"
     Info_Context s -> f (render s) "*Context*"
     Info_HelperFunction s -> [ L [ A "agda2-info-action-and-copy"

@@ -61,6 +61,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses as Lenses
 import Agda.Interaction.MakeCase
+import Agda.Interaction.SearchAbout
 import Agda.Interaction.Response hiding (Function, ExtendedLambda)
 import qualified Agda.Interaction.Response as R
 import qualified Agda.Interaction.BasicOps as B
@@ -304,6 +305,10 @@ data Interaction' range
                         B.Rewrite
                         String
 
+-- | Shows all the top-level names in scope which mention all the given
+-- identifiers in their type.
+  | Cmd_search_about_toplevel B.Rewrite String
+
   | Cmd_solveAll
 
     -- | Parse the given expression (as if it were defined at the
@@ -532,6 +537,9 @@ interpret Cmd_metas = do -- CL.showMetas []
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
+
+interpret (Cmd_search_about_toplevel norm s) =
+  liftCommandMT B.atTopLevel $ searchAbout norm noRange s
 
 interpret Cmd_solveAll = do
   out <- lift $ mapM lowr =<< B.getSolvedInteractionPoints False -- only solve metas which have a proper instantiation, i.e., not another meta
@@ -1004,6 +1012,22 @@ showModuleContents norm rng s = do
     nest 2 (vcat $ map (text . show) modules) $$
     text "Names" $$
     nest 2 (align 10 types')
+
+-- | Shows all the top-level names in scope which mention all the given
+-- identifiers in their type.
+
+searchAbout :: B.Rewrite -> Range -> String -> CommandM ()
+searchAbout norm rg nm = do
+  let tnm = trim nm
+  unless (null tnm) $ do
+    fancy <- lift $ B.atTopLevel $ do
+       hits <- findMentions norm rg tnm
+       forM hits $ \ (x, t) -> do
+         t <- TCP.prettyTCM t
+         return (show x, text ":" <+> t)
+    display_info $ Info_SearchAbout $
+      text "Definitions about" <+> text (intercalate ", " $ words nm) $$
+      nest 2 (align 10 fancy)
 
 -- | Explain why something is in scope.
 
