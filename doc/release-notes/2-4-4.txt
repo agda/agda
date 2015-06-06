@@ -119,6 +119,44 @@ Pragmas and options
     not work properly if the type of f computes to an implicit function space
     after pattern matching.
 
+* New pragma {-# NO_ETA R #-}
+
+  The pragma {-# NO_ETA R #-} disables eta rules for the record type R.
+
+  record Σ (A : Set) (B : A -> Set) : Set where
+    inductive
+    constructor _,_
+    field
+      fst : A
+      snd : B fst
+  open Σ
+
+  {-# NO_ETA Σ #-}
+
+  -- fail : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
+  -- fail x = refl
+  --
+  -- x != fst x , snd x of type Σ .A .B
+  -- when checking that the expression refl has type x ≡ (fst x , snd x)
+
+
+  The effect can be reverted with the {-# ETA R #-} pragma.
+
+  {-# ETA Σ #-}
+
+  works : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
+  works x = refl
+
+* New option --no-eta.
+
+  The --no-eta flag disables eta rules for declared record types.
+  It has the same effect as {-# NO_ETA R #-} after each declaration of
+  a record type R.
+
+  If used with the OPTIONS pragma it will not affect records defined
+  in other modules.
+
+
 Language
 ========
 
