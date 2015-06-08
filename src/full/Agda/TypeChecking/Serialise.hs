@@ -166,6 +166,9 @@ data Dict = Dict
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
   , termD        :: !(HashTable (Ptr Term) Int32)
+  -- dictionaries which are serialized
+  -- dicitionaries which are not serialized, but provide
+  -- short cuts to speed up serialization
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   -- , nameD        :: !(HashTable NameId Int32)
