@@ -16,6 +16,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Size
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -79,27 +80,40 @@ getConType c t = do
           Just . (`apply` pars) . defType <$> getConInfo c
     _ -> return Nothing
 
+data HasEta = NoEta | YesEta
+  deriving (Eq)
+
+data ConstructorInfo = DataCon Nat  -- arity
+                     | RecordCon HasEta [I.Arg QName]
+
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.
 --
 --   For getting just the arity of constructor @c@,
 --   use @either id size <$> getConstructorArity c@.
-getConstructorArity :: QName -> TCM (Either Nat [I.Arg QName])
-getConstructorArity c = do
+getConstructorInfo :: QName -> TCM ConstructorInfo
+getConstructorInfo c = do
   Defn{ defType = t, theDef = def } <- getConstInfo c
   case def of
     Constructor{ conData = d, conPars = n } -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Record{ recFields = fs } ->
-           return $ Right fs
+        Record{ recFields = fs, recEtaEquality = eta } ->
+           return $ RecordCon (if eta then YesEta else NoEta) fs
         Datatype{} -> do
           -- TODO: I do not want to take the type of constructor apart
           -- to see its arity!
           TelV tel _ <- telView t
-          return $ Left $ size tel - n
+          return $ DataCon $ size tel - n
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
+
+getConstructorArity :: QName -> TCM Nat
+getConstructorArity c =
+  for (getConstructorInfo c) $ \i ->
+  case i of
+    DataCon n      -> n
+    RecordCon _ fs -> size fs
 
 ---------------------------------------------------------------------------
 -- * Data types

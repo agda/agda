@@ -196,8 +196,8 @@ constructorMismatchHH aHH u v = do
     fullyApplied = case (ignoreSharing u, ignoreSharing v) of
       (Con c us, Con d vs) -> do
         when (c == d) __IMPOSSIBLE__
-        car <- fromLeft length <$> getConstructorArity (conName c)
-        dar <- fromLeft length <$> getConstructorArity (conName d)
+        car <- getConstructorArity (conName c)
+        dar <- getConstructorArity (conName d)
         return $ length us == car && length vs == dar
       _ -> return True  -- could be literals
 

@@ -40,6 +40,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
+import Agda.Utils.Functor
 import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
@@ -117,6 +118,12 @@ cutSublist i n row =
       (mid , last) = splitAt n rest
   in  (init, mid, last)
 
+getEtaAndArity :: QName -> TCM (Bool, Nat)
+getEtaAndArity c =
+  for (getConstructorInfo c) $ \i ->
+  case i of
+    DataCon n        -> (False, n)
+    RecordCon eta fs -> (eta == YesEta, size fs)
 
 translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
 translateCompiledClauses cc = snd <$> loop cc
@@ -147,12 +154,16 @@ translateCompiledClauses cc = snd <$> loop cc
       (ccs, xssc, conMap)    <- Map.unzip3 <$> do
         Trav.forM (Map.mapWithKey (,) conMap) $ \ (c, WithArity ar cc) -> do
           (xs, cc)     <- loop cc
---          dataOrRecCon <- getConstructorArity c  -- TODO: c could be a projection
           dataOrRecCon <- do
             isProj <- isProjection c
             case isProj of
-               Nothing -> getConstructorArity c
-               Just{}  -> return $ Left 0
+              Nothing -> do
+                i <- getConstructorInfo c
+                case i of
+                  DataCon n           -> return $ Left n
+                  RecordCon NoEta fs  -> return $ Left (size fs)
+                  RecordCon YesEta fs -> return $ Right fs
+              Just{}  -> return $ Left 0
           let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
               (xs0, rest) = genericSplitAt i xs
               (xs1, xs2 ) = genericSplitAt n rest
@@ -308,7 +319,7 @@ recordSplitTree t = snd <$> loop t
       (xss, ts) <- unzip <$> do
         forM ts $ \ (c, t) -> do
           (xs, t) <- loop t
-          (isRC, n) <- either (False,) ((True,) . size) <$> getConstructorArity c
+          (isRC, n) <- getEtaAndArity c
           let (xs0, rest) = genericSplitAt i xs
               (xs1, xs2)  = genericSplitAt n rest
               x           = isRC && and xs1
@@ -350,7 +361,7 @@ translateSplitTree t = snd <$> loop t
       (rs, xss, ts) <- unzip3 <$> do
         forM ts $ \ (c, t) -> do
           (xs, t) <- loop t
-          (isRC, n) <- either (False,) ((True,) . size) <$> getConstructorArity c
+          (isRC, n) <- getEtaAndArity c
           -- now drop variables from i to i+n-1
           let (xs0, rest) = genericSplitAt i xs
               (xs1, xs2)  = genericSplitAt n rest
