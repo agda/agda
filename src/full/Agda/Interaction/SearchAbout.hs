@@ -4,6 +4,8 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import qualified Data.Map as Map
+import Data.List (isInfixOf)
+import Data.Either (partitionEithers)
 
 import Agda.Syntax.Position (Range)
 import Agda.Syntax.Scope.Base
@@ -43,18 +45,30 @@ collectNamesInArgs = concatMap (collectNamesInTerm . Com.unArg)
 
 findMentions :: Rewrite -> Range -> String -> TCM [(C.Name, Type)]
 findMentions norm rg nm = do
-  cnms <- mapM (parseName rg) $ words nm
+  let (strs, nms) = partitionEithers $ fmap isString $ words nm
+  cnms <- mapM (parseName rg) nms
   rnms <- mapM resolveName cnms
   let defs = fmap (fmap anameName . anames) rnms
   scp  <- getNamedScope =<< currentModule
   let names = nsNames $ allThingsInScope scp
   concat <$> mapM (\ (x, n) -> do
               t <- normalise =<< typeOfConst (anameName n)
+              let defName  = show x
               let namesInT = collectNamesInType t
-              return $ guard (all (any (`elem` namesInT)) defs) >> [(x, t)]
+              return $ do
+                guard (all (`isInfixOf` defName) strs)
+                guard (all (any (`elem` namesInT)) defs)
+                return (x, t)
            ) (concatMap (\ (x, ns) -> map ((,) x) ns) $ Map.toList names)
-  where anames (DefinedName _ an)     = [an]
-        anames (FieldName     an)     = [an]
-        anames (ConstructorName ans)  = ans
-        anames (PatternSynResName an) = [an]
-        anames _                      = []
+  where
+    isString str
+      |  not (null str)
+      && head str == '"'
+      && last str == '"' = Left $ filter (/= '"') str
+      | otherwise        = Right str
+
+    anames (DefinedName _ an)     = [an]
+    anames (FieldName     an)     = [an]
+    anames (ConstructorName ans)  = ans
+    anames (PatternSynResName an) = [an]
+    anames _                      = []
