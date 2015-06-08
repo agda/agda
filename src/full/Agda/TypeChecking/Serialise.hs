@@ -348,7 +348,7 @@ data Dict = Dict
   , termC        :: !(IORef FreshAndReuse)
   -- , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
-  , stats        :: !(HashTable String Int32)
+  , stats        :: !(HashTable String Int)
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
