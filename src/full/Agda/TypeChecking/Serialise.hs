@@ -1,7 +1,9 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -51,6 +53,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Binary (Binary)
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
@@ -139,6 +142,133 @@ instance Generic Word64 where
   type Rep Word64 = Gen.D1 D_Word64 (Gen.C1 C_Word64 (Gen.S1 Gen.NoSelector (Gen.Rec0 Word64)))
   from x = Gen.M1 (Gen.M1 (Gen.M1 (Gen.K1 x)))
   to (Gen.M1 (Gen.M1 (Gen.M1 (Gen.K1 x)))) = x
+
+
+instance Binary NamePart
+instance Binary C.Name
+instance Binary NameId
+instance Binary AbsolutePath
+instance (Generic a, Binary a) => Binary (Position' a)
+instance (Generic a, Binary a) => Binary (Interval' a)
+instance (Generic a, Binary a) => Binary (Range' a)
+instance Binary Associativity
+instance (Generic a, Binary a) => Binary (Common.ArgInfo a)
+instance (Generic a, Binary a, Generic b, Binary b) => Binary (Common.Arg a b)
+instance (Generic a, Binary a, Generic b, Binary b) => Binary (Common.Named a b)
+instance Binary GenPart
+instance Binary Fixity
+instance Binary Fixity'
+instance Binary A.Name
+instance Binary A.ModuleName
+instance Binary A.QName
+instance Binary Access
+instance Binary CtxId
+instance Binary Delayed
+instance Binary Epic.Forced
+instance Binary Epic.Relevance
+instance Binary HP.Aspect
+instance Binary HP.NameKind
+instance Binary HP.OtherAspect
+instance Binary Hiding
+instance Binary Induction
+instance Binary IsAbstract
+instance Binary JS.GlobalId
+instance Binary JS.LocalId
+instance Binary JS.MemberId
+instance Binary KindOfName
+instance Binary MutualId
+instance Binary NameSpaceId
+instance Binary Occurrence
+instance Binary Polarity
+instance Binary Relevance
+instance Binary Big
+instance Binary (Ranged RawName)
+-- instance Binary A.Expr
+-- instance Binary A.LamBinding
+-- instance Binary A.LetBinding
+-- instance Binary A.Pattern
+-- instance Binary A.TypedBinding
+-- instance Binary A.TypedBindings
+-- instance Binary AbstractModule
+-- instance Binary AbstractName
+-- instance Binary C.QName
+-- instance Binary Clause
+-- instance Binary ClauseBody
+-- instance Binary CompiledClauses
+-- instance Binary CompiledRepresentation
+-- instance Binary ConHead
+-- instance Binary ConPatternInfo
+-- instance Binary Definition
+-- instance Binary Defn
+-- instance Binary DisplayForm
+-- instance Binary DisplayTerm
+-- instance Binary Epic.EInterface
+-- instance Binary Epic.InjectiveFun
+-- instance Binary Epic.Tag
+-- instance Binary FunctionInverse
+-- instance Binary HP.Aspects
+-- instance Binary HP.CompressedFile
+-- instance Binary HR.Range
+-- instance Binary HaskellExport
+-- instance Binary HaskellRepresentation
+-- instance Binary Interface
+-- instance Binary JS.Exp
+-- instance Binary Level
+-- instance Binary LevelAtom
+-- instance Binary Literal
+-- instance Binary LocalVar
+-- instance Binary NLPat
+-- instance Binary NameSpace
+-- instance Binary Pattern
+-- instance Binary Permutation
+-- instance Binary PlusLevel
+-- instance Binary Precedence
+-- instance Binary Projection
+-- instance Binary RewriteRule
+-- instance Binary Scope
+-- instance Binary ScopeInfo
+-- instance Binary Section
+-- instance Binary Signature
+-- instance Binary Sort
+-- instance Binary Telescope
+-- instance Binary Term
+-- instance Binary TermHead
+-- instance Binary TopLevelModuleName
+-- instance Binary Type
+-- instance Binary WhyInScope
+-- instance Binary (Abs (ClauseBodyF Term))
+-- instance Binary (Abs (Tele (Common.Dom Color Type)))
+-- instance Binary (Abs Sort)
+-- instance Binary (Builtin (String, I.QName))
+-- instance Binary (Case CompiledClauses)
+-- instance Binary (Common.ArgInfo A.Color)
+-- instance Binary (Drop Permutation)
+-- instance Binary (Elim' DisplayTerm)
+-- instance Binary (Elim' NLPat)
+-- instance Binary (HashMap I.QName Definition)
+-- instance Binary (Open DisplayForm)
+-- instance Binary (Ptr Term)
+-- instance Binary (WithHiding I.Name)
+-- instance Binary AmbiguousQName
+-- instance Binary InteractionId
+-- instance Binary NotBlocked
+-- instance Binary (Common.Dom Color Type)
+-- instance Binary (Elim' Term)
+-- instance Binary (IORef Term)
+-- instance Binary (WithArity CompiledClauses)
+-- instance Binary Agda.Syntax.Info.MetaInfo
+-- instance Binary Agda.Syntax.Info.ModuleInfo
+-- instance Binary PatInfo
+-- instance Binary (Common.ArgInfo Term)
+-- instance Binary C.OpenShortHand
+-- instance Binary ConPatInfo
+-- instance Binary ExprInfo
+-- instance Binary LetInfo
+-- instance Binary MetaId
+-- instance Binary (Abs Type)
+-- instance Binary A.ModuleApplication
+-- instance Binary C.ImportDirective
+-- instance Binary DefInfo
 
 -- | Compatibility with @bytestring < 0.10@ which does not implement
 --   @instance NFData@, to support @ghc <= 7.4@.
