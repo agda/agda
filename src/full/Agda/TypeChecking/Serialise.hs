@@ -1,7 +1,9 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -57,6 +59,11 @@ import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 import qualified Codec.Compression.GZip as G
 
+import GHC.Generics (Generic(..))
+import qualified GHC.Generics as Gen
+-- , Datatype(..), Constructor(..),
+--   C1, D1, K1, M1, S1, NoSelector, Rec0)
+
 import qualified Agda.Compiler.Epic.Interface as Epic
 
 import Agda.Syntax.Common
@@ -96,6 +103,40 @@ import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+-- Int32
+data D_Int32
+data C_Int32
+
+instance Gen.Datatype D_Int32 where
+  datatypeName _ = "Int32"
+  moduleName   _ = "GHC.Int32"
+  -- packageName  _ = "base"
+
+instance Gen.Constructor C_Int32 where
+  conName _ = "" -- JPM: I'm not sure this is the right implementation...
+
+instance Generic Int32 where
+  type Rep Int32 = Gen.D1 D_Int32 (Gen.C1 C_Int32 (Gen.S1 Gen.NoSelector (Gen.Rec0 Int32)))
+  from x = Gen.M1 (Gen.M1 (Gen.M1 (Gen.K1 x)))
+  to (Gen.M1 (Gen.M1 (Gen.M1 (Gen.K1 x)))) = x
+
+-- Word64
+data D_Word64
+data C_Word64
+
+instance Gen.Datatype D_Word64 where
+  datatypeName _ = "Word64"
+  moduleName   _ = "GHC.Word64"
+  -- packageName  _ = "base"
+
+instance Gen.Constructor C_Word64 where
+  conName _ = "" -- JPM: I'm not sure this is the right implementation...
+
+instance Generic Word64 where
+  type Rep Word64 = Gen.D1 D_Word64 (Gen.C1 C_Word64 (Gen.S1 Gen.NoSelector (Gen.Rec0 Word64)))
+  from x = Gen.M1 (Gen.M1 (Gen.M1 (Gen.K1 x)))
+  to (Gen.M1 (Gen.M1 (Gen.M1 (Gen.K1 x)))) = x
 
 -- | Compatibility with @bytestring < 0.10@ which does not implement
 --   @instance NFData@, to support @ghc <= 7.4@.
