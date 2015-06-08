@@ -21,6 +21,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Generic (TermLike)
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 
@@ -34,6 +35,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
+import Agda.TypeChecking.MetaVars (allMetas)
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
@@ -394,7 +396,7 @@ mkPrimLevelMax = do
     Max bs <- levelView' $ unArg b
     redReturn $ Level $ levelMax $ as ++ bs
 
-mkPrimFun1TCM :: (FromTerm a, ToTerm b) =>
+mkPrimFun1TCM :: (FromTerm a, ToTerm b, TermLike b) =>
                  TCM Type -> (a -> ReduceM b) -> TCM PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
@@ -403,9 +405,11 @@ mkPrimFun1TCM mt f = do
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
       case ts of
         [v] ->
-          redBind (toA v)
-              (\v' -> [v']) $ \x ->
-          redReturn =<< fromB =<< f x
+          redBind (toA v) (\v' -> [v']) $ \x -> do
+            b <- f x
+            case allMetas b of
+              (m:_) -> return $ NoReduction [reduced (Blocked m v)]
+              []       -> redReturn =<< fromB b
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
