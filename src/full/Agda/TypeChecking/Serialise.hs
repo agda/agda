@@ -1,9 +1,12 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -100,10 +103,12 @@ import Agda.Utils.HashMap (HashMap)
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
+import Agda.Utils.Functor
 import Agda.Utils.IORef
 import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Tuple
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 
@@ -291,9 +296,57 @@ returnForcedByteString bs = return $! bs
 currentInterfaceVersion :: Word64
 currentInterfaceVersion = 20150605 * 10 + 0
 
+-- | Serializable thing.
+
+data Ser
+  = ID !ID
+  | Ser !ByteString -- ^ Already serialized data (in memory).
+  deriving (Typeable, Generic, Eq)
+
+type ID = Int32
+
+-- To use number literals for Ser
+instance Num Ser where
+  fromInteger   = ID . fromInteger
+  ID n + ID m   = ID $ n + m
+  _ + _         = __IMPOSSIBLE__
+  ID n * ID m   = ID $ n * m
+  _ * _         =  __IMPOSSIBLE__
+  ID n - ID m   = ID $ n - m
+  _ - _         = __IMPOSSIBLE__
+  abs (ID n)    = ID (abs n)
+  abs _         = __IMPOSSIBLE__
+  signum (ID n) = ID (signum n)
+  signum _      = __IMPOSSIBLE__
+
+instance Binary Ser
+instance Hashable Ser where
+
+-- instance Generic Ser where
+--   type Rep Ser = D0 D1Ser (C1 C1_0Ser (S1 NoSelector ID) :+:
+--                            C1 C1_1Ser (S1 NoSelector (Rep )
+--   from (ID  i) =
+--   from (Ser a) =
+--   to
+
+-- instance Binary Ser where
+--   put (ID  i) = put (0 :: Word8) >> put i
+--   put (Ser a) = put (1 :: Word8) >> put a
+--   get = do
+--     tag :: Word8 <- get
+--     case tag of
+--       0 -> ID <$> get
+--       1 -> Ser <$> get
+--       _ -> __IMPOSSIBLE__
+
+-- instance Hashable Ser where
+--   -- hashWithSalt salt (ID  i) = hashWithSalt salt $ Left i
+--   hashWithSalt salt (Ser a) = hashWithSalt salt $ Right a
+
 -- | Constructor tag (maybe omitted) and argument indices.
 
-type Node = [Int32]
+type Node = [Ser]
+
 
 -- | The type of hashtables used in this module.
 --
@@ -311,17 +364,17 @@ type HashTable k v = H.BasicHashTable k v
 -- | Structure providing fresh identifiers for hash map
 --   and counting hash map hits (i.e. when no fresh identifier required).
 data FreshAndReuse = FreshAndReuse
-  { farFresh :: !Int32 -- ^ Number of hash map misses.
-  , farReuse :: !Int32 -- ^ Number of hash map hits.
+  { farFresh :: !ID -- ^ Number of hash map misses.
+  , farReuse :: !ID -- ^ Number of hash map hits.
   }
 
 farEmpty :: FreshAndReuse
 farEmpty = FreshAndReuse 0 0
 
-lensFresh :: Lens' Int32 FreshAndReuse
+lensFresh :: Lens' ID FreshAndReuse
 lensFresh f r = f (farFresh r) <&> \ i -> r { farFresh = i }
 
-lensReuse :: Lens' Int32 FreshAndReuse
+lensReuse :: Lens' ID FreshAndReuse
 lensReuse f r = f (farReuse r) <&> \ i -> r { farReuse = i }
 
 -- | Two 'A.QName's are equal if their @QNameId@ is equal.
@@ -333,18 +386,18 @@ qnameId (A.QName (A.MName ns) n) = map A.nameId $ n:ns
 
 -- | State of the the encoder.
 data Dict = Dict
-  { nodeD        :: !(HashTable Node    Int32)
-  , stringD      :: !(HashTable String  Int32)
-  , integerD     :: !(HashTable Integer Int32)
-  , doubleD      :: !(HashTable Double  Int32)
-  , termD        :: !(HashTable (Ptr Term) Int32)
   -- dictionaries which are serialized
+  { nodeD        :: !(HashTable Node    ID) -- ^ Will be reversed and serialized.
+  , stringD      :: !(HashTable String  ID) -- ^ Ditto.
+  , integerD     :: !(HashTable Integer ID) -- ^ Ditto.
+  , doubleD      :: !(HashTable Double  ID) -- ^ Ditto.
   -- dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization
+  , termD        :: !(HashTable (Ptr Term) Ser) -- ^ Shortcut dict.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  -- , nameD        :: !(HashTable NameId Int32)
-  , qnameD       :: !(HashTable QNameId Int32)
+  -- , nameD        :: !(HashTable NameId ID)
+  , qnameD       :: !(HashTable QNameId Ser)    -- ^ Shortcut dict.
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
@@ -388,14 +441,14 @@ emptyDict collectStats fileMod = Dict
 data U    = forall a . Typeable a => U !a
 
 -- | Univeral memo structure, to introduce sharing during decoding
-type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
+type Memo = HashTable (ID, TypeRep) U    -- (node index, type rep)
 
 -- | State of the decoder.
 data St = St
-  { nodeE     :: !(Array Int32 Node)
-  , stringE   :: !(Array Int32 String)
-  , integerE  :: !(Array Int32 Integer)
-  , doubleE   :: !(Array Int32 Double)
+  { nodeE     :: !(Array ID Node)
+  , stringE   :: !(Array ID String)
+  , integerE  :: !(Array ID Integer)
+  , doubleE   :: !(Array ID Double)
   , nodeMemo  :: !Memo
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. This is the only component
@@ -422,13 +475,29 @@ malformed :: R a
 malformed = throwError $ GenericError "Malformed input."
 
 class Typeable a => EmbPrj a where
-  icode :: a -> S Int32  -- ^ Serialization (wrapper).
-  icod_ :: a -> S Int32  -- ^ Serialization (worker).
-  value :: Int32 -> R a  -- ^ Deserialization.
+  icode :: a -> S Ser  -- ^ Serialization (wrapper).
+  icod_ :: a -> S Ser  -- ^ Serialization (worker).
+  value :: Ser -> R a  -- ^ Deserialization.
+  -- vcase :: (Node -> R a) -> Ser -> R a
 
   icode a = do
     tickICode a
     icod_ a
+
+  -- By default, we serialize with Binary, not actively introducing sharing.
+  -- This should be used for atomic types like Int and ernumerations.
+  default icod_ :: (Generic a, Binary a) => a -> S Ser
+  icod_ = return . Ser . B.encode
+
+  default value :: (Generic a, Binary a) => Ser -> R a
+  value (Ser a) = safeDecode a
+  value _       = malformed
+
+  -- default vcase :: (Generic a, Binary a) => (Node -> R a) -> Ser -> R a
+  -- vcase value (Ser
+
+safeDecode :: Binary a => ByteString -> R a
+safeDecode = either (const malformed) (return . thd3) . B.decodeOrFail
 
 -- | Increase entry for @a@ in 'stats'.
 tickICode :: forall a. Typeable a => a -> S ()
@@ -606,42 +675,26 @@ instance {-# OVERLAPPING #-} EmbPrj String where
 #else
 instance EmbPrj String where
 #endif
-  icod_   = icodeString
-  value i = (! i) `fmap` gets stringE
+  icod_   = ID <.> icodeString
+  value (ID i) = (! i) `fmap` gets stringE
+  value _      = malformed
 
 instance EmbPrj Integer where
-  icod_   = icodeInteger
-  value i = (! i) `fmap` gets integerE
+  icod_   = ID <.> icodeInteger
+  value (ID i) = (! i) `fmap` gets integerE
+  value _      = malformed
 
 instance EmbPrj Word64 where
-  icod_ i = icode2' (int32 q) (int32 r)
-    where (q, r) = quotRem i (2^32)
-          int32 :: Word64 -> Int32
-          int32 = fromIntegral
-  value = vcase valu where valu [a, b] = return $ n * mod (fromIntegral a) n + mod (fromIntegral b) n
-                           valu _      = malformed
-                           n = 2^32
 
 instance EmbPrj Int32 where
-  icod_ i = return i
-  value i = return i
 
 instance EmbPrj Int where
-  icod_ i = return (fromIntegral i)
-  value i = return (fromIntegral i)
 
 instance EmbPrj Char where
-  icod_ c = return (fromIntegral $ fromEnum c)
-  value i = return (toEnum $ fromInteger $ toInteger i)
 
 instance EmbPrj Double where
-  icod_   = icodeDouble
-  value i = (! i) `fmap` gets doubleE
 
 instance EmbPrj () where
-  icod_ () = icode0'
-  value = vcase valu where valu [] = valu0 ()
-                           valu _  = malformed
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icod_ (a, b) = icode2' a b
@@ -661,11 +714,6 @@ instance EmbPrj a => EmbPrj (Maybe a) where
                            valu _   = malformed
 
 instance EmbPrj Bool where
-  icod_ True  = icode0'
-  icod_ False = icode0 0
-  value = vcase valu where valu []  = valu0 True
-                           valu [0] = valu0 False
-                           valu _   = malformed
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
@@ -703,11 +751,6 @@ instance EmbPrj a => EmbPrj [a] where
 #endif
   icod_ xs = icodeN =<< mapM icode xs
   value    = vcase (mapM value)
---   icode []       = icode0'
---   icode (x : xs) = icode2' x xs
---   value = vcase valu where valu []      = valu0 []
---                            valu [x, xs] = valu2 (:) x xs
---                            valu _       = malformed
 
 instance (Ord a, Ord b, EmbPrj a, EmbPrj b) => EmbPrj (BiMap a b) where
   icod_ m = icode (BiMap.toList m)
@@ -763,24 +806,8 @@ instance EmbPrj Scope where
                            valu _               = malformed
 
 instance EmbPrj NameSpaceId where
-  icod_ PublicNS        = icode0'
-  icod_ PrivateNS       = icode0 1
-  icod_ ImportedNS      = icode0 2
-  icod_ OnlyQualifiedNS = icode0 3
-  value = vcase valu where valu []  = valu0 PublicNS
-                           valu [1] = valu0 PrivateNS
-                           valu [2] = valu0 ImportedNS
-                           valu [3] = valu0 OnlyQualifiedNS
-                           valu _   = malformed
 
 instance EmbPrj Access where
-  icod_ PrivateAccess = icode0 0
-  icod_ PublicAccess  = icode0'
-  icod_ OnlyQualified = icode0 2
-  value = vcase valu where valu [0] = valu0 PrivateAccess
-                           valu []  = valu0 PublicAccess
-                           valu [2] = valu0 OnlyQualified
-                           valu _   = malformed
 
 instance EmbPrj NameSpace where
   icod_ (NameSpace a b) = icode2' a b
@@ -807,26 +834,8 @@ instance EmbPrj AbstractModule where
                            valu _      = malformed
 
 instance EmbPrj KindOfName where
-  icod_ DefName        = icode0'
-  icod_ ConName        = icode0 1
-  icod_ FldName        = icode0 2
-  icod_ PatternSynName = icode0 3
-  icod_ QuotableName   = icode0 4
-  value = vcase valu where valu []  = valu0 DefName
-                           valu [1] = valu0 ConName
-                           valu [2] = valu0 FldName
-                           valu [3] = valu0 PatternSynName
-                           valu [4] = valu0 QuotableName
-                           valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Associativity where
-  icod_ LeftAssoc  = icode0'
-  icod_ RightAssoc = icode0 1
-  icod_ NonAssoc   = icode0 2
-  value = vcase valu where valu []  = valu0 LeftAssoc
-                           valu [1] = valu0 RightAssoc
-                           valu [2] = valu0 NonAssoc
-                           valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
   icod_ (Fixity a b c) = icode3' a b c
@@ -1074,35 +1083,10 @@ instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Dom c a) where
   value = vcase valu where valu [i, e] = valu2 Dom i e
                            valu _      = malformed
 
-  icod_ Inductive   = icode0'
-  icod_ CoInductive = icode0 1
-  value = vcase valu where valu []  = valu0 Inductive
-                           valu [1] = valu0 CoInductive
-                           valu _   = malformed
 instance EmbPrj Common.Induction where
 
-  icod_ Hidden    = icode0 0
-  icod_ NotHidden = icode0'
-  icod_ Instance  = icode0 2
-  value = vcase valu where valu [0] = valu0 Hidden
-                           valu []  = valu0 NotHidden
-                           valu [2] = valu0 Instance
-                           valu _   = malformed
 instance EmbPrj Common.Hiding where
 
-  icod_ Relevant   = icode0'
-  icod_ Irrelevant = icode0 1
-  icod_ (Forced Small) = icode0 2
-  icod_ (Forced Big)   = icode0 5
-  icod_ NonStrict  = icode0 3
-  icod_ UnusedArg  = icode0 4
-  value = vcase valu where valu []  = valu0 Relevant
-                           valu [1] = valu0 Irrelevant
-                           valu [2] = valu0 (Forced Small)
-                           valu [5] = valu0 (Forced Big)
-                           valu [3] = valu0 NonStrict
-                           valu [4] = valu0 UnusedArg
-                           valu _   = malformed
 instance EmbPrj Common.Relevance where
 
 instance EmbPrj I.ConHead where
@@ -1209,9 +1193,9 @@ instance EmbPrj a => EmbPrj (Open a) where
   value = vcase valu where valu [a, b] = valu2 OpenThing a b
                            valu _      = malformed
 
+-- deriving instance EmbPrj CtxId -- newtype  -- nominal representational crap
+
 instance EmbPrj CtxId where
-  icod_ (CtxId a) = icode a
-  value n = CtxId `fmap` value n
 
 instance EmbPrj DisplayTerm where
   icod_ (DTerm    a  ) = icode1' a
@@ -1226,9 +1210,7 @@ instance EmbPrj DisplayTerm where
                            valu [4, a, b, c] = valu3 DWithApp a b c
                            valu _         = malformed
 
-instance EmbPrj MutualId where
-  icod_ (MutId a) = icode a
-  value n = MutId `fmap` value n
+instance EmbPrj MutualId where -- newtype
 
 instance EmbPrj Definition where
   icod_ (Defn rel a b c d e f g h i j) = icode11' rel a (P.killRange b) c d e f g h i j
@@ -1307,47 +1289,13 @@ instance EmbPrj JS.Exp where
                            valu [15, a]       = valu1 JS.Const a
                            valu _             = malformed
 
-instance EmbPrj JS.LocalId where
-  icod_ (JS.LocalId l) = icode l
-  value n = JS.LocalId `fmap` value n
-
-instance EmbPrj JS.GlobalId where
-  icod_ (JS.GlobalId l) = icode l
-  value n = JS.GlobalId `fmap` value n
-
-instance EmbPrj JS.MemberId where
-  icod_ (JS.MemberId l) = icode l
-  value n = JS.MemberId `fmap` value n
+instance EmbPrj JS.LocalId  where -- newtype
+instance EmbPrj JS.GlobalId where -- newtype
+instance EmbPrj JS.MemberId where -- newtype
 
 instance EmbPrj Polarity where
-  icod_ Covariant     = icode0'
-  icod_ Contravariant = icode0 1
-  icod_ Invariant     = icode0 2
-  icod_ Nonvariant    = icode0 3
-
-  value = vcase valu where
-    valu []  = valu0 Covariant
-    valu [1] = valu0 Contravariant
-    valu [2] = valu0 Invariant
-    valu [3] = valu0 Nonvariant
-    valu _   = malformed
 
 instance EmbPrj Occurrence where
-  icod_ StrictPos = icode0'
-  icod_ Mixed     = icode0 1
-  icod_ Unused    = icode0 2
-  icod_ GuardPos  = icode0 3
-  icod_ JustPos   = icode0 4
-  icod_ JustNeg   = icode0 5
-
-  value = vcase valu where
-    valu []  = valu0 StrictPos
-    valu [1] = valu0 Mixed
-    valu [2] = valu0 Unused
-    valu [3] = valu0 GuardPos
-    valu [4] = valu0 JustPos
-    valu [5] = valu0 JustNeg
-    valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
   icod_ (CompiledRep a b c d) = icode4' a b c d
@@ -1411,11 +1359,6 @@ instance EmbPrj TermHead where
                            valu [2, a] = valu1 ConsHead a
                            valu _      = malformed
 
-  icod_ AbstractDef = icode0 0
-  icod_ ConcreteDef = icode0'
-  value = vcase valu where valu [0] = valu0 AbstractDef
-                           valu []  = valu0 ConcreteDef
-                           valu _   = malformed
 instance EmbPrj Common.IsAbstract where
 
 instance EmbPrj I.Clause where
@@ -1433,11 +1376,6 @@ instance EmbPrj I.ClauseBody where
                            valu _      = malformed
 
 instance EmbPrj Delayed where
-  icod_ Delayed    = icode0 0
-  icod_ NotDelayed = icode0'
-  value = vcase valu where valu [0] = valu0 Delayed
-                           valu []  = valu0 NotDelayed
-                           valu _   = malformed
 
 instance EmbPrj I.ConPatternInfo where
   icod_ (ConPatternInfo a b) = icode2' a b
@@ -1465,67 +1403,10 @@ instance EmbPrj a => EmbPrj (Builtin a) where
                            valu _      = malformed
 
 instance EmbPrj HP.NameKind where
-  icod_ HP.Bound           = icode0'
-  icod_ (HP.Constructor a) = icode1 1 a
-  icod_ HP.Datatype        = icode0 2
-  icod_ HP.Field           = icode0 3
-  icod_ HP.Function        = icode0 4
-  icod_ HP.Module          = icode0 5
-  icod_ HP.Postulate       = icode0 6
-  icod_ HP.Primitive       = icode0 7
-  icod_ HP.Record          = icode0 8
-  icod_ HP.Argument        = icode0 9
-
-  value = vcase valu where
-    valu []      = valu0 HP.Bound
-    valu [1 , a] = valu1 HP.Constructor a
-    valu [2]     = valu0 HP.Datatype
-    valu [3]     = valu0 HP.Field
-    valu [4]     = valu0 HP.Function
-    valu [5]     = valu0 HP.Module
-    valu [6]     = valu0 HP.Postulate
-    valu [7]     = valu0 HP.Primitive
-    valu [8]     = valu0 HP.Record
-    valu [9]     = valu0 HP.Argument
-    valu _       = malformed
 
 instance EmbPrj HP.Aspect where
-  icod_ HP.Comment       = icode0 0
-  icod_ HP.Keyword       = icode0 1
-  icod_ HP.String        = icode0 2
-  icod_ HP.Number        = icode0 3
-  icod_ HP.Symbol        = icode0'
-  icod_ HP.PrimitiveType = icode0 5
-  icod_ (HP.Name mk b)   = icode2 6 mk b
-
-  value = vcase valu where
-    valu [0]        = valu0 HP.Comment
-    valu [1]        = valu0 HP.Keyword
-    valu [2]        = valu0 HP.String
-    valu [3]        = valu0 HP.Number
-    valu []         = valu0 HP.Symbol
-    valu [5]        = valu0 HP.PrimitiveType
-    valu [6, mk, b] = valu2 HP.Name mk b
-    valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
-  icod_ HP.Error              = icode0 0
-  icod_ HP.DottedPattern      = icode0'
-  icod_ HP.UnsolvedMeta       = icode0 2
-  icod_ HP.TerminationProblem = icode0 3
-  icod_ HP.IncompletePattern  = icode0 4
-  icod_ HP.TypeChecks         = icode0 5
-  icod_ HP.UnsolvedConstraint = icode0 6
-
-  value = vcase valu where
-    valu [0] = valu0 HP.Error
-    valu []  = valu0 HP.DottedPattern
-    valu [2] = valu0 HP.UnsolvedMeta
-    valu [3] = valu0 HP.TerminationProblem
-    valu [4] = valu0 HP.IncompletePattern
-    valu [5] = valu0 HP.TypeChecks
-    valu [6] = valu0 HP.UnsolvedConstraint
-    valu _   = malformed
 
 instance EmbPrj HP.Aspects where
   icod_ (HP.Aspects a b c d) = icode4' a b c d
@@ -1558,6 +1439,7 @@ instance EmbPrj Precedence where
     valu [8]    = valu0 WithArgCtx
     valu [9]    = valu0 DotPatternCtx
     valu _      = malformed
+
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
@@ -1591,18 +1473,8 @@ instance EmbPrj Epic.InjectiveFun where
      valu _     = malformed
 
 instance EmbPrj Epic.Relevance where
-  icod_ Epic.Irr      = icode0 0
-  icod_ Epic.Rel      = icode0 1
-  value = vcase valu where valu [0] = valu0 Epic.Irr
-                           valu [1] = valu0 Epic.Rel
-                           valu _   = malformed
 
 instance EmbPrj Epic.Forced where
-  icod_ Epic.Forced    = icode0 0
-  icod_ Epic.NotForced = icode0 1
-  value = vcase valu where valu [0] = valu0 Epic.Forced
-                           valu [1] = valu0 Epic.NotForced
-                           valu _   = malformed
 
 instance EmbPrj Epic.Tag where
   icod_ (Epic.Tag a)     = icode1 0 a
@@ -1635,28 +1507,29 @@ instance EmbPrj Epic.Tag where
 -- instruction cache misses.
 -- {-# INLINE icodeX #-}
 icodeX :: (Eq k, Hashable k)
-  =>  (Dict -> HashTable k Int32)
+  => (Dict -> HashTable k ID)
   -> (Dict -> IORef FreshAndReuse)
-  -> k -> S Int32
+  -> k
+  -> S ID
 icodeX dict counter key = do
   d <- asks dict
   c <- asks counter
-  liftIO $ do
-    mi <- H.lookup d key
-    case mi of
-      Just i  -> do
-        modifyIORef' c $ over lensReuse (+1)
-        return i
-      Nothing -> do
-        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
-        H.insert d key fresh
-        return fresh
+  mi <- liftIO $ H.lookup d key
+  case mi of
+    Just i  -> do
+      liftIO $ modifyIORef' c $ over lensReuse (+1)
+      return i
+    Nothing -> do
+      fresh <- (^.lensFresh) <$> do
+        liftIO $ readModifyIORef' c $ over lensFresh (+1)
+      liftIO $ H.insert d key fresh
+      return fresh
 
 -- Instead of inlining icodeX, we manually specialize it to
 -- its four uses: Integer, String, Double, Node.
 -- Not a great gain (hardly noticeable), but not harmful.
 
-icodeInteger :: Integer -> S Int32
+icodeInteger :: Integer -> S ID
 icodeInteger key = do
   d <- asks integerD
   c <- asks integerC
@@ -1671,7 +1544,7 @@ icodeInteger key = do
         H.insert d key fresh
         return fresh
 
-icodeDouble :: Double -> S Int32
+icodeDouble :: Double -> S ID
 icodeDouble key = do
   d <- asks doubleD
   c <- asks doubleC
@@ -1686,7 +1559,7 @@ icodeDouble key = do
         H.insert d key fresh
         return fresh
 
-icodeString :: String -> S Int32
+icodeString :: String -> S ID
 icodeString key = do
   d <- asks stringD
   c <- asks stringC
@@ -1701,8 +1574,8 @@ icodeString key = do
         H.insert d key fresh
         return fresh
 
-icodeN :: Node -> S Int32
-icodeN key = do
+icodeN :: Node -> S Ser
+icodeN key = ID <$> do
   d <- asks nodeD
   c <- asks nodeC
   liftIO $ do
@@ -1719,14 +1592,14 @@ icodeN key = do
 -- icodeN :: [Int32] -> S Int32
 -- icodeN = icodeX nodeD nodeC
 
--- | @icode@ only if thing has not seen before.
+-- | Shortcut: @icode@ only if thing has not seen before.
 icodeMemo
   :: (Eq a, Ord a, Hashable a)
-  => (Dict -> HashTable a Int32)    -- ^ Memo structure for thing of key @a@.
+  => (Dict -> HashTable a Ser)    -- ^ Memo structure for thing of key @a@.
   -> (Dict -> IORef FreshAndReuse)  -- ^ Statistics.
   -> a        -- ^ Key to the thing.
-  -> S Int32  -- ^ Fallback computation to encode the thing.
-  -> S Int32  -- ^ Encoded thing.
+  -> S Ser  -- ^ Fallback computation to encode the thing.
+  -> S Ser  -- ^ Encoded thing.
 icodeMemo getDict getCounter a icodeP = do
     h  <- asks getDict
     mi <- liftIO $ H.lookup h a
@@ -1741,13 +1614,14 @@ icodeMemo getDict getCounter a icodeP = do
         liftIO $ H.insert h a i
         return i
 
-{-# INLINE vcase #-}
+-- {-# INLINE vcase #-}
 -- | @vcase value ix@ decodes thing represented by @ix :: Int32@
 --   via the @valu@ function and stores it in 'nodeMemo'.
 --   If @ix@ is present in 'nodeMemo', @valu@ is not used, but
 --   the thing is read from 'nodeMemo' instead.
-vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
-vcase valu = \ix -> do
+vcase :: forall a . (EmbPrj a) => (Node -> R a) -> Ser -> R a
+vcase valu (Ser a) = __IMPOSSIBLE__
+vcase valu (ID ix) = do
     memo <- gets nodeMemo
     -- compute run-time representation of type a
     let aTyp = typeOf (undefined :: a)
@@ -1782,71 +1656,73 @@ vcase valu = \ix -> do
 -- {-# INLINE icode13 #-}
 -- {-# INLINE icode14 #-}
 
-icode0 :: Int32 -> S Int32
+type Tag = Ser
 
-icode1 :: EmbPrj a => Int32 -> a -> S Int32
+icode0 :: Tag -> S Ser
+
+icode1 :: EmbPrj a => Tag -> a -> S Ser
 
 icode2 :: (EmbPrj a, EmbPrj b) =>
-          Int32 -> a -> b ->
-          S Int32
+          Tag -> a -> b ->
+          S Ser
 
 icode3 :: (EmbPrj a, EmbPrj b, EmbPrj c) =>
-          Int32 -> a -> b -> c ->
-          S Int32
+          Tag -> a -> b -> c ->
+          S Ser
 
 icode4 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
-          Int32 -> a -> b -> c -> d ->
-          S Int32
+          Tag -> a -> b -> c -> d ->
+          S Ser
 
 icode5 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
-          Int32 -> a -> b -> c -> d -> e ->
-          S Int32
+          Tag -> a -> b -> c -> d -> e ->
+          S Ser
 
 icode6 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
-          Int32 -> a -> b -> c -> d -> e -> f ->
-          S Int32
+          Tag -> a -> b -> c -> d -> e -> f ->
+          S Ser
 
 icode7 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g ) =>
-          Int32 -> a -> b -> c -> d -> e -> f -> g ->
-          S Int32
+          Tag -> a -> b -> c -> d -> e -> f -> g ->
+          S Ser
 
 icode8 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h ) =>
-          Int32 -> a -> b -> c -> d -> e -> f -> g -> h ->
-          S Int32
+          Tag -> a -> b -> c -> d -> e -> f -> g -> h ->
+          S Ser
 
 icode9 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i ) =>
-          Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i ->
-          S Int32
+          Tag -> a -> b -> c -> d -> e -> f -> g -> h -> i ->
+          S Ser
 
 icode10 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j ->
-           S Int32
+           Tag -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j ->
+           S Ser
 
 icode11 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k ->
-           S Int32
+           Tag -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k ->
+           S Ser
 
 icode12 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l ->
-           S Int32
+           Tag -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l ->
+           S Ser
 
 icode13 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
            , EmbPrj m ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
-           S Int32
+           Tag -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
+           S Ser
 
 icode14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
            , EmbPrj m, EmbPrj n ) =>
-           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
-           S Int32
+           Tag -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
+           S Ser
 
 icode0  tag                       = icodeN [tag]
 icode1  tag a                     = icodeN . (tag :) =<< sequence [icode a]
@@ -1884,71 +1760,71 @@ icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a
 -- {-# INLINE icode13' #-}
 -- {-# INLINE icode14' #-}
 
-icode0' :: S Int32
+icode0' :: S Ser
 
-icode1' :: EmbPrj a => a -> S Int32
+icode1' :: EmbPrj a => a -> S Ser
 
 icode2' :: (EmbPrj a, EmbPrj b) =>
            a -> b ->
-           S Int32
+           S Ser
 
 icode3' :: (EmbPrj a, EmbPrj b, EmbPrj c) =>
            a -> b -> c ->
-           S Int32
+           S Ser
 
 icode4' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
            a -> b -> c -> d ->
-           S Int32
+           S Ser
 
 icode5' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
            a -> b -> c -> d -> e ->
-           S Int32
+           S Ser
 
 icode6' :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
            a -> b -> c -> d -> e -> f ->
-           S Int32
+           S Ser
 
 icode7' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g ) =>
            a -> b -> c -> d -> e -> f -> g ->
-           S Int32
+           S Ser
 
 icode8' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h ) =>
            a -> b -> c -> d -> e -> f -> g -> h ->
-           S Int32
+           S Ser
 
 icode9' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            , EmbPrj g, EmbPrj h, EmbPrj i ) =>
            a -> b -> c -> d -> e -> f -> g -> h -> i ->
-           S Int32
+           S Ser
 
 icode10' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) =>
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j ->
-            S Int32
+            S Ser
 
 icode11' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) =>
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k ->
-            S Int32
+            S Ser
 
 icode12' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) =>
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l ->
-            S Int32
+            S Ser
 
 icode13' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
             , EmbPrj m ) =>
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m ->
-            S Int32
+            S Ser
 
 icode14' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
             , EmbPrj m, EmbPrj n ) =>
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
-            S Int32
+            S Ser
 
 icode0'                        = icodeN []
 icode1'  a                     = icodeN =<< sequence [icode a]
@@ -1968,81 +1844,81 @@ icode14' a b c d e f g h i j k l m n = icodeN =<< sequence [icode a, icode b, ic
 
 valu0 :: a -> R a
 
-valu1 :: EmbPrj a => (a -> b) -> Int32 -> R b
+valu1 :: EmbPrj a => (a -> b) -> Ser -> R b
 
 valu2 :: (EmbPrj a, EmbPrj b) =>
          (a -> b -> c) ->
-         Int32 -> Int32 ->
+         Ser -> Ser ->
          R c
 
 valu3 :: (EmbPrj a, EmbPrj b, EmbPrj c) =>
          (a -> b -> c -> d) ->
-         Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser ->
          R d
 
 valu4 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d) =>
          (a -> b -> c -> d -> e) ->
-         Int32 -> Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser -> Ser ->
          R e
 
 valu5 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e) =>
          (a -> b -> c -> d -> e -> f) ->
-         Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser -> Ser -> Ser ->
          R f
 
 valu6 :: (EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f) =>
          (a -> b -> c -> d -> e -> f -> g) ->
-         Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
          R g
 
 valu7 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
          , EmbPrj g ) =>
          (a -> b -> c -> d -> e -> f -> g -> h) ->
-         Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
          R h
 
 valu8 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
          , EmbPrj g, EmbPrj h ) =>
          (a -> b -> c -> d -> e -> f -> g -> h -> i) ->
-         Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
          R i
 
 valu9 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
          , EmbPrj g, EmbPrj h, EmbPrj i ) =>
          (a -> b -> c -> d -> e -> f -> g -> h -> i -> j) ->
-         Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+         Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
          R j
 
 valu10 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j ) =>
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k) ->
-          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
           R k
 
 valu11 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k ) =>
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l) ->
-          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
          R l
 
 valu12 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l ) =>
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m) ->
-          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
           R m
 
 valu13 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
           , EmbPrj m ) =>
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n) ->
-          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
           R n
 
 valu14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
           , EmbPrj m, EmbPrj n ) =>
           (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o) ->
-          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser -> Ser ->
           R o
 
 valu0  z                           = return z
@@ -2060,3 +1936,5 @@ valu11 z a b c d e f g h i j k     = valu10 z a b c d e f g h i j   `ap` value k
 valu12 z a b c d e f g h i j k l   = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
+
+-- -}
