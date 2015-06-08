@@ -1,0 +1,4 @@
+Issue1371.agda:20,15-19
+quote Nat != quote Float of type QName
+when checking that the expression refl has type
+primQNameType (quote a) ≡ primQNameType (quote b)
