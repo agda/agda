@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Agda.Syntax.Parser.Monad
@@ -36,6 +37,8 @@ import Data.Typeable ( Typeable )
 
 import Control.Monad.State
 import Control.Applicative
+
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 
@@ -97,7 +100,7 @@ data ParseError = ParseError
   , errPrevToken  :: String   -- ^ the previous token
   , errMsg        :: String   -- ^ hopefully an explanation of what happened
   }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 instance Exception ParseError
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -15,6 +16,7 @@ module Agda.Syntax.Info where
 import Prelude hiding (null)
 
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
@@ -35,7 +37,7 @@ data MetaInfo = MetaInfo
   , metaNumber         :: Maybe Nat  -- ^ The 'MetaId', not the 'InteractionId'.
   , metaNameSuggestion :: String
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 emptyMetaInfo :: MetaInfo
 emptyMetaInfo = MetaInfo
@@ -56,7 +58,7 @@ instance KillRange MetaInfo where
  --------------------------------------------------------------------------}
 
 newtype ExprInfo = ExprRange Range
-  deriving (Typeable, Show, Null)
+  deriving (Typeable, Generic, Show, Null)
 
 exprNoRange :: ExprInfo
 exprNoRange = ExprRange noRange
@@ -82,7 +84,7 @@ data ModuleInfo = ModuleInfo
   , minfoDirective :: Maybe ImportDirective
     -- ^ Retained for @abstractToConcrete@ of 'ModuleMacro'.
   }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
 
@@ -100,7 +102,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Show, Null)
+  deriving (Typeable, Generic, Show, Null)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -119,7 +121,7 @@ data DefInfo = DefInfo
   , defInstance :: IsInstance
   , defInfo     :: DeclInfo
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
 mkDefInfo x f a ab r = DefInfo f a ab NotInstanceDef (DeclInfo x r)
@@ -145,7 +147,7 @@ data DeclInfo = DeclInfo
   { declName  :: Name
   , declRange :: Range
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 instance HasRange DeclInfo where
   getRange = declRange
@@ -164,7 +166,7 @@ data MutualInfo = MutualInfo
   { mutualTermCheck :: TerminationCheck Name
   , mutualRange     :: Range
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 instance HasRange MutualInfo where
   getRange = mutualRange
@@ -177,7 +179,7 @@ instance KillRange MutualInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Show, Null)
+  deriving (Typeable, Generic, Show, Null)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -196,7 +198,7 @@ data PatInfo
   | PatSource Range (Precedence -> Pattern)
       -- ^ Even if we store the original pattern we have to know
       --   whether to put parenthesis around it.
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance Show PatInfo where
   show (PatRange r) = "PatRange " ++ show r

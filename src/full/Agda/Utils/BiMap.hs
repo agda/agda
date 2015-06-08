@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PatternGuards #-}
@@ -22,6 +23,8 @@ import Data.Maybe
 import Data.Tuple
 import Data.Typeable ( Typeable )
 
+import GHC.Generics (Generic)
+
 import Test.QuickCheck
 import Test.QuickCheck.All
 
@@ -30,7 +33,7 @@ data BiMap a b = BiMap
   { biMapThere :: Map a b
   , biMapBack  :: Map b a
   }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 -- | Lookup. O(log n).
 lookup :: (Ord a, Ord b) => a -> BiMap a b -> Maybe b

@@ -1,6 +1,7 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
+             DeriveGeneric,
              DeriveFoldable,
              DeriveFunctor,
              DeriveTraversable #-}
@@ -17,6 +18,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Monoid
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
@@ -29,7 +31,7 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
 data WithArity c = WithArity { arity :: Int, content :: c }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 -- | Branches in a case tree.
 
@@ -42,7 +44,7 @@ data Case c = Branches
   , catchAllBranch :: Maybe c
     -- ^ (Possibly additional) catch-all clause.
   }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 -- | Case tree with bodies.
 
@@ -59,7 +61,7 @@ data CompiledClauses
     --   still reduce.
   | Fail
     -- ^ Absurd case.
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 emptyBranches :: Case CompiledClauses
 emptyBranches = Branches Map.empty Map.empty Nothing

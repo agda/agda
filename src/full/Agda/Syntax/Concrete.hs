@@ -1,6 +1,7 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
+             DeriveGeneric,
              DeriveFoldable,
              DeriveFunctor,
              DeriveTraversable,
@@ -59,6 +60,7 @@ module Agda.Syntax.Concrete
 
 import Control.DeepSeq
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List
@@ -90,7 +92,7 @@ data OpApp e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
@@ -139,7 +141,7 @@ data Expr
   | Unquote !Range                             -- ^ ex: @unquote@, should be applied to a term of type @Term@
   | DontCare Expr                              -- ^ to print irrelevant things
   | Equal !Range Expr Expr                     -- ^ ex: @a = b@, used internally in the parser
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance NFData Expr where rnf x = seq x ()
 
@@ -163,7 +165,7 @@ data Pattern
   | AsP !Range Name Pattern                 -- ^ @x\@p@ unused
   | DotP !Range Expr                        -- ^ @.e@
   | LitP Literal                            -- ^ @0@, @1@, etc.
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance NFData Pattern where rnf x = seq x ()
 
@@ -172,7 +174,7 @@ type LamBinding = LamBinding' TypedBindings
 data LamBinding' a
   = DomainFree ArgInfo BoundName  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
   | DomainFull a                  -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
@@ -185,14 +187,14 @@ type TypedBindings = TypedBindings' TypedBinding
 
 data TypedBindings' a = TypedBindings !Range (Arg a)
      -- ^ . @(xs : e)@ or @{xs : e}@ or something like @(x {y} _ : e)@.
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 data BoundName = BName
   { boundName   :: Name
   , boundLabel  :: Name    -- ^ for implicit function types the label matters and can't be alpha-renamed
   , bnameFixity :: Fixity'
   }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = mkBoundName x defaultFixity'
@@ -207,7 +209,7 @@ type TypedBinding = TypedBinding' Expr
 data TypedBinding' e
   = TBind !Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
   | TLet  !Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 -- | Color a TypeBinding. Used by Pretty.
 data ColoredTypedBinding = WithColors [Color] TypedBinding
@@ -239,7 +241,7 @@ data LHS
     -- ^ original pattern, with-patterns, rewrite equations and with-expressions
   | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
     -- ^ new with-patterns, rewrite equations and with-expressions
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
@@ -255,7 +257,7 @@ data LHSCore
              , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
              , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
              }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance NFData LHSCore where rnf x = seq x ()
 
@@ -263,7 +265,7 @@ type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.
   | RHS e
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 
 type WhereClause = WhereClause' [Declaration]
@@ -271,7 +273,7 @@ data WhereClause' decls
   = NoWhere               -- ^ No @where@ clauses.
   | AnyWhere decls        -- ^ Ordinary @where@.
   | SomeWhere Name decls  -- ^ Named where: @module M where@.
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 
 -- | The things you are allowed to say when you shuffle names between name
@@ -282,7 +284,7 @@ data ImportDirective = ImportDirective
   , renaming       :: [Renaming]
   , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective
@@ -291,13 +293,13 @@ defaultImportDir = ImportDirective noRange (Hiding []) [] False
 data UsingOrHiding
   = Hiding [ImportedName]
   | Using  [ImportedName]
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 -- | An imported name can be a module or a defined name
 data ImportedName
   = ImportedModule  { importedName :: Name }
   | ImportedName    { importedName :: Name }
-  deriving (Typeable, Eq, Ord)
+  deriving (Typeable, Generic, Eq, Ord)
 
 instance Show ImportedName where
   show (ImportedModule x) = "module " ++ show x
@@ -311,7 +313,7 @@ data Renaming = Renaming
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 data AsName = AsName
   { asName  :: Name
@@ -319,7 +321,7 @@ data AsName = AsName
   , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -363,17 +365,17 @@ data Declaration
   | Module      !Range QName [TypedBindings] [Declaration]
   | UnquoteDecl !Range Name Expr
   | Pragma      Pragma
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 data ModuleApplication
   = SectionApp Range [TypedBindings] Expr
     -- ^ @tel. M args@
   | RecordModuleIFS Range QName
     -- ^ @M {{...}}@
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 data OpenShortHand = DoOpen | DontOpen
-  deriving (Typeable, Eq, Show)
+  deriving (Typeable, Generic, Eq, Show)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -393,7 +395,7 @@ data Pragma
   | ImpossiblePragma       !Range
   | EtaPragma              !Range QName
   | TerminationCheckPragma !Range (TerminationCheck Name)
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 ---------------------------------------------------------------------------
 

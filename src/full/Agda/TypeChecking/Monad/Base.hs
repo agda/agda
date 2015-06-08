@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
@@ -41,6 +42,8 @@ import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 import Data.IORef
+
+import GHC.Generics (Generic)
 
 import Agda.Benchmarking (Benchmark)
 
@@ -450,7 +453,7 @@ instance HasFresh Int where
   freshLens = stFreshInt
 
 newtype ProblemId = ProblemId Nat
-  deriving (Typeable, Eq, Ord, Enum, Real, Integral, Num)
+  deriving (Typeable, Generic, Eq, Ord, Enum, Real, Integral, Num)
 
 -- TODO: 'Show' should output Haskell-parseable representations.
 -- The following instance is deprecated, and Pretty[TCM] should be used
@@ -566,7 +569,7 @@ data Interface = Interface
                         -- ^ Pragma options set in the file.
   , iPatternSyns     :: A.PatternSynDefns
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | Combines the source hash and the (full) hashes of the imported modules.
 iFullHash :: Interface -> Hash
@@ -581,7 +584,7 @@ data Closure a = Closure { clSignature  :: Signature
                          , clScope      :: ScopeInfo
                          , clValue      :: a
                          }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 instance Show a => Show (Closure a) where
   show cl = "Closure " ++ show (clValue cl)
@@ -606,7 +609,7 @@ data ProblemConstraint = PConstr
   { constraintProblem :: ProblemId
   , theConstraint     :: Closure Constraint
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 instance HasRange ProblemConstraint where
   getRange = getRange . theConstraint
@@ -627,7 +630,7 @@ data Constraint
   | CheckSizeLtSat Type
     -- ^ Check that the 'Type' is either not a SIZELT or a non-empty SIZELT.
   | FindInScope MetaId (Maybe [(Term, Type)])
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 instance HasRange Constraint where
   getRange (IsEmpty r t) = r
@@ -645,7 +648,7 @@ instance HasRange Constraint where
 -}
 
 data Comparison = CmpEq | CmpLeq
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Generic)
 
 -- TODO: 'Show' should output Haskell-parseable representations.
 -- The following instance is deprecated, and Pretty[TCM] should be used
@@ -663,7 +666,7 @@ instance Pretty Comparison where
 
 -- | An extension of 'Comparison' to @>=@.
 data CompareDirection = DirEq | DirLeq | DirGeq
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Generic)
 
 instance Show CompareDirection where
   show DirEq  = "="
@@ -695,7 +698,7 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 
 -- | A thing tagged with the context it came from.
 data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
-    deriving (Typeable, Show, Functor)
+    deriving (Typeable, Generic, Show, Functor)
 
 ---------------------------------------------------------------------------
 -- * Judgements
@@ -707,7 +710,7 @@ data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
 data Judgement a
   = HasType { jMetaId :: a, jMetaType :: Type }
   | IsSort  { jMetaId :: a, jMetaType :: Type } -- Andreas, 2011-04-26: type needed for higher-order sort metas
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance Show a => Show (Judgement a) where
     show (HasType a t) = show a ++ " : " ++ show t
@@ -729,11 +732,11 @@ data MetaVariable =
                 , mvListeners     :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
                 }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 data Listener = EtaExpand MetaId
               | CheckConstraint Nat ProblemConstraint
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance Eq Listener where
   EtaExpand       x   == EtaExpand       y   = x == y
@@ -762,7 +765,7 @@ data MetaInstantiation
         | OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
         | BlockedConst Term  -- ^ solution blocked by unsolved constraints
         | PostponedTypeCheckingProblem (Closure TypeCheckingProblem) (TCM Bool)
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 data TypeCheckingProblem
   = CheckExpr A.Expr Type
@@ -775,7 +778,7 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance Show MetaInstantiation where
   show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
@@ -887,7 +890,7 @@ data Signature = Sig
       { sigSections    :: Sections
       , sigDefinitions :: Definitions
       }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
@@ -901,7 +904,7 @@ data Section = Section
                                     --   section to when translating from
                                     --   abstract to internal syntax.
       }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 emptySignature :: Signature
 emptySignature = Sig Map.empty HMap.empty
@@ -929,7 +932,7 @@ data DisplayForm = Display
   , dfRHS      :: DisplayTerm
     -- ^ Right hand side, with @n@ free variables.
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
@@ -948,7 +951,7 @@ data DisplayTerm
     -- ^ @.v@.
   | DTerm Term
     -- ^ @v@.
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | By default, we have no display form.
 defaultDisplayForm :: QName -> [Open DisplayForm]
@@ -970,7 +973,7 @@ data NLPat
     -- ^ Matches @f es@
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 type PElims = [Elim' NLPat]
 
 type RewriteRules = [RewriteRule]
@@ -984,7 +987,7 @@ data RewriteRule = RewriteRule
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   }
-    deriving (Typeable, Show)
+    deriving (Typeable, Generic, Show)
 
 data Definition = Defn
   { defArgInfo        :: ArgInfo -- ^ Hiding should not be used.
@@ -1001,7 +1004,7 @@ data Definition = Defn
     -- ^ @Just q@ when this definition is an instance of class q
   , theDef            :: Defn
   }
-    deriving (Typeable, Show)
+    deriving (Typeable, Generic, Show)
 
 -- | Create a definition with sensible defaults.
 defaultDefn :: ArgInfo -> QName -> Type -> Defn -> Definition
@@ -1027,9 +1030,9 @@ type JSCode      = JS.Exp
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
       | HsType HaskellType
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
-data HaskellExport = HsExport HaskellType String deriving (Show, Typeable)
+data HaskellExport = HsExport HaskellType String deriving (Show, Typeable, Generic)
 
 -- | Polarity for equality and subtype checking.
 data Polarity
@@ -1037,7 +1040,7 @@ data Polarity
   | Contravariant  -- ^ antitone
   | Invariant      -- ^ no information (mixed variance)
   | Nonvariant     -- ^ constant
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Generic, Show, Eq)
 
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
@@ -1045,7 +1048,7 @@ data CompiledRepresentation = CompiledRep
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 noCompiledRep :: CompiledRepresentation
 noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
@@ -1061,7 +1064,7 @@ data Occurrence
   | StrictPos -- ^ Strictly positive occurrence.
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
   | Unused    --  ^ No occurrence.
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Generic, Show, Eq, Ord)
 
 instance NFData Occurrence where rnf x = seq x ()
 
@@ -1089,7 +1092,7 @@ data Projection = Projection
     --   is returned as 'Def':  @t = \ pars -> f@.
   , projArgInfo   :: I.ArgInfo
     -- ^ The info of the principal (record) argument.
-  } deriving (Typeable, Show)
+  } deriving (Typeable, Generic, Show)
 
 data Defn = Axiom
             -- ^ Postulate.
@@ -1177,7 +1180,7 @@ data Defn = Axiom
               --   @'Just' something@ for builtin functions.
             }
             -- ^ Primitive or builtin functions.
-    deriving (Typeable, Show)
+    deriving (Typeable, Generic, Show)
 
 -- | A template for creating 'Function' definitions, with sensible defaults.
 emptyFunction :: Defn
@@ -1214,7 +1217,7 @@ defIsDataOrRecord Datatype{} = True
 defIsDataOrRecord _          = False
 
 newtype Fields = Fields [(C.Name, Type)]
-  deriving (Typeable, Null)
+  deriving (Typeable, Generic, Null)
 
 -- | Did we encounter a simplifying reduction?
 --   In terms of CIC, that would be a iota-reduction.
@@ -1224,7 +1227,7 @@ newtype Fields = Fields [(C.Name, Type)]
 --   (unfolding of definitions) does not count as simplifying?
 
 data Simplification = YesSimplification | NoSimplification
-  deriving (Typeable, Eq, Show)
+  deriving (Typeable, Generic, Eq, Show)
 
 instance Null Simplification where
   empty = NoSimplification
@@ -1236,7 +1239,7 @@ instance Monoid Simplification where
   mappend NoSimplification  s = s
 
 data Reduced no yes = NoReduction no | YesReduction Simplification yes
-    deriving (Typeable, Functor)
+    deriving (Typeable, Generic, Functor)
 
 -- | Three cases: 1. not reduced, 2. reduced, but blocked, 3. reduced, not blocked.
 data IsReduced
@@ -1284,7 +1287,7 @@ data PrimFun = PrimFun
         , primFunArity          :: Arity
         , primFunImplementation :: [Arg Term] -> ReduceM (Reduced MaybeReducedArgs Term)
         }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 defClauses :: Definition -> [Clause]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs
@@ -1337,19 +1340,19 @@ type FunctionInverse = FunctionInverse' Clause
 data FunctionInverse' c
   = NotInjective
   | Inverse (Map TermHead c)
-  deriving (Typeable, Show, Functor)
+  deriving (Typeable, Generic, Show, Functor)
 
 data TermHead = SortHead
               | PiHead
               | ConsHead QName
-  deriving (Typeable, Eq, Ord, Show)
+  deriving (Typeable, Generic, Eq, Ord, Show)
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks
 ---------------------------------------------------------------------------
 
 newtype MutualId = MutId Int32
-  deriving (Typeable, Eq, Ord, Show, Num, Enum)
+  deriving (Typeable, Generic, Eq, Ord, Show, Num, Enum)
 
 ---------------------------------------------------------------------------
 -- ** Statistics
@@ -1458,7 +1461,7 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
         = Builtin Term
         | Prim pf
-    deriving (Typeable, Show, Functor, Foldable, Traversable)
+    deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------------------------
 -- * Highlighting levels
@@ -1587,7 +1590,7 @@ data TCEnv =
                 --   slightly different when the internal term comes from an
                 --   unquote.
           }
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext             = []
@@ -1641,10 +1644,10 @@ type Context      = [ContextEntry]
 data ContextEntry = Ctx { ctxId    :: CtxId
                         , ctxEntry :: Dom (Name, Type)
                         }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 newtype CtxId     = CtxId Nat
-  deriving (Typeable, Eq, Ord, Show, Enum, Real, Integral, Num)
+  deriving (Typeable, Generic, Eq, Ord, Show, Enum, Real, Integral, Num)
 
 ---------------------------------------------------------------------------
 -- ** Let bindings
@@ -1660,7 +1663,7 @@ data AbstractMode
   = AbstractMode        -- ^ Abstract things in the current module can be accessed.
   | ConcreteMode        -- ^ No abstract things can be accessed.
   | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments
@@ -1703,7 +1706,7 @@ data CallInfo = CallInfo
     -- ^ Range of the target function.
   , callInfoCall :: Closure Term
     -- ^ To be formatted representation of the call.
-  } deriving Typeable
+  } deriving (Typeable, Generic)
 
 -- no Eq, Ord instances: too expensive! (see issues 851, 852)
 
@@ -1737,7 +1740,7 @@ data TerminationError = TerminationError
     -- automatically generated functions.)
   , termErrCalls :: [CallInfo]
     -- ^ The problematic call sites.
-  } deriving (Typeable, Show)
+  } deriving (Typeable, Generic, Show)
 
 -- | Error when splitting a pattern variable into possible constructor patterns.
 data SplitError
@@ -1975,7 +1978,7 @@ data TypeError
         | SafeFlagPrimTrustMe
     -- Language option errors
         | NeedOptionCopatterns
-          deriving (Typeable, Show)
+          deriving (Typeable, Generic, Show)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
 data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
@@ -1994,7 +1997,7 @@ data TCErr = TypeError TCState (Closure TypeError)
            | IOException Range E.IOException
            | PatternErr  -- TCState -- ^ for pattern violations
            {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance Error TCErr where
     noMsg  = strMsg ""

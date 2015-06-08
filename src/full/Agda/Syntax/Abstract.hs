@@ -1,6 +1,7 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
+             DeriveGeneric,
              DeriveFoldable,
              DeriveFunctor,
              DeriveTraversable,
@@ -28,6 +29,7 @@ import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import Data.Traversable
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -103,7 +105,7 @@ data Expr
   | QuoteTerm ExprInfo                 -- ^ Quote a term.
   | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | Record field assignment @f = e@.
 type Assign  = (C.Name, Expr)
@@ -114,7 +116,7 @@ data Axiom
   = FunSig    -- ^ A function signature.
   | NoFunSig  -- ^ Not a function signature, i.e., a postulate (in user input)
               --   or another (e.g. data/record) type signature (internally).
-  deriving (Typeable, Eq, Ord, Show)
+  deriving (Typeable, Generic, Eq, Ord, Show)
 
 -- | Renaming (generic).
 type Ren a = [(a, a)]
@@ -143,7 +145,7 @@ data Declaration
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo DefInfo QName Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
@@ -165,7 +167,7 @@ data ModuleApplication
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
     | RecordModuleIFS ModuleName
       -- ^ @M {{...}}@
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 data Pragma
   = OptionsPragma [String]
@@ -182,7 +184,7 @@ data Pragma
   | CompiledJSPragma QName String
   | StaticPragma QName
   | EtaPragma QName
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | Bindings that are valid in a @let@.
 data LetBinding
@@ -194,7 +196,7 @@ data LetBinding
     -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
   | LetOpen ModuleInfo ModuleName
     -- ^ only for highlighting and abstractToConcrete
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -205,12 +207,12 @@ type Field          = TypeSignature
 data LamBinding
   = DomainFree ArgInfo Name   -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
   | DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@ or @(let Ds)@
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
             -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | A typed binding.  Appears in dependent function spaces, typed lambdas, and
 --   telescopes.  It might be tempting to simplify this to only bind a single
@@ -231,7 +233,7 @@ data TypedBinding
     -- ^ As in telescope @(x y z : A)@ or type @(x y z : A) -> B@.
   | TLet Range [LetBinding]
     -- ^ E.g. @(let x = e)@ or @(let open M)@.
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 type Telescope  = [TypedBindings]
 
@@ -242,7 +244,7 @@ data Clause' lhs = Clause
   { clauseLHS        :: lhs
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
-  } deriving (Typeable, Show, Functor, Foldable, Traversable)
+  } deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
@@ -256,7 +258,7 @@ data RHS
       -- ^ The 'QName's are the names of the generated with functions.
       --   One for each 'Expr'.
       --   The RHS shouldn't be another @RewriteRHS@.
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | The lhs of a clause in spine view (inside-out).
 --   Projection patterns are contained in @spLhsPats@,
@@ -267,7 +269,7 @@ data SpineLHS = SpineLHS
   , spLhsPats     :: [NamedArg Pattern]  -- ^ Function parameters (patterns).
   , spLhsWithPats :: [Pattern]           -- ^ @with@ patterns (after @|@).
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | The lhs of a clause in focused (projection-application) view (outside-in).
 --   Projection patters are represented as 'LHSProj's.
@@ -276,7 +278,7 @@ data LHS = LHS
   , lhsCore     :: LHSCore               -- ^ Copatterns.
   , lhsWithPats :: [Pattern]             -- ^ @with@ patterns (after @|@).
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | The lhs minus @with@-patterns in projection-application view.
 --   Parameterised over the type @e@ of dot patterns.
@@ -296,7 +298,7 @@ data LHSCore' e
              , lhsPatsRight  :: [NamedArg (Pattern' e)]
                -- ^ Further applied to patterns.
              }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type LHSCore = LHSCore' Expr
 
@@ -384,7 +386,7 @@ data Pattern' e
   | ImplicitP PatInfo
     -- ^ Generated at type checking for implicit arguments.
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]

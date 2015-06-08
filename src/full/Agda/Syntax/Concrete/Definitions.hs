@@ -1,6 +1,7 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
+             DeriveGeneric,
              FlexibleInstances,
              PatternGuards,
              TupleSections #-}
@@ -67,6 +68,7 @@ import Data.Monoid ( Monoid(mappend, mempty) )
 import Data.List as List hiding (null)
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo, TerminationCheck())
@@ -122,7 +124,7 @@ data NiceDeclaration
   | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
   | NiceUnquoteDecl Range Fixity' Access IsInstance IsAbstract TerminationCheck Name Expr
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
 
@@ -138,7 +140,7 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name LHS RHS WhereClause [Clause]
-    deriving (Typeable, Show)
+    deriving (Typeable, Generic, Show)
 
 -- | The exception type.
 data DeclarationException
@@ -167,7 +169,7 @@ data DeclarationException
         | PragmaNoTerminationCheck Range
           -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
           --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
-    deriving (Typeable)
+    deriving (Typeable, Generic)
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs)      = getRange (fst $ head xs)

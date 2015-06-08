@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
@@ -20,6 +21,7 @@ import Data.Maybe
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
@@ -41,7 +43,7 @@ import Agda.Utils.Impossible
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
 data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Generic)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
@@ -206,7 +208,7 @@ data Drop a = Drop
   { dropN    :: Int  -- ^ Non-negative number of things to drop.
   , dropFrom :: a    -- ^ Where to drop from.
   }
-  deriving (Eq, Ord, Show, Typeable, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Typeable, Generic, Functor, Foldable, Traversable)
 
 -- | Things that support delayed dropping.
 class DoDrop a where

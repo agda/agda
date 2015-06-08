@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
@@ -31,6 +32,7 @@ import qualified Data.Map as Map
 import Data.List hiding (null, sort)
 
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
 
@@ -83,7 +85,7 @@ data UnificationResult' a
   = Unifies  a      -- ^ Unification succeeded.
   | NoUnify  TCErr  -- ^ Terms are not unifiable.
   | DontKnow TCErr  -- ^ Some other error happened, unification got stuck.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 -- | Monad for unification.
 newtype Unify a = U { unUnify ::
@@ -395,7 +397,7 @@ flattenSubstitution s = foldr instantiate s is
 data HomHet a
   = Hom a    -- ^ homogeneous
   | Het a a  -- ^ heterogeneous
-  deriving (Typeable, Show, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Eq, Ord, Functor, Foldable, Traversable)
 
 isHom :: HomHet a -> Bool
 isHom Hom{} = True
@@ -1072,7 +1074,7 @@ data ShapeView a
   | SortSh
   | MetaSh        -- ^ some meta
   | ElseSh        -- ^ not a type or not definitely same shape
-  deriving (Typeable, Show, Eq, Ord, Functor)
+  deriving (Typeable, Generic, Show, Eq, Ord, Functor)
 
 -- | Return the type and its shape.  Expects input in (u)reduced form.
 shapeView :: Type -> Unify (Type, ShapeView Type)

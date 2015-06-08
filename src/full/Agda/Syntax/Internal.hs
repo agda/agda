@@ -1,6 +1,7 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
+             DeriveGeneric,
              DeriveFoldable,
              DeriveFunctor,
              DeriveTraversable,
@@ -37,6 +38,7 @@ import Data.Orphans             ()
 
 import Data.Traversable
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -79,7 +81,7 @@ data ConHead = ConHead
                               --   Empty list for data constructors.
                               --   'Arg' is not needed here since it
                               --   is stored in the constructor args.
-  } deriving (Typeable)
+  } deriving (Typeable, Generic)
 
 instance Eq ConHead where
   (==) = (==) `on` conName
@@ -131,12 +133,12 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
           | Shared !(Ptr Term)
             -- ^ Explicit sharing
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | Eliminations, subsuming applications and projections.
 --
 data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
 type Elims = [Elim]  -- ^ eliminations ordered left-to-right.
@@ -164,7 +166,7 @@ data Abs a = Abs   { absName :: ArgName, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: ArgName, unAbs :: a }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 instance Decoration Abs where
   traverseF f (Abs   x a) = Abs   x <$> f a
@@ -173,7 +175,7 @@ instance Decoration Abs where
 -- | Types are terms with a sort annotation.
 --
 data Type' a = El { _getSort :: Sort, unEl :: a }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type Type = Type' Term
 
@@ -200,7 +202,7 @@ instance LensSort a => LensSort (Abs a) where
 --   and so on.
 data Tele a = EmptyTel
             | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
 
@@ -238,19 +240,19 @@ data Sort
     --   If the free variable occurs in the second sort,
     --   the whole thing should reduce to Inf,
     --   otherwise it's the normal lub.
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 -- | A level is a maximum expression of 0..n 'PlusLevel' expressions
 --   each of which is a number or an atom plus a number.
 --
 --   The empty maximum is the canonical representation for level 0.
 newtype Level = Max [PlusLevel]
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Generic)
 
 data PlusLevel
   = ClosedLevel Integer     -- ^ @n@, to represent @Setₙ@.
   | Plus Integer LevelAtom  -- ^ @n + ℓ@.
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Generic)
 
 -- | An atomic term of type @Level@.
 data LevelAtom
@@ -262,12 +264,12 @@ data LevelAtom
     -- ^ A neutral term of type @Level@.
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Generic)
 
 -- | A meta variable identifier is just a natural number.
 --
 newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Generic)
 
 -- | Even if we are not stuck on a meta during reduction
 --   we can fail to reduce a definition by pattern matching
@@ -288,7 +290,7 @@ data NotBlocked
   | ReallyNotBlocked
     -- ^ Reduction was not blocked, we reached a whnf
     --   which can be anything but a stuck @'Def'@.
-  deriving (Show, Typeable)
+  deriving (Show, Typeable, Generic)
 
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
@@ -309,8 +311,8 @@ instance Monoid NotBlocked where
 data Blocked t
   = Blocked    { theBlockingMeta :: MetaId    , ignoreBlocking :: t }
   | NotBlocked { blockingStatus  :: NotBlocked, ignoreBlocking :: t }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
-  -- deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
+  -- deriving (Typeable, Generic, Eq, Ord, Functor, Foldable, Traversable)
 
 -- | Blocking by a meta is dominant.
 instance Applicative Blocked where
@@ -409,7 +411,7 @@ data Clause = Clause
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
     }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 clausePats :: Clause -> [Arg Pattern]
 clausePats = map (fmap namedThing) . namedClausePats
@@ -436,7 +438,7 @@ clausePats = map (fmap namedThing) . namedClausePats
 data ClauseBodyF a = Body a
                    | Bind (Abs (ClauseBodyF a))
                    | NoBody    -- ^ for absurd clauses.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type ClauseBody = ClauseBodyF Term
 
@@ -470,7 +472,7 @@ data Pattern' x
     -- ^ E.g. @5@, @"hello"@.
   | ProjP QName
     -- ^ Projection copattern.  Can only appear by itself.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Generic, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
@@ -502,7 +504,7 @@ data ConPatternInfo = ConPatternInfo
     --   plugin (like Agsy).
     --   Needed e.g. for with-clause stripping.
   }
-  deriving (Typeable, Show)
+  deriving (Typeable, Generic, Show)
 
 noConPatternInfo :: ConPatternInfo
 noConPatternInfo = ConPatternInfo Nothing Nothing

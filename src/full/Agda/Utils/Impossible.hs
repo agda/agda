@@ -3,16 +3,20 @@
 ------------------------------------------------------------------------
 
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Agda.Utils.Impossible where
 
 import Control.Exception as E
 import Data.Typeable ( Typeable )
 
+import GHC.Generics (Generic)
+
 -- | \"Impossible\" errors, annotated with a file name and a line
 -- number corresponding to the source code location of the error.
 
-data Impossible = Impossible String Integer deriving Typeable
+data Impossible = Impossible String Integer
+  deriving (Typeable, Generic)
 
 instance Show Impossible where
   show (Impossible file line) = unlines

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Agda.Utils.Pointer
   ( Ptr, newPtr, derefPtr, setPtr
@@ -15,10 +16,11 @@ import Data.IORef
 import Data.Traversable
 import System.IO.Unsafe
 import Data.Typeable ( Typeable )
+import GHC.Generics (Generic)
 
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 {-# NOINLINE freshVar #-}
 freshVar :: MVar Integer

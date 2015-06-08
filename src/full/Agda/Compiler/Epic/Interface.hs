@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Epic interface data structure, which is serialisable and stored for each
 --   compiled file
@@ -12,16 +13,18 @@ import Data.Monoid
 import Data.Set (Set)
 import Data.Typeable ( Typeable )
 
+import GHC.Generics
+
 import Agda.Syntax.Common (Nat)
 import Agda.Syntax.Internal
 
 type Var       = String
 data Tag       = Tag Int
                | PrimTag Var
-  deriving (Show, Eq, Ord, Typeable)
+  deriving (Show, Eq, Ord, Typeable, Generic)
 
 data Forced = NotForced | Forced
-  deriving (Show, Typeable, Eq)
+  deriving (Show, Typeable, Generic, Eq)
 
 -- | Filter a list using a list of Bools specifying what to keep.
 pairwiseFilter :: [Bool] -> [a] -> [a]
@@ -38,7 +41,7 @@ forced = pairwiseFilter . map (== Forced)
 data Relevance
   = Irr
   | Rel
-  deriving (Eq, Ord, Show, Typeable)
+  deriving (Eq, Ord, Show, Typeable, Generic)
 
 type ForcedArgs   = [Forced]
 type RelevantArgs = [Relevance]
@@ -47,7 +50,7 @@ data InjectiveFun = InjectiveFun
   { injArg     :: Nat
   , injArity   :: Nat
   }
-  deriving (Show, Typeable, Eq)
+  deriving (Show, Typeable, Generic, Eq)
 
 data EInterface = EInterface
     { constrTags    :: Map QName Tag
@@ -58,7 +61,7 @@ data EInterface = EInterface
     , relevantArgs  :: Map Var   RelevantArgs
     , forcedArgs    :: Map QName ForcedArgs
     , injectiveFuns :: Map QName InjectiveFun
-    } deriving (Typeable, Show)
+    } deriving (Typeable, Generic, Show)
 
 instance Monoid EInterface where
   mempty = EInterface

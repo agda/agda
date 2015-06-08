@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Ranges.
 
@@ -19,6 +20,7 @@ module Agda.Interaction.Highlighting.Range
 import Control.Applicative ((<$>))
 import Data.List
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import qualified Agda.Syntax.Position as P
 import Agda.Utils.List
@@ -32,7 +34,7 @@ import Agda.Utils.QuickCheck
 -- Invariant: @'from' '<=' 'to'@.
 
 data Range = Range { from, to :: Int }
-             deriving (Eq, Ord, Show, Typeable)
+             deriving (Eq, Ord, Show, Typeable, Generic)
 
 -- | The 'Range' invariant.
 

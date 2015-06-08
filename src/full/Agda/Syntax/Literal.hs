@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Agda.Syntax.Literal where
 
 import Data.Char
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
@@ -13,7 +15,7 @@ data Literal = LitInt    Range Integer
              | LitString Range String
              | LitChar   Range Char
              | LitQName  Range QName
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance Show Literal where
   showsPrec p l = showParen (p > 9) $ case l of
