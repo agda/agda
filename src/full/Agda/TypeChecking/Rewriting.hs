@@ -186,6 +186,9 @@ addRewriteRule q = inTopContext $ do
         Con c vs -> return $ conName c
         _        -> failureNotDefOrCon
 
+      whenM (null . lookupDefinition f <$> getSignature) $ typeError . GenericDocError =<< hsep
+        [ text "Cannot add a rewrite rule for " , prettyTCM f , text " because it is defined in a different file" ]
+
       -- Normalize lhs: we do not want to match redexes.
       lhs <- normaliseArgs lhs
       unlessM (isNormal lhs) $ failureLhsReduction lhs

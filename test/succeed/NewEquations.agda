@@ -1,11 +1,15 @@
 module NewEquations where
 
-open import Common.Prelude hiding (map)
+open import Common.Prelude hiding (map; _++_)
 open import Common.Equality
 
 map : ∀ {A B} → (A → B) → List A → List B
 map f [] = []
 map f (x ∷ xs) = (f x) ∷ (map f xs)
+
+_++_ : ∀ {A : Set} → List A → List A → List A
+[] ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
 fold : ∀ {A B : Set} → (A → B → B) → B → List A → B
 fold f v [] = v
