@@ -11,9 +11,9 @@ import Agda.Syntax.Position (Range)
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce (normalise)
 import qualified Agda.Syntax.Common as Com
 import Agda.Syntax.Internal
+import Agda.Interaction.BasicOps (normalForm)
 import qualified Agda.Syntax.Translation.ConcreteToAbstract as TCA
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
@@ -52,7 +52,7 @@ findMentions norm rg nm = do
   scp  <- getNamedScope =<< currentModule
   let names = nsNames $ allThingsInScope scp
   concat <$> mapM (\ (x, n) -> do
-              t <- normalise =<< typeOfConst (anameName n)
+              t <- normalForm norm =<< typeOfConst (anameName n)
               let defName  = show x
               let namesInT = collectNamesInType t
               return $ do
