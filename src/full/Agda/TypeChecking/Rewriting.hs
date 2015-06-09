@@ -148,6 +148,10 @@ addRewriteRule q = inTopContext $ do
   -- Get rewrite rule (type of q).
   t <- defType <$> getConstInfo q
   TelV gamma core <- telView t
+  reportSDoc "rewriting" 30 $ do
+    text "attempting to add rewrite rule of type " <+> do
+      inTopContext $ prettyTCM gamma <+> text " |- " <+> do
+        addContext gamma $ prettyTCM core
 
   let failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " does not target rewrite relation" ]
@@ -173,7 +177,8 @@ addRewriteRule q = inTopContext $ do
           n  = size vs
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
-      let b  = applySubst (parallelS $ reverse us) a
+      b <- instantiateFull $ applySubst (parallelS $ reverse us) a
+      gamma <- instantiateFull gamma
 
       -- Find head symbol f of the lhs.
       f <- case ignoreSharing lhs of
@@ -187,6 +192,14 @@ addRewriteRule q = inTopContext $ do
 
       -- Normalize rhs: might be more efficient.
       rhs <- etaContract =<< normalise rhs
+      reportSDoc "rewriting" 100 $ text "  gamma = " <+> prettyTCM gamma
+        <+> text " (metas: " <+> prettyTCM (allMetas (telToList gamma))
+      reportSDoc "rewriting" 100 $ text "  lhs   = " <+> prettyTCM lhs
+        <+> text " (metas: " <+> prettyTCM (allMetas lhs)
+      reportSDoc "rewriting" 100 $ text "  rhs   = " <+> prettyTCM rhs
+        <+> text " (metas: " <+> prettyTCM (allMetas rhs)
+      reportSDoc "rewriting" 100 $ text "  b     = " <+> prettyTCM b
+        <+> text " (metas: " <+> prettyTCM (allMetas b)
       unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
       pat <- patternFrom lhs
       let rew = RewriteRule q gamma pat rhs b
