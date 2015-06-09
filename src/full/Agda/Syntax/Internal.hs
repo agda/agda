@@ -1,5 +1,6 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
+{-# LANGUAGE BangPatterns,
+             CPP,
              DeriveDataTypeable,
              DeriveFoldable,
              DeriveFunctor,
@@ -439,6 +440,13 @@ data ClauseBodyF a = Body a
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type ClauseBody = ClauseBodyF Term
+
+imapClauseBody :: (Nat -> a -> b) -> ClauseBodyF a -> ClauseBodyF b
+imapClauseBody f b = go 0 b
+  where
+    go i  (Body x)  = Body (f i x)
+    go _   NoBody   = NoBody
+    go !i (Bind b)  = Bind $ go (i + 1) <$> b
 
 instance HasRange Clause where
   getRange = clauseRange
