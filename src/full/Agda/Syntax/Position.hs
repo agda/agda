@@ -3,6 +3,7 @@
              DeriveDataTypeable,
              DeriveFoldable,
              DeriveFunctor,
+             DeriveGeneric,
              DeriveTraversable,
              FlexibleInstances,
              GeneralizedNewtypeDeriving,
@@ -76,6 +77,8 @@ import qualified Data.Set as Set
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
+import GHC.Generics (Generic)
+
 import Test.QuickCheck.All
 
 import Agda.Utils.FileName hiding (tests)
@@ -111,7 +114,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-    deriving (Typeable, Functor, Foldable, Traversable)
+    deriving (Typeable, Generic, Functor, Foldable, Traversable)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -134,7 +137,7 @@ type Position = Position' SrcFile
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-    deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+    deriving (Typeable, Generic, Eq, Ord, Functor, Foldable, Traversable)
 
 type Interval = Interval' SrcFile
 
@@ -153,7 +156,7 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 newtype Range' a = Range [Interval' a]
-  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
+  deriving (Typeable, Generic, Eq, Ord, Functor, Foldable, Traversable, Null)
 
 type Range = Range' SrcFile
 

@@ -1,7 +1,9 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -38,6 +40,7 @@ import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict
+
 import Data.Array.IArray
 import Data.Word
 import qualified Data.ByteString.Lazy as L
@@ -49,13 +52,17 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Binary (Binary)
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+
 import qualified Codec.Compression.GZip as G
+
+import GHC.Generics (Generic)
 
 import qualified Agda.Compiler.Epic.Interface as Epic
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
@@ -64,13 +71,13 @@ import qualified Agda.Compiler.UHC.AuxAST as UHCA
 import qualified Agda.Compiler.UHC.Naming as UHCN
 import qualified Agda.Compiler.UHC.Bridge as UHCB
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position (Position, Range, noRange)
+import Agda.Syntax.Position
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -120,7 +127,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150511 * 10 + 0
+currentInterfaceVersion = 20150604 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -163,12 +170,14 @@ data Dict = Dict
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
   , termD        :: !(HashTable (Ptr Term) Int32)
+  , qnameD       :: !(HashTable A.QName Int32)
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
   , bstringC     :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
+  , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int32)
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
@@ -191,6 +200,8 @@ emptyDict collectStats fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -214,6 +225,7 @@ data St = St
   , bstringE  :: !(Array Int32 L.ByteString)
   , integerE  :: !(Array Int32 Integer)
   , doubleE   :: !(Array Int32 Double)
+  , qnameE    :: !(Array Int32 A.QName)
   , nodeMemo  :: !Memo
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. This is the only component
@@ -265,7 +277,7 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD bD iD dD _ nC sC bC iC dC tC stats _ _) <- liftIO $
+    newD@(Dict nD sD bD iD dD _tD qD nC sC bC iC dC tC qC stats _ _) <- liftIO $
       emptyDict collectStats fileMod
     root <- liftIO $ runReaderT (icode a) newD
     nL <- benchSort $ l nD
@@ -273,6 +285,7 @@ encode a = do
     bL <- benchSort $ l bD
     iL <- benchSort $ l iD
     dL <- benchSort $ l dD
+    qL <- benchSort $ l qD
     -- Record reuse statistics.
     verboseS "profile.sharing" 10 $ do
       statistics "pointers" tC
@@ -282,13 +295,14 @@ encode a = do
       statistics "ByteString" bC
       statistics "Double"   dC
       statistics "Node"     nC
+      statistics "A.QName"  qC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      returnForcedByteString $ B.encode (root, nL, sL, bL, iL, dL)
+      returnForcedByteString $ B.encode (root, nL, sL, bL, iL, dL, qL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
@@ -359,7 +373,7 @@ decode s = do
      then noResult "Wrong interface version."
      else do
 
-      ((r, nL, sL, bL, iL, dL), s, _) <-
+      ((r, nL, sL, bL, iL, dL, qL), s, _) <-
         return $ runGetState B.get (G.decompress s) 0
       if s /= L.empty
          -- G.decompress seems to throw away garbage at the end, so
@@ -367,7 +381,7 @@ decode s = do
        then noResult "Garbage at end."
        else do
 
-        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL)
+        st <- St (ar nL) (ar sL) (ar bL) (ar iL) (ar dL) (ar qL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
                 <*> return shared
@@ -422,6 +436,32 @@ decodeHashes s
 
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
+
+-- Andreas, 2015-06-04 AIM XXI: Memoize A.QName
+-- The following instances of Binary allow for a direct serialization of A.QName
+-- this is needed for serialization of HashTable A.QName Int32.
+instance Binary AbsolutePath
+instance Binary NamePart
+instance Binary C.Name
+instance Binary NameId
+instance Binary Associativity
+instance (Generic a, Binary a) => Binary (Position' a)
+instance (Generic a, Binary a) => Binary (Interval' a)
+instance (Generic a, Binary a) => Binary (Range' a)
+instance (Generic a, Binary a) => Binary (Common.Ranged a)
+instance (Generic a, Binary a) => Binary (Common.ArgInfo a)
+instance (Generic a, Generic b, Binary a, Binary b) => Binary (Common.Arg a b)
+instance (Generic a, Generic b, Binary a, Binary b) => Binary (Common.Named a b)
+instance Binary Common.Big
+instance Binary Common.Relevance
+instance Binary Common.Hiding
+instance Binary GenPart
+instance Binary PrecedenceLevel
+instance Binary Fixity
+instance Binary Fixity'
+instance Binary A.Name
+instance Binary A.ModuleName
+instance Binary A.QName
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} EmbPrj String where
@@ -692,9 +732,13 @@ instance EmbPrj GenPart where
                            valu _      = malformed
 
 instance EmbPrj A.QName where
-  icod_ (A.QName a b) = icode2' a b
-  value = vcase valu where valu [a, b] = valu2 A.QName a b
-                           valu _      = malformed
+  icod_ = icodeQName
+  value i = (! i) `fmap` gets qnameE
+
+-- instance EmbPrj A.QName where
+--   icod_ (A.QName a b) = icode2' a b
+--   value = vcase valu where valu [a, b] = valu2 A.QName a b
+--                            valu _      = malformed
 
 instance EmbPrj A.AmbiguousQName where
   icod_ (A.AmbQ a) = icode a
@@ -861,7 +905,7 @@ instance EmbPrj A.TypedBinding where
                            valu [1, a, b]    = valu2 A.TLet a b
                            valu _            = malformed
 
-instance EmbPrj c => EmbPrj (Agda.Syntax.Common.ArgInfo c) where
+instance EmbPrj c => EmbPrj (Common.ArgInfo c) where
   icod_ (ArgInfo h r cs) = icode3' h r cs
 
   value = vcase valu where valu [h, r, cs] = valu3 ArgInfo h r cs
@@ -915,24 +959,24 @@ instance EmbPrj a => EmbPrj (WithHiding a) where
   value = vcase valu where valu [a, b] = valu2 WithHiding a b
                            valu _      = malformed
 
-instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Arg c a) where
+instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Arg c a) where
   icod_ (Arg i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Arg i e
                            valu _      = malformed
 
-instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Dom c a) where
+instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Dom c a) where
   icod_ (Dom i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Dom i e
                            valu _      = malformed
 
-instance EmbPrj Agda.Syntax.Common.Induction where
+instance EmbPrj Common.Induction where
   icod_ Inductive   = icode0'
   icod_ CoInductive = icode0 1
   value = vcase valu where valu []  = valu0 Inductive
                            valu [1] = valu0 CoInductive
                            valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Common.Hiding where
+instance EmbPrj Common.Hiding where
   icod_ Hidden    = icode0 0
   icod_ NotHidden = icode0'
   icod_ Instance  = icode0 2
@@ -941,7 +985,7 @@ instance EmbPrj Agda.Syntax.Common.Hiding where
                            valu [2] = valu0 Instance
                            valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Common.Relevance where
+instance EmbPrj Common.Relevance where
   icod_ Relevant   = icode0'
   icod_ Irrelevant = icode0 1
   icod_ (Forced Small) = icode0 2
@@ -1304,7 +1348,7 @@ instance EmbPrj TermHead where
                            valu [2, a] = valu1 ConsHead a
                            valu _      = malformed
 
-instance EmbPrj Agda.Syntax.Common.IsAbstract where
+instance EmbPrj Common.IsAbstract where
   icod_ AbstractDef = icode0 0
   icod_ ConcreteDef = icode0'
   value = vcase valu where valu [0] = valu0 AbstractDef
@@ -1668,6 +1712,21 @@ icodeN :: Node -> S Int32
 icodeN key = do
   d <- asks nodeD
   c <- asks nodeC
+  liftIO $ do
+    mi <- H.lookup d key
+    case mi of
+      Just i  -> do
+        modifyIORef' c $ over lensReuse (+1)
+        return i
+      Nothing -> do
+        fresh <- (^.lensFresh) <$> do readModifyIORef' c $ over lensFresh (+1)
+        H.insert d key fresh
+        return fresh
+
+icodeQName :: A.QName -> S Int32
+icodeQName key = do
+  d <- asks qnameD
+  c <- asks qnameC
   liftIO $ do
     mi <- H.lookup d key
     case mi of
