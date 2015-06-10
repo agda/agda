@@ -626,46 +626,7 @@ unifyIndices flex a us vs = liftTCM $ do
 
       unifyConArgs (tel `absAppHH` uHH) us vs
 
-
-    -- | Used for arguments of a 'Def'.
-    unifyElims :: Type -> Elims -> Elims -> Unify ()
-    unifyElims _ (_ : _) [] = __IMPOSSIBLE__
-    unifyElims _ [] (_ : _) = __IMPOSSIBLE__
-    unifyElims _ [] [] = return ()
-    unifyElims _ (Proj{} : _) (Apply{} : _) = __IMPOSSIBLE__ -- Andreas, 2013-10-19
-    unifyElims _ (Apply{} : _) (Proj{} : _) = __IMPOSSIBLE__ -- being optimistic
-    unifyElims t (Proj f : es1) (Proj f' : es2)
-      | f == f' = do
-          maybe __IMPOSSIBLE__ (\ t -> unifyElims t es1 es2) =<< do
-            liftTCM $ projectType t f
-      | otherwise = projectionMismatch f f'
-    unifyElims a us0@(Apply arg@(Arg _ u) : us) vs0@(Apply (Arg _ v) : vs) = do
-      liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
-        [ text "unifyElims"
-        , nest 2 $ parens (prettyTCM a)
-        , nest 2 $ prettyList $ map prettyTCM us0
-        , nest 2 $ prettyList $ map prettyTCM vs0
-        ]
-      a <- ureduce a  -- Q: reduce sufficient?
-      case ignoreSharing $ unEl a of
-        Pi b _  -> do
-          -- Andreas, Ulf, 2011-09-08 (AIM XVI)
-          -- in case of dependent function type, we cannot postpone
-          -- unification of u and v, otherwise us or vs might be ill-typed
-          let dep = dependent $ unEl a
-          -- skip irrelevant parts
-          unless (isIrrelevant b) $
-            (if dep then noPostponing else id) $
-              unify (unDom b) u v
-          arg <- traverse ureduce arg
-          unifyElims (a `piApply` [arg]) us vs
-        _         -> __IMPOSSIBLE__
-      where dependent (Pi _ NoAbs{}) = False
-            dependent (Pi b c)       = 0 `relevantIn` absBody c
-            dependent (Shared p)     = dependent (derefPtr p)
-            dependent _              = False
-{-
-    -- | Used for arguments of a 'Def', not 'Con'.
+    -- | Used for arguments of a 'Def' (data/record/postulate), not 'Con'.
     unifyArgs :: Type -> [I.Arg Term] -> [I.Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyArgs _ [] (_ : _) = __IMPOSSIBLE__
@@ -695,7 +656,7 @@ unifyIndices flex a us vs = liftTCM $ do
             dependent (Pi b c)       = 0 `relevantIn` absBody c
             dependent (Shared p)     = dependent (derefPtr p)
             dependent _              = False
--}
+
     -- | Check using conversion check.
     recheckEqualities :: Unify ()
     recheckEqualities = do
@@ -851,7 +812,7 @@ unifyIndices flex a us vs = liftTCM $ do
                 Nothing -> checkEqualityHH aHH u v
           | otherwise -> constructorMismatchHH aHH u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
-        (Def d us, Def d' vs)
+        (Def d es, Def d' es')
           | d == d' -> do
               -- d must be a data, record or axiom
               def <- getConstInfo d
@@ -861,8 +822,10 @@ unifyIndices flex a us vs = liftTCM $ do
                     Axiom{}    -> True
                     _          -> False
               inj <- liftTCM $ optInjectiveTypeConstructors <$> pragmaOptions
-              if inj && ok
-                then unifyElims (defType def) us vs `catchException` \ _ ->
+              if inj && ok then do
+                  let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                      vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es'
+                  unifyArgs (defType def) us vs `catchException` \ _ ->
                        constructorMismatchHH aHH u v
                 else checkEqualityHH aHH u v
           -- Andreas, 2011-05-30: if heads disagree, abort
