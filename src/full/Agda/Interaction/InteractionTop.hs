@@ -305,8 +305,8 @@ data Interaction' range
                         B.Rewrite
                         String
 
--- | Shows all the top-level names in scope which mention all the given
--- identifiers in their type.
+    -- | Shows all the top-level names in scope which mention all the given
+    -- identifiers in their type.
   | Cmd_search_about_toplevel B.Rewrite String
 
   | Cmd_solveAll
