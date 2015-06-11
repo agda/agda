@@ -231,8 +231,9 @@ stripWithClausePatterns f t qs perm ps = do
       case namedArg q of
         ProjP d -> case A.isProjP p of
           Just d' | d == d' -> do
-            t1 <- fromMaybe __IMPOSSIBLE__ <$> projectType t d
-            strip (self `applyE` [Proj d]) t1 ps qs
+            t <- reduce t
+            (self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
+            strip self1 t1 ps qs
           _ -> mismatch
 
         VarP (i, _x)  -> do

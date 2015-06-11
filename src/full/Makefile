@@ -5,7 +5,7 @@ include $(TOP)/mk/paths.mk
 
 # src_files=$(shell find . \( \( -name '*.hs' -o -name '*.lhs' \) ! -name '.*' \) )
 # include hs-boot files
-find_filter=\( \( -name '*.*hs*' ! -name '*~' \) ! -name '.*' \)
+find_filter=\( \( \( -name '*.*hs' -o -name '*.hs-boot' \) ! -name '*~' \) ! -name '.*' \)
 src_files=$(shell find . $(find_filter) )
 
 

@@ -30,6 +30,7 @@ import Agda.Utils.List
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
@@ -41,15 +42,12 @@ import Agda.Utils.Impossible
 --   Use the second argument for missing fields.
 orderFields :: QName -> a -> [C.Name] -> [(C.Name, a)] -> TCM [a]
 orderFields r def xs fs = do
-  shouldBeNull (ys \\ nub ys) $ DuplicateFields . nub
-  shouldBeNull (ys \\ xs)     $ TooManyFields r
+  unlessNull (ys \\ nub ys) $ typeError . DuplicateFields . nub
+  unlessNull (ys \\ xs)     $ typeError . TooManyFields r
   -- shouldBeNull (xs \\ ys)     $ TooFewFields r
   return $ order xs fs
   where
     ys = map fst fs
-
-    shouldBeNull [] err = return ()
-    shouldBeNull xs err = typeError $ err xs
 
     -- invariant: the first list contains at least the fields of the second list
     order [] [] = []
@@ -149,35 +147,17 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
       caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
     _ -> no
 
--- | The analogue of 'piApply'.  If @v@ is a value of record type @T@
---   with field @f@, then @projectType T f@ returns the type of @f v@.
-projectType :: Type -> QName -> TCM (Maybe Type)
-projectType t f = do
-  res <- isRecordType t
-  case res of
-    Nothing -> return Nothing
-    Just (_r, ps, _rdef) -> do
-      def <- getConstInfo f
-      if (isProperProjection $ theDef def)
-        then return $ Just $ defType def `apply` ps
-        else return Nothing
-
-{- DEPRECATED, use Signature.getDefType instead!
-
--- | @projectionType t f@ returns the type of projection or
---   projection-like function @t@ applied to the parameters,
---   which are read of @t@.
---   It fails if @t@ is not a @Def@ applied to the parameters.
-projectionType :: Type -> QName -> TCM (Maybe Type)
-projectionType t f = do
-  t <- reduce t
-  case ignoreSharing $ unEl t of
-    Def _ es -> do
-      flip (maybe $ return Nothing) (allApplyElims es) $ \ pars -> do
-        ft <- defType <$> getConstInfo f  -- type of projection(like) function
-        return $ Just $ ft `piApply` pars
-    _ -> return Nothing
--}
+-- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
+--   with field @f@, then @projectTyped v t f@ returns the type of @f v@.
+--
+--   Works also for projection-like definitions @f@.
+--
+--   Precondition: @t@ is reduced.
+projectTyped :: Term -> Type -> QName -> TCM (Maybe (Term, Type))
+projectTyped v t f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
+  (dom, b) <- mustBePi tf
+  u <- f `applyDef` (argFromDom dom $> v)
+  return $ Just (u, b `absApp` v)
 
 -- | Check if a name refers to an eta expandable record.
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}
