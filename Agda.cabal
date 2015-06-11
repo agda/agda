@@ -362,7 +362,6 @@ library
                     Agda.Utils.Functor
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
-                    Agda.Utils.Graph.AdjacencyMap
                     Agda.Utils.Graph.AdjacencyMap.Unidirectional
                     Agda.Utils.Hash
                     Agda.Utils.HashMap

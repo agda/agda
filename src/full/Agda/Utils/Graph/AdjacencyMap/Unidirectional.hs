@@ -13,6 +13,9 @@
 --
 --   This allows to get outgoing edges in O(log n) time where
 --   @n@ is the number of nodes in the graph.
+--
+--   However, the set of incoming edges can only be obtained in
+--   @O(n log n)@ or @O(e)@ where @e@ is the total number of edges.
 
 module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   ( Graph(..)
@@ -86,6 +89,9 @@ import Agda.Utils.TestHelpers
 --   Represented as "adjacency list", or rather, adjacency map.
 --   This allows to get all outgoing edges for a node
 --   in @O(log n)@ time where @n@ is the number of nodes of the graph.
+--
+--   Incoming edges can only be computed in @O(n + e)@ time where
+--   @e@ is the number of edges.
 
 newtype Graph s t e = Graph
   { graph :: Map s (Map t e) -- ^ Forward edges.
@@ -560,4 +566,3 @@ tests = runTests "Agda.Utils.Graph.AdjacencyMap.Unidirectional"
   [ quickCheck' (prop_nodes_fromNodes :: [Int] -> Bool)
   , quickCheck' (prop_transitiveClosure :: G -> Property)
   ]
-

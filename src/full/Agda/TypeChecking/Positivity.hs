@@ -41,11 +41,12 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Permutation as Perm
 import Agda.Utils.SemiRing
-import qualified Agda.Utils.Graph.AdjacencyMap as Graph
-import Agda.Utils.Graph.AdjacencyMap (Graph)
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+type Graph n e = Graph.Graph n n e
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -574,7 +575,7 @@ instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
   prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
 
 instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
-  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
+  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
     where
       pr (n, es) = sep
         [ prettyTCM n
