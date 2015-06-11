@@ -116,7 +116,7 @@ library
     , transformers-compat >= 0.3.3.2 && < 0.5
     , unordered-containers == 0.2.*
     , xhtml == 3000.2.*
-    -- zlib >= 0.6.1 is broken
+    -- zlib >= 0.6.1 is broken. See Issue 1518.
     , zlib >= 0.4.0.1 && < 0.6.1
 
   if impl(ghc < 7.8)
