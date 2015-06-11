@@ -57,8 +57,9 @@ checkStrictlyPositive :: Set QName -> TCM ()
 checkStrictlyPositive qs = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
-  g <- Graph.filterEdges (\ (Edge o _) -> o /= Unused) <$> buildOccurrenceGraph qs
   let gstar = Graph.transitiveClosure $ fmap occ g
+  -- remove @Unused@ edges
+  g <- Graph.clean <$> buildOccurrenceGraph qs
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -208,6 +209,9 @@ instance SemiRing Occurrence where
   otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
   otimes _ GuardPos          = GuardPos
   otimes StrictPos StrictPos = StrictPos  -- neutral
+
+instance Null Occurrence where
+  empty = Unused
 
 -- | Description of an occurrence.
 data OccursWhere
@@ -585,6 +589,10 @@ instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
   deriving (Show)
+
+instance Null Edge where
+  null (Edge o _) = null o
+  empty = Edge empty Unknown
 
 -- | These operations form a semiring if we quotient by the relation
 -- \"the 'Occurrence' components are equal\".

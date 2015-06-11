@@ -33,6 +33,8 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , fromNodes
   , fromList, fromListWith
   , toList
+  , discrete
+  , clean
   , empty
   , singleton
   , insert, insertWith
@@ -53,7 +55,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   )
   where
 
-import Prelude hiding (lookup, unzip)
+import Prelude hiding (lookup, unzip, null)
 
 import Control.Applicative ((<$>), (<*>))
 
@@ -70,6 +72,8 @@ import Data.Set (Set)
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
 import Agda.Utils.List (headMaybe)
+import Agda.Utils.Null (Null(null))
+import qualified Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
 
 -- | @Graph s t e@ is a directed graph with
@@ -222,6 +226,20 @@ fromListWith f = List.foldl' (flip (insertEdgeWith f)) empty
 
 toList :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
 toList (Graph g) = [ Edge s t a | (s,m) <- Map.assocs g, (t,a) <- Map.assocs m ]
+
+-- | Check whether the graph is discrete (no edges).
+--   This could be seen as an empty graph.
+--   Worst-case (is discrete): @O(e)@.
+discrete :: Null e => Graph s t e -> Bool
+discrete = all' (all' null) . graph
+  where all' p = List.all p . Map.elems
+
+-- | Remove 'Null' edges.
+clean :: (Ord s, Ord t, Null e) => Graph s t e -> Graph s t e
+clean = Graph . filt . fmap filt . graph
+  where
+    filt :: (Ord k, Null a) => Map k a -> Map k a
+    filt = Map.fromAscList . List.filter (not . null . snd) . Map.toAscList
 
 -- | Empty graph (no nodes, no edges).
 

@@ -1,11 +1,17 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Properties for graph library.
 
 module Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests (tests) where
 
+import Prelude hiding (null)
+
+import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -16,7 +22,8 @@ import Test.QuickCheck.All
 
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Null
 import Agda.Utils.SemiRing
 import Agda.Utils.QuickCheck as QuickCheck
 import Agda.Utils.TestHelpers
@@ -82,6 +89,9 @@ instance SemiRing E where
   oplus  (E x) (E y) = E (x || y)
   otimes (E x) (E y) = E (x && y)
 
+instance Null E where
+  empty = E False -- neutral for oplus
+
 ------------------------------------------------------------------------
 -- * Graph properties
 ------------------------------------------------------------------------
@@ -94,6 +104,10 @@ prop_neighbours s g =
 -- prop_nodes_fromNodes :: Ord n => [n] -> Bool
 prop_nodes_fromNodes :: [N] -> Bool
 prop_nodes_fromNodes ns = sourceNodes (fromNodes ns) == Set.fromList ns
+
+prop_clean_discrete :: G -> Bool
+prop_clean_discrete g =
+  discrete g == (null . graph . clean) g
 
 -- prop_insertWith :: (Eq e, Ord s, Ord t) =>
 --                    (e -> e -> e) -> s -> t -> e -> Graph s t e -> Bool
@@ -132,7 +146,7 @@ completeUntilWith done otimes oplus = iterateUntil done growGraph  where
   growGraph g = List.foldl' (unionWith oplus) g $ for (edges g) $ \ (Edge s t e) ->
     case Map.lookup t (graph g) of
       Just es -> Graph $ Map.singleton s $ Map.map (otimes e) es
-      Nothing -> empty
+      Nothing -> Graph.empty
 
 
 -- | Correctness of the optimized algorithm that proceeds by SCC.
@@ -147,6 +161,10 @@ prop_transitiveClosure g = QuickCheck.label sccInfo $
                     else ">= 4") ++
     " strongly connected component(s)"
     where noSCCs = length (sccs g)
+
+-- | Equality modulo empty edges.
+(~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
+(~~) = (==) `on` clean
 
 ------------------------------------------------------------------------
 -- * All tests
