@@ -41,11 +41,12 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Permutation as Perm
 import Agda.Utils.SemiRing
-import qualified Agda.Utils.Graph.AdjacencyMap as Graph
-import Agda.Utils.Graph.AdjacencyMap (Graph)
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+type Graph n e = Graph.Graph n n e
 
 -- | Check that the datatypes in the mutual block containing the given
 --   declarations are strictly positive.
@@ -56,8 +57,10 @@ checkStrictlyPositive :: Set QName -> TCM ()
 checkStrictlyPositive qs = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
-  g <- Graph.filterEdges (\ (Edge o _) -> o /= Unused) <$> buildOccurrenceGraph qs
-  let gstar = Graph.transitiveClosure $ fmap occ g
+  -- remove @Unused@ edges
+  g <- Graph.clean <$> buildOccurrenceGraph qs
+  -- let gstar = Graph.transitiveClosure $ fmap occ g
+  let gstar = Graph.complete $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -207,6 +210,9 @@ instance SemiRing Occurrence where
   otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
   otimes _ GuardPos          = GuardPos
   otimes StrictPos StrictPos = StrictPos  -- neutral
+
+instance Null Occurrence where
+  empty = Unused
 
 -- | Description of an occurrence.
 data OccursWhere
@@ -573,7 +579,7 @@ instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
   prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
 
 instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
-  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
+  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
     where
       pr (n, es) = sep
         [ prettyTCM n
@@ -583,6 +589,10 @@ instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
   deriving (Show)
+
+instance Null Edge where
+  null (Edge o _) = null o
+  empty = Edge empty Unknown
 
 -- | These operations form a semiring if we quotient by the relation
 -- \"the 'Occurrence' components are equal\".

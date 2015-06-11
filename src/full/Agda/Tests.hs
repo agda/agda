@@ -27,8 +27,7 @@ import Agda.Utils.Cluster                     as UtilClust  (tests)
 import Agda.Utils.Either                      as UtilEith   (tests)
 import Agda.Utils.Favorites                   as UtilFav    (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
-import Agda.Utils.Graph.AdjacencyMap          as UtilGrap   (tests)
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional as UtilGraphUni (tests)
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests as UtilGraphUni (tests)
 import Agda.Utils.List                        as UtilList   (tests)
 import Agda.Utils.ListT.Tests                 as UtilListT  (tests)
 import Agda.Utils.PartialOrd                  as UtilPOrd   (tests)
@@ -64,7 +63,6 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilClust.tests
   , UtilEith.tests
   , UtilFile.tests
-  , UtilGrap.tests
   , UtilGraphUni.tests
   , UtilList.tests
   , UtilWarsh.tests
