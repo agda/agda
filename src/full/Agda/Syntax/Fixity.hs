@@ -26,7 +26,7 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
-import {-# SOURCE #-} qualified Agda.Syntax.Abstract.Name as A
+import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Notation
 
