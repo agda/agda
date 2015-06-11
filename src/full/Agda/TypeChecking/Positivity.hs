@@ -57,9 +57,10 @@ checkStrictlyPositive :: Set QName -> TCM ()
 checkStrictlyPositive qs = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
-  let gstar = Graph.transitiveClosure $ fmap occ g
   -- remove @Unused@ edges
   g <- Graph.clean <$> buildOccurrenceGraph qs
+  -- let gstar = Graph.transitiveClosure $ fmap occ g
+  let gstar = Graph.complete $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)

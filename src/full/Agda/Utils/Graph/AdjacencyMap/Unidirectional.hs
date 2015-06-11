@@ -49,6 +49,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , sccs
   , acyclic
   , composeWith
+  , complete
   , transitiveClosure
   , findPath
   , allPaths
@@ -69,12 +70,13 @@ import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import Data.Set (Set)
 
-import Agda.Utils.Function (iterateUntil)
+import Agda.Utils.Function (iterateUntil, repeatWhile)
 import Agda.Utils.Functor (for)
 import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
+import Agda.Utils.Tuple
 
 -- | @Graph s t e@ is a directed graph with
 --   source nodes in @s@
@@ -383,6 +385,44 @@ composeWith times plus (Graph g) (Graph g') = Graph $
       , (u, d) <- Map.assocs m'
       ]
 
+-- | Transitive closure ported from "Agda.Termination.CallGraph".
+--
+--   Relatively efficient, see Issue 1560.
+
+complete :: (Eq e, Null e, SemiRing e, Ord n) => Graph n n e -> Graph n n e
+complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
+  where
+    combineNewOld' new old = unzip $ unionWith comb new' old'
+      where
+      -- The following procedure allows us to check if anything new happened:
+      -- Pair the composed graphs with an empty graph.
+      -- The empty graph will remain empty.  We only need it due to the typing
+      -- of Map.unionWith.
+      new' = (,Null.empty) <$> composeWith otimes oplus new old
+      -- Pair an empty graph with the old graph.
+      old' = (Null.empty,) <$> old
+      -- Combine the pairs.
+      -- Update 'old' with 'new'.  This will be the new 'old'. No new 'new' if no change.
+      comb (new, _) (_, old) = (if x == old then Null.empty else x, x)
+        where x = old `oplus` new
+
+-- -- | Transitive closure ported from "Agda.Termination.CallGraph".
+-- complete :: (Eq e, Null e, SemiRing e, Ord n) => Graph n n e -> Graph n n e
+-- complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
+--   where
+--     combineNewOld' new old = unzip $ unionWith comb new' old'
+--       where
+--       new' = (,Null.empty) <$> composeWith otimes oplus new old
+--       old' = (Null.empty,) <$> old
+--       comb (new1,old1) (new2,old2)  -- TODO: ensure old1 is null
+--         = mapFst (new2 `oplus`) $ combineNewOld'' new1 old2
+--       combineNewOld'' new old = (new', old')
+--         where
+--           -- update old
+--           old' = old `oplus` new
+--           -- if no change, then nothing new
+--           new' = if old' == old then Null.empty else old'
+
 -- | Computes the transitive closure of the graph.
 --
 -- Note that this algorithm is not guaranteed to be correct (or
@@ -397,6 +437,8 @@ composeWith times plus (Graph g) (Graph g') = Graph $
 -- At each step, all @es@ are composed with @g@, the resulting
 -- new graphs are unioned with @g@.  The new @es@ is then computed
 -- as the edges of the SCC in the new @g@.
+--
+-- NOTE: this algorithm is INEFFICIENT, see Issue 1560.
 
 transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n n e -> Graph n n e
 transitiveClosure g = List.foldl' extend g $ sccs' g

@@ -166,6 +166,11 @@ prop_transitiveClosure g = QuickCheck.label sccInfo $
 (~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
 (~~) = (==) `on` clean
 
+-- prop_complete :: (Null e, Eq e, SemiRing e, Ord n) => Graph n n e -> Property
+prop_complete :: G -> Bool
+prop_complete g =
+  complete g ~~ transitiveClosure1 g
+
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------
@@ -184,3 +189,32 @@ tests :: IO Bool
 tests = do
   putStrLn "Agda.Utils.Graph.AdjacencyMap.Unidirectional"
   $quickCheckAll
+
+
+-- Abbreviations for testing in interpreter
+
+tc :: (Eq e, Ord n, SemiRing e) => Graph n n e -> Graph n n e
+tc = transitiveClosure
+
+g1, g2, g3, g4 :: Graph N N E
+g1 = Graph $ Map.fromList
+  [ (n 1, Map.fromList [(n 2,E False)])
+  , (n 2, Map.fromList [(n 1,E False)])
+  ]
+
+g2 = Graph $ Map.fromList
+  [ (n 1, Map.fromList [(n 2,E True)])
+  , (n 2, Map.fromList [(n 1,E True)])
+  ]
+
+g3 = Graph $ Map.fromList
+  [ (n 1, Map.fromList [(n 2,E True)])
+  , (n 2, Map.fromList [])
+  , (n 4, Map.fromList [(n 1,E True)])
+  ]
+
+g4 = Graph $ Map.fromList
+  [ (n 1, Map.fromList [(n 6,E False)])
+  , (n 6, Map.fromList [(n 8,E True )])
+   ,(n 8, Map.fromList [(n 3,E False)])
+  ]
