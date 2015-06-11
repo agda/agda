@@ -614,16 +614,16 @@ instance SemiRing Edge where
   otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 >*< w2)
 
 buildOccurrenceGraph :: Set QName -> TCM (Graph Node Edge)
-buildOccurrenceGraph qs = Graph.unions <$> mapM defGraph (Set.toList qs)
+buildOccurrenceGraph qs = Graph.unionsWith oplus <$> mapM defGraph (Set.toList qs)
   where
     defGraph :: QName -> TCM (Graph Node Edge)
     defGraph q = do
       occs <- computeOccurrences q
       let onItem (item, occs) = do
             es <- mapM (computeEdge qs) occs
-            return $ Graph.unions $
+            return $ Graph.unionsWith oplus $
                 map (\(b, w) -> Graph.singleton (itemToNode item) b w) es
-      Graph.unions <$> mapM onItem (Map.assocs occs)
+      Graph.unionsWith oplus <$> mapM onItem (Map.assocs occs)
       where
         itemToNode (AnArg i) = ArgNode q i
         itemToNode (ADef q)  = DefNode q
