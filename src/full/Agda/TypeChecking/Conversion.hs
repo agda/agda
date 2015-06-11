@@ -758,6 +758,26 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
     (Proj f : els1, Proj f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+        res <- projectTyped v a f -- fails only if f is proj.like but parameters cannot be retrieved
+        case res of
+          Just (u, t) -> do
+            (cmp, els1, els2) <- return $
+              case fst $ nextPolarity pols0 of
+                Invariant     -> (CmpEq , els1, els2)
+                Covariant     -> (CmpLeq, els1, els2)
+                Contravariant -> (CmpLeq, els2, els1)
+                Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
+            pols' <- getPolarity' cmp f
+            compareElims pols' t u els1 els2
+          Nothing -> do
+            reportSDoc "tc.conv.elims" 30 $ sep
+              [ text $ "projection " ++ show f
+              , text   "applied to value " <+> prettyTCM v
+              , text   "of unexpected type " <+> prettyTCM a
+              ]
+            patternViolation
+
+{-
         res <- getDefType f a -- get type of projection (like) function
         case res of
           Just ft -> do
@@ -780,27 +800,6 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
               ]
             patternViolation
             -- __IMPOSSIBLE__
-{-
-        case ignoreSharing $ unEl a of
-          Def _ es -> do
-            let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-            ft <- defType <$> getConstInfo f  -- get type of projection(like) function
-            let c = piApply ft (us ++ [defaultArg v]) -- TODO: not necessarily relevant?
-            let (pol, _) = nextPolarity pols0
-            (cmp, els1, els2) <- return $ case pol of
-                  Invariant     -> (CmpEq, els1, els2)
-                  Covariant     -> (CmpLeq, els1, els2)
-                  Contravariant -> (CmpLeq, els2, els1)
-                  Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
-            pols' <- getPolarity' cmp f
-            compareElims pols' c (v `applyE` [Proj f]) els1 els2
-          _ -> do
-            reportSDoc "impossible" 10 $ sep
-              [ text $ "projection " ++ show f
-              , text   "applied to value " <+> prettyTCM v
-              , text   "of unexpected type " <+> prettyTCM a
-              ]
-            __IMPOSSIBLE__
 -}
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
