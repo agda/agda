@@ -6,4 +6,4 @@ data Fixity'
 
 instance KillRange Fixity'
 
-defaultFixity' :: Fixity'
+noFixity' :: Fixity'
