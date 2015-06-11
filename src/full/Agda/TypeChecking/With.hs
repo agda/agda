@@ -203,8 +203,14 @@ stripWithClausePatterns f t qs perm ps = do
       -> TCM [A.NamedArg A.Pattern]   -- ^ With-clause patterns decomposed by parent-clause patterns.
 
     -- Case: out of with-clause patterns.
-    strip _ _ []      (_ : _) =
-      typeError $ GenericError $ "Too few arguments given in with-clause"
+    strip self t [] qs@(_ : _) = do
+      -- Andreas, 2015-06-11, issue 1551:
+      -- As the type t develops, we need to insert more implicit patterns,
+      -- due to copatterns / flexible arity.
+      ps <- insertImplicitPatternsT ExpandLast [] t
+      if null ps then
+        typeError $ GenericError $ "Too few arguments given in with-clause"
+       else strip self t ps qs
 
     -- Case: out of parent-clause patterns.
     -- This is only ok if all remaining with-clause patterns
@@ -314,11 +320,8 @@ stripWithClausePatterns f t qs perm ps = do
             unless (size psi' == size tel') $ typeError $
               WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
 
-            -- Do it again for everything (is this necessary?)
-            psi' <- insertImplicitPatternsT ExpandLast (psi' ++ ps) t'
-
             -- Keep going
-            strip (self `apply1` v) t' psi' (qs' ++ qs)
+            strip (self `apply1` v) t' (psi' ++ ps) (qs' ++ qs)
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $
