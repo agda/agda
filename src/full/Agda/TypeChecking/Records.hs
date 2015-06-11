@@ -30,6 +30,7 @@ import Agda.Utils.List
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
@@ -41,15 +42,12 @@ import Agda.Utils.Impossible
 --   Use the second argument for missing fields.
 orderFields :: QName -> a -> [C.Name] -> [(C.Name, a)] -> TCM [a]
 orderFields r def xs fs = do
-  shouldBeNull (ys \\ nub ys) $ DuplicateFields . nub
-  shouldBeNull (ys \\ xs)     $ TooManyFields r
+  unlessNull (ys \\ nub ys) $ typeError . DuplicateFields . nub
+  unlessNull (ys \\ xs)     $ typeError . TooManyFields r
   -- shouldBeNull (xs \\ ys)     $ TooFewFields r
   return $ order xs fs
   where
     ys = map fst fs
-
-    shouldBeNull [] err = return ()
-    shouldBeNull xs err = typeError $ err xs
 
     -- invariant: the first list contains at least the fields of the second list
     order [] [] = []
