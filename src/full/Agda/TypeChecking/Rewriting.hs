@@ -309,15 +309,21 @@ rewrite v = do
   where
     -- Try all rewrite rules for f.
     rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Maybe Term)
-    rew f hd es = loop =<< do defRewriteRules <$> getConstInfo f
+    rew f hd es = do
+      rules <- defRewriteRules <$> getConstInfo f
+      case rules of
+        [] -> return Nothing
+        _  -> do
+          es <- etaContract =<< instantiateFull' es
+          loop es rules
       where
-      loop [] = return Nothing
-      loop (rew:rews)
+      loop es [] = return Nothing
+      loop es (rew:rews)
        | let n = rewArity rew, length es >= n = do
            let (es1, es2) = List.genericSplitAt n es
-           caseMaybeM (rewriteWith Nothing (hd es1) rew) (loop rews) $ \ w ->
+           caseMaybeM (rewriteWith Nothing (hd es1) rew) (loop es rews) $ \ w ->
              return $ Just $ w `applyE` es2
-       | otherwise = loop rews
+       | otherwise = loop es rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
