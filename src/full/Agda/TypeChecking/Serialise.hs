@@ -38,6 +38,7 @@ import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict (StateT, runStateT, gets, modify)
+
 import Data.Array.IArray
 import Data.Word
 import Data.ByteString.Lazy (ByteString)
@@ -56,6 +57,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+
 import qualified Codec.Compression.GZip as G
 
 import qualified Agda.Compiler.Epic.Interface as Epic
@@ -162,18 +164,19 @@ qnameId (A.QName (A.MName ns) n) = map A.nameId $ n:ns
 
 -- | State of the the encoder.
 data Dict = Dict
+  -- Dictionaries which are serialized:
   { nodeD        :: !(HashTable Node    Int32)
   , stringD      :: !(HashTable String  Int32)
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
+  -- Dicitionaries which are not serialized, but provide
+  -- short cuts to speed up serialization:
   , termD        :: !(HashTable (Ptr Term) Int32)
-  -- dictionaries which are serialized
-  -- dicitionaries which are not serialized, but provide
-  -- short cuts to speed up serialization
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   -- , nameD        :: !(HashTable NameId Int32)
   , qnameD       :: !(HashTable QNameId Int32)
+  -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
   , integerC     :: !(IORef FreshAndReuse)
