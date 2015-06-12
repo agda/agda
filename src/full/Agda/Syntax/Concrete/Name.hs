@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
 
@@ -16,8 +15,6 @@ import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.List
 import Data.Typeable (Typeable)
-
-import GHC.Generics (Generic)
 
 import System.FilePath
 
@@ -42,7 +39,7 @@ import Agda.Utils.Impossible
 data Name
   = Name !Range [NamePart]  -- ^ A (mixfix) identifier.
   | NoName !Range NameId    -- ^ @_@.
-  deriving (Typeable, Generic)
+  deriving (Typeable)
 
 instance NFData Name where rnf x = seq x ()
 
@@ -57,7 +54,7 @@ instance Underscore Name where
 data NamePart
   = Hole       -- ^ @_@ part.
   | Id RawName  -- ^ Identifier part.
-  deriving (Typeable, Generic)
+  deriving (Typeable)
 
 -- | Define equality on @Name@ to ignore range so same names in different
 --   locations are equal.
@@ -100,7 +97,7 @@ instance Ord NamePart where
 data QName
   = Qual  Name QName -- ^ @A.rest@.
   | QName Name       -- ^ @x@.
-  deriving (Typeable, Generic, Eq, Ord)
+  deriving (Typeable, Eq, Ord)
 
 instance Underscore QName where
   underscore = QName underscore
@@ -113,7 +110,7 @@ instance Underscore QName where
 
 newtype TopLevelModuleName
   = TopLevelModuleName { moduleNameParts :: [String] }
-  deriving (Show, Eq, Ord, Typeable, Generic)
+  deriving (Show, Eq, Ord, Typeable)
 
 ------------------------------------------------------------------------
 -- * Operations on 'Name' and 'NamePart'

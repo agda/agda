@@ -110,10 +110,9 @@ Performance
 ===========
 
 * As one result of the 21st Agda Implementor's Meeting (AIM XXI),
-  serialization of the standard library is 50% faster (time halved).
-  Interface files are roughly twice as large.  A 33% speed-up could
-  have obtained without enlarging the interface files, but the
-  trade of disk space for additional time savings seems worth it.
+  serialization of the standard library is 50% faster (time reduced by
+  a third), without using additional disk space for the interface
+  files.
 
 
 Bug fixes
