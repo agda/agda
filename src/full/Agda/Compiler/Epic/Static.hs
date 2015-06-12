@@ -44,7 +44,8 @@ evaluateCC ccs = case ccs of
             Nothing -> return Nothing
             Just cc -> Just <$> evaluateCC cc
         return $ Case n Branches
-            { conBranches    = Map.fromList cbrs
+            { projPatterns   = projPatterns brs
+            , conBranches    = Map.fromList cbrs
             , litBranches    = Map.fromList lbrs
             , catchAllBranch = cab
             }

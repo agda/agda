@@ -13,6 +13,8 @@
 
 module Agda.TypeChecking.CompiledClause where
 
+import Prelude hiding (null)
+
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Monoid
@@ -23,6 +25,8 @@ import Data.Traversable (Traversable)
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 
+import Agda.Utils.Maybe
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 #include "undefined.h"
@@ -34,7 +38,10 @@ data WithArity c = WithArity { arity :: Int, content :: c }
 -- | Branches in a case tree.
 
 data Case c = Branches
-  { conBranches    :: Map QName (WithArity c)
+  { projPatterns   :: Bool
+    -- ^ We are constructing a record here (copatterns).
+    --   'conBranches' lists projections.
+  , conBranches    :: Map QName (WithArity c)
     -- ^ Map from constructor (or projection) names to their arity
     --   and the case subtree.  (Projections have arity 0.)
   , litBranches    :: Map Literal c
@@ -50,7 +57,7 @@ data CompiledClauses
   = Case Int (Case CompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
-    -- If the @n@-th argument is a projection, we have only 'conBranches'.
+    -- If the @n@-th argument is a projection, we have only 'conBranches'
     -- with arity 0.
   | Done [Arg ArgName] Term
     -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
@@ -61,17 +68,17 @@ data CompiledClauses
     -- ^ Absurd case.
   deriving (Typeable)
 
-emptyBranches :: Case CompiledClauses
-emptyBranches = Branches Map.empty Map.empty Nothing
-
 litCase :: Literal -> c -> Case c
-litCase l x = Branches Map.empty (Map.singleton l x) Nothing
+litCase l x = Branches False Map.empty (Map.singleton l x) Nothing
 
 conCase :: QName -> WithArity c -> Case c
-conCase c x = Branches (Map.singleton c x) Map.empty Nothing
+conCase c x = Branches False (Map.singleton c x) Map.empty Nothing
+
+projCase :: QName -> c -> Case c
+projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing
 
 catchAll :: c -> Case c
-catchAll x = Branches Map.empty Map.empty (Just x)
+catchAll x = Branches False Map.empty Map.empty (Just x)
 
 instance Monoid c => Monoid (WithArity c) where
   mempty = WithArity __IMPOSSIBLE__ mempty
@@ -80,12 +87,17 @@ instance Monoid c => Monoid (WithArity c) where
     | otherwise = __IMPOSSIBLE__   -- arity must match!
 
 instance Monoid m => Monoid (Case m) where
-  mempty = Branches Map.empty Map.empty Nothing
-  mappend (Branches cs  ls  m)
-          (Branches cs' ls' m') =
-    Branches (Map.unionWith mappend cs cs')
+  mempty = empty
+  mappend (Branches cop  cs  ls  m)
+          (Branches cop' cs' ls' m') =
+    Branches (cop || cop') -- for @projCase <> mempty@
+             (Map.unionWith mappend cs cs')
              (Map.unionWith mappend ls ls')
              (mappend m m')
+
+instance Null (Case m) where
+  empty = Branches False Map.empty Map.empty Nothing
+  null (Branches _cop cs ls mcatch) = null cs && null ls && null mcatch
 
 -- * Pretty instances.
 
@@ -99,7 +111,7 @@ instance Pretty a => Pretty (WithArity a) where
   pretty = pretty . content
 
 instance Pretty a => Pretty (Case a) where
-  prettyPrec p (Branches cs ls m) =
+  prettyPrec p (Branches _cop cs ls m) =
     mparens (p > 0) $ vcat $
       prettyMap cs ++ prettyMap ls ++ prC m
     where
@@ -114,6 +126,10 @@ prettyMap m = [ sep [ text (show x ++ " ->")
 instance Pretty CompiledClauses where
   pretty (Done hs t) = text ("done" ++ show hs) <+> text (show t)
   pretty Fail        = text "fail"
+  pretty (Case n bs) | projPatterns bs =
+    sep [ text "record"
+        , nest 2 $ pretty bs
+        ]
   pretty (Case n bs) =
     sep [ text ("case " ++ show n ++ " of")
         , nest 2 $ pretty bs

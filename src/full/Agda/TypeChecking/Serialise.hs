@@ -1210,11 +1210,11 @@ instance EmbPrj a => EmbPrj (WithArity a) where
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
-  icod_ (Branches a b c) = icode3' a b c
+  icod_ (Branches a b c d) = icode4' a b c d
 
   value = vcase valu where
-    valu [a, b, c] = valu3 Branches a b c
-    valu _         = malformed
+    valu [a, b, c, d] = valu4 Branches a b c d
+    valu _            = malformed
 
 instance EmbPrj CompiledClauses where
   icod_ Fail       = icode0'

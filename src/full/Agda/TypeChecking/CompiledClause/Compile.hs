@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.CompiledClause.Compile where
 
+import Prelude hiding (null)
+
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
@@ -18,7 +20,8 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
+import Agda.Utils.Null
 import Agda.Utils.List
 
 #include "undefined.h"
@@ -74,15 +77,16 @@ compileWithSplitTree t cs = case t of
 
   where
     compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
-    compiles ts br@Branches{ conBranches = cons
+    compiles ts br@Branches{ projPatterns = cop
+                           , conBranches = cons
                            , litBranches = lits
                            , catchAllBranch = Nothing }
-      | Map.null lits = emptyBranches { conBranches = updCons cons }
+      | Map.null lits = empty { projPatterns = cop, conBranches = updCons cons }
       where
-        updCons = Map.mapWithKey $ \ c cl -> case lookup c ts of
-                    Nothing -> __IMPOSSIBLE__
-                    Just t  -> fmap (compileWithSplitTree t) cl
-    compiles ts br    = fmap compile br
+        updCons = Map.mapWithKey $ \ c cl ->
+                    let t = fromMaybe __IMPOSSIBLE__ $ lookup c ts
+                    in  compileWithSplitTree t <$> cl
+    compiles ts br    = compile <$> br
 
     -- increase split index by number of dot patterns we have skipped
     countInDotPatterns :: Int -> [Cl] -> Int
@@ -131,7 +135,7 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls si
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
-  ProjP d     -> conCase d $ WithArity 0 (ps0 ++ ps1, b)
+  ProjP d     -> projCase d (ps0 ++ ps1, b)
   ConP c _ qs -> conCase (conName c) $ WithArity (length qs) (ps0 ++ map (fmap namedThing) qs ++ ps1, b)
   LitP l      -> litCase l (ps0 ++ ps1, b)
   VarP{}      -> catchAll (ps, b)
