@@ -207,8 +207,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       Axiom{} -> return $ fb axiomErr
       Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
-      Primitive{ primClauses = cls } -> function cls Nothing
-      Function{ funClauses =   cls } -> function cls (exportHaskell compiled)
+      Primitive{ primClauses = cls } -> function Nothing $
+        functionFromClauses cls
+      Function{ funClauses =   cls } -> function (exportHaskell compiled) $
+        functionFromClauses cls
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
         ccs <- concat <$> mapM checkConstructorType cs
@@ -228,19 +230,21 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   --         Just c  -> snd <$> condecl c
         return $ tvaldecl q Inductive noFields ar [cd] cl
   where
-  function :: [Clause] -> Maybe HaskellExport -> TCM [HS.Decl]
-  function cls (Just (HsExport t name)) =
-    do ccls <- functionStdName cls
-       let tsig :: HS.Decl
-           tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
+  function :: Maybe HaskellExport -> TCM [HS.Decl] -> TCM [HS.Decl]
+  function mhe fun = do
+    ccls <- mkwhere <$> fun
+    case mhe of
+      Nothing -> return ccls
+      Just (HsExport t name) -> do
+        let tsig :: HS.Decl
+            tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
 
-           def :: HS.Decl
-           def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
-       return ([tsig,def] ++ ccls)
-  function cls Nothing = functionStdName cls
+            def :: HS.Decl
+            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
+        return ([tsig,def] ++ ccls)
 
-  functionStdName :: [Clause] -> TCM [HS.Decl]
-  functionStdName cls = mkwhere <$> mapM (clause q Nothing) (tag 0 cls)
+  functionFromClauses :: [Clause] -> TCM [HS.Decl]
+  functionFromClauses cls = mapM (clause q Nothing) (tag 0 cls)
 
   tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
   tag _ []       = []
