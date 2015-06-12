@@ -34,14 +34,15 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Size
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Permutation as Perm
 import Agda.Utils.SemiRing
-import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -620,11 +621,12 @@ buildOccurrenceGraph qs = Graph.unionsWith oplus <$> mapM defGraph (Set.toList q
     defGraph :: QName -> TCM (Graph Node Edge)
     defGraph q = do
       occs <- computeOccurrences q
-      let onItem (item, occs) = do
-            es <- mapM (computeEdge qs) occs
-            return $ Graph.unionsWith oplus $
-                map (\(b, w) -> Graph.singleton (itemToNode item) b w) es
-      Graph.unionsWith oplus <$> mapM onItem (Map.assocs occs)
+      Graph.unionsWith oplus <$> do
+        forM (Map.assocs occs) $ \ (item, occs) -> do
+          let src = itemToNode item
+          es <- mapM (computeEdge qs) occs
+          return $ Graph.unionsWith oplus $
+            for es $ \ (tgt, w) -> Graph.singleton src tgt w
       where
         itemToNode (AnArg i) = ArgNode q i
         itemToNode (ADef q)  = DefNode q
