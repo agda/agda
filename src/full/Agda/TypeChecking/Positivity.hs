@@ -13,12 +13,14 @@ import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad.Reader
 
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Either
+import Data.Graph (SCC(..), flattenSCC)
 import Data.List as List hiding (null)
 import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Debug.Trace
 
@@ -69,6 +71,8 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
     [ text "positivity graph for" <+> prettyTCM (Set.toList qs)
     , nest 2 $ prettyTCM g
     ]
+  reportSLn "tc.pos.graph" 5 $
+    "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
   reportSDoc "tc.pos.graph" 50 $ vcat
     [ text "transitive closure of positivity graph for" <+>
       prettyTCM (Set.toList qs)
@@ -80,7 +84,16 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
-  let sccs = Graph.sccs gstar
+  let sccs' = Graph.sccs' gstar
+      sccs  = map flattenSCC sccs'
+  reportSDoc "tc.pos.graph.sccs" 10 $ do
+    let (triv, others) = partitionEithers $ for sccs' $ \ scc -> case scc of
+          AcyclicSCC v -> Left v
+          CyclicSCC vs -> Right vs
+    sep [ text $ show (length triv) ++ " trivial sccs"
+        , text $ show (length others) ++ " non-trivial sccs with lengths " ++
+            show (map length others)
+        ]
   reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
   forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
   mapM_ (checkPos g) $ Set.toList qs
