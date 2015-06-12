@@ -58,7 +58,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
 
 import Prelude hiding (lookup, unzip, null)
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>))
 
 import Data.Function
 import qualified Data.Graph as Graph

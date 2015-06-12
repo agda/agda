@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -10,6 +11,10 @@
 module Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests (tests) where
 
 import Prelude hiding (null)
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ((<$>), (<*>))
+#endif
 
 import Data.Function
 import qualified Data.List as List
