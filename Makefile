@@ -195,7 +195,7 @@ lib-succeed :
 	@echo "======================================================================"
 	@$(MAKE) -C test/$@
 
-# The Epic backend has been disabled. See Issue 1481.
+# The Epic backend has been removed. See Issue 1481.
 .PHONY : epic-test
 epic-test :
 	@echo "======================================================================"
