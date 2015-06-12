@@ -10,8 +10,11 @@ import Control.Monad.State
 
 import Data.Generics.Geniplate
 import Data.List as List
-import Data.Map as Map
-import Data.Set as Set
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
@@ -46,6 +49,7 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
@@ -223,7 +227,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         let c = conName con
         let noFields = genericLength flds
-        let ar = arity ty
+        let ar = I.arity ty
         cd <- snd <$> condecl c
   --       cd <- case c of
   --         Nothing -> return $ cdecl q noFields
@@ -267,6 +271,69 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
+
+-- | Environment for naming of local variables.
+--   Invariant: @reverse ccCxt ++ ccNameSupply@
+data CCEnv = CCEnv
+  { ccNameSupply :: NameSupply -- ^ Supply of fresh names
+  , ccCxt        :: CCContext  -- ^ Names currently in scope
+  }
+
+type NameSupply = [HS.Name]
+type CCContext  = [HS.Name]
+
+mapNameSupply :: (NameSupply -> NameSupply) -> CCEnv -> CCEnv
+mapNameSupply f e = e { ccNameSupply = f (ccNameSupply e) }
+
+mapContext :: (CCContext -> CCContext) -> CCEnv -> CCEnv
+mapContext f e = e { ccCxt = f (ccCxt e) }
+
+-- | Initial environment for expression generation.
+initCCEnv :: CCEnv
+initCCEnv = CCEnv
+  { ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+  , ccCxt        = []
+  }
+
+-- | Term variables are de Bruijn indices.
+lookupIndex :: Int -> CCContext -> HS.Name
+lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
+
+-- | Case variables are de Bruijn levels.
+lookupLevel :: Int -> CCContext -> HS.Name
+lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs + 1 - l)
+
+type CC = ReaderT CCEnv TCM
+
+-- | Introduce lambdas up to given number
+lambdasUpTo :: Int -> CC HS.Exp -> CC HS.Exp
+lambdasUpTo n cont = do
+  diff <- (n -) . length <$> asks ccCxt
+  lambdas diff cont
+
+-- | Introduce n lambdas.
+lambdas :: Int -> CC HS.Exp -> CC HS.Exp
+lambdas diff cont = intros diff $ \ xs -> mkLams xs <$> cont
+
+-- | Introduce variables up to given number.
+introsUpTo :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
+introsUpTo n cont = do
+  diff <- (n -) . length <$> asks ccCxt
+  intros diff cont
+
+-- | Introduce n variables into the context.
+intros :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
+intros diff cont = do
+  if diff <= 0 then cont [] else do
+    -- Need diff lambdas to continue.
+    (xs, rest) <- splitAt diff <$> asks ccNameSupply
+    local (mapNameSupply (const rest) . mapContext (reverse xs ++)) $
+      cont xs
+
+-- | Prefix a Haskell expression with lambda abstractions.
+mkLams :: [HS.Name] -> HS.Exp -> HS.Exp
+mkLams [] e = e
+mkLams xs e = HS.Lambda dummy (map HS.PVar xs) e
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
@@ -379,24 +446,26 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr' a = irr $ namedArg a
 
 clausebody :: ClauseBody -> TCM HS.Exp
-clausebody b0 = runReaderT (go b0) 0 where
-  go (Body tm       )   = hsCast <$> term tm
-  go (Bind (Abs _ b))   = local (1+) $ go b
-  go (Bind (NoAbs _ b)) = go b
-  go NoBody             = return $ rtmError $ "Impossible Clause Body"
+clausebody b0 = go 0 b0 where
+  go n (Body tm       )   = hsCast <$> runReaderT (intros n $ const $ term tm) initCCEnv
+  go n (Bind (Abs _ b))   = go (n+1) b
+  go n (Bind (NoAbs _ b)) = go n b
+  go n NoBody             = return $ rtmError $ "Impossible Clause Body"
+
+
+closedTerm :: Term -> TCM HS.Exp
+closedTerm v = term v `runReaderT` initCCEnv
 
 -- | Extract Agda term to Haskell expression.
 --   Irrelevant arguments are extracted as @()@.
 --   Types are extracted as @()@.
 --   @DontCare@ outside of irrelevant arguments is extracted as @error@.
-term :: Term -> ReaderT Nat TCM HS.Exp
+term :: Term -> CC HS.Exp
 term tm0 = case unSpine $ ignoreSharing tm0 of
   Var   i es -> do
-    let Just as = allApplyElims es
-    n <- ask
-    apps (hsVarUQ $ ihname "v" (n - i - 1)) as
-  Lam   _ at -> do n <- ask; HS.Lambda dummy [HS.PVar $ ihname "v" n] <$>
-                              local (1+) (term $ absBody at)
+    x <- lookupIndex i <$> asks ccCxt
+    apps (hsVarUQ x) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  Lam   _ at -> lambdas 1 $ term $ absBody at
   Lit   l    -> lift $ literal l
   Def   q es -> do
     let Just as = allApplyElims es
@@ -415,10 +484,10 @@ term tm0 = case unSpine $ ignoreSharing tm0 of
   DontCare _ -> return $ rtmError $ "hit DontCare"
   Shared{}   -> __IMPOSSIBLE__
   ExtLam{}   -> __IMPOSSIBLE__
-  where apps =  foldM (\h a -> HS.App h <$> term' a)
+  where apps =  foldM (\ h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().
-term' :: I.Arg Term -> ReaderT Nat TCM HS.Exp
+term' :: I.Arg Term -> CC HS.Exp
 term' a | isIrrelevant a = return HS.unit_con
 term' a = term $ unArg a
 
