@@ -37,9 +37,11 @@ import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State.Strict
+import Control.Monad.State.Strict (StateT, runStateT, gets, modify)
+
 import Data.Array.IArray
 import Data.Word
+import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import qualified Data.HashTable.IO as H
@@ -55,6 +57,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+
 import qualified Codec.Compression.GZip as G
 
 import qualified Agda.Compiler.Epic.Interface as Epic
@@ -64,14 +67,16 @@ import qualified Agda.Compiler.UHC.AuxAST as UHCA
 import qualified Agda.Compiler.UHC.Naming as UHCN
 import qualified Agda.Compiler.UHC.Bridge as UHCB
 
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Concrete.Name as C
+import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position (Position, Range, noRange)
-import qualified Agda.Syntax.Position as P
+import Agda.Syntax.Position as P
+-- import Agda.Syntax.Position (Position, Range, noRange)
+-- import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
@@ -164,16 +169,20 @@ qnameId (A.QName (A.MName ns) n) = map A.nameId $ n:ns
 
 -- | State of the the encoder.
 data Dict = Dict
+  -- Dictionaries which are serialized:
   { nodeD        :: !(HashTable Node    Int32)
   , stringD      :: !(HashTable String  Int32)
   , bstringD     :: !(HashTable L.ByteString Int32)
   , integerD     :: !(HashTable Integer Int32)
   , doubleD      :: !(HashTable Double  Int32)
+  -- Dicitionaries which are not serialized, but provide
+  -- short cuts to speed up serialization:
   , termD        :: !(HashTable (Ptr Term) Int32)
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   -- , nameD        :: !(HashTable NameId Int32)
   , qnameD       :: !(HashTable QNameId Int32)
+  -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
   , bstringC     :: !(IORef FreshAndReuse)
@@ -182,7 +191,7 @@ data Dict = Dict
   , termC        :: !(IORef FreshAndReuse)
   -- , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
-  , stats        :: !(HashTable String Int32)
+  , stats        :: !(HashTable String Int)
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
@@ -879,7 +888,7 @@ instance EmbPrj A.TypedBinding where
                            valu [1, a, b]    = valu2 A.TLet a b
                            valu _            = malformed
 
-instance EmbPrj c => EmbPrj (Agda.Syntax.Common.ArgInfo c) where
+instance EmbPrj c => EmbPrj (Common.ArgInfo c) where
   icod_ (ArgInfo h r cs) = icode3' h r cs
 
   value = vcase valu where valu [h, r, cs] = valu3 ArgInfo h r cs
@@ -933,24 +942,24 @@ instance EmbPrj a => EmbPrj (WithHiding a) where
   value = vcase valu where valu [a, b] = valu2 WithHiding a b
                            valu _      = malformed
 
-instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Arg c a) where
+instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Arg c a) where
   icod_ (Arg i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Arg i e
                            valu _      = malformed
 
-instance (EmbPrj a, EmbPrj c) => EmbPrj (Agda.Syntax.Common.Dom c a) where
+instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Dom c a) where
   icod_ (Dom i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Dom i e
                            valu _      = malformed
 
-instance EmbPrj Agda.Syntax.Common.Induction where
+instance EmbPrj Common.Induction where
   icod_ Inductive   = icode0'
   icod_ CoInductive = icode0 1
   value = vcase valu where valu []  = valu0 Inductive
                            valu [1] = valu0 CoInductive
                            valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Common.Hiding where
+instance EmbPrj Common.Hiding where
   icod_ Hidden    = icode0 0
   icod_ NotHidden = icode0'
   icod_ Instance  = icode0 2
@@ -959,7 +968,7 @@ instance EmbPrj Agda.Syntax.Common.Hiding where
                            valu [2] = valu0 Instance
                            valu _   = malformed
 
-instance EmbPrj Agda.Syntax.Common.Relevance where
+instance EmbPrj Common.Relevance where
   icod_ Relevant   = icode0'
   icod_ Irrelevant = icode0 1
   icod_ (Forced Small) = icode0 2
@@ -1310,7 +1319,7 @@ instance EmbPrj TermHead where
                            valu [2, a] = valu1 ConsHead a
                            valu _      = malformed
 
-instance EmbPrj Agda.Syntax.Common.IsAbstract where
+instance EmbPrj Common.IsAbstract where
   icod_ AbstractDef = icode0 0
   icod_ ConcreteDef = icode0'
   value = vcase valu where valu [0] = valu0 AbstractDef
