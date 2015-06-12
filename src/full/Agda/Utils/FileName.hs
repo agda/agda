@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName
@@ -13,8 +12,6 @@ module Agda.Utils.FileName
   , doesFileExistCaseSensitive
   , tests
   ) where
-
-import GHC.Generics (Generic)
 
 import Control.Applicative
 import System.Directory
@@ -49,7 +46,7 @@ import Agda.Utils.Impossible
 -- of the standard library!
 
 newtype AbsolutePath = AbsolutePath { byteStringPath :: ByteString }
-  deriving (Eq, Ord, Typeable, Generic)
+  deriving (Eq, Ord, Typeable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
