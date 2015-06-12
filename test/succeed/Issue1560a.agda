@@ -6,7 +6,7 @@
 -- {-# OPTIONS --no-positivity-check #-}
 
 -- {-# OPTIONS -v tc.pos:10 #-}
-{-# OPTIONS -v tc.polarity:30 #-}
+-- {-# OPTIONS -v tc.polarity:30 #-}
 
 data True : Set where
   tt : True
