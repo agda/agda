@@ -9,11 +9,11 @@ Usage: agda [OPTIONS...] [FILE]
           --interaction                               for use with the Emacs mode
   -c      --compile                                   compile program using the MAlonzo backend (experimental)
           --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
-          --epic                                      the Epic backend has been disabled
+          --epic                                      the Epic backend has been removed
           --js                                        compile program using the JS backend
           --compile-dir=DIR                           directory for compiler output (default: the project root)
           --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
-          --epic-flag=EPIC-FLAG                       the Epic backend has been disabled
+          --epic-flag=EPIC-FLAG                       the Epic backend has been removed
           --test                                      run internal test suite
           --vim                                       generate Vim highlighting files
           --latex                                     generate LaTeX with highlighted source code

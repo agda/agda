@@ -371,7 +371,7 @@ Error messages
 Compiler backends
 =================
 
-* The Epic backend has been disabled [Issue 1481].
+* The Epic backend has been removed [Issue 1481].
 
 Bug fixes
 =========

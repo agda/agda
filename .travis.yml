@@ -120,7 +120,7 @@ install:
         ;;
     esac
 
-  # The Epic backend has been disabled. See Issue 1481.
+  # The Epic backend has been removed. See Issue 1481.
   # Epic installation.
   # - sudo apt-get install libgc-dev
   # - cabal install epic
