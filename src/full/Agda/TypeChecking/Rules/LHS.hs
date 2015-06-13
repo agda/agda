@@ -501,7 +501,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       -- substitute the literal in p1 and sigma and dpi and asb
       let delta1 = problemTel p0
           delta2 = absApp (fmap problemTel p1) (Lit lit)
-          rho    = liftS (size delta2) $ singletonS (Lit lit)
+          rho    = singletonS (size delta2) (Lit lit)
+          -- Andreas, 2015-06-13 Literals are closed, so need to raise them!
+          -- rho    = liftS (size delta2) $ singletonS 0 (Lit lit)
           -- rho    = [ var i | i <- [0..size delta2 - 1] ]
           --       ++ [ raise (size delta2) $ Lit lit ]
           --       ++ [ var i | i <- [size delta2 ..] ]

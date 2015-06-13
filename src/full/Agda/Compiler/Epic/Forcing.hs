@@ -123,7 +123,7 @@ insertTele x 0 ins term (ExtendTel t to) = do
 -}
     when (genericLength arg < pars) __IMPOSSIBLE__
     -- we deal with absBody to directly since we remove t
-    return ( ctele +:+  (S.subst term $ S.raiseFrom 1 (size ctele) (unAbs to))
+    return ( ctele +:+  (S.subst 0 term $ S.raiseFrom 1 (size ctele) (unAbs to))
            , (ctele, S.raise (size ctele) $ unDom t , ctyp)
            )
   where

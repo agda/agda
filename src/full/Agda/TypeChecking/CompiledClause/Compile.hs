@@ -220,7 +220,7 @@ expandCatchAlls single n cs =
 substBody :: Int -> Int -> Term -> ClauseBody -> ClauseBody
 substBody _ _ _ NoBody = NoBody
 substBody 0 m v b = case b of
-  Bind   b -> foldr (.) id (replicate m (Bind . Abs underscore)) $ subst v (absBody $ raise m b)
+  Bind   b -> foldr (.) id (replicate m (Bind . Abs underscore)) $ subst 0 v (absBody $ raise m b)
   _        -> __IMPOSSIBLE__
 substBody n m v b = case b of
   Bind b   -> Bind $ fmap (substBody (n - 1) m v) b
