@@ -519,7 +519,7 @@ clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
 -- argpatts aps xs = hps
 -- xs is alist of haskell *variables* in form of patterns (because of wildcard)
 argpatts :: [I.NamedArg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
-argpatts ps0 bvs = evalStateT (concat <$> mapM pat' ps0) bvs
+argpatts ps0 bvs = evalStateT (List.concat <$> mapM pat' ps0) bvs
   where
   pat :: Pattern -> StateT [HS.Pat] TCM [HS.Pat]
   pat   (ProjP p  ) = do
@@ -542,7 +542,7 @@ argpatts ps0 bvs = evalStateT (concat <$> mapM pat' ps0) bvs
                 then HS.PParen . HS.PIrrPat
                 else id
     ((:[]) . tilde . HS.PParen) <$>
-      (HS.PApp <$> lift (conhqn $ conName c) <*> (concat <$> mapM pat' ps))
+      (HS.PApp <$> lift (conhqn $ conName c) <*> (List.concat <$> mapM pat' ps))
 
   {- Andreas, 2013-02-15 this triggers Issue 794,
      because it fails to count the variables bound in p,
