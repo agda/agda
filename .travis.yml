@@ -195,7 +195,7 @@ script:
 
   - case "$TEST" in
       "non_require_stdlib")
-        yes q | make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples api-test tests &&
+        make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples api-test tests &&
 
         make BUILD_DIR=$BUILD_DIR TAGS &&
 
@@ -203,7 +203,7 @@ script:
         ;;
 
       "require_stdlib")
-        yes q | make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed compiler-test benchmark-without-logs
+        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed compiler-test benchmark-without-logs
         ;;
 
       *)
