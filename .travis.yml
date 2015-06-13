@@ -43,6 +43,9 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
+  # TODO (13 June 2015): Don't install cabal-install, Alex and Happy when
+  # $TEST=ghc-7.8.4-transformers-0.3.0.0 and GHC version is different to 7.8.4.
+
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
   - export PATH=$HOME/.cabal/bin:$PATH
