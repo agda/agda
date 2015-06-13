@@ -143,19 +143,25 @@ install:
         ;;
     esac
 
-  # Get the standard library.
+  ############################################################################
+  # Getting the standard library
+
   - case $TEST in
       "require_stdlib")
        make up-to-date-std-lib
        ;;
     esac
 
-  # The `check-whitespace` test doesn't require the standard library.
+  ############################################################################
+  # Installing fix-agda-whitespace
+
   - case $TEST in
       "non_require_stdlib")
         make install-fix-agda-whitespace
         ;;
     esac
+
+  ############################################################################
 
 script:
   # Right now Haddock doesn't work, presumably because it consumes too
