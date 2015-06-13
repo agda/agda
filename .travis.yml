@@ -195,7 +195,23 @@ script:
 
   - case "$TEST" in
       "non_require_stdlib")
-        make BUILD_DIR=$BUILD_DIR check-whitespace succeed fail interaction interactive latex-test examples api-test tests &&
+        make check-whitespace &&
+
+        make BUILD_DIR=$BUILD_DIR succeed &&
+
+        make BUILD_DIR=$BUILD_DIR fail &&
+
+        make BUILD_DIR=$BUILD_DIR interaction &&
+
+        make BUILD_DIR=$BUILD_DIR interactive &&
+
+        make BUILD_DIR=$BUILD_DIR latex-test &&
+
+        make BUILD_DIR=$BUILD_DIR examples &&
+
+        make BUILD_DIR=$BUILD_DIR api-test &&
+
+        make BUILD_DIR=$BUILD_DIR tests &&
 
         make BUILD_DIR=$BUILD_DIR TAGS &&
 
@@ -203,7 +219,13 @@ script:
         ;;
 
       "require_stdlib")
-        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR library-test lib-succeed compiler-test benchmark-without-logs
+        make BUILD_DIR=$BUILD_DIR library-test &&
+
+        make BUILD_DIR=$BUILD_DIR lib-succeed &&
+
+        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
+
+        make BUILD_DIR=$BUILD_DIR benchmark-without-logs
         ;;
 
       *)
