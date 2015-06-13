@@ -59,6 +59,9 @@ install:
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
+  ############################################################################
+  # Installing dependencies
+
   # In Travis (because the Haskell platform is installed?) Cabal needs the
   # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
   # about breaking previously installed packages [Issue 1520].
@@ -82,6 +85,9 @@ install:
         ;;
     esac
 
+  ############################################################################
+  # Running `cabal configure`
+
   - export BUILD_DIR=$PWD/dist
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
@@ -100,9 +106,15 @@ install:
         ;;
     esac
 
+  ############################################################################
+  # Running `cabal build`
+
   # Note: `cabal build` sets up the number of jobs to $ncpus by default.
   # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
   - cabal build -v2 --builddir=$BUILD_DIR
+
+  ############################################################################
+  # Running `cabal install`
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
   - case $TEST in
@@ -119,6 +131,8 @@ install:
         exit 1
         ;;
     esac
+
+  ############################################################################
 
   # The Epic backend has been removed. See Issue 1481.
   # Epic installation.
