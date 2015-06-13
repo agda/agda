@@ -27,7 +27,6 @@ ghc:
 # make api-test
 # make tests
 # make TAGS (testing the hTags program)
-# Compilation with GHC 7.8.4 using transformers 0.3.0.0 [Issue 1156]
 #
 # The current tests requiring the standard library are:
 #
@@ -36,12 +35,16 @@ ghc:
 # make compiler-test
 # make benchmark-without-logs
 env:
+  - TEST=ghc-7.8.4-transformers-0.3.0.0
   - TEST=non_require_stdlib
   - TEST=require_stdlib
 
 install:
   # Asking for the shell.
   - echo $SHELL
+
+  # TODO (13 June 2015): Don't install cabal-install, Alex and Happy when
+  # $TEST=ghc-7.8.4-transformers-0.3.0.0 and GHC version is different to 7.8.4.
 
   # With old GHCs, we get an old cabal-install
   - cabal install cabal-install
@@ -59,6 +62,9 @@ install:
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
+  ############################################################################
+  # Installing dependencies
+
   # In Travis (because the Haskell platform is installed?) Cabal needs the
   # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
   # about breaking previously installed packages [Issue 1520].
@@ -67,58 +73,63 @@ install:
   # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
-  - case "$TEST" in
+  - case $TEST in
       "non_require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies; fi
+        if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
+           cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies;
+        fi
         ;;
 
       "require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies; fi
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
+        if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
+           cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies;
+        fi
         ;;
     esac
+
+  ############################################################################
+  # Running `cabal configure`
 
   - export BUILD_DIR=$PWD/dist
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
-  - case "$TEST" in
+  - case $TEST in
       "non_require_stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR
         ;;
 
       "require_stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
+  ############################################################################
+  # Running `cabal build`
+
   # Note: `cabal build` sets up the number of jobs to $ncpus by default.
   # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
-  - cabal build -v2 --builddir=$BUILD_DIR
+
+  - case $TEST in
+      "non_require_stdlib" | "require_stdlib")
+        cabal build -v2 --builddir=$BUILD_DIR
+        ;;
+    esac
+
+  ############################################################################
+  # Running `cabal install`
 
   # The `enable-test` option is required only if $TEST=require_stdlib.
-  - case "$TEST" in
+  - case $TEST in
       "non_require_stdlib")
         cabal install -v2 --builddir=$BUILD_DIR
         ;;
 
       "require_stdlib")
         cabal install -v2 --builddir=$BUILD_DIR --enable-tests
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
+
+  ############################################################################
 
   # The Epic backend has been removed. See Issue 1481.
   # Epic installation.
@@ -132,55 +143,41 @@ install:
   # which is not available in this version of TeX Live (see Issue 1022).
 
   # The LaTeX test-suite doesn't require the standard library.
-  - case "$TEST" in
-      "non_require_stdlib")
-        sudo add-apt-repository ppa:texlive-backports/ppa -y &&
-        sudo apt-get update &&
-        sudo apt-get install texlive &&
-        sudo apt-get install texlive-latex-extra &&
-        sudo apt-get install texlive-xetex &&
-        sudo apt-get install texlive-math-extra &&
-        sudo apt-get install texlive-fonts-extra
-        ;;
+  - if [ $TEST = "non_require_stdlib" ]; then
+       sudo add-apt-repository ppa:texlive-backports/ppa -y;
+       sudo apt-get update;
+       sudo apt-get install texlive;
+       sudo apt-get install texlive-latex-extra;
+       sudo apt-get install texlive-xetex;
+       sudo apt-get install texlive-math-extra;
+       sudo apt-get install texlive-fonts-extra;
+    fi
 
-      "require_stdlib")
-        ;;
+  ############################################################################
+  # Getting the standard library
 
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
-    esac
+  - if [ $TEST = "require_stdlib" ]; then
+       make up-to-date-std-lib;
+    fi
 
-  # Get the standard library.
-  - case "$TEST" in
-      "non_require_stdlib")
-        ;;
+  ############################################################################
+  # Testing compilation with transformers 0.3.0.0 which is shipped with
+  # GHC 7.8.* [Issue 1156].
 
-      "require_stdlib")
-       make up-to-date-std-lib
-       ;;
+  - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
+       cabal install --only-dependencies --constraint=transformers==0.3.0.0 ;
+       cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0;
+       cabal build -v2 --builddir=$BUILD_DIR;
+    fi
 
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
-    esac
+  ############################################################################
+  # Installing fix-agda-whitespace
 
-  # The `check-whitespace` test doesn't require the standard library.
-  - case "$TEST" in
-      "non_require_stdlib")
-        make install-fix-agda-whitespace
-        ;;
+  - if [ $TEST = "non_require_stdlib" ]; then
+       make install-fix-agda-whitespace;
+    fi
 
-      "require_stdlib")
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
-    esac
+  ############################################################################
 
 script:
   # Right now Haddock doesn't work, presumably because it consumes too
@@ -190,10 +187,8 @@ script:
   # TODO (07 May 2015): I couldn't add the following documentation inside the
   # case statement:
   # 1. Testing the hTags program.
-  # 2. Testing compilation with transformers 0.3.0.0 which is shipped with
-  # GHC 7.8.* [Issue 1156].
 
-  - case "$TEST" in
+  - case $TEST in
       "non_require_stdlib")
         make check-whitespace &&
 
@@ -213,9 +208,7 @@ script:
 
         make BUILD_DIR=$BUILD_DIR tests &&
 
-        make BUILD_DIR=$BUILD_DIR TAGS &&
-
-        if [ $GHC_VERSION_TRAVIS == 7.8.4 ]; then cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 && cabal -v2 --builddir=$BUILD_DIR build; fi
+        make BUILD_DIR=$BUILD_DIR TAGS
         ;;
 
       "require_stdlib")
@@ -226,11 +219,6 @@ script:
         make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
 
         make BUILD_DIR=$BUILD_DIR benchmark-without-logs
-        ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
