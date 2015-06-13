@@ -1,4 +1,4 @@
-{-# OPTIONS -v rewriting:100 #-}
+-- {-# OPTIONS -v rewriting:100 #-}
 
 postulate
   _↦_ : ∀ {i} {A : Set i} → A → A → Set i

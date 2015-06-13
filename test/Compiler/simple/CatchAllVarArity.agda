@@ -16,6 +16,27 @@ f zero = λ y → y
 f (suc zero) (suc y) = suc y
 f x y = (suc y)
 
+case_of_ : ∀{A B : Set} → A → (A → B) → B
+case a of f = f a
+
+-- case tree variant of f
+g : Nat → Nat → Nat
+g = λ x →
+    case x of
+     λ{ zero     → λ y → y
+      ; (suc x') →
+        case x' of
+         λ{ zero  → λ y →
+            case y of
+             λ{ (suc y') → suc y'
+              ; _        → fallback (suc x') y
+              }
+          ; _ → λ y → fallback x y
+          }
+      }
+  where
+    fallback = λ x y → suc y
+
 --expected:
 -- 10
 -- 21
@@ -35,4 +56,3 @@ main = printNat (f 0 10) ,,
   putStrLn "" ,,
   printNat (f 1 0) ,,
   putStrLn ""
-

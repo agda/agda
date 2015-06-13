@@ -138,9 +138,10 @@ translateCompiledClauses cc = snd <$> loop cc
     loops :: Int                  -- split variable
           -> Case CompiledClauses -- original split tree
           -> TCM ([Bool], CompiledClauses)
-    loops i cs@(Branches { conBranches = conMap
-                         , litBranches = litMap
-                         , catchAllBranch = catchAll }) = do
+    loops i cs@Branches{ projPatterns   = cop
+                       , conBranches    = conMap
+                       , litBranches    = litMap
+                       , catchAllBranch = catchAll } = do
 
       -- recurse on and compute variable status of catch-all clause
       (xssa, catchAll) <- unzipMaybe <$> Trav.mapM loop catchAll
@@ -186,7 +187,8 @@ translateCompiledClauses cc = snd <$> loop cc
       case concat $ Map.elems ccs of
         -- case: no record pattern was translated
         []   -> return (xs, Case i $ Branches
-                  { conBranches = conMap
+                  { projPatterns = cop
+                  , conBranches = conMap
                   , litBranches = litMap
                   , catchAllBranch = catchAll })
 
@@ -261,10 +263,12 @@ replaceByProjections i projs cc =
         Fail -> Fail
 
       loops :: Int -> Case CompiledClauses -> Case CompiledClauses
-      loops i Branches{ conBranches    = conMap
+      loops i Branches{ projPatterns   = cop
+                      , conBranches    = conMap
                       , litBranches    = litMap
                       , catchAllBranch = catchAll } =
-        Branches{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
+        Branches{ projPatterns   = cop
+                , conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
                 , litBranches    = fmap (loop (i - 1)) litMap
                 , catchAllBranch = fmap (loop i) catchAll
                 }

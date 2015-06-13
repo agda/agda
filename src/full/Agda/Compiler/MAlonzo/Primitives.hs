@@ -9,7 +9,7 @@ import Data.List as L
 import Data.Map as M
 import qualified Language.Haskell.Exts.Syntax as HS
 
-import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (term)
+import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (closedTerm)
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Syntax.Common
@@ -251,8 +251,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   -- Trust me
   , ("primTrustMe"       , Right <$> do
        refl <- primRefl
-       flip runReaderT 0 $
-         term $ lam "a" (lam "A" (lam "x" (lam "y" refl))))
+       closedTerm $ lam "a" (lam "A" (lam "x" (lam "y" refl))))
   ]
   where
   x |-> s = (x, Left <$> s)

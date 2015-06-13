@@ -439,11 +439,14 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
 
       -- Substitute the constructor for x in Δ₂: Δ₂' = Δ₂[conv/x]
       let conv    = Con con  $ teleArgs gamma   -- Θ Γ ⊢ conv (for any Θ)
-          delta2' = subst conv $ raiseFrom 1 (size gamma) delta2
+          rho0    = consS conv $ raiseS (size gamma)
+          -- Andreas, 2015-06-13 share substitution rho0
+          delta2' = applySubst rho0 delta2
+          -- delta2' = subst 0 conv $ raiseFrom 1 (size gamma) delta2
       debugTel "delta2'" delta2'
 
       -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂'
-      let rho = liftS (size delta2') $ consS conv $ raiseS (size gamma)
+      let rho = liftS (size delta2') $ rho0
              --    [ Var i [] | i <- [0..size delta2' - 1] ]
              -- ++ [ raise (size delta2') conv ]
              -- ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]

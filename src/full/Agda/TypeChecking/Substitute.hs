@@ -286,10 +286,10 @@ instance Apply a => Apply (WithArity a) where
   applyE (WithArity n a) es   = WithArity n $ applyE a es
 
 instance Apply a => Apply (Case a) where
-  apply (Branches cs ls m) args =
-    Branches (apply cs args) (apply ls args) (apply m args)
-  applyE (Branches cs ls m) es =
-    Branches (applyE cs es) (applyE ls es) (applyE m es)
+  apply (Branches cop cs ls m) args =
+    Branches cop (apply cs args) (apply ls args) (apply m args)
+  applyE (Branches cop cs ls m) es =
+    Branches cop (applyE cs es) (applyE ls es) (applyE m es)
 
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
@@ -486,8 +486,8 @@ instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a
 
 instance Abstract a => Abstract (Case a) where
-  abstract tel (Branches cs ls m) =
-    Branches (abstract tel cs) (abstract tel ls) (abstract tel m)
+  abstract tel (Branches cop cs ls m) =
+    Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m)
 
 telVars :: Telescope -> [Arg Pattern]
 telVars = map (fmap namedThing) . namedTelVars
@@ -550,9 +550,12 @@ consS (Var n []) (Wk m rho)
   | n + 1 == m = wkS (m - 1) (liftS 1 rho)
 consS u rho = seq u (u :# rho)
 
-singletonS :: Term -> Substitution
-singletonS u = consS u idS
+-- | To replace index @n@ by term @u@, do @applySubst (singletonS n u)@.
+singletonS :: Int -> Term -> Substitution
+singletonS n u = map var [0..n-1] ++# consS u idS
+  -- ALT: foldl (\ s i -> var i `consS` s) (consS u idS) $ downFrom n
 
+-- | Lift a substitution under k binders.
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
 liftS k IdS          = IdS
@@ -650,14 +653,17 @@ raise = raiseFrom 0
 raiseFrom :: Subst t => Nat -> Nat -> t -> t
 raiseFrom n k = applySubst (liftS n $ raiseS k)
 
-subst :: Subst t => Term -> t -> t
-subst u t = substUnder 0 u t
+-- | Replace de Bruijn index i by a 'Term' in something.
+subst :: Subst t => Int -> Term -> t -> t
+subst i u = applySubst $ singletonS i u
 
 strengthen :: Subst t => Empty -> t -> t
 strengthen err = applySubst (compactS err [Nothing])
 
+-- | Replace what is now de Bruijn index 0, but go under n binders.
+--   @substUnder n u == subst n (raise n u)@.
 substUnder :: Subst t => Nat -> Term -> t -> t
-substUnder n u = applySubst (liftS n (singletonS u))
+substUnder n u = applySubst (liftS n (singletonS 0 u))
 
 instance Subst Substitution where
   applySubst rho sgm = composeS rho sgm
@@ -928,7 +934,7 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
 
 -- | Instantiate an abstraction. Strict in the term.
 absApp :: Subst t => Abs t -> Term -> t
-absApp (Abs   _ v) u = subst u v
+absApp (Abs   _ v) u = subst 0 u v
 absApp (NoAbs _ v) _ = v
 
 -- | Instantiate an abstraction. Lazy in the term, which allow it to be

@@ -1,17 +1,25 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
 
+import Prelude hiding (mapM_, mapM)
+
 import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM)
+import Control.Monad.State  hiding (mapM_, forM_, mapM, forM)
 
 import Data.Generics.Geniplate
+import Data.Foldable
 import Data.List as List
-import Data.Map as Map
-import Data.Set as Set
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Traversable hiding (for)
 
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
@@ -38,18 +46,27 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
 
+import Agda.TypeChecking.CompiledClause
+
 import Agda.Utils.FileName
+import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Singleton
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -207,8 +224,15 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       Axiom{} -> return $ fb axiomErr
       Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
-      Primitive{ primClauses = cls } -> function cls Nothing
-      Function{ funClauses =   cls } -> function cls (exportHaskell compiled)
+      Primitive{ primClauses = cls } -> function Nothing $
+        functionFromClauses cls
+
+      -- Currently, catchAllBranches cannot be handled properly by casetree
+      Function{ funCompiled = Just cc } | not (hasCatchAll cc) ->
+        function (exportHaskell compiled) $ functionFromCaseTree q cc
+      Function{ funClauses = cls } ->
+        function (exportHaskell compiled) $ functionFromClauses cls
+
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
         ccs <- concat <$> mapM checkConstructorType cs
@@ -221,26 +245,33 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         let c = conName con
         let noFields = genericLength flds
-        let ar = arity ty
+        let ar = I.arity ty
         cd <- snd <$> condecl c
   --       cd <- case c of
   --         Nothing -> return $ cdecl q noFields
   --         Just c  -> snd <$> condecl c
         return $ tvaldecl q Inductive noFields ar [cd] cl
   where
-  function :: [Clause] -> Maybe HaskellExport -> TCM [HS.Decl]
-  function cls (Just (HsExport t name)) =
-    do ccls <- functionStdName cls
-       let tsig :: HS.Decl
-           tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
+  function :: Maybe HaskellExport -> TCM [HS.Decl] -> TCM [HS.Decl]
+  function mhe fun = do
+    ccls <- mkwhere <$> fun
+    case mhe of
+      Nothing -> return ccls
+      Just (HsExport t name) -> do
+        let tsig :: HS.Decl
+            tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
 
-           def :: HS.Decl
-           def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
-       return ([tsig,def] ++ ccls)
-  function cls Nothing = functionStdName cls
+            def :: HS.Decl
+            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
+        return ([tsig,def] ++ ccls)
 
-  functionStdName :: [Clause] -> TCM [HS.Decl]
-  functionStdName cls = mkwhere <$> mapM (clause q Nothing) (tag 0 cls)
+  functionFromClauses :: [Clause] -> TCM [HS.Decl]
+  functionFromClauses cls = mapM (clause q Nothing) (tag 0 cls)
+
+  functionFromCaseTree :: QName -> CompiledClauses -> TCM [HS.Decl]
+  functionFromCaseTree q cc = do
+    e <- casetree cc `runReaderT` initCCEnv (Just q)
+    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
 
   tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
   tag _ []       = []
@@ -263,6 +294,170 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
+
+-- | Environment for naming of local variables.
+--   Invariant: @reverse ccCxt ++ ccNameSupply@
+data CCEnv = CCEnv
+  { ccFunName    :: Maybe QName -- ^ Agda function we are currently compiling.
+  , ccNameSupply :: NameSupply  -- ^ Supply of fresh names
+  , ccCxt        :: CCContext   -- ^ Names currently in scope
+  , ccCatchAll   :: Maybe CompiledClauses  -- ^ Naive catch-all implementation.
+      -- If an inner case has no catch-all clause, we use the one from its parent.
+  }
+
+type NameSupply = [HS.Name]
+type CCContext  = [HS.Name]
+
+mapNameSupply :: (NameSupply -> NameSupply) -> CCEnv -> CCEnv
+mapNameSupply f e = e { ccNameSupply = f (ccNameSupply e) }
+
+mapContext :: (CCContext -> CCContext) -> CCEnv -> CCEnv
+mapContext f e = e { ccCxt = f (ccCxt e) }
+
+-- | Initial environment for expression generation.
+initCCEnv :: Maybe QName -> CCEnv
+initCCEnv q = CCEnv
+  { ccFunName    = q
+  , ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+  , ccCxt        = []
+  , ccCatchAll   = Nothing
+  }
+
+-- | Term variables are de Bruijn indices.
+lookupIndex :: Int -> CCContext -> HS.Name
+lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
+
+-- | Case variables are de Bruijn levels.
+lookupLevel :: Int -> CCContext -> HS.Name
+lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
+
+type CC = ReaderT CCEnv TCM
+
+-- | Compile a case tree into nested case and record expressions.
+casetree :: CompiledClauses -> CC HS.Exp
+casetree cc = do
+  case cc of
+    Fail -> return $ rtmError $ "Impossible Clause Body"
+    Done xs v -> lambdasUpTo (length xs) $ hsCast <$> term v
+    Case n (Branches True conBrs _ _) -> lambdasUpTo n $ do
+      mkRecord =<< mapM casetree (content <$> conBrs)
+    Case n (Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
+      x <- lookupLevel n <$> asks ccCxt
+      HS.Case (hsCast $ hsVarUQ x) <$> do
+        updateCatchAll catchAll $ do
+          br1 <- conAlts n conBrs
+          br2 <- litAlts litBrs
+          br3 <- catchAllAlts =<< asks ccCatchAll
+          return (br1 ++ br2 ++ br3)
+
+-- | Replace the current catch-all clause with a new one, if given.
+updateCatchAll :: Maybe CompiledClauses -> CC a -> CC a
+updateCatchAll Nothing   = id
+updateCatchAll (Just cc) = local $ \ e -> e { ccCatchAll = Just cc }
+
+-- -- | Replace de Bruijn index by term in catch-all tree.
+-- substCatchAll :: Int -> I.Term -> CC a -> CC a
+-- substCatchAll i t = local $ \ e -> e { ccCatchAll = subst i t $ ccCatchAll e }
+
+conAlts :: Int -> Map QName (WithArity CompiledClauses) -> CC [HS.Alt]
+conAlts x br = forM (Map.toList br) $ \ (c, WithArity n cc) -> do
+  c <- lift $ conhqn c
+  -- TODO: substitute in ccCatchAll somehow
+  replaceVar x n $ \ xs -> do
+    branch (HS.PApp c $ map HS.PVar xs) cc
+
+litAlts :: Map Literal CompiledClauses -> CC [HS.Alt]
+litAlts br = forM (Map.toList br) $ \ (l, cc) ->
+  -- TODO: substitute in ccCatchAll somehow
+  branch (HS.PLit HS.Signless $ hslit l) cc
+
+catchAllAlts :: Maybe CompiledClauses -> CC [HS.Alt]
+catchAllAlts (Just cc) = mapM (branch HS.PWildCard) [cc]
+catchAllAlts Nothing   = do
+  q <- fromMaybe __IMPOSSIBLE__ <$> asks ccFunName
+  return [ HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs $ rtmIncompleteMatch q) (HS.BDecls []) ]
+
+branch :: HS.Pat -> CompiledClauses -> CC HS.Alt
+branch pat cc = do
+  e <- casetree cc
+  return $ HS.Alt dummy pat (HS.UnGuardedRhs e) (HS.BDecls [])
+
+-- | Replace de Bruijn Level @x@ by @n@ new variables.
+replaceVar :: Int -> Int -> ([HS.Name] -> CC a) -> CC a
+replaceVar x n cont = do
+  (xs, rest) <- splitAt n <$> asks ccNameSupply
+  let upd cxt = ys ++ reverse xs ++ zs -- We reverse xs to get nicer names.
+       where
+         -- compute the de Bruijn index
+         i = length cxt - 1 - x
+         -- discard index i
+         (ys, _:zs) = splitAt i cxt
+  local (mapNameSupply (const rest) . mapContext upd) $
+    cont xs
+
+-- | Precondition: Map not empty.
+mkRecord :: Map QName HS.Exp -> CC HS.Exp
+mkRecord fs = lift $ do
+  -- Get the name of the first field
+  let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
+  -- Use the field name to get the record constructor and the field names.
+  ConHead c _ind xs <- recConFromProj p1
+  -- Convert the constructor to a Haskell name
+  c <- conhqn c
+  let (args :: [HS.Exp]) = for xs $ \ x -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
+  return $ hsCast $ List.foldr (flip HS.App) (HS.Con c) args
+
+-- -- | Precondition: Map not empty.
+-- MAlonzo does not translate field names in data decls.
+-- mkRecord :: Map QName HS.Exp -> CC HS.Exp
+-- mkRecord fs = lift $ do
+--   -- Get the list of (field name, expression pairs)
+--   let l = Map.toList fs
+--   -- Get the name of the first field
+--   let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe l
+--   -- Use the field name to get the record constructor
+--   c <- I.conName <$> recConFromProj p1
+--   -- Convert it to a Haskell name
+--   c <- conhqn c
+--   -- Convert the field names into Haskell names
+--   fs <- mapM (mapFstM (xhqn "d")) l
+--   return $ hsCast $ HS.RecConstr c $ map (uncurry HS.FieldUpdate) fs
+
+recConFromProj :: QName -> TCM I.ConHead
+recConFromProj q = do
+  caseMaybeM (isProjection q) __IMPOSSIBLE__ $ \ proj -> do
+    let d = projFromType proj
+    getRecordConstructor d
+
+-- | Introduce lambdas such that @n@ variables are in scope.
+lambdasUpTo :: Int -> CC HS.Exp -> CC HS.Exp
+lambdasUpTo n cont = do
+  diff <- (n -) . length <$> asks ccCxt
+  lambdas diff cont
+
+-- | Introduce n lambdas.
+lambdas :: Int -> CC HS.Exp -> CC HS.Exp
+lambdas diff cont = intros diff $ \ xs -> mkLams xs <$> cont
+
+-- -- | Introduce variables such that @n@ are in scope.
+-- introsUpTo :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
+-- introsUpTo n cont = do
+--   diff <- (n -) . length <$> asks ccCxt
+--   intros diff cont
+
+-- | Introduce n variables into the context.
+intros :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
+intros diff cont = do
+  if diff <= 0 then cont [] else do
+    -- Need diff lambdas to continue.
+    (xs, rest) <- splitAt diff <$> asks ccNameSupply
+    local (mapNameSupply (const rest) . mapContext (reverse xs ++)) $
+      cont xs
+
+-- | Prefix a Haskell expression with lambda abstractions.
+mkLams :: [HS.Name] -> HS.Exp -> HS.Exp
+mkLams [] e = e
+mkLams xs e = HS.Lambda dummy (map HS.PVar xs) e
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
@@ -379,24 +574,27 @@ argpatts ps0 bvs = evalStateT (concat <$> mapM pat' ps0) bvs
   irr' a = irr $ namedArg a
 
 clausebody :: ClauseBody -> TCM HS.Exp
-clausebody b0 = runReaderT (go b0) 0 where
-  go (Body tm       )   = hsCast <$> term tm
-  go (Bind (Abs _ b))   = local (1+) $ go b
-  go (Bind (NoAbs _ b)) = go b
-  go NoBody             = return $ rtmError $ "Impossible Clause Body"
+clausebody b0 = go 0 b0 where
+  go n (Body tm       )   = hsCast <$> do
+    runReaderT (intros n $ const $ term tm) (initCCEnv Nothing)
+  go n (Bind (Abs _ b))   = go (n+1) b
+  go n (Bind (NoAbs _ b)) = go n b
+  go n NoBody             = return $ rtmError $ "Impossible Clause Body"
+
+
+closedTerm :: Term -> TCM HS.Exp
+closedTerm v = term v `runReaderT` initCCEnv Nothing
 
 -- | Extract Agda term to Haskell expression.
 --   Irrelevant arguments are extracted as @()@.
 --   Types are extracted as @()@.
 --   @DontCare@ outside of irrelevant arguments is extracted as @error@.
-term :: Term -> ReaderT Nat TCM HS.Exp
+term :: Term -> CC HS.Exp
 term tm0 = case unSpine $ ignoreSharing tm0 of
   Var   i es -> do
-    let Just as = allApplyElims es
-    n <- ask
-    apps (hsVarUQ $ ihname "v" (n - i - 1)) as
-  Lam   _ at -> do n <- ask; HS.Lambda dummy [HS.PVar $ ihname "v" n] <$>
-                              local (1+) (term $ absBody at)
+    x <- lookupIndex i <$> asks ccCxt
+    apps (hsVarUQ x) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  Lam   _ at -> lambdas 1 $ term $ absBody at
   Lit   l    -> lift $ literal l
   Def   q es -> do
     let Just as = allApplyElims es
@@ -414,10 +612,10 @@ term tm0 = case unSpine $ ignoreSharing tm0 of
   MetaV _ _  -> mazerror "hit MetaV"
   DontCare _ -> return $ rtmError $ "hit DontCare"
   Shared{}   -> __IMPOSSIBLE__
-  where apps =  foldM (\h a -> HS.App h <$> term' a)
+  where apps =  foldM (\ h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().
-term' :: I.Arg Term -> ReaderT Nat TCM HS.Exp
+term' :: I.Arg Term -> CC HS.Exp
 term' a | isIrrelevant a = return HS.unit_con
 term' a = term $ unArg a
 

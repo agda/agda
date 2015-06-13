@@ -13,12 +13,14 @@ import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad.Reader
 
-import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Either
+import Data.Graph (SCC(..), flattenSCC)
 import Data.List as List hiding (null)
 import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Debug.Trace
 
@@ -34,14 +36,15 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
-import Agda.Utils.Size
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Permutation as Perm
 import Agda.Utils.SemiRing
-import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -68,6 +71,8 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
     [ text "positivity graph for" <+> prettyTCM (Set.toList qs)
     , nest 2 $ prettyTCM g
     ]
+  reportSLn "tc.pos.graph" 5 $
+    "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
   reportSDoc "tc.pos.graph" 50 $ vcat
     [ text "transitive closure of positivity graph for" <+>
       prettyTCM (Set.toList qs)
@@ -79,7 +84,16 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
-  let sccs = Graph.sccs gstar
+  let sccs' = Graph.sccs' gstar
+      sccs  = map flattenSCC sccs'
+  reportSDoc "tc.pos.graph.sccs" 10 $ do
+    let (triv, others) = partitionEithers $ for sccs' $ \ scc -> case scc of
+          AcyclicSCC v -> Left v
+          CyclicSCC vs -> Right vs
+    sep [ text $ show (length triv) ++ " trivial sccs"
+        , text $ show (length others) ++ " non-trivial sccs with lengths " ++
+            show (map length others)
+        ]
   reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
   forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
   mapM_ (checkPos g) $ Set.toList qs
@@ -619,11 +633,12 @@ buildOccurrenceGraph qs = Graph.unionsWith oplus <$> mapM defGraph (Set.toList q
     defGraph :: QName -> TCM (Graph Node Edge)
     defGraph q = do
       occs <- computeOccurrences q
-      let onItem (item, occs) = do
-            es <- mapM (computeEdge qs) occs
-            return $ Graph.unionsWith oplus $
-                map (\(b, w) -> Graph.singleton (itemToNode item) b w) es
-      Graph.unionsWith oplus <$> mapM onItem (Map.assocs occs)
+      Graph.unionsWith oplus <$> do
+        forM (Map.assocs occs) $ \ (item, occs) -> do
+          let src = itemToNode item
+          es <- mapM (computeEdge qs) occs
+          return $ Graph.unionsWith oplus $
+            for es $ \ (tgt, w) -> Graph.singleton src tgt w
       where
         itemToNode (AnArg i) = ArgNode q i
         itemToNode (ADef q)  = DefNode q
