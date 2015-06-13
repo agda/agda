@@ -5,15 +5,15 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Prelude hiding (mapM_, mapM)
+import Prelude hiding (mapM_, mapM, sequence)
 
 import Control.Applicative
-import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM)
-import Control.Monad.State  hiding (mapM_, forM_, mapM, forM)
+import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
+import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
 import Data.Generics.Geniplate
 import Data.Foldable
-import Data.List as List
+import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -135,7 +135,7 @@ imports = (++) <$> hsImps <*> imps where
                 <*> (List.map fst . iImportedModules <$> curIF)
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
-  uniq = List.map head . group . List.sort
+  uniq = List.map head . List.group . List.sort
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -235,16 +235,16 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
-        ccs <- concat <$> mapM checkConstructorType cs
+        ccs <- List.concat <$> mapM checkConstructorType cs
         cov <- checkCover q ty np cs
         return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         (ars, cds) <- unzip <$> mapM condecl cs
-        return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
+        return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
       Constructor{} -> return []
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
         let c = conName con
-        let noFields = genericLength flds
+        let noFields = length flds
         let ar = I.arity ty
         cd <- snd <$> condecl c
   --       cd <- case c of
@@ -473,7 +473,7 @@ checkCover q ty n cs = do
       makeClause c = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
-        let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
+        let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
         return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) (HS.BDecls [])
 
   cs <- mapM makeClause cs
@@ -492,17 +492,17 @@ conArityAndPars q = do
   def <- getConstInfo q
   TelV tel _ <- telView $ defType def
   let Constructor{ conPars = np } = theDef def
-      n = genericLength (telToList tel)
+      n = length (telToList tel)
   return (n - np, np)
 
 clause :: QName -> Maybe String -> (Nat, Bool, Clause) -> TCM HS.Decl
 clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
   HS.FunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
-  cont | isLast && any isCon ps = [match (List.map HS.PVar cvs) failrhs]
-       | isLast                 = []
-       | otherwise              = [match (List.map HS.PVar cvs) crhs]
-  cvs  = List.map (ihname "v") [0 .. genericLength ps - 1]
+  cont | isLast && List.any isCon ps = [match (List.map HS.PVar cvs) failrhs]
+       | isLast                      = []
+       | otherwise                   = [match (List.map HS.PVar cvs) crhs]
+  cvs  = List.map (ihname "v") [0 .. length ps - 1]
   crhs = hsCast$ List.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (List.map hsVarUQ cvs)
   failrhs = rtmIncompleteMatch q  -- Andreas, 2011-11-16 call to RTE instead of inlined error
 --  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
