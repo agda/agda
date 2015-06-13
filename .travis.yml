@@ -75,11 +75,11 @@ install:
   # The `enable-test` option is required only if $TEST=require_stdlib.
   - case $TEST in
       "non_require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies; fi
+        if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies; fi
         ;;
 
       "require_stdlib")
-        if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies; fi
+        if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies; fi
         ;;
     esac
 
@@ -166,7 +166,7 @@ install:
 
   - case $TEST in
       "ghc-7.8.4-transformers-0.3.0.0")
-        if [ $GHC_VERSION_TRAVIS == 7.8.4 ]; then
+        if [ $GHC_VERSION_TRAVIS = 7.8.4 ]; then
           cabal install --only-dependencies --constraint=transformers==0.3.0.0 ;
           cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0;
           cabal build -v2 --builddir=$BUILD_DIR;
