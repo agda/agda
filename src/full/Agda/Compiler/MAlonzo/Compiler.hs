@@ -1,20 +1,25 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
 
+import Prelude hiding (mapM_, mapM)
+
 import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM)
+import Control.Monad.State  hiding (mapM_, forM_, mapM, forM)
 
 import Data.Generics.Geniplate
+import Data.Foldable
 import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable hiding (for)
 
 import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
@@ -41,19 +46,27 @@ import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
 
+import Agda.TypeChecking.CompiledClause
+
 import Agda.Utils.FileName
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Singleton
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -213,8 +226,13 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
       Primitive{ primClauses = cls } -> function Nothing $
         functionFromClauses cls
-      Function{ funClauses =   cls } -> function (exportHaskell compiled) $
-        functionFromClauses cls
+
+      -- Currently, catchAllBranches cannot be handled properly by casetree
+      Function{ funCompiled = Just cc } | not (hasCatchAll cc) ->
+        function (exportHaskell compiled) $ functionFromCaseTree q cc
+      Function{ funClauses = cls } ->
+        function (exportHaskell compiled) $ functionFromClauses cls
+
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
         ccs <- concat <$> mapM checkConstructorType cs
@@ -250,6 +268,11 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   functionFromClauses :: [Clause] -> TCM [HS.Decl]
   functionFromClauses cls = mapM (clause q Nothing) (tag 0 cls)
 
+  functionFromCaseTree :: QName -> CompiledClauses -> TCM [HS.Decl]
+  functionFromCaseTree q cc = do
+    e <- casetree cc `runReaderT` initCCEnv (Just q)
+    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
+
   tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
   tag _ []       = []
   tag i [cl]     = (i, True , cl) : []
@@ -275,8 +298,11 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 -- | Environment for naming of local variables.
 --   Invariant: @reverse ccCxt ++ ccNameSupply@
 data CCEnv = CCEnv
-  { ccNameSupply :: NameSupply -- ^ Supply of fresh names
-  , ccCxt        :: CCContext  -- ^ Names currently in scope
+  { ccFunName    :: Maybe QName -- ^ Agda function we are currently compiling.
+  , ccNameSupply :: NameSupply  -- ^ Supply of fresh names
+  , ccCxt        :: CCContext   -- ^ Names currently in scope
+  , ccCatchAll   :: Maybe CompiledClauses  -- ^ Naive catch-all implementation.
+      -- If an inner case has no catch-all clause, we use the one from its parent.
   }
 
 type NameSupply = [HS.Name]
@@ -289,10 +315,12 @@ mapContext :: (CCContext -> CCContext) -> CCEnv -> CCEnv
 mapContext f e = e { ccCxt = f (ccCxt e) }
 
 -- | Initial environment for expression generation.
-initCCEnv :: CCEnv
-initCCEnv = CCEnv
-  { ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+initCCEnv :: Maybe QName -> CCEnv
+initCCEnv q = CCEnv
+  { ccFunName    = q
+  , ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
   , ccCxt        = []
+  , ccCatchAll   = Nothing
   }
 
 -- | Term variables are de Bruijn indices.
@@ -301,11 +329,107 @@ lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
 -- | Case variables are de Bruijn levels.
 lookupLevel :: Int -> CCContext -> HS.Name
-lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs + 1 - l)
+lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
 type CC = ReaderT CCEnv TCM
 
--- | Introduce lambdas up to given number
+-- | Compile a case tree into nested case and record expressions.
+casetree :: CompiledClauses -> CC HS.Exp
+casetree cc = do
+  case cc of
+    Fail -> return $ rtmError $ "Impossible Clause Body"
+    Done xs v -> lambdasUpTo (length xs) $ hsCast <$> term v
+    Case n (Branches True conBrs _ _) -> lambdasUpTo n $ do
+      mkRecord =<< mapM casetree (content <$> conBrs)
+    Case n (Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
+      x <- lookupLevel n <$> asks ccCxt
+      HS.Case (hsCast $ hsVarUQ x) <$> do
+        updateCatchAll catchAll $ do
+          br1 <- conAlts n conBrs
+          br2 <- litAlts litBrs
+          br3 <- catchAllAlts =<< asks ccCatchAll
+          return (br1 ++ br2 ++ br3)
+
+-- | Replace the current catch-all clause with a new one, if given.
+updateCatchAll :: Maybe CompiledClauses -> CC a -> CC a
+updateCatchAll Nothing   = id
+updateCatchAll (Just cc) = local $ \ e -> e { ccCatchAll = Just cc }
+
+-- -- | Replace de Bruijn index by term in catch-all tree.
+-- substCatchAll :: Int -> I.Term -> CC a -> CC a
+-- substCatchAll i t = local $ \ e -> e { ccCatchAll = subst i t $ ccCatchAll e }
+
+conAlts :: Int -> Map QName (WithArity CompiledClauses) -> CC [HS.Alt]
+conAlts x br = forM (Map.toList br) $ \ (c, WithArity n cc) -> do
+  c <- lift $ conhqn c
+  -- TODO: substitute in ccCatchAll somehow
+  replaceVar x n $ \ xs -> do
+    branch (HS.PApp c $ map HS.PVar xs) cc
+
+litAlts :: Map Literal CompiledClauses -> CC [HS.Alt]
+litAlts br = forM (Map.toList br) $ \ (l, cc) ->
+  -- TODO: substitute in ccCatchAll somehow
+  branch (HS.PLit HS.Signless $ hslit l) cc
+
+catchAllAlts :: Maybe CompiledClauses -> CC [HS.Alt]
+catchAllAlts (Just cc) = mapM (branch HS.PWildCard) [cc]
+catchAllAlts Nothing   = do
+  q <- fromMaybe __IMPOSSIBLE__ <$> asks ccFunName
+  return [ HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs $ rtmIncompleteMatch q) (HS.BDecls []) ]
+
+branch :: HS.Pat -> CompiledClauses -> CC HS.Alt
+branch pat cc = do
+  e <- casetree cc
+  return $ HS.Alt dummy pat (HS.UnGuardedRhs e) (HS.BDecls [])
+
+-- | Replace de Bruijn Level @x@ by @n@ new variables.
+replaceVar :: Int -> Int -> ([HS.Name] -> CC a) -> CC a
+replaceVar x n cont = do
+  (xs, rest) <- splitAt n <$> asks ccNameSupply
+  let upd cxt = ys ++ reverse xs ++ zs -- We reverse xs to get nicer names.
+       where
+         -- compute the de Bruijn index
+         i = length cxt - 1 - x
+         -- discard index i
+         (ys, _:zs) = splitAt i cxt
+  local (mapNameSupply (const rest) . mapContext upd) $
+    cont xs
+
+-- | Precondition: Map not empty.
+mkRecord :: Map QName HS.Exp -> CC HS.Exp
+mkRecord fs = lift $ do
+  -- Get the name of the first field
+  let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
+  -- Use the field name to get the record constructor and the field names.
+  ConHead c _ind xs <- recConFromProj p1
+  -- Convert the constructor to a Haskell name
+  c <- conhqn c
+  let (args :: [HS.Exp]) = for xs $ \ x -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
+  return $ hsCast $ List.foldr (flip HS.App) (HS.Con c) args
+
+-- -- | Precondition: Map not empty.
+-- MAlonzo does not translate field names in data decls.
+-- mkRecord :: Map QName HS.Exp -> CC HS.Exp
+-- mkRecord fs = lift $ do
+--   -- Get the list of (field name, expression pairs)
+--   let l = Map.toList fs
+--   -- Get the name of the first field
+--   let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe l
+--   -- Use the field name to get the record constructor
+--   c <- I.conName <$> recConFromProj p1
+--   -- Convert it to a Haskell name
+--   c <- conhqn c
+--   -- Convert the field names into Haskell names
+--   fs <- mapM (mapFstM (xhqn "d")) l
+--   return $ hsCast $ HS.RecConstr c $ map (uncurry HS.FieldUpdate) fs
+
+recConFromProj :: QName -> TCM I.ConHead
+recConFromProj q = do
+  caseMaybeM (isProjection q) __IMPOSSIBLE__ $ \ proj -> do
+    let d = projFromType proj
+    getRecordConstructor d
+
+-- | Introduce lambdas such that @n@ variables are in scope.
 lambdasUpTo :: Int -> CC HS.Exp -> CC HS.Exp
 lambdasUpTo n cont = do
   diff <- (n -) . length <$> asks ccCxt
@@ -315,11 +439,11 @@ lambdasUpTo n cont = do
 lambdas :: Int -> CC HS.Exp -> CC HS.Exp
 lambdas diff cont = intros diff $ \ xs -> mkLams xs <$> cont
 
--- | Introduce variables up to given number.
-introsUpTo :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
-introsUpTo n cont = do
-  diff <- (n -) . length <$> asks ccCxt
-  intros diff cont
+-- -- | Introduce variables such that @n@ are in scope.
+-- introsUpTo :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
+-- introsUpTo n cont = do
+--   diff <- (n -) . length <$> asks ccCxt
+--   intros diff cont
 
 -- | Introduce n variables into the context.
 intros :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
@@ -447,14 +571,15 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
 
 clausebody :: ClauseBody -> TCM HS.Exp
 clausebody b0 = go 0 b0 where
-  go n (Body tm       )   = hsCast <$> runReaderT (intros n $ const $ term tm) initCCEnv
+  go n (Body tm       )   = hsCast <$> do
+    runReaderT (intros n $ const $ term tm) (initCCEnv Nothing)
   go n (Bind (Abs _ b))   = go (n+1) b
   go n (Bind (NoAbs _ b)) = go n b
   go n NoBody             = return $ rtmError $ "Impossible Clause Body"
 
 
 closedTerm :: Term -> TCM HS.Exp
-closedTerm v = term v `runReaderT` initCCEnv
+closedTerm v = term v `runReaderT` initCCEnv Nothing
 
 -- | Extract Agda term to Haskell expression.
 --   Irrelevant arguments are extracted as @()@.

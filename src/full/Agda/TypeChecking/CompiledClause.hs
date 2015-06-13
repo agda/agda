@@ -19,7 +19,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Monoid
 import Data.Typeable (Typeable)
-import Data.Foldable (Foldable)
+import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable)
 
 import Agda.Syntax.Internal
@@ -79,6 +79,15 @@ projCase c x = Branches True (Map.singleton c $ WithArity 0 x) Map.empty Nothing
 
 catchAll :: c -> Case c
 catchAll x = Branches False Map.empty Map.empty (Just x)
+
+-- | Check whether a case tree has a catch-all clause.
+hasCatchAll :: CompiledClauses -> Bool
+hasCatchAll = getAny . loop
+  where
+  loop cc = case cc of
+    Fail{}    -> mempty
+    Done{}    -> mempty
+    Case _ br -> maybe (foldMap loop br) (const $ Any True) $ catchAllBranch br
 
 instance Monoid c => Monoid (WithArity c) where
   mempty = WithArity __IMPOSSIBLE__ mempty

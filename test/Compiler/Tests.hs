@@ -80,8 +80,6 @@ disabledTests =
   [ RFInclude "Compiler/.*/with-stdlib"
 -- See issue 1528
   , RFInclude "Compiler/.*/simple/Sharing"
--- See issue 1414
-  , RFInclude "Compiler/MAlonzo/simple/FlexibleInterpreter"
   ]
 
 tests :: IO TestTree
