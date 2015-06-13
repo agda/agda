@@ -77,11 +77,6 @@ install:
 
       "require_stdlib")
         if [ $GHC_VERSION_TRAVIS == 7.4.2 -o $GHC_VERSION_TRAVIS == 7.6.3 ]; then cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies; fi
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
@@ -98,11 +93,6 @@ install:
 
       "require_stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
@@ -124,11 +114,6 @@ install:
 
       "require_stdlib")
         cabal install -v2 --builddir=$BUILD_DIR --enable-tests
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
@@ -156,43 +141,19 @@ install:
         sudo apt-get install texlive-math-extra &&
         sudo apt-get install texlive-fonts-extra
         ;;
-
-      "require_stdlib")
-        ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
     esac
 
   # Get the standard library.
   - case $TEST in
-      "non_require_stdlib")
-        ;;
-
       "require_stdlib")
        make up-to-date-std-lib
        ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
-        ;;
     esac
 
   # The `check-whitespace` test doesn't require the standard library.
   - case $TEST in
       "non_require_stdlib")
         make install-fix-agda-whitespace
-        ;;
-
-      "require_stdlib")
-       ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
@@ -240,11 +201,6 @@ script:
         make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
 
         make BUILD_DIR=$BUILD_DIR benchmark-without-logs
-        ;;
-
-      *)
-        echo "Unrecognised TEST";
-        exit 1
         ;;
     esac
 
