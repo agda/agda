@@ -55,14 +55,14 @@
 
 module Agda.TypeChecking.SizedTypes.Solve where
 
-import Control.Monad ( forM )
-import Data.Foldable (Foldable, foldMap)
+import Control.Monad (unless)
+import Data.Foldable (Foldable, foldMap, forM_)
 import Data.Function
 import Data.List
 import Data.Monoid (mappend)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Traversable (Traversable)
+import Data.Traversable (Traversable, forM)
 
 import Agda.Interaction.Options
 

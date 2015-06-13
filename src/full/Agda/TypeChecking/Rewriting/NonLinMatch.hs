@@ -49,7 +49,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
-import Agda.Utils.Monad hiding (sequence)
+import Agda.Utils.Monad
 import Agda.Utils.Singleton
 
 #include "undefined.h"

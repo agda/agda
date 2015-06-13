@@ -3,7 +3,7 @@
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
-    , module Control.Monad
+    , when, unless, MonadPlus(..)
     , (<$>), (<*>)
     , (<$)
 #if MIN_VERSION_mtl(2,2,0)
