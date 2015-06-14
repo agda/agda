@@ -22,7 +22,6 @@ ghc:
 # make fail
 # make interaction
 # make interactive
-# make latex-test
 # make examples
 # make api-test
 # make tests
@@ -37,10 +36,13 @@ ghc:
 #
 # N.B. that the ghc-7.8.4-transformers-0.3.0.0 test uses a different set up
 # (see below).
+
+# Travis runs the builds on this order.
 env:
-  - TEST=ghc-7.8.4-transformers-0.3.0.0
   - TEST=non-require-stdlib
   - TEST=require-stdlib
+  - TEST=latex-test
+  - TEST=ghc-7.8.4-transformers-0.3.0.0
 
 install:
   # Asking for the shell.
@@ -52,7 +54,7 @@ install:
 ##############################################################################
 # Installing latest versions of cabal-install, Alex and Happy
 
-  - if [ $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
+  - if [ $TEST = "latex-test" -o $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
        cabal install cabal-install;
        export PATH=$HOME/.cabal/bin:$PATH;
        cat $HOME/.cabal/config;
@@ -72,7 +74,7 @@ install:
 
 # The `enable-test` option is required only if $TEST=require-stdlib.
   - case $TEST in
-      "non-require-stdlib")
+      "latex-test" | "non-require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
            cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies;
         fi
@@ -92,7 +94,7 @@ install:
 
 # The `enable-test` option is required only if $TEST=require-stdlib.
   - case $TEST in
-      "non-require-stdlib")
+      "latex-test" | "non-require-stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR
         ;;
 
@@ -108,7 +110,7 @@ install:
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
   - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
+      "latex-test" | "non-require-stdlib" | "require-stdlib")
         cabal build -v2 --builddir=$BUILD_DIR
         ;;
     esac
@@ -118,7 +120,7 @@ install:
 
 # The `enable-test` option is required only if $TEST=require-stdlib.
   - case $TEST in
-      "non-require-stdlib")
+      "latex-test" | "non-require-stdlib")
         cabal install -v2 --builddir=$BUILD_DIR
         ;;
 
@@ -143,7 +145,7 @@ install:
 # which is not available in this version of TeX Live (see Issue 1022).
 
 # The LaTeX test-suite doesn't require the standard library.
-  - if [ $TEST = "non-require-stdlib" ]; then
+  - if [ $TEST = "latex-test" ]; then
        sudo add-apt-repository ppa:texlive-backports/ppa -y;
        sudo apt-get update;
        sudo apt-get install texlive;
@@ -190,13 +192,17 @@ script:
   # - cabal haddock
 
 ##############################################################################
+  - if [ $TEST = "latex-test" ]; then
+       make BUILD_DIR=$BUILD_DIR latex-test;
+    fi
+
+##############################################################################
   - if [ $TEST = "non_require_stdlib" ]; then
        make check-whitespace;
        make BUILD_DIR=$BUILD_DIR succeed;
        make BUILD_DIR=$BUILD_DIR fail;
        make BUILD_DIR=$BUILD_DIR interaction;
        make BUILD_DIR=$BUILD_DIR interactive;
-       make BUILD_DIR=$BUILD_DIR latex-test;
        make BUILD_DIR=$BUILD_DIR examples;
        make BUILD_DIR=$BUILD_DIR api-test;
        make BUILD_DIR=$BUILD_DIR tests;
@@ -211,6 +217,7 @@ script:
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
 
+##############################################################################
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
   fast_finish: true
@@ -224,3 +231,4 @@ branches:
   only:
     - master
     - maint-2.4.2
+    - issue-1535
