@@ -39,8 +39,8 @@ ghc:
 # (see below).
 env:
   - TEST=ghc-7.8.4-transformers-0.3.0.0
-  - TEST=non_require_stdlib
-  - TEST=require_stdlib
+  - TEST=non-require-stdlib
+  - TEST=require-stdlib
 
 install:
   # Asking for the shell.
@@ -49,10 +49,10 @@ install:
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
-  ############################################################################
-  # Installing latest versions of cabal-install, Alex and Happy
+##############################################################################
+# Installing latest versions of cabal-install, Alex and Happy
 
-  - if [ $TEST = "non_require_stdlib" -o $TEST = "require_stdlib" ]; then
+  - if [ $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
        cabal install cabal-install;
        export PATH=$HOME/.cabal/bin:$PATH;
        cat $HOME/.cabal/config;
@@ -60,90 +60,90 @@ install:
        cabal install happy;
     fi
 
-  ############################################################################
-  # Installing dependencies
+##############################################################################
+# Installing dependencies
 
-  # In Travis (because the Haskell platform is installed?) Cabal needs the
-  # `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
-  # about breaking previously installed packages [Issue 1520].
+# In Travis (because the Haskell platform is installed?) Cabal needs the
+# `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
+# about breaking previously installed packages [Issue 1520].
 
-  # Note: `cabal install` doesn't set up the number of jobs by default
-  # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
+# Note: `cabal install` doesn't set up the number of jobs by default
+# (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
-  # The `enable-test` option is required only if $TEST=require_stdlib.
+# The `enable-test` option is required only if $TEST=require-stdlib.
   - case $TEST in
-      "non_require_stdlib")
+      "non-require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
            cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies;
         fi
         ;;
 
-      "require_stdlib")
+      "require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
            cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies;
         fi
         ;;
     esac
 
-  ############################################################################
-  # Running `cabal configure`
+##############################################################################
+# Running `cabal configure`
 
   - export BUILD_DIR=$PWD/dist
 
-  # The `enable-test` option is required only if $TEST=require_stdlib.
+# The `enable-test` option is required only if $TEST=require-stdlib.
   - case $TEST in
-      "non_require_stdlib")
+      "non-require-stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR
         ;;
 
-      "require_stdlib")
+      "require-stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
         ;;
     esac
 
-  ############################################################################
-  # Running `cabal build`
+##############################################################################
+# Running `cabal build`
 
-  # Note: `cabal build` sets up the number of jobs to $ncpus by default.
-  # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
+# Note: `cabal build` sets up the number of jobs to $ncpus by default.
+# (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
   - case $TEST in
-      "non_require_stdlib" | "require_stdlib")
+      "non-require-stdlib" | "require-stdlib")
         cabal build -v2 --builddir=$BUILD_DIR
         ;;
     esac
 
-  ############################################################################
-  # Running `cabal install`
+##############################################################################
+# Running `cabal install`
 
-  # The `enable-test` option is required only if $TEST=require_stdlib.
+# The `enable-test` option is required only if $TEST=require-stdlib.
   - case $TEST in
-      "non_require_stdlib")
+      "non-require-stdlib")
         cabal install -v2 --builddir=$BUILD_DIR
         ;;
 
-      "require_stdlib")
+      "require-stdlib")
         cabal install -v2 --builddir=$BUILD_DIR --enable-tests
         ;;
     esac
 
-  ############################################################################
-  # Installing Epic
+##############################################################################
+# Installing Epic
 
-  # The Epic backend has been removed. See Issue 1481.
-  # Epic installation.
+# The Epic backend has been removed. See Issue 1481.
+# Epic installation.
   # - sudo apt-get install libgc-dev
   # - cabal install epic
 
-  ############################################################################
-  # Installing required packages for running the LaTeX test-suite
-  #
-  # Remark (19 April 2015). Travis (i.e. Ubuntu 12.04) uses an outdated
-  # TeX Live 2009. The LaTeX test-suite requires the unicode-math package
-  # which is not available in this version of TeX Live (see Issue 1022).
+##############################################################################
+# Installing required packages for running the LaTeX test-suite
+#
+# Remark (19 April 2015). Travis (i.e. Ubuntu 12.04) uses an outdated
+# TeX Live 2009. The LaTeX test-suite requires the unicode-math package
+# which is not available in this version of TeX Live (see Issue 1022).
 
-  # The LaTeX test-suite doesn't require the standard library.
-  - if [ $TEST = "non_require_stdlib" ]; then
+# The LaTeX test-suite doesn't require the standard library.
+  - if [ $TEST = "non-require-stdlib" ]; then
        sudo add-apt-repository ppa:texlive-backports/ppa -y;
        sudo apt-get update;
        sudo apt-get install texlive;
@@ -153,16 +153,16 @@ install:
        sudo apt-get install texlive-fonts-extra;
     fi
 
-  ############################################################################
-  # Getting the standard library
+##############################################################################
+# Getting the standard library
 
-  - if [ $TEST = "require_stdlib" ]; then
+  - if [ $TEST = "require-stdlib" ]; then
        make up-to-date-std-lib;
     fi
 
-  ############################################################################
-  # Testing compilation with transformers 0.3.0.0 which is shipped with
-  # GHC 7.8.* [Issue 1156]
+##############################################################################
+# Testing compilation with transformers 0.3.0.0 which is shipped with
+# GHC 7.8.* [Issue 1156]
 
   - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install --constraint=transformers==0.3.0.0;
@@ -175,56 +175,41 @@ install:
        cabal build -v2 --builddir=$BUILD_DIR;
     fi
 
-  ############################################################################
-  # Installing fix-agda-whitespace
+##############################################################################
+# Installing fix-agda-whitespace
 
-  - if [ $TEST = "non_require_stdlib" ]; then
+  - if [ $TEST = "non-require-stdlib" ]; then
        make install-fix-agda-whitespace;
     fi
 
-  ############################################################################
+##############################################################################
 
 script:
-  # Right now Haddock doesn't work, presumably because it consumes too
-  # much memory.
+# Right now Haddock doesn't work, presumably because it consumes too
+# much memory.
   # - cabal haddock
 
-  # TODO (07 May 2015): I couldn't add the following documentation inside the
-  # case statement: Testing the hTags program.
+##############################################################################
+  - if [ $TEST = "non_require_stdlib" ]; then
+       make check-whitespace;
+       make BUILD_DIR=$BUILD_DIR succeed;
+       make BUILD_DIR=$BUILD_DIR fail;
+       make BUILD_DIR=$BUILD_DIR interaction;
+       make BUILD_DIR=$BUILD_DIR interactive;
+       make BUILD_DIR=$BUILD_DIR latex-test;
+       make BUILD_DIR=$BUILD_DIR examples;
+       make BUILD_DIR=$BUILD_DIR api-test;
+       make BUILD_DIR=$BUILD_DIR tests;
+       make BUILD_DIR=$BUILD_DIR TAGS;
+    fi
 
-  - case $TEST in
-      "non_require_stdlib")
-        make check-whitespace &&
-
-        make BUILD_DIR=$BUILD_DIR succeed &&
-
-        make BUILD_DIR=$BUILD_DIR fail &&
-
-        make BUILD_DIR=$BUILD_DIR interaction &&
-
-        make BUILD_DIR=$BUILD_DIR interactive &&
-
-        make BUILD_DIR=$BUILD_DIR latex-test &&
-
-        make BUILD_DIR=$BUILD_DIR examples &&
-
-        make BUILD_DIR=$BUILD_DIR api-test &&
-
-        make BUILD_DIR=$BUILD_DIR tests &&
-
-        make BUILD_DIR=$BUILD_DIR TAGS
-        ;;
-
-      "require_stdlib")
-        make BUILD_DIR=$BUILD_DIR library-test &&
-
-        make BUILD_DIR=$BUILD_DIR lib-succeed &&
-
-        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
-
-        make BUILD_DIR=$BUILD_DIR benchmark-without-logs
-        ;;
-    esac
+##############################################################################
+  - if [ $TEST = "require_stdlib" ]; then
+       make BUILD_DIR=$BUILD_DIR library-test;
+       make BUILD_DIR=$BUILD_DIR lib-succeed;
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test;
+       make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
+    fi
 
 # Builds are loooong, we want to send an email as fast as possible.
 matrix:
