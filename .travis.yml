@@ -73,6 +73,7 @@ install:
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
 # The `enable-test` option is required only if $TEST=require-stdlib.
+
   - case $TEST in
       "latex-test" | "non-require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
@@ -93,6 +94,7 @@ install:
   - export BUILD_DIR=$PWD/dist
 
 # The `enable-test` option is required only if $TEST=require-stdlib.
+
   - case $TEST in
       "latex-test" | "non-require-stdlib")
         cabal configure -v2 --builddir=$BUILD_DIR
@@ -119,6 +121,7 @@ install:
 # Running `cabal install`
 
 # The `enable-test` option is required only if $TEST=require-stdlib.
+
   - case $TEST in
       "latex-test" | "non-require-stdlib")
         cabal install -v2 --builddir=$BUILD_DIR
@@ -133,7 +136,7 @@ install:
 # Installing Epic
 
 # The Epic backend has been removed. See Issue 1481.
-# Epic installation.
+
   # - sudo apt-get install libgc-dev
   # - cabal install epic
 
@@ -144,7 +147,6 @@ install:
 # TeX Live 2009. The LaTeX test-suite requires the unicode-math package
 # which is not available in this version of TeX Live (see Issue 1022).
 
-# The LaTeX test-suite doesn't require the standard library.
   - if [ $TEST = "latex-test" ]; then
        sudo add-apt-repository ppa:texlive-backports/ppa -y;
        sudo apt-get update;
@@ -192,11 +194,13 @@ script:
   # - cabal haddock
 
 ##############################################################################
+
   - if [ $TEST = "latex-test" ]; then
        make BUILD_DIR=$BUILD_DIR latex-test;
     fi
 
 ##############################################################################
+
   - if [ $TEST = "non_require_stdlib" ]; then
        make check-whitespace;
        make BUILD_DIR=$BUILD_DIR succeed;
@@ -210,6 +214,7 @@ script:
     fi
 
 ##############################################################################
+
   - if [ $TEST = "require_stdlib" ]; then
        make BUILD_DIR=$BUILD_DIR library-test;
        make BUILD_DIR=$BUILD_DIR lib-succeed;
@@ -219,14 +224,17 @@ script:
 
 ##############################################################################
 # Builds are loooong, we want to send an email as fast as possible.
+
 matrix:
   fast_finish: true
   # allow_failures:
     # - ghc: A.B.C
 
+##############################################################################
 # Every master and maintenance branches >= 2.4.3 or >= maint-2.4.2 must
 # be here. You can also add your private branches if you want travis to
 # test them.
+
 branches:
   only:
     - master
