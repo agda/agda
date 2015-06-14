@@ -11,8 +11,8 @@ ghc:
 
 # We use the word 'test' in a broad sense (e.g. it includes the Agda
 # test suite, the benchmark suite, the compilation with a specific set
-# of dependencies, the testing of other programs like `hTags`, etc.) The
-# tests are divided according to whether or not require the standard
+# of dependencies, the testing of other programs like `hTags`, etc.) Almost
+# all the tests are divided according to whether or not require the standard
 # library.
 #
 # The current tests non-requiring the standard library are:
@@ -34,6 +34,9 @@ ghc:
 # make lib-succeed
 # make compiler-test
 # make benchmark-without-logs
+#
+# N.B. that the ghc-7.8.4-transformers-0.3.0.0 test uses a different set up
+# (see below).
 env:
   - TEST=ghc-7.8.4-transformers-0.3.0.0
   - TEST=non_require_stdlib
@@ -43,24 +46,19 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-  # TODO (13 June 2015): Don't install cabal-install, Alex and Happy when
-  # $TEST=ghc-7.8.4-transformers-0.3.0.0 and GHC version is different to 7.8.4.
-
-  # With old GHCs, we get an old cabal-install
-  - cabal install cabal-install
-  - export PATH=$HOME/.cabal/bin:$PATH
-
-  # Showing Cabal configuration
-  - cat $HOME/.cabal/config
-
-  # New Happy needed for haskell-src-exts
-  - cabal install happy
-
-  # New new Alex for us
-  - cabal install alex
-
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
+
+  ############################################################################
+  # Installing latest versions of cabal-install, Alex and Happy
+
+  - if [ $TEST = "non_require_stdlib" -o $TEST = "require_stdlib" ]; then
+       cabal install cabal-install;
+       export PATH=$HOME/.cabal/bin:$PATH;
+       cat $HOME/.cabal/config;
+       cabal install alex;
+       cabal install happy;
+    fi
 
   ############################################################################
   # Installing dependencies
@@ -130,13 +128,15 @@ install:
     esac
 
   ############################################################################
+  # Installing Epic
 
   # The Epic backend has been removed. See Issue 1481.
   # Epic installation.
   # - sudo apt-get install libgc-dev
   # - cabal install epic
 
-  # Required packages for running the LaTeX test-suite.
+  ############################################################################
+  # Installing required packages for running the LaTeX test-suite
   #
   # Remark (19 April 2015). Travis (i.e. Ubuntu 12.04) uses an outdated
   # TeX Live 2009. The LaTeX test-suite requires the unicode-math package
@@ -162,10 +162,15 @@ install:
 
   ############################################################################
   # Testing compilation with transformers 0.3.0.0 which is shipped with
-  # GHC 7.8.* [Issue 1156].
+  # GHC 7.8.* [Issue 1156]
 
   - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install --only-dependencies --constraint=transformers==0.3.0.0 ;
+       cabal install cabal-install --constraint=transformers==0.3.0.0;
+       export PATH=$HOME/.cabal/bin:$PATH;
+       cat $HOME/.cabal/config;
+       cabal install alex --constraint=transformers==0.3.0.0;
+       cabal install happy --constraint=transformers==0.3.0.0;
+       cabal install --only-dependencies --constraint=transformers==0.3.0.0;
        cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0;
        cabal build -v2 --builddir=$BUILD_DIR;
     fi
@@ -185,8 +190,7 @@ script:
   # - cabal haddock
 
   # TODO (07 May 2015): I couldn't add the following documentation inside the
-  # case statement:
-  # 1. Testing the hTags program.
+  # case statement: Testing the hTags program.
 
   - case $TEST in
       "non_require_stdlib")
