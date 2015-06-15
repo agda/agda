@@ -165,17 +165,17 @@ qnameId (A.QName (A.MName ns) n) = map A.nameId $ n:ns
 -- | State of the the encoder.
 data Dict = Dict
   -- Dictionaries which are serialized:
-  { nodeD        :: !(HashTable Node    Int32)
-  , stringD      :: !(HashTable String  Int32)
-  , integerD     :: !(HashTable Integer Int32)
-  , doubleD      :: !(HashTable Double  Int32)
+  { nodeD        :: !(HashTable Node    Int32)    -- ^ Written to interface file.
+  , stringD      :: !(HashTable String  Int32)    -- ^ Written to interface file.
+  , integerD     :: !(HashTable Integer Int32)    -- ^ Written to interface file.
+  , doubleD      :: !(HashTable Double  Int32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
-  , termD        :: !(HashTable (Ptr Term) Int32)
+  , termD        :: !(HashTable (Ptr Term) Int32) -- ^ Not written to interface file.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   -- , nameD        :: !(HashTable NameId Int32)
-  , qnameD       :: !(HashTable QNameId Int32)
+  , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
@@ -188,7 +188,7 @@ data Dict = Dict
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
-  , fileMod      :: !SourceToModule
+  , fileMod      :: !SourceToModule               -- ^ Not written to interface file.
   }
 
 -- | Creates an empty dictionary.
@@ -224,14 +224,15 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 
 -- | State of the decoder.
 data St = St
-  { nodeE     :: !(Array Int32 Node)
-  , stringE   :: !(Array Int32 String)
-  , integerE  :: !(Array Int32 Integer)
-  , doubleE   :: !(Array Int32 Double)
+  { nodeE     :: !(Array Int32 Node)     -- ^ Obtained from interface file.
+  , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
+  , integerE  :: !(Array Int32 Integer)  -- ^ Obtained from interface file.
+  , doubleE   :: !(Array Int32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
+    -- ^ Created and modified by decoder.
+    --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
-    -- ^ Maps module names to file names. This is the only component
-    -- of the state which is updated by the decoder.
+    -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: [AbsolutePath]
     -- ^ The include directories.
   }
