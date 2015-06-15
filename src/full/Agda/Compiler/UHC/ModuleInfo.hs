@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE CPP #-} -- GHC 7.4.2 requires this indentation. See Issue 1460.
-{-# LANGUAGE DeriveDataTypeable #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             DeriveDataTypeable #-}
 
 -- | Contains all information required to link Agda modules.
 --
