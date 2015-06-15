@@ -1,13 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
+-- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
+{-# LANGUAGE CPP,
+             DeriveDataTypeable,
+             DeriveFoldable,
+             DeriveFunctor,
+             DeriveTraversable,
+             NoMonomorphismRestriction,
+             ScopedTypeVariables,
+             TemplateHaskell #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
