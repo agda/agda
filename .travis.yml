@@ -77,13 +77,17 @@ install:
   - case $TEST in
       "latex-test" | "non-require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
-           cabal install --avoid-reinstalls --only-dependencies; else cabal install --only-dependencies;
+           cabal install --avoid-reinstalls --only-dependencies;
+        else
+           cabal install --only-dependencies;
         fi
         ;;
 
       "require-stdlib")
         if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
-           cabal install --enable-tests --avoid-reinstalls --only-dependencies; else cabal install --enable-tests --only-dependencies;
+           cabal install --enable-tests --avoid-reinstalls --only-dependencies;
+        else
+           cabal install --enable-tests --only-dependencies;
         fi
         ;;
     esac
