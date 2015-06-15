@@ -204,7 +204,7 @@ to this variable to take effect."
                         (modify-syntax-entry keys "w" tbl)))
                     (standard-syntax-table))
     ;; Then override the remaining special cases.
-    (dolist (cs '((?{ . "(}1n") (?} . "){4n") (?- . "w 123b") (?\n . "> b")
+    (dolist (cs '((?- . "w 12b") (?\n . "> b")
                   (?. . ".") (?\; . ".") (?_ . ".") (?! . ".")))
       (modify-syntax-entry (car cs) (cdr cs) tbl))
     tbl)
