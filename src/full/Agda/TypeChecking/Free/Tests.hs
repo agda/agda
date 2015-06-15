@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable,
@@ -13,6 +11,8 @@
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
 #endif
+
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 -- | Tests for free variable computations.
 
