@@ -188,18 +188,15 @@ data Dict = Dict
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
-  , fileMod      :: !SourceToModule               -- ^ Not written to interface file.
+  , absPathD     :: !(HashTable AbsolutePath Int32) -- ^ Not written to interface file.
   }
 
 -- | Creates an empty dictionary.
 emptyDict
   :: Bool
      -- ^ Collect statistics for @icode@ calls?
-  -> SourceToModule
-     -- ^ Maps file names to the corresponding module names.
-     --   Must contain a mapping for every file name that is later encountered.
   -> IO Dict
-emptyDict collectStats fileMod = Dict
+emptyDict collectStats = Dict
   <$> H.new
   <*> H.new
   <*> H.new
@@ -214,7 +211,7 @@ emptyDict collectStats fileMod = Dict
   <*> newIORef farEmpty
   <*> H.new
   <*> pure collectStats
-  <*> pure fileMod
+  <*> H.new
 
 -- | Universal type, wraps everything.
 data U    = forall a . Typeable a => U !a
@@ -280,8 +277,10 @@ encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
     newD@(Dict nD sD iD dD _ _ nC sC iC dC tC qnameC stats _ _) <- liftIO $
-      emptyDict collectStats fileMod
-    root <- liftIO $ runReaderT (icode a) newD
+      emptyDict collectStats
+    root <- liftIO $ (`runReaderT` newD) $ do
+       icodeFileMod fileMod
+       icode a
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
     iL <- benchSort $ l iD
@@ -434,6 +433,20 @@ decodeHashes s
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 
+-- | Store a 'SourceToModule' (map from 'AbsolutePath' to 'TopLevelModuleName')
+--   as map from 'AbsolutePath' to 'Int32', in order to directly get the identifiers
+--   from absolute pathes rather than going through top level module names.
+icodeFileMod
+  :: SourceToModule
+     -- ^ Maps file names to the corresponding module names.
+     --   Must contain a mapping for every file name that is later encountered.
+  -> S ()
+icodeFileMod fileMod = do
+  hmap <- asks absPathD
+  forM_ (Map.toList fileMod) $ \ (absolutePath, topLevelModuleName) -> do
+    i <- icod_ topLevelModuleName
+    liftIO $ H.insert hmap absolutePath i
+
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} EmbPrj String where
 #else
@@ -502,10 +515,8 @@ instance EmbPrj Bool where
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
-    mm <- Map.lookup file <$> asks fileMod
-    case mm of
-      Just m  -> icode m
-      Nothing -> __IMPOSSIBLE__
+    d <-  asks absPathD
+    liftIO $ fromMaybe __IMPOSSIBLE__ <$> H.lookup d file
   value m = do
     m :: TopLevelModuleName
             <- value m
