@@ -1,8 +1,10 @@
-{-# OPTIONS_GHC -Wall #-}
-
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
              DeriveDataTypeable #-}
+
+-- GHC 7.4.2 requires the OPTIONS_GHC pragma(s) after the LANGUAGE
+-- pragma(s). See Issue 1460.
+{-# OPTIONS_GHC -Wall #-}
 
 -- | Contains all information required to link Agda modules.
 --
