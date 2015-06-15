@@ -12,6 +12,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
+-- GHC 7.4.2 requires the OPTIONS_GHC pragma(s) after the LANGUAGE
+-- pragma(s). See Issue 1460.
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 -- | Tests for free variable computations.
