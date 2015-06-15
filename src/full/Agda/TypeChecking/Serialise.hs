@@ -120,7 +120,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150605 * 10 + 0
+currentInterfaceVersion = 20150615 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -967,6 +967,7 @@ instance (EmbPrj a) => EmbPrj (I.Abs a) where
                            valu _         = malformed
 
 instance EmbPrj I.Term where
+  icod_ (Var     a []) = icode1' a
   icod_ (Var      a b) = icode2 0 a b
   icod_ (Lam      a b) = icode2 1 a b
   icod_ (Lit      a  ) = icode1 2 a
@@ -983,6 +984,7 @@ instance EmbPrj I.Term where
   value r = vcase valu' r
     where
       valu' xs = shared <$> valu xs
+      valu [a]       = valu1 var   a
       valu [0, a, b] = valu2 Var   a b
       valu [1, a, b] = valu2 Lam   a b
       valu [2, a]    = valu1 Lit   a
