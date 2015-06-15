@@ -655,6 +655,12 @@ Compiler backends
     make
     make install
 
+  The Agda UHC compiler can be invoked from the command line using the
+  flag --uhc:
+
+    agda --uhc [--compile-dir=<DIR>] [--no-smashing]
+        [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
+
 
   Smashing
 
