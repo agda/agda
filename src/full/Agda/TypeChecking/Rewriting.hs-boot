@@ -4,4 +4,4 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
-rewrite :: Term -> ReduceM (Maybe Term)
+rewrite :: Blocked Term -> ReduceM (Either (Blocked Term) Term)

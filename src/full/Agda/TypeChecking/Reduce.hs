@@ -41,6 +41,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
 
+import Agda.Utils.Either
 import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
@@ -324,10 +325,7 @@ instance Reduce Term where
       Shared{}   -> updateSharedTermF reduceB' v
     where
       rewriteAfter :: (Term -> ReduceM (Blocked Term)) -> Term -> ReduceM (Blocked Term)
-      rewriteAfter f = trampolineM $ \ v -> do
-        vb <- f v
-        caseMaybeM (rewrite $ ignoreBlocking vb) (return $ Left vb) $ \ u ->
-          return $ Right u
+      rewriteAfter f = trampolineM $ rewrite <=< f
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@Shared{} = updateSharedTerm reduceNat v
       reduceNat v@(Con c []) = do

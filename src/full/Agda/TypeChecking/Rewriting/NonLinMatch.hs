@@ -47,6 +47,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Either
+import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -110,7 +112,7 @@ instance PatternFrom Term NLPat where
 
 
 -- | Monad for non-linear matching.
-type NLM = MaybeT (WriterT NLMOut ReduceM)
+type NLM = ExceptT Blocked_ (WriterT NLMOut ReduceM)
 
 type NLMOut = (AmbSubst, PostponedEquations)
 
@@ -121,19 +123,23 @@ instance HasOptions NLM where
   pragmaOptions      = liftRed pragmaOptions
   commandLineOptions = liftRed commandLineOptions
 
-runNLM :: NLM () -> ReduceM (Maybe NLMOut)
+runNLM :: NLM () -> ReduceM (Either Blocked_ NLMOut)
 runNLM nlm = do
-  (ok, sub) <- runWriterT $ runMaybeT nlm
-  return $ const sub <$> ok
+  (ok,out) <- runWriterT $ runExceptT nlm
+  case ok of
+    Left block -> return $ Left block
+    Right _    -> return $ Right out
 
 traceSDocNLM :: VerboseKey -> Int -> TCM Doc -> NLM a -> NLM a
 traceSDocNLM k n doc = applyWhenVerboseS k n $ \ cont -> do
   ReduceEnv env st <- liftRed askR
   trace (show $ fst $ unsafePerformIO $ runTCM env st doc) cont
 
-
 -- execNLM :: NLM a -> ReduceM (Maybe NLMOut)
 -- execNLM m = runMaybeT $ execWriterT m
+
+matchingBlocked :: Blocked_ -> NLM ()
+matchingBlocked = throwError
 
 -- | Add substitution @i |-> v@ to result of matching.
 tellSubst :: Int -> Term -> NLM ()
@@ -178,9 +184,9 @@ class AmbMatch a b where
 instance AmbMatch a b => AmbMatch [a] [b] where
   ambMatch ps vs
     | length ps == length vs = zipWithM_ ambMatch ps vs
-    | otherwise              = traceSDocNLM "rewriting" 100 (sep
-                                 [ text $ "mismatching number of arguments: " ++
-                                          show (length ps) ++ " vs " ++ show (length vs) ]) mzero
+    | length ps >  length vs = do
+        matchingBlocked $ NotBlocked (Underapplied) ()
+    | otherwise              = __IMPOSSIBLE__
 
 instance AmbMatch a b => AmbMatch (Arg a) (Arg b) where
   ambMatch p v = ambMatch (unArg p) (unArg v)
@@ -215,6 +221,8 @@ instance AmbMatch NLPat Term where
           Con c vs
             | f == conName c -> matchArgs ps (Apply <$> vs)
             | otherwise -> no f c
+          MetaV m es -> do
+            matchingBlocked $ Blocked m ()
           _ -> no p v
       PTerm u -> tellEq u v
     where
@@ -245,13 +253,20 @@ checkPostponedEquations sub eqs = andM $ for (applySubst sub eqs) $
   \ (PostponedEquation lhs rhs) -> equal lhs rhs
 
 -- main function
-nonLinMatch :: (AmbMatch a b) => a -> b -> ReduceM (Maybe Substitution)
+nonLinMatch :: (AmbMatch a b) => a -> b -> ReduceM (Either Blocked_ Substitution)
 nonLinMatch p v = do
-  let no msg = traceSDoc "rewriting" 100 (sep
-                [ text "matching failed during" <+> text msg ]) $ return Nothing
-  caseMaybeM (runNLM $ ambMatch p v) (no "ambiguous matching") $ \ (asub, eqs) -> do
-    caseMaybeM (disambiguateSubstitution asub) (no "disambiguation") $ \ sub -> do
-      ifM (checkPostponedEquations sub eqs) (return $ Just sub) (no "checking of postponed equations")
+  let no msg b = traceSDoc "rewriting" 100 (sep
+                   [ text "matching failed during" <+> text msg
+                   , text "blocking: " <+> text (show b) ]) $ return (Left b)
+  caseEitherM (runNLM $ ambMatch p v) (no "ambiguous matching") $ \ (asub, eqs) -> do
+    sub <- disambiguateSubstitution asub
+    case sub of
+      Nothing  -> no "disambiguation" $ NotBlocked ReallyNotBlocked ()
+                  -- actually we are blocked, but we don't really know what we're blocked on...
+      Just sub -> do
+        ifM (checkPostponedEquations sub eqs)
+          (return $ Right sub)
+          (no "checking of postponed equations" $ NotBlocked ReallyNotBlocked ()) -- more lies
 
 -- | Untyped βη-equality, does not handle things like empty record types.
 equal :: Term -> Term -> ReduceM Bool
