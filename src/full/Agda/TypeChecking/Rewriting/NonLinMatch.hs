@@ -147,7 +147,9 @@ tellSubst :: Int -> Term -> NLM ()
 tellSubst i v = tell (singleton (i, v), mempty)
 
 tellEq :: Term -> Term -> NLM ()
-tellEq u v = tell (mempty, singleton $ PostponedEquation u v)
+tellEq u v = traceSDocNLM "rewriting" 60 (sep
+               [ text "adding equality between" <+> prettyTCM u
+               , text " and " <+> prettyTCM v]) $ tell (mempty, singleton $ PostponedEquation u v)
 
 -- | Non-linear matching returns first an ambiguous substitution,
 --   mapping one de Bruijn index to possibly several terms.
@@ -171,10 +173,6 @@ data PostponedEquation = PostponedEquation
   , eqRhs :: Term  -- ^ Term from scrutinee, living in context where matching was invoked.
   }
 type PostponedEquations = [PostponedEquation]
-
-instance Subst PostponedEquation where
-  applySubst rho (PostponedEquation lhs rhs) =
-    PostponedEquation (applySubst rho lhs) (applySubst rho rhs)
 
 -- | Match a non-linear pattern against a neutral term,
 --   returning a substitution.
@@ -247,11 +245,11 @@ disambiguateSubstitution as = do
       if ok then return (Just v) else return Nothing
   case sequence mvs of
     Nothing -> return Nothing
-    Just vs -> return $ Just $ makeSubstitution vs
+    Just vs -> traceSDoc "rewriting" 90 (text $ "vs = " ++ show vs) $ return $ Just $ makeSubstitution vs
 
 checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM Bool
-checkPostponedEquations sub eqs = andM $ for (applySubst sub eqs) $
-  \ (PostponedEquation lhs rhs) -> equal lhs rhs
+checkPostponedEquations sub eqs = andM $ for eqs $
+  \ (PostponedEquation lhs rhs) -> equal (applySubst sub lhs) rhs
 
 -- main function
 nonLinMatch :: (AmbMatch a b) => a -> b -> ReduceM (Either Blocked_ Substitution)
@@ -261,7 +259,7 @@ nonLinMatch p v = do
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ ambMatch p v) (no "ambiguous matching") $ \ (asub, eqs) -> do
     sub <- disambiguateSubstitution asub
-    case sub of
+    traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ case sub of
       Nothing  -> no "disambiguation" $ NotBlocked ReallyNotBlocked ()
                   -- actually we are blocked, but we don't really know what we're blocked on...
       Just sub -> do
