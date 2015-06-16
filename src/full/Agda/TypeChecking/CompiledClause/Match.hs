@@ -186,7 +186,10 @@ match' ((c, es, patch) : stack) = do
 
 -- If we reach the empty stack, then pattern matching was incomplete
 match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-  __IMPOSSIBLE__
+  caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
+    traceSLn "impossible" 10
+      ("Incomplete pattern matching when applying " ++ show f)
+      __IMPOSSIBLE__
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
