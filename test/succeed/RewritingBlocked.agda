@@ -1,4 +1,4 @@
-{-# OPTIONS -v rewriting:100 -v tc.conv.atom:30 -v tc.inj.use:30 #-}
+-- {-# OPTIONS -v rewriting:100 -v tc.conv.atom:30 -v tc.inj.use:30 #-}
 
 open import Common.Equality
 
