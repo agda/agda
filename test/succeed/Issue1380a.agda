@@ -1,4 +1,5 @@
-{-# OPTIONS --exact-split -v tc.cover:10 #-}
+{-# OPTIONS --exact-split #-}
+-- {-# OPTIONS -v tc.cover:10 #-}
 
 postulate
   A : Set
