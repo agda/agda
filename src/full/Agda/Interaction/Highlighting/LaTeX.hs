@@ -17,9 +17,11 @@ import System.Directory
 import System.FilePath
 import Data.Text (Text)
 import qualified Data.Text          as T
+import qualified Data.Text.Unsafe   as TU
 import qualified Data.Text.IO       as T
 import qualified Data.Text.Encoding as E
 import qualified Data.ByteString    as BS
+
 
 import qualified Data.IntMap as IntMap
 import qualified Data.List   as List
@@ -148,7 +150,12 @@ nextToken' = do
           -- Spaces take care of their own column tracking.
           unless (isSpaces (text t)) $ do
             log MoveColumn $ text t
-            moveColumn $ T.length $ text t
+            -- gallais 2015/06/16
+            -- Here we use `lengthWord16` rather than `length` so that
+            -- wide characters are assigned their true size rather than
+            -- just 1. This means that things aligned in the editor will
+            -- be correctly aligned in the output.
+            moveColumn $ TU.lengthWord16 $ text t
 
           return t
 
