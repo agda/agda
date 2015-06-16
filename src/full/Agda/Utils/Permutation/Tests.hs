@@ -1,11 +1,13 @@
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE TemplateHaskell #-}
+
+-- GHC 7.4.2 requires the OPTIONS_GHC pragma(s) after the LANGUAGE
+-- pragma(s). See Issue 1460.
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 module Agda.Utils.Permutation.Tests (tests) where
 
