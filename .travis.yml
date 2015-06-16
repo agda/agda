@@ -227,9 +227,14 @@ script:
     fi
 
 ##############################################################################
-# Builds are loooong, we want to send an email as fast as possible.
-
 matrix:
+  exclude:
+    - ghc: 7.6.3
+      env: TEST=ghc-7.8.4-transformers-0.3.0.0
+    - ghc: 7.4.2
+      env: TEST=ghc-7.8.4-transformers-0.3.0.0
+
+  # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
   # allow_failures:
     # - ghc: A.B.C
