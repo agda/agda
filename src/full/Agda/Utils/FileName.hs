@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName
@@ -25,6 +26,7 @@ import System.Win32 (findFirstFile, findClose, getFindDataFileName)
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.Function
+import Data.Hashable
 import Data.Typeable (Typeable)
 
 import Agda.Utils.Pretty
@@ -46,7 +48,7 @@ import Agda.Utils.Impossible
 -- of the standard library!
 
 newtype AbsolutePath = AbsolutePath { byteStringPath :: ByteString }
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath

@@ -67,7 +67,18 @@ runMListT ml = ListT $ runListT =<< ml
 
 -- | Monadic cons.
 consMListT :: Monad m => m a -> ListT m a -> ListT m a
-consMListT ma l = runMListT $ liftM (`consListT` l) ma
+consMListT ma l = ListT $ (Just . (,l)) `liftM` ma
+-- consMListT ma l = runMListT $ liftM (`consListT` l) ma
+
+-- simplification:
+-- consMListT ma l = ListT $ runListT =<< liftM (`consListT` l) ma
+-- consMListT ma l = ListT $ runListT =<< (`consListT` l) <$> ma
+-- consMListT ma l = ListT $ runListT =<< do a <- ma; return $ a `consListT` l
+-- consMListT ma l = ListT $ do a <- ma; runListT =<< do return $ a `consListT` l
+-- consMListT ma l = ListT $ do a <- ma; runListT $ a `consListT` l
+-- consMListT ma l = ListT $ do a <- ma; runListT $ ListT $ return $ Just (a, l)
+-- consMListT ma l = ListT $ do a <- ma; return $ Just (a, l)
+-- consMListT ma l = ListT $ Just . (,l) <$> ma
 
 -- | Monadic singleton.
 sgMListT ::  Monad m => m a -> ListT m a

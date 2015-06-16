@@ -125,7 +125,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150605 * 10 + 0
+currentInterfaceVersion = 20150615 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -170,18 +170,18 @@ qnameId (A.QName (A.MName ns) n) = map A.nameId $ n:ns
 -- | State of the the encoder.
 data Dict = Dict
   -- Dictionaries which are serialized:
-  { nodeD        :: !(HashTable Node    Int32)
-  , stringD      :: !(HashTable String  Int32)
-  , bstringD     :: !(HashTable L.ByteString Int32)
-  , integerD     :: !(HashTable Integer Int32)
-  , doubleD      :: !(HashTable Double  Int32)
+  { nodeD        :: !(HashTable Node    Int32)    -- ^ Written to interface file.
+  , stringD      :: !(HashTable String  Int32)    -- ^ Written to interface file.
+  , bstringD     :: !(HashTable L.ByteString Int32) -- ^ Written to interface file.
+  , integerD     :: !(HashTable Integer Int32)    -- ^ Written to interface file.
+  , doubleD      :: !(HashTable Double  Int32)    -- ^ Written to interface file.
   -- Dicitionaries which are not serialized, but provide
   -- short cuts to speed up serialization:
-  , termD        :: !(HashTable (Ptr Term) Int32)
+  , termD        :: !(HashTable (Ptr Term) Int32) -- ^ Not written to interface file.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   -- , nameD        :: !(HashTable NameId Int32)
-  , qnameD       :: !(HashTable QNameId Int32)
+  , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
@@ -195,18 +195,15 @@ data Dict = Dict
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
     --   calls to @icode@ for each @Typeable a@.
-  , fileMod      :: !SourceToModule
+  , absPathD     :: !(HashTable AbsolutePath Int32) -- ^ Not written to interface file.
   }
 
 -- | Creates an empty dictionary.
 emptyDict
   :: Bool
      -- ^ Collect statistics for @icode@ calls?
-  -> SourceToModule
-     -- ^ Maps file names to the corresponding module names.
-     --   Must contain a mapping for every file name that is later encountered.
   -> IO Dict
-emptyDict collectStats fileMod = Dict
+emptyDict collectStats = Dict
   <$> H.new
   <*> H.new
   <*> H.new
@@ -223,7 +220,7 @@ emptyDict collectStats fileMod = Dict
   <*> newIORef farEmpty
   <*> H.new
   <*> pure collectStats
-  <*> pure fileMod
+  <*> H.new
 
 -- | Universal type, wraps everything.
 data U    = forall a . Typeable a => U !a
@@ -233,15 +230,16 @@ type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 
 -- | State of the decoder.
 data St = St
-  { nodeE     :: !(Array Int32 Node)
-  , stringE   :: !(Array Int32 String)
-  , bstringE  :: !(Array Int32 L.ByteString)
-  , integerE  :: !(Array Int32 Integer)
-  , doubleE   :: !(Array Int32 Double)
+  { nodeE     :: !(Array Int32 Node)     -- ^ Obtained from interface file.
+  , stringE   :: !(Array Int32 String)   -- ^ Obtained from interface file.
+  , bstringE  :: !(Array Int32 L.ByteString) -- ^ Obtained from interface file.
+  , integerE  :: !(Array Int32 Integer)  -- ^ Obtained from interface file.
+  , doubleE   :: !(Array Int32 Double)   -- ^ Obtained from interface file.
   , nodeMemo  :: !Memo
+    -- ^ Created and modified by decoder.
+    --   Used to introduce sharing while deserializing objects.
   , modFile   :: !ModuleToSource
-    -- ^ Maps module names to file names. This is the only component
-    -- of the state which is updated by the decoder.
+    -- ^ Maps module names to file names. Constructed by the decoder.
   , includes  :: [AbsolutePath]
     -- ^ The include directories.
   , mkShared  :: Term -> Term
@@ -290,8 +288,10 @@ encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
     newD@(Dict nD sD bD iD dD _tD _qnameD nC sC bC iC dC tC qnameC stats _ _) <- liftIO $
-      emptyDict collectStats fileMod
-    root <- liftIO $ runReaderT (icode a) newD
+      emptyDict collectStats
+    root <- liftIO $ (`runReaderT` newD) $ do
+       icodeFileMod fileMod
+       icode a
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
     bL <- benchSort $ l bD
@@ -449,6 +449,20 @@ decodeHashes s
 decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 
+-- | Store a 'SourceToModule' (map from 'AbsolutePath' to 'TopLevelModuleName')
+--   as map from 'AbsolutePath' to 'Int32', in order to directly get the identifiers
+--   from absolute pathes rather than going through top level module names.
+icodeFileMod
+  :: SourceToModule
+     -- ^ Maps file names to the corresponding module names.
+     --   Must contain a mapping for every file name that is later encountered.
+  -> S ()
+icodeFileMod fileMod = do
+  hmap <- asks absPathD
+  forM_ (Map.toList fileMod) $ \ (absolutePath, topLevelModuleName) -> do
+    i <- icod_ topLevelModuleName
+    liftIO $ H.insert hmap absolutePath i
+
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} EmbPrj String where
 #else
@@ -528,10 +542,8 @@ instance EmbPrj Bool where
 
 instance EmbPrj AbsolutePath where
   icod_ file = do
-    mm <- Map.lookup file <$> asks fileMod
-    case mm of
-      Just m  -> icode m
-      Nothing -> __IMPOSSIBLE__
+    d <-  asks absPathD
+    liftIO $ fromMaybe __IMPOSSIBLE__ <$> H.lookup d file
   value m = do
     m :: TopLevelModuleName
             <- value m
@@ -1001,6 +1013,7 @@ instance (EmbPrj a) => EmbPrj (I.Abs a) where
                            valu _         = malformed
 
 instance EmbPrj I.Term where
+  icod_ (Var     a []) = icode1' a
   icod_ (Var      a b) = icode2 0 a b
   icod_ (Lam      a b) = icode2 1 a b
   icod_ (Lit      a  ) = icode1 2 a
@@ -1016,6 +1029,7 @@ instance EmbPrj I.Term where
   value r = vcase valu' r
     where
       valu' xs = gets mkShared <*> valu xs
+      valu [a]       = valu1 var   a
       valu [0, a, b] = valu2 Var   a b
       valu [1, a, b] = valu2 Lam   a b
       valu [2, a]    = valu1 Lit   a

@@ -464,16 +464,15 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
     unlessM (optPatternMatching <$> gets getPragmaOptions) $
       typeError $ GenericError $ "Pattern matching is disabled"
 
-    sp <- runListT $ splitProblem f problem
-    reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
-    foldListT trySplit nothingToSplit $ ListT $ return sp
+    foldListT trySplit nothingToSplit $ splitProblem f problem
   where
 
     nothingToSplit = do
       reportSLn "tc.lhs.split" 50 $ "checkLHS: nothing to split in problem " ++ show problem
       nothingToSplitError problem
 
-    -- Split problem rest (projection pattern)
+    -- Split problem rest (projection pattern, does not fail as there is no call to unifier)
+
     trySplit (SplitRest projPat projType) _ = do
 
       -- Compute the new problem
@@ -490,7 +489,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       applyRelevanceToContext (getRelevance projPat) $ do
         checkLHS f st'
 
-    -- Split on literal pattern
+    -- Split on literal pattern (does not fail as there is no call to unifier)
+
     trySplit (Split p0 xs (Arg _ (LitFocus lit iph hix a)) p1) _ = do
 
       -- plug the hole with a lit pattern
@@ -520,7 +520,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       st' <- updateProblemRest (LHSState problem' sigma' dpi' asb')
       checkLHS f st'
 
-    -- Split on constructor pattern
+    -- Split on constructor pattern (unifier might fail)
 
     trySplit (Split p0 xs focus@(Arg info Focus{}) p1) tryNextSplit = do
       res <- trySplitConstructor p0 xs focus p1
