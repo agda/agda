@@ -13,7 +13,7 @@ zero + n = n
 (suc m) + n = suc (m + n)
 
 postulate
-  plus-zero : ∀ x → x + zero ≡ x
+  plus-zero : ∀ x → (x + zero) ≡ x
 
 {-# REWRITE plus-zero #-}
 
@@ -21,7 +21,7 @@ mutual
   secret-number : Nat
   secret-number = _
 
-  test : ∀ x → x + secret-number ≡ x
+  test : ∀ x → (x + secret-number) ≡ x
   test x = refl
 
   reveal : secret-number ≡ zero
