@@ -8,7 +8,8 @@ module Agda.Utils.Either
   , traverseEither
   , isLeft, isRight
   , fromLeft, fromRight
-  , allRight
+  , maybeLeft, maybeRight
+  , allLeft, allRight
   , tests
   ) where
 
@@ -71,6 +72,27 @@ fromLeft = either id
 fromRight :: (a -> b) -> Either a b -> b
 fromRight f = either f id
 
+-- | Safe projection from 'Left'.
+--   @
+--     maybeLeft (Left a) = Just a
+--     maybeLeft Right{}  = Nothing
+--   @
+maybeLeft :: Either a b -> Maybe a
+maybeLeft = either Just (const Nothing)
+
+-- | Safe projection from 'Right'.
+--   @
+--     maybeRight (Right b) = Just b
+--     maybeRight Left{}    = Nothing
+--   @
+maybeRight :: Either a b -> Maybe b
+maybeRight = either (const Nothing) Just
+
+-- | Returns @'Just' <input with tags stripped>@ if all elements are
+-- to the 'Left', and otherwise 'Nothing'.
+allLeft :: [Either a b] -> Maybe [a]
+allLeft = mapM maybeLeft
+
 -- | Returns @'Just' <input with tags stripped>@ if all elements are
 -- to the right, and otherwise 'Nothing'.
 --
@@ -83,9 +105,7 @@ fromRight f = either f id
 -- @
 
 allRight :: [Either a b] -> Maybe [b]
-allRight []             = Just []
-allRight (Left  _ : _ ) = Nothing
-allRight (Right b : xs) = (b:) <$> allRight xs
+allRight = mapM maybeRight
 
 prop_allRight :: Eq b => [Either t b] -> Bool
 prop_allRight xs =

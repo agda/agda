@@ -686,23 +686,6 @@ appView p = case p of
     InstanceP _ _    -> __IMPOSSIBLE__
     _                -> [p]
 
--- | Collect all names in a pattern into a list of qualified names.
-patternQNames :: Pattern -> [QName]
-patternQNames p = case p of
-  RawAppP _ ps     -> concatMap patternQNames ps
-  IdentP q         -> [q]
-  ParenP _ p       -> patternQNames p
-  HiddenP _ p      -> patternQNames (namedThing p)
-  InstanceP _ p    -> patternQNames (namedThing p)
-  OpAppP r d _ ps  -> __IMPOSSIBLE__
-  AppP{}           -> __IMPOSSIBLE__
-  AsP r x p        -> patternQNames p
-  AbsurdP{}        -> []
-  WildP{}          -> []
-  DotP{}           -> []
-  LitP{}           -> []
-  QuoteP{}         -> []
-
 -- | Return all qualifiers occuring in a list of 'QName's.
 --   Each qualifier is returned as a list of names, e.g.
 --   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
