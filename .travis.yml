@@ -55,7 +55,7 @@ install:
 # Installing latest versions of cabal-install, Alex and Happy
 
   - if [ $TEST = "latex-test" -o $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
-       cabal install cabal-install-1.22.4.0 &&
+       cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
        cabal install alex &&
