@@ -1757,7 +1757,6 @@ data SplitError
   deriving (Show)
 
 instance Error SplitError where
-  noMsg  = strMsg ""
   strMsg = GenericSplitError
 
 data UnquoteError
@@ -1985,7 +1984,6 @@ data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 --   show _ = "<TypeError>" -- TODO: more info?
 
 instance Error TypeError where
-  noMsg  = strMsg ""
   strMsg = GenericError
 
 -- | Type-checking errors.
@@ -1998,7 +1996,6 @@ data TCErr = TypeError TCState (Closure TypeError)
   deriving (Typeable)
 
 instance Error TCErr where
-  noMsg  = strMsg ""
   strMsg = Exception noRange . text . strMsg
 
 instance Show TCErr where
