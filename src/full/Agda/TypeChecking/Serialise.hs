@@ -926,28 +926,43 @@ instance EmbPrj Common.Induction where
                            valu _   = malformed
 
 instance EmbPrj Common.Hiding where
-  icod_ Hidden    = icode0 0
-  icod_ NotHidden = icode0'
-  icod_ Instance  = icode0 2
-  value = vcase valu where valu [0] = valu0 Hidden
-                           valu []  = valu0 NotHidden
-                           valu [2] = valu0 Instance
-                           valu _   = malformed
+  icod_ Hidden    = return 0
+  icod_ NotHidden = return 1
+  icod_ Instance  = return 2
+  value 0 = return Hidden
+  value 1 = return NotHidden
+  value 2 = return Instance
+  value _ = malformed
 
 instance EmbPrj Common.Relevance where
-  icod_ Relevant   = icode0'
-  icod_ Irrelevant = icode0 1
-  icod_ (Forced Small) = icode0 2
-  icod_ (Forced Big)   = icode0 5
-  icod_ NonStrict  = icode0 3
-  icod_ UnusedArg  = icode0 4
-  value = vcase valu where valu []  = valu0 Relevant
-                           valu [1] = valu0 Irrelevant
-                           valu [2] = valu0 (Forced Small)
-                           valu [5] = valu0 (Forced Big)
-                           valu [3] = valu0 NonStrict
-                           valu [4] = valu0 UnusedArg
-                           valu _   = malformed
+  icod_ Relevant       = return 0
+  icod_ Irrelevant     = return 1
+  icod_ (Forced Small) = return 2
+  icod_ (Forced Big)   = return 3
+  icod_ NonStrict      = return 4
+  icod_ UnusedArg      = return 5
+  value 0 = return Relevant
+  value 1 = return Irrelevant
+  value 2 = return (Forced Small)
+  value 3 = return (Forced Big)
+  value 4 = return NonStrict
+  value 5 = return UnusedArg
+  value _ = malformed
+
+-- instance EmbPrj Common.Relevance where
+--   icod_ Relevant   = icode0'
+--   icod_ Irrelevant = icode0 1
+--   icod_ (Forced Small) = icode0 2
+--   icod_ (Forced Big)   = icode0 5
+--   icod_ NonStrict  = icode0 3
+--   icod_ UnusedArg  = icode0 4
+--   value = vcase valu where valu []  = valu0 Relevant
+--                            valu [1] = valu0 Irrelevant
+--                            valu [2] = valu0 (Forced Small)
+--                            valu [5] = valu0 (Forced Big)
+--                            valu [3] = valu0 NonStrict
+--                            valu [4] = valu0 UnusedArg
+--                            valu _   = malformed
 
 instance EmbPrj I.ConHead where
   icod_ (ConHead a b c) = icode3' a b c
@@ -1166,34 +1181,62 @@ instance EmbPrj JS.MemberId where
   value n = JS.MemberId `fmap` value n
 
 instance EmbPrj Polarity where
-  icod_ Covariant     = icode0'
-  icod_ Contravariant = icode0 1
-  icod_ Invariant     = icode0 2
-  icod_ Nonvariant    = icode0 3
+  icod_ Covariant     = return 0
+  icod_ Contravariant = return 1
+  icod_ Invariant     = return 2
+  icod_ Nonvariant    = return 3
 
-  value = vcase valu where
-    valu []  = valu0 Covariant
-    valu [1] = valu0 Contravariant
-    valu [2] = valu0 Invariant
-    valu [3] = valu0 Nonvariant
-    valu _   = malformed
+  value 0 = return Covariant
+  value 1 = return Contravariant
+  value 2 = return Invariant
+  value 3 = return Nonvariant
+  value _  = malformed
+
+-- instance EmbPrj Polarity where
+--   icod_ Covariant     = icode0'
+--   icod_ Contravariant = icode0 1
+--   icod_ Invariant     = icode0 2
+--   icod_ Nonvariant    = icode0 3
+
+--   value = vcase valu where
+--     valu []  = valu0 Covariant
+--     valu [1] = valu0 Contravariant
+--     valu [2] = valu0 Invariant
+--     valu [3] = valu0 Nonvariant
+--     valu _   = malformed
 
 instance EmbPrj Occurrence where
-  icod_ StrictPos = icode0'
-  icod_ Mixed     = icode0 1
-  icod_ Unused    = icode0 2
-  icod_ GuardPos  = icode0 3
-  icod_ JustPos   = icode0 4
-  icod_ JustNeg   = icode0 5
+  icod_ StrictPos = return 0
+  icod_ Mixed     = return 1
+  icod_ Unused    = return 2
+  icod_ GuardPos  = return 3
+  icod_ JustPos   = return 4
+  icod_ JustNeg   = return 5
 
-  value = vcase valu where
-    valu []  = valu0 StrictPos
-    valu [1] = valu0 Mixed
-    valu [2] = valu0 Unused
-    valu [3] = valu0 GuardPos
-    valu [4] = valu0 JustPos
-    valu [5] = valu0 JustNeg
-    valu _   = malformed
+  value 0 = return StrictPos
+  value 1 = return Mixed
+  value 2 = return Unused
+  value 3 = return GuardPos
+  value 4 = return JustPos
+  value 5 = return JustNeg
+  value _ = malformed
+
+-- instance EmbPrj Occurrence where
+--   icod_ StrictPos = icode0'
+--   icod_ Mixed     = icode0 1
+--   icod_ Unused    = icode0 2
+--   icod_ GuardPos  = icode0 3
+--   icod_ JustPos   = icode0 4
+--   icod_ JustNeg   = icode0 5
+
+--   value = vcase valu where
+--     valu []  = valu0 StrictPos
+--     valu [1] = valu0 Mixed
+--     valu [2] = valu0 Unused
+--     valu [3] = valu0 GuardPos
+--     valu [4] = valu0 JustPos
+--     valu [5] = valu0 JustNeg
+--     valu _   = malformed
 
 instance EmbPrj CompiledRepresentation where
   icod_ (CompiledRep a b c d) = icode4' a b c d
