@@ -1983,8 +1983,10 @@ data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 -- instance Show TypeError where
 --   show _ = "<TypeError>" -- TODO: more info?
 
+#if !MIN_VERSION_transformers(0,4,1)
 instance Error TypeError where
   strMsg = GenericError
+#endif
 
 -- | Type-checking errors.
 
