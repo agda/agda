@@ -5,9 +5,11 @@
 module Agda.Utils.Either
   ( whileLeft, caseEitherM
   , mapEither, mapLeft, mapRight
+  , traverseEither
   , isLeft, isRight
   , fromLeft, fromRight
-  , allRight
+  , maybeLeft, maybeRight
+  , allLeft, allRight
   , tests
   ) where
 
@@ -45,6 +47,11 @@ mapLeft f = mapEither f id
 mapRight :: (b -> d) -> Either a b -> Either a d
 mapRight = mapEither id
 
+-- | 'Either' is bitraversable.
+
+traverseEither :: Functor f => (a -> f c) -> (b -> f d) -> Either a b -> f (Either c d)
+traverseEither f g = either (fmap Left . f) (fmap Right . g)
+
 -- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
 --   Note: from @base >= 4.7.0.0@ already present in @Data.Either@.
 isRight :: Either a b -> Bool
@@ -65,6 +72,27 @@ fromLeft = either id
 fromRight :: (a -> b) -> Either a b -> b
 fromRight f = either f id
 
+-- | Safe projection from 'Left'.
+--   @
+--     maybeLeft (Left a) = Just a
+--     maybeLeft Right{}  = Nothing
+--   @
+maybeLeft :: Either a b -> Maybe a
+maybeLeft = either Just (const Nothing)
+
+-- | Safe projection from 'Right'.
+--   @
+--     maybeRight (Right b) = Just b
+--     maybeRight Left{}    = Nothing
+--   @
+maybeRight :: Either a b -> Maybe b
+maybeRight = either (const Nothing) Just
+
+-- | Returns @'Just' <input with tags stripped>@ if all elements are
+-- to the 'Left', and otherwise 'Nothing'.
+allLeft :: [Either a b] -> Maybe [a]
+allLeft = mapM maybeLeft
+
 -- | Returns @'Just' <input with tags stripped>@ if all elements are
 -- to the right, and otherwise 'Nothing'.
 --
@@ -77,9 +105,7 @@ fromRight f = either f id
 -- @
 
 allRight :: [Either a b] -> Maybe [b]
-allRight []             = Just []
-allRight (Left  _ : _ ) = Nothing
-allRight (Right b : xs) = (b:) <$> allRight xs
+allRight = mapM maybeRight
 
 prop_allRight :: Eq b => [Either t b] -> Bool
 prop_allRight xs =
