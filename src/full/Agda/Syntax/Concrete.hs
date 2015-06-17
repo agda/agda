@@ -45,7 +45,7 @@ module Agda.Syntax.Concrete
   , ThingWithFixity(..)
   , topLevelModuleName
     -- * Pattern tools
-  , patternNames
+  , patternNames, patternQNames
     -- * Lenses
   , mapLhsOriginalPattern
     -- * Concrete instances
@@ -443,22 +443,26 @@ appView e = AppView e []
  --------------------------------------------------------------------------}
 
 -- | Get all the identifiers in a pattern in left-to-right order.
-patternNames :: Pattern -> [Name]
-patternNames p =
+patternQNames :: Pattern -> [QName]
+patternQNames p =
   case p of
-    IdentP x               -> [unqualify x]
-    AppP p p'              -> concatMap patternNames [p, namedArg p']
-    RawAppP _ ps           -> concatMap patternNames  ps
-    OpAppP _ name _ ps     -> unqualify name : concatMap (patternNames . namedArg) ps
-    HiddenP _ (namedPat)   -> patternNames (namedThing namedPat)
-    ParenP _ p             -> patternNames p
+    IdentP x               -> [x]
+    AppP p p'              -> concatMap patternQNames [p, namedArg p']
+    RawAppP _ ps           -> concatMap patternQNames  ps
+    OpAppP _ x _ ps        -> x : concatMap (patternQNames . namedArg) ps
+    HiddenP _ (namedPat)   -> patternQNames (namedThing namedPat)
+    ParenP _ p             -> patternQNames p
     WildP _                -> []
     AbsurdP _              -> []
-    AsP _ x p              -> patternNames p
+    AsP _ x p              -> patternQNames p
     DotP{}                 -> []
     LitP _                 -> []
     QuoteP _               -> []
-    InstanceP _ (namedPat) -> patternNames (namedThing namedPat)
+    InstanceP _ (namedPat) -> patternQNames (namedThing namedPat)
+
+-- | Get all the identifiers in a pattern in left-to-right order.
+patternNames :: Pattern -> [Name]
+patternNames = map unqualify . patternQNames
 
 {--------------------------------------------------------------------------
     Instances
