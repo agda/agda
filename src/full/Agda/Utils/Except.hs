@@ -38,7 +38,7 @@ class Error a where
 
 -- | A string can be thrown as an error.
 instance Error String where
-    strMsg = id
+  strMsg = id
 
 ------------------------------------------------------------------------
 #else

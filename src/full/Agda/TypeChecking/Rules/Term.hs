@@ -1291,8 +1291,8 @@ checkHeadApplication e t hd args = do
 
 -- Stupid ErrorT!
 instance Error (a, b, c) where
+  noMsg    = __IMPOSSIBLE__
   strMsg _ = __IMPOSSIBLE__
-  noMsg = __IMPOSSIBLE__
 
 traceCallE :: Error e => (Maybe r -> Call) -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do

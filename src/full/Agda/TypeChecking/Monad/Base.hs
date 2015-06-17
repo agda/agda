@@ -1985,8 +1985,8 @@ data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 --   show _ = "<TypeError>" -- TODO: more info?
 
 instance Error TypeError where
-    noMsg  = strMsg ""
-    strMsg = GenericError
+  noMsg  = strMsg ""
+  strMsg = GenericError
 
 -- | Type-checking errors.
 
@@ -1998,8 +1998,8 @@ data TCErr = TypeError TCState (Closure TypeError)
   deriving (Typeable)
 
 instance Error TCErr where
-    noMsg  = strMsg ""
-    strMsg = Exception noRange . text . strMsg
+  noMsg  = strMsg ""
+  strMsg = Exception noRange . text . strMsg
 
 instance Show TCErr where
     show (TypeError _ e) = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
