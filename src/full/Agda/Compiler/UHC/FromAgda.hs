@@ -163,7 +163,7 @@ translateDataTypes defs = do
                     let (tyNm, impl) = case crty of
                                 CTMagic mgcNm -> let tyNm' = fst $ getMagicTypes M.! mgcNm
                                         in (tyNm', ADataImplMagic mgcNm)
-                                CTNormal tyNm' -> (tyNm', ADataImplForeign)
+                                CTNormal tyNm' -> (Just $ mkHsName1 tyNm', ADataImplForeign)
                     return $ Just (ADataTy tyNm n cons' impl)
               (Nothing, (cons', [])) -> do
                     tyCrNm <- getCoreName1 n

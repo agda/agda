@@ -13,7 +13,6 @@ module Agda.Compiler.UHC.Pragmas.Parse
 where
 
 
-import Data.Maybe
 import Data.List
 import qualified Data.Map as M
 
@@ -32,7 +31,7 @@ parseCoreData :: MonadTCM m => String -> m CoreType
 parseCoreData dt = do
   isDtMgc <- isMagicEntity getMagicTypes dt "datatype"
   return $ case isDtMgc of
-    Nothing         -> CTNormal (Just $ mkHsName1 dt)
+    Nothing         -> CTNormal dt
     Just (dtMgc, _) -> CTMagic dtMgc
 
 parseCoreConstrs :: MonadTCM m => CoreType -> [String] -> m [CoreConstr]
@@ -46,9 +45,10 @@ parseCoreConstrs (CTNormal dtCrNm) cs = do
         parseNormalConstr c
             | isMagic c =  typeError $
                 GenericError $ "Magic constructor " ++ (drop 2 $ init $ init c) ++ " can only be used for magic datatypes."
-            | otherwise = let dtCrNmAux = fromMaybe __IMPOSSIBLE__ dtCrNm
+            | otherwise = let dtMod = dropWhileEnd (/='.') dtCrNm
+                              conNm = dtMod ++ c
                            -- tag gets assigned after we have parsed all ctors
-                           in return $ CCNormal dtCrNmAux (mkHsName1 c) __IMPOSSIBLE__
+                           in return $ CCNormal (mkHsName1 dtCrNm) (mkHsName1 conNm) __IMPOSSIBLE__
         ccOrd :: CoreConstr -> CoreConstr -> Ordering
         ccOrd (CCNormal dtNm1 ctNm1 _) (CCNormal dtNm2 ctNm2 _) | dtNm1 == dtNm2 = compare ctNm1 ctNm2
         ccOrd _ _ = __IMPOSSIBLE__

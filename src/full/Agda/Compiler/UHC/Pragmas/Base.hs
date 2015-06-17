@@ -4,7 +4,6 @@
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
 module Agda.Compiler.UHC.Pragmas.Base
   ( CoreExpr,
-    CoreTypeName,
     CoreType (..),
     CoreConstr (..),
     coreConstrToCTag,
@@ -25,11 +24,10 @@ import Agda.Compiler.UHC.MagicTypes
 import Agda.Utils.Impossible
 
 
-type CoreTypeName = Maybe HsName -- nothing for unit, else the name.
 
 data CoreType
   = CTMagic MagicName -- ^ Magic name
-  | CTNormal CoreTypeName -- ^ UHC Core name
+  | CTNormal String -- Core Datatype name
   deriving (Eq, Show, Typeable)
 
 -- We store the COMPILED_UHC pragmas as string,
