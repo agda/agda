@@ -1468,7 +1468,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
       let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
           xs        = catMaybes mxs
       -- We are done inserting implicit args.  Now, try to check @arg@.
-      ifBlockedType t (\ m t -> throwError ([], args0, t)) $ \ t0' -> do
+      ifBlockedType t (\ m t -> throwError (us, args0, t)) $ \ t0' -> do
 
         -- What can go wrong?
 
