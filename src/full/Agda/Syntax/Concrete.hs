@@ -49,7 +49,7 @@ module Agda.Syntax.Concrete
   , ThingWithFixity(..)
   , topLevelModuleName
     -- * Pattern tools
-  , patternHead, patternNames
+  , patternNames
     -- * Lenses
   , mapLhsOriginalPattern
     -- * Concrete instances
@@ -484,27 +484,6 @@ appView e = AppView e []
 {--------------------------------------------------------------------------
     Patterns
  --------------------------------------------------------------------------}
-
--- | Get the leftmost symbol in a pattern.
-patternHead :: Pattern -> Maybe Name
-patternHead p =
-  case p of
-    IdentP x               -> return $ unqualify x
-    AppP p p'              -> patternHead p
-    RawAppP _ []           -> __IMPOSSIBLE__
-    RawAppP _ (p:_)        -> patternHead p
-    OpAppP _ name _ ps     -> return $ unqualify name
-    HiddenP _ (namedPat)   -> patternHead (namedThing namedPat)
-    ParenP _ p             -> patternHead p
-    WildP _                -> Nothing
-    AbsurdP _              -> Nothing
-    AsP _ x p              -> patternHead p
-    DotP{}                 -> Nothing
-    LitP (LitQName _ x)    -> Nothing -- return $ unqualify x -- does not compile
-    LitP _                 -> Nothing
-    QuoteP _               -> Nothing
-    InstanceP _ (namedPat) -> patternHead (namedThing namedPat)
-
 
 -- | Get all the identifiers in a pattern in left-to-right order.
 patternNames :: Pattern -> [Name]
