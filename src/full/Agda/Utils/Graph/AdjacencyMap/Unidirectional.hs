@@ -348,8 +348,11 @@ unzip g = (fst <$> g, snd <$> g)
 -- order.
 
 sccs' :: Ord n => Graph n n e -> [Graph.SCC n]
-sccs' (Graph g) =
-  Graph.stronglyConnComp [ (n, n, Map.keys m) | (n, m) <- Map.assocs g ]
+sccs' g =
+  Graph.stronglyConnComp
+    [ (n, n, map target (edgesFrom g [n]))
+    | n <- Set.toList (nodes g)
+    ]
 
 -- | The graph's strongly connected components, in reverse topological
 -- order.

@@ -17,7 +17,9 @@ import Control.Applicative ((<$>), (<*>))
 #endif
 
 import Data.Function
+import qualified Data.Graph as Graph
 import qualified Data.List as List
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -28,6 +30,7 @@ import Test.QuickCheck.All
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List (distinct)
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
 import Agda.Utils.QuickCheck as QuickCheck
@@ -46,10 +49,14 @@ instance (CoArbitrary s, CoArbitrary t, CoArbitrary e) => CoArbitrary (Edge s t 
 instance (Ord n, SemiRing e, Arbitrary n, Arbitrary e) =>
          Arbitrary (Graph n n e) where
   arbitrary = do
-    nodes <- sized $ \ n -> resize (isqrt n) arbitrary
+    nodes <- sized $ \ n -> resize (2 * isqrt n) arbitrary
     edges <- mapM (\ (n1, n2) -> Edge n1 n2 <$> arbitrary) =<<
                   listOfElements ((,) <$> nodes <*> nodes)
-    return (fromList edges `union` fromNodes nodes)
+    let g1 = fromList edges
+        g2 = g1 `union` fromNodes nodes
+    elements [ g1  -- Does not contain empty outermost node maps.
+             , g2  -- May contain empty outermost node maps.
+             ]
     where
     isqrt :: Int -> Int
     isqrt = round . sqrt . fromIntegral
@@ -128,6 +135,59 @@ prop_insertWith f s t e g =
 -- -- This property only holds only if the edge is new.
 -- prop_insert ::  (Ord s, Ord t) => s -> t -> e -> Graph s t e -> Bool
 -- prop_insert s t e g = insert s t e g == union g (singleton s t e)
+
+prop_sccs' :: G -> Bool
+prop_sccs' g =
+  nodes g == Set.fromList (concat components)
+    &&
+  all distinct components
+    &&
+  all (not . null) components
+    &&
+  disjoint (map Set.fromList components)
+    &&
+  all stronglyConnected components'
+    &&
+  noMissingStronglyConnectedNodes components
+    &&
+  reverseTopologicalOrder
+  where
+  components' = sccs' g
+  components  = map Graph.flattenSCC components'
+
+  disjoint []       = True
+  disjoint (s : ss) = all (Set.null . Set.intersection s) ss
+                        &&
+                      disjoint ss
+
+  connected i j = isJust (findPath (const True) i j g)
+
+  stronglyConnected (Graph.AcyclicSCC n) = not (connected n n)
+  stronglyConnected (Graph.CyclicSCC ns) = and
+    [ connected i j
+    | i <- ns
+    , j <- ns
+    ]
+
+  noMissingStronglyConnectedNodes []         = True
+  noMissingStronglyConnectedNodes (ns : nss) =
+    and [ not (connected j i && connected i j)
+        | i <- ns
+        , j <- concat nss
+        ]
+      &&
+    noMissingStronglyConnectedNodes nss
+
+  reverseTopologicalOrder = and
+    [ component i <= component j
+    | Edge i j _ <- edges g
+    ]
+    where
+    component k =
+      head [ i
+           | (i, ns) <- zip [1..] (reverse components)
+           , k `elem` ns
+           ]
 
 -- | Computes the transitive closure of the graph.
 --
