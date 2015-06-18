@@ -137,7 +137,7 @@ install:
 
   - case $TEST in
       "latex-test" | "non-require-stdlib" | "require-stdlib")
-        cabal build -v2 --builddir=$BUILD_DIR
+        cabal build -v2 --builddir=$BUILD_DIR &&
         cabal copy &&
         cabal register
         ;;
