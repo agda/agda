@@ -33,7 +33,6 @@ import qualified Agda.Utils.Trie as Trie
 -- * Benchmark trie
 
 -- | Account we can bill computation time to.
---   A word of 'Phase's.
 type Account a = [a]
 
 -- | Record when we started billing the current account.
