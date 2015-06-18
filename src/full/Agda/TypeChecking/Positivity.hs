@@ -200,6 +200,9 @@ getDefArity def = case theDef def of
 --   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
 
 instance SemiRing Occurrence where
+  ozero = Unused
+  oone  = StrictPos
+
   oplus Mixed _           = Mixed     -- dominant
   oplus _ Mixed           = Mixed
   oplus Unused o          = o         -- neutral
@@ -614,6 +617,9 @@ instance Null Edge where
 -- \"the 'Occurrence' components are equal\".
 
 instance SemiRing Edge where
+  ozero = Edge ozero Unknown
+  oone  = Edge oone  Unknown
+
   oplus _                    e@(Edge Mixed _)     = e -- dominant
   oplus e@(Edge Mixed _) _                        = e
   oplus (Edge Unused _)      e                    = e -- neutral

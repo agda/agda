@@ -91,6 +91,8 @@ newtype E = E Bool
   deriving (Arbitrary, CoArbitrary, Eq, Show)
 
 instance SemiRing E where
+  ozero              = E False
+  oone               = E True
   oplus  (E x) (E y) = E (x || y)
   otimes (E x) (E y) = E (x && y)
 
