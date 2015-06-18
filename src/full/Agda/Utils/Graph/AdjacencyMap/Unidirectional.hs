@@ -1,8 +1,11 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE BangPatterns,
+             CPP,
+             DeriveFunctor,
+             DoAndIfThenElse,
+             FlexibleInstances,
+             GeneralizedNewtypeDeriving,
+             ScopedTypeVariables,
+             TupleSections #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --
@@ -56,7 +59,8 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , acyclic
   , composeWith
   , complete
-  , transitiveClosure
+  , gaussJordanFloydWarshallMcNaughtonYamadaReference
+  , gaussJordanFloydWarshallMcNaughtonYamada
   , findPath
   , allPaths
   )
@@ -66,14 +70,15 @@ import Prelude hiding (lookup, unzip, null)
 
 import Control.Applicative ((<$>))
 
+import qualified Data.Array.IArray as Array
 import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
-import qualified Data.Map as Map
-import Data.Map (Map)
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
 import qualified Data.Maybe as Maybe
 import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
@@ -546,38 +551,109 @@ complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
 
 -- | Computes the transitive closure of the graph.
 --
--- Note that this algorithm is not guaranteed to be correct (or
--- terminate) for arbitrary semirings.
+-- Uses the Gauss-Jordan-Floyd-Warshall-McNaughton-Yamada algorithm
+-- (as described by Russell O'Connor in \"A Very General Method of
+-- Computing Shortest Paths\"
+-- <http://r6.ca/blog/20110808T035622Z.html>), implemented using
+-- matrices.
 --
--- This function operates on one strongly connected component (SCC)
--- at a time.
+-- The resulting graph does not contain any zero edges.
 --
--- For each SCC, it uses a saturation algorithm on state @(g, es)@
--- where initially @es@ is the set of edges of the SCC and @g@ the graph.
--- The algorithm finishes if @es@ has not changed in an iteration.
--- At each step, all @es@ are composed with @g@, the resulting
--- new graphs are unioned with @g@.  The new @es@ is then computed
--- as the edges of the SCC in the new @g@.
---
--- NOTE: this algorithm is INEFFICIENT, see Issue 1560.
+-- This algorithm should be seen as a reference implementation. In
+-- practice 'gaussJordanFloydWarshallMcNaughtonYamada' is likely to be
+-- more efficient.
 
-transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n n e -> Graph n n e
-transitiveClosure g = List.foldl' extend g $ sccs' g
+gaussJordanFloydWarshallMcNaughtonYamadaReference ::
+  forall n e. (Ord n, Eq e, StarSemiRing e) =>
+  Graph n n e -> Graph n n e
+gaussJordanFloydWarshallMcNaughtonYamadaReference g =
+  toGraph (foldr step initialMatrix nodeIndices)
   where
-  -- extend the graph by new edges generated from a scc
-  -- until there are no
-  extend g (Graph.AcyclicSCC scc) = fst $ growGraph [scc] (edgesFrom' [scc] g)
-  extend g (Graph.CyclicSCC  scc) = fst $
-    iterateUntil ((==) `on` snd) (growGraph scc) (edgesFrom' scc g)
+  indicesAndNodes = zip [1..] $ Set.toList $ nodes g
+  nodeMap         = Map.fromList $ map swap indicesAndNodes
+  indexMap        = Map.fromList            indicesAndNodes
 
-  edgesFrom' ns g = (g, edgesFrom g ns)
+  noNodes      = Map.size nodeMap
+  nodeIndices  = [1 .. noNodes]
+  matrixBounds = ((1, 1), (noNodes, noNodes))
 
-  growGraph scc (g, es) = edgesFrom' scc $
-    -- the new graph:
-    List.foldl' (unionWith oplus) g $ for es $ \ (Edge s t e) ->
-      case Map.lookup t (graph g) of
-        Just es -> Graph $ Map.singleton s $ Map.map (e `otimes`) es
-        Nothing -> empty
+  initialMatrix :: Array.Array (Int, Int) e
+  initialMatrix =
+    Array.accumArray
+      oplus ozero
+      matrixBounds
+      [ ((nodeMap Map.! source e, nodeMap Map.! target e), label e)
+      | e <- edges g
+      ]
+
+  rightStrictPair i !e = (i , e)
+
+  step k !m =
+    Array.array
+      matrixBounds
+      [ rightStrictPair
+          (i, j)
+          (oplus (m Array.! (i, j))
+                 (otimes (m Array.! (i, k))
+                         (otimes (ostar (m Array.! (k, k)))
+                                 (m Array.! (k, j)))))
+      | i <- nodeIndices, j <- nodeIndices
+      ]
+
+  toGraph m =
+    fromList [ Edge (indexMap Map.! i) (indexMap Map.! j) e
+             | ((i, j), e) <- Array.assocs m
+             , e /= ozero
+             ]
+
+-- | Computes the transitive closure of the graph.
+--
+-- Uses the Gauss-Jordan-Floyd-Warshall-McNaughton-Yamada algorithm
+-- (as described by Russell O'Connor in \"A Very General Method of
+-- Computing Shortest Paths\"
+-- <http://r6.ca/blog/20110808T035622Z.html>), implemented using
+-- 'Graph', and with some shortcuts:
+--
+-- * Zero edge differences are not added to the graph, thus avoiding
+--   some zero edges.
+--
+-- * Strongly connected components are used to avoid computing some
+--   zero edges.
+
+gaussJordanFloydWarshallMcNaughtonYamada ::
+  forall n e. (Ord n, Eq e, StarSemiRing e) =>
+  Graph n n e -> Graph n n e
+gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
+  where
+  components = sccs' g
+  forwardDAG = sccDAG' g components
+  reverseDAG = oppositeDAG forwardDAG
+
+  loop :: [Graph.SCC n] -> Graph n n e -> Graph n n e
+  loop []           !g = g
+  loop (scc : sccs)  g =
+    loop sccs (foldr step g (Graph.flattenSCC scc))
+    where
+    -- All nodes that are reachable from the SCC.
+    canBeReached = reachable forwardDAG scc
+    -- All nodes that can reach the SCC.
+    canReach     = reachable reverseDAG scc
+
+    step :: n -> Graph n n e -> Graph n n e
+    step k !g =
+      foldr (insertEdgeWith oplus) g
+        [ Edge i j e
+        | i <- canReach
+        , j <- canBeReached
+        , let e = otimes (lookup' i k) (starTimes (lookup' k j))
+        , e /= ozero
+        ]
+      where
+      starTimes = otimes (ostar (lookup' k k))
+
+      lookup' s t = case lookup s t g of
+        Nothing -> ozero
+        Just e  -> e
 
 -- | Find a path from a source node to a target node.
 --

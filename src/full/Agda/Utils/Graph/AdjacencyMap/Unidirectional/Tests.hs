@@ -220,23 +220,25 @@ completeUntilWith done otimes oplus = iterateUntil done growGraph  where
       Just es -> Graph $ Map.singleton s $ Map.map (otimes e) es
       Nothing -> Graph.empty
 
+-- | Equality modulo empty edges.
+(~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
+(~~) = (==) `on` clean
 
--- | Correctness of the optimized algorithm that proceeds by SCC.
+prop_gaussJordanFloydWarshallMcNaughtonYamadaReference :: G -> Bool
+prop_gaussJordanFloydWarshallMcNaughtonYamadaReference g =
+  gaussJordanFloydWarshallMcNaughtonYamadaReference g ~~
+  transitiveClosure1 g
 
--- prop_transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n n e -> Property
-prop_transitiveClosure :: G -> Property
-prop_transitiveClosure g = QuickCheck.label sccInfo $
-  transitiveClosure g == transitiveClosure1 g
+prop_gaussJordanFloydWarshallMcNaughtonYamada :: G -> Property
+prop_gaussJordanFloydWarshallMcNaughtonYamada g =
+  QuickCheck.label sccInfo $
+    gaussJordanFloydWarshallMcNaughtonYamada g ~~ transitiveClosure1 g
   where
   sccInfo =
     (if noSCCs <= 3 then "   " ++ show noSCCs
                     else ">= 4") ++
     " strongly connected component(s)"
     where noSCCs = length (sccs g)
-
--- | Equality modulo empty edges.
-(~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
-(~~) = (==) `on` clean
 
 prop_complete :: G -> Bool
 prop_complete g =
@@ -263,9 +265,6 @@ tests = do
 
 
 -- Abbreviations for testing in interpreter
-
-tc :: (Eq e, Ord n, SemiRing e) => Graph n n e -> Graph n n e
-tc = transitiveClosure
 
 g1, g2, g3, g4 :: Graph N N E
 g1 = Graph $ Map.fromList
