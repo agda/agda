@@ -133,12 +133,6 @@ instance Monoid PartialOrdering where
   mempty  = POEQ
   mappend = seqPO
 
--- | Partial ordering forms a semiring under supremum (disjunction)
---   and composition (transitivity, sequencing)
-instance SemiRing PartialOrdering where
-  oplus  = orPO
-  otimes = seqPO
-
 -- | Embed 'Ordering'.
 fromOrdering :: Ordering -> PartialOrdering
 fromOrdering LT = POLT

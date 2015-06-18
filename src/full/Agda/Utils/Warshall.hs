@@ -82,6 +82,9 @@ instance Ord Weight where
   Finite a <= Finite b = a <= b
 
 instance SemiRing Weight where
+  ozero = Infinite
+  oone  = Finite 0
+
   oplus = min
 
   otimes Infinite _ = Infinite
@@ -439,16 +442,11 @@ genGraph density edge nodes = do
       , (100 - k, return [])
       ]
 
-newtype Distance = Dist Nat
-  deriving (Eq, Ord, Num, Integral, Show, Enum, Real)
-
-instance SemiRing Distance where
-  oplus  (Dist a) (Dist b) = Dist (min a b)
-  otimes (Dist a) (Dist b) = Dist (a + b)
+type Distance = Weight
 
 genGraph_ :: Nat -> Gen (AdjList Nat Distance)
 genGraph_ n =
-  genGraph 0.2 (Dist <$> natural) [0..n - 1]
+  genGraph 0.2 (Finite <$> natural) [0..n - 1]
 
 lookupEdge :: Ord n => n -> n -> AdjList n e -> Maybe e
 lookupEdge i j g = lookup j =<< Map.lookup i g
@@ -484,7 +482,7 @@ genPath n i j g = do
   return $ addPath i (es ++ [(j, v)]) g
   where
     edge :: Gen Distance
-    edge = Dist <$> natural
+    edge = Finite <$> natural
 
     node :: Gen Nat
     node = choose (0, n - 1)

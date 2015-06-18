@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP,
              FlexibleContexts,
              FlexibleInstances,
+             TemplateHaskell,
              TupleSections,
              UndecidableInstances #-}
 
@@ -24,6 +25,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Debug.Trace
+
+import Test.QuickCheck
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -63,8 +66,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
   -- remove @Unused@ edges
   g <- Graph.clean <$> buildOccurrenceGraph qs
-  -- let gstar = Graph.transitiveClosure $ fmap occ g
-  let gstar = Graph.complete $ fmap occ g
+  let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -200,6 +202,9 @@ getDefArity def = case theDef def of
 --   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
 
 instance SemiRing Occurrence where
+  ozero = Unused
+  oone  = StrictPos
+
   oplus Mixed _           = Mixed     -- dominant
   oplus _ Mixed           = Mixed
   oplus Unused o          = o         -- neutral
@@ -225,6 +230,14 @@ instance SemiRing Occurrence where
   otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
   otimes _ GuardPos          = GuardPos
   otimes StrictPos StrictPos = StrictPos  -- neutral
+
+instance StarSemiRing Occurrence where
+  ostar Mixed     = Mixed
+  ostar JustNeg   = Mixed
+  ostar JustPos   = JustPos
+  ostar StrictPos = StrictPos
+  ostar GuardPos  = StrictPos
+  ostar Unused    = StrictPos
 
 instance Null Occurrence where
   empty = Unused
@@ -613,6 +626,9 @@ instance Null Edge where
 -- \"the 'Occurrence' components are equal\".
 
 instance SemiRing Edge where
+  ozero = Edge ozero Unknown
+  oone  = Edge oone  Unknown
+
   oplus _                    e@(Edge Mixed _)     = e -- dominant
   oplus e@(Edge Mixed _) _                        = e
   oplus (Edge Unused _)      e                    = e -- neutral
@@ -688,3 +704,61 @@ computeEdge muts o = do
         -- D: (A B -> C) generates a positive edge B --> A.1
         -- even though the context is negative.
         inArg d i = mkEdge (ArgNode d i) StrictPos
+
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+prop_Occurrence_oplus_associative ::
+  Occurrence -> Occurrence -> Occurrence -> Bool
+prop_Occurrence_oplus_associative x y z =
+  oplus x (oplus y z) == oplus (oplus x y) z
+
+prop_Occurrence_oplus_ozero :: Occurrence -> Bool
+prop_Occurrence_oplus_ozero x =
+  oplus ozero x == x
+
+prop_Occurrence_oplus_commutative :: Occurrence -> Occurrence -> Bool
+prop_Occurrence_oplus_commutative x y =
+  oplus x y == oplus y x
+
+prop_Occurrence_otimes_associative ::
+  Occurrence -> Occurrence -> Occurrence -> Bool
+prop_Occurrence_otimes_associative x y z =
+  otimes x (otimes y z) == otimes (otimes x y) z
+
+prop_Occurrence_otimes_oone :: Occurrence -> Bool
+prop_Occurrence_otimes_oone x =
+  otimes oone x == x
+    &&
+  otimes x oone == x
+
+prop_Occurrence_distributive ::
+  Occurrence -> Occurrence -> Occurrence -> Bool
+prop_Occurrence_distributive x y z =
+  otimes x (oplus y z) == oplus (otimes x y) (otimes x z)
+    &&
+  otimes (oplus x y) z == oplus (otimes x z) (otimes y z)
+
+prop_Occurrence_otimes_ozero :: Occurrence -> Bool
+prop_Occurrence_otimes_ozero x =
+  otimes ozero x == ozero
+    &&
+  otimes x ozero == ozero
+
+prop_Occurrence_ostar :: Occurrence -> Bool
+prop_Occurrence_ostar x =
+  ostar x == oplus oone (otimes x (ostar x))
+    &&
+  ostar x == oplus oone (otimes (ostar x) x)
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under GHC 7.8.
+return []
+
+-- | Tests.
+
+tests :: IO Bool
+tests = do
+  putStrLn "Agda.TypeChecking.Positivity"
+  $quickCheckAll

@@ -117,6 +117,31 @@ Working with Git (from 2014-06-15)
                                --no-termination-check \
           Module-that-should-be-rejected.agda && exit 1 || exit 0"
 
+  And here is an example showing how one can modify the source code
+  (in this case by removing constraints on the version of cpphs)
+  before compilation starts:
+
+    git bisect run sh <script>
+
+  The script:
+
+    sed -ri -e 's/cpphs >=.*/cpphs/' Agda.cabal
+
+    if cabal install --force-reinstalls \
+                     --disable-library-profiling \
+                     --disable-documentation
+    then
+        .cabal-sandbox/bin/agda --ignore-interfaces \
+          Module-that-should-be-accepted.agda
+        status=$?
+    else
+        status=125
+    fi
+
+    git reset --hard
+
+    exit $status
+
 Testing and documentation
 
 * When you implement a new feature it needs to be documented in
