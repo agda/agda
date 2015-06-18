@@ -733,8 +733,8 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
           (LetApply _ m' _ _ _ : _) -> return (m', r)
           _                         -> __IMPOSSIBLE__
 
-instance ToAbstract C.FieldAssignment A.Assign where
-  toAbstract (C.FieldAssignment x e) = A.Assign x <$> toAbstract e
+instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where
+  toAbstract = traverse toAbstract
 
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree info x) = A.DomainFree <$> toAbstract info <*> toAbstract (NewName x)

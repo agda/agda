@@ -528,8 +528,8 @@ makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [W
     _ -> b
 makeDomainFree b = b
 
-instance ToConcrete A.Assign C.FieldAssignment where
-    toConcrete (Assign x e) = FieldAssignment x <$> toConcrete e
+instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) where
+    toConcrete = traverse toConcrete
 
 -- Binder instances -------------------------------------------------------
 

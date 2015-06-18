@@ -16,9 +16,11 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
 
 import Agda.Utils.Either
+import Agda.Utils.Lens
 
 data AppView = Application Expr [NamedArg Expr]
 
@@ -152,9 +154,9 @@ instance ExprLike a => ExprLike [a] where
   foldExpr     = foldMap . foldExpr
   traverseExpr = traverse . traverseExpr
 
-instance ExprLike Assign where
-  foldExpr f (Assign _ e) = foldExpr f e
-  traverseExpr = exprAssign . traverseExpr
+instance ExprLike a => ExprLike (FieldAssignment' a) where
+  foldExpr f a = foldExpr f (a ^. exprFieldA)
+  traverseExpr = exprFieldA . traverseExpr
 
 instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
   foldExpr f = either (foldExpr f) (foldExpr f)

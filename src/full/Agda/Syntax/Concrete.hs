@@ -103,7 +103,8 @@ fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
 
 data FieldAssignment' a = FieldAssignment { _nameFieldA :: Name, _exprFieldA :: a }
-  deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Functor, Foldable, Traversable, Show, Eq)
+
 type FieldAssignment = FieldAssignment' Expr
 
 data ModuleAssignment  = ModuleAssignment

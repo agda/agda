@@ -25,6 +25,7 @@ import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import Agda.Syntax.Info
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Monad
@@ -221,7 +222,7 @@ pathToRecord pps =
 
         where
           abstractions :: (ProjEntry, Expr) -> ScopeM RecordAssign
-          abstractions (ProjEntry p xs, e) = Left . Assign (C.unqualify $ qnameToConcrete p) <$>
+          abstractions (ProjEntry p xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete p) <$>
             foldr abstract (return e) xs
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
@@ -304,8 +305,8 @@ instance Rename Expr where
 instance Rename ModuleName where
   rename rho x = x
 
-instance Rename Assign where
-  rename rho (Assign x e) = Assign x (rename rho e)
+instance Rename a => Rename (FieldAssignment' a) where
+  rename rho = fmap (rename rho)
 
 instance Rename LetBinding where
   rename rho e =

@@ -54,6 +54,7 @@ import qualified Agda.TypeChecking.Reduce as R
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common (Delayed(..))
+import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Info as SI
@@ -252,8 +253,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
     getVarAndField :: A.Expr -> File
     getVarAndField (A.Var x)            = bound x
-    getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (A.Assign x _) <- fs ]
-    getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (A.Assign x _) <- fs ]
+    getVarAndField (A.Rec       _ fs)   = mconcat [ field [] x | Left (FieldAssignment x _) <- fs ]
+    getVarAndField (A.RecUpdate _ _ fs) = mconcat [ field [] x |      (FieldAssignment x _) <- fs ]
     getVarAndField _                    = mempty
 
     -- Ulf, 2014-04-09: It would be nicer to have it on Named_ a, but

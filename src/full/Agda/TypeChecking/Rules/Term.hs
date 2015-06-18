@@ -32,6 +32,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
+import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, exprFieldA)
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -508,7 +509,7 @@ checkExtendedLambda i di qname cs e t = do
 expandModuleAssigns :: [Either A.Assign A.ModuleName] -> [C.Name] -> TCM A.Assigns
 expandModuleAssigns mfs exs = do
   let (fs , ms) = partitionEithers mfs
-      exs' = exs \\ map (view A.fieldAssign) fs
+      exs' = exs \\ map (view nameFieldA) fs
   fs' <- forM exs' $ \ f -> do
     pms <- forM ms $ \ m -> do
        modScope <- getNamedScope m
@@ -516,7 +517,7 @@ expandModuleAssigns mfs exs = do
            names = exportedNamesInScope modScope
        return $
         case Map.lookup f names of
-          Just [n] -> Just (m, A.Assign f (A.nameExpr n))
+          Just [n] -> Just (m, FieldAssignment f (A.nameExpr n))
           _        -> Nothing
 
     case catMaybes pms of
@@ -566,11 +567,11 @@ checkRecordExpression mfs e t = do
       let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
           missingExplicits = [ (unArg a, [unnamed . meta <$> a])
                              | a <- exs
-                             , unArg a `notElem` map (view A.fieldAssign) fs ]
+                             , unArg a `notElem` map (view nameFieldA) fs ]
       -- In es omitted explicit fields are replaced by underscores
       -- (from missingExplicits). Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | A.Assign x e <- fs ] ++
+      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | FieldAssignment x e <- fs ] ++
                                               missingExplicits)
       let tel = ftel `apply` vs
       args <- checkArguments_ ExpandLast (getRange e)
@@ -580,7 +581,7 @@ checkRecordExpression mfs e t = do
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con args
     MetaV _ _ -> do
-      let fields = [ x | Left (A.Assign x _) <- mfs ]
+      let fields = [ x | Left (FieldAssignment x _) <- mfs ]
       rs <- findPossibleRecords fields
       case rs of
           -- If there are no records with the right fields we might as well fail right away.
@@ -635,9 +636,9 @@ checkRecordUpdate ei recexpr fs e t = do
         axs <- getRecordFieldNames r
         scope <- getScope
         let xs = map unArg axs
-        es <- orderFields r Nothing xs $ map (\(A.Assign x e) -> (x, Just e)) fs
+        es <- orderFields r Nothing xs $ map (\ (FieldAssignment x e) -> (x, Just e)) fs
         let es' = zipWith (replaceFields name ei) projs es
-        checkExpr (A.Rec ei [ Left (A.Assign x e) | (x, Just e) <- zip xs es' ]) t
+        checkExpr (A.Rec ei [ Left (FieldAssignment x e) | (x, Just e) <- zip xs es' ]) t
     MetaV _ _ -> do
       inferred <- inferExpr recexpr >>= reduce . snd
       case ignoreSharing $ unEl inferred of

@@ -748,9 +748,9 @@ instance EmbPrj A.Name where
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = malformed
 
-instance EmbPrj A.Assign where
-  icod_ (A.Assign a b) = icode2' a b
-  value = vcase valu where valu [a, b] = valu2 A.Assign a b
+instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where
+  icod_ (C.FieldAssignment a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 C.FieldAssignment a b
                            valu _      = malformed
 
 instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where

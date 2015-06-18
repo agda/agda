@@ -48,6 +48,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
@@ -66,6 +67,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -350,7 +352,7 @@ reifyTerm expandAnonDefs0 v = do
           r  <- getConstructorData x
           xs <- getRecordFieldNames r
           vs <- map unArg <$> reifyIArgs vs
-          return $ A.Rec exprInfo $ map (Left . uncurry A.Assign . mapFst unArg) $ filter keep $ zip xs vs
+          return $ A.Rec exprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x vs $ do
           ci <- getConstInfo x
           let Constructor{conPars = np} = theDef ci
@@ -839,8 +841,8 @@ instance DotVars A.Expr where
     A.PatternSyn {}        -> Set.empty
     A.Macro {}             -> Set.empty
 
-instance DotVars A.Assign where
-  dotVars (A.Assign _ e) = dotVars e
+instance DotVars a => DotVars (FieldAssignment' a) where
+  dotVars a = dotVars (a ^. exprFieldA)
 
 instance DotVars A.ModuleName where
   dotVars _ = Set.empty
