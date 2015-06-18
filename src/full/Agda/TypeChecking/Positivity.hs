@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP,
              FlexibleContexts,
              FlexibleInstances,
+             TemplateHaskell,
              TupleSections,
              UndecidableInstances #-}
 
@@ -24,6 +25,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Debug.Trace
+
+import Test.QuickCheck
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -695,3 +698,55 @@ computeEdge muts o = do
         -- D: (A B -> C) generates a positive edge B --> A.1
         -- even though the context is negative.
         inArg d i = mkEdge (ArgNode d i) StrictPos
+
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+prop_Occurrence_oplus_associative ::
+  Occurrence -> Occurrence -> Occurrence -> Bool
+prop_Occurrence_oplus_associative x y z =
+  oplus x (oplus y z) == oplus (oplus x y) z
+
+prop_Occurrence_oplus_ozero :: Occurrence -> Bool
+prop_Occurrence_oplus_ozero x =
+  oplus ozero x == x
+
+prop_Occurrence_oplus_commutative :: Occurrence -> Occurrence -> Bool
+prop_Occurrence_oplus_commutative x y =
+  oplus x y == oplus y x
+
+prop_Occurrence_otimes_associative ::
+  Occurrence -> Occurrence -> Occurrence -> Bool
+prop_Occurrence_otimes_associative x y z =
+  otimes x (otimes y z) == otimes (otimes x y) z
+
+prop_Occurrence_otimes_oone :: Occurrence -> Bool
+prop_Occurrence_otimes_oone x =
+  otimes oone x == x
+    &&
+  otimes x oone == x
+
+prop_Occurrence_distributive ::
+  Occurrence -> Occurrence -> Occurrence -> Bool
+prop_Occurrence_distributive x y z =
+  otimes x (oplus y z) == oplus (otimes x y) (otimes x z)
+    &&
+  otimes (oplus x y) z == oplus (otimes x z) (otimes y z)
+
+prop_Occurrence_otimes_ozero :: Occurrence -> Bool
+prop_Occurrence_otimes_ozero x =
+  otimes ozero x == ozero
+    &&
+  otimes x ozero == ozero
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under GHC 7.8.
+return []
+
+-- | Tests.
+
+tests :: IO Bool
+tests = do
+  putStrLn "Agda.TypeChecking.Positivity"
+  $quickCheckAll

@@ -43,6 +43,8 @@ import Data.Foldable
 import Data.Traversable
 import Data.IORef
 
+import Test.QuickCheck (Arbitrary(..), CoArbitrary(..), elements)
+
 import Agda.Benchmarking (Benchmark)
 
 import Agda.Syntax.Concrete (TopLevelModuleName)
@@ -1062,9 +1064,18 @@ data Occurrence
   | StrictPos -- ^ Strictly positive occurrence.
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
   | Unused    --  ^ No occurrence.
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Show, Eq, Ord, Enum, Bounded)
 
 instance NFData Occurrence where rnf x = seq x ()
+
+instance Arbitrary Occurrence where
+  arbitrary = elements [minBound .. maxBound]
+
+  shrink Unused = []
+  shrink _      = [Unused]
+
+instance CoArbitrary Occurrence where
+  coarbitrary = coarbitrary . fromEnum
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
