@@ -126,19 +126,10 @@ install:
     esac
 
 ##############################################################################
-# Running `cabal build`
+# Running `cabal build`, `cabal copy` and `cabal register`
 
 # Note: `cabal build` sets up the number of jobs to $ncpus by default.
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
-
-  - case $TEST in
-      "latex-test" | "non-require-stdlib" | "require-stdlib")
-        cabal build -v2 --builddir=$BUILD_DIR
-        ;;
-    esac
-
-##############################################################################
-# Running `cabal copy` and `cabal register`.
 
 # We don't run `cabal install` because we are using `cabal configure` and
 # `cabal build` (see Section 'cabal install ≠ Setup install' from
@@ -146,6 +137,7 @@ install:
 
   - case $TEST in
       "latex-test" | "non-require-stdlib" | "require-stdlib")
+        cabal build -v2 --builddir=$BUILD_DIR
         cabal copy &&
         cabal register
         ;;
