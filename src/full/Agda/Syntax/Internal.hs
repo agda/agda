@@ -45,6 +45,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
+import Agda.Utils.Except ( Error(noMsg) )
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
@@ -332,6 +333,12 @@ instance Monoid Blocked_ where
   b@Blocked{}    `mappend` _              = b
   _              `mappend` b@Blocked{}    = b
   NotBlocked x _ `mappend` NotBlocked y _ = NotBlocked (x `mappend` y) ()
+
+-- See Issue 1573.
+#if !MIN_VERSION_transformers(0,4,1)
+instance Error Blocked_ where
+  noMsg = __IMPOSSIBLE__
+#endif
 
 -- | When trying to reduce @f es@, on match failed on one
 --   elimination @e ∈ es@ that came with info @r :: NotBlocked@.

@@ -162,7 +162,6 @@ data UnifyException
   | GenericUnifyException String
 
 instance Error UnifyException where
-  noMsg  = strMsg ""
   strMsg = GenericUnifyException
 
 data UnifyState = USt
