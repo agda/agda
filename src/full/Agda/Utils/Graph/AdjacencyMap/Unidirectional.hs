@@ -47,6 +47,12 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , unzip
   , sccs'
   , sccs
+  , DAG(..)
+  , dagInvariant
+  , oppositeDAG
+  , reachable
+  , sccDAG'
+  , sccDAG
   , acyclic
   , composeWith
   , complete
@@ -62,6 +68,9 @@ import Control.Applicative ((<$>))
 
 import Data.Function
 import qualified Data.Graph as Graph
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
+import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -69,6 +78,7 @@ import qualified Data.Maybe as Maybe
 import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import Data.Set (Set)
+import qualified Data.Tree as Tree
 
 import Agda.Utils.Function (iterateUntil, repeatWhile)
 import Agda.Utils.Functor (for)
@@ -77,6 +87,9 @@ import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
 import Agda.Utils.Tuple
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | @Graph s t e@ is a directed graph with
 --   source nodes in @s@
@@ -359,6 +372,128 @@ sccs' g =
 
 sccs :: Ord n => Graph n n e -> [[n]]
 sccs = map Graph.flattenSCC . sccs'
+
+-- | SCC DAGs.
+--
+-- The maps map SCC indices to and from SCCs/nodes.
+
+data DAG n = DAG
+  { dagGraph        :: Graph.Graph
+  , dagComponentMap :: IntMap (Graph.SCC n)
+  , dagNodeMap      :: Map n Int
+  }
+
+-- | 'DAG' invariant.
+
+dagInvariant :: Ord n => DAG n -> Bool
+dagInvariant g =
+  Set.fromList (concatMap Graph.flattenSCC
+                          (IntMap.elems (dagComponentMap g)))
+    ==
+  Map.keysSet (dagNodeMap g)
+    &&
+  IntSet.fromList (Map.elems (dagNodeMap g))
+    ==
+  IntMap.keysSet (dagComponentMap g)
+    &&
+  and [ n `elem` Graph.flattenSCC
+                   (dagComponentMap g IntMap.! (dagNodeMap g Map.! n))
+      | n <- Map.keys (dagNodeMap g)
+      ]
+    &&
+  and [ dagNodeMap g Map.! n == i
+      | i <- Graph.vertices (dagGraph g)
+      , n <- Graph.flattenSCC (dagComponentMap g IntMap.! i)
+      ]
+    &&
+  IntSet.fromList (Graph.vertices (dagGraph g))
+    ==
+  IntMap.keysSet (dagComponentMap g)
+    &&
+  all isAcyclic (Graph.scc (dagGraph g))
+  where
+  isAcyclic (Tree.Node r []) = not (r `elem` (dagGraph g Array.! r))
+  isAcyclic _                = False
+
+-- | The opposite DAG.
+
+oppositeDAG :: DAG n -> DAG n
+oppositeDAG g = g { dagGraph = Graph.transposeG (dagGraph g) }
+
+-- | The nodes reachable from the given SCC.
+
+reachable :: Ord n => DAG n -> Graph.SCC n -> [n]
+reachable g scc = case scc of
+  Graph.AcyclicSCC n      -> List.delete n (reachable' n)
+  Graph.CyclicSCC (n : _) -> reachable' n
+  Graph.CyclicSCC []      -> __IMPOSSIBLE__
+  where
+  lookup' g k = case IntMap.lookup k g of
+    Nothing -> __IMPOSSIBLE__
+    Just x  -> x
+
+  lookup'' g k = case Map.lookup k g of
+    Nothing -> __IMPOSSIBLE__
+    Just x  -> x
+
+  reachable' n =
+    concatMap (Graph.flattenSCC . lookup' (dagComponentMap g)) $
+    Graph.reachable (dagGraph g) (lookup'' (dagNodeMap g) n)
+
+-- | Constructs a DAG containing the graph's strongly connected
+-- components.
+
+sccDAG' ::
+  forall n e. Ord n
+  => Graph n n e
+  -> [Graph.SCC n]
+     -- ^ The graph's strongly connected components.
+  -> DAG n
+sccDAG' g sccs = DAG theDAG componentMap secondNodeMap
+  where
+  components :: [(Int, Graph.SCC n)]
+  components = zip [1..] sccs
+
+  firstNodeMap :: Map n Int
+  firstNodeMap = Map.fromList
+    [ (n, i)
+    | (i, c) <- components
+    , n      <- Graph.flattenSCC c
+    ]
+
+  targets :: Int -> [n] -> [Int]
+  targets i ns =
+    IntSet.toList $ IntSet.fromList
+      [ j
+      | e <- edgesFrom g ns
+      , let j = case Map.lookup (target e) firstNodeMap of
+                  Nothing -> __IMPOSSIBLE__
+                  Just j  -> j
+      , j /= i
+      ]
+
+  (theDAG, _, toVertex) =
+    Graph.graphFromEdges
+      [ (i, i, targets i (Graph.flattenSCC c))
+      | (i, c) <- components
+      ]
+
+  convertInt :: Int -> Graph.Vertex
+  convertInt i = case toVertex i of
+    Nothing -> __IMPOSSIBLE__
+    Just i  -> i
+
+  componentMap :: IntMap (Graph.SCC n)
+  componentMap = IntMap.fromList (map (mapFst convertInt) components)
+
+  secondNodeMap :: Map n Int
+  secondNodeMap = fmap convertInt firstNodeMap
+
+-- | Constructs a DAG containing the graph's strongly connected
+-- components.
+
+sccDAG :: Ord n => Graph n n e -> DAG n
+sccDAG g = sccDAG' g (sccs' g)
 
 -- | Returns @True@ iff the graph is acyclic.
 

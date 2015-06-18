@@ -189,6 +189,18 @@ prop_sccs' g =
            , k `elem` ns
            ]
 
+prop_sccDAG :: G -> Bool
+prop_sccDAG g =
+  dagInvariant dag
+    &&
+  nodes g == Map.keysSet (dagNodeMap dag)
+  where
+  dag = sccDAG g
+
+prop_oppositeDAG :: G -> Bool
+prop_oppositeDAG g =
+  dagInvariant (oppositeDAG (sccDAG g))
+
 -- | Computes the transitive closure of the graph.
 --
 -- Note that this algorithm is not guaranteed to be correct (or
