@@ -406,23 +406,6 @@ complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
       comb (new, _) (_, old) = (if x == old then Null.empty else x, x)
         where x = old `oplus` new
 
--- -- | Transitive closure ported from "Agda.Termination.CallGraph".
--- complete :: (Eq e, Null e, SemiRing e, Ord n) => Graph n n e -> Graph n n e
--- complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
---   where
---     combineNewOld' new old = unzip $ unionWith comb new' old'
---       where
---       new' = (,Null.empty) <$> composeWith otimes oplus new old
---       old' = (Null.empty,) <$> old
---       comb (new1,old1) (new2,old2)  -- TODO: ensure old1 is null
---         = mapFst (new2 `oplus`) $ combineNewOld'' new1 old2
---       combineNewOld'' new old = (new', old')
---         where
---           -- update old
---           old' = old `oplus` new
---           -- if no change, then nothing new
---           new' = if old' == old then Null.empty else old'
-
 -- | Computes the transitive closure of the graph.
 --
 -- Note that this algorithm is not guaranteed to be correct (or

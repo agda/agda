@@ -176,7 +176,6 @@ prop_transitiveClosure g = QuickCheck.label sccInfo $
 (~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
 (~~) = (==) `on` clean
 
--- prop_complete :: (Null e, Eq e, SemiRing e, Ord n) => Graph n n e -> Property
 prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
