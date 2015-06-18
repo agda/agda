@@ -27,6 +27,9 @@ import qualified Data.Set as Set
 
 import Test.QuickCheck.All
 
+import Agda.TypeChecking.Monad.Base (Occurrence(..))
+import Agda.TypeChecking.Positivity () -- For an orphan instance.
+
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
@@ -77,11 +80,15 @@ edgeIn :: (Ord n, Arbitrary n, Arbitrary e) =>
           Graph n n e -> Gen (Edge n n e)
 edgeIn g = elementsUnlessEmpty (edges g)
 
--- | Sample graph type used to test 'transitiveClosure' and 'transitiveClosure1'.
+-- | Sample graph type used to test some graph algorithms.
 
 type G = Graph N N E
 
--- | Sample node type used to test 'transitiveClosure' and 'transitiveClosure1'.
+-- | Sample edge type used to test some graph algorithms.
+
+type E = Occurrence
+
+-- | Sample node type used to test some graph algorithms.
 
 newtype N = N (Positive Int)
   deriving (Arbitrary, Eq, Ord)
@@ -91,23 +98,6 @@ n = N . Positive
 
 instance Show N where
   show (N (Positive n)) = "n " ++ show n
-
--- | Sample edge type used to test 'transitiveClosure' and 'transitiveClosure1'.
-
-newtype E = E Bool
-  deriving (Arbitrary, CoArbitrary, Eq, Show)
-
-instance SemiRing E where
-  ozero              = E False
-  oone               = E True
-  oplus  (E x) (E y) = E (x || y)
-  otimes (E x) (E y) = E (x && y)
-
-instance StarSemiRing E where
-  ostar _ = E True
-
-instance Null E where
-  empty = E False -- neutral for oplus
 
 ------------------------------------------------------------------------
 -- * Graph properties
@@ -279,23 +269,23 @@ tc = transitiveClosure
 
 g1, g2, g3, g4 :: Graph N N E
 g1 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,E False)])
-  , (n 2, Map.fromList [(n 1,E False)])
+  [ (n 1, Map.fromList [(n 2,Unused)])
+  , (n 2, Map.fromList [(n 1,Unused)])
   ]
 
 g2 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,E True)])
-  , (n 2, Map.fromList [(n 1,E True)])
+  [ (n 1, Map.fromList [(n 2,StrictPos)])
+  , (n 2, Map.fromList [(n 1,StrictPos)])
   ]
 
 g3 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,E True)])
+  [ (n 1, Map.fromList [(n 2,StrictPos)])
   , (n 2, Map.fromList [])
-  , (n 4, Map.fromList [(n 1,E True)])
+  , (n 4, Map.fromList [(n 1,StrictPos)])
   ]
 
 g4 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 6,E False)])
-  , (n 6, Map.fromList [(n 8,E True )])
-   ,(n 8, Map.fromList [(n 3,E False)])
+  [ (n 1, Map.fromList [(n 6,Unused)])
+  , (n 6, Map.fromList [(n 8,StrictPos)])
+   ,(n 8, Map.fromList [(n 3,Unused)])
   ]
