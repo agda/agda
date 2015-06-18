@@ -19,3 +19,5 @@ agda-lib-ffi:
 listings: Everything.agda
 	$(AGDA) -i. -isrc --html README.agda -v0
 
+clean :
+	find . -type f -name '*.agdai' -delete
