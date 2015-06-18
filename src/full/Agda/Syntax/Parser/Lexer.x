@@ -101,6 +101,7 @@ tokens :-
 <pragma_>   "NO_SMASHING"          { keyword KwNO_SMASHING }
 <pragma_>   "STATIC"               { keyword KwSTATIC }
 <pragma_>   "IMPORT"               { keyword KwIMPORT }
+<pragma_>   "IMPORT_UHC"           { keyword KwIMPORT_UHC }
 <pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }
 <pragma_>   "ETA"                  { keyword KwETA }
 <pragma_>   "NO_ETA"               { keyword KwNO_ETA }

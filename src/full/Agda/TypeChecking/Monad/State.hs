@@ -252,6 +252,14 @@ addHaskellImport i = stHaskellImports %= Set.insert i
 getHaskellImports :: TCM (Set String)
 getHaskellImports = use stHaskellImports
 
+-- | Tell the compiler to import the given Haskell module.
+addHaskellImportUHC :: String -> TCM ()
+addHaskellImportUHC i = stHaskellImportsUHC %= Set.insert i
+
+-- | Get the Haskell imports.
+getHaskellImportsUHC :: TCM (Set String)
+getHaskellImportsUHC = use stHaskellImportsUHC
+
 ---------------------------------------------------------------------------
 -- * Interaction output callback
 ---------------------------------------------------------------------------

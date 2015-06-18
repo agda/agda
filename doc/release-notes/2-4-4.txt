@@ -676,14 +676,19 @@ Compiler backends
 
   FFI
 
-  The UHC backend has a FFI to Haskell similar to MAlonzo's. It is currently
-  not possible to bring arbitrary Haskell modules into scope, it is thus
-  of limited usefulness outside of defining some very basic functionality
-  for Bools, Chars, etc. The target Haskell code also needs to be compilable
-  using UHC, which does not support the Haskell base library version 4.*.
+  The UHC backend has a FFI to Haskell similar to MAlonzo's.
+  The target Haskell code also needs to be compilable using UHC,
+  which does not support the Haskell base library version 4.*.
 
   FFI pragmas for the UHC backend are not checked in any way. If the pragmas
   are wrong, bad things will happen.
+
+  Imports
+  Additional Haskell modules can be brought into scope
+  with the IMPORT_UHC pragma:
+  {-# IMPORT_UHC Data.Char #-}
+  The Haskell modules UHC.Base and UHC.Agda.Builtins are always
+  in scope and don't need to be imported explicitly.
 
   Datatypes
   Agda datatypes can be bound to Haskell datatypes as follows:

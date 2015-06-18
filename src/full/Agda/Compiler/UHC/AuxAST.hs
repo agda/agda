@@ -32,6 +32,7 @@ data AMod
       { xmodName    :: ModuleName
       , xmodDataTys :: [ADataTy]
       , xmodFunDefs :: [Fun]
+      , xmodCrImports :: Set String -- ^ Imports of other Core/Haskell modules for the FFI. Includes transitive imports.
       }
 
 data ADataTy

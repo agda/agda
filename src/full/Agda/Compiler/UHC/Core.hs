@@ -13,6 +13,7 @@ module Agda.Compiler.UHC.Core
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe, catMaybes)
+import qualified Data.Set as Set
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
 #endif
@@ -72,10 +73,12 @@ toCore amod modInfo transModIface modImps = do
 
   let cMetaDeclL = buildCMetaDeclL (xmodDataTys amod)
 
-  let imps = [ mkHsName1 x | x <-
-        [ "UHC.Base"
-        , "UHC.Agda.Builtins"
-        ]] ++ map (mnmToCrNm . amiModule) modImps
+  let imps = map mkHsName1
+        ( Set.toList
+        $ Set.insert "UHC.Base"
+        $ Set.insert "UHC.Agda.Builtins"
+        $ xmodCrImports amod
+        ) ++ map (mnmToCrNm . amiModule) modImps
   let impsCr = map mkImport imps
       exps = getExports modInfo
       crModNm = mnmToCrNm $ xmodName amod

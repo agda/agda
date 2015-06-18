@@ -79,9 +79,12 @@ fromAgdaModule modNm curModImps transModIface defs cont = do
 
     funs <- evalFreshNameT "nl.uu.agda.from-agda" (catMaybes <$> mapM translateDefn defs)
 
+    -- additional core/HS imports for the FFI
+    additionalImports <- lift getHaskellImportsUHC
     let amod = AMod { xmodName = modNm
                   , xmodFunDefs = funs
                   , xmodDataTys = dats
+                  , xmodCrImports = additionalImports
                   }
     cont amod
     )

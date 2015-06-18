@@ -103,7 +103,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iHaskellImports i) (iPatternSyns i)
+    addImportedThings sig bi (iHaskellImports i) (iHaskellImportsUHC i) (iPatternSyns i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
@@ -114,11 +114,15 @@ mergeInterface i = do
             return (x, Prim $ pf { primFunName = q })
 
 addImportedThings ::
-  Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
-addImportedThings isig ibuiltin hsImports patsyns = do
+  Signature -> BuiltinThings PrimFun ->
+  Set String -> -- MAlonzo imoprts
+  Set String -> -- UHC backend imports
+  A.PatternSynDefns -> TCM ()
+addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns = do
   stImports %= \imp -> unionSignatures [imp, isig]
   stImportedBuiltins %= \imp -> Map.union imp ibuiltin
   stHaskellImports %= \imp -> Set.union imp hsImports
+  stHaskellImportsUHC %= \imp -> Set.union imp hsImportsUHC
   stPatternSynImports %= \imp -> Map.union imp patsyns
   addSignatureInstances isig
 
@@ -380,7 +384,7 @@ getInterface' x isMain = do
             -- things.
             sig <- getSignature
             patsyns <- getPatternSyns
-            addImportedThings sig Map.empty Set.empty patsyns
+            addImportedThings sig Map.empty Set.empty Set.empty patsyns
             setSignature emptySignature
             setPatternSyns Map.empty
 
@@ -419,7 +423,7 @@ getInterface' x isMain = do
                      setInteractionOutputCallback ho
                      stModuleToSource .= mf
                      setVisitedModules vs
-                     addImportedThings isig ibuiltin Set.empty ipatsyns
+                     addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns
 
                      r  <- withMsgs $ createInterface file x
                      mf <- use stModuleToSource
@@ -534,6 +538,7 @@ createInterface file mname =
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
     previousHsImports <- getHaskellImports
+    previousHsImportsUHC <- getHaskellImportsUHC
 
     -- Parsing.
     (pragmas, top) <- Bench.billTo [Bench.Parsing] $
@@ -612,7 +617,7 @@ createInterface file mname =
     -- Serialization.
     syntaxInfo <- use stSyntaxInfo
     i <- Bench.billTo [Bench.Serialization] $ do
-      buildInterface file topLevel syntaxInfo previousHsImports options
+      buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC options
 
     reportSLn "tc.top" 101 $ concat $
       "Signature:\n" :
@@ -667,11 +672,13 @@ buildInterface
   -> HighlightingInfo
      -- ^ Syntax highlighting info for the module.
   -> Set String
-     -- ^ Haskell modules imported in imported modules (transitively).
+     -- ^ MAlonzo: Haskell modules imported in imported modules (transitively).
+  -> Set String
+     -- ^ UHC backend: Haskell modules imported in imported modules (transitively).
   -> [OptionsPragma]
      -- ^ Options set in @OPTIONS@ pragmas.
   -> TCM Interface
-buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
+buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     let m = topLevelModuleName topLevel
     scope'  <- getScope
@@ -686,6 +693,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
+    uhcHsImps <- getHaskellImportsUHC
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
@@ -702,6 +710,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
       , iSignature       = sig
       , iBuiltin         = builtin'
       , iHaskellImports  = hsImps `Set.difference` previousHsImports
+      , iHaskellImportsUHC = uhcHsImps `Set.difference` previousHsImportsUHC
       , iHighlighting    = syntaxInfo
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns
