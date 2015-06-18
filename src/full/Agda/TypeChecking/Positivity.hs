@@ -232,6 +232,14 @@ instance SemiRing Occurrence where
   otimes _ GuardPos          = GuardPos
   otimes StrictPos StrictPos = StrictPos  -- neutral
 
+instance StarSemiRing Occurrence where
+  ostar Mixed     = Mixed
+  ostar JustNeg   = Mixed
+  ostar JustPos   = JustPos
+  ostar StrictPos = StrictPos
+  ostar GuardPos  = StrictPos
+  ostar Unused    = StrictPos
+
 instance Null Occurrence where
   empty = Unused
 
@@ -739,6 +747,12 @@ prop_Occurrence_otimes_ozero x =
   otimes ozero x == ozero
     &&
   otimes x ozero == ozero
+
+prop_Occurrence_ostar :: Occurrence -> Bool
+prop_Occurrence_ostar x =
+  ostar x == oplus oone (otimes x (ostar x))
+    &&
+  ostar x == oplus oone (otimes (ostar x) x)
 
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under GHC 7.8.

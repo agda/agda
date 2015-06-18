@@ -19,3 +19,13 @@ instance SemiRing a => SemiRing (Maybe a) where
   otimes Nothing _ = Nothing
   otimes _ Nothing = Nothing
   otimes (Just x) (Just y) = Just (otimes x y)
+
+-- | Star semirings
+-- (<https://en.wikipedia.org/wiki/Semiring#Star_semirings>).
+
+class SemiRing a => StarSemiRing a where
+  ostar :: a -> a
+
+instance StarSemiRing a => StarSemiRing (Maybe a) where
+  ostar Nothing  = oone
+  ostar (Just x) = Just (ostar x)

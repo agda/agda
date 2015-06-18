@@ -96,6 +96,9 @@ instance SemiRing E where
   oplus  (E x) (E y) = E (x || y)
   otimes (E x) (E y) = E (x && y)
 
+instance StarSemiRing E where
+  ostar _ = E True
+
 instance Null E where
   empty = E False -- neutral for oplus
 
