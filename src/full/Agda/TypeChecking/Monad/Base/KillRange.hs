@@ -42,6 +42,7 @@ instance KillRange NLPat where
   killRange (PVar x)   = killRange1 PVar x
   killRange (PWild)    = PWild
   killRange (PDef x y) = killRange2 PDef x y
+  killRange (PLam x y) = killRange2 PLam x y
   killRange (PTerm x)  = killRange1 PTerm x
 
 instance KillRange RewriteRule where

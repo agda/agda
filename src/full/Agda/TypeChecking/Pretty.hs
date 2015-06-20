@@ -359,6 +359,7 @@ instance PrettyTCM NLPat where
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
+  prettyTCM (PLam i u)  = text "λ" <+> prettyTCM (unAbs u)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
 instance PrettyTCM RewriteRule where

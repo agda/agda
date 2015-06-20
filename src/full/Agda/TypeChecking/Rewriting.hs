@@ -198,7 +198,7 @@ addRewriteRule q = inTopContext $ do
       -- Normalize rhs: might be more efficient.
       rhs <- etaContract =<< normalise rhs
       unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
-      pat <- patternFrom lhs
+      pat <- patternFrom 0 lhs
       let rew = RewriteRule q gamma pat rhs b
       reportSDoc "rewriting" 10 $ addContext gamma $
         text "considering rewrite rule " <+> prettyTCM rew
@@ -341,6 +341,7 @@ instance NLPatVars NLPat where
       PVar i    -> singleton i
       PDef _ es -> nlPatVars es
       PWild     -> empty
+      PLam _ p' -> nlPatVars $ unAbs p'
       PTerm{}   -> empty
 
 rewArity :: RewriteRule -> Int

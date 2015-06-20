@@ -728,6 +728,14 @@ instance Subst Pattern where
     LitP l       -> p
     ProjP _      -> p
 
+instance Subst NLPat where
+  applySubst rho p = case p of
+    PVar i -> p
+    PWild  -> p
+    PDef f es -> PDef f $ applySubst rho es
+    PLam i u -> PLam i $ applySubst rho u
+    PTerm u -> PTerm $ applySubst rho u
+
 instance Subst t => Subst (Blocked t) where
   applySubst rho b = fmap (applySubst rho) b
 
