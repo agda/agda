@@ -53,6 +53,7 @@ import Data.Foldable ( Foldable, foldMap )
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.List as List
+import Data.Monoid
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -303,27 +304,27 @@ rewrite bv = do
       where hd es = Con c $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
     _ -> return $ Left bv
   where
-    block = void bv
     -- Try all rewrite rules for f.
     rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Either (Blocked Term) Term)
     rew f hd es = do
       rules <- defRewriteRules <$> getConstInfo f
       case rules of
-        [] -> return $ Left $ block $> hd es
+        [] -> return $ Left $ bv $> hd es
         _  -> do
           es <- etaContract =<< instantiateFull' es
-          loop es rules
+          loop (void bv) es rules
       where
-      loop es [] = return $ Left $ block $> hd es
-      loop es (rew:rews)
+      loop :: Blocked_ -> Elims -> [RewriteRule] -> ReduceM (Either (Blocked Term) Term)
+      loop block es [] = return $ Left $ block $> hd es
+      loop block es (rew:rews)
        | let n = rewArity rew, length es >= n = do
            let (es1, es2) = List.genericSplitAt n es
            result <- rewriteWith Nothing (hd es1) rew
            case result of
-             Left (Blocked m u)    -> return $ Left $ block *> Blocked m (hd es)
-             Left (NotBlocked _ _) -> loop es rews
+             Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) es rews
+             Left (NotBlocked _ _) -> loop block es rews
              Right w               -> return $ Right $ w `applyE` es2
-       | otherwise = return $ Left $ block *> NotBlocked Underapplied (hd es)
+       | otherwise = loop (block `mappend` NotBlocked Underapplied ()) es rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
