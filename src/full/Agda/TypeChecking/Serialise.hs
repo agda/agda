@@ -1099,11 +1099,13 @@ instance EmbPrj NLPat where
   icod_ (PVar a)   = icode1 0 a
   icod_ (PWild)    = icode0 1
   icod_ (PDef a b) = icode2 2 a b
-  icod_ (PTerm a)  = icode1 3 a
+  icod_ (PLam a b) = icode2 3 a b
+  icod_ (PTerm a)  = icode1 4 a
   value = vcase valu where valu [0, a]    = valu1 PVar a
                            valu [1]       = valu0 PWild
                            valu [2, a, b] = valu2 PDef a b
-                           valu [3, a]    = valu1 PTerm a
+                           valu [3, a, b] = valu2 PLam a b
+                           valu [4, a]    = valu1 PTerm a
                            valu _         = malformed
 
 instance EmbPrj RewriteRule where

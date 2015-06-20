@@ -991,6 +991,8 @@ data NLPat
     -- ^ Matches anything (e.g. irrelevant terms).
   | PDef QName PElims
     -- ^ Matches @f es@
+  | PLam ArgInfo (Abs NLPat)
+    -- ^ Matches @λ x → t@
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
   deriving (Typeable, Show)

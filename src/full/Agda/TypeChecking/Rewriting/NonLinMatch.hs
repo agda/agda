@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -22,7 +23,7 @@ we seek a substitution Γ ⊢ σ : Δ such that
 
 module Agda.TypeChecking.Rewriting.NonLinMatch where
 
-import Prelude hiding (sequence)
+import Prelude hiding (null, sequence)
 
 import Control.Monad.Trans.Maybe
 import Control.Monad.Writer hiding (forM, sequence)
@@ -35,11 +36,15 @@ import Data.Functor
 import Data.Traversable hiding (for)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common (unArg)
+import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -51,6 +56,7 @@ import Agda.Utils.Except
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Singleton
 
 #include "undefined.h"
@@ -84,24 +90,33 @@ import Agda.Utils.Impossible
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
+--   The first argument is the number of bound variables.
 
 class PatternFrom a b where
-  patternFrom :: a -> TCM b
+  patternFrom :: Int -> a -> TCM b
 
-instance (Traversable f, PatternFrom a b) => PatternFrom (f a) (f b) where
-  patternFrom = traverse patternFrom
+instance (PatternFrom a b) => PatternFrom [a] [b] where
+  patternFrom k = traverse $ patternFrom k
+
+instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
+  patternFrom k = traverse $ patternFrom k
+
+instance (PatternFrom a b) => PatternFrom (Elim' a) (Elim' b) where
+  patternFrom k = traverse $ patternFrom k
 
 instance PatternFrom Term NLPat where
-  patternFrom v = do
+  patternFrom k v = do
     v <- etaContract =<< reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
-      Var i [] -> return $ PVar i
+      Var i []
+       | i < k     -> done                 -- bound variable
+       | otherwise -> return $ PVar (i-k)  -- free variable
       Var{}    -> done
-      Lam{}    -> done
+      Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
-      Def f es -> PDef f <$> patternFrom es
-      Con c vs -> PDef (conName c) <$> patternFrom (Apply <$> vs)
+      Def f es -> PDef f <$> patternFrom k es
+      Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
       Pi{}     -> done
       Sort{}   -> done
       Level{}  -> return PWild   -- TODO: unLevel and continue
@@ -110,6 +125,9 @@ instance PatternFrom Term NLPat where
       Shared{}   -> __IMPOSSIBLE__
       ExtLam{}   -> __IMPOSSIBLE__
 
+instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
+  patternFrom k (Abs n x)   = Abs n   <$> patternFrom (k+1) x
+  patternFrom k (NoAbs n x) = NoAbs n <$> patternFrom k x
 
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (WriterT NLMOut ReduceM)
@@ -145,10 +163,13 @@ matchingBlocked = throwError
 tellSubst :: Int -> Term -> NLM ()
 tellSubst i v = tell (singleton (i, v), mempty)
 
-tellEq :: Term -> Term -> NLM ()
-tellEq u v = traceSDocNLM "rewriting" 60 (sep
+tellEq :: Int -> Term -> Term -> NLM ()
+tellEq k u v =
+  traceSDocNLM "rewriting" 60 (sep
                [ text "adding equality between" <+> prettyTCM u
-               , text " and " <+> prettyTCM v]) $ tell (mempty, singleton $ PostponedEquation u v)
+               , text " and " <+> prettyTCM v
+               , text ("(with " ++ show k ++ " free variables)") ]) $ do
+  tell (mempty, singleton $ PostponedEquation k u v)
 
 -- | Non-linear matching returns first an ambiguous substitution,
 --   mapping one de Bruijn index to possibly several terms.
@@ -168,8 +189,9 @@ instance Singleton (Int,Term) AmbSubst where
 --   which we have to verify after applying
 --   the substitution computed by matching.
 data PostponedEquation = PostponedEquation
-  { eqLhs :: Term  -- ^ Term from pattern, living in pattern context.
-  , eqRhs :: Term  -- ^ Term from scrutinee, living in context where matching was invoked.
+  { eqFreeVars :: Int -- ^ Number of free variables in the equation
+  , eqLhs :: Term     -- ^ Term from pattern, living in pattern context.
+  , eqRhs :: Term     -- ^ Term from scrutinee, living in context where matching was invoked.
   }
 type PostponedEquations = [PostponedEquation]
 
@@ -177,22 +199,22 @@ type PostponedEquations = [PostponedEquation]
 --   returning a substitution.
 
 class AmbMatch a b where
-  ambMatch :: a -> b -> NLM ()
+  ambMatch :: Int -> a -> b -> NLM ()
 
 instance AmbMatch a b => AmbMatch [a] [b] where
-  ambMatch ps vs
-    | length ps == length vs = zipWithM_ ambMatch ps vs
+  ambMatch k ps vs
+    | length ps == length vs = zipWithM_ (ambMatch k) ps vs
     | length ps >  length vs = do
         matchingBlocked $ NotBlocked (Underapplied) ()
     | otherwise              = __IMPOSSIBLE__
 
 instance AmbMatch a b => AmbMatch (Arg a) (Arg b) where
-  ambMatch p v = ambMatch (unArg p) (unArg v)
+  ambMatch k p v = ambMatch k (unArg p) (unArg v)
 
 instance AmbMatch a b => AmbMatch (Elim' a) (Elim' b) where
-  ambMatch p v =
+  ambMatch k p v =
    case (p, v) of
-     (Apply p, Apply v) -> ambMatch p v
+     (Apply p, Apply v) -> ambMatch k p v
      (Proj x , Proj y ) -> if x == y then return () else
                              traceSDocNLM "rewriting" 100 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
@@ -200,8 +222,18 @@ instance AmbMatch a b => AmbMatch (Elim' a) (Elim' b) where
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
 
+instance (AmbMatch a b, Subst b, Free b, PrettyTCM a, PrettyTCM b) => AmbMatch (Abs a) (Abs b) where
+  ambMatch k (Abs _ p) (Abs _ v) = ambMatch (k+1) p v
+  ambMatch k (Abs _ p) (NoAbs _ v) = ambMatch (k+1) p (raise 1 v)
+  ambMatch k (NoAbs _ p) (Abs _ v) = if (0 `freeIn` v) then no else ambMatch k p (raise (-1) v)
+    where
+      no = traceSDocNLM "rewriting" 100 (sep
+        [ text "mismatch between" <+> prettyTCM p
+        , text " and " <+> prettyTCM v ]) mzero
+  ambMatch k (NoAbs _ p) (NoAbs _ v) = ambMatch k p v
+
 instance AmbMatch NLPat Term where
-  ambMatch p v = do
+  ambMatch k p v = do
     let yes = return ()
         no x y =
           traceSDocNLM "rewriting" 100 (sep
@@ -209,23 +241,31 @@ instance AmbMatch NLPat Term where
             , text " and " <+> prettyTCM y]) mzero
     case p of
       PWild  -> yes
-      PVar i -> tellSubst i v
+      PVar i -> if null (allFreeVars v `IntSet.intersection` IntSet.fromList [0..(k-1)])
+                then tellSubst i (raise (-k) v)
+                else no p v
       PDef f ps -> do
         v <- liftRed $ constructorForm v
         case ignoreSharing v of
           Def f' es
-            | f == f'   -> matchArgs ps es
+            | f == f'   -> matchArgs k ps es
             | otherwise -> no f f'
           Con c vs
-            | f == conName c -> matchArgs ps (Apply <$> vs)
+            | f == conName c -> matchArgs k ps (Apply <$> vs)
             | otherwise -> no f c
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           _ -> no p v
-      PTerm u -> tellEq u v
+      PLam i p' -> case ignoreSharing v of
+          Lam i' t -> if i == i' then ambMatch k p' t else no p v
+          f        -> do
+            let fx = Abs (absName p') $ raise 1 f `apply` [C.Arg i (var 0)]
+            fx <- liftRed (etaContract =<< reduce' fx)
+            ambMatch k p' fx
+      PTerm u -> tellEq k u v
     where
-      matchArgs :: [Elim' NLPat] -> Elims -> NLM ()
-      matchArgs ps es = ambMatch ps =<< liftRed (etaContract =<< reduce' es)
+      matchArgs :: Int -> [Elim' NLPat] -> Elims -> NLM ()
+      matchArgs k ps es = ambMatch k ps =<< liftRed (etaContract =<< reduce' es)
 
 makeSubstitution :: IntMap Term -> Substitution
 makeSubstitution sub
@@ -248,7 +288,7 @@ disambiguateSubstitution as = do
 
 checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM Bool
 checkPostponedEquations sub eqs = andM $ for eqs $
-  \ (PostponedEquation lhs rhs) -> equal (applySubst sub lhs) rhs
+  \ (PostponedEquation k lhs rhs) -> equal (applySubst (liftS k sub) lhs) rhs
 
 -- main function
 nonLinMatch :: (AmbMatch a b) => a -> b -> ReduceM (Either Blocked_ Substitution)
@@ -256,7 +296,7 @@ nonLinMatch p v = do
   let no msg b = traceSDoc "rewriting" 100 (sep
                    [ text "matching failed during" <+> text msg
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
-  caseEitherM (runNLM $ ambMatch p v) (no "ambiguous matching") $ \ (asub, eqs) -> do
+  caseEitherM (runNLM $ ambMatch 0 p v) (no "ambiguous matching") $ \ (asub, eqs) -> do
     sub <- disambiguateSubstitution asub
     traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ case sub of
       Nothing  -> no "disambiguation" $ NotBlocked ReallyNotBlocked ()
