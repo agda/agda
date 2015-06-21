@@ -110,10 +110,11 @@ instance PatternFrom Term NLPat where
     v <- etaContract =<< reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
-      Var i []
-       | i < k     -> done                 -- bound variable
-       | otherwise -> return $ PVar (i-k)  -- free variable
-      Var{}    -> done
+      Var i es
+       | i < k     -> PBoundVar i <$> patternFrom k es
+       | otherwise -> if null es
+                      then return $ PVar (i-k)
+                      else done
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
       Def f es -> PDef f <$> patternFrom k es
@@ -260,6 +261,9 @@ instance AmbMatch NLPat Term where
         let body = Abs (absName p') $ raise 1 v `apply` [C.Arg i (var 0)]
         body <- liftRed (etaContract =<< reduce' body)
         ambMatch k p' body
+      PBoundVar i ps -> case ignoreSharing v of
+        Var i' es | i == i' -> matchArgs k ps es
+        _ -> no
       PTerm u -> tellEq k u v
     where
       matchArgs :: Int -> [Elim' NLPat] -> Elims -> NLM ()
@@ -320,6 +324,7 @@ raisePatVars k (PVar x)    = PVar (k+x)
 raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
+raisePatVars k (PBoundVar i es) = PBoundVar k $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
 
 instance PrettyTCM NLPat where
@@ -328,6 +333,7 @@ instance PrettyTCM NLPat where
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
+  prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
 instance PrettyTCM (Elim' NLPat) where
