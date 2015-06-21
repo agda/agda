@@ -739,6 +739,7 @@ instance Subst NLPat where
     PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
+    PPi a b -> PPi (applySubst rho a) (applySubst rho b)
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applySubst rho u
 

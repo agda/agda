@@ -43,6 +43,7 @@ instance KillRange NLPat where
   killRange (PWild)    = PWild
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
+  killRange (PPi x y)  = killRange2 PPi x y
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
 

@@ -352,6 +352,7 @@ instance NLPatVars NLPat where
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
+      PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
       PBoundVar _ es -> nlPatVars es
       PTerm{}   -> empty
 
