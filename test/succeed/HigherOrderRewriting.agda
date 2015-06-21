@@ -55,6 +55,22 @@ module _ {A B : Set} where
     ap (λ z → a , z) p ≡ (refl ,= p)
   test₄ a _ = refl
 
+{- Function extensionality -}
+
+module _ {A B : Set} {f g : A → B} where
+
+  postulate
+    funext : ((x : A) → f x ≡ g x) → f ≡ g
+
+  postulate
+    ap-app-funext : (a : A) (h : (x : A) → f x ≡ g x) →
+      ap (λ f → f a) (funext h) ≡ h a
+  {-# REWRITE ap-app-funext #-}
+
+  test₅ : (a : A) (h : (x : A) → f x ≡ g x) →
+      ap (λ f → f a) (funext h) ≡ h a
+  test₅ a h = refl
+
 {- Dependent paths -}
 
 module _ where
@@ -67,5 +83,5 @@ module _ where
       (PathOver (λ _ → B) p u v) ≡ (u ≡ v)
   {-# REWRITE PathOver-triv #-}
 
-  test₅ : (p : 1 ≡ 1) → PathOver (λ _ → Nat) p 2 2
-  test₅ p = refl
+  test₆ : (p : 1 ≡ 1) → PathOver (λ _ → Nat) p 2 2
+  test₆ p = refl

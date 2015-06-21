@@ -993,6 +993,8 @@ data NLPat
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
     -- ^ Matches @λ x → t@
+  | PBoundVar {-# UNPACK #-} !Int PElims
+    -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
     -- ^ Matches the term modulo β (ideally βη).
   deriving (Typeable, Show)

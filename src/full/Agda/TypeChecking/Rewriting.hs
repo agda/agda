@@ -352,6 +352,7 @@ instance NLPatVars NLPat where
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
+      PBoundVar _ es -> nlPatVars es
       PTerm{}   -> empty
 
 rewArity :: RewriteRule -> Int
