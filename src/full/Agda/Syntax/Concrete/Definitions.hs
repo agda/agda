@@ -713,6 +713,7 @@ niceDeclarations ds = do
       fx <- getFixity x
       return $ [ NiceField (getRange d) fx PublicAccess ConcreteDef x argt ]
     niceAxiom d@(InstanceB r decls) = instanceBlock r =<< niceAxioms decls
+    niceAxiom d@(Pragma (RewritePragma r n)) = return $ [ NicePragma r (RewritePragma r n) ]
     niceAxiom d = throwError $ WrongContentPostulateBlock $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
