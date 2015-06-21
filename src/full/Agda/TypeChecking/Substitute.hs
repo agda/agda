@@ -684,7 +684,7 @@ instance Subst Term where
 instance Subst a => Subst (Ptr a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst Type where
+instance (Subst a) => Subst (Type' a) where
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
 instance Subst Sort where
