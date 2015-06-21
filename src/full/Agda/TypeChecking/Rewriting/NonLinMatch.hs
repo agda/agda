@@ -27,7 +27,7 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 import Prelude hiding (null, sequence)
 
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer hiding (forM, sequence)
+import Control.Monad.Writer hiding ((<>), forM, sequence)
 
 import Debug.Trace
 import System.IO.Unsafe
@@ -316,3 +316,22 @@ equal u v = do
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
       ]) $ return False
+
+raisePatVars :: Int -> NLPat -> NLPat
+raisePatVars k (PVar x)    = PVar (k+x)
+raisePatVars k (PWild)     = PWild
+raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
+raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
+raisePatVars k (PTerm t)   = PTerm t
+
+instance PrettyTCM NLPat where
+  prettyTCM (PVar x)    = prettyTCM (var x)
+  prettyTCM (PWild)     = text $ "_"
+  prettyTCM (PDef f es) = parens $
+    prettyTCM f <+> fsep (map prettyTCM es)
+  prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
+  prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
+
+instance PrettyTCM (Elim' NLPat) where
+  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
+  prettyTCM (Proj f)  = text "." <> prettyTCM f

@@ -348,3 +348,12 @@ rewArity :: RewriteRule -> Int
 rewArity rew = case rewLHS rew of
   PDef _f es -> length es
   _          -> __IMPOSSIBLE__
+
+instance PrettyTCM RewriteRule where
+  prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
+    prettyTCM q <+> text " rule " <+> do
+      prettyTCM gamma <+> text " |- " <+> do
+        addContext gamma $ do
+          prettyTCM lhs <+> text " --> " <+> do
+            prettyTCM rhs <+> text " : " <+> do
+              prettyTCM b
