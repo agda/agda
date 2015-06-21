@@ -235,33 +235,31 @@ instance (AmbMatch a b, Subst b, Free b, PrettyTCM a, PrettyTCM b) => AmbMatch (
 instance AmbMatch NLPat Term where
   ambMatch k p v = do
     let yes = return ()
-        no x y =
+        no  =
           traceSDocNLM "rewriting" 100 (sep
-            [ text "mismatch between" <+> prettyTCM x
-            , text " and " <+> prettyTCM y]) mzero
+            [ text "mismatch between" <+> prettyTCM p
+            , text " and " <+> prettyTCM v]) mzero
     case p of
       PWild  -> yes
       PVar i -> if null (allFreeVars v `IntSet.intersection` IntSet.fromList [0..(k-1)])
                 then tellSubst i (raise (-k) v)
-                else no p v
+                else no
       PDef f ps -> do
         v <- liftRed $ constructorForm v
         case ignoreSharing v of
           Def f' es
             | f == f'   -> matchArgs k ps es
-            | otherwise -> no f f'
+            | otherwise -> no
           Con c vs
             | f == conName c -> matchArgs k ps (Apply <$> vs)
-            | otherwise -> no f c
+            | otherwise -> no
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
-          _ -> no p v
-      PLam i p' -> case ignoreSharing v of
-          Lam i' t -> if i == i' then ambMatch k p' t else no p v
-          f        -> do
-            let fx = Abs (absName p') $ raise 1 f `apply` [C.Arg i (var 0)]
-            fx <- liftRed (etaContract =<< reduce' fx)
-            ambMatch k p' fx
+          _ -> no
+      PLam i p' -> do
+        let body = Abs (absName p') $ raise 1 v `apply` [C.Arg i (var 0)]
+        body <- liftRed (etaContract =<< reduce' body)
+        ambMatch k p' body
       PTerm u -> tellEq k u v
     where
       matchArgs :: Int -> [Elim' NLPat] -> Elims -> NLM ()
