@@ -55,6 +55,10 @@ module _ {A B : Set} where
     ap (λ z → a , z) p ≡ (refl ,= p)
   test₄ a _ = refl
 
+ap-idf : {A : Set} {x y : A} (p : x ≡ y) → ap (λ x → x) p ≡ p
+ap-idf refl = refl
+{-# REWRITE ap-idf #-}
+
 {- Function extensionality -}
 
 module _ {A B : Set} {f g : A → B} where
