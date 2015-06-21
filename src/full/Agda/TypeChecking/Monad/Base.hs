@@ -1040,6 +1040,8 @@ data NLPat
     -- ^ Matches @f es@
   | PLam ArgInfo (Abs NLPat)
     -- ^ Matches @λ x → t@
+  | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
+    -- ^ Matches @(x : A) → B@
   | PBoundVar {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term

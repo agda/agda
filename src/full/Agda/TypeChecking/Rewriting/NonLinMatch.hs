@@ -105,6 +105,12 @@ instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
 instance (PatternFrom a b) => PatternFrom (Elim' a) (Elim' b) where
   patternFrom k = traverse $ patternFrom k
 
+instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
+  patternFrom k = traverse $ patternFrom k
+
+instance (PatternFrom a b) => PatternFrom (Type' a) (Type' b) where
+  patternFrom k = traverse $ patternFrom k
+
 instance PatternFrom Term NLPat where
   patternFrom k v = do
     v <- etaContract =<< reduce v
@@ -119,7 +125,7 @@ instance PatternFrom Term NLPat where
       Lit{}    -> done
       Def f es -> PDef f <$> patternFrom k es
       Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
-      Pi{}     -> done
+      Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
       Sort{}   -> done
       Level{}  -> return PWild   -- TODO: unLevel and continue
       DontCare{} -> return PWild
@@ -223,6 +229,12 @@ instance AmbMatch a b => AmbMatch (Elim' a) (Elim' b) where
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
 
+instance AmbMatch a b => AmbMatch (Dom a) (Dom b) where
+  ambMatch k p v = ambMatch k (C.unDom p) (C.unDom v)
+
+instance AmbMatch a b => AmbMatch (Type' a) (Type' b) where
+  ambMatch k p v = ambMatch k (unEl p) (unEl v)
+
 instance (AmbMatch a b, Subst b, Free b, PrettyTCM a, PrettyTCM b) => AmbMatch (Abs a) (Abs b) where
   ambMatch k (Abs _ p) (Abs _ v) = ambMatch (k+1) p v
   ambMatch k (Abs _ p) (NoAbs _ v) = ambMatch (k+1) p (raise 1 v)
@@ -261,6 +273,9 @@ instance AmbMatch NLPat Term where
         let body = Abs (absName p') $ raise 1 v `apply` [C.Arg i (var 0)]
         body <- liftRed (etaContract =<< reduce' body)
         ambMatch k p' body
+      PPi pa pb  -> case ignoreSharing v of
+        Pi a b -> ambMatch k pa a >> ambMatch k pb b
+        _ -> no
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> matchArgs k ps es
         _ -> no
@@ -324,6 +339,7 @@ raisePatVars k (PVar x)    = PVar (k+x)
 raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
+raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
 raisePatVars k (PBoundVar i es) = PBoundVar k $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
 
@@ -333,9 +349,14 @@ instance PrettyTCM NLPat where
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
+  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (C.unDom a) <+>
+                          (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
   prettyTCM (Proj f)  = text "." <> prettyTCM f
+
+instance PrettyTCM (Type' NLPat) where
+  prettyTCM = prettyTCM . unEl
