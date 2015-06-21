@@ -1042,7 +1042,7 @@ instance KillRange LevelAtom where
   killRange (NeutralLevel r v) = killRange1 (NeutralLevel r) v
   killRange (UnreducedLevel v) = killRange1 UnreducedLevel v
 
-instance KillRange Type where
+instance (KillRange a) => KillRange (Type' a) where
   killRange (El s v) = killRange2 El s v
 
 instance KillRange Sort where

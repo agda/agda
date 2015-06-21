@@ -929,7 +929,7 @@ instance InstantiateFull Sort where
             Inf        -> return s
             SizeUniv   -> return s
 
-instance InstantiateFull Type where
+instance (InstantiateFull a) => InstantiateFull (Type' a) where
     instantiateFull' (El s t) =
       El <$> instantiateFull' s <*> instantiateFull' t
 

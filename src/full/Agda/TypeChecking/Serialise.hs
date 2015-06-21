@@ -1015,7 +1015,7 @@ instance EmbPrj I.ConHead where
   value = vcase valu where valu [a, b, c] = valu3 ConHead a b c
                            valu _         = malformed
 
-instance EmbPrj I.Type where
+instance (EmbPrj a) => EmbPrj (I.Type' a) where
   icod_ (El a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 El a b
                            valu _      = malformed
