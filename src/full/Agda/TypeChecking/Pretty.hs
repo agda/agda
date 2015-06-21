@@ -349,27 +349,6 @@ instance PrettyTCM (Elim' DisplayTerm) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
   prettyTCM (Proj f)  = text "." <> prettyTCM f
 
-instance PrettyTCM (Elim' NLPat) where
-  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
-  prettyTCM (Proj f)  = text "." <> prettyTCM f
-
-instance PrettyTCM NLPat where
-  prettyTCM (PVar x)    = prettyTCM (var x)
-  prettyTCM (PWild)     = text $ "_"
-  prettyTCM (PDef f es) = parens $
-    prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = text "λ" <+> prettyTCM (unAbs u)
-  prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
-
-instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
-    prettyTCM q <+> text " rule " <+> do
-      prettyTCM gamma <+> text " |- " <+> do
-        addContext gamma $ do
-          prettyTCM lhs <+> text " --> " <+> do
-            prettyTCM rhs <+> text " : " <+> do
-              prettyTCM b
-
 instance PrettyTCM Occurrence where
   prettyTCM GuardPos  = text "-[g+]->"
   prettyTCM StrictPos = text "-[++]->"
