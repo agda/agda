@@ -173,9 +173,7 @@ class Match a b where
 instance Match a b => Match [a] [b] where
   match k ps vs
     | length ps == length vs = zipWithM_ (match k) ps vs
-    | length ps >  length vs = do
-        matchingBlocked $ NotBlocked (Underapplied) ()
-    | otherwise              = __IMPOSSIBLE__
+    | otherwise              = matchingBlocked $ NotBlocked ReallyNotBlocked ()
 
 instance Match a b => Match (Arg a) (Arg b) where
   match k p v = match k (unArg p) (unArg v)
