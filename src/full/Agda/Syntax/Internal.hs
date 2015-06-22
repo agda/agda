@@ -277,7 +277,7 @@ newtype MetaId = MetaId { metaId :: Nat }
 --   for another reason.
 data NotBlocked
   = StuckOn Elim
-    -- ^ The 'Elim' is neutral and block a pattern match.
+    -- ^ The 'Elim' is neutral and blocks a pattern match.
   | Underapplied
     -- ^ Not enough arguments were supplied to complete the matching.
   | AbsurdMatch
