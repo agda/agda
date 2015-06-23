@@ -1,5 +1,6 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
+             DeriveGeneric,
              FlexibleContexts,
              FlexibleInstances,
              TemplateHaskell,
@@ -25,6 +26,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Debug.Trace
+
+import GHC.Generics (Generic)
 
 import Test.QuickCheck
 
@@ -256,7 +259,7 @@ data OccursWhere
   | InDefOf QName OccursWhere    -- ^ in the definition of a constant
   | Here
   | Unknown                      -- ^ an unknown position (treated as negative)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 (>*<) :: OccursWhere -> OccursWhere -> OccursWhere
 Here            >*< o  = o
@@ -617,7 +620,7 @@ instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
 
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
-  deriving (Show)
+  deriving (Show, Generic)
 
 instance Null Edge where
   null (Edge o _) = null o
@@ -707,8 +710,45 @@ computeEdge muts o = do
         inArg d i = mkEdge (ArgNode d i) StrictPos
 
 ------------------------------------------------------------------------
--- * All tests
+-- * Generators and tests
 ------------------------------------------------------------------------
+
+instance Arbitrary OccursWhere where
+  arbitrary = sized arbitraryS
+    where
+    arbitraryS n = oneof $
+      [ return Here
+      , return Unknown
+      ] ++
+      if n <= 0 then [] else
+        [ LeftOfArrow <$> arb
+        , DefArg <$> arbitrary <*> arbitrary <*> arb
+        , UnderInf <$> arb
+        , VarArg <$> arb
+        , MetaArg <$> arb
+        , ConArgType <$> arbitrary <*> arb
+        , IndArgType <$> arbitrary <*> arb
+        , InClause <$> arbitrary <*> arb
+        , Matched <$> arb
+        , InDefOf <$> arbitrary <*> arb
+        ]
+      where arb = arbitraryS (n - 1)
+
+  shrink x = replaceConstructor x ++ genericShrink x
+    where
+    replaceConstructor Here    = []
+    replaceConstructor Unknown = []
+    replaceConstructor _       = [Here, Unknown]
+
+instance CoArbitrary OccursWhere
+
+instance Arbitrary Edge where
+  arbitrary = Edge <$> arbitrary <*> arbitrary
+
+  shrink (Edge o w) = [ Edge o w | o <- shrink o ] ++
+                      [ Edge o w | w <- shrink w ]
+
+instance CoArbitrary Edge
 
 prop_Occurrence_oplus_associative ::
   Occurrence -> Occurrence -> Occurrence -> Bool
@@ -752,6 +792,13 @@ prop_Occurrence_ostar x =
   ostar x == oplus oone (otimes x (ostar x))
     &&
   ostar x == oplus oone (otimes (ostar x) x)
+
+-- | The 'oplus' method for 'Occurrence' matches that for 'Edge'.
+
+prop_oplus_Occurrence_Edge :: Edge -> Edge -> Bool
+prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
+  case oplus e1 e2 of
+    Edge o _ -> o == oplus o1 o2
 
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under GHC 7.8.
