@@ -99,6 +99,9 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 defaultFixity' :: Fixity'
 defaultFixity' = Fixity' defaultFixity defaultNotation
 
+noFixity' :: Fixity'
+noFixity' = Fixity' noFixity noNotation
+
 -- | Merges all 'NewNotation's that have the same notation.
 --
 -- If all 'NewNotation's with a given notation have the same fixity,
