@@ -25,10 +25,9 @@ import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Test.QuickCheck.All
+import Test.QuickCheck as QuickCheck
 
-import Agda.TypeChecking.Monad.Base (Occurrence(..))
-import Agda.TypeChecking.Positivity () -- For an orphan instance.
+import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
 
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
@@ -36,37 +35,11 @@ import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List (distinct)
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
-import Agda.Utils.QuickCheck as QuickCheck
 import Agda.Utils.TestHelpers
 
 ------------------------------------------------------------------------
 -- * Generating random graphs
 ------------------------------------------------------------------------
-
-instance (Arbitrary s, Arbitrary t, Arbitrary e) => Arbitrary (Edge s t e) where
-  arbitrary = Edge <$> arbitrary <*> arbitrary <*> arbitrary
-
-instance (CoArbitrary s, CoArbitrary t, CoArbitrary e) => CoArbitrary (Edge s t e) where
-  coarbitrary (Edge s t e) = coarbitrary s . coarbitrary t . coarbitrary e
-
-instance (Ord n, SemiRing e, Arbitrary n, Arbitrary e) =>
-         Arbitrary (Graph n n e) where
-  arbitrary = do
-    nodes <- sized $ \ n -> resize (2 * isqrt n) arbitrary
-    edges <- mapM (\ (n1, n2) -> Edge n1 n2 <$> arbitrary) =<<
-                  listOfElements ((,) <$> nodes <*> nodes)
-    let g1 = fromList edges
-        g2 = g1 `union` fromNodes nodes
-    elements [ g1  -- Does not contain empty outermost node maps.
-             , g2  -- May contain empty outermost node maps.
-             ]
-    where
-    isqrt :: Int -> Int
-    isqrt = round . sqrt . fromIntegral
-
-  shrink g =
-    [ removeNode n g     | n <- Set.toList $ nodes g ] ++
-    [ removeEdge n1 n2 g | Edge n1 n2 _ <- edges g ]
 
 -- | Generates a node from the graph. (Unless the graph is empty.)
 

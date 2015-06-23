@@ -27,6 +27,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (for)
 
+import Test.QuickCheck (Arbitrary(..), frequency, choose)
+
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.Utils
 
@@ -97,13 +99,10 @@ transClos g = setFoldl step g $ allNodes ns
         , l2 <- maybeToList $ lookupEdge g v w
       ]
 
-instance MeetSemiLattice Offset where
-  meet = min
-
 -- * Edge weights
 
 data Weight
-  = Offset Int
+  = Offset Offset
   | Infinity
   deriving (Eq)
 
@@ -127,8 +126,8 @@ instance Enum Weight where
   succ (Infinity) = Infinity
   pred (Offset x) = Offset (pred x)
   pred (Infinity) = Infinity
-  toEnum   = Offset
-  fromEnum (Offset x) = x
+  toEnum = Offset . toEnum
+  fromEnum (Offset x) = fromEnum x
   fromEnum (Infinity) = __IMPOSSIBLE__
 
 -- | Partial implementation of @Num@.
@@ -149,6 +148,12 @@ instance Num Weight where
 instance Plus Weight Offset Weight where
   plus w k = w + (Offset k)
 
+instance Arbitrary Weight where
+  arbitrary = frequency
+    [ (1, return Infinity)
+    , (5, Offset . O <$> choose (0, 200))
+    ]
+
 -- | Test for negativity, used to detect negative cycles.
 class Negative a where
   negative :: a -> Bool
@@ -160,6 +165,9 @@ instance (Ord a, Num a) => Negative a where
 
 instance Negative Int where
   negative = (< 0)
+
+instance Negative Offset where
+  negative (O x) = negative x
 
 instance Negative Weight where
   negative Infinity = False
@@ -219,15 +227,17 @@ instance Top Label where
   isTop Label{}       = False
   isTop LInf          = True
 
+instance Arbitrary Label where
+  arbitrary = frequency
+    [ (1, return LInf)
+    , (5, Label <$> arbitrary <*> arbitrary)
+    ]
+
 -- * Semiring with idempotent '+' == dioid
 
 instance Dioid Weight where
   compose     = (+)
   unitCompose = 0
-
-instance Dioid Cmp where
-  compose     = min
-  unitCompose = Le
 
 instance Dioid Label where
   compose (Label Lt w) (Label Lt w')    = Label Lt $ pred $ w + w'
@@ -543,9 +553,6 @@ instance (Ord r, Ord f) => SetToInfty f (ConGraph r f) where
 
 
 -- * Compute solution from constraint graph.
-
-instance Plus Int Int Int where
-  plus = (+)
 
 instance Plus Offset Weight Weight where
   plus e Infinity   = Infinity

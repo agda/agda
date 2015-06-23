@@ -16,10 +16,6 @@ import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
 import Agda.Utils.Null
 
-instance Null Doc where
-  empty = mempty
-  null  = (== mempty)
-
 -- * Pretty class
 
 -- | While 'Show' is for rendering data in Haskell syntax,

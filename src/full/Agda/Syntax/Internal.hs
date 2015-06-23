@@ -42,6 +42,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Literal
+import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
@@ -530,6 +531,10 @@ properlyMatching LitP{} = True
 properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
+
+instance IsProjP Pattern where
+  isProjP (ProjP d) = Just d
+  isProjP _         = Nothing
 
 -----------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -1072,9 +1077,6 @@ instance KillRange Pattern where
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
       ProjP q          -> killRange1 ProjP q
-
-instance KillRange Permutation where
-  killRange = id
 
 instance KillRange Clause where
   killRange (Clause r tel perm ps body t catchall) = killRange7 Clause r tel perm ps body t catchall

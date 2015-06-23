@@ -10,6 +10,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.Interaction.InteractionTop
   ( module Agda.Interaction.InteractionTop
   )

@@ -89,6 +89,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Positivity.Occurrence
 -- import Agda.TypeChecking.Pretty
 
 import Agda.Utils.BiMap (BiMap)

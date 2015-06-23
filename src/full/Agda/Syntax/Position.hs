@@ -10,6 +10,10 @@
              ScopedTypeVariables,
              TemplateHaskell #-}
 
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
+
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
@@ -47,6 +51,7 @@ module Agda.Syntax.Position
   , SetRange(..)
   , KillRange(..)
   , KillRangeT
+  , killRangeMap
   , killRange1, killRange2, killRange3, killRange4, killRange5, killRange6, killRange7
   , killRange8, killRange9, killRange10, killRange11, killRange12, killRange13, killRange14
   , killRange15, killRange16, killRange17, killRange18, killRange19
@@ -229,6 +234,10 @@ class KillRange a where
 
 type KillRangeT a = a -> a
 
+-- | Remove ranges in keys and values of a map.
+killRangeMap :: (KillRange k, KillRange v) => KillRangeT (Map k v)
+killRangeMap = Map.mapKeysMonotonic killRange . Map.map killRange
+
 killRange1 :: KillRange a => (a -> b) -> a -> b
 
 killRange2 :: (KillRange a, KillRange b) => (a -> b -> c) -> a -> b -> c
@@ -373,6 +382,14 @@ instance {-# OVERLAPPABLE #-} KillRange a => KillRange [a] where
 instance KillRange a => KillRange [a] where
 #endif
   killRange = map killRange
+
+-- | Overlaps with @KillRange [a]@.
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} KillRange String where
+#else
+instance KillRange String where
+#endif
+  killRange = id
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} KillRange a => KillRange (Map k a) where

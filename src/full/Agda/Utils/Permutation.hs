@@ -21,6 +21,9 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
+import Test.QuickCheck
+
+import Agda.Syntax.Position (KillRange(..))
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
 import Agda.Utils.Null
@@ -57,6 +60,9 @@ instance Sized Permutation where
 instance Null Permutation where
   empty = Perm 0 []
   null (Perm _ picks) = null picks
+
+instance KillRange Permutation where
+  killRange = id
 
 -- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@
@@ -208,6 +214,9 @@ data Drop a = Drop
   }
   deriving (Eq, Ord, Show, Typeable, Functor, Foldable, Traversable)
 
+instance KillRange a => KillRange (Drop a) where
+  killRange = fmap killRange
+
 -- | Things that support delayed dropping.
 class DoDrop a where
 
@@ -229,6 +238,16 @@ instance DoDrop Permutation where
     Perm (n + m) $ [0..m-1] ++ map (+ m) (List.drop k xs)
     where m = -k
   unDrop m = dropMore (-m) -- allow picking up more than dropped
+
+------------------------------------------------------------------------
+-- * Test data generator
+------------------------------------------------------------------------
+
+instance Arbitrary Permutation where
+  arbitrary = do
+    is <- nub . map getNonNegative <$> arbitrary
+    NonNegative n <- arbitrary
+    return $ Perm (if null is then n else maximum is + n + 1) is
 
 ------------------------------------------------------------------------
 -- * Properties, see "Agda.Utils.Permutation.Tests".

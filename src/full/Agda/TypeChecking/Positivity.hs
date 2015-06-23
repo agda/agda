@@ -1,5 +1,6 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
+             DeriveGeneric,
              FlexibleContexts,
              FlexibleInstances,
              TemplateHaskell,
@@ -26,6 +27,8 @@ import qualified Data.Set as Set
 
 import Debug.Trace
 
+import GHC.Generics (Generic)
+
 import Test.QuickCheck
 
 import Agda.Syntax.Position
@@ -36,6 +39,7 @@ import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -192,55 +196,7 @@ getDefArity def = case theDef def of
 
 -- Specification of occurrences -------------------------------------------
 
--- | 'Occurrence' is a complete lattice with least element 'Mixed'
---   and greatest element 'Unused'.
---
---   It forms a commutative semiring where 'oplus' is meet (glb)
---   and 'otimes' is composition. Both operations are idempotent.
---
---   For 'oplus', 'Unused' is neutral (zero) and 'Mixed' is dominant.
---   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
-
-instance SemiRing Occurrence where
-  ozero = Unused
-  oone  = StrictPos
-
-  oplus Mixed _           = Mixed     -- dominant
-  oplus _ Mixed           = Mixed
-  oplus Unused o          = o         -- neutral
-  oplus o Unused          = o
-  oplus JustNeg  JustNeg  = JustNeg
-  oplus JustNeg  o        = Mixed     -- negative and any form of positve
-  oplus o        JustNeg  = Mixed
-  oplus GuardPos o        = o         -- second-rank neutral
-  oplus o GuardPos        = o
-  oplus StrictPos o       = o         -- third-rank neutral
-  oplus o StrictPos       = o
-  oplus JustPos JustPos   = JustPos
-
-  otimes Unused _            = Unused     -- dominant
-  otimes _ Unused            = Unused
-  otimes Mixed _             = Mixed      -- second-rank dominance
-  otimes _ Mixed             = Mixed
-  otimes JustNeg JustNeg     = JustPos
-  otimes JustNeg _           = JustNeg    -- third-rank dominance
-  otimes _ JustNeg           = JustNeg
-  otimes JustPos _           = JustPos    -- fourth-rank dominance
-  otimes _ JustPos           = JustPos
-  otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
-  otimes _ GuardPos          = GuardPos
-  otimes StrictPos StrictPos = StrictPos  -- neutral
-
-instance StarSemiRing Occurrence where
-  ostar Mixed     = Mixed
-  ostar JustNeg   = Mixed
-  ostar JustPos   = JustPos
-  ostar StrictPos = StrictPos
-  ostar GuardPos  = StrictPos
-  ostar Unused    = StrictPos
-
-instance Null Occurrence where
-  empty = Unused
+-- See also Agda.TypeChecking.Positivity.Occurrence.
 
 -- | Description of an occurrence.
 data OccursWhere
@@ -256,7 +212,7 @@ data OccursWhere
   | InDefOf QName OccursWhere    -- ^ in the definition of a constant
   | Here
   | Unknown                      -- ^ an unknown position (treated as negative)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 (>*<) :: OccursWhere -> OccursWhere -> OccursWhere
 Here            >*< o  = o
@@ -588,35 +544,13 @@ instance PrettyTCM Node where
   prettyTCM (DefNode q)   = prettyTCM q
   prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
 
-instance PrettyTCM Occurrence where
-  prettyTCM GuardPos  = text "-[g+]->"
-  prettyTCM StrictPos = text "-[++]->"
-  prettyTCM JustPos   = text "-[+]->"
-  prettyTCM JustNeg   = text "-[-]->"
-  prettyTCM Mixed     = text "-[*]->"
-  prettyTCM Unused    = text "-[ ]->"
-
--- | Pairing something with a node (for printing only).
-data WithNode n a = WithNode n a
-
 instance PrettyTCM n => PrettyTCM (WithNode n Edge) where
   prettyTCM (WithNode n (Edge o w)) =
     prettyTCM o <+> prettyTCM n <+> fsep (pwords $ show w)
 
-instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
-  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
-
-instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
-  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
-    where
-      pr (n, es) = sep
-        [ prettyTCM n
-        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
-        ]
-
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
-  deriving (Show)
+  deriving (Show, Generic)
 
 instance Null Edge where
   null (Edge o _) = null o
@@ -706,51 +640,52 @@ computeEdge muts o = do
         inArg d i = mkEdge (ArgNode d i) StrictPos
 
 ------------------------------------------------------------------------
--- * All tests
+-- * Generators and tests
 ------------------------------------------------------------------------
 
-prop_Occurrence_oplus_associative ::
-  Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_associative x y z =
-  oplus x (oplus y z) == oplus (oplus x y) z
+instance Arbitrary OccursWhere where
+  arbitrary = sized arbitraryS
+    where
+    arbitraryS n = oneof $
+      [ return Here
+      , return Unknown
+      ] ++
+      if n <= 0 then [] else
+        [ LeftOfArrow <$> arb
+        , DefArg <$> arbitrary <*> arbitrary <*> arb
+        , UnderInf <$> arb
+        , VarArg <$> arb
+        , MetaArg <$> arb
+        , ConArgType <$> arbitrary <*> arb
+        , IndArgType <$> arbitrary <*> arb
+        , InClause <$> arbitrary <*> arb
+        , Matched <$> arb
+        , InDefOf <$> arbitrary <*> arb
+        ]
+      where arb = arbitraryS (n - 1)
 
-prop_Occurrence_oplus_ozero :: Occurrence -> Bool
-prop_Occurrence_oplus_ozero x =
-  oplus ozero x == x
+  shrink x = replaceConstructor x ++ genericShrink x
+    where
+    replaceConstructor Here    = []
+    replaceConstructor Unknown = []
+    replaceConstructor _       = [Here, Unknown]
 
-prop_Occurrence_oplus_commutative :: Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_commutative x y =
-  oplus x y == oplus y x
+instance CoArbitrary OccursWhere
 
-prop_Occurrence_otimes_associative ::
-  Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_otimes_associative x y z =
-  otimes x (otimes y z) == otimes (otimes x y) z
+instance Arbitrary Edge where
+  arbitrary = Edge <$> arbitrary <*> arbitrary
 
-prop_Occurrence_otimes_oone :: Occurrence -> Bool
-prop_Occurrence_otimes_oone x =
-  otimes oone x == x
-    &&
-  otimes x oone == x
+  shrink (Edge o w) = [ Edge o w | o <- shrink o ] ++
+                      [ Edge o w | w <- shrink w ]
 
-prop_Occurrence_distributive ::
-  Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_distributive x y z =
-  otimes x (oplus y z) == oplus (otimes x y) (otimes x z)
-    &&
-  otimes (oplus x y) z == oplus (otimes x z) (otimes y z)
+instance CoArbitrary Edge
 
-prop_Occurrence_otimes_ozero :: Occurrence -> Bool
-prop_Occurrence_otimes_ozero x =
-  otimes ozero x == ozero
-    &&
-  otimes x ozero == ozero
+-- | The 'oplus' method for 'Occurrence' matches that for 'Edge'.
 
-prop_Occurrence_ostar :: Occurrence -> Bool
-prop_Occurrence_ostar x =
-  ostar x == oplus oone (otimes x (ostar x))
-    &&
-  ostar x == oplus oone (otimes (ostar x) x)
+prop_oplus_Occurrence_Edge :: Edge -> Edge -> Bool
+prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
+  case oplus e1 e2 of
+    Edge o _ -> o == oplus o1 o2
 
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under GHC 7.8.

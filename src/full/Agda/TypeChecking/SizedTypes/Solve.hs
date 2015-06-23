@@ -69,7 +69,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Monad as TCM hiding (Offset)
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -424,7 +424,7 @@ sizeExpr u = do
   s <- sizeView u
   case s of
     SizeInf     -> return $ Just Infty
-    SizeSuc u   -> fmap (`plus` (1 :: Int)) <$> sizeExpr u
+    SizeSuc u   -> fmap (`plus` (1 :: Offset)) <$> sizeExpr u
     OtherSize u -> case ignoreSharing u of
       Var i []    -> (\ x -> Just $ Rigid (NamedRigid x i) 0) . show <$> nameOfBV i
 --      MetaV m es  -> return $ Just $ Flex (SizeMeta m es) 0
@@ -441,11 +441,11 @@ sizeExpr u = do
 unSizeExpr :: DBSizeExpr -> TCM Term
 unSizeExpr a =
   case a of
-    Infty                  -> primSizeInf
-    Rigid r n              -> do
+    Infty         -> primSizeInf
+    Rigid r (O n) -> do
       unless (n >= 0) __IMPOSSIBLE__
       sizeSuc n $ var $ rigidIndex r
-    Flex (SizeMeta x es) n -> do
+    Flex (SizeMeta x es) (O n) -> do
       unless (n >= 0) __IMPOSSIBLE__
       sizeSuc n $ MetaV x $ map (Apply . defaultArg . var) es
-    Const{}                -> __IMPOSSIBLE__
+    Const{} -> __IMPOSSIBLE__

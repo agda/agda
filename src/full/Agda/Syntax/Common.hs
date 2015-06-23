@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -19,6 +20,8 @@ import Data.Hashable
 import Data.Monoid
 import Data.Traversable
 import Data.Typeable (Typeable)
+
+import GHC.Generics (Generic)
 
 import Test.QuickCheck hiding (Small)
 
@@ -703,7 +706,7 @@ type Arity  = Nat
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId Integer Integer
-    deriving (Eq, Ord, Typeable)
+    deriving (Eq, Ord, Typeable, Generic)
 
 instance KillRange NameId where
   killRange = id
@@ -720,6 +723,11 @@ instance Enum NameId where
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt (NameId n m) = hashWithSalt salt (n, m)
+
+instance Arbitrary NameId where
+  arbitrary = elements [ NameId x y | x <- [-1, 1], y <- [-1, 1] ]
+
+instance CoArbitrary NameId
 
 newtype Constr a = Constr a
 

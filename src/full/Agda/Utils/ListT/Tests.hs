@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Quickcheck properties for 'Agda.Utils.ListT'.
@@ -31,9 +30,6 @@ fromList = foldr consListT nilListT
 
 toList :: List a -> [a]
 toList = foldList (:) []
-
-instance Arbitrary a => Arbitrary (List a) where
-  arbitrary = fromList <$> arbitrary
 
 prop_concat xxs = toList (concatListT (fromList (map fromList xxs))) == concat xxs
 

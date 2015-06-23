@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.State
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.Except ( MonadError(catchError) )

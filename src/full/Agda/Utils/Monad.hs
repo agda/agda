@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -129,10 +128,6 @@ dropWhileM p []       = return []
 dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 
 -- Error monad ------------------------------------------------------------
-
--- | To simulate @MaybeT@ by @ExceptT@.
-instance Error () where
-  noMsg = ()
 
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.

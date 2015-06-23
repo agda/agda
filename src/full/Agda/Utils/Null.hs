@@ -21,10 +21,13 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Text.PrettyPrint (Doc)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
@@ -92,6 +95,10 @@ instance Null (Maybe a) where
   empty = Nothing
   null Nothing  = True
   null (Just a) = False
+
+instance Null Doc where
+  empty = mempty
+  null  = (== mempty)
 
 -- * Testing for null.
 

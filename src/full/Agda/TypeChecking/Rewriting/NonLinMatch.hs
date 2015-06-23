@@ -279,30 +279,3 @@ equal u v = do
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
       ]) $ return False
-
-raisePatVars :: Int -> NLPat -> NLPat
-raisePatVars k (PVar x)    = PVar (k+x)
-raisePatVars k (PWild)     = PWild
-raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
-raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
-raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
-raisePatVars k (PBoundVar i es) = PBoundVar k $ (fmap . fmap) (raisePatVars k) es
-raisePatVars k (PTerm t)   = PTerm t
-
-instance PrettyTCM NLPat where
-  prettyTCM (PVar x)    = prettyTCM (var x)
-  prettyTCM (PWild)     = text $ "_"
-  prettyTCM (PDef f es) = parens $
-    prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
-  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (C.unDom a) <+>
-                          (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
-  prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
-  prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
-
-instance PrettyTCM (Elim' NLPat) where
-  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
-  prettyTCM (Proj f)  = text "." <> prettyTCM f
-
-instance PrettyTCM (Type' NLPat) where
-  prettyTCM = prettyTCM . unEl

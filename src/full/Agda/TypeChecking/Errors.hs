@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.TypeChecking.Errors
   ( prettyError
   , tcErrString

@@ -427,6 +427,10 @@ instance IsProjP a => IsProjP (Named n a) where
     Instances
  --------------------------------------------------------------------------}
 
+instance Underscore Expr where
+  underscore   = Underscore emptyMetaInfo
+  isUnderscore = __IMPOSSIBLE__
+
 instance LensHiding TypedBindings where
   getHiding   (TypedBindings _ a) = getHiding a
   mapHiding f (TypedBindings r a) = TypedBindings r $ mapHiding f a
@@ -623,9 +627,6 @@ instance KillRange Declaration where
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
   killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
-
-instance KillRange x => KillRange (ThingWithFixity x) where
-  killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
 
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)            = killRange1 VarP x

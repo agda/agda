@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
 
@@ -15,6 +16,8 @@ import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.List
 import Data.Typeable (Typeable)
+
+import GHC.Generics (Generic)
 
 import System.FilePath
 
@@ -54,7 +57,7 @@ instance Underscore Name where
 data NamePart
   = Hole       -- ^ @_@ part.
   | Id RawName  -- ^ Identifier part.
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 -- | Define equality on @Name@ to ignore range so same names in different
 --   locations are equal.
@@ -287,6 +290,27 @@ instance Arbitrary TopLevelModuleName where
 
 instance CoArbitrary TopLevelModuleName where
   coarbitrary (TopLevelModuleName m) = coarbitrary m
+
+instance Arbitrary Name where
+  arbitrary = oneof
+    [ Name   <$> arbitrary <*> parts
+    , NoName <$> arbitrary <*> arbitrary
+    ]
+    where
+    parts = do
+      parts         <- listOf1 (elements ["x", "y", "z"])
+      startWithHole <- arbitrary
+      endWithHole   <- arbitrary
+      return $
+        (if startWithHole then (Hole :)    else id) $
+        (if endWithHole   then (++ [Hole]) else id) $
+        intersperse Hole (map Id parts)
+
+instance CoArbitrary NamePart
+
+instance CoArbitrary Name where
+  coarbitrary (Name _ ns)  = variant 0 . coarbitrary ns
+  coarbitrary (NoName _ i) = variant 1 . coarbitrary i
 
 ------------------------------------------------------------------------
 -- * Range instances
