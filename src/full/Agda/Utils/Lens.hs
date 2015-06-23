@@ -79,4 +79,3 @@ view l = asks (^. l)
 -- | Modify a part of the state in a subcomputation.
 locally :: MonadReader o m => Lens' i o -> (i -> i) -> m a -> m a
 locally l = local . over l
-

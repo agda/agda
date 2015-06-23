@@ -39,6 +39,7 @@ import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -195,55 +196,7 @@ getDefArity def = case theDef def of
 
 -- Specification of occurrences -------------------------------------------
 
--- | 'Occurrence' is a complete lattice with least element 'Mixed'
---   and greatest element 'Unused'.
---
---   It forms a commutative semiring where 'oplus' is meet (glb)
---   and 'otimes' is composition. Both operations are idempotent.
---
---   For 'oplus', 'Unused' is neutral (zero) and 'Mixed' is dominant.
---   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
-
-instance SemiRing Occurrence where
-  ozero = Unused
-  oone  = StrictPos
-
-  oplus Mixed _           = Mixed     -- dominant
-  oplus _ Mixed           = Mixed
-  oplus Unused o          = o         -- neutral
-  oplus o Unused          = o
-  oplus JustNeg  JustNeg  = JustNeg
-  oplus JustNeg  o        = Mixed     -- negative and any form of positve
-  oplus o        JustNeg  = Mixed
-  oplus GuardPos o        = o         -- second-rank neutral
-  oplus o GuardPos        = o
-  oplus StrictPos o       = o         -- third-rank neutral
-  oplus o StrictPos       = o
-  oplus JustPos JustPos   = JustPos
-
-  otimes Unused _            = Unused     -- dominant
-  otimes _ Unused            = Unused
-  otimes Mixed _             = Mixed      -- second-rank dominance
-  otimes _ Mixed             = Mixed
-  otimes JustNeg JustNeg     = JustPos
-  otimes JustNeg _           = JustNeg    -- third-rank dominance
-  otimes _ JustNeg           = JustNeg
-  otimes JustPos _           = JustPos    -- fourth-rank dominance
-  otimes _ JustPos           = JustPos
-  otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
-  otimes _ GuardPos          = GuardPos
-  otimes StrictPos StrictPos = StrictPos  -- neutral
-
-instance StarSemiRing Occurrence where
-  ostar Mixed     = Mixed
-  ostar JustNeg   = Mixed
-  ostar JustPos   = JustPos
-  ostar StrictPos = StrictPos
-  ostar GuardPos  = StrictPos
-  ostar Unused    = StrictPos
-
-instance Null Occurrence where
-  empty = Unused
+-- See also Agda.TypeChecking.Positivity.Occurrence.
 
 -- | Description of an occurrence.
 data OccursWhere
@@ -592,31 +545,9 @@ instance PrettyTCM Node where
   prettyTCM (DefNode q)   = prettyTCM q
   prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
 
-instance PrettyTCM Occurrence where
-  prettyTCM GuardPos  = text "-[g+]->"
-  prettyTCM StrictPos = text "-[++]->"
-  prettyTCM JustPos   = text "-[+]->"
-  prettyTCM JustNeg   = text "-[-]->"
-  prettyTCM Mixed     = text "-[*]->"
-  prettyTCM Unused    = text "-[ ]->"
-
--- | Pairing something with a node (for printing only).
-data WithNode n a = WithNode n a
-
 instance PrettyTCM n => PrettyTCM (WithNode n Edge) where
   prettyTCM (WithNode n (Edge o w)) =
     prettyTCM o <+> prettyTCM n <+> fsep (pwords $ show w)
-
-instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
-  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
-
-instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
-  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
-    where
-      pr (n, es) = sep
-        [ prettyTCM n
-        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
-        ]
 
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
@@ -749,49 +680,6 @@ instance Arbitrary Edge where
                       [ Edge o w | w <- shrink w ]
 
 instance CoArbitrary Edge
-
-prop_Occurrence_oplus_associative ::
-  Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_associative x y z =
-  oplus x (oplus y z) == oplus (oplus x y) z
-
-prop_Occurrence_oplus_ozero :: Occurrence -> Bool
-prop_Occurrence_oplus_ozero x =
-  oplus ozero x == x
-
-prop_Occurrence_oplus_commutative :: Occurrence -> Occurrence -> Bool
-prop_Occurrence_oplus_commutative x y =
-  oplus x y == oplus y x
-
-prop_Occurrence_otimes_associative ::
-  Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_otimes_associative x y z =
-  otimes x (otimes y z) == otimes (otimes x y) z
-
-prop_Occurrence_otimes_oone :: Occurrence -> Bool
-prop_Occurrence_otimes_oone x =
-  otimes oone x == x
-    &&
-  otimes x oone == x
-
-prop_Occurrence_distributive ::
-  Occurrence -> Occurrence -> Occurrence -> Bool
-prop_Occurrence_distributive x y z =
-  otimes x (oplus y z) == oplus (otimes x y) (otimes x z)
-    &&
-  otimes (oplus x y) z == oplus (otimes x z) (otimes y z)
-
-prop_Occurrence_otimes_ozero :: Occurrence -> Bool
-prop_Occurrence_otimes_ozero x =
-  otimes ozero x == ozero
-    &&
-  otimes x ozero == ozero
-
-prop_Occurrence_ostar :: Occurrence -> Bool
-prop_Occurrence_ostar x =
-  ostar x == oplus oone (otimes x (ostar x))
-    &&
-  ostar x == oplus oone (otimes (ostar x) x)
 
 -- | The 'oplus' method for 'Occurrence' matches that for 'Edge'.
 

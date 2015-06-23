@@ -79,7 +79,7 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Typeable, Show)
+  deriving (Eq, Typeable, Show)
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool

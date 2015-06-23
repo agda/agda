@@ -5,6 +5,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.Interaction.BasicOps where
 
 import Control.Arrow ((***), first, second)
@@ -392,14 +394,6 @@ instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
 instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
-
---ToDo: Move somewhere else
-instance ToConcrete InteractionId C.Expr where
-    toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
-
-instance ToConcrete NamedMeta C.Expr where
-    toConcrete i = do
-      return $ C.Underscore noRange (Just $ prettyShow i)
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = liftTCM $ do

@@ -20,7 +20,6 @@ import Prelude hiding (null)
 
 import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent as C
-import Control.DeepSeq
 import Control.Exception as E
 import Control.Monad.State
 import Control.Monad.Reader
@@ -43,9 +42,9 @@ import Data.Foldable
 import Data.Traversable
 import Data.IORef
 
-import Test.QuickCheck (Arbitrary(..), CoArbitrary(..), elements)
+import qualified System.Console.Haskeline as Haskeline
 
-import Agda.Benchmarking (Benchmark)
+import Agda.Benchmarking (Benchmark, Phase)
 
 import Agda.Syntax.Concrete (TopLevelModuleName)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -61,6 +60,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Interaction.Exceptions
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
@@ -78,12 +78,14 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   )
 
+import Agda.Utils.Benchmark (MonadBench(..))
 import Agda.Utils.FileName
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Hash
 import Agda.Utils.Lens
 import Agda.Utils.ListT
+import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
@@ -1052,30 +1054,6 @@ data CompiledRepresentation = CompiledRep
 
 noCompiledRep :: CompiledRepresentation
 noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
-
--- | Subterm occurrences for positivity checking.
---   The constructors are listed in increasing information they provide:
---   @Mixed <= JustPos <= StrictPos <= GuardPos <= Unused@
---   @Mixed <= JustNeg <= Unused@.
-data Occurrence
-  = Mixed     -- ^ Arbitrary occurrence (positive and negative).
-  | JustNeg   -- ^ Negative occurrence.
-  | JustPos   -- ^ Positive occurrence, but not strictly positive.
-  | StrictPos -- ^ Strictly positive occurrence.
-  | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
-  | Unused    --  ^ No occurrence.
-  deriving (Typeable, Show, Eq, Ord, Enum, Bounded)
-
-instance NFData Occurrence where rnf x = seq x ()
-
-instance Arbitrary Occurrence where
-  arbitrary = elements [minBound .. maxBound]
-
-  shrink Unused = []
-  shrink _      = [Unused]
-
-instance CoArbitrary Occurrence where
-  coarbitrary = coarbitrary . fromEnum
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
@@ -2105,6 +2083,17 @@ instance MonadError TCErr (TCMT IO) where
             writeIORef r $ oldState { stPersistentState = stPersistentState newState }
       unTCM (h err) r e
 
+-- | Interaction monad.
+
+type IM = TCMT (Haskeline.InputT IO)
+
+runIM :: IM a -> TCM a
+runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
+
+instance MonadError TCErr IM where
+  throwError = liftIO . throwIO
+  catchError m h = mapTCMT liftIO $ runIM m `catchError` (runIM . h)
+
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
 catchError_ m h = TCM $ \r e ->
@@ -2216,6 +2205,23 @@ instance MonadIO m => MonadIO (TCMT m) where
       handleIOException r e = throwIO $ IOException r e
       handleException   r s = throwIO $ Exception r s
 
+-- | We store benchmark statistics in an IORef.
+--   This enables benchmarking pure computation, see
+--   "Agda.Benchmarking".
+instance MonadBench Phase TCM where
+  getBenchmark = liftIO $ getBenchmark
+  putBenchmark = liftIO . putBenchmark
+  finally = finally_
+
+instance Null (TCM Doc) where
+  empty = return empty
+  null = __IMPOSSIBLE__
+
+-- | Short-cutting disjunction forms a monoid.
+instance Monoid (TCM Any) where
+  mempty = return mempty
+  ma `mappend` mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
+
 patternViolation :: TCM a
 patternViolation = throwError PatternErr
 
@@ -2295,3 +2301,81 @@ absurdLambdaName = ".absurdlambda"
 -- | Check whether we have an definition from an absurd lambda.
 isAbsurdLambdaName :: QName -> Bool
 isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
+
+---------------------------------------------------------------------------
+-- * KillRange instances
+---------------------------------------------------------------------------
+
+instance KillRange Signature where
+  killRange (Sig secs defs) = killRange2 Sig secs defs
+
+instance KillRange Sections where
+  killRange = fmap killRange
+
+instance KillRange Definitions where
+  killRange = fmap killRange
+
+instance KillRange Section where
+  killRange (Section tel freeVars) = killRange2 Section tel freeVars
+
+instance KillRange Definition where
+  killRange (Defn ai name t pols occs displ mut compiled rew inst def) =
+    killRange11 Defn ai name t pols occs displ mut compiled rew inst def
+    -- TODO clarify: Keep the range in the defName field?
+
+instance KillRange NLPat where
+  killRange (PVar x)   = killRange1 PVar x
+  killRange (PWild)    = PWild
+  killRange (PDef x y) = killRange2 PDef x y
+  killRange (PTerm x)  = killRange1 PTerm x
+
+instance KillRange RewriteRule where
+  killRange (RewriteRule q gamma lhs rhs t) =
+    killRange5 RewriteRule q gamma lhs rhs t
+
+instance KillRange CompiledRepresentation where
+  killRange = id
+
+instance KillRange Defn where
+  killRange def =
+    case def of
+      Axiom -> Axiom
+      Function cls comp inv mut isAbs delayed proj static copy term extlam with cop ->
+        killRange13 Function cls comp inv mut isAbs delayed proj static copy term extlam with cop
+      Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
+      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
+      Constructor a b c d e          -> killRange5 Constructor a b c d e
+      Primitive a b c d              -> killRange4 Primitive a b c d
+
+instance KillRange MutualId where
+  killRange = id
+
+instance KillRange c => KillRange (FunctionInverse' c) where
+  killRange NotInjective = NotInjective
+  killRange (Inverse m)  = Inverse $ killRangeMap m
+
+instance KillRange TermHead where
+  killRange SortHead     = SortHead
+  killRange PiHead       = PiHead
+  killRange (ConsHead q) = ConsHead $ killRange q
+
+instance KillRange Projection where
+  killRange (Projection a b c d e) = killRange4 Projection a b c d e
+
+instance KillRange a => KillRange (Open a) where
+  killRange = fmap killRange
+
+instance KillRange DisplayForm where
+  killRange (Display n vs dt) = killRange3 Display n vs dt
+
+instance KillRange Polarity where
+  killRange = id
+
+instance KillRange DisplayTerm where
+  killRange dt =
+    case dt of
+      DWithApp dt dts args -> killRange3 DWithApp dt dts args
+      DCon q dts        -> killRange2 DCon q dts
+      DDef q dts        -> killRange2 DDef q dts
+      DDot v            -> killRange1 DDot v
+      DTerm v           -> killRange1 DTerm v

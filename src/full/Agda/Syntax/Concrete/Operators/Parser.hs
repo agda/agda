@@ -45,6 +45,51 @@ class HasRange e => IsExpr e where
 instance IsExpr e => HasRange (ExprView e) where
   getRange = getRange . unExprView
 
+instance IsExpr Expr where
+    exprView e = case e of
+        Ident x         -> LocalV x
+        App _ e1 e2     -> AppV e1 e2
+        OpApp r d ns es -> OpAppV d ns es
+        HiddenArg _ e   -> HiddenArgV e
+        InstanceArg _ e -> InstanceArgV e
+        Paren _ e       -> ParenV e
+        Lam _ bs    e   -> LamV bs e
+        Underscore{}    -> WildV e
+        _               -> OtherV e
+    unExprView e = case e of
+        LocalV x       -> Ident x
+        AppV e1 e2     -> App (fuseRange e1 e2) e1 e2
+        OpAppV d ns es -> OpApp (fuseRange d es) d ns es
+        HiddenArgV e   -> HiddenArg (getRange e) e
+        InstanceArgV e -> InstanceArg (getRange e) e
+        ParenV e       -> Paren (getRange e) e
+        LamV bs e      -> Lam (fuseRange bs e) bs e
+        WildV e        -> e
+        OtherV e       -> e
+
+instance IsExpr Pattern where
+    exprView e = case e of
+        IdentP x         -> LocalV x
+        AppP e1 e2       -> AppV e1 e2
+        OpAppP r d ns es -> OpAppV d ns ((map . fmap . fmap) Ordinary es)
+        HiddenP _ e      -> HiddenArgV e
+        InstanceP _ e    -> InstanceArgV e
+        ParenP _ e       -> ParenV e
+        WildP{}          -> WildV e
+        _                -> OtherV e
+    unExprView e = case e of
+        LocalV x       -> IdentP x
+        AppV e1 e2     -> AppP e1 e2
+        OpAppV d ns es -> let ess :: [NamedArg Pattern]
+                              ess = (map . fmap . fmap) (fromOrdinary __IMPOSSIBLE__) es
+                          in OpAppP (fuseRange d es) d ns ess
+        HiddenArgV e   -> HiddenP (getRange e) e
+        InstanceArgV e -> InstanceP (getRange e) e
+        ParenV e       -> ParenP (getRange e) e
+        LamV _ _       -> __IMPOSSIBLE__
+        WildV e        -> e
+        OtherV e       -> e
+
 ---------------------------------------------------------------------------
 -- * Parser combinators
 ---------------------------------------------------------------------------

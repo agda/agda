@@ -1,6 +1,10 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+#if !(MIN_VERSION_mtl(2,2,1))
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+#endif
+
 ------------------------------------------------------------------------------
 -- | Wrapper for Control.Monad.Except from the mtl package
 ------------------------------------------------------------------------------
@@ -20,6 +24,9 @@ module Agda.Utils.Except
 ------------------------------------------------------------------------
 
 import Control.Monad.Except
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | We cannot define data constructors synonymous, so we define the
 -- @mkExceptT@ function to be used instead of the data constructor
@@ -63,3 +70,11 @@ mapExceptT :: (m (Either e a) -> m' (Either e' a')) -> ExceptT e m a -> ExceptT 
 mapExceptT = mapErrorT
 
 #endif
+
+-- | To simulate @MaybeT@ by @ExceptT@.
+instance Error () where
+  noMsg = ()
+
+-- Stupid ErrorT!
+instance Error (a, b, c) where
+  noMsg = __IMPOSSIBLE__

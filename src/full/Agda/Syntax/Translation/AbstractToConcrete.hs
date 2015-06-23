@@ -997,3 +997,12 @@ recoverOpApp bracket opApp view e mDefault = case view e of
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     bracket roundFixBrackets
       $ return $ opApp (getRange x) x n es
+
+-- Some instances that are related to interaction with users -----------
+
+instance ToConcrete InteractionId C.Expr where
+    toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
+
+instance ToConcrete NamedMeta C.Expr where
+    toConcrete i = do
+      return $ C.Underscore noRange (Just $ prettyShow i)

@@ -45,14 +45,6 @@ import qualified Agda.TypeChecking.Free as New
 import Agda.TypeChecking.Test.Generators
 import Agda.Utils.TestHelpers
 
--- Generators
-
-instance Arbitrary FlexRig where
-  arbitrary = arbitraryBoundedEnum
-
-instance Arbitrary VarOcc where
-  arbitrary = VarOcc <$> arbitrary <*> arbitrary
-
 -- * Properties of 'FlexRig'
 
 -- | Ensure the correct linear order is derived.

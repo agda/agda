@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -99,20 +97,6 @@ mkCall s t m cinfo = Edge s t $ singleton $ CallMatrixAug m cinfo
 -- | Make a call with empty @cinfo@.
 mkCall' :: Monoid cinfo => Node -> Node -> CallMatrix -> Call cinfo
 mkCall' s t m = mkCall s t m mempty
-
--- | 'Call' combination.
---
---   @f --(c1)--> g --(c2)--> h@  is combined to @f --(c1 >*< c2)--> h@
---
---   Precondition: @source c1 == target c2@
-
-instance Monoid cinfo => CallComb (Call cinfo) where
-  c1 >*< c2 | g == g' = Edge f h (label c1 >*< label c2)
-    where f  = source c2
-          g  = target c2
-          g' = source c1
-          h  = target c1
-  c1 >*< c2 = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Call graphs
@@ -304,4 +288,3 @@ tests = runTests "Agda.Termination.CallGraph" []
   -- , quickCheck' prop_ensureCompletePrecondition
   -- ]
   where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!
-

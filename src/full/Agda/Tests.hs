@@ -22,6 +22,7 @@ import Agda.Termination.Termination           as TermTerm   (tests)
 import Agda.TypeChecking.Free.Tests           as Free       (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Positivity           as Positivity (tests)
+import Agda.TypeChecking.Positivity.Occurrence as Occurrence (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.TypeChecking.SizedTypes.Tests     as SizedTypes (tests)
 import Agda.Utils.Bag                         as UtilBag    (tests)
@@ -63,6 +64,7 @@ testSuite = runTests "QuickCheck test suite:"
   , TermSparse.tests
   , TermTerm.tests
   , Positivity.tests
+  , Occurrence.tests
   , TypeChck.tests
   , UtilBag.tests
   , UtilBiMap.tests

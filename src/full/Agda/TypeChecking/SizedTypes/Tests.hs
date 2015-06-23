@@ -11,23 +11,6 @@ import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 import Agda.TypeChecking.SizedTypes.Utils
 
-instance Arbitrary Cmp where
-  arbitrary = arbitraryBoundedEnum
-
-instance Arbitrary Weight where
-  arbitrary = frequency
-    [ (1, return Infinity)
-    , (5, Offset <$> choose (0, 200))
-    ]
-
--- instance Arbitrary Label where
---   arbitrary = Label <$> arbitrary <*> arbitrary
-instance Arbitrary Label where
-  arbitrary = frequency
-    [ (1, return LInf)
-    , (5, Label <$> arbitrary <*> arbitrary)
-    ]
-
 -- * Label interpretation
 
 type Relation a = a -> a -> Bool
@@ -55,7 +38,7 @@ prop_ComposeSound :: Label -> Label -> Weight -> Weight -> Weight -> Property
 prop_ComposeSound l1 l2 x y z =
   eval l1 x y && eval l2 y z ==> eval (compose l1 l2) x z
 
-prop_ComposeComplete :: Label -> Label -> Int -> Weight -> Property
+prop_ComposeComplete :: Label -> Label -> Offset -> Weight -> Property
 prop_ComposeComplete l1 l2 k z = let x = Offset k in
   eval (compose l1 l2) x z ==>
     let y = z + toWeight l2

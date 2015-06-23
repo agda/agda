@@ -27,6 +27,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap

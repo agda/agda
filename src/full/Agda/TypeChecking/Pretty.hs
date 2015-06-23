@@ -9,6 +9,7 @@ module Agda.TypeChecking.Pretty where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Position
@@ -24,7 +25,10 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
@@ -38,10 +42,6 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 type Doc = P.Doc
-
-instance Null (TCM Doc) where
-  empty = return empty
-  null = __IMPOSSIBLE__
 
 comma, colon, equals :: TCM Doc
 comma  = return P.comma
@@ -367,3 +367,25 @@ instance PrettyTCM RewriteRule where
           prettyTCM lhs <+> text " --> " <+> do
             prettyTCM rhs <+> text " : " <+> do
               prettyTCM b
+
+instance PrettyTCM Occurrence where
+  prettyTCM GuardPos  = text "-[g+]->"
+  prettyTCM StrictPos = text "-[++]->"
+  prettyTCM JustPos   = text "-[+]->"
+  prettyTCM JustNeg   = text "-[-]->"
+  prettyTCM Mixed     = text "-[*]->"
+  prettyTCM Unused    = text "-[ ]->"
+
+-- | Pairing something with a node (for printing only).
+data WithNode n a = WithNode n a
+
+instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
+  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
+
+instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n n e) where
+  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
+    where
+      pr (n, es) = sep
+        [ prettyTCM n
+        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
+        ]

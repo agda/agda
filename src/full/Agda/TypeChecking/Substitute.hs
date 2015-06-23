@@ -16,6 +16,8 @@
 {-# LANGUAGE OverlappingInstances #-}
 #endif
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.TypeChecking.Substitute
   ( module Agda.TypeChecking.Substitute
   , Substitution(..)
@@ -38,9 +40,10 @@ import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.Monad.Base as Base
+import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Positivity.Occurrence as Occ
 
 import Agda.Utils.Empty
 import Agda.Utils.Functor
@@ -171,9 +174,9 @@ instance Apply RewriteRule where
     RewriteRule q (apply gamma args) lhs rhs t
 
 #if __GLASGOW_HASKELL__ >= 710
-instance {-# OVERLAPPING #-} Apply [Base.Occurrence] where
+instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
 #else
-instance Apply [Base.Occurrence] where
+instance Apply [Occ.Occurrence] where
 #endif
   apply occ args = List.drop (length args) occ
 
@@ -403,9 +406,9 @@ instance Abstract RewriteRule where
     RewriteRule q (abstract tel gamma) lhs rhs t
 
 #if __GLASGOW_HASKELL__ >= 710
-instance {-# OVERLAPPING #-} Abstract [Base.Occurrence] where
+instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
 #else
-instance Abstract [Base.Occurrence] where
+instance Abstract [Occ.Occurrence] where
 #endif
   abstract tel []  = []
   abstract tel occ = replicate (size tel) Mixed ++ occ -- TODO: check occurrence

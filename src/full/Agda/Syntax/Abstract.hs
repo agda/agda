@@ -296,7 +296,7 @@ data LHSCore' e
              , lhsPatsRight  :: [NamedArg (Pattern' e)]
                -- ^ Further applied to patterns.
              }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Typeable, Show, Functor, Foldable, Traversable)
 
 type LHSCore = LHSCore' Expr
 
@@ -406,6 +406,32 @@ instance IsProjP a => IsProjP (Named n a) where
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
+
+-- | Literal equality of patterns, ignoring dot patterns
+instance Eq (Pattern' e) where
+  p == p' =
+    case (p,p') of
+      ((VarP x)             , (VarP x')             ) -> x === x'
+      ((ConP _ x ps)        , (ConP _ x' ps')       ) -> x == x' && ps == ps'
+      ((DefP _ x ps)        , (DefP _ x' ps')       ) -> x == x' && ps == ps'
+      ((WildP _)            , (WildP _)             ) -> True
+      ((AsP _ x p)          , (AsP _ x' p')         ) -> x === x' && p == p'
+      ((DotP _ _)           , (DotP _ _)            ) -> True
+      (AbsurdP{}            , AbsurdP{}             ) -> True
+      ((LitP l)             , (LitP l')             ) -> l == l'
+      (ImplicitP{}          , ImplicitP{}           ) -> True
+      ((PatternSynP _ x ps) , (PatternSynP _ x' ps')) -> x == x' && ps == ps'
+      (_                    , _                     ) -> False
+    where (Name _ (C.Name _ x) _ _) === (Name _ (C.Name _ x') _ _) = True
+          (Name _ C.NoName{}   _ _) === (Name _ C.NoName{}    _ _) = True
+          _                         === _                          = False
+
+instance Eq LHS where
+  (LHS _ core wps) == (LHS _ core' wps') = core == core' && wps == wps'
+
+instance Underscore Expr where
+  underscore   = Underscore emptyMetaInfo
+  isUnderscore = __IMPOSSIBLE__
 
 instance LensHiding TypedBindings where
   getHiding   (TypedBindings _ a) = getHiding a
@@ -591,9 +617,6 @@ instance KillRange Declaration where
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
   killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
-
-instance KillRange x => KillRange (ThingWithFixity x) where
-  killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
 
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)            = killRange1 VarP x

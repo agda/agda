@@ -39,6 +39,8 @@ import Data.Foldable (foldMap)
 import Data.IntMap (IntMap)
 import Data.Monoid
 
+import Test.QuickCheck
+
 import qualified Agda.Benchmarking as Bench
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
@@ -376,5 +378,13 @@ instance Free' Clause c where
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarSet #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
   freeVars' = freeVars' . clauseBody
+
+-- Generators
+
+instance Arbitrary FlexRig where
+  arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary VarOcc where
+  arbitrary = VarOcc <$> arbitrary <*> arbitrary
 
 -- -}
