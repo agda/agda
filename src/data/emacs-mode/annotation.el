@@ -24,7 +24,8 @@ position used by your Emacs.")
 
 (defun annotation-goto-indirect (pos &optional other-window)
   "Follow the `annotation-goto' hyperlink at position POS, if any.
-If OTHER-WINDOW is t, use another window to display the given position."
+If OTHER-WINDOW is non-nil, use another window to display the
+given position."
   (let ((previous-file-name buffer-file-name))
     (if (and (annotation-goto (get-text-property pos 'annotation-goto)
                               other-window)
@@ -42,8 +43,8 @@ successfully invoked."
   "Go to file position FILEPOS if the file is readable.
 FILEPOS should have the form (FILE . POS).  Return t if successful.
 
-If OTHER-WINDOW is t, use another window to display the given
-position."
+If OTHER-WINDOW is non-nil, use another window to display the
+given position."
   (when (consp filepos)
     (let ((file (car filepos)))
       (if (file-readable-p file)
