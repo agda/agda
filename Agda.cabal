@@ -193,6 +193,7 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Compiler.ToTreeless
                     Agda.Compiler.UHC.AuxAST
                     Agda.Compiler.UHC.AuxASTUtil
                     Agda.Compiler.UHC.Bridge
@@ -271,6 +272,7 @@ library
                     Agda.Syntax.Translation.ConcreteToAbstract
                     Agda.Syntax.Translation.InternalToAbstract
                     Agda.Syntax.Translation.ReflectedToAbstract
+                    Agda.Syntax.Treeless
                     Agda.Termination.CallGraph
                     Agda.Termination.CallMatrix
                     Agda.Termination.CutOff
