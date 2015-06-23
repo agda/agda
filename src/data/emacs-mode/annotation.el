@@ -18,18 +18,47 @@ position used by your Emacs.")
 (defvar annotation-goto-stack nil
   "Positions from which `annotation-goto' was invoked.")
 
-(defun annotation-goto-possible (pos)
-  "Return t if there's a hyperlink at the buffer position POS, and nil otherwise."
-  (if (get-text-property pos 'annotation-goto) t))
+(defun annotation-goto-indirect (link &optional other-window)
+  "Follow the `annotation-goto' hyperlink pointed to by LINK, if any.
 
-(defun annotation-goto-indirect (pos &optional other-window)
-  "Follow the `annotation-goto' hyperlink at position POS, if any.
-If OTHER-WINDOW is t, use another window to display the given position."
-  (let ((previous-file-name buffer-file-name))
-    (if (and (annotation-goto (get-text-property pos 'annotation-goto)
-                              other-window)
-             (not (eq (point) pos)))
-        (push `(,previous-file-name . ,pos) annotation-goto-stack))))
+LINK should be a buffer position, or an event object (in which
+case the ending position is used).
+
+If the hyperlink exists and the jump is performed successfully,
+then `t' is returned, and otherwise `nil' (unless an error is
+raised).
+
+If OTHER-WINDOW is non-nil, then another window is used to
+display the target position."
+  (let (source-pos
+        source-window
+        source-buffer
+        source-file-name
+        target)
+    (cond ((eventp link)
+           (let ((pn (event-end link)))
+             (when (not (posn-area pn))
+               (setq source-pos (posn-point pn))
+               (setq source-window (posn-window pn))
+               (setq source-buffer (window-buffer source-window)))))
+          ((integerp link)
+           (setq source-pos link)
+           (setq source-window (selected-window))
+           (setq source-buffer (current-buffer)))
+          (t (error "Not an integer or event object: %S" link)))
+    (when (and source-pos source-buffer)
+      (with-current-buffer source-buffer
+        (setq source-file-name buffer-file-name)
+        (setq target (get-text-property source-pos 'annotation-goto)))
+      (when target
+        (unless (equal source-window (selected-window))
+          (select-window source-window))
+        (when (annotation-goto target other-window)
+          (unless (and (equal source-buffer (current-buffer))
+                       (eq source-pos (point)))
+            (push `(,source-file-name . ,source-pos)
+                  annotation-goto-stack))
+          t)))))
 
 (defun annotation-go-back nil
   "Go back to the previous position in which `annotation-goto' was
@@ -42,8 +71,8 @@ successfully invoked."
   "Go to file position FILEPOS if the file is readable.
 FILEPOS should have the form (FILE . POS).  Return t if successful.
 
-If OTHER-WINDOW is t, use another window to display the given
-position."
+If OTHER-WINDOW is non-nil, use another window to display the
+given position."
   (when (consp filepos)
     (let ((file (car filepos)))
       (if (file-readable-p file)
