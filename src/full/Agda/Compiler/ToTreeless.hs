@@ -125,11 +125,10 @@ initCCEnv fun = CCEnv
   }
 
 -- | Environment for naming of local variables.
---   Invariant: @reverse ccCxt ++ ccNameSupply@
 data CCEnv = CCEnv
   { ccFunction   :: QName
   , ccCxt        :: CCContext  -- ^ Maps case tree de-bruijn indices to TTerm de-bruijn indices
-  , ccCatchAll   :: Maybe Int  -- ^ de-bruijn index of the current catch all
+  , ccCatchAll   :: Maybe Int  -- ^ TTerm de-bruijn index of the current catch all
   -- If an inner case has no catch-all clause, we use the one from its parent.
   }
 
@@ -140,11 +139,15 @@ shift :: Int -> CCContext -> CCContext
 shift n = map (+n)
 
 -- | Term variables are de Bruijn indices.
-lookupIndex :: Int -> CCContext -> Int
+lookupIndex :: Int -- ^ Case tree de bruijn index.
+    -> CCContext
+    -> Int -- ^ TTerm de bruijn index.
 lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
 -- | Case variables are de Bruijn levels.
-lookupLevel :: Int -> CCContext -> Int
+lookupLevel :: Int -- ^ case tree de bruijn level
+    -> CCContext
+    -> Int -- ^ TTerm de bruijn index
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
 patMatchFailure :: CC C.TTerm
@@ -179,7 +182,8 @@ casetree cc = do
           -- should this be internal error, or pat match failure by default?
           -- normally, Agda should make sure that a pattern match is total,
           -- so this normally shouldn't happen
-          def <- maybe (C.TError C.TInternalError) C.TVar <$> asks ccCatchAll
+          def <- fromMaybe <$> patMatchFailure
+            <*> (fmap C.TVar <$> asks ccCatchAll)
           C.TCase (C.TVar x) caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts litBrs
@@ -194,9 +198,9 @@ updateCatchAll (Just cc) cont = do
 
 lambdasUpTo :: Int -> CC C.TTerm -> CC C.TTerm
 lambdasUpTo n cont = do
-  diff <- max 0 . (n -) . length <$> asks ccCxt
+  diff <- (n -) . length <$> asks ccCxt
 
-  if diff == 0 then cont
+  if diff <= 0 then cont -- no new lambdas needed
   else do
     catchAll <- asks ccCatchAll
 
@@ -204,8 +208,8 @@ lambdasUpTo n cont = do
       createLambdas diff <$> do
         case catchAll of
           Just catchAll' -> do
-            -- the catch all doesn't know about the additional lambdas, so just directly apply it
-            -- to the arg
+            -- the catch all doesn't know about the additional lambdas, so just directly
+            -- apply it again to the newly introduced lambda arguments.
             -- we also bind the catch all to a let, to avoid code duplication
             local (\e -> e { ccCatchAll = Just 0
                            , ccCxt = shift 1 (ccCxt e)}) $ do
@@ -225,7 +229,6 @@ conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do
 
 litAlts :: Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
 litAlts br = forM (Map.toList br) $ \ (l, cc) ->
-  -- TODO: substitute in ccCatchAll somehow
   let mkAlt = case l of
         TL.LitChar _ c -> C.TAChar c
         TL.LitString _ s -> C.TAString s
@@ -239,7 +242,7 @@ branch alt cc = do
 -- | Replace de Bruijn Level @x@ by @n@ new variables.
 replaceVar :: Int -> Int -> CC a -> CC a
 replaceVar x n cont = do
-  let upd cxt = shift n ys ++ ixs ++ shift n zs -- We reverse xs to get nicer names.
+  let upd cxt = shift n ys ++ ixs ++ shift n zs
        where
          -- compute the de Bruijn index
          i = length cxt - 1 - x
@@ -271,8 +274,10 @@ recConFromProj q = do
 
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables
---   from patternmatching. Agda terms are in de Bruijn so we just check the new
---   names in the position.
+--   from patternmatching. Agda terms are in de Bruijn indices, but the expected
+--   TTerm de bruijn indexes may differ. This is due to additional let-bindings
+--   introduced by the catch-all machinery, so we need to lookup casetree de bruijn
+--   indices in the environment as well.
 substTerm :: I.Term -> CC C.TTerm
 substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Var ind es -> do
@@ -281,7 +286,7 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
       C.mkTApp (C.TVar ind') <$> mapM (substTerm . unArg) args
     I.Lam _ ab ->
       C.TLam <$>
-        local (\e -> e { ccCxt = 0 : (map (+1) $ ccCxt e) })
+        local (\e -> e { ccCxt = 0 : (shift 1 $ ccCxt e) })
           (substTerm $ I.unAbs ab)
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit -- TODO can we really do this here?

@@ -105,7 +105,6 @@ data TTerm = TVar Int
            -- MUST only be evaluated if it is used inside the body.
            -- Sharing may happen, but is optional.
            -- It is also perfectly valid to just inline the bound term in the body.
-           -- (used to bind shared catchAll terms)
            | TCase TTerm CaseType TTerm [TAlt]
            -- ^ Case scrutinee, case type, default value, alternatives
            | TPi TType TType
@@ -121,7 +120,7 @@ mkTApp x as = TApp x as
 
 -- | Introduces a new binding
 mkLet :: TTerm -> TTerm -> TTerm
-mkLet x body = TLet x body -- TApp (TLam body) [x]
+mkLet x body = TLet x body
 
 data TAlt
   = TACon    { aCon  :: QName,  aBody :: TTerm }
@@ -134,7 +133,7 @@ data TAlt
   deriving (Typeable, Show)
 
 data TError
-  = TPatternMatchFailure QName -- datatype name
+  = TPatternMatchFailure QName -- function name
   | TAxiomEvaluated QName
   | TInternalError
   deriving (Typeable, Show)
