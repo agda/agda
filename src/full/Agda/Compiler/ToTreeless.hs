@@ -12,6 +12,7 @@ import Control.Monad.Reader
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Internal (QName)
 import qualified Agda.Syntax.Treeless as C
@@ -28,6 +29,7 @@ import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -75,7 +77,7 @@ ifToTreeless iface = do
   where
     forDefs :: [(QName, Definition)] -> (QName -> Definition -> (a -> TCM (C.Def a)) -> TCM [b]) -> TCM [b]
     forDefs defs cont = concat <$>
-        mapM (\(nm, def) -> cont nm def (return . C.Def nm undefined)) defs
+        traverse (\(nm, def) -> cont nm def (return . C.Def nm undefined)) defs
 
 
 -- | Converts compiled clauses to treeless syntax.
@@ -96,7 +98,7 @@ type ConInstMp = Map.Map QName QName
 -- | Computes the constructor instantiation map.
 getInstantiationMap :: [(QName, Definition)] -> TCM ConInstMp
 getInstantiationMap defs =
-  Map.unions <$> mapM (\(n, def) ->
+  Map.unions <$> traverse (\(n, def) ->
         case theDef def of
             c@(Constructor {}) -> Map.singleton n <$> chaseCon (I.conName $ conSrcCon c)
             r@(Record {}) -> Map.singleton n <$> chaseCon (I.conName $ recConHead r)
@@ -160,7 +162,7 @@ casetree cc = do
     CC.Done xs v -> lambdasUpTo (length xs) $ do
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
-      mkRecord =<< mapM casetree (CC.content <$> conBrs)
+      mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case n (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
@@ -295,4 +297,3 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Sort _  -> return C.TSort
     I.MetaV _ _ -> __IMPOSSIBLE__
     I.DontCare _ -> __IMPOSSIBLE__ -- when does this happen?
-
