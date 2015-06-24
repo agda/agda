@@ -4,6 +4,13 @@
 
 Important changes since 2.4.2.3:
 
+Syntax
+======
+
+* forall / ∀ now parses like λ, i.e., the following parses now [Issue 1583]:
+
+    ⊤ × ∀ (B : Set) → B → B
+
 Type checking
 =============
 
