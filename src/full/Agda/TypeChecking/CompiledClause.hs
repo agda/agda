@@ -24,6 +24,7 @@ import Data.Traversable (Traversable)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
+import Agda.Syntax.Position
 
 import Agda.Utils.Maybe
 import Agda.Utils.Null
@@ -143,3 +144,19 @@ instance Pretty CompiledClauses where
     sep [ text ("case " ++ show n ++ " of")
         , nest 2 $ pretty bs
         ]
+
+-- * KillRange instances.
+
+instance KillRange c => KillRange (WithArity c) where
+  killRange = fmap killRange
+
+instance KillRange c => KillRange (Case c) where
+  killRange (Branches cop con lit all) = Branches cop
+    (killRangeMap con)
+    (killRangeMap lit)
+    (killRange all)
+
+instance KillRange CompiledClauses where
+  killRange (Case i br) = killRange2 Case i br
+  killRange (Done xs v) = killRange2 Done xs v
+  killRange Fail        = Fail

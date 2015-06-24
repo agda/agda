@@ -8,6 +8,8 @@
 {-# LANGUAGE OverlappingInstances #-}
 #endif
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- | Agda-specific benchmarking structure.
 
 module Agda.Benchmarking where

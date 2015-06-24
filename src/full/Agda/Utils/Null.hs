@@ -10,6 +10,10 @@ import Control.Monad
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -17,10 +21,13 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import Text.PrettyPrint (Doc)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
@@ -67,6 +74,14 @@ instance Null (Map k a) where
   empty = Map.empty
   null  = Map.null
 
+instance Null (HashMap k a) where
+  empty = HashMap.empty
+  null  = HashMap.null
+
+instance Null (HashSet a) where
+  empty = HashSet.empty
+  null  = HashSet.null
+
 instance Null (Seq a) where
   empty = Seq.empty
   null  = Seq.null
@@ -80,6 +95,10 @@ instance Null (Maybe a) where
   empty = Nothing
   null Nothing  = True
   null (Just a) = False
+
+instance Null Doc where
+  empty = mempty
+  null  = (== mempty)
 
 -- * Testing for null.
 
@@ -100,4 +119,3 @@ whenNullM ma k = ma >>= (`whenNull` k)
 
 unlessNullM :: (Monad m, Null a) => m a -> (a -> m ()) -> m ()
 unlessNullM ma k = ma >>= (`unlessNull` k)
-

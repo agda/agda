@@ -19,6 +19,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute

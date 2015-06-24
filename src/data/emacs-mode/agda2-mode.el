@@ -1581,12 +1581,10 @@ to display the given position."
   "Go to the definition site of the name clicked on, if any.
 Otherwise, yank (see `mouse-yank-primary')."
   (interactive "e")
-  (let ((pos (posn-point (event-end ev))))
-    (if (annotation-goto-possible pos)
-        (annotation-goto-indirect pos)
-      ;; FIXME: Shouldn't we use something like
-      ;; (call-interactively (key-binding ev))?  --Stef
-      (mouse-yank-primary ev))))
+  (unless (annotation-goto-indirect ev)
+    ;; FIXME: Shouldn't we use something like
+    ;; (call-interactively (key-binding ev))?  --Stef
+    (mouse-yank-primary ev)))
 
 (defun agda2-go-back nil
   "Go back to the previous position in which

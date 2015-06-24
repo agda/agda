@@ -578,11 +578,6 @@ rigidVarsNotContainedIn v is = liftTCM $ do
         return $ Any forbidden
   getAny <$> foldRigid id test v
 
--- | Short-cutting disjunction forms a monoid.
-instance Monoid (TCM Any) where
-  mempty = return mempty
-  ma `mappend` mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
-
 -- | Collect the *definitely* rigid variables in a monoid.
 --   We need to successively reduce the expression to do this.
 

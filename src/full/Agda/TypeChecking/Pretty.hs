@@ -9,6 +9,7 @@ module Agda.TypeChecking.Pretty where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Position
@@ -24,7 +25,10 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
+import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation (Permutation)
@@ -38,10 +42,6 @@ import Agda.Utils.Impossible
 ---------------------------------------------------------------------------
 
 type Doc = P.Doc
-
-instance Null (TCM Doc) where
-  empty = return empty
-  null = __IMPOSSIBLE__
 
 comma, colon, equals :: TCM Doc
 comma  = return P.comma
@@ -350,16 +350,32 @@ instance PrettyTCM (Elim' DisplayTerm) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
   prettyTCM (Proj f)  = text "." <> prettyTCM f
 
-instance PrettyTCM (Elim' NLPat) where
-  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
-  prettyTCM (Proj f)  = text "." <> prettyTCM f
+raisePatVars :: Int -> NLPat -> NLPat
+raisePatVars k (PVar x)    = PVar (k+x)
+raisePatVars k (PWild)     = PWild
+raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
+raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
+raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
+raisePatVars k (PBoundVar i es) = PBoundVar k $ (fmap . fmap) (raisePatVars k) es
+raisePatVars k (PTerm t)   = PTerm t
 
 instance PrettyTCM NLPat where
   prettyTCM (PVar x)    = prettyTCM (var x)
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
+  prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
+  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (Common.unDom a) <+>
+                          (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
+  prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
+
+instance PrettyTCM (Elim' NLPat) where
+  prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
+  prettyTCM (Proj f)  = text "." <> prettyTCM f
+
+instance PrettyTCM (Type' NLPat) where
+  prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
   prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
@@ -369,3 +385,25 @@ instance PrettyTCM RewriteRule where
           prettyTCM lhs <+> text " --> " <+> do
             prettyTCM rhs <+> text " : " <+> do
               prettyTCM b
+
+instance PrettyTCM Occurrence where
+  prettyTCM GuardPos  = text "-[g+]->"
+  prettyTCM StrictPos = text "-[++]->"
+  prettyTCM JustPos   = text "-[+]->"
+  prettyTCM JustNeg   = text "-[-]->"
+  prettyTCM Mixed     = text "-[*]->"
+  prettyTCM Unused    = text "-[ ]->"
+
+-- | Pairing something with a node (for printing only).
+data WithNode n a = WithNode n a
+
+instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
+  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
+
+instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n n e) where
+  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
+    where
+      pr (n, es) = sep
+        [ prettyTCM n
+        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
+        ]

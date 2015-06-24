@@ -937,8 +937,9 @@ class NoProjectedVar a where
 
 data ProjVarExc = ProjVarExc Int [QName]
 
-instance Error ProjVarExc where
-  noMsg = __IMPOSSIBLE__
+-- ASR (17 June 2015). Unused Error instance.
+-- instance Error ProjVarExc where
+--   noMsg = __IMPOSSIBLE__
 
 instance NoProjectedVar Term where
   noProjectedVar v =
@@ -1036,8 +1037,10 @@ data InvertExcept
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
   | ProjectedVar Int [QName]  -- ^ Try to eta-expand var to remove projs.
 
+#if !MIN_VERSION_transformers(0,4,1)
 instance Error InvertExcept where
   noMsg = CantInvert
+#endif
 
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.

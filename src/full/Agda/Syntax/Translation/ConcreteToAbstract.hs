@@ -1474,6 +1474,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImportPragma _ i) = do
       addHaskellImport i
       return []
+    toAbstract (C.ImportUHCPragma _ i) = do
+      addHaskellImportUHC i
+      return []
     toAbstract (C.EtaPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       case e of

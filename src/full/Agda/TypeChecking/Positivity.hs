@@ -1,7 +1,9 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
+             DeriveGeneric,
              FlexibleContexts,
              FlexibleInstances,
+             TemplateHaskell,
              TupleSections,
              UndecidableInstances #-}
 
@@ -25,6 +27,10 @@ import qualified Data.Set as Set
 
 import Debug.Trace
 
+import GHC.Generics (Generic)
+
+import Test.QuickCheck
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -33,6 +39,7 @@ import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -63,8 +70,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
   -- remove @Unused@ edges
   g <- Graph.clean <$> buildOccurrenceGraph qs
-  -- let gstar = Graph.transitiveClosure $ fmap occ g
-  let gstar = Graph.complete $ fmap occ g
+  let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -190,44 +196,7 @@ getDefArity def = case theDef def of
 
 -- Specification of occurrences -------------------------------------------
 
--- | 'Occurrence' is a complete lattice with least element 'Mixed'
---   and greatest element 'Unused'.
---
---   It forms a commutative semiring where 'oplus' is meet (glb)
---   and 'otimes' is composition. Both operations are idempotent.
---
---   For 'oplus', 'Unused' is neutral (zero) and 'Mixed' is dominant.
---   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
-
-instance SemiRing Occurrence where
-  oplus Mixed _           = Mixed     -- dominant
-  oplus _ Mixed           = Mixed
-  oplus Unused o          = o         -- neutral
-  oplus o Unused          = o
-  oplus JustNeg  JustNeg  = JustNeg
-  oplus JustNeg  o        = Mixed     -- negative and any form of positve
-  oplus o        JustNeg  = Mixed
-  oplus GuardPos o        = o         -- second-rank neutral
-  oplus o GuardPos        = o
-  oplus StrictPos o       = o         -- third-rank neutral
-  oplus o StrictPos       = o
-  oplus JustPos JustPos   = JustPos
-
-  otimes Unused _            = Unused     -- dominant
-  otimes _ Unused            = Unused
-  otimes Mixed _             = Mixed      -- second-rank dominance
-  otimes _ Mixed             = Mixed
-  otimes JustNeg JustNeg     = JustPos
-  otimes JustNeg _           = JustNeg    -- third-rank dominance
-  otimes _ JustNeg           = JustNeg
-  otimes JustPos _           = JustPos    -- fourth-rank dominance
-  otimes _ JustPos           = JustPos
-  otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
-  otimes _ GuardPos          = GuardPos
-  otimes StrictPos StrictPos = StrictPos  -- neutral
-
-instance Null Occurrence where
-  empty = Unused
+-- See also Agda.TypeChecking.Positivity.Occurrence.
 
 -- | Description of an occurrence.
 data OccursWhere
@@ -243,7 +212,7 @@ data OccursWhere
   | InDefOf QName OccursWhere    -- ^ in the definition of a constant
   | Here
   | Unknown                      -- ^ an unknown position (treated as negative)
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 (>*<) :: OccursWhere -> OccursWhere -> OccursWhere
 Here            >*< o  = o
@@ -575,35 +544,13 @@ instance PrettyTCM Node where
   prettyTCM (DefNode q)   = prettyTCM q
   prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
 
-instance PrettyTCM Occurrence where
-  prettyTCM GuardPos  = text "-[g+]->"
-  prettyTCM StrictPos = text "-[++]->"
-  prettyTCM JustPos   = text "-[+]->"
-  prettyTCM JustNeg   = text "-[-]->"
-  prettyTCM Mixed     = text "-[*]->"
-  prettyTCM Unused    = text "-[ ]->"
-
--- | Pairing something with a node (for printing only).
-data WithNode n a = WithNode n a
-
 instance PrettyTCM n => PrettyTCM (WithNode n Edge) where
   prettyTCM (WithNode n (Edge o w)) =
     prettyTCM o <+> prettyTCM n <+> fsep (pwords $ show w)
 
-instance PrettyTCM n => PrettyTCM (WithNode n Occurrence) where
-  prettyTCM (WithNode n o) = prettyTCM o <+> prettyTCM n
-
-instance (PrettyTCM n, PrettyTCM (WithNode n e)) => PrettyTCM (Graph n e) where
-  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.graph g
-    where
-      pr (n, es) = sep
-        [ prettyTCM n
-        , nest 2 $ vcat $ map (prettyTCM . uncurry WithNode) $ Map.assocs es
-        ]
-
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
-  deriving (Show)
+  deriving (Show, Generic)
 
 instance Null Edge where
   null (Edge o _) = null o
@@ -613,6 +560,9 @@ instance Null Edge where
 -- \"the 'Occurrence' components are equal\".
 
 instance SemiRing Edge where
+  ozero = Edge ozero Unknown
+  oone  = Edge oone  Unknown
+
   oplus _                    e@(Edge Mixed _)     = e -- dominant
   oplus e@(Edge Mixed _) _                        = e
   oplus (Edge Unused _)      e                    = e -- neutral
@@ -688,3 +638,62 @@ computeEdge muts o = do
         -- D: (A B -> C) generates a positive edge B --> A.1
         -- even though the context is negative.
         inArg d i = mkEdge (ArgNode d i) StrictPos
+
+------------------------------------------------------------------------
+-- * Generators and tests
+------------------------------------------------------------------------
+
+instance Arbitrary OccursWhere where
+  arbitrary = sized arbitraryS
+    where
+    arbitraryS n = oneof $
+      [ return Here
+      , return Unknown
+      ] ++
+      if n <= 0 then [] else
+        [ LeftOfArrow <$> arb
+        , DefArg <$> arbitrary <*> arbitrary <*> arb
+        , UnderInf <$> arb
+        , VarArg <$> arb
+        , MetaArg <$> arb
+        , ConArgType <$> arbitrary <*> arb
+        , IndArgType <$> arbitrary <*> arb
+        , InClause <$> arbitrary <*> arb
+        , Matched <$> arb
+        , InDefOf <$> arbitrary <*> arb
+        ]
+      where arb = arbitraryS (n - 1)
+
+  shrink x = replaceConstructor x ++ genericShrink x
+    where
+    replaceConstructor Here    = []
+    replaceConstructor Unknown = []
+    replaceConstructor _       = [Here, Unknown]
+
+instance CoArbitrary OccursWhere
+
+instance Arbitrary Edge where
+  arbitrary = Edge <$> arbitrary <*> arbitrary
+
+  shrink (Edge o w) = [ Edge o w | o <- shrink o ] ++
+                      [ Edge o w | w <- shrink w ]
+
+instance CoArbitrary Edge
+
+-- | The 'oplus' method for 'Occurrence' matches that for 'Edge'.
+
+prop_oplus_Occurrence_Edge :: Edge -> Edge -> Bool
+prop_oplus_Occurrence_Edge e1@(Edge o1 _) e2@(Edge o2 _) =
+  case oplus e1 e2 of
+    Edge o _ -> o == oplus o1 o2
+
+-- Template Haskell hack to make the following $quickCheckAll work
+-- under GHC 7.8.
+return []
+
+-- | Tests.
+
+tests :: IO Bool
+tests = do
+  putStrLn "Agda.TypeChecking.Positivity"
+  $quickCheckAll

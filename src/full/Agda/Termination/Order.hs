@@ -92,25 +92,6 @@ instance PartialOrd Order where
     (Mat{}  , _      ) -> __IMPOSSIBLE__
     (_      , Mat{}  ) -> __IMPOSSIBLE__
 
--- | Pointwise comparison.
---   Only matrices with the same dimension are comparable.
-instance (Ord i, PartialOrd a) => PartialOrd (Matrix i a) where
-  comparable m n
-    | size m /= size n = POAny
-    | otherwise        = Fold.fold $
-                           zipMatrices onlym onlyn both trivial m n
-    where
-      -- If an element is only in @m@, then its 'Unknown' in @n@
-      -- so it gotten better at best, in any case, not worse.
-      onlym o = POGT
-      -- If an element is only in @n@, then its 'Unknown' in @m@
-      -- so we have strictly less information.
-      onlyn o = POLT
-      both    = comparable
-      -- The zero element of the result sparse matrix is the
-      -- neutral element of the monoid.
-      trivial = (==mempty)
-
 -- | A partial order, aimed at deciding whether a call graph gets
 --   worse during the completion.
 --

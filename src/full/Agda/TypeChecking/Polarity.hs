@@ -20,6 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Free hiding (Occurrence(..))
+import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Interaction.Options
 

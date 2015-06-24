@@ -310,6 +310,9 @@ instance KillRange Fixity where
 instance KillRange Fixity' where
   killRange (Fixity' f n) = killRange2 Fixity' f n
 
+instance KillRange x => KillRange (ThingWithFixity x) where
+  killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
+
 ------------------------------------------------------------------------
 -- * Some lenses
 

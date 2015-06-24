@@ -93,6 +93,22 @@ install:
     esac
 
 ##############################################################################
+# Installing Agda
+
+# We are installing Agda using
+#
+#  cabal configure <options>
+#  cabal build
+#  cabal copy
+#  cabal register
+#
+# instead of
+#
+#  cabal install <options>
+#
+# due to the cabal-install issue https://github.com/haskell/cabal/issues/975.
+
+##############################################################################
 # Running `cabal configure`
 
   - export BUILD_DIR=$PWD/dist
@@ -110,29 +126,20 @@ install:
     esac
 
 ##############################################################################
-# Running `cabal build`
+# Running `cabal build`, `cabal copy` and `cabal register`
 
 # Note: `cabal build` sets up the number of jobs to $ncpus by default.
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
+# We don't run `cabal install` because we are using `cabal configure` and
+# `cabal build` (see Section 'cabal install ≠ Setup install' from
+# http://www.vex.net/~trebla/haskell/cabal-cabal.xhtml).
+
   - case $TEST in
       "latex-test" | "non-require-stdlib" | "require-stdlib")
-        cabal build -v2 --builddir=$BUILD_DIR
-        ;;
-    esac
-
-##############################################################################
-# Running `cabal install`
-
-# The `enable-test` option is required only if $TEST=require-stdlib.
-
-  - case $TEST in
-      "latex-test" | "non-require-stdlib")
-        cabal install -v2 --builddir=$BUILD_DIR
-        ;;
-
-      "require-stdlib")
-        cabal install -v2 --builddir=$BUILD_DIR --enable-tests
+        cabal build -v2 --builddir=$BUILD_DIR &&
+        cabal copy &&
+        cabal register
         ;;
     esac
 

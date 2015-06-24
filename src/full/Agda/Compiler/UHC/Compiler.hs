@@ -207,9 +207,8 @@ compileModule addImps i = do
               Nothing -> do
                     lift $ reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
-                    let defns = HMap.toList $ sigDefinitions $ iSignature i
                     opts <- lift commandLineOptions
-                    (code, modInfo, _) <- lift $ compileDefns modNm curModInfos transModInfos opts defns
+                    (code, modInfo, _) <- lift $ compileDefns modNm curModInfos transModInfos opts i
                     lift $ do
                         crFile <- getCorePath modInfo
                         _ <- writeCoreFile crFile code
@@ -274,10 +273,10 @@ compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
     -> AModuleInterface -- ^ transitive iface
     -> CommandLineOptions
-    -> [(QName, Definition)] -> TCM (UB.CModule, AModuleInfo, AMod)
-compileDefns modNm curModImps transModIface opts defs = do
+    -> Interface -> TCM (UB.CModule, AModuleInfo, AMod)
+compileDefns modNm curModImps transModIface opts iface = do
 
-    (amod', modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface defs $ \amod ->
+    (amod', modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface iface $ \amod ->
                    return amod
                >>= optim optOptimSmashing "smashing"      Smash.smash'em
                >>= idPrint "done" return

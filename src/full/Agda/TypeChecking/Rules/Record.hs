@@ -15,6 +15,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance

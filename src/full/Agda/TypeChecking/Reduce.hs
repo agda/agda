@@ -929,7 +929,7 @@ instance InstantiateFull Sort where
             Inf        -> return s
             SizeUniv   -> return s
 
-instance InstantiateFull Type where
+instance (InstantiateFull a) => InstantiateFull (Type' a) where
     instantiateFull' (El s t) =
       El <$> instantiateFull' s <*> instantiateFull' t
 
@@ -1087,6 +1087,9 @@ instance InstantiateFull NLPat where
   instantiateFull' (PVar x)   = return $ PVar x
   instantiateFull' (PWild)    = return PWild
   instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
+  instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
+  instantiateFull' (PPi x y)  = PPi <$> instantiateFull' x <*> instantiateFull' y
+  instantiateFull' (PBoundVar x y) = PBoundVar x <$> instantiateFull' y
   instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
 instance InstantiateFull RewriteRule where
@@ -1160,11 +1163,12 @@ instance InstantiateFull Clause where
 
 instance InstantiateFull Interface where
     instantiateFull' (Interface h ms mod scope inside
-                               sig b hsImports highlighting pragmas patsyns) =
+                               sig b hsImports hsImportsUHC highlighting pragmas patsyns) =
         Interface h ms mod scope inside
             <$> instantiateFull' sig
             <*> instantiateFull' b
             <*> return hsImports
+            <*> return hsImportsUHC
             <*> return highlighting
             <*> return pragmas
             <*> return patsyns

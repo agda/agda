@@ -10,6 +10,10 @@ module Agda.Utils.Size
 
 import Prelude hiding (null)
 
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HashSet
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -45,6 +49,12 @@ instance Sized (Map k a) where
 
 instance Sized (Set a) where
   size = fromIntegral . Set.size
+
+instance Sized (HashMap k a) where
+  size = fromIntegral . HashMap.size
+
+instance Sized (HashSet a) where
+  size = fromIntegral . HashSet.size
 
 instance Sized (Seq a) where
   size = fromIntegral . Seq.length

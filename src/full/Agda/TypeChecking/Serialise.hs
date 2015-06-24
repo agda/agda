@@ -89,6 +89,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Positivity.Occurrence
 -- import Agda.TypeChecking.Pretty
 
 import Agda.Utils.BiMap (BiMap)
@@ -125,7 +126,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150615 * 10 + 0
+currentInterfaceVersion = 20150617 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -1015,7 +1016,7 @@ instance EmbPrj I.ConHead where
   value = vcase valu where valu [a, b, c] = valu3 ConHead a b c
                            valu _         = malformed
 
-instance EmbPrj I.Type where
+instance (EmbPrj a) => EmbPrj (I.Type' a) where
   icod_ (El a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 El a b
                            valu _      = malformed
@@ -1145,11 +1146,17 @@ instance EmbPrj NLPat where
   icod_ (PVar a)   = icode1 0 a
   icod_ (PWild)    = icode0 1
   icod_ (PDef a b) = icode2 2 a b
-  icod_ (PTerm a)  = icode1 3 a
+  icod_ (PLam a b) = icode2 3 a b
+  icod_ (PPi a b)  = icode2 4 a b
+  icod_ (PBoundVar a b) = icode2 5 a b
+  icod_ (PTerm a)  = icode1 6 a
   value = vcase valu where valu [0, a]    = valu1 PVar a
                            valu [1]       = valu0 PWild
                            valu [2, a, b] = valu2 PDef a b
-                           valu [3, a]    = valu1 PTerm a
+                           valu [3, a, b] = valu2 PLam a b
+                           valu [4, a, b] = valu2 PPi a b
+                           valu [5, a, b] = valu2 PBoundVar a b
+                           valu [6, a]    = valu1 PTerm a
                            valu _         = malformed
 
 instance EmbPrj RewriteRule where
@@ -1538,11 +1545,11 @@ instance EmbPrj HP.CompressedFile where
     valu _   = malformed
 
 instance EmbPrj Interface where
-  icod_ (Interface a b c d e f g h i j k) = icode11' a b c d e f g h i j k
+  icod_ (Interface a b c d e f g h i j k l) = icode12' a b c d e f g h i j k l
   value = vcase valu
     where
-      valu [a, b, c, d, e, f, g, h, i, j, k] = valu11 Interface a b c d e f g h i j k
-      valu _                                 = malformed
+      valu [a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Interface a b c d e f g h i j k l
+      valu _                                    = malformed
 
 -- This is used for the Epic compiler backend
 instance EmbPrj Epic.EInterface where

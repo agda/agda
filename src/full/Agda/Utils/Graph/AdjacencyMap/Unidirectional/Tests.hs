@@ -17,46 +17,29 @@ import Control.Applicative ((<$>), (<*>))
 #endif
 
 import Data.Function
+import qualified Data.Graph as Graph
 import qualified Data.List as List
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import Test.QuickCheck.All
+import Test.QuickCheck as QuickCheck
+
+import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
 
 import Agda.Utils.Function (iterateUntil)
 import Agda.Utils.Functor (for)
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List (distinct)
 import Agda.Utils.Null
 import Agda.Utils.SemiRing
-import Agda.Utils.QuickCheck as QuickCheck
 import Agda.Utils.TestHelpers
 
 ------------------------------------------------------------------------
 -- * Generating random graphs
 ------------------------------------------------------------------------
-
-instance (Arbitrary s, Arbitrary t, Arbitrary e) => Arbitrary (Edge s t e) where
-  arbitrary = Edge <$> arbitrary <*> arbitrary <*> arbitrary
-
-instance (CoArbitrary s, CoArbitrary t, CoArbitrary e) => CoArbitrary (Edge s t e) where
-  coarbitrary (Edge s t e) = coarbitrary s . coarbitrary t . coarbitrary e
-
-instance (Ord n, SemiRing e, Arbitrary n, Arbitrary e) =>
-         Arbitrary (Graph n n e) where
-  arbitrary = do
-    nodes <- sized $ \ n -> resize (isqrt n) arbitrary
-    edges <- mapM (\ (n1, n2) -> Edge n1 n2 <$> arbitrary) =<<
-                  listOfElements ((,) <$> nodes <*> nodes)
-    return (fromList edges `union` fromNodes nodes)
-    where
-    isqrt :: Int -> Int
-    isqrt = round . sqrt . fromIntegral
-
-  shrink g =
-    [ removeNode n g     | n <- Set.toList $ nodes g ] ++
-    [ removeEdge n1 n2 g | Edge n1 n2 _ <- edges g ]
 
 -- | Generates a node from the graph. (Unless the graph is empty.)
 
@@ -70,11 +53,15 @@ edgeIn :: (Ord n, Arbitrary n, Arbitrary e) =>
           Graph n n e -> Gen (Edge n n e)
 edgeIn g = elementsUnlessEmpty (edges g)
 
--- | Sample graph type used to test 'transitiveClosure' and 'transitiveClosure1'.
+-- | Sample graph type used to test some graph algorithms.
 
 type G = Graph N N E
 
--- | Sample node type used to test 'transitiveClosure' and 'transitiveClosure1'.
+-- | Sample edge type used to test some graph algorithms.
+
+type E = Occurrence
+
+-- | Sample node type used to test some graph algorithms.
 
 newtype N = N (Positive Int)
   deriving (Arbitrary, Eq, Ord)
@@ -84,18 +71,6 @@ n = N . Positive
 
 instance Show N where
   show (N (Positive n)) = "n " ++ show n
-
--- | Sample edge type used to test 'transitiveClosure' and 'transitiveClosure1'.
-
-newtype E = E Bool
-  deriving (Arbitrary, CoArbitrary, Eq, Show)
-
-instance SemiRing E where
-  oplus  (E x) (E y) = E (x || y)
-  otimes (E x) (E y) = E (x && y)
-
-instance Null E where
-  empty = E False -- neutral for oplus
 
 ------------------------------------------------------------------------
 -- * Graph properties
@@ -123,6 +98,71 @@ prop_insertWith f s t e g =
 -- -- This property only holds only if the edge is new.
 -- prop_insert ::  (Ord s, Ord t) => s -> t -> e -> Graph s t e -> Bool
 -- prop_insert s t e g = insert s t e g == union g (singleton s t e)
+
+prop_sccs' :: G -> Bool
+prop_sccs' g =
+  nodes g == Set.fromList (concat components)
+    &&
+  all distinct components
+    &&
+  all (not . null) components
+    &&
+  disjoint (map Set.fromList components)
+    &&
+  all stronglyConnected components'
+    &&
+  noMissingStronglyConnectedNodes components
+    &&
+  reverseTopologicalOrder
+  where
+  components' = sccs' g
+  components  = map Graph.flattenSCC components'
+
+  disjoint []       = True
+  disjoint (s : ss) = all (Set.null . Set.intersection s) ss
+                        &&
+                      disjoint ss
+
+  connected i j = isJust (findPath (const True) i j g)
+
+  stronglyConnected (Graph.AcyclicSCC n) = not (connected n n)
+  stronglyConnected (Graph.CyclicSCC ns) = and
+    [ connected i j
+    | i <- ns
+    , j <- ns
+    ]
+
+  noMissingStronglyConnectedNodes []         = True
+  noMissingStronglyConnectedNodes (ns : nss) =
+    and [ not (connected j i && connected i j)
+        | i <- ns
+        , j <- concat nss
+        ]
+      &&
+    noMissingStronglyConnectedNodes nss
+
+  reverseTopologicalOrder = and
+    [ component i <= component j
+    | Edge i j _ <- edges g
+    ]
+    where
+    component k =
+      head [ i
+           | (i, ns) <- zip [1..] (reverse components)
+           , k `elem` ns
+           ]
+
+prop_sccDAG :: G -> Bool
+prop_sccDAG g =
+  dagInvariant dag
+    &&
+  nodes g == Map.keysSet (dagNodeMap dag)
+  where
+  dag = sccDAG g
+
+prop_oppositeDAG :: G -> Bool
+prop_oppositeDAG g =
+  dagInvariant (oppositeDAG (sccDAG g))
 
 -- | Computes the transitive closure of the graph.
 --
@@ -153,13 +193,19 @@ completeUntilWith done otimes oplus = iterateUntil done growGraph  where
       Just es -> Graph $ Map.singleton s $ Map.map (otimes e) es
       Nothing -> Graph.empty
 
+-- | Equality modulo empty edges.
+(~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
+(~~) = (==) `on` clean
 
--- | Correctness of the optimized algorithm that proceeds by SCC.
+prop_gaussJordanFloydWarshallMcNaughtonYamadaReference :: G -> Bool
+prop_gaussJordanFloydWarshallMcNaughtonYamadaReference g =
+  gaussJordanFloydWarshallMcNaughtonYamadaReference g ~~
+  transitiveClosure1 g
 
--- prop_transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n n e -> Property
-prop_transitiveClosure :: G -> Property
-prop_transitiveClosure g = QuickCheck.label sccInfo $
-  transitiveClosure g == transitiveClosure1 g
+prop_gaussJordanFloydWarshallMcNaughtonYamada :: G -> Property
+prop_gaussJordanFloydWarshallMcNaughtonYamada g =
+  QuickCheck.label sccInfo $
+    gaussJordanFloydWarshallMcNaughtonYamada g ~~ transitiveClosure1 g
   where
   sccInfo =
     (if noSCCs <= 3 then "   " ++ show noSCCs
@@ -167,11 +213,6 @@ prop_transitiveClosure g = QuickCheck.label sccInfo $
     " strongly connected component(s)"
     where noSCCs = length (sccs g)
 
--- | Equality modulo empty edges.
-(~~) :: (Eq e, Ord s, Ord t, Null e) => Graph s t e -> Graph s t e -> Bool
-(~~) = (==) `on` clean
-
--- prop_complete :: (Null e, Eq e, SemiRing e, Ord n) => Graph n n e -> Property
 prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
@@ -198,28 +239,25 @@ tests = do
 
 -- Abbreviations for testing in interpreter
 
-tc :: (Eq e, Ord n, SemiRing e) => Graph n n e -> Graph n n e
-tc = transitiveClosure
-
 g1, g2, g3, g4 :: Graph N N E
 g1 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,E False)])
-  , (n 2, Map.fromList [(n 1,E False)])
+  [ (n 1, Map.fromList [(n 2,Unused)])
+  , (n 2, Map.fromList [(n 1,Unused)])
   ]
 
 g2 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,E True)])
-  , (n 2, Map.fromList [(n 1,E True)])
+  [ (n 1, Map.fromList [(n 2,StrictPos)])
+  , (n 2, Map.fromList [(n 1,StrictPos)])
   ]
 
 g3 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 2,E True)])
+  [ (n 1, Map.fromList [(n 2,StrictPos)])
   , (n 2, Map.fromList [])
-  , (n 4, Map.fromList [(n 1,E True)])
+  , (n 4, Map.fromList [(n 1,StrictPos)])
   ]
 
 g4 = Graph $ Map.fromList
-  [ (n 1, Map.fromList [(n 6,E False)])
-  , (n 6, Map.fromList [(n 8,E True )])
-   ,(n 8, Map.fromList [(n 3,E False)])
+  [ (n 1, Map.fromList [(n 6,Unused)])
+  , (n 6, Map.fromList [(n 8,StrictPos)])
+   ,(n 8, Map.fromList [(n 3,Unused)])
   ]

@@ -28,6 +28,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
@@ -251,6 +252,14 @@ addHaskellImport i = stHaskellImports %= Set.insert i
 -- | Get the Haskell imports.
 getHaskellImports :: TCM (Set String)
 getHaskellImports = use stHaskellImports
+
+-- | Tell the compiler to import the given Haskell module.
+addHaskellImportUHC :: String -> TCM ()
+addHaskellImportUHC i = stHaskellImportsUHC %= Set.insert i
+
+-- | Get the Haskell imports.
+getHaskellImportsUHC :: TCM (Set String)
+getHaskellImportsUHC = use stHaskellImportsUHC
 
 ---------------------------------------------------------------------------
 -- * Interaction output callback

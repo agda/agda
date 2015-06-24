@@ -107,17 +107,15 @@ initialIFSCandidates t = do
         handle err                                                 = throwError err
 
 -- | @initializeIFSMeta s t@ generates an instance meta of type @t@
---   with suggested name @s@.
+--   with suggested name @s@, possibly with leading lambdas.
 initializeIFSMeta :: String -> Type -> TCM Term
 initializeIFSMeta s t = do
   t <- reduce t  -- see Issue 1321
   cands <- initialIFSCandidates t
   newIFSMeta s t cands
 
--- | @findInScope m b (v,a)s@ tries to instantiate on of the types @a@s
+-- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
 --   of the candidate terms @v@s to the type @t@ of the metavariable @m@.
---   (unless @b@ is @Just n@ and the metavariable @n@ is not instantiated,
---    in which case we just abort).
 --   If successful, meta @m@ is solved with the instantiation of @v@.
 --   If unsuccessful, the constraint is regenerated, with possibly reduced
 --   candidate set.
@@ -132,10 +130,21 @@ findInScope m Nothing = do
   setCurrentRange mv $ do
     reportSLn "tc.instance" 20 $ "The type of the FindInScope constraint isn't known, trying to find it again."
     t <- getMetaType m
+
+--     -- We create a new meta (which can have additional leading lambdas, if the
+--     -- type @t@ now happens to be a function type) and the associated constraint
+--     newM <- initializeIFSMeta (miNameSuggestion $ mvInfo mv) t
+
+--     -- ... and we assign it to the previous one
+--     ctxElims <- map Apply <$> getContextArgs
+--     solveConstraint $ ValueCmp CmpEq t (MetaV m ctxElims) newM
+
+-- {-
     cands <- initialIFSCandidates t
     case cands of
       Nothing -> addConstraint $ FindInScope m Nothing Nothing
       Just {} -> findInScope m cands
+-- -}
 findInScope m (Just cands) =
   whenJustM (findInScope' m cands) $ (\ (cands, b) -> addConstraint $ FindInScope m b $ Just cands)
 

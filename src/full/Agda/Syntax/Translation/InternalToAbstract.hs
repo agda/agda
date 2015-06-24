@@ -125,10 +125,6 @@ reifyIElims = mapM reifyIElim
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
-instance Underscore Expr where
-  underscore   = A.Underscore $ Info.emptyMetaInfo
-  isUnderscore = __IMPOSSIBLE__
-
 -- Conditional reification to omit terms that are not shown --------------
 
 reifyWhenE :: Reify i Expr => Bool -> i -> TCM Expr

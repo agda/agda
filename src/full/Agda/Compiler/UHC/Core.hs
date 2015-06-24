@@ -13,6 +13,7 @@ module Agda.Compiler.UHC.Core
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe, catMaybes)
+import qualified Data.Set as Set
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
 #endif
@@ -72,10 +73,12 @@ toCore amod modInfo transModIface modImps = do
 
   let cMetaDeclL = buildCMetaDeclL (xmodDataTys amod)
 
-  let imps = [ mkHsName1 x | x <-
-        [ "UHC.Base"
-        , "UHC.Agda.Builtins"
-        ]] ++ map (mnmToCrNm . amiModule) modImps
+  let imps = map mkHsName1
+        ( Set.toList
+        $ Set.insert "UHC.Base"
+        $ Set.insert "UHC.Agda.Builtins"
+        $ xmodCrImports amod
+        ) ++ map (mnmToCrNm . amiModule) modImps
   let impsCr = map mkImport imps
       exps = getExports modInfo
       crModNm = mnmToCrNm $ xmodName amod
@@ -134,10 +137,7 @@ exprToCore (App f es)   = do
 exprToCore (Case e brs def (CTCon dt)) = do
   caseScr <- freshLocalName
   defVar <- freshLocalName
-  def' <- case def of
-        Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
-        Just x -> exprToCore x
-
+  def' <- exprToCore def
 
   branches <- branchesToCore brs
   defBranches <- defaultBranches dt brs (mkVar defVar)
@@ -148,9 +148,7 @@ exprToCore (Case e brs def (CTCon dt)) = do
 exprToCore (Case e brs def ct) = do
   e' <- exprToCore e
   var <- freshLocalName
-  def' <- case def of
-        Nothing -> return $ mkError opts "Non-exhaustive case didn't match any alternative."
-        Just x -> exprToCore x
+  def' <- exprToCore def
 
   css <- buildPrimCases (eq ct) (mkVar var) brs (getLit ct) def'
   return $ mkLet1Strict var e' css

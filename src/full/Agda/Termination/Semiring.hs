@@ -1,5 +1,3 @@
--- {-# LANGUAGE UndecidableInstances #-}
-
 -- | Semirings.
 
 module Agda.Termination.Semiring
@@ -70,13 +68,6 @@ semiringInvariant (Semiring { add = (+), mul = (*)
 instance HasZero Integer where
   zeroElement = 0
 
-instance Monoid Integer where
-  mempty = 0
-  mappend = (+)
-
-instance SemiRing Integer where
-  multiply = (*)
-
 integerSemiring :: Semiring Integer
 integerSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }
 
@@ -87,13 +78,6 @@ prop_integerSemiring = semiringInvariant integerSemiring
 
 instance HasZero Int where
   zeroElement = 0
-
-instance Monoid Int where
-  mempty = 0
-  mappend = (+)
-
-instance SemiRing Int where
-  multiply = (*)
 
 intSemiring :: Semiring Int
 intSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }

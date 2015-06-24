@@ -32,6 +32,7 @@ data AMod
       { xmodName    :: ModuleName
       , xmodDataTys :: [ADataTy]
       , xmodFunDefs :: [Fun]
+      , xmodCrImports :: Set String -- ^ Imports of other Core/Haskell modules for the FFI. Includes transitive imports.
       }
 
 data ADataTy
@@ -86,7 +87,7 @@ data Lit
 
 
 data CaseType
-  = CTCon ADataTy
+  = CTCon ADataTy -- rename this to CTData
   | CTChar
   | CTString
   deriving (Show, Ord, Eq)
@@ -97,7 +98,7 @@ data Expr
   | Lam HsName Expr
   | Con ADataTy ADataCon [Expr]
   | App Expr [Expr]
-  | Case Expr [Branch] (Maybe Expr) CaseType -- case possibly with default
+  | Case Expr [Branch] Expr CaseType -- scrutinee, alts, default, case ty
   | Let HsName Expr Expr
   | UNIT    -- ^ Used for internally generated unit values. If an Agda datatype is bound to the
             -- Unit builtin, two representations of unit exists, but will be compiled to the same
@@ -106,7 +107,7 @@ data Expr
   deriving (Show, Ord, Eq)
 
 data Branch
-  = BrCon   {brCon  :: ADataCon, brName :: Maybe QName, brVars :: [HsName], brExpr :: Expr}
+  = BrCon   {brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
   | BrChar  {brChar :: Char, brExpr :: Expr}
   | BrString {brStr :: String, brExpr :: Expr}
   deriving (Show, Ord, Eq)
@@ -136,7 +137,7 @@ lett v e        e' = if v `elem` fv e' then Let v e e' else e'
 --   TODO we should use the type information from inside the case statement to also handle defaults and literals.
 -- | If casing on the same expression in a sub-expression, we know what branch to
 --   pick
-casee :: ADataTy -> Expr -> [Branch] -> Maybe Expr -> CaseType -> Expr
+casee :: ADataTy -> Expr -> [Branch] -> Expr -> CaseType -> Expr
 casee _ x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs] def cty
   where
     casingE br expr = let rec = casingE br in case expr of
@@ -146,10 +147,10 @@ casee _ x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
       Con t n es -> Con t n (map rec es)
       App v es   -> App v (map rec es)
       Case e brs' def' cty' | expr == e -> case filter (sameCon br) brs' of
-        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (fmap rec def') cty'
+        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (rec def') cty'
         [b] -> substs (getBrVars br `zip` getBrVars b) (brExpr b)
         _   -> __IMPOSSIBLE__
-                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (fmap rec def') cty'
+                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (rec def') cty'
       Let v e1 e2 -> Let v (rec e1) (rec e2)
       UNIT        -> UNIT
       IMPOSSIBLE  -> IMPOSSIBLE
@@ -180,7 +181,7 @@ subst var var' expr = case expr of
                | otherwise -> Lam v (subst var var' e)
     Con t q es -> Con t q (map (subst var var') es)
     App v es   -> App (subst var var' v) (map (subst var var') es)
-    Case e brs def ty -> Case (subst var var' e) (map (substBranch var var') brs) (fmap (subst var var') def) ty
+    Case e brs def ty -> Case (subst var var' e) (map (substBranch var var') brs) (subst var var' def) ty
     Let v e e' | var == v  -> Let v (subst var var' e) e'
                | otherwise -> Let v (subst var var' e) (subst var var' e')
     UNIT       -> UNIT
@@ -203,7 +204,7 @@ fv = S.toList . fv'
       Lam v e1 -> S.delete v (fv' e1)
       Con _ _ es -> S.unions (map fv' es)
       App v es -> S.unions (fv' v : map fv' es)
-      Case e brs def _ -> fv' e `S.union` S.unions (map fvBr brs) `S.union` (maybe S.empty fv' def)
+      Case e brs def _ -> fv' e `S.union` S.unions (map fvBr brs) `S.union` (fv' def)
       Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
       UNIT       -> S.empty
       IMPOSSIBLE -> S.empty

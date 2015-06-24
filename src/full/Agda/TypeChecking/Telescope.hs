@@ -9,6 +9,8 @@ module Agda.TypeChecking.Telescope where
 import Control.Applicative
 import Control.Monad (forM_, unless)
 import Data.List
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
@@ -113,6 +115,24 @@ teleArgs :: Telescope -> Args
 teleArgs tel = [ Common.Arg info (var i) | (i, Common.Dom info _) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
+-- | Recursively computes dependencies of a set of variables in a given
+--   telescope. Any dependencies outside of the telescope are ignored.
+varDependencies :: Telescope -> IntSet -> IntSet
+varDependencies tel = allDependencies IntSet.empty
+  where
+    n  = size tel
+    ts = flattenTel tel
+
+    directDependencies :: Int -> IntSet
+    directDependencies i = allFreeVars $ ts !! (n-1-i)
+
+    allDependencies :: IntSet -> IntSet -> IntSet
+    allDependencies =
+      IntSet.foldr $ \j soFar ->
+        if j >= n || j `IntSet.member` soFar
+        then soFar
+        else IntSet.insert j $ allDependencies soFar $ directDependencies j
+
 -- | A telescope split in two.
 data SplitTel = SplitTel
   { firstPart  :: Telescope
@@ -136,29 +156,17 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     ts0   = flattenTel tel
     n     = size tel
 
-    -- We start with a rough split into fv and the rest. This will most likely
-    -- not be correct so we patch it up later with reorderTel.
+    is    = varDependencies tel fv
+    isC   = IntSet.fromList [0..(n-1)] `IntSet.difference` is
 
-    -- Convert given de Bruijn indices into ascending list of de Bruijn levels.
-    is    = map (n - 1 -) $ dropWhile (>= n) $ VarSet.toDescList fv
-    -- Compute the complement (de Bruijn levels not mentioned in @fv@).
-    isC   = [0..n - 1] \\ is
-    perm0 = Perm n $ is ++ isC
+    perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 
-    permuteTel p ts = renameP (reverseP p) (permute p ts)
+    ts1   = renameP (reverseP perm) (permute perm ts0)
 
-    ts1   = permuteTel perm0 ts0
+    tel'  = unflattenTel (permute perm names) ts1
 
-    perm1 = reorderTel_ ts1
-
-    ts2   = permuteTel perm1 ts1
-
-    perm  = composeP perm1 perm0
-
-    tel'  = unflattenTel (permute perm names) ts2
-
-    m            = length $ takeWhile (`notElem` is) $ reverse $ permPicks perm
-    (tel1, tel2) = telFromList -*- telFromList $ splitAt (n - m) $ telToList tel'
+    m     = size is
+    (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
 
 telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)

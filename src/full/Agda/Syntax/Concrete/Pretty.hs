@@ -459,6 +459,8 @@ instance Pretty Pragma where
       hsep $ [text "STATIC", pretty i]
     pretty (ImportPragma _ i) =
       hsep $ [text "IMPORT", text i]
+    pretty (ImportUHCPragma _ i) =
+      hsep $ [text "IMPORT_UHC", text i]
     pretty (ImpossiblePragma _) =
       hsep $ [text "IMPOSSIBLE"]
     pretty (EtaPragma _ x) =

@@ -117,6 +117,31 @@ Working with Git (from 2014-06-15)
                                --no-termination-check \
           Module-that-should-be-rejected.agda && exit 1 || exit 0"
 
+  And here is an example showing how one can modify the source code
+  (in this case by removing constraints on the version of cpphs)
+  before compilation starts:
+
+    git bisect run sh <script>
+
+  The script:
+
+    sed -ri -e 's/cpphs >=.*/cpphs/' Agda.cabal
+
+    if cabal install --force-reinstalls \
+                     --disable-library-profiling \
+                     --disable-documentation
+    then
+        .cabal-sandbox/bin/agda --ignore-interfaces \
+          Module-that-should-be-accepted.agda
+        status=$?
+    else
+        status=125
+    fi
+
+    git reset --hard
+
+    exit $status
+
 Testing and documentation
 
 * When you implement a new feature it needs to be documented in
@@ -173,6 +198,24 @@ Some Agda Hacking Lore
 
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
+
+* The GHC documentation (7.10.1) contains the following information
+  about orphan instances:
+
+    "GHC identifies orphan modules, and visits the interface file of
+    every orphan module below the module being compiled. This is
+    usually wasted work, but there is no avoiding it. You should
+    therefore do your best to have as few orphan modules as possible."
+
+    https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/separate-compilation.html#orphan-modules
+
+  In order to avoid /unnecessary/ orphan instances the flag
+  -fwarn-orphans is turned on. If you feel that you really want to use
+  an orphan instance, place
+
+    {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+  at the top of the module containing the instance.
 
 Haskell-mode and the agda codebase
 
@@ -243,4 +286,3 @@ you know how to port these tips to git, update this file.
   be changed by adding the following line to _darcs/prefs/defaults:
 
     ALL test
-

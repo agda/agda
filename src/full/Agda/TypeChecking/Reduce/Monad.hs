@@ -3,6 +3,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RankNTypes #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.TypeChecking.Reduce.Monad
   ( constructorForm
   , enterClosure
@@ -186,4 +188,3 @@ instance HasConstInfo ReduceM where
 
           init' [] = {-'-} __IMPOSSIBLE__
           init' xs = init xs
-

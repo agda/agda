@@ -62,6 +62,7 @@ import qualified Data.List as List
 import Data.Maybe
 
 import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 import Data.Traversable (Traversable)
 
 import qualified Text.PrettyPrint.Boxes as Boxes
@@ -73,6 +74,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
@@ -146,7 +148,7 @@ infSize (Matrix (Size r1 c1) _) (Matrix (Size r2 c2) _) =
   Size (min r1 r2) (min c1 c2)
 
 ------------------------------------------------------------------------
--- * Creating matrices and converging to lists.
+-- * Creating matrices and converting to lists.
 ------------------------------------------------------------------------
 
 -- | Constructs a matrix from a list of @(index, value)@-pairs.
@@ -412,6 +414,25 @@ mul semiring m1 m2 = Matrix (Size { rows = rows (size m1), cols = cols (size m2)
      times = Semiring.mul  semiring
      inner v w = List.foldl' plus zero $
                    map snd $ interAssocWith times v w
+
+-- | Pointwise comparison.
+--   Only matrices with the same dimension are comparable.
+instance (Ord i, PartialOrd a) => PartialOrd (Matrix i a) where
+  comparable m n
+    | size m /= size n = POAny
+    | otherwise        = Fold.fold $
+                           zipMatrices onlym onlyn both trivial m n
+    where
+      -- If an element is only in @m@, then its 'Unknown' in @n@
+      -- so it gotten better at best, in any case, not worse.
+      onlym o = POGT
+      -- If an element is only in @n@, then its 'Unknown' in @m@
+      -- so we have strictly less information.
+      onlyn o = POLT
+      both    = comparable
+      -- The zero element of the result sparse matrix is the
+      -- neutral element of the monoid.
+      trivial = (==mempty)
 
 ------------------------------------------------------------------------
 -- Modifying matrices

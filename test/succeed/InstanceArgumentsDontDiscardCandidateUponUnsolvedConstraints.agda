@@ -1,8 +1,6 @@
 -- Andreas, 2012-09-15
 module InstanceArgumentsDontDiscardCandidateUponUnsolvedConstraints where
 
-import Common.Level
-
 data ⊥ : Set where
 record ⊤ : Set where
 

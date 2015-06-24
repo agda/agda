@@ -42,9 +42,11 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Literal
+import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
+import Agda.Utils.Except ( Error(noMsg) )
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
@@ -333,6 +335,12 @@ instance Monoid Blocked_ where
   _              `mappend` b@Blocked{}    = b
   NotBlocked x _ `mappend` NotBlocked y _ = NotBlocked (x `mappend` y) ()
 
+-- See Issue 1573.
+#if !MIN_VERSION_transformers(0,4,1)
+instance Error Blocked_ where
+  noMsg = __IMPOSSIBLE__
+#endif
+
 -- | When trying to reduce @f es@, on match failed on one
 --   elimination @e ∈ es@ that came with info @r :: NotBlocked@.
 --   @stuckOn e r@ produces the new @NotBlocked@ info.
@@ -523,6 +531,10 @@ properlyMatching LitP{} = True
 properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record cons
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
+
+instance IsProjP Pattern where
+  isProjP (ProjP d) = Just d
+  isProjP _         = Nothing
 
 -----------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -1035,7 +1047,7 @@ instance KillRange LevelAtom where
   killRange (NeutralLevel r v) = killRange1 (NeutralLevel r) v
   killRange (UnreducedLevel v) = killRange1 UnreducedLevel v
 
-instance KillRange Type where
+instance (KillRange a) => KillRange (Type' a) where
   killRange (El s v) = killRange2 El s v
 
 instance KillRange Sort where
@@ -1065,9 +1077,6 @@ instance KillRange Pattern where
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
       ProjP q          -> killRange1 ProjP q
-
-instance KillRange Permutation where
-  killRange = id
 
 instance KillRange Clause where
   killRange (Clause r tel perm ps body t catchall) = killRange7 Clause r tel perm ps body t catchall

@@ -61,6 +61,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Patterns.Abstract
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Quote
@@ -1403,11 +1404,6 @@ checkHeadApplication e t hd args = do
     expandLast <- asks envExpandLast
     checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
       coerce (f vs) t1 t
-
--- Stupid ErrorT!
-instance Error (a, b, c) where
-  strMsg _ = __IMPOSSIBLE__
-  noMsg = __IMPOSSIBLE__
 
 traceCallE :: Error e => (Maybe r -> Call) -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
