@@ -553,7 +553,6 @@ PragmaQName : string {% fmap QName (mkName $1) }
 Expr :: { Expr }
 Expr
   : TeleArrow Expr                      { Pi $1 $2 }
-  | 'forall' ForallBindings Expr        { forallPi $2 $3 }
   | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
                                               (RawApp (getRange $1) $1)
                                               $3 }
@@ -582,6 +581,7 @@ Application
 Expr2
     : '\\' LamBindings Expr        { Lam (getRange ($1,$2,$3)) $2 $3 }
     | ExtendedOrAbsurdLam          { $1 }
+    | 'forall' ForallBindings Expr        { forallPi $2 $3 }
     | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
     | Expr3                        { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
