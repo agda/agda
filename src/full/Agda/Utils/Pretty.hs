@@ -55,11 +55,6 @@ instance Pretty String where
 
 -- * 'Doc' utilities
 
-#if !MIN_VERSION_pretty(1,1,2)
-instance Eq Doc where
-  (==) = (==) `on` render
-#endif
-
 pwords :: String -> [Doc]
 pwords = map text . words
 

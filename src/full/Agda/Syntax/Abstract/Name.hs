@@ -31,7 +31,7 @@ import {-# SOURCE #-} Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
--- import Agda.Utils.Function
+import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Suffix
