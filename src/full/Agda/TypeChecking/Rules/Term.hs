@@ -1529,10 +1529,13 @@ checkArguments_ exh r args tel = do
 --   variable.  Except for neutrals, for them a polymorphic type is inferred.
 inferExpr :: A.Expr -> TCM (Term, Type)
 -- inferExpr e = inferOrCheck e Nothing
-inferExpr e = case e of
+inferExpr = inferExpr' DontExpandLast
+
+inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
+inferExpr' exh e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runExceptT $ checkArguments DontExpandLast (getRange hd) (map convColor args) t0 (sort Prop)
+    res <- runExceptT $ checkArguments exh (getRange hd) (map convColor args) t0 (sort Prop)
     case res of
       Right (vs, t1) -> return (f vs, t1)
       Left t1 -> fallback -- blocked on type t1
@@ -1637,7 +1640,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     p <- expandPatternSynonyms p
-    (v, t) <- inferExpr e
+    (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
         t0 = El (getSort t) $ Pi (Dom defaultArgInfo t) (NoAbs underscore typeDontCare)
         p0 = Arg defaultArgInfo (Named Nothing p)
