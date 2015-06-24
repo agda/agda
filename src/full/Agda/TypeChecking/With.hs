@@ -236,11 +236,13 @@ stripWithClausePatterns f t qs perm ps = do
         ]
       case namedArg q of
         ProjP d -> case A.isProjP p of
-          Just d' | d == d' -> do
-            t <- reduce t
-            (self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
-            strip self1 t1 ps qs
-          _ -> mismatch
+          Just d' -> do
+            d' <- getOriginalProjection d'
+            if d /= d' then mismatch else do
+              t <- reduce t
+              (self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
+              strip self1 t1 ps qs
+          Nothing -> mismatch
 
         VarP (i, _x)  -> do
           ps <- intro1 t $ \ t -> strip (self `apply1` var i) t ps qs
