@@ -20,6 +20,7 @@ import Prelude hiding (null)
 
 import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
+import Control.Monad
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
@@ -214,7 +215,7 @@ checkEqualities :: [Equality] -> TCM ()
 checkEqualities eqs = noConstraints $ mapM_ checkEq eqs
   where
     checkEq (Equal (Hom a) s t) =
-      ifM (optWithoutK <$> pragmaOptions)
+      ifM ((optWithoutK <$> pragmaOptions) `and2M` (not <$> isSet (unEl a)))
       {-then-} (typeError $ WithoutKError a s t)
       {-else-} (equalTerm a s t)
     checkEq (Equal (Het a1 a2) s t) = typeError $ HeterogeneousEquality s a1 t a2
@@ -241,7 +242,7 @@ checkEqualityHH (Hom a) u v = do
     ok <- liftTCM $ tryConversion $ equalTerm a u v  -- no constraints left
     -- Jesper, 2013-11-21: Refuse to solve reflexive equations when --without-K is enabled
     if ok
-      then (whenM (liftTCM $ optWithoutK <$> pragmaOptions)
+      then (whenM (liftTCM $ (optWithoutK <$> pragmaOptions) `and2M` (not <$> isSet (unEl a)))
            (throwException $ WithoutKException a u v))
       else (addEquality a u v)
 checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
@@ -1100,3 +1101,30 @@ telViewUpToHH n t = do
     _         -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+isSet :: Term -> TCM Bool
+isSet a = do
+  a <- reduce a
+  case ignoreSharing a of
+    Def d es -> do
+      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      Defn{ defType = dtype, theDef = def } <- getConstInfo d
+      reportSDoc "tc.lhs.unify.isset" 50 $ text "Checking whether " <+> prettyTCM a <+> text " is a set..."
+      case def of
+        Datatype{ dataPars = npars, dataCons = cs, dataMutual = [], dataAbstr = ConcreteDef } -> do
+           let pars       = take npars args
+               TelV tel _ = telView' $ dtype `apply` pars
+               ixtypes    = map (unEl . unDom) $ flattenTel tel
+           ifNotM (allM ixtypes isSet) (return False) $ allM cs $ \c -> do
+             ctype <- defType <$> getConstInfo c
+             checkConstructorType d $ ctype `apply` pars
+        Record{ recConType = ctype } -> checkConstructorType d $ ctype `apply` args
+        _ -> return False
+    _ -> return False
+  where
+    checkConstructorType :: QName -> Type -> TCM Bool
+    checkConstructorType d a = do
+      let TelV tel _ = telView' a
+      allM (map (unEl . unDom) $ flattenTel tel) $ \b -> case ignoreSharing b of
+        Def d' _ | d == d' -> return True
+        _ -> isSet b
