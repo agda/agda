@@ -60,6 +60,7 @@ import Data.Array
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
+import Data.Monoid
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold

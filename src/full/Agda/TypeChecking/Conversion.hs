@@ -159,7 +159,7 @@ compareTerm cmp a u v = do
                 -- Andreas, 2014-04-12 do not short cut if type is blocked.
                 ifBlockedType a (\ _ _ -> fallback) {-else-} $ \ a -> do
                   -- do not short circuit size comparison!
-                  caseMaybeM (isSizeTypeTest <*> return a) cont (\ _ -> fallback)
+                  caseMaybeM (isSizeType a) cont (\ _ -> fallback)
 
           dir = fromCmp cmp
           rid = flipCmp dir     -- The reverse direction.  Bad name, I know.

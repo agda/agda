@@ -192,11 +192,31 @@ telViewUpTo' n p t = do
 -- | Decomposing a function type.
 
 mustBePi :: MonadTCM tcm => Type -> tcm (Dom Type, Abs Type)
-mustBePi t = liftTCM $ do
-  t <- reduce t
-  case ignoreSharing $ unEl t of
-    Pi a b -> return (a, b)
-    _      -> __IMPOSSIBLE__
+mustBePi t = ifNotPiType t __IMPOSSIBLE__ $ \ a b -> return (a,b)
+
+-- | If the given type is a @Pi@, pass its parts to the first continuation.
+--   If not (or blocked), pass the reduced type to the second continuation.
+ifPi :: MonadTCM tcm => Term -> (Dom Type -> Abs Type -> tcm a) -> (Term -> tcm a) -> tcm a
+ifPi t yes no = do
+  t <- liftTCM $ reduce t
+  case ignoreSharing t of
+    Pi a b -> yes a b
+    _      -> no t
+
+-- | If the given type is a @Pi@, pass its parts to the first continuation.
+--   If not (or blocked), pass the reduced type to the second continuation.
+ifPiType :: MonadTCM tcm => Type -> (Dom Type -> Abs Type -> tcm a) -> (Type -> tcm a) -> tcm a
+ifPiType (El s t) yes no = ifPi t yes (no . El s)
+
+-- | If the given type is blocked or not a @Pi@, pass it reduced to the first continuation.
+--   If it is a @Pi@, pass its parts to the second continuation.
+ifNotPi :: MonadTCM tcm => Term -> (Term -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPi = flip . ifPi
+
+-- | If the given type is blocked or not a @Pi@, pass it reduced to the first continuation.
+--   If it is a @Pi@, pass its parts to the second continuation.
+ifNotPiType :: MonadTCM tcm => Type -> (Type -> tcm a) -> (Dom Type -> Abs Type -> tcm a) -> tcm a
+ifNotPiType = flip . ifPiType
 
 -- | A safe variant of piApply.
 

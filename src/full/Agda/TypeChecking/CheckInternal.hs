@@ -280,11 +280,7 @@ shouldBeProjectible t f = maybe failure return =<< getDefType f =<< reduce t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
 shouldBePi :: Type -> TCM (I.Dom Type, Abs Type)
-shouldBePi t = do
-  t <- reduce t
-  case ignoreSharing $ unEl t of
-    Pi a b -> return (a, b)
-    _      -> typeError $ ShouldBePi t
+shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 
 -- | Result is in reduced form.
 shouldBeSort :: Type -> TCM Sort

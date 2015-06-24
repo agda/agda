@@ -876,7 +876,15 @@ assignMeta' m x t n ids v = do
 -- | Turn the assignment problem @_X args <= SizeLt u@ into
 -- @_X args = SizeLt (_Y args)@ and constraint
 -- @_Y args <= u@.
-subtypingForSizeLt :: CompareDirection -> MetaId -> MetaVariable -> Type -> Args -> Term -> (Term -> TCM ()) -> TCM ()
+subtypingForSizeLt
+  :: CompareDirection -- ^ @dir@
+  -> MetaId           -- ^ The meta variable @x@.
+  -> MetaVariable     -- ^ Its associated information @mvar <- lookupMeta x@.
+  -> Type             -- ^ Its type @t = jMetaType $ mvJudgement mvar@
+  -> Args             -- ^ Its arguments.
+  -> Term             -- ^ Its to-be-assigned value @v@, such that @x args `dir` v@.
+  -> (Term -> TCM ()) -- ^ Continuation taking its possibly assigned value.
+  -> TCM ()
 subtypingForSizeLt DirEq x mvar t args v cont = cont v
 subtypingForSizeLt dir   x mvar t args v cont = do
   let fallback = cont v

@@ -107,6 +107,12 @@ getRecordTypeFields t =
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
+-- | Get the original name of the projection
+--   (the current one could be from a module application).
+getOriginalProjection :: QName -> TCM QName
+getOriginalProjection q = do
+  proj <- fromMaybe __IMPOSSIBLE__ <$> isProjection q
+  return $ fromMaybe __IMPOSSIBLE__ $ projProper proj
 
 -- | Get the type of the record constructor.
 getRecordConstructorType :: QName -> TCM Type

@@ -1,6 +1,7 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DefaultSignatures,
+             NoMonomorphismRestriction,
+             PatternGuards,
+             TupleSections #-}
 
 module Agda.Syntax.Abstract.Views where
 
@@ -65,12 +66,56 @@ deepUnScope = mapExpr unScope
 -- | Apply an expression rewriting to every subexpression, inside-out.
 --   See "Agda.Syntax.Internal.Generic".
 class ExprLike a where
+  -- | The first expression is pre-traversal, the second one post-traversal.
+  recurseExpr :: (Applicative m) => (Expr -> m Expr -> m Expr) -> a -> m a
+  default recurseExpr :: (ExprLike a, Traversable f, Applicative m)
+                                 => (Expr -> m Expr -> m Expr) -> f a -> m (f a)
+  recurseExpr = traverse . recurseExpr
+
   foldExpr :: Monoid m => (Expr -> m) -> a -> m
+  foldExpr f = getConst . recurseExpr (\ pre post -> Const $ f pre)
+
   traverseExpr :: (Monad m, Applicative m) => (Expr -> m Expr) -> a -> m a
+  traverseExpr f = recurseExpr (\ pre post -> f =<< post)
+
   mapExpr :: (Expr -> Expr) -> (a -> a)
   mapExpr f = runIdentity . traverseExpr (Identity . f)
 
 instance ExprLike Expr where
+  recurseExpr f e0 = f e0 $ do
+    let recurse e = recurseExpr f e
+    case e0 of
+      Var{}                   -> pure e0
+      Def{}                   -> pure e0
+      Proj{}                  -> pure e0
+      Con{}                   -> pure e0
+      Lit{}                   -> pure e0
+      QuestionMark{}          -> pure e0
+      Underscore{}            -> pure e0
+      App ei e arg            -> App ei <$> recurse e <*> recurse arg
+      WithApp ei e es         -> WithApp ei <$> recurse e <*> recurse es
+      Lam ei b e              -> Lam ei <$> recurse b <*> recurse e
+      AbsurdLam{}             -> pure e0
+      ExtendedLam ei di x cls -> ExtendedLam ei di x <$> recurse cls
+      Pi ei tel e             -> Pi ei <$> recurse tel <*> recurse e
+      Fun ei arg e            -> Fun ei <$> recurse arg <*> recurse e
+      Set{}                   -> pure e0
+      Prop{}                  -> pure e0
+      Let ei bs e             -> Let ei <$> recurse bs <*> recurse e
+      ETel tel                -> ETel <$> recurse tel
+      Rec ei bs               -> Rec ei <$> recurse bs
+      RecUpdate ei e bs       -> RecUpdate ei <$> recurse e <*> recurse bs
+      ScopedExpr sc e         -> ScopedExpr sc <$> recurse e
+      QuoteGoal ei n e        -> QuoteGoal ei n <$> recurse e
+      QuoteContext ei         -> pure e0
+      Quote{}                 -> pure e0
+      QuoteTerm{}             -> pure e0
+      Unquote{}               -> pure e0
+      DontCare e              -> DontCare <$> recurse e
+      PatternSyn{}            -> pure e0
+      Tactic ei e xs ys       -> Tactic ei <$> recurse e <*> recurse xs <*> recurse ys
+      Macro{}                 -> pure e0
+
   foldExpr f e =
     case e of
       Var{}                -> m
@@ -164,24 +209,34 @@ instance (ExprLike a, ExprLike b) => ExprLike (Either a b) where
                                   (traverseExpr f)
 
 instance ExprLike ModuleName where
+  recurseExpr f = pure
   foldExpr f _ = mempty
   traverseExpr f = pure
 
 instance ExprLike LamBinding where
+  recurseExpr f e =
+    case e of
+      DomainFree{}  -> pure e
+      DomainFull bs -> DomainFull <$> recurseExpr f bs
   foldExpr f e =
     case e of
       DomainFree{}  -> mempty
       DomainFull bs -> foldExpr f bs
   traverseExpr f e =
     case e of
-      DomainFree{}  -> return e
+      DomainFree{}  -> pure e
       DomainFull bs -> DomainFull <$> traverseExpr f bs
 
 instance ExprLike TypedBindings where
+  recurseExpr  f (TypedBindings r b) = TypedBindings r <$> recurseExpr f b
   foldExpr     f (TypedBindings r b) = foldExpr f b
   traverseExpr f (TypedBindings r b) = TypedBindings r <$> traverseExpr f b
 
 instance ExprLike TypedBinding where
+  recurseExpr f e =
+    case e of
+      TBind r xs e -> TBind r xs <$> recurseExpr f e
+      TLet r ds    -> TLet r <$> recurseExpr f ds
   foldExpr f e =
     case e of
       TBind _ _ e  -> foldExpr f e
@@ -192,6 +247,14 @@ instance ExprLike TypedBinding where
       TLet r ds    -> TLet r <$> traverseExpr f ds
 
 instance ExprLike LetBinding where
+  recurseExpr f e = do
+    let recurse e = recurseExpr f e
+    case e of
+      LetBind li ai x e e' -> LetBind li ai x <$> recurse e <*> recurse e'
+      LetPatBind li p e    -> LetPatBind li <$> recurse p <*> recurse e
+      LetApply{}           -> pure e
+      LetOpen{}            -> pure e
+
   foldExpr f e =
     case e of
       LetBind _ _ _ e e' -> fold e `mappend` fold e'
@@ -205,18 +268,16 @@ instance ExprLike LetBinding where
     case e of
       LetBind li ai x e e' -> LetBind li ai x <$> trav e <*> trav e'
       LetPatBind li p e    -> LetPatBind li <$> trav p <*> trav e
-      LetApply{}           -> return e
-      LetOpen{}            -> return e
+      LetApply{}           -> pure e
+      LetOpen{}            -> pure e
 
--- | TODO: currently does not go into patterns.
-instance ExprLike (Pattern' a) where
-  foldExpr     f _ = mempty
-  traverseExpr f e = return e
+instance ExprLike a => ExprLike (Pattern' a) where
 
 -- | TODO: currently does not go into clauses.
 instance ExprLike (Clause' a) where
+  recurseExpr  f e = pure e
   foldExpr     f _ = mempty
-  traverseExpr f e = return e
+  traverseExpr f e = pure e
 
 {- TODO: finish
 instance ExprLike (Clause' a) where
