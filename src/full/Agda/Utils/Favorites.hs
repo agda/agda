@@ -79,9 +79,9 @@ compareWithFavorites a favs = loop $ toList favs where
   loop as@(b : bs) = case comparable a b of
     POLT -> dominates b $ loop bs  -- @a@ is a new favorite, bye-bye, @b@
     POLE -> dominates b $ loop bs  -- ditto
-    POEQ -> IsDominated a          -- @b@ is as least as good as @a@, bye-bye, @a@
-    POGE -> IsDominated a          -- ditto
-    POGT -> IsDominated a          -- ditto
+    POEQ -> IsDominated b          -- @b@ is as least as good as @a@, bye-bye, @a@
+    POGE -> IsDominated b          -- ditto
+    POGT -> IsDominated b          -- ditto
     POAny -> doesnotd b $ loop bs -- don't know, compare with my other favorites
   -- add an outperformed favorite
   dominates b (Dominates bs as) = Dominates (b : bs) as
