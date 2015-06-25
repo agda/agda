@@ -18,15 +18,15 @@ module Agda.Utils.Except
   , mapExceptT
   ) where
 
+#include "undefined.h"
+import Agda.Utils.Impossible
+
 ------------------------------------------------------------------------
 #if MIN_VERSION_mtl(2,2,1)
 -- New mtl, reexport ExceptT, define class Error for backward compat.
 ------------------------------------------------------------------------
 
 import Control.Monad.Except
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | We cannot define data constructors synonymous, so we define the
 -- @mkExceptT@ function to be used instead of the data constructor
