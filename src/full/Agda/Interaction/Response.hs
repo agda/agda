@@ -16,7 +16,7 @@ module Agda.Interaction.Response
   ) where
 
 import Agda.Interaction.Highlighting.Precise
-import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
 import Agda.Syntax.Common   (InteractionId(..))
 import Agda.Syntax.Concrete (Expr)
 import Agda.Utils.Pretty
