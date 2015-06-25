@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Either
 
 import Agda.Syntax.Internal hiding (Term(..))
+import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal  as TL
 import qualified Agda.Syntax.Treeless as C
 import Agda.TypeChecking.Monad
@@ -199,6 +200,9 @@ isDtInstantiated _ = False
 -- | Translate an Agda definition to an UHC Core function where applicable
 translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
 translateDefn (n, defini) = do
+  nmSizeUniv <- fmap (\(I.Def nm []) -> nm)
+    <$> (lift . lift) (getBuiltin' builtinSizeUniv)
+
   crName <- lift $ getCoreName n
   let crRep = compiledCore $ defCompiledRep defini
   kit <- lift getCoinductionKit
@@ -207,9 +211,9 @@ translateDefn (n, defini) = do
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
     (Function{}) | Just n == (nameOfFlat <$> kit) -> do
-        lift . lift $ reportSDoc "comp.conv" 23 $ text "found flat"
-        -- ignore the two type arguments
         Just <$> mkIdentityFun n "coind-flat" 0
+    (Function{}) | Just n == nmSizeUniv -> do
+        return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("size-univ") [] UNIT
     f@(Function{}) | otherwise -> do
         let ty    = (defType defini)
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
