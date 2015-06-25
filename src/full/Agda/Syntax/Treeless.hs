@@ -109,6 +109,7 @@ data TTerm = TVar Int
            | TPi TType TType
            | TUnit -- used for levels right now
            | TSort
+           | TErased
            | TError TError
            -- ^ A runtime error, something bad has happened.
   deriving (Typeable, Show)

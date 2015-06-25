@@ -336,6 +336,7 @@ substTerm term = case term of
     C.TPi _ _ -> __IMPOSSIBLE__
     C.TUnit -> return UNIT
     C.TSort -> return UNIT
+    C.TErased -> return UNIT
     C.TError _ -> return IMPOSSIBLE -- TODO translate errors proberly here
 
 -- | Translate Agda literals to our AUX definition
