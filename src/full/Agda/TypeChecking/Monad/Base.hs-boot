@@ -11,8 +11,8 @@ data TCEnv
 data TCState
 newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
-instance MonadIO m => MonadIO (TCMT m) where
-instance MonadIO m => Monad (TCMT m) where
+instance MonadIO m => MonadIO (TCMT m)
+instance MonadIO m => Monad (TCMT m)
 
 type TCM = TCMT IO
 
