@@ -66,7 +66,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Interaction.Exceptions
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
-import {-# SOURCE #-} Agda.Interaction.Response
+import Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback, Response)
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
