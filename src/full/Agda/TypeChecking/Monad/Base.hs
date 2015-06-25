@@ -2287,15 +2287,15 @@ thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
 {-# INLINE thenTCMT #-}
 
 instance MonadIO m => Functor (TCMT m) where
-    fmap = fmapTCMT
+  fmap = fmapTCMT
 
 fmapTCMT :: MonadIO m => (a -> b) -> TCMT m a -> TCMT m b
 fmapTCMT = \f (TCM m) -> TCM $ \r e -> liftM f (m r e)
 {-# INLINE fmapTCMT #-}
 
 instance MonadIO m => Applicative (TCMT m) where
-    pure  = returnTCMT
-    (<*>) = apTCMT
+  pure  = returnTCMT
+  (<*>) = apTCMT
 
 apTCMT :: MonadIO m => TCMT m (a -> b) -> TCMT m a -> TCMT m b
 apTCMT = \(TCM mf) (TCM m) -> TCM $ \r e -> ap (mf r e) (m r e)

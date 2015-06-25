@@ -17,13 +17,13 @@ sep, fsep, hsep, vcat :: [TCM Doc]          -> TCM Doc
 class PrettyTCM a where
     prettyTCM :: a -> TCM Doc
 
-instance PrettyTCM a => PrettyTCM (Closure a) where
-instance PrettyTCM a => PrettyTCM [a] where
+instance PrettyTCM a => PrettyTCM (Closure a)
+instance PrettyTCM a => PrettyTCM [a]
 
-instance PrettyTCM Name where
-instance PrettyTCM QName where
-instance PrettyTCM Term where
-instance PrettyTCM Elim where
-instance PrettyTCM Type where
-instance PrettyTCM Sort where
-instance PrettyTCM DisplayTerm where
+instance PrettyTCM Name
+instance PrettyTCM QName
+instance PrettyTCM Term
+instance PrettyTCM Elim
+instance PrettyTCM Type
+instance PrettyTCM Sort
+instance PrettyTCM DisplayTerm
