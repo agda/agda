@@ -212,9 +212,8 @@ instance HasRange NiceDeclaration where
   getRange (NiceFunClause r _ _ _ _)       = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
 
--- ASR (17 June 2015). Unused Error instance.
--- instance Error DeclarationException where
---   strMsg = DeclarationPanic
+instance Error DeclarationException where
+  strMsg = DeclarationPanic
 
 -- These error messages can (should) be terminated by a dot ".",
 -- there is no error context printed after them.
