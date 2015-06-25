@@ -50,7 +50,6 @@ ifToTreeless iface = do
         (\x -> [(nm, x)]) <$> (mkCDef $ C.Fun (C.TError $ C.TAxiomEvaluated nm))
       _ -> return []
 
---  conInstMp <- getInstantiationMap defns
   cons <- Map.unionsWith (++) <$> (forDefs defns $ \nm def mkCDef -> do
     case theDef def of
       c@(Constructor {}) -> do --- | not (Map.member nm conInstMp) -> do
@@ -60,12 +59,11 @@ ifToTreeless iface = do
     )
 
   dats <- forDefs defns $ \nm def mkCDef -> do
-
     case theDef def of
-      (Datatype {}) -> do
+      (Datatype {dataClause = Nothing}) -> do
         let myCons = fromMaybe [] (Map.lookup nm cons)
         (\x -> [(nm, x)]) <$> (mkCDef $ C.Datatype myCons)
-      (Record{}) -> do
+      (Record{recClause = Nothing}) -> do
         let myCon = fromMaybe __IMPOSSIBLE__ (Map.lookup nm cons >>= headMaybe)
         (\x -> [(nm, x)]) <$> (mkCDef $ C.Record myCon)
       _ -> return []
@@ -87,35 +85,21 @@ ccToTreeless funNm cc = do
   reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body'
   return body'
 
-{-
--- | Maps constructor names to their actual implementation names.
--- Used for instantiated modules, where datatype definitions gets duplicated,
--- but we want to use the original definition when translating.
-type ConInstMp = Map.Map QName QName
 
-
--- | Computes the constructor instantiation map.
-getInstantiationMap :: [(QName, Definition)] -> TCM ConInstMp
-getInstantiationMap defs =
-  Map.unions <$> traverse (\(n, def) ->
-        case theDef def of
-            c@(Constructor {}) -> Map.singleton n <$> chaseCon (I.conName $ conSrcCon c)
-            r@(Record {}) -> Map.singleton n <$> chaseCon (I.conName $ recConHead r)
-            _ -> return Map.empty
-        ) defs
-  where chaseCon :: QName -> TCM QName
-        chaseCon conNm = do
-            conDef <- theDef <$> getConstInfo conNm
-            let conSrcNm = case conDef of
-                    c@(Constructor {}) -> I.conName $ conSrcCon c
-                    r@(Record {}) -> I.conName $ recConHead r
-                    _ -> __IMPOSSIBLE__
-            if conSrcNm == conNm then
-              return conSrcNm
-            else
-              chaseCon conSrcNm
--}
-
+-- | Returns the original non-instantiated constructor head for instantiated constructors.
+-- If it is already a non-instantiated constructor, returns the given name directly.
+chaseCon :: QName -> TCM I.ConHead
+chaseCon conNm = do
+  conDef <- theDef <$> getConstInfo conNm
+  let conSrc = case conDef of
+        c@(Constructor {}) -> conSrcCon c
+        r@(Record {}) -> recConHead r
+        _ -> __IMPOSSIBLE__
+  if I.conName conSrc == conNm then
+    return conSrc
+  else
+    -- do we need to do recursive chasing here? shouldn't do any harm for sure
+    chaseCon (I.conName conSrc)
 
 -- | Initial environment for expression generation.
 initCCEnv :: QName -> CCEnv
@@ -173,7 +157,8 @@ casetree cc = do
       else do
         caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
               ((c:_), []) -> do
-                dtNm <- conData . theDef <$> lift (getConstInfo c)
+                c' <- I.conName <$> lift (chaseCon c)
+                dtNm <- conData . theDef <$> lift (getConstInfo c')
                 return $ C.CTData dtNm
               ([], (TL.LitChar _ _):_) -> return C.CTChar
               ([], (TL.LitString _ _):_) -> return C.CTString
@@ -225,8 +210,9 @@ lambdasUpTo n cont = do
 
 conAlts :: Int -> Map QName (CC.WithArity CC.CompiledClauses) -> CC [C.TAlt]
 conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do
+  c' <- lift $ chaseCon c
   replaceVar x n $ do
-    branch (C.TACon c) cc
+    branch (C.TACon $ I.conName c') cc
 
 litAlts :: Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
 litAlts br = forM (Map.toList br) $ \ (l, cc) ->
@@ -261,7 +247,7 @@ mkRecord fs = lift $ do
   -- Get the name of the first field
   let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
   -- Use the field name to get the record constructor and the field names.
-  I.ConHead c _ind xs <- recConFromProj p1
+  I.ConHead c _ind xs <- chaseCon . I.conName =<< recConFromProj p1
   -- Convert the constructor
   let (args :: [C.TTerm]) = for xs $ \ x -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
   return $ C.mkTApp (C.TCon c) args
@@ -294,8 +280,9 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       C.mkTApp (C.TDef q) <$> substArgs args
-    I.Con c args ->
-        C.mkTApp (C.TCon $ I.conName c) <$> substArgs args
+    I.Con c args -> do
+        c' <- I.conName <$> (lift $ chaseCon $ I.conName c)
+        C.mkTApp (C.TCon c') <$> substArgs args
     I.Shared _ -> __IMPOSSIBLE__ -- the ignoreSharing fun should already take care of this
     I.Pi _ _ -> return C.TUnit -- TODO return proper pi here
     I.Sort _  -> return C.TSort

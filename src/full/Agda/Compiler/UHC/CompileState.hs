@@ -17,13 +17,11 @@ module Agda.Compiler.UHC.CompileState
   , getCoreName1
   , getConstrInfo
   , getConstrFun
-  , isConstrInstantiated
   , getCoinductionKit
 
   , getCurrentModule
 
   , conArityAndPars
-  , replaceAt
 
   -- internal use only
   , CompileState (..)
@@ -89,10 +87,9 @@ runCompileT :: MonadIO m
     -> [AModuleInfo] -- ^ Imported module info, non-transitive.
     -> AModuleInterface -- ^ Imported module interface, transitive.
     -> NameMap      -- ^ NameMap for the current module, non-transitive.
-    -> ConInstMp
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind amod curImpMods transImpIface nmMp conIMp comp = do
+runCompileT coind amod curImpMods transImpIface nmMp comp = do
   (result, state') <- runStateT (unCompileT comp) initial
 
   version <- liftIO getTime
@@ -106,7 +103,7 @@ runCompileT coind amod curImpMods transImpIface nmMp conIMp comp = do
         }
 
   return (result, modInfo)
-  where initialModIface = mempty { amifNameMp = nmMp, amifConInstMp = conIMp }
+  where initialModIface = mempty { amifNameMp = nmMp }
         initial = CompileState
             { curModule     = amod
             , moduleInterface =
@@ -140,26 +137,13 @@ getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 
 getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
 getConstrInfo n = CompileT $ do
-  instMp <- gets (amifConInstMp . moduleInterface)
-  let realConNm = M.findWithDefault __IMPOSSIBLE__ n instMp
-  M.findWithDefault __IMPOSSIBLE__ realConNm <$> gets (amifConMp . moduleInterface)
-
-isConstrInstantiated :: (Functor m, Monad m) => QName -> CompileT m Bool
-isConstrInstantiated n =  CompileT $ ((n /=) . M.findWithDefault __IMPOSSIBLE__ n) <$> gets (amifConInstMp . moduleInterface)
+  M.findWithDefault __IMPOSSIBLE__ n <$> gets (amifConMp . moduleInterface)
 
 getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
 getCoinductionKit = CompileT $ gets coinductionKit'
 
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = CompileT $ gets curModule
-
--- TODO What does this have to do with CompileState? Move
-replaceAt :: Int -- ^ replace at
-          -> [a] -- ^ to replace
-          -> [a] -- ^ replace with
-          -> [a] -- ^ result?
-replaceAt n xs inserts = let (as, _:bs) = splitAt n xs in as ++ inserts ++ bs
-
 
 
 -- | Copy pasted from MAlonzo....

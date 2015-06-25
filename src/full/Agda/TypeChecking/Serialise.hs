@@ -126,7 +126,7 @@ returnForcedByteString bs = return $! bs
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150617 * 10 + 0
+currentInterfaceVersion = 20150625 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -1596,10 +1596,10 @@ instance EmbPrj UHC.AModuleInfo where
     valu _ = malformed
 
 instance EmbPrj UHC.AModuleInterface where
-  icod_ (UHC.AModuleInterface a b c) = icode3' a b c
+  icod_ (UHC.AModuleInterface a b) = icode2' a b
   value = vcase valu where
-    valu [a, b, c] = valu3 UHC.AModuleInterface a b c
-    valu _         = malformed
+    valu [a, b] = valu2 UHC.AModuleInterface a b
+    valu _      = malformed
 
 instance EmbPrj UHC.AConInfo where
   icod_ (UHC.AConInfo a b) = icode2' a b

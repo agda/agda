@@ -59,16 +59,13 @@ fromAgdaModule modNm curModImps transModIface iface cont = do
 
   let defs = HMap.toList $ sigDefinitions $ iSignature iface
 
-  let conInstMp = getInstantiationMap defs
-  reportSLn "uhc" 25 $ "Instantiation Map for " ++ show modNm ++ ":\n" ++ show conInstMp
-
   reportSLn "uhc" 15 "Building name database..."
-  defNames <- collectNames conInstMp defs
+  defNames <- collectNames defs
   nameMp <- assignCoreNames modNm defNames
   reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
 
 
-  (mod', modInfo') <- runCompileT kit modNm curModImps transModIface nameMp conInstMp (do
+  (mod', modInfo') <- runCompileT kit modNm curModImps transModIface nameMp (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
     -- Translate and add datatype information
     dats <- translateDataTypes defs
@@ -97,8 +94,8 @@ fromAgdaModule modNm curModImps transModIface iface cont = do
         datToConInfo dt = [(xconQName con, AConInfo dt con) | con <- xdatCons dt]
 
 -- | Collect module-level names.
-collectNames :: ConInstMp -> [(QName, Definition)] -> TCM [AgdaName]
-collectNames conInstMp defs = do
+collectNames :: [(QName, Definition)] -> TCM [AgdaName]
+collectNames defs = do
   return $ catMaybes $ map collectName defs
   where collectName :: (QName, Definition) -> Maybe AgdaName
         collectName (qnm, def) =
@@ -114,24 +111,12 @@ collectNames conInstMp defs = do
             -- but for the datatypes themselves we still want to create the type-dummy function
             in case theDef def of
                   _ | ty == EtConstructor && isForeign -> Nothing
-                  (Constructor {}) | (M.findWithDefault __IMPOSSIBLE__ qnm conInstMp) /= qnm -> Nothing -- constructor is instantiated
                   _ | otherwise -> Just AgdaName
                         { anName = qnm
                         , anType = ty
                         , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
                         , anForceName = Nothing -- TODO add pragma to force name
                         }
-
--- | Computes the constructor instantiation map.
-getInstantiationMap :: [(QName, Definition)] -> ConInstMp
-getInstantiationMap defs =
-  M.unions $ map (\(n, def) ->
-        case theDef def of
-            Constructor {conSrcCon = srcCon} -> M.singleton n (conName srcCon)
-            Record {recConHead = conHd} -> M.singleton n (conName conHd)
-            _ -> M.empty
-        ) defs
-
 
 -- | Collects all datatype information for non-instantiated datatypes.
 translateDataTypes :: [(QName, Definition)] -> CompileT TCM [ADataTy]
@@ -179,9 +164,6 @@ translateDataTypes defs = do
 
   catMaybes <$> mapM
     (\(n, def) -> case theDef def of
-        x | isDtInstantiated x -> do
-                    lift $ reportSLn "uhc.fromAgda" 30 $ "Datatype " ++ show n ++ " is instantiated, skipping it."
-                    return Nothing
         (Record{}) | Just n /= (nameOfInf <$> kit)
                 -> handleDataRecDef n def
         -- coinduction kit gets erased in the translation to AuxAST
@@ -189,12 +171,6 @@ translateDataTypes defs = do
                 -> handleDataRecDef n def
         _       -> return Nothing
     ) defs
-
-
-isDtInstantiated :: Defn -> Bool
-isDtInstantiated (Datatype {dataClause = Just _}) = True
-isDtInstantiated (Record {recClause = Just _}) = True
-isDtInstantiated _ = False
 
 
 -- | Translate an Agda definition to an UHC Core function where applicable

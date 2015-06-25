@@ -13,12 +13,10 @@ module Agda.Compiler.UHC.Transform
   , getCoreName1
   , getConstrInfo
   , getConstrFun
-  , isConstrInstantiated
 
   , getCurrentModule
 
   , conArityAndPars
-  , replaceAt
   )
 where
 

@@ -11,6 +11,12 @@
              StandaloneDeriving,
              TemplateHaskell #-}
 
+-- | The treeless syntax is intended to be used as input for the compiler backends.
+-- It is more low-level than Internal syntax and is not used for type checking.
+--
+-- Some of the features of treeless syntax are:
+-- - case expressions instead of case trees
+-- - no instantiated datatypes / constructors
 module Agda.Syntax.Treeless
     ( module Agda.Syntax.Abstract.Name
     , module Agda.Syntax.Treeless
