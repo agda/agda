@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 -- | Defines some primitive functions.
 module Agda.Compiler.UHC.Primitives
@@ -89,4 +88,3 @@ primFunctions = M.fromList $
                     _                -> __IMPOSSIBLE__
 
             mkVar <$> getConstrFun reflNm
-

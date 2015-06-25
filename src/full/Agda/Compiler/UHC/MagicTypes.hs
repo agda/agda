@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 -- | Defines some magic builtin datatypes.
 module Agda.Compiler.UHC.MagicTypes

@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.

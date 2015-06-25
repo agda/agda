@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 
 -- | Convert the AuxAST code to UHC Core code.
@@ -243,4 +242,3 @@ coreTrace msg x = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primTrace
 
 coreImpossible :: String -> CExpr
 coreImpossible msg = mkError opts $ "BUG! Impossible code reached. " ++ msg
-

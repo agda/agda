@@ -199,6 +199,11 @@ Some Agda Hacking Lore
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
 
+* GHC warnings are turned on globally in Agda.cabal. If you want to
+  turn on or off an individual warning in a specific file, use an
+  OPTIONS_GHC pragma. Don't use -Wall, because the meaning of this
+  flag can vary between different versions of GHC.
+
 * The GHC documentation (7.10.1) contains the following information
   about orphan instances:
 

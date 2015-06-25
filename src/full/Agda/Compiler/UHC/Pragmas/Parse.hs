@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 -- | Defines UHC Core functions used in other parts of Agda.
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.

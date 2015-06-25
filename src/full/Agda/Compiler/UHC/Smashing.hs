@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 
 -- | Smash functions which return something that can be inferred

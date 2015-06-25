@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DoAndIfThenElse #-}
 -- | UHC compiler backend, main entry point.
 
@@ -354,4 +353,3 @@ callUHC1 args = do
 
 getUhcBin :: TCM FilePath
 getUhcBin = fromMaybe ("uhc") . optUHCBin <$> commandLineOptions
-

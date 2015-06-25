@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 -- | Defines UHC Core functions used in other parts of Agda.
 -- E.g. parsing Core pragmas uses the `parseCoreCode` function.
@@ -56,4 +55,3 @@ coreConstrToCTag :: CoreConstr
 coreConstrToCTag (CCMagic dtMgcNm conMgcNm) _ = conMp M.! conMgcNm
   where (_, conMp) = getMagicTypes M.! dtMgcNm
 coreConstrToCTag (CCNormal dt con tg) ar = mkCTag dt con tg ar
-

@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE CPP #-}
 
 -- | Contains the state monad for transformations. Basically just exports
@@ -30,4 +29,3 @@ import Agda.TypeChecking.Monad (TCM)
 type TransformT = CompileT
 
 type Transform = AMod -> TransformT TCM AMod
-
