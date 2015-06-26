@@ -1,6 +1,5 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
 {-# LANGUAGE CPP,
-             DeriveGeneric,
              FlexibleContexts,
              FlexibleInstances,
              TemplateHaskell,
@@ -25,8 +24,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Debug.Trace
-
-import GHC.Generics (Generic)
 
 import Test.QuickCheck
 
@@ -210,7 +207,7 @@ data OccursWhere
   | InDefOf QName OccursWhere    -- ^ in the definition of a constant
   | Here
   | Unknown                      -- ^ an unknown position (treated as negative)
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq)
 
 (>*<) :: OccursWhere -> OccursWhere -> OccursWhere
 Here            >*< o  = o
@@ -548,7 +545,7 @@ instance PrettyTCM n => PrettyTCM (WithNode n Edge) where
 
 -- | Edge labels for the positivity graph.
 data Edge = Edge Occurrence OccursWhere
-  deriving (Show, Generic)
+  deriving (Show)
 
 instance Null Edge where
   null (Edge o _) = null o
@@ -668,7 +665,32 @@ instance Arbitrary OccursWhere where
     replaceConstructor Unknown = []
     replaceConstructor _       = [Here, Unknown]
 
-instance CoArbitrary OccursWhere
+    genericShrink (LeftOfArrow a)  = a : [ LeftOfArrow a  | a <- shrink a ]
+    genericShrink (DefArg a b c)   = c : [ DefArg a b c   | c <- shrink c ]
+    genericShrink (UnderInf a)     = a : [ UnderInf a     | a <- shrink a ]
+    genericShrink (VarArg a)       = a : [ VarArg a       | a <- shrink a ]
+    genericShrink (MetaArg a)      = a : [ MetaArg a      | a <- shrink a ]
+    genericShrink (ConArgType a b) = b : [ ConArgType a b | b <- shrink b ]
+    genericShrink (IndArgType a b) = b : [ IndArgType a b | b <- shrink b ]
+    genericShrink (InClause a b)   = b : [ InClause a b   | b <- shrink b ]
+    genericShrink (Matched a)      = a : [ Matched a      | a <- shrink a ]
+    genericShrink (InDefOf a b)    = b : [ InDefOf a b    | b <- shrink b ]
+    genericShrink Here             = []
+    genericShrink Unknown          = []
+
+instance CoArbitrary OccursWhere where
+  coarbitrary (LeftOfArrow a)  = variant  0 . coarbitrary a
+  coarbitrary (DefArg a b c)   = variant  1 . coarbitrary (a, b, c)
+  coarbitrary (UnderInf a)     = variant  2 . coarbitrary a
+  coarbitrary (VarArg a)       = variant  3 . coarbitrary a
+  coarbitrary (MetaArg a)      = variant  4 . coarbitrary a
+  coarbitrary (ConArgType a b) = variant  5 . coarbitrary (a, b)
+  coarbitrary (IndArgType a b) = variant  6 . coarbitrary (a, b)
+  coarbitrary (InClause a b)   = variant  7 . coarbitrary (a, b)
+  coarbitrary (Matched a)      = variant  8 . coarbitrary a
+  coarbitrary (InDefOf a b)    = variant  9 . coarbitrary (a, b)
+  coarbitrary Here             = variant 10
+  coarbitrary Unknown          = variant 11
 
 instance Arbitrary Edge where
   arbitrary = Edge <$> arbitrary <*> arbitrary
@@ -676,7 +698,8 @@ instance Arbitrary Edge where
   shrink (Edge o w) = [ Edge o w | o <- shrink o ] ++
                       [ Edge o w | w <- shrink w ]
 
-instance CoArbitrary Edge
+instance CoArbitrary Edge where
+  coarbitrary (Edge o w) = coarbitrary (o, w)
 
 -- | The 'oplus' method for 'Occurrence' matches that for 'Edge'.
 
