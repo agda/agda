@@ -17,18 +17,14 @@ module Agda.Termination.CallMatrix where
 --   , tests
 --   ) where
 
-import Data.List as List hiding (union, insert)
 import Data.Monoid
 import Data.Foldable (Foldable)
-import qualified Data.Foldable as Fold
 import Data.Traversable (Traversable)
-import qualified Data.Traversable as Trav
 
 import Agda.Termination.CutOff
 import Agda.Termination.Order as Order hiding (tests)
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
-import Agda.Termination.Semiring (HasZero(..), Semiring)
-import qualified Agda.Termination.Semiring as Semiring
+import Agda.Termination.Semiring (HasZero(..))
 
 import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav

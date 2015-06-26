@@ -21,9 +21,7 @@ import qualified Data.IntMap as IntMap
 import Data.List
 
 import Test.QuickCheck
-import Test.QuickCheck.All
 import Test.QuickCheck.Function
-import Text.Show.Functions
 
 -- | Characteristic identifiers.
 type C = Int

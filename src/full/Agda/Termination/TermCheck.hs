@@ -27,10 +27,7 @@ import Control.Monad.State
 import Data.Foldable (toList)
 import Data.List hiding (null)
 import qualified Data.List as List
-import Data.Maybe (mapMaybe, isJust, fromMaybe)
 import Data.Monoid
-import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
@@ -41,7 +38,6 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common as Common
-import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -81,9 +77,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad -- (mapM', forM', ifM, or2M, and2M)
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (render)
 import Agda.Utils.Singleton
-import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"

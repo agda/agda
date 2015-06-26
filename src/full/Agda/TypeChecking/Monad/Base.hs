@@ -18,7 +18,6 @@ module Agda.TypeChecking.Monad.Base where
 
 import Prelude hiding (null)
 
-import Control.Arrow ((***), first, second)
 import qualified Control.Concurrent as C
 import Control.Exception as E
 import Control.Monad.State
@@ -67,7 +66,7 @@ import Agda.Interaction.Exceptions
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Response
-  (InteractionOutputCallback, defaultInteractionOutputCallback, Response)
+  (InteractionOutputCallback, defaultInteractionOutputCallback)
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
@@ -75,7 +74,7 @@ import qualified Agda.Compiler.JS.Syntax as JS
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.Utils.Except
-  ( Error(noMsg, strMsg)
+  ( Error(strMsg)
   , ExceptT
   , MonadError(catchError, throwError)
   )
@@ -92,7 +91,6 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
-import Agda.Utils.Time
 
 #include "undefined.h"
 import Agda.Utils.Impossible

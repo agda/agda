@@ -13,7 +13,6 @@ import Control.Monad.Writer
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
-import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
@@ -407,4 +406,3 @@ instance UnFreezeMeta a => UnFreezeMeta [a] where
 
 instance UnFreezeMeta a => UnFreezeMeta (Abs a) where
   unfreezeMeta = Fold.mapM_ unfreezeMeta
-

@@ -20,21 +20,12 @@
 
 module Agda.TypeChecking.Free.Tests (tests) where
 
-import Control.Applicative ((<*>))
-
-import Data.Functor
-import Data.List as List
-import Data.Maybe
-import Data.Monoid
-
 import Test.QuickCheck
-import Test.QuickCheck.All
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Free.Lazy hiding (FlexRig(..))
-import Agda.TypeChecking.Free.Lazy (FlexRig)
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
 import qualified Agda.TypeChecking.Free.Old as Old

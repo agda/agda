@@ -8,7 +8,6 @@
 module Agda.Syntax.Concrete.Operators.Parser where
 
 import Control.Applicative
-import Control.Exception (throw)
 
 import Data.Either
 import Data.Hashable
@@ -25,15 +24,9 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
 
-import Agda.TypeChecking.Monad.Base (TCErr(Exception))
-
 import qualified Agda.Utils.Parser.MemoisedCPS as MemoisedCPS
 import Agda.Utils.Parser.MemoisedCPS hiding (Parser, parse)
 import qualified Agda.Utils.Parser.MemoisedCPS as Parser
-import Agda.Utils.Monad
-import Agda.Utils.Pretty
-import Agda.Utils.Suffix
-import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible

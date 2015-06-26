@@ -10,15 +10,12 @@ import Data.Functor ((<$>))
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Text.Show.Functions ()
 import Test.QuickCheck
-import Test.QuickCheck.All
 
-import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
 import Agda.Utils.TestHelpers
 -- import Agda.Utils.QuickCheck -- Andreas, 2014-04-27 Inconvenient

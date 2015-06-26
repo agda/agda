@@ -23,7 +23,6 @@ import qualified Data.ByteString    as BS
 
 import qualified Data.IntMap as IntMap
 import qualified Data.List   as List
-import qualified Data.Map    as Map
 
 import Paths_Agda
 
@@ -37,7 +36,6 @@ import Agda.Interaction.Options
 import Agda.Compiler.CallCompiler
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.FileName (filePath)
-import Agda.Utils.Pretty (pretty, render)
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 

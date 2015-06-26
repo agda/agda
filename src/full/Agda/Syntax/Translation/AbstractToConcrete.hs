@@ -33,7 +33,6 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
-import Data.List as List hiding (null)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Monoid

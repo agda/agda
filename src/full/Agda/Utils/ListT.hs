@@ -15,17 +15,13 @@
 module Agda.Utils.ListT where
 
 import Control.Applicative
-import Control.Arrow
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Monad.Trans
 
-import Data.Functor
 import Data.Monoid
 
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
 
 -- | Lazy monadic computation of a list of results.
 newtype ListT m a = ListT { runListT :: m (Maybe (a, ListT m a)) }

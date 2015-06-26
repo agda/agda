@@ -13,7 +13,6 @@ import Prelude hiding (concatMap)
 
 import Data.Foldable
 import Data.Function
-import Data.Hashable
 import qualified Data.List as List
 import Data.Maybe
 import Data.Set (Set)

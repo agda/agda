@@ -14,7 +14,6 @@
 
 module Agda.Benchmarking where
 
-import Control.Monad.IO.Class
 import qualified Control.Exception as E
 
 import Data.IORef

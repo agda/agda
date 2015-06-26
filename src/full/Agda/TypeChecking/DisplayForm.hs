@@ -9,8 +9,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Maybe
 
-import Data.Traversable (traverse)
-
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Internal
 

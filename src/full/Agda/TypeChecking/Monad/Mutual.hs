@@ -3,7 +3,6 @@
 module Agda.TypeChecking.Monad.Mutual where
 
 import Control.Monad.Reader
-import Control.Monad.State
 
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -14,7 +13,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 
-import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 
 noMutualBlock :: TCM a -> TCM a

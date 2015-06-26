@@ -13,8 +13,6 @@ module Agda.Utils.Either
   , tests
   ) where
 
-import Control.Applicative
-
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 

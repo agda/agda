@@ -17,7 +17,6 @@ import Data.List as List
 import Data.Maybe
 
 import Test.QuickCheck
-import Test.QuickCheck.All
 
 import Agda.Utils.Permutation
 

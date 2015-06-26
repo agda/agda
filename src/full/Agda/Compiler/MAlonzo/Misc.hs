@@ -2,8 +2,6 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
-import Control.Monad.State
-
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set

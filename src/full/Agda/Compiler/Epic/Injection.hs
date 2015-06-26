@@ -30,7 +30,6 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface as Interface

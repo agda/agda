@@ -9,7 +9,6 @@ import Prelude hiding (lookup)
 
 import Control.Applicative
 
-import Data.Functor
 import qualified Data.List as List
 
 import Agda.Utils.Tuple

@@ -13,13 +13,10 @@ import qualified Data.Map as Map
 import Data.List as List
 
 import Agda.Syntax.Common
-import Agda.Syntax.Position
-import Agda.Syntax.Scope.Base
 import Agda.Syntax.Internal as I
 
 import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Implicit (implicitArgs)
-import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -31,7 +28,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Constraints
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 
-import Agda.Utils.Except ( MonadError(catchError, throwError), runExceptT )
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad

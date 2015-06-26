@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fwarn-missing-signatures #-}
 
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -11,7 +10,6 @@ module Agda.Syntax.Translation.ReflectedToAbstract where
 
 import Control.Applicative
 import Control.Monad.Reader
-import Control.Monad.Writer
 
 import Data.Traversable as Trav hiding (mapM)
 
@@ -28,9 +26,6 @@ import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Utils.Maybe
 import Agda.Utils.List
 import Agda.Utils.Functor
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 type Names = [Name]
 

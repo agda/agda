@@ -5,11 +5,9 @@ module Agda.TypeChecking.With where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.State
 
 import Data.List
 import Data.Maybe
-import qualified Data.Traversable as Trav (traverse)
 
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Internal as I
@@ -34,7 +32,6 @@ import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 

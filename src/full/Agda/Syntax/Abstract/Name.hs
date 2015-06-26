@@ -14,8 +14,6 @@ module Agda.Syntax.Abstract.Name
   , IsNoName(..)
   ) where
 
-import Control.Monad.State
-
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)

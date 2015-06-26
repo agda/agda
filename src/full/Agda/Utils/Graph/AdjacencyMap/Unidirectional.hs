@@ -71,7 +71,6 @@ import Prelude hiding (lookup, unzip, null)
 import Control.Applicative hiding (empty)
 
 import qualified Data.Array.IArray as Array
-import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
@@ -79,7 +78,6 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
-import qualified Data.Maybe as Maybe
 import Data.Maybe (maybeToList)
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -87,8 +85,7 @@ import qualified Data.Tree as Tree
 
 import Test.QuickCheck hiding (label)
 
-import Agda.Utils.Function (iterateUntil, repeatWhile)
-import Agda.Utils.Functor (for)
+import Agda.Utils.Function (repeatWhile)
 import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null

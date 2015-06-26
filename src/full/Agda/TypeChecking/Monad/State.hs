@@ -4,14 +4,14 @@
 
 module Agda.TypeChecking.Monad.State where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first)
 import Control.Applicative
 import qualified Control.Exception as E
-import Control.Monad.State
+import Control.Monad.State (put, get, gets, modify)
+import Control.Monad.Trans (liftIO)
 import Data.Set (Set)
 import Data.Map as Map
 import qualified Data.Set as Set
-import Data.Maybe (fromMaybe)
 
 import Agda.Benchmarking
 

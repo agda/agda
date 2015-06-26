@@ -8,13 +8,12 @@ module Agda.Utils.ListT.Tests (tests) where
 
 import Control.Applicative
 
-import Data.Functor
 import Data.Functor.Identity
 
 import Test.QuickCheck
-import Test.QuickCheck.All
 
-import Agda.Utils.Functor
+import Text.Show.Functions
+
 import Agda.Utils.ListT
 
 -- * Identity monad instance of ListT (simply lists)

@@ -9,7 +9,7 @@
 -}
 module Agda.Syntax.Scope.Base where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first)
 import Control.Applicative
 import Control.DeepSeq
 

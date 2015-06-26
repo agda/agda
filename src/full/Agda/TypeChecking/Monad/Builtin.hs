@@ -5,7 +5,6 @@ module Agda.TypeChecking.Monad.Builtin where
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Functor
 import qualified Data.Map as Map
 
 import Agda.Syntax.Common
@@ -14,9 +13,8 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Except ( Error, MonadError(catchError) )
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Lens
 import Agda.Utils.Monad (when_)
 import Agda.Utils.Maybe
@@ -442,4 +440,3 @@ primEqualityName = do
     ([Hidden],         Def equality _) -> equality
     ([],               Def equality _) -> equality
     _                                  -> __IMPOSSIBLE__
-

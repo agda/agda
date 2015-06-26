@@ -9,12 +9,8 @@ import Prelude hiding (null)
 
 import Control.Monad.Writer
 
-import Data.Function
 import Data.List hiding (null)
 import qualified Data.Map as Map
-import Data.Monoid
-
-import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

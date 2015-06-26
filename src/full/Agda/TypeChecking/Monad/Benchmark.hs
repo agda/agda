@@ -1,9 +1,3 @@
-{-# LANGUAGE CPP #-}
-
-#if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
-#endif
-
 -- | Measure CPU time for individual phases of the Agda pipeline.
 
 module Agda.TypeChecking.Monad.Benchmark
@@ -17,13 +11,6 @@ module Agda.TypeChecking.Monad.Benchmark
 
 import Prelude hiding (print)
 
-import qualified Control.Exception as E (evaluate)
-import Control.Monad.State
-
-import Data.List
-
-import qualified Text.PrettyPrint.Boxes as Boxes
-
 import Agda.Benchmarking
 
 import Agda.TypeChecking.Monad.Base
@@ -34,9 +21,6 @@ import qualified Agda.Utils.Benchmark as B
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 benchmarkKey :: String
 benchmarkKey = "profile"

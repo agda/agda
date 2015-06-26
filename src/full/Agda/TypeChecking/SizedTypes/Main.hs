@@ -10,7 +10,6 @@ import Control.Monad
 
 import Data.Functor
 import Data.Char (isSpace)
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -19,7 +18,6 @@ import System.Exit
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.Parser
 import Agda.TypeChecking.SizedTypes.WarshallSolver
-import Agda.TypeChecking.SizedTypes.Utils
 
 main :: IO ()
 main = do

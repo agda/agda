@@ -13,13 +13,10 @@ import Data.List hiding (sort)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
-import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic
-import Agda.Syntax.Position
-import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -27,7 +24,6 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Records
@@ -41,8 +37,7 @@ import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 import Agda.TypeChecking.MetaVars.Occurs
 
 import Agda.Utils.Except
-  ( Error(noMsg)
-  , ExceptT
+  ( ExceptT
   , MonadError(throwError)
   , runExceptT
   )

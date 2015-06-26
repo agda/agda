@@ -62,7 +62,6 @@ module Agda.Syntax.Concrete
   where
 
 import Control.DeepSeq
-import Data.Functor
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
@@ -83,7 +82,6 @@ import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-import Agda.Utils.Lens
 
 type Color      = Expr
 type Arg a      = Common.Arg Color a

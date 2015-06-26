@@ -11,10 +11,7 @@ import Control.Applicative
 import Control.Monad.Reader (asks)
 
 import Data.List
-import Data.Monoid
 import qualified Data.Map as Map
-
-import Debug.Trace (trace)
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Common

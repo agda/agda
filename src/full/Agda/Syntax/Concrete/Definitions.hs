@@ -76,7 +76,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty ()
 
-import Agda.Utils.Except ( Error(noMsg, strMsg), MonadError(throwError) )
+import Agda.Utils.Except ( Error(strMsg), MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad

@@ -21,7 +21,6 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty
 
-import Agda.Utils.Except ( Error(noMsg, strMsg) )
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 
@@ -209,4 +208,3 @@ instance Null ProblemRest where
 instance Null a => Null (Problem' a) where
   null p = null (problemInPat p) && null (problemRest p)
   empty  = Problem empty empty empty empty
-

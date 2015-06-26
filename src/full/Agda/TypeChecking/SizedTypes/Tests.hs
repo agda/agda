@@ -2,10 +2,7 @@
 
 module Agda.TypeChecking.SizedTypes.Tests where
 
-import Control.Applicative
-
 import Test.QuickCheck
-import Test.QuickCheck.All
 
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver

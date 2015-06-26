@@ -2,7 +2,6 @@
 
 module Agda.Compiler.MAlonzo.Primitives where
 
-import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
 import Data.List as L

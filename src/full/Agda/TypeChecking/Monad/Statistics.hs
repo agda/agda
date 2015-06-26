@@ -4,8 +4,6 @@ module Agda.TypeChecking.Monad.Statistics
     ( tick, tickN, tickMax, getStatistics, modifyStatistics, printStatistics
     ) where
 
-import Control.Monad.State
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import qualified Text.PrettyPrint.Boxes as Boxes
@@ -14,7 +12,6 @@ import Agda.Syntax.Concrete.Name as C
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
-import Agda.TypeChecking.Monad.State
 
 import Agda.Utils.Lens
 import Agda.Utils.Maybe

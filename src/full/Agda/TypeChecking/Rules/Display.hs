@@ -6,10 +6,8 @@ import Data.Maybe
 import Data.List
 
 import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Position
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad
@@ -108,4 +106,3 @@ exprToTerm e =
     _                -> typeError $ GenericError $ "TODO: exprToTerm " ++ show e
   where
     notAllowed s = typeError $ GenericError $ "Not allowed in DISPLAY pragma right-hand side: " ++ s
-

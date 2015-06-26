@@ -13,7 +13,6 @@ import Data.Functor
 import Data.Functor.Identity
 import Data.Functor.Compose
 import Data.Functor.Constant
-import Data.Functor.Classes
 
 -- Andreas, 2015-05-06, see issue 1501.
 -- This instance can be obtained from transformers-compat.

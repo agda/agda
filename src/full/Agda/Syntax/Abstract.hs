@@ -18,7 +18,7 @@ module Agda.Syntax.Abstract
     ) where
 
 import Prelude hiding (foldl, foldr)
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first)
 import Control.Applicative
 
 import Data.Foldable as Fold
@@ -29,23 +29,20 @@ import qualified Data.Sequence as Seq
 import Data.Traversable
 import Data.Typeable (Typeable)
 
-import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA, exprFieldA)
+import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Info
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import qualified Agda.Syntax.Common as Common
-import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract.Name as A (QNamed)
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 
-import Agda.Utils.Either
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible

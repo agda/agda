@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
 
@@ -15,9 +14,6 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.List (splitExactlyAt)
-import Agda.Utils.Impossible
-
-#include "undefined.h"
 
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)

@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Rules.Decl where
 
-import Data.Map           (Map)
 import Agda.Syntax.Info        (ModuleInfo)
 import Agda.Syntax.Abstract    (QName, Declaration, ModuleName, ModuleApplication, Ren)
 import Agda.TypeChecking.Monad (TCM)

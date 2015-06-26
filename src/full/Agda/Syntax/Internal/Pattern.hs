@@ -25,7 +25,6 @@ import Agda.Syntax.Internal hiding (Arg)
 import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.List
-import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
 import Agda.Utils.Tuple

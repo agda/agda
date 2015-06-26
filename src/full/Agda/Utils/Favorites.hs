@@ -1,6 +1,5 @@
 -- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DeriveFoldable,
+{-# LANGUAGE DeriveFoldable,
              GeneralizedNewtypeDeriving,
              ScopedTypeVariables,
              TemplateHaskell #-}
@@ -17,34 +16,19 @@
 module Agda.Utils.Favorites where
 
 import Prelude hiding ( null )
-import Control.Monad
 
-import Data.Bool
-import Data.Eq
-import Data.Ord
 import Data.Foldable (Foldable)
 import Data.Functor
-import Data.Function
 import Data.Monoid
-import Data.List (all, (++))
 import qualified Data.List as List
-import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Tuple (uncurry)
 
-import System.IO
-import Text.Show
-import Test.QuickCheck.All
+import Test.QuickCheck
 
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd hiding (tests)
-import Agda.Utils.QuickCheck
 import Agda.Utils.Singleton
-import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | A list of incomparable favorites.
 newtype Favorites a = Favorites { toList :: [a] }

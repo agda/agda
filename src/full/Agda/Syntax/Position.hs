@@ -84,10 +84,8 @@ import Data.Typeable (Typeable)
 import Test.QuickCheck.All
 
 import Agda.Utils.FileName hiding (tests)
-import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
-import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 
 #include "undefined.h"

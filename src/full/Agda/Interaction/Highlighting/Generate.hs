@@ -23,23 +23,18 @@ import Prelude hiding (null)
 
 import Control.Monad
 import Control.Monad.Trans
-import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
-import Control.Arrow ((***), first, second)
+import Control.Arrow (second)
 
 import Data.Monoid
 import Data.Generics.Geniplate
-import Data.HashSet (HashSet)
-import qualified Data.HashSet as HSet
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.List ((\\), isPrefixOf)
-import qualified Data.Foldable as Fold (toList, fold, foldMap)
-import Data.IntMap (IntMap)
+import qualified Data.Foldable as Fold (fold, foldMap)
 import qualified Data.IntMap as IntMap
 
-import Agda.Interaction.FindFile
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
@@ -49,11 +44,8 @@ import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
-import Agda.TypeChecking.Pretty
-import qualified Agda.TypeChecking.Reduce as R
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Common (Delayed(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete as C

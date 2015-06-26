@@ -18,12 +18,10 @@ import Data.Functor
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe
 import Data.Tuple
 import Data.Typeable ( Typeable )
 
 import Test.QuickCheck
-import Test.QuickCheck.All
 
 -- | Finite bijective map from @a@ to @b@.  There, and back again.
 data BiMap a b = BiMap

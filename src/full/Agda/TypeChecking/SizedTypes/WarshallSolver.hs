@@ -18,7 +18,6 @@ import Control.Applicative hiding (Const)
 import Control.Monad
 
 import Data.Function (on)
-import Data.Functor
 import Data.List as List
 import Data.Maybe
 import Data.Set (Set)

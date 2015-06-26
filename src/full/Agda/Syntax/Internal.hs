@@ -21,8 +21,6 @@ import Prelude hiding (foldr, mapM, null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
-import Control.Monad.State hiding (mapM)
-import Control.Parallel
 
 import Data.Foldable ( Foldable, foldMap )
 import Data.Function
@@ -46,11 +44,9 @@ import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
-import Agda.Utils.Except ( Error(noMsg) )
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
-import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer

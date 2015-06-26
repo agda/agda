@@ -26,7 +26,6 @@ import Agda.TypeChecking.Monad.Open
 
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!), downFrom)
-import Agda.Utils.Monad
 
 -- * Modifying the context
 

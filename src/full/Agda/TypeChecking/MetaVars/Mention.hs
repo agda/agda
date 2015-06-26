@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module Agda.TypeChecking.MetaVars.Mention where
@@ -6,9 +5,6 @@ module Agda.TypeChecking.MetaVars.Mention where
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
-
-import Agda.Utils.Impossible
-#include "undefined.h"
 
 class MentionsMeta t where
   mentionsMeta :: MetaId -> t -> Bool

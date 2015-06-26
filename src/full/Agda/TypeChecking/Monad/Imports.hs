@@ -12,8 +12,6 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Time
-import Agda.Utils.Hash
 
 addImport :: ModuleName -> TCM ()
 addImport m =

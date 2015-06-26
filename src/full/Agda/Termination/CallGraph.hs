@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -30,35 +29,21 @@ module Agda.Termination.CallGraph
 
 import Prelude hiding (null)
 
-import Data.Foldable (Foldable)
-import qualified Data.Foldable as Fold
-import Data.Function
 import qualified Data.List as List
-import Data.Map (Map, (!))
-import qualified Data.Map as Map
 import Data.Monoid
 import Data.Set (Set)
-import qualified Data.Set as Set
-import Data.Traversable (Traversable)
-import qualified Data.Traversable as Trav
 
 import Agda.Termination.CallMatrix (CallMatrix, callMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))
 import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.CutOff
-import Agda.Termination.Order
 import Agda.Termination.SparseMatrix as Matrix hiding (tests)
-import Agda.Termination.Semiring (HasZero(..), Semiring)
-import qualified Agda.Termination.Semiring as Semiring
 
-import Agda.Utils.Favorites (Favorites(Favorites))
+import Agda.Utils.Favorites (Favorites)
 import qualified Agda.Utils.Favorites as Fav
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Edge(..),Graph(..))
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 
 import Agda.Utils.Function
-import Agda.Utils.List hiding (tests)
-import Agda.Utils.Map
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
@@ -67,9 +52,6 @@ import Agda.Utils.QuickCheck hiding (label)
 import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- Calls

@@ -12,7 +12,6 @@ module Agda.Utils.VarSet
   )
   where
 
-import Data.IntSet (IntSet)
 import Data.IntSet as IntSet
 
 type VarSet = IntSet

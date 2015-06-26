@@ -16,7 +16,7 @@ import Prelude hiding (null)
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy, intercalate)
+import Data.List (nub, sortBy)
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes

@@ -15,7 +15,6 @@ import qualified Data.Set as Set
 import Test.QuickCheck.All
 
 -- import Agda.Utils.List
-import Agda.Utils.SemiRing
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 

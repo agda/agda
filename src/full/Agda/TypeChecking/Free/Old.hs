@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 -- | Computing the free variables of a term.
@@ -47,14 +46,10 @@ import Data.Monoid
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import Agda.Syntax.Internal
 
-import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 -- | Free variables of a term, (disjointly) partitioned into strongly and
 --   and weakly rigid variables, flexible variables and irrelevant variables.

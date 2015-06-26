@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 -- | Extract used definitions from terms.
@@ -11,9 +10,6 @@ import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (ArgInfo, Arg, Dom)
-
-import Agda.Utils.Impossible
-#include "undefined.h"
 
 -- | @getDefs' lookup emb a@ extracts all used definitions
 --   (functions, data/record types) from @a@, embedded into a monoid via @emb@.

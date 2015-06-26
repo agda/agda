@@ -28,11 +28,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.TestHelpers hiding (idempotent)
 import Agda.Utils.QuickCheck
 
-import qualified Data.Array as Array
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Monoid
-import Data.List (partition)
 
 -- | TODO: This comment seems to be partly out of date.
 --

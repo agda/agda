@@ -8,7 +8,6 @@ module Agda.TypeChecking.Telescope where
 
 import Control.Applicative
 import Control.Monad (forM_, unless)
-import Data.List
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 

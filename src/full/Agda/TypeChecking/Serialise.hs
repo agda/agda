@@ -32,7 +32,7 @@ module Agda.TypeChecking.Serialise
   where
 
 import Control.Applicative
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Control.DeepSeq
 import qualified Control.Exception as E
 import Control.Monad
@@ -41,7 +41,6 @@ import Control.Monad.State.Strict (StateT, runStateT, gets, modify)
 
 import Data.Array.IArray
 import Data.Word
-import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import qualified Data.HashTable.IO as H

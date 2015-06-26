@@ -27,7 +27,6 @@ module Agda.TypeChecking.Rewriting.NonLinMatch where
 import Prelude hiding (null, sequence)
 
 import Control.Arrow (first, second)
-import Control.Monad.Trans.Maybe
 import Control.Monad.State
 
 import Debug.Trace
@@ -38,7 +37,6 @@ import Data.Functor
 import Data.Traversable hiding (for)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common (unArg)
@@ -59,7 +57,6 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Singleton
 
 #include "undefined.h"
 import Agda.Utils.Impossible

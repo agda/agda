@@ -29,7 +29,6 @@ import qualified Data.Map as Map
 
 import Test.QuickCheck
 
-import Agda.Utils.List (mcons)
 import Agda.Utils.Maybe.Strict
 import Agda.Utils.Null
 

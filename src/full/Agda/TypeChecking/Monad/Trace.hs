@@ -14,7 +14,6 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Function
-import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null

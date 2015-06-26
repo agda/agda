@@ -3,7 +3,6 @@
 module Agda.TypeChecking.SizedTypes.Utils where
 
 import Control.Applicative
-import Data.Functor
 import qualified Debug.Trace as Debug
 import Agda.Utils.Function
 

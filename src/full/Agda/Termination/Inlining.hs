@@ -52,9 +52,6 @@ module Agda.Termination.Inlining
 import Control.Applicative
 import Control.Monad.State
 
-import Data.Maybe (fromMaybe)
-import Data.Monoid
-import Data.Foldable (foldMap)
 import Data.Traversable (traverse)
 import Data.List as List
 

@@ -21,7 +21,6 @@ import Data.List
 import Data.Traversable as T
 
 import Agda.Syntax.Abstract
-import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Concrete.Name as C

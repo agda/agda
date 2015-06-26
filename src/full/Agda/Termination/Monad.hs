@@ -22,13 +22,11 @@ import Control.Monad.Writer
 import Control.Monad.State
 
 import Data.Foldable (Foldable)
-import Data.Functor ((<$>))
-import qualified Data.List as List
 import Data.Traversable (Traversable)
 
 import Agda.Interaction.Options
 
-import Agda.Syntax.Abstract (QName, IsProjP(..), AllNames)
+import Agda.Syntax.Abstract (IsProjP(..), AllNames)
 import Agda.Syntax.Common   (Delayed(..), Induction(..), Dom(..))
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal

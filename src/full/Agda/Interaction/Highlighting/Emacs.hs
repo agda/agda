@@ -7,7 +7,6 @@ module Agda.Interaction.Highlighting.Emacs
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
-import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.EmacsCommand

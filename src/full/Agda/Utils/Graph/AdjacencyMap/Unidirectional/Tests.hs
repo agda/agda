@@ -12,17 +12,11 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests (tests) where
 
 import Prelude hiding (null)
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>), (<*>))
-#endif
-
 import Data.Function
 import qualified Data.Graph as Graph
 import qualified Data.List as List
 import Data.Maybe
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Test.QuickCheck as QuickCheck

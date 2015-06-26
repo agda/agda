@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -34,10 +33,8 @@ module Agda.TypeChecking.Free
     , freeVars -- only for testing
     ) where
 
-import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
-import Data.Foldable (foldMap)
 import Data.Monoid
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
@@ -53,13 +50,7 @@ import Agda.TypeChecking.Free.Lazy
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
-import Agda.Utils.Function
-import Agda.Utils.Functor
-import Agda.Utils.Monad
 import Agda.Utils.Singleton
-
-#include "undefined.h"
-import Agda.Utils.Impossible
 
 type VarSet = IntSet
 

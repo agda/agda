@@ -31,7 +31,6 @@ import Agda.Syntax.Internal as I
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
-import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty hiding (pretty)
 import Agda.TypeChecking.Records
@@ -41,14 +40,12 @@ import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
 import Agda.Utils.Functor
-import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Permutation hiding (dropFrom)
 import Agda.Utils.Pretty (Pretty(..))
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible

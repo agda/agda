@@ -35,8 +35,6 @@ import Text.PrettyPrint (Doc, render)
 
 import Agda.Utils.Bag (Bag)
 import qualified Agda.Utils.Bag as Bag
-import Agda.Utils.Functor
-import Agda.Utils.Monad
 
 -- Andreas, 2015-06-24 orphan instance has to go here
 -- to be able to define instance Null Doc

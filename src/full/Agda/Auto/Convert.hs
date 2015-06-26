@@ -45,7 +45,7 @@ import Agda.Utils.Either
 import Agda.Utils.Except
   ( Error(strMsg)
   , ExceptT
-  , MonadError(catchError, throwError)
+  , MonadError(throwError)
   )
 import Agda.Utils.Lens
 

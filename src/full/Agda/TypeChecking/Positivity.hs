@@ -19,7 +19,6 @@ import Control.Monad.Reader
 import Data.Either
 import Data.Graph (SCC(..), flattenSCC)
 import Data.List as List hiding (null)
-import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -31,7 +30,6 @@ import GHC.Generics (Generic)
 
 import Test.QuickCheck
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))

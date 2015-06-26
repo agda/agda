@@ -10,7 +10,7 @@
 module Agda.Syntax.Scope.Monad where
 
 import Prelude hiding (mapM)
-import Control.Arrow ((***), first, second)
+import Control.Arrow (first, second)
 import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
@@ -37,12 +37,10 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
-import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null (unlessNull)
 import Agda.Utils.Size
-import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible

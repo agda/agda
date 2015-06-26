@@ -5,13 +5,12 @@
 
 module Agda.TypeChecking.Monad.Signature where
 
-import Control.Arrow (first, second, (***))
+import Control.Arrow (second)
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 
 import Data.List
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -39,7 +38,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
 import Agda.Utils.Functor
-import Agda.Utils.Map as Map
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size

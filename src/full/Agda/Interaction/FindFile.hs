@@ -18,10 +18,8 @@ module Agda.Interaction.FindFile
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.State.Class
 import Control.Monad.Trans
 import Data.List
-import Data.Map (Map)
 import qualified Data.Map as Map
 import System.FilePath
 

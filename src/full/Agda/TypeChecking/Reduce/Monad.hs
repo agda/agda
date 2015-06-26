@@ -17,10 +17,8 @@ module Agda.TypeChecking.Reduce.Monad
   , askR, applyWhenVerboseS
   ) where
 
-import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Control.Monad.Reader
-import Control.Monad.Identity
 
 import qualified Data.Map as Map
 import Data.Maybe

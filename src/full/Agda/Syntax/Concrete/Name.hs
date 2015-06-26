@@ -13,7 +13,6 @@ import Control.DeepSeq
 import Control.Applicative
 
 import Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as ByteString
 import Data.List
 import Data.Typeable (Typeable)
 

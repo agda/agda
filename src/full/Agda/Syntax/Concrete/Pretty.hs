@@ -10,7 +10,6 @@ module Agda.Syntax.Concrete.Pretty where
 
 import Prelude hiding (null)
 
-import Data.Char
 import Data.Functor
 import Data.Maybe
 
@@ -18,7 +17,6 @@ import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
-import Agda.Syntax.Literal
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 

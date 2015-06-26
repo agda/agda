@@ -14,7 +14,6 @@ import Prelude hiding (null)
 
 import qualified Control.Exception as E (evaluate)
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Functor
 import qualified Data.List as List

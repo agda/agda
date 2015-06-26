@@ -8,13 +8,9 @@ module Agda.Utils.Pretty
     , module Text.PrettyPrint
     ) where
 
-import Data.Function
 import Data.Int ( Int32 )
-import Data.Monoid
 
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
-
-import Agda.Utils.Null
 
 -- * Pretty class
 

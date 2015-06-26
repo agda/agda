@@ -23,7 +23,7 @@ module Agda.TypeChecking.Substitute
   , Substitution(..)
   ) where
 
-import Control.Arrow ((***), first, second)
+import Control.Arrow ((***), second)
 
 import Data.Function
 import Data.Functor
@@ -38,7 +38,6 @@ import Debug.Trace (trace)
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free as Free
@@ -48,7 +47,6 @@ import Agda.TypeChecking.Positivity.Occurrence as Occ
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
-import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple

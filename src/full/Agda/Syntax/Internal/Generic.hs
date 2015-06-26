@@ -1,6 +1,4 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Agda.Syntax.Internal.Generic where
 
@@ -9,9 +7,6 @@ import Data.Traversable
 import Data.Monoid
 import Data.Foldable
 import Agda.Syntax.Internal
-
-import Agda.Utils.Impossible
-#include "undefined.h"
 
 class TermLike a where
   traverseTerm  :: (Term -> Term) -> a -> a

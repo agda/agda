@@ -30,7 +30,6 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible

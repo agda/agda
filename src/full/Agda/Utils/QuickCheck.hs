@@ -4,7 +4,6 @@ module Agda.Utils.QuickCheck
   ) where
 
 import Test.QuickCheck hiding ((===))
-import Test.QuickCheck.Property (Property(..))
 
 isSuccess :: Result -> Bool
 isSuccess Success{} = True

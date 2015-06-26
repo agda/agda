@@ -8,7 +8,6 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 import Data.List as List
-import Data.Maybe
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure

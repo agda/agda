@@ -8,7 +8,6 @@ module Agda.Utils.Map.Compat where
 
 import Control.Applicative
 import Data.Traversable
-import qualified Data.Map as Map
 import Data.Map (Map, fromList, toList)
 
 traverseWithKey :: (Ord k, Applicative t) => (k -> a -> t b) -> Map k a -> t (Map k b)
@@ -17,4 +16,3 @@ traverseWithKey f m = fromList <$> traverse (\ (k, v) -> (,) k <$> f k v) (toLis
 #else
 traverseWithKey = Map.traverseWithKey
 #endif
-

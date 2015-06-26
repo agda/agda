@@ -16,7 +16,6 @@ module Agda.Syntax.Parser.Alex
     )
     where
 
-import Control.Arrow
 import Control.Monad.State
 import Data.Word
 

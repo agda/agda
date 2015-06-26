@@ -26,7 +26,6 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
-import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Pretty
 

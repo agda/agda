@@ -17,7 +17,6 @@ module Agda.Interaction.Highlighting.HTML
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
-import Control.Monad.State.Class
 
 import Data.Function
 import Data.Monoid
@@ -36,7 +35,6 @@ import Paths_Agda
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Options
 
-import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
 

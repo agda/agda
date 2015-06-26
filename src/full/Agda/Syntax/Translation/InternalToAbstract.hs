@@ -30,7 +30,6 @@ module Agda.Syntax.Translation.InternalToAbstract
 
 import Prelude hiding (mapM_, mapM)
 import Control.Applicative
-import Control.Arrow
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Reader hiding (mapM_, mapM)
 

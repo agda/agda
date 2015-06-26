@@ -41,13 +41,11 @@ import Data.List
 import Data.Function
 import Data.Monoid
 import Control.Applicative ((<$>), (<*>))
-import Control.Arrow ((***), first, second)
+import Control.Arrow (second)
 import Control.Monad
 import Agda.Utils.QuickCheck
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Map (Map)
-import qualified Data.Map as Map
 import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Position as P

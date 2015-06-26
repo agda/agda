@@ -21,7 +21,7 @@ import Data.Foldable as Fold
 import Data.Maybe
 
 import Agda.Utils.Except
-  ( Error(noMsg, strMsg)
+  ( Error(strMsg)
   , MonadError(catchError, throwError)
   )
 

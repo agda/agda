@@ -19,11 +19,8 @@ module Agda.TypeChecking.MetaVars.Occurs where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Foldable (foldMap)
-import Data.List
-import Data.Maybe
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -52,13 +49,11 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.Lens
-import Agda.Utils.List (takeWhileJust)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import qualified Agda.Utils.VarSet as VarSet
 
 #include "undefined.h"
 import Agda.Utils.Impossible

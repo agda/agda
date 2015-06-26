@@ -42,7 +42,8 @@ module Agda.Utils.Parser.MemoisedCPS
   ) where
 
 import Control.Applicative
-import Control.Monad.State.Strict
+import Control.Monad (ap, liftM2)
+import Control.Monad.State.Strict (State, evalState, get)
 import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
