@@ -5,5 +5,4 @@ Cannot eliminate reflexive equation ⊥-elim = ⊥-elim of type
 ((Shape (constC (C ⋆ X)) ⊎ Shape C) ◃
  [ Position (constC (C ⋆ X)) , Position C ]₁)
 because K has been disabled.
-when checking that the pattern refl has type
-sup (inj₁ m) ⊥-elim ≡ sup (inj₁ n) ⊥-elim
+when checking that the pattern refl has type to m ≡ to n

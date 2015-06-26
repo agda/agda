@@ -90,9 +90,6 @@ Pragmas and options
   command line arguments or added to the Agda Program Args from Emacs with M-x
   customize-group agda2.
 
-  TODO REMOVE THIS: the default is --sharing on master, but should be
-                    --no-sharing for the 2.4.4 release.
-
 * New pragma DISPLAY.
 
   {-# DISPLAY f e1 .. en = e #-}
