@@ -100,46 +100,63 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
         ]
   reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
   forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
-  mapM_ (checkPos g) $ Set.toList qs
+  mapM_ (checkPos g gstar) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
 
   where
-    checkPos g q = do
+    checkPos :: Graph Node Edge ->
+                Graph Node Occurrence ->
+                QName -> TCM ()
+    checkPos g gstar q = do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
-        -- get all pathes from q to q that exhibit a non-strictly occurrence
-        -- or, in case of records, any recursive occurrence
-        let critical IsData   = \ (Edge o _) -> o <= JustPos
-            critical IsRecord = \ (Edge o _) -> o /= Unused
-            loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
+
+        let loop      = Graph.lookup (DefNode q) (DefNode q) gstar
+            how msg p =
+              fsep $ [prettyTCM q] ++ pwords "is" ++
+                case filter (p . occ) $
+                     Graph.allTrails (DefNode q) (DefNode q) g of
+                  Edge _ how : _ -> pwords (msg ++ ", because it occurs") ++
+                                    [prettyTCM how]
+                  _              -> pwords msg
+
+                  -- For an example of code that exercises the latter,
+                  -- uninformative clause above, see
+                  -- test/fail/BadInductionRecursion5.agda.
+
+                  -- If a suitable StarSemiRing instance can be
+                  -- defined for Edge, then
+                  -- gaussJordanFloydWarshallMcNaughtonYamada can be
+                  -- used instead of allTrails, thus avoiding the
+                  -- uninformative clause.
 
         -- if we have a negative loop, raise error
-        whenM positivityCheckEnabled $ do
-          forM_ [ how | Edge o how <- loops, o <= JustPos ] $ \ how -> do
-            err <- fsep $
-              [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
-              [prettyTCM how]
-            setCurrentRange q $ typeError $ GenericDocError err
+        whenM positivityCheckEnabled $
+          case loop of
+            Just o | p o -> do
+              err <- how "not strictly positive" p
+              setCurrentRange q $ typeError $ GenericDocError err
+              where p = (<= JustPos)
+            _ -> return ()
 
         -- if we find an unguarded record, mark it as such
-        when (dr == IsRecord) $ do
-         case headMaybe [ how | Edge o how <- loops, o <= StrictPos ] of
-          Just how -> do
-            reportSDoc "tc.pos.record" 5 $ sep
-              [ prettyTCM q <+> text "is not guarded, because it occurs"
-              , prettyTCM how
-              ]
-            unguardedRecord q
-            checkInduction q
-          -- otherwise, if the record is recursive, mark it as well
-          Nothing -> forM_ (take 1 [ how | Edge GuardPos how <- loops ]) $ \ how -> do
-            reportSDoc "tc.pos.record" 5 $ sep
-              [ prettyTCM q <+> text "is recursive, because it occurs"
-              , prettyTCM how
-              ]
-            recursiveRecord q
-            checkInduction q
+        when (dr == IsRecord) $
+          case loop of
+            Just o | p o -> do
+              reportSDoc "tc.pos.record" 5 $ how "not guarded" p
+              unguardedRecord q
+              checkInduction q
+              where p = (<= StrictPos)
+            _ ->
+              -- otherwise, if the record is recursive, mark it as well
+              case loop of
+                Just o | p o -> do
+                  reportSDoc "tc.pos.record" 5 $ how "recursive" p
+                  recursiveRecord q
+                  checkInduction q
+                  where p = (== GuardPos)
+                _ -> return ()
 
     checkInduction q = whenM positivityCheckEnabled $ do
       -- Check whether the recursive record has been declared as
