@@ -38,6 +38,9 @@ import Agda.TypeChecking.MetaVars.Occurs
 
 import Agda.Utils.Except
   ( ExceptT
+#if !MIN_VERSION_transformers(0,4,1)
+  , Error(noMsg)
+#endif
   , MonadError(throwError)
   , runExceptT
   )
