@@ -7,7 +7,7 @@ language: haskell
 ghc:
   - 7.8.4
   - 7.6.3
-  - 7.4.2
+  # - 7.4.2
 
 # We use the word 'test' in a broad sense (e.g. it includes the Agda
 # test suite, the benchmark suite, the compilation with a specific set
