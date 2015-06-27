@@ -47,7 +47,12 @@ import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
+
+-- See Issue 1593.
+#if !MIN_VERSION_transformers(0,4,1)
 import Agda.Utils.Except ( Error(noMsg) )
+#endif
+
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
