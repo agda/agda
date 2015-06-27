@@ -2,6 +2,7 @@
 
 .*.sw[a-p]
 .*.vim
+.cabal-sandbox/
 .sw[a-p]
 *.agdai
 *.hi
@@ -11,6 +12,7 @@
 *~
 agda-stdlib
 autom4te.cache
+cabal.sandbox.config
 config.log
 config.status
 configure
