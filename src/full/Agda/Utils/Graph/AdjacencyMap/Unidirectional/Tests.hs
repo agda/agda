@@ -66,6 +66,33 @@ n = N . Positive
 instance Show N where
   show (N (Positive n)) = "n " ++ show n
 
+-- | 'gaussJordanFloydWarshallMcNaughtonYamada' can be used to check
+-- if any two nodes in a graph are connected.
+
+data Connected = Disconnected | Connected
+  deriving (Eq, Show)
+
+instance SemiRing Connected where
+  ozero = Disconnected
+  oone  = Connected
+
+  Disconnected `oplus` c = c
+  Connected    `oplus` _ = Connected
+
+  Disconnected `otimes` _ = Disconnected
+  Connected    `otimes` c = c
+
+instance StarSemiRing Connected where
+  ostar _ = Connected
+
+connectivityGraph :: Ord n => Graph n n e -> Graph n n Connected
+connectivityGraph =
+  gaussJordanFloydWarshallMcNaughtonYamada .
+  fmap (const oone)
+
+connected :: Ord n => Graph n n Connected -> n -> n -> Bool
+connected g i j = Graph.lookup i j g == Just Connected
+
 ------------------------------------------------------------------------
 -- * Graph properties
 ------------------------------------------------------------------------
@@ -117,18 +144,18 @@ prop_sccs' g =
                         &&
                       disjoint ss
 
-  connected i j = isJust (findPath (const True) i j g)
+  connected' = connected (connectivityGraph g)
 
-  stronglyConnected (Graph.AcyclicSCC n) = not (connected n n)
+  stronglyConnected (Graph.AcyclicSCC n) = not (connected' n n)
   stronglyConnected (Graph.CyclicSCC ns) = and
-    [ connected i j
+    [ connected' i j
     | i <- ns
     , j <- ns
     ]
 
   noMissingStronglyConnectedNodes []         = True
   noMissingStronglyConnectedNodes (ns : nss) =
-    and [ not (connected j i && connected i j)
+    and [ not (connected' j i && connected' i j)
         | i <- ns
         , j <- concat nss
         ]
@@ -210,6 +237,51 @@ prop_gaussJordanFloydWarshallMcNaughtonYamada g =
 prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
+
+prop_allTrails_existence :: Property
+prop_allTrails_existence =
+  forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
+  forAll (nodeIn g) $ \i ->
+  forAll (nodeIn g) $ \j ->
+    null (allTrails i j g)
+      ==
+    not (connected (connectivityGraph g) i j)
+
+-- | The 'Integer's should be non-negative.
+
+data ExtendedNatural = Finite Integer | Infinite
+  deriving (Eq, Ord)
+
+instance SemiRing ExtendedNatural where
+  ozero = Finite 0
+  oone  = Finite 1
+
+  oplus (Finite m) (Finite n) = Finite (m + n)
+  oplus Infinite   _          = Infinite
+  oplus _          Infinite   = Infinite
+
+  otimes (Finite m) (Finite n) = Finite (m * n)
+  otimes (Finite 0) _          = Finite 0
+  otimes _          (Finite 0) = Finite 0
+  otimes Infinite   _          = Infinite
+  otimes _          Infinite   = Infinite
+
+instance StarSemiRing ExtendedNatural where
+  ostar (Finite 0) = Finite 1
+  ostar _          = Infinite
+
+prop_allTrails_number :: Property
+prop_allTrails_number =
+  forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
+  forAll (nodeIn g) $ \i ->
+  forAll (nodeIn g) $ \j ->
+    Finite (List.genericLength (allTrails i j g))
+      <=
+    case Graph.lookup i j
+           (gaussJordanFloydWarshallMcNaughtonYamada
+              (fmap (const oone) g)) of
+      Just n  -> n
+      Nothing -> Finite 0
 
 ------------------------------------------------------------------------
 -- * All tests
