@@ -69,6 +69,7 @@ import Agda.Utils.Except
   , MonadError(catchError, throwError)
   )
 import Agda.Utils.Either
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -387,7 +388,9 @@ flattenSubstitution s = foldr instantiate s is
     instantiate :: Nat -> Substitution -> Substitution
     instantiate i s = map (fmap $ inst i u) s
       where
-        Just u = s !! i
+        u = case s !!! i of
+              Just (Just u) -> u
+              _             -> __IMPOSSIBLE__
 
     -- @inst i u v@ replaces index @i@ in @v@ by @u@, without removing the index.
     inst :: Nat -> Term -> Term -> Term

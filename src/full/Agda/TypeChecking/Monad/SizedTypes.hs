@@ -23,6 +23,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute ()
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.List
 import Agda.Utils.Monad
 
 #include "undefined.h"
@@ -135,7 +136,9 @@ sizeSuc n v | n < 0     = __IMPOSSIBLE__
             | n == 0    = return v
             | otherwise = do
   Def suc [] <- ignoreSharing <$> primSizeSuc
-  return $ iterate (sizeSuc_ suc) v !! n
+  return $ case iterate (sizeSuc_ suc) v !!! n of
+             Nothing -> __IMPOSSIBLE__
+             Just t  -> t
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [Apply $ defaultArg v]

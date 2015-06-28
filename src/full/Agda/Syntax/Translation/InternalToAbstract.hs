@@ -67,6 +67,7 @@ import Agda.TypeChecking.DropArgs
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -270,7 +271,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
-        termToPat (DTerm (I.Var n [])) = return $ ps !! n
+        termToPat (DTerm (I.Var n [])) = return $ case ps !!! n of
+                                           Nothing -> __IMPOSSIBLE__
+                                           Just p  -> p
 
         termToPat (DCon c vs)          = A.ConP ci (AmbQ [conName c]) <$> do
           mapM argToPat =<< reifyIArgs' vs
@@ -871,7 +874,9 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 
     tick = do i <- get; put (i + 1); return i
 
-    translate = (vars !!)
+    translate = \n -> case vars !!! n of
+                        Nothing -> __IMPOSSIBLE__
+                        Just v  -> v
       where
         vars = permute (invertP __IMPOSSIBLE__ perm) [0..]
 

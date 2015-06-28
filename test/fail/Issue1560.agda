@@ -1,10 +1,5 @@
 -- Andreas, 2015-06-11, issue reported by Peter Thiemann
 
-{-# OPTIONS --allow-unsolved-metas #-}
-{-# OPTIONS -v profile:7 #-}
-
--- {-# OPTIONS -v tc.pos:10 #-}
-
 open import Common.Coinduction
 
 mutual
@@ -15,6 +10,7 @@ mutual
     Skip : SType'
     Semi : ∞ SType' → ∞ SType' → SType'
     Case : ∞ SType' → ∞ SType' → SType'
+    c    : (SType' → SType') → SType'
 
   -- equivalence
 
@@ -37,6 +33,7 @@ mutual
   ∼-refl Skip = ∼-Skip
   ∼-refl (Semi x x₁) = ∼-Semi (♯ ∼-refl (♭ x)) (♯ ∼-refl (♭ x₁))
   ∼-refl (Case s₁ s₂) = ∼-Case (♯ ∼-refl (♭ s₁)) (♯ ∼-refl (♭ s₂))
+  ∼-refl (c f)        = {!!}
 
   -- symmetry
 
