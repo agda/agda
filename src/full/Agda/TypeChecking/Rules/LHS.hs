@@ -50,6 +50,7 @@ import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Except (MonadError(..))
 import Agda.Utils.Functor (($>))
+import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -220,7 +221,10 @@ instantiatePattern' sub perm ps = evalState (mapM goArg ps) 0
       ProjP{}      -> return p
     replace p = do
       i <- next
-      return $ fromMaybe p $ DotP <$> sub' !! i
+      let s = case sub' !!! i of
+                Nothing -> __IMPOSSIBLE__
+                Just s  -> s
+      return $ fromMaybe p $ DotP <$> s
 
 
 

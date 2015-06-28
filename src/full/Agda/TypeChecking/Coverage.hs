@@ -579,7 +579,11 @@ split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
 --   to split at (dot patterns included!).
 dbIndexToLevel :: Telescope -> Permutation -> Int -> Nat
 dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
-  where n = if k < 0 then __IMPOSSIBLE__ else permute perm [0..] !! k
+  where n = if k < 0
+            then __IMPOSSIBLE__
+            else case permute perm [0..] !!! k of
+                   Nothing -> __IMPOSSIBLE__
+                   Just n  -> n
         k = size tel - x - 1
 
 -- | @split' ind splitClause x = return res@
@@ -619,7 +623,9 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
       fail "split: bad holes or tel"
 
     -- There is always a variable at the given hole.
-    let (hix, (VarP s, hps)) = holes !! x
+    let (hix, (VarP s, hps)) = case holes !!! x of
+                                 Nothing -> __IMPOSSIBLE__
+                                 Just p  -> p
     debugHoleAndType delta1 delta2 s hps t
 
     return (hps, hix)
