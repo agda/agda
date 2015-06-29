@@ -14,6 +14,35 @@ Syntax
 Type checking
 =============
 
+* Polarity of phantom arguments to data and record types has changed. [Issue 1596]
+  Polarity of size arguments is Nonvariant (both monotone and antitone).
+  Polarity of other arguments is Covariant (monotone).
+  Both were Invariant before (neither monotone nor antitone).
+
+  The following example type-checks now:
+
+    open import Common.Size
+
+    -- List should be monotone in both arguments
+    -- (even when `cons' is missing).
+
+    data List (i : Size) (A : Set) : Set where
+      [] : List i A
+
+    castLL : ∀{i A} → List i (List i A) → List ∞ (List ∞ A)
+    castLL x = x
+
+    -- Stream should be antitone in the first and monotone in the second argument
+    -- (even with field `tail' missing).
+
+    record Stream (i : Size) (A : Set) : Set where
+      coinductive
+      field
+        head : A
+
+    castSS : ∀{i A} → Stream ∞ (Stream ∞ A) → Stream i (Stream i A)
+    castSS x = x
+
 * SIZELT lambdas must be consistent [Issue 1523, see Abel and Pientka, ICFP 2013].
   When lambda-abstracting over type (Size< size) then size must be
   non-zero, for any valid instantiation of size variables.
