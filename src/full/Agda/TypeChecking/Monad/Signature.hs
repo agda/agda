@@ -467,53 +467,17 @@ getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 setPolarity :: QName -> [Polarity] -> TCM ()
 setPolarity q pol = modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
--- | Return a finite list of argument occurrences.
-getArgOccurrences :: QName -> TCM [Occurrence]
-getArgOccurrences d = defArgOccurrences <$> getConstInfo d
-
-{- OLD
--- | Return a finite list of argument occurrences.
-getArgOccurrences :: QName -> TCM [Occurrence]
-getArgOccurrences d = do
-  def <- theDef <$> getConstInfo d
-  return $ getArgOccurrences_ def
-
-getArgOccurrences_ :: Defn -> [Occurrence]
-getArgOccurrences_ def = case def of
-    Function { funArgOccurrences  = os } -> os
-    Datatype { dataArgOccurrences = os } -> os
-    Record   { recArgOccurrences  = os } -> os
-    Constructor{}                        -> [] -- repeat StrictPos
-    _                                    -> [] -- repeat Mixed
--}
-
+-- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- getConstInfo d
   return $ case theDef def of
     Constructor{} -> StrictPos
-    _             ->
-      case (defArgOccurrences def ++ repeat Mixed) !!! i of
-        Nothing -> __IMPOSSIBLE__
-        Just o  -> o
+    _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences $ const os
-
-{- OLD
-getArgOccurrence :: QName -> Nat -> TCM Occurrence
-getArgOccurrence d i = do
-  def <- theDef <$> getConstInfo d
-  return $ case def of
-    Function { funArgOccurrences  = os } -> look i os
-    Datatype { dataArgOccurrences = os } -> look i os
-    Record   { recArgOccurrences  = os } -> look i os
-    Constructor{}                        -> StrictPos
-    _                                    -> Mixed
-  where
-    look i os = (os ++ repeat Mixed) !! fromIntegral i
--}
 
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]
