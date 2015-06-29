@@ -363,9 +363,10 @@ withExtendedOccEnv i = local $ \ e -> e { vars = i : vars e }
 
 -- | Running the monad
 getOccurrences
-  :: (PrettyTCM a, ComputeOccurrences a)
+  :: (Show a, PrettyTCM a, ComputeOccurrences a)
   => [Maybe Item] -> a -> TCM Occurrences
 getOccurrences vars a = do
+  reportSDoc "tc.pos.occ" 70 $ text "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ text "computing occurrences in " <+> prettyTCM a
   kit <- coinductionKit
   return $ runReader (occurrences a) $ OccEnv vars $ fmap nameOfInf kit
@@ -517,17 +518,19 @@ computeOccurrences q = do
     Primitive{}   -> return empty
 
 -- | Eta expand a clause to have the given number of variables.
---   Warning: doesn't update telescope or permutation!
+--   Warning: doesn't put correct types in telescope!
 --   This is used instead of special treatment of lambdas
 --   (which was unsound: issue 121)
 etaExpandClause :: Nat -> Clause -> Clause
-etaExpandClause n c@Clause{ namedClausePats = ps, clauseBody = b }
+etaExpandClause n c@Clause{ clauseTel = tel, clausePerm = perm, namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
   | otherwise = c
       { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP underscore)
       , clauseBody      = liftBody m b
-      , clauseTel       = telFromList $ replicate n $ (underscore,) <$> dummyDom -- Not __IMPOSSIBLE__ because of debug printing
-      , clausePerm      = Perm.idP n  -- ditto
+      , clauseTel       = telFromList $
+          telToList tel ++ (replicate m $ (underscore,) <$> dummyDom)
+          -- dummyDom, not __IMPOSSIBLE__, because of debug printing.
+      , clausePerm      = Perm.liftP m perm -- Andreas, 2015-06-28 this is probably correct.
       }
   where
     m = n - genericLength ps

@@ -874,9 +874,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 
     tick = do i <- get; put (i + 1); return i
 
-    translate = \n -> case vars !!! n of
-                        Nothing -> __IMPOSSIBLE__
-                        Just v  -> v
+    translate n = fromMaybe __IMPOSSIBLE__ $ vars !!! n
       where
         vars = permute (invertP __IMPOSSIBLE__ perm) [0..]
 
