@@ -704,14 +704,11 @@ typeDontCare = El Prop (Sort Prop)
 topSort :: Type
 topSort = El Inf (Sort Inf)
 
-prop :: Type
-prop = sort Prop
-
 sort :: Sort -> Type
 sort s = El (sSuc s) $ Sort s
 
 varSort :: Int -> Sort
-varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ Var n []]
+varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ var n]
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort

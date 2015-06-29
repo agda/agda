@@ -352,7 +352,7 @@ instance Unquote Clause where
           n  = vars True ps  -- with dot patterns
           n' = vars False ps -- without dot patterns
           dummyTel 0 = EmptyTel
-          dummyTel n = ExtendTel (defaultDom typeDontCare) (Abs "x" $ dummyTel (n - 1))
+          dummyTel n = ExtendTel dummyDom (Abs "x" $ dummyTel (n - 1))
           mkBody 0 b = maybe NoBody Body b
           mkBody n b = Bind $ Abs "x" $ mkBody (n - 1) b
           vars d ps = sum $ map (vars' d . namedArg) ps
