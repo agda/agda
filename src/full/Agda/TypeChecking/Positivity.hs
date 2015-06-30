@@ -409,7 +409,7 @@ instance ComputeOccurrences Clause where
       patItem i p = map (const $ Just $ AnArg i) $ patternVars p
 
 instance ComputeOccurrences Term where
-  occurrences v = case v of
+  occurrences v = case unSpine v of
     Var i args -> do
       vars <- asks vars
       occs <- occurrences args
@@ -469,7 +469,7 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (NoAbs _ b) = occurrences b
 
 instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
-  occurrences Proj{}    = return empty
+  occurrences Proj{}    = __IMPOSSIBLE__
   occurrences (Apply a) = occurrences a
 
 instance ComputeOccurrences a => ComputeOccurrences (I.Arg a) where
