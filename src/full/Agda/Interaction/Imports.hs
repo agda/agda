@@ -544,20 +544,26 @@ createInterface file mname =
     mapM_ setOptionsFromPragma options
 
     -- Scope checking.
+    reportSLn "import.iface.create" 7 $ "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $
       concreteToAbstract_ (TopLevel file top)
+    reportSLn "import.iface.create" 7 $ "Finished scope checking."
 
     let ds = topLevelDecls topLevel
 
     -- Highlighting from scope checker.
+    reportSLn "import.iface.create" 7 $ "Starting highlighting from scope."
     Bench.billTo [Bench.Highlighting] $ do
       ifTopLevelAndHighlightingLevelIs NonInteractive $ do
         -- Generate and print approximate syntax highlighting info.
         printHighlightingInfo fileTokenInfo
         mapM_ (\ d -> generateAndPrintSyntaxInfo d Partial) ds
+    reportSLn "import.iface.create" 7 $ "Finished highlighting from scope."
 
     -- Type checking.
+    reportSLn "import.iface.create" 7 $ "Starting type checking."
     Bench.billTo [Bench.Typing] $ checkDecls ds
+    reportSLn "import.iface.create" 7 $ "Finished type checking."
 
     -- Ulf, 2013-11-09: Since we're rethrowing the error, leave it up to the
     -- code that handles that error to reset the state.
@@ -575,6 +581,7 @@ createInterface file mname =
       tickN "metas" (fromIntegral n)
 
     -- Highlighting from type checker.
+    reportSLn "import.iface.create" 7 $ "Starting highlighting from type info."
     Bench.billTo [Bench.Highlighting] $ do
 
       -- Move any remaining token highlighting to stSyntaxInfo.
@@ -586,15 +593,17 @@ createInterface file mname =
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
         withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
+    reportSLn "import.iface.create" 7 $ "Finished highlighting from type info."
 
     setScope $ outsideScope topLevel
-
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
     -- Serialization.
+    reportSLn "import.iface.create" 7 $ "Starting serialization."
     syntaxInfo <- use stSyntaxInfo
     i <- Bench.billTo [Bench.Serialization] $ do
       buildInterface file topLevel syntaxInfo previousHsImports options
+    reportSLn "import.iface.create" 7 $ "Finished serialization."
 
     -- TODO: It would be nice if unsolved things were highlighted
     -- after every mutual block.
@@ -609,6 +618,7 @@ createInterface file mname =
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
+    reportSLn "import.iface.create" 7 $ "Starting writing to interface file."
     r <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
      then Bench.billTo [Bench.Serialization] $ do
       -- The file was successfully type-checked (and no warnings were
@@ -618,6 +628,7 @@ createInterface file mname =
       return (i, NoWarnings)
      else do
       return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
+    reportSLn "import.iface.create" 7 $ "Finished writing to interface file."
 
     -- Profiling: Print statistics.
     printStatistics 30 (Just mname) =<< getStatistics
