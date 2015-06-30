@@ -302,7 +302,8 @@ compareTerm' cmp a m n =
                   (m', n') <- if dontHaveCopatterns then return (m', n')
                                else reduce (m', n')
 -}
-                  compareArgs [] (telePi_ tel $ sort Prop) (Con c []) m' n'
+                  -- Record constructors are covariant (see test/succeed/CovariantConstructors).
+                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c []) m' n'
 
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
@@ -568,9 +569,9 @@ compareAtom cmp t m n =
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
                     a' <- conType x t
-                    -- Constructors are invariant in their arguments
-                    -- (could be covariant).
-                    compareArgs [] a' (Con x []) xArgs yArgs
+                    -- Constructors are covariant in their arguments
+                    -- (see test/succeed/CovariantConstructors).
+                    compareArgs (repeat $ polFromCmp cmp) a' (Con x []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
 --            _ -> typeError $ UnequalTerms cmp m n t
     where
@@ -653,6 +654,15 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       failure = typeError $ UnequalTerms CmpEq v1 v2 a
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
+  unless (null els01) $ do
+    reportSDoc "tc.conv.elim" 25 $ text "compareElims" $$ do
+     nest 2 $ vcat
+      [ text "a     =" <+> prettyTCM a
+      , text "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
+      , text "v     =" <+> prettyTCM v
+      , text "els01 =" <+> prettyTCM els01
+      , text "els02 =" <+> prettyTCM els02
+      ]
   case (els01, els02) of
     ([]         , []         ) -> return ()
     ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
@@ -837,6 +847,10 @@ compareWithPol Invariant     cmp x y = cmp CmpEq x y
 compareWithPol Covariant     cmp x y = cmp CmpLeq x y
 compareWithPol Contravariant cmp x y = cmp CmpLeq y x
 compareWithPol Nonvariant    cmp x y = return ()
+
+polFromCmp :: Comparison -> Polarity
+polFromCmp CmpLeq = Covariant
+polFromCmp CmpEq  = Invariant
 
 -- | Type-directed equality on argument lists
 --
