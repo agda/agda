@@ -129,11 +129,10 @@ compareTerm cmp a u v = do
     ]
   -- Check syntactic equality first. This actually saves us quite a bit of work.
   ((u, v), equal) <- SynEq.checkSyntacticEquality u v
-{- OLD CODE, traverses the *full* terms u v at each step, even if they
-   are different somewhere.  Leads to infeasibility in issue 854.
-  (u, v) <- instantiateFull (u, v)
-  let equal = u == v
--}
+  -- OLD CODE, traverses the *full* terms u v at each step, even if they
+  -- are different somewhere.  Leads to infeasibility in issue 854.
+  -- (u, v) <- instantiateFull (u, v)
+  -- let equal = u == v
   if equal then unifyPointers cmp u v $ verboseS "profile.sharing" 20 $ tick "equal terms" else do
     verboseS "profile.sharing" 20 $ tick "unequal terms"
     let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
@@ -262,8 +261,9 @@ compareTerm' cmp a m n =
                   isNeutral = isNeutral' . fmap ignoreSharing
                   isMeta    = isMeta'    . fmap ignoreSharing
                   isNeutral' (NotBlocked _ Con{}) = return False
-              -- Andreas, 2013-09-18: this is expensive:
-              -- should only do this when copatterns are on
+              -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
+              -- not neutral if it is blocked (there can be missing projections
+              -- to trigger a reduction.
                   isNeutral' (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     d <- getConstInfo q
                     return $ case d of
@@ -296,12 +296,6 @@ compareTerm' cmp a m n =
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
-{- We reduce later (in compareAtom)
-                  -- In the presence of copatterns, we need to reduce,
-                  -- because an added projection can trigger a rewrite rule.
-                  (m', n') <- if dontHaveCopatterns then return (m', n')
-                               else reduce (m', n')
--}
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
                   compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c []) m' n'
 
@@ -312,15 +306,10 @@ compareTerm' cmp a m n =
     equalFun :: Term -> Term -> Term -> TCM ()
     equalFun (Shared p) m n = equalFun (derefPtr p) m n
     equalFun (Pi dom@(Dom info _) b) m n = do
-        -- name <- freshName_ $ properName $ absName b
         name <- freshName_ $ suggest (absName b) "x"
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
-{-
-        properName "_" = "x"
-        properName  x  =  x
--}
     equalFun _ _ _ = __IMPOSSIBLE__
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
@@ -516,55 +505,6 @@ compareAtom cmp t m n =
             (Def f es, Def f' es') ->
               unlessM (bothAbsurd f f') $ do
                 trySizeUniv cmp t m n f es f' es'
-{- RETIRED
-            (Def{}, Def{}) -> do
-              ev1 <- elimView m
-              ev2 <- elimView n
-              reportSDoc "tc.conv.atom" 50 $
-                sep [ text $ "ev1 = " ++ show ev1
-                    , text $ "ev2 = " ++ show ev2 ]
-              case (ev1, ev2) of
-                (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
-                (ConElim x args1, ConElim y args2) | x == y -> do
-                  a <- conType x t
-                  compareArgs [] a (Con x []) args1 args2
-                  -- Andreas, 2013-05-23 Ok, if there cannot be
-                  -- any projection eliminations from constructors,
-                  -- let's be explicit about it!
---                (ConElim x els1, ConElim y els2) | x == y ->
---                  cmpElim (conType x t) (Con x []) els1 els2
-                  -- Andreas 2012-01-17 careful!  In the presence of
-                  -- projection eliminations, t is NOT the datatype x belongs to
-                  -- Ulf 2012-07-12: actually projection likeness is carefully
-                  -- set up so that there can't be any projections from
-                  -- constructor applications at this point, so t really is the
-                  -- datatype of x. See issue 676 for an example where it
-                  -- failed.
-                (DefElim x els1, DefElim y els2) | x == y ->
-                  cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
-                (DefElim x els1, DefElim y els2) ->
-                  unlessM (bothAbsurd x y) $ do
-                    trySizeUniv cmp t m n x els1 y els2
-                (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
-                (_, MetaElim{}) -> __IMPOSSIBLE__
-                _ -> typeError $ UnequalTerms cmp m n t
-                where
-                  polarities (Def x _) = getPolarity' cmp x
-                  polarities _         = return []
-                  cmpElim t v els1 els2 = do
-                    a   <- t
-                    pol <- polarities v
-                    reportSDoc "tc.conv.elim" 10 $
-                      text "compareElim" <+> vcat
-                        [ text "pol  =" <+> text (show pol)
-                        , text "a    =" <+> prettyTCM a
-                        , text "v    =" <+> prettyTCM v
-                        , text "els1 =" <+> prettyTCM els1
-                        , text "els2 =" <+> prettyTCM els2
-                        ]
-                    reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
-                    compareElims pol a v els1 els2
--}
             (Con x xArgs, Con y yArgs)
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
@@ -573,7 +513,6 @@ compareAtom cmp t m n =
                     -- (see test/succeed/CovariantConstructors).
                     compareArgs (repeat $ polFromCmp cmp) a' (Con x []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
---            _ -> typeError $ UnequalTerms cmp m n t
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
         conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
@@ -589,19 +528,6 @@ compareAtom cmp t m n =
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation
           maybe impossible return =<< getConType c t
-{- FACTORED OUT into Datatypes.hs
-          case ignoreSharing $ unEl t of
-            Def d es -> do
-              args  <- maybe impossible return $ allApplyElims es
-              npars <- do
-                def <- theDef <$> getConstInfo d
-                case def of Datatype{dataPars = n} -> return n
-                            Record{recPars = n}    -> return n
-                            _                      -> impossible
-              a <- defType <$> getConInfo c
-              return $ piApply a (genericTake npars args)
-            _ -> impossible
--}
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
           (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
             | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
@@ -1392,18 +1318,3 @@ bothAbsurd f f'
          Function{ funCompiled = Just Fail}) -> return True
         _ -> return False
   | otherwise = return False
-
-{-
--- | Structural equality for definitions.
---   Rudimentary implementation, only works for absurd lambdas now.
-equalDef :: QName -> QName -> TCM Bool
-equalDef f f'
-  | f == f'   = return True
-  | otherwise =  do
-      def  <- getConstInfo f
-      def' <- getConstInfo f'
-      case (theDef def, theDef def') of
-        (Function{ funCompiled = Fail},
-         Function{ funCompiled = Fail}) -> return True
-        _ -> return False
--}
