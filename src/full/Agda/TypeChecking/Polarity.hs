@@ -11,6 +11,7 @@ import Data.List
 import Data.Maybe
 import Data.Traversable (traverse)
 
+import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
@@ -131,8 +132,14 @@ computePolarity x = inConcreteOrAbstractMode x $ do
   -- This means that the most precise type for abstract definitions
   -- is not available, even to other abstract definitions.
   -- A proper fix would be to introduce a second type for use within abstract.
-  t <- if (defAbstract def == AbstractDef) then return t else
-         nonvariantToUnusedArg pol t
+  --
+  -- Andreas, 2015-07-01: I thought one should do this for
+  -- abstract local definitions in @where@ blocks to fix Issue 1366b,
+  --but it is not necessary.
+  -- t <- if (defAbstract def == AbstractDef) && not (isAnonymousModuleName $ qnameModule x)
+  t <- if (defAbstract def == AbstractDef)
+         then return t
+         else nonvariantToUnusedArg pol t
   modifySignature $ updateDefinition x $
    updateTheDef (nonvariantToUnusedArgInDef pol) . updateDefType (const t)
 
