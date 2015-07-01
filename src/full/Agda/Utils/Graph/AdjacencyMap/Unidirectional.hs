@@ -29,7 +29,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , edgesTo
   , diagonal
   , lookup
-  , neighbours
+  , neighbours, neighboursMap
   , sourceNodes, targetNodes
   , Nodes(..)
   , computeNodes, nodes
@@ -79,7 +79,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Maybe as Maybe
-import Data.Maybe (maybeToList)
+import Data.Maybe (maybeToList, fromMaybe)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Tree as Tree
@@ -185,6 +185,11 @@ lookup s t (Graph g) = Map.lookup t =<< Map.lookup s g
 
 neighbours :: (Ord s, Ord t) => s -> Graph s t e -> [(t, e)]
 neighbours s (Graph g) = maybe [] Map.assocs $ Map.lookup s g
+
+-- | Get a list of outgoing edges with target.
+
+neighboursMap :: (Ord s, Ord t) => s -> Graph s t e -> Map t e
+neighboursMap s (Graph g) = fromMaybe Map.empty $ Map.lookup s g
 
 -- * Node queries
 
