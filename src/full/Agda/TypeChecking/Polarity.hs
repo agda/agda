@@ -94,7 +94,8 @@ computePolarity x = inConcreteOrAbstractMode x $ do
 
   -- get basic polarity from positivity analysis
   def      <- getConstInfo x
-  let pol0 = map polFromOcc $ defArgOccurrences def
+  let npars = droppedPars def
+  let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
   reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
 
 {-
@@ -123,7 +124,7 @@ computePolarity x = inConcreteOrAbstractMode x $ do
   reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ show x ++ ": " ++ show pol
 
   -- set the polarity in the signature
-  setPolarity x $ pol -- purgeNonvariant pol -- temporarily disable non-variance
+  setPolarity x $ drop npars pol -- purgeNonvariant pol -- temporarily disable non-variance
 
   -- make 'Nonvariant' args 'UnusedArg' in type and clause telescope
   -- Andreas 2012-11-18: skip this for abstract definitions (fixing issue 755).
