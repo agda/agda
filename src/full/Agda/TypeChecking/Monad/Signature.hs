@@ -476,8 +476,11 @@ getArgOccurrence d i = do
     _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
-setArgOccurrences d os =
-  modifySignature $ updateDefinition d $ updateDefArgOccurrences $ const os
+setArgOccurrences d os = modifyArgOccurrences d $ const os
+
+modifyArgOccurrences :: QName -> ([Occurrence] -> [Occurrence]) -> TCM ()
+modifyArgOccurrences d f =
+  modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]

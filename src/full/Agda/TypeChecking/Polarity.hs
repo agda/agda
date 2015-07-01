@@ -261,6 +261,8 @@ nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, clausePerm = perm, 
 ------------------------------------------------------------------------
 
 -- | Hack for polarity of size indices.
+--   As a side effect, this sets the positivity of the size index.
+--   See test/succeed/PolaritySizeSucData.agda for a case where this is needed.
 sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
@@ -310,9 +312,14 @@ sizePolarity d pol0 = do
                             text "size polarity check"
                           return ok
 
-            ifM (andM $ map check cons)
-                (return polCo) -- yes, we have a sized type here
+            ifNotM (andM $ map check cons)
                 (return polIn) -- no, does not conform to the rules of sized types
+              $ do  -- yes, we have a sized type here
+                -- Andreas, 2015-07-01
+                -- As a side effect, mark the size also covariant for subsequent
+                -- positivity checking (which feeds back into polarity analysis).
+                modifyArgOccurrences d $ \ occ -> take np occ ++ [JustPos]
+                return polCo
       _ -> exit
 
 -- | @checkSizeIndex d np i a@ checks that constructor target type @a@
