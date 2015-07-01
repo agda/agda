@@ -1,5 +1,7 @@
 -- Andreas, 2013-02-21 issue seems to have been fixed along with issue 796
--- {-# OPTIONS -v tc.decl:10 #-}
+
+-- {-# OPTIONS -v tc.pos:10 -v tc.polarity:10 #-}
+
 module Issue4 where
 
 open import Common.Equality
