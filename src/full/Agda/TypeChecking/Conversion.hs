@@ -33,6 +33,7 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType)
@@ -481,12 +482,15 @@ compareAtom cmp t m n =
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> do
-          -- Andreas, 2013-10-20 put projection-like function
-          -- into the spine, to make compareElims work.
-          -- 'False' means: leave (Def f []) unchanged even for
-          -- proj-like funs.
-          m <- elimView False m
-          n <- elimView False n
+          -- -- Andreas, 2013-10-20 put projection-like function
+          -- -- into the spine, to make compareElims work.
+          -- -- 'False' means: leave (Def f []) unchanged even for
+          -- -- proj-like funs.
+          -- m <- elimView False m
+          -- n <- elimView False n
+          -- Andreas, 2015-07-01, actually, don't put them into the spine.
+          -- Polarity cannot be communicated properly if projection-like
+          -- functions are post-fix.
           case (ignoreSharing m, ignoreSharing n) of
             (Pi{}, Pi{}) -> equalFun m n
 
@@ -498,8 +502,23 @@ compareAtom cmp t m n =
                 a <- typeOfBV i
                 -- Variables are invariant in their arguments
                 compareElims [] a (var i) es es'
+            (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> do
-                a   <- defType <$> getConstInfo f
+                def <- getConstInfo f
+                -- To compute the type @a@ of a projection-like @f@,
+                -- we have to infer the type of its first argument.
+                a <- if projectionArgs (theDef def) <= 0 then return $ defType def else do
+                  -- Find an first argument to @f@.
+                  let arg = case (es, es') of
+                            (Apply arg : _, _) -> arg
+                            (_, Apply arg : _) -> arg
+                            _ -> __IMPOSSIBLE__
+                  -- Infer its type.
+                  targ <- infer $ unArg arg
+                  -- getDefType wants the argument type reduced.
+                  fromMaybeM __IMPOSSIBLE__ $ getDefType f =<< reduce targ
+                -- The polarity vector of projection-like functions
+                -- does not include the parameters.
                 pol <- getPolarity' cmp f
                 compareElims pol a (Def f []) es es'
             (Def f es, Def f' es') ->
@@ -681,21 +700,18 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             -- we might get stuck, so do not crash, but fail gently.
             -- __IMPOSSIBLE__
 
-    -- case: f == f' are projection (like) functions
+    -- case: f == f' are projections
     (Proj f : els1, Proj f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         res <- projectTyped v a f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
           Just (u, t) -> do
-            (cmp, els1, els2) <- return $
-              case fst $ nextPolarity pols0 of
-                Invariant     -> (CmpEq , els1, els2)
-                Covariant     -> (CmpLeq, els1, els2)
-                Contravariant -> (CmpLeq, els2, els1)
-                Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
-            pols' <- getPolarity' cmp f
-            compareElims pols' t u els1 els2
+            -- Andreas, 2015-07-01:
+            -- The arguments following the principal argument of a projection
+            -- are invariant.  (At least as long as we have no explicit polarity
+            -- annotations.)
+            compareElims [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
               [ text $ "projection " ++ show f
