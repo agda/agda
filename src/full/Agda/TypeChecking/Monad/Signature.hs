@@ -508,8 +508,11 @@ getArgOccurrence d i = do
     _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
-setArgOccurrences d os =
-  modifySignature $ updateDefinition d $ updateDefArgOccurrences $ const os
+setArgOccurrences d os = modifyArgOccurrences d $ const os
+
+modifyArgOccurrences :: QName -> ([Occurrence] -> [Occurrence]) -> TCM ()
+modifyArgOccurrences d f =
+  modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]
@@ -665,6 +668,27 @@ sortOfConst q =
             Datatype{dataSort = s} -> return s
             _                      -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
+-- | The number of parameters of a definition.
+defPars :: Definition -> Int
+defPars d = case theDef d of
+    Axiom{}                  -> 0
+    def@Function{}           -> projectionArgs def
+    Datatype  {dataPars = n} -> n
+    Record     {recPars = n} -> n
+    Constructor{conPars = n} -> n
+    Primitive{}              -> 0
+
+-- | The number of dropped parameters for a definition.
+--   0 except for projection(-like) functions and constructors.
+droppedPars :: Definition -> Int
+droppedPars d = case theDef d of
+    Axiom{}                  -> 0
+    def@Function{}           -> projectionArgs def
+    Datatype  {dataPars = _} -> 0  -- not dropped
+    Record     {recPars = _} -> 0  -- not dropped
+    Constructor{conPars = n} -> n
+    Primitive{}              -> 0
+
 -- | Is it the name of a record projection?
 {-# SPECIALIZE isProjection :: QName -> TCM (Maybe Projection) #-}
 isProjection :: HasConstInfo m => QName -> m (Maybe Projection)
@@ -683,7 +707,7 @@ isProperProjection :: Defn -> Bool
 isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
   if projIndex isP <= 0 then False else isJust $ projProper isP
 
--- | Number of dropped initial arguments.
+-- | Number of dropped initial arguments of a projection(-like) function.
 projectionArgs :: Defn -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
 

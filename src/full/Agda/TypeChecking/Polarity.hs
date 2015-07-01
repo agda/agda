@@ -89,12 +89,13 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
 -- | Main function of this module.
 computePolarity :: QName -> TCM ()
-computePolarity x = do
+computePolarity x = inConcreteOrAbstractMode x $ do
   reportSLn "tc.polarity.set" 25 $ "Computing polarity of " ++ show x
 
   -- get basic polarity from positivity analysis
   def      <- getConstInfo x
-  let pol0 = map polFromOcc $ defArgOccurrences def
+  let npars = droppedPars def
+  let pol0 = replicate npars Nonvariant ++ map polFromOcc (defArgOccurrences def)
   reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
 
 {-
@@ -123,7 +124,7 @@ computePolarity x = do
   reportSLn "tc.polarity.set" 10 $ "Polarity of " ++ show x ++ ": " ++ show pol
 
   -- set the polarity in the signature
-  setPolarity x $ pol -- purgeNonvariant pol -- temporarily disable non-variance
+  setPolarity x $ drop npars pol -- purgeNonvariant pol -- temporarily disable non-variance
 
   -- make 'Nonvariant' args 'UnusedArg' in type and clause telescope
   -- Andreas 2012-11-18: skip this for abstract definitions (fixing issue 755).
@@ -260,6 +261,8 @@ nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, clausePerm = perm, 
 ------------------------------------------------------------------------
 
 -- | Hack for polarity of size indices.
+--   As a side effect, this sets the positivity of the size index.
+--   See test/succeed/PolaritySizeSucData.agda for a case where this is needed.
 sizePolarity :: QName -> [Polarity] -> TCM [Polarity]
 sizePolarity d pol0 = do
   let exit = return pol0
@@ -309,9 +312,14 @@ sizePolarity d pol0 = do
                             text "size polarity check"
                           return ok
 
-            ifM (andM $ map check cons)
-                (return polCo) -- yes, we have a sized type here
+            ifNotM (andM $ map check cons)
                 (return polIn) -- no, does not conform to the rules of sized types
+              $ do  -- yes, we have a sized type here
+                -- Andreas, 2015-07-01
+                -- As a side effect, mark the size also covariant for subsequent
+                -- positivity checking (which feeds back into polarity analysis).
+                modifyArgOccurrences d $ \ occ -> take np occ ++ [JustPos]
+                return polCo
       _ -> exit
 
 -- | @checkSizeIndex d np i a@ checks that constructor target type @a@

@@ -1067,7 +1067,13 @@ data Definition = Defn
   , defName           :: QName
   , defType           :: Type    -- ^ Type of the lifted definition.
   , defPolarity       :: [Polarity]
+    -- ^ Variance information on arguments of the definition.
+    --   Does not include info for dropped parameters to
+    --   projection(-like) functions and constructors.
   , defArgOccurrences :: [Occurrence]
+    -- ^ Positivity information on arguments of the definition.
+    --   Does not include info for dropped parameters to
+    --   projection(-like) functions and constructors.
   , defDisplay        :: [Open DisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation

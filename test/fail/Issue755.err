@@ -1,4 +1,3 @@
-Issue755.agda:12,5-9
+Issue755.agda:19,6-10
 0 != 1 of type ℕ
-when checking that the pattern refl has type
-foo zero ≡ foo (suc zero)
+when checking that the pattern refl has type foo b 0 ≡ foo b 1
