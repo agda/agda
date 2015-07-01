@@ -619,6 +619,17 @@ ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
                                        -- Allowing destructive updates when ignoring
                                        -- abstract may break the abstraction.
 
+-- | Enter concrete or abstract mode depending on whether the given identifier
+--   is concrete or abstract.
+inConcreteOrAbstractMode :: QName -> TCM a -> TCM a
+inConcreteOrAbstractMode q cont = do
+  -- Andreas, 2015-07-01: If we do not ignoreAbstractMode here,
+  -- we will get ConcreteDef for abstract things, as they are turned into axioms.
+  a <- ignoreAbstractMode $ defAbstract <$> getConstInfo q
+  case a of
+    AbstractDef -> inAbstractMode cont
+    ConcreteDef -> inConcreteMode cont
+
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.

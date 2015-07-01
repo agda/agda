@@ -33,6 +33,7 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
+import {-# SOURCE #-} Agda.TypeChecking.CheckInternal (infer)
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Datatypes (getConType)
@@ -136,11 +137,10 @@ compareTerm cmp a u v = do
   checkPointerEquality $ do
     -- Check syntactic equality. This actually saves us quite a bit of work.
     ((u, v), equal) <- SynEq.checkSyntacticEquality u v
-{- OLD CODE, traverses the *full* terms u v at each step, even if they
-   are different somewhere.  Leads to infeasibility in issue 854.
-    (u, v) <- instantiateFull (u, v)
-    let equal = u == v
--}
+  -- OLD CODE, traverses the *full* terms u v at each step, even if they
+  -- are different somewhere.  Leads to infeasibility in issue 854.
+  -- (u, v) <- instantiateFull (u, v)
+  -- let equal = u == v
     unifyPointers cmp u v $ if equal then verboseS "profile.sharing" 20 $ tick "equal terms" else do
       verboseS "profile.sharing" 20 $ tick "unequal terms"
       reportSDoc "tc.conv.term" 15 $ sep
@@ -272,8 +272,9 @@ compareTerm' cmp a m n =
                   isNeutral = isNeutral' . fmap ignoreSharing
                   isMeta    = isMeta'    . fmap ignoreSharing
                   isNeutral' (NotBlocked _ Con{}) = return False
-              -- Andreas, 2013-09-18: this is expensive:
-              -- should only do this when copatterns are on
+              -- Andreas, 2013-09-18 / 2015-06-29: a Def by copatterns is
+              -- not neutral if it is blocked (there can be missing projections
+              -- to trigger a reduction.
                   isNeutral' (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
                     d <- getConstInfo q
                     return $ case d of
@@ -306,13 +307,8 @@ compareTerm' cmp a m n =
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   c <- getRecordConstructor r
-{- We reduce later (in compareAtom)
-                  -- In the presence of copatterns, we need to reduce,
-                  -- because an added projection can trigger a rewrite rule.
-                  (m', n') <- if dontHaveCopatterns then return (m', n')
-                               else reduce (m', n')
--}
-                  compareArgs [] (telePi_ tel $ sort Prop) (Con c []) m' n'
+                  -- Record constructors are covariant (see test/succeed/CovariantConstructors).
+                  compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c []) m' n'
 
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
@@ -321,15 +317,10 @@ compareTerm' cmp a m n =
     equalFun :: Term -> Term -> Term -> TCM ()
     equalFun (Shared p) m n = equalFun (derefPtr p) m n
     equalFun (Pi dom@(Dom info _) b) m n = do
-        -- name <- freshName_ $ properName $ absName b
         name <- freshName_ $ suggest (absName b) "x"
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
-{-
-        properName "_" = "x"
-        properName  x  =  x
--}
     equalFun _ _ _ = __IMPOSSIBLE__
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
@@ -501,12 +492,15 @@ compareAtom cmp t m n =
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> do
-          -- Andreas, 2013-10-20 put projection-like function
-          -- into the spine, to make compareElims work.
-          -- 'False' means: leave (Def f []) unchanged even for
-          -- proj-like funs.
-          m <- elimView False m
-          n <- elimView False n
+          -- -- Andreas, 2013-10-20 put projection-like function
+          -- -- into the spine, to make compareElims work.
+          -- -- 'False' means: leave (Def f []) unchanged even for
+          -- -- proj-like funs.
+          -- m <- elimView False m
+          -- n <- elimView False n
+          -- Andreas, 2015-07-01, actually, don't put them into the spine.
+          -- Polarity cannot be communicated properly if projection-like
+          -- functions are post-fix.
           case (ignoreSharing m, ignoreSharing n) of
             (Pi{}, Pi{}) -> equalFun m n
 
@@ -518,71 +512,36 @@ compareAtom cmp t m n =
                 a <- typeOfBV i
                 -- Variables are invariant in their arguments
                 compareElims [] a (var i) es es'
+            (Def f [], Def f' []) | f == f' -> return ()
             (Def f es, Def f' es') | f == f' -> do
-                a   <- defType <$> getConstInfo f
+                def <- getConstInfo f
+                -- To compute the type @a@ of a projection-like @f@,
+                -- we have to infer the type of its first argument.
+                a <- if projectionArgs (theDef def) <= 0 then return $ defType def else do
+                  -- Find an first argument to @f@.
+                  let arg = case (es, es') of
+                            (Apply arg : _, _) -> arg
+                            (_, Apply arg : _) -> arg
+                            _ -> __IMPOSSIBLE__
+                  -- Infer its type.
+                  targ <- infer $ unArg arg
+                  -- getDefType wants the argument type reduced.
+                  fromMaybeM __IMPOSSIBLE__ $ getDefType f =<< reduce targ
+                -- The polarity vector of projection-like functions
+                -- does not include the parameters.
                 pol <- getPolarity' cmp f
                 compareElims pol a (Def f []) es es'
             (Def f es, Def f' es') ->
               unlessM (bothAbsurd f f') $ do
                 trySizeUniv cmp t m n f es f' es'
-{- RETIRED
-            (Def{}, Def{}) -> do
-              ev1 <- elimView m
-              ev2 <- elimView n
-              reportSDoc "tc.conv.atom" 50 $
-                sep [ text $ "ev1 = " ++ show ev1
-                    , text $ "ev2 = " ++ show ev2 ]
-              case (ev1, ev2) of
-                (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
-                (ConElim x args1, ConElim y args2) | x == y -> do
-                  a <- conType x t
-                  compareArgs [] a (Con x []) args1 args2
-                  -- Andreas, 2013-05-23 Ok, if there cannot be
-                  -- any projection eliminations from constructors,
-                  -- let's be explicit about it!
---                (ConElim x els1, ConElim y els2) | x == y ->
---                  cmpElim (conType x t) (Con x []) els1 els2
-                  -- Andreas 2012-01-17 careful!  In the presence of
-                  -- projection eliminations, t is NOT the datatype x belongs to
-                  -- Ulf 2012-07-12: actually projection likeness is carefully
-                  -- set up so that there can't be any projections from
-                  -- constructor applications at this point, so t really is the
-                  -- datatype of x. See issue 676 for an example where it
-                  -- failed.
-                (DefElim x els1, DefElim y els2) | x == y ->
-                  cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
-                (DefElim x els1, DefElim y els2) ->
-                  unlessM (bothAbsurd x y) $ do
-                    trySizeUniv cmp t m n x els1 y els2
-                (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
-                (_, MetaElim{}) -> __IMPOSSIBLE__
-                _ -> typeError $ UnequalTerms cmp m n t
-                where
-                  polarities (Def x _) = getPolarity' cmp x
-                  polarities _         = return []
-                  cmpElim t v els1 els2 = do
-                    a   <- t
-                    pol <- polarities v
-                    reportSDoc "tc.conv.elim" 10 $
-                      text "compareElim" <+> vcat
-                        [ text "pol  =" <+> text (show pol)
-                        , text "a    =" <+> prettyTCM a
-                        , text "v    =" <+> prettyTCM v
-                        , text "els1 =" <+> prettyTCM els1
-                        , text "els2 =" <+> prettyTCM els2
-                        ]
-                    reportSLn "tc.conv.elim" 50 $ "v (raw) = " ++ show v
-                    compareElims pol a v els1 els2
--}
             (Con x xArgs, Con y yArgs)
                 | x == y -> do
                     -- Get the type of the constructor instantiated to the datatype parameters.
                     a' <- conType x t
-                    -- Constructors are invariant in their arguments
-                    -- (could be covariant).
-                    compareArgs [] a' (Con x []) xArgs yArgs
+                    -- Constructors are covariant in their arguments
+                    -- (see test/succeed/CovariantConstructors).
+                    compareArgs (repeat $ polFromCmp cmp) a' (Con x []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
---            _ -> typeError $ UnequalTerms cmp m n t
     where
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
         conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
@@ -598,19 +557,6 @@ compareAtom cmp t m n =
                 -- Thus, instead of crashing, just give up gracefully.
                 patternViolation
           maybe impossible return =<< getConType c t
-{- FACTORED OUT into Datatypes.hs
-          case ignoreSharing $ unEl t of
-            Def d es -> do
-              args  <- maybe impossible return $ allApplyElims es
-              npars <- do
-                def <- theDef <$> getConstInfo d
-                case def of Datatype{dataPars = n} -> return n
-                            Record{recPars = n}    -> return n
-                            _                      -> impossible
-              a <- defType <$> getConInfo c
-              return $ piApply a (genericTake npars args)
-            _ -> impossible
--}
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
           (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
             | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
@@ -663,6 +609,15 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       failure = typeError $ UnequalTerms CmpEq v1 v2 a
         -- Andreas, 2013-03-15 since one of the spines is empty, @a@
         -- is the correct type here.
+  unless (null els01) $ do
+    reportSDoc "tc.conv.elim" 25 $ text "compareElims" $$ do
+     nest 2 $ vcat
+      [ text "a     =" <+> prettyTCM a
+      , text "pols0 (truncated to 10) =" <+> sep (map prettyTCM $ take 10 pols0)
+      , text "v     =" <+> prettyTCM v
+      , text "els01 =" <+> prettyTCM els01
+      , text "els02 =" <+> prettyTCM els02
+      ]
   case (els01, els02) of
     ([]         , []         ) -> return ()
     ([]         , Proj{}:_   ) -> failure -- not impossible, see issue 821
@@ -755,21 +710,18 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             -- we might get stuck, so do not crash, but fail gently.
             -- __IMPOSSIBLE__
 
-    -- case: f == f' are projection (like) functions
+    -- case: f == f' are projections
     (Proj f : els1, Proj f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         res <- projectTyped v a f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
           Just (u, t) -> do
-            (cmp, els1, els2) <- return $
-              case fst $ nextPolarity pols0 of
-                Invariant     -> (CmpEq , els1, els2)
-                Covariant     -> (CmpLeq, els1, els2)
-                Contravariant -> (CmpLeq, els2, els1)
-                Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
-            pols' <- getPolarity' cmp f
-            compareElims pols' t u els1 els2
+            -- Andreas, 2015-07-01:
+            -- The arguments following the principal argument of a projection
+            -- are invariant.  (At least as long as we have no explicit polarity
+            -- annotations.)
+            compareElims [] t u els1 els2
           Nothing -> do
             reportSDoc "tc.conv.elims" 30 $ sep
               [ text $ "projection " ++ show f
@@ -847,6 +799,10 @@ compareWithPol Invariant     cmp x y = cmp CmpEq x y
 compareWithPol Covariant     cmp x y = cmp CmpLeq x y
 compareWithPol Contravariant cmp x y = cmp CmpLeq y x
 compareWithPol Nonvariant    cmp x y = return ()
+
+polFromCmp :: Comparison -> Polarity
+polFromCmp CmpLeq = Covariant
+polFromCmp CmpEq  = Invariant
 
 -- | Type-directed equality on argument lists
 --
@@ -1388,18 +1344,3 @@ bothAbsurd f f'
          Function{ funCompiled = Just Fail}) -> return True
         _ -> return False
   | otherwise = return False
-
-{-
--- | Structural equality for definitions.
---   Rudimentary implementation, only works for absurd lambdas now.
-equalDef :: QName -> QName -> TCM Bool
-equalDef f f'
-  | f == f'   = return True
-  | otherwise =  do
-      def  <- getConstInfo f
-      def' <- getConstInfo f'
-      case (theDef def, theDef def') of
-        (Function{ funCompiled = Fail},
-         Function{ funCompiled = Fail}) -> return True
-        _ -> return False
--}

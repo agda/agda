@@ -12,6 +12,7 @@
 module Agda.TypeChecking.CheckInternal
   ( checkType
   , checkInternal
+  , infer
   ) where
 
 import Control.Monad
@@ -218,8 +219,6 @@ checkColor     :: [Color] -> [Color] -> TCM ()
 checkColor     c c' = unless (c == c') $ typeError $ ColorMismatch c c'
   -- TODO guilhem
 
-{- THIS WAS TO HELP with projection-like functions, but illusional...
-
 -- | Infer type of a neutral term.
 infer :: Term -> TCM Type
 infer v = do
@@ -251,7 +250,7 @@ inferDef' f a es = do
       b <- infer self
       inferSpine b self (Proj f : es)
     _ -> inferDef f (Apply a : es)
--}
+
 
 -- | @inferSpine t self es@ checks that spine @es@ eliminates
 --   value @self@ of type @t@ and returns the remaining type

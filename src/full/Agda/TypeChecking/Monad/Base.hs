@@ -1393,6 +1393,13 @@ defCopy :: Definition -> Bool
 defCopy Defn{theDef = Function{funCopy = b}} = b
 defCopy _                                    = False
 
+-- | Beware when using this function on a @def@ obtained with @getConstInfo q@!
+--   If the identifier @q@ is abstract, 'getConstInfo' will turn its @def@ into
+--   an 'Axiom' and you always get 'ConcreteDef', paradoxically.
+--   Use it in 'IgnoreAbstractMode', like this:
+--   @
+--     a <- ignoreAbstractMode $ defAbstract <$> getConstInfo q
+--   @
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
     Axiom{}                   -> ConcreteDef

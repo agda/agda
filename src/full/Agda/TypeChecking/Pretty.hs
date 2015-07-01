@@ -140,6 +140,7 @@ instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 instance PrettyTCM Permutation where prettyTCM = text . show
+instance PrettyTCM Polarity where prettyTCM = text . show
 
 instance PrettyTCM Clause where
   prettyTCM cl = do

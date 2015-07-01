@@ -60,29 +60,30 @@ type Graph n e = Graph.Graph n n e
 --   Also add information about positivity and recursivity of records
 --   to the signature.
 checkStrictlyPositive :: Set QName -> TCM ()
-checkStrictlyPositive qs = disableDestructiveUpdate $ do
+checkStrictlyPositive qset = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
-  reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
+  let qs = Set.toList qset
+  reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
   -- remove @Unused@ edges
-  g <- Graph.clean <$> buildOccurrenceGraph qs
+  g <- Graph.clean <$> buildOccurrenceGraph qset
   let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
-    [ text "positivity graph for" <+> prettyTCM (Set.toList qs)
+    [ text "positivity graph for" <+> prettyTCM qs
     , nest 2 $ prettyTCM g
     ]
   reportSLn "tc.pos.graph" 5 $
     "Positivity graph (completed): E=" ++ show (length $ Graph.edges gstar)
   reportSDoc "tc.pos.graph" 50 $ vcat
     [ text "transitive closure of positivity graph for" <+>
-      prettyTCM (Set.toList qs)
+      prettyTCM qs
     , nest 2 $ prettyTCM gstar
     ]
 
   -- remember argument occurrences for qs in the signature
-  mapM_ (setArgs gstar) $ Set.toList qs
+  setArgOccs qset qs gstar
   reportSDoc "tc.pos.tick" 100 $ text "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
@@ -98,14 +99,14 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
         ]
   reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
   forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
-  mapM_ (checkPos g gstar) $ Set.toList qs
+  mapM_ (checkPos g gstar) $ qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
 
   where
     checkPos :: Graph Node Edge ->
                 Graph Node Occurrence ->
                 QName -> TCM ()
-    checkPos g gstar q = do
+    checkPos g gstar q = inConcreteOrAbstractMode q $ do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
@@ -179,23 +180,28 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
     setMut [q] = return ()  -- no mutual recursion
     setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)
 
-    -- Set the polarity of the arguments to a definition
-    setArgs g q = do
-      reportSDoc "tc.pos.args" 10 $ text "checking args of" <+> prettyTCM q
-      n <- getDefArity =<< getConstInfo q
-      let nArgs = maximum $ n :
-                    [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
-                    , q1 == q ]
-          findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
-          args = map findOcc [0..nArgs - 1]
-      reportSDoc "tc.pos.args" 10 $ sep
-        [ text "args of" <+> prettyTCM q <+> text "="
-        , nest 2 $ prettyList $ map (text . show) args
-        ]
-      -- The list args can take a long time to compute, but contains
-      -- small elements, and is stored in the interface (right?), so
-      -- it is computed deep-strictly.
-      setArgOccurrences q $!! args
+    -- Set the polarity of the arguments to a couple of definitions
+    setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
+    setArgOccs qset qs g = do
+      -- Compute a map from each name in q to the maximal argument index
+      let maxs = Map.fromListWith max
+           [ (q, i) | ArgNode q i <- Set.toList $ Graph.sourceNodes g, q `Set.member` qset ]
+      forM_ qs $ \ q -> inConcreteOrAbstractMode q $ do
+        reportSDoc "tc.pos.args" 10 $ text "checking args of" <+> prettyTCM q
+        n <- getDefArity =<< getConstInfo q
+        -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
+        -- Otherwise, we obtain the occurrences from the Graph.
+        let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
+            args = caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
+              map findOcc [0 .. max m (n - 1)]
+        reportSDoc "tc.pos.args" 10 $ sep
+          [ text "args of" <+> prettyTCM q <+> text "="
+          , nest 2 $ prettyList $ map (text . show) args
+          ]
+        -- The list args can take a long time to compute, but contains
+        -- small elements, and is stored in the interface (right?), so
+        -- it is computed deep-strictly.
+        setArgOccurrences q $!! args
 
 getDefArity :: Definition -> TCM Int
 getDefArity def = case theDef def of
@@ -401,7 +407,7 @@ instance ComputeOccurrences Clause where
       patItem i p = map (const $ Just $ AnArg i) $ patternVars p
 
 instance ComputeOccurrences Term where
-  occurrences v = case v of
+  occurrences v = case unSpine v of
     Var i args -> do
       vars <- asks vars
       occs <- occurrences args
@@ -460,7 +466,7 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
   occurrences (NoAbs _ b) = occurrences b
 
 instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
-  occurrences Proj{}    = return empty
+  occurrences Proj{}    = __IMPOSSIBLE__
   occurrences (Apply a) = occurrences a
 
 instance ComputeOccurrences a => ComputeOccurrences (I.Arg a) where
@@ -480,7 +486,11 @@ instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, 
 
 -- | Compute the occurrences in a given definition.
 computeOccurrences :: QName -> TCM Occurrences
-computeOccurrences q = do
+computeOccurrences q = inConcreteOrAbstractMode q $ do
+  reportSDoc "tc.pos" 25 $ do
+    a <- defAbstract <$> getConstInfo q
+    m <- asks envAbstractMode
+    text "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
   def <- getConstInfo q
   occursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
