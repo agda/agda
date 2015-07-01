@@ -297,18 +297,7 @@ checkPositivity_ names = Bench.billTo [Bench.Positivity] $ do
   -- Andreas, 2012-02-13: Polarity computation uses info from
   -- positivity check, so it needs happen after positivity
   -- check.
-  let -- | Do we need to compute polarity information for the
-      -- definition corresponding to the given name?
-      relevant q = do
-        def <- theDef <$> getConstInfo q
-        return $ case def of
-          Function{}    -> Just q
-          Datatype{}    -> Just q
-          Record{}      -> Just q
-          Axiom{}       -> Nothing
-          Constructor{} -> Nothing
-          Primitive{}   -> Nothing
-  mapM_ computePolarity =<< do mapMaybeM relevant $ Set.toList names
+  mapM_ computePolarity $ Set.toList names
 
 -- | Check that all coinductive records are actually recursive.
 --   (Otherwise, one can implement invalid recursion schemes just like

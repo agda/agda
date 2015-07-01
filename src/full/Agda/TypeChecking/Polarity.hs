@@ -89,7 +89,7 @@ purgeNonvariant = map (\ p -> if p == Nonvariant then Covariant else p)
 
 -- | Main function of this module.
 computePolarity :: QName -> TCM ()
-computePolarity x = do
+computePolarity x = inConcreteOrAbstractMode x $ do
   reportSLn "tc.polarity.set" 25 $ "Computing polarity of " ++ show x
 
   -- get basic polarity from positivity analysis
