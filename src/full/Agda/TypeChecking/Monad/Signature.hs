@@ -240,7 +240,7 @@ applySection new ptel old ts rd rm = do
       copyDef' np def
       where
         copyDef' np d = do
-          reportSLn "tc.mod.apply" 80 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args"
+          reportSLn "tc.mod.apply" 60 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args " ++ show abstr
           reportSLn "tc.mod.apply" 80 $
             "args = " ++ show ts' ++ "\n" ++
             "old type = " ++ prettyShow (defType d) ++ "\n" ++

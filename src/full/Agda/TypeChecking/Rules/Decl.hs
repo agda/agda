@@ -151,6 +151,7 @@ checkDecl d = setCurrentRange d $ do
 
     check x i m = do
       reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
+      reportSLn "tc.decl.abstract" 25 $ show (Info.defAbstract i)
       r <- abstract (Info.defAbstract i) m
       reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
       return r
@@ -313,16 +314,6 @@ checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
 checkInjectivity_ :: Set QName -> TCM ()
 checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking injectivity..."
-
-  -- OLD CODE, REFACTORED using for-loop
-  -- let checkInj (q, def@Defn{ theDef = d@Function{ funClauses = cs, funTerminates = Just True }}) = do
-  --       inv <- checkInjectivity q cs
-  --       modifySignature $ updateDefinition q $ const $
-  --         def { theDef = d { funInv = inv }}
-  --     checkInj _ = return ()
-  -- namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
-  -- mapM_ checkInj namesDefs
-
   Fold.forM_ names $ \ q -> do
     def <- getConstInfo q
     case theDef def of
@@ -333,18 +324,29 @@ checkInjectivity_ names = Bench.billTo [Bench.Injectivity] $ do
       _ -> return ()
 
 -- | Check a set of mutual names for projection likeness.
+--
+--   Only a single, non-abstract function can be projection-like.
+--   Making an abstract function projection-like would break the
+--   invariant that the type of the principle argument of a projection-like
+--   function is always inferable.
+
 checkProjectionLikeness_ :: Set QName -> TCM ()
 checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
       -- Non-mutual definitions can be considered for
       -- projection likeness
-      reportSLn "tc.decl" 20 $ "checkDecl: checking projection-likeness..."
-      case Set.toList names of
+      let ds = Set.toList names
+      reportSLn "tc.proj.like" 20 $ "checkDecl: checking projection-likeness of " ++ show ds
+      case ds of
         [d] -> do
           def <- getConstInfo d
+          -- For abstract identifiers, getConstInfo returns Axiom.
+          -- Thus, abstract definitions are not considered for projection-likeness.
           case theDef def of
             Function{} -> makeProjection (defName def)
-            _          -> return ()
-        _ -> return ()
+            _          -> reportSLn "tc.proj.like" 25 $
+              show d ++ " is abstract or not a function, thus, not considered for projection-likeness"
+        _ -> reportSLn "tc.proj.like" 25 $
+               "mutual definitions are not considered for projection-likeness"
 
 -- | Type check an axiom.
 checkAxiom :: A.Axiom -> Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()
