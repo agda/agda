@@ -262,7 +262,7 @@ applySection new ptel old ts rd rm = do
       copyDef' np def
       where
         copyDef' np d = do
-          reportSLn "tc.mod.apply" 80 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args"
+          reportSLn "tc.mod.apply" 60 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args " ++ show abstr
           reportSLn "tc.mod.apply" 80 $
             "args = " ++ show ts' ++ "\n" ++
             "old type = " ++ prettyShow (defType d) ++ "\n" ++
@@ -287,6 +287,7 @@ applySection new ptel old ts rd rm = do
             occ = defArgOccurrences d `apply` ts'
             rew = defRewriteRules d `apply` ts'
             inst = defInstance d
+            abstr = defAbstract d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
             nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew inst <$> def  -- TODO: mutual block?
@@ -332,7 +333,7 @@ applySection new ptel old ts rd rm = do
                         , funDelayed        = NotDelayed
                         , funInv            = NotInjective
                         , funMutual         = mutual
-                        , funAbstr          = ConcreteDef
+                        , funAbstr          = ConcreteDef -- OR: abstr -- ?!
                         , funProjection     = proj
                         , funStatic         = False
                         , funSmashable      = True
@@ -639,14 +640,26 @@ inConcreteOrAbstractMode q cont = do
 treatAbstractly :: MonadReader TCEnv m => QName -> m Bool
 treatAbstractly q = asks $ treatAbstractly' q
 
+-- | Andreas, 2015-07-01:
+--   If the @current@ module is a weak suffix of the identifier module,
+--   we can see through its abstract definition if we are abstract.
+--   (Then @treatAbstractly'@ returns @False@).
+--
+--   If I am not mistaken, then we cannot see definitions in the @where@
+--   block of an abstract function from the perspective of the function,
+--   because then the current module is a strict prefix of the module
+--   of the local identifier.
+--   This problem is fixed by removing trailing anonymous module name parts
+--   (underscores) from both names.
 treatAbstractly' :: QName -> TCEnv -> Bool
 treatAbstractly' q env = case envAbstractMode env of
   ConcreteMode       -> True
   IgnoreAbstractMode -> False
   AbstractMode       -> not $ current == m || current `isSubModuleOf` m
   where
-    current = envCurrentModule env
-    m       = qnameModule q
+    current = dropAnon $ envCurrentModule env
+    m       = dropAnon $ qnameModule q
+    dropAnon (MName ms) = MName $ reverse $ dropWhile isNoName $ reverse ms
 
 -- | Get type of a constant, instantiated to the current context.
 typeOfConst :: QName -> TCM Type
