@@ -59,6 +59,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
+import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 
 import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
@@ -73,6 +74,8 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin)
 
+import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
+
 import Agda.Interaction.FindFile (checkModuleName)
 -- import Agda.Interaction.Imports  -- for type-checking in ghci
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
@@ -86,7 +89,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -196,7 +199,11 @@ checkModuleApplication
   -> ImportDirective
   -> ScopeM (A.ModuleApplication, Ren A.QName, Ren ModuleName)
 
-checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
+checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
+  reportSDoc "scope.decl" 70 $ vcat $
+    [ text $ "scope checking ModuleApplication " ++ prettyShow x
+    ]
+
   -- For the following, set the current module to be m0.
   withCurrentModule m0 $ do
     -- Check that expression @e@ is of the form @m args@.
@@ -216,7 +223,14 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
     reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
-    return ((A.SectionApp tel' m1 args'), renD, renM)
+    let amodapp = A.SectionApp tel' m1 args'
+    reportSDoc "scope.decl" 70 $ vcat $
+      [ text $ "scope checked ModuleApplication " ++ prettyShow x
+      ]
+    reportSDoc "scope.decl" 70 $ vcat $
+      [ nest 2 $ prettyA amodapp
+      ]
+    return (amodapp, renD, renM)
 
 checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
@@ -234,7 +248,8 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
 --   Preserves local variables.
 
 checkModuleMacro
-  :: (ModuleInfo -> ModuleName -> A.ModuleApplication -> Ren A.QName -> Ren ModuleName -> a)
+  :: (Pretty c, ToConcrete a c)
+  => (ModuleInfo -> ModuleName -> A.ModuleApplication -> Ren A.QName -> Ren ModuleName -> a)
   -> Range
   -> Access
   -> C.Name
@@ -243,9 +258,13 @@ checkModuleMacro
   -> ImportDirective
   -> ScopeM [a]
 checkModuleMacro apply r p x modapp open dir = do
+    reportSDoc "scope.decl" 70 $ vcat $
+      [ text $ "scope checking ModuleMacro " ++ prettyShow x
+      ]
     notPublicWithoutOpen open dir
 
     m0 <- toAbstract (NewModuleName x)
+    reportSDoc "scope.decl" 90 $ text "NewModuleName: m0 =" <+> prettyA m0
 
     printScope "mod.inst" 20 "module macro"
 
@@ -257,15 +276,39 @@ checkModuleMacro apply r p x modapp open dir = do
 
     -- Restore the locals after module application has been checked.
     (modapp', renD, renM) <- withLocalVars $ checkModuleApplication modapp m0 x dir'
+    printScope "mod.inst.app" 20 "checkModuleMacro, after checkModuleApplication"
+
+    reportSDoc "scope.decl" 90 $ text "after mod app: trying to print m0 ..."
+    reportSDoc "scope.decl" 90 $ text "after mod app: m0 =" <+> prettyA m0
+
     bindModule p x m0
+    reportSDoc "scope.decl" 90 $ text "after bindMod: m0 =" <+> prettyA m0
+
     printScope "mod.inst.copy.after" 20 "after copying"
     -- Andreas, 2014-09-02 openModule_ might shadow some locals!
     when (open == DoOpen) $
       openModule_ (C.QName x) dir
     printScope "mod.inst" 20 $ show open
+    reportSDoc "scope.decl" 90 $ text "after open   : m0 =" <+> prettyA m0
+
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
-    return [ apply info (m0 `withRangesOf` [x]) modapp' renD renM ]
+    reportSDoc "scope.decl" 90 $ text "after stripNo: m0 =" <+> prettyA m0
+
+    let m      = m0 `withRangesOf` [x]
+        adecls = [ apply info m modapp' renD renM ]
+
+    reportSDoc "scope.decl" 70 $ vcat $
+      [ text $ "scope checked ModuleMacro " ++ prettyShow x
+      ]
+    reportSLn  "scope.decl" 90 $ "info    = " ++ show info
+    reportSLn  "scope.decl" 90 $ "m       = " ++ show m
+    reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
+    reportSLn  "scope.decl" 90 $ "renD    = " ++ show renD
+    reportSLn  "scope.decl" 90 $ "renM    = " ++ show renM
+    reportSDoc "scope.decl" 70 $ vcat $
+      map (nest 2 . prettyA) adecls
+    return adecls
   where
     info = ModuleInfo
              { minfoRange  = r
@@ -1219,17 +1262,39 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' ind cm' pars contel afields ]
 
-    NiceModule r p a x@(C.QName name) tel ds ->
-      traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
+    NiceModule r p a x@(C.QName name) tel ds -> do
+      reportSDoc "scope.decl" 70 $ vcat $
+        [ text $ "scope checking NiceModule " ++ prettyShow x
+        ]
+
+      adecls <- traceCall (ScopeCheckDeclaration $ NiceModule r p a x tel []) $ do
         scopeCheckNiceModule r p name tel $ toAbstract ds
+
+      reportSDoc "scope.decl" 70 $ vcat $
+        [ text $ "scope checked NiceModule " ++ prettyShow x
+        ] ++ map (nest 2 . prettyA) adecls
+      return adecls
 
     NiceModule _ _ _ m@C.Qual{} _ _ ->
       genericError $ "Local modules cannot have qualified names"
 
-    NiceModuleMacro r p x modapp open dir ->
-      checkModuleMacro Apply r p x modapp open dir
+    NiceModuleMacro r p x modapp open dir -> do
+      reportSDoc "scope.decl" 70 $ vcat $
+        [ text $ "scope checking NiceModuleMacro " ++ prettyShow x
+        ]
+
+      adecls <- checkModuleMacro Apply r p x modapp open dir
+
+      reportSDoc "scope.decl" 70 $ vcat $
+        [ text $ "scope checked NiceModuleMacro " ++ prettyShow x
+        ] ++ map (nest 2 . prettyA) adecls
+      return adecls
 
     NiceOpen r x dir -> do
+      reportSDoc "scope.decl" 70 $ vcat $
+        [ text $ "scope checking NiceOpen " ++ prettyShow x
+        ]
+
       m <- toAbstract (OldModuleName x)
       printScope "open" 20 $ "opening " ++ show x
       openModule_ x dir
@@ -1241,7 +1306,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
             , minfoOpenShort = Nothing
             , minfoDirective = Just dir
             }
-      return [A.Open minfo m]
+      let adecls = [A.Open minfo m]
+      reportSDoc "scope.decl" 70 $ vcat $
+        [ text $ "scope checked NiceOpen " ++ prettyShow x
+        ] ++ map (nest 2 . prettyA) adecls
+      return adecls
 
     NicePragma r p -> do
       ps <- toAbstract p

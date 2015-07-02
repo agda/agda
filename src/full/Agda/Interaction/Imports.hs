@@ -130,11 +130,11 @@ addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns = do
 
 scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
 scopeCheckImport x = do
-    reportSLn "import.scope" 5 $ "Scope checking " ++ show x
+    reportSLn "import.scope" 5 $ "Scope checking " ++ prettyShow x
     verboseS "import.scope" 10 $ do
       visited <- Map.keys <$> getVisitedModules
       reportSLn "import.scope" 10 $
-        "  visited: " ++ intercalate ", " (map (render . pretty) visited)
+        "  visited: " ++ intercalate ", " (map prettyShow visited)
     -- Since scopeCheckImport is called from the scope checker,
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getInterface x
@@ -161,12 +161,12 @@ alreadyVisited x getIface = do
         -- A module with warnings should never be allowed to be
         -- imported from another module.
         Just mi | not (miWarnings mi) -> do
-          reportSLn "import.visit" 10 $ "  Already visited " ++ render (pretty x)
+          reportSLn "import.visit" 10 $ "  Already visited " ++ prettyShow x
           return (miInterface mi, NoWarnings)
         _ -> do
-          reportSLn "import.visit" 5 $ "  Getting interface for " ++ render (pretty x)
+          reportSLn "import.visit" 5 $ "  Getting interface for " ++ prettyShow x
           r@(i, wt) <- getIface
-          reportSLn "import.visit" 5 $ "  Now we've looked at " ++ render (pretty x)
+          reportSLn "import.visit" 5 $ "  Now we've looked at " ++ prettyShow x
           visitModule $ ModuleInfo
             { miInterface  = i
             , miWarnings   = hasWarnings wt
@@ -182,7 +182,7 @@ alreadyVisited x getIface = do
 
 typeCheckMain :: AbsolutePath -> TCM (Interface, MaybeWarnings)
 typeCheckMain f = do
-  -- liftIO $ putStrLn $ "This is typeCheckMain " ++ show f
+  -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
   -- liftIO . putStrLn . show =<< getVerbosity
   reportSLn "import.main" 10 $ "Importing the primitive modules."
   libdir <- liftIO defaultLibDir
@@ -264,7 +264,7 @@ getInterface' x isMain = do
         return $ unchanged && (not ignore || isJust cached)
 
       reportSLn "import.iface" 5 $
-        "  " ++ render (pretty x) ++ " is " ++
+        "  " ++ prettyShow x ++ " is " ++
         (if uptodate then "" else "not ") ++ "up-to-date."
 
       -- Andreas, 2014-10-20 AIM XX:
@@ -317,7 +317,7 @@ getInterface' x isMain = do
       chaseMsg kind file = do
         nesting <- envModuleNestingLevel <$> ask
         let s = genericReplicate nesting ' ' ++ kind ++
-                " " ++ render (pretty x) ++
+                " " ++ prettyShow x ++
                 case file of
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
@@ -530,11 +530,11 @@ createInterface file mname =
     stTokens .= fileTokenInfo
 
     reportSLn "import.iface.create" 5 $
-      "Creating interface for " ++ render (pretty mname) ++ "."
+      "Creating interface for " ++ prettyShow mname ++ "."
     verboseS "import.iface.create" 10 $ do
       visited <- Map.keys <$> getVisitedModules
       reportSLn "import.iface.create" 10 $
-        "  visited: " ++ intercalate ", " (map (render . pretty) visited)
+        "  visited: " ++ intercalate ", " (map prettyShow visited)
 
     previousHsImports <- getHaskellImports
     previousHsImportsUHC <- getHaskellImportsUHC

@@ -130,8 +130,7 @@ abstractToConcrete_ = runAbsToCon . toConcrete
 --   cases we just throw away the qualified part. It's just for pretty printing
 --   anyway...
 unsafeQNameToName :: C.QName -> C.Name
-unsafeQNameToName (C.QName x) = x
-unsafeQNameToName (C.Qual _ x) = unsafeQNameToName x
+unsafeQNameToName = C.unqualify
 
 lookupName :: A.Name -> AbsToCon C.Name
 lookupName x = do
@@ -775,8 +774,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp
-        open = maybe DontOpen id $ minfoOpenShort i
-        dir  = maybe defaultImportDir{ importDirRange = r } id $ minfoDirective i
+        open = fromMaybe DontOpen $ minfoOpenShort i
+        dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
     return [ C.ModuleMacro (getRange i) x modapp open dir ]
 
   toConcrete (A.Import i x) = do

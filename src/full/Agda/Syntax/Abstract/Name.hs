@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 {-| Abstract names carry unique identifiers and stuff.
 -}
@@ -63,7 +64,7 @@ data QNamed a = QNamed
   { qname  :: QName
   , qnamed :: a
   }
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | A module name is just a qualified name.
 --
@@ -77,7 +78,7 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.  (This implies that they all have the same 'Range').
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Typeable, Show, Eq)
+  deriving (Eq, Typeable)
 
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
@@ -102,12 +103,11 @@ isAnonymousModuleName (MName ms) = isNoName $ last ms
 -- least as large as the length of the list.
 
 withRangesOf :: ModuleName -> [C.Name] -> ModuleName
-MName ms `withRangesOf` ns
-  | length ms < length ns  = __IMPOSSIBLE__
-  | otherwise              = MName $
-      reverse $ zipWith setRange
-                        (reverse (map getRange ns) ++ repeat noRange)
-                        (reverse ms)
+MName ms `withRangesOf` ns = if m < n then __IMPOSSIBLE__ else MName $
+      zipWith setRange (replicate (m - n) noRange ++ map getRange ns) ms
+  where
+    m = length ms
+    n = length ns
 
 -- | Like 'withRangesOf', but uses the name parts (qualifier + name)
 -- of the qualified name as the list of concrete names.
@@ -253,6 +253,12 @@ instance IsNoName Name where
 -- * Show instances
 ------------------------------------------------------------------------
 
+-- deriving instance Show Name
+-- deriving instance Show ModuleName
+-- deriving instance Show QName
+deriving instance Show a => Show (QNamed a)
+deriving instance Show AmbiguousQName
+
 -- | Only use this @show@ function in debugging!  To convert an
 --   abstract 'Name' into a string use @prettyShow@.
 instance Show Name where
@@ -260,19 +266,17 @@ instance Show Name where
   -- Reason: I do not have time just now to properly fix the
   -- use of Show Name for pretty printing everywhere, e.g. in
   -- the Epic backend.  But I want to push the fix for Issue 836 now.
-  show n = show (nameConcrete n)
-  -- show n = show (nameConcrete n) ++ "^" ++ show (nameId n)
-  -- show n = applyWhen (isNoName n) (++ show (nameId n)) $ show (nameConcrete n)
+  show = prettyShow
 
 -- | Only use this @show@ function in debugging!  To convert an
 --   abstract 'ModuleName' into a string use @prettyShow@.
 instance Show ModuleName where
-  show m = concat $ intersperse "." $ map show $ mnameToList m
+  show = prettyShow
 
 -- | Only use this @show@ function in debugging!  To convert an
 --   abstract 'QName' into a string use @prettyShow@.
 instance Show QName where
-  show q = concat $ intersperse "." $ map show $ qnameToList q
+  show = prettyShow
 
 ------------------------------------------------------------------------
 -- * Pretty instances
@@ -289,6 +293,9 @@ instance Pretty QName where
 
 instance Pretty AmbiguousQName where
   pretty (AmbQ qs) = hcat $ punctuate (text " | ") $ map pretty qs
+
+instance Pretty a => Pretty (QNamed a) where
+  pretty (QNamed a b) = pretty a <> text "." <> pretty b
 
 ------------------------------------------------------------------------
 -- * Range instances

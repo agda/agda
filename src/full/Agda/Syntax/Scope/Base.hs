@@ -22,6 +22,8 @@ import Data.Typeable (Typeable)
 
 -- import Debug.Trace (trace)
 
+import Agda.Benchmarking
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -686,9 +688,10 @@ inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
 inverseScopeLookup = inverseScopeLookup' AllowAmbiguousConstructors
 
 inverseScopeLookup' :: AllowAmbiguousConstructors -> Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
-inverseScopeLookup' ambCon name scope = case name of
-  Left  m -> best $ filter unambiguousModule $ findModule m
-  Right q -> best $ filter unambiguousName   $ findName nameMap q
+inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLookup ] $
+  case name of
+    Left  m -> best $ filter unambiguousModule $ findModule m
+    Right q -> best $ filter unambiguousName   $ findName nameMap q
   where
     this = scopeCurrent scope
     current = this : scopeParents (moduleScope this)
@@ -786,7 +789,7 @@ instance Show NameSpace where
 instance Show Scope where
   show (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     unlines $
-      [ "* scope " ++ show name ] ++ ind (
+      [ "scope " ++ show name ] ++ ind (
         concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
                | nsid <- [minBound..maxBound] ]
       ++ blockOfLines "imports"  (case Map.keys imps of

@@ -312,7 +312,6 @@ instance KillRange Fixity' where
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
 
-------------------------------------------------------------------------
 -- * Some lenses
 
 _notaFixity :: Lens' Fixity NewNotation
@@ -323,3 +322,9 @@ _fixityAssoc f r = f (fixityAssoc r) <&> \x -> r { fixityAssoc = x }
 
 _fixityLevel :: Lens' PrecedenceLevel Fixity
 _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
+
+------------------------------------------------------------------------
+-- * Printing
+------------------------------------------------------------------------
+
+-- deriving instance Show Fixity'

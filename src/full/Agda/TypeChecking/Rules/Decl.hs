@@ -127,6 +127,7 @@ checkDeclCached d = do
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
+  reportSLn "tc.decl" 45 $ "Checking " ++ show (length ds) ++ " declarations..."
   mapM_ checkDecl ds
   -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
   -- whenM onTopLevel unfreezeMetas
@@ -136,8 +137,9 @@ checkDecls ds = do
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = setCurrentRange d $ do
     reportSDoc "tc.decl" 10 $ text "checking declaration"
+    debugPrintDecl d
     reportSDoc "tc.decl" 90 $ (text . show) d
-    reportSDoc "tc.decl" 10 $ prettyA d
+    reportSDoc "tc.decl" 10 $ prettyA d  -- Might loop, see e.g. Issue 1597
 
     -- Issue 418 fix: freeze metas before checking an abstract thing
     when_ isAbstract freezeMetas
@@ -880,3 +882,47 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
 --   the work is done when scope checking.
 checkImport :: Info.ModuleInfo -> ModuleName -> TCM ()
 checkImport i x = return ()
+
+------------------------------------------------------------------------
+-- * Debugging
+------------------------------------------------------------------------
+
+class ShowHead a where
+  showHead :: a -> String
+
+instance ShowHead A.Declaration where
+  showHead d =
+    case d of
+      A.Axiom        {} -> "Axiom"
+      A.Field        {} -> "Field"
+      A.Primitive    {} -> "Primitive"
+      A.Mutual       {} -> "Mutual"
+      A.Section      {} -> "Section"
+      A.Apply        {} -> "Apply"
+      A.Import       {} -> "Import"
+      A.Pragma       {} -> "Pragma"
+      A.Open         {} -> "Open"
+      A.FunDef       {} -> "FunDef"
+      A.DataSig      {} -> "DataSig"
+      A.DataDef      {} -> "DataDef"
+      A.RecSig       {} -> "RecSig"
+      A.RecDef       {} -> "RecDef"
+      A.PatternSynDef{} -> "PatternSynDef"
+      A.UnquoteDecl  {} -> "UnquoteDecl"
+      A.ScopedDecl   {} -> "ScopedDecl"
+      A.UnquoteDef   {} -> "UnquoteDef"
+
+debugPrintDecl :: A.Declaration -> TCM ()
+debugPrintDecl d = do
+    verboseS "tc.decl" 45 $ do
+      reportSLn "tc.decl" 45 $ "checking a " ++ showHead d
+      case d of
+        A.Section info mname tel ds -> do
+          reportSLn "tc.decl" 45 $
+            "section " ++ show mname ++ " has "
+              ++ show (length tel) ++ " parameters and "
+              ++ show (length ds) ++ " declarations"
+          reportSDoc "tc.decl" 45 $ prettyA $ A.Section info mname tel []
+          forM_ ds $ \ d -> do
+            reportSDoc "tc.decl" 45 $ prettyA d
+        _ -> return ()

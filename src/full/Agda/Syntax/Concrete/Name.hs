@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -119,7 +120,7 @@ newtype TopLevelModuleName
 ------------------------------------------------------------------------
 
 nameToRawName :: Name -> RawName
-nameToRawName = show
+nameToRawName = prettyShow
 
 nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps
@@ -182,7 +183,7 @@ qnameParts (QName x)  = [x]
 -- name is assumed to represent a top-level module name.
 
 toTopLevelModuleName :: QName -> TopLevelModuleName
-toTopLevelModuleName = TopLevelModuleName . map show . qnameParts
+toTopLevelModuleName = TopLevelModuleName . map prettyShow . qnameParts
 
 -- | Turns a top-level module name into a file name with the given
 -- suffix.
@@ -245,21 +246,22 @@ instance IsNoName QName where
 -- * Showing names
 ------------------------------------------------------------------------
 
+-- deriving instance Show Name
+-- deriving instance Show NamePart
+-- deriving instance Show QName
+
 -- TODO: 'Show' should output Haskell-parseable representations.
 -- The following instances are deprecated, and Pretty should be used
 -- instead.  Later, simply derive Show for these types:
 
 instance Show Name where
-  show (Name _ xs)  = concatMap show xs
-  show (NoName _ _) = "_"
+  show = prettyShow
 
 instance Show NamePart where
-  show Hole   = "_"
-  show (Id s) = rawNameToString s
+  show = prettyShow
 
 instance Show QName where
-  show (Qual m x) = show m ++ "." ++ show x
-  show (QName x)  = show x
+  show = prettyShow
 
 ------------------------------------------------------------------------
 -- * Printing names

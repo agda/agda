@@ -343,6 +343,7 @@ library
                     Agda.TypeChecking.Polarity
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Positivity.Occurrence
+                    Agda.TypeChecking.Positivity.Tests
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.ProjectionLike
