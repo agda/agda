@@ -788,7 +788,7 @@ instance Show NameSpace where
 instance Show Scope where
   show (scope@Scope{ scopeName = name, scopeParents = parents, scopeImports = imps }) =
     unlines $
-      [ "* scope " ++ show name ] ++ ind (
+      [ "scope " ++ show name ] ++ ind (
         concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
                | nsid <- [minBound..maxBound] ]
       ++ blockOfLines "imports"  (case Map.keys imps of
