@@ -104,12 +104,11 @@ isAnonymousModuleName (MName ms) = isNoName $ last ms
 -- least as large as the length of the list.
 
 withRangesOf :: ModuleName -> [C.Name] -> ModuleName
-MName ms `withRangesOf` ns
-  | length ms < length ns  = __IMPOSSIBLE__
-  | otherwise              = MName $
-      reverse $ zipWith setRange
-                        (reverse (map getRange ns) ++ repeat noRange)
-                        (reverse ms)
+MName ms `withRangesOf` ns = if m < n then __IMPOSSIBLE__ else MName $
+      zipWith setRange (replicate (m - n) noRange ++ map getRange ns) ms
+  where
+    m = length ms
+    n = length ns
 
 -- | Like 'withRangesOf', but uses the name parts (qualifier + name)
 -- of the qualified name as the list of concrete names.
