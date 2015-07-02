@@ -78,6 +78,8 @@ data Phase
     -- ^ Subphase for 'Typing': free variable computation.
   | OccursCheck
     -- ^ Subphase for 'Typing': occurs check for solving metas.
+  | InverseScopeLookup
+    -- ^ Pretty printing names.
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty Phase where
