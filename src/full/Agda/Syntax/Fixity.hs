@@ -244,3 +244,9 @@ instance KillRange Fixity' where
 
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
+
+------------------------------------------------------------------------
+-- * Printing
+------------------------------------------------------------------------
+
+-- deriving instance Show Fixity'
