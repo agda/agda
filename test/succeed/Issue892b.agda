@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v scope:20 #-}
 
 module _ (X : Set) where
 
