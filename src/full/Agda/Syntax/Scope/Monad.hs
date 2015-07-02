@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -403,10 +404,20 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
           -- Check whether we have seen it already, yet as  name.
           -- If yes, use its copy as @y@.
           y <- ifJustM (findName $ mnameToQName x) (return . qnameToMName) $ {- else -} do
-             return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
+             -- Andreas, Jesper, 2015-07-02: Issue 1597
+             -- Don't blindly drop a prefix of length of the old qualifier.
+             -- If things are imported by open public they do not have the old qualifier
+             -- as prefix.  Those need just to be linked, not copied.
+             -- return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
+             caseMaybe (maybePrefixMatch (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
+               return $ A.mnameFromList $ newL ++ suffix
+          -- Andreas, Jesper, 2015-07-02: Issue 1597
+          -- Don't copy a module over itself, it will just be emptied of its contents.
+          if (x == y) then return x else do
           addMod x y
           -- We need to copy the contents of included modules recursively
-          s0 <- lift $ createModule False y >> getNamedScope x
+          lift $ createModule False y
+          s0 <- lift $ getNamedScope x
           s  <- withCurrentModule' y $ copy y s0
           lift $ modifyNamedScope y (const s)
           return y
