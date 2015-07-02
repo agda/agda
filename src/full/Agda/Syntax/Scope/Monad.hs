@@ -446,7 +446,9 @@ openModule_ :: C.QName -> ImportDirective -> ScopeM ()
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
-  let acc = namespace current m
+  let acc | not (publicOpen dir)      = PrivateNS
+          | m `isSubModuleOf` current = PublicNS
+          | otherwise                 = ImportedNS
   -- Get the scope exported by module to be opened.
   s <- setScopeAccess acc <$>
         (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
@@ -464,11 +466,6 @@ openModule_ cm dir = do
       Nothing -> x
       Just ys -> shadowLocal ys x
   where
-    namespace m0 m1
-      | not (publicOpen dir)  = PrivateNS
-      | m1 `isSubModuleOf` m0 = PublicNS
-      | otherwise             = ImportedNS
-
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.
     checkForClashes new = when (publicOpen dir) $ do
