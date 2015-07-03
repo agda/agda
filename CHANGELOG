@@ -44,6 +44,7 @@ Important changes since 0.9:
 
   Data.Bool.Base
   Data.Char.Base
+  Data.Integer.Base
   Data.List.Base
   Data.Maybe.Base
   Data.Nat.Base
@@ -55,6 +56,7 @@ Important changes since 0.9:
   Data.BoundedVec.Inefficient
   Data.Empty
   Data.Product
+  Data.Sign
   Data.Sum
   Function
   Level
