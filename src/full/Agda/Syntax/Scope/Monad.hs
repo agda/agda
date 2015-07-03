@@ -102,9 +102,11 @@ createModule :: Bool -> A.ModuleName -> ScopeM ()
 createModule b m = do
   s <- getCurrentScope
   let parents = scopeName s : scopeParents s
-  modifyScopes $ Map.insert m emptyScope { scopeName           = m
-                                         , scopeParents        = parents
-                                         , scopeDatatypeModule = b }
+      sm = emptyScope { scopeName           = m
+                      , scopeParents        = parents
+                      , scopeDatatypeModule = b }
+  -- Andreas, 2015-07-02: internall error if module is not new.
+  modifyScopes $ Map.insertWith __IMPOSSIBLE__ m sm
 
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
