@@ -16,6 +16,7 @@ import Data.Maybe
 import Test.QuickCheck
 import Test.QuickCheck.All
 
+import Agda.Utils.List (downFrom)
 import Agda.Utils.Permutation
 
 ------------------------------------------------------------------------
@@ -75,6 +76,9 @@ prop_composeP :: ComposablePermutations -> [A] -> A -> Bool
 prop_composeP (ComposablePermutations p1 p2) = withStream $ \ xs ->
   permute (composeP p1 p2) xs == permutePartial p1 (permute p2 xs)
 
+prop_flipP :: Permutation -> Bool
+prop_flipP p = permPicks (flipP p) == permute p (downFrom $ permRange p)
+
 -- | @p ∘ p⁻¹ ∘ p = p@
 prop_invertP_left :: Permutation -> Int -> [A] -> A -> Bool
 prop_invertP_left p err = withStream $ \ xs -> let ys = permute p xs in
@@ -99,6 +103,10 @@ prop_inversePermute p@(Perm _ is) = withStream $ \ xs0 ->
   let xs = take (length is) xs0
       ys = inversePermute p xs
   in  permute p ys == xs
+
+prop_inversePermute_invertP :: Permutation -> Bool
+prop_inversePermute_invertP p =
+  inversePermute p (id :: Int -> Int) == safePermute (invertP (-1) p) [(0::Int)..]
 
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under ghc-7.8.

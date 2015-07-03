@@ -103,9 +103,23 @@ instance LabelPatVars (Pattern' x) (Pattern' (i,x)) i where
 -- | Augment pattern variables with their de Bruijn index.
 {-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg (Pattern' x)] -> [NamedArg (Pattern' (Int, x))] #-}
 {-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg Pattern] -> [NamedArg DeBruijnPattern] #-}
+--
+--  Example:
+--  @
+--    f : (A : Set) (n : Nat) (v : Vec A n) -> ...
+--    f A .(suc n) (cons n x xs)
+--
+--    clauseTel = (A : Set) (n : Nat) (x : A) (xs : Vec A n)
+--    perm      = Perm 5 [0,2,3,4]
+--    invertP __IMPOSSIBLE__ perm = Perm 4 [0,__IMPOSSIBLE__,1,2,3]
+--    flipP ... = Perm 4 [3,__IMPOSSIBLE__,2,1,0]
+--    pats      = A .(suc 2) (cons n x xs)
+--    dBpats    = 3 .(suc 2) (cons 2 1 0 )
+--  @
+--
 numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
 numberPatVars perm ps = evalState (labelPatVars ps) $
-  permute (invertP __IMPOSSIBLE__ perm) $ downFrom $ size perm
+  permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
 patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
 patternsToElims perm ps = map build' $ numberPatVars perm ps

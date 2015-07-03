@@ -74,7 +74,7 @@ data MPat
 buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
 buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
   where
-    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
+    xs   = permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
     tick = do x : xs <- get; put xs; return x
 
     build (VarP _)        = VarMP <$> tick
