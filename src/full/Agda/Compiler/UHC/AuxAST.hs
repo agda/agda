@@ -102,7 +102,7 @@ data Expr
   | UNIT    -- ^ Used for internally generated unit values. If an Agda datatype is bound to the
             -- Unit builtin, two representations of unit exists, but will be compiled to the same
             -- thing.
-  | IMPOSSIBLE
+  | Error String
   deriving (Show, Ord, Eq)
 
 data Branch
@@ -152,7 +152,7 @@ casee _ x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
                  | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (rec def') cty'
       Let v e1 e2 -> Let v (rec e1) (rec e2)
       UNIT        -> UNIT
-      IMPOSSIBLE  -> IMPOSSIBLE
+      Error e     -> Error e
     sameCon (BrCon {brCon = c1}) (BrCon {brCon = c2}) = c1 == c2
     sameCon _                     _                     = False
 
@@ -184,7 +184,7 @@ subst var var' expr = case expr of
     Let v e e' | var == v  -> Let v (subst var var' e) e'
                | otherwise -> Let v (subst var var' e) (subst var var' e')
     UNIT       -> UNIT
-    IMPOSSIBLE -> IMPOSSIBLE
+    Error e    -> Error e
 
 substs :: [(HsName, HsName)] -> Expr -> Expr
 substs ss e = foldr (uncurry subst) e ss
@@ -206,7 +206,7 @@ fv = S.toList . fv'
       Case e brs def _ -> fv' e `S.union` S.unions (map fvBr brs) `S.union` (fv' def)
       Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
       UNIT       -> S.empty
-      IMPOSSIBLE -> S.empty
+      Error _    -> S.empty
 
     fvBr :: Branch -> Set HsName
     fvBr b = case b of

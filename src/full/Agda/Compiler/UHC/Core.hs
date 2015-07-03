@@ -3,10 +3,9 @@
 -- | Convert the AuxAST code to UHC Core code.
 module Agda.Compiler.UHC.Core
   ( toCore
-  , coreImpossible
   , mkHsName
+  , coreError
   , createMainModule
---  , getExportedExprs
   ) where
 
 import Data.List
@@ -164,7 +163,7 @@ exprToCore (Let v e1 e2) = do
     e2' <- exprToCore e2
     return $ mkLet1Plain v e1' e2'
 exprToCore UNIT         = return $ mkUnit opts
-exprToCore IMPOSSIBLE   = return $ coreImpossible ""
+exprToCore (Error e)    = return $ coreError e
 
 buildPrimCases :: Monad m
     => CExpr -- ^ equality function
@@ -240,5 +239,5 @@ coreTrace1 lvl msg e = do
 coreTrace :: String -> CExpr -> CExpr
 coreTrace msg x = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primTrace") [mkString opts msg, x]
 
-coreImpossible :: String -> CExpr
-coreImpossible msg = mkError opts $ "BUG! Impossible code reached. " ++ msg
+coreError :: String -> CExpr
+coreError msg = mkError opts $ "Fatal error: " ++ msg

@@ -39,12 +39,6 @@ import Agda.Syntax.Abstract.Name
 
 type Args = [TTerm]
 
-data CaseType
-  = CTData QName -- case on datatype
-  | CTChar
-  | CTString
-  deriving (Typeable, Show)
-
 data TModule
   = TModule
   { mName :: ModuleName
@@ -94,11 +88,11 @@ data FunDef'
   | ForeignImport
   deriving (Typeable, Show)
 
+
 -- this currently assumes that TApp is translated in a lazy/cbn fashion.
 -- The AST should also support strict translation.
 --
 -- All local variables are using de Bruijn indices.
-
 data TTerm = TVar Int
            | TDef QName
            | TApp TTerm Args
@@ -128,6 +122,13 @@ mkTApp x as = TApp x as
 mkLet :: TTerm -> TTerm -> TTerm
 mkLet x body = TLet x body
 
+
+data CaseType
+  = CTData QName -- case on datatype
+  | CTChar
+  | CTString
+  deriving (Typeable, Show)
+
 data TAlt
   = TACon    { aCon  :: QName,  aBody :: TTerm }
   -- ^ Matches on the given constructor. If the match succeeds,
@@ -140,6 +141,4 @@ data TAlt
 
 data TError
   = TPatternMatchFailure QName -- function name
-  | TAxiomEvaluated QName
-  | TInternalError
   deriving (Typeable, Show)
