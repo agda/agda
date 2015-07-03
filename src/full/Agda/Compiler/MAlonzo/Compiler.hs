@@ -33,6 +33,7 @@ import Agda.Compiler.CallCompiler
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
+import Agda.Compiler.ToTreeless
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
@@ -42,6 +43,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad
@@ -223,15 +225,13 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
           ]
 
       Axiom{} -> return $ fb axiomErr
-      Primitive{ primClauses = [], primName = s } -> fb <$> primBody s
-      Primitive{ primClauses = cls } -> function Nothing $
-        functionFromClauses cls
+      Primitive{ primCompiled = Nothing, primName = s } -> fb <$> primBody s
+      Primitive{ primCompiled = Just cc } -> function Nothing $
+        functionViaTreeless q cc
 
-      -- Currently, catchAllBranches cannot be handled properly by casetree
-      Function{ funCompiled = Just cc } | not (hasCatchAll cc) ->
-        function (exportHaskell compiled) $ functionFromCaseTree q cc
-      Function{ funClauses = cls } ->
-        function (exportHaskell compiled) $ functionFromClauses cls
+      Function{ funCompiled = Just cc } ->
+        function (exportHaskell compiled) $ functionViaTreeless q cc
+      Function { funCompiled = Nothing } -> __IMPOSSIBLE__
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
@@ -265,12 +265,10 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
         return ([tsig,def] ++ ccls)
 
-  functionFromClauses :: [Clause] -> TCM [HS.Decl]
-  functionFromClauses cls = mapM (clause q Nothing) (tag 0 cls)
-
-  functionFromCaseTree :: QName -> CompiledClauses -> TCM [HS.Decl]
-  functionFromCaseTree q cc = do
-    e <- casetree cc `runReaderT` initCCEnv (Just q)
+  functionViaTreeless :: QName -> CompiledClauses -> TCM [HS.Decl]
+  functionViaTreeless q cc = do
+    treeless <- ccToTreeless q cc
+    e <- closedTerm treeless
     return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
 
   tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
@@ -298,11 +296,8 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 -- | Environment for naming of local variables.
 --   Invariant: @reverse ccCxt ++ ccNameSupply@
 data CCEnv = CCEnv
-  { ccFunName    :: Maybe QName -- ^ Agda function we are currently compiling.
-  , ccNameSupply :: NameSupply  -- ^ Supply of fresh names
+  { ccNameSupply :: NameSupply  -- ^ Supply of fresh names
   , ccCxt        :: CCContext   -- ^ Names currently in scope
-  , ccCatchAll   :: Maybe CompiledClauses  -- ^ Naive catch-all implementation.
-      -- If an inner case has no catch-all clause, we use the one from its parent.
   }
 
 type NameSupply = [HS.Name]
@@ -315,149 +310,25 @@ mapContext :: (CCContext -> CCContext) -> CCEnv -> CCEnv
 mapContext f e = e { ccCxt = f (ccCxt e) }
 
 -- | Initial environment for expression generation.
-initCCEnv :: Maybe QName -> CCEnv
-initCCEnv q = CCEnv
-  { ccFunName    = q
-  , ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
+initCCEnv :: CCEnv
+initCCEnv = CCEnv
+  { ccNameSupply = map (ihname "v") [0..]  -- DON'T CHANGE THESE NAMES!
   , ccCxt        = []
-  , ccCatchAll   = Nothing
   }
 
 -- | Term variables are de Bruijn indices.
 lookupIndex :: Int -> CCContext -> HS.Name
 lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
--- | Case variables are de Bruijn levels.
-lookupLevel :: Int -> CCContext -> HS.Name
-lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
-
 type CC = ReaderT CCEnv TCM
 
--- | Compile a case tree into nested case and record expressions.
-casetree :: CompiledClauses -> CC HS.Exp
-casetree cc = do
-  case cc of
-    Fail -> return $ rtmError $ "Impossible Clause Body"
-    Done xs v -> lambdasUpTo (length xs) $ hsCast <$> term v
-    Case n (Branches True conBrs _ _) -> lambdasUpTo n $ do
-      mkRecord =<< mapM casetree (content <$> conBrs)
-    Case n (Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
-      x <- lookupLevel n <$> asks ccCxt
-      HS.Case (hsCast $ hsVarUQ x) <$> do
-        updateCatchAll catchAll $ do
-          br1 <- conAlts n conBrs
-          br2 <- litAlts litBrs
-          br3 <- catchAllAlts =<< asks ccCatchAll
-          return (br1 ++ br2 ++ br3)
-
--- | Replace the current catch-all clause with a new one, if given.
-updateCatchAll :: Maybe CompiledClauses -> CC a -> CC a
-updateCatchAll Nothing   = id
-updateCatchAll (Just cc) = local $ \ e -> e { ccCatchAll = Just cc }
-
--- -- | Replace de Bruijn index by term in catch-all tree.
--- substCatchAll :: Int -> I.Term -> CC a -> CC a
--- substCatchAll i t = local $ \ e -> e { ccCatchAll = subst i t $ ccCatchAll e }
-
-conAlts :: Int -> Map QName (WithArity CompiledClauses) -> CC [HS.Alt]
-conAlts x br = forM (Map.toList br) $ \ (c, WithArity n cc) -> do
-  c <- lift $ conhqn c
-  -- TODO: substitute in ccCatchAll somehow
-  replaceVar x n $ \ xs -> do
-    branch (HS.PApp c $ map HS.PVar xs) cc
-
-litAlts :: Map Literal CompiledClauses -> CC [HS.Alt]
-litAlts br = forM (Map.toList br) $ \ (l, cc) ->
-  -- TODO: substitute in ccCatchAll somehow
-  branch (HS.PLit HS.Signless $ hslit l) cc
-
-catchAllAlts :: Maybe CompiledClauses -> CC [HS.Alt]
-catchAllAlts (Just cc) = mapM (branch HS.PWildCard) [cc]
-catchAllAlts Nothing   = do
-  q <- fromMaybe __IMPOSSIBLE__ <$> asks ccFunName
-  return [ HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs $ rtmIncompleteMatch q) (HS.BDecls []) ]
-
-branch :: HS.Pat -> CompiledClauses -> CC HS.Alt
-branch pat cc = do
-  e <- casetree cc
-  return $ HS.Alt dummy pat (HS.UnGuardedRhs e) (HS.BDecls [])
-
--- | Replace de Bruijn Level @x@ by @n@ new variables.
-replaceVar :: Int -> Int -> ([HS.Name] -> CC a) -> CC a
-replaceVar x n cont = do
-  (xs, rest) <- splitAt n <$> asks ccNameSupply
-  let upd cxt = ys ++ reverse xs ++ zs -- We reverse xs to get nicer names.
-       where
-         -- compute the de Bruijn index
-         i = length cxt - 1 - x
-         -- discard index i
-         (ys, _:zs) = splitAt i cxt
-  local (mapNameSupply (const rest) . mapContext upd) $
-    cont xs
-
--- | Precondition: Map not empty.
-mkRecord :: Map QName HS.Exp -> CC HS.Exp
-mkRecord fs = lift $ do
-  -- Get the name of the first field
-  let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe $ Map.toList fs
-  -- Use the field name to get the record constructor and the field names.
-  ConHead c _ind xs <- recConFromProj p1
-  -- Convert the constructor to a Haskell name
-  c <- conhqn c
-  let (args :: [HS.Exp]) = for xs $ \ x -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
-  return $ hsCast $ List.foldr (flip HS.App) (HS.Con c) args
-
--- -- | Precondition: Map not empty.
--- MAlonzo does not translate field names in data decls.
--- mkRecord :: Map QName HS.Exp -> CC HS.Exp
--- mkRecord fs = lift $ do
---   -- Get the list of (field name, expression pairs)
---   let l = Map.toList fs
---   -- Get the name of the first field
---   let p1 = fst $ fromMaybe __IMPOSSIBLE__ $ headMaybe l
---   -- Use the field name to get the record constructor
---   c <- I.conName <$> recConFromProj p1
---   -- Convert it to a Haskell name
---   c <- conhqn c
---   -- Convert the field names into Haskell names
---   fs <- mapM (mapFstM (xhqn "d")) l
---   return $ hsCast $ HS.RecConstr c $ map (uncurry HS.FieldUpdate) fs
-
-recConFromProj :: QName -> TCM I.ConHead
-recConFromProj q = do
-  caseMaybeM (isProjection q) __IMPOSSIBLE__ $ \ proj -> do
-    let d = projFromType proj
-    getRecordConstructor d
-
--- | Introduce lambdas such that @n@ variables are in scope.
-lambdasUpTo :: Int -> CC HS.Exp -> CC HS.Exp
-lambdasUpTo n cont = do
-  diff <- (n -) . length <$> asks ccCxt
-  lambdas diff cont
-
--- | Introduce n lambdas.
-lambdas :: Int -> CC HS.Exp -> CC HS.Exp
-lambdas diff cont = intros diff $ \ xs -> mkLams xs <$> cont
-
--- -- | Introduce variables such that @n@ are in scope.
--- introsUpTo :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
--- introsUpTo n cont = do
---   diff <- (n -) . length <$> asks ccCxt
---   intros diff cont
-
 -- | Introduce n variables into the context.
-intros :: Int -> ([HS.Name] -> CC HS.Exp) -> CC HS.Exp
-intros diff cont = do
-  if diff <= 0 then cont [] else do
-    -- Need diff lambdas to continue.
-    (xs, rest) <- splitAt diff <$> asks ccNameSupply
+intros :: Int -> ([HS.Name] -> CC a) -> CC a
+intros n cont = do
+  if n < 0 then __IMPOSSIBLE__ else do
+    (xs, rest) <- splitAt n <$> asks ccNameSupply
     local (mapNameSupply (const rest) . mapContext (reverse xs ++)) $
       cont xs
-
--- | Prefix a Haskell expression with lambda abstractions.
-mkLams :: [HS.Name] -> HS.Exp -> HS.Exp
-mkLams [] e = e
-mkLams xs e = HS.Lambda dummy (map HS.PVar xs) e
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
@@ -495,129 +366,69 @@ conArityAndPars q = do
       n = length (telToList tel)
   return (n - np, np)
 
-clause :: QName -> Maybe String -> (Nat, Bool, Clause) -> TCM HS.Decl
-clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
-  HS.FunBind . (: cont) <$> main where
-  main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
-  cont | isLast && List.any isCon ps = [match (List.map HS.PVar cvs) failrhs]
-       | isLast                      = []
-       | otherwise                   = [match (List.map HS.PVar cvs) crhs]
-  cvs  = List.map (ihname "v") [0 .. length ps - 1]
-  crhs = hsCast$ List.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (List.map hsVarUQ cvs)
-  failrhs = rtmIncompleteMatch q  -- Andreas, 2011-11-16 call to RTE instead of inlined error
---  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
-  match hps rhs = HS.Match dummy (maybe (dsubname q i) HS.Ident maybeName) hps Nothing
-                           (HS.UnGuardedRhs rhs) (HS.BDecls [])
-  bvars (Body _)           _ = []
-  bvars (Bind (Abs _ b'))  n = HS.PVar (ihname "v" n) : bvars b' (n + 1)
-  bvars (Bind (NoAbs _ b)) n = HS.PWildCard : bvars b n
-  bvars NoBody             _ = repeat HS.PWildCard -- ?
 
-  isCon (Arg _ (Named _ ConP{})) = True
-  isCon _                        = False
-
--- argpatts aps xs = hps
--- xs is alist of haskell *variables* in form of patterns (because of wildcard)
-argpatts :: [I.NamedArg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
-argpatts ps0 bvs = evalStateT (List.concat <$> mapM pat' ps0) bvs
-  where
-  pat :: Pattern -> StateT [HS.Pat] TCM [HS.Pat]
-  pat   (ProjP p  ) = do
-    kit <- lift coinductionKit
-    -- Sharps and flats are erased from compiled code
-    if Just p == fmap nameOfFlat kit then return [] else
-      lift $ typeError $ NotImplemented $ "Compilation of copatterns"
-  pat   (VarP _   ) = do v <- gets head; modify tail; return [v]
-  pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
-  pat   (LitP (LitQName _ x)) = return [litqnamepat x]
-  pat   (LitP l   ) = return [HS.PLit HS.Signless $ hslit l]
-
-  pat p@(ConP c _ ps) = do
-    -- Note that irr is applied once for every subpattern, so in the
-    -- worst case it is quadratic in the size of the pattern. I
-    -- suspect that this will not be a problem in practice, though.
-    irrefutable <- lift $ irr p
-    let tilde :: HS.Pat -> HS.Pat
-        tilde = if tildesEnabled && irrefutable
-                then HS.PParen . HS.PIrrPat
-                else id
-    ((:[]) . tilde . HS.PParen) <$>
-      (HS.PApp <$> lift (conhqn $ conName c) <*> (List.concat <$> mapM pat' ps))
-
-  {- Andreas, 2013-02-15 this triggers Issue 794,
-     because it fails to count the variables bound in p,
-     thus, the following variables bound by patterns do
-     not correspond to the according rhs-variables.
-
-  -- Andreas, 2010-09-29
-  -- do not match against irrelevant stuff
-  pat' a | isIrrelevant a = return $ HS.PWildCard
--}
-  pat' :: I.NamedArg Pattern -> StateT [HS.Pat] TCM [HS.Pat]
-  pat' a = pat $ namedArg a
-
-  tildesEnabled = False
-
-  -- | Is the pattern irrefutable?
-  irr :: Pattern -> TCM Bool
-  irr (ProjP {})  = __IMPOSSIBLE__
-  irr (VarP {})   = return True
-  irr (DotP {})   = return True
-  irr (LitP {})   = return False
-  irr (ConP c _ ps) =
-    (&&) <$> singleConstructorType (conName c)
-         <*> (andM $ List.map irr' ps)
-
-  -- | Irrelevant patterns are naturally irrefutable.
-  irr' :: I.NamedArg Pattern -> TCM Bool
-  irr' a | isIrrelevant a = return $ True
-  irr' a = irr $ namedArg a
-
-clausebody :: ClauseBody -> TCM HS.Exp
-clausebody b0 = go 0 b0 where
-  go n (Body tm       )   = hsCast <$> do
-    runReaderT (intros n $ const $ term tm) (initCCEnv Nothing)
-  go n (Bind (Abs _ b))   = go (n+1) b
-  go n (Bind (NoAbs _ b)) = go n b
-  go n NoBody             = return $ rtmError $ "Impossible Clause Body"
-
-
-closedTerm :: Term -> TCM HS.Exp
-closedTerm v = term v `runReaderT` initCCEnv Nothing
+closedTerm :: T.TTerm -> TCM HS.Exp
+closedTerm v = hsCast <$> term v `runReaderT` initCCEnv
 
 -- | Extract Agda term to Haskell expression.
---   Irrelevant arguments are extracted as @()@.
+--   Erased arguments are extracted as @()@.
 --   Types are extracted as @()@.
---   @DontCare@ outside of irrelevant arguments is extracted as @error@.
-term :: Term -> CC HS.Exp
-term tm0 = case unSpine $ ignoreSharing tm0 of
-  Var   i es -> do
+term :: T.TTerm -> CC HS.Exp
+term tm0 = case tm0 of
+  T.TVar i -> do
     x <- lookupIndex i <$> asks ccCxt
-    apps (hsVarUQ x) $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-  Lam   _ at -> lambdas 1 $ term $ absBody at
-  Lit   l    -> lift $ literal l
-  Def   q es -> do
-    let Just as = allApplyElims es
-    q <- lift $ xhqn "d" q
-    HS.Var q `apps` as
-  Con   c as -> do
-    let q = conName c
+    return $ hsVarUQ x
+  T.TApp t ts -> do
+    t' <- term t
+    t' `apps` ts
+  T.TLam at -> do
+    (nm:_) <- asks ccNameSupply
+    intros 1 $ \ [x] ->
+      HS.Lambda dummy [HS.PVar x] <$> term at
+  T.TLet t1 t2 -> do
+    t1' <- term t1
+    intros 1 $ \[x] -> do
+      t2' <- term t2
+      return $ HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x []
+                Nothing (HS.UnGuardedRhs t1') (HS.BDecls [])]]) t2'
+  T.TCase sc ct def alts -> do
+    sc' <- term sc
+    alts' <- traverse alt alts
+    def' <- term def
+    let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') (HS.BDecls [])
+
+    return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
+
+  T.TLit l -> lift $ literal l
+  T.TDef q -> do
+    HS.Var <$> (lift $ xhqn "d" q)
+  T.TCon q -> do
     kit <- lift coinductionKit
     if Just q == (nameOfSharp <$> kit)
-      then (`apps` as) . HS.Var =<< lift (xhqn "d" q)
-      else (`apps` as) . HS.Con =<< lift (conhqn q)
-  Level l    -> term =<< lift (reallyUnLevelView l)
-  Pi    _ _  -> return HS.unit_con
-  Sort  _    -> return HS.unit_con
-  MetaV _ _  -> mazerror "hit MetaV"
-  DontCare _ -> return $ rtmError $ "hit DontCare"
-  Shared{}   -> __IMPOSSIBLE__
-  where apps =  foldM (\ h a -> HS.App h <$> term' a)
+      then HS.Var <$> lift (xhqn "d" q)
+      else HS.Con <$> lift (conhqn q)
+  T.TPi _ _  -> return HS.unit_con
+  T.TUnit    -> return HS.unit_con
+  T.TSort    -> return HS.unit_con
+  T.TErased  -> return HS.unit_con
+  T.TError e -> return $ case e of
+    T.TPatternMatchFailure funNm ->  rtmIncompleteMatch funNm
+  where apps =  foldM (\ h a -> HS.App h <$> term a)
 
--- | Irrelevant arguments are replaced by Haskells' ().
-term' :: I.Arg Term -> CC HS.Exp
-term' a | isIrrelevant a = return HS.unit_con
-term' a = term $ unArg a
+alt :: T.TAlt -> CC HS.Alt
+alt a = do
+  case a of
+    (T.TACon {}) -> do
+      intros (T.aArity a) $ \xs -> do
+        hConNm <- lift $ conhqn $ T.aCon a
+        mkAlt (HS.PApp hConNm $ map HS.PVar xs)
+    (T.TALit { T.aLit = (LitQName _ q) }) -> mkAlt (litqnamepat q)
+    (T.TALit {}) -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
+  where
+    mkAlt :: HS.Pat -> CC HS.Alt
+    mkAlt pat = do
+        body' <- term $ T.aBody a
+        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ hsCast body') (HS.BDecls [])
 
 literal :: Literal -> TCM HS.Exp
 literal l = case l of

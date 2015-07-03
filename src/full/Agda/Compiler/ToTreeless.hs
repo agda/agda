@@ -3,8 +3,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.ToTreeless
-  ( ifToTreeless
-  , ccToTreeless
+  ( ccToTreeless
+  , closedTermToTreeless
   ) where
 
 import Control.Monad.Reader
@@ -86,6 +86,10 @@ ccToTreeless funNm cc = do
   body' <- casetree cc `runReaderT` (initCCEnv funNm)
   reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body'
   return body'
+
+closedTermToTreeless :: I.Term -> TCM C.TTerm
+closedTermToTreeless t = do
+  substTerm t `runReaderT` (initCCEnv __IMPOSSIBLE__)
 
 
 -- | Returns the original non-instantiated constructor head for instantiated constructors.
