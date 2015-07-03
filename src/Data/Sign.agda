@@ -8,7 +8,8 @@ module Data.Sign where
 
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.Core using (_≡_; refl)
+-- Importing Core here ^^^ to keep a small import list
 
 -- Signs.
 
