@@ -310,8 +310,7 @@ substTerm term = case term of
             substAlt a@(C.TAString {}) = A.BrString (C.aStr a) <$> substTerm (C.aBody a)
             substAlt a@(C.TACon {}) = do
                 conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo $ C.aCon a)
-                let ar = xconArity conInfo
-                vars <- lift $ replicateM ar freshLocalName
+                vars <- lift $ replicateM (C.aArity a) freshLocalName
                 body <- addToEnv (reverse vars) (substTerm $ C.aBody a)
                 return $ A.BrCon conInfo (C.aCon a) vars body
     C.TPi _ _ -> __IMPOSSIBLE__

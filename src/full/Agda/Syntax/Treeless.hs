@@ -130,11 +130,10 @@ data CaseType
   deriving (Typeable, Show)
 
 data TAlt
-  = TACon    { aCon  :: QName,  aBody :: TTerm }
+  = TACon    { aCon  :: QName, aArity :: Int, aBody :: TTerm }
   -- ^ Matches on the given constructor. If the match succeeds,
   -- the pattern variables are prepended to the current environment
-  -- (pushes all existing variables N steps further away, where N
-  -- is the arity of this constructor)
+  -- (pushes all existing variables aArity steps further away)
   | TAChar   { aChar :: Char,   aBody:: TTerm }
   | TAString { aStr  :: String, aBody :: TTerm }
   deriving (Typeable, Show)

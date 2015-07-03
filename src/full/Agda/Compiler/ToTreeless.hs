@@ -33,6 +33,7 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+
 -- | Converts a whole module into a Treeless module.
 ifToTreeless :: Interface -> TCM C.TModule
 ifToTreeless iface = do
@@ -47,7 +48,8 @@ ifToTreeless iface = do
         (\x -> [(nm, x)]) <$> mkCDef (C.Fun body')
       (Axiom {}) -> do
         -- TODO compiled stuff
-        (\x -> [(nm, x)]) <$> (mkCDef $ C.Fun (C.TError $ C.TAxiomEvaluated nm))
+--        (\x -> [(nm, x)]) <$> (mkCDef $ C.Fun (C.TError $ C.TAxiomEvaluated nm))
+        __IMPOSSIBLE__
       _ -> return []
 
   cons <- Map.unionsWith (++) <$> (forDefs defns $ \nm def mkCDef -> do
@@ -212,7 +214,7 @@ conAlts :: Int -> Map QName (CC.WithArity CC.CompiledClauses) -> CC [C.TAlt]
 conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do
   c' <- lift $ chaseCon c
   replaceVar x n $ do
-    branch (C.TACon $ I.conName c') cc
+    branch (C.TACon (I.conName c') n) cc
 
 litAlts :: Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
 litAlts br = forM (Map.toList br) $ \ (l, cc) ->
