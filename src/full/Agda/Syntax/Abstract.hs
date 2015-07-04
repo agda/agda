@@ -1,12 +1,11 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DeriveDataTypeable,
-             DeriveFoldable,
-             DeriveFunctor,
-             DeriveTraversable,
-             FlexibleInstances,
-             MultiParamTypeClasses,
-             TemplateHaskell #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,

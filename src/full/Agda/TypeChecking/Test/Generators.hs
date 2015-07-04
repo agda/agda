@@ -1,14 +1,9 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             FlexibleContexts,
-             FlexibleInstances,
-             FunctionalDependencies,
-             MultiParamTypeClasses,
-             UndecidableInstances #-}
-
-#if __GLASGOW_HASKELL__ <= 704
-{-# LANGUAGE ConstraintKinds #-}
-#endif
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 module Agda.TypeChecking.Test.Generators where
 

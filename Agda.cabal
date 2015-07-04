@@ -32,8 +32,7 @@ description:
   Note that the Agda library does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.4.2
-                    GHC == 7.6.3
+tested-with:        GHC == 7.6.3
                     GHC == 7.8.4
 extra-source-files: src/full/undefined.h
                     README.md
@@ -69,21 +68,18 @@ library
     build-depends:  Win32 >= 2.2 && < 2.4
 
   build-depends:
-    array >= 0.4.0.0 && < 0.6
-    , base >= 4.5.0.0 && < 4.9
+    array >= 0.4.0.1 && < 0.6
+    , base >= 4.6.0.1 && < 4.9
     , binary >= 0.6 && < 0.8
     , boxes >= 0.1.3 && < 0.2
-    -- NFData ByteString is only available from bytestring >= 0.10
-    -- but bytestring-0.10 is not accepted by travis build for GHC <= 7.4
-    -- as it breaks the accompanying haskell-platform
-    -- even though it builds with older GHCs.
-    , bytestring >= 0.9.2.1 && < 0.11
-    , containers >= 0.4.2.1 && < 0.6
+    , bytestring >= 0.10.0.2 && < 0.11
+    , containers >= 0.5.0.0 && < 0.6
     , data-hash >= 0.2.0.0 && < 0.3
-    , deepseq >= 1.3.0.0 && < 1.5
+    , deepseq >= 1.3.0.1 && < 1.5
+    , directory >= 1.2.0.1 && < 1.3
     , edit-distance >= 0.2.1.2 && < 0.3
     , equivalence >= 0.2.5  && < 0.4
-    , filepath >= 1.3.0.0 && < 1.5
+    , filepath >= 1.3.0.1 && < 1.5
     , geniplate-mirror >= 0.6.0.6 && < 0.8
     -- hashable 1.2.0.10 makes library-test 10x slower. The issue was
     -- fixed in hashable 1.2.1.0.
@@ -107,10 +103,11 @@ library
     -- pretty 1.1.1.2 and 1.1.1.3 do not follow the package versioning
     -- policy.
     , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
-    , process >= 1.1.0.1 && < 1.3
+    , process >= 1.1.0.2 && < 1.3
     , strict >= 0.3.2 && < 0.4
-    , template-haskell >= 2.7.0.0 && < 2.11
+    , template-haskell >= 2.8.0.0 && < 2.11
     , text >= 0.11 && < 1.3
+    , time >= 1.4.0.1 && < 1.6
     -- transformers 0.4.0.0 was deprecated.
     , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.5
     , transformers-compat >= 0.3.3.2 && < 0.5
@@ -121,18 +118,6 @@ library
 
   if impl(ghc < 7.8)
     build-depends: base-orphans >= 0.3.1 && < 0.4
-
-  if impl(ghc < 7.6)
-    build-depends:
-      directory >= 1.1.0.2 && < 1.2
-      -- The package ghc-prim is included in order to get access to
-      -- GHC.Generics, which later moved to base.
-      , ghc-prim == 0.2.*
-      , old-time >= 1.1.0.0 && < 1.2
-  else
-      build-depends:
-        directory >= 1.2.0.0 && < 1.3
-        , time >= 1.4 && < 1.6
 
   build-tools:
     alex >= 3.1.0 && < 3.2
@@ -377,7 +362,6 @@ library
                     Agda.Utils.ListT
                     Agda.Utils.ListT.Tests
                     Agda.Utils.Map
-                    Agda.Utils.Map.Compat
                     Agda.Utils.Maybe
                     Agda.Utils.Maybe.Strict
                     Agda.Utils.Monad
@@ -405,7 +389,7 @@ library
 
   other-modules:    Paths_Agda
 
-  if impl(ghc >= 7.4.2)
+  if impl(ghc >= 7.6.3)
     ghc-options: -w
                  -Werror
                  -fwarn-deprecated-flags
@@ -421,15 +405,13 @@ library
                  -fwarn-missing-signatures
                  -fwarn-monomorphism-restriction
                  -fwarn-orphans
+                 -fwarn-pointless-pragmas
                  -fwarn-tabs
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
                  -fwarn-unused-do-bind
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
-
-  if impl(ghc >= 7.6.3)
-    ghc-options: -fwarn-pointless-pragmas
 
   if impl(ghc >= 7.8)
     ghc-options: -fwarn-duplicate-constraints
@@ -455,7 +437,7 @@ executable agda
     Agda == 2.4.2.4
     -- Nothing is used from the following package, except for the
     -- prelude.
-    , base >= 3 && < 6
+    , base >= 4.6.0.1 && < 6
   if impl(ghc >= 7)
     -- If someone installs Agda with the setuid bit set, then the
     -- presence of +RTS may be a security problem (see GHC bug #3910).
@@ -469,10 +451,10 @@ executable agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
   build-depends:
-    base >= 4.5.0.0 && < 4.9
-    , directory >= 1.1.0.2 && < 1.3
-    , filepath >= 1.3.0.0 && < 1.5
-    , process >= 1.0.1.0 && < 1.3
+    base >= 4.6.0.1 && < 4.9
+    , directory >= 1.2.0.1 && < 1.3
+    , filepath >= 1.3.0.1 && < 1.5
+    , process >= 1.1.0.2 && < 1.3
 
 -- Cabal testsuite integration has some serious bugs, but we
 -- can still make it work. See also:
@@ -489,20 +471,15 @@ test-suite agda-tests
   hs-source-dirs:   test/
   main-is:          Main.hs
   other-modules:    Compiler.Tests
-  build-depends:      base >= 4.5.0.0 && < 4.9
-                    , containers >= 0.4.2.1 && < 0.6
-                    , filepath >= 1.3.0.0 && < 1.5
-                    , process >= 1.0.1.0 && < 1.3
+  build-depends:      base >= 4.6.0.1 && < 4.9
+                    , directory >= 1.2.0.1 && < 1.3
+                    , containers >= 0.5.0.0 && < 0.6
+                    , filepath >= 1.3.0.1 && < 1.5
+                    , process >= 1.1.0.2 && < 1.3
                     , process-extras >= 0.2.0 && < 0.4
                     , tasty >= 0.10 && < 0.11
                     , tasty-silver >= 3.1.7 && < 3.2
                     , temporary >= 1.2.0 && < 1.3
                     , text >= 0.11 && < 1.3
-  if impl(ghc < 7.6)
-    build-depends:
-      directory >= 1.1.0.2 && < 1.2
-  else
-      build-depends:
-        directory >= 1.2.0.0 && < 1.3
 
   ghc-options:      -threaded -Wall -Werror

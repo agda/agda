@@ -7,10 +7,6 @@
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
-#if __GLASGOW_HASKELL__ <= 704
-{-# LANGUAGE ConstraintKinds #-}
-#endif
-
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
     pretty printing of internal syntax.

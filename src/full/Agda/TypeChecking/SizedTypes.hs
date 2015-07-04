@@ -1,7 +1,6 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             NondecreasingIndentation,
-             PatternGuards #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE PatternGuards            #-}
 
 module Agda.TypeChecking.SizedTypes where
 

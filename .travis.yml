@@ -7,7 +7,6 @@ language: haskell
 ghc:
   - 7.8.4
   - 7.6.3
-  # - 7.4.2
 
 # We use the word 'test' in a broad sense (e.g. it includes the Agda
 # test suite, the benchmark suite, the compilation with a specific set
@@ -66,7 +65,7 @@ install:
 # Installing dependencies
 
 # In Travis (because the Haskell platform is installed?) Cabal needs the
-# `--avoid-reinstalls` flag on GHC 7.4.2 and 7.6.3, else it will complain
+# `--avoid-reinstalls` flag on GHC 7.6.3, else it will complain
 # about breaking previously installed packages [Issue 1520].
 
 # Note: `cabal install` doesn't set up the number of jobs by default
@@ -76,7 +75,7 @@ install:
 
   - case $TEST in
       "latex-test" | "non-require-stdlib")
-        if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
+        if [ $GHC_VERSION_TRAVIS = 7.6.3 ]; then
            cabal install --avoid-reinstalls --only-dependencies;
         else
            cabal install --only-dependencies;
@@ -84,7 +83,7 @@ install:
         ;;
 
       "require-stdlib")
-        if [ $GHC_VERSION_TRAVIS = 7.4.2 -o $GHC_VERSION_TRAVIS = 7.6.3 ]; then
+        if [ $GHC_VERSION_TRAVIS = 7.6.3 ]; then
            cabal install --enable-tests --avoid-reinstalls --only-dependencies;
         else
            cabal install --enable-tests --only-dependencies;
@@ -237,8 +236,6 @@ script:
 matrix:
   exclude:
     - ghc: 7.6.3
-      env: TEST=ghc-7.8.4-transformers-0.3.0.0
-    - ghc: 7.4.2
       env: TEST=ghc-7.8.4-transformers-0.3.0.0
 
   # Builds are loooong, we want to send an email as fast as possible.

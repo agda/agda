@@ -1,9 +1,8 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             FlexibleContexts,
-             FlexibleInstances,
-             TupleSections,
-             UndecidableInstances #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where

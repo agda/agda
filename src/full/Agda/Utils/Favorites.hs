@@ -1,9 +1,8 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DeriveFoldable,
-             GeneralizedNewtypeDeriving,
-             ScopedTypeVariables,
-             TemplateHaskell #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.

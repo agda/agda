@@ -1,18 +1,17 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DeriveDataTypeable,
-             DeriveFoldable,
-             DeriveFunctor,
-             DeriveTraversable,
-             ExistentialQuantification,
-             FlexibleContexts,
-             FlexibleInstances,
-             GeneralizedNewtypeDeriving,
-             MultiParamTypeClasses,
-             NamedFieldPuns,
-             Rank2Types,
-             ScopedTypeVariables,
-             UndecidableInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module Agda.TypeChecking.Monad.Base where
 

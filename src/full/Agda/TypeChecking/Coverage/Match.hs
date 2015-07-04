@@ -1,7 +1,6 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DeriveFunctor,
-             PatternGuards #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Coverage.Match where
 
