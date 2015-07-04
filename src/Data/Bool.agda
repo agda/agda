@@ -17,17 +17,6 @@ open import Relation.Binary.PropositionalEquality as PropEq
 open import Data.Bool.Base public
 
 ------------------------------------------------------------------------
--- Queries
-
-infix 4 _≟_
-
-_≟_ : Decidable {A = Bool} _≡_
-true  ≟ true  = yes refl
-false ≟ false = yes refl
-true  ≟ false = no λ()
-false ≟ true  = no λ()
-
-------------------------------------------------------------------------
 -- Some properties
 
 decSetoid : DecSetoid _ _

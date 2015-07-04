@@ -7,6 +7,8 @@ module Data.Bool.Base where
 
 open import Data.Unit.Base using (⊤)
 open import Data.Empty
+open import Relation.Nullary
+open import Relation.Binary.Core
 
 infixr 6 _∧_
 infixr 5 _∨_ _xor_
@@ -58,3 +60,14 @@ false ∨ b = b
 _xor_ : Bool → Bool → Bool
 true  xor b = not b
 false xor b = b
+
+------------------------------------------------------------------------
+-- Queries
+
+infix 4 _≟_
+
+_≟_ : Decidable {A = Bool} _≡_
+true  ≟ true  = yes refl
+false ≟ false = yes refl
+true  ≟ false = no λ()
+false ≟ true  = no λ()
