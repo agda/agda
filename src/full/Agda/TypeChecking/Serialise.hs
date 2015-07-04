@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
