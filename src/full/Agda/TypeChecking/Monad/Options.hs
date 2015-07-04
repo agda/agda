@@ -241,7 +241,7 @@ proofIrrelevance = optProofIrrelevance <$> pragmaOptions
 hasUniversePolymorphism :: HasOptions m => m Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
-{-# SPECIALIZE shared :: Term -> TCM Term #-}
+{-# SPECIALIZE sharedFun :: TCM (Term -> Term) #-}
 sharedFun :: HasOptions m => m (Term -> Term)
 sharedFun = do
   sharing <- optSharing <$> commandLineOptions
