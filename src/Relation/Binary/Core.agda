@@ -10,7 +10,6 @@
 module Relation.Binary.Core where
 
 open import Data.Product
-open import Data.Sum
 open import Function
 open import Level
 open import Relation.Nullary
@@ -114,9 +113,6 @@ Substitutive {A = A} _∼_ p = (P : A → Set p) → P Respects _∼_
 
 Decidable : ∀ {a b ℓ} {A : Set a} {B : Set b} → REL A B ℓ → Set _
 Decidable _∼_ = ∀ x y → Dec (x ∼ y)
-
-Total : ∀ {a ℓ} {A : Set a} → Rel A ℓ → Set _
-Total _∼_ = ∀ x y → (x ∼ y) ⊎ (y ∼ x)
 
 data Tri {a b c} (A : Set a) (B : Set b) (C : Set c) :
          Set (a ⊔ b ⊔ c) where

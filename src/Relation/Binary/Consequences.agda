@@ -18,6 +18,9 @@ open import Data.Empty
 
 open import Relation.Binary.Consequences.Core public
 
+Total : ∀ {a ℓ} {A : Set a} → Rel A ℓ → Set _
+Total _∼_ = ∀ x y → (x ∼ y) ⊎ (y ∼ x)
+
 trans∧irr⟶asym :
   ∀ {a ℓ₁ ℓ₂} {A : Set a} → {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
   Reflexive _≈_ →
