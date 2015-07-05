@@ -2,35 +2,11 @@
 module CompilingCoinduction where
 
 open import Common.Coinduction
+open import Common.List
+open import Common.Char
+open import Common.String
+open import Common.Unit
 
-data List (A : Set) : Set where
-  []  : List A
-  _∷_ : (x : A) (xs : List A) → List A
-
-{-# BUILTIN LIST List #-}
-{-# BUILTIN NIL  []   #-}
-{-# BUILTIN CONS _∷_  #-}
-
-{-# COMPILED_DATA List [] [] (:) #-}
-
-postulate
-  Char : Set
-
-{-# BUILTIN CHAR Char #-}
-{-# COMPILED_TYPE Char Char #-}
-
--- Strings --
-
-postulate
-  String : Set
-
-{-# BUILTIN STRING String #-}
-{-# COMPILED_TYPE String String #-}
-
-data Unit : Set where
-  unit : Unit
-
-{-# COMPILED_DATA Unit () () #-}
 
 postulate
   IO : Set → Set
@@ -42,5 +18,6 @@ postulate
   putStrLn : ∞ String → IO Unit
 
 {-# COMPILED putStrLn putStrLn #-}
+{-# COMPILED_UHC putStrLn (UHC.Agda.Builtins.primPutStrLn) #-}
 
 main = putStrLn (♯ "a")
