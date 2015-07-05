@@ -162,8 +162,9 @@ casetree cc = do
                 c' <- I.conName <$> lift (chaseCon c)
                 dtNm <- conData . theDef <$> lift (getConstInfo c')
                 return $ C.CTData dtNm
-              ([], (TL.LitChar _ _):_) -> return C.CTChar
+              ([], (TL.LitChar _ _):_)  -> return C.CTChar
               ([], (TL.LitString _ _):_) -> return C.CTString
+              ([], (TL.LitQName _ _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
@@ -218,11 +219,7 @@ conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do
 
 litAlts :: Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
 litAlts br = forM (Map.toList br) $ \ (l, cc) ->
-  let mkAlt = case l of
-        TL.LitChar _ c -> C.TAChar c
-        TL.LitString _ s -> C.TAString s
-        _ -> __IMPOSSIBLE__
-   in branch mkAlt cc
+    branch (C.TALit l ) cc
 
 branch :: (C.TTerm -> C.TAlt) -> CC.CompiledClauses -> CC C.TAlt
 branch alt cc = do

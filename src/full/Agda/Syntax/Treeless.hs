@@ -126,6 +126,7 @@ data CaseType
   = CTData QName -- case on datatype
   | CTChar
   | CTString
+  | CTQName
   deriving (Typeable, Show)
 
 data TAlt
@@ -133,8 +134,7 @@ data TAlt
   -- ^ Matches on the given constructor. If the match succeeds,
   -- the pattern variables are prepended to the current environment
   -- (pushes all existing variables aArity steps further away)
-  | TAChar   { aChar :: Char,   aBody:: TTerm }
-  | TAString { aStr  :: String, aBody :: TTerm }
+  | TALit    { aLit :: Literal,   aBody:: TTerm }
   deriving (Typeable, Show)
 
 data TError

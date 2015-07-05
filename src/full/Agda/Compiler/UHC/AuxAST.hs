@@ -15,6 +15,7 @@ import qualified Data.Set as S
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Literal
 
 import Agda.Compiler.UHC.Bridge (HsName, CTag, CExpr, destructCTag)
 
@@ -76,24 +77,16 @@ data Fun
       }
   deriving (Eq, Show)
 
-data Lit
-  = LInt    Integer
-  | LChar   Char
-  | LString String
-  | LFloat  Double
-  | LQName  QName
-  deriving (Show, Ord, Eq)
-
-
 data CaseType
   = CTCon ADataTy -- rename this to CTData
   | CTChar
   | CTString
+  | CTQName
   deriving (Show, Ord, Eq)
 
 data Expr
   = Var HsName
-  | Lit Lit
+  | Lit Literal
   | Lam HsName Expr
   | Con ADataTy ADataCon [Expr]
   | App Expr [Expr]
@@ -107,8 +100,7 @@ data Expr
 
 data Branch
   = BrCon   {brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
-  | BrChar  {brChar :: Char, brExpr :: Expr}
-  | BrString {brStr :: String, brExpr :: Expr}
+  | BrLit   {brLit :: Literal, brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
 -- | Returns the arity of a constructor.
@@ -122,8 +114,7 @@ getCTagArity = destructCTag 0 (\_ _ _ ar -> ar)
 
 getBrVars :: Branch -> [HsName]
 getBrVars (BrCon {brVars = vs}) = vs
-getBrVars (BrChar {})            = []
-getBrVars (BrString {})          = []
+getBrVars (BrLit {})            = []
 
 --------------------------------------------------------------------------------
 -- * Some smart constructors
@@ -211,5 +202,4 @@ fv = S.toList . fv'
     fvBr :: Branch -> Set HsName
     fvBr b = case b of
       BrCon _ _ vs e -> fv' e S.\\ S.fromList vs
-      BrChar _ e -> fv' e
-      BrString _ e -> fv' e
+      BrLit _ e -> fv' e

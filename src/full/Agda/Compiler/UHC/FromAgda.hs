@@ -280,7 +280,7 @@ substTerm term = case term of
        name <- lift freshLocalName
        addToEnv [name] $ do
          A.Lam name <$> substTerm t
-    C.TLit l -> return $ Lit (substLit l)
+    C.TLit l -> return $ Lit l
     C.TCon c -> do
         con <- lift . lift $ getConstrFun c
         return $ A.Var con
@@ -298,13 +298,13 @@ substTerm term = case term of
       where mapCaseType :: C.CaseType -> NM A.CaseType
             mapCaseType C.CTChar = return $ A.CTChar
             mapCaseType C.CTString = return $ A.CTString
+            mapCaseType C.CTQName = return $ A.CTQName
             mapCaseType (C.CTData _) = do
                 let (C.TACon {C.aCon = conNm}) = head alts
                 di <- aciDataType <$> (lift . lift) (getConstrInfo conNm)
                 return $ A.CTCon di
             substAlt :: C.TAlt -> NM A.Branch
-            substAlt a@(C.TAChar {}) = A.BrChar (C.aChar a) <$> substTerm (C.aBody a)
-            substAlt a@(C.TAString {}) = A.BrString (C.aStr a) <$> substTerm (C.aBody a)
+            substAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> substTerm (C.aBody a)
             substAlt a@(C.TACon {}) = do
                 conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo $ C.aCon a)
                 vars <- lift $ replicateM (C.aArity a) freshLocalName
@@ -317,11 +317,3 @@ substTerm term = case term of
     C.TError e -> return $ case e of
       C.TPatternMatchFailure funNm -> Error $ "Non-exhaustive patterns in function: " ++ P.prettyShow funNm
 
--- | Translate Agda literals to our AUX definition
-substLit :: TL.Literal -> Lit
-substLit lit = case lit of
-  TL.LitInt    _ i -> LInt i
-  TL.LitString _ s -> LString s
-  TL.LitChar   _ c -> LChar c
-  TL.LitFloat  _ f -> LFloat f
-  TL.LitQName  _ q -> LQName q

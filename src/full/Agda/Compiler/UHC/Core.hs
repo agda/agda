@@ -23,6 +23,7 @@ import Agda.Interaction.Options
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
+import Agda.Syntax.Literal
 import Agda.Utils.Pretty
 
 import Agda.Compiler.UHC.AuxAST
@@ -149,15 +150,15 @@ exprToCore (Case e brs def ct) = do
   var <- freshLocalName
   def' <- exprToCore def
 
-  css <- buildPrimCases (eq ct) (mkVar var) brs (getLit ct) def'
+  css <- buildPrimCases (eq ct) (mkVar var) brs getLit def'
   return $ mkLet1Strict var e' css
   where eq :: CaseType -> CExpr
         eq CTChar = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
         eq CTString = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primStringEquality"
+        eq CTQName = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primQNameEquality"
         eq _ = __IMPOSSIBLE__
-        getLit :: CaseType -> Branch -> CExpr
-        getLit CTChar   = mkChar . brChar
-        getLit CTString = mkString opts . brStr
+        getLit :: Branch -> CExpr
+        getLit (BrLit { brLit = l }) = litToCore l
         getLit _ = __IMPOSSIBLE__
 exprToCore (Let v e1 e2) = do
     e1' <- exprToCore e1
@@ -215,13 +216,13 @@ defaultBranches dt brs def = mapM mkAlt' missingCons
                 return [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] dummyVars]
 
 
-litToCore :: Lit -> CExpr
-litToCore (LInt i) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
-litToCore (LString s) = mkString opts s
-litToCore (LChar c) = mkChar c
+litToCore :: Literal -> CExpr
+litToCore (LitInt _ i)   = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
+litToCore (LitString _ s) = mkString opts s
+litToCore (LitChar _ c)  = mkChar c
 -- TODO this is just a dirty work around
-litToCore (LFloat f) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkFloat") [mkString opts (show f)]
-litToCore (LQName q) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkQName")
+litToCore (LitFloat _ f) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkFloat") [mkString opts (show f)]
+litToCore (LitQName _ q) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkQName")
                              [mkInteger opts n, mkInteger opts m, mkString opts $ prettyShow q]
   where NameId n m = nameId $ qnameName q
 
