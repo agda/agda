@@ -1,5 +1,8 @@
 module Common.Nat where
 
+{-# IMPORT Common.FFI #-}
+
+
 data Nat : Set where
   zero : Nat
   suc  : Nat → Nat
