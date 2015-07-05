@@ -60,10 +60,12 @@ module UHC.Agda.Builtins
   , primQNameType
   , primQNameDefinition
   , primDataConstructors
+  , primDataNumberOfParameters
 
     -- Debugging
   , primTrace
 
+    -- Misc
   , unit
   )
 where
@@ -99,14 +101,6 @@ primLevelSuc _ = ()
 
 primLevelMax :: () -> () -> ()
 primLevelMax _ _ = ()
-
--- ====================
--- Misc
--- ====================
-
--- | Unit wrapper function (instead of dropping a dummy function inside each module).
-unit :: ()
-unit = ()
 
 -- ====================
 -- Nat
@@ -300,8 +294,19 @@ primQNameDefinition = notImplError "primQNameDefinition"
 primDataConstructors :: a
 primDataConstructors = notImplError "primDataConstructors"
 
+primDataNumberOfParameters :: a
+primDataNumberOfParameters = notImplError "primDataNumberOfParameters"
+
 -- ====================
 -- Debugging
 -- ====================
 primTrace :: String -> b -> b
 primTrace = trace
+
+-- ====================
+-- Misc
+-- ====================
+
+-- | Unit wrapper function (instead of dropping a dummy function inside each module).
+unit :: ()
+unit = ()
