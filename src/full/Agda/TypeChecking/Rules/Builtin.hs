@@ -25,6 +25,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.SizedTypes ( builtinSizeHook )
 
+import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.EtaContract
@@ -510,6 +511,7 @@ bindBuiltinNoDef b q = do
         -- Special treatment of SizeUniv, should maybe be a primitive.
         def | b == builtinSizeUniv = emptyFunction
                 { funClauses = [ (empty :: Clause) { clauseBody = Body $ Sort SizeUniv } ]
+                , funCompiled = Just (CC.Done [] $ Sort SizeUniv)
                 , funTerminates = Just True
                 }
             | otherwise = Axiom

@@ -178,8 +178,6 @@ translateDataTypes defs = do
 -- | Translate an Agda definition to an UHC Core function where applicable
 translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) (Maybe Fun)
 translateDefn (n, defini) = do
-  nmSizeUniv <- fmap (\(I.Def nm []) -> nm)
-    <$> (lift . lift) (getBuiltin' builtinSizeUniv)
 
   crName <- lift $ getCoreName n
   let crRep = compiledCore $ defCompiledRep defini
@@ -190,8 +188,6 @@ translateDefn (n, defini) = do
         return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
     (Function{}) | Just n == (nameOfFlat <$> kit) -> do
         Just <$> mkIdentityFun n "coind-flat" 0
-    (Function{}) | Just n == nmSizeUniv -> do
-        return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("size-univ") [] UNIT
     f@(Function{}) | otherwise -> do
         let ty    = (defType defini)
         lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
