@@ -64,7 +64,8 @@ renameP p = applySubst (renaming p)
 renaming :: Permutation -> Substitution
 renaming p = prependS __IMPOSSIBLE__ gamma $ raiseS $ size p
   where
-    gamma = safePermute (invertP (-1) p) $ map var [0..]
+    gamma = inversePermute p var
+    -- gamma = safePermute (invertP (-1) p) $ map var [0..]
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
 renamingR :: Permutation -> Substitution

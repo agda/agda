@@ -558,10 +558,11 @@ openClause perm ps body = do
     Body v -> Just v
     _      -> __IMPOSSIBLE__
   where
+    -- TODO: express build using numberPatVars
     -- length of the telescope
     n    = size perm
     -- the variables as a map from the body variables to the clause telescope
-    xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
+    xs   = permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
     tick = do x : xs <- get; put xs; return x
 

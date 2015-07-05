@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -99,9 +100,11 @@ createModule :: Bool -> A.ModuleName -> ScopeM ()
 createModule b m = do
   s <- getCurrentScope
   let parents = scopeName s : scopeParents s
-  modifyScopes $ Map.insert m emptyScope { scopeName           = m
-                                         , scopeParents        = parents
-                                         , scopeDatatypeModule = b }
+      sm = emptyScope { scopeName           = m
+                      , scopeParents        = parents
+                      , scopeDatatypeModule = b }
+  -- Andreas, 2015-07-02: internall error if module is not new.
+  modifyScopes $ Map.insertWith __IMPOSSIBLE__ m sm
 
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
@@ -401,10 +404,20 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
           -- Check whether we have seen it already, yet as  name.
           -- If yes, use its copy as @y@.
           y <- ifJustM (findName $ mnameToQName x) (return . qnameToMName) $ {- else -} do
-             return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
+             -- Andreas, Jesper, 2015-07-02: Issue 1597
+             -- Don't blindly drop a prefix of length of the old qualifier.
+             -- If things are imported by open public they do not have the old qualifier
+             -- as prefix.  Those need just to be linked, not copied.
+             -- return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
+             caseMaybe (maybePrefixMatch (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
+               return $ A.mnameFromList $ newL ++ suffix
+          -- Andreas, Jesper, 2015-07-02: Issue 1597
+          -- Don't copy a module over itself, it will just be emptied of its contents.
+          if (x == y) then return x else do
           addMod x y
           -- We need to copy the contents of included modules recursively
-          s0 <- lift $ createModule False y >> getNamedScope x
+          lift $ createModule False y
+          s0 <- lift $ getNamedScope x
           s  <- withCurrentModule' y $ copy y s0
           lift $ modifyNamedScope y (const s)
           return y
@@ -444,7 +457,9 @@ openModule_ :: C.QName -> ImportDirective -> ScopeM ()
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
-  let acc = namespace current m
+  let acc | not (publicOpen dir)      = PrivateNS
+          | m `isSubModuleOf` current = PublicNS
+          | otherwise                 = ImportedNS
   -- Get the scope exported by module to be opened.
   s <- setScopeAccess acc <$>
         (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
@@ -462,11 +477,6 @@ openModule_ cm dir = do
       Nothing -> x
       Just ys -> shadowLocal ys x
   where
-    namespace m0 m1
-      | not (publicOpen dir)  = PrivateNS
-      | m1 `isSubModuleOf` m0 = PublicNS
-      | otherwise             = ImportedNS
-
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.
     checkForClashes new = when (publicOpen dir) $ do

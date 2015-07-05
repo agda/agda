@@ -854,6 +854,8 @@ instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
   dotVars (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
+
+-- TODO: implement reifyPatterns on de Bruijn patterns ( numberPatVars )
 reifyPatterns :: I.Telescope -> Permutation -> [I.NamedArg I.Pattern] -> TCM [A.NamedArg A.Pattern]
 reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
   where
@@ -872,7 +874,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 
     translate n = fromMaybe __IMPOSSIBLE__ $ vars !!! n
       where
-        vars = permute (invertP __IMPOSSIBLE__ perm) [0..]
+        vars = permPicks $ invertP __IMPOSSIBLE__ perm
 
     reifyPat :: I.Pattern -> StateT Nat TCM A.Pattern
     reifyPat p = case p of

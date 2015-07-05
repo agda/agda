@@ -107,6 +107,9 @@ instance InversePermute [Maybe a] [Maybe a] where
   inversePermute p@(Perm n _) = tabulate . inversePermute p
     where tabulate m = for [0..n-1] $ \ i -> IntMap.lookup i m
 
+instance InversePermute (Int -> a) [Maybe a] where
+  inversePermute (Perm n xs) f = for [0..n-1] $ \ x -> f <$> findIndex (x ==) xs
+
 -- | Identity permutation.
 idP :: Int -> Permutation
 idP n = Perm n [0..n - 1]
@@ -171,8 +174,23 @@ compactP (Perm n xs) = Perm m $ map adjust xs
 --     == reverse $ permute (Perm 4 [1,3,0]) [x3,x2,x1,x0]
 --     == reverse $ permute (Perm 4 [1,3,0]) $ reverse [x0,x1,x2,x3]
 --   @
+--
+--   With @reverseP@, you can convert a permutation on de Bruijn indices
+--   to one on de Bruijn levels, and vice versa.
 reverseP :: Permutation -> Permutation
 reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
+                  -- = flipP $ Perm n $ reverse xs
+
+-- | @permPicks (flipP p) = permute p (downFrom (permRange p))@
+--   or
+--   @permute (flipP (Perm n xs)) [0..n-1] = permute (Perm n xs) (downFrom n)@
+--
+--   Can be use to turn a permutation from (de Bruijn) levels to levels
+--   to one from levels to indices.
+--
+--   See 'Agda.Syntax.Internal.Patterns.numberPatVars'.
+flipP :: Permutation -> Permutation
+flipP (Perm n xs) = Perm n $ map (n - 1 -) xs
 
 -- | @expandP i n π@ in the domain of @π@ replace the /i/th element by /n/ elements.
 expandP :: Int -> Int -> Permutation -> Permutation
