@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -107,25 +107,12 @@ import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- | Compatibility with @bytestring < 0.10@ which does not implement
---   @instance NFData@, to support @ghc <= 7.4@.
---
---   Note that we only @deepSeq@ for the purpose of correct benchmarking.
---   Thus, a simply non-forcing @return@ would be a possible implementation.
-
-returnForcedByteString :: Monad m => L.ByteString -> m L.ByteString
-#if MIN_VERSION_bytestring(0,10,0)
-returnForcedByteString bs = return $!! bs
-#else
-returnForcedByteString bs = return $! bs
-#endif
-
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150625 * 10 + 0
+currentInterfaceVersion = 20150704 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -314,13 +301,13 @@ encode a = do
       modifyStatistics $ Map.union stats
     -- Encode hashmaps and root, and compress.
     bits1 <- Bench.billTo [ Bench.Serialization, Bench.BinaryEncode ] $
-      returnForcedByteString $ B.encode (root, nL, sL, bL, iL, dL)
+      return $!! B.encode (root, nL, sL, bL, iL, dL)
     let compressParams = G.defaultCompressParams
           { G.compressLevel    = G.bestSpeed
           , G.compressStrategy = G.huffmanOnlyStrategy
           }
     cbits <- Bench.billTo [ Bench.Serialization, Bench.Compress ] $
-      returnForcedByteString $ G.compressWith compressParams bits1
+      return $!! G.compressWith compressParams bits1
     let x = B.encode currentInterfaceVersion `L.append` cbits
     return x
   where

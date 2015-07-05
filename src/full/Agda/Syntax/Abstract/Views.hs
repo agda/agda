@@ -1,7 +1,7 @@
-{-# LANGUAGE DefaultSignatures,
-             NoMonomorphismRestriction,
-             PatternGuards,
-             TupleSections #-}
+{-# LANGUAGE DefaultSignatures         #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE TupleSections             #-}
 
 module Agda.Syntax.Abstract.Views where
 

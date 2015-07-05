@@ -1,7 +1,6 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             FlexibleInstances,
-             TupleSections #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
 
@@ -26,7 +25,6 @@ import Agda.TypeChecking.Monad.Options (reportSLn)
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.Map.Compat as MapC
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
@@ -336,7 +334,7 @@ clearMetaListeners m =
 
 -- | Freeze all meta variables and return the list of metas that got frozen.
 freezeMetas :: TCM [MetaId]
-freezeMetas = execWriterT $ stMetaStore %== MapC.traverseWithKey freeze
+freezeMetas = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
   where
   freeze :: Monad m => MetaId -> MetaVariable -> WriterT [MetaId] m MetaVariable
   freeze m mvar

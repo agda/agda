@@ -1,10 +1,9 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DoAndIfThenElse,
-             FlexibleInstances,
-             OverloadedStrings,
-             TypeSynonymInstances,
-             PatternGuards #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE DoAndIfThenElse      #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE PatternGuards        #-}
 
 module Compiler.Tests where
 
@@ -219,11 +218,8 @@ withGhcLibs pkgDirs mkTree =
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "install", "--builddir=" ++ builddir]
             )
         mkArgs :: (FilePath, FilePath) -> AgdaArgs
-#if __GLASGOW_HASKELL__ > 704
         mkArgs (_, pkgDb) = ["-no-user-package-db",   "-package-db=" ++ pkgDb]
-#else
-        mkArgs (_, pkgDb) = ["-no-user-package-conf", "-package-conf=" ++ pkgDb]
-#endif
+
         callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
 #if MIN_VERSION_process(1,2,3)
         callProcess1 wd cmd args = readCreateProcess ((proc cmd args) {cwd = Just wd}) "" >> return ()

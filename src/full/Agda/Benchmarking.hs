@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP,
-             FunctionalDependencies,
-             IncoherentInstances,
-             MultiParamTypeClasses,
-             NoMonomorphismRestriction #-}
+{-# LANGUAGE CPP                       #-}
+{-# LANGUAGE FunctionalDependencies    #-}
+{-# LANGUAGE IncoherentInstances       #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}

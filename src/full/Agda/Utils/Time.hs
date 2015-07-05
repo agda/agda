@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- To avoid warning on derived Integral instance for CPUTime.
@@ -18,34 +18,19 @@ import Control.Monad.Trans
 import qualified System.CPUTime as CPU
 
 import Data.Functor
-
-#if MIN_VERSION_directory(1,1,1)
 import qualified Data.Time
-#else
-import qualified System.Time
-#endif
 
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
 -- | Timestamps.
 
-type ClockTime =
-#if MIN_VERSION_directory(1,1,1)
-  Data.Time.UTCTime
-#else
-  System.Time.ClockTime
-#endif
+type ClockTime = Data.Time.UTCTime
 
 -- | The current time.
 
 getClockTime :: IO ClockTime
-getClockTime =
-#if MIN_VERSION_directory(1,1,1)
-  Data.Time.getCurrentTime
-#else
-  System.Time.getClockTime
-#endif
+getClockTime = Data.Time.getCurrentTime
 
 -- | CPU time in pico (10^-12) seconds.
 

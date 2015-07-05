@@ -1,9 +1,9 @@
-{-# LANGUAGE NoMonomorphismRestriction,
-             FlexibleInstances,
-             UndecidableInstances,
-             FunctionalDependencies,
-             MultiParamTypeClasses,
-             TupleSections #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE FunctionalDependencies    #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE TupleSections             #-}
 
 -- | Tools for benchmarking and accumulating results.
 --   Nothing Agda-specific in here.

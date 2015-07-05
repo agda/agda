@@ -1,13 +1,10 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DeriveDataTypeable,
-             DeriveFoldable,
-             DeriveFunctor,
-             DeriveTraversable,
-             TemplateHaskell #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable     #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE TemplateHaskell    #-}
 
--- GHC 7.4.2 requires the OPTIONS_GHC pragma(s) after the LANGUAGE
--- pragma(s). See Issue 1460.
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 module Agda.Utils.Permutation.Tests (tests) where

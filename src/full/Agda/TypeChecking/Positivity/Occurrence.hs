@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable,
-             TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell    #-}
 
 -- | Occurrences.
 
