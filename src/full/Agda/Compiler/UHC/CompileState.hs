@@ -1,9 +1,9 @@
--- Don't remove this line! It is needed by GHC 7.4.2. See  Issue 1460 .
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE UndecidableInstances       #-}
+
 -- | Contains the state monad that the compiler works in and some functions
 --   for tampering with the state.
 module Agda.Compiler.UHC.CompileState
@@ -55,17 +55,10 @@ import Agda.Compiler.UHC.Naming
 #include "undefined.h"
 import Agda.Utils.Impossible
 
--- UHC backend does not support GHC 7.4, but we don't want to break the build.
-#if __GLASGOW_HASKELL__ >= 706
 import Data.Time.Clock.POSIX
 
 getTime :: IO Integer
 getTime = round <$> getPOSIXTime
-#else
-getTime :: IO Integer
-getTime = __IMPOSSIBLE__
-#endif
-
 
 -- | Stuff we need in our compiler
 data CompileState = CompileState

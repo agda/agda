@@ -20,11 +20,10 @@
 -- the author of this module whether the change leads to more
 -- non-termination for grammars that are not cyclic.)
 
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             FlexibleInstances,
-             MultiParamTypeClasses,
-             RankNTypes #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -48,13 +47,8 @@ import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
 import Data.HashMap.Strict (HashMap)
-#if MIN_VERSION_containers(0,5,0)
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
-#else
-import qualified Data.IntMap as IntMap
-import Data.IntMap (IntMap)
-#endif
 import Data.List
 
 import Agda.Utils.Monad (modify')

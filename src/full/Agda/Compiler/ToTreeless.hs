@@ -1,7 +1,7 @@
--- GHC 7.4.2 requires this layout for the pragmas. See Issue 1460.
-{-# LANGUAGE CPP,
-             DoAndIfThenElse,
-             ScopedTypeVariables #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DoAndIfThenElse     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Agda.Compiler.ToTreeless
   ( ifToTreeless
   , ccToTreeless

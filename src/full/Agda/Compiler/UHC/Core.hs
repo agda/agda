@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, DoAndIfThenElse #-}
+{-# LANGUAGE CPP             #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 -- | Convert the AuxAST code to UHC Core code.
 module Agda.Compiler.UHC.Core

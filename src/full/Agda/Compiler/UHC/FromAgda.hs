@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, DoAndIfThenElse #-}
+{-# LANGUAGE CPP             #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
 --
