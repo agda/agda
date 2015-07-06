@@ -112,7 +112,7 @@ library
     , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.5
     , transformers-compat >= 0.3.3.3 && < 0.5
     , unordered-containers >= 0.2.5.0 && < 0.3
-    , xhtml == 3000.2.*
+    , xhtml >= 3000.2.1 && < 3000.3
     -- zlib >= 0.6.1 is broken. See Issue 1518.
     , zlib >= 0.4.0.1 && < 0.6.1
 
