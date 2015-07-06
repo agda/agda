@@ -16,7 +16,7 @@ executable hTags
     , filepath >= 1.3.0.1 && < 1.5
     , ghc >= 7.6.3 && < 7.11
     , process >= 1.1.0.2 && < 1.3
-    , strict >= 0.3 && < 0.4
+    , strict >= 0.3.2 && < 0.4
 
     -- Since we are using GHC as a library and transformers 0.3.0.0
     -- was shipped as a *base* library of GHC 7.8.*, we must use a
