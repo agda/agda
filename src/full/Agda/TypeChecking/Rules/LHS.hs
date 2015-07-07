@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.LHS where
 
@@ -20,7 +23,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView)
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Info
 import Agda.Syntax.Position
 
@@ -60,16 +63,24 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is
---   the deBruijn indices of the flexible patterns. A pattern is flexible if it
---   is dotted or implicit.
+--   the deBruijn indices of the flexible patterns.
 flexiblePatterns :: [A.NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = map setFlex <$> filterM (flexible . namedArg . snd) (zip [0..] $ reverse nps)
+flexiblePatterns nps = map setFlex <$> filterM (isFlexiblePattern . namedArg . snd) (zip [0..] $ reverse nps)
   where
     setFlex (i, Arg ai p)    = FlexibleVar (getHiding ai) (classify $ namedThing p) i
     classify A.DotP{}        = DotFlex
     classify A.WildP{}       = ImplicitFlex
     classify A.ConP{}        = RecordFlex
     classify _               = __IMPOSSIBLE__
+
+-- | A pattern is flexible if it is dotted or implicit, or a record pattern
+--   with only flexible subpatterns.
+class IsFlexiblePattern a where
+  isFlexiblePattern :: a -> TCM Bool
+
+instance IsFlexiblePattern A.Pattern where
+  isFlexiblePattern = flexible
+    where
     flexible (A.DotP _ _)    = return True
     flexible (A.WildP _)     = return True
     flexible (A.ConP _ (A.AmbQ [c]) qs) =
@@ -77,6 +88,26 @@ flexiblePatterns nps = map setFlex <$> filterM (flexible . namedArg . snd) (zip 
           (andM $ map (flexible . namedArg) qs)
           (return False)
     flexible _               = return False
+
+instance IsFlexiblePattern (I.Pattern' a) where
+  isFlexiblePattern p =
+    case p of
+      I.DotP{}  -> return True
+      I.ConP _ i ps
+        | Just _ <- conPRecord i -> isFlexiblePattern ps
+        | otherwise -> return False
+      I.VarP{}  -> return False
+      I.LitP{}  -> return False
+      I.ProjP{} -> return False
+
+instance IsFlexiblePattern a => IsFlexiblePattern [a] where
+  isFlexiblePattern = andM . map isFlexiblePattern
+
+instance IsFlexiblePattern a => IsFlexiblePattern (Common.Arg c a) where
+  isFlexiblePattern = isFlexiblePattern . unArg
+
+instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
+  isFlexiblePattern = isFlexiblePattern . namedThing
 
 -- | Compute the dot pattern instantiations.
 dotPatternInsts :: [A.NamedArg A.Pattern] -> Substitution -> [I.Dom Type] -> TCM [DotPatternInst]
