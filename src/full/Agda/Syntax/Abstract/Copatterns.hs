@@ -389,7 +389,6 @@ instance Alpha (Pattern' e) where
       ((DotP _ _)           , (DotP _ _)            ) -> return ()
       (AbsurdP{}            , AbsurdP{}             ) -> return ()
       ((LitP l)             , (LitP l')             ) -> guard (l == l')
-      (ImplicitP{}          , ImplicitP{}           ) -> return ()
       ((PatternSynP _ x ps) , (PatternSynP _ x' ps')) -> guard (x == x') >> alpha' ps ps'
       (_                    , _                     ) -> fail "not alpha equivalent"
 

@@ -213,7 +213,7 @@ stripWithClausePatterns f t qs perm ps = do
     -- This is only ok if all remaining with-clause patterns
     -- are implicit patterns (we inserted too many).
     strip _ _ ps      []      = do
-      let implicit (A.ImplicitP{}) = True
+      let implicit (A.WildP{})     = True
           implicit (A.ConP ci _ _) = patImplicit ci
           implicit _               = False
       unless (all (implicit . namedArg) ps) $
@@ -247,10 +247,10 @@ stripWithClausePatterns f t qs perm ps = do
 
         DotP v  -> case namedArg p of
           A.DotP _ _    -> ok p
-          A.ImplicitP _ -> ok p
+          A.WildP _     -> ok p
           -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
           -- we just fold it back.  This fixes issues 665 and 824.
-          A.ConP ci _ _ | patImplicit ci -> ok $ updateNamedArg (const $ A.ImplicitP patNoRange) p
+          A.ConP ci _ _ | patImplicit ci -> ok $ updateNamedArg (const $ A.WildP patNoRange) p
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
@@ -276,7 +276,7 @@ stripWithClausePatterns f t qs perm ps = do
 
           -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
           -- that has been expanded in the parent clause, we expand it and restart
-          A.ImplicitP _ | Just True <- conPRecord ci -> do
+          A.WildP _ | Just True <- conPRecord ci -> do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<<
               -- Andreas, Ulf, 2015-06-03 unfix issue 473
               -- expandImplicitPattern' (unDom a) p

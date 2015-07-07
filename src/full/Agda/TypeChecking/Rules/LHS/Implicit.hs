@@ -59,7 +59,7 @@ expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a
 --   (record constructor applied to as many implicit patterns as there are fields).
 expandImplicitPattern' :: Type -> A.NamedArg A.Pattern -> TCM (Maybe (A.NamedArg A.Pattern))
 expandImplicitPattern' a p
-  | A.ImplicitP{} <- namedArg p, getHiding p /= Instance = do
+  | A.WildP{} <- namedArg p, getHiding p /= Instance = do
      -- Eta expand implicit patterns of record type (issue 473),
      -- but not instance arguments since then they won't be found
      -- by the instance search
@@ -79,7 +79,7 @@ expandImplicitPattern' a p
   | otherwise = return Nothing
 
 implicitP :: Named_ A.Pattern
-implicitP = unnamed $ A.ImplicitP $ PatRange $ noRange
+implicitP = unnamed $ A.WildP $ PatRange $ noRange
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.

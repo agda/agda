@@ -67,11 +67,11 @@ flexiblePatterns nps = map setFlex <$> filterM (flexible . namedArg . snd) (zip 
   where
     setFlex (i, Arg ai p)    = FlexibleVar (getHiding ai) (classify $ namedThing p) i
     classify A.DotP{}        = DotFlex
-    classify A.ImplicitP{}   = ImplicitFlex
+    classify A.WildP{}       = ImplicitFlex
     classify A.ConP{}        = RecordFlex
     classify _               = __IMPOSSIBLE__
     flexible (A.DotP _ _)    = return True
-    flexible (A.ImplicitP _) = return True
+    flexible (A.WildP _)     = return True
     flexible (A.ConP _ (A.AmbQ [c]) qs) =
       ifM (isJust <$> isRecordConstructor c)
           (andM $ map (flexible . namedArg) qs)
@@ -91,7 +91,7 @@ dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
     dpi (p : ps) (Just u : s) (a : as) =
       case p of
         A.DotP _ e    -> (DPI e u a :) <$> dpi ps s as
-        A.ImplicitP _ -> dpi ps s as
+        A.WildP _     -> dpi ps s as
         -- record pattern
         A.ConP _ (A.AmbQ [c]) qs -> do
           Def r es   <- ignoreSharing <$> reduce (unEl $ unDom a)
@@ -236,7 +236,6 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
     isSolved (A.DefP _ _ []) = False  -- projection pattern
     isSolved (A.VarP _)      = True
     isSolved (A.WildP _)     = True
-    isSolved (A.ImplicitP _) = True
     isSolved (A.AbsurdP _)   = True
     isSolved _               = False
 
@@ -260,7 +259,6 @@ noShadowingOfConstructors mkCall problem =
   where
   noShadowing (A.WildP     {}) t = return ()
   noShadowing (A.AbsurdP   {}) t = return ()
-  noShadowing (A.ImplicitP {}) t = return ()
   noShadowing (A.ConP      {}) t = return ()  -- only happens for eta expanded record patterns
   noShadowing (A.DefP      {}) t = return ()  -- projection pattern
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
@@ -320,7 +318,7 @@ checkDotPattern (DPI e v (Dom info a)) =
     noConstraints $ equalTerm a u v
 
 -- | Bind the variables in a left hand side. Precondition: the patterns should
---   all be 'A.VarP', 'A.WildP', 'A.AbsurdP', or 'A.ImplicitP' and the
+--   all be 'A.VarP', 'A.WildP', or 'A.AbsurdP' and the
 --   telescope should have the same size as the pattern list.
 --   There could also be 'A.ConP's resulting from eta expanded implicit record
 --   patterns.
@@ -338,7 +336,6 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
                  -- @bindDummy underscore@ does not fix issue 819, but
                  -- introduces unwanted underscores in error messages
                  -- (Andreas, 2015-05-28)
-    A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP pi  -> do
       -- Andreas, 2012-03-15: allow postponement of emptyness check
       isEmptyType (getRange pi) $ unDom a

@@ -832,7 +832,6 @@ instance EmbPrj A.Pattern where
   icod_ (A.DotP _ a)          = icode1 5 a
   icod_ (A.AbsurdP _)         = icode0 6
   icod_ (A.LitP a)            = icode1 7 a
-  icod_ (A.ImplicitP _)       = icode0 8
   icod_ (A.PatternSynP _ a b) = icode2 9 a b
 
   value = vcase valu
@@ -845,7 +844,6 @@ instance EmbPrj A.Pattern where
      valu [5, a]    = valu1 (A.DotP i) a
      valu [6]       = valu0 (A.AbsurdP i)
      valu [7, a]    = valu1 (A.LitP) a
-     valu [8]       = valu0 (A.ImplicitP i)
      valu [9, a, b] = valu2 (A.PatternSynP i) a b
      valu _         = malformed
 

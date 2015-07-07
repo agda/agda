@@ -614,7 +614,6 @@ shuffleDots (ps, wps) = do
       A.WildP{}            -> mempty
       A.AbsurdP{}          -> mempty
       A.LitP{}             -> mempty
-      A.ImplicitP{}        -> mempty
       A.AsP{}              -> __IMPOSSIBLE__
 
     shouldBind x = do
@@ -645,7 +644,6 @@ shuffleDots (ps, wps) = do
       A.WildP{}            -> pure p
       A.AbsurdP{}          -> pure p
       A.LitP{}             -> pure p
-      A.ImplicitP{}        -> pure p
       A.AsP{}              -> __IMPOSSIBLE__
 
     redotVar p x = do
@@ -687,7 +685,6 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
         A.WildP _     -> Set.empty
         A.AbsurdP _   -> Set.empty
         A.LitP _      -> Set.empty
-        A.ImplicitP _ -> Set.empty
         A.AsP _ _ p   -> patVars p
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
 
@@ -738,7 +735,6 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             A.WildP _     -> p
             A.AbsurdP _   -> p
             A.LitP _      -> p
-            A.ImplicitP _ -> p
             A.AsP i x p   -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
 
@@ -748,7 +744,6 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
-          varOrDot A.ImplicitP{} = True
           varOrDot _             = False
 
 -- | @dotVars ps@ gives all the variables inside of dot patterns of @ps@
@@ -792,7 +787,6 @@ instance DotVars A.Pattern where
     A.WildP _     -> Set.empty
     A.AbsurdP _   -> Set.empty
     A.LitP _      -> Set.empty
-    A.ImplicitP _ -> Set.empty
     A.AsP _ _ p   -> dotVars p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
   isConPat A.ConP{} = True

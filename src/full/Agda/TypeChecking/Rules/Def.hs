@@ -688,7 +688,6 @@ containsAbsurdPattern p = case p of
     A.AbsurdP _   -> True
     A.VarP _      -> False
     A.WildP _     -> False
-    A.ImplicitP _ -> False
     A.DotP _ _    -> False
     A.LitP _      -> False
     A.AsP _ _ p   -> containsAbsurdPattern p

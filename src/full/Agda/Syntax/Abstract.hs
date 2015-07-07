@@ -387,12 +387,11 @@ data Pattern' e
     -- ^ Defined pattern: function definition @f ps@ or destructor pattern @d p ps@.
   | WildP PatInfo
     -- ^ Underscore pattern entered by user.
+    --   Or generated at type checking for implicit arguments.
   | AsP PatInfo Name (Pattern' e)
   | DotP PatInfo e
   | AbsurdP PatInfo
   | LitP Literal
-  | ImplicitP PatInfo
-    -- ^ Generated at type checking for implicit arguments.
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
   deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
@@ -499,7 +498,6 @@ instance HasRange (Pattern' e) where
     getRange (ConP i _ _)        = getRange i
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
-    getRange (ImplicitP i)       = getRange i
     getRange (AsP i _ _)         = getRange i
     getRange (DotP i _)          = getRange i
     getRange (AbsurdP i)         = getRange i
@@ -537,7 +535,6 @@ instance SetRange (Pattern' a) where
     setRange r (ConP i ns as)       = ConP (setRange r i) ns as
     setRange r (DefP _ n as)        = DefP (PatRange r) (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
-    setRange r (ImplicitP _)        = ImplicitP (PatRange r)
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
     setRange r (DotP _ e)           = DotP (PatRange r) e
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
@@ -617,7 +614,6 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (ConP i a b)        = killRange3 ConP i a b
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
-  killRange (ImplicitP i)       = killRange1 ImplicitP i
   killRange (AsP i a b)         = killRange3 AsP i a b
   killRange (DotP i a)          = killRange2 DotP i a
   killRange (AbsurdP i)         = killRange1 AbsurdP i
@@ -835,7 +831,6 @@ patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ e)          = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
-patternToExpr (ImplicitP _)       = Underscore emptyMetaInfo
 patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
 
 type PatternSynDefn = ([Arg Name], Pattern)
@@ -854,7 +849,6 @@ substPattern s p = case p of
   DotP i e    -> DotP i (substExpr (map (fmap patternToExpr) s) e)
   AbsurdP i   -> p
   LitP l      -> p
-  ImplicitP i -> p
   _           -> __IMPOSSIBLE__ -- pattern synonyms (already gone) and
                                 -- @-patterns (not supported anyways).
 
