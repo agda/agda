@@ -829,8 +829,8 @@ noImplicitPats :: [A.Pattern] -> [A.Pattern]
 noImplicitPats = filter noImplicit
 
 noImplicit :: A.Pattern -> Bool
-noImplicit (A.ImplicitP _) = False
-noImplicit _               = True
+noImplicit (A.WildP _) = False
+noImplicit _           = True
 
 instance ToConcrete A.SpineLHS C.LHS where
   bindToConcrete lhs = bindToConcrete (A.spineToLhs lhs :: A.LHS)
@@ -877,8 +877,6 @@ instance ToConcrete A.Pattern C.Pattern where
     toConcrete (A.DotP i e)  = do
         e <- toConcreteCtx DotPatternCtx e
         return $ C.DotP (getRange i) e
-    -- just for debugging purposes (shouldn't show up in practise)
-    toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id $ stringToRawName "(implicit)"])
     toConcrete (A.PatternSynP i n _) = IdentP <$> toConcrete n
 
 

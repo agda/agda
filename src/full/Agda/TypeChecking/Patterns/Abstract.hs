@@ -73,7 +73,6 @@ instance ExpandPatternSynonyms A.Pattern where
     A.VarP{}             -> return p
     A.WildP{}            -> return p
     A.DotP{}             -> return p
-    A.ImplicitP{}        -> return p
     A.LitP{}             -> return p
     A.AbsurdP{}          -> return p
     A.ConP i ds as       -> A.ConP i ds <$> expandPatternSynonyms as
@@ -89,7 +88,7 @@ instance ExpandPatternSynonyms A.Pattern where
         instPatternSyn :: A.PatternSynDefn -> [A.NamedArg A.Pattern] -> TCM A.Pattern
         instPatternSyn (ns, p) as = do
           p <- expandPatternSynonyms p
-          case A.insertImplicitPatSynArgs (A.ImplicitP . PatRange) (getRange x) ns as of
+          case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
             Nothing       -> typeError $ BadArgumentsToPatternSynonym x
             Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x
             Just (s, [])  -> return $ setRange (getRange i) $ A.substPattern s p

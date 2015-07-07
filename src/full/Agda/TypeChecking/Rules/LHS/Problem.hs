@@ -33,7 +33,7 @@ type FlexibleVars   = [FlexibleVar Nat]
 --   i.e., first we try to assign a @DotFlex@, then...
 data FlexibleVarKind
   = RecordFlex   -- ^ From a record pattern ('ConP').
-  | ImplicitFlex -- ^ From a hidden formal argument ('ImplicitP').
+  | ImplicitFlex -- ^ From a hidden formal argument or underscore ('WildP').
   | DotFlex      -- ^ From a dot pattern ('DotP').
   deriving (Eq, Ord, Show)
 
@@ -209,4 +209,3 @@ instance Null ProblemRest where
 instance Null a => Null (Problem' a) where
   null p = null (problemInPat p) && null (problemRest p)
   empty  = Problem empty empty empty empty
-
