@@ -64,9 +64,8 @@ install:
 ##############################################################################
 # Installing dependencies
 
-# In Travis (because the Haskell platform is installed?) Cabal needs the
-# `--avoid-reinstalls` flag on GHC 7.6.3, else it will complain
-# about breaking previously installed packages [Issue 1520].
+# We use the `--avoid-reinstalls` flag with GHC 7.6.3/7.8.4 for
+# avoiding to break previously installed packages [Issue 1520].
 
 # Note: `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
@@ -75,7 +74,7 @@ install:
 
   - case $TEST in
       "latex-test" | "non-require-stdlib")
-        if [ $GHC_VERSION_TRAVIS = 7.6.3 ]; then
+        if [ $GHC_VERSION_TRAVIS = 7.6.3 -o $GHC_VERSION_TRAVIS = 7.8.4 ]; then
            cabal install --avoid-reinstalls --only-dependencies;
         else
            cabal install --only-dependencies;
@@ -83,7 +82,7 @@ install:
         ;;
 
       "require-stdlib")
-        if [ $GHC_VERSION_TRAVIS = 7.6.3 ]; then
+        if [ $GHC_VERSION_TRAVIS = 7.6.3 -o $GHC_VERSION_TRAVIS = 7.8.4 ]; then
            cabal install --enable-tests --avoid-reinstalls --only-dependencies;
         else
            cabal install --enable-tests --only-dependencies;
@@ -178,13 +177,16 @@ install:
 # Testing compilation with transformers 0.3.0.0 which is shipped with
 # GHC 7.8.* [Issue 1156]
 
+# We use the `--avoid-reinstalls` flag with GHC 7.8.4 for avoiding to
+# break previously installed packages [Issue 1520].
+
   - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install --constraint=transformers==0.3.0.0 &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
        cabal install alex --constraint=transformers==0.3.0.0 &&
        cabal install happy --constraint=transformers==0.3.0.0 &&
-       cabal install --only-dependencies --constraint=transformers==0.3.0.0 &&
+       cabal install --avoid-reinstalls --only-dependencies --constraint=transformers==0.3.0.0 &&
        cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 &&
        cabal build -v2 --builddir=$BUILD_DIR;
     fi

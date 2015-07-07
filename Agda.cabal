@@ -85,7 +85,7 @@ library
   build-depends:
     array >= 0.4.0.1 && < 0.6
     , base >= 4.6.0.1 && < 4.9
-    , binary >= 0.6 && < 0.8
+    , binary >= 0.7.2.1 && < 0.8
     , boxes >= 0.1.3 && < 0.2
     , bytestring >= 0.10.0.2 && < 0.11
     , containers >= 0.5.0.0 && < 0.6
@@ -93,19 +93,19 @@ library
     , deepseq >= 1.3.0.1 && < 1.5
     , directory >= 1.2.0.1 && < 1.3
     , edit-distance >= 0.2.1.2 && < 0.3
-    , equivalence >= 0.2.5  && < 0.4
+    , equivalence >= 0.2.5 && < 0.4
     , filepath >= 1.3.0.1 && < 1.5
     , geniplate-mirror >= 0.6.0.6 && < 0.8
     -- hashable 1.2.0.10 makes library-test 10x slower. The issue was
     -- fixed in hashable 1.2.1.0.
     -- https://github.com/tibbe/hashable/issues/57.
-    , hashable >= 1.1.2.3 && < 1.2 || >= 1.2.1.0 && < 1.3
+    , hashable >= 1.2.1.0 && < 1.3
     -- There is a "serious bug"
     -- (https://hackage.haskell.org/package/hashtables-1.2.0.2/changelog)
     -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to have made Agda
     -- much slower (infinitely slower?) in some cases.
-    , hashtables >= 1.0 && < 1.2 || >= 1.2.0.2 && < 1.3
-    , haskeline >= 0.7 && < 0.8
+    , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
+    , haskeline >= 0.7.1.3 && < 0.8
     , haskell-src-exts >= 1.16.0.1 && < 1.17
     -- mtl-2.1 contains a severe bug.
     --
@@ -121,13 +121,13 @@ library
     , process >= 1.1.0.2 && < 1.3
     , strict >= 0.3.2 && < 0.4
     , template-haskell >= 2.8.0.0 && < 2.11
-    , text >= 0.11 && < 1.3
+    , text >= 0.11.3.1 && < 1.3
     , time >= 1.4.0.1 && < 1.6
     -- transformers 0.4.0.0 was deprecated.
     , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.5
-    , transformers-compat >= 0.3.3.2 && < 0.5
-    , unordered-containers == 0.2.*
-    , xhtml == 3000.2.*
+    , transformers-compat >= 0.3.3.3 && < 0.5
+    , unordered-containers >= 0.2.5.0 && < 0.3
+    , xhtml >= 3000.2.1 && < 3000.3
     -- zlib >= 0.6.1 is broken. See Issue 1518.
     , zlib >= 0.4.0.1 && < 0.6.1
 
@@ -515,8 +515,8 @@ test-suite agda-tests
                     , process-extras >= 0.2.0 && < 0.4
                     , tasty >= 0.10 && < 0.11
                     , tasty-silver >= 3.1.7 && < 3.2
-                    , temporary >= 1.2.0 && < 1.3
-                    , text >= 0.11 && < 1.3
+                    , temporary >= 1.2.0.3 && < 1.3
+                    , text >= 0.11.3.1 && < 1.3
 
   if flag(uhc)
     cpp-options:    -DUHC_BACKEND
