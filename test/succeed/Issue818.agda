@@ -27,4 +27,6 @@ Foo {x = _} | tt = Set
 -- Implicit arguments are no longer eagerly introduced (see release notes
 -- for 2.3.2, text for issue 679).
 
--- Should now throw a proper error message (not a panic).
+-- WAS: Should now throw a proper error message (not a panic).
+
+-- 2015-07-07: May succeed.
