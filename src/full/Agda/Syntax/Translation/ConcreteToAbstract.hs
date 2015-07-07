@@ -1859,7 +1859,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract p
         return $ A.AsP info x p
         where
-            info = PatSource r $ \_ -> p0
+            info = PatRange r
       -}
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
