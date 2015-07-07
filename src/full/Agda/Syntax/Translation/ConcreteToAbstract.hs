@@ -158,7 +158,7 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
       A.DefP _ _ args        -> concatMap (vars . namedArg) args
         -- Projection pattern, @args@ should be empty unless we have
         -- indexed records.
-      A.ImplicitP _          -> __IMPOSSIBLE__
+      A.ImplicitP _          -> []
       A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
 
 -- | Compute the type of the record constructor (with bogus target type)
@@ -1115,6 +1115,11 @@ instance ToAbstract LetDef [A.LetBinding] where
                     return $ A.Lam i' (A.DomainFree info x) e
                 where
                     i' = ExprRange (fuseRange i e)
+            lambda e (Common.Arg info (Named Nothing (A.ImplicitP i))) =
+                do  x <- freshNoName (getRange i)
+                    return $ A.Lam i' (A.DomainFree info x) e
+                where
+                    i' = ExprRange (fuseRange i e)
             lambda _ _ = notAValidLetBinding d
 
 newtype Blind a = Blind { unBlind :: a }
@@ -1850,7 +1855,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
 
-    toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
+    toAbstract p@(C.WildP r)    = return $ A.ImplicitP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p

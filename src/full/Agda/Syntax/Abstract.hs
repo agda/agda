@@ -854,8 +854,8 @@ substPattern s p = case p of
   DotP i e    -> DotP i (substExpr (map (fmap patternToExpr) s) e)
   AbsurdP i   -> p
   LitP l      -> p
-  _           -> __IMPOSSIBLE__ -- Implicits (generated at TC time),
-                                -- pattern synonyms (already gone), and
+  ImplicitP i -> p
+  _           -> __IMPOSSIBLE__ -- pattern synonyms (already gone) and
                                 -- @-patterns (not supported anyways).
 
 class SubstExpr a where

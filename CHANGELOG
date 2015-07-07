@@ -9,12 +9,40 @@ Installation and infrastructure
 
 * Removed support for GHC 7.4.2.
 
-Syntax
-======
+Language
+========
 
 * forall / ∀ now parses like λ, i.e., the following parses now [Issue 1583]:
 
     ⊤ × ∀ (B : Set) → B → B
+
+* The underscore pattern _ can now also stand for an inaccessible
+  pattern (dot pattern). This alleviates the need for writing `._'.
+  [Issue 1605]  Instead of
+
+    transVOld : ∀{A : Set} (a b c : A) → a ≡ b → b ≡ c → a ≡ c
+    transVOld _ ._ ._ refl refl = refl
+
+  one can now write
+
+    transVNew : ∀{A : Set} (a b c : A) → a ≡ b → b ≡ c → a ≡ c
+    transVNew _ _ _ refl refl = refl
+
+  and let Agda decide where to put the dots.  This was always possible
+  by using hidden arguments
+
+    transH : ∀{A : Set}{a b c : A} → a ≡ b → b ≡ c → a ≡ c
+    transH refl refl = refl
+
+  which is now equivalent to
+
+    transHNew : ∀{A : Set}{a b c : A} → a ≡ b → b ≡ c → a ≡ c
+    transHNew {a = _}{b = _}{c = _} refl refl = refl
+
+  Before, underscore _ stood for an unnamed variable that could not be
+  instantiated by an inaccessible pattern.  If one no wants to prevent
+  Agda from instantiating, one needs to use a variable name other than
+  underscore (however, in practice this situation seems unlikely).
 
 Type checking
 =============
