@@ -101,5 +101,5 @@ lemma-str :  ∀ {Δ} (x : Var Δ) {n} {a} {ρ : UVal Δ} {ξ : SVal Δ}
   → (p : ρ ≤V ξ)
   → (q : a < lookup ξ x + n)
   → update ρ x (max (↑ a - n)) ≤V ξ
-lemma-str vz     (p , s) q = {!.a .a' q!}  -- ideally, we would like to split q only
+lemma-str vz     (p , s) q = {!q!}
 lemma-str (vs x) (p , s) q = {!q!}
