@@ -189,31 +189,10 @@ instance KillRange LHSInfo where
     Pattern information
  --------------------------------------------------------------------------}
 
--- | For a general pattern we can either remember just the source code
---   position or the entire concrete pattern it came from.
-data PatInfo
+-- | For a general pattern we remember the source code position.
+newtype PatInfo
   = PatRange Range
-  | PatSource Range (Precedence -> Pattern)
-      -- ^ Even if we store the original pattern we have to know
-      --   whether to put parenthesis around it.
-  deriving (Typeable)
-
-instance Show PatInfo where
-  show (PatRange r) = "PatRange " ++ show r
-  show (PatSource r _) = "PatSource " ++ show r
-
-instance HasRange PatInfo where
-  getRange (PatRange r)    = r
-  getRange (PatSource r _) = r
-
-instance KillRange PatInfo where
-  killRange (PatRange r)    = PatRange noRange
-  killRange (PatSource r f) = PatSource noRange f
-
-instance Null PatInfo where
-  empty = patNoRange
-  null (PatRange r) = null r
-  null PatSource{}  = False
+  deriving (Typeable, Eq, Null, Show, HasRange, KillRange)
 
 -- | Empty range for patterns.
 patNoRange :: PatInfo

@@ -1735,7 +1735,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             _                  -> typeError $ InvalidPattern p0
         where
             r = getRange p0
-            info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
+            info = PatRange r
 
     toAbstract p0@(OpAppP r op ns ps) = do
         p  <- resolvePatternIdentifier (getRange op) op (Just ns)
@@ -1746,14 +1746,14 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
           PatternSynP _ x as -> return $ PatternSynP        info   x (as ++ ps)
           _                  -> __IMPOSSIBLE__
         where
-        info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
+        info = PatRange r
 
     -- Removed when parsing
     toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
 
-    toAbstract p@(C.WildP r)    = return $ A.WildP (PatSource r $ const p)  -- WildP
+    toAbstract p@(C.WildP r)    = return $ A.WildP (PatRange r)
     -- Andreas, 2015-05-28 futile attempt to fix issue 819: repeated variable on lhs "_"
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
@@ -1764,13 +1764,13 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract p
         return $ A.AsP info x p
         where
-            info = PatSource r $ \_ -> p0
+            info = PatRange r
       -}
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
-        where info = PatSource r $ \_ -> p0
+        where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
-        where info = PatSource r $ \_ -> p0
+        where info = PatRange r
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
