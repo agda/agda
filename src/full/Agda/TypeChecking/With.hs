@@ -290,12 +290,15 @@ stripWithClausePatterns f t qs perm ps = do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
               expandImplicitPattern' (unDom a) $ makeImplicitP p
 
-          -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
-          -- that has been expanded in the parent clause, we expand it and restart
-          A.WildP _ | Just True <- conPRecord ci -> do
+          -- Andreas, 2013-03-21 if we encounter an implicit pattern
+          -- in the with-clause, we expand it and restart
+          -- Andreas, 2015-07-07 Issue 1606 do this whenever the parent
+          -- is a record pattern, regardless of whether it came from an implicit
+          -- or not.  This allows to drop hidden flexible record patterns from
+          -- the with clauses even when they were present in the parent clause.
+          A.WildP{} | Just _ <- conPRecord ci -> do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<<
               expandImplicitPattern' (unDom a) p
-
 
           A.ConP _ (A.AmbQ cs') ps' -> do
             c <- (`withRangeOf` c) <$> do getConForm $ conName c

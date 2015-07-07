@@ -94,7 +94,8 @@ instance IsFlexiblePattern (I.Pattern' a) where
     case p of
       I.DotP{}  -> return True
       I.ConP _ i ps
-        | Just _ <- conPRecord i -> isFlexiblePattern ps
+        | Just True  <- conPRecord i -> return True  -- expanded from ImplicitP
+        | Just False <- conPRecord i -> isFlexiblePattern ps
         | otherwise -> return False
       I.VarP{}  -> return False
       I.LitP{}  -> return False
