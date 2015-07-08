@@ -1,7 +1,7 @@
 -- Andreas, 2015-07-07 continuation of issue 665
 
 {-# OPTIONS --show-implicit #-}
-{-# OPTIONS -v tc.with.strip:10 #-}
+-- {-# OPTIONS -v tc.with.strip:10 #-}
 -- {-# OPTIONS -v tc.with.strip:60 -v tc.lhs:20 -v tc.lhs.unify:20 #-}
 
 postulate

@@ -16,7 +16,7 @@ data Wrap : (j : I) → Set where
   wrap : ∀ {j} → Wrap j
 
 works1 : ∀ {j} → Wrap j → C
-works1 {c ._} (wrap {c _}) with anything
+works1 {c ._} (wrap {c x}) with anything
 ... | z = z
 
 works2 : ∀ {j} → Wrap j → C
@@ -55,12 +55,12 @@ test' {c _} (wrap {c ._}) with anything
 -- has type {j : I} → Wrap j → C
 
 works1a : ∀ {j} → Wrap j → C
-works1a {c ._} (wrap {c _}) with anything
-works1a {c ._} (wrap {c _}) | z = z
+works1a {c ._} (wrap {c x}) with anything
+works1a {c ._} (wrap {c x}) | z = z
 
 works1b : ∀ {j} → Wrap j → C
-works1b {c ._} (wrap {c _}) with anything
-works1b .{c _} (wrap {c _}) | z = z
+works1b {c ._} (wrap {c x}) with anything
+works1b .{c _} (wrap {c x}) | z = z
 
 -- ERROR WAS:
 -- With clause pattern .(c _) is not an instance of its parent pattern
