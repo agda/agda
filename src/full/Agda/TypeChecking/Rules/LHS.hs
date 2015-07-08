@@ -12,6 +12,7 @@ import Data.Maybe
 import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.State hiding (mapM)
+import Control.Monad.Trans.Maybe
 
 import Data.Traversable
 
@@ -52,7 +53,7 @@ import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Except (MonadError(..))
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Monad
@@ -65,50 +66,51 @@ import Agda.Utils.Impossible
 -- | Compute the set of flexible patterns in a list of patterns. The result is
 --   the deBruijn indices of the flexible patterns.
 flexiblePatterns :: [A.NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = map setFlex <$> filterM (isFlexiblePattern . namedArg . snd) (zip [0..] $ reverse nps)
-  where
-    setFlex (i, Arg ai p)    = FlexibleVar (getHiding ai) (classify $ namedThing p) i
-    classify A.DotP{}        = DotFlex
-    classify A.WildP{}       = ImplicitFlex
-    classify A.ConP{}        = RecordFlex
-    classify _               = __IMPOSSIBLE__
+flexiblePatterns nps = do
+  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
+    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) f i) <$> maybeFlexiblePattern p
 
 -- | A pattern is flexible if it is dotted or implicit, or a record pattern
 --   with only flexible subpatterns.
 class IsFlexiblePattern a where
+  maybeFlexiblePattern :: a -> MaybeT TCM FlexibleVarKind
+
   isFlexiblePattern :: a -> TCM Bool
+  isFlexiblePattern p = isJust <$> runMaybeT (maybeFlexiblePattern p)
 
 instance IsFlexiblePattern A.Pattern where
-  isFlexiblePattern = flexible
-    where
-    flexible (A.DotP _ _)    = return True
-    flexible (A.WildP _)     = return True
-    flexible (A.ConP _ (A.AmbQ [c]) qs) =
-      ifM (isJust <$> isRecordConstructor c)
-          (andM $ map (flexible . namedArg) qs)
-          (return False)
-    flexible _               = return False
+  maybeFlexiblePattern p =
+    case p of
+      A.DotP{}
+        -> return DotFlex
+      A.WildP{}
+        -> return ImplicitFlex
+      A.ConP _ (A.AmbQ [c]) qs
+        -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
+             (maybeFlexiblePattern qs)
+      _ -> mzero
 
 instance IsFlexiblePattern (I.Pattern' a) where
-  isFlexiblePattern p =
+  maybeFlexiblePattern p =
     case p of
-      I.DotP{}  -> return True
+      I.DotP{}  -> return DotFlex
       I.ConP _ i ps
-        | Just True  <- conPRecord i -> return True  -- expanded from ImplicitP
-        | Just False <- conPRecord i -> isFlexiblePattern ps
-        | otherwise -> return False
-      I.VarP{}  -> return False
-      I.LitP{}  -> return False
-      I.ProjP{} -> return False
+        | Just True  <- conPRecord i -> return ImplicitFlex  -- expanded from ImplicitP
+        | Just False <- conPRecord i -> maybeFlexiblePattern ps
+        | otherwise -> mzero
+      I.VarP{}  -> mzero
+      I.LitP{}  -> mzero
+      I.ProjP{} -> mzero
 
+-- | Lists of flexible patterns are 'RecordFlex'.
 instance IsFlexiblePattern a => IsFlexiblePattern [a] where
-  isFlexiblePattern = andM . map isFlexiblePattern
+  maybeFlexiblePattern ps = RecordFlex <$> mapM maybeFlexiblePattern ps
 
 instance IsFlexiblePattern a => IsFlexiblePattern (Common.Arg c a) where
-  isFlexiblePattern = isFlexiblePattern . unArg
+  maybeFlexiblePattern = maybeFlexiblePattern . unArg
 
 instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
-  isFlexiblePattern = isFlexiblePattern . namedThing
+  maybeFlexiblePattern = maybeFlexiblePattern . namedThing
 
 -- | Compute the dot pattern instantiations.
 dotPatternInsts :: [A.NamedArg A.Pattern] -> Substitution -> [I.Dom Type] -> TCM [DotPatternInst]
