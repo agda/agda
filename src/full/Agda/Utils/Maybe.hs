@@ -11,6 +11,7 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
+import Control.Monad.Trans.Maybe
 import Data.Maybe
 
 -- * Collection operations.
@@ -81,3 +82,12 @@ whenJust m k = caseMaybe m (return ()) k
 -- | 'caseMaybeM' without the 'Nothing' case.
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 whenJustM c m = c >>= (`whenJust` m)
+
+-- | Lazy version of @allJust <.> sequence@.
+--   (@allJust = mapM@ for the @Maybe@ monad.)
+--   Only executes monadic effect while @isJust@.
+allJustM :: Monad m => [m (Maybe a)] -> m (Maybe [a])
+allJustM = runMaybeT . mapM MaybeT
+-- allJustM []         = return $ Just []
+-- allJustM (mm : mms) = caseMaybeM mm (return Nothing) $ \ a ->
+--   fmap (a:) <$> allJust mms
