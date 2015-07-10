@@ -24,7 +24,7 @@ import Data.DifferenceList as DiffList
 open import Data.Empty
 open import Data.List.Base as List using (List)
 open import Data.Maybe.Base hiding (map)
-open import Data.Nat.Base hiding (_<_; _⊔_)
+open import Data.Nat.Base hiding (_<_; _⊔_; compare)
 open import Data.Product hiding (map)
 open import Data.Unit
 open import Function
