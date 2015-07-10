@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.LHS where
@@ -57,7 +56,6 @@ import Agda.Utils.Except (MonadError(..))
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.ListT
-import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -113,69 +111,6 @@ instance IsFlexiblePattern a => IsFlexiblePattern (Common.Arg c a) where
 
 instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
   maybeFlexiblePattern = maybeFlexiblePattern . namedThing
-
--- | Turn a term into a list of flexible variables.
---   Term must be a record expression if 'RecordFlex'
---   and a variable otherwise.
---
---   NB: This would be the ideal case, but if a @RecordFlex@
---   is generated from not fully expanded abstract patterns
---   then its structure may not match the term fully.
-expandFlexVar :: FlexibleVar a -> Term -> [FlexibleVar Int]
-expandFlexVar (FlexibleVar h f _) v =
-  case ignoreSharing v of
-    Var i [] -> return $ FlexibleVar h f i
-    Con _ vs -> do
-      let fs =
-            case f of
-              RecordFlex fs' | length fs' == length vs -> fs'
-              _ -> repeat ImplicitFlex -- low prio
-      (f, v) <- zip fs vs
-      expandFlexVar (FlexibleVar h f ()) $ unArg v
-    _ -> __IMPOSSIBLE__
-  -- case (f, ignoreSharing v) of
-  --   (DotFlex      , Var i []) -> return $ FlexibleVar h f i
-  --   (ImplicitFlex , Var i []) -> return $ FlexibleVar h f i
-  --   (RecordFlex fs, Con _ vs) -> do
-  --     -- fs and vs must have same length
-  --     unless (length fs == length vs) __IMPOSSIBLE__
-  --     (f, v) <- zip fs vs
-  --     expandFlexVar (FlexibleVar h f ()) $ unArg v
-  --   _ -> __IMPOSSIBLE__
-
--- | Expand 'RecordFlex' vars according to substitution.
---   The substitution may only produce record constructor terms.
-substFlexVars :: S.Substitution -> FlexibleVars -> FlexibleVars
-substFlexVars rho flexs = do
-  flex@(FlexibleVar h f i) <- flexs
-  expandFlexVar flex (lookupS rho i)
-
-
--- | Composition for non-standard substitution representation.
---   @
---     compSubstitution
---       [ Just t5, Just t4, Just t3, Just t2, Nothing, Nothing, Nothing ]
---       [ 5, pair 4 (pair 3 2), tt, 1, sg 0 ]
---     = [ Just t4, Just (pair t4 (pair t3 t2)), Just tt, Nothing, Nothing ]
---   @
-
-compSubstitution :: Substitution -> [Term] -> Maybe Substitution
-compSubstitution rho = mapM $ \ v ->
-  case ignoreSharing v of
-    -- Var i [] -> return $ fromMaybe __IMPOSSIBLE__ $ rho !!! i
-    Var i [] -> return $ join $ rho !!! i
-    Con c args -> do
-      s <- compS' args
-      -- s should be either all Justs or all Nothings
-      if null s then return $ Just $ Con c [] else do
-        fmap (Con c) <$> allJustsOrNothings s
-    _ -> __IMPOSSIBLE__
-  where
-    compS' :: [I.Arg Term] -> Maybe [Maybe (I.Arg Term)]
-    compS' args = do
-      s <- compSubstitution rho $ map unArg args
-      return $ zipWith (\ arg -> fmap (arg $>)) args s
-
 
 -- | Compute the dot pattern instantiations.
 dotPatternInsts :: [A.NamedArg A.Pattern] -> Substitution -> [I.Dom Type] -> TCM [DotPatternInst]
@@ -723,6 +658,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         -- Get the type of the datatype.
         da <- (`piApply` vs) . defType <$> getConstInfo d
 
+        -- Compute the flexible variables
+        flex <- flexiblePatterns (problemInPat p0 ++ qs')
+
         -- Compute the constructor indices by dropping the parameters
         let us' = drop (size vs) us
 
@@ -739,85 +677,10 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                 ]
               ]
 
-        -- Compute the flexible variables
-        flex1 <- flexiblePatterns (problemInPat p0)
-        flex2 <- flexiblePatterns qs'
-
-        -- Split all RecordFlex variables (are of record type) in gamma
-        -- Γ     ⊢ fromFlat : Γflat  converts terms living in Γflat to Γ
-        -- Γflat ⊢ toFlat   : Γ      converts terms living in Γ     to Γflat
-        (gammaFlat, fromFlat, toFlat) <- do
-           let isRecordFlex (FlexibleVar _ RecordFlex{} i) = Just i
-               isRecordFlex _ = Nothing
-           expandRecordVarsRecursively (mapMaybe isRecordFlex flex2) gamma
-
-        -- Convert constructor indices to Γflat, expanding record vars
-        -- to record expressions of vars
-        let usFlat = applySubst toFlat us'
-
-        -- Compute the new flexible variables
-        let flex2' = substFlexVars toFlat flex2
-        let flex   = map (fmap (+ size gammaFlat)) flex1 ++ flex2'
-
-        reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $ nest 2 $ vcat
-          [ text "gammaFlat =" <+> prettyTCM gammaFlat
-          , text "toFlat    =" <+> (text . show) toFlat
-          , text "fromFlat  =" <+> (text . show) fromFlat
-          , text "usFlat =" <+> brackets (fsep $ punctuate comma $ map prettyTCM usFlat)
-          , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
-          , text "flex2  =" <+> (text . show) flex2
-          ]
-        reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $ nest 2 $ vcat
-          [ text "flex2' =" <+> (text . show) flex2'
-          ]
-
-        -- Unify constructor target and given type (in Δ₁Γflat)
-        res <- addCtxTel (delta1 `abstract` gammaFlat) $
-                unifyIndices flex (raise (size gammaFlat) da) usFlat (raise (size gammaFlat) ws)
-
-{-
         -- Unify constructor target and given type (in Δ₁Γ)
-        let flex = map (fmap (+ length qs')) flex1 ++ flex2
         res <- addCtxTel (delta1 `abstract` gamma) $
                 unifyIndices flex (raise (size gamma) da) us' (raise (size gamma) ws)
-
         whenUnifies res $ \ sub0 -> do
--}
-
-        whenUnifies res $ \ sub00 -> do
-          -- Δ₁Γflat ⊢ sub00 : Δ₁Γflat
-
-          -- Δ₁Γ ⊢ sub01 : Δ₁Γflat
-          let sub01   = applySubst fromFlat sub00
-              toFlat' = map (lookupS toFlat) $ [0 .. size delta1 + size gamma - 1]
-              failComp = do
-                reportSLn "tc.lhs.top" 15 $ "Cannot fold back expanded record flexibles"
-                typeError $ GenericError $ "Cannot fold back expanded record flexibles" -- TODO: Error message
-
-          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-            [ text "sub00  =" <+> do
-                addCtxTel (delta1 `abstract` gammaFlat) $
-                  brackets $ fsep $ punctuate comma $
-                    map (maybe (text "_") prettyTCM) sub00
-            , text "sub01  =" <+> do
-                addCtxTel (delta1 `abstract` gamma) $
-                  brackets $ fsep $ punctuate comma $
-                    map (maybe (text "_") prettyTCM) sub01
-            , text "toFlat'=" <+> do
-                addCtxTel (delta1 `abstract` gammaFlat) $
-                  brackets $ fsep $ punctuate comma $
-                    map prettyTCM toFlat'
-            ]
-          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-            [ text "sub01  =" <+> (text . show) sub01
-            , text "toFlat'=" <+> (text . show) toFlat'
-            ]
-
-          caseMaybe (compSubstitution sub01 toFlat') failComp $ \ sub0 -> do
-
-          reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-            [ text "sub0   =" <+> (text . show) sub0
-            ]
 
           -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
           -- Andreas 2015-01-19  ... only after unification
