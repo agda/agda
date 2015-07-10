@@ -733,8 +733,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
             [ text "newTel =" <+> prettyTCM newTel
             , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
-            , text "ip   =" <+> text (show ip)
-            , text "ip0  =" <+> text (show ip0)
+            , text "ip   =" <+> do prettyList $ map (prettyTCM . namedArg) ip
+            , text "ip0  =" <+> do prettyList $ map (prettyTCM . namedArg) ip0
             ]
           reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
             [ text "rho0 =" <+> text (show rho0)
@@ -814,6 +814,10 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
             , text "iperm' =" <+> text (show iperm')
             ]
           reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+            [ text "ip'    =" <+> prettyList (map (prettyTCM . namedArg) ip')
+            , text "newip  =" <+> prettyList (map (prettyTCM . namedArg) newip)
+            ]
+          reportSDoc "tc.lhs.top" 60 $ nest 2 $ vcat
             [ text "ip'    =" <+> text (show ip')
             , text "newip  =" <+> text (show newip)
             ]
@@ -829,8 +833,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
             , nest 2 $ vcat
               [ text "ps'    = " <+> fsep (map prettyA ps')
               , text "delta' = " <+> prettyTCM delta'
-              , text "ip'    =" <+> text (show ip')
-              , text "iperm' =" <+> text (show iperm')
+              , text "ip'    = " <+> prettyList (map (prettyTCM . namedArg) ip')
+              , text "iperm' = " <+> text (show iperm')
               ]
             ]
           return $ Unifies st'
