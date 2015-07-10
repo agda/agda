@@ -291,7 +291,7 @@ expandRecordVar i gamma0 = do
           zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
       --  We need to reverse the field sequence to build the substitution.
       -- @Γ₁, x:_ ⊢ σ₀ : Γ₁, Γ'@
-          sigma0 = parallelS $ reverse $ map unArg zs
+          sigma0 = reverse (map unArg zs) ++# raiseS 1
       -- @Γ₁, x:_, Γ₂ ⊢ σ₀ : Γ₁, Γ', Γ₂@
           sigma  = liftS (size gamma2) sigma0
 
