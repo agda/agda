@@ -42,6 +42,8 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null (unlessNull)
 import Agda.Utils.Size
+import Agda.Utils.Pretty
+import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -98,6 +100,7 @@ getCurrentScope = getNamedScope =<< getCurrentModule
 -- | Create a new module with an empty scope (Bool is True if it is a datatype module)
 createModule :: Bool -> A.ModuleName -> ScopeM ()
 createModule b m = do
+  reportSLn "scope.createModule" 10 $ "createModule " ++ prettyShow m
   s <- getCurrentScope
   let parents = scopeName s : scopeParents s
       sm = emptyScope { scopeName           = m
@@ -401,6 +404,10 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renMod :: A.ModuleName -> WSM A.ModuleName
         renMod x = do
+          -- Andreas, issue 1607:
+          -- If we have already copied this module, return the copy.
+          ifJustM (findMod x) return $ {- else -} do
+
           -- Check whether we have seen it already, yet as  name.
           -- If yes, use its copy as @y@.
           y <- ifJustM (findName $ mnameToQName x) (return . qnameToMName) $ {- else -} do
