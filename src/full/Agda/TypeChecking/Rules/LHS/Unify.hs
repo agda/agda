@@ -300,7 +300,7 @@ occursCheck i u a = do
 (|->) :: Nat -> (Term, Type) -> Unify ()
 i |-> (u, a) = do
   occursCheck i u a
-  liftTCM $ reportSDoc "tc.lhs.unify.assign" 15 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
+  liftTCM $ reportSDoc "tc.lhs.unify.assign" 10 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
   modSub $ IntMap.insert i (killRange u)
   -- Apply substitution to itself (issue 552)
   rho  <- getSub

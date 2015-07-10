@@ -710,6 +710,13 @@ instance Subst LevelAtom where
 instance Subst Bool where
   applySubst rho = id
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} Subst String where
+#else
+instance Subst String where
+#endif
+  applySubst rho = id
+
 instance Subst Name where
   applySubst rho = id
 

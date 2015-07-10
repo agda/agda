@@ -1,4 +1,4 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
 
 -- | Extend 'Data.Maybe' by common operations for the 'Maybe' type.
 --
@@ -11,7 +11,14 @@ module Agda.Utils.Maybe
     , module Data.Maybe
     ) where
 
+import Control.Monad
+import Control.Monad.Trans.Maybe
+
 import Data.Maybe
+import Data.Functor
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- * Collection operations.
 
@@ -81,3 +88,28 @@ whenJust m k = caseMaybe m (return ()) k
 -- | 'caseMaybeM' without the 'Nothing' case.
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 whenJustM c m = c >>= (`whenJust` m)
+
+-- | Lazy version of @allJust <.> sequence@.
+--   (@allJust = mapM@ for the @Maybe@ monad.)
+--   Only executes monadic effect while @isJust@.
+allJustM :: Monad m => [m (Maybe a)] -> m (Maybe [a])
+allJustM = runMaybeT . mapM MaybeT
+-- allJustM []         = return $ Just []
+-- allJustM (mm : mms) = caseMaybeM mm (return Nothing) $ \ a ->
+--   fmap (a:) <$> allJust mms
+
+-- | Precondition: list not empty.
+--   @
+--     allJustsOrNothings [Nothing, Nothing] = Just Nothing
+--     allJustsOrNothings [Just 0, Just 1]   = Just $ Just [0,1]
+--     allJustsOrNothings [Just 0, Nothing]  = Nothing
+--   @
+allJustsOrNothings :: [Maybe a] -> Maybe (Maybe [a])
+allJustsOrNothings [] = __IMPOSSIBLE__
+allJustsOrNothings [ma] = return $ (:[]) <$> ma
+allJustsOrNothings (ma : mas) = do
+  res <- allJustsOrNothings mas
+  case (ma, res) of
+    (Nothing, Nothing) -> return Nothing
+    (Just a, Just as)  -> return $ Just (a : as)
+    _                  -> mzero

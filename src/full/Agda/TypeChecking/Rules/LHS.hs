@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.LHS where
 
@@ -9,6 +12,7 @@ import Data.Maybe
 import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.State hiding (mapM)
+import Control.Monad.Trans.Maybe
 
 import Data.Traversable
 
@@ -20,7 +24,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Abstract (IsProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView)
-import Agda.Syntax.Common
+import Agda.Syntax.Common as Common
 import Agda.Syntax.Info
 import Agda.Syntax.Position
 
@@ -49,7 +53,7 @@ import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
 import Agda.Utils.Except (MonadError(..))
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Monad
@@ -60,23 +64,53 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is
---   the deBruijn indices of the flexible patterns. A pattern is flexible if it
---   is dotted or implicit.
+--   the deBruijn indices of the flexible patterns.
 flexiblePatterns :: [A.NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = map setFlex <$> filterM (flexible . namedArg . snd) (zip [0..] $ reverse nps)
-  where
-    setFlex (i, Arg ai p)    = FlexibleVar (getHiding ai) (classify $ namedThing p) i
-    classify A.DotP{}        = DotFlex
-    classify A.WildP{}       = ImplicitFlex
-    classify A.ConP{}        = RecordFlex
-    classify _               = __IMPOSSIBLE__
-    flexible (A.DotP _ _)    = return True
-    flexible (A.WildP _)     = return True
-    flexible (A.ConP _ (A.AmbQ [c]) qs) =
-      ifM (isJust <$> isRecordConstructor c)
-          (andM $ map (flexible . namedArg) qs)
-          (return False)
-    flexible _               = return False
+flexiblePatterns nps = do
+  forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
+    runMaybeT $ (\ f -> FlexibleVar (getHiding ai) f i) <$> maybeFlexiblePattern p
+
+-- | A pattern is flexible if it is dotted or implicit, or a record pattern
+--   with only flexible subpatterns.
+class IsFlexiblePattern a where
+  maybeFlexiblePattern :: a -> MaybeT TCM FlexibleVarKind
+
+  isFlexiblePattern :: a -> TCM Bool
+  isFlexiblePattern p = isJust <$> runMaybeT (maybeFlexiblePattern p)
+
+instance IsFlexiblePattern A.Pattern where
+  maybeFlexiblePattern p =
+    case p of
+      A.DotP{}
+        -> return DotFlex
+      A.WildP{}
+        -> return ImplicitFlex
+      A.ConP _ (A.AmbQ [c]) qs
+        -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
+             (maybeFlexiblePattern qs)
+      _ -> mzero
+
+instance IsFlexiblePattern (I.Pattern' a) where
+  maybeFlexiblePattern p =
+    case p of
+      I.DotP{}  -> return DotFlex
+      I.ConP _ i ps
+        | Just True  <- conPRecord i -> return ImplicitFlex  -- expanded from ImplicitP
+        | Just False <- conPRecord i -> maybeFlexiblePattern ps
+        | otherwise -> mzero
+      I.VarP{}  -> mzero
+      I.LitP{}  -> mzero
+      I.ProjP{} -> mzero
+
+-- | Lists of flexible patterns are 'RecordFlex'.
+instance IsFlexiblePattern a => IsFlexiblePattern [a] where
+  maybeFlexiblePattern ps = RecordFlex <$> mapM maybeFlexiblePattern ps
+
+instance IsFlexiblePattern a => IsFlexiblePattern (Common.Arg c a) where
+  maybeFlexiblePattern = maybeFlexiblePattern . unArg
+
+instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
+  maybeFlexiblePattern = maybeFlexiblePattern . namedThing
 
 -- | Compute the dot pattern instantiations.
 dotPatternInsts :: [A.NamedArg A.Pattern] -> Substitution -> [I.Dom Type] -> TCM [DotPatternInst]
@@ -698,8 +732,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
             [ text "newTel =" <+> prettyTCM newTel
             , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
-            , text "ip   =" <+> text (show ip)
-            , text "ip0  =" <+> text (show ip0)
+            , text "ip   =" <+> do prettyList $ map (prettyTCM . namedArg) ip
+            , text "ip0  =" <+> do prettyList $ map (prettyTCM . namedArg) ip0
             ]
           reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
             [ text "rho0 =" <+> text (show rho0)
@@ -779,6 +813,10 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
             , text "iperm' =" <+> text (show iperm')
             ]
           reportSDoc "tc.lhs.top" 14 $ nest 2 $ vcat
+            [ text "ip'    =" <+> prettyList (map (prettyTCM . namedArg) ip')
+            , text "newip  =" <+> prettyList (map (prettyTCM . namedArg) newip)
+            ]
+          reportSDoc "tc.lhs.top" 60 $ nest 2 $ vcat
             [ text "ip'    =" <+> text (show ip')
             , text "newip  =" <+> text (show newip)
             ]
@@ -794,8 +832,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
             , nest 2 $ vcat
               [ text "ps'    = " <+> fsep (map prettyA ps')
               , text "delta' = " <+> prettyTCM delta'
-              , text "ip'    =" <+> text (show ip')
-              , text "iperm' =" <+> text (show iperm')
+              , text "ip'    = " <+> prettyList (map (prettyTCM . namedArg) ip')
+              , text "iperm' = " <+> text (show iperm')
               ]
             ]
           return $ Unifies st'

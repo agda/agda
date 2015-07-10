@@ -29,9 +29,11 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit
+import Agda.TypeChecking.Rules.LHS (isFlexiblePattern)
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
@@ -231,6 +233,12 @@ stripWithClausePatterns f t qs perm ps = do
         , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs0)
         , nest 2 $ text "t   =" <+> prettyTCM t
         ]
+      let failDotPat = do
+            d <- prettyA p
+            typeError $ GenericError $
+                "Inaccessible (dotted) patterns from the parent clause must " ++
+                "also be inaccessible in the with clause, when checking the " ++
+                "pattern " ++ show d ++ ","
       case namedArg q of
         ProjP d -> case A.isProjP p of
           Just d' -> do
@@ -250,37 +258,45 @@ stripWithClausePatterns f t qs perm ps = do
           A.WildP _     -> ok p
           -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
           -- we just fold it back.  This fixes issues 665 and 824.
-          A.ConP ci _ _ | patImplicit ci -> ok $ updateNamedArg (const $ A.WildP patNoRange) p
+          A.ConP ci _ _ | patImplicit ci -> okFlex p
+          -- Andreas, 2015-07-07 issue 1606: Same for flexible record patterns.
+          -- Agda might have replaced a record of dot patterns (A.ConP) by a dot pattern (I.DotP).
+          p'@A.ConP{} -> ifM (isFlexiblePattern p') (okFlex p) {-else-} failDotPat
 
           p@(A.PatternSynP pi' c' [ps']) -> do
              reportSDoc "impossible" 10 $
                text "stripWithClausePatterns: encountered pattern synonym " <+> prettyA p
              __IMPOSSIBLE__
 
-          _ -> do
-            d <- prettyA p
-            typeError $ GenericError $
-                "Inaccessible (dotted) patterns from the parent clause must " ++
-                "also be inaccessible in the with clause, when checking the " ++
-                "pattern " ++ show d ++ ","
+          _ -> failDotPat
           where
+            okFlex = ok . makeImplicitP
             ok p = do
               t' <- piApply1 t v
               (p :) <$> strip (self `apply1` v) t' ps qs
 
-        ConP c ci qs' -> do
+        q'@(ConP c ci qs') -> do
          reportSDoc "tc.with.strip" 60 $
            text "parent pattern is constructor " <+> prettyTCM c
          (a, b) <- mustBePi t
          case namedArg p of
 
-          -- Andreas, 2013-03-21 if we encounter an implicit pattern in the with-clause
-          -- that has been expanded in the parent clause, we expand it and restart
-          A.WildP _ | Just True <- conPRecord ci -> do
+          -- Andreas, 2015-07-07 Issue 1606.
+          -- Agda sometimes changes a record of dot patterns into a dot pattern,
+          -- so the user should be allowed to do likewise.
+          A.DotP{} -> ifNotM (isFlexiblePattern q') mismatch $ {-else-} do
+            maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<< do
+              expandImplicitPattern' (unDom a) $ makeImplicitP p
+
+          -- Andreas, 2013-03-21 if we encounter an implicit pattern
+          -- in the with-clause, we expand it and restart
+          -- Andreas, 2015-07-07 Issue 1606 do this whenever the parent
+          -- is a record pattern, regardless of whether it came from an implicit
+          -- or not.  This allows to drop hidden flexible record patterns from
+          -- the with clauses even when they were present in the parent clause.
+          A.WildP{} | Just _ <- conPRecord ci -> do
             maybe __IMPOSSIBLE__ (\ p -> strip self t (p : ps) qs0) =<<
-              -- Andreas, Ulf, 2015-06-03 unfix issue 473
-              -- expandImplicitPattern' (unDom a) p
-              return (Just p)
+              expandImplicitPattern' (unDom a) p
 
           A.ConP _ (A.AmbQ cs') ps' -> do
             c <- (`withRangeOf` c) <$> do getConForm $ conName c
@@ -347,6 +363,9 @@ stripWithClausePatterns f t qs perm ps = do
       where
         mismatch = typeError $
           WithClausePatternMismatch (namedArg p0) (snd <$> namedArg q)
+        -- | Make an ImplicitP, keeping arg. info.
+        makeImplicitP :: A.NamedArg A.Pattern -> A.NamedArg A.Pattern
+        makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.

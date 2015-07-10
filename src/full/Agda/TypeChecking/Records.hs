@@ -192,8 +192,8 @@ isEtaRecordType a = case ignoreSharing $ unEl a of
 
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
-isRecordConstructor :: QName -> TCM (Maybe (QName, Defn))
-isRecordConstructor c = do
+isRecordConstructor :: MonadTCM tcm => QName -> tcm (Maybe (QName, Defn))
+isRecordConstructor c = liftTCM $ do
   def <- theDef <$> getConstInfo c
   case def of
     Constructor{ conData = r } -> fmap (r,) <$> isRecord r
@@ -245,15 +245,30 @@ Precondition: The current context is @Γ = Γ₁, x:R pars, Γ₂@ where
 Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
 -}
 etaExpandBoundVar :: Int -> TCM (Maybe (Telescope, Substitution, Substitution))
-etaExpandBoundVar i = do
-  -- Get the context with last variable added first in list.
-  gamma <- getContext
-  -- Extract type of @i@th variable.
-  let (gamma2, dom@(Dom ai (x, a)) : gamma1) = splitAt i gamma
+etaExpandBoundVar i = fmap (\ (delta, sigma, tau, _) -> (delta, sigma, tau)) <$> do
+  expandRecordVar i =<< getContextTelescope
+
+-- | @expandRecordVar i Γ = (Δ, σ, τ, Γ')@
+--
+--   Precondition: @Γ = Γ₁, x:R pars, Γ₂@ where
+--     @|Γ₂| = i@ and @R@ is a eta-expandable record type
+--     with constructor @c@ and fields @Γ'@.
+--
+--   Postcondition: @Δ = Γ₁, Γ', Γ₂[c Γ']@ and @Γ ⊢ σ : Δ@ and @Δ ⊢ τ : Γ@.
+
+expandRecordVar :: Int -> Telescope -> TCM (Maybe (Telescope, Substitution, Substitution, Telescope))
+expandRecordVar i gamma0 = do
+  -- Get the context with last variable added last in list.
+  let gamma = telToList gamma0
+  -- Convert the de Bruijn index i to a de Bruijn level
+      l     = size gamma - 1 - i
+  -- Extract type of @i@th de Bruijn index.
+  -- Γ = Γ₁, x:a, Γ₂
+  let (gamma1, dom@(Dom ai (x, a)) : gamma2) = splitAt l gamma
   -- This must be a eta-expandable record type.
   let failure = do
         reportSDoc "tc.meta.assign.proj" 25 $
-          text "failed to eta-expand variable " <+> prettyTCM x <+>
+          text "failed to eta-expand variable " <+> pretty x <+>
           text " since its type " <+> prettyTCM a <+>
           text " is not a record type"
         return Nothing
@@ -276,20 +291,32 @@ etaExpandBoundVar i = do
           zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
       --  We need to reverse the field sequence to build the substitution.
       -- @Γ₁, x:_ ⊢ σ₀ : Γ₁, Γ'@
-          sigma0 = parallelS $ reverse $ map unArg zs
+          sigma0 = reverse (map unArg zs) ++# raiseS 1
       -- @Γ₁, x:_, Γ₂ ⊢ σ₀ : Γ₁, Γ', Γ₂@
           sigma  = liftS (size gamma2) sigma0
 
       -- Construct @Δ@ as telescope.
       -- Note @Γ₁, x:_ ⊢ Γ₂@, thus, @Γ₁, Γ' ⊢ [τ₀]Γ₂@
 
-          rev   = foldl (\ l (Dom ai (n, t)) -> Dom ai (nameToArgName n, t) : l) []
           -- Use "f(x)" as variable name for the projection f(x).
           s     = prettyShow x
           tel'  = mapAbsNames (\ f -> stringToArgName $ argNameToString f ++ "(" ++ s ++ ")") tel
-          delta = telFromList $ rev gamma1 ++ telToList tel' ++ rev (applySubst tau0 gamma2)
+          delta = telFromList $ gamma1 ++ telToList tel' ++ applySubst tau0 gamma2
 
-      return (delta, sigma, tau)
+      return (delta, sigma, tau, tel)
+
+-- | Precondition: variable list is ordered descendingly.  Can be empty.
+expandRecordVarsRecursively :: [Int] -> Telescope -> TCM (Telescope, Substitution, Substitution)
+expandRecordVarsRecursively [] gamma = return (gamma, idS, idS)
+expandRecordVarsRecursively (i : is) gamma = do
+  caseMaybeM (expandRecordVar i gamma) (expandRecordVarsRecursively is gamma)
+  $ \ (gamma1, sigma1, tau1, tel) -> do
+    -- Γ ⊢ σ₁ : Γ₁  and  Γ₁ ⊢ τ₁ : Γ
+    let n = size tel
+        newis = take n $ downFrom $ i + n
+    (gamma2, sigma2, tau2) <- expandRecordVarsRecursively (newis ++ is) gamma1
+    -- Γ₁ ⊢ σ₂ : Γ₂  and  Γ₂ ⊢ τ₂ : Γ₁
+    return (gamma2, applySubst sigma1 sigma2, applySubst tau2 tau1)
 
 -- | @curryAt v (Γ (y : R pars) -> B) n =
 --     ( \ v -> λ Γ ys → v Γ (c ys)            {- curry   -}
