@@ -10,7 +10,7 @@
 -}
 module Agda.Interaction.Imports where
 
-import Prelude
+import Prelude hiding (null)
 
 import Control.Monad.Reader
 import Control.Monad.State
@@ -21,7 +21,7 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold (toList)
-import Data.List
+import Data.List hiding (null)
 import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
@@ -63,7 +63,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 import Agda.Utils.Monad
-import Agda.Utils.Null (unlessNullM)
+import Agda.Utils.Null
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Time
