@@ -12,6 +12,8 @@ module Agda.Interaction.Imports where
 
 import Prelude hiding (null)
 
+import Control.Arrow
+import Control.DeepSeq
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Control.Exception as E
@@ -31,6 +33,8 @@ import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath ((</>))
 
 import qualified Text.PrettyPrint.Boxes as Boxes
+
+import Agda.Benchmarking
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
@@ -134,7 +138,9 @@ scopeCheckImport x = do
     -- we need to reimburse her account.
     i <- Bench.billTo [] $ getInterface x
     addImport x
-    return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
+    -- let s = publicModules $ iInsideScope i
+    let s = iScope i
+    return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
 data MaybeWarnings = NoWarnings | SomeWarnings Warnings
 
@@ -262,11 +268,14 @@ getInterface' x isMain = do
         "  " ++ prettyShow x ++ " is " ++
         (if uptodate then "" else "not ") ++ "up-to-date."
 
-      -- Andreas, 2014-10-20 AIM XX:
-      -- Always retype-check the main file to get the iInsideScope
-      -- which is no longer serialized.
-      (stateChangesIncluded, (i, wt)) <-
-        if uptodate && isMain == NotMainInterface then skip file else typeCheckThe file
+      (stateChangesIncluded, (i, wt)) <- do
+        -- -- Andreas, 2014-10-20 AIM XX:
+        -- -- Always retype-check the main file to get the iInsideScope
+        -- -- which is no longer serialized.
+        -- let maySkip = isMain == NotMainInterface
+        -- Andreas, 2015-07-13: Serialize iInsideScope again.
+        let maySkip = True
+        if uptodate && maySkip then skip file else typeCheckThe file
 
       -- Ensure that the given module name matches the one in the file.
       let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -461,7 +470,7 @@ readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
     -- Decode the interface file
     (s, close) <- liftIO $ readBinaryFile' file
-    do  i <- liftIO . E.evaluate =<< decodeInterface s
+    do  mi <- liftIO . E.evaluate =<< decodeInterface s
 
         -- Close the file. Note
         -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
@@ -470,7 +479,7 @@ readInterface file = do
         -- so it is safe to close the file here.
         liftIO close
 
-        return i
+        return $ constructIScope <$> mi
       -- Catch exceptions and close
       `catchError` \e -> liftIO close >> handler e
   -- Catch exceptions
@@ -490,10 +499,15 @@ readInterface file = do
 writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
     reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
-    -- Andreas, Makoto, 2014-10-18 AIM XX:
-    -- iInsideScope is bloating the interface files, so we do not serialize it?
+    -- Andreas, 2015-07-13
+    -- After QName memoization (AIM XXI), scope serialization might be cheap enough.
+    -- -- Andreas, Makoto, 2014-10-18 AIM XX:
+    -- -- iInsideScope is bloating the interface files, so we do not serialize it?
+    -- i <- return $
+    --   i { iInsideScope  = emptyScopeInfo
+    --     }
     i <- return $
-      i { iInsideScope  = emptyScopeInfo
+      i { iInsideScope  = removePrivates $ iInsideScope i
         }
     encodeFile file i
     reportSLn "import.iface.write" 5 $ "Wrote interface file."
@@ -504,6 +518,9 @@ writeInterface file i = do
     liftIO $
       whenM (doesFileExist file) $ removeFile file
     throwError e
+
+removePrivates :: ScopeInfo -> ScopeInfo
+removePrivates si = si { scopeModules = restrictPrivate <$> scopeModules si }
 
 -- | Tries to type check a module and write out its interface. The
 -- function only writes out an interface file if it does not encounter
@@ -640,7 +657,11 @@ createInterface file mname =
     verboseS "profile" 1 $ do
       reportSLn "import.iface" 5 $ "Accumulated statistics."
 
-    return r
+    return $ first constructIScope r
+
+-- constructIScope :: ScopeInfo -> Map ModuleName Scope
+constructIScope :: Interface -> Interface
+constructIScope i = i{ iScope = billToPure [ Deserialization ] $ publicModules $ iInsideScope i }
 
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.
@@ -682,7 +703,7 @@ buildInterface file topLevel syntaxInfo previousHsImports pragmas = do
       { iSourceHash      = h
       , iImportedModules = mhs
       , iModuleName      = m
-      , iScope           = publicModules scope
+      , iScope           = empty -- publicModules scope
       , iInsideScope     = insideScope topLevel
       , iSignature       = sig
       , iBuiltin         = builtin'
