@@ -95,10 +95,13 @@ tests = do
                 , Just <$> stdlibTests comp
                 , specialTests comp]
 
+getEnvAgdaArgs :: IO AgdaArgs
+getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
+
 
 getAgdaBin :: IO FilePath
 getAgdaBin = do
-  agda <- getProg1 "AGDA_BIN"
+  agda <- getEnvVar "AGDA_BIN"
   case agda of
     Just x -> return x
     Nothing -> fail "AGDA_BIN environment variable not set, aborting..."
@@ -108,14 +111,11 @@ getAgdaBin = do
 -- the value of it is returned. Otherwise, the input value
 -- is returned unchanged.
 getProg :: String -> IO FilePath
-getProg prog = fromMaybe prog <$> getProg1 (map toUpper prog ++ "_BIN")
+getProg prog = fromMaybe prog <$> getEnvVar (map toUpper prog ++ "_BIN")
 
-getProg1 :: String -> IO (Maybe FilePath)
-getProg1 prog = do
-  env' <- getEnvironment
-  case lookup prog env' of
-      Nothing -> return Nothing
-      (Just x) -> return $ Just x
+getEnvVar :: String -> IO (Maybe String)
+getEnvVar v =
+  lookup v <$> getEnvironment
 
 agdaExts :: S.Set String
 agdaExts = S.fromList [".agda", ".lagda"]
@@ -278,8 +278,9 @@ agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts cont
         doRun cOpts = withTempDirectory dir testName (\compDir -> do
           -- get extra arguments
           extraArgs' <- extraArgs
+          envArgs <- getEnvAgdaArgs
           -- compile file
-          let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ extraArgs' ++ (extraAgdaArgs cOpts) ++ [inp]
+          let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ extraArgs' ++ envArgs ++ (extraAgdaArgs cOpts) ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
           res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin args T.empty
 
@@ -290,7 +291,7 @@ agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts cont
 
         argsForComp MAlonzo = return ["--compile"]
         argsForComp UHC     = do
-            uhc <- getProg1 "UHC_BIN"
+            uhc <- getEnvVar "UHC_BIN"
             let uhcBinArg = maybe [] (\x -> ["--uhc-bin", x]) uhc
             -- TODO remove the memory arg again, as soon as we fixed the memory leak
             return $ ["--uhc"] ++ uhcBinArg ++ ["+RTS", "-K50m", "-RTS"]
