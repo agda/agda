@@ -704,12 +704,6 @@ getInterfaceFileHashes ifile = do
     liftIO $ maybe 0 (uncurry (+)) hs `seq` close
     return hs
 
-safeReadInterface :: FilePath -> TCM (Maybe Interface)
-safeReadInterface ifile = do
-  exist <- liftIO $ doesFileExist ifile
-  if exist then readInterface ifile
-           else return Nothing
-
 moduleHash :: ModuleName -> TCM Hash
 moduleHash m = iFullHash <$> getInterface m
 
