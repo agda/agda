@@ -1,0 +1,5 @@
+Issue1609-negative-literal.agda:3,6-6
+Issue1609-negative-literal.agda:3,6: Illegal name in type signature: -1
+Set1<ERROR>
+-1 = Set
+...
