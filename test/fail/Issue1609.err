@@ -1,0 +1,5 @@
+Issue1609.agda:3,5-5
+Issue1609.agda:3,5: Illegal name in type signature: 1
+Set1<ERROR>
+1 = Set
+...

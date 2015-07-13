@@ -29,6 +29,8 @@ import Data.List
 import Data.Maybe
 import qualified Data.Traversable as T
 
+import Debug.Trace
+
 import Agda.Syntax.Position hiding (tests)
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
@@ -45,6 +47,7 @@ import Agda.Utils.Either hiding (tests)
 import Agda.Utils.Hash
 import Agda.Utils.List (spanJust)
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 import Agda.Utils.QuickCheck
 import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
@@ -1796,23 +1799,34 @@ parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report t
 
 {- RHS or type signature -}
 
-data RHSOrTypeSigs = JustRHS RHS
-                   | TypeSigsRHS Expr
+data RHSOrTypeSigs
+ = JustRHS RHS
+ | TypeSigsRHS Expr
+ deriving Show
 
-namesOfPattern :: Pattern -> Maybe [(C.ArgInfo, Name)]
-namesOfPattern (IdentP (QName i))         = Just [(defaultArgInfo, i)]
-namesOfPattern (WildP r)                  = Just [(defaultArgInfo, C.noName r)]
-namesOfPattern (DotP _ (Ident (QName i))) = Just [(setRelevance Irrelevant defaultArgInfo, i)]
-namesOfPattern (RawAppP _ ps)             = fmap concat $ mapM namesOfPattern ps
-namesOfPattern _                          = Nothing
+patternToNames :: Pattern -> Parser [(C.ArgInfo, Name)]
+patternToNames p =
+  case p of
+    IdentP (QName i)         -> return [(defaultArgInfo, i)]
+    WildP r                  -> return [(defaultArgInfo, C.noName r)]
+    DotP _ (Ident (QName i)) -> return [(setRelevance Irrelevant defaultArgInfo, i)]
+    RawAppP _ ps             -> concat <$> mapM patternToNames ps
+    _                        -> parseError $
+      "Illegal name in type signature: " ++ prettyShow p
 
 funClauseOrTypeSigs :: LHS -> RHSOrTypeSigs -> WhereClause -> Parser [Declaration]
-funClauseOrTypeSigs lhs (JustRHS   rhs) wh = return [FunClause lhs rhs wh]
-funClauseOrTypeSigs lhs (TypeSigsRHS e) wh
-  | NoWhere <- wh,
-    LHS p [] [] [] <- lhs,
-    Just names <- namesOfPattern p = return $ map (\(x,y) -> TypeSig x y e) names
-  | otherwise                      = parseError "Illegal function clause or type signature"
+funClauseOrTypeSigs lhs mrhs wh = do
+  -- traceShowM lhs
+  case mrhs of
+    JustRHS rhs   -> return [FunClause lhs rhs wh]
+    TypeSigsRHS e -> case wh of
+      NoWhere -> case lhs of
+        Ellipsis{}      -> parseError "The ellipsis ... cannot have a type signature"
+        LHS _ _ _ (_:_) -> parseError "Illegal: with in type signature"
+        LHS _ _ (_:_) _ -> parseError "Illegal: rewrite in type signature"
+        LHS _ (_:_) _ _ -> parseError "Illegal: with patterns in type signature"
+        LHS p [] [] []  -> map (\ (x, y) -> TypeSig x y e) <$> patternToNames p
+      _ -> parseError "A type signature cannot have a where clause"
 
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =

@@ -1,0 +1,4 @@
+Issue1609a.agda:4,1-1
+Issue1609a.agda:4,1: A type signature cannot have a where clause
+<EOF><ERROR>
+...
