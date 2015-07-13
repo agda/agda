@@ -1,3 +1,4 @@
 MisformedTypeSignature.agda:6,1-1
-MisformedTypeSignature.agda:6,1:
-Illegal function clause or type signature <EOF><ERROR> ...
+MisformedTypeSignature.agda:6,1: Illegal name in type signature: (f g)
+<EOF><ERROR>
+...
