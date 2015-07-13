@@ -523,7 +523,7 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
 -- | Remove private name space of a scope.
 --
 --   Should be a right identity for 'exportedNamesInScope'.
---   @exportedNamesInScope . restrictPrivate == exportedNamesInscope@.
+--   @exportedNamesInScope . restrictPrivate == exportedNamesInScope@.
 restrictPrivate :: Scope -> Scope
 restrictPrivate s
   = setNameSpace PrivateNS  emptyNameSpace

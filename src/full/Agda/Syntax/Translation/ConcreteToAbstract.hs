@@ -83,6 +83,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
@@ -945,8 +946,8 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
     toAbstract (TopLevel file ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
-      case splitAt (length ds - 1) ds of
-        (outsideDecls, [C.Module r m0 tel insideDecls]) -> do
+      caseMaybe (initLast ds) __IMPOSSIBLE__ $
+        \ (outsideDecls, C.Module r m0 tel insideDecls) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
                 then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootName file]
@@ -965,7 +966,6 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
              toAbstract insideDecls
           outsideScope <- getScope
           return $ TopLevelInfo (outsideDecls ++ insideDecls) outsideScope insideScope
-        _ -> __IMPOSSIBLE__
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
