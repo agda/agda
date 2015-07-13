@@ -271,11 +271,6 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
     e <- closedTerm treeless
     return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
 
-  tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
-  tag _ []       = []
-  tag i [cl]     = (i, True , cl) : []
-  tag i (cl:cls) = (i, False, cl) : tag (i + 1) cls
-
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
            fbs@(_:_)) =
