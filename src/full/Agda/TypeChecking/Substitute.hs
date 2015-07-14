@@ -548,8 +548,8 @@ consS u rho = seq u (u :# rho)
 
 -- | To replace index @n@ by term @u@, do @applySubst (singletonS n u)@.
 singletonS :: Int -> Term -> Substitution
-singletonS n u = map var [0..n-1] ++# consS u idS
-  -- ALT: foldl (\ s i -> var i `consS` s) (consS u idS) $ downFrom n
+singletonS n u = map var [0..n-1] ++# consS u (raiseS n)
+  -- ALT: foldl (\ s i -> var i `consS` s) (consS u $ raiseS n) $ downFrom n
 
 -- | Lift a substitution under k binders.
 liftS :: Int -> Substitution -> Substitution
