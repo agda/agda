@@ -1,4 +1,7 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {-# LANGUAGE CPP                       #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -30,6 +33,8 @@ module Agda.TypeChecking.Serialise
   , EmbPrj
   )
   where
+
+import Prelude hiding (null)
 
 import Control.Applicative
 import Control.Arrow (first, second)
@@ -95,7 +100,9 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
 import Agda.Utils.IORef
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 
 import Agda.Utils.Except ( ExceptT, MonadError(throwError), runExceptT )
@@ -164,6 +171,7 @@ data Dict = Dict
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   , nameD        :: !(HashTable NameId  Int32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
+  , cnameD       :: !(HashTable CName   Int32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
@@ -172,6 +180,8 @@ data Dict = Dict
   , termC        :: !(IORef FreshAndReuse)
   , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
+  , cnameC       :: !(IORef FreshAndReuse)
+  , cnonameC     :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
@@ -192,6 +202,9 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -269,9 +282,12 @@ encode a = do
     newD@(Dict nD sD iD dD _tD
       _nameD
       _qnameD
+      _cnameD
       nC sC iC dC tC
       nameC
       qnameC
+      cnameC
+      cnonameC
       stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
        icodeFileMod fileMod
@@ -291,6 +307,8 @@ encode a = do
       statistics "Shared Term" tC
       statistics "A.QName"  qnameC
       statistics "A.Name"  nameC
+      statistics "C.Name"  cnameC
+      statistics "C.NoName"  cnonameC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
@@ -576,9 +594,46 @@ instance EmbPrj HR.Range where
   value = vcase valu where valu [a, b] = valu2 HR.Range a b
                            valu _      = malformed
 
+newtype CName = CName { cname :: C.Name }
+  deriving (Typeable)
+
+-- | Two concrete names are already equal if their
+--   position is not null and equal.
+instance Ord CName where
+  compare (CName x) (CName y) =
+    if null rx || null ry then compare x y else compare rx ry
+    where
+      rx = getRange x
+      ry = getRange y
+
+instance Eq CName where
+  x == y = compare x y == EQ
+
+instance Hashable NamePart where
+
+instance Hashable C.Name where
+  hashWithSalt salt (C.Name r xs) =
+    if null r then hashWithSalt salt xs else hashWithSalt salt r
+  hashWithSalt salt (C.NoName r id) = hashWithSalt salt id
+
+instance Hashable Position where
+  hashWithSalt salt p = hashWithSalt salt (srcFile p, posPos p)
+
+instance Hashable Interval where
+  hashWithSalt salt (Interval start end) = hashWithSalt salt start
+
+instance Hashable Range where
+  hashWithSalt salt (Range is) = hashWithSalt salt $ headMaybe is
+
+instance Hashable CName where
+  hashWithSalt salt (CName x) =
+    if null rx then hashWithSalt salt x else hashWithSalt salt rx
+    where rx = getRange x
+
 instance EmbPrj C.Name where
-  icod_ (C.NoName a b) = icode2 0 a b
-  icod_ (C.Name r xs)  = icode2' r xs
+  icod_ (C.NoName a b) = icodeStat cnonameC $ icode2 0 a b
+  -- icod_ (C.Name r xs)  = icodeStat cnameC   $ icode2' r xs
+  icod_ x@(C.Name r xs)  = icodeMemo cnameD cnameC (CName x) $ icode2' r xs
   value = vcase valu where valu [0, a, b] = valu2 C.NoName a b
                            valu [r, xs]   = valu2 C.Name   r xs
                            valu _         = malformed
@@ -1622,6 +1677,16 @@ icodeMemo getDict getCounter a icodeP = do
         i <- icodeP
         liftIO $ H.insert h a i
         return i
+
+-- | Extra statistics collection.
+icodeStat
+  :: (Dict -> IORef FreshAndReuse)  -- ^ Statistics.
+  -> S Int32  -- ^ Fallback computation to encode the thing.
+  -> S Int32  -- ^ Encoded thing.
+icodeStat getCounter icodeP = do
+  st <- asks getCounter
+  liftIO $ modifyIORef' st $ over lensFresh (+1)
+  icodeP
 
 {-# INLINE vcase #-}
 -- | @vcase value ix@ decodes thing represented by @ix :: Int32@
