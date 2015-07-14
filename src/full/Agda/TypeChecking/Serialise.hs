@@ -108,7 +108,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150704 * 10 + 0
+currentInterfaceVersion = 20150714 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -162,7 +162,7 @@ data Dict = Dict
   , termD        :: !(HashTable (Ptr Term) Int32) -- ^ Not written to interface file.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  -- , nameD        :: !(HashTable NameId Int32)
+  , nameD        :: !(HashTable NameId  Int32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
@@ -170,7 +170,7 @@ data Dict = Dict
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
-  -- , nameC        :: !(IORef FreshAndReuse)
+  , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
   , collectStats :: Bool
@@ -191,6 +191,8 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -264,8 +266,13 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD iD dD _ _ nC sC iC dC tC qnameC stats _ _) <- liftIO $
-      emptyDict collectStats
+    newD@(Dict nD sD iD dD _tD
+      _nameD
+      _qnameD
+      nC sC iC dC tC
+      nameC
+      qnameC
+      stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
        icodeFileMod fileMod
        icode a
@@ -283,6 +290,7 @@ encode a = do
       statistics "Node"     nC
       statistics "Shared Term" tC
       statistics "A.QName"  qnameC
+      statistics "A.Name"  nameC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
@@ -693,8 +701,7 @@ instance EmbPrj A.ModuleName where
   value n = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  -- icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
-  icod_ (A.Name a b c d) = icode4' a b c d
+  icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = malformed
 
