@@ -740,10 +740,13 @@ instance EmbPrj A.Expr where
   icod_ (A.Set  _ a)            = icode1 13 a
   icod_ (A.Prop _)              = icode0 14
   icod_ (A.Let  _ _ _)          = __IMPOSSIBLE__
-  icod_ (A.ETel a)              = icode1 16 a
+  icod_ (A.ETel{})              = __IMPOSSIBLE__
   icod_ (A.Rec  _ a)            = icode1 17 a
   icod_ (A.RecUpdate _ a b)     = icode2 18 a b
-  icod_ (A.ScopedExpr a b)      = icode2 19 a b
+  -- Andreas, 2015-07-15, drop scopes embedded in expressions.
+  -- As expressions are not @unScope@d before serialization,
+  -- this case is not __IMPOSSIBLE__.
+  icod_ (A.ScopedExpr a b)      = icod_ b -- WAS: icode2 19 a b
   icod_ (A.QuoteGoal _ a b)     = icode2 20 a b
   icod_ (A.QuoteContext _ a b)  = icode2 21 a b
   icod_ (A.Quote _)             = icode0 22
@@ -769,10 +772,9 @@ instance EmbPrj A.Expr where
       valu [12, a, b] = valu2 (A.Fun i) a b
       valu [13, a]    = valu1 (A.Set i) a
       valu [14]       = valu0 (A.Prop i)
-      valu [16, a]    = valu1 A.ETel a
       valu [17, a]    = valu1 (A.Rec i) a
       valu [18, a, b] = valu2 (A.RecUpdate i) a b
-      valu [19, a, b] = valu2 A.ScopedExpr a b
+      -- valu [19, a, b] = valu2 A.ScopedExpr a b
       valu [20, a, b] = valu2 (A.QuoteGoal i) a b
       valu [21, a, b] = valu2 (A.QuoteContext i) a b
       valu [22]       = valu0 (A.Quote i)
@@ -1440,6 +1442,7 @@ instance EmbPrj Precedence where
     valu [8]    = valu0 WithArgCtx
     valu [9]    = valu0 DotPatternCtx
     valu _      = malformed
+
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
