@@ -585,11 +585,10 @@ flattenScope ms scope =
         q (C.Qual m x) = C.Qual m . q x
 
     build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
-    build ms getNames s =
-      Map.unionWith (++)
-        (Map.mapKeys (\x -> C.QName x) (getNames s))
-        $ Map.unionsWith (++) $
-          [ Map.mapKeys (\y -> C.Qual x y) $ build ms' exportedNamesInScope $ moduleScope m
+    build ms getNames s = Map.unionsWith (++) $
+        (Map.mapKeysMonotonic C.QName $ getNames s) :
+          [ Map.mapKeysMonotonic (\ y -> C.Qual x y) $
+              build ms' exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
           , let ms' = [ tl | hd:tl <- ms, hd == x ]
           , not $ null ms'
