@@ -37,13 +37,8 @@ import Agda.Syntax.Common hiding (Arg,Dom)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Closure
-import Agda.TypeChecking.Monad.Trace
-import Agda.TypeChecking.Monad.Signature
-import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
-import Agda.TypeChecking.Monad.Context
 
 import Agda.TypeChecking.Rules.LHS.Problem (flexibleVarFromHiding)
 import Agda.TypeChecking.Rules.LHS.Unify
