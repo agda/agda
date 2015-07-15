@@ -524,7 +524,7 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
 -- | Remove private name space of a scope.
 --
 --   Should be a right identity for 'exportedNamesInScope'.
---   @exportedNamesInScope . restrictPrivate == exportedNamesInscope@.
+--   @exportedNamesInScope . restrictPrivate == exportedNamesInScope@.
 restrictPrivate :: Scope -> Scope
 restrictPrivate s
   = setNameSpace PrivateNS  emptyNameSpace
@@ -558,11 +558,10 @@ publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
 
 everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $
-    [ s | (m, s) <- Map.toList (scopeModules scope), m `elem` current ]
+    (s0 :) $ map look $ scopeParents s0
   where
-    this    = scopeCurrent scope
-    parents = maybe __IMPOSSIBLE__ scopeParents $ Map.lookup this $ scopeModules scope
-    current = this : parents
+    look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    s0     = look $ scopeCurrent scope
 
 -- | Compute a flattened scope. Only include unqualified names or names
 -- qualified by modules in the first argument.
@@ -578,8 +577,8 @@ flattenScope ms scope =
     imported = Map.unionsWith (++)
                [ qual c (build ms' exportedNamesInScope $ moduleScope a)
                | (c, a) <- Map.toList $ scopeImports root
-               , let m   = C.qnameParts c
-                     ms' = map (drop (length m)) $ filter (m `isPrefixOf`) ms
+               , let -- get the suffixes of c in ms
+                     ms' = mapMaybe (maybePrefixMatch $ C.qnameParts c) ms
                , not $ null ms' ]
     qual c = Map.mapKeys (q c)
       where
@@ -587,11 +586,10 @@ flattenScope ms scope =
         q (C.Qual m x) = C.Qual m . q x
 
     build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
-    build ms getNames s =
-      Map.unionWith (++)
-        (Map.mapKeys (\x -> C.QName x) (getNames s))
-        $ Map.unionsWith (++) $
-          [ Map.mapKeys (\y -> C.Qual x y) $ build ms' exportedNamesInScope $ moduleScope m
+    build ms getNames s = Map.unionsWith (++) $
+        (Map.mapKeysMonotonic C.QName $ getNames s) :
+          [ Map.mapKeysMonotonic (\ y -> C.Qual x y) $
+              build ms' exportedNamesInScope $ moduleScope m
           | (x, mods) <- Map.toList (getNames s)
           , let ms' = [ tl | hd:tl <- ms, hd == x ]
           , not $ null ms'
@@ -605,7 +603,7 @@ scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
 scopeLookup q scope = map fst $ scopeLookup' q scope
 
 scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
-scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ topImports ++ imports
+scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList topImports ++ imports
   where
 
     -- 1. Finding a name in the current scope and its parents.
@@ -641,11 +639,11 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ topImports ++ 
         -- trace ("mods ++ defs = " ++ show (mods ++ defs)) $ do
         m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         -- Get the scope of module m, if any, and remove its private definitions.
-        let ss  = maybeToList $ Map.lookup m $ scopeModules scope
+        let ss  = Map.lookup m $ scopeModules scope
             ss' = restrictPrivate <$> ss
         -- trace ("ss  = " ++ show ss ) $ do
         -- trace ("ss' = " ++ show ss') $ do
-        s' <- ss'
+        s' <- maybeToList ss'
         findName q s'
       where
         lookupName :: forall a. InScope a => C.Name -> Scope -> [(a, Access)]
@@ -653,21 +651,21 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ topImports ++ 
 
     -- 2. Finding a name in the top imports.
 
-    topImports :: [(a, Access)]
+    topImports :: Maybe (a, Access)
     topImports = case (inScopeTag :: InScopeTag a) of
-      NameTag   -> []
-      ModuleTag -> map (first (`AbsModule` Defined)) (imported q)
+      NameTag   -> Nothing
+      ModuleTag -> first (`AbsModule` Defined) <$> imported q
 
-    imported :: C.QName -> [(A.ModuleName, Access)]
-    imported q = map (,PublicAccess) $ maybeToList $ Map.lookup q $ scopeImports root
+    imported :: C.QName -> Maybe (A.ModuleName, Access)
+    imported q = fmap (,PublicAccess) $ Map.lookup q $ scopeImports root
 
     -- 3. Finding a name in the imports belonging to an initial part of the qualifier.
 
     imports :: [(a, Access)]
     imports = do
       (m, x) <- splitName q
-      m <- fst <$> imported m
-      findName x (restrictPrivate $ moduleScope m)
+      m <- maybeToList $ fst <$> imported m
+      findName x $ restrictPrivate $ moduleScope m
 
     -- return all possible splittings, e.g.
     -- splitName X.Y.Z = [(X, Y.Z), (X.Y, Z)]
@@ -734,22 +732,22 @@ inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLooku
     findModule q = findName moduleMap q ++
                    fromMaybe [] (Map.lookup q importMap)
 
-    importMap = Map.unionsWith (++) $ do
+    importMap = Map.fromListWith (++) $ do
       (m, s) <- scopes
       (x, y) <- Map.toList $ scopeImports s
-      return $ Map.singleton y [x]
+      return (y, [x])
 
-    moduleMap = Map.unionsWith (++) $ do
+    moduleMap = Map.fromListWith (++) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- amodName <$> ms
-      return $ Map.singleton q [(m, x)]
+      return (q, [(m, x)])
 
-    nameMap = Map.unionsWith (++) $ do
+    nameMap = Map.fromListWith (++) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
-      return $ Map.singleton q [(m, x)]
+      return (q, [(m, x)])
 
 -- | Takes the first component of 'inverseScopeLookup'.
 inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName

@@ -112,7 +112,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150704 * 10 + 0
+currentInterfaceVersion = 20150714 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -167,7 +167,7 @@ data Dict = Dict
   , termD        :: !(HashTable (Ptr Term) Int32) -- ^ Not written to interface file.
   -- Andreas, Makoto, AIM XXI
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
-  -- , nameD        :: !(HashTable NameId Int32)
+  , nameD        :: !(HashTable NameId  Int32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
@@ -176,7 +176,7 @@ data Dict = Dict
   , integerC     :: !(IORef FreshAndReuse)
   , doubleC      :: !(IORef FreshAndReuse)
   , termC        :: !(IORef FreshAndReuse)
-  -- , nameC        :: !(IORef FreshAndReuse)
+  , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
   , collectStats :: Bool
@@ -198,6 +198,8 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -274,8 +276,13 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
-    newD@(Dict nD sD bD iD dD _tD _qnameD nC sC bC iC dC tC qnameC stats _ _) <- liftIO $
-      emptyDict collectStats
+    newD@(Dict nD sD bD iD dD _tD
+      _nameD
+      _qnameD
+      nC sC bC iC dC tC
+      nameC
+      qnameC
+      stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
        icodeFileMod fileMod
        icode a
@@ -295,6 +302,7 @@ encode a = do
       statistics "Node"     nC
       statistics "Shared Term" tC
       statistics "A.QName"  qnameC
+      statistics "A.Name"  nameC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
@@ -730,8 +738,7 @@ instance EmbPrj A.ModuleName where
   value n = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  -- icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
-  icod_ (A.Name a b c d) = icode4' a b c d
+  icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = malformed
 
@@ -775,10 +782,13 @@ instance EmbPrj A.Expr where
   icod_ (A.Set  _ a)            = icode1 13 a
   icod_ (A.Prop _)              = icode0 14
   icod_ (A.Let  _ _ _)          = __IMPOSSIBLE__
-  icod_ (A.ETel a)              = icode1 16 a
+  icod_ (A.ETel{})              = __IMPOSSIBLE__
   icod_ (A.Rec  _ a)            = icode1 17 a
   icod_ (A.RecUpdate _ a b)     = icode2 18 a b
-  icod_ (A.ScopedExpr a b)      = icode2 19 a b
+  -- Andreas, 2015-07-15, drop scopes embedded in expressions.
+  -- As expressions are not @unScope@d before serialization,
+  -- this case is not __IMPOSSIBLE__.
+  icod_ (A.ScopedExpr a b)      = icod_ b -- WAS: icode2 19 a b
   icod_ (A.QuoteGoal _ a b)     = icode2 20 a b
   icod_ (A.QuoteContext _)      = icode0 21
   icod_ (A.Quote _)             = icode0 22
@@ -806,10 +816,9 @@ instance EmbPrj A.Expr where
       valu [12, a, b] = valu2 (A.Fun i) a b
       valu [13, a]    = valu1 (A.Set i) a
       valu [14]       = valu0 (A.Prop i)
-      valu [16, a]    = valu1 A.ETel a
       valu [17, a]    = valu1 (A.Rec i) a
       valu [18, a, b] = valu2 (A.RecUpdate i) a b
-      valu [19, a, b] = valu2 A.ScopedExpr a b
+      -- valu [19, a, b] = valu2 A.ScopedExpr a b
       valu [20, a, b] = valu2 (A.QuoteGoal i) a b
       valu [21]       = valu0 (A.QuoteContext i)
       valu [22]       = valu0 (A.Quote i)
@@ -1516,6 +1525,7 @@ instance EmbPrj Precedence where
     valu [8]    = valu0 WithArgCtx
     valu [9]    = valu0 DotPatternCtx
     valu _      = malformed
+
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
