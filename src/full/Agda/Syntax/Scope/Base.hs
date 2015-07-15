@@ -557,11 +557,10 @@ publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
 
 everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $
-    [ s | (m, s) <- Map.toList (scopeModules scope), m `elem` current ]
+    (s0 :) $ map look $ scopeParents s0
   where
-    this    = scopeCurrent scope
-    parents = maybe __IMPOSSIBLE__ scopeParents $ Map.lookup this $ scopeModules scope
-    current = this : parents
+    look m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+    s0     = look $ scopeCurrent scope
 
 -- | Compute a flattened scope. Only include unqualified names or names
 -- qualified by modules in the first argument.
