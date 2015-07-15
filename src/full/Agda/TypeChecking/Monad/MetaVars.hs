@@ -333,6 +333,14 @@ clearMetaListeners m =
 -- * Freezing and unfreezing metas.
 ---------------------------------------------------------------------------
 
+-- | Freeze all so far unfrozen metas for the duration of the given computation.
+withFreezeMetas :: TCM a -> TCM a
+withFreezeMetas cont = do
+  ms <- Set.fromList <$> freezeMetas
+  x  <- cont
+  unfreezeMetas' (`Set.member` ms)
+  return x
+
 -- | Freeze all meta variables and return the list of metas that got frozen.
 freezeMetas :: TCM [MetaId]
 freezeMetas = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
@@ -405,4 +413,3 @@ instance UnFreezeMeta a => UnFreezeMeta [a] where
 
 instance UnFreezeMeta a => UnFreezeMeta (Abs a) where
   unfreezeMeta = Fold.mapM_ unfreezeMeta
-
