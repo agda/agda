@@ -576,8 +576,8 @@ flattenScope ms scope =
     imported = Map.unionsWith (++)
                [ qual c (build ms' exportedNamesInScope $ moduleScope a)
                | (c, a) <- Map.toList $ scopeImports root
-               , let m   = C.qnameParts c
-                     ms' = map (drop (length m)) $ filter (m `isPrefixOf`) ms
+               , let -- get the suffixes of c in ms
+                     ms' = mapMaybe (maybePrefixMatch $ C.qnameParts c) ms
                , not $ null ms' ]
     qual c = Map.mapKeys (q c)
       where
