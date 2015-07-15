@@ -731,22 +731,22 @@ inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLooku
     findModule q = findName moduleMap q ++
                    fromMaybe [] (Map.lookup q importMap)
 
-    importMap = Map.unionsWith (++) $ do
+    importMap = Map.fromListWith (++) $ do
       (m, s) <- scopes
       (x, y) <- Map.toList $ scopeImports s
-      return $ Map.singleton y [x]
+      return (y, [x])
 
-    moduleMap = Map.unionsWith (++) $ do
+    moduleMap = Map.fromListWith (++) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- amodName <$> ms
-      return $ Map.singleton q [(m, x)]
+      return (q, [(m, x)])
 
-    nameMap = Map.unionsWith (++) $ do
+    nameMap = Map.fromListWith (++) $ do
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
-      return $ Map.singleton q [(m, x)]
+      return (q, [(m, x)])
 
 -- | Takes the first component of 'inverseScopeLookup'.
 inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
