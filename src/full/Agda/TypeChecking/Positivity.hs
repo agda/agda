@@ -254,10 +254,8 @@ instance PrettyTCM OccursWhere where
       nth 2 = pwords "third"
       nth n = pwords $ show (n + 1) ++ "th"
 
-      uniq (x:y:xs)
-        | x == y  = uniq (x:xs)
-      uniq (x:xs) = x : uniq xs
-      uniq []     = []
+      -- remove consecutive duplicates
+      uniq = map head . group
 
       prettyOs [] = __IMPOSSIBLE__
       prettyOs [o] = prettyO o <> text "."
