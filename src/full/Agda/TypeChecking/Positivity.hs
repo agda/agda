@@ -69,7 +69,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
-    [ text "positivity graph for" <+> prettyTCM qs
+    [ text "positivity graph for" <+> (fsep $ map prettyTCM qs)
     , nest 2 $ prettyTCM g
     ]
   reportSLn "tc.pos.graph" 5 $
@@ -252,14 +252,12 @@ instance PrettyTCM OccursWhere where
       nth 2 = pwords "third"
       nth n = pwords $ show (n + 1) ++ "th"
 
-      uniq (x:y:xs)
-        | x == y  = uniq (x:xs)
-      uniq (x:xs) = x : uniq xs
-      uniq []     = []
+      -- remove consecutive duplicates
+      uniq = map head . group
 
       prettyOs [] = __IMPOSSIBLE__
       prettyOs [o] = prettyO o <> text "."
-      prettyOs (o:os) = prettyO o <> text ", which occurs" <+> prettyOs os
+      prettyOs (o:os) = prettyO o <> text ", which occurs" $$ prettyOs os
 
       prettyO o = case o of
         Here           -> empty
