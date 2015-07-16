@@ -268,6 +268,8 @@ checkLambda :: I.Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda (Arg info (A.TBind _ xs typ)) body target = do
+  reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ show xs
+
   let numbinds = length xs
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
@@ -290,6 +292,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       -- is inconclusive we need to block the resulting term so we create a
       -- fresh problem for the check.
       let tel = telFromList $ bindsWithHidingToTel xs argsT
+      reportSLn "tc.term.lambda" 60 $ "dontUseTargetType tel = " ++ show tel
       -- DONT USE tel for addContext, as it loses NameIds.
       -- WRONG: t1 <- addContext tel $ workOnTypes newTypeMeta_
       t1 <- addContext (xs, argsT) $ workOnTypes newTypeMeta_
@@ -310,6 +313,8 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
 
     useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
+        reportSLn "tc.term.lambda" 60 $ "useTargetType y  = " ++ show y
+
         -- merge in the hiding info of the TBind
         info <- return $ mapHiding (mappend h) info
         unless (getHiding arg == getHiding info) $ typeError $ WrongHidingInLambda target
@@ -327,10 +332,11 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
-        v <- add y (Dom (setRelevance r' info) argT) $ checkExpr body btyp
+        v <- add (notInScopeName y) (Dom (setRelevance r' info) argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
       where
         [WithHiding h x] = xs
+        -- Andreas, Issue 630: take name from function type if lambda name is "_"
         add y dom | isNoName x = addContext (y, dom)
                   | otherwise  = addContext (x, dom)
     useTargetType _ _ = __IMPOSSIBLE__
@@ -688,13 +694,13 @@ checkExpr e t0 =
 
         -- Insert hidden lambda if all of the following conditions are met:
             -- type is a hidden function type, {x : A} -> B or {{x : A} -> B
-        _   | Pi (Dom info _) _ <- ignoreSharing $ unEl t
+        _   | Pi (Dom info _) b <- ignoreSharing $ unEl t
             , let h = getHiding info
             , notVisible h
             -- expression is not a matching hidden lambda or question mark
             , not (hiddenLambdaOrHole h e)
             -> do
-                x <- freshName rx (argName t)
+                x <- freshName rx $ notInScopeName $ absName b
                 info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
                 checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t

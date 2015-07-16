@@ -19,5 +19,5 @@ foo = λ _ → e
 -- Location of the error: src/full/Agda/Syntax/Translation/AbstractToConcrete.hs:705
 -- Should now give a proper error message.
 
--- E (_8 f) (_8 f) !=< L (E f f) of type Set
--- when checking that the expression e has type L (E f f)
+-- E (_8 .f) (_8 .f) !=< L (E .f .f) of type Set
+-- when checking that the expression e has type L (E .f .f)
