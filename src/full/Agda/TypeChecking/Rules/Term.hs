@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
@@ -508,8 +509,9 @@ checkRecordExpression fs e t = do
     [ text "checking record expression"
     , prettyA e
     ]
-  t <- reduce t
+  ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ t -> do
   case ignoreSharing $ unEl t of
+    -- Case: We know the type of the record already.
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
@@ -557,7 +559,10 @@ checkRecordExpression fs e t = do
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con args
-    MetaV _ _ -> do
+    _         -> typeError $ ShouldBeRecordType t
+
+  where
+    guessRecordType t = do
       let fields = map fst fs
       rs <- findPossibleRecords fields
       case rs of
@@ -597,7 +602,6 @@ checkRecordExpression fs e t = do
             , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
             ]
           postponeTypeCheckingProblem_ $ CheckExpr e t
-    _         -> typeError $ ShouldBeRecordType t
 
 
 -- | @checkRecordUpdate ei recexpr fs e t@
