@@ -368,7 +368,7 @@ checkRecordProjections m r con tel ftel fs = do
             -- (rt) which should be  R ptel
             (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
             projArgI    = domInfo rt
-            cpi    = ConPatternInfo (Just False) (Just $ argFromDom $ fmap snd rt)
+            cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
             nobind 0 = id

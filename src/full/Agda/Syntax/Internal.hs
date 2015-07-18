@@ -482,10 +482,9 @@ namedVarP x = Named named $ VarP x
 --   The scope used for the type is given by any outer scope
 --   plus the clause's telescope ('clauseTel').
 data ConPatternInfo = ConPatternInfo
-  { conPRecord :: Maybe Bool
+  { conPRecord :: Maybe ConPOrigin
     -- ^ @Nothing@ if data constructor.
-    --   @Just@ if record constructor, then @True@ if pattern
-    --   was expanded from an implicit pattern.
+    --   @Just@ if record constructor.
   , conPType   :: Maybe (Arg Type)
     -- ^ The type of the whole constructor pattern.
     --   Should be present (@Just@) if constructor pattern is
