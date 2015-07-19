@@ -23,6 +23,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
+import Agda.Utils.Function
 import Agda.Utils.Null
 
 {--------------------------------------------------------------------------
@@ -201,13 +202,15 @@ patNoRange = PatRange noRange
 
 -- | Constructor pattern info.
 data ConPatInfo = ConPatInfo
-  { patImplicit :: Bool
+  { patOrigin   :: ConPOrigin
     -- ^ Does this pattern come form the eta-expansion of an implicit pattern?
+    ---  Or from a user written constructor or record pattern?
   , patInfo     :: PatInfo
-  } deriving Eq
+  }
+  deriving (Typeable, Eq)
 
 instance Show ConPatInfo where
-  show (ConPatInfo b i) = (if b then ("implicit " ++) else id) $ show i
+  show (ConPatInfo po i) = applyWhen (po == ConPImplicit) ("implicit " ++) $ show i
 
 instance HasRange ConPatInfo where
   getRange = getRange . patInfo

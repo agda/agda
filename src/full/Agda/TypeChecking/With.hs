@@ -216,7 +216,7 @@ stripWithClausePatterns f t qs perm ps = do
     -- are implicit patterns (we inserted too many).
     strip _ _ ps      []      = do
       let implicit (A.WildP{})     = True
-          implicit (A.ConP ci _ _) = patImplicit ci
+          implicit (A.ConP ci _ _) = patOrigin ci == ConPImplicit
           implicit _               = False
       unless (all (implicit . namedArg) ps) $
         typeError $ GenericError $ "Too many arguments given in with-clause"
@@ -258,7 +258,7 @@ stripWithClausePatterns f t qs perm ps = do
           A.WildP _     -> ok p
           -- Andreas, 2013-03-21 in case the implicit A.pattern has already been eta-expanded
           -- we just fold it back.  This fixes issues 665 and 824.
-          A.ConP ci _ _ | patImplicit ci -> okFlex p
+          A.ConP ci _ _ | patOrigin ci == ConPImplicit -> okFlex p
           -- Andreas, 2015-07-07 issue 1606: Same for flexible record patterns.
           -- Agda might have replaced a record of dot patterns (A.ConP) by a dot pattern (I.DotP).
           p'@A.ConP{} -> ifM (isFlexiblePattern p') (okFlex p) {-else-} failDotPat

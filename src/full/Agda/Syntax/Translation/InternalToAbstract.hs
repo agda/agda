@@ -259,7 +259,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         vs <- reifyIArgs' vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
-        ci   = ConPatInfo False patNoRange
+        ci   = ConPatInfo ConPCon patNoRange
 
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.Apply arg) = argToPat arg
@@ -886,7 +886,8 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
       I.LitP l  -> return $ A.LitP l
       I.ProjP d -> return $ A.DefP patNoRange d []
       I.ConP c cpi ps -> A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
-        where ci = flip ConPatInfo patNoRange $ fromMaybe False $ I.conPRecord cpi
+        where ci = flip ConPatInfo patNoRange $ fromMaybe ConPCon $ I.conPRecord cpi
+
 
 instance Reify NamedClause A.Clause where
   reify (QNamed f (I.Clause _ tel perm ps body _ catchall)) = addCtxTel tel $ do

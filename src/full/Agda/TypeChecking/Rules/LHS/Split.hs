@@ -291,7 +291,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                       (return Split
                         { splitLPats   = empty
                         , splitAsNames = xs
-                        , splitFocus   = Arg ai $ Focus c (A.patImplicit ci) args (getRange p) q i d pars ixs a
+                        , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) q i d pars ixs a
                         , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.

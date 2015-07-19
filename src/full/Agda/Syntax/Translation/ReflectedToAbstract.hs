@@ -138,7 +138,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
   toAbstract pat = case pat of
     R.ConP c args -> do
       (names, args) <- toAbstractPats args
-      return (names, A.ConP (ConPatInfo False patNoRange) (AmbQ [killRange c]) args)
+      return (names, A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [killRange c]) args)
     R.DotP    -> return ([], A.DotP patNoRange (Underscore emptyMetaInfo))
     R.VarP s  -> withName s' $ \name -> return ([name], A.VarP name)
       where s' = if (isNoName s) then "z" else s --TODO: only do this when var is free

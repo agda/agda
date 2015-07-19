@@ -342,7 +342,7 @@ showPat' showVar = showPat
       showPat (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (showPat . namedArg) ps)
         where
-        b = fromMaybe False $ conPRecord i
+        b = maybe False (== ConPImplicit) $ conPRecord i
         prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t
       showPat (LitP l)      = text (show l)
       showPat (ProjP q)     = text (show q)

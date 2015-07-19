@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
@@ -540,8 +541,9 @@ checkRecordExpression mfs e t = do
     [ text "checking record expression"
     , prettyA e
     ]
-  t <- reduce t
+  ifBlockedType t (\ _ t -> guessRecordType t) {-else-} $ \ t -> do
   case ignoreSharing $ unEl t of
+    -- Case: We know the type of the record already.
     Def r es  -> do
       let ~(Just vs) = allApplyElims es
       reportSDoc "tc.term.rec" 20 $ text $ "  r   = " ++ show r
@@ -554,39 +556,47 @@ checkRecordExpression mfs e t = do
         text =<< show <$> getRecordConstructor r
 
       def <- getRecordDef r
-      let axs  = recordFieldNames def
+      let -- Field names with ArgInfo.
+          axs  = recordFieldNames def
           exs  = filter notHidden axs
+          -- Just field names.
           xs   = map unArg axs
-          ftel = recTel def
+          -- Record constructor.
           con  = killRange $ recConHead def
       reportSDoc "tc.term.rec" 20 $ vcat
         [ text $ "  xs  = " ++ show xs
-        , text   "  ftel= " <> prettyTCM ftel
+        , text   "  ftel= " <> prettyTCM (recTel def)
         , text $ "  con = " ++ show con
         ]
-      scope  <- getScope
+      -- Compute the list of given fields, decorated with the ArgInfo from the record def.
       fs <- expandModuleAssigns mfs (map unArg exs)
       let arg x e =
             case [ a | a <- axs, unArg a == x ] of
               [a] -> unnamed e <$ a
               _   -> defaultNamedArg e -- we only end up here if the field names are bad
-      let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
-          missingExplicits = [ (unArg a, [unnamed . meta <$> a])
+          givenFields = [ (x, Just $ arg x e) | FieldAssignment x e <- fs ]
+      -- Compute a list of metas for the missing visible fields.
+      scope <- getScope
+      let re = getRange e
+          meta x = A.Underscore $ A.MetaInfo re scope Nothing (show x)
+          missingExplicits = [ (unArg a, Just $ unnamed . meta <$> a)
                              | a <- exs
                              , unArg a `notElem` map (view nameFieldA) fs ]
       -- In es omitted explicit fields are replaced by underscores
       -- (from missingExplicits). Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | FieldAssignment x e <- fs ] ++
-                                              missingExplicits)
-      let tel = ftel `apply` vs
-      args <- checkArguments_ ExpandLast (getRange e)
-                es -- (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
-                tel
+      es   <- catMaybes <$> do
+        -- Default value @Nothing@ will only be used for missing hidden fields.
+        -- These can be ignored as they will be inserted by @checkArguments_@.
+        orderFields r Nothing xs $ givenFields ++ missingExplicits
+      args <- checkArguments_ ExpandLast re es $ recTel def `apply` vs
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
       return $ Con con args
-    MetaV _ _ -> do
+    _         -> typeError $ ShouldBeRecordType t
+
+  where
+    guessRecordType t = do
       let fields = [ x | Left (FieldAssignment x _) <- mfs ]
       rs <- findPossibleRecords fields
       case rs of
@@ -626,7 +636,6 @@ checkRecordExpression mfs e t = do
             , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
             ]
           postponeTypeCheckingProblem_ $ CheckExpr e t
-    _         -> typeError $ ShouldBeRecordType t
 
 
 -- | @checkRecordUpdate ei recexpr fs e t@

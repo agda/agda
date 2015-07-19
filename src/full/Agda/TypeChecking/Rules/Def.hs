@@ -422,7 +422,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                        -- Transform 'rewrite' clause into a 'with' clause,
                          -- going back to abstract syntax.
 
-                         let cinfo      = ConPatInfo False patNoRange
+                         let cinfo      = ConPatInfo ConPCon patNoRange
                              underscore = A.Underscore Info.emptyMetaInfo
 
                          -- Andreas, 2015-02-09 Issue 1421: kill ranges

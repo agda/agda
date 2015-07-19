@@ -239,21 +239,29 @@ resolveName' kinds names x = do
       shadowed ys =
         typeError $ AmbiguousName x $ A.qualify_ y : map anameName ys
     -- Case: we do not have a local variable x.
-    Nothing -> case filter (\y -> anameKind (fst y) `elem` kinds
-                                    &&
-                                  maybe True (Set.member (aName (fst y)))
-                                        names)
-                           (scopeLookup' x scope) of
-      [] -> return UnknownName
-      ds | all ((==ConName) . anameKind . fst) ds ->
-        return $ ConstructorName
-               $ map (\ (d, _) -> updateConcreteName d $ unqualify x) ds
-      [(d, a)] | anameKind d == FldName -> return $ FieldName $ updateConcreteName d (unqualify x)
-      [(d, a)] | anameKind d == PatternSynName ->
-                  return $ PatternSynResName (updateConcreteName d $ unqualify x)
-      [(d, a)] -> return $ DefinedName a $ updateConcreteName d (unqualify x)
-      ds  -> typeError $ AmbiguousName x (map (anameName . fst) ds)
+    Nothing -> do
+      -- Consider only names of one of the given kinds
+      let filtKind = filter $ \ y -> anameKind (fst y) `elem` kinds
+      -- Consider only names in the given set of names
+          filtName = filter $ \ y -> maybe True (Set.member (aName (fst y))) names
+      case filtKind $ filtName $ scopeLookup' x scope of
+        [] -> return UnknownName
+
+        ds       | all ((==ConName) . anameKind . fst) ds ->
+          return $ ConstructorName $ map (upd . fst) ds
+
+        [(d, a)] | anameKind d == FldName ->
+          return $ FieldName $ upd d
+
+        [(d, a)] | anameKind d == PatternSynName ->
+          return $ PatternSynResName $ upd d
+
+        [(d, a)] ->
+          return $ DefinedName a $ upd d
+
+        ds -> typeError $ AmbiguousName x (map (anameName . fst) ds)
   where
+  upd d = updateConcreteName d $ unqualify x
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = A.QName qm qn }) x =
     d { anameName = A.QName (setRange (getRange x) qm) (qn { nameConcrete = x }) }

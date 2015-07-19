@@ -72,7 +72,7 @@ expandImplicitPattern' a p
          -- generate one implicit pattern for each field
          qs <- forM (recFields def) $ \ f -> flip Arg implicitP <$> reify (argInfo f)
          -- generate the pattern (c _ _ ... _)
-         let q  = A.ConP (ConPatInfo True patNoRange) (A.AmbQ [recCon def]) qs
+         let q  = A.ConP (ConPatInfo ConPImplicit patNoRange) (A.AmbQ [recCon def]) qs
          -- equip it with the name/arginfo of the original implicit pattern
              p' = updateNamedArg (const q) p   -- WAS: ((q <$) <$> p)  -- Andreas, 2013-03-21 forbiddingly cryptic
          return $ Just p'

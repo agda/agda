@@ -662,6 +662,17 @@ stringToRawName = id
 type RString = Ranged RawName
 
 ---------------------------------------------------------------------------
+-- * Constructor pattern info
+---------------------------------------------------------------------------
+
+-- | Where does the 'ConP' of come from?
+data ConPOrigin
+  = ConPImplicit  -- ^ Expanded from an implicit pattern.
+  | ConPCon       -- ^ User wrote a constructor pattern.
+  | ConPRec       -- ^ User wrote a record pattern.
+  deriving (Typeable, Show, Eq, Ord, Enum, Bounded)
+
+---------------------------------------------------------------------------
 -- * Infixity, access, abstract, etc.
 ---------------------------------------------------------------------------
 
