@@ -8,8 +8,8 @@ module Basic where
 
   open B {{...}}
 
-  bA' : B → A
-  bA' _ = bA
+  bA' : {{_ : B}} → A
+  bA' = bA
 
 module Parameterised (a : A) where
   record C : Set where
@@ -17,8 +17,8 @@ module Parameterised (a : A) where
 
   open C {{...}}
 
-  cA' : C → A
-  cA' _ = cA
+  cA' : {{_ : C}} → A
+  cA' = cA
 
 module RecordFromParameterised where
   postulate a : A
@@ -26,24 +26,24 @@ module RecordFromParameterised where
   open Parameterised a
   open C {{...}}
 
-  cA'' : C → A
-  cA'' _ = cA
+  cA'' : {{_ : C}} → A
+  cA'' = cA
 
 module RecordFromParameterisedInParameterised (a : A) where
 
   open Parameterised a
   open C {{...}}
 
-  cA'' : C → A
-  cA'' _ = cA
+  cA'' : {{_ : C}} → A
+  cA'' = cA
 
 module RecordFromParameterised' (a : A) where
 
   open Parameterised
   open C {{...}}
 
-  cA'' : C a → A
-  cA'' _ = cA a
+  cA'' : {{_ : C a}} → A
+  cA'' = cA a
 
 module AppliedRecord (a : A) where
   open Parameterised
@@ -54,5 +54,5 @@ module AppliedRecord (a : A) where
   module D = C a
   open D {{...}}
 
-  dA' : D → A
-  dA' _ = cA
+  dA' : {{_ : D}} → A
+  dA' = cA
