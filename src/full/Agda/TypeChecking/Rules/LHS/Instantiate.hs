@@ -176,7 +176,13 @@ nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
       where
         strip = snd . asView . namedArg
         isBad p = case strip p of
-          A.DotP _ _   -> True
-          A.ConP _ _ _ -> True
-          A.LitP _     -> True
-          _            -> False
+          A.DotP{} -> True
+          A.ConP{} -> True
+          A.LitP{} -> True
+          A.RecP{} -> True
+          A.VarP{}    -> False
+          A.WildP{}   -> False
+          A.AbsurdP{} -> False
+          A.DefP{}        -> __IMPOSSIBLE__  -- Projection pattern gives CannotEliminateWithPattern
+          A.AsP{}         -> __IMPOSSIBLE__
+          A.PatternSynP{} -> __IMPOSSIBLE__

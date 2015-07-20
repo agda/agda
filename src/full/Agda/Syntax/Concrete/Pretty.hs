@@ -528,6 +528,7 @@ instance Pretty Pattern where
             AbsurdP _       -> text "()"
             LitP l          -> pretty l
             QuoteP _        -> text "quote"
+            RecP _ fs       -> sep [ text "record", bracesAndSemicolons (map pretty fs) ]
 
 prettyOpApp ::
   Pretty a => QName -> [NamedArg (MaybePlaceholder a)] -> [Doc]

@@ -279,6 +279,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       singleton (rToR $ P.getRange pi)
                 (mempty { otherAspects = [DottedPattern] })
     getPattern (A.PatternSynP _ q _) = patsyn q
+    getPattern (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
     getPattern _             = mempty
 
     getExpr :: A.Expr -> File

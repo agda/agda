@@ -906,7 +906,7 @@ instance ToConcrete A.Pattern C.Pattern where
         e <- toConcreteCtx DotPatternCtx e
         return $ C.DotP (getRange i) e
     toConcrete (A.PatternSynP i n _) = IdentP <$> toConcrete n
-
+    toConcrete (A.RecP i as) = C.RecP (getRange i) <$> mapM (traverse toConcrete) as
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

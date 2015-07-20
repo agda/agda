@@ -1,0 +1,3 @@
+RecordPattern3.agda:12,6-19
+Type mismatch
+when checking that the pattern record { f = a } has type _3

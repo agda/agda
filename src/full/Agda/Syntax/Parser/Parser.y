@@ -1736,7 +1736,9 @@ exprToLHS e = case e of
 -- | Turn an expression into a pattern. Fails if the expression is not a
 --   valid pattern.
 exprToPattern :: Expr -> Parser Pattern
-exprToPattern e =
+exprToPattern e = do
+    let Just pos = rStart $ getRange e
+        failure = parseErrorAt pos $ "Not a valid pattern: " ++ show e
     case e of
         Ident x                 -> return $ IdentP x
         App _ e1 e2             -> AppP <$> exprToPattern e1
@@ -1753,9 +1755,9 @@ exprToPattern e =
         InstanceArg r e         -> InstanceP r <$> T.mapM exprToPattern e
         RawApp r es             -> RawAppP r <$> mapM exprToPattern es
         Quote r                 -> return $ QuoteP r
-        _                       ->
-          let Just pos = rStart $ getRange e in
-          parseErrorAt pos $ "Not a valid pattern: " ++ show e
+        Rec r es | Just fs <- mapM maybeLeft es -> do
+          RecP r <$> T.mapM (T.mapM exprToPattern) fs
+        _                       -> failure
 
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
 opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "Syntax binding lambda cannot appear in a pattern"

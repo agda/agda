@@ -196,6 +196,7 @@ data Pattern
   | AsP !Range Name Pattern                 -- ^ @x\@p@ unused
   | DotP !Range Expr                        -- ^ @.e@
   | LitP Literal                            -- ^ @0@, @1@, etc.
+  | RecP !Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   deriving (Typeable)
 
 instance NFData Pattern where rnf x = seq x ()
@@ -504,6 +505,7 @@ patternQNames p =
     LitP _                 -> []
     QuoteP _               -> []
     InstanceP _ (namedPat) -> patternQNames (namedThing namedPat)
+    RecP _ fs              -> concatMap (patternQNames . (^. exprFieldA)) fs
 
 -- | Get all the identifiers in a pattern in left-to-right order.
 patternNames :: Pattern -> [Name]
@@ -702,6 +704,7 @@ instance HasRange Pattern where
   getRange (HiddenP r _)      = r
   getRange (InstanceP r _)    = r
   getRange (DotP r _)         = r
+  getRange (RecP r _)         = r
 
 -- SetRange instances
 ------------------------------------------------------------------------
@@ -723,6 +726,7 @@ instance SetRange Pattern where
   setRange r (HiddenP _ p)      = HiddenP r p
   setRange r (InstanceP _ p)    = InstanceP r p
   setRange r (DotP _ e)         = DotP r e
+  setRange r (RecP _ fs)        = RecP r fs
 
 -- KillRange instances
 ------------------------------------------------------------------------
@@ -839,6 +843,7 @@ instance KillRange Pattern where
   killRange (DotP _ e)        = killRange1 (DotP noRange) e
   killRange (LitP l)          = killRange1 LitP l
   killRange (QuoteP _)        = QuoteP noRange
+  killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
 
 instance KillRange Pragma where
   killRange (OptionsPragma _ s)           = OptionsPragma noRange s

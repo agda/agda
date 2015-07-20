@@ -1,0 +1,3 @@
+RecordPattern1.agda:2,6-21
+Type mismatch
+when checking that the pattern record { x = _ } has type Set

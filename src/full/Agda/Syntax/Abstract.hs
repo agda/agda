@@ -393,6 +393,7 @@ data Pattern' e
   | AbsurdP PatInfo
   | LitP Literal
   | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
+  | RecP PatInfo [FieldAssignment' (Pattern' e)]
   deriving (Typeable, Show, Functor, Foldable, Traversable, Eq)
 
 type Pattern  = Pattern' Expr
@@ -503,6 +504,7 @@ instance HasRange (Pattern' e) where
     getRange (AbsurdP i)         = getRange i
     getRange (LitP l)            = getRange l
     getRange (PatternSynP i _ _) = getRange i
+    getRange (RecP i _)          = getRange i
 
 instance HasRange SpineLHS where
     getRange (SpineLHS i _ _ _)  = getRange i
@@ -540,6 +542,7 @@ instance SetRange (Pattern' a) where
     setRange r (AbsurdP _)          = AbsurdP (PatRange r)
     setRange r (LitP l)             = LitP (setRange r l)
     setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) (setRange r n) as
+    setRange r (RecP i as)          = RecP (PatRange r) as
 
 instance KillRange LamBinding where
   killRange (DomainFree info x) = killRange1 (DomainFree info) x
@@ -619,6 +622,7 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (AbsurdP i)         = killRange1 AbsurdP i
   killRange (LitP l)            = killRange1 LitP l
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
+  killRange (RecP i as)         = killRange2 RecP i as
 
 instance KillRange SpineLHS where
   killRange (SpineLHS i a b c)  = killRange4 SpineLHS i a b c
@@ -832,6 +836,7 @@ patternToExpr (DotP _ e)          = e
 patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
 patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
+patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
 
 type PatternSynDefn = ([Arg Name], Pattern)
 type PatternSynDefns = Map QName PatternSynDefn

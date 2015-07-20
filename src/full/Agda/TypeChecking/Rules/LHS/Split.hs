@@ -20,6 +20,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete (FieldAssignment'(..), nameFieldA)
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
@@ -47,6 +48,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Rules.LHS.Problem
 
 import Agda.Utils.Functor ((<.>))
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Maybe
@@ -206,6 +208,54 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
               `mplus` keepGoing
+
+        -- Case: record pattern
+        (xs, p@(A.RecP _patInfo fs)) -> do
+          res <- lift $ tryRecordType a
+          case res of
+            -- Subcase: blocked
+            Left Nothing -> keepGoing
+
+            -- Subcase: not a record type or blocked on variable.
+            Left (Just a') -> keepGoing  -- If not record type, error will be given later.
+              -- typeError . GenericDocError =<< do
+              --   lift $ text "Record pattern at non-record type " <+> prettyTCM a'
+
+            -- Subcase: a record type (d vs)
+            Right (d, vs, def) -> do
+              let np = recPars def
+              let (pars, ixs) = genericSplitAt np vs
+              lift $ reportSDoc "tc.lhs.split" 10 $ vcat
+                [ sep [ text "splitting on"
+                      , nest 2 $ fsep [ prettyA p, text ":", prettyTCM dom ]
+                      ]
+                , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
+                , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
+                ]
+              let c = killRange $ conName $ recConHead def
+              let -- Field names with ArgInfo.
+                  axs  = map (mapArgInfo $ mapArgInfoColors $ const []) $ recordFieldNames def -- TODO guilhem
+              let arg x p =
+                    case [ a | a <- axs, unArg a == x ] of
+                      [a] -> unnamed p <$ a
+                      _   -> defaultNamedArg p -- we only end up here if the field names are bad
+                  givenFields = [ (x, Just $ arg x p) | FieldAssignment x p <- fs ]
+              let missingExplicits = [ (x, Just $ unnamed (A.WildP A.patNoRange) <$ a)
+                                     | a <- filter notHidden axs
+                                     , let x = unArg a
+                                     , x `notElem` map (view nameFieldA) fs ]
+              -- In es omitted explicit fields are replaced by underscores
+              -- (from missingExplicits). Omitted implicit or instance fields
+              -- are still left out and inserted later by computeNeighborhood.
+              args <- lift $ catMaybes <$> do
+                -- Default value @Nothing@ will only be used for missing hidden fields.
+                orderFields d Nothing (map unArg axs) $ givenFields ++ missingExplicits
+              (return Split
+                { splitLPats   = empty
+                , splitAsNames = xs
+                , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) q i d pars ixs a
+                , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
+                }) `mplus` keepGoing
 
         -- Case: constructor pattern.
         (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do

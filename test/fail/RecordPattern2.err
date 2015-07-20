@@ -1,0 +1,4 @@
+RecordPattern2.agda:10,1-23
+The record type R does not have the fields g
+when checking that the clause test record { g = a } = a has type
+R → A

@@ -85,6 +85,7 @@ import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -159,6 +160,7 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
         -- Projection pattern, @args@ should be empty unless we have
         -- indexed records.
       A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
+      A.RecP _ fs            -> concatMap (vars . (^. exprFieldA)) fs
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> C.Expr
@@ -1060,6 +1062,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     definedName C.AsP{}                = Nothing
                     definedName C.DotP{}               = Nothing
                     definedName C.LitP{}               = Nothing
+                    definedName C.RecP{}               = Nothing
                     definedName C.QuoteP{}             = Nothing
                     definedName C.HiddenP{}            = __IMPOSSIBLE__
                     definedName C.InstanceP{}          = __IMPOSSIBLE__
@@ -1787,6 +1790,7 @@ instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
     toAbstract (A.LitP l)             = return $ A.LitP l
     toAbstract (A.PatternSynP i x as) = A.PatternSynP i x <$> mapM toAbstract as
+    toAbstract (A.RecP i fs)          = A.RecP i <$> mapM (traverse toAbstract) fs
 
 resolvePatternIdentifier ::
   Range -> C.QName -> Maybe (Set A.Name) -> ScopeM (A.Pattern' C.Expr)
@@ -1865,6 +1869,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         where info = PatRange r
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
         where info = PatRange r
+    toAbstract (C.RecP r fs) = A.RecP (PatRange r) <$>
+      mapM (traverse toAbstract) fs
 
 -- | An argument @OpApp C.Expr@ to an operator can have binders,
 --   in case the operator is some @syntax@-notation.

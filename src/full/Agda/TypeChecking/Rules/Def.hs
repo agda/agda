@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Traversable
 
 import Agda.Syntax.Common
+import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
@@ -692,5 +693,6 @@ containsAbsurdPattern p = case p of
     A.LitP _      -> False
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
+    A.RecP _ fs   -> any (containsAbsurdPattern . (^. exprFieldA)) fs
     A.DefP _ _ _  -> False  -- projection pattern
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False

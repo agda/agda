@@ -448,6 +448,7 @@ parsePat prs p = case p of
     LitP _           -> return p
     QuoteP _         -> return p
     IdentP _         -> return p
+    RecP r fs        -> RecP r <$> mapM (traverse (parsePat prs)) fs
 
 
 {- Implement parsing of copattern left hand sides, e.g.

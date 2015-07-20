@@ -294,6 +294,7 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.WildP     {}) t = return ()
   noShadowing (A.AbsurdP   {}) t = return ()
   noShadowing (A.ConP      {}) t = return ()  -- only happens for eta expanded record patterns
+  noShadowing (A.RecP      {}) t = return ()  -- record pattern
   noShadowing (A.DefP      {}) t = return ()  -- projection pattern
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = __IMPOSSIBLE__
@@ -385,6 +386,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
           -- ^ TODO guilhem
       bindLHSVars (qs ++ ps) (ftel `abstract` absApp (raise (size ftel) tel) eta) ret
     A.ConP{}        -> __IMPOSSIBLE__
+    A.RecP{}        -> __IMPOSSIBLE__
     A.DefP{}        -> __IMPOSSIBLE__
     A.AsP{}         -> __IMPOSSIBLE__
     A.DotP{}        -> __IMPOSSIBLE__

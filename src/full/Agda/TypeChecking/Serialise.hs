@@ -846,6 +846,7 @@ instance EmbPrj A.Pattern where
   icod_ (A.AbsurdP _)         = icode0 6
   icod_ (A.LitP a)            = icode1 7 a
   icod_ (A.PatternSynP _ a b) = icode2 9 a b
+  icod_ (A.RecP _ a)          = icode1 10 a
 
   value = vcase valu
     where
@@ -858,9 +859,10 @@ instance EmbPrj A.Pattern where
      valu [6]       = valu0 (A.AbsurdP i)
      valu [7, a]    = valu1 (A.LitP) a
      valu [9, a, b] = valu2 (A.PatternSynP i) a b
+     valu [10, a]   = valu1 (A.RecP i) a
      valu _         = malformed
 
-     i = patNoRange
+     i  = patNoRange
 
 instance EmbPrj A.LamBinding where
   icod_ (A.DomainFree i e) = icode2 0 i e

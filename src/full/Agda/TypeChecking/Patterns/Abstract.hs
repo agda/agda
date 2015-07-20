@@ -12,6 +12,7 @@ import Data.Traversable hiding (mapM, sequence)
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
+import Agda.Syntax.Concrete (FieldAssignment')
 import Agda.Syntax.Common as Common
 import Agda.Syntax.Info as A
 import Agda.Syntax.Internal as I
@@ -67,6 +68,9 @@ instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Common.Arg c a) where
 instance ExpandPatternSynonyms a => ExpandPatternSynonyms (Named n a) where
   expandPatternSynonyms = traverse expandPatternSynonyms
 
+instance ExpandPatternSynonyms a => ExpandPatternSynonyms (FieldAssignment' a) where
+  expandPatternSynonyms = traverse expandPatternSynonyms
+
 instance ExpandPatternSynonyms A.Pattern where
  expandPatternSynonyms p =
   case p of
@@ -78,6 +82,7 @@ instance ExpandPatternSynonyms A.Pattern where
     A.ConP i ds as       -> A.ConP i ds <$> expandPatternSynonyms as
     A.DefP i q as        -> A.DefP i q <$> expandPatternSynonyms as
     A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p
+    A.RecP i as          -> A.RecP i <$> expandPatternSynonyms as
     A.PatternSynP i x as -> setCurrentRange i $ do
       p <- killRange <$> lookupPatternSyn x
         -- Must expand arguments before instantiating otherwise pattern

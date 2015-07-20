@@ -615,6 +615,7 @@ shuffleDots (ps, wps) = do
       A.AbsurdP{}          -> mempty
       A.LitP{}             -> mempty
       A.AsP{}              -> __IMPOSSIBLE__
+      A.RecP _ as          -> foldMap (foldMap (patVars h)) as
 
     shouldBind x = do
       xs <- get
@@ -645,6 +646,7 @@ shuffleDots (ps, wps) = do
       A.AbsurdP{}          -> pure p
       A.LitP{}             -> pure p
       A.AsP{}              -> __IMPOSSIBLE__
+      A.RecP i as          -> A.RecP i <$> traverse (traverse redotPat) as
 
     redotVar p x = do
       b <- shouldBind x
@@ -687,6 +689,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
         A.LitP _      -> Set.empty
         A.AsP _ _ p   -> patVars p
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
+        A.RecP _ as -> foldMap (foldMap patVars) as
 
       -- Replace dot variables by ._ if they use implicitly bound variables. This
       -- is slightly nicer than making the implicts explicit.
@@ -737,6 +740,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             A.LitP _      -> p
             A.AsP i x p   -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
+            A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
 
           noInterestingBindings p =
             Set.null $ dvs `Set.intersection` patVars p
@@ -789,6 +793,8 @@ instance DotVars A.Pattern where
     A.LitP _      -> Set.empty
     A.AsP _ _ p   -> dotVars p
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
+    A.RecP _ fs   -> dotVars fs
+
   isConPat A.ConP{} = True
   isConPat A.LitP{} = True
   isConPat _        = False
@@ -885,8 +891,22 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         return $ A.DotP patNoRange t'
       I.LitP l  -> return $ A.LitP l
       I.ProjP d -> return $ A.DefP patNoRange d []
-      I.ConP c cpi ps -> A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
-        where ci = flip ConPatInfo patNoRange $ fromMaybe ConPCon $ I.conPRecord cpi
+      I.ConP c cpi ps -> do
+        lift $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
+        caseMaybeM (lift $ isRecordConstructor $ conName c) fallback $ \ (r, def) -> do
+          -- If the record constructor is generated or the user wrote a record pattern,
+          -- print record pattern.
+          -- Otherwise, print constructor pattern.
+          if recNamedCon def && origin /= ConPRec then fallback else do
+            fs <- lift $ getRecordFieldNames r
+            unless (length fs == length ps) __IMPOSSIBLE__
+            A.RecP patNoRange . zipWith mkFA fs <$> reifyArgs ps
+        where
+          origin = fromMaybe ConPCon $ I.conPRecord cpi
+          ci = flip ConPatInfo patNoRange origin
+          fallback = A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
+          mkFA ax nap = FieldAssignment (unArg ax) (namedArg nap)
+
 
 
 instance Reify NamedClause A.Clause where
