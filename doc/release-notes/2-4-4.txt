@@ -554,18 +554,6 @@ Other changes
   r3 : A → R
   r3 a = record { M hiding (y); M2 a renaming (w to y) }
 
-* Large indices.
-
-  Force constructor arguments no longer count towards the size of a datatype.
-  For instance, the definition of equality below is accepted.
-
-    data _≡_ {a} {A : Set a} : A → A → Set where
-      refl : ∀ x → x ≡ x
-
-  This gets rid of the asymmetry that the version of equality which indexes
-  only on the second argument could be small, but not the version above which
-  indexes on both arguments.
-
 * Unicode ellipsis character is allowed for the ellipsis token ... in
   `with` expressions.
 
@@ -624,6 +612,18 @@ Goal and error display
 
 Type checking
 =============
+
+* Large indices.
+
+  Force constructor arguments no longer count towards the size of a datatype.
+  For instance, the definition of equality below is accepted.
+
+    data _≡_ {a} {A : Set a} : A → A → Set where
+      refl : ∀ x → x ≡ x
+
+  This gets rid of the asymmetry that the version of equality which indexes
+  only on the second argument could be small, but not the version above which
+  indexes on both arguments.
 
 * Call-by-need evaluation.
 
