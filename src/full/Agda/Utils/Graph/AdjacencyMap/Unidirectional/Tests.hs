@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -12,9 +13,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests (tests) where
 
 import Prelude hiding (null)
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>), (<*>))
-#endif
+import Control.Monad
 
 import Data.Function
 import qualified Data.Graph as Graph
@@ -30,12 +29,17 @@ import Test.QuickCheck as QuickCheck
 import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
 
 import Agda.Utils.Function (iterateUntil)
-import Agda.Utils.Functor (for)
+import Agda.Utils.Functor
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
 import Agda.Utils.List (distinct)
-import Agda.Utils.Null
+import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
+import Agda.Utils.Singleton (Singleton)
+import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.TestHelpers
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- * Generating random graphs
@@ -256,7 +260,7 @@ prop_allTrails_existence =
 -- | The 'Integer's should be non-negative.
 
 data ExtendedNatural = Finite Integer | Infinite
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 instance SemiRing ExtendedNatural where
   ozero = Finite 0
@@ -288,6 +292,32 @@ prop_allTrails_number =
               (fmap (const oone) g)) of
       Just n  -> n
       Nothing -> Finite 0
+
+-- Node 10 is unreachable, so @allTrails _ 10 g1612@ takes forever
+g1612 :: Graph N N E
+g1612 = Graph $ Map.fromList
+  [ (n  1,Map.fromList [(n 1,Unused   ),(n  9,StrictPos),(n 12,JustPos),(n 15,JustPos)])
+  , (n  3,Map.fromList [(n 3,Unused   ),(n  8,StrictPos)])
+  , (n  8,Map.fromList [(n 1,GuardPos ),(n  3,Mixed    ),(n 8,Unused),(n 9,JustPos),(n 11,StrictPos),(n 12,GuardPos),(n 15,JustPos)])
+  , (n  9,Map.fromList [(n 1,JustNeg  ),(n  8,Mixed    ),(n 9,JustNeg),(n 11,StrictPos),(n 12,StrictPos)])
+  , (n 10,Map.fromList [(n 1,JustPos  ),(n  8,StrictPos)])
+  , (n 11,Map.fromList [(n 1,StrictPos),(n  8,JustNeg  ),(n 9,JustNeg),(n 11,JustNeg)])
+  , (n 12,Map.fromList [(n 1,JustPos  ),(n 15,StrictPos)])
+  , (n 15,Map.fromList [(n 1,JustPos  ),(n  8,GuardPos ),(n 11,Mixed),(n 12,Mixed)])
+  ]
+
+t1612t = allTrails (n 9) (n 10) g1612 -- FOREVER
+
+g1612a = Graph $ Map.fromList
+  [(n  1,Map.fromList [(n 2,JustNeg),(n 11,Mixed)])
+  ,(n  2,Map.fromList [(n 1,JustNeg),(n 2,GuardPos),(n 4,GuardPos),(n 8,Unused),(n 11,Unused)])
+  ,(n  4,Map.fromList [(n 2,GuardPos),(n 8,JustPos),(n 12,GuardPos)])
+  ,(n  6,Map.fromList [(n 1,StrictPos),(n 11,Unused),(n 12,JustNeg)])
+  ,(n  8,Map.fromList [(n 1,GuardPos),(n 4,JustPos),(n 8,JustPos)])
+  ,(n 11,Map.fromList [(n 4,GuardPos),(n 12,StrictPos)])
+  ,(n 12,Map.fromList [(n 1,Mixed),(n 4,Mixed),(n 11,Mixed)])
+  ]
+
 
 ------------------------------------------------------------------------
 -- * All tests
@@ -331,5 +361,5 @@ g3 = Graph $ Map.fromList
 g4 = Graph $ Map.fromList
   [ (n 1, Map.fromList [(n 6,Unused)])
   , (n 6, Map.fromList [(n 8,StrictPos)])
-   ,(n 8, Map.fromList [(n 3,Unused)])
+  , (n 8, Map.fromList [(n 3,Unused)])
   ]
