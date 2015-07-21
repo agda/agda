@@ -48,6 +48,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , removeEdge
   , filterEdges
   , unzip
+  , mapWithEdge
   , sccs'
   , sccs
   , DAG(..)
@@ -366,6 +367,13 @@ filterEdges f (Graph g) = Graph $ Map.mapMaybe (discardEmpty . Map.filter f) g
 
 unzip :: Graph s t (e, e') -> (Graph s t e, Graph s t e')
 unzip g = (fst <$> g, snd <$> g)
+
+-- | Maps over a graph under availability of positional information,
+--   like 'Map.mapWithKey'.
+
+mapWithEdge :: (Ord s, Ord t) => (Edge s t e -> e') -> Graph s t e -> Graph s t e'
+mapWithEdge f (Graph g) = Graph $ flip Map.mapWithKey g $ \ s m ->
+  flip Map.mapWithKey m $ \ t e -> f (Edge s t e)
 
 -- * Strongly connected components.
 
