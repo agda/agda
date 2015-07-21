@@ -87,8 +87,8 @@ import qualified Data.Tree as Tree
 
 import Test.QuickCheck hiding (label)
 
-import Agda.Utils.Function (iterateUntil, repeatWhile)
 import Agda.Utils.Functor (for)
+import Agda.Utils.Function
 import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
@@ -549,6 +549,30 @@ composeWith times plus (Graph g) (Graph g') = Graph $
 
 complete :: (Eq e, Null e, SemiRing e, Ord n) => Graph n n e -> Graph n n e
 complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
+  where
+    combineNewOld' new old = unzip $ unionWith comb new' old'
+      where
+      -- The following procedure allows us to check if anything new happened:
+      -- Pair the composed graphs with an empty graph.
+      -- The empty graph will remain empty.  We only need it due to the typing
+      -- of Map.unionWith.
+      new' = (,Null.empty) <$> composeWith otimes oplus new old
+      -- Pair an empty graph with the old graph.
+      old' = (Null.empty,) <$> old
+      -- Combine the pairs.
+      -- Update 'old' with 'new'.  This will be the new 'old'. No new 'new' if no change.
+      comb (new, _) (_, old) = (if x == old then Null.empty else x, x)
+        where x = old `oplus` new
+
+-- | Version of 'complete' that produces a list of intermediate results
+--   paired to the left with a difference that lead to the new intermediat result.
+--
+--   The last element in the list is the transitive closure, paired with the empty graph.
+--
+--   @complete g = snd $ last $ completeIter g@
+
+completeIter :: (Eq e, Null e, SemiRing e, Ord n) => Graph n n e -> [(Graph n n e, Graph n n e)]
+completeIter g = iterWhile (not . discrete) (combineNewOld' g) g
   where
     combineNewOld' new old = unzip $ unionWith comb new' old'
       where
