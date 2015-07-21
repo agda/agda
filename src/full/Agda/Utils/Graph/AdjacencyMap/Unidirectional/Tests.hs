@@ -293,6 +293,31 @@ prop_allTrails_number =
       Just n  -> n
       Nothing -> Finite 0
 
+prop_allTrails_number' :: G -> Property
+prop_allTrails_number' g =
+  forAll (nodeIn g) $ \i ->
+  forAll (nodeIn g) $ \j ->
+    Finite (List.genericLength (allTrails i j g))
+      <=
+    case Graph.lookup i j
+           (gaussJordanFloydWarshallMcNaughtonYamada
+              (fmap (const oone) g)) of
+      Just n  -> n
+      Nothing -> Finite 0
+
+prop_allTrails_number'' :: G -> N -> N -> Bool
+prop_allTrails_number'' g i j =
+    Finite (List.genericLength (allTrails i j g))
+      <=
+    case Graph.lookup i j
+           (gaussJordanFloydWarshallMcNaughtonYamada
+              (fmap (const oone) g)) of
+      Just n  -> n
+      Nothing -> Finite 0
+
+prop_allTrails_number_1612 :: Property
+prop_allTrails_number_1612 = prop_allTrails_number' g1612
+
 -- Node 10 is unreachable, so @allTrails _ 10 g1612@ takes forever
 g1612 :: Graph N N E
 g1612 = Graph $ Map.fromList
@@ -306,7 +331,23 @@ g1612 = Graph $ Map.fromList
   , (n 15,Map.fromList [(n 1,JustPos  ),(n  8,GuardPos ),(n 11,Mixed),(n 12,Mixed)])
   ]
 
+t1612 = quickCheck prop_allTrails_number_1612
+t1612' = prop_allTrails_number'' g1612 (n 9) (n 10) -- FOREVER
+t1612g = gaussJordanFloydWarshallMcNaughtonYamada $ fmap (const $ Finite 1) g1612  -- TERMINATES
 t1612t = allTrails (n 9) (n 10) g1612 -- FOREVER
+
+allTrails' :: (Ord n) => n -> n -> Graph n n e -> [(n,n)]
+allTrails' s t g = paths Set.empty s
+  where
+    paths traversed s = do
+      (s', _) <- neighbours s g
+      let edge    = (s, s')
+          recurse = edge : paths (Set.insert edge traversed) s'
+      if edge `Set.member` traversed then []
+      else if s' == t then edge : recurse
+      else recurse
+
+t1612t' = allTrails' (n 9) (n 10) g1612 -- FOREVER
 
 g1612a = Graph $ Map.fromList
   [(n  1,Map.fromList [(n 2,JustNeg),(n 11,Mixed)])
