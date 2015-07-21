@@ -2,6 +2,20 @@
 
 module Agda.Utils.Function where
 
+-- | Repeat a state transition @f :: a -> (b, a)@ with output @b@
+--   while condition @cond@ on the output is true.
+--   Return all intermediate results and the final result
+--   where @cond@ is @False@.
+--
+--   Postconditions (when it terminates):
+--   @fst (last (iterWhile cond f a)) == False@.
+--   @all fst (init (interWhile cond f a))@.
+
+iterWhile :: (b -> Bool) -> (a -> (b, a)) -> a -> [(b,a)]
+iterWhile cond f = loop where
+  loop a = r : if cond b then loop a' else []
+    where r@(b, a') = f a
+
 -- | Repeat something while a condition on some state is true.
 --   Return the last state (including the changes of the last
 --   transition, even if the condition became false then).
