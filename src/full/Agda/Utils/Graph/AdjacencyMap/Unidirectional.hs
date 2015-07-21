@@ -48,6 +48,7 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , removeEdge
   , filterEdges
   , unzip
+  , mapWithEdge
   , sccs'
   , sccs
   , DAG(..)
@@ -61,15 +62,19 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , complete
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
   , gaussJordanFloydWarshallMcNaughtonYamada
-  , allTrails
+  , findPath
+  , allPaths
+  -- , allTrails  -- Exponential, don't use!  See issue 1612.
   )
   where
 
 import Prelude hiding (lookup, unzip, null)
 
 import Control.Applicative hiding (empty)
+import Control.Monad
 
 import qualified Data.Array.IArray as Array
+import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
@@ -78,18 +83,21 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Maybe as Maybe
-import Data.Maybe (maybeToList, fromMaybe)
+import Data.Maybe (maybeToList, fromMaybe, catMaybes)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Tree as Tree
 
 import Test.QuickCheck hiding (label)
 
-import Agda.Utils.Function (repeatWhile)
+import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.List (headMaybe)
 import Agda.Utils.Null (Null(null))
 import qualified Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
+import Agda.Utils.Singleton (Singleton)
+import qualified Agda.Utils.Singleton as Singleton
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
 
@@ -365,6 +373,13 @@ filterEdges f (Graph g) = Graph $ Map.mapMaybe (discardEmpty . Map.filter f) g
 unzip :: Graph s t (e, e') -> (Graph s t e, Graph s t e')
 unzip g = (fst <$> g, snd <$> g)
 
+-- | Maps over a graph under availability of positional information,
+--   like 'Map.mapWithKey'.
+
+mapWithEdge :: (Ord s, Ord t) => (Edge s t e -> e') -> Graph s t e -> Graph s t e'
+mapWithEdge f (Graph g) = Graph $ flip Map.mapWithKey g $ \ s m ->
+  flip Map.mapWithKey m $ \ t e -> f (Edge s t e)
+
 -- * Strongly connected components.
 
 -- | The graph's strongly connected components, in reverse topological
@@ -554,6 +569,30 @@ complete g = repeatWhile (mapFst (not . discrete) . combineNewOld' g) g
       comb (new, _) (_, old) = (if x == old then Null.empty else x, x)
         where x = old `oplus` new
 
+-- | Version of 'complete' that produces a list of intermediate results
+--   paired to the left with a difference that lead to the new intermediat result.
+--
+--   The last element in the list is the transitive closure, paired with the empty graph.
+--
+--   @complete g = snd $ last $ completeIter g@
+
+completeIter :: (Eq e, Null e, SemiRing e, Ord n) => Graph n n e -> [(Graph n n e, Graph n n e)]
+completeIter g = iterWhile (not . discrete) (combineNewOld' g) g
+  where
+    combineNewOld' new old = unzip $ unionWith comb new' old'
+      where
+      -- The following procedure allows us to check if anything new happened:
+      -- Pair the composed graphs with an empty graph.
+      -- The empty graph will remain empty.  We only need it due to the typing
+      -- of Map.unionWith.
+      new' = (,Null.empty) <$> composeWith otimes oplus new old
+      -- Pair an empty graph with the old graph.
+      old' = (Null.empty,) <$> old
+      -- Combine the pairs.
+      -- Update 'old' with 'new'.  This will be the new 'old'. No new 'new' if no change.
+      comb (new, _) (_, old) = (if x == old then Null.empty else x, x)
+        where x = old `oplus` new
+
 -- | Computes the transitive closure of the graph.
 --
 -- Uses the Gauss-Jordan-Floyd-Warshall-McNaughton-Yamada algorithm
@@ -660,12 +699,128 @@ gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
         Nothing -> ozero
         Just e  -> e
 
+-- | Find a path from a source node to a target node.
+--
+--   The path must satisfy the given predicate @good :: e -> Bool@.
+findPath :: (SemiRing e, Ord n) => (e -> Bool) -> n -> n -> Graph n n e -> Maybe e
+findPath good a b g = headMaybe $ filter good $ allPaths good a b g
+
+-- | @allPaths classify a b g@ returns a list of pathes (accumulated edge weights)
+--   from node @a@ to node @b@ in @g@.
+--   Alternative intermediate pathes are only considered if they
+--   are distinguished by the @classify@ function.
+allPaths :: (SemiRing e, Ord n, Ord c) => (e -> c) -> n -> n -> Graph n n e -> [e]
+allPaths classify s t g = paths Set.empty s
+  where
+    paths visited s = do
+      (s', e) <- neighbours s g
+      let tag     = (s', classify e)
+          recurse = map (e `otimes`) (paths (Set.insert tag visited) s')
+      if tag `Set.member` visited then []
+      else if s' == t then e : recurse
+      else recurse
+
+-- THE FOLLOWING IMPLEMENTATION OF allTrails is in practice worse
+-- then the naive depth-first search with backtracking.
+
+-- -- | A trail is a non-empty list of consecutive edges with no duplicate.
+-- --   We store a set of edges for more efficient trail composition.
+-- --
+-- --   Invariants for @Trail tr s@:
+-- --
+-- --   1. nonempty
+-- --   @not $ null tr@.
+-- --
+-- --   2. consecutive
+-- --   @List.and $ zipWith (\ (Edge _ t1 _) (Edge s2 _ _) -> t1 == s2) tr (tail tr)@.
+-- --
+-- --   3. coherence
+-- --   @Set.toAscList s == sort $ map (\ (Edges s t _) -> (s,t)) tr@.
+
+-- data Trail n e = Trail { trail :: [Edge n n e], trailEdgeSet :: Set (n, n) }
+--   deriving (Show)
+
+-- instance (Eq n, Eq e) => Eq (Trail n e) where
+--   (==) = (==) `on` trail
+
+-- instance (Ord n, Ord e) => Ord (Trail n e) where
+--   compare = compare `on` trail
+
+-- singletonTrail :: Edge n n e -> Trail n e
+-- singletonTrail e@(Edge s t _) = Trail [e] $ Set.singleton (s,t)
+
+-- trailSource :: Trail n e -> n
+-- trailSource (Trail (Edge s _ _ : _) _) = s
+-- trailSource _ = __IMPOSSIBLE__
+
+-- trailTarget :: Trail n e -> n
+-- trailTarget (Trail (Edge _ t _ : _) _) = t
+-- trailTarget _ = __IMPOSSIBLE__
+
+-- -- | Precondition for @composeTrails t1 t2@:
+-- --   @trailTarget t1 == trailSource t2@.
+-- composeTrails :: (Ord n) => Trail n e -> Trail n e -> Maybe (Trail n e)
+-- composeTrails (Trail t1 s1) (Trail t2 s2) =
+--   if null (Set.intersection s1 s2) then Just $ Trail (t1 ++ t2) $ Set.union s1 s2
+--   else Nothing
+
+-- composeTrails_alt :: (Ord n) => Trail n e -> Trail n e -> Maybe (Trail n e)
+-- composeTrails_alt t (Trail [] _) = Just t
+-- composeTrails_alt (Trail [] _) t = Just t
+-- composeTrails_alt (Trail t1 s1) (Trail t2 s2) =
+--   foldr cons (return t2) t1 <&> \ t12 -> Trail t12 $ Set.union s1 s2
+--   where
+--     cons e@(Edge s t _) mt12 = do
+--       t12 <- mt12
+--       guard $ (s,t) `Set.notMember` s2
+--       return $ e : t12
+
+-- -- | A possibly empty set of trails with same source and same target.
+-- --
+-- --   Invariants for @Tails ts@:
+-- --   Same source: @length (group (map trailSource ts)) == 1@.
+-- --   Same target: @length (group (map trailTarget ts)) == 1@.
+
+-- newtype Trails n e = Trails { trails :: Set (Trail n e) }
+--   deriving (Eq, Ord, Show, Null, Singleton (Trail n e))
+
+-- instance (Ord n, Ord e) => SemiRing (Trails n e) where
+--   ozero = Null.empty
+--   oone  = __IMPOSSIBLE__
+--   oplus  (Trails t1s) (Trails t2s) = Trails $ Set.union t1s t2s
+--   otimes (Trails t1s) (Trails t2s) = Trails $ Set.fromList $
+--     catMaybes [ composeTrails t1 t2 | t1 <- Set.toList t1s, t2 <- Set.toList t2s ]
+
+-- -- | We compute @allTrails@ by a transitive closure algorithm.
+-- --   In practice, we are only interested in the first trail
+-- --   with a specific property, so it is important
+-- --   to compute @allTrails@ lazily.
+-- --
+-- --   We use a graph with edges labelled by 'Trails'.
+-- allTrails :: forall e n. (Eq e, Ord e, SemiRing e, Ord n) =>
+--   n -> n -> Graph n n e -> [e]
+-- allTrails s t g = map collapse st
+--   where
+--     -- Construct a graph of singleton trails
+--     init :: Graph n n (Trails n e)
+--     init = mapWithEdge (Singleton.singleton . singletonTrail) g
+--     -- Compute transitive closure iteratively and keep the diffs.
+--     diffs = init : map fst (completeIter init)
+--     -- Extract a sequence of trails from s to t from the diff sequence.
+--     -- Each diff may contain several or no trails from s to t.
+--     st    = concat $ map (maybe [] (Set.toList . trails) . lookup s t) diffs
+--     -- Multiply the edge weights a long a trail.
+--     collapse (Trail tr _) = foldr1 otimes $ map label tr
+
 -- | @allTrails a b g@ returns all trails (walks where all edges are
 -- distinct) from node @a@ to node @b@ in @g@. The trails are returned
 -- in the form of accumulated edge weights.
 --
 -- This definition can perhaps be optimised through the use of
 -- memoisation.
+--
+-- Andreas, 2015-07-21 Issue 1612: This function is worst-case exponential
+-- as the @k@-complete graph has @k!@ many trails.  DON'T USE!
 
 allTrails :: forall e n. (SemiRing e, Ord n) =>
              n -> n -> Graph n n e -> [e]
