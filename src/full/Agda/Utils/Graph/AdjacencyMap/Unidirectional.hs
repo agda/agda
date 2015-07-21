@@ -62,7 +62,9 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , complete
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
   , gaussJordanFloydWarshallMcNaughtonYamada
-  , allTrails
+  , findPath
+  , allPaths
+  -- , allTrails  -- Exponential, don't use!  See issue 1612.
   )
   where
 
@@ -697,6 +699,27 @@ gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
         Nothing -> ozero
         Just e  -> e
 
+-- | Find a path from a source node to a target node.
+--
+--   The path must satisfy the given predicate @good :: e -> Bool@.
+findPath :: (SemiRing e, Ord n) => (e -> Bool) -> n -> n -> Graph n n e -> Maybe e
+findPath good a b g = headMaybe $ filter good $ allPaths good a b g
+
+-- | @allPaths classify a b g@ returns a list of pathes (accumulated edge weights)
+--   from node @a@ to node @b@ in @g@.
+--   Alternative intermediate pathes are only considered if they
+--   are distinguished by the @classify@ function.
+allPaths :: (SemiRing e, Ord n, Ord c) => (e -> c) -> n -> n -> Graph n n e -> [e]
+allPaths classify s t g = paths Set.empty s
+  where
+    paths visited s = do
+      (s', e) <- neighbours s g
+      let tag     = (s', classify e)
+          recurse = map (e `otimes`) (paths (Set.insert tag visited) s')
+      if tag `Set.member` visited then []
+      else if s' == t then e : recurse
+      else recurse
+
 -- THE FOLLOWING IMPLEMENTATION OF allTrails is in practice worse
 -- then the naive depth-first search with backtracking.
 
@@ -795,6 +818,9 @@ gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
 --
 -- This definition can perhaps be optimised through the use of
 -- memoisation.
+--
+-- Andreas, 2015-07-21 Issue 1612: This function is worst-case exponential
+-- as the @k@-complete graph has @k!@ many trails.  DON'T USE!
 
 allTrails :: forall e n. (SemiRing e, Ord n) =>
              n -> n -> Graph n n e -> [e]

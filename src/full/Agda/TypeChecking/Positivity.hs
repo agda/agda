@@ -115,10 +115,11 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
             how msg p =
               fsep $ [prettyTCM q] ++ pwords "is" ++
                 case filter (p . occ) $
-                     Graph.allTrails (DefNode q) (DefNode q) g of
+                     -- Graph.allTrails (DefNode q) (DefNode q) g of -- exponential, see Issue 1612
+                     Graph.allPaths (p . occ) (DefNode q) (DefNode q) g of
                   Edge _ how : _ -> pwords (msg ++ ", because it occurs") ++
                                     [prettyTCM how]
-                  _              -> pwords msg
+                  _              -> pwords $ msg ++ "."
 
                   -- For an example of code that exercises the latter,
                   -- uninformative clause above, see

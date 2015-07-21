@@ -248,14 +248,17 @@ prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
 
-prop_allTrails_existence :: Property
-prop_allTrails_existence =
-  forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
-  forAll (nodeIn g) $ \i ->
-  forAll (nodeIn g) $ \j ->
-    null (allTrails i j g)
-      ==
-    not (connected (connectivityGraph g) i j)
+-- Andreas, 2015-07-21 Issue 1612:
+-- May take forever due to exponential time of allTrails.
+--
+-- prop_allTrails_existence :: Property
+-- prop_allTrails_existence =
+--   forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
+--   forAll (nodeIn g) $ \i ->
+--   forAll (nodeIn g) $ \j ->
+--     null (allTrails i j g)
+--       ==
+--     not (connected (connectivityGraph g) i j)
 
 -- | The 'Integer's should be non-negative.
 
@@ -280,18 +283,22 @@ instance StarSemiRing ExtendedNatural where
   ostar (Finite 0) = Finite 1
   ostar _          = Infinite
 
-prop_allTrails_number :: Property
-prop_allTrails_number =
-  forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
-  forAll (nodeIn g) $ \i ->
-  forAll (nodeIn g) $ \j ->
-    Finite (List.genericLength (allTrails i j g))
-      <=
-    case Graph.lookup i j
-           (gaussJordanFloydWarshallMcNaughtonYamada
-              (fmap (const oone) g)) of
-      Just n  -> n
-      Nothing -> Finite 0
+
+-- Andreas, 2015-07-21 Issue 1612:
+-- May take forever due to exponential time of allTrails.
+--
+-- prop_allTrails_number :: Property
+-- prop_allTrails_number =
+--   forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
+--   forAll (nodeIn g) $ \i ->
+--   forAll (nodeIn g) $ \j ->
+--     Finite (List.genericLength (allTrails i j g))
+--       <=
+--     case Graph.lookup i j
+--            (gaussJordanFloydWarshallMcNaughtonYamada
+--               (fmap (const oone) g)) of
+--       Just n  -> n
+--       Nothing -> Finite 0
 
 -- Node 10 is unreachable, so @allTrails _ 10 g1612@ takes forever
 g1612 :: Graph N N E
@@ -306,7 +313,7 @@ g1612 = Graph $ Map.fromList
   , (n 15,Map.fromList [(n 1,JustPos  ),(n  8,GuardPos ),(n 11,Mixed),(n 12,Mixed)])
   ]
 
-t1612t = allTrails (n 9) (n 10) g1612 -- FOREVER
+-- t1612t = allTrails (n 9) (n 10) g1612 -- FOREVER
 
 g1612a = Graph $ Map.fromList
   [(n  1,Map.fromList [(n 2,JustNeg),(n 11,Mixed)])
