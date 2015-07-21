@@ -66,7 +66,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
   -- remove @Unused@ edges
   g <- Graph.clean <$> buildOccurrenceGraph qset
-  let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+  let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada g -- $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -104,7 +104,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
 
   where
     checkPos :: Graph Node Edge ->
-                Graph Node Occurrence ->
+                Graph Node Edge -> -- Graph Node Occurrence ->
                 QName -> TCM ()
     checkPos g gstar q = inConcreteOrAbstractMode q $ do
       -- we check positivity only for data or record definitions
@@ -112,13 +112,13 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
         reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
 
         let loop      = Graph.lookup (DefNode q) (DefNode q) gstar
-            how msg p =
-              fsep $ [prettyTCM q] ++ pwords "is" ++
-                case filter (p . occ) $
-                     Graph.allTrails (DefNode q) (DefNode q) g of
-                  Edge _ how : _ -> pwords (msg ++ ", because it occurs") ++
-                                    [prettyTCM how]
-                  _              -> pwords msg
+            how msg p (Edge _ w) = do
+              let explain w = pwords (msg ++ ", because it occurs") ++ [prettyTCM w]
+              fsep $ [prettyTCM q] ++ pwords "is" ++ explain w
+                -- case filter (p . occ) $
+                --      Graph.allTrails (DefNode q) (DefNode q) g of
+                --   Edge _ w : _ -> explain w
+                --   _            -> pwords msg
 
                   -- For an example of code that exercises the latter,
                   -- uninformative clause above, see
@@ -134,27 +134,27 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
         whenM positivityCheckEnabled $
           case loop of
             Just o | p o -> do
-              err <- how "not strictly positive" p
+              err <- how "not strictly positive" p o
               setCurrentRange q $ typeError $ GenericDocError err
-              where p = (<= JustPos)
+              where p = (<= JustPos) . occ
             _ -> return ()
 
         -- if we find an unguarded record, mark it as such
         when (dr == IsRecord) $
           case loop of
             Just o | p o -> do
-              reportSDoc "tc.pos.record" 5 $ how "not guarded" p
+              reportSDoc "tc.pos.record" 5 $ how "not guarded" p o
               unguardedRecord q
               checkInduction q
-              where p = (<= StrictPos)
+              where p = (<= StrictPos) . occ
             _ ->
               -- otherwise, if the record is recursive, mark it as well
               case loop of
                 Just o | p o -> do
-                  reportSDoc "tc.pos.record" 5 $ how "recursive" p
+                  reportSDoc "tc.pos.record" 5 $ how "recursive" p o
                   recursiveRecord q
                   checkInduction q
-                  where p = (== GuardPos)
+                  where p = (== GuardPos) . occ
                 _ -> return ()
 
     checkInduction q = whenM positivityCheckEnabled $ do
@@ -181,7 +181,8 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
     setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)
 
     -- Set the polarity of the arguments to a couple of definitions
-    setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
+    -- setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
+    setArgOccs :: Set QName -> [QName] -> Graph Node Edge -> TCM ()
     setArgOccs qset qs g = do
       -- Compute a map from each name in q to the maximal argument index
       let maxs = Map.fromListWith max
@@ -191,7 +192,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
         n <- getDefArity =<< getConstInfo q
         -- If there is no outgoing edge @ArgNode q i@, all @n@ arguments are @Unused@.
         -- Otherwise, we obtain the occurrences from the Graph.
-        let findOcc i = fromMaybe Unused $ Graph.lookup (ArgNode q i) (DefNode q) g
+        let findOcc i = maybe Unused occ $ Graph.lookup (ArgNode q i) (DefNode q) g
             args = caseMaybe (Map.lookup q maxs) (replicate n Unused) $ \ m ->
               map findOcc [0 .. max m (n - 1)]
         reportSDoc "tc.pos.args" 10 $ sep
