@@ -178,6 +178,7 @@ data DeepSizeView
   | DSizeVar Nat Offset
   | DSizeMeta MetaId Elims Offset
   | DOtherSize Term
+  deriving (Show)
 
 data SizeViewComparable a
   = NotComparable
