@@ -113,6 +113,7 @@ checkSizeNeverZero u = do
 --   Throws a 'patternViolation' if undecided.
 checkSizeVarNeverZero :: Int -> TCM Bool
 checkSizeVarNeverZero i = do
+  reportSDoc "tc.size" 20 $ text "checkSizeVarNeverZero" <+> prettyTCM (var i)
   -- Looking for the minimal value for size variable i,
   -- we can restrict to the last i
   -- entries, as only these can contain i in an upper bound.
@@ -129,6 +130,9 @@ checkSizeVarNeverZero i = do
   minSizeVal' _        []      = __IMPOSSIBLE__
   minSizeVal' []       (n : _) = return n
   minSizeVal' (t : ts) (n : ns) = do
+    reportSDoc "tc.size" 60 $
+       text ("minSizeVal (n:ns) = " ++ show (take (length ts + 2) $ n:ns) ++
+             " t =") <+> (text . show) t  -- prettyTCM t  -- Wrong context!
     -- n is the min. value for variable 0 which has type t.
     let cont = minSizeVal' ts ns
         perhaps = tell (Any True) >> cont
@@ -139,12 +143,17 @@ checkSizeVarNeverZero i = do
         case b of
           BoundedNo -> cont
           BoundedLt u -> ifBlocked u (\ _ _ -> perhaps) $ \ u -> do
+            reportSLn "tc.size" 60 $ "minSizeVal upper bound u = " ++ show u
             v <- liftTCM $ deepSizeView u
             case v of
               -- Variable 0 has bound @(< j + m)@
               -- meaning that @minval(j) > n - m@, i.e., @minval(j) >= n+1-m@.
               -- Thus, we update the min value for @j@ with function @(max (n+1-m))@.
-              DSizeVar j m -> minSizeVal' ts $ List.updateAt j (max $ n+1-m) ns
+              DSizeVar j m -> do
+                reportSLn "tc.size" 60 $ "minSizeVal upper bound v = " ++ show v
+                let ns' = List.updateAt j (max $ n+1-m) ns
+                reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (take (length ts + 1) ns')
+                minSizeVal' ts ns'
               DSizeMeta{} -> perhaps
               _ -> cont
 

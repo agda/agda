@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -81,18 +83,32 @@ downFrom :: Integral a => a -> [a]
 downFrom n | n <= 0     = []
            | otherwise = let n' = n-1 in n' : downFrom n'
 
--- | Update the last element of a list, if it exists
+-- | Update the first element of a list, if it exists.
+updateHead :: (a -> a) -> [a] -> [a]
+updateHead f [] = []
+updateHead f (a : as) = f a : as
+
+spec_updateHead f as = let (bs, cs) = splitAt 1 as in map f bs ++ cs
+prop_updateHead f as = updateHead f as == spec_updateHead f as
+
+-- | Update the last element of a list, if it exists.
 updateLast :: (a -> a) -> [a] -> [a]
 updateLast f [] = []
 updateLast f [a] = [f a]
 updateLast f (a : as@(_ : _)) = a : updateLast f as
+
+spec_updateLast f as = let (bs, cs) = splitAt (length as - 1) as in bs ++ map f cs
+prop_updateLast f as = updateLast f as == spec_updateLast f as
 
 -- | Update nth element of a list, if it exists.
 --   Precondition: the index is >= 0.
 updateAt :: Int -> (a -> a) -> [a] -> [a]
 updateAt _ f [] = []
 updateAt 0 f (a : as) = f a : as
-updateAt n f (a : as) = updateAt (n-1) f as
+updateAt n f (a : as) = a : updateAt (n-1) f as
+
+spec_updateAt n f as = let (bs, cs) = splitAt n as in bs ++ updateHead f cs
+prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 
 -- | A generalized version of @partition@.
 --   (Cf. @mapMaybe@ vs. @filter@).
