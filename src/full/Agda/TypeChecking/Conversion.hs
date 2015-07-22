@@ -904,8 +904,11 @@ coerce v t1 t2 = blockTerm t2 $ do
 --   For now, we do a cheap heuristics.
 coerceSize :: Term -> Type -> Type -> TCM Term
 coerceSize v t1 t2 = workOnTypes $ do
-  let fallback = v <$ leqType t1 t2
-  caseMaybeM (isSizeType t1) fallback $ \ b1 -> do
+    let fallback = v <$ leqType t1 t2
+        done = caseMaybeM (isSizeType t1) fallback $ \ b1 -> return v
+    -- Andreas, 2015-07-22, Issue 1615:
+    -- If t1 is a meta and t2 a type like Size< v2, we need to make sure we do not miss
+    -- the constraint v < v2!
     caseMaybeM (isSizeType t2) fallback $ \ b2 -> do
       -- Andreas, 2015-02-11 do not instantiate metas here (triggers issue 1203).
       ifM (tryConversion $ dontAssignMetas $ leqType t1 t2) (return v) $ {- else -} do
@@ -913,23 +916,23 @@ coerceSize v t1 t2 = workOnTypes $ do
         -- ifM (snd <$> checkSyntacticEquality t1 t2) (return v) $ {- else -} do
         case b2 of
           -- @t2 = Size@.  We are done!
-          BoundedNo -> return v
+          BoundedNo -> done
           -- @t2 = Size< v2@
           BoundedLt v2 -> do
             sv2 <- sizeView v2
             case sv2 of
-              SizeInf     -> fallback
+              SizeInf     -> done
               OtherSize{} -> do
                 -- Andreas, 2014-06-16:
                 -- Issue 1203: For now, just treat v < v2 as suc v <= v2
                 -- TODO: Need proper < comparison
                 vinc <- sizeSuc 1 v
                 compareSizes CmpLeq vinc v2
-                return v
+                done
               -- @v2 = a2 + 1@: In this case, we can try @v <= a2@
               SizeSuc a2 -> do
                 compareSizes CmpLeq v a2
-                return v
+                done  -- to pass Issue 1136
 
 ---------------------------------------------------------------------------
 -- * Sorts and levels
