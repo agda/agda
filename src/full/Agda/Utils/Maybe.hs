@@ -55,9 +55,9 @@ forMaybe = flip mapMaybe
 --   in the 'Just' case, but only a default action in the 'Nothing'
 --   case.  Then, the argument ordering of @caseMaybe@ is preferable.
 --
---   @caseMaybe m err f = flip (maybe err) m f@
+--   @caseMaybe m d f = flip (maybe d) m f@
 caseMaybe :: Maybe a -> b -> (a -> b) -> b
-caseMaybe m err f = maybe err f m
+caseMaybe m d f = maybe d f m
 
 -- * Monads and Maybe.
 
@@ -74,7 +74,7 @@ fromMaybeM m mm = maybeM m return mm
 -- | Monadic version of 'caseMaybe'.
 --   That is, 'maybeM' with a different argument ordering.
 caseMaybeM :: Monad m => m (Maybe a) -> m b -> (a -> m b) -> m b
-caseMaybeM mm err f = maybeM  err f mm
+caseMaybeM mm d f = maybeM d f mm
 
 -- | 'caseMaybeM' with flipped branches.
 ifJustM :: Monad m => m (Maybe a) -> (a -> m b) -> m b -> m b
@@ -85,9 +85,17 @@ ifJustM mm = flip (caseMaybeM mm)
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust m k = caseMaybe m (return ()) k
 
+-- | 'caseMaybe' without the 'Just' case.
+whenNothing :: Monad m => Maybe a -> m () -> m ()
+whenNothing m d = caseMaybe m d (\_ -> return ())
+
 -- | 'caseMaybeM' without the 'Nothing' case.
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 whenJustM c m = c >>= (`whenJust` m)
+
+-- | 'caseMaybeM' without the 'Just' case.
+whenNothingM :: Monad m => m (Maybe a) -> m () -> m ()
+whenNothingM mm d = mm >>= (`whenNothing` d)
 
 -- | Lazy version of @allJust <.> sequence@.
 --   (@allJust = mapM@ for the @Maybe@ monad.)

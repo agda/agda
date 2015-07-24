@@ -616,7 +616,7 @@ terSetSizeDepth tel cont = do
   n <- liftTCM $ sum <$> do
     forM (telToList tel) $ \ dom -> do
       a <- reduce $ snd $ unDom dom
-      ifM (isJust <$> isSizeType a) (return 1) {- else -} $ do
+      ifM (isJust <$> isSizeType a) (return 1) {- else -} $
         case ignoreSharing $ unEl a of
           MetaV{} -> return 1
           _       -> return 0

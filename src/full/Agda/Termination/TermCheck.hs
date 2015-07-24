@@ -578,7 +578,7 @@ termClause :: Clause -> TerM Calls
 termClause clause = do
   ifNotM (terGetInlineWithFunctions) (termClause' clause) $ {- else -} do
     name <- terGetCurrent
-    ifM (isJust <$> do isWithFunction name) (return mempty) $ do
+    ifM (isJust <$> do isWithFunction name) (return mempty) $
       mapM' termClause' =<< do liftTCM $ inlineWithClauses name clause
 
 termClause' :: Clause -> TerM Calls

@@ -66,7 +66,7 @@ recordPatternToProjections p =
     LitP{}       -> typeError $ ShouldBeRecordPattern p
     DotP{}       -> typeError $ ShouldBeRecordPattern p
     ConP c ci ps -> do
-      unless (isJust $ conPRecord ci) $
+      whenNothing (conPRecord ci) $
         typeError $ ShouldBeRecordPattern p
       t <- reduce $ fromMaybe __IMPOSSIBLE__ $ conPType ci
       fields <- getRecordTypeFields (unArg t)

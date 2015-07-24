@@ -186,7 +186,7 @@ checkDecl d = setCurrentRange d $ do
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
       A.UnquoteDef i x e       -> impossible $ checkUnquoteDef i x e
 
-    unlessM (isJust <$> asks envMutualBlock) $ do
+    whenNothingM (asks envMutualBlock) $ do
 
       -- Syntax highlighting.
       highlight_ d
@@ -664,7 +664,7 @@ checkPragma r p =
   where
     etaPragmas b r = do
           let name = if b then "ETA" else "NO_ETA"
-          unlessM (isJust <$> isRecord r) $
+          whenNothingM (isRecord r) $
             typeError $ GenericError $ name ++ " pragma is only applicable to records"
           modifySignature $ updateDefinition r $ updateTheDef $ setEta
           where

@@ -159,8 +159,8 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
     checkInduction q = whenM positivityCheckEnabled $ do
       -- Check whether the recursive record has been declared as
       -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-      unlessM (isJust . recInduction . theDef <$> getConstInfo q) $ do
-        setCurrentRange (nameBindingSite $ qnameName q) $ do
+      unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
+        setCurrentRange (nameBindingSite $ qnameName q) $
           typeError . GenericDocError =<<
             text "Recursive record" <+> prettyTCM q <+>
             text "needs to be declared as either inductive or coinductive"
