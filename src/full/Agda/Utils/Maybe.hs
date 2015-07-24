@@ -85,9 +85,17 @@ ifJustM mm = flip (caseMaybeM mm)
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust m k = caseMaybe m (return ()) k
 
+-- | 'caseMaybe' without the 'Just' case.
+whenNothing :: Monad m => Maybe a -> m () -> m ()
+whenNothing m d = caseMaybe m d (\_ -> return ())
+
 -- | 'caseMaybeM' without the 'Nothing' case.
 whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 whenJustM c m = c >>= (`whenJust` m)
+
+-- | 'caseMaybeM' without the 'Just' case.
+whenNothingM :: Monad m => m (Maybe a) -> m () -> m ()
+whenNothingM mm d = mm >>= (`whenNothing` d)
 
 -- | Lazy version of @allJust <.> sequence@.
 --   (@allJust = mapM@ for the @Maybe@ monad.)

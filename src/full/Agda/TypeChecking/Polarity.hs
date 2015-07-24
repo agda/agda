@@ -26,6 +26,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Interaction.Options
 
 import Agda.Utils.List
+import Agda.Utils.Maybe ( whenNothingM )
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -341,7 +342,7 @@ checkSizeIndex d np i a = do
     text "has size index successor of " <+> prettyTCM (var i)
   case ignoreSharing $ unEl a of
     Def d0 es -> do
-      unlessM (isJust <$> sameDef d d0) __IMPOSSIBLE__
+      whenNothingM (sameDef d d0) __IMPOSSIBLE__
       s <- sizeView $ unArg ix
       case s of
         SizeSuc v | Var j [] <- ignoreSharing v, i == j

@@ -51,6 +51,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Lens
+import Agda.Utils.Maybe ( whenNothing )
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -186,7 +187,7 @@ checkFunDef' t ai delayed extlam with i name cs =
               -- 2014-04-24: The size solver requires each clause to be
               -- checked individually, since otherwise we get constraints
               -- in typing contexts which are not prefixes of each other.
-              unless (isJust extlam) solveSizeConstraints
+              whenNothing extlam solveSizeConstraints
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
               addClauses name [c]

@@ -131,7 +131,7 @@ checkDecl d = setCurrentRange d $ do
                                   -- highlighting purposes.
       A.UnquoteDecl mi i x e   -> checkUnquoteDecl mi i x e
 
-    unlessM (isJust <$> asks envMutualBlock) $ do
+    whenNothingM (asks envMutualBlock) $ do
 
       -- Syntax highlighting.
       highlight_ d
@@ -527,7 +527,7 @@ checkPragma r p =
             _          -> typeError $ GenericError "STATIC directive only works on functions"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
         A.EtaPragma r -> do
-          unlessM (isJust <$> isRecord r) $
+          whenNothingM (isRecord r) $
             typeError $ GenericError $ "ETA pragma is only applicable to records"
           modifySignature $ updateDefinition r $ updateTheDef $ setEta
           where
