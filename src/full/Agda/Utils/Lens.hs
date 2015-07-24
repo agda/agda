@@ -12,7 +12,7 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.Functor.Constant
+import Data.Functor.Constant ( Constant(Constant), getConstant )
 import Data.Functor.Identity
 
 import Agda.Utils.Functor ((<&>))
