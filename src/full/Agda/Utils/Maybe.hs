@@ -55,9 +55,9 @@ forMaybe = flip mapMaybe
 --   in the 'Just' case, but only a default action in the 'Nothing'
 --   case.  Then, the argument ordering of @caseMaybe@ is preferable.
 --
---   @caseMaybe m err f = flip (maybe err) m f@
+--   @caseMaybe m d f = flip (maybe d) m f@
 caseMaybe :: Maybe a -> b -> (a -> b) -> b
-caseMaybe m err f = maybe err f m
+caseMaybe m d f = maybe d f m
 
 -- * Monads and Maybe.
 
@@ -74,7 +74,7 @@ fromMaybeM m mm = maybeM m return mm
 -- | Monadic version of 'caseMaybe'.
 --   That is, 'maybeM' with a different argument ordering.
 caseMaybeM :: Monad m => m (Maybe a) -> m b -> (a -> m b) -> m b
-caseMaybeM mm err f = maybeM  err f mm
+caseMaybeM mm d f = maybeM d f mm
 
 -- | 'caseMaybeM' with flipped branches.
 ifJustM :: Monad m => m (Maybe a) -> (a -> m b) -> m b -> m b
