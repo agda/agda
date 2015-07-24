@@ -8,11 +8,11 @@ module Agda.Utils.Lens
   , (<&>) -- reexported from Agda.Utils.Functor
   ) where
 
+import Control.Applicative ( Const(Const), getConst )
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.Functor.Constant
 import Data.Functor.Identity
 
 import Agda.Utils.Functor ((<&>))
@@ -29,7 +29,7 @@ type Lens' i o = forall f. Functor f => (i -> f i) -> o -> f o
 infixl 8 ^.
 -- | Get inner part @i@ of structure @o@ as designated by @Lens' i o@.
 (^.) :: o -> Lens' i o -> i
-o ^. l = getConstant $ l Constant o
+o ^. l = getConst $ l Const o
 
 -- | Set inner part @i@ of structure @o@ as designated by @Lens' i o@.
 set :: Lens' i o -> i -> o -> o

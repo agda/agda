@@ -9,10 +9,12 @@ module Agda.Utils.Functor
   )
   where
 
+import Control.Applicative ( Const(Const), getConst )
+
 import Data.Functor
 import Data.Functor.Identity
 import Data.Functor.Compose
-import Data.Functor.Constant
+import Data.Functor.Classes
 
 -- Andreas, 2015-05-06, see issue 1501.
 -- This instance can be obtained from transformers-compat.
@@ -69,7 +71,7 @@ dmap f = runIdentity . traverseF (Identity . f)
 
 -- | Any decoration is a lens.  @set@ is a special case of @dmap@.
 dget :: Decoration t => t a -> a
-dget = getConstant . traverseF Constant
+dget = getConst . traverseF Const
 
 -- | The identity functor is a decoration.
 instance Decoration Identity where
