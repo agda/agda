@@ -100,8 +100,7 @@ forget' φ (rec j C) (a , b) = φ a , forget' φ C b
 -- checker--it can't tell that forget' φ C x is only applying φ to
 -- things smaller than x.
 
--- ASR (08 August 2014): Added the {-# NO_TERMINATION_CHECK #-}
--- pragma.
+-- ASR (08 August 2014): Added the {-# TERMINATING #-} pragma.
 
 {-# TERMINATING #-}
 forget : {I : Set}{J : I -> Set}{C : Code I}{i : I}{j : J i}
@@ -114,8 +113,7 @@ Alg C X = forall i -> ⟦ C ⟧ X i -> X i
 
 -- We can fold by an algebra.
 
--- ASR (08 August 2014): Added the {-# TERMINATING #-}
--- pragma.
+-- ASR (08 August 2014): Added the {-# TERMINATING #-} pragma.
 
 {-# TERMINATING #-}
 fold : {I : Set}{X : I -> Set}{C : Code I} ->
