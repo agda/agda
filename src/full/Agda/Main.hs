@@ -28,6 +28,7 @@ import Agda.Interaction.Highlighting.HTML
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
@@ -142,6 +143,8 @@ runAgdaWithOptions generateHTML progName opts
             -- automatically.  (See Issue 1296).
             SomeWarnings (Warnings _ _)        -> return Nothing
             NoWarnings                         -> return $ Just i
+
+          reportSDoc "main" 50 $ pretty i
 
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML

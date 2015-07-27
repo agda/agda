@@ -632,6 +632,24 @@ data Interface = Interface
   }
   deriving (Typeable, Show)
 
+instance Pretty Interface where
+  pretty (Interface sourceH importedM moduleN scope insideS signature builtin
+                    haskellI haskellIUHC highlighting pragmaO patternS) =
+    hang (text "Interface") 2 $ vcat
+      [ text "source hash:"         <+> (pretty . show) sourceH
+      , text "imported modules:"    <+> (pretty . show) importedM
+      , text "module name:"         <+> pretty moduleN
+      , text "scope:"               <+> (pretty . show) scope
+      , text "inside scope:"        <+> (pretty . show) insideS
+      , text "signature:"           <+> (pretty . show) signature
+      , text "builtin:"             <+> (pretty . show) builtin
+      , text "Haskell imports:"     <+> (pretty . show) haskellI
+      , text "Haskell imports UHC:" <+> (pretty . show) haskellIUHC
+      , text "highlighting:"        <+> (pretty . show) highlighting
+      , text "pragma options:"      <+> (pretty . show) pragmaO
+      , text "pattern syns:"        <+> (pretty . show) patternS
+      ]
+
 -- | Combines the source hash and the (full) hashes of the imported modules.
 iFullHash :: Interface -> Hash
 iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
