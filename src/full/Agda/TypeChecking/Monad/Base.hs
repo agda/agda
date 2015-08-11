@@ -1493,6 +1493,34 @@ data Call = CheckClause Type A.SpineClause (Maybe Clause)
           | forall a. SetRange Range (Maybe a)  -- ^ used by 'setCurrentRange'
     deriving (Typeable)
 
+instance Pretty Call where
+    pretty (CheckClause _ c _)                   = text "CheckClause"
+    pretty (CheckPattern p _ _ _)                = text "CheckPattern"
+    pretty (InferExpr e _)                       = text "InferExpr"
+    pretty (CheckExprCall e _ _)                 = text "CheckExprCall"
+    pretty (CheckLetBinding b _)                 = text "CheckLetBinding"
+    pretty (IsTypeCall e s _)                    = text "IsTypeCall"
+    pretty (IsType_ e _)                         = text "IsType_"
+    pretty (InferVar x _)                        = text "InferVar"
+    pretty (InferDef _ f _)                      = text "InferDef"
+    pretty (CheckArguments r _ _ _ _)            = text "CheckArguments"
+    pretty (CheckDataDef i _ _ _ _)              = text "CheckDataDef"
+    pretty (CheckRecDef i _ _ _ _)               = text "CheckRecDef"
+    pretty (CheckConstructor _ _ _ c _)          = text "CheckConstructor"
+    pretty (CheckFunDef i _ _ _)                 = text "CheckFunDef"
+    pretty (CheckPragma r _ _)                   = text "CheckPragma"
+    pretty (CheckPrimitive i _ _ _)              = text "CheckPrimitive"
+    pretty CheckWithFunctionType{}               = text "CheckWithFunctionType"
+    pretty (ScopeCheckExpr e _)                  = text "ScopeCheckExpr"
+    pretty (ScopeCheckDeclaration d _)           = text "ScopeCheckDeclaration"
+    pretty (ScopeCheckLHS _ p _)                 = text "ScopeCheckLHS"
+    pretty (CheckDotPattern e _ _)               = text "CheckDotPattern"
+    pretty (CheckPatternShadowing c _)           = text "CheckPatternShadowing"
+    pretty (SetRange r _)                        = text "SetRange"
+    pretty (CheckSectionApplication r _ _ _)     = text "CheckSectionApplication"
+    pretty (CheckIsEmpty r _ _)                  = text "CheckIsEmpty"
+    pretty (NoHighlighting _)                    = text "NoHighlighting"
+
 instance HasRange Call where
     getRange (CheckClause _ c _)                   = getRange c
     getRange (CheckPattern p _ _ _)                = getRange p

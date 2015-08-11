@@ -17,6 +17,7 @@ import Agda.Utils.Function
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -50,7 +51,8 @@ traceCall mkCall m = do
       whenJustM (asks envCurrentPath) $ \ currentFile -> do
         unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
           reportSLn "impossible" 10 $
-            "Someone is trying to set the current range to " ++ show callRange ++
+            prettyShow call ++
+            " is trying to set the current range to " ++ show callRange ++
             " which is outside of the current file " ++ show currentFile
           __IMPOSSIBLE__
   cl <- liftTCM $ buildClosure call
