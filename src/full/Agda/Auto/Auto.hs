@@ -315,7 +315,8 @@ auto ii rng argstr = do
                     flip catchError (const $ loop terms') $ do
                       exprs <- getsols term
                       reportSDoc "auto" 20 $ TCM.text "Trying solution " TCM.<+> TCM.prettyTCM exprs
-                      giveress <- forM exprs $ \ (mi, expr) ->
+                      giveress <- forM exprs $ \ (mi, expr0) -> do
+                        let expr = killRange expr0
                         case lookup mi riis of
                          Nothing ->
                           -- catchError

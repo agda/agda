@@ -111,7 +111,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed
+test : check-whitespace succeed fail interaction interactive latex-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed lib-interaction
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -203,6 +203,13 @@ continue-library-test :
 lib-succeed :
 	@echo "======================================================================"
 	@echo "========== Successfull tests using the standard library =============="
+	@echo "======================================================================"
+	@$(MAKE) -C test/$@
+
+.PHONY : lib-interaction
+lib-interaction :
+	@echo "======================================================================"
+	@echo "========== Interaction tests using the standard library =============="
 	@echo "======================================================================"
 	@$(MAKE) -C test/$@
 
