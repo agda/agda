@@ -140,7 +140,7 @@ data Level
 -- 'stTokens'.
 
 generateAndPrintSyntaxInfo :: A.Declaration -> Level -> TCM ()
-generateAndPrintSyntaxInfo decl _ | P.noRange == P.getRange decl = return ()
+generateAndPrintSyntaxInfo decl _ | null $ P.getRange decl = return ()
 generateAndPrintSyntaxInfo decl hlLevel = do
   file <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
 

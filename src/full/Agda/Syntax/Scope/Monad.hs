@@ -372,6 +372,7 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
                   , scopeParents = scopeParents s0
                   }
       where
+        rnew = getRange new
         new' = killRange new
         newL = A.mnameToList new'
         old  = scopeName s
@@ -406,6 +407,13 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
             i <- lift fresh
             return $ A.qualify new' $ (qnameName x) { nameId = i }
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
+          -- Andreas, 2015-08-11 Issue 1619:
+          -- Names copied by a module macro should get the module macro's
+          -- range as declaration range
+          -- (maybe rather the one of the open statement).
+          -- For now, we just set their range
+          -- to the new module name's one, which fixes issue 1619.
+          y <- return $ setRange rnew y
           addName x y
           return y
 
