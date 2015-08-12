@@ -30,6 +30,7 @@ ghc:
 #
 # make library-test
 # make lib-succeed
+# make lib-interaction
 # make compiler-test
 # make benchmark-without-logs
 #
@@ -230,6 +231,7 @@ script:
   - if [ $TEST = "require-stdlib" ]; then
        make BUILD_DIR=$BUILD_DIR library-test &&
        make BUILD_DIR=$BUILD_DIR lib-succeed &&
+       make BUILD_DIR=$BUILD_DIR lib-interaction &&
        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
