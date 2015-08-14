@@ -1,2 +1,2 @@
-top_command (cmd_load currentFile [".","../../agda-stdlib/src/"])
+top_command (cmd_load currentFile [".","../../std-lib/src/"])
 goal_command 0 cmd_auto ""
