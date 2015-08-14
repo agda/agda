@@ -69,7 +69,7 @@ namesToNotation :: QName -> A.Name -> NewNotation
 namesToNotation q n = NewNotation
   { notaName       = q
   , notaNames      = Set.singleton n
-  , notaFixity     = f
+  , notaFixity     = if f == noFixity then defaultFixity else f
   , notation       = if null syn then syntaxOf (unqualify q) else syn
   , notaIsOperator = null syn
   }
@@ -227,6 +227,9 @@ instance Ord Fixity where
 
 noFixity :: Fixity
 noFixity = Fixity noRange Unrelated NonAssoc
+
+defaultFixity :: Fixity
+defaultFixity = Fixity noRange (Related 20) NonAssoc
 
 -- * Precendence
 
