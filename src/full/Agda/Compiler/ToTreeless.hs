@@ -191,7 +191,7 @@ lambdasUpTo n cont = do
             -- we also bind the catch all to a let, to avoid code duplication
             local (\e -> e { ccCatchAll = Just 0
                            , ccCxt = shift 1 (ccCxt e)}) $ do
-              let catchAllArgs = map C.TVar [(diff - 1)..0]
+              let catchAllArgs = map C.TVar $ reverse [0..(diff - 1)]
               C.mkLet (C.mkTApp (C.TVar $ catchAll' + diff) catchAllArgs)
                 <$> cont
           Nothing -> cont
