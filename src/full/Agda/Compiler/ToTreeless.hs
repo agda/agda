@@ -164,7 +164,7 @@ casetree cc = do
             <*> (fmap C.TVar <$> asks ccCatchAll)
           C.TCase (C.TVar x) caseTy def <$> do
             br1 <- conAlts n conBrs
-            br2 <- litAlts litBrs
+            br2 <- litAlts n litBrs
             return (br1 ++ br2)
 
 updateCatchAll :: Maybe CC.CompiledClauses -> (CC C.TTerm -> CC C.TTerm)
@@ -206,8 +206,10 @@ conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do
   replaceVar x n $ do
     branch (C.TACon c' n) cc
 
-litAlts :: Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
-litAlts br = forM (Map.toList br) $ \ (l, cc) ->
+litAlts :: Int -> Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
+litAlts x br = forM (Map.toList br) $ \ (l, cc) ->
+  -- Issue1624: we need to drop the case scrutinee from the environment here!
+  replaceVar x 0 $ do
     branch (C.TALit l ) cc
 
 branch :: (C.TTerm -> C.TAlt) -> CC.CompiledClauses -> CC C.TAlt
