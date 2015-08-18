@@ -1026,7 +1026,7 @@ plusFixities m1 m2
 --   the first error.
 instance Monoid (Nice Fixities) where
   mempty        = return $ Map.empty
-  mappend c1 c2 = plusFixities <$> c1 <*> c2
+  mappend c1 c2 = plusFixities ==<< (c1, c2)
 
 -- | Get the fixities from the current block.
 --   Doesn't go inside modules and where blocks.
