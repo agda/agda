@@ -126,7 +126,6 @@ conhqn :: QName -> TCM HS.QName
 conhqn q = do
     cq  <- canonicalName q
     def <- getConstInfo cq
-    hsr <- compiledHaskell . defCompiledRep <$> getConstInfo cq
     case (compiledHaskell (defCompiledRep def), theDef def) of
       (Just (HsDefn _ hs), Constructor{}) -> return $ HS.UnQual $ HS.Ident hs
       _                                   -> xhqn "C" cq
