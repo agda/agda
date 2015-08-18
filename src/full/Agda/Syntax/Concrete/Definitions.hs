@@ -421,7 +421,7 @@ checkLoneSigs xs =
 getFixity :: Name -> Nice Fixity'
 getFixity x = do
   when (isUnderscore x) $ throwError $ InvalidName x
-  gets $ Map.findWithDefault defaultFixity' x . fixs
+  Map.findWithDefault defaultFixity' x <$> gets fixs
 
 runNice :: Nice a -> Either DeclarationException a
 runNice nice = nice `evalStateT` initNiceEnv
@@ -1026,10 +1026,7 @@ plusFixities m1 m2
 --   the first error.
 instance Monoid (Nice Fixities) where
   mempty        = return $ Map.empty
-  mappend c1 c2 = do
-    m1 <- c1
-    m2 <- c2
-    plusFixities m1 m2
+  mappend c1 c2 = plusFixities <$> c1 <*> c2
 
 -- | Get the fixities from the current block.
 --   Doesn't go inside modules and where blocks.
