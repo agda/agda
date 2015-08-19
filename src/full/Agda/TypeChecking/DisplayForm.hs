@@ -32,6 +32,10 @@ dtermToTerm dt = case dt of
   DDot v           -> v
   DTerm v          -> v
 
+-- | Get the arities of all display forms for a name.
+displayFormArities :: QName -> TCM [Int]
+displayFormArities q = map (length . dfPats . openThing) <$> getDisplayForms q
+
 -- | Find a matching display form for @q vs@.
 --   In essence this tries to reqwrite @q vs@ with any
 --   display form @q ps --> dt@ and returns the instantiated

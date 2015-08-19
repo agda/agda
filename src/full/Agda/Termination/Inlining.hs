@@ -235,7 +235,20 @@ isWithFunction x = liftTCM $ do
 
 expandWithFunctionCall :: QName -> Elims -> TCM Term
 expandWithFunctionCall f es = do
-  Just disp <- displayForm f vs
-  return $ dtermToTerm disp `applyE` es'
+  as <- displayFormArities f
+  case as of
+    [a] | length vs >= a -> do
+      Just disp <- displayForm f vs
+      return $ dtermToTerm disp `applyE` es'
+    -- We might get an underapplied with function application (issue1598), in
+    -- which case we have to eta expand. The resulting term is only used for
+    -- termination checking, so we don't have to worry about getting hiding
+    -- information right.
+    [a] | null es' -> do
+      let pad = a - length vs
+          vs' = raise pad vs ++ [defaultArg (Var i []) | i <- reverse [0..pad - 1]]
+      Just disp <- displayForm f vs'
+      return $ foldr (\_ -> Lam defaultArgInfo . Abs "") (dtermToTerm disp) (replicate pad ())
+    _ -> __IMPOSSIBLE__
   where
     (vs, es') = splitApplyElims es
