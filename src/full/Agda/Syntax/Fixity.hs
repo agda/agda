@@ -69,11 +69,17 @@ namesToNotation :: QName -> A.Name -> NewNotation
 namesToNotation q n = NewNotation
   { notaName       = q
   , notaNames      = Set.singleton n
-  , notaFixity     = if f == noFixity then defaultFixity else f
+  , notaFixity     = f
   , notation       = if null syn then syntaxOf (unqualify q) else syn
   , notaIsOperator = null syn
   }
   where Fixity' f syn = A.nameFixity n
+
+-- | Replace 'noFixity' by 'defaultFixity'.
+useDefaultFixity :: NewNotation -> NewNotation
+useDefaultFixity n
+  | notaFixity n == noFixity = n { notaFixity = defaultFixity }
+  | otherwise                = n
 
 -- | Return the 'IdPart's of a notation, the first part qualified,
 --   the other parts unqualified.

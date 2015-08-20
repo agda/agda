@@ -19,6 +19,7 @@ module Agda.Syntax.Concrete.Operators
     , parsePatternSyn
     ) where
 
+import Control.Arrow ((***), (&&&), first, second)
 import Control.DeepSeq
 import Control.Applicative
 import Control.Monad
@@ -110,7 +111,7 @@ localNames flat = do
       localNames = Set.fromList $ map notaName localNots
       otherNots  = filter (\n -> not (Set.member (notaName n) localNames))
                           (concat defs)
-  return $ split $ localNots ++ otherNots
+  return $ second (map useDefaultFixity) $ split $ localNots ++ otherNots
   where
     localOp (x, y) = namesToNotation (QName x) y
     split ops      = partitionEithers $ concatMap opOrNot ops
