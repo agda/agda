@@ -1,19 +1,23 @@
 Issue1436-24.agda:30,7-16
 Don't know how to parse • + • + •. Could mean any one of:
   (• + •) + •
-  (• + •) + •
   • + (• + •)
   (• + •) + •
+  (• + •) + •
+  • + (• + •)
+  • + (• + •)
+  (• + •) + •
+  (• + •) + •
 Operators used in the grammar:
-  +  (infixl operator, level 0)            [_+_ (Issue1436-24.agda:9,5-8)] 
-  _+ (prefix operator section, level 0)    [_+_ (Issue1436-24.agda:9,5-8)] 
-  +_ (postfix operator section, level 0)   [_+_ (Issue1436-24.agda:9,5-8)] 
-  +  (infixl operator, level 1)            [_+_ (Issue1436-24.agda:17,5-8)]
-  _+ (prefix operator section, level 1)    [_+_ (Issue1436-24.agda:17,5-8)]
-  +_ (postfix operator section, level 1)   [_+_ (Issue1436-24.agda:17,5-8)]
-  +  (infix operator, unrelated)           [_+_ (Issue1436-24.agda:23,5-8)]
-  _+ (prefix operator section, unrelated)  [_+_ (Issue1436-24.agda:23,5-8)]
-  +_ (postfix operator section, unrelated) [_+_ (Issue1436-24.agda:23,5-8)]
+  +  (infixl operator, level 0)           [_+_ (Issue1436-24.agda:9,5-8)] 
+  _+ (prefix operator section, level 0)   [_+_ (Issue1436-24.agda:9,5-8)] 
+  +_ (postfix operator section, level 0)  [_+_ (Issue1436-24.agda:9,5-8)] 
+  +  (infixl operator, level 1)           [_+_ (Issue1436-24.agda:17,5-8)]
+  _+ (prefix operator section, level 1)   [_+_ (Issue1436-24.agda:17,5-8)]
+  +_ (postfix operator section, level 1)  [_+_ (Issue1436-24.agda:17,5-8)]
+  +  (infix operator, level 20)           [_+_ (Issue1436-24.agda:23,5-8)]
+  _+ (prefix operator section, level 20)  [_+_ (Issue1436-24.agda:23,5-8)]
+  +_ (postfix operator section, level 20) [_+_ (Issue1436-24.agda:23,5-8)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking • + • + •

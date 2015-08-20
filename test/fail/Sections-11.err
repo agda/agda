@@ -1,7 +1,7 @@
 Sections-11.agda:4,1-8
 Could not parse the left-hand side _test n
 Operators used in the grammar:
-  test (infix operator, unrelated) [_test_ (Sections-11.agda:3,1-7)]
+  test (infix operator, level 20) [_test_ (Sections-11.agda:3,1-7)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking the left-hand side _test n in the definition of
