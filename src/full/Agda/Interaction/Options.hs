@@ -576,7 +576,7 @@ standardOptions =
     , Option []     ["safe"] (NoArg safeFlag)
                     "disable postulates, unsafe OPTION pragmas and primTrustMe"
     , Option []     ["sharing"] (NoArg $ sharingFlag True)
-                    "enable sharing and call-by-need evaluation (default: ON)"
+                    "enable sharing and call-by-need evaluation (experimental) (default: OFF)"
     , Option []     ["no-sharing"] (NoArg $ sharingFlag False)
                     "disable sharing and call-by-need evaluation"
     ] ++ map (fmap lift) pragmaOptions
