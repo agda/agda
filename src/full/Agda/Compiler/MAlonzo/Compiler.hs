@@ -405,7 +405,7 @@ mkRecord fs = lift $ do
   -- Convert the constructor to a Haskell name
   c <- conhqn c
   let (args :: [HS.Exp]) = for xs $ \ x -> fromMaybe __IMPOSSIBLE__ $ Map.lookup x fs
-  return $ hsCast $ List.foldr (flip HS.App) (HS.Con c) args
+  return $ hsCast $ List.foldl HS.App (HS.Con c) args
 
 -- -- | Precondition: Map not empty.
 -- MAlonzo does not translate field names in data decls.

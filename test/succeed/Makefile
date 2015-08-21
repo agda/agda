@@ -25,6 +25,7 @@ RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim --ignore-interfaces -v$(V) $(shell if [ -e
 check_CompiledRecord        = ./checkOutput ./CompiledRecord yes
 check_CompilingCoinduction  = ./checkOutput ./CompilingCoinduction a
 check_UniversePolymorphicIO = ./checkOutput ./UniversePolymorphicIO ok
+check_Issue1632             = ./checkOutput ./Issue1632 yes
 
 check_Issue481 = diff Issue481.dot.orig Issue481.dot
 cleanup_Issue481 = rm Issue481.dot
