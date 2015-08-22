@@ -33,7 +33,7 @@ Usage: agda [OPTIONS...] [FILE]
   -i DIR  --include-path=DIR                          look for imports in DIR
           --no-forcing                                disable the forcing optimisation
           --safe                                      disable postulates, unsafe OPTION pragmas and primTrustMe
-          --sharing                                   enable sharing and call-by-need evaluation (default: ON)
+          --sharing                                   enable sharing and call-by-need evaluation (experimental) (default: OFF)
           --no-sharing                                disable sharing and call-by-need evaluation
           --show-implicit                             show implicit arguments when printing
           --show-irrelevant                           show irrelevant arguments when printing
