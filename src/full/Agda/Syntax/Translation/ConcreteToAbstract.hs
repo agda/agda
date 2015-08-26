@@ -1711,12 +1711,11 @@ instance ToAbstract LeftHandSide A.LHS where
         lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
         printLocals 10 "before lhs:"
-        -- error if copattern parsed but no --copatterns option
-        haveCoPats <- optCopatterns <$> pragmaOptions
-        unless haveCoPats $
+        -- error if copattern parsed but --no-copatterns option
+        unlessM (optCopatterns <$> pragmaOptions) $
           case lhscore of
-            C.LHSHead x ps -> return ()
             C.LHSProj{} -> typeError $ NeedOptionCopatterns
+            C.LHSHead{} -> return ()
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
         reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore

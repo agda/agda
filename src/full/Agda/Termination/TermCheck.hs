@@ -195,8 +195,9 @@ termMutual i ds = if names == [] then return mempty else
            terLocal setNames cont
 
      -- New check currently only makes a difference for copatterns.
-     -- Since it is slow, only invoke it if --copatterns.
-     res <- ifM (optCopatterns <$> pragmaOptions)
+     -- Since it is slow, only invoke it if
+     -- any of the definitions uses copatterns.
+     res <- ifM (orM $ map usesCopatterns allNames)
          -- Then: New check, one after another.
          (runTerm $ forM' allNames $ termFunction)
          -- Else: Old check, all at once.

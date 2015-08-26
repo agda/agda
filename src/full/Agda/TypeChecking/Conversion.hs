@@ -275,10 +275,7 @@ compareTerm' cmp a m n =
               -- not neutral if it is blocked (there can be missing projections
               -- to trigger a reduction.
                   isNeutral' (NotBlocked r (Def q _)) = do    -- Andreas, 2014-12-06 optimize this using r !!
-                    d <- getConstInfo q
-                    return $ case d of
-                      Defn {theDef = Function {funCopatternLHS = True}} -> False -- a def by copattern can reduce if projected
-                      _                                                 -> True
+                    not <$> usesCopatterns q -- a def by copattern can reduce if projected
                   isNeutral' _                   = return True
                   isMeta' (NotBlocked _ MetaV{}) = True
                   isMeta' _                      = False
