@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 module NewEquations where
 
 open import Common.Prelude hiding (map; _++_)
@@ -65,4 +67,3 @@ swap (x , y) = y , x
 
 test₁ : ∀ {A B} {xs : List (A × B)} → map swap (map swap xs) ≡ xs
 test₁ = refl
-

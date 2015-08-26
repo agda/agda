@@ -1,4 +1,6 @@
+{-# OPTIONS --rewriting #-}
 {-# OPTIONS --allow-unsolved-metas #-}
+
 open import Common.Equality
 
 {-# BUILTIN REWRITE _≡_ #-}

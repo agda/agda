@@ -55,6 +55,8 @@ import qualified Data.IntSet as IntSet
 import qualified Data.List as List
 import Data.Monoid
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 
@@ -81,12 +83,17 @@ import Agda.Utils.Size
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+requireOptionRewriting :: TCM ()
+requireOptionRewriting =
+  unlessM (optRewriting <$> pragmaOptions) $ typeError NeedOptionRewriting
+
 -- | Check that the name given to the BUILTIN REWRITE is actually
 --   a relation symbol.
 --   I.e., its type should be of the form @Δ → (lhs rhs : A) → Set ℓ@.
 --   Note: we do not care about hiding/non-hiding of lhs and rhs.
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
+  requireOptionRewriting
   let failure reason = typeError . GenericDocError =<< sep
        [ prettyTCM v <+> text " does not have the right type for a rewriting relation"
        , reason
@@ -140,6 +147,7 @@ relView t = do
 --   Makes only sense in empty context.
 addRewriteRule :: QName -> TCM ()
 addRewriteRule q = inTopContext $ do
+  requireOptionRewriting
   Def rel _ <- primRewrite
   -- We know that the type of rel is that of a relation.
   Just (RelView _tel delta a _a' _core) <- relView =<< do
@@ -295,7 +303,7 @@ rewriteWith mt v (RewriteRule q gamma lhs rhs b) = do
 
 -- | @rewrite t@ tries to rewrite a reduced term.
 rewrite :: Blocked Term -> ReduceM (Either (Blocked Term) Term)
-rewrite bv = do
+rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- else -} do
   let v     = ignoreBlocking bv
   case ignoreSharing v of
     -- We only rewrite @Def@s and @Con@s.

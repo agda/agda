@@ -1,10 +1,9 @@
-{-# OPTIONS --rewriting #-}
-
-module RewritingNat where
+-- Andreas, 2015-08-26
+-- OPTIONS --rewriting needed
 
 open import Common.Equality
 
-{-# BUILTIN REWRITE _≡_ #-}
+{-# BUILTIN REWRITE _≡_ #-}  -- should trigger error
 
 data Nat : Set where
   zero : Nat

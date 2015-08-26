@@ -49,5 +49,6 @@ Usage: agda [OPTIONS...] [FILE]
           --copatterns                                enable definitions by copattern matching (default)
           --no-copatterns                             disable definitions by copattern matching
           --no-pattern-matching                       disable pattern matching completely
+          --rewriting                                 enable declaration and use of REWRITE rules
 
 Plugins:

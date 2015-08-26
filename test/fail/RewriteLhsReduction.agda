@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 open import Common.Equality
 
 {-# BUILTIN REWRITE _≡_ #-}

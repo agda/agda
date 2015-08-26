@@ -128,6 +128,7 @@ data PragmaOptions = PragmaOptions
   , optWithoutK                  :: Bool
   , optCopatterns                :: Bool  -- ^ Allow definitions by copattern matching?
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
+  , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   }
   deriving Show
 
@@ -200,6 +201,7 @@ defaultPragmaOptions = PragmaOptions
   , optWithoutK                  = False
   , optCopatterns                = True
   , optPatternMatching           = True
+  , optRewriting                 = False
   }
 
 -- | The default termination depth.
@@ -274,6 +276,7 @@ unsafePragmaOptions opts =
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
+  [ "--rewriting"                                | optRewriting opts                 ] ++
   []
 
 -- | The default pragma options should be considered safe.
@@ -386,6 +389,9 @@ noCopatternsFlag o = return $ o { optCopatterns = False }
 
 noPatternMatchingFlag :: Flag PragmaOptions
 noPatternMatchingFlag o = return $ o { optPatternMatching = False }
+
+rewritingFlag :: Flag PragmaOptions
+rewritingFlag o = return $ o { optRewriting = True }
 
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
@@ -570,6 +576,8 @@ pragmaOptions =
                     "disable definitions by copattern matching"
     , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)
                     "disable pattern matching completely"
+    , Option []     ["rewriting"] (NoArg rewritingFlag)
+                    "enable declaration and use of REWRITE rules"
     ]
 
 -- | Used for printing usage info.

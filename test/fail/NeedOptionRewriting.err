@@ -1,0 +1,3 @@
+NeedOptionRewriting.agda:6,1-28
+Option --rewriting needed to add and use rewrite rules
+when checking the pragma BUILTIN REWRITE _≡_

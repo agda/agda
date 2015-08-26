@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 -- 2015-02-17 Jesper and Andreas
 
 postulate
