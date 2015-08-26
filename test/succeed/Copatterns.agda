@@ -1,6 +1,6 @@
 -- {-# OPTIONS -v impossible:100 -v tc.lhs.imp:100 #-}
 -- {-# OPTIONS -v impossible:100 -v tc.cover:20 #-}
-{-# OPTIONS --copatterns #-}
+-- {-# OPTIONS --copatterns #-} -- Andreas, 2015-08-26 on by default.
 module Copatterns where
 
 open import Common.Equality

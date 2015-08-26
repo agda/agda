@@ -198,7 +198,7 @@ defaultPragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
-  , optCopatterns                = False
+  , optCopatterns                = True
   , optPatternMatching           = True
   }
 
@@ -261,7 +261,7 @@ checkOpts opts
 
   interactive = [optInteractive, optGHCiInteraction]
 
--- Check for unsafe pramas. Gives a list of used unsafe flags.
+-- | Check for unsafe pramas. Gives a list of used unsafe flags.
 
 unsafePragmaOptions :: PragmaOptions -> [String]
 unsafePragmaOptions opts =
@@ -274,9 +274,9 @@ unsafePragmaOptions opts =
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
-  [ "--copatterns"                               | optCopatterns opts   ]
+  []
 
--- The default pragma options should be considered safe
+-- | The default pragma options should be considered safe.
 
 defaultPragmaOptionsSafe :: IO Bool
 defaultPragmaOptionsSafe
@@ -380,6 +380,9 @@ withoutKFlag o = return $ o { optWithoutK = True }
 
 copatternsFlag :: Flag PragmaOptions
 copatternsFlag o = return $ o { optCopatterns = True }
+
+noCopatternsFlag :: Flag PragmaOptions
+noCopatternsFlag o = return $ o { optCopatterns = False }
 
 noPatternMatchingFlag :: Flag PragmaOptions
 noPatternMatchingFlag o = return $ o { optPatternMatching = False }
@@ -562,7 +565,9 @@ pragmaOptions =
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule in pattern matching"
     , Option []     ["copatterns"] (NoArg copatternsFlag)
-                    "enable definitions by copattern matching"
+                    "enable definitions by copattern matching (default)"
+    , Option []     ["no-copatterns"] (NoArg noCopatternsFlag)
+                    "disable definitions by copattern matching"
     , Option []     ["no-pattern-matching"] (NoArg noPatternMatchingFlag)
                     "disable pattern matching completely"
     ]

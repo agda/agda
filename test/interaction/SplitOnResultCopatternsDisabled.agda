@@ -1,5 +1,5 @@
 -- Copatterns disabled!
--- {-# OPTIONS --copatterns #-}
+{-# OPTIONS --no-copatterns #-}
 
 open import Common.Product
 

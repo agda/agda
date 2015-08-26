@@ -9,6 +9,14 @@ Installation and infrastructure
 
 * Removed support for GHC 7.4.2.
 
+Pragmas and options
+===================
+
+* Option --copatterns is now on by default.  To switch off
+  parsing of copatterns, use:
+
+    {-# OPTIONS --no-copatterns #-}
+
 Language
 ========
 
