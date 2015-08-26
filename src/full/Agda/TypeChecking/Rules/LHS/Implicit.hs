@@ -123,39 +123,30 @@ insertImplicitPatternsT exh            ps a = do
         , nest 2 $ text "b   = " <+> prettyTCM b
         ]
   case ps of
-    [] -> do
-      i <- insImp dummy tel
-      case i of
-        Just [] -> __IMPOSSIBLE__
-        Just hs -> return hs
-        Nothing -> return []
+    [] -> insImp dummy tel
     p : ps -> do
       -- Andreas, 2015-05-11.
       -- If p is a projection pattern, make it visible for the purpose of
       -- calling insImp / insertImplicit, to get correct behavior.
       let p' = applyWhen (isJust $ isProjP p) (setHiding NotHidden) p
-      i <- insImp p' tel
-      case i of
-        Just [] -> __IMPOSSIBLE__
-        Just hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)
-        Nothing -> do
+      hs <- insImp p' tel
+      case hs of
+        [] -> do
           a <- reduce a
           case ignoreSharing $ unEl a of
             Pi arg b -> do
               p <- expandImplicitPattern (unDom arg) p
               (p :) <$> insertImplicitPatternsT exh ps (absBody b)
             _ -> return (p : ps)
+        hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)
   where
     dummy = defaultNamedArg (A.VarP __IMPOSSIBLE__)
 
-    insImp p EmptyTel
-      | visible p          = return Nothing
-      | isJust (isProjP p) = __IMPOSSIBLE__
-      | otherwise          = typeError WrongHidingInLHS
+    insImp p EmptyTel = return []
     insImp p tel = case insertImplicit p $ map (argFromDom . fmap fst) $ telToList tel of
       BadImplicits   -> typeError WrongHidingInLHS
       NoSuchName x   -> typeError WrongHidingInLHS
-      ImpInsert n    -> return $ Just (map implicitArg n)
-      NoInsertNeeded -> return Nothing
+      ImpInsert n    -> return $ map implicitArg n
+      NoInsertNeeded -> return []
 
     implicitArg h = setHiding h $ defaultArg implicitP

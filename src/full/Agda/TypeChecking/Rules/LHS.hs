@@ -267,11 +267,19 @@ isSolvedProblem :: Problem -> Bool
 isSolvedProblem problem = null (restPats $ problemRest problem) &&
     all (isSolved . snd . asView . namedArg) (problemInPat problem)
   where
-    isSolved (A.DefP _ _ []) = False  -- projection pattern
-    isSolved (A.VarP _)      = True
-    isSolved (A.WildP _)     = True
-    isSolved (A.AbsurdP _)   = True
-    isSolved _               = False
+    -- need further splitting:
+    isSolved A.ConP{}        = False
+    isSolved A.DotP{}        = False
+    isSolved A.LitP{}        = False
+    isSolved A.DefP{}        = False  -- projection pattern
+    isSolved A.RecP{}        = False  -- record pattern
+    -- solved:
+    isSolved A.VarP{}        = True
+    isSolved A.WildP{}       = True
+    isSolved A.AbsurdP{}     = True
+    -- impossible:
+    isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
+    isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
@@ -352,7 +360,10 @@ checkDotPattern (DPI e v (Dom info a)) =
     -- Should be ok to do noConstraints here
     noConstraints $ equalTerm a u v
 
--- | Bind the variables in a left hand side. Precondition: the patterns should
+-- | Bind the variables in a left hand side and check that 'Hiding' of
+--   the patterns matches the hiding info in the type.
+--
+--   Precondition: the patterns should
 --   all be 'A.VarP', 'A.WildP', or 'A.AbsurdP' and the
 --   telescope should have the same size as the pattern list.
 --   There could also be 'A.ConP's resulting from eta expanded implicit record
@@ -364,7 +375,8 @@ bindLHSVars []        tel@ExtendTel{}  _   = do
   __IMPOSSIBLE__
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
-bindLHSVars (p : ps) (ExtendTel a tel) ret =
+bindLHSVars (p : ps) (ExtendTel a tel) ret = do
+  unless (getHiding p == getHiding a) $ typeError WrongHidingInLHS
   case namedArg p of
     A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
