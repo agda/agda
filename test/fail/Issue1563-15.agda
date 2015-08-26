@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 data _==_ {A : Set} (a : A) : A → Set where
   idp : a == a
 {-# BUILTIN REWRITE _==_ #-}

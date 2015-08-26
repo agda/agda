@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 module NewEquations where
 
 open import Common.Prelude hiding (map; _++_)

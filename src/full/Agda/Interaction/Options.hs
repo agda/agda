@@ -137,6 +137,7 @@ data PragmaOptions = PragmaOptions
   , optPatternMatching           :: Bool  -- ^ Is pattern matching allowed in the current file?
   , optExactSplit                :: Bool
   , optEta                       :: Bool
+  , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
   }
   deriving (Show,Eq)
 
@@ -218,6 +219,7 @@ defaultPragmaOptions = PragmaOptions
   , optPatternMatching           = True
   , optExactSplit                = False
   , optEta                       = True
+  , optRewriting                 = False
   }
 
 -- | The default termination depth.
@@ -298,6 +300,7 @@ unsafePragmaOptions opts =
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
+  [ "--rewriting"                                | optRewriting opts                 ] ++
   []
 
 -- | The default pragma options should be considered safe.
@@ -424,6 +427,9 @@ exactSplitFlag o = return $ o { optExactSplit = True }
 
 noExactSplitFlag :: Flag PragmaOptions
 noExactSplitFlag o = return $ o { optExactSplit = False }
+
+rewritingFlag :: Flag PragmaOptions
+rewritingFlag o = return $ o { optRewriting = True }
 
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
@@ -643,6 +649,8 @@ pragmaOptions =
                     "do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)"
     , Option []     ["no-eta"] (NoArg noEtaFlag)
                     "disable eta rules for records"
+    , Option []     ["rewriting"] (NoArg rewritingFlag)
+                    "enable declaration and use of REWRITE rules"
     ]
 
 -- | Used for printing usage info.

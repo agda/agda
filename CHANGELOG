@@ -17,6 +17,9 @@ Pragmas and options
 
     {-# OPTIONS --no-copatterns #-}
 
+* Option --rewriting is now needed to use REWRITE pragmas
+  and rewriting during reduction.  Rewriting is not --safe.
+
 Language
 ========
 

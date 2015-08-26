@@ -181,6 +181,7 @@ errorString err = case err of
   ModuleDoesntExport{}                     -> "ModuleDoesntExport"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
+  NeedOptionRewriting{}                    -> "NeedOptionRewriting"
   NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
   NoParseForApplication{}                  -> "NoParseForApplication"
   NoParseForLHS{}                          -> "NoParseForLHS"
@@ -1107,6 +1108,8 @@ instance PrettyTCM TypeError where
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
+    NeedOptionRewriting  -> fsep $
+      pwords "Option --rewriting needed to add and use rewrite rules"
 
     where
     mpar n args

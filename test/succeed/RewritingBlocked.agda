@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 -- {-# OPTIONS -v rewriting:100 -v tc.conv.atom:30 -v tc.inj.use:30 #-}
 
 open import Common.Equality
@@ -26,4 +28,3 @@ mutual
 
   reveal : secret-number ≡ zero
   reveal = refl
-

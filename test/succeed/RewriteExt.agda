@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 -- Let us assume that extensionality of functions cannot be proved
 -- inside "plain" Agda. In that case the code below shows that the
 -- REWRITE functionality is not a conservative extension, even if we

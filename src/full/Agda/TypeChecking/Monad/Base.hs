@@ -2118,6 +2118,7 @@ data TypeError
         | SafeFlagPrimTrustMe
     -- Language option errors
         | NeedOptionCopatterns
+        | NeedOptionRewriting
           deriving (Typeable, Show)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.

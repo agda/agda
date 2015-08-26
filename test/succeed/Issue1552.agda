@@ -1,3 +1,5 @@
+{-# OPTIONS --rewriting #-}
+
 -- {-# OPTIONS -v rewriting:100 #-}
 
 postulate
