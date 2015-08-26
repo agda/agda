@@ -692,6 +692,14 @@ isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
 projectionArgs :: Defn -> Int
 projectionArgs = maybe 0 (max 0 . pred . projIndex) . isProjection_
 
+-- | Check whether a definition uses copatterns.
+usesCopatterns :: QName -> TCM Bool
+usesCopatterns q = do
+  d <- theDef <$> getConstInfo q
+  return $ case d of
+    Function{ funCopatternLHS = b } -> b
+    _ -> False
+
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.
 applyDef :: QName -> I.Arg Term -> TCM Term
