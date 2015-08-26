@@ -267,11 +267,18 @@ isSolvedProblem :: Problem -> Bool
 isSolvedProblem problem = null (restPats $ problemRest problem) &&
     all (isSolved . snd . asView . namedArg) (problemInPat problem)
   where
-    isSolved (A.DefP _ _ []) = False  -- projection pattern
-    isSolved (A.VarP _)      = True
-    isSolved (A.WildP _)     = True
-    isSolved (A.AbsurdP _)   = True
-    isSolved _               = False
+    -- need further splitting:
+    isSolved A.ConP{}        = False
+    isSolved A.DotP{}        = False
+    isSolved A.LitP{}        = False
+    isSolved A.DefP{}        = False  -- projection pattern
+    -- solved:
+    isSolved A.VarP{}        = True
+    isSolved A.WildP{}       = True
+    isSolved A.AbsurdP{}     = True
+    -- impossible:
+    isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
+    isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
 
 -- | For each user-defined pattern variable in the 'Problem', check
 -- that the corresponding data type (if any) does not contain a
