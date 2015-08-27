@@ -972,11 +972,13 @@ type InteractionPoints = Map InteractionId InteractionPoint
 data Signature = Sig
       { sigSections    :: Sections
       , sigDefinitions :: Definitions
+      , sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
       }
   deriving (Typeable, Show)
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
+type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [Open DisplayForm]
 
 data Section = Section
@@ -991,7 +993,7 @@ data Section = Section
   deriving (Typeable, Show)
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty HMap.empty
+emptySignature = Sig Map.empty HMap.empty HMap.empty
 
 -- | A @DisplayForm@ is in essence a rewrite rule
 --   @
@@ -1094,8 +1096,6 @@ data Definition = Defn
   , defDisplay        :: [Open DisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
-  , defRewriteRules   :: RewriteRules
-    -- ^ Rewrite rules for this symbol, (additional to function clauses).
   , defInstance       :: Maybe QName
     -- ^ @Just q@ when this definition is an instance of class q
   , theDef            :: Defn
@@ -1113,7 +1113,6 @@ defaultDefn info x t def = Defn
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
-  , defRewriteRules   = []
   , defInstance       = Nothing
   , theDef            = def
   }
@@ -2473,7 +2472,7 @@ isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 ---------------------------------------------------------------------------
 
 instance KillRange Signature where
-  killRange (Sig secs defs) = killRange2 Sig secs defs
+  killRange (Sig secs defs rews) = killRange2 Sig secs defs rews
 
 instance KillRange Sections where
   killRange = fmap killRange
@@ -2481,12 +2480,15 @@ instance KillRange Sections where
 instance KillRange Definitions where
   killRange = fmap killRange
 
+instance KillRange RewriteRuleMap where
+  killRange = fmap killRange
+
 instance KillRange Section where
   killRange (Section tel freeVars) = killRange2 Section tel freeVars
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled rew inst def) =
-    killRange11 Defn ai name t pols occs displ mut compiled rew inst def
+  killRange (Defn ai name t pols occs displ mut compiled inst def) =
+    killRange10 Defn ai name t pols occs displ mut compiled inst def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NLPat where

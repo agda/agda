@@ -16,6 +16,7 @@ import Data.List hiding (null)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren)
@@ -158,7 +159,10 @@ markStatic q = modifySignature $ updateDefinition q $ mark
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
-    unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (HMap.union b d)
+    unionSignature (Sig a b c) (Sig a' b' c') =
+      Sig (Map.union a a')
+          (HMap.union b b')              -- definitions are unique (in at most one module)
+          (HMap.unionWith mappend c c')  -- rewrite rules are accumulated
 
 -- | Add a section to the signature.
 addSection :: ModuleName -> Nat -> TCM ()
@@ -290,12 +294,11 @@ applySection new ptel old ts rd rm = do
             t   = defType d `apply` ts'
             pol = defPolarity d `apply` ts'
             occ = defArgOccurrences d `apply` ts'
-            rew = defRewriteRules d `apply` ts'
             inst = defInstance d
             abstr = defAbstract d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
-            nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep rew inst <$> def  -- TODO: mutual block?
+            nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep inst <$> def  -- TODO: mutual block?
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
             mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
@@ -450,10 +453,21 @@ class (Functor m, Applicative m, Monad m) => HasConstInfo m where
   -- | Lookup the definition of a name. The result is a closed thing, all free
   --   variables have been abstracted over.
   getConstInfo :: QName -> m Definition
+  -- | Lookup the rewrite rules with the given head symbol.
+  getRewriteRulesFor :: QName -> m RewriteRules
 
 {-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 
+defaultGetRewriteRulesFor :: (Monad m) => m TCState -> QName -> m RewriteRules
+defaultGetRewriteRulesFor getTCState q = do
+  st <- getTCState
+  let sig = st^.stSignature
+      imp = st^.stImports
+      look s = HMap.lookup q $ sigRewriteRules s
+  return $ mconcat $ catMaybes [look sig, look imp]
+
 instance HasConstInfo (TCMT IO) where
+  getRewriteRulesFor = defaultGetRewriteRulesFor get
   getConstInfo q = join $ pureTCM $ \st env ->
     let defs  = sigDefinitions $ st^.stSignature
         idefs = sigDefinitions $ st^.stImports
@@ -482,6 +496,7 @@ instance HasConstInfo (TCMT IO) where
 
 instance (HasConstInfo m, Error err) => HasConstInfo (ExceptionT err m) where
   getConstInfo = lift . getConstInfo
+  getRewriteRulesFor = lift . getRewriteRulesFor
 
 {-# INLINE getConInfo #-}
 getConInfo :: MonadTCM tcm => ConHead -> tcm Definition

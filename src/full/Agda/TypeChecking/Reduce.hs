@@ -1063,7 +1063,7 @@ instance InstantiateFull Scope where
     instantiateFull' = return
 
 instance InstantiateFull Signature where
-  instantiateFull' (Sig a b) = uncurry Sig <$> instantiateFull' (a, b)
+  instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
 
 instance InstantiateFull Section where
   instantiateFull' (Section tel n) = flip Section n <$> instantiateFull' tel
@@ -1076,9 +1076,9 @@ instance InstantiateFull Char where
     instantiateFull' = return
 
 instance InstantiateFull Definition where
-    instantiateFull' (Defn rel x t pol occ df i c rew inst d) = do
-      (t, (df, d, rew)) <- instantiateFull' (t, (df, d, rew))
-      return $ Defn rel x t pol occ df i c rew inst d
+    instantiateFull' (Defn rel x t pol occ df i c inst d) = do
+      (t, df, d) <- instantiateFull' (t, df, d)
+      return $ Defn rel x t pol occ df i c inst d
 
 instance InstantiateFull NLPat where
   instantiateFull' (PVar x)   = return $ PVar x

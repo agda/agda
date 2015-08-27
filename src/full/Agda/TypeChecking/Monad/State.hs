@@ -9,8 +9,10 @@ import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad.State (put, get, gets, modify)
 import Control.Monad.Trans (liftIO)
-import Data.Set (Set)
+
 import Data.Map as Map
+import Data.Monoid
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Agda.Benchmarking
@@ -187,6 +189,14 @@ withSignature sig m = do
   r <- m
   setSignature sig0
   return r
+
+-- ** Modifiers for rewrite rules
+
+mapRewriteRules :: (RewriteRuleMap -> RewriteRuleMap) -> Signature -> Signature
+mapRewriteRules f sig = sig { sigRewriteRules = f (sigRewriteRules sig) }
+
+addRewriteRulesFor :: QName -> RewriteRules -> Signature -> Signature
+addRewriteRulesFor f rews = mapRewriteRules $ HMap.insertWith mappend f rews
 
 -- ** Modifiers for parts of the signature
 

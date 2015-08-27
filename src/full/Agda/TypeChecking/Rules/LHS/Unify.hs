@@ -104,7 +104,8 @@ instance MonadReader TCEnv Unify where
   local cont (U (ReaderT f)) = U $ ReaderT $ \ a -> local cont (f a)
 
 instance HasConstInfo Unify where
-  getConstInfo = U . lift . lift . lift . lift . getConstInfo
+  getConstInfo       = U . lift . lift . lift . lift . getConstInfo
+  getRewriteRulesFor = U . lift . lift . lift . lift . getRewriteRulesFor
 
 -- UnifyEnv
 ------------------------------------------------------------------------
