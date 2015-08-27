@@ -17,8 +17,10 @@ module Agda.TypeChecking.Reduce.Monad
   , askR, applyWhenVerboseS
   ) where
 
+import Prelude hiding (null)
+
 import Control.Arrow ((***), first, second)
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.Identity
 
@@ -41,6 +43,7 @@ import Agda.Interaction.Options
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 
 #include "undefined.h"
@@ -184,7 +187,4 @@ instance HasConstInfo ReduceM where
             _                 -> q
 
           dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $ init' $ mnameToList m }
-
-          init' [] = {-'-} __IMPOSSIBLE__
-          init' xs = init xs
+            q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
