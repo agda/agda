@@ -1024,9 +1024,17 @@ instance ToAbstract LetDef [A.LetBinding] where
                       genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
                     when (macro == MacroDef) $ do
                       genericError $ "Macros cannot be defined in a let expression."
-                    e <- letToAbstract cl
+                    (x', e) <- letToAbstract cl
                     t <- toAbstract t
-                    x <- toAbstract (NewName $ mkBoundName x fx)
+                    -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
+                    -- The situation is
+                    -- @
+                    --    let y : t
+                    --        y = e
+                    -- @
+                    -- and we need to store the ranges of both occurences of y in order
+                    -- for the highlighter to do the right thing.
+                    x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
                     info <- toAbstract info
                     return [ A.LetBind (LetRange $ getRange d) info x t e ]
 
@@ -1101,9 +1109,10 @@ instance ToAbstract LetDef [A.LetBinding] where
                     C.LHSHead x args -> return (x, args)
                     C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
 
-                localToAbstract args $ \args ->
+                e <- localToAbstract args $ \args ->
                     do  rhs <- toAbstract rhs
                         foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+                return (x, e)
             letToAbstract _ = notAValidLetBinding d
 
             -- Named patterns not allowed in let definitions
