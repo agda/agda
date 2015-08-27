@@ -250,10 +250,6 @@ addRewriteRules f rews = do
     , vcat (map prettyTCM rules)
     ]
 
--- | Lens for 'RewriteRules'.
-updateRewriteRules :: (RewriteRules -> RewriteRules) -> Definition -> Definition
-updateRewriteRules f def = def { defRewriteRules = f (defRewriteRules def) }
-
 -- | @rewriteWith t v rew@
 --   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
 rewriteWith :: Maybe Type -> Term -> RewriteRule -> ReduceM (Either (Blocked Term) Term)

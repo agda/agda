@@ -1091,9 +1091,9 @@ instance EmbPrj MutualId where
   value n = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icod_ (Defn rel a b c d e f g h i j) = icode11' rel a (P.killRange b) c d e f g h i j
-  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h, i, j] = valu11 Defn rel a b c d e f g h i j
-                           valu _                             = malformed
+  icod_ (Defn rel a b c d e f g h i) = icode10' rel a (P.killRange b) c d e f g h i
+  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h, i] = valu10 Defn rel a b c d e f g h i
+                           valu _ = malformed
 
 instance EmbPrj NLPat where
   icod_ (PVar a)   = icode1 0 a

@@ -434,7 +434,7 @@ checkAbsurdLambda i h e t = do
           addConstant aux
             $ Defn (setRelevance rel info') aux t'
                    [Nonvariant] [Unused] (defaultDisplayForm aux)
-                   0 noCompiledRep [] Nothing
+                   0 noCompiledRep Nothing
             $ Function
               { funClauses        =
                   [Clause
@@ -1260,7 +1260,7 @@ checkHeadApplication e t hd args = do
       addConstant c' =<< do
         let ai = setRelevance rel defaultArgInfo
         useTerPragma $
-          Defn ai c' t [] [] (defaultDisplayForm c') i noCompiledRep [] Nothing $
+          Defn ai c' t [] [] (defaultDisplayForm c') i noCompiledRep Nothing $
           emptyFunction
 
       -- Define and type check the fresh function.

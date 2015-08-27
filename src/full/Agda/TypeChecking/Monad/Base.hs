@@ -1024,8 +1024,6 @@ data Definition = Defn
   , defDisplay        :: [Open DisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
-  , defRewriteRules   :: RewriteRules
-    -- ^ Rewrite rules for this symbol, (additional to function clauses).
   , defInstance       :: Maybe QName
     -- ^ @Just q@ when this definition is an instance of class q
   , theDef            :: Defn
@@ -1043,7 +1041,6 @@ defaultDefn info x t def = Defn
   , defDisplay        = defaultDisplayForm x
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
-  , defRewriteRules   = []
   , defInstance       = Nothing
   , theDef            = def
   }
@@ -2382,8 +2379,8 @@ instance KillRange Section where
   killRange (Section tel freeVars) = killRange2 Section tel freeVars
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled rew inst def) =
-    killRange11 Defn ai name t pols occs displ mut compiled rew inst def
+  killRange (Defn ai name t pols occs displ mut compiled inst def) =
+    killRange10 Defn ai name t pols occs displ mut compiled inst def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange NLPat where
