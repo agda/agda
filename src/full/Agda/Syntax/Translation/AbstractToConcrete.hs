@@ -141,10 +141,12 @@ lookupName x = do
 
 lookupQName :: AllowAmbiguousConstructors -> A.QName -> AbsToCon C.QName
 lookupQName ambCon x = do
-  my <- inverseScopeLookupName' ambCon x <$> asks currentScope
-  case my of
-    Just y  -> return y
-    Nothing -> do
+  ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
+  lift $ reportSLn "scope.inverse" 100 $
+    "inverse looking up abstract name " ++ show x ++ " yields " ++ show ys
+  case ys of
+    (y : _) -> return y
+    [] -> do
       let y = qnameToConcrete x
       if isUnderscore y
         then return y
@@ -155,8 +157,8 @@ lookupModule :: A.ModuleName -> AbsToCon C.QName
 lookupModule x =
     do  scope <- asks currentScope
         case inverseScopeLookupModule x scope of
-            Just y  -> return y
-            Nothing -> return $ mnameToConcrete x
+            (y : _) -> return y
+            []      -> return $ mnameToConcrete x
                 -- this is what happens for names that are not in scope (private names)
 
 bindName :: A.Name -> (C.Name -> AbsToCon a) -> AbsToCon a

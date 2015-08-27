@@ -680,12 +680,13 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList to
 data AllowAmbiguousConstructors = AllowAmbiguousConstructors | NoAmbiguousConstructors
   deriving (Eq)
 
--- | Find the shortest concrete name that maps (uniquely) to a given abstract
---   name.
-inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
+-- | Find the concrete names that map (uniquely) to a given abstract name.
+--   Sort by length, shortest first.
+
+inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookup = inverseScopeLookup' AllowAmbiguousConstructors
 
-inverseScopeLookup' :: AllowAmbiguousConstructors -> Either A.ModuleName A.QName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookup' :: AllowAmbiguousConstructors -> Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLookup ] $
   -- trace ("importMap = " ++ show importMap) $
   -- trace ("moduleMap = " ++ show moduleMap) $
@@ -707,9 +708,16 @@ inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLooku
     len (C.QName _)  = 1
     len (C.Qual _ x) = 1 + len x
 
-    best :: [C.QName] -> Maybe C.QName
-    best xs = headMaybe $ sortBy (compare `on` len) xs
+    best :: [C.QName] -> [C.QName]
+    best = sortBy (compare `on` len) . filter (not . internalName)
 
+    internalName :: C.QName -> Bool
+    internalName C.QName{} = False
+    internalName (C.Qual m n) = intern m || internalName n
+      where
+      -- Recognize fresh names created Parser.y
+      intern (C.Name _ [ C.Id ('.' : '#' : _) ]) = True
+      intern _ = False
     unique :: forall a . [a] -> Bool
     unique []      = __IMPOSSIBLE__
     unique [_]     = True
@@ -749,15 +757,17 @@ inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLooku
       q       <- anameName <$> ms
       return (q, [(m, x)])
 
--- | Takes the first component of 'inverseScopeLookup'.
-inverseScopeLookupName :: A.QName -> ScopeInfo -> Maybe C.QName
+-- | Find the concrete names that map (uniquely) to a given abstract qualified name.
+--   Sort by length, shortest first.
+inverseScopeLookupName :: A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookupName x = inverseScopeLookup (Right x)
 
-inverseScopeLookupName' :: AllowAmbiguousConstructors -> A.QName -> ScopeInfo -> Maybe C.QName
+inverseScopeLookupName' :: AllowAmbiguousConstructors -> A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookupName' ambCon x = inverseScopeLookup' ambCon (Right x)
 
--- | Takes the second component of 'inverseScopeLookup'.
-inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName
+-- | Find the concrete names that map (uniquely) to a given abstract module name.
+--   Sort by length, shortest first.
+inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> [C.QName]
 inverseScopeLookupModule x = inverseScopeLookup (Left x)
 
 ------------------------------------------------------------------------

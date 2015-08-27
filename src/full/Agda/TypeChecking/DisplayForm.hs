@@ -77,7 +77,7 @@ displayForm q vs = do
   where
     inScope _ _ = True  -- TODO: distinguish between with display forms and other display forms
 --     inScope scope d = case hd d of
---       Just h  -> isJust $ inverseScopeLookupName h scope
+--       Just h  -> not . null $ inverseScopeLookupName h scope
 --       Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
     -- 'hd' is only used in the commented-out code for 'inScope' above.
     -- hd (DTerm (Def x _))    = Just x
