@@ -1060,7 +1060,7 @@ instance InstantiateFull Scope where
     instantiateFull' = return
 
 instance InstantiateFull Signature where
-  instantiateFull' (Sig a b) = uncurry Sig <$> instantiateFull' (a, b)
+  instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
 
 instance InstantiateFull Section where
   instantiateFull' (Section tel n) = flip Section n <$> instantiateFull' tel

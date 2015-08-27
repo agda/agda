@@ -1,3 +1,0 @@
-Issue1550.agda:12,1-20
-Cannot add a rewrite rule for  _+_  because it is defined in a different file
-when checking the pragma REWRITE foo

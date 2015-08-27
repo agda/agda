@@ -907,11 +907,13 @@ type InteractionPoints = Map InteractionId InteractionPoint
 data Signature = Sig
       { sigSections    :: Sections
       , sigDefinitions :: Definitions
+      , sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
       }
   deriving (Typeable, Show)
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
+type RewriteRuleMap = HashMap QName RewriteRules
 
 data Section = Section
       { secTelescope :: Telescope
@@ -925,7 +927,7 @@ data Section = Section
   deriving (Typeable, Show)
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty HMap.empty
+emptySignature = Sig Map.empty HMap.empty HMap.empty
 
 -- | A @DisplayForm@ is in essence a rewrite rule
 --   @
@@ -2365,12 +2367,15 @@ isAbsurdLambdaName = (absurdLambdaName ==) . prettyShow . qnameName
 ---------------------------------------------------------------------------
 
 instance KillRange Signature where
-  killRange (Sig secs defs) = killRange2 Sig secs defs
+  killRange (Sig secs defs rews) = killRange2 Sig secs defs rews
 
 instance KillRange Sections where
   killRange = fmap killRange
 
 instance KillRange Definitions where
+  killRange = fmap killRange
+
+instance KillRange RewriteRuleMap where
   killRange = fmap killRange
 
 instance KillRange Section where

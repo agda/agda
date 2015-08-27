@@ -26,6 +26,7 @@ import Control.Monad.Identity
 
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Monoid
 
 import Debug.Trace
 import System.IO.Unsafe
@@ -166,6 +167,7 @@ traceSLn :: HasOptions m => VerboseKey -> Int -> String -> m a -> m a
 traceSLn k n s = applyWhenVerboseS k n (trace s)
 
 instance HasConstInfo ReduceM where
+  getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
   getConstInfo q = ReduceM $ ReaderT $ \(ReduceEnv env st) -> Identity $
     let defs  = sigDefinitions $ st^.stSignature
         idefs = sigDefinitions $ st^.stImports

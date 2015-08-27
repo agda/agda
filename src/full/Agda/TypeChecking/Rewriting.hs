@@ -197,9 +197,6 @@ addRewriteRule q = inTopContext $ do
         Con c vs -> return $ conName c
         _        -> failureNotDefOrCon
 
-      whenM (null . lookupDefinition f <$> getSignature) $ typeError . GenericDocError =<< hsep
-        [ text "Cannot add a rewrite rule for " , prettyTCM f , text " because it is defined in a different file" ]
-
       -- Normalize lhs: we do not want to match redexes.
       lhs <- normaliseArgs lhs
       unlessM (isNormal lhs) $ failureLhsReduction lhs
@@ -246,8 +243,8 @@ addRewriteRule q = inTopContext $ do
 addRewriteRules :: QName -> RewriteRules -> TCM ()
 addRewriteRules f rews = do
   reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-  modifySignature $ updateDefinition f $ updateRewriteRules $ (++ rews)
-  rules <- defRewriteRules <$> getConstInfo f
+  modifySignature $ addRewriteRulesFor f rews
+  rules <- getRewriteRulesFor f
   reportSDoc "rewriting" 20 $ vcat
     [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
     , vcat (map prettyTCM rules)
@@ -315,7 +312,7 @@ rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- els
     -- Try all rewrite rules for f.
     rew :: QName -> (Elims -> Term) -> Elims -> ReduceM (Either (Blocked Term) Term)
     rew f hd es = do
-      rules <- defRewriteRules <$> getConstInfo f
+      rules <- getRewriteRulesFor f
       case rules of
         [] -> return $ Left $ bv $> hd es
         _  -> do
