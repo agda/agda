@@ -5,12 +5,15 @@
 
 module Agda.TypeChecking.Monad.Signature where
 
-import Control.Arrow (second)
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Arrow (first, second, (***))
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 
-import Data.List
+import Data.List hiding (null)
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -37,15 +40,17 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
 
+import Agda.Utils.Except ( Error )
 import Agda.Utils.Functor
-import Agda.Utils.Maybe
-import Agda.Utils.Monad
-import Agda.Utils.Size
-import Agda.Utils.Permutation
-import Agda.Utils.Pretty
 import Agda.Utils.Lens
 import Agda.Utils.List
-import Agda.Utils.Except ( Error )
+import Agda.Utils.Map as Map
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
+import Agda.Utils.Null
+import Agda.Utils.Permutation
+import Agda.Utils.Pretty
+import Agda.Utils.Size
 import qualified Agda.Utils.HashMap as HMap
 
 #include "undefined.h"
@@ -473,16 +478,12 @@ instance HasConstInfo (TCMT IO) where
             _             -> q
 
           dropLastModule q@QName{ qnameModule = m } =
-            q{ qnameModule = mnameFromList $ init' $ mnameToList m }
-
-          init' [] = {-'-} __IMPOSSIBLE__
-          init' xs = init xs
+            q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
 
 instance (HasConstInfo m, Error err) => HasConstInfo (ExceptionT err m) where
   getConstInfo = lift . getConstInfo
 
 {-# INLINE getConInfo #-}
-{-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 getConInfo :: MonadTCM tcm => ConHead -> tcm Definition
 getConInfo = liftTCM . getConstInfo . conName
 
