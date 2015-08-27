@@ -142,6 +142,8 @@ lookupName x = do
 lookupQName :: AllowAmbiguousConstructors -> A.QName -> AbsToCon C.QName
 lookupQName ambCon x = do
   my <- inverseScopeLookupName' ambCon x <$> asks currentScope
+  lift $ reportSLn "scope.inverse" 100 $
+    "inverse looking up abstract name " ++ show x ++ " yields " ++ show my
   case my of
     Just y  -> return y
     Nothing -> do
