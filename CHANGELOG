@@ -20,6 +20,45 @@ Pragmas and options
 * Option --rewriting is now needed to use REWRITE pragmas
   and rewriting during reduction.  Rewriting is not --safe.
 
+  To use rewriting, first specify a relation symbol `R` that will
+  later be used to add rewrite rules.  A canonical candidate would be
+  propositional equality
+
+    {-# BUILTIN REWRITE _≡_ #-}
+
+  but any symbol `R` of type `Δ → A → A → Set i` for some `A` and
+  `i` is accepted.  Then symbols `q` can be added to rewriting
+  provided their type is of the form `Γ → R ds l r`.  This will add
+  a rewrite rule
+
+    Γ ⊢ l ↦ r : A[ds/Δ]
+
+  to the signature, which fires whenever a term is an instance of `l`.
+  For example, if
+
+    plus0 : ∀ x → x + 0 ≡ x
+
+  (ideally, there is a proof for `plus0`, but it could be a
+  postulate), then
+
+    {-# REWRITE plus0 #-}
+
+  will prompt Agda to rewrite any well-typed term of the form `t + 0`
+  to `t`.
+
+  Some caveats:  Agda accepts and applies rewrite rules naively, it is
+  very easy to break consistency and termination of type checking.
+  Some examples of rewrite rules that should /not/ be added:
+
+    refl     : ∀ x → x ≡ x             -- Agda loops
+    plus-sym : ∀ x y → x + y ≡ y + x   -- Agda loops
+    absurd   : true ≡ false             -- Breaks consistency
+
+  Adding only proven equation should at least preserve consistency,
+  but this is only a conjecture, so know what you are doing!
+  Using rewriting, you are entering the wilderness, and you are on
+  your own!
+
 Language
 ========
 
