@@ -5,7 +5,7 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Prelude hiding (mapM_, mapM, sequence)
+import Prelude hiding (mapM_, mapM, sequence, concat)
 
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
