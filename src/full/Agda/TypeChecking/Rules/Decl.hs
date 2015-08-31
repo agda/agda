@@ -209,13 +209,13 @@ checkUnquoteDecl mi i x e = do
       -- Add x to signature, otherwise reification gets unhappy.
       addConstant x =<< do
         useTerPragma $ defaultDefn defaultArgInfo x a emptyFunction
-      a <- reifyUnquoted a
+      a <- reifyUnquoted $ killRange a
       reportSDoc "tc.unquote.decl" 10 $
         vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
              , prettyTCM x <+> text ":" <+> prettyA a ]
       tel <- getContextTelescope
       let tel' = replaceEmptyName "r" $ killRange tel
-      cs <- mapM (reifyUnquoted . QNamed x . abstract tel) cs
+      cs <- mapM (reifyUnquoted . QNamed x . killRange . abstract tel) cs
       reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
       let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
                , A.FunDef i x NotDelayed cs ]
