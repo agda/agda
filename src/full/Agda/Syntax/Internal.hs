@@ -1001,7 +1001,7 @@ instance KillRange Term where
     Def c vs    -> killRange2 Def c vs
     Con c vs    -> killRange2 Con c vs
     MetaV m vs  -> killRange1 (MetaV m) vs
-    Lam i f     -> killRange1 Lam i f
+    Lam i f     -> killRange2 Lam i f
     Lit l       -> killRange1 Lit l
     Level l     -> killRange1 Level l
     Pi a b      -> killRange2 Pi a b
