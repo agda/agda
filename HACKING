@@ -95,24 +95,25 @@ Working with Git (from 2014-06-15)
   found using the timeout command.
 
   Here is an example of how git bisect can be used to track down a
-  problem introduced in Agda 2.3.0, using a module that should /not/
+  problem introduced in Agda 2.3.2, using a module that should /not/
   be accepted:
 
     ⋮
-    git bisect start 2_3_0 2_2_10
+    git bisect start 2_3_2 2_3_0
     cp <some path>/Module-that-should-be-rejected.agda .
     git bisect run sh -c \
       "(cabal install --with-alex=alex-2.3.5 \
                       --with-compiler=ghc-7.0.4 \
                       --force-reinstalls \
                       --disable-library-profiling \
-                      --disable-documentation &&
-        cabal install --with-alex=alex-2.3.5 \
-                      --with-compiler=ghc-7.0.4 \
-                      --force-reinstalls \
-                      --disable-library-profiling \
-                      --disable-documentation \
-                      src/main/Agda-executable.cabal) || exit 125; \
+                      --disable-documentation && \
+        ([ ! -e src/main/Agda-executable.cabal ] || \
+         cabal install --with-alex=alex-2.3.5 \
+                       --with-compiler=ghc-7.0.4 \
+                       --force-reinstalls \
+                       --disable-library-profiling \
+                       --disable-documentation \
+                       src/main/Agda-executable.cabal)) || exit 125; \
        .cabal-sandbox/bin/agda --ignore-interfaces \
                                --no-termination-check \
           Module-that-should-be-rejected.agda && exit 1 || exit 0"
