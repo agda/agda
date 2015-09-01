@@ -121,7 +121,9 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
 
                   -- For an example of code that exercises the latter,
                   -- uninformative clause above, see
-                  -- test/fail/BadInductionRecursion5.agda.
+                  -- test/fail/BadInductionRecursion5.agda. Note that
+                  -- for this example the counterexample is not a
+                  -- trail.
 
                   -- If a suitable StarSemiRing instance can be
                   -- defined for Edge, then
