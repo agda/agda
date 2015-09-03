@@ -148,9 +148,7 @@ latex-test :
 	@echo "======================================================================"
 	@echo "================== Suite of tests for LaTeX backend =================="
 	@echo "======================================================================"
-	@$(MAKE) -C test/latex-backend clean
-	@$(MAKE) -C test/latex-backend all
-	@$(MAKE) -C test/latex-backend clean
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LatexBackend
 
 .PHONY : std-lib
 std-lib :
@@ -207,7 +205,7 @@ compiler-test :
 	@echo "======================================================================"
 	@echo "========================== Compiler tests ============================"
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS)
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Compiler
 
 .PHONY : api-test
 api-test :

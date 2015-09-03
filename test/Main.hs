@@ -7,6 +7,7 @@
 module Main where
 
 import qualified Compiler.Tests as COMP
+import qualified LatexBackend.Tests as LATEX
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
 import Test.Tasty.Silver.Filter (RegexFilter)
@@ -36,7 +37,7 @@ main = do
         exitWith (ExitFailure 1)
 
 tests :: IO TestTree
-tests = testGroup "all" <$> sequence [COMP.tests]
+tests = testGroup "all" <$> sequence [COMP.tests, LATEX.tests]
 
 disabledTests :: [RegexFilter]
 disabledTests = COMP.disabledTests
