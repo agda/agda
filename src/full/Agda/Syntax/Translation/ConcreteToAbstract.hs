@@ -90,6 +90,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
 
@@ -1437,16 +1438,19 @@ bindConstructorName m x f a p record = do
             _                -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl record m a p (C.Axiom r f _ i info x t)) = do -- rel==Relevant
-    t' <- toAbstractCtx TopCtx t
-    -- The abstract name is the qualified one
-    -- Bind it twice, once unqualified and once qualified
-    y <- bindConstructorName m x f a p record
-    info <- toAbstract info
-    printScope "con" 15 "bound constructor"
-    return $ A.Axiom NoFunSig (mkDefInfoInstance x f p ConcreteDef i NotMacroDef r) info y t'
-
-  toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
+  toAbstract (ConstrDecl record m a p d) = do
+    case d of
+      C.Axiom r f _ i info x t -> do -- rel==Relevant
+        t' <- toAbstractCtx TopCtx t
+        -- The abstract name is the qualified one
+        -- Bind it twice, once unqualified and once qualified
+        y <- bindConstructorName m x f a p record
+        info <- toAbstract info
+        printScope "con" 15 "bound constructor"
+        return $ A.Axiom NoFunSig (mkDefInfoInstance x f p ConcreteDef i NotMacroDef r) info y t'
+      _ -> typeError . GenericDocError $
+        P.text "Illegal declaration in data type definition " P.$$
+        P.nest 2 (pretty (notSoNiceDeclaration d))
 
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImpossiblePragma _) = impossibleTest
