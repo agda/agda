@@ -1,0 +1,7 @@
+Issue1639.agda:4,3-3
+Issue1639.agda:4,3: Parse error
+field<ERROR>
+
+    A : Set
+
+-- WAS: Internal...
