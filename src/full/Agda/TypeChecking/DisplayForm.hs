@@ -11,6 +11,7 @@ import Control.Monad.Trans.Maybe
 
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
 import Agda.Syntax.Internal
+import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -75,16 +76,20 @@ displayForm q vs = do
 --  `catchError` \_ -> return Nothing
 
   where
-    inScope _ _ = True  -- TODO: distinguish between with display forms and other display forms
---     inScope scope d = case hd d of
---       Just h  -> not . null $ inverseScopeLookupName h scope
---       Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
     -- 'hd' is only used in the commented-out code for 'inScope' above.
-    -- hd (DTerm (Def x _))    = Just x
-    -- hd (DTerm (Con x _))    = Just $ conName x
-    -- hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
-    -- hd (DWithApp d _ _) = hd d
-    -- hd _                 = Nothing
+    inScope _ d | isWithDisplay d = True
+    inScope scope d = case hd d of
+      Just h  -> not . null $ inverseScopeLookupName h scope
+      Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
+
+    isWithDisplay DWithApp{} = True
+    isWithDisplay _          = False
+
+    hd (DTerm (Def x _))    = Just x
+    hd (DTerm (Con x _))    = Just $ conName x
+    hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
+    hd (DWithApp d _ _) = hd d
+    hd _                 = Nothing
 
 -- | Match a 'DisplayForm' @q ps = v@ against @q vs@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
