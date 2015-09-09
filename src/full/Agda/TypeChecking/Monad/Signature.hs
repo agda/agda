@@ -254,16 +254,18 @@ applySection new ptel old ts rd rm = do
             "new type = " ++ prettyShow t
           addConstant y =<< nd y
           makeProjection y
+          -- Issue1238: the copied def should be an 'instance' if the original
+          -- def is one. Skip constructors since the original constructor will
+          -- still work as an instance.
+          unless isCon $ whenJust inst $ \ c -> addNamedInstance y c
           -- Set display form for the old name if it's not a constructor.
 {- BREAKS fail/Issue478
           -- Andreas, 2012-10-20 and if we are not an anonymous module
           -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
 -}
-          -- Issue1238: the copied def should be an 'instance' if the original
-          -- def is one. Skip constructors since the original constructor will
-          -- still work as an instance.
-          unless isCon $ whenJust inst $ \ c -> addNamedInstance y c
-          unless (isCon || size ptel > 0) $ do
+          -- Andreas, 2015-09-09 Issue 1643:
+          -- Do not add a display form for a bare module alias.
+          when (not isCon && size ptel == 0 && not (null ts)) $ do
             addDisplayForms y
           where
             ts' = take np ts

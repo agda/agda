@@ -463,6 +463,7 @@ typeOfMetaMI norm mi =
           , TP.text "x    =" TP.<+> TP.pretty x
           ]
         ]
+      reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
       OfType x <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
     rewriteJudg mv (IsSort i t) = do
       ms <- getMetaNameSuggestion i
