@@ -263,9 +263,11 @@ applySection new ptel old ts rd rm = do
           -- Andreas, 2012-10-20 and if we are not an anonymous module
           -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
 -}
-          -- Andreas, 2015-09-09 Issue 1643:
-          -- Do not add a display form for a bare module alias.
-          when (not isCon && size ptel == 0 && not (null ts)) $ do
+          -- BREAKS fail/Issue1643a
+          -- -- Andreas, 2015-09-09 Issue 1643:
+          -- -- Do not add a display form for a bare module alias.
+          -- when (not isCon && size ptel == 0 && not (null ts)) $ do
+          when (not isCon && size ptel == 0) $ do
             addDisplayForms y
           where
             ts' = take np ts
