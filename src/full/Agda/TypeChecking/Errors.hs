@@ -479,7 +479,7 @@ instance PrettyTCM TypeError where
       pwords "is not parameterized, but is being applied to arguments"
 
     ModuleArityMismatch m tel@(ExtendTel _ _) args -> fsep $
-      pwords "The arguments to " ++ [prettyTCM m] ++ pwords "does not fit the telescope" ++
+      pwords "The arguments to " ++ [prettyTCM m] ++ pwords "do not fit the telescope" ++
       [prettyTCM tel]
 
     ShouldBeEmpty t [] -> fsep $
