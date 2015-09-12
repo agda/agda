@@ -915,21 +915,27 @@ subtypingForSizeLt dir   x mvar t args v cont = do
         _ -> fallback
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
-expandProjectedVars :: (Normalise a, TermLike a, PrettyTCM a, NoProjectedVar a, Subst a, PrettyTCM b, Subst b) =>
+expandProjectedVars :: (Normalise a, TermLike a, Show a, PrettyTCM a, NoProjectedVar a, Subst a, PrettyTCM b, Subst b) =>
   a -> b -> (a -> b -> TCM c) -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
-    reportSDoc "tc.meta.assign.proj" 40 $ text "meta args: " <+> prettyTCM args
+    reportSDoc "tc.meta.assign.proj" 45 $ text "meta args: " <+> prettyTCM args
     args <- etaContract =<< normalise args
-    reportSDoc "tc.meta.assign.proj" 40 $ text "norm args: " <+> prettyTCM args
+    reportSDoc "tc.meta.assign.proj" 45 $ text "norm args: " <+> prettyTCM args
+    reportSDoc "tc.meta.assign.proj" 85 $ text "norm args: " <+> text (show args)
     let done = ret args v
     case noProjectedVar args of
-      Right ()              -> done
+      Right ()              -> do
+        reportSDoc "tc.meta.assign.proj" 40 $
+          text "no projected var found in args: " <+> prettyTCM args
+        done
       Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
 etaExpandProjectedVar :: (PrettyTCM a, Subst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
 etaExpandProjectedVar i v fail succeed = do
+  reportSDoc "tc.meta.assign.proj" 40 $
+    text "trying to expand projected variable" <+> prettyTCM (var i)
   caseMaybeM (etaExpandBoundVar i) fail $ \ (delta, sigma, tau) -> do
     reportSDoc "tc.meta.assign.proj" 25 $
       text "eta-expanding var " <+> prettyTCM (var i) <+>
@@ -948,10 +954,13 @@ data ProjVarExc = ProjVarExc Int [QName]
 --   noMsg = __IMPOSSIBLE__
 
 instance NoProjectedVar Term where
-  noProjectedVar v =
-    case ignoreSharing v of
-      Var i es | qs@(_:_) <- takeWhileJust id $ map isProjElim es
-        -> Left $ ProjVarExc i qs
+  noProjectedVar t =
+    case ignoreSharing t of
+      Var i es
+        | qs@(_:_) <- takeWhileJust id $ map isProjElim es -> Left $ ProjVarExc i qs
+      -- Andreas, 2015-09-12 Issue 1316:
+      -- Also look in inductive record constructors
+      Con (ConHead _ Inductive (_:_)) vs -> noProjectedVar vs
       _ -> return ()
 
 instance NoProjectedVar a => NoProjectedVar (I.Arg a) where
