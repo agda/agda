@@ -66,7 +66,7 @@ displayForm q vs = do
       , "displayForms: " ++ show dfs
       , "arguments   : " ++ show vs
       , "matches     : " ++ show ms
-      , "result      : " ++ show (foldr (const . Just) Nothing ms)
+      , "result      : " ++ show (headMaybe ms)
       ]
     -- Return the first display form that matches.
     return $ headMaybe ms
