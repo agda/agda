@@ -7,5 +7,5 @@ Agda2> (agda2-status-action "")
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 Agda2> (agda2-status-action "")
-(agda2-info-action "*Agda Version*" "Agda version 2.4.2.4" nil)
+(agda2-info-action "*Agda Version*" "Agda version 2.4.2.3.20150913" nil)
 Agda2> 
