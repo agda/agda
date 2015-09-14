@@ -237,7 +237,7 @@ Performance
 Bug fixes
 =========
 
-* Issues fixed ( see https://code.google.com/p/agda/issues ):
+* Issues fixed ( see https://github.com/agda/agda/issues ):
   1546 (copattern matching and with-clauses)
   1560 (positivity checker inefficiency)
   1584 (let pattern with trailing implicit)
