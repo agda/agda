@@ -120,21 +120,21 @@ checkSizeVarNeverZero i = do
   ts <- map (snd . unDom) . take i <$> getContext
   -- If we encountered a blocking meta in the context, we cannot
   -- say ``no'' for sure.
-  (n, Any meta) <- runWriterT $ minSizeVal' ts $ repeat 0
+  (n, Any meta) <- runWriterT $ minSizeValAux ts $ repeat 0
   if n > 0 then return True else
     if meta then patternViolation else return False
   where
   -- Compute the least valuation for size context ts above the
   -- given valuation and return its last value.
-  minSizeVal' :: [Type] -> [Int] -> WriterT Any TCM Int
-  minSizeVal' _        []      = __IMPOSSIBLE__
-  minSizeVal' []       (n : _) = return n
-  minSizeVal' (t : ts) (n : ns) = do
+  minSizeValAux :: [Type] -> [Int] -> WriterT Any TCM Int
+  minSizeValAux _        []      = __IMPOSSIBLE__
+  minSizeValAux []       (n : _) = return n
+  minSizeValAux (t : ts) (n : ns) = do
     reportSDoc "tc.size" 60 $
        text ("minSizeVal (n:ns) = " ++ show (take (length ts + 2) $ n:ns) ++
              " t =") <+> (text . show) t  -- prettyTCM t  -- Wrong context!
     -- n is the min. value for variable 0 which has type t.
-    let cont = minSizeVal' ts ns
+    let cont = minSizeValAux ts ns
         perhaps = tell (Any True) >> cont
     -- If we encounter a blocked type in the context, we cannot
     -- give a definite answer.
@@ -153,7 +153,7 @@ checkSizeVarNeverZero i = do
                 reportSLn "tc.size" 60 $ "minSizeVal upper bound v = " ++ show v
                 let ns' = List.updateAt j (max $ n+1-m) ns
                 reportSLn "tc.size" 60 $ "minSizeVal ns' = " ++ show (take (length ts + 1) ns')
-                minSizeVal' ts ns'
+                minSizeValAux ts ns'
               DSizeMeta{} -> perhaps
               _ -> cont
 

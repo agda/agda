@@ -1,12 +1,10 @@
-2015-05-15, adapted from agda-releases
+2015-09-13, adapted from agda-releases
 
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
 
-* Update in the bug tracker the milestone field of open issues to the
-  next Agda version. (If the label for the next milestone version
-  (e.g. Milestone-2.4.6) does not exist, create an issue asking for
-  it).
+* First, release a release candidate (see
+  notes/agda-maintenance-releases-candidates).
 
 * Get a clean Agda repository.
 
@@ -33,12 +31,6 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-* Add the line
-
-    RELEASE=true
-
-  at the top of the Makefile.
-
 * Add a second source-repository section to Agda.cabal:
 
     source-repository this
@@ -48,14 +40,6 @@ followed:
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
-
-* Remove the Cabal test-suite:
-
-  ** Remove the agda-tests test suite in Agda.cabal.
-
-  ** Remove --enable-tests from the install-bin rule in Makefile.
-
-  ** Remove exec-test from the tests rule in Makefile.
 
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
@@ -75,6 +59,15 @@ followed:
   Note that "make install" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
+
+* Remove the Cabal test-suite:
+
+  ** Remove the agda-tests test suite in Agda.cabal.
+
+  ** Remove --enable-tests from the install-bin rule in Makefile.
+
+  ** Remove compiler-test and latex-tex from the tests rule in
+     Makefile.
 
 * Build source distributions:
 
@@ -111,19 +104,13 @@ followed:
 
   ** Add --enable-tests to the install-bin rule in Makefile.
 
-  ** Add exec-test to the tests rule in Makefile.
+  ** Add compiler-test and latex-test to the tests rule in Makefile.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
 * Remove the "this" source-repository section from the Cabal
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
-
-* Remove the line
-
-    RELEASE=true
-
-  from the top of the Makefile.
 
 * Add a new header to CHANGELOG.
 

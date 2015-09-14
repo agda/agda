@@ -42,11 +42,11 @@ it should suffice to run
 
 as root to get the correct files installed.
 
-### Note on ghc's CPP language extension
+### Note on GHC's CPP language extension
 
 Recent versions of Clang's preprocessor don't work well with Haskell.
 In order to get some dependencies to build, you may need to set up Cabal
-to have ghc use cpphs by default. You can do this by adding
+to have GHC use cpphs by default. You can do this by adding
 
     program-default-options
       ghc-options: -pgmPcpphs -optP--cpp

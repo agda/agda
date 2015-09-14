@@ -52,7 +52,7 @@ Pragmas and options
 
     refl     : ∀ x → x ≡ x             -- Agda loops
     plus-sym : ∀ x y → x + y ≡ y + x   -- Agda loops
-    absurd   : true ≡ false             -- Breaks consistency
+    absurd   : true ≡ false            -- Breaks consistency
 
   Adding only proven equations should at least preserve consistency,
   but this is only a conjecture, so know what you are doing!
@@ -237,7 +237,7 @@ Performance
 Bug fixes
 =========
 
-* Issues fixed ( see https://code.google.com/p/agda/issues ):
+* Issues fixed ( see https://github.com/agda/agda/issues ):
   1546 (copattern matching and with-clauses)
   1560 (positivity checker inefficiency)
   1584 (let pattern with trailing implicit)
