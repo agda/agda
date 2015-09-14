@@ -3,6 +3,13 @@
 When releasing a release candidate (RC) bugfix version of Agda, the
 following procedure can be followed:
 
+* Can we use HACKAGE for realising a release candidate? That is, are
+  the issues mentioned in
+
+    https://github.com/haskell/hackage-server/issues/41
+
+  fixed?
+
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
