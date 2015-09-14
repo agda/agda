@@ -47,7 +47,8 @@ followed:
 
   ** Remove --enable-tests from the install-bin rule in Makefile.
 
-  ** Remove compiler-test from the tests rule in Makefile.
+  ** Remove compiler-test and latex-tex from the tests rule in
+     Makefile.
 
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
@@ -105,7 +106,7 @@ followed:
 
   ** Add --enable-tests to the install-bin rule in Makefile.
 
-  ** Add compiler-test to the tests rule in Makefile.
+  ** Add compiler-test and latex-tex to the tests rule in Makefile.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
