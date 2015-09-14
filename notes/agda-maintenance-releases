@@ -41,15 +41,6 @@ followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Remove the Cabal test-suite:
-
-  ** Remove the agda-tests test suite in Agda.cabal.
-
-  ** Remove --enable-tests from the install-bin rule in Makefile.
-
-  ** Remove compiler-test and latex-tex from the tests rule in
-     Makefile.
-
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
 
@@ -68,6 +59,15 @@ followed:
   Note that "make install" invokes "agda-mode compile", which should
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
+
+* Remove the Cabal test-suite:
+
+  ** Remove the agda-tests test suite in Agda.cabal.
+
+  ** Remove --enable-tests from the install-bin rule in Makefile.
+
+  ** Remove compiler-test and latex-tex from the tests rule in
+     Makefile.
 
 * Build source distributions:
 
