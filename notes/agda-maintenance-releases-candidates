@@ -1,0 +1,140 @@
+2015-09-13, adapted from agda-maintenance-releases
+
+When releasing a release candidate (RC) bugfix version of Agda, the
+following procedure can be followed:
+
+* Update in the bug tracker the milestone field of open issues to the
+  next Agda version.
+
+* Get a clean Agda repository.
+
+    MAJORVERSION=<current-Agda-version-eg-2.4.2>
+    VERSION=<current-maintenance-version-eg-2.4.0.2>
+    git clone git@github.com:agda/agda.git agda.release
+    cd agda.release
+    git checkout maint-$MAJORVERSION
+
+* The version of the RC is the current version released + current date
+
+    RC_VERSION=<current-released-version-current-date-eg-2.4.2.3.20150913
+
+* Change the version numbers in
+
+    Agda.cabal (twice)
+    src/data/emacs-mode/agda2-mode.el
+    mk/version.mk
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
+
+  to the RC version
+
+    $RC_VERSION
+
+* Clone the standard library branch related to the Agda bugfix
+  version.
+
+    make std-lib
+
+* Create Everything.agda in the standard library
+
+    cd std-lib
+    make Everything.agda
+    cd ..
+
+* Finish the CHANGELOG.
+
+* Update the README.md, if necessary.
+
+* Update the LICENSE file, if necessary.
+
+* Remove -Werror and -fprof-auto from Agda.cabal (this is required by
+  `cabal --check`).
+
+** Ensure that cabal haddock works (requires at least cabal-install
+   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
+
+     cabal configure && cabal haddock
+
+** Test compilation using cpp instead of cpphs:
+
+     make install-bin CABAL_OPTS='-f -cpphs'
+     make clean
+
+* Run the test-suite:
+
+    make install
+    make test
+
+  Note that "make install" invokes "agda-mode compile", which should
+  ensure that the Emacs mode can be compiled without errors or
+  warnings (except for the "cl package required at runtime" warning).
+
+* Remove the Cabal test-suite:
+
+  ** Remove the agda-tests test suite in Agda.cabal.
+
+  ** Remove --enable-tests from the install-bin rule in Makefile.
+
+  ** Remove compiler-test and latex-test from the tests rule in
+     Makefile.
+
+* Build source distributions:
+
+    cabal configure
+    cabal check
+    cabal sdist
+    cabal install
+
+* Ensure that the package builds properly (with multiple versions of GHC if
+  possible) in Linux, MacOS X and Windows.
+
+    BASE=`pwd`
+    RC_VERSION=<rc_version>
+    cd ${TMPDIR:-/tmp}
+    tar xzf $BASE/dist/Agda-$RC_VERSION.tar.gz
+    cd Agda-$RC_VERSION
+    cabal install
+
+  Do not forget to test the Emacs mode.
+
+* Tag the relase candidate (do not forget to record the changes above
+  first):
+
+    cd $BASE
+    git tag -a $RC_VERSION -m "Agda $VERSION release candidate"
+
+* Restore the Cabal test-suite:
+
+  ** Restore the agda-tests test suite in Agda.cabal.
+
+  ** Add --enable-tests to the install-bin rule in Makefile.
+
+  ** Add compiler-test and latex-test to the tests rule in Makefile.
+
+* Restore -Werror and -fprof-auto in Agda.cabal.
+
+* Restore the version numbers in
+
+    Agda.cabal (twice)
+    src/data/emacs-mode/agda2-mode.el
+    mk/version.mk
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
+
+  to the version
+
+    $VERSION
+
+* Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
+
+    git push --follow-tags
+
+    git checkout master
+    git merge maint-$MAJORVERSION
+
+* Push master
+
+    git push
+
+* Announce the release candidate on the Agda mailing lists (users and
+  developers).

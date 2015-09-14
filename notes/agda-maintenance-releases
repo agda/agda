@@ -3,8 +3,8 @@
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
 
-* Update in the bug tracker the milestone field of open issues to the
-  next Agda version.
+* First, release a release candidate (see
+  notes/agda-maintenance-releases-candidates).
 
 * Get a clean Agda repository.
 
