@@ -31,12 +31,6 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-* Add the line
-
-    RELEASE=true
-
-  at the top of the Makefile.
-
 * Add a second source-repository section to Agda.cabal:
 
     source-repository this
@@ -116,12 +110,6 @@ followed:
 * Remove the "this" source-repository section from the Cabal
   file. (This would be unnecessary if we had two repositories, one
   stable and one for development.)
-
-* Remove the line
-
-    RELEASE=true
-
-  from the top of the Makefile.
 
 * Add a new header to CHANGELOG.
 
