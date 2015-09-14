@@ -452,34 +452,3 @@ executable agda-mode
     , directory >= 1.2.0.1 && < 1.3
     , filepath >= 1.3.0.1 && < 1.5
     , process >= 1.1.0.2 && < 1.3
-
--- Cabal testsuite integration has some serious bugs, but we
--- can still make it work. See also:
--- https://github.com/haskell/cabal/issues/1938
--- https://github.com/haskell/cabal/issues/2214
--- https://github.com/haskell/cabal/issues/1953
---
--- This test suite should only be run using the Makefile.
--- The Makefile sets up the required environment,
--- executing the tests using cabal directly is almost
--- guarantued to fail. See also Issue 1490.
-test-suite agda-tests
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test/
-  main-is:          Main.hs
-  other-modules:    Compiler.Tests
-                    , LatexBackend.Tests
-                    , Utils
-  build-depends:      base >= 4.6.0.1 && < 4.9
-                    , bytestring >= 0.10.0.2 && < 0.11
-                    , directory >= 1.2.0.1 && < 1.3
-                    , containers >= 0.5.0.0 && < 0.6
-                    , filepath >= 1.3.0.1 && < 1.5
-                    , process >= 1.1.0.2 && < 1.3
-                    , process-extras >= 0.2.0 && < 0.4
-                    , tasty >= 0.10 && < 0.11
-                    , tasty-silver >= 3.1.7 && < 3.2
-                    , temporary >= 1.2.0.3 && < 1.3
-                    , text >= 0.11.3.1 && < 1.3
-
-  ghc-options:      -threaded -Wall -Werror
