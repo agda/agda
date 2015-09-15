@@ -71,7 +71,8 @@ install:
 # Note: `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
-# The `enable-test` option is required only if $TEST=require-stdlib or latex-test.
+# The `enable-test` option is required only if $TEST=require-stdlib or
+# $TEST=latex-test.
 
   - case $TEST in
       "non-require-stdlib")
@@ -112,7 +113,8 @@ install:
 
   - export BUILD_DIR=$PWD/dist
 
-# The `enable-test` option is required if $TEST=require-stdlib or latex-test.
+# The `enable-test` option is required if $TEST=require-stdlib or
+# $TEST=latex-test.
 
   - case $TEST in
       "non-require-stdlib")
@@ -177,6 +179,8 @@ install:
 ##############################################################################
 # Testing compilation with transformers 0.3.0.0 which is shipped with
 # GHC 7.8.* [Issue 1156]
+
+# N.B. that this test is not include in the Makefile tests.
 
 # We use the `--avoid-reinstalls` flag with GHC 7.8.4 for avoiding to
 # break previously installed packages [Issue 1520].
