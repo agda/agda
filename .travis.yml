@@ -71,7 +71,8 @@ install:
 # Note: `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
-# The `enable-test` option is required only if $TEST=require-stdlib or latex-test.
+# The `enable-test` option is required only if $TEST=require-stdlib or
+# $TEST=latex-test.
 
   - case $TEST in
       "non-require-stdlib")
@@ -112,7 +113,8 @@ install:
 
   - export BUILD_DIR=$PWD/dist
 
-# The `enable-test` option is required if $TEST=require-stdlib or latex-test.
+# The `enable-test` option is required if $TEST=require-stdlib or
+# $TEST=latex-test.
 
   - case $TEST in
       "non-require-stdlib")
