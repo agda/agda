@@ -16,12 +16,6 @@ CABAL_CMD=cabal
 
 override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 
-# --program-suffix is not for the executable name in
-# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
-override CABAL_OPTS+=--program-suffix=-$(VERSION)
-
-AGDA_MODE=agda-mode-$(VERSION)
-
 # Run in interactive and parallel mode by default
 AGDA_TESTS_OPTIONS ?=-i -j $(shell getconf _NPROCESSORS_ONLN)
 
