@@ -217,18 +217,20 @@ Reflection
 
 * Reflection-based macros
 
-  Macros are functions of type Term → .. → Term that are defined in a 'macro'
-  block. A macro application 'f u v' for a macro f desugars to
-  'unquote (f (quoteTerm u) (quoteTerm v))'.
+  Macros are functions of type t1 → t2 → .. → Term that are defined in a 'macro'
+  block. Macro application is guided by the type of the macro, where Term
+  arguments desugar into the 'quoteTerm' syntax and Name arguments into the
+  'quote' syntax. Arguments of any other type are preserved as-is.
+
+  For example, the macro application 'f u v w' where the macro
+  f has the type 'Term → Name → Bool → Term' desugars into
+    'unquote (f (quoteTerm u) (quote v) w)'
 
   Limitations:
 
     - Macros cannot be recursive. This can be worked around by defining the
       recursive function outside the macro block and have the macro call the
       recursive function.
-
-    - Macros cannot have non-reflected arguments. This will hopefully be
-      allowed in the future.
 
   Silly example:
 

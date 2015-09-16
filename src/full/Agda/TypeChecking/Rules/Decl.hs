@@ -465,6 +465,20 @@ checkAxiom funSig i info0 x e = do
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
     , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
+
+  -- check macro type if necessary
+  when (Info.defMacro i == MacroDef) $ do
+    (Def nTerm _) <- primAgdaTerm
+    t' <- normalise t
+    TelV tel _ <- telView t'
+    tn <- getOutputTypeName t'
+
+    case tn of
+      OutputTypeName n | n == nTerm -> return ()
+      _ -> typeError $ GenericError $ "Result type of a macro must be Term."
+    unless (all (visible) (telToList tel)) $ do
+      typeError $ GenericError $ "Hidden / instance arguments are not allowed in macros."
+
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
   when (funSig == A.NoFunSig) $ do

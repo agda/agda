@@ -1000,23 +1000,32 @@ checkApplication hd args e t = do
     -- Subcase: macro
     A.Macro x -> do
       -- First go: no parameters
-      TelV tel _ <- telView . defType =<< getConstInfo x
-      let visibleArgs = length [ arg | arg <- telToList tel, getHiding arg == NotHidden ]
-          splitVisible 0 args = ([], args)
-          splitVisible n []   = ([], [])
-          splitVisible n (arg : args) = first (arg :) $ splitVisible n' args
-            where
-              n' | getHiding arg == NotHidden = n - 1
-                 | otherwise                  = n
-          (quotedArgs, otherArgs) = splitVisible visibleArgs args
+      TelV tel _ <- telView =<< normalise . defType =<< getConstInfo x
+
+      tTerm <- primAgdaTerm
+      tName <- primQName
+
+      let tel' = map (snd . unDom) $ telToList tel
+          (macroArgs, otherArgs) = splitAt (length tel') args
+          -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
+          mkArg :: Type -> A.NamedArg A.Expr -> A.NamedArg A.Expr
+          mkArg t a | unEl t == tTerm =
+            (fmap . fmap)
+              (A.App (A.ExprRange (getRange a)) (A.QuoteTerm A.exprNoRange) . defaultNamedArg) a
+          mkArg t a | unEl t == tName =
+            (fmap . fmap)
+              (A.App (A.ExprRange (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a
+          mkArg t a | otherwise = a
           unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
-          q e = A.App (A.ExprRange (getRange e)) (A.QuoteTerm A.exprNoRange) (defaultNamedArg e)
-          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ (map . fmap . fmap) q quotedArgs) otherArgs
-      unless (length quotedArgs == visibleArgs) $ do
+
+      when (length args < length tel') $ do
         err <- fsep $ pwords "The macro" ++ [prettyTCM x] ++
-                      pwords ("expects " ++ show visibleArgs ++
-                              " arguments, but has been given only " ++ show (length quotedArgs))
+                      pwords ("expects " ++ show (length tel') ++
+                              " arguments, but has been given only " ++ show (length args))
         typeError $ GenericError $ show err
+
+      let macroArgs' = zipWith mkArg tel' macroArgs
+          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs') otherArgs
       checkExpr desugared t
 
     -- Subcase: unquote
