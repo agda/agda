@@ -255,6 +255,9 @@ shared v = ($ v) <$> sharedFun
 sharedType :: HasOptions m => Type -> m Type
 sharedType (El s v) = El s <$> shared v
 
+enableCaching :: TCM Bool
+enableCaching = optCaching <$> commandLineOptions
+
 showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 

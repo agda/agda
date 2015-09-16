@@ -95,10 +95,13 @@ cleanCachedLog = do
 activateLoadedFileCache :: TCM ()
 activateLoadedFileCache = do
   reportSLn "cache" 10 $ "activateLoadedFileCache"
-  modifyCache $ \mbLfc -> case mbLfc of
-    Nothing                          -> Just $ LoadedFileCache [] []
-    Just lfc | null (lfcCurrent lfc) -> Just lfc
-    _                                -> __IMPOSSIBLE__
+  b <- enableCaching
+  if not b then return ()
+     else do
+       modifyCache $ \mbLfc -> case mbLfc of
+         Nothing                          -> Just $ LoadedFileCache [] []
+         Just lfc | null (lfcCurrent lfc) -> Just lfc
+         _                                -> __IMPOSSIBLE__
 
 -- | Caches the current type check log.  Discardes the old cache.  Does
 -- nothing if caching is inactive.

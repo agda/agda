@@ -35,6 +35,8 @@ Usage: agda [OPTIONS...] [FILE]
           --safe                                      disable postulates, unsafe OPTION pragmas and primTrustMe
           --sharing                                   enable sharing and call-by-need evaluation (experimental) (default: OFF)
           --no-sharing                                disable sharing and call-by-need evaluation
+          --caching                                   enable caching of typechecking (experimental) (default: OFF)
+          --no-caching                                disable caching of typechecking
           --show-implicit                             show implicit arguments when printing
           --show-irrelevant                           show irrelevant arguments when printing
   -v N    --verbose=N                                 set verbosity level to N
