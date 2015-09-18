@@ -1,7 +1,7 @@
 Sections-4.agda:7,10-14
 Could not parse the application _! X
 Operators used in the grammar:
-  ! (infix notation, level 20) [F (Sections-4.agda:2,3-4)]
+  None
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking _! X
