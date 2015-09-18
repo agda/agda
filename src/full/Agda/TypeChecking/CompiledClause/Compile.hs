@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.CompiledClause.Compile where
 
@@ -9,6 +10,8 @@ import Data.Monoid
 import qualified Data.Map as Map
 import Data.List (genericReplicate, nubBy, findIndex)
 import Data.Function
+
+import Debug.Trace
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -101,7 +104,7 @@ compileWithSplitTree shared t cs = case t of
 
 compile :: (Term -> Term) -> Cls -> CompiledClauses
 compile shared cs = case nextSplit cs of
-  Just n  -> Case n $ fmap (compile shared) $ splitOn False n cs
+  Just (isRecP, n)-> Case n $ fmap (compile shared) $ splitOn isRecP n cs
   Nothing -> case map (getBody . snd) cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
@@ -117,11 +120,23 @@ compile shared cs = case nextSplit cs of
 
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a match in the first clause.
-nextSplit :: Cls -> Maybe Int
+nextSplit :: Cls -> Maybe (Bool, Int)
 nextSplit []          = __IMPOSSIBLE__
-nextSplit ((ps, _):_) = findIndex (not . isVar . unArg) ps
+nextSplit ((ps, _):_) = headMaybe $ catMaybes $
+  zipWith (\ p n -> (,n) <$> properSplit (unArg p)) ps [0..]
+
+-- | Is is not a variable pattern?
+--   And if yes, is it a record pattern?
+properSplit :: Pattern -> Maybe Bool
+properSplit (ConP _ cpi _) = Just $ isJust $ conPRecord cpi
+properSplit LitP{}  = Just False
+properSplit ProjP{} = Just False
+properSplit VarP{}  = Nothing
+properSplit DotP{}  = Nothing
 
 -- | Is this a variable pattern?
+--
+--   Maintain invariant: @isVar = isNothing . properSplit@!
 isVar :: Pattern -> Bool
 isVar VarP{}  = True
 isVar DotP{}  = True
@@ -132,7 +147,9 @@ isVar ProjP{} = False
 -- | @splitOn single n cs@ will force expansion of catch-alls
 --   if @single@.
 splitOn :: Bool -> Int -> Cls -> Case Cls
-splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls single n cs
+splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
+  -- (\ cs -> trace ("splitting on " ++ show n ++ " after expandCatchAlls " ++ show single ++ ": " ++ show cs) cs) $
+    expandCatchAlls single n cs
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
@@ -160,6 +177,27 @@ splitC n (ps, b) = case unArg p of
 -- they come before/after a record pattern, otherwise we get into
 -- trouble when we want to eliminate splits on records later.
 --
+-- Another example (see Issue 1650):
+-- @
+--   f (x, (y, z)) true  = a
+--   f _           false = b
+-- @
+-- Split tree:
+-- @
+--   0 (first argument of f)
+--    \- 1 (second component of the pair)
+--        \- 3 (last argument of f)
+--            \-- true  -> a
+--             \- false -> b
+-- @
+-- We would like to get the following case tree:
+-- @
+--   case 0 of
+--   _,_ -> case 1 of
+--          _,_ -> case 3 of true  -> a; false -> b
+--          _   -> case 3 of true  -> a; false -> b
+--   _          -> case 3 of true  -> a; false -> b
+-- @
 expandCatchAlls :: Bool -> Int -> Cls -> Cls
 expandCatchAlls single n cs =
   -- Andreas, 2013-03-22
