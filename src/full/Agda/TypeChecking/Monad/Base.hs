@@ -1392,89 +1392,89 @@ type Statistics = Map String Integer
 -- ** Trace
 ---------------------------------------------------------------------------
 
-data Call = CheckClause Type A.SpineClause (Maybe Clause)
-          | forall a. CheckPattern A.Pattern Telescope Type (Maybe a)
-          | CheckLetBinding A.LetBinding (Maybe ())
-          | InferExpr A.Expr (Maybe (Term, Type))
-          | CheckExprCall A.Expr Type (Maybe Term)
-          | CheckDotPattern A.Expr Term (Maybe Constraints)
-          | CheckPatternShadowing A.SpineClause (Maybe ())
-          | IsTypeCall A.Expr Sort (Maybe Type)
-          | IsType_ A.Expr (Maybe Type)
-          | InferVar Name (Maybe (Term, Type))
-          | InferDef Range QName (Maybe (Term, Type))
-          | CheckArguments Range [NamedArg A.Expr] Type Type (Maybe (Args, Type))
-          | CheckDataDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
-          | CheckRecDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
-          | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
-          | CheckFunDef Range Name [A.Clause] (Maybe ())
-          | CheckPragma Range A.Pragma (Maybe ())
-          | CheckPrimitive Range Name A.Expr (Maybe ())
-          | CheckIsEmpty Range Type (Maybe ())
-          | CheckWithFunctionType A.Expr (Maybe ())
-          | CheckSectionApplication Range ModuleName A.ModuleApplication (Maybe ())
-          | ScopeCheckExpr C.Expr (Maybe A.Expr)
-          | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
-          | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
-          | forall a. NoHighlighting (Maybe a)
-          | forall a. SetRange Range (Maybe a)  -- ^ used by 'setCurrentRange'
+data Call = CheckClause Type A.SpineClause
+          | CheckPattern A.Pattern Telescope Type
+          | CheckLetBinding A.LetBinding
+          | InferExpr A.Expr
+          | CheckExprCall A.Expr Type
+          | CheckDotPattern A.Expr Term
+          | CheckPatternShadowing A.SpineClause
+          | IsTypeCall A.Expr Sort
+          | IsType_ A.Expr
+          | InferVar Name
+          | InferDef Range QName
+          | CheckArguments Range [NamedArg A.Expr] Type Type
+          | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
+          | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
+          | CheckConstructor QName Telescope Sort A.Constructor
+          | CheckFunDef Range Name [A.Clause]
+          | CheckPragma Range A.Pragma
+          | CheckPrimitive Range Name A.Expr
+          | CheckIsEmpty Range Type
+          | CheckWithFunctionType A.Expr
+          | CheckSectionApplication Range ModuleName A.ModuleApplication
+          | ScopeCheckExpr C.Expr
+          | ScopeCheckDeclaration D.NiceDeclaration
+          | ScopeCheckLHS C.Name C.Pattern
+          | NoHighlighting
+          | SetRange Range  -- ^ used by 'setCurrentRange'
     deriving (Typeable)
 
 instance Pretty Call where
-    pretty (CheckClause _ c _)                   = text "CheckClause"
-    pretty (CheckPattern p _ _ _)                = text "CheckPattern"
-    pretty (InferExpr e _)                       = text "InferExpr"
-    pretty (CheckExprCall e _ _)                 = text "CheckExprCall"
-    pretty (CheckLetBinding b _)                 = text "CheckLetBinding"
-    pretty (IsTypeCall e s _)                    = text "IsTypeCall"
-    pretty (IsType_ e _)                         = text "IsType_"
-    pretty (InferVar x _)                        = text "InferVar"
-    pretty (InferDef _ f _)                      = text "InferDef"
-    pretty (CheckArguments r _ _ _ _)            = text "CheckArguments"
-    pretty (CheckDataDef i _ _ _ _)              = text "CheckDataDef"
-    pretty (CheckRecDef i _ _ _ _)               = text "CheckRecDef"
-    pretty (CheckConstructor _ _ _ c _)          = text "CheckConstructor"
-    pretty (CheckFunDef i _ _ _)                 = text "CheckFunDef"
-    pretty (CheckPragma r _ _)                   = text "CheckPragma"
-    pretty (CheckPrimitive i _ _ _)              = text "CheckPrimitive"
-    pretty CheckWithFunctionType{}               = text "CheckWithFunctionType"
-    pretty (ScopeCheckExpr e _)                  = text "ScopeCheckExpr"
-    pretty (ScopeCheckDeclaration d _)           = text "ScopeCheckDeclaration"
-    pretty (ScopeCheckLHS _ p _)                 = text "ScopeCheckLHS"
-    pretty (CheckDotPattern e _ _)               = text "CheckDotPattern"
-    pretty (CheckPatternShadowing c _)           = text "CheckPatternShadowing"
-    pretty (SetRange r _)                        = text "SetRange"
-    pretty (CheckSectionApplication r _ _ _)     = text "CheckSectionApplication"
-    pretty (CheckIsEmpty r _ _)                  = text "CheckIsEmpty"
-    pretty (NoHighlighting _)                    = text "NoHighlighting"
+    pretty CheckClause{}             = text "CheckClause"
+    pretty CheckPattern{}            = text "CheckPattern"
+    pretty InferExpr{}               = text "InferExpr"
+    pretty CheckExprCall{}           = text "CheckExprCall"
+    pretty CheckLetBinding{}         = text "CheckLetBinding"
+    pretty IsTypeCall{}              = text "IsTypeCall"
+    pretty IsType_{}                 = text "IsType_"
+    pretty InferVar{}                = text "InferVar"
+    pretty InferDef{}                = text "InferDef"
+    pretty CheckArguments{}          = text "CheckArguments"
+    pretty CheckDataDef{}            = text "CheckDataDef"
+    pretty CheckRecDef{}             = text "CheckRecDef"
+    pretty CheckConstructor{}        = text "CheckConstructor"
+    pretty CheckFunDef{}             = text "CheckFunDef"
+    pretty CheckPragma{}             = text "CheckPragma"
+    pretty CheckPrimitive{}          = text "CheckPrimitive"
+    pretty CheckWithFunctionType{}   = text "CheckWithFunctionType"
+    pretty ScopeCheckExpr{}          = text "ScopeCheckExpr"
+    pretty ScopeCheckDeclaration{}   = text "ScopeCheckDeclaration"
+    pretty ScopeCheckLHS{}           = text "ScopeCheckLHS"
+    pretty CheckDotPattern{}         = text "CheckDotPattern"
+    pretty CheckPatternShadowing{}   = text "CheckPatternShadowing"
+    pretty SetRange{}                = text "SetRange"
+    pretty CheckSectionApplication{} = text "CheckSectionApplication"
+    pretty CheckIsEmpty{}            = text "CheckIsEmpty"
+    pretty NoHighlighting{}          = text "NoHighlighting"
 
 instance HasRange Call where
-    getRange (CheckClause _ c _)                   = getRange c
-    getRange (CheckPattern p _ _ _)                = getRange p
-    getRange (InferExpr e _)                       = getRange e
-    getRange (CheckExprCall e _ _)                 = getRange e
-    getRange (CheckLetBinding b _)                 = getRange b
-    getRange (IsTypeCall e s _)                    = getRange e
-    getRange (IsType_ e _)                         = getRange e
-    getRange (InferVar x _)                        = getRange x
-    getRange (InferDef _ f _)                      = getRange f
-    getRange (CheckArguments r _ _ _ _)            = r
-    getRange (CheckDataDef i _ _ _ _)              = getRange i
-    getRange (CheckRecDef i _ _ _ _)               = getRange i
-    getRange (CheckConstructor _ _ _ c _)          = getRange c
-    getRange (CheckFunDef i _ _ _)                 = getRange i
-    getRange (CheckPragma r _ _)                   = r
-    getRange (CheckPrimitive i _ _ _)              = getRange i
-    getRange CheckWithFunctionType{}               = noRange
-    getRange (ScopeCheckExpr e _)                  = getRange e
-    getRange (ScopeCheckDeclaration d _)           = getRange d
-    getRange (ScopeCheckLHS _ p _)                 = getRange p
-    getRange (CheckDotPattern e _ _)               = getRange e
-    getRange (CheckPatternShadowing c _)           = getRange c
-    getRange (SetRange r _)                        = r
-    getRange (CheckSectionApplication r _ _ _)     = r
-    getRange (CheckIsEmpty r _ _)                  = r
-    getRange (NoHighlighting _)                    = noRange
+    getRange (CheckClause _ c)               = getRange c
+    getRange (CheckPattern p _ _)            = getRange p
+    getRange (InferExpr e)                   = getRange e
+    getRange (CheckExprCall e _)             = getRange e
+    getRange (CheckLetBinding b)             = getRange b
+    getRange (IsTypeCall e s)                = getRange e
+    getRange (IsType_ e)                     = getRange e
+    getRange (InferVar x)                    = getRange x
+    getRange (InferDef _ f)                  = getRange f
+    getRange (CheckArguments r _ _ _)        = r
+    getRange (CheckDataDef i _ _ _)          = getRange i
+    getRange (CheckRecDef i _ _ _)           = getRange i
+    getRange (CheckConstructor _ _ _ c)      = getRange c
+    getRange (CheckFunDef i _ _)             = getRange i
+    getRange (CheckPragma r _)               = r
+    getRange (CheckPrimitive i _ _)          = getRange i
+    getRange CheckWithFunctionType{}         = noRange
+    getRange (ScopeCheckExpr e)              = getRange e
+    getRange (ScopeCheckDeclaration d)       = getRange d
+    getRange (ScopeCheckLHS _ p)             = getRange p
+    getRange (CheckDotPattern e _)           = getRange e
+    getRange (CheckPatternShadowing c)       = getRange c
+    getRange (SetRange r)                    = r
+    getRange (CheckSectionApplication r _ _) = r
+    getRange (CheckIsEmpty r _)              = r
+    getRange NoHighlighting                  = noRange
 
 ---------------------------------------------------------------------------
 -- ** Instance table

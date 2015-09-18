@@ -1323,16 +1323,12 @@ checkHeadApplication e t hd args = do
     checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t $ \vs t1 -> do
       coerce (f vs) t1 t
 
-traceCallE :: Error e => (Maybe r -> Call) -> ExceptT e TCM r -> ExceptT e TCM r
+traceCallE :: Error e => Call -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
-  z <- lift $ traceCall call' $ runExceptT m
+  z <- lift $ traceCall call $ runExceptT m
   case z of
     Right e  -> return e
     Left err -> throwError err
-  where
-    call' Nothing          = call Nothing
-    call' (Just (Left _))  = call Nothing
-    call' (Just (Right x)) = call (Just x)
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
