@@ -16,6 +16,7 @@ import Data.Integer.Addition.Properties as Add
 import Data.Integer.Multiplication.Properties as Mul
 open import Data.Nat
   using (ℕ; suc; zero; _∸_; _≤?_; _<_; _≥_; _≱_; s≤s; z≤n; ≤-pred)
+  hiding (module ℕ)
   renaming (_+_ to _ℕ+_; _*_ to _ℕ*_)
 open import Data.Nat.Properties as ℕ using (_*-mono_)
 open import Data.Product using (proj₁; proj₂; _,_)

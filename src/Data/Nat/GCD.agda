@@ -69,7 +69,7 @@ module GCD where
     greatest′ : ∀ {d′} → d′ ∣ n × d′ ∣ n + k → d′ ∣ d
     greatest′ (d₁ , d₂) = GCD.greatest g (d₁ , ∣-∸ d₂ d₁)
 
-open GCD public using (GCD)
+open GCD public using (GCD) hiding (module GCD)
 
 ------------------------------------------------------------------------
 -- Calculating the gcd
@@ -119,7 +119,7 @@ module Bézout where
     step {d}     (-+ .x .(x ⊕ i) eq) | less x i    = -+ (2 * x ⊕ i) (x ⊕ i) (lem₆ d x   eq)
     step {d} {n} (-+ .(y ⊕ i) .y eq) | greater y i = -+ (2 * y ⊕ i) y       (lem₇ d y n eq)
 
-  open Identity public using (Identity; +-; -+)
+  open Identity public using (Identity; +-; -+) hiding (module Identity)
 
   module Lemma where
 
@@ -148,7 +148,7 @@ module Bézout where
     stepʳ : ∀ {n k} → Lemma (suc k) n → Lemma (suc (n + k)) n
     stepʳ = sym ∘ stepˡ ∘ sym
 
-  open Lemma public using (Lemma; result)
+  open Lemma public using (Lemma; result) hiding (module Lemma)
 
   -- Bézout's lemma proved using some variant of the extended
   -- Euclidean algorithm.

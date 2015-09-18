@@ -47,7 +47,7 @@ module LCM where
   unique d₁ d₂ = P.antisym (LCM.least d₁ (LCM.commonMultiple d₂))
                            (LCM.least d₂ (LCM.commonMultiple d₁))
 
-open LCM public using (LCM)
+open LCM public using (LCM) hiding (module LCM)
 
 ------------------------------------------------------------------------
 -- Calculating the lcm
