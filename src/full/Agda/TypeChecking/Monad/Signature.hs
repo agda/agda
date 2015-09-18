@@ -236,6 +236,40 @@ applySection
   -> Ren ModuleName -- ^ Imported modules (given as renaming).
   -> TCM ()
 applySection new ptel old ts rd rm = do
+  rd <- closeConstructors rd
+  applySection' new ptel old ts rd rm
+  where
+    -- If a datatype is being copied, all its constructors need to be copied,
+    -- and if a constructor is copied its datatype needs to be.
+    closeConstructors rd = do
+        ds <- nub . concat <$> mapM (constructorData . fst) rd
+        cs <- nub . concat <$> mapM (dataConstructors . fst) rd
+        new <- concat <$> mapM rename (ds ++ cs)
+        reportSLn "tc.mod.apply.complete" 30 $
+          "also copying: " ++ show new
+        return $ new ++ rd
+      where
+        rename x =
+          case lookup x rd of
+            Nothing -> do y <- freshName_ (show x)
+                          return [(x, qnameFromList [y])]
+            Just{}  -> return []
+
+        constructorData x = do
+          def <- theDef <$> getConstInfo x
+          return $ case def of
+            Constructor{ conData = d } -> [d]
+            _                          -> []
+        dataConstructors x = do
+          def <- theDef <$> getConstInfo x
+          return $ case def of
+            Datatype{ dataCons = cs } -> cs
+            Record{ recConHead = h }      -> [conName h]
+            _                         -> []
+
+
+applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> Ren QName -> Ren ModuleName -> TCM ()
+applySection' new ptel old ts rd rm = do
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
     , text "new  =" <+> text (show new)
