@@ -15,6 +15,8 @@ module Agda.Syntax.Abstract.Name
   , IsNoName(..)
   ) where
 
+import Control.DeepSeq
+
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
@@ -41,9 +43,9 @@ import Agda.Utils.Impossible
 -- | A name is a unique identifier and a suggestion for a concrete name. The
 --   concrete name contains the source location (if any) of the name. The
 --   source location of the binding site is also recorded.
-data Name = Name { nameId          :: NameId
+data Name = Name { nameId          :: !NameId
                  , nameConcrete    :: C.Name
-                 , nameBindingSite :: Range
+                 , nameBindingSite :: !Range
                  , nameFixity      :: Fixity'
                  }
     deriving (Typeable)
@@ -390,3 +392,18 @@ instance Arbitrary QName where
 
 instance CoArbitrary QName where
   coarbitrary = coarbitrary . qnameName
+
+------------------------------------------------------------------------
+-- * NFData instances
+------------------------------------------------------------------------
+
+-- | The range is not forced.
+
+instance NFData Name where
+  rnf (Name _ a _ b) = rnf a `seq` rnf b
+
+instance NFData QName where
+  rnf (QName a b) = rnf a `seq` rnf b
+
+instance NFData ModuleName where
+  rnf (MName a) = rnf a

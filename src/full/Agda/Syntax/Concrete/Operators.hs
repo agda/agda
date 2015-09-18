@@ -731,7 +731,8 @@ parseApplication es  = billToParser $ do
     (parseSections, ops, p) <- buildParsers (getRange es) flat IsExpr names
 
     -- Parse
-    case force $ parse (parseSections, pTop p) es of
+    let result = parse (parseSections, pTop p) es
+    case foldr seq () result `seq` result of
         [e] -> do
           reportSDoc "scope.operators" 50 $ return $
             text "Parsed an operator application:" <+> pretty e

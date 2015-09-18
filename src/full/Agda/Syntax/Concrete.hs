@@ -174,8 +174,6 @@ data Expr
   | Equal !Range Expr Expr                     -- ^ ex: @a = b@, used internally in the parser
   deriving (Typeable)
 
-instance NFData Expr where rnf x = seq x ()
-
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
   = IdentP QName                            -- ^ @c@ or @x@
@@ -198,8 +196,6 @@ data Pattern
   | LitP Literal                            -- ^ @0@, @1@, etc.
   | RecP !Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   deriving (Typeable)
-
-instance NFData Pattern where rnf x = seq x ()
 
 -- | A lambda binding is either domain free or typed.
 type LamBinding = LamBinding' TypedBindings
@@ -271,7 +267,7 @@ data LHS
         , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
         }
     -- ^ original pattern, with-patterns, rewrite equations and with-expressions
-  | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
+  | Ellipsis !Range [Pattern] [RewriteEqn] [WithExpr]
     -- ^ new with-patterns, rewrite equations and with-expressions
   deriving (Typeable)
 
@@ -312,7 +308,7 @@ data ImportDirective = ImportDirective
   { importDirRange :: !Range
   , usingOrHiding  :: UsingOrHiding
   , renaming       :: [Renaming]
-  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
+  , publicOpen     :: !Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Typeable, Eq)
 
@@ -344,7 +340,7 @@ data Renaming = Renaming
     -- ^ Rename from this name.
   , renTo      :: Name
     -- ^ To this one.
-  , renToRange :: Range
+  , renToRange :: !Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
   deriving (Typeable, Eq)
@@ -352,7 +348,7 @@ data Renaming = Renaming
 data AsName = AsName
   { asName  :: Name
     -- ^ The \"as\" name.
-  , asRange :: Range
+  , asRange :: !Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
   deriving (Typeable, Show)
@@ -392,8 +388,8 @@ data Declaration
   | Postulate   !Range [TypeSignatureOrInstanceBlock]
   | Primitive   !Range [TypeSignature]
   | Open        !Range QName ImportDirective
-  | Import      !Range QName (Maybe AsName) OpenShortHand ImportDirective
-  | ModuleMacro !Range  Name ModuleApplication OpenShortHand ImportDirective
+  | Import      !Range QName (Maybe AsName) !OpenShortHand ImportDirective
+  | ModuleMacro !Range  Name ModuleApplication !OpenShortHand ImportDirective
   | Module      !Range QName [TypedBindings] [Declaration]
   | UnquoteDecl !Range Name Expr
   | UnquoteDef  !Range Name Expr
@@ -401,9 +397,9 @@ data Declaration
   deriving (Typeable)
 
 data ModuleApplication
-  = SectionApp Range [TypedBindings] Expr
+  = SectionApp !Range [TypedBindings] Expr
     -- ^ @tel. M args@
-  | RecordModuleIFS Range QName
+  | RecordModuleIFS !Range QName
     -- ^ @M {{...}}@
   deriving (Typeable)
 
@@ -889,3 +885,190 @@ instance KillRange WhereClause where
   killRange NoWhere         = NoWhere
   killRange (AnyWhere d)    = killRange1 AnyWhere d
   killRange (SomeWhere n d) = killRange2 SomeWhere n d
+
+------------------------------------------------------------------------
+-- NFData instances
+
+-- | Ranges are not forced.
+
+instance NFData Expr where
+  rnf (Ident a)          = rnf a
+  rnf (Lit a)            = rnf a
+  rnf (QuestionMark _ a) = rnf a
+  rnf (Underscore _ a)   = rnf a
+  rnf (RawApp _ a)       = rnf a
+  rnf (App _ a b)        = rnf a `seq` rnf b
+  rnf (OpApp _ a b c)    = rnf a `seq` rnf b `seq` rnf c
+  rnf (WithApp _ a b)    = rnf a `seq` rnf b
+  rnf (HiddenArg _ a)    = rnf a
+  rnf (InstanceArg _ a)  = rnf a
+  rnf (Lam _ a b)        = rnf a `seq` rnf b
+  rnf (AbsurdLam _ a)    = rnf a
+  rnf (ExtendedLam _ a)  = rnf a
+  rnf (Fun _ a b)        = rnf a `seq` rnf b
+  rnf (Pi a b)           = rnf a `seq` rnf b
+  rnf (Set _)            = ()
+  rnf (Prop _)           = ()
+  rnf (SetN _ a)         = rnf a
+  rnf (Rec _ a)          = rnf a
+  rnf (RecUpdate _ a b)  = rnf a `seq` rnf b
+  rnf (Let _ a b)        = rnf a `seq` rnf b
+  rnf (Paren _ a)        = rnf a
+  rnf (Absurd _)         = ()
+  rnf (As _ a b)         = rnf a `seq` rnf b
+  rnf (Dot _ a)          = rnf a
+  rnf (ETel a)           = rnf a
+  rnf (QuoteGoal _ a b)  = rnf a `seq` rnf b
+  rnf (QuoteContext _)   = ()
+  rnf (Quote _)          = ()
+  rnf (QuoteTerm _)      = ()
+  rnf (Tactic _ a b)     = rnf a `seq` rnf b
+  rnf (Unquote _)        = ()
+  rnf (DontCare a)       = rnf a
+  rnf (Equal _ a b)      = rnf a `seq` rnf b
+
+-- | Ranges are not forced.
+
+instance NFData Pattern where
+  rnf (IdentP a) = rnf a
+  rnf (QuoteP _) = ()
+  rnf (AppP a b) = rnf a `seq` rnf b
+  rnf (RawAppP _ a) = rnf a
+  rnf (OpAppP _ a b c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (HiddenP _ a) = rnf a
+  rnf (InstanceP _ a) = rnf a
+  rnf (ParenP _ a) = rnf a
+  rnf (WildP _) = ()
+  rnf (AbsurdP _) = ()
+  rnf (AsP _ a b) = rnf a `seq` rnf b
+  rnf (DotP _ a) = rnf a
+  rnf (LitP a) = rnf a
+  rnf (RecP _ a) = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData Declaration where
+  rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
+  rnf (Field a b)             = rnf a `seq` rnf b
+  rnf (FunClause a b c)       = rnf a `seq` rnf b `seq` rnf c
+  rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Data _ a b c d e)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+  rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
+  rnf (Record _ a b c d e f)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+  rnf (Infix a b)             = rnf a `seq` rnf b
+  rnf (Syntax a b)            = rnf a `seq` rnf b
+  rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
+  rnf (Mutual _ a)            = rnf a
+  rnf (Abstract _ a)          = rnf a
+  rnf (Private _ a)           = rnf a
+  rnf (InstanceB _ a)         = rnf a
+  rnf (Macro _ a)             = rnf a
+  rnf (Postulate _ a)         = rnf a
+  rnf (Primitive _ a)         = rnf a
+  rnf (Open _ a b)            = rnf a `seq` rnf b
+  rnf (Import _ a b _ c)      = rnf a `seq` rnf b `seq` rnf c
+  rnf (ModuleMacro _ a b _ c) = rnf a `seq` rnf b `seq` rnf c
+  rnf (Module _ a b c)        = rnf a `seq` rnf b `seq` rnf c
+  rnf (UnquoteDecl _ a b)     = rnf a `seq` rnf b
+  rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
+  rnf (Pragma a)              = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData Pragma where
+  rnf (OptionsPragma _ a)               = rnf a
+  rnf (BuiltinPragma _ a b)             = rnf a `seq` rnf b
+  rnf (RewritePragma _ a)               = rnf a
+  rnf (CompiledDataPragma _ a b c)      = rnf a `seq` rnf b `seq` rnf c
+  rnf (CompiledDeclareDataPragma _ a b) = rnf a `seq` rnf b
+  rnf (CompiledTypePragma _ a b)        = rnf a `seq` rnf b
+  rnf (CompiledPragma _ a b)            = rnf a `seq` rnf b
+  rnf (CompiledExportPragma _ a b)      = rnf a `seq` rnf b
+  rnf (CompiledEpicPragma _ a b)        = rnf a `seq` rnf b
+  rnf (CompiledJSPragma _ a b)          = rnf a `seq` rnf b
+  rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
+  rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
+  rnf (NoSmashingPragma _ a)            = rnf a
+  rnf (StaticPragma _ a)                = rnf a
+  rnf (ImportPragma _ a)                = rnf a
+  rnf (ImportUHCPragma _ a)             = rnf a
+  rnf (ImpossiblePragma _)              = ()
+  rnf (EtaPragma _ a)                   = rnf a
+  rnf (NoEtaPragma _ a)                 = rnf a
+  rnf (TerminationCheckPragma _ a)      = rnf a
+  rnf (CatchallPragma _)                = ()
+  rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
+
+-- | Ranges are not forced.
+
+instance NFData a => NFData (TypedBindings' a) where
+  rnf (TypedBindings _ a) = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData Renaming where
+  rnf (Renaming a b _) = rnf a `seq` rnf b
+
+-- | Ranges are not forced.
+
+instance NFData AsName where
+  rnf (AsName a _) = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData a => NFData (TypedBinding' a) where
+  rnf (TBind _ a b) = rnf a `seq` rnf b
+  rnf (TLet _ a)    = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData ModuleApplication where
+  rnf (SectionApp _ a b)    = rnf a `seq` rnf b
+  rnf (RecordModuleIFS _ a) = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData ImportDirective where
+  rnf (ImportDirective _ a b _) = rnf a `seq` rnf b
+
+-- | Ranges are not forced.
+
+instance NFData a => NFData (OpApp a) where
+  rnf (SyntaxBindingLambda _ a b) = rnf a `seq` rnf b
+  rnf (Ordinary a)                = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData LHS where
+  rnf (LHS a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+  rnf (Ellipsis _ a b c) = rnf a `seq` rnf b `seq` rnf c
+
+instance NFData a => NFData (FieldAssignment' a) where
+  rnf (FieldAssignment a b) = rnf a `seq` rnf b
+
+instance NFData ModuleAssignment where
+  rnf (ModuleAssignment a b c) = rnf a `seq` rnf b `seq` rnf c
+
+instance NFData a => NFData (WhereClause' a) where
+  rnf NoWhere         = ()
+  rnf (AnyWhere a)    = rnf a
+  rnf (SomeWhere a b) = rnf a `seq` rnf b
+
+instance NFData UsingOrHiding where
+  rnf (Hiding a) = rnf a
+  rnf (Using a)  = rnf a
+
+instance NFData ImportedName where
+  rnf (ImportedModule a) = rnf a
+  rnf (ImportedName a)   = rnf a
+
+instance NFData a => NFData (LamBinding' a) where
+  rnf (DomainFree a b) = rnf a `seq` rnf b
+  rnf (DomainFull a)   = rnf a
+
+instance NFData BoundName where
+  rnf (BName a b c) = rnf a `seq` rnf b `seq` rnf c
+
+instance NFData a => NFData (RHS' a) where
+  rnf AbsurdRHS = ()
+  rnf (RHS a)   = rnf a

@@ -12,6 +12,7 @@
 module Agda.Syntax.Common where
 
 import Control.Applicative
+import Control.DeepSeq
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
@@ -68,6 +69,10 @@ instance CoArbitrary Induction where
   coarbitrary Inductive   = variant 0
   coarbitrary CoInductive = variant 1
 
+instance NFData Induction where
+  rnf Inductive   = ()
+  rnf CoInductive = ()
+
 ---------------------------------------------------------------------------
 -- * Hiding
 ---------------------------------------------------------------------------
@@ -88,8 +93,13 @@ instance Monoid Hiding where
 instance KillRange Hiding where
   killRange = id
 
+instance NFData Hiding where
+  rnf Hidden    = ()
+  rnf Instance  = ()
+  rnf NotHidden = ()
+
 -- | Decorating something with 'Hiding' information.
-data WithHiding a = WithHiding Hiding a
+data WithHiding a = WithHiding !Hiding a
   deriving (Typeable, Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Decoration WithHiding where
@@ -107,6 +117,9 @@ instance SetRange a => SetRange (WithHiding a) where
 
 instance KillRange a => KillRange (WithHiding a) where
   killRange = fmap killRange
+
+instance NFData a => NFData (WithHiding a) where
+  rnf (WithHiding _ a) = rnf a
 
 -- | A lens to access the 'Hiding' attribute in data structures.
 --   Minimal implementation: @getHiding@ and one of @setHiding@ or @mapHiding@.
@@ -183,6 +196,10 @@ instance Ord Big where
   Big <= Small = False
   _   <= _     = True
 
+instance NFData Big where
+  rnf Big   = ()
+  rnf Small = ()
+
 -- | A function argument can be relevant or irrelevant.
 --   See "Agda.TypeChecking.Irrelevance".
 data Relevance
@@ -219,6 +236,13 @@ instance Arbitrary Relevance where
 
 instance Ord Relevance where
   (<=) = moreRelevant
+
+instance NFData Relevance where
+  rnf Relevant   = ()
+  rnf NonStrict  = ()
+  rnf Irrelevant = ()
+  rnf (Forced a) = rnf a
+  rnf UnusedArg  = ()
 
 -- | A lens to access the 'Relevance' attribute in data structures.
 --   Minimal implementation: @getRelevance@ and one of @setRelevance@ or @mapRelevance@.
@@ -378,6 +402,9 @@ instance LensArgInfo c (ArgInfo c) where
   mapArgInfo = id
 -}
 
+instance NFData c => NFData (ArgInfo c) where
+  rnf (ArgInfo a b c) = rnf a `seq` rnf b `seq` rnf c
+
 instance LensHiding (ArgInfo c) where
   getHiding = argInfoHiding
   setHiding h ai = ai { argInfoHiding = h }
@@ -434,6 +461,9 @@ instance (Show a, Show c) => Show (Arg c a) where
           UnusedArg    -> "k" ++ s -- constant
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
         showC cs         s = show cs ++ s
+
+instance (NFData c, NFData e) => NFData (Arg c e) where
+  rnf (Arg a b) = rnf a `seq` rnf b
 
 instance LensHiding (Arg c e) where
   getHiding = getHiding . argInfo
@@ -597,6 +627,9 @@ instance Show a => Show (Named_ a) where
     show (Named Nothing x)  = show x
     show (Named (Just n) x) = rawNameToString (rangedThing n) ++ " = " ++ show x
 
+instance (NFData name, NFData a) => NFData (Named name a) where
+  rnf (Named a b) = rnf a `seq` rnf b
+
 -- | Only 'Hidden' arguments can have names.
 type NamedArg c a = Arg c (Named_ a)
 
@@ -618,7 +651,7 @@ updateNamedArg = fmap . fmap
 
 -- | Thing with range info.
 data Ranged a = Ranged
-  { rangeOf     :: Range
+  { rangeOf     :: !Range
   , rangedThing :: a
   }
   deriving (Typeable, Functor, Foldable, Traversable)
@@ -644,6 +677,11 @@ instance KillRange (Ranged a) where
 
 instance Decoration Ranged where
   traverseF f (Ranged r x) = Ranged r <$> f x
+
+-- | Ranges are not forced.
+
+instance NFData a => NFData (Ranged a) where
+  rnf (Ranged _ a) = rnf a
 
 ---------------------------------------------------------------------------
 -- * Raw names (before parsing into name parts).
@@ -704,6 +742,10 @@ instance KillRange IsInstance where
 instance HasRange IsInstance where
   getRange _ = noRange
 
+instance NFData IsInstance where
+  rnf InstanceDef    = ()
+  rnf NotInstanceDef = ()
+
 -- | Is this a macro definition?
 data IsMacro = MacroDef | NotMacroDef
   deriving (Typeable, Show, Eq, Ord)
@@ -716,7 +758,7 @@ type Arity  = Nat
 
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
-data NameId = NameId Integer Integer
+data NameId = NameId !Integer !Integer
     deriving (Eq, Ord, Typeable, Generic)
 
 instance KillRange NameId where
@@ -730,6 +772,9 @@ instance Enum NameId where
   pred (NameId n m)     = NameId (n - 1) m
   toEnum n              = __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
+
+instance NFData NameId where
+  rnf (NameId _ _) = ()
 
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
@@ -753,7 +798,7 @@ data Placeholder
 
 -- | Placeholders are used to represent the underscores in a section.
 data MaybePlaceholder e
-  = Placeholder Placeholder
+  = Placeholder !Placeholder
   | NoPlaceholder e
   deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
 
@@ -764,6 +809,10 @@ instance HasRange a => HasRange (MaybePlaceholder a) where
 instance KillRange a => KillRange (MaybePlaceholder a) where
   killRange p@Placeholder{}   = p
   killRange (NoPlaceholder e) = killRange1 NoPlaceholder e
+
+instance NFData a => NFData (MaybePlaceholder a) where
+  rnf (Placeholder _)   = ()
+  rnf (NoPlaceholder a) = rnf a
 
 ---------------------------------------------------------------------------
 -- * Interaction meta variables
@@ -798,3 +847,10 @@ data TerminationCheck m
 instance KillRange m => KillRange (TerminationCheck m) where
   killRange (TerminationMeasure _ m) = TerminationMeasure noRange (killRange m)
   killRange t                        = t
+
+instance NFData a => NFData (TerminationCheck a) where
+  rnf TerminationCheck         = ()
+  rnf NoTerminationCheck       = ()
+  rnf NonTerminating           = ()
+  rnf Terminating              = ()
+  rnf (TerminationMeasure _ a) = rnf a

@@ -11,6 +11,8 @@ module Agda.Syntax.Fixity where
 
 import Prelude hiding (concatMap)
 
+import Control.DeepSeq
+
 import Data.Foldable
 import Data.Function
 import qualified Data.List as List
@@ -37,7 +39,7 @@ import Agda.Utils.Impossible
 -- | The notation is handled as the fixity in the renamer.
 --   Hence, they are grouped together in this type.
 data Fixity' = Fixity'
-    { theFixity   :: Fixity
+    { theFixity   :: !Fixity
     , theNotation :: Notation
     }
   deriving (Typeable, Show, Eq)
@@ -206,7 +208,7 @@ noSection n = NotationSection
 
 -- | Precedence levels for operators.
 
-data PrecedenceLevel = Unrelated | Related Integer
+data PrecedenceLevel = Unrelated | Related !Integer
   deriving (Eq, Ord, Show, Typeable)
 
 -- | Associativity.
@@ -217,9 +219,9 @@ data Associativity = NonAssoc | LeftAssoc | RightAssoc
 -- | Fixity of operators.
 
 data Fixity =
-  Fixity { fixityRange :: Range
-         , fixityLevel :: PrecedenceLevel
-         , fixityAssoc :: Associativity
+  Fixity { fixityRange :: !Range
+         , fixityLevel :: !PrecedenceLevel
+         , fixityAssoc :: !Associativity
          }
   deriving (Typeable, Show)
 
@@ -337,3 +339,15 @@ _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 ------------------------------------------------------------------------
 
 -- deriving instance Show Fixity'
+
+------------------------------------------------------------------------
+-- * NFData instances
+------------------------------------------------------------------------
+
+instance NFData Fixity' where
+  rnf (Fixity' _ a) = rnf a
+
+-- | Ranges are not forced.
+
+instance NFData Fixity where
+  rnf (Fixity _ _ _) = ()

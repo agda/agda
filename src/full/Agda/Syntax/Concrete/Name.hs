@@ -44,8 +44,6 @@ data Name
   | NoName !Range NameId    -- ^ @_@.
   deriving (Typeable)
 
-instance NFData Name where rnf x = seq x ()
-
 instance Underscore Name where
   underscore = NoName noRange __IMPOSSIBLE__
   isUnderscore NoName{}        = True
@@ -340,3 +338,21 @@ instance KillRange QName where
 instance KillRange Name where
   killRange (Name r ps)  = Name (killRange r) ps
   killRange (NoName r i) = NoName (killRange r) i
+
+------------------------------------------------------------------------
+-- * NFData instances
+------------------------------------------------------------------------
+
+-- | Ranges are not forced.
+
+instance NFData Name where
+  rnf (Name _ ns)  = rnf ns
+  rnf (NoName _ n) = rnf n
+
+instance NFData NamePart where
+  rnf Hole   = ()
+  rnf (Id s) = rnf s
+
+instance NFData QName where
+  rnf (Qual a b) = rnf a `seq` rnf b
+  rnf (QName a)  = rnf a
