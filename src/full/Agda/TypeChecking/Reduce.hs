@@ -21,6 +21,7 @@ import Data.Hashable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -323,8 +324,6 @@ instance Reduce Term where
       ExtLam{}   -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__ -- updateSharedTermF reduceB' v
     where
-      rewriteAfter :: (Term -> ReduceM (Blocked Term)) -> Term -> ReduceM (Blocked Term)
-      rewriteAfter f = trampolineM $ rewrite <=< f
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@Shared{} = __IMPOSSIBLE__ -- updateSharedTerm reduceNat v
       reduceNat v@(Con c []) = do
@@ -342,6 +341,24 @@ instance Reduce Term where
               Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
               _                -> Con c [defaultArg w]
       reduceNat v = return v
+
+rewriteAfter :: (Term -> ReduceM (Blocked Term)) -> Term -> ReduceM (Blocked Term)
+rewriteAfter f = trampolineM $ rewrite <=< f
+
+-- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
+-- need also to instantiate metas, see Issue 826.
+unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
+unfoldCorecursionE e@(Proj f)           = return $ notBlocked e
+unfoldCorecursionE (Apply (Common.Arg info v)) = fmap (Apply . Common.Arg info) <$>
+  unfoldCorecursion v
+
+unfoldCorecursion :: Term -> ReduceM (Blocked Term)
+unfoldCorecursion = rewriteAfter $ \ v -> do
+  v <- instantiate' v
+  case v of
+    Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
+    Shared{} -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
+    _          -> reduceB' v
 
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
