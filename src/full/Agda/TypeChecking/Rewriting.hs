@@ -148,6 +148,15 @@ addRewriteRule :: QName -> TCM ()
 addRewriteRule q = inTopContext $ do
   requireOptionRewriting
   Def rel _ <- primRewrite
+  def <- getConstInfo q
+  -- Issue 1651: Check that we are not adding a rewrite rule
+  -- for a type signature whose body has not been type-checked yet.
+  when (isEmptyFunction $ theDef def) $
+    typeError . GenericDocError =<< hsep
+      [ text "Rewrite rule from function "
+      , prettyTCM q
+      , text " cannot be added before the function definition"
+      ]
   -- We know that the type of rel is that of a relation.
   Just (RelView _tel delta a _a' _core) <- relView =<< do
     defType <$> getConstInfo rel
@@ -156,8 +165,7 @@ addRewriteRule q = inTopContext $ do
       inTopContext $ prettyTCM (telFromList delta) <+> text " |- " <+> do
         addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
-  t <- defType <$> getConstInfo q
-  TelV gamma core <- telView t
+  TelV gamma core <- telView $ defType def
   reportSDoc "rewriting" 30 $ do
     text "attempting to add rewrite rule of type " <+> do
       inTopContext $ prettyTCM gamma <+> text " |- " <+> do
