@@ -289,7 +289,7 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
 -- Precondition: The problem has to be solved.
 
 noShadowingOfConstructors
-  :: (Maybe r -> Call) -- ^ Trace, e.g., @CheckPatternShadowing clause@
+  :: Call -- ^ Trace, e.g., @CheckPatternShadowing clause@
   -> Problem -> TCM ()
 noShadowingOfConstructors mkCall problem =
   traceCall mkCall $ do
@@ -448,7 +448,7 @@ instance InstantiateFull LHSResult where
 --   if successful.
 
 checkLeftHandSide
-  :: (Maybe r -> Call)
+  :: Call
      -- ^ Trace, e.g. @CheckPatternShadowing clause@
   -> Maybe QName
      -- ^ The name of the definition we are checking.
