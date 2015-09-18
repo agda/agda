@@ -291,8 +291,6 @@ data LHSCore
              }
   deriving (Typeable)
 
-instance NFData LHSCore where rnf x = seq x ()
-
 type RHS = RHS' Expr
 data RHS' e
   = AbsurdRHS -- ^ No right hand side because of absurd match.

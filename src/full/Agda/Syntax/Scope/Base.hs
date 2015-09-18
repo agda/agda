@@ -114,8 +114,6 @@ data LocalVar
     --   (List not empty).
   deriving (Typeable)
 
-instance NFData LocalVar where rnf x = seq x ()
-
 instance Eq LocalVar where
   (==) = (==) `on` localVar
 
