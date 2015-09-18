@@ -187,21 +187,3 @@ match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' 
     traceSLn "impossible" 10
       ("Incomplete pattern matching when applying " ++ show f)
       __IMPOSSIBLE__
-
--- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
--- need also to instantiate metas, see Issue 826.
-unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
-unfoldCorecursionE e@(Proj f)           = return $ notBlocked e
-unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
-  unfoldCorecursion v
-
-unfoldCorecursion :: Term -> ReduceM (Blocked Term)
-unfoldCorecursion v = do
-  v <- instantiate' v
-  case compressPointerChain v of
-    Def f es -> unfoldDefinitionE True unfoldCorecursion (Def f []) f es
-    v@(Shared p) ->
-      case derefPtr p of
-        Def{} -> updateSharedFM unfoldCorecursion v
-        _     -> reduceB' v
-    _ -> reduceB' v
