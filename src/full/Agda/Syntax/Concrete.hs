@@ -36,7 +36,7 @@ module Agda.Syntax.Concrete
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
-  , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
+  , ImportDirective(..), Using(..), ImportedName(..)
   , Renaming(..), AsName(..)
   , defaultImportDir
   , isDefaultImportDir
@@ -66,6 +66,7 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.List
 import Data.Set (Set)
+import Data.Monoid
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
@@ -306,24 +307,29 @@ data WhereClause' decls
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
 data ImportDirective = ImportDirective
   { importDirRange :: !Range
-  , usingOrHiding  :: UsingOrHiding
+  , using          :: Using
+  , hiding         :: [ImportedName]
   , renaming       :: [Renaming]
   , publicOpen     :: !Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Typeable, Eq)
 
+data Using = UseEverything | Using [ImportedName]
+  deriving (Typeable, Eq)
+
+instance Monoid Using where
+  mempty = UseEverything
+  mappend UseEverything u = u
+  mappend u UseEverything = u
+  mappend (Using xs) (Using ys) = Using (xs ++ ys)
+
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective
-defaultImportDir = ImportDirective noRange (Hiding []) [] False
+defaultImportDir = ImportDirective noRange UseEverything [] [] False
 
 isDefaultImportDir :: ImportDirective -> Bool
-isDefaultImportDir (ImportDirective _ (Hiding []) [] False) = True
-isDefaultImportDir _                                        = False
-
-data UsingOrHiding
-  = Hiding [ImportedName]
-  | Using  [ImportedName]
-  deriving (Typeable, Eq)
+isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
+isDefaultImportDir _                                             = False
 
 -- | An imported name can be a module or a defined name
 data ImportedName
@@ -667,10 +673,6 @@ instance HasRange Pragma where
   getRange (CatchallPragma r)           = r
   getRange (DisplayPragma r _ _)        = r
 
-instance HasRange UsingOrHiding where
-  getRange (Using xs)  = getRange xs
-  getRange (Hiding xs) = getRange xs
-
 instance HasRange ImportDirective where
   getRange = importDirRange
 
@@ -800,8 +802,12 @@ instance KillRange Expr where
   killRange (Equal _ x y)        = Equal noRange x y
 
 instance KillRange ImportDirective where
-  killRange (ImportDirective _ u r p) =
-    killRange2 (\u r -> ImportDirective noRange u r p) u r
+  killRange (ImportDirective _ u h r p) =
+    killRange3 (\u h r -> ImportDirective noRange u h r p) u h r
+
+instance KillRange Using where
+  killRange (Using xs) = killRange1 Using xs
+  killRange UseEverything = UseEverything
 
 instance KillRange ImportedName where
   killRange (ImportedModule n) = killRange1 ImportedModule n
@@ -876,10 +882,6 @@ instance KillRange TypedBinding where
 
 instance KillRange TypedBindings where
   killRange (TypedBindings _ t) = killRange1 (TypedBindings noRange) t
-
-instance KillRange UsingOrHiding where
-  killRange (Hiding i) = killRange1 Hiding i
-  killRange (Using  i) = killRange1 Using  i
 
 instance KillRange WhereClause where
   killRange NoWhere         = NoWhere
@@ -1029,7 +1031,7 @@ instance NFData ModuleApplication where
 -- | Ranges are not forced.
 
 instance NFData ImportDirective where
-  rnf (ImportDirective _ a b _) = rnf a `seq` rnf b
+  rnf (ImportDirective _ a b c _) = rnf a `seq` rnf b `seq` rnf c
 
 -- | Ranges are not forced.
 
@@ -1054,9 +1056,9 @@ instance NFData a => NFData (WhereClause' a) where
   rnf (AnyWhere a)    = rnf a
   rnf (SomeWhere a b) = rnf a `seq` rnf b
 
-instance NFData UsingOrHiding where
-  rnf (Hiding a) = rnf a
-  rnf (Using a)  = rnf a
+instance NFData Using where
+  rnf UseEverything = ()
+  rnf (Using a)     = rnf a
 
 instance NFData ImportedName where
   rnf (ImportedModule a) = rnf a

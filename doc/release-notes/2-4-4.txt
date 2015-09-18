@@ -307,6 +307,11 @@ Reflection
     foo : D
     foo = D.c
 
+  If you want to import only the type name and not the module you have to hide
+  it explicitly:
+
+    open M using (D) hiding (module D)
+
   See discussion on Issue 836 (https://github.com/agda/agda/issues/836).
 
 Operator syntax

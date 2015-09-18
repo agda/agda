@@ -460,31 +460,43 @@ applyImportDirectiveM m dir scope = do
                  notElem mx names ]
         dir' = addExtraModules extraModules dir
 
+    dir' <- sanityCheck dir'
+
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
     return $ applyImportDirective dir' scope
 
   where
     names :: [ImportedName]
-    names = map renFrom (renaming dir) ++ case usingOrHiding dir of
-      Using  xs -> xs
-      Hiding xs -> xs
+    names = map renFrom (renaming dir) ++ hiding dir ++ case using dir of
+      Using  xs     -> xs
+      UseEverything -> []
 
     targetNames :: [ImportedName]
-    targetNames = map renName (renaming dir) ++ case usingOrHiding dir of
-      Using xs -> xs
-      Hiding{} -> []
+    targetNames = map renName (renaming dir) ++ case using dir of
+      Using xs      -> xs
+      UseEverything -> []
       where
         renName r = (renFrom r) { importedName = renTo r }
 
+    sanityCheck dir =
+      case (using dir, hiding dir) of
+        (Using xs, ys) -> do
+          let uselessHiding = [ x | x@ImportedName{} <- ys ] ++
+                              [ x | x@(ImportedModule y) <- ys, ImportedName y `notElem` names ]
+          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ intercalate ", " (map show uselessHiding)
+                                                                ++ " has no effect"
+          return dir{ hiding = [] }
+        _ -> return dir
+
     addExtraModules :: [C.Name] -> ImportDirective -> ImportDirective
     addExtraModules extra dir =
-      dir{ usingOrHiding =
-              case usingOrHiding dir of
-                Using xs  -> Using  $ concatMap addExtra xs
-                Hiding xs -> Hiding $ concatMap addExtra xs
-         , renaming =
-              concatMap extraRenaming (renaming dir)
+      dir{ using =
+              case using dir of
+                Using xs      -> Using $ concatMap addExtra xs
+                UseEverything -> UseEverything
+         , hiding   = concatMap addExtra      (hiding dir)
+         , renaming = concatMap extraRenaming (renaming dir)
          }
       where
         addExtra f@(ImportedName y) | elem y extra = [f, ImportedModule y]

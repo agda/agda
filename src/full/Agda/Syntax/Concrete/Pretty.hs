@@ -574,12 +574,16 @@ prettyOpApp q es = merge [] $ prOp ms xs es
 instance Pretty ImportDirective where
     pretty i =
         sep [ public (publicOpen i)
-            , pretty $ usingOrHiding i
+            , pretty $ using i
+            , prettyHiding $ hiding i
             , rename $ renaming i
             ]
         where
             public True  = text "public"
             public False = empty
+
+            prettyHiding [] = empty
+            prettyHiding xs = text "hiding" <+> parens (fsep $ punctuate (text ";") $ map pretty xs)
 
             rename [] = empty
             rename xs = hsep [ text "renaming"
@@ -588,10 +592,8 @@ instance Pretty ImportDirective where
 
             pr r = hsep [ pretty (renFrom r), text "to", pretty (renTo r) ]
 
-instance Pretty UsingOrHiding where
-    pretty (Hiding [])  = empty
-    pretty (Hiding xs)  =
-        text "hiding" <+> parens (fsep $ punctuate (text ";") $ map pretty xs)
+instance Pretty Using where
+    pretty UseEverything = empty
     pretty (Using xs)    =
         text "using" <+> parens (fsep $ punctuate (text ";") $ map pretty xs)
 

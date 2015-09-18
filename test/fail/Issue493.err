@@ -1,3 +1,4 @@
-Issue493.agda:7,18-18
-Issue493.agda:7,18: Cannot mix
-using and hiding module directives <EOF><ERROR> ...
+Issue493.agda:7,6-28
+Hiding B has no effect
+when scope checking the declaration
+  open M using (A) hiding (B)
