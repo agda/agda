@@ -34,6 +34,7 @@ import Agda.Utils.List                        as UtilList   (tests)
 import Agda.Utils.ListT.Tests                 as UtilListT  (tests)
 import Agda.Utils.PartialOrd                  as UtilPOrd   (tests)
 import Agda.Utils.Permutation.Tests           as UtilPerm   (tests)
+import Agda.Utils.Trie                        as UtilTrie   (tests)
 import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
@@ -69,5 +70,6 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilFile.tests
   , UtilGraphUni.tests
   , UtilList.tests
+  , UtilTrie.tests
   , UtilWarsh.tests
   ]
