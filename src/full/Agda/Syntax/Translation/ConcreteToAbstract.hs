@@ -219,8 +219,8 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     let noRecConstr | null args = id
                     | otherwise = removeOnlyQualified
     -- Copy the scope associated with m and take the parts actually imported.
-    (s', (renM, renD)) <- copyScope m m0 . noRecConstr =<< getNamedScope m1
-    s' <- applyImportDirectiveM (C.QName x) dir' s'
+    s <- applyImportDirectiveM (C.QName x) dir' =<< getNamedScope m1
+    (s', (renM, renD)) <- copyScope m m0 (noRecConstr s)
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
@@ -238,8 +238,8 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
+    s <- applyImportDirectiveM recN dir' s
     (s', (renM, renD)) <- copyScope recN m0 s
-    s' <- applyImportDirectiveM recN dir' s'
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
@@ -270,26 +270,25 @@ checkModuleMacro apply r p x modapp open dir = do
 
     printScope "mod.inst" 20 "module macro"
 
-    -- If we're opening, the import directive is applied to the open,
-    -- otherwise to the module itself.
-    let dir' = case open of
-                DontOpen  -> dir
-                DoOpen    -> defaultImportDir
+    -- If we're opening a /named/ module, the import directive is
+    -- applied to the "open", otherwise to the module itself. However,
+    -- "public" is always applied to the "open".
+    let (moduleDir, openDir) = case (open, isNoName x) of
+          (DoOpen,   False) -> (defaultImportDir, dir)
+          (DoOpen,   True)  -> ( dir { publicOpen = False }
+                               , defaultImportDir { publicOpen = publicOpen dir }
+                               )
+          (DontOpen, _)     -> (dir, defaultImportDir)
 
     -- Restore the locals after module application has been checked.
-    (modapp', renD, renM) <- withLocalVars $ checkModuleApplication modapp m0 x dir'
-    printScope "mod.inst.app" 20 "checkModuleMacro, after checkModuleApplication"
-
-    reportSDoc "scope.decl" 90 $ text "after mod app: trying to print m0 ..."
-    reportSDoc "scope.decl" 90 $ text "after mod app: m0 =" <+> prettyA m0
-
+    (modapp', renD, renM) <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
     bindModule p x m0
     reportSDoc "scope.decl" 90 $ text "after bindMod: m0 =" <+> prettyA m0
 
     printScope "mod.inst.copy.after" 20 "after copying"
     -- Andreas, 2014-09-02 openModule_ might shadow some locals!
     when (open == DoOpen) $
-      openModule_ (C.QName x) dir
+      openModule_ (C.QName x) openDir
     printScope "mod.inst" 20 $ show open
     reportSDoc "scope.decl" 90 $ text "after open   : m0 =" <+> prettyA m0
 

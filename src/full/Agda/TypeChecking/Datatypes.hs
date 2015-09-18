@@ -148,9 +148,10 @@ getNumberOfParameters :: QName -> TCM (Maybe Nat)
 getNumberOfParameters d = do
   def <- getConstInfo d
   case theDef def of
-    Datatype{ dataPars = n} -> return $ Just n
-    Record{ recPars = n}    -> return $ Just n
-    _                       -> return Nothing
+    Datatype{ dataPars = n }   -> return $ Just n
+    Record{ recPars = n }      -> return $ Just n
+    Constructor{ conPars = n } -> return $ Just n
+    _                          -> return Nothing
 
 {- UNUSED
 data DatatypeInfo = DataInfo

@@ -1186,7 +1186,7 @@ checkConstructorApplication org t c args = do
   if paramsGiven then fallback else do
     reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
     cdef  <- getConInfo c
-    let Constructor{conData = d} = theDef cdef
+    let Constructor{conData = d, conPars = npars} = theDef cdef
     reportSDoc "tc.term.con" 50 $ nest 2 $ text "d    =" <+> prettyTCM d
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
     -- as well and then check wether we deal with the same datatype
@@ -1202,9 +1202,8 @@ checkConstructorApplication org t c args = do
          -- these additional parameters could be a module parameter telescope.
          -- Since we get the constructor type ctype from d but the parameters
          -- from t = Def d' vs, we drop the additional parameters.
-         npars  <- getNumberOfParameters d
          npars' <- getNumberOfParameters d'
-         caseMaybe (sequenceA $ List2 (npars, npars')) fallback $ \ (List2 (n,n')) -> do
+         caseMaybe (sequenceA $ List2 (Just npars, npars')) fallback $ \ (List2 (n, n')) -> do
            reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
            reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
            when (n > n')  -- preprocessor does not like ', so put on next line

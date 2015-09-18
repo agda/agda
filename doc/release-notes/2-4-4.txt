@@ -280,40 +280,44 @@ Reflection
     thm : ¬ P ≡ NP
     thm = by-magic
 
+* Modules in import directives
+
+  When you use using/hiding/renaming on a name it now automatically applies to
+  any module of the same name, unless you explicitly mention the module. For
+  instance,
+
+    open M using (D)
+
+  is equivalent to
+
+    open M using (D; module D)
+
+  if M defines a module D. This is most useful for record and data types where
+  you always get a module of the same name as the type.
+
+  With this feature there is no longer useful to be able to qualify a
+  constructor (or field) by the name of the data type even when it differs from
+  the name of the corresponding module. The follow (weird) code used to work,
+  but doesn't work anymore:
+
+    module M where
+      data D where
+        c : D
+    open M using (D) renaming (module D to MD)
+    foo : D
+    foo = D.c
+
+  If you want to import only the type name and not the module you have to hide
+  it explicitly:
+
+    open M using (D) hiding (module D)
+
+  See discussion on Issue 836 (https://github.com/agda/agda/issues/836).
 
 Operator syntax
 ---------------
 
-* The default fixity has changed.
-
-  The default fixity, used when no fixity declaration is given, was
-  previously infix 20 for operators, and infix -666 for syntax
-  declarations. Now operators and notations (coming from syntax
-  declarations) without an associated fixity declaration are unrelated
-  to all other operators, and infix operators/notations are
-  non-associative.
-
-  As an example, the following code no longer parses:
-
-    infix 4 _≡_
-
-    data _≡_ {A : Set} (x : A) : A → Set where
-      refl : x ≡ x
-
-    LeftZero : {A : Set} → A → (A → A → A) → Set
-    LeftZero z _∙_ = ∀ x → z ∙ x ≡ z
-
-  Note that an operator without a fixity declaration is still related
-  to itself. This has no effect for infix operators, but it means that
-  a prefix (or postfix) operator can be applied directly to itself:
-
-    postulate
-      ℤ  : Set
-      n  : ℤ
-      -_ : ℤ → ℤ
-
-    ok : ℤ
-    ok = - - - - - - - n
+* The default fixity for syntax declarations has changed from -666 to 20.
 
 * Sections.
 
@@ -413,12 +417,11 @@ Operator syntax
   included in the operator grammar, possibly leading to ambiguity.
   Previously the operator was given the default fixity [Issue 1436].
 
-  There is an exception to this rule: If there are multiple
-  precedences, but all except for at most one is "unrelated", then
-  only one instance will be included in the grammar. If all
-  precedences are "unrelated", then the instance will get this
-  precedence, and otherwise the instance will get the related
-  precedence level.
+  There is an exception to this rule: If there are multiple precedences,
+  but at most one is explicitly declared, then only one instance will be
+  included in the grammar. If there are no explicitly declared
+  precedences, then this instance will get the default precedence, and
+  otherwise it will get the declared precedence.
 
   If multiple occurrences of an operator are "merged" in the grammar,
   and they have distinct associativities, then they are treated as
