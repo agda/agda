@@ -453,9 +453,16 @@ applyImportDirectiveM m dir scope = do
     reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
     unless (null xs)  $ typeError $ ModuleDoesntExport m xs
 
+    let extraModules =
+          [ x | ImportedName x <- names,
+                let mx = ImportedModule x,
+                 not $ doesntExist mx,
+                 notElem mx names ]
+        dir' = addExtraModules extraModules dir
+
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
-    return $ applyImportDirective dir scope
+    return $ applyImportDirective dir' scope
 
   where
     names :: [ImportedName]
@@ -469,6 +476,24 @@ applyImportDirectiveM m dir scope = do
       Hiding{} -> []
       where
         renName r = (renFrom r) { importedName = renTo r }
+
+    addExtraModules :: [C.Name] -> ImportDirective -> ImportDirective
+    addExtraModules extra dir =
+      dir{ usingOrHiding =
+              case usingOrHiding dir of
+                Using xs  -> Using  $ concatMap addExtra xs
+                Hiding xs -> Hiding $ concatMap addExtra xs
+         , renaming =
+              concatMap extraRenaming (renaming dir)
+         }
+      where
+        addExtra f@(ImportedName y) | elem y extra = [f, ImportedModule y]
+        addExtra m = [m]
+
+        extraRenaming r =
+          case renFrom r of
+            ImportedName y | elem y extra -> [r, r{ renFrom = ImportedModule y }]
+            _ -> [r]
 
     doesntExist (ImportedName   x) = isNothing $
       Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName)

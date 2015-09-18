@@ -34,24 +34,5 @@ X = R.X
 -- NO, it is a feature that projections can also be accessed via
 -- the record /type/.
 
--- The following directive is (and should be) rejected:
-
--- open R
-
--- Bug.agda:19,6-7
--- No such module R
--- when scope checking the declaration
---   open R
-
-module N where
-
-  data D : Set₁ where
-    c : Set → D
-
-open N using (D) renaming (module D to MD)
-
-open import Common.Equality
-
-twoWaysToQualify : D.c ≡ MD.c
-twoWaysToQualify = refl
-
+-- Ulf:
+-- With the fix to 836 using (R) now means using (R; module R).

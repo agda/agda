@@ -280,6 +280,34 @@ Reflection
     thm : ¬ P ≡ NP
     thm = by-magic
 
+* Modules in import directives
+
+  When you use using/hiding/renaming on a name it now automatically applies to
+  any module of the same name, unless you explicitly mention the module. For
+  instance,
+
+    open M using (D)
+
+  is equivalent to
+
+    open M using (D; module D)
+
+  if M defines a module D. This is most useful for record and data types where
+  you always get a module of the same name as the type.
+
+  With this feature there is no longer useful to be able to qualify a
+  constructor (or field) by the name of the data type even when it differs from
+  the name of the corresponding module. The follow (weird) code used to work,
+  but doesn't work anymore:
+
+    module M where
+      data D where
+        c : D
+    open M using (D) renaming (module D to MD)
+    foo : D
+    foo = D.c
+
+  See discussion on Issue 836 (https://github.com/agda/agda/issues/836).
 
 Operator syntax
 ---------------

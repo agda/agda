@@ -632,10 +632,10 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList to
         -- that constructors can also be qualified by their datatype
         -- and projections by their record type.  This feature is off
         -- if we just consider the modules:
-        -- m <- mods
+        m <- mods
         -- The feature is on if we consider also the data and record types:
         -- trace ("mods ++ defs = " ++ show (mods ++ defs)) $ do
-        m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
+        -- m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         -- Get the scope of module m, if any, and remove its private definitions.
         let ss  = Map.lookup m $ scopeModules scope
             ss' = restrictPrivate <$> ss
