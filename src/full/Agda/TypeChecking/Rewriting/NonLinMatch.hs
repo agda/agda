@@ -36,6 +36,7 @@ import Data.Functor
 import Data.Traversable hiding (for)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common (unArg)
