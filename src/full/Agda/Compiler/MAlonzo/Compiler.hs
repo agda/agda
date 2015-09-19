@@ -387,7 +387,7 @@ term tm0 = case tm0 of
       return $ HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x []
                 Nothing (HS.UnGuardedRhs t1') (HS.BDecls [])]]) t2'
   T.TCase sc ct def alts -> do
-    sc' <- term sc
+    sc' <- term (T.TVar sc)
     alts' <- traverse alt alts
     def' <- term def
     let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') (HS.BDecls [])

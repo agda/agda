@@ -162,7 +162,7 @@ casetree cc = do
           -- so this normally shouldn't happen
           def <- fromMaybe <$> patMatchFailure
             <*> (fmap C.TVar <$> asks ccCatchAll)
-          C.TCase (C.TVar x) caseTy def <$> do
+          C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)

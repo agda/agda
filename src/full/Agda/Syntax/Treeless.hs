@@ -103,9 +103,10 @@ data TTerm = TVar Int
            -- MUST only be evaluated if it is used inside the body.
            -- Sharing may happen, but is optional.
            -- It is also perfectly valid to just inline the bound term in the body.
-           | TCase TTerm CaseType TTerm [TAlt]
-           -- ^ Case scrutinee, case type, default value, alternatives
+           | TCase Int CaseType TTerm [TAlt]
+           -- ^ Case scrutinee (always variable), case type, default value, alternatives
            | TPi TType TType
+           -- ^ TODO: get rid of this?
            | TUnit -- used for levels right now
            | TSort
            | TErased

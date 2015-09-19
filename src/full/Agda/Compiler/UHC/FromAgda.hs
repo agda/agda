@@ -291,7 +291,7 @@ substTerm term = case term of
             <*> addToEnv [nm] (substTerm body)
     C.TCase sc ct def alts -> do
         A.Case
-          <$> substTerm sc
+          <$> substTerm (C.TVar sc)
           <*> mapM substAlt alts
           <*> substTerm def
           <*> mapCaseType ct
