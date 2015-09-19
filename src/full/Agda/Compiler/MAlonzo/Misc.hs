@@ -144,6 +144,17 @@ dsubname q i | i == 0    = unqhname "d"                     q
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual
 
+hsAppView :: HS.Exp -> [HS.Exp]
+hsAppView = reverse . view
+  where
+    view (HS.App e e1) = e1 : view e
+    view e = [e]
+
+hsLambda :: [HS.Pat] -> HS.Exp -> HS.Exp
+hsLambda ps (HS.Lambda i ps1 e) = HS.Lambda i (ps ++ ps1) e
+hsLambda ps e = HS.Lambda dummy ps e
+
+
 --------------------------------------------------
 -- Hard coded module names
 --------------------------------------------------

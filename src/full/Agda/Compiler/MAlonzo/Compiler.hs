@@ -379,7 +379,7 @@ term tm0 = case tm0 of
   T.TLam at -> do
     (nm:_) <- asks ccNameSupply
     intros 1 $ \ [x] ->
-      HS.Lambda dummy [HS.PVar x] <$> term at
+      hsLambda [HS.PVar x] <$> term at
   T.TLet t1 t2 -> do
     t1' <- term t1
     intros 1 $ \[x] -> do
@@ -513,17 +513,28 @@ hsCast = addcast . go where
   go e = [e]
 -}
 
-hsCast e = mazCoerce `HS.App` hsCast' e
+hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` (hsCoerce $ hsCast' e2)
+hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` e2
 hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
-hsCast' e = e
+hsCast' e = hsCoerce e
 
 -- No coercion for literal integers
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
-hsCoerce e = HS.App mazCoerce e
+hsCoerce (HS.Case sc alts) = HS.Case sc (map hsCoerceAlt alts)
+hsCoerce e =
+  case hsAppView e of
+    c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
+    _ -> mazCoerce `HS.App` e
+
+hsCoerceAlt :: HS.Alt -> HS.Alt
+hsCoerceAlt (HS.Alt i p rhs wh) = HS.Alt i p (hsCoerceRHS rhs) wh
+
+hsCoerceRHS :: HS.Rhs -> HS.Rhs
+hsCoerceRHS (HS.UnGuardedRhs def) = HS.UnGuardedRhs (hsCoerce def)
+hsCoerceRHS (HS.GuardedRhss es) = HS.GuardedRhss [ HS.GuardedRhs i g (hsCoerce e) | HS.GuardedRhs i g e <- es ]
 
 --------------------------------------------------
 -- Writing out a haskell module
