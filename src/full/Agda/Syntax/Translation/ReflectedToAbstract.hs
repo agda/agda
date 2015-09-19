@@ -22,6 +22,7 @@ import Agda.Syntax.Abstract as A hiding (Apply)
 import Agda.Syntax.Reflected as R
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
+import Agda.Syntax.Scope.Monad (getCurrentModule)
 
 import Agda.Utils.Maybe
 import Agda.Utils.List
@@ -103,8 +104,9 @@ instance ToAbstract Term Expr where
       let info  = setHiding h defaultArgInfo
       return $ A.Lam exprNoRange (DomainFree info name) e
     R.ExtLam cs es -> do
-      name <- freshName_ "extlam"
-      let qname   = qnameFromList [name]
+      name <- freshName_ extendedLambdaName
+      m    <- lift $ getCurrentModule
+      let qname   = qualify m name
           cname   = nameConcrete name
           defInfo = mkDefInfo cname noFixity' PublicAccess ConcreteDef noRange
       cs <- toAbstract $ map (QNamed qname) cs
