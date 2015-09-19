@@ -16,6 +16,7 @@
  -}
 module Agda.Syntax.Parser.Parser (
       moduleParser
+    , moduleNameParser
     , exprParser
     , tokensParser
     , tests
@@ -57,6 +58,7 @@ import Agda.Utils.Tuple
 %name tokensParser Tokens
 %name exprParser Expr
 %name moduleParser File
+%name moduleNameParser ModuleName
 %tokentype { Token }
 %monad { Parser }
 %lexer { lexer } { TokEOF }

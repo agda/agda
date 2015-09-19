@@ -55,11 +55,11 @@ debug :
 
 $(allout) : %.err : %.agda
 	@echo "$*.agda"
-	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
-		then echo "Unexpected success"; rm -f $*.tmp; false; \
-    else if [ -s $*.tmp ]; \
-				 then cat $*.tmp | $(clean) > $@; cat $@; rm -f $*.tmp; true; \
-				 else rm -f $@ $*.tmp; false; \
+	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e "$*.flags" ]; then cat "$*.flags"; fi) "$<" > "$*.tmp"; \
+		then echo "Unexpected success"; rm -f "$*.tmp"; false; \
+    else if [ -s "$*.tmp" ]; \
+				 then cat "$*.tmp" | $(clean) > "$@"; cat "$@"; rm -f "$*.tmp"; true; \
+				 else rm -f "$@" "$*.tmp"; false; \
 				 fi; \
 		fi
 
@@ -67,28 +67,28 @@ $(allout) : %.err : %.agda
 
 $(allstems) : % : %.err
 	@echo "$*.agda"
-	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
-		 > $*.tmp.2; \
-		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else cat $*.tmp.2 | $(clean) > $*.tmp; \
-				 echo `cat $*.err` > $*.tmp.2; \
-				 echo `cat $*.tmp` > $*.tmp.3; \
+	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e "$*.flags" ]; then cat "$*.flags"; fi) "$*.agda" \
+		 > "$*.tmp.2"; \
+		then echo "Unexpected success"; rm -f "$*.tmp.2"; false; \
+    else cat "$*.tmp.2" | $(clean) > "$*.tmp"; \
+				 echo `cat "$*.err"` > "$*.tmp.2"; \
+				 echo `cat "$*.tmp"` > "$*.tmp.3"; \
 				 true; \
 		fi
-	@if cmp $*.tmp.2 $*.tmp.3; \
-		then rm -f $*.tmp $*.tmp.2 $*.tmp.3; true; \
+	@if cmp "$*.tmp.2" "$*.tmp.3"; \
+		then rm -f "$*.tmp" "$*.tmp.2" "$*.tmp.3"; true; \
 		else echo "== Old error ==="; \
-			 cat $*.err; \
+			 cat "$*.err"; \
 			 echo "== New error ==="; \
-			 cat $*.tmp; \
+			 cat "$*.tmp"; \
 			 /bin/echo -n "Accept new error [y/N/q]? "; \
 			 read -n 1; \
 			 echo ""; \
 			 if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
 			   then echo "Keeping old error"; [ "X$$REPLY" != "Xq" ]; \
 			   else echo "Replacing error, continuing..."; \
-			     mv $*.tmp $*.err; \
-			     rm -f $*.tmp.2 $*.tmp.3; true; \
+			     mv "$*.tmp" "$*.err"; \
+			     rm -f "$*.tmp.2" "$*.tmp.3"; true; \
 			 fi; \
 	 fi
 
