@@ -90,6 +90,7 @@ import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -469,10 +470,13 @@ instance Read InteractionId where
     readsPrec = parseToReadsPrec $
         fmap InteractionId readParse
 
+-- | Note that the grammar implemented by this instances matches an
+-- old representation of ranges, not necessarily the current one.
+
 instance Read a => Read (Range' a) where
     readsPrec = parseToReadsPrec $ do
                 exact "Range"
-                fmap Range readParse
+                fmap intervalsToRange readParse
           `mplus` do
                 exact "noRange"
                 return noRange
@@ -1238,7 +1242,7 @@ tellToUpdateHighlighting (Just (info, modFile)) =
 tellEmacsToJumpToError :: Range -> [Response]
 tellEmacsToJumpToError r =
   case rStart r of
-    Nothing                                    -> []
-    Just (Pn { srcFile = Nothing })            -> []
-    Just (Pn { srcFile = Just f, posPos = p }) ->
+    Nothing                                           -> []
+    Just (Pn { srcFile = Strict.Nothing })            -> []
+    Just (Pn { srcFile = Strict.Just f, posPos = p }) ->
        [ Resp_JumpToError (filePath f) p ]

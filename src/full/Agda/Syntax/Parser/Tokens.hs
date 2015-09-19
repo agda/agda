@@ -71,7 +71,7 @@ data Token
 instance HasRange Token where
   getRange (TokKeyword _ i)    = getRange i
   getRange (TokId (i, _))      = getRange i
-  getRange (TokQId iss)        = Range $ map fst iss
+  getRange (TokQId iss)        = getRange (map fst iss)
   getRange (TokLiteral lit)    = getRange lit
   getRange (TokSymbol _ i)     = getRange i
   getRange (TokString (i, _))  = getRange i

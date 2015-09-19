@@ -397,8 +397,6 @@ instance CoArbitrary QName where
 -- * NFData instances
 ------------------------------------------------------------------------
 
--- | The range is not forced.
-
 instance NFData Name where
   rnf (Name _ a _ b) = rnf a `seq` rnf b
 

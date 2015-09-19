@@ -885,8 +885,6 @@ instance KillRange WhereClause where
 ------------------------------------------------------------------------
 -- NFData instances
 
--- | Ranges are not forced.
-
 instance NFData Expr where
   rnf (Ident a)          = rnf a
   rnf (Lit a)            = rnf a
@@ -923,8 +921,6 @@ instance NFData Expr where
   rnf (DontCare a)       = rnf a
   rnf (Equal _ a b)      = rnf a `seq` rnf b
 
--- | Ranges are not forced.
-
 instance NFData Pattern where
   rnf (IdentP a) = rnf a
   rnf (QuoteP _) = ()
@@ -940,8 +936,6 @@ instance NFData Pattern where
   rnf (DotP _ a) = rnf a
   rnf (LitP a) = rnf a
   rnf (RecP _ a) = rnf a
-
--- | Ranges are not forced.
 
 instance NFData Declaration where
   rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
@@ -969,8 +963,6 @@ instance NFData Declaration where
   rnf (UnquoteDef _ a b)      = rnf a `seq` rnf b
   rnf (Pragma a)              = rnf a
 
--- | Ranges are not forced.
-
 instance NFData Pragma where
   rnf (OptionsPragma _ a)               = rnf a
   rnf (BuiltinPragma _ a b)             = rnf a `seq` rnf b
@@ -993,45 +985,29 @@ instance NFData Pragma where
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
 
--- | Ranges are not forced.
-
 instance NFData a => NFData (TypedBindings' a) where
   rnf (TypedBindings _ a) = rnf a
-
--- | Ranges are not forced.
 
 instance NFData Renaming where
   rnf (Renaming a b _) = rnf a `seq` rnf b
 
--- | Ranges are not forced.
-
 instance NFData AsName where
   rnf (AsName a _) = rnf a
-
--- | Ranges are not forced.
 
 instance NFData a => NFData (TypedBinding' a) where
   rnf (TBind _ a b) = rnf a `seq` rnf b
   rnf (TLet _ a)    = rnf a
 
--- | Ranges are not forced.
-
 instance NFData ModuleApplication where
   rnf (SectionApp _ a b)    = rnf a `seq` rnf b
   rnf (RecordModuleIFS _ a) = rnf a
 
--- | Ranges are not forced.
-
 instance NFData ImportDirective where
   rnf (ImportDirective _ a b c _) = rnf a `seq` rnf b `seq` rnf c
-
--- | Ranges are not forced.
 
 instance NFData a => NFData (OpApp a) where
   rnf (SyntaxBindingLambda _ a b) = rnf a `seq` rnf b
   rnf (Ordinary a)                = rnf a
-
--- | Ranges are not forced.
 
 instance NFData LHS where
   rnf (LHS a b c d)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d

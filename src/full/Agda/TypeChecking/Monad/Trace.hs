@@ -15,6 +15,7 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Function
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
@@ -47,8 +48,10 @@ traceCall mkCall m = do
   -- Andreas, 2015-02-09 Make sure we do not set a range
   -- outside the current file
   verboseS "check.ranges" 10 $
-    unlessNull callRange $ \ (Range is) ->
-      unlessNull (mapMaybe srcFile $ map iStart is ++ map iEnd is) $ \ files -> do
+    unlessNull callRange $ \ r ->
+      let is = rangeIntervals r in
+      unlessNull (Strict.mapMaybe srcFile $
+                    map iStart is ++ map iEnd is) $ \ files -> do
         whenJustM (asks envCurrentPath) $ \ currentFile -> do
           unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
             reportSLn "impossible" 10 $

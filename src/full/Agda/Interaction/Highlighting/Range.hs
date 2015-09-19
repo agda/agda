@@ -87,7 +87,7 @@ prop_rangesToPositions rs = sorted (rangesToPositions rs)
 -- | Converts a 'P.Range' to a 'Ranges'.
 
 rToR :: P.Range -> Ranges
-rToR (P.Range is) = Ranges (map iToR is)
+rToR r = Ranges (map iToR (P.rangeIntervals r))
   where
   iToR (P.Interval { P.iStart = P.Pn { P.posPos = pos1 }
                    , P.iEnd   = P.Pn { P.posPos = pos2 }

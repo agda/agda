@@ -343,8 +343,6 @@ instance KillRange Name where
 -- * NFData instances
 ------------------------------------------------------------------------
 
--- | Ranges are not forced.
-
 instance NFData Name where
   rnf (Name _ ns)  = rnf ns
   rnf (NoName _ n) = rnf n

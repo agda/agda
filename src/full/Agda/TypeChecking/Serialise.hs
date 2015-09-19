@@ -56,6 +56,8 @@ import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 
 import qualified Codec.Compression.GZip as G
 
@@ -99,6 +101,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
 import Agda.Utils.IORef
 import Agda.Utils.Lens
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 
@@ -528,6 +531,10 @@ instance EmbPrj a => EmbPrj (Maybe a) where
                            valu [x] = valu1 Just x
                            valu _   = malformed
 
+instance EmbPrj a => EmbPrj (Strict.Maybe a) where
+  icod_ m = icode (Strict.toLazy m)
+  value m = Strict.toStrict `fmap` value m
+
 instance EmbPrj Bool where
   icod_ True  = icode0'
   icod_ False = icode0 0
@@ -587,15 +594,18 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toList s)
   value s = Set.fromList `fmap` value s
 
+instance EmbPrj a => EmbPrj (Vector a) where
+  icod_ v = icode (Vector.toList v)
+  value v = Vector.fromList `fmap` value v
+
 instance EmbPrj P.Interval where
   icod_ (P.Interval p q) = icode2' p q
   value = vcase valu where valu [p, q] = valu2 P.Interval p q
                            valu _      = malformed
 
 instance EmbPrj Range where
-  icod_ (P.Range is) = icode1' is
-  value = vcase valu where valu [is] = valu1 P.Range is
-                           valu _    = malformed
+  icod_ r = icode (P.rangeIntervals r)
+  value r = P.intervalsToRange `fmap` value r
 
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icode2' a b
