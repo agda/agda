@@ -83,9 +83,7 @@ importsForPrim =
 -- Declarations of helper functions for BUILT-INs
 declsForPrim :: TCM [HS.Decl]
 declsForPrim = xForPrim $
-  [ "NATURAL" |-> (++) <$> natToFrom "Integer" mazNatToInteger mazIntegerToNat
-                       <*> natToFrom "Int"     mazNatToInt     mazIntToNat
-  , "LIST"   |-> forList mazListToHList mazHListToList
+  [ "LIST"   |-> forList mazListToHList mazHListToList
   , "STRING" |-> forList mazListToString mazStringToList
   , "BOOL"   |-> decls ["TRUE", "FALSE"]
        mazBoolToHBool "let { f <<0>> = True; f <<1>> = False; } in f"
@@ -131,14 +129,10 @@ declsForPrim = xForPrim $
       do cs' <- mapM pconName cs
          return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
 
-mazNatToInteger, mazIntegerToNat, mazNatToInt, mazIntToNat, mazCharToInteger,
+mazCharToInteger,
   mazListToHList, mazHListToList, mazListToString, mazStringToList,
   mazBoolToHBool, mazHBoolToBool :: String
 
-mazNatToInteger  = "mazNatToInteger"
-mazIntegerToNat  = "mazIntegerToNat"
-mazNatToInt      = "mazNatToInt"
-mazIntToNat      = "mazIntToNat"
 mazCharToInteger = "mazCharToInteger"
 mazListToHList   = "mazListToHList"
 mazHListToList   = "mazHListToList"
@@ -175,9 +169,8 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primIntegerMod"     |-> binAsis "mod" "Integer"
   , "primIntegerEquality"|-> rel "(==)" "Integer"
   , "primIntegerLess"    |-> rel "(<)"  "Integer"
-  , "primIntegerAbs"     |-> do toN <- bltQual' "NATURAL" mazIntegerToNat
-                                return $ repl [toN] $ "\\ x -> <<0>> (abs x)"
-  , "primNatToInteger"   |-> bltQual' "NATURAL" mazNatToInteger
+  , "primIntegerAbs"     |-> return "(abs :: Integer -> Integer)"
+  , "primNatToInteger"   |-> return "(id :: Integer -> Integer)"
   , "primShowInteger"    |-> return "(show :: Integer -> String)"
 
   -- Levels
@@ -223,12 +216,8 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primIsHexDigit"     |-> pred "Data.Char.isHexDigit"
   , "primToUpper"        |-> return "Data.Char.toUpper"
   , "primToLower"        |-> return "Data.Char.toLower"
-  , "primCharToNat" |-> do toN <- bltQual' "NATURAL" mazIntToNat
-                           return $ repl [toN] $
-                            "(\\ x -> <<0>> ((fromEnum :: Char -> Int) x))"
-  , "primNatToChar" |-> do toI <- bltQual' "NATURAL" mazNatToInt
-                           return $ repl[toI] $
-                            "(\\ x -> (toEnum :: Int -> Char) (<<0>> x))"
+  , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
+  , "primNatToChar" |-> return "(toEnum . fromIntegral :: Integer -> Char)"
   , "primShowChar"  |-> return "(show :: Char -> String)"
 
   -- String functions
@@ -260,14 +249,16 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
     to'   <- bltQual' blt to
     return $ repl [op, opty ty, from', to'] $
                "\\ x y -> <<3>> ((<<0>> :: <<1>>) (<<2>> x) (<<2>> y))"
-  binNat op = bin "NATURAL" op "Integer" mazNatToInteger mazIntegerToNat
+  binNat op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer)"
   binAsis op ty = return $ repl [op, opty ty] $ "((<<0>>) :: <<1>>)"
   rel' toTy op ty = do
     toHB <- bltQual' "BOOL" mazHBoolToBool
     return $ repl [op, ty, toHB, toTy] $
       "(\\ x y -> <<2>> ((<<0>> :: <<1>> -> <<1>> -> Bool) (<<3>> x) (<<3>> y)))"
-  relNat op = do toHI <- bltQual' "NATURAL" mazNatToInteger
-                 rel' toHI op "Integer"
+  relNat op = do
+    toHB <- bltQual' "BOOL" mazHBoolToBool
+    return $ repl [op, toHB] $
+      "(\\ x y -> <<1>> (<<2>> (x :: Integer) (y :: Integer)))"
   rel op ty  = rel' "" op ty
   pred p = do toHB <- bltQual' "BOOL" mazHBoolToBool
               return $ repl [p, toHB] $ "(\\ x -> <<1>> (<<0>> x))"

@@ -97,6 +97,7 @@ data TTerm = TVar Int
            | TApp TTerm Args
            | TLam TTerm
            | TLit Literal
+           | TPlus Integer TTerm
            | TCon QName
            | TLet TTerm TTerm
            -- ^ introduces a new local binding. The bound term
@@ -135,6 +136,8 @@ data TAlt
   -- ^ Matches on the given constructor. If the match succeeds,
   -- the pattern variables are prepended to the current environment
   -- (pushes all existing variables aArity steps further away)
+  | TAPlus   { aSucs :: Integer, aBody :: TTerm }
+  -- ^ n+k pattern
   | TALit    { aLit :: Literal,   aBody:: TTerm }
   deriving (Typeable, Show)
 

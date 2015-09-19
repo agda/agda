@@ -274,6 +274,7 @@ substTerm term = case term of
     C.TDef nm -> do
       nm' <- lift . lift $ getCoreName1 nm
       return $ A.Var nm'
+    C.TPlus i t -> error "TODO"
     C.TApp t xs -> do
       A.apps <$> substTerm t <*> mapM substTerm xs
     C.TLam t -> do
@@ -305,6 +306,7 @@ substTerm term = case term of
                 return $ A.CTCon di
             substAlt :: C.TAlt -> NM A.Branch
             substAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> substTerm (C.aBody a)
+            substAlt a@(C.TAPlus {}) = error "TODO"
             substAlt a@(C.TACon {}) = do
                 conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo $ C.aCon a)
                 vars <- lift $ replicateM (C.aArity a) freshLocalName

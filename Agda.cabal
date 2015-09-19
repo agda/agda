@@ -179,6 +179,7 @@ library
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
                     Agda.Compiler.ToTreeless
+                    Agda.Compiler.Treeless.NPlusK
                     Agda.Compiler.UHC.AuxAST
                     Agda.Compiler.UHC.AuxASTUtil
                     Agda.Compiler.UHC.Bridge
