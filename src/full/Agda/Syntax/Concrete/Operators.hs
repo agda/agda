@@ -588,7 +588,8 @@ parseLHS' lhsOrPatSyn top p = do
     let patP = (parseSections, pTop parsers)
     let cons = getNames [ConName, PatternSynName] flat
     let flds = getNames [FldName] flat
-    case [ res | p' <- force $ parsePat patP p
+    case [ res | let result = parsePat patP p
+               , p' <- foldr seq () result `seq` result
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
                           text "Parsed lhs:" <+> pretty lhs
