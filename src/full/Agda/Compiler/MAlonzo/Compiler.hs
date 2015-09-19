@@ -225,9 +225,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
           ]
 
       Axiom{} -> return $ fb axiomErr
-      Primitive{ primCompiled = Nothing, primName = s } -> fb <$> primBody s
-      Primitive{ primCompiled = Just cc } -> function Nothing $
-        functionViaTreeless q cc
+      Primitive{ primName = s } -> fb <$> primBody s
 
       Function{ funCompiled = Just cc } ->
         function (exportHaskell compiled) $ functionViaTreeless q cc

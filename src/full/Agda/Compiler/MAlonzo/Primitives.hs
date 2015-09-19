@@ -179,13 +179,13 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primLevelMax"    |-> return "(\\ _ _ -> ())"
 
   -- Natural number functions
-  , "primNatPlus"     |-> binNat "(+)"
-  , "primNatMinus"    |-> binNat "(-)"
-  , "primNatTimes"    |-> binNat "(*)"
-  , "primNatDivSuc"   |-> binNat "(\\ x y -> div x (y + 1))"
-  , "primNatModSuc"   |-> binNat "(\\ x y -> mod x (y + 1))"
-  , "primNatEquality" |-> relNat "(==)"
-  , "primNatLess"     |-> relNat "(<)"
+  , "primNatPlus"      |-> binNat "(+)"
+  , "primNatMinus"     |-> binNat "(\\ x y -> max 0 (x - y))"
+  , "primNatTimes"     |-> binNat "(*)"
+  , "primNatDivSucAux" |-> binNat4 "(\\ k m n j -> k + div (max 0 $ n + m - j) (m + 1))"
+  , "primNatModSucAux" |-> binNat4 "(\\ k m n j -> if n > j then mod (n - j - 1) (m + 1) else (k + n))"
+  , "primNatEquality"  |-> relNat "(==)"
+  , "primNatLess"      |-> relNat "(<)"
 
   -- Floating point functions
   , "primIntegerToFloat"    |-> return "(fromIntegral :: Integer -> Double)"
@@ -249,7 +249,8 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
     to'   <- bltQual' blt to
     return $ repl [op, opty ty, from', to'] $
                "\\ x y -> <<3>> ((<<0>> :: <<1>>) (<<2>> x) (<<2>> y))"
-  binNat op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer)"
+  binNat  op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer)"
+  binNat4 op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer -> Integer -> Integer)"
   binAsis op ty = return $ repl [op, opty ty] $ "((<<0>>) :: <<1>>)"
   rel' toTy op ty = do
     toHB <- bltQual' "BOOL" mazHBoolToBool
