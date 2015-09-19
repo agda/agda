@@ -9,6 +9,7 @@ module Agda.Syntax.Parser
     , parseFile'
       -- * Parsers
     , moduleParser
+    , moduleNameParser
     , exprParser
     , tokensParser
       -- * Parse errors
@@ -85,6 +86,12 @@ parseFile' p file =
 moduleParser :: Parser Module
 moduleParser = Parser { parser = P.moduleParser
                       , parseFlags = withoutComments }
+
+-- | Parses a module name.
+
+moduleNameParser :: Parser QName
+moduleNameParser = Parser { parser = P.moduleNameParser
+                          , parseFlags = withoutComments }
 
 -- | Parses an expression.
 

@@ -1,0 +1,2 @@
+-- Previously Agda accepted invalid module names when no module header
+-- was given.
