@@ -259,7 +259,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   relNat op = do
     toHB <- bltQual' "BOOL" mazHBoolToBool
     return $ repl [op, toHB] $
-      "(\\ x y -> <<1>> (<<2>> (x :: Integer) (y :: Integer)))"
+      "(\\ x y -> <<1>> (<<0>> (x :: Integer) (y :: Integer)))"
   rel op ty  = rel' "" op ty
   pred p = do toHB <- bltQual' "BOOL" mazHBoolToBool
               return $ repl [p, toHB] $ "(\\ x -> <<1>> (<<0>> x))"
