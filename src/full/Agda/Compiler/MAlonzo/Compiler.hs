@@ -404,7 +404,7 @@ term tm0 = case tm0 of
     kit <- lift coinductionKit
     if Just q == (nameOfSharp <$> kit)
       then HS.Var <$> lift (xhqn "d" q)
-      else HS.Con <$> lift (conhqn q)
+      else hsCast' . HS.Con <$> lift (conhqn q)
   T.TPi _ _  -> return HS.unit_con
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
