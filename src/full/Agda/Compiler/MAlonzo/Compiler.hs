@@ -516,25 +516,28 @@ hsCast = addcast . go where
 hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` e2
+hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` hsCastApp e2
 hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
 hsCast' e = hsCoerce e
+
+-- We still have to coerce function applications in arguments to coerced
+-- functions.
+hsCastApp :: HS.Exp -> HS.Exp
+hsCastApp (HS.Lambda i ps b) = HS.Lambda i ps (hsCastApp b)
+hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
+hsCastApp e =
+  case hsAppView e of
+    f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es
+    _ -> e
 
 -- No coercion for literal integers
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
-hsCoerce (HS.Case sc alts) = HS.Case sc (map hsCoerceAlt alts)
+hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
 hsCoerce e =
   case hsAppView e of
     c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
     _ -> mazCoerce `HS.App` e
-
-hsCoerceAlt :: HS.Alt -> HS.Alt
-hsCoerceAlt (HS.Alt i p rhs wh) = HS.Alt i p (hsCoerceRHS rhs) wh
-
-hsCoerceRHS :: HS.Rhs -> HS.Rhs
-hsCoerceRHS (HS.UnGuardedRhs def) = HS.UnGuardedRhs (hsCoerce def)
-hsCoerceRHS (HS.GuardedRhss es) = HS.GuardedRhss [ HS.GuardedRhs i g (hsCoerce e) | HS.GuardedRhs i g e <- es ]
 
 --------------------------------------------------
 -- Writing out a haskell module

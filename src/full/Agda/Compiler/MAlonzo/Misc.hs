@@ -154,6 +154,12 @@ hsLambda :: [HS.Pat] -> HS.Exp -> HS.Exp
 hsLambda ps (HS.Lambda i ps1 e) = HS.Lambda i (ps ++ ps1) e
 hsLambda ps e = HS.Lambda dummy ps e
 
+hsMapAlt :: (HS.Exp -> HS.Exp) -> HS.Alt -> HS.Alt
+hsMapAlt f (HS.Alt i p rhs wh) = HS.Alt i p (hsMapRHS f rhs) wh
+
+hsMapRHS :: (HS.Exp -> HS.Exp) -> HS.Rhs -> HS.Rhs
+hsMapRHS f (HS.UnGuardedRhs def) = HS.UnGuardedRhs (f def)
+hsMapRHS f (HS.GuardedRhss es)   = HS.GuardedRhss [ HS.GuardedRhs i g (f e) | HS.GuardedRhs i g e <- es ]
 
 --------------------------------------------------
 -- Hard coded module names
