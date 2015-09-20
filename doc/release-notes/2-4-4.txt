@@ -639,6 +639,23 @@ Type checking
 Compiler backends
 =================
 
+* Haskell backend (MAlonzo)
+
+  Builtin natural numbers are now properly represented as Haskell
+  Integers, and the builtin functions on natural numbers are compiled to
+  their corresponding Haskell functions. This means that you can no
+  longer give a {-# COMPILED_DATA #-} pragma for the builtin natural
+  number type.
+
+  Note that pattern matching on an Integer is slower than on a unary
+  natural number, so code that does a lot of unary manipulations and
+  doesn't use builtin arithmetic will most likely become slower. If you
+  find that this is the case, it is recommended to use a different, but
+  isomorphic type to the builtin natural numbers.
+
+  Builtin booleans are hard-wired to the Haskell booleans and thus
+  COMPILED_DATA for them are also disallowed.
+
 * UHC compiler backend
 
   A new backend targeting the Utrecht Haskell Compiler (UHC) is available.
