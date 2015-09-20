@@ -8,8 +8,12 @@ import Agda.Syntax.Position
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+
+import Agda.Compiler.Treeless.Subst
+
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Impossible
@@ -45,8 +49,18 @@ transform isZero isSuc = tr
         where
           trAlt b = case b of
             TACon c 0 b | isZero c -> [TALit (LitInt noRange 0) (tr b)]
-            TACon c 1 b | isSuc c  -> [TAPlus 1 (tr b)]
-              -- TODO: fuse cascading matches
+            TACon c 1 b | isSuc c  ->
+              case tr b of
+                -- Collapse nested n+k patterns
+                TCase 0 _ d bs' -> map sucBranch bs' ++ [TAPlus 1 d]
+                b -> [TAPlus 1 b]
+              where
+                sucBranch (TALit (LitInt r i) b) = TALit (LitInt r (i + 1)) $ applySubst (str __IMPOSSIBLE__) b
+                sucBranch (TAPlus k b) = TAPlus (k + 1) $ applySubst (liftS 1 $ str __IMPOSSIBLE__) b
+                sucBranch TACon{} = __IMPOSSIBLE__
+                sucBranch TALit{} = __IMPOSSIBLE__
+
+                str err = compactS err [Nothing]
 
             TACon c a b -> [TACon c a (tr b)]
             TALit{}     -> [b]
