@@ -183,12 +183,17 @@ matchPattern p u = case (p, u) of
         -- 2) whatInduction c sometimes crashes because c may point to
         --    an axiom at this stage (if we are checking the
         --    projection functions for a record type).
+{-
         w <- case ignoreSharing <$> w of
                NotBlocked r (Def f es) ->   -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                  unfoldDefinitionE True reduceB' (Def f []) f es
                    -- reduceB is used here because some constructors
                    -- are actually definitions which need to be
                    -- unfolded (due to open public).
+               _ -> return w
+-}
+        w <- case w of
+               NotBlocked r u -> unfoldCorecursion u  -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                _ -> return w
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument

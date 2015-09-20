@@ -29,6 +29,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
+import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 
@@ -152,11 +153,16 @@ checkModuleName name file = do
 --   Use wisely!
 
 moduleName' :: AbsolutePath -> TCM TopLevelModuleName
-moduleName' file = billTo [Bench.ModuleName] $ liftIO $ do
-  name <- topLevelModuleName <$> parseFile' moduleParser file
+moduleName' file = billTo [Bench.ModuleName] $ do
+  name <- topLevelModuleName <$> liftIO (parseFile' moduleParser file)
   case name of
-    TopLevelModuleName ["_"] -> return $ TopLevelModuleName [defaultName]
-    _                        -> return name
+    TopLevelModuleName ["_"] -> do
+      _ <- liftIO (parse moduleNameParser defaultName)
+             `catchError` \_ ->
+           typeError $
+             GenericError $ "Invalid file name: " ++ show file ++ "."
+      return $ TopLevelModuleName [defaultName]
+    _ -> return name
   where
     defaultName = rootName file
 

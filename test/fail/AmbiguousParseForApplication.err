@@ -4,10 +4,8 @@ any one of:
   if x then (if x then x else x)
   if x then (if x then x) else x
 Operators used in the grammar:
-  if_then       (prefix operator, level 0) [if_then_ (AmbiguousParseForApplication.agda:9,3-11)]     
-  if_then_      (closed operator section)  [if_then_ (AmbiguousParseForApplication.agda:9,3-11)]     
-  if_then_else  (prefix operator, level 0) [if_then_else_ (AmbiguousParseForApplication.agda:8,3-16)]
-  if_then_else_ (closed operator section)  [if_then_else_ (AmbiguousParseForApplication.agda:8,3-16)]
+  if_then      (prefix operator, level 0) [if_then_ (AmbiguousParseForApplication.agda:9,3-11)]     
+  if_then_else (prefix operator, level 0) [if_then_else_ (AmbiguousParseForApplication.agda:8,3-16)]
 (the treatment of operators has changed, so code that used to parse
 may have to be changed)
 when scope checking if x then if x then x else x

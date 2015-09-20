@@ -453,22 +453,59 @@ applyImportDirectiveM m dir scope = do
     reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
     unless (null xs)  $ typeError $ ModuleDoesntExport m xs
 
+    let extraModules =
+          [ x | ImportedName x <- names,
+                let mx = ImportedModule x,
+                 not $ doesntExist mx,
+                 notElem mx names ]
+        dir' = addExtraModules extraModules dir
+
+    dir' <- sanityCheck dir'
+
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
-    return $ applyImportDirective dir scope
+    return $ applyImportDirective dir' scope
 
   where
     names :: [ImportedName]
-    names = map renFrom (renaming dir) ++ case usingOrHiding dir of
-      Using  xs -> xs
-      Hiding xs -> xs
+    names = map renFrom (renaming dir) ++ hiding dir ++ case using dir of
+      Using  xs     -> xs
+      UseEverything -> []
 
     targetNames :: [ImportedName]
-    targetNames = map renName (renaming dir) ++ case usingOrHiding dir of
-      Using xs -> xs
-      Hiding{} -> []
+    targetNames = map renName (renaming dir) ++ case using dir of
+      Using xs      -> xs
+      UseEverything -> []
       where
         renName r = (renFrom r) { importedName = renTo r }
+
+    sanityCheck dir =
+      case (using dir, hiding dir) of
+        (Using xs, ys) -> do
+          let uselessHiding = [ x | x@ImportedName{} <- ys ] ++
+                              [ x | x@(ImportedModule y) <- ys, ImportedName y `notElem` names ]
+          unless (null uselessHiding) $ typeError $ GenericError $ "Hiding " ++ intercalate ", " (map show uselessHiding)
+                                                                ++ " has no effect"
+          return dir{ hiding = [] }
+        _ -> return dir
+
+    addExtraModules :: [C.Name] -> ImportDirective -> ImportDirective
+    addExtraModules extra dir =
+      dir{ using =
+              case using dir of
+                Using xs      -> Using $ concatMap addExtra xs
+                UseEverything -> UseEverything
+         , hiding   = concatMap addExtra      (hiding dir)
+         , renaming = concatMap extraRenaming (renaming dir)
+         }
+      where
+        addExtra f@(ImportedName y) | elem y extra = [f, ImportedModule y]
+        addExtra m = [m]
+
+        extraRenaming r =
+          case renFrom r of
+            ImportedName y | elem y extra -> [r, r{ renFrom = ImportedModule y }]
+            _ -> [r]
 
     doesntExist (ImportedName   x) = isNothing $
       Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName)

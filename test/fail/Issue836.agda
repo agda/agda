@@ -10,7 +10,7 @@ module M where
     field
       X : Set
 
-open M renaming (R' to R)
+open M renaming (R' to R; module R' to Rmodule)
 
 X : R → Set
 X = R.X
@@ -24,5 +24,7 @@ X = R.X
 -- the record /type/.
 
 -- Ulf:
--- According to the suggestion in 836, if you rename the module explicitly
--- the code above breaks (test/fail/Issue836.agda).
+-- According to the suggestion in 836 this feature has now been removed
+-- and replaced with the feature that if you don't mention the module
+-- explicitly you get the same directive as on the type name. In other
+-- words open M renaming (R' to R) does work, but not the above.

@@ -30,7 +30,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Concrete
-  (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
+  (ImportDirective(..), Using(..), ImportedName(..), Renaming(..))
 
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
@@ -113,8 +113,6 @@ data LocalVar
     -- ^ This local variable is shadowed by one or more imports.
     --   (List not empty).
   deriving (Typeable)
-
-instance NFData LocalVar where rnf x = seq x ()
 
 instance Eq LocalVar where
   (==) = (==) `on` localVar
@@ -477,6 +475,16 @@ addModuleToScope acc x m s = mergeScope s s1
     s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
     ns = emptyNameSpace { nsModules = Map.singleton x [m] }
 
+-- When we get here we cannot have both using and hiding
+type UsingOrHiding = Either Using [ImportedName]
+
+usingOrHiding :: ImportDirective -> UsingOrHiding
+usingOrHiding i =
+  case (using i, hiding i) of
+    (UseEverything, xs) -> Right xs
+    (u, [])             -> Left u
+    _                   -> __IMPOSSIBLE__
+
 -- | Apply an 'ImportDirective' to a scope.
 applyImportDirective :: ImportDirective -> Scope -> Scope
 applyImportDirective dir s = mergeScope usedOrHidden renamed
@@ -484,15 +492,16 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
     renamed      = rename (renaming dir) $ useOrHide useRenamedThings s
 
-    useRenamedThings = Using $ map renFrom $ renaming dir
+    useRenamedThings = Left $ Using $ map renFrom $ renaming dir
 
     hideLHS :: [Renaming] -> UsingOrHiding -> UsingOrHiding
-    hideLHS _   i@(Using _) = i
-    hideLHS ren (Hiding xs) = Hiding $ xs ++ map renFrom ren
+    hideLHS _   i@(Left _) = i
+    hideLHS ren (Right xs) = Right $ xs ++ map renFrom ren
 
     useOrHide :: UsingOrHiding -> Scope -> Scope
-    useOrHide (Hiding xs) s = filterNames notElem notElem xs s
-    useOrHide (Using  xs) s = filterNames elem    elem    xs s
+    useOrHide (Right xs)        s = filterNames notElem notElem xs s
+    useOrHide (Left (Using xs)) s = filterNames elem    elem    xs s
+    useOrHide _                 _ = __IMPOSSIBLE__
 
     filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
                    [ImportedName] -> Scope -> Scope
@@ -634,10 +643,10 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList to
         -- that constructors can also be qualified by their datatype
         -- and projections by their record type.  This feature is off
         -- if we just consider the modules:
-        -- m <- mods
+        m <- mods
         -- The feature is on if we consider also the data and record types:
         -- trace ("mods ++ defs = " ++ show (mods ++ defs)) $ do
-        m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
+        -- m <- nub $ mods ++ defs -- record types will appear both as a mod and a def
         -- Get the scope of module m, if any, and remove its private definitions.
         let ss  = Map.lookup m $ scopeModules scope
             ss' = restrictPrivate <$> ss

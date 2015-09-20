@@ -31,6 +31,7 @@ import Data.List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 import qualified Data.Traversable as Trav
@@ -60,6 +61,8 @@ import Agda.Utils.List hiding ( uncons )
 #else
 import Agda.Utils.List
 #endif
+import Agda.Utils.Trie (Trie)
+import qualified Agda.Utils.Trie as Trie
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -165,14 +168,91 @@ buildParsers ::
 buildParsers r flat kind exprNames = do
     (names, ops) <- localNames flat
 
-    let namesInExpr = Set.fromList exprNames
-        partsInExpr = Set.fromList $
-          concatMap (nameStringParts . unqualify) exprNames
+    let -- All names.
+        namesInExpr :: Set QName
+        namesInExpr = Set.fromList exprNames
 
+        partListsInExpr' = map (nameParts . unqualify) $
+                           Set.toList namesInExpr
+
+        partListTrie f =
+          foldr (\ps -> Trie.union (Trie.everyPrefix ps ()))
+                Trie.empty
+                (f partListsInExpr')
+
+        -- All names.
+        partListsInExpr :: Trie NamePart ()
+        partListsInExpr = partListTrie id
+
+        -- All names, with the name parts in reverse order.
+        reversedPartListsInExpr :: Trie NamePart ()
+        reversedPartListsInExpr = partListTrie (map reverse)
+
+        -- Every regular name part (not holes etc.).
+        partsInExpr :: Set RawName
+        partsInExpr =
+          Set.fromList [ s | Id s <- concat partListsInExpr' ]
+
+        -- Are all name parts present in the expression?
         partsPresent n =
           [ Set.member p partsInExpr
           | p <- stringParts (notation n)
           ]
+
+        addHole True  p = [Hole, Id p]
+        addHole False p = [Id p]
+
+        -- Is the first identifier part present in n present in the
+        -- expression, without any preceding name parts, except for a
+        -- leading underscore iff withHole is True?
+        firstPartPresent withHole n =
+          Trie.member (addHole withHole p) partListsInExpr
+          where
+          p = case n of
+            NormalHole{} : IdPart p : _ -> p
+            IdPart p : _                -> p
+            _                           -> __IMPOSSIBLE__
+
+        -- Is the last identifier part present in n present in the
+        -- expression, without any succeeding name parts, except for a
+        -- trailing underscore iff withHole is True?
+        lastPartPresent withHole n =
+          Trie.member (addHole withHole p) reversedPartListsInExpr
+          where
+          p = case reverse n of
+            NormalHole{} : IdPart p : _ -> p
+            IdPart p : _                -> p
+            _                           -> __IMPOSSIBLE__
+
+        -- | Are the initial and final identifier parts present with
+        -- the right mix of leading and trailing underscores?
+        correctUnderscores :: Bool -> Bool -> Notation -> Bool
+        correctUnderscores withInitialHole withFinalHole n =
+          firstPartPresent withInitialHole n
+            &&
+          lastPartPresent  withFinalHole   n
+
+        -- Should be used with operators (not sections) and notations
+        -- coming from syntax declarations.
+        filterCorrectUnderscoresOp :: [NewNotation] -> [NotationSection]
+        filterCorrectUnderscoresOp ns =
+          [ noSection n
+          | n <- ns
+          , if notaIsOperator n
+            then correctUnderscores False False (notation n)
+            else all (\s -> Trie.member [Id s] partListsInExpr)
+                     (stringParts $ notation n)
+          ]
+
+        -- Should be used with sections.
+        correctUnderscoresSect :: NotationKind -> Notation -> Bool
+        correctUnderscoresSect k n = case (k, notationKind n) of
+          (PrefixNotation,  InfixNotation)   -> correctUnderscores True False n
+          (PostfixNotation, InfixNotation)   -> correctUnderscores False True n
+          (NonfixNotation,  InfixNotation)   -> correctUnderscores True True n
+          (NonfixNotation,  PrefixNotation)  -> correctUnderscores False True n
+          (NonfixNotation,  PostfixNotation) -> correctUnderscores True False n
+          _                                  -> __IMPOSSIBLE__
 
         -- If "or" is replaced by "and" in conParts/allParts below,
         -- then the misspelled operator application "if x thenn x else
@@ -216,11 +296,12 @@ buildParsers r flat kind exprNames = do
               | n <- ns
               , isinfix n && notaIsOperator n
               , k <- [PrefixNotation, PostfixNotation]
+              , correctUnderscoresSect k (notation n)
               ]
 
         unrelatedOperators :: [NotationSection]
         unrelatedOperators =
-          map noSection unrelated
+          filterCorrectUnderscoresOp unrelated
             ++
           nonClosedSections Unrelated unrelated
           where
@@ -228,7 +309,8 @@ buildParsers r flat kind exprNames = do
 
         nonWithSections :: [NotationSection]
         nonWithSections =
-          map (\n -> (noSection n) { sectLevel = Nothing }) non
+          map (\s -> s { sectLevel = Nothing })
+              (filterCorrectUnderscoresOp non)
             ++
           case parseSections of
             DoNotParseSections -> []
@@ -236,6 +318,7 @@ buildParsers r flat kind exprNames = do
               [ NotationSection n NonfixNotation Nothing True
               | n <- fix
               , notaIsOperator n
+              , correctUnderscoresSect NonfixNotation (notation n)
               ]
 
         -- The triples have the form (level, operators). The lowest
@@ -248,7 +331,7 @@ buildParsers r flat kind exprNames = do
           mapMaybe (\n -> case level n of
                             Unrelated     -> Nothing
                             r@(Related l) ->
-                              Just (l, noSection n :
+                              Just (l, filterCorrectUnderscoresOp [n] ++
                                        nonClosedSections r [n])) $
           fix
 
@@ -505,7 +588,8 @@ parseLHS' lhsOrPatSyn top p = do
     let patP = (parseSections, pTop parsers)
     let cons = getNames [ConName, PatternSynName] flat
     let flds = getNames [FldName] flat
-    case [ res | p' <- force $ parsePat patP p
+    case [ res | let result = parsePat patP p
+               , p' <- foldr seq () result `seq` result
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> do reportSDoc "scope.operators" 50 $ return $
                           text "Parsed lhs:" <+> pretty lhs
@@ -648,7 +732,8 @@ parseApplication es  = billToParser $ do
     (parseSections, ops, p) <- buildParsers (getRange es) flat IsExpr names
 
     -- Parse
-    case force $ parse (parseSections, pTop p) es of
+    let result = parse (parseSections, pTop p) es
+    case foldr seq () result `seq` result of
         [e] -> do
           reportSDoc "scope.operators" 50 $ return $
             text "Parsed an operator application:" <+> pretty e

@@ -16,6 +16,7 @@
 module Agda.Syntax.Notation where
 
 import Control.Applicative
+import Control.DeepSeq
 import Control.Monad
 
 import Data.List
@@ -50,11 +51,11 @@ type Notation = [GenPart]
 
 -- | Part of a Notation
 data GenPart
-  = BindHole Int
+  = BindHole !Int
     -- ^ Argument is the position of the hole (with binding) where the binding should occur.
   | NormalHole (NamedArg () Int)
     -- ^ Argument is where the expression should go.
-  | WildHole Int
+  | WildHole !Int
     -- ^ An underscore in binding position.
   | IdPart RawName
   deriving (Typeable, Show, Eq, Ord)
@@ -65,6 +66,12 @@ instance KillRange GenPart where
     BindHole i   -> BindHole i
     WildHole i   -> WildHole i
     NormalHole x -> NormalHole $ killRange x
+
+instance NFData GenPart where
+  rnf (BindHole _)   = ()
+  rnf (NormalHole a) = rnf a
+  rnf (WildHole _)   = ()
+  rnf (IdPart a)     = rnf a
 
 -- | Get a flat list of identifier parts of a notation.
 stringParts :: Notation -> [RawName]

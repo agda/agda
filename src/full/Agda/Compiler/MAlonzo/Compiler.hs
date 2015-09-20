@@ -5,7 +5,9 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Prelude hiding (mapM_, mapM, sequence, concat)
+#if __GLASGOW_HASKELL__ <= 708
+import Prelude hiding (foldl, mapM_, mapM, sequence, concat)
+#endif
 
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
@@ -379,7 +381,7 @@ term tm0 = case tm0 of
   T.TLam at -> do
     (nm:_) <- asks ccNameSupply
     intros 1 $ \ [x] ->
-      HS.Lambda dummy [HS.PVar x] <$> term at
+      hsLambda [HS.PVar x] <$> term at
   T.TLet t1 t2 -> do
     t1' <- term t1
     intros 1 $ \[x] -> do
@@ -513,17 +515,31 @@ hsCast = addcast . go where
   go e = [e]
 -}
 
-hsCast e = mazCoerce `HS.App` hsCast' e
+hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` (hsCoerce $ hsCast' e2)
+hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` hsCastApp e2
 hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
-hsCast' e = e
+hsCast' e = hsCoerce e
+
+-- We still have to coerce function applications in arguments to coerced
+-- functions.
+hsCastApp :: HS.Exp -> HS.Exp
+hsCastApp (HS.Lambda i ps b) = HS.Lambda i ps (hsCastApp b)
+hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
+hsCastApp e =
+  case hsAppView e of
+    f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es
+    _ -> e
 
 -- No coercion for literal integers
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
-hsCoerce e = HS.App mazCoerce e
+hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
+hsCoerce e =
+  case hsAppView e of
+    c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
+    _ -> mazCoerce `HS.App` e
 
 --------------------------------------------------
 -- Writing out a haskell module

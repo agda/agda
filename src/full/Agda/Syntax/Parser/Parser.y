@@ -16,6 +16,7 @@
  -}
 module Agda.Syntax.Parser.Parser (
       moduleParser
+    , moduleNameParser
     , exprParser
     , tokensParser
     , tests
@@ -27,6 +28,7 @@ import Data.Char
 import Data.Functor
 import Data.List
 import Data.Maybe
+import Data.Monoid
 import qualified Data.Traversable as T
 
 import Debug.Trace
@@ -58,6 +60,7 @@ import Agda.Utils.Tuple
 %name tokensParser Tokens
 %name exprParser Expr
 %name moduleParser File
+%name moduleNameParser ModuleName
 %name funclauseParser FunClause
 %tokentype { Token }
 %monad { Parser }
@@ -905,14 +908,18 @@ ImportDirectives
 
 ImportDirective1 :: { ImportDirective }
   : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = True } }
-  | UsingOrHiding { defaultImportDir { importDirRange = snd $1, usingOrHiding = fst $1 } }
+  | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
+  | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
   | RenamingDir   { defaultImportDir { importDirRange = snd $1, renaming = fst $1 } }
 
-UsingOrHiding :: { (UsingOrHiding , Range) }
-UsingOrHiding
+Using :: { (Using, Range) }
+Using
     : 'using' '(' CommaImportNames ')'   { (Using $3 , getRange ($1,$2,$3,$4)) }
         -- using can have an empty list
-    | 'hiding' '(' CommaImportNames ')'  { (Hiding $3 , getRange ($1,$2,$3,$4)) }
+
+Hiding :: { ([ImportedName], Range) }
+Hiding
+    : 'hiding' '(' CommaImportNames ')'  { ($3 , getRange ($1,$2,$3,$4)) }
         -- if you want to hide nothing that's fine, isn't it?
 
 RenamingDir :: { ([Renaming] , Range) }
@@ -1652,16 +1659,10 @@ mergeImportDirectives is = do
     merge mi i2 = do
       i1 <- mi
       let err = parseError' (rStart $ getRange i2) "Cannot mix using and hiding module directives"
-      uh <- case (usingOrHiding i1, usingOrHiding i2) of
-            (Hiding [], u)         -> return u
-            (u, Hiding [])         -> return u
-            (Using{}, Hiding{})    -> err
-            (Hiding{}, Using{})    -> err
-            (Using xs, Using ys)   -> return $ Using (xs ++ ys)
-            (Hiding xs, Hiding ys) -> return $ Hiding (xs ++ ys)
       return $ ImportDirective
         { importDirRange = fuseRange i1 i2
-        , usingOrHiding  = uh
+        , using          = mappend (using i1) (using i2)
+        , hiding         = hiding i1 ++ hiding i2
         , renaming       = renaming i1 ++ renaming i2
         , publicOpen     = publicOpen i1 || publicOpen i2 }
 
@@ -1682,9 +1683,9 @@ verifyImportDirective i =
                         [_] -> ""
                         _   -> "s"
     where
-        xs = names (usingOrHiding i) ++ map renFrom (renaming i)
+        xs = names (using i) ++ hiding i ++ map renFrom (renaming i)
         names (Using xs)    = xs
-        names (Hiding xs)   = xs
+        names UseEverything = []
 
 data RecordDirective
    = Induction (Ranged Induction)
