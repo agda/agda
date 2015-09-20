@@ -17,8 +17,6 @@ import Data.Function
 import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Maybe
 import Data.Typeable (Typeable)
 
@@ -566,11 +564,6 @@ publicModules scope = Map.filterWithKey (\ m _ -> reachable m) allMods
       where ms = maybe __IMPOSSIBLE__ modules $ Map.lookup m allMods
 
     reachable = (`elem` chase root)
-
-publicNames :: ScopeInfo -> Set AbstractName
-publicNames scope =
-  Set.fromList $ concat $ Map.elems $
-  exportedNamesInScope $ mergeScopes $ Map.elems $ publicModules scope
 
 everythingInScope :: ScopeInfo -> NameSpace
 everythingInScope scope = allThingsInScope $ mergeScopes $

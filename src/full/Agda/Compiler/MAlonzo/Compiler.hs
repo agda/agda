@@ -10,7 +10,6 @@ import Prelude hiding (mapM_, mapM, sequence, concat)
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
-import Control.Monad.Writer hiding (mapM_, forM_, mapM, forM, sequence, (<>))
 
 import Data.Generics.Geniplate
 import Data.Foldable
@@ -40,14 +39,12 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Treeless as T
 import Agda.Syntax.Literal
-import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -103,17 +100,11 @@ compilerMain modIsMain mainI =
 compile :: Interface -> TCM ()
 compile i = do
   setInterface i
-  let names = publicNames $ iInsideScope i
-
   ifM uptodate noComp $ {- else -} do
     yesComp
-    mn   <- curHsMod
-    ds   <- definitions =<< curDefs
-    exps <- exports names
-    imps <- imports
-    writeModule (decl mn ds exps imps)
+    writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
-  decl mn ds exps imp = HS.Module dummy mn [] Nothing (Just exps) imp ds
+  decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
@@ -147,44 +138,6 @@ imports = (++) <$> hsImps <*> imps where
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
   uniq = List.map head . List.group . List.sort
-
---------------------------------------------------
--- Exported functions
---------------------------------------------------
-
-exports :: Set AbstractName -> TCM [HS.ExportSpec]
-exports names = Set.toList <$> execWriterT (mapM_ export (Set.toList names))
-  where
-    emit e = tell (Set.singleton e)
-    export a = do
-      let go = doExport (anameName a)
-      case anameKind a of
-        PatternSynName -> return ()
-        QuotableName   -> return ()
-        ConName        -> go
-        FldName        -> go
-        DefName        -> go
-        MacroName      -> go
-
-    doExport q = do
-      def <- theDef <$> lift (getConstInfo q)
-      case def of
-        Constructor{conData = d, conSrcCon = h}
-          | conName h == q ->
-            whenM (notCompiledData d) $
-              emit (HS.EThingAll $ HS.UnQual $ hsTypeName d)
-        _ -> do
-          when (show (nameConcrete $ qnameName q) == "main") $
-            emit (HS.EAbs $ HS.UnQual $ HS.Ident "main")
-
-          h <- lift (hsDefName q)
-          case h of
-            HS.UnQual{} -> emit (HS.EAbs h)
-            _ -> return ()    -- don't reexport things from other modules
-
-    notCompiledData d = lift $ do
-      def <- getConstInfo d
-      return $ isNothing $ compiledHaskell $ defCompiledRep def
 
 --------------------------------------------------
 -- Main compiling clauses
@@ -446,11 +399,11 @@ term tm0 = case tm0 of
 
   T.TLit l -> lift $ literal l
   T.TDef q -> do
-    HS.Var <$> (lift $ hsDefName q)
+    HS.Var <$> (lift $ xhqn "d" q)
   T.TCon q -> do
     kit <- lift coinductionKit
     if Just q == (nameOfSharp <$> kit)
-      then HS.Var <$> lift (hsDefName q)
+      then HS.Var <$> lift (xhqn "d" q)
       else hsCast' . HS.Con <$> lift (conhqn q)
   T.TPi _ _  -> return HS.unit_con
   T.TUnit    -> return HS.unit_con
@@ -544,7 +497,7 @@ tvaldecl q ind ntv npar cds cl =
                      (List.map (HS.QualConDecl dummy [] []) cds) []]
         (const []) cl
   where
-  (tn, vn) = (hsTypeName q, unqhname "d" q)
+  (tn, vn) = (unqhname "T" q, unqhname "d" q)
   tvs = [ HS.UnkindedVar $ ihname "a" i | i <- [0 .. ntv  - 1]]
   pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
 
