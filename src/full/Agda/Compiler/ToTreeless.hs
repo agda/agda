@@ -83,11 +83,13 @@ ifToTreeless iface = do
 
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless funNm cc = introduceNPlusK =<< do
+ccToTreeless funNm cc = do
   reportSDoc "treeless.convert" 30 $ text "compiled clauses:" <+> (text . show) cc
-  body' <- casetree cc `runReaderT` (initCCEnv funNm)
-  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body'
-  return body'
+  body <- casetree cc `runReaderT` (initCCEnv funNm)
+  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body
+  body <- introduceNPlusK body
+  reportSDoc "treeless.convert" 30 $ text " after n+k translation:" <+> (text . show) body
+  return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
