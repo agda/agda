@@ -11,7 +11,6 @@ data ℕ : Set where
 
 {-# BUILTIN NATURAL ℕ    #-}
 {-# IMPORT Imports.Nat #-}
-{-# COMPILED_DATA ℕ Imports.Nat.Nat Imports.Nat.Zero Imports.Nat.Suc #-}
 
 data List (A : Set) : Set where
   []   : List A
