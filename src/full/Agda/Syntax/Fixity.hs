@@ -347,5 +347,7 @@ _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 instance NFData Fixity' where
   rnf (Fixity' _ a) = rnf a
 
+-- | Ranges are not forced.
+
 instance NFData Fixity where
   rnf (Fixity _ _ _) = ()

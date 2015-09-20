@@ -42,6 +42,7 @@ import Control.Monad.State.Strict (StateT, runStateT, gets, modify)
 import Data.Array.IArray
 import Data.Word
 import qualified Data.ByteString.Lazy as L
+import qualified Data.Foldable as Fold
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
@@ -55,9 +56,9 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
-import Data.Vector (Vector)
-import qualified Data.Vector as Vector
 
 import qualified Codec.Compression.GZip as G
 
@@ -594,9 +595,9 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toList s)
   value s = Set.fromList `fmap` value s
 
-instance EmbPrj a => EmbPrj (Vector a) where
-  icod_ v = icode (Vector.toList v)
-  value v = Vector.fromList `fmap` value v
+instance EmbPrj a => EmbPrj (Seq a) where
+  icod_ s = icode (Fold.toList s)
+  value s = Seq.fromList `fmap` value s
 
 instance EmbPrj P.Interval where
   icod_ (P.Interval p q) = icode2' p q

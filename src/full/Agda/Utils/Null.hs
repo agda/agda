@@ -30,8 +30,6 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Vector (Vector)
-import qualified Data.Vector as Vector
 
 import Text.PrettyPrint (Doc, render)
 
@@ -111,10 +109,6 @@ instance Null (Maybe a) where
 instance Null Doc where
   empty = mempty
   null  = (== mempty)
-
-instance Null (Vector a) where
-  empty = Vector.empty
-  null  = Vector.null
 
 -- * Testing for null.
 

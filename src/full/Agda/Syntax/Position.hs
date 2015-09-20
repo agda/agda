@@ -73,6 +73,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 
 import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Int
 import Data.List hiding (null)
@@ -82,8 +83,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
-import Data.Vector (Vector)
-import qualified Data.Vector as Vector
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 import Test.QuickCheck.All
 
@@ -161,7 +162,7 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 -- consecutive and separated.
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
-newtype Range' a = Range (Vector (Interval' a))
+newtype Range' a = Range (Seq (Interval' a))
   deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
 
 type Range = Range' SrcFile
@@ -169,13 +170,13 @@ type Range = Range' SrcFile
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
 rangeIntervals :: Range' a -> [Interval' a]
-rangeIntervals (Range is) = Vector.toList is
+rangeIntervals (Range is) = Fold.toList is
 
 -- | Turns a list of intervals into a range.
 --
 -- Precondition: 'consecutiveAndSeparated'.
 intervalsToRange :: [Interval' a] -> Range' a
-intervalsToRange is = Range (Vector.fromList is)
+intervalsToRange is = Range (Seq.fromList is)
 
 -- | Are the intervals consecutive and separated, and do they satisfy
 -- the interval invariant?
@@ -194,12 +195,9 @@ rangeInvariant = consecutiveAndSeparated . rangeIntervals
 
 -- | Conflate a range to its right margin.
 rightMargin :: Range -> Range
-rightMargin r@(Range is) =
-  if Vector.null is
-  then r
-  else getRange (i { iStart = iEnd i })
-  where
-  i = Vector.last is
+rightMargin r@(Range is) = case Seq.viewr is of
+  Seq.EmptyR -> r
+  _ Seq.:> i -> getRange (i { iStart = iEnd i })
 
 -- | Wrapper to indicate that range should be printed.
 newtype PrintRange a = PrintRange a
@@ -210,7 +208,7 @@ class HasRange t where
     getRange :: t -> Range
 
 instance HasRange Interval where
-    getRange i = Range (Vector.singleton i)
+    getRange i = Range (Seq.singleton i)
 
 instance HasRange Range where
     getRange = id
@@ -550,7 +548,7 @@ startPos f = Pn
 
 -- | Ranges between two unknown positions
 noRange :: Range' a
-noRange = Range Vector.empty
+noRange = Range Seq.empty
 
 -- | Advance the position by one character.
 --   A newline character (@'\n'@) moves the position to the first
@@ -596,16 +594,16 @@ posToRange p1 p2 | p1 < p2   = intervalToRange (Interval p1 p2)
 
 -- | Converts an interval to a range.
 intervalToRange :: Interval' a -> Range' a
-intervalToRange i = Range (Vector.singleton i)
+intervalToRange i = Range (Seq.singleton i)
 
 -- | Converts a range to an interval, if possible.
 rangeToInterval :: Range' a -> Maybe (Interval' a)
-rangeToInterval (Range is)
-  | Vector.null is = Nothing
-  | otherwise      = Just $
-                       Interval { iStart = iStart (Vector.head is)
-                                , iEnd   = iEnd   (Vector.last is)
-                                }
+rangeToInterval (Range is) = case (Seq.viewl is, Seq.viewr is) of
+  (head Seq.:< _, _ Seq.:> last) -> Just $
+                                      Interval { iStart = iStart head
+                                               , iEnd   = iEnd   last
+                                               }
+  _                              -> Nothing
 
 -- | Returns the shortest continuous range containing the given one.
 continuous :: Range' a -> Range' a
@@ -616,7 +614,7 @@ continuous r = case rangeToInterval r of
 -- | Removes gaps between intervals on the same line.
 continuousPerLine :: Ord a => Range' a -> Range' a
 continuousPerLine r =
-  Range (Vector.unfoldr step (rangeIntervals r))
+  Range (Seq.unfoldr step (rangeIntervals r))
   where
   step []  = Nothing
   step [i] = Just (i, [])
@@ -643,17 +641,24 @@ fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
 --
 --   Meaning it finds the least range @r0@ that covers @r@ and @r'@.
 fuseRanges :: (Ord a) => Range' a -> Range' a -> Range' a
-fuseRanges r1 r2 =
-  Range (Vector.unfoldr step (rangeIntervals r1, rangeIntervals r2))
+fuseRanges r1@(Range is1) r2@(Range is2) =
+  case (rangeToInterval r1, rangeToInterval r2) of
+    (Just i1, Just i2)
+                               -- Special cases for non-overlapping
+                               -- ranges.
+      | iEnd i1 < iStart i2 -> Range (is1 Seq.>< is2)
+      | iEnd i2 < iStart i1 -> Range (is2 Seq.>< is1)
+                               -- General case.
+    _                       -> Range (fuse is1 is2)
   where
-  step ([],     [])     = Nothing
-  step ([],     j : js) = Just (j, ([], js))
-  step (i : is, [])     = Just (i, ([], is))
-  step (i : is, j : js)
-    | iEnd i < iStart j = Just (i, (is, j : js))
-    | iEnd j < iStart i = Just (j, (i : is, js))
-    | iEnd i < iEnd j   = step (is, fuseIntervals i j : js)
-    | otherwise         = step (fuseIntervals i j : is, js)
+  fuse is1 is2 = case (Seq.viewl is1, Seq.viewl is2) of
+    (Seq.EmptyL  , _           ) -> is2
+    (_           , Seq.EmptyL  ) -> is1
+    (h1 Seq.:< t1, h2 Seq.:< t2)
+      | iEnd h1 < iStart h2 -> h1 Seq.<| fuse t1 is2
+      | iEnd h2 < iStart h1 -> h2 Seq.<| fuse is1 t2
+      | iEnd h1 < iEnd   h2 -> fuse t1 (fuseIntervals h1 h2 Seq.<| t2)
+      | otherwise           -> fuse (fuseIntervals h1 h2 Seq.<| t1) t2
 
 fuseRange :: (HasRange u, HasRange t) => u -> t -> Range
 fuseRange x y = fuseRanges (getRange x) (getRange y)

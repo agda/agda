@@ -678,6 +678,8 @@ instance KillRange (Ranged a) where
 instance Decoration Ranged where
   traverseF f (Ranged r x) = Ranged r <$> f x
 
+-- | Ranges are not forced.
+
 instance NFData a => NFData (Ranged a) where
   rnf (Ranged _ a) = rnf a
 
