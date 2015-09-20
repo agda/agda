@@ -83,8 +83,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 
 import Test.QuickCheck.All
 
@@ -162,21 +160,64 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 -- consecutive and separated.
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
-newtype Range' a = Range (Seq (Interval' a))
-  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
+data Range' a
+  = NoRange
+  | Range { rStart'    :: Position' a
+          , rIntervals :: IntervalTree a
+          , rEnd'      :: Position' a
+          }
+  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+
+instance Null (Range' a) where
+  null NoRange       = True
+  null (Range _ _ _) = False
+
+  empty = NoRange
+
+-- | Interval trees. Note that the start of the first interval, and
+-- the end of the last interval, are absent from this tree.
+data IntervalTree a
+  = Empty
+  | Node { itLeft                  :: IntervalTree a
+         , itLeftEnd, itRightStart :: Position' a
+         , itRight                 :: IntervalTree a
+         }
+  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
 type Range = Range' SrcFile
 
 -- | The intervals that make up the range. The intervals are
 -- consecutive and separated ('consecutiveAndSeparated').
 rangeIntervals :: Range' a -> [Interval' a]
-rangeIntervals (Range is) = Fold.toList is
+rangeIntervals NoRange             = []
+rangeIntervals (Range start t end) =
+  intervalTreeIntervals start t end []
+  where
+  intervalTreeIntervals ::
+    Position' a -> IntervalTree a -> Position' a ->
+    [Interval' a] -> [Interval' a]
+  intervalTreeIntervals start t end = case t of
+    Empty          -> (Interval { iStart = start, iEnd = end } :)
+    Node l le rs r -> intervalTreeIntervals start l le .
+                      intervalTreeIntervals rs r end
 
 -- | Turns a list of intervals into a range.
 --
 -- Precondition: 'consecutiveAndSeparated'.
 intervalsToRange :: [Interval' a] -> Range' a
-intervalsToRange is = Range (Seq.fromList is)
+intervalsToRange []       = NoRange
+intervalsToRange (i : is) = Range { rStart'    = iStart i
+                                  , rIntervals = t
+                                  , rEnd'      = e
+                                  }
+  where
+  (t, e) = toTree (iEnd i) is
+
+  toTree :: Position' a -> [Interval' a] ->
+            (IntervalTree a, Position' a)
+  toTree s []       = (Empty, s)
+  toTree s (i : is) = (Node Empty s (iStart i) t, e)
+    where (t, e) = toTree (iEnd i) is
 
 -- | Are the intervals consecutive and separated, and do they satisfy
 -- the interval invariant?
@@ -195,9 +236,9 @@ rangeInvariant = consecutiveAndSeparated . rangeIntervals
 
 -- | Conflate a range to its right margin.
 rightMargin :: Range -> Range
-rightMargin r@(Range is) = case Seq.viewr is of
-  Seq.EmptyR -> r
-  _ Seq.:> i -> getRange (i { iStart = iEnd i })
+rightMargin r@NoRange             = r
+rightMargin (Range { rEnd' = e }) =
+  intervalToRange (Interval { iStart = e, iEnd = e })
 
 -- | Wrapper to indicate that range should be printed.
 newtype PrintRange a = PrintRange a
@@ -208,7 +249,7 @@ class HasRange t where
     getRange :: t -> Range
 
 instance HasRange Interval where
-    getRange i = Range (Seq.singleton i)
+    getRange = intervalToRange
 
 instance HasRange Range where
     getRange = id
@@ -548,7 +589,7 @@ startPos f = Pn
 
 -- | Ranges between two unknown positions
 noRange :: Range' a
-noRange = Range Seq.empty
+noRange = NoRange
 
 -- | Advance the position by one character.
 --   A newline character (@'\n'@) moves the position to the first
@@ -594,16 +635,15 @@ posToRange p1 p2 | p1 < p2   = intervalToRange (Interval p1 p2)
 
 -- | Converts an interval to a range.
 intervalToRange :: Interval' a -> Range' a
-intervalToRange i = Range (Seq.singleton i)
+intervalToRange i = Range { rStart'    = iStart i
+                          , rIntervals = Empty
+                          , rEnd'      = iEnd i
+                          }
 
 -- | Converts a range to an interval, if possible.
 rangeToInterval :: Range' a -> Maybe (Interval' a)
-rangeToInterval (Range is) = case (Seq.viewl is, Seq.viewr is) of
-  (head Seq.:< _, _ Seq.:> last) -> Just $
-                                      Interval { iStart = iStart head
-                                               , iEnd   = iEnd   last
-                                               }
-  _                              -> Nothing
+rangeToInterval NoRange       = Nothing
+rangeToInterval (Range s _ e) = Just $ Interval { iStart = s, iEnd = e }
 
 -- | Returns the shortest continuous range containing the given one.
 continuous :: Range' a -> Range' a
@@ -614,7 +654,7 @@ continuous r = case rangeToInterval r of
 -- | Removes gaps between intervals on the same line.
 continuousPerLine :: Ord a => Range' a -> Range' a
 continuousPerLine r =
-  Range (Seq.unfoldr step (rangeIntervals r))
+  intervalsToRange (unfoldr step (rangeIntervals r))
   where
   step []  = Nothing
   step [i] = Just (i, [])
@@ -641,24 +681,29 @@ fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
 --
 --   Meaning it finds the least range @r0@ that covers @r@ and @r'@.
 fuseRanges :: (Ord a) => Range' a -> Range' a -> Range' a
-fuseRanges r1@(Range is1) r2@(Range is2) =
-  case (rangeToInterval r1, rangeToInterval r2) of
-    (Just i1, Just i2)
-                               -- Special cases for non-overlapping
-                               -- ranges.
-      | iEnd i1 < iStart i2 -> Range (is1 Seq.>< is2)
-      | iEnd i2 < iStart i1 -> Range (is2 Seq.>< is1)
-                               -- General case.
-    _                       -> Range (fuse is1 is2)
+fuseRanges NoRange             r2                  = r2
+fuseRanges r1                  NoRange             = r1
+fuseRanges r1@(Range s1 t1 e1) r2@(Range s2 t2 e2)
+                -- Special cases for non-overlapping ranges.
+  | e1 < s2   = Range s1 (Node t1 e1 s2 t2) e2
+  | e2 < s1   = Range s2 (Node t2 e2 s1 t1) e1
+  | e1 == s2  = Range s1 (merge t1 t2) e2
+  | e2 == s1  = Range s2 (merge t2 t1) e1
+  | otherwise = -- General case. TODO: Avoid conversion?
+                intervalsToRange (fuse (rangeIntervals r1)
+                                       (rangeIntervals r2))
   where
-  fuse is1 is2 = case (Seq.viewl is1, Seq.viewl is2) of
-    (Seq.EmptyL  , _           ) -> is2
-    (_           , Seq.EmptyL  ) -> is1
-    (h1 Seq.:< t1, h2 Seq.:< t2)
-      | iEnd h1 < iStart h2 -> h1 Seq.<| fuse t1 is2
-      | iEnd h2 < iStart h1 -> h2 Seq.<| fuse is1 t2
-      | iEnd h1 < iEnd   h2 -> fuse t1 (fuseIntervals h1 h2 Seq.<| t2)
-      | otherwise           -> fuse (fuseIntervals h1 h2 Seq.<| t1) t2
+  merge t              Empty = t
+  merge Empty          t     = t
+  merge (Node l e s r) t     = Node l e s (merge r t)
+
+  fuse []            is2           = is2
+  fuse is1           []            = is1
+  fuse is1@(h1 : t1) is2@(h2 : t2)
+    | iEnd h1 < iStart h2 = h1 : fuse t1 is2
+    | iEnd h2 < iStart h1 = h2 : fuse is1 t2
+    | iEnd h1 < iEnd   h2 = fuse t1 (fuseIntervals h1 h2 : t2)
+    | otherwise           = fuse (fuseIntervals h1 h2 : t1) t2
 
 fuseRange :: (HasRange u, HasRange t) => u -> t -> Range
 fuseRange x y = fuseRanges (getRange x) (getRange y)
@@ -751,9 +796,10 @@ prop_continuousPerLine r =
     &&
   distinct lineNumbers
   where
-  r'@(Range is') = continuousPerLine r
+  r' = continuousPerLine r
 
-  lineNumbers = concatMap lines is'
+  lineNumbers :: [Int32]
+  lineNumbers = concatMap lines (rangeIntervals r')
     where
     lines i | s == e    = [s]
             | otherwise = [s, e]
@@ -816,7 +862,8 @@ instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where
     return (Interval p1' p2')
 
 instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
-  arbitrary = intervalsToRange . fuse . sort . fixFiles <$> arbitrary
+  arbitrary =
+    fromList . fuse . sort . fixFiles =<< arbitrary
     where
     fixFiles []       = []
     fixFiles (i : is) = i : map (setFile $ srcFile $ iStart i) is
@@ -825,6 +872,28 @@ instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
       | iEnd i1 >= iStart i2 = fuse (fuseIntervals i1 i2 : is)
       | otherwise            = i1 : fuse (i2 : is)
     fuse is = is
+
+    fromList [] = return NoRange
+    fromList is = do
+      t <- toTree ps
+      return (Range start t end)
+      where
+      ps' = concatMap (\i -> [iStart i, iEnd i]) is
+
+      start = head ps'
+      end   = last ps'
+      ps    = map toPair $ chop 2 (init (tail ps'))
+        where
+        toPair [x, y] = (x, y)
+        toPair _      = __IMPOSSIBLE__
+
+    toTree [] = return Empty
+    toTree ps = do
+      n <- choose (0, length ps - 1)
+      let (l, (le, rs), r) = extractNthElement' n ps
+      l <- toTree l
+      r <- toTree r
+      return (Node l le rs r)
 
 prop_positionInvariant :: Position' Integer -> Bool
 prop_positionInvariant = positionInvariant
