@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.
@@ -192,7 +193,7 @@ instance Match a b => Match (Dom a) (Dom b) where
 instance Match a b => Match (Type' a) (Type' b) where
   match k p v = match k (unEl p) (unEl v)
 
-instance (Match a b, Subst b, Free b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
+instance (Match a b, Subst t b, Free b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
   match k (Abs _ p) (Abs _ v) = match (k+1) p v
   match k (Abs _ p) (NoAbs _ v) = match (k+1) p (raise 1 v)
   match k (NoAbs _ p) (Abs _ v) = if (0 `freeIn` v) then no else match k p (raise (-1) v)

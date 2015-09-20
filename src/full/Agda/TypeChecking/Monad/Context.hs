@@ -176,8 +176,8 @@ dummyDom :: Dom Type
 dummyDom = defaultDom typeDontCare
 
 -- | Go under an abstraction.
-{-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: (Subst a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+{-# SPECIALIZE underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction _ (NoAbs _ v) k = k v
 underAbstraction t a           k = do
     x <- freshName_ $ realName $ absName a
@@ -186,8 +186,8 @@ underAbstraction t a           k = do
     realName s = if isNoName s then "x" else argNameToString s
 
 -- | Go under an abstract without worrying about the type to add to the context.
-{-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: (Subst a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
+{-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction_ :: (Subst t a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction dummyDom
 
 -- | Add a telescope to the context.

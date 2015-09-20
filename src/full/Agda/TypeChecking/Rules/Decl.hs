@@ -492,7 +492,13 @@ checkAxiom funSig i info0 x e = do
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO!! (qnameName)
-    (_, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
+    (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
+    -- Primitive functions on nats are BUILTIN not 'primitive'
+    let builtinPrimitives =
+          [ "primNatPlus", "primNatMinus" , "primNatTimes"
+          , "primNatDivSucAux", "primNatModSucAux"
+          , "primNatEquality", "primNatLess" ]
+    when (elem name builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x

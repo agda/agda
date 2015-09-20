@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE RelaxedPolyRec #-}
 {-# LANGUAGE TupleSections #-}
@@ -915,7 +916,8 @@ subtypingForSizeLt dir   x mvar t args v cont = do
         _ -> fallback
 
 -- | Eta-expand bound variables like @z@ in @X (fst z)@.
-expandProjectedVars :: (Normalise a, TermLike a, Show a, PrettyTCM a, NoProjectedVar a, Subst a, PrettyTCM b, Subst b) =>
+expandProjectedVars :: (Normalise a, TermLike a, Show a, PrettyTCM a, NoProjectedVar a,
+                        Subst Term a, PrettyTCM b, Subst Term b) =>
   a -> b -> (a -> b -> TCM c) -> TCM c
 expandProjectedVars args v ret = loop (args, v) where
   loop (args, v) = do
@@ -932,7 +934,7 @@ expandProjectedVars args v ret = loop (args, v) where
       Left (ProjVarExc i _) -> etaExpandProjectedVar i (args, v) done loop
 
 -- | Eta-expand a de Bruijn index of record type in context and passed term(s).
-etaExpandProjectedVar :: (PrettyTCM a, Subst a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
+etaExpandProjectedVar :: (PrettyTCM a, Subst Term a) => Int -> a -> TCM c -> (a -> TCM c) -> TCM c
 etaExpandProjectedVar i v fail succeed = do
   reportSDoc "tc.meta.assign.proj" 40 $
     text "trying to expand projected variable" <+> prettyTCM (var i)

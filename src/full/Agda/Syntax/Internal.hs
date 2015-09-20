@@ -9,6 +9,9 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
+#if __GLASGOW_HASKELL__ <= 708
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -523,7 +526,7 @@ instance IsProjP Pattern where
 
 -- | Substitutions.
 
-data Substitution
+data Substitution' a
 
   = IdS
     -- ^ Identity substitution.
@@ -534,7 +537,7 @@ data Substitution
     --   Apply this to closed terms you want to use in a non-empty context.
     --   @Γ ⊢ EmptyS : ()@
 
-  | Term :# Substitution
+  | a :# Substitution' a
     -- ^ Substitution extension, ``cons''.
     --   @
     --     Γ ⊢ u : Aρ   Γ ⊢ ρ : Δ
@@ -542,7 +545,7 @@ data Substitution
     --     Γ ⊢ u :# ρ : Δ, A
     --   @
 
-  | Strengthen Empty Substitution
+  | Strengthen Empty (Substitution' a)
     -- ^ Strengthening substitution.  First argument is @__IMPOSSIBLE__@.
     --   Apply this to a term which does not contain variable 0
     --   to lower all de Bruijn indices by one.
@@ -552,7 +555,7 @@ data Substitution
     --     Γ ⊢ Strengthen ρ : Δ, A
     --   @
 
-  | Wk !Int Substitution
+  | Wk !Int (Substitution' a)
     -- ^ Weakning substitution, lifts to an extended context.
     --   @
     --         Γ ⊢ ρ : Δ
@@ -561,7 +564,7 @@ data Substitution
     --   @
 
 
-  | Lift !Int Substitution
+  | Lift !Int (Substitution' a)
     -- ^ Lifting substitution.  Use this to go under a binder.
     --   @Lift 1 ρ == var 0 :# Wk 1 ρ@.
     --   @
@@ -570,7 +573,9 @@ data Substitution
     --     Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
     --   @
 
-  deriving (Show)
+  deriving (Show, Functor, Foldable, Traversable)
+
+type Substitution = Substitution' Term
 
 infixr 4 :#
 
@@ -942,7 +947,11 @@ class TermSize a where
 
   tsize :: a -> Sum Int
 
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} (Foldable t, TermSize a) => TermSize (t a) where
+#else
 instance (Foldable t, TermSize a) => TermSize (t a) where
+#endif
   tsize = foldMap tsize
 
 instance TermSize Term where
@@ -980,7 +989,7 @@ instance TermSize LevelAtom where
   tsize (NeutralLevel _ v) = tsize v
   tsize (UnreducedLevel v) = tsize v
 
-instance TermSize Substitution where
+instance TermSize a => TermSize (Substitution' a) where
   tsize IdS                = 1
   tsize EmptyS             = 1
   tsize (Wk _ rho)         = 1 + tsize rho

@@ -141,6 +141,19 @@ dsubname :: QName -> Nat -> HS.Name
 dsubname q i | i == 0    = unqhname "d"                     q
              | otherwise = unqhname ("d_" ++ show i ++ "_") q
 
+hsPrimOp :: String -> HS.QOp
+hsPrimOp s = HS.QVarOp $ HS.UnQual $ HS.Symbol s
+
+hsPrimOpApp :: String -> HS.Exp -> HS.Exp -> HS.Exp
+hsPrimOpApp op e e1 = HS.InfixApp e (hsPrimOp op) e1
+
+hsInt :: Integer -> HS.Exp
+hsInt n = HS.Lit (HS.Int n)
+
+hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
+hsLet x e b =
+  HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]) b
+
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual
 

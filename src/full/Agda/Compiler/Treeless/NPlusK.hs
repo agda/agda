@@ -1,0 +1,84 @@
+{-# LANGUAGE CPP #-}
+module Agda.Compiler.Treeless.NPlusK
+  ( introduceNPlusK ) where
+
+import qualified Agda.Syntax.Internal as I
+import Agda.Syntax.Abstract.Name (QName)
+import Agda.Syntax.Position
+import Agda.Syntax.Treeless
+import Agda.Syntax.Literal
+
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
+
+import Agda.Compiler.Treeless.Subst
+
+import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Maybe
+import Agda.Utils.Impossible
+
+#include "undefined.h"
+
+natKit :: TCM (Maybe (QName, QName))
+natKit = do
+    I.Con zero _ <- primZero
+    I.Con suc  _ <- primSuc
+    return $ Just (I.conName zero, I.conName suc)
+  `catchError` \_ -> return Nothing
+
+introduceNPlusK :: TTerm -> TCM TTerm
+introduceNPlusK t =
+  caseMaybeM natKit (return t) $ \(zero, suc) ->
+    return $ transform (== zero) (== suc) t
+
+transform :: (QName -> Bool) -> (QName -> Bool) -> TTerm -> TTerm
+transform isZero isSuc = tr
+  where
+    tr t = case t of
+
+      TCon c | isZero c -> TLit (LitInt noRange 0)
+             | isSuc c  -> TLam (TPlus 1 (TVar 0))
+      TApp (TCon s) [e] | isSuc s ->
+        case tr e of
+          TLit (LitInt r n) -> TLit (LitInt r (n + 1))
+          TPlus i e         -> TPlus (i + 1) e
+          e                 -> TPlus 1 e
+
+      TCase e t d bs -> TCase e t (tr d) $ concatMap trAlt bs
+        where
+          trAlt b = case b of
+            TACon c 0 b | isZero c -> [TALit (LitInt noRange 0) (tr b)]
+            TACon c 1 b | isSuc c  ->
+              case tr b of
+                -- Collapse nested n+k patterns
+                TCase 0 _ d bs' -> map sucBranch bs' ++ [TAPlus 1 d]
+                b -> [TAPlus 1 b]
+              where
+                sucBranch (TALit (LitInt r i) b) = TALit (LitInt r (i + 1)) $ applySubst (str __IMPOSSIBLE__) b
+                sucBranch (TAPlus k b) = TAPlus (k + 1) $ applySubst (liftS 1 $ str __IMPOSSIBLE__) b
+                sucBranch TACon{} = __IMPOSSIBLE__
+                sucBranch TALit{} = __IMPOSSIBLE__
+
+                str err = compactS err [Nothing]
+
+            TACon c a b -> [TACon c a (tr b)]
+            TALit{}     -> [b]
+            TAPlus{}    -> __IMPOSSIBLE__
+
+      TVar{}    -> t
+      TDef{}    -> t
+      TCon{}    -> t
+      TLit{}    -> t
+      TUnit{}   -> t
+      TSort{}   -> t
+      TErased{} -> t
+      TError{}  -> t
+
+      TPi (TType a) (TType b) -> TPi (TType $ tr a) (TType $ tr b)
+      TLam b                  -> TLam (tr b)
+      TApp a bs               -> TApp (tr a) (map tr bs)
+      TLet e b                -> TLet (tr e) (tr b)
+
+      TPlus{} -> __IMPOSSIBLE__
+

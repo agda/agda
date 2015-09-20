@@ -178,7 +178,7 @@ quotingKit = do
       quoteDom :: (Type -> ReduceM Term) -> I.Dom Type -> ReduceM Term
       quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
 
-      quoteAbs :: Subst a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
+      quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t
       quoteAbs q (NoAbs s t) = abs !@! quoteString s @@ q (raise 1 t)
 

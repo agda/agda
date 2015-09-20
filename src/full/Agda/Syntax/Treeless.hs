@@ -97,15 +97,17 @@ data TTerm = TVar Int
            | TApp TTerm Args
            | TLam TTerm
            | TLit Literal
+           | TPlus Integer TTerm
            | TCon QName
            | TLet TTerm TTerm
            -- ^ introduces a new local binding. The bound term
            -- MUST only be evaluated if it is used inside the body.
            -- Sharing may happen, but is optional.
            -- It is also perfectly valid to just inline the bound term in the body.
-           | TCase TTerm CaseType TTerm [TAlt]
-           -- ^ Case scrutinee, case type, default value, alternatives
+           | TCase Int CaseType TTerm [TAlt]
+           -- ^ Case scrutinee (always variable), case type, default value, alternatives
            | TPi TType TType
+           -- ^ TODO: get rid of this?
            | TUnit -- used for levels right now
            | TSort
            | TErased
@@ -134,6 +136,8 @@ data TAlt
   -- ^ Matches on the given constructor. If the match succeeds,
   -- the pattern variables are prepended to the current environment
   -- (pushes all existing variables aArity steps further away)
+  | TAPlus   { aSucs :: Integer, aBody :: TTerm }
+  -- ^ n+k pattern
   | TALit    { aLit :: Literal,   aBody:: TTerm }
   deriving (Typeable, Show)
 

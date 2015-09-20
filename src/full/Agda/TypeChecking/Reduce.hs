@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -270,7 +271,7 @@ instance Reduce LevelAtom where
           NotBlocked r _            -> return $ NotBlocked r $ NeutralLevel r v
 
 
-instance (Subst t, Reduce t) => Reduce (Abs t) where
+instance (Subst t a, Reduce a) => Reduce (Abs a) where
   reduce' b@(Abs x _) = Abs x <$> underAbstraction_ b reduce'
   reduce' (NoAbs x v) = NoAbs x <$> reduce' v
 
@@ -696,7 +697,7 @@ instance Simplify LevelAtom where
       NeutralLevel r v -> NeutralLevel r <$> simplify' v -- ??
       UnreducedLevel v -> UnreducedLevel <$> simplify' v -- ??
 
-instance (Subst t, Simplify t) => Simplify (Abs t) where
+instance (Subst t a, Simplify a) => Simplify (Abs a) where
     simplify' a@(Abs x _) = Abs x <$> underAbstraction_ a simplify'
     simplify' (NoAbs x v) = NoAbs x <$> simplify' v
 
@@ -731,7 +732,7 @@ instance Simplify a => Simplify (Closure a) where
         x <- enterClosure cl simplify'
         return $ cl { clValue = x }
 
-instance (Subst a, Simplify a) => Simplify (Tele a) where
+instance (Subst t a, Simplify a) => Simplify (Tele a) where
   simplify' EmptyTel        = return EmptyTel
   simplify' (ExtendTel a b) = uncurry ExtendTel <$> simplify' (a, b)
 
@@ -842,7 +843,7 @@ instance Normalise ClauseBody where
     normalise' (Bind   b) = Bind   <$> normalise' b
     normalise'  NoBody   = return NoBody
 
-instance (Subst t, Normalise t) => Normalise (Abs t) where
+instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
     normalise' (NoAbs x v) = NoAbs x <$> normalise' v
 
@@ -872,7 +873,7 @@ instance Normalise a => Normalise (Closure a) where
         x <- enterClosure cl normalise'
         return $ cl { clValue = x }
 
-instance (Subst a, Normalise a) => Normalise (Tele a) where
+instance (Subst t a, Normalise a) => Normalise (Tele a) where
   normalise' EmptyTel        = return EmptyTel
   normalise' (ExtendTel a b) = uncurry ExtendTel <$> normalise' (a, b)
 
@@ -1017,7 +1018,7 @@ instance InstantiateFull ClauseBody where
     instantiateFull' (Bind   b) = Bind   <$> instantiateFull' b
     instantiateFull'  NoBody    = return NoBody
 
-instance (Subst t, InstantiateFull t) => InstantiateFull (Abs t) where
+instance (Subst t a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'
     instantiateFull' (NoAbs x a) = NoAbs x <$> instantiateFull' a
 
@@ -1088,7 +1089,7 @@ instance InstantiateFull Signature where
 instance InstantiateFull Section where
   instantiateFull' (Section tel n) = flip Section n <$> instantiateFull' tel
 
-instance (Subst a, InstantiateFull a) => InstantiateFull (Tele a) where
+instance (Subst t a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
   instantiateFull' (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull' (a, b)
 

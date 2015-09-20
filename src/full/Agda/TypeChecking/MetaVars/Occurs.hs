@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.
 
@@ -434,7 +435,7 @@ instance Occurs a => Occurs (Elim' a) where
   metaOccurs m (Proj{} ) = return ()
   metaOccurs m (Apply a) = metaOccurs m a
 
-instance (Occurs a, Subst a) => Occurs (Abs a) where
+instance (Occurs a, Subst t a) => Occurs (Abs a) where
   occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (liftUnderAbs xs))
   occurs red ctx m xs b@(NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
@@ -630,7 +631,7 @@ instance FoldRigid LevelAtom where
       UnreducedLevel              l -> fold l
     where fold = foldRigid abs f
 
-instance (Subst a, FoldRigid a) => FoldRigid (Abs a) where
+instance (Subst t a, FoldRigid a) => FoldRigid (Abs a) where
   foldRigid abs f b = underAbstraction_ b $ foldRigid abs f
 
 instance FoldRigid a => FoldRigid (I.Arg a) where

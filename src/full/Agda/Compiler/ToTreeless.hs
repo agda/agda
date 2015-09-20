@@ -21,6 +21,8 @@ import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
 
+import Agda.Compiler.Treeless.NPlusK
+
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
 
@@ -83,9 +85,11 @@ ifToTreeless iface = do
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless funNm cc = do
   reportSDoc "treeless.convert" 30 $ text "compiled clauses:" <+> (text . show) cc
-  body' <- casetree cc `runReaderT` (initCCEnv funNm)
-  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body'
-  return body'
+  body <- casetree cc `runReaderT` (initCCEnv funNm)
+  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body
+  body <- introduceNPlusK body
+  reportSDoc "treeless.convert" 30 $ text " after n+k translation:" <+> (text . show) body
+  return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
@@ -162,7 +166,7 @@ casetree cc = do
           -- so this normally shouldn't happen
           def <- fromMaybe <$> patMatchFailure
             <*> (fmap C.TVar <$> asks ccCatchAll)
-          C.TCase (C.TVar x) caseTy def <$> do
+          C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)

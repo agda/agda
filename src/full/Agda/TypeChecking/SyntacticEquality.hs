@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | A syntactic equality check that takes meta instantiations into account,
 --   but does not reduce.  It replaces
@@ -170,7 +171,7 @@ instance SynEq a => SynEq (Elim' a) where
       (Apply a, Apply a') -> Apply <$$> synEq a a'
       _                   -> inequal (e, e')
 
-instance (Subst a, SynEq a) => SynEq (Abs a) where
+instance (Subst t a, SynEq a) => SynEq (Abs a) where
   synEq a a' =
     case (a, a') of
       (NoAbs x b, NoAbs x' b') -> (NoAbs x *** NoAbs x') <$>  synEq b b'
