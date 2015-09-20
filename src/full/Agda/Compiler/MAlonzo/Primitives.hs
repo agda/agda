@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
+import Agda.Utils.Except
 import qualified Agda.Utils.HashMap as HMap
 
 #include "undefined.h"
@@ -202,6 +203,12 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   unimplemented = typeError $ NotImplemented s
 
   lam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
+
+isPrimNat :: QName -> TCM Bool
+isPrimNat q = do
+    Def nat _ <- primNat
+    return $ q == nat
+  `catchError` \_ -> return False
 
 ----------------------
 

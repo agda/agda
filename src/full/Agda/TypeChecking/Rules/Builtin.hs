@@ -379,26 +379,37 @@ bindPostulatedName builtin e m = do
   getName (A.ScopedExpr _ e) = getName e
   getName _                  = err
 
+getDef :: Term -> TCM QName
+getDef t = do
+  t <- etaContract =<< normalise t
+  case ignoreSharing t of
+    Def d _ -> return d
+    _ -> __IMPOSSIBLE__
+
+bindBuiltinBool :: Term -> TCM ()
+bindBuiltinBool t = do
+  bool <- getDef t
+  addHaskellType bool "Bool"
+  bindBuiltinName builtinBool t
+
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
-  t' <- etaContract =<< normalise t
-  case ignoreSharing t' of
-    Def nat _ -> do
-      def <- theDef <$> getConstInfo nat
-      case def of
-        Datatype { dataCons = [c1, c2] } -> do
-          bindBuiltinName builtinNat t
-          let getArity c = arity <$> (normalise . defType =<< getConstInfo c)
-          [a1, a2] <- mapM getArity [c1, c2]
-          let (zero, suc) | a2 > a1   = (c1, c2)
-                          | otherwise = (c2, c1)
-              tnat = el primNat
-              rerange = setRange (getRange nat)
-          bindBuiltinInfo (BuiltinInfo builtinZero $ BuiltinDataCons tnat)
-                          (A.Con $ AmbQ [rerange zero])
-          bindBuiltinInfo (BuiltinInfo builtinSuc  $ BuiltinDataCons (tnat --> tnat))
-                          (A.Con $ AmbQ [rerange suc])
-        _ -> __IMPOSSIBLE__
+  nat <- getDef t
+  def <- theDef <$> getConstInfo nat
+  case def of
+    Datatype { dataCons = [c1, c2] } -> do
+      bindBuiltinName builtinNat t
+      let getArity c = arity <$> (normalise . defType =<< getConstInfo c)
+      [a1, a2] <- mapM getArity [c1, c2]
+      let (zero, suc) | a2 > a1   = (c1, c2)
+                      | otherwise = (c2, c1)
+          tnat = el primNat
+          rerange = setRange (getRange nat)
+      addHaskellType nat "Integer"
+      bindBuiltinInfo (BuiltinInfo builtinZero $ BuiltinDataCons tnat)
+                      (A.Con $ AmbQ [rerange zero])
+      bindBuiltinInfo (BuiltinInfo builtinSuc  $ BuiltinDataCons (tnat --> tnat))
+                      (A.Con $ AmbQ [rerange suc])
     _ -> __IMPOSSIBLE__
 
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
@@ -409,7 +420,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         e' <- checkExpr e =<< t
         let n = length cs
         inductiveCheck s n e'
-        if s == builtinNat then bindBuiltinNat e' else bindBuiltinName s e'
+        case () of
+          _ | s == builtinBool -> bindBuiltinBool e'
+            | s == builtinNat  -> bindBuiltinNat e'
+            | otherwise        -> bindBuiltinName s e'
 
       BuiltinDataCons t -> do
 
@@ -424,7 +438,11 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           A.Con _ -> return ()
           _       -> typeError $ BuiltinMustBeConstructor s e
 
-        bindBuiltinName s (name e')
+        let v@(Con h []) = name e'
+            c = conName h
+        when (s == builtinTrue)  $ addHaskellCode c "Bool" "True"
+        when (s == builtinFalse) $ addHaskellCode c "Bool" "False"
+        bindBuiltinName s v
 
       BuiltinPrim pfname axioms -> do
         case e of

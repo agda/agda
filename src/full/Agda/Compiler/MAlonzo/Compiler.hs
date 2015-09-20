@@ -233,9 +233,11 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
-        ccs <- List.concat <$> mapM checkConstructorType cs
-        cov <- checkCover q ty np cs
-        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
+        ccscov <- ifM (isPrimNat q) (return []) $ do
+            ccs <- List.concat <$> mapM checkConstructorType cs
+            cov <- checkCover q ty np cs
+            return $ ccs ++ cov
+        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         (ars, cds) <- unzip <$> mapM condecl cs
         return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
