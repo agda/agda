@@ -121,6 +121,15 @@ xqual q n = do m1 <- tlmname (qnameModule q)
 xhqn :: String -> QName -> TCM HS.QName
 xhqn s q = xqual q (unqhname s q)
 
+hsDefName :: QName -> TCM HS.QName
+hsDefName q = xhqn "d" q
+
+hsConName :: QName -> TCM HS.QName
+hsConName q = xhqn "C" q
+
+hsTypeName :: QName -> HS.Name
+hsTypeName = unqhname "T"
+
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> TCM HS.QName
 conhqn q = do
@@ -128,7 +137,7 @@ conhqn q = do
     def <- getConstInfo cq
     case (compiledHaskell (defCompiledRep def), theDef def) of
       (Just (HsDefn _ hs), Constructor{}) -> return $ HS.UnQual $ HS.Ident hs
-      _                                   -> xhqn "C" cq
+      _                                   -> hsConName cq
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName

@@ -611,10 +611,7 @@ data Interface = Interface
     -- ^ Scope after we loaded this interface.
     --   Used in 'Agda.Interaction.BasicOps.AtTopLevel'
     --   and     'Agda.Interaction.CommandLine.interactionLoop'.
-    --
-    --   Andreas, AIM XX: For performance reason, this field is
-    --   not serialized, so if you deserialize an interface, @iInsideScope@
-    --   will be empty.  You need to type-check the file to get @iInsideScope@.
+    --   and the compiler backends to generate export lists.
   , iSignature       :: Signature
   , iBuiltin         :: BuiltinThings (String, QName)
   , iHaskellImports  :: Set String
