@@ -6,7 +6,7 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 #if __GLASGOW_HASKELL__ <= 708
-import Prelude hiding (mapM_, mapM, sequence, concat)
+import Prelude hiding (foldl, mapM_, mapM, sequence, concat)
 #endif
 
 import Control.Applicative
