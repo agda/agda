@@ -109,14 +109,14 @@ addCtx x a ret = do
   where
     notTaken xs x = isNoName x || nameConcrete x `notElem` xs
 
-underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> ReduceM b) -> ReduceM b
+underAbstraction :: Subst t a => Dom Type -> Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbstraction _ (NoAbs _ v) f = f v
 underAbstraction t a f =
   withFreshName_ (realName $ absName a) $ \x -> addCtx x t $ f (absBody a)
   where
     realName s = if isNoName s then "x" else s
 
-underAbstraction_ :: Subst a => Abs a -> (a -> ReduceM b) -> ReduceM b
+underAbstraction_ :: Subst t a => Abs a -> (a -> ReduceM b) -> ReduceM b
 underAbstraction_ = underAbstraction dummyDom
 
 lookupMeta :: MetaId -> ReduceM MetaVariable

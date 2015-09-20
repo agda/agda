@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Agda.TypeChecking.Rules.LHS.Problem where
 
@@ -177,17 +178,17 @@ data LHSState = LHSState
   , lhsAsB     :: [AsBinding]
   }
 
-instance Subst ProblemRest where
+instance Subst Term ProblemRest where
   applySubst rho p = p { restType = applySubst rho $ restType p }
 
-instance Subst (Problem' p) where
+instance Subst Term (Problem' p) where
   applySubst rho p = p { problemTel  = applySubst rho $ problemTel p
                        , problemRest = applySubst rho $ problemRest p }
 
-instance Subst DotPatternInst where
+instance Subst Term DotPatternInst where
   applySubst rho (DPI e v a) = uncurry (DPI e) $ applySubst rho (v,a)
 
-instance Subst AsBinding where
+instance Subst Term AsBinding where
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
 instance PrettyTCM DotPatternInst where

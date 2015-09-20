@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
@@ -114,7 +116,7 @@ instance AbstractTerm a => AbstractTerm [a] where
 instance AbstractTerm a => AbstractTerm (Maybe a) where
   abstractTerm = fmap . abstractTerm
 
-instance (Subst a, AbstractTerm a) => AbstractTerm (Abs a) where
+instance (Subst Term a, AbstractTerm a) => AbstractTerm (Abs a) where
   abstractTerm u (NoAbs x v) = NoAbs x $ abstractTerm u v
   abstractTerm u (Abs   x v) = Abs x $ applySubst swap $ abstractTerm (raise 1 u) v
     where

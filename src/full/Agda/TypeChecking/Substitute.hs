@@ -6,6 +6,9 @@
 {-# LANGUAGE PatternGuards      #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
@@ -15,7 +18,7 @@
 
 module Agda.TypeChecking.Substitute
   ( module Agda.TypeChecking.Substitute
-  , Substitution(..)
+  , Substitution'(..), Substitution
   ) where
 
 import Control.Arrow ((***), second)
@@ -152,7 +155,7 @@ instance Apply a => Apply (Ptr a) where
 
 -- @applyE@ does not make sense for telecopes, definitions, clauses etc.
 
-instance Subst a => Apply (Tele a) where
+instance Subst Term a => Apply (Tele a) where
   apply tel               []       = tel
   apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = lazyAbsApp tel (unArg t) `apply` ts
@@ -527,38 +530,48 @@ abstractArgs args x = abstract tel x
 -- * Explicit substitutions
 ---------------------------------------------------------------------------
 
+class DeBruijn a where
+  debruijnVar  :: Int -> a
+  debruijnView :: a -> Maybe Int
+
+instance DeBruijn Term where
+  debruijnVar = var
+  debruijnView (Var n []) = Just n
+  debruijnView _ = Nothing
+
 -- See Syntax.Internal for the definition.
 
-idS :: Substitution
+idS :: Substitution' a
 idS = IdS
 
-wkS :: Int -> Substitution -> Substitution
+wkS :: Int -> Substitution' a -> Substitution' a
 wkS 0 rho        = rho
 wkS n (Wk m rho) = Wk (n + m) rho
 wkS n EmptyS     = EmptyS
 wkS n rho        = Wk n rho
 
-raiseS :: Int -> Substitution
+raiseS :: Int -> Substitution' a
 raiseS n = wkS n idS
 
-consS :: Term -> Substitution -> Substitution
-consS (Var n []) (Wk m rho)
-  | n + 1 == m = wkS (m - 1) (liftS 1 rho)
+consS :: DeBruijn a => a -> Substitution' a -> Substitution' a
+consS t (Wk m rho)
+  | Just n <- debruijnView t,
+    n + 1 == m = wkS (m - 1) (liftS 1 rho)
 consS u rho = seq u (u :# rho)
 
 -- | To replace index @n@ by term @u@, do @applySubst (singletonS n u)@.
-singletonS :: Int -> Term -> Substitution
-singletonS n u = map var [0..n-1] ++# consS u (raiseS n)
-  -- ALT: foldl (\ s i -> var i `consS` s) (consS u $ raiseS n) $ downFrom n
+singletonS :: DeBruijn a => Int -> a -> Substitution' a
+singletonS n u = map debruijnVar [0..n-1] ++# consS u (raiseS n)
+  -- ALT: foldl (\ s i -> debruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
 
 -- | Lift a substitution under k binders.
-liftS :: Int -> Substitution -> Substitution
+liftS :: Int -> Substitution' a -> Substitution' a
 liftS 0 rho          = rho
 liftS k IdS          = IdS
 liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
-dropS :: Int -> Substitution -> Substitution
+dropS :: Int -> Substitution' a -> Substitution' a
 dropS 0 rho                = rho
 dropS n IdS                = raiseS n
 dropS n (Wk m rho)         = wkS m (dropS n rho)
@@ -569,7 +582,7 @@ dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
 dropS n EmptyS             = __IMPOSSIBLE__
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
-composeS :: Substitution -> Substitution -> Substitution
+composeS :: Subst a a => Substitution' a -> Substitution' a -> Substitution' a
 composeS rho IdS = rho
 composeS IdS sgm = sgm
 composeS rho EmptyS = EmptyS
@@ -583,7 +596,7 @@ composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) 
 -- If Γ ⊢ ρ : Δ, Θ then splitS |Θ| ρ = (σ, δ), with
 --   Γ ⊢ σ : Δ
 --   Γ ⊢ δ : Θσ
-splitS :: Int -> Substitution -> (Substitution, Substitution)
+splitS :: Int -> Substitution' a -> (Substitution' a, Substitution' a)
 splitS 0 rho                  = (rho, EmptyS)
 splitS n (u :# rho)           = second (u :#) $ splitS (n - 1) rho
 splitS n (Strengthen err rho) = second (Strengthen err) $ splitS (n - 1) rho
@@ -595,26 +608,26 @@ splitS n EmptyS               = __IMPOSSIBLE__
 
 infixr 4 ++#
 
-(++#) :: [Term] -> Substitution -> Substitution
+(++#) :: DeBruijn a => [a] -> Substitution' a -> Substitution' a
 us ++# rho = foldr consS rho us
 
-prependS :: Empty -> [Maybe Term] -> Substitution -> Substitution
+prependS :: DeBruijn a => Empty -> [Maybe a] -> Substitution' a -> Substitution' a
 prependS err us rho = foldr f rho us
   where
     f Nothing  rho = Strengthen err rho
     f (Just u) rho = consS u rho
 
-parallelS :: [Term] -> Substitution
+parallelS :: DeBruijn a => [a] -> Substitution' a
 parallelS us = us ++# idS
 
-compactS :: Empty -> [Maybe Term] -> Substitution
+compactS :: DeBruijn a => Empty -> [Maybe a] -> Substitution' a
 compactS err us = prependS err us idS
 
-lookupS :: Substitution -> Nat -> Term
+lookupS :: Subst a a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of
-  IdS                    -> var i
+  IdS                    -> debruijnVar i
   Wk n IdS               -> let j = i + n in
-                            if  j < 0 then __IMPOSSIBLE__ else var j
+                            if  j < 0 then __IMPOSSIBLE__ else debruijnVar j
   Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
   u :# rho   | i == 0    -> u
              | i < 0     -> __IMPOSSIBLE__
@@ -623,7 +636,7 @@ lookupS rho i = case rho of
              | i == 0    -> absurd err
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
-  Lift n rho | i < n     -> var i
+  Lift n rho | i < n     -> debruijnVar i
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
 
@@ -640,31 +653,31 @@ lookupS rho i = case rho of
 -- -----------
 -- Γ ⊢ tρ : σρ
 
-class Subst t where
-  applySubst :: Substitution -> t -> t
+class DeBruijn t => Subst t a | a -> t where
+  applySubst :: Substitution' t -> a -> a
 
-raise :: Subst t => Nat -> t -> t
+raise :: Subst t a => Nat -> a -> a
 raise = raiseFrom 0
 
-raiseFrom :: Subst t => Nat -> Nat -> t -> t
+raiseFrom :: Subst t a => Nat -> Nat -> a -> a
 raiseFrom n k = applySubst (liftS n $ raiseS k)
 
 -- | Replace de Bruijn index i by a 'Term' in something.
-subst :: Subst t => Int -> Term -> t -> t
+subst :: Subst t a => Int -> t -> a -> a
 subst i u = applySubst $ singletonS i u
 
-strengthen :: Subst t => Empty -> t -> t
+strengthen :: Subst t a => Empty -> a -> a
 strengthen err = applySubst (compactS err [Nothing])
 
 -- | Replace what is now de Bruijn index 0, but go under n binders.
 --   @substUnder n u == subst n (raise n u)@.
-substUnder :: Subst t => Nat -> Term -> t -> t
+substUnder :: Subst t a => Nat -> t -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
 
-instance Subst Substitution where
+instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm
 
-instance Subst Term where
+instance Subst Term Term where
   applySubst IdS t = t
   applySubst rho t    = case t of
     Var i es    -> lookupS rho i `applyE` applySubst rho es
@@ -679,13 +692,13 @@ instance Subst Term where
     Shared p    -> Shared $ applySubst rho p
     DontCare mv -> dontCare $ applySubst rho mv
 
-instance Subst a => Subst (Ptr a) where
+instance Subst t a => Subst t (Ptr a) where
   applySubst rho = fmap (applySubst rho)
 
-instance (Subst a) => Subst (Type' a) where
+instance Subst Term a => Subst Term (Type' a) where
   applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
-instance Subst Sort where
+instance Subst Term Sort where
   applySubst rho s = case s of
     Type n     -> levelSort $ sub n
     Prop       -> Prop
@@ -694,36 +707,33 @@ instance Subst Sort where
     DLub s1 s2 -> DLub (sub s1) (sub s2)
     where sub x = applySubst rho x
 
-instance Subst Level where
+instance Subst Term Level where
   applySubst rho (Max as) = Max $ applySubst rho as
 
-instance Subst PlusLevel where
+instance Subst Term PlusLevel where
   applySubst rho l@ClosedLevel{} = l
   applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
-instance Subst LevelAtom where
+instance Subst Term LevelAtom where
   applySubst rho (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
   applySubst rho (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
   applySubst rho (NeutralLevel _ v) = UnreducedLevel $ applySubst rho v
   applySubst rho (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
 
-instance Subst Bool where
+instance Subst Term Name where
   applySubst rho = id
 
 #if __GLASGOW_HASKELL__ >= 710
-instance {-# OVERLAPPING #-} Subst String where
+instance {-# OVERLAPPING #-} Subst Term String where
 #else
-instance Subst String where
+instance Subst Term String where
 #endif
   applySubst rho = id
 
-instance Subst Name where
-  applySubst rho = id
-
-instance Subst ConPatternInfo where
+instance Subst Term ConPatternInfo where
   applySubst rho (ConPatternInfo mr mt) = ConPatternInfo mr $ applySubst rho mt
 
-instance Subst Pattern where
+instance Subst Term Pattern where
   applySubst rho p = case p of
     ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
     DotP t       -> DotP $ applySubst rho t
@@ -731,7 +741,7 @@ instance Subst Pattern where
     LitP l       -> p
     ProjP _      -> p
 
-instance Subst NLPat where
+instance Subst Term NLPat where
   applySubst rho p = case p of
     PVar i -> p
     PWild  -> p
@@ -741,26 +751,26 @@ instance Subst NLPat where
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applySubst rho u
 
-instance Subst t => Subst (Blocked t) where
+instance Subst t a => Subst t (Blocked a) where
   applySubst rho b = fmap (applySubst rho) b
 
-instance Subst DisplayForm where
+instance Subst Term DisplayForm where
   applySubst rho (Display n ps v) =
     Display n (applySubst (liftS 1 rho) ps)
               (applySubst (liftS n rho) v)
 
-instance Subst DisplayTerm where
+instance Subst Term DisplayTerm where
   applySubst rho (DTerm v)        = DTerm $ applySubst rho v
   applySubst rho (DDot v)         = DDot  $ applySubst rho v
   applySubst rho (DCon c vs)      = DCon c $ applySubst rho vs
   applySubst rho (DDef c es)      = DDef c $ applySubst rho es
   applySubst rho (DWithApp v vs ws) = uncurry3 DWithApp $ applySubst rho (v, vs, ws)
 
-instance Subst a => Subst (Tele a) where
+instance Subst t a => Subst t (Tele a) where
   applySubst rho  EmptyTel         = EmptyTel
   applySubst rho (ExtendTel t tel) = uncurry ExtendTel $ applySubst rho (t, tel)
 
-instance Subst Constraint where
+instance Subst Term Constraint where
   applySubst rho c = case c of
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
     ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
@@ -776,48 +786,48 @@ instance Subst Constraint where
     where
       rf x = applySubst rho x
 
-instance Subst a => Subst (Elim' a) where
+instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
     Proj{}  -> e
 
-instance Subst a => Subst (Abs a) where
+instance Subst t a => Subst t (Abs a) where
   applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
   applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
-instance Subst a => Subst (Arg a) where
+instance Subst t a => Subst t (Arg a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst a => Subst (Named name a) where
+instance Subst t a => Subst t (Named name a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst a => Subst (Dom a) where
+instance Subst t a => Subst t (Dom a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst a => Subst (Maybe a) where
+instance Subst t a => Subst t (Maybe a) where
   applySubst rho = fmap (applySubst rho)
 
-instance Subst a => Subst [a] where
+instance Subst t a => Subst t [a] where
   applySubst rho = map (applySubst rho)
 
-instance Subst () where
+instance Subst Term () where
   applySubst _ _ = ()
 
-instance (Subst a, Subst b) => Subst (a,b) where
+instance (Subst t a, Subst t b) => Subst t (a, b) where
   applySubst rho (x,y) = (applySubst rho x, applySubst rho y)
 
-instance (Subst a, Subst b, Subst c) => Subst (a,b,c) where
+instance (Subst t a, Subst t b, Subst t c) => Subst t (a, b, c) where
   applySubst rho (x,y,z) = (applySubst rho x, applySubst rho y, applySubst rho z)
 
-instance (Subst a, Subst b, Subst c, Subst d) => Subst (a,b,c,d) where
+instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) where
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
-instance Subst ClauseBody where
+instance Subst Term ClauseBody where
   applySubst rho (Body t) = Body $ applySubst rho t
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
 
-instance Subst Candidate where
+instance Subst Term Candidate where
   applySubst rho (Candidate u t eti) = Candidate (applySubst rho u) (applySubst rho t) eti
 
 ---------------------------------------------------------------------------
@@ -826,7 +836,10 @@ instance Subst Candidate where
 
 type TelView = TelV Type
 data TelV a  = TelV { theTel :: Tele (Dom a), theCore :: a }
-  deriving (Typeable, Show, Eq, Ord, Functor)
+  deriving (Typeable, Show, Functor)
+
+deriving instance (Subst t a, Eq  a) => Eq  (TelV a)
+deriving instance (Subst t a, Ord a) => Ord (TelV a)
 
 type ListTel' a = [Dom (a, Type)]
 type ListTel = ListTel' ArgName
@@ -946,31 +959,31 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
 ---------------------------------------------------------------------------
 
 -- | Instantiate an abstraction. Strict in the term.
-absApp :: Subst t => Abs t -> Term -> t
+absApp :: Subst t a => Abs a -> t -> a
 absApp (Abs   _ v) u = subst 0 u v
 absApp (NoAbs _ v) _ = v
 
 -- | Instantiate an abstraction. Lazy in the term, which allow it to be
 --   __IMPOSSIBLE__ in the case where the variable shouldn't be used but we
 --   cannot use 'noabsApp'. Used in Apply.
-lazyAbsApp :: Subst t => Abs t -> Term -> t
+lazyAbsApp :: Subst t a => Abs a -> t -> a
 lazyAbsApp (Abs   _ v) u = applySubst (u :# IdS) v  -- Note: do not use consS here!
 lazyAbsApp (NoAbs _ v) _ = v
 
 -- | Instantiate an abstraction that doesn't use its argument.
-noabsApp :: Subst t => Empty -> Abs t -> t
+noabsApp :: Subst t a => Empty -> Abs a -> a
 noabsApp err (Abs   _ v) = strengthen err v
 noabsApp _   (NoAbs _ v) = v
 
-absBody :: Subst t => Abs t -> t
+absBody :: Subst t a => Abs a -> a
 absBody (Abs   _ v) = v
 absBody (NoAbs _ v) = raise 1 v
 
-mkAbs :: (Subst a, Free a) => ArgName -> a -> Abs a
+mkAbs :: (Subst t a, Free a) => ArgName -> a -> Abs a
 mkAbs x v | 0 `freeIn` v = Abs x v
           | otherwise    = NoAbs x (raise (-1) v)
 
-reAbs :: (Subst a, Free a) => Abs a -> Abs a
+reAbs :: (Subst t a, Free a) => Abs a -> Abs a
 reAbs (NoAbs x v) = NoAbs x v
 reAbs (Abs x v)   = mkAbs x v
 
@@ -980,7 +993,7 @@ reAbs (Abs x v)   = mkAbs x v
 --   at point of application of @k@ and the content of @b@
 --   are at the same context.
 --   Precondition: @a@ and @b@ are at the same context at call time.
-underAbs :: Subst a => (a -> b -> b) -> a -> Abs b -> Abs b
+underAbs :: Subst t a => (a -> b -> b) -> a -> Abs b -> Abs b
 underAbs cont a b = case b of
   Abs   x t -> Abs   x $ cont (raise 1 a) t
   NoAbs x t -> NoAbs x $ cont a t
@@ -989,7 +1002,7 @@ underAbs cont a b = case b of
 --   performs operation @k@ on @a@ and the body of @b@,
 --   and puts the 'Lam's back.  @a@ is raised correctly
 --   according to the number of abstractions.
-underLambdas :: Subst a => Int -> (a -> Term -> Term) -> a -> Term -> Term
+underLambdas :: Subst Term a => Int -> (a -> Term -> Term) -> a -> Term -> Term
 underLambdas n cont a v = loop n a v where
   loop 0 a v = cont a v
   loop n a v = case ignoreSharing v of
@@ -1050,10 +1063,10 @@ deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)
 deriving instance Eq Candidate
 
-deriving instance (Subst a, Eq a) => Eq (Elim' a)
-deriving instance (Subst a, Ord a) => Ord (Elim' a)
-deriving instance (Subst a, Eq a) => Eq (Tele a)
-deriving instance (Subst a, Ord a) => Ord (Tele a)
+deriving instance (Subst t a, Eq a)  => Eq  (Elim' a)
+deriving instance (Subst t a, Ord a) => Ord (Elim' a)
+deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
+deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
 deriving instance Eq Constraint
 
@@ -1124,12 +1137,12 @@ instance Ord Term where
   _          `compare` MetaV{}    = GT
   DontCare{} `compare` DontCare{} = EQ
 
-instance (Subst a, Eq a) => Eq (Abs a) where
+instance (Subst t a, Eq a) => Eq (Abs a) where
   NoAbs _ a == NoAbs _ b = a == b
   Abs   _ a == Abs   _ b = a == b
   a         == b         = absBody a == absBody b
 
-instance (Subst a, Ord a) => Ord (Abs a) where
+instance (Subst t a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b
