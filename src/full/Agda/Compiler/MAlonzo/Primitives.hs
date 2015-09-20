@@ -80,67 +80,6 @@ importsForPrim =
   ]
   where (|->) = (,)
 
--- Declarations of helper functions for BUILT-INs
-declsForPrim :: TCM [HS.Decl]
-declsForPrim = xForPrim $
-  [ "LIST"   |-> forList mazListToHList mazHListToList
-  , "STRING" |-> forList mazListToString mazStringToList
-  , "BOOL"   |-> decls ["TRUE", "FALSE"]
-       mazBoolToHBool "let { f <<0>> = True; f <<1>> = False; } in f"
-       mazHBoolToBool "let { f True = <<0>>; f False = <<1>>; } in f"
-  , "CHAR"   |-> return
-                 [ fakeDS mazCharToInteger
-                   "(fromIntegral . Data.Char.ord :: Char -> Integer)"
-                 ]
-  ]
-  where
-    infix 1 |->
-    (|->) = (,)
-    forList toH toA = decls ["NIL", "CONS"]
-       toH (concat
-           ["let { f <<0>>        = [];"
-           ,"      f (<<1>> x xs) = x : f (" ++ prettyPrint mazCoerce ++ " xs)"
-           ,"} in f"])
-       toA (concat
-           ["let { f []     = <<0>>;"
-           ,"      f (c:cs) = <<1>> c (" ++ prettyPrint mazCoerce ++ " (f cs));"
-           ,"} in f"])
-    natToFrom hty to from = let
-        totxt   = repl ["<<0>>", "<<1>>", hty, to] $ concat
-                  [ "\\ x -> case x of { <<0>> -> 0 :: <<2>>; "
-                  , "<<1>> x -> 1 + (<<3>> (" ++ prettyPrint mazCoerce ++ " x)) }" ]
-        fromtxt = repl ["<<0>>", "<<1>>", hty, from] $ concat
-                  [ "\\ x -> if x <= (0 :: <<2>>) then <<0>> "
-                  , "else <<1>> (" ++ prettyPrint mazCoerce ++ " (<<3>> (x - 1)))" ]
-      in do
-        ds <- decls ["ZERO", "SUC"] to totxt from fromtxt
-        let rule name = HS.Rule name HS.AlwaysActive (Just [HS.RuleVar $ HS.Ident "x"])
-            qname = HS.UnQual . HS.Ident
-            var   = HS.Var . qname
-            (%) = HS.App
-        return $ [HS.RulePragmaDecl dummy
-                  [ rule (to ++ "-" ++ from) (var to   % (var from % var "x")) (var "x")
-                  , rule (from ++ "-" ++ to) (var from % (var to   % var "x")) (var "x")
-                  ],
-                  HS.InlineSig dummy True (HS.ActiveFrom 2) (qname to),
-                  HS.InlineSig dummy True (HS.ActiveFrom 2) (qname from)
-                  ] ++ ds
-    decls cs n1 b1 n2 b2 =
-      do cs' <- mapM pconName cs
-         return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
-
-mazCharToInteger,
-  mazListToHList, mazHListToList, mazListToString, mazStringToList,
-  mazBoolToHBool, mazHBoolToBool :: String
-
-mazCharToInteger = "mazCharToInteger"
-mazListToHList   = "mazListToHList"
-mazHListToList   = "mazHListToList"
-mazListToString  = "mazListToString"
-mazStringToList  = "mazStringToList"
-mazBoolToHBool   = "mazBoolToHBool"
-mazHBoolToBool   = "mazHBoolToBool"
-
 --------------
 
 xForPrim :: [(String, TCM [a])] -> TCM [a]
@@ -206,14 +145,14 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"
-  , "primIsLower"        |-> pred "Data.Char.isLower"
-  , "primIsDigit"        |-> pred "Data.Char.isDigit"
-  , "primIsAlpha"        |-> pred "Data.Char.isAlpha"
-  , "primIsSpace"        |-> pred "Data.Char.isSpace"
-  , "primIsAscii"        |-> pred "Data.Char.isAscii"
-  , "primIsLatin1"       |-> pred "Data.Char.isLatin1"
-  , "primIsPrint"        |-> pred "Data.Char.isPrint"
-  , "primIsHexDigit"     |-> pred "Data.Char.isHexDigit"
+  , "primIsLower"        |-> return "Data.Char.isLower"
+  , "primIsDigit"        |-> return "Data.Char.isDigit"
+  , "primIsAlpha"        |-> return "Data.Char.isAlpha"
+  , "primIsSpace"        |-> return "Data.Char.isSpace"
+  , "primIsAscii"        |-> return "Data.Char.isAscii"
+  , "primIsLatin1"       |-> return "Data.Char.isLatin1"
+  , "primIsPrint"        |-> return "Data.Char.isPrint"
+  , "primIsHexDigit"     |-> return "Data.Char.isHexDigit"
   , "primToUpper"        |-> return "Data.Char.toUpper"
   , "primToLower"        |-> return "Data.Char.toLower"
   , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
@@ -221,8 +160,8 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primShowChar"  |-> return "(show :: Char -> String)"
 
   -- String functions
-  , "primStringToList"   |-> bltQual' "STRING" mazStringToList
-  , "primStringFromList" |-> bltQual' "STRING" mazListToString
+  , "primStringToList"   |-> return "(id :: String -> String)"
+  , "primStringFromList" |-> return "(id :: String -> String)"
   , "primStringAppend"   |-> binAsis "(++)" "String"
   , "primStringEquality" |-> rel "(==)" "String"
   , "primShowString"     |-> return "(show :: String -> String)"
@@ -253,16 +192,12 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   binNat4 op = return $ repl [op] "(<<0>> :: Integer -> Integer -> Integer -> Integer -> Integer)"
   binAsis op ty = return $ repl [op, opty ty] $ "((<<0>>) :: <<1>>)"
   rel' toTy op ty = do
-    toHB <- bltQual' "BOOL" mazHBoolToBool
-    return $ repl [op, ty, toHB, toTy] $
-      "(\\ x y -> <<2>> ((<<0>> :: <<1>> -> <<1>> -> Bool) (<<3>> x) (<<3>> y)))"
+    return $ repl [op, ty, toTy] $
+      "(\\ x y -> (<<0>> :: <<1>> -> <<1>> -> Bool) (<<2>> x) (<<2>> y))"
   relNat op = do
-    toHB <- bltQual' "BOOL" mazHBoolToBool
-    return $ repl [op, toHB] $
-      "(\\ x y -> <<1>> (<<0>> (x :: Integer) (y :: Integer)))"
+    return $ repl [op] $
+      "(<<0>> :: Integer -> Integer -> Bool)"
   rel op ty  = rel' "" op ty
-  pred p = do toHB <- bltQual' "BOOL" mazHBoolToBool
-              return $ repl [p, toHB] $ "(\\ x -> <<1>> (<<0>> x))"
   opty t = t ++ "->" ++ t ++ "->" ++ t
   unimplemented = typeError $ NotImplemented s
 

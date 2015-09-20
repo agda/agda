@@ -147,7 +147,7 @@ definitions :: Definitions -> TCM [HS.Decl]
 definitions defs = do
   kit <- coinductionKit
   HMap.foldr (liftM2 (++) . (definition kit <=< instantiateFull))
-             declsForPrim defs
+             (return []) defs
 
 -- | Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):
