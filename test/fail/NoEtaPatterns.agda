@@ -1,13 +1,12 @@
 
 record _×_ (A B : Set) : Set where
+  no-eta-equality
   constructor _,_
   field
     fst : A
     snd : B
 
 open _×_
-
-{-# NO_ETA _×_ #-}
 
 swap : ∀ {A B} → A × B → B × A
 swap (x , y) = y , x

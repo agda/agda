@@ -95,8 +95,8 @@ getConstructorInfo c = do
     Constructor{ conData = d, conPars = n } -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Record{ recFields = fs, recEtaEquality = eta } ->
-           return $ RecordCon (if eta then YesEta else NoEta) fs
+        r@Record{ recFields = fs } ->
+           return $ RecordCon (if recEtaEquality r then YesEta else NoEta) fs
         Datatype{} -> do
           -- TODO: I do not want to take the type of constructor apart
           -- to see its arity!

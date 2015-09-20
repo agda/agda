@@ -1246,7 +1246,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind cm pars fields -> do
+    C.RecDef r f a x ind eta cm pars fields -> do
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
@@ -1271,7 +1271,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         cm' <- mapM (\(ThingWithFixity c f, _) -> bindConstructorName m c f a p YesRec) cm
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' ind cm' pars contel afields ]
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' ind eta cm' pars contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -1560,22 +1560,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImportUHCPragma _ i) = do
       addHaskellImportUHC i
       return []
-    toAbstract (C.EtaPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.EtaPragma x ]
-        _       -> do
-         e <- showA e
-         genericError $ "Pragma ETA: expected identifier, " ++
-           "but found expression " ++ e
-    toAbstract (C.NoEtaPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.NoEtaPragma x ]
-        _       -> do
-         e <- showA e
-         genericError $ "Pragma NO_ETA: expected identifier, " ++
-           "but found expression " ++ e
     toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
       let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
           getHead (C.IdentP x)          = return x

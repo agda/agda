@@ -116,38 +116,15 @@ Pragmas and options
     not work properly if the type of f computes to an implicit function space
     after pattern matching.
 
-* New pragma {-# NO_ETA R #-}
+* Removed pragma {-# ETA R #-}
 
-  The pragma {-# NO_ETA R #-} disables eta rules for the record type R.
+  The pragma {-# ETA R #-} is replaced by the eta-equality directive
+  inside record declarations.
 
-  record Σ (A : Set) (B : A -> Set) : Set where
-    inductive
-    constructor _,_
-    field
-      fst : A
-      snd : B fst
-  open Σ
+* New option --no-eta-equality.
 
-  {-# NO_ETA Σ #-}
-
-  -- fail : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
-  -- fail x = refl
-  --
-  -- x != fst x , snd x of type Σ .A .B
-  -- when checking that the expression refl has type x ≡ (fst x , snd x)
-
-
-  The effect can be reverted with the {-# ETA R #-} pragma.
-
-  {-# ETA Σ #-}
-
-  works : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
-  works x = refl
-
-* New option --no-eta.
-
-  The --no-eta flag disables eta rules for declared record types.
-  It has the same effect as {-# NO_ETA R #-} after each declaration of
+  The --no-eta-equality flag disables eta rules for declared record types.
+  It has the same effect as no-eta-equality inside each declaration of
   a record type R.
 
   If used with the OPTIONS pragma it will not affect records defined
@@ -613,6 +590,24 @@ Other changes
   For example, the types [Nat], [List Nat], and [x ≡ x] (where x : Nat) are
   all recognized by Agda as satisfying K.
 
+* New record directives eta-equality/no-eta-equality
+
+  The keywords eta-equality/no-eta-equality enable/disable eta rules
+  for the (inductive) record type being declared.
+
+  record Σ (A : Set) (B : A -> Set) : Set where
+    no-eta-equality
+    constructor _,_
+    field
+      fst : A
+      snd : B fst
+  open Σ
+
+  -- fail : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
+  -- fail x = refl
+  --
+  -- x != fst x , snd x of type Σ .A .B
+  -- when checking that the expression refl has type x ≡ (fst x , snd x)
 
 
 Goal and error display

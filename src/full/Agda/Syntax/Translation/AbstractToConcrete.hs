@@ -613,8 +613,8 @@ instance ToConcrete AsWhereDecls WhereClause where
     ret . AnyWhere =<< declsToConcrete ds
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
-mergeSigAndDef (C.RecordSig _ x bs e : C.Record r y ind c _ Nothing fs : ds)
-  | x == y = C.Record r y ind c bs (Just e) fs : mergeSigAndDef ds
+mergeSigAndDef (C.RecordSig _ x bs e : C.Record r y ind eta c _ Nothing fs : ds)
+  | x == y = C.Record r y ind eta c bs (Just e) fs : mergeSigAndDef ds
 mergeSigAndDef (C.DataSig _ _ x bs e : C.Data r i y _ Nothing cs : ds)
   | x == y = C.Data r i y bs (Just e) cs : mergeSigAndDef ds
 mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
@@ -758,11 +758,11 @@ instance ToConcrete A.Declaration [C.Declaration] where
       t' <- toConcreteTop t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull $ concat tel') t' ]
 
-  toConcrete (A.RecDef  i x ind c bs t cs) =
+  toConcrete (A.RecDef  i x ind eta c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' ind Nothing (concat tel') Nothing cs' ]
+      return [ C.Record (getRange i) x' ind eta Nothing (concat tel') Nothing cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 
@@ -845,8 +845,6 @@ instance ToConcrete RangeAndPragma C.Pragma where
       return $ C.CompiledDataUHCPragma r x crd crcs
     A.NoSmashingPragma x -> C.NoSmashingPragma r <$> toConcrete x
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
-    A.EtaPragma x    -> C.EtaPragma    r <$> toConcrete x
-    A.NoEtaPragma x  -> C.NoEtaPragma  r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
       C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) f ps) <*> toConcrete rhs
 

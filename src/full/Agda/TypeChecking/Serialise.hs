@@ -1325,6 +1325,14 @@ instance EmbPrj CompiledRepresentation where
   value = vcase valu where valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
                            valu _         = malformed
 
+instance EmbPrj EtaEquality where
+  icod_ (Specified a) = icode1 0 a
+  icod_ (Inferred a)  = icode1 1 a
+  value = vcase valu where
+    valu [0,a] = valu1 Specified a
+    valu [1,a] = valu1 Inferred a
+    valu _     = malformed
+
 instance EmbPrj Defn where
   icod_ Axiom                                   = icode0 0
   icod_ (Function    a b c d e f g h i j k l m n) = icode14 1 a b c d e f g h i j k l m n

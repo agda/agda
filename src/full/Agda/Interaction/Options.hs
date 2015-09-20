@@ -656,7 +656,7 @@ pragmaOptions =
                     "require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)"
     , Option []     ["no-exact-split"] (NoArg noExactSplitFlag)
                     "do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)"
-    , Option []     ["no-eta"] (NoArg noEtaFlag)
+    , Option []     ["no-eta-equality"] (NoArg noEtaFlag)
                     "disable eta rules for records"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"

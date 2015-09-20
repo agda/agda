@@ -60,7 +60,7 @@ Usage: agda [OPTIONS...] [FILE]
           --no-pattern-matching                       disable pattern matching completely
           --exact-split                               require all clauses in a definition by pattern matching to hold as definitional equalities (except those marked as CATCHALL)
           --no-exact-split                            do not require all clauses in a definition by pattern matching to hold as definitional equalities (ignore those marked as CATCHALL)
-          --no-eta                                    disable eta rules for records
+          --no-eta-equality                           disable eta rules for records
           --rewriting                                 enable declaration and use of REWRITE rules
 
 Plugins:

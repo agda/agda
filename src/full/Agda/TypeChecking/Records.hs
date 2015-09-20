@@ -215,7 +215,7 @@ isGeneratedRecordConstructor c = do
 --   No eta-expansion.  Projections do not preserve guardedness.
 unguardedRecord :: QName -> TCM ()
 unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ updateRecord
-  where updateRecord r@Record{} = r { recEtaEquality = False, recRecursive = True }
+  where updateRecord r@Record{} = r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False, recRecursive = True }
         updateRecord _          = __IMPOSSIBLE__
 
 -- | Mark record type as recursive.
@@ -381,8 +381,8 @@ etaExpandRecord_ r pars def u = do
   let Record{ recConHead     = con
             , recFields      = xs
             , recTel         = tel
-            , recEtaEquality = eta
             } = def
+      eta = recEtaEquality def
       tel' = apply tel pars
   unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
   case ignoreSharing u of

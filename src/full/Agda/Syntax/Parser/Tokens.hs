@@ -15,11 +15,12 @@ data Keyword
         | KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
         | KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
         | KwInductive | KwCoInductive
+        | KwEta | KwNoEta
         | KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
         | KwOPTIONS | KwBUILTIN | KwLINE
         | KwCOMPILED_DATA | KwCOMPILED_DECLARE_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EXPORT
         | KwCOMPILED_EPIC | KwCOMPILED_JS | KwCOMPILED_UHC | KwCOMPILED_DATA_UHC
-        | KwIMPORT | KwIMPORT_UHC | KwIMPOSSIBLE | KwETA | KwNO_ETA | KwSTATIC | KwNO_SMASHING
+        | KwIMPORT | KwIMPORT_UHC | KwIMPOSSIBLE | KwSTATIC | KwNO_SMASHING
         | KwNO_TERMINATION_CHECK | KwTERMINATING | KwNON_TERMINATING
         | KwMEASURE | KwDISPLAY
         | KwREWRITE

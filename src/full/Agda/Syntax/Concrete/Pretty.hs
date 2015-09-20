@@ -358,13 +358,14 @@ instance Pretty Declaration where
                             , pretty e
                             ]
                     ]
-            Record _ x ind con tel me cs ->
+            Record _ x ind eta con tel me cs ->
                 sep [ hsep  [ text "record"
                             , pretty x
                             , fcat (map pretty tel)
                             ]
                     , nest 2 $ pType me
                     ] $$ nest 2 (vcat $ pInd ++
+                                        pEta ++
                                         pCon ++
                                         map pretty cs)
               where pType (Just e) = hsep
@@ -375,6 +376,7 @@ instance Pretty Declaration where
                     pType Nothing  =
                               text "where"
                     pInd = maybeToList $ text . show . rangedThing <$> ind
+                    pEta = maybeToList $ (\x -> if x then text "eta-equality" else text "no-eta-equality") <$> eta
                     pCon = maybeToList $ (text "constructor" <+>) . pretty <$> fst <$> con
             Infix f xs  ->
                 pretty f <+> (fsep $ punctuate comma $ map pretty xs)
@@ -461,10 +463,6 @@ instance Pretty Pragma where
       hsep $ [text "IMPORT_UHC", text i]
     pretty (ImpossiblePragma _) =
       hsep $ [text "IMPOSSIBLE"]
-    pretty (EtaPragma _ x) =
-      hsep $ [text "ETA", pretty x]
-    pretty (NoEtaPragma _ x) =
-      hsep $ [text "NO_ETA", pretty x]
     pretty (TerminationCheckPragma _ tc) =
       case tc of
         TerminationCheck       -> __IMPOSSIBLE__

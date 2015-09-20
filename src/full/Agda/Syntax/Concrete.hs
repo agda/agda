@@ -381,7 +381,7 @@ data Declaration
   | DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        !Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
   | RecordSig   !Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | Record      !Range Name (Maybe (Ranged Induction)) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
+  | Record      !Range Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
     -- ^ The optional name is a name for the record constructor.
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name
@@ -434,8 +434,6 @@ data Pragma
   | ImportUHCPragma        !Range String
     -- ^ same as above, but for the UHC backend
   | ImpossiblePragma       !Range
-  | EtaPragma              !Range QName
-  | NoEtaPragma            !Range QName
   | TerminationCheckPragma !Range (TerminationCheck Name)
   | CatchallPragma         !Range
   | DisplayPragma          !Range Pattern Expr
@@ -618,7 +616,7 @@ instance HasRange Declaration where
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (Record r _ _ _ _ _ _)  = r
+  getRange (Record r _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
   getRange (Open r _ _)            = r
@@ -667,8 +665,6 @@ instance HasRange Pragma where
   getRange (ImportPragma r _)           = r
   getRange (ImportUHCPragma r _)        = r
   getRange (ImpossiblePragma r)         = r
-  getRange (EtaPragma r _)              = r
-  getRange (NoEtaPragma r _)            = r
   getRange (TerminationCheckPragma r _) = r
   getRange (CatchallPragma r)           = r
   getRange (DisplayPragma r _ _)        = r
@@ -750,7 +746,7 @@ instance KillRange Declaration where
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
   killRange (Data _ i n l e c)      = killRange4 (Data noRange i) n l e c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (Record _ n mi mn k e d)= killRange6 (Record noRange) n mi mn k e d
+  killRange (Record _ n mi mb mn k e d)= killRange7 (Record noRange) n mi mb mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -863,8 +859,6 @@ instance KillRange Pragma where
   killRange (ImportPragma _ s)            = ImportPragma noRange s
   killRange (ImportUHCPragma _ s)         = ImportUHCPragma noRange s
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
-  killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
-  killRange (NoEtaPragma _ q)             = killRange1 (NoEtaPragma noRange) q
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)            = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)     = killRange2 (DisplayPragma noRange) lhs rhs

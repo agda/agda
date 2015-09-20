@@ -1,4 +1,4 @@
-NoEtaPatterns.agda:20,11-15
+NoEtaPatterns.agda:19,11-15
 swap p != snd p , fst p of type .B × .A
 when checking that the expression refl has type
 swap p ≡ (snd p , fst p)

@@ -185,6 +185,9 @@ instance HasRange Interval where
 instance HasRange Range where
     getRange = id
 
+instance HasRange Bool where
+    getRange _ = noRange
+
 instance HasRange a => HasRange [a] where
     getRange = foldr fuseRange noRange
 

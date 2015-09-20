@@ -7,8 +7,7 @@ data Prod (A B : Set) : Set where
 
 {-# ETA Prod #-}
 
--- The ETA pragma should (at most) work for records,
--- this should yield an error.
+-- The ETA pragma does not exist anymore.
 
 fst : {A B : Set} → Prod A B → A
 fst (pair a b) = a

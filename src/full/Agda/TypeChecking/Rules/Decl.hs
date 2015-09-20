@@ -166,8 +166,8 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x ind c ps tel cs -> mutual mi [d] $ check x i $ do
-                                    checkRecDef i x ind c ps tel cs
+      A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
+                                    checkRecDef i x ind eta c ps tel cs
                                     return (Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
@@ -346,8 +346,8 @@ highlight_ d = do
       -- Each block in the section has already been highlighted,
       -- all that remains is the module declaration.
     A.RecSig{}               -> highlight d
-    A.RecDef i x ind c ps tel cs ->
-      highlight (A.RecDef i x ind c [] tel (fields cs))
+    A.RecDef i x ind eta c ps tel cs ->
+      highlight (A.RecDef i x ind eta c [] tel (fields cs))
       -- The telescope and all record module declarations except
       -- for the fields have already been highlighted.
       where
@@ -386,7 +386,7 @@ checkPositivity_ names = Bench.billTo [Bench.Positivity] $ do
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
-  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ -> setCurrentRange r $ do
+  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ _ -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()
@@ -658,19 +658,7 @@ checkPragma r p =
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
-        A.EtaPragma r -> etaPragmas True r
-        A.NoEtaPragma r -> etaPragmas False r
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
-  where
-    etaPragmas b r = do
-          let name = if b then "ETA" else "NO_ETA"
-          whenNothingM (isRecord r) $
-            typeError $ GenericError $ name ++ " pragma is only applicable to records"
-          modifySignature $ updateDefinition r $ updateTheDef $ setEta
-          where
-            setEta d = case d of
-              Record{} -> d { recEtaEquality = b }
-              _        -> __IMPOSSIBLE__
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --
