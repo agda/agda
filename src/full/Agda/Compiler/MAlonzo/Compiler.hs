@@ -409,6 +409,7 @@ term tm0 = case tm0 of
     if Just q == (nameOfSharp <$> kit)
       then HS.Var <$> lift (xhqn "d" q)
       else hsCast' . HS.Con <$> lift (conhqn q)
+  T.TPrim p  -> return $ compilePrim p
   T.TPi _ _  -> return HS.unit_con
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
@@ -416,6 +417,14 @@ term tm0 = case tm0 of
   T.TError e -> return $ case e of
     T.TPatternMatchFailure funNm ->  rtmIncompleteMatch funNm
   where apps =  foldM (\ h a -> HS.App h <$> term a)
+
+compilePrim :: String -> HS.Exp
+compilePrim s =
+  case s of
+    "div" -> fakeExp "(div :: Integer -> Integer -> Integer)"
+    "mod" -> fakeExp "(mod :: Integer -> Integer -> Integer)"
+    "-"   -> fakeExp "((-) :: Integer -> Integer -> Integer)"
+    _     -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt
 alt a = do

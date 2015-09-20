@@ -32,6 +32,7 @@ import Data.Orphans             ()
 
 import Data.Typeable (Typeable)
 
+import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
@@ -48,7 +49,7 @@ data TModule
   deriving (Typeable, Show)
 
 data TType = TType { unEl :: TTerm }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq, Ord)
 
 data Def a
   = Def
@@ -93,6 +94,7 @@ data FunDef'
 --
 -- All local variables are using de Bruijn indices.
 data TTerm = TVar Int
+           | TPrim String
            | TDef QName
            | TApp TTerm Args
            | TLam TTerm
@@ -113,7 +115,7 @@ data TTerm = TVar Int
            | TErased
            | TError TError
            -- ^ A runtime error, something bad has happened.
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq, Ord)
 
 mkTApp :: TTerm -> Args -> TTerm
 mkTApp x [] = x
@@ -123,13 +125,15 @@ mkTApp x as = TApp x as
 mkLet :: TTerm -> TTerm -> TTerm
 mkLet x body = TLet x body
 
+tInt :: Integer -> TTerm
+tInt = TLit . LitInt noRange
 
 data CaseType
   = CTData QName -- case on datatype
   | CTChar
   | CTString
   | CTQName
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq, Ord)
 
 data TAlt
   = TACon    { aCon  :: QName, aArity :: Int, aBody :: TTerm }
@@ -139,8 +143,8 @@ data TAlt
   | TAPlus   { aSucs :: Integer, aBody :: TTerm }
   -- ^ n+k pattern
   | TALit    { aLit :: Literal,   aBody:: TTerm }
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq, Ord)
 
 data TError
   = TPatternMatchFailure QName -- function name
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq, Ord)

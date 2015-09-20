@@ -18,6 +18,7 @@ instance Subst TTerm TTerm where
     TDef{}    -> t
     TLit{}    -> t
     TCon{}    -> t
+    TPrim{}   -> t
     TUnit{}   -> t
     TSort{}   -> t
     TErased{} -> t

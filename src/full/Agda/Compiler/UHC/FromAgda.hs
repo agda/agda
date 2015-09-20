@@ -268,6 +268,7 @@ addToEnv nms cont =
 --   names in the position.
 substTerm :: C.TTerm -> NM A.Expr
 substTerm term = case term of
+    C.TPrim _ -> __IMPOSSIBLE__ -- TODO
     C.TVar x -> do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
       return $ A.Var nm

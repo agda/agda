@@ -37,11 +37,11 @@ transform isZero isSuc = tr
   where
     tr t = case t of
 
-      TCon c | isZero c -> TLit (LitInt noRange 0)
+      TCon c | isZero c -> tInt 0
              | isSuc c  -> TLam (TPlus 1 (TVar 0))
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
-          TLit (LitInt r n) -> TLit (LitInt r (n + 1))
+          TLit (LitInt r n) -> tInt (n + 1)
           TPlus i e         -> TPlus (i + 1) e
           e                 -> TPlus 1 e
 
@@ -69,6 +69,7 @@ transform isZero isSuc = tr
       TVar{}    -> t
       TDef{}    -> t
       TCon{}    -> t
+      TPrim{}   -> t
       TLit{}    -> t
       TUnit{}   -> t
       TSort{}   -> t
