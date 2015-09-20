@@ -852,20 +852,3 @@ tests :: IO Bool
 tests = do
   putStrLn "Agda.Syntax.Position"
   $quickCheckAll
-
--- tests = runTests "Agda.Syntax.Position"
---   [ quickCheck' (positionInvariant :: Position -> Bool)
---   , quickCheck' intervalInvariant
---   , quickCheck' rangeInvariant
---   , quickCheck' prop_iLength
---   , quickCheck' prop_startPos
---   , quickCheck' prop_noRange
---   , quickCheck' prop_takeI_dropI
---   , quickCheck' prop_rangeToInterval
---   , quickCheck' prop_continuous
---   , quickCheck' prop_fuseIntervals
---   , quickCheck' prop_fuseRanges
---   , quickCheck' prop_beginningOf
---   , quickCheck' prop_beginningOfFile
---   , quickCheck' prop_intervalInSameFileAs
---   ]
