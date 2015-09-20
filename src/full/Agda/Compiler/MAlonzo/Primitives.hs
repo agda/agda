@@ -225,16 +225,5 @@ pconName s = toS . ignoreSharing =<< getBuiltin s where
   toS (Lam _ t) = toS (unAbs t)
   toS _ = mazerror $ "pconName" ++ s
 
-hasCompiledData :: [String] -> TCM Bool
-hasCompiledData (s:_) = toB =<< getBuiltin s where
-  toB (Con q _)         = do
-    def <- getConstInfo =<< ignoreAbstractMode (canonicalName (conName q))
-    return $ case compiledHaskell $ defCompiledRep def of
-      Just{}  -> True
-      Nothing -> False
-  toB (Lam _ t) = toB (unAbs t)
-  toB _         = return False
-hasCompiledData _    = return False
-
 bltQual' :: String -> String -> TCM String
 bltQual' b s = prettyPrint <$> bltQual b s
