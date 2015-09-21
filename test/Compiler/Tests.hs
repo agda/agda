@@ -75,6 +75,8 @@ disabledTests =
   [ RFInclude "Compiler/.*/with-stdlib"
 -- See issue 1528
   , RFInclude "Compiler/.*/simple/Sharing"
+-- Runs out of stack space with UHC
+  , RFInclude "Compiler/UHC/simple/VecReverse"
 -- Disable UHC backend tests if the backend is also disabled.
 #if !defined(UHC_BACKEND)
   , RFInclude "Compiler/UHC/"
