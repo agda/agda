@@ -40,8 +40,8 @@ import Agda.Utils.Impossible
     in different locations are equal.
 -}
 data Name
-  = Name !Range [NamePart]  -- ^ A (mixfix) identifier.
-  | NoName !Range NameId    -- ^ @_@.
+  = Name Range [NamePart]  -- ^ A (mixfix) identifier.
+  | NoName Range NameId    -- ^ @_@.
   deriving (Typeable)
 
 instance Underscore Name where

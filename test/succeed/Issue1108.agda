@@ -1,5 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
-
 infixr 6 _∷_
 
 data List (A : Set) : Set where
@@ -213,7 +211,3 @@ long =
  t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷
  t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷ t ∷
  []
-
-meta : Set
-meta = _
-

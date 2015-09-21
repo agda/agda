@@ -45,7 +45,7 @@ import Agda.Utils.Impossible
 --   source location of the binding site is also recorded.
 data Name = Name { nameId          :: !NameId
                  , nameConcrete    :: C.Name
-                 , nameBindingSite :: !Range
+                 , nameBindingSite :: Range
                  , nameFixity      :: Fixity'
                  }
     deriving (Typeable)

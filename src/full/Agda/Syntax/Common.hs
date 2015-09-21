@@ -651,7 +651,7 @@ updateNamedArg = fmap . fmap
 
 -- | Thing with range info.
 data Ranged a = Ranged
-  { rangeOf     :: !Range
+  { rangeOf     :: Range
   , rangedThing :: a
   }
   deriving (Typeable, Functor, Foldable, Traversable)
@@ -840,7 +840,7 @@ data TerminationCheck m
     -- ^ Treat as non-terminating.
   | Terminating
     -- ^ Treat as terminating (unsafe).  Same effect as 'NoTerminationCheck'.
-  | TerminationMeasure !Range m
+  | TerminationMeasure Range m
     -- ^ Skip termination checking but use measure instead.
     deriving (Typeable, Show, Eq, Functor)
 
