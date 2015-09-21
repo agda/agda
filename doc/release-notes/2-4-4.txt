@@ -764,6 +764,22 @@ Compiler backends
         postulate hs-return : {A : Set} -> A -> IO A
         {-# COMPILED_UHC hs-return (\_ -> UHC.Agda.Builtins.primReturn) #-}
 
+Emacs mode
+==========
+
+* Less aggressive error notification.
+
+  Previously Emacs could jump to the position of an error even if the
+  type-checking process was not initiated in the current buffer. Now
+  this no longer happens: If the type-checking process was initiated
+  in another buffer, then the cursor is moved to the position of the
+  error in the buffer visiting the file (if any) and in every window
+  displaying the file, but focus should not change from one file to
+  another.
+
+  In the cases where focus does change from one file to another, one
+  can now use the go-back functionality to return to the previous
+  position.
 
 Tools
 =====
@@ -790,4 +806,3 @@ agda-ghc-names
   the MAlonzo-generated Haskell identifiers.
 
   For usage and more details, see src/agda-ghc-names/README.txt.
-
