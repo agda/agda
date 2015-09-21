@@ -79,4 +79,4 @@ getResolveHsNamesMap dir = let mapFile = dir </> hsIdentMapFilename in do
             return r
           Right r -> do
             hPutStrLn stderr $ "read " ++ mapFile
-            return r 
+            return r

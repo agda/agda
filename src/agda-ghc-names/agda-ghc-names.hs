@@ -34,7 +34,7 @@ extract args = case args of
       (outFile, _) <- writeResolveHsNamesMap dir
       hPutStrLn stderr $ "wrote " ++ outFile
     _ -> printUsage "extract <directory>"
-  
+
 fixprof :: [String] -> IO ()
 fixprof args = case args of
     "+m" : args' -> fixProf' True args'

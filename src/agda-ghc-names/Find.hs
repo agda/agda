@@ -47,4 +47,4 @@ find printUsage args0 = let
       case hsIdents of
           [] -> interact resolve
           _ -> mapM_ (putStrLn . resolve) hsIdents
-      
+
