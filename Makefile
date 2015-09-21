@@ -34,20 +34,24 @@ prof : install-prof-bin
 
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install --enable-tests --disable-library-profiling --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install --enable-tests --disable-documentation \
+	  --disable-library-profiling $(CABAL_OPTS)
 
 .PHONY : install-O0-bin
 install-O0-bin :
-	$(CABAL_CMD) install -O0 --disable-library-profiling --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install -O0 --enable-tests --disable-documentation \
+	  --disable-library-profiling $(CABAL_OPTS)
 
 .PHONY : install-O2-bin
 install-O2-bin :
-	$(CABAL_CMD) install -O2 --disable-library-profiling --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install -O2 --enable-tests --disable-documentation \
+	  --disable-library-profiling $(CABAL_OPTS)
 
 .PHONY : install-prof-bin
 install-prof-bin :
-	$(CABAL_CMD) install --enable-library-profiling --enable-profiling \
-                             --program-suffix=_p --disable-documentation $(CABAL_OPTS)
+	$(CABAL_CMD) install --enable-tests --disable-documentation \
+	  --enable-library-profiling --enable-profiling \
+          --program-suffix=_p $(CABAL_OPTS)
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
