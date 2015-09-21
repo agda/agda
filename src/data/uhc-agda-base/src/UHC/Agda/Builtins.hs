@@ -1,6 +1,10 @@
 module UHC.Agda.Builtins
   ( -- Integer
     primShowInteger
+  , primIntegerDiv
+  , primIntegerMod
+  , primIntegerMinus
+  , primIntegerPlus
     -- Levels
   , primLevelZero
   , primLevelSuc
@@ -89,6 +93,18 @@ notImplError f = error $ "Feature " ++ f ++ " is not implemented in the UHC back
 primShowInteger :: Integer -> String
 primShowInteger = show
 
+primIntegerDiv :: Integer -> Integer -> Integer
+primIntegerDiv = div
+
+primIntegerMod :: Integer -> Integer -> Integer
+primIntegerMod = mod
+
+primIntegerMinus :: Integer -> Integer -> Integer
+primIntegerMinus = (-)
+
+primIntegerPlus :: Integer -> Integer -> Integer
+primIntegerPlus = (+)
+
 -- ====================
 -- Levels
 -- ====================
@@ -109,43 +125,34 @@ primLevelMax _ _ = ()
 -- In the long term, we should either make sure that uhc optimizes Nats to Integers
 -- or do something clever here
 
-data Nat = Zero | Suc Nat
+type Nat = Integer
 
 primNatToInteger :: Nat -> Integer
-primNatToInteger (Zero) = 0
-primNatToInteger (Suc n) = 1 + primNatToInteger n
+primNatToInteger = id
 
 primIntegerToNat :: Integer -> Nat
-primIntegerToNat i | i < 0  = error "Negative integers cannot be converted to Nat."
-primIntegerToNat i | i == 0 = Zero
-primIntegerToNat i | i > 0  = Suc (primIntegerToNat (i - 1))
+primIntegerToNat = id
 
 primNatPlus :: Nat -> Nat -> Nat
-primNatPlus Zero b = b
-primNatPlus (Suc a) b = Suc (a `primNatPlus` b)
+primNatPlus = (+)
 
 primNatTimes :: Nat -> Nat -> Nat
-primNatTimes Zero b = Zero
-primNatTimes (Suc a) b = (a `primNatTimes` b) `primNatPlus` b
+primNatTimes = (*)
 
 primNatMinus :: Nat -> Nat -> Nat
-primNatMinus a Zero = a
-primNatMinus (Suc a) (Suc b) = a `primNatMinus` b
-primNatMinus Zero _ = Zero
+primNatMins = (-)
 
 primNatDivSuc :: Nat -> Nat -> Nat
-primNatDivSuc x y = primIntegerToNat $ div (primNatToInteger x) (primNatToInteger y + 1)
+primNatDivSuc x y = div x (y + 1)
 
 primNatDivSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
-primNatDivSucAux k m n j = primIntegerToNat $ k' + div (max 0 $ n' + m' - j') (m' + 1)
-  where [k', m', n', j'] = fmap primNatToInteger [k, m, n, j]
+primNatDivSucAux k m n j = k + div (max 0 $ n + m - j) (m + 1)
 
 primNatModSuc :: Nat -> Nat -> Nat
-primNatModSuc x y = primIntegerToNat $ mod (primNatToInteger x) (primNatToInteger y + 1)
+primNatModSuc x y = mod x (y + 1)
 
 primNatModSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
-primNatModSucAux k m n j = primIntegerToNat $ if n' > j' then mod (n' - j' - 1) (m' + 1) else k' + n'
-  where [k', m', n', j'] = fmap primNatToInteger [k, m, n, j]
+primNatModSucAux k m n j = if n > j then mod (n - j - 1) (m + 1) else k + n
 
 
 -- ====================

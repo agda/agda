@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 -- | Defines some primitive functions.
 module Agda.Compiler.UHC.Primitives
-  ( primFunctions
+  ( primFunNm
+  , primFunctions
   )
 where
 
@@ -24,10 +25,13 @@ import Data.Maybe
 
 import Agda.Compiler.UHC.Bridge
 
+primFunNm :: String -> HsName
+primFunNm = mkHsName ["UHC", "Agda", "Builtins"]
+
 -- | Primitives defined for the UHC backend. Maps primitive names to the core expression to be used as function body.
 primFunctions :: M.Map String ((CompileT TCM) CExpr)
 primFunctions = M.fromList $
-    [(n, return $ mkVar (mkHsName ["UHC", "Agda", "Builtins"] n)) | n <-
+    [(n, return $ mkVar (primFunNm n)) | n <-
         [
         -- Level
           "primLevelMax"

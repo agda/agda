@@ -268,7 +268,7 @@ addToEnv nms cont =
 --   names in the position.
 compileTerm :: C.TTerm -> NM A.Expr
 compileTerm term = case term of
-    C.TPrim _ -> __IMPOSSIBLE__ -- TODO
+    C.TPrim t -> return $ compilePrim t
     C.TVar x -> do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
       return $ A.Var nm
@@ -319,3 +319,9 @@ compileTerm term = case term of
     C.TError e -> return $ case e of
       C.TPatternMatchFailure funNm -> Error $ "Non-exhaustive patterns in function: " ++ P.prettyShow funNm
 
+compilePrim :: String -> A.Expr
+compilePrim "div" = A.Var $ primFunNm "primIntegerDiv"
+compilePrim "mod" = A.Var $ primFunNm "primIntegerMod"
+compilePrim "-" = A.Var $ primFunNm "primIntegerMinus"
+compilePrim "+" = A.Var $ primFunNm "primIntegerPlus"
+compilePrim _ = __IMPOSSIBLE__
