@@ -641,22 +641,32 @@ Type checking
 Compiler backends
 =================
 
-* Haskell backend (MAlonzo)
+* GHC Haskell backend (MAlonzo)
 
-  Builtin natural numbers are now properly represented as Haskell
-  Integers, and the builtin functions on natural numbers are compiled to
-  their corresponding Haskell functions. This means that you can no
-  longer give a {-# COMPILED_DATA #-} pragma for the builtin natural
-  number type.
+  - Builtin natural numbers
 
-  Note that pattern matching on an Integer is slower than on a unary
-  natural number, so code that does a lot of unary manipulations and
-  doesn't use builtin arithmetic will most likely become slower. If you
-  find that this is the case, it is recommended to use a different, but
-  isomorphic type to the builtin natural numbers.
+    Builtin natural numbers are now properly represented as Haskell
+    Integers, and the builtin functions on natural numbers are compiled to
+    their corresponding Haskell functions.
 
-  Builtin booleans are hard-wired to the Haskell booleans and thus
-  COMPILED_DATA for them are also disallowed.
+    Note that pattern matching on an Integer is slower than on a unary
+    natural number, so code that does a lot of unary manipulations and
+    doesn't use builtin arithmetic will most likely become slower. If you
+    find that this is the case, it is recommended to use a different, but
+    isomorphic type to the builtin natural numbers.
+
+  - Pragmas
+
+    Since builtin naturals are compiled to Integer you can no longer
+    give a {-# COMPILED_DATA #-} pragma for Nat. The same goes for
+    builtin booleans which are now hard-wired to Haskell booleans.
+
+  - Optimisations
+
+    Pattern matches with a single alternative is compiled to a lazy
+    match (using 'let' instead of 'case'). This means that matching on
+    'refl' will not force the proof, and programs using well-founded
+    recursion will be lazy in the accessibility proof.
 
 * UHC compiler backend
 
@@ -779,7 +789,7 @@ agda-ghc-names
 * New tool: THe command
 
     agda-ghc-names fixprof <compile-dir> <ProgName>.prof
-    
+
   converts *.prof files obtained from profiling runs of MAlonzo-compiled
   code to *.agdaIdents.prof, with the original Agda identifiers replacing
   the MAlonzo-generated Haskell identifiers.
