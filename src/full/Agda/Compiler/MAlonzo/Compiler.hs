@@ -393,7 +393,7 @@ term tm0 = case tm0 of
     t' `apps` ts
   T.TPlus k t -> do
     t' <- term t
-    return $ hsPrimOpApp "+" (hsInt k) t'
+    return $ hsPrimOpApp "+" (hsTypedInt k) t'
   T.TLam at -> do
     (nm:_) <- asks ccNameSupply
     intros 1 $ \ [x] ->
@@ -402,7 +402,7 @@ term tm0 = case tm0 of
     t1' <- term t1
     intros 1 $ \[x] -> do
       t2' <- term t2
-      return $ hsLet x t1' t2'
+      return $ hsLet x (hsCast t1') t2'
 
   -- Single clause case: turn into let binding
   -- Ulf, 2015-09-21: It's not clear that this is a good thing. Maybe we should
@@ -462,7 +462,7 @@ alt a = do
       intros     1 $ \[n] -> do
         b <- term b
         let qn' = HS.Var (HS.UnQual n')
-            ik  = hsInt k
+            ik  = hsTypedInt k
             g = [HS.Qualifier $ hsPrimOpApp ">=" qn' ik]
             body = hsLet n (hsPrimOpApp "-" qn' ik) b
         return $ HS.Alt dummy (HS.PVar n') (HS.GuardedRhss [HS.GuardedRhs dummy g body]) (HS.BDecls [])
@@ -493,8 +493,8 @@ hslit l = case l of LitInt    _ x -> HS.Int    x
 litqname :: QName -> HS.Exp
 litqname x =
   HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
-  hsInt n `HS.App`
-  hsInt m `HS.App`
+  hsTypedInt n `HS.App`
+  hsTypedInt m `HS.App`
   (rtmError "primQNameType: not implemented") `HS.App`
   (rtmError "primQNameDefinition: not implemented") `HS.App`
   HS.Lit (HS.String $ show x )
@@ -565,17 +565,21 @@ hsCast = addcast . go where
 hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` hsCastApp e2
-hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
-hsCast' (HS.Let bs e)      = HS.Let bs $ hsCast' e
-hsCast' (HS.Case sc alts)  = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
-hsCast' e = hsCoerce e
+hsCast' (HS.InfixApp e1 op e2) = hsCoerce $ HS.InfixApp (hsCast' e1) op (hsCast' e2)
+hsCast' (HS.Lambda _ ps e)     = HS.Lambda dummy ps $ hsCast' e
+hsCast' (HS.Let bs e)          = HS.Let bs $ hsCast' e
+hsCast' (HS.Case sc alts)      = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
+hsCast' e =
+  case hsAppView e of
+    f : es -> foldl HS.App (hsCoerce f) (map hsCastApp es)
+    _      -> __IMPOSSIBLE__
 
 -- We still have to coerce function applications in arguments to coerced
 -- functions.
 hsCastApp :: HS.Exp -> HS.Exp
 hsCastApp (HS.Lambda i ps b) = HS.Lambda i ps (hsCastApp b)
 hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
+hsCastApp (HS.InfixApp e1 op e2) = HS.InfixApp (hsCastApp e1) op (hsCastApp e2)
 hsCastApp e =
   case hsAppView e of
     f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es

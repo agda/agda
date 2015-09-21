@@ -121,13 +121,16 @@ xqual q n = do m1 <- tlmname (qnameModule q)
 xhqn :: String -> QName -> TCM HS.QName
 xhqn s q = xqual q (unqhname s q)
 
+hsName :: String -> HS.QName
+hsName s = HS.UnQual (HS.Ident s)
+
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> TCM HS.QName
 conhqn q = do
     cq  <- canonicalName q
     def <- getConstInfo cq
     case (compiledHaskell (defCompiledRep def), theDef def) of
-      (Just (HsDefn _ hs), Constructor{}) -> return $ HS.UnQual $ HS.Ident hs
+      (Just (HsDefn _ hs), Constructor{}) -> return $ hsName hs
       _                                   -> xhqn "C" cq
 
 -- qualify name s by the module of builtin b
@@ -150,6 +153,9 @@ hsPrimOpApp op e e1 = HS.InfixApp e (hsPrimOp op) e1
 hsInt :: Integer -> HS.Exp
 hsInt n = HS.Lit (HS.Int n)
 
+hsTypedInt :: Integer -> HS.Exp
+hsTypedInt n = HS.ExpTypeSig dummy (HS.Lit (HS.Int n)) (HS.TyCon (hsName "Integer"))
+
 hspLet :: HS.Pat -> HS.Exp -> HS.Exp -> HS.Exp
 hspLet p e b =
   HS.Let (HS.BDecls [HS.PatBind dummy p (HS.UnGuardedRhs e) (HS.BDecls [])]) b
@@ -165,7 +171,12 @@ hsAppView :: HS.Exp -> [HS.Exp]
 hsAppView = reverse . view
   where
     view (HS.App e e1) = e1 : view e
+    view (HS.InfixApp e1 op e2) = [e2, e1, hsOpToExp op]
     view e = [e]
+
+hsOpToExp :: HS.QOp -> HS.Exp
+hsOpToExp (HS.QVarOp x) = HS.Var x
+hsOpToExp (HS.QConOp x) = HS.Con x
 
 hsLambda :: [HS.Pat] -> HS.Exp -> HS.Exp
 hsLambda ps (HS.Lambda i ps1 e) = HS.Lambda i (ps ++ ps1) e
