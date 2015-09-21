@@ -403,7 +403,12 @@ term tm0 = case tm0 of
     intros 1 $ \[x] -> do
       t2' <- term t2
       return $ hsLet x t1' t2'
+
   -- Single clause case: turn into let binding
+  -- Ulf, 2015-09-21: It's not clear that this is a good thing. Maybe we should
+  -- keep the strict behaviour? Need benchmarks. It's clear that we should do
+  -- this when the constructor arguments are unused, but that could be taken
+  -- care of in Treeless.
   T.TCase sc _ (T.TError _) [T.TACon c a b] -> do
     sc <- term (T.TVar sc)
     intros a $ \xs -> do
