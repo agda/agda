@@ -180,6 +180,7 @@ library
                     Agda.Compiler.MAlonzo.Primitives
                     Agda.Compiler.ToTreeless
                     Agda.Compiler.Treeless.NPlusK
+                    Agda.Compiler.Treeless.NPlusKToPrims
                     Agda.Compiler.Treeless.Simplify
                     Agda.Compiler.Treeless.Subst
                     Agda.Compiler.UHC.AuxAST

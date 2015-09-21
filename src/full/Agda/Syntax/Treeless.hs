@@ -117,7 +117,7 @@ data TTerm = TVar Int
            -- ^ A runtime error, something bad has happened.
   deriving (Typeable, Show, Eq, Ord)
 
-data TPrim = PAdd | PSub | PDiv | PMod
+data TPrim = PAdd | PSub | PDiv | PMod | PGreaterOrEqual | PIfThenElse
   deriving (Typeable, Show, Eq, Ord)
 
 mkTApp :: TTerm -> Args -> TTerm

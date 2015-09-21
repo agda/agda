@@ -444,6 +444,9 @@ compilePrim s =
     T.PMod -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
     T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
+    -- primitives only used by NPlusKToPrims transformation, which MAlonzo doesn't use
+    T.PGreaterOrEqual -> __IMPOSSIBLE__
+    T.PIfThenElse -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt
 alt a = do

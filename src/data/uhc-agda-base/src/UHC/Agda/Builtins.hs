@@ -5,6 +5,8 @@ module UHC.Agda.Builtins
   , primIntegerMod
   , primIntegerMinus
   , primIntegerPlus
+  , primIntegerGreaterOrEqual
+  , primIntegerEquality
     -- Levels
   , primLevelZero
   , primLevelSuc
@@ -70,6 +72,7 @@ module UHC.Agda.Builtins
   , primTrace
 
     -- Misc
+  , primIfThenElse
   , unit
   )
 where
@@ -104,6 +107,12 @@ primIntegerMinus = (-)
 
 primIntegerPlus :: Integer -> Integer -> Integer
 primIntegerPlus = (+)
+
+primIntegerGreaterOrEqual :: Integer -> Integer -> Bool
+primIntegerGreaterOrEqual = (>=)
+
+primIntegerEquality :: Integer -> Integer -> Bool
+primIntegerEquality = (==)
 
 -- ====================
 -- Levels
@@ -140,7 +149,7 @@ primNatTimes :: Nat -> Nat -> Nat
 primNatTimes = (*)
 
 primNatMinus :: Nat -> Nat -> Nat
-primNatMins = (-)
+primNatMinus x y = max 0 (x - y)
 
 primNatDivSuc :: Nat -> Nat -> Nat
 primNatDivSuc x y = div x (y + 1)
@@ -313,6 +322,9 @@ primTrace = trace
 -- ====================
 -- Misc
 -- ====================
+
+primIfThenElse :: Bool -> a -> a -> a
+primIfThenElse c t e = if c then t else e
 
 -- | Unit wrapper function (instead of dropping a dummy function inside each module).
 unit :: ()

@@ -6,7 +6,6 @@ data Nat : Set where
 
 {-# BUILTIN NATURAL Nat  #-}
 
-{-# COMPILED_DATA_UHC Nat __NAT__ __ZERO__ __SUC__ #-}
 {-# COMPILED_JS     Nat function (x,v) { return (x < 1? v.zero(): v.suc(x-1)); } #-}
 {-# COMPILED_JS     zero 0 #-}
 {-# COMPILED_JS     suc function (x) { return x+1; } #-}

@@ -29,6 +29,7 @@ import Agda.Utils.Pretty
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.ModuleInfo
+import Agda.Compiler.UHC.Primitives
 
 import Agda.Compiler.UHC.Bridge
 
@@ -156,6 +157,7 @@ exprToCore (Case e brs def ct) = do
         eq CTChar = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
         eq CTString = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primStringEquality"
         eq CTQName = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primQNameEquality"
+        eq CTInteger = mkVar $ primFunNm "primIntegerEquality"
         eq _ = __IMPOSSIBLE__
         getLit :: Branch -> CExpr
         getLit (BrLit { brLit = l }) = litToCore l
