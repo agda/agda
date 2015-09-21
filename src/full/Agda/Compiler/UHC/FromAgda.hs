@@ -194,7 +194,7 @@ translateDefn (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        funBody <- runSubst . substTerm =<< (lift . lift) (ccToTreeless n cc)
+        funBody <- runSubst . substTerm =<< (lift . lift) (ccToTreeless False n cc)
 
         return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("function: " ++ show n) [] funBody
 

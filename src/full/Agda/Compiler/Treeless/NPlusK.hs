@@ -1,3 +1,13 @@
+-- | Translates the Agda builtin nat datatype to arbitrary-precision integers.
+--
+-- Philipp, 20150921:
+-- At the moment, this optimization is the reason that there is a TPlus term and a
+-- APlus alternative. For Haskell, this can easily be translated to guards. However, in
+-- the long term it would be easier for the backends if these things were translated
+-- directly to a less-than primitive and if-then-else expressions or similar. This would
+-- require us to add some internal Bool-datatype as compiler-internal type and
+-- a primitive less-than function, which will be much easier once Treeless
+-- is used for whole modules.
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.NPlusK
   ( introduceNPlusK ) where

@@ -47,7 +47,7 @@ ifToTreeless iface = do
         reportSDoc "treeless.convert" 20 $ text "converting fun:" <+> prettyTCM nm
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled $ f
 
-        body' <- ccToTreeless nm cc
+        body' <- ccToTreeless True nm cc
         (\x -> [(nm, x)]) <$> mkCDef (C.Fun body')
       (Axiom {}) -> do
         -- TODO compiled stuff
@@ -83,16 +83,19 @@ ifToTreeless iface = do
 
 
 -- | Converts compiled clauses to treeless syntax.
-ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless funNm cc = do
-  reportSDoc "treeless.convert" 30 $ text "compiled clauses" $$ nest 2 (text $ show cc)
+ccToTreeless :: Bool -> QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless optim funNm cc = do
+  reportSDoc "treeless.convert" 30 $ text "compiled clauses:" <+> (text . show) cc
   body <- casetree cc `runReaderT` (initCCEnv funNm)
-  reportSDoc "treeless.convert" 30 $ text "converted body" $$ nest 2 (text $ show body)
-  body <- introduceNPlusK body
-  reportSDoc "treeless.convert" 30 $ text "after n+k translation"  $$ nest 2 (text $ show body)
-  body <- simplifyTTerm body
-  reportSDoc "treeless.convert" 30 $ text "after simplification"  $$ nest 2 (text $ show body)
-  return body
+  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body
+  if optim then do
+      body <- introduceNPlusK body
+      reportSDoc "treeless.convert" 30 $ text " after n+k translation:" <+> (text . show) body
+      body <- simplifyTTerm body
+      reportSDoc "treeless.convert" 30 $ text "after simplification"  $$ nest 2 (text $ show body)
+      return body
+    else
+      return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
