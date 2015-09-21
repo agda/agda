@@ -14,6 +14,10 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
+ifneq ($(shell which uhc),)
+override CABAL_OPTS+=-fuhc
+endif
+
 override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 
 # Run in interactive and parallel mode by default
