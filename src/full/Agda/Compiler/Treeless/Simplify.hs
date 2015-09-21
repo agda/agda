@@ -62,6 +62,14 @@ simplify FunctionKit{..} = simpl
       TPlus k n      -> do
         n <- simpl n
         case n of
+          TVar x -> do
+            u <- lookupVar x
+            case u of
+              TApp (TPrim "-") [TVar y, TLit (LitInt _ j)]
+                | k == j    -> pure $ TVar y
+                | k > j     -> pure $ TPlus (k - j) (TVar y)
+                | otherwise -> pure $ TApp (TPrim "-") [TVar y, tInt (j - k)]
+              _ -> pure $ TPlus k n
           _      -> pure $ TPlus k n
       TCon{}         -> pure t
       TLet e b       -> do
@@ -92,6 +100,8 @@ simplify FunctionKit{..} = simpl
           [] -> pure d
           TALit _ b   : as  -> pure $ tCase' x t b (reverse as)
           TAPlus k b  : as  -> do
+                 -- TODO: retraversing the body (quadratic in nesting level!)
+            b <- simpl (TLet (TApp (TPrim "-") [TVar x, tInt k]) b)
             pure $ tCase' x t b (reverse as)
           TACon c a b : _   -> pure $ tCase' x t d bs'
       | otherwise = pure $ TCase x t d bs'
