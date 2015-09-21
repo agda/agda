@@ -16,6 +16,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
@@ -205,10 +206,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   lam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
 
 isPrimNat :: QName -> TCM Bool
-isPrimNat q = do
-    Def nat _ <- primNat
-    return $ q == nat
-  `catchError` \_ -> return False
+isPrimNat q = isBuiltin q builtinNat
 
 ----------------------
 

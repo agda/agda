@@ -22,6 +22,7 @@ import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Treeless.NPlusK
+import Agda.Compiler.Treeless.Simplify
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -84,11 +85,13 @@ ifToTreeless iface = do
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless funNm cc = do
-  reportSDoc "treeless.convert" 30 $ text "compiled clauses:" <+> (text . show) cc
+  reportSDoc "treeless.convert" 30 $ text "compiled clauses" $$ nest 2 (text $ show cc)
   body <- casetree cc `runReaderT` (initCCEnv funNm)
-  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body
+  reportSDoc "treeless.convert" 30 $ text "converted body" $$ nest 2 (text $ show body)
   body <- introduceNPlusK body
-  reportSDoc "treeless.convert" 30 $ text " after n+k translation:" <+> (text . show) body
+  reportSDoc "treeless.convert" 30 $ text "after n+k translation"  $$ nest 2 (text $ show body)
+  body <- simplifyTTerm body
+  reportSDoc "treeless.convert" 30 $ text "after simplification"  $$ nest 2 (text $ show body)
   return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm

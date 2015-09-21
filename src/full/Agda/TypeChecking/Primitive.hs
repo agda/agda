@@ -15,6 +15,7 @@ import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Traversable (traverse)
 
 import Agda.Interaction.Options
 
@@ -40,6 +41,7 @@ import Agda.TypeChecking.MetaVars (allMetas)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
 import Agda.Utils.String ( Str(Str), unStr )
+import Agda.Utils.Maybe
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -672,3 +674,17 @@ lookupPrimitiveFunctionQ q = do
             Name _ x _ _ -> show x
   PrimImpl t pf <- lookupPrimitiveFunction s
   return (s, PrimImpl t $ pf { primFunName = q })
+
+getBuiltinName :: String -> TCM (Maybe QName)
+getBuiltinName b = do
+  caseMaybeM (getBuiltin' b) (return Nothing) $ \v -> do
+    v <- normalise v
+    let getName (Def x _) = x
+        getName (Con x _) = conName x
+        getName (Lam _ b) = getName $ ignoreSharing $ unAbs b
+        getName _         = __IMPOSSIBLE__
+    return $ Just $ getName (ignoreSharing v)
+
+isBuiltin :: QName -> String -> TCM Bool
+isBuiltin q b = (Just q ==) <$> getBuiltinName b
+
