@@ -437,14 +437,13 @@ term tm0 = case tm0 of
     T.TPatternMatchFailure funNm ->  rtmIncompleteMatch funNm
   where apps =  foldM (\ h a -> HS.App h <$> term a)
 
-compilePrim :: String -> HS.Exp
+compilePrim :: T.TPrim -> HS.Exp
 compilePrim s =
   case s of
-    "div" -> fakeExp "(Prelude.div :: Integer -> Integer -> Integer)"
-    "mod" -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
-    "-"   -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
-    "+"   -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
-    _     -> __IMPOSSIBLE__
+    T.PDiv -> fakeExp "(Prelude.div :: Integer -> Integer -> Integer)"
+    T.PMod -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
+    T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
+    T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
 
 alt :: T.TAlt -> CC HS.Alt
 alt a = do

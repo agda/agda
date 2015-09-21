@@ -16,7 +16,6 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Maybe
 
 import Agda.Compiler.Treeless.Subst
-import Agda.Compiler.Treeless.NPlusK
 
 type S = Reader (Substitution' TTerm)
 
@@ -51,24 +50,24 @@ simplify FunctionKit{..} = simpl
     simpl t = case t of
 
       TApp (TDef f) [TLit (LitInt _ 0), m, n, m']
-        | m == m', Just f == divAux -> simpl $ TApp (TPrim "div") [n, plus 1 m]
-        | m == m', Just f == modAux -> simpl $ TApp (TPrim "mod") [n, plus 1 m]
+        | m == m', Just f == divAux -> simpl $ tOp PDiv n (tPlusK 1 m)
+        | m == m', Just f == modAux -> simpl $ tOp PMod n (tPlusK 1 m)
 
       TVar{}         -> pure t
       TDef{}         -> pure t
       TPrim{}        -> pure t
-      t@TApp{} | Just (k, n) <- plusView t -> do
+      t@TApp{} | Just (k, n) <- plusKView t -> do
         n <- simpl n
         case n of
           TVar x -> do
             u <- lookupVar x
             case u of
-              TApp (TPrim "-") [TVar y, TLit (LitInt _ j)]
+              TApp (TPrim PSub) [TVar y, TLit (LitInt _ j)]
                 | k == j    -> pure $ TVar y
-                | k > j     -> pure $ plus (k - j) (TVar y)
-                | otherwise -> pure $ TApp (TPrim "-") [TVar y, tInt (j - k)]
-              _ -> pure $ plus k n
-          _      -> pure $ plus k n
+                | k > j     -> pure $ tPlusK (k - j) (TVar y)
+                | otherwise -> pure $ tOp PSub (TVar y) (tInt (j - k))
+              _ -> pure $ tPlusK k n
+          _ -> pure $ tPlusK k n
       TApp f es      -> TApp <$> simpl f <*> traverse simpl es
       TLam b         -> TLam <$> underLam (simpl b)
       TLit{}         -> pure t
@@ -102,7 +101,7 @@ simplify FunctionKit{..} = simpl
           TALit _ b   : as  -> pure $ tCase' x t b (reverse as)
           TAPlus k b  : as  -> do
                  -- TODO: retraversing the body (quadratic in nesting level!)
-            b <- simpl (TLet (TApp (TPrim "-") [TVar x, tInt k]) b)
+            b <- simpl (TLet (tOp PSub (TVar x) (tInt k)) b)
             pure $ tCase' x t b (reverse as)
           TACon c a b : _   -> pure $ tCase' x t d bs'
       | otherwise = pure $ TCase x t d bs'

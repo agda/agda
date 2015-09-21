@@ -9,6 +9,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE PatternGuards              #-}
 
 -- | The treeless syntax is intended to be used as input for the compiler backends.
 -- It is more low-level than Internal syntax and is not used for type checking.
@@ -94,7 +95,7 @@ data FunDef'
 --
 -- All local variables are using de Bruijn indices.
 data TTerm = TVar Int
-           | TPrim String
+           | TPrim TPrim
            | TDef QName
            | TApp TTerm Args
            | TLam TTerm
@@ -116,6 +117,9 @@ data TTerm = TVar Int
            -- ^ A runtime error, something bad has happened.
   deriving (Typeable, Show, Eq, Ord)
 
+data TPrim = PAdd | PSub | PDiv | PMod
+  deriving (Typeable, Show, Eq, Ord)
+
 mkTApp :: TTerm -> Args -> TTerm
 mkTApp x [] = x
 mkTApp x as = TApp x as
@@ -130,6 +134,16 @@ tInt = TLit . LitInt noRange
 intView :: TTerm -> Maybe Integer
 intView (TLit (LitInt _ x)) = Just x
 intView _ = Nothing
+
+tPlusK :: Integer -> TTerm -> TTerm
+tPlusK k n = TApp (TPrim PAdd) [tInt k, n]
+
+plusKView :: TTerm -> Maybe (Integer, TTerm)
+plusKView (TApp (TPrim PAdd) [k, n]) | Just k <- intView k = Just (k, n)
+plusKView _ = Nothing
+
+tOp :: TPrim -> TTerm -> TTerm -> TTerm
+tOp op a b = TApp (TPrim op) [a, b]
 
 data CaseType
   = CTData QName -- case on datatype
