@@ -791,7 +791,7 @@ prop_continuousPerLine r =
   where
   r'@(Range is') = continuousPerLine r
 
-  lineNumbers = concatMap lines is'
+  lineNumbers = Fold.concatMap lines is'
     where
     lines i | s == e    = [s]
             | otherwise = [s, e]
