@@ -443,9 +443,9 @@ term tm0 = case tm0 of
 compilePrim :: String -> HS.Exp
 compilePrim s =
   case s of
-    "div" -> fakeExp "(div :: Integer -> Integer -> Integer)"
-    "mod" -> fakeExp "(mod :: Integer -> Integer -> Integer)"
-    "-"   -> fakeExp "((-) :: Integer -> Integer -> Integer)"
+    "div" -> fakeExp "(Prelude.div :: Integer -> Integer -> Integer)"
+    "mod" -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
+    "-"   -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     _     -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt
