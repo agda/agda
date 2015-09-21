@@ -194,7 +194,7 @@ translateDefn (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        funBody <- runSubst . substTerm =<< (lift . lift) (ccToTreeless False n cc)
+        funBody <- runCompile . compileTerm =<< (lift . lift) (ccToTreeless False n cc)
 
         return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("function: " ++ show n) [] funBody
 
@@ -249,8 +249,8 @@ translateDefn (n, defini) = do
         return $ Fun False crName (Just n) comment xs (Var $ last xs)
 
 
-runSubst :: NM a -> FreshNameT (CompileT TCM) a
-runSubst r = r `runReaderT` (NMEnv [])
+runCompile :: NM a -> FreshNameT (CompileT TCM) a
+runCompile r = r `runReaderT` (NMEnv [])
 
 data NMEnv = NMEnv
   { nmEnv :: [HsName] -- maps de-bruijn indices to names
@@ -266,8 +266,8 @@ addToEnv nms cont =
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-substTerm :: C.TTerm -> NM A.Expr
-substTerm term = case term of
+compileTerm :: C.TTerm -> NM A.Expr
+compileTerm term = case term of
     C.TPrim _ -> __IMPOSSIBLE__ -- TODO
     C.TVar x -> do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
@@ -276,11 +276,11 @@ substTerm term = case term of
       nm' <- lift . lift $ getCoreName1 nm
       return $ A.Var nm'
     C.TApp t xs -> do
-      A.apps <$> substTerm t <*> mapM substTerm xs
+      A.apps <$> compileTerm t <*> mapM compileTerm xs
     C.TLam t -> do
        name <- lift freshLocalName
        addToEnv [name] $ do
-         A.Lam name <$> substTerm t
+         A.Lam name <$> compileTerm t
     C.TLit l -> return $ Lit l
     C.TCon c -> do
         con <- lift . lift $ getConstrFun c
@@ -288,13 +288,13 @@ substTerm term = case term of
     C.TLet x body -> do
         nm <- lift freshLocalName
         A.Let nm
-            <$> substTerm x
-            <*> addToEnv [nm] (substTerm body)
+            <$> compileTerm x
+            <*> addToEnv [nm] (compileTerm body)
     C.TCase sc ct def alts -> do
         A.Case
-          <$> substTerm (C.TVar sc)
-          <*> mapM substAlt alts
-          <*> substTerm def
+          <$> compileTerm (C.TVar sc)
+          <*> mapM compileAlt alts
+          <*> compileTerm def
           <*> mapCaseType ct
       where mapCaseType :: C.CaseType -> NM A.CaseType
             mapCaseType C.CTChar = return $ A.CTChar
@@ -304,13 +304,13 @@ substTerm term = case term of
                 let (C.TACon {C.aCon = conNm}) = head alts
                 di <- aciDataType <$> (lift . lift) (getConstrInfo conNm)
                 return $ A.CTCon di
-            substAlt :: C.TAlt -> NM A.Branch
-            substAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> substTerm (C.aBody a)
-            substAlt a@(C.TAPlus {}) = error "TODO"
-            substAlt a@(C.TACon {}) = do
+            compileAlt :: C.TAlt -> NM A.Branch
+            compileAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> compileTerm (C.aBody a)
+            compileAlt a@(C.TAPlus {}) = error "TODO"
+            compileAlt a@(C.TACon {}) = do
                 conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo $ C.aCon a)
                 vars <- lift $ replicateM (C.aArity a) freshLocalName
-                body <- addToEnv (reverse vars) (substTerm $ C.aBody a)
+                body <- addToEnv (reverse vars) (compileTerm $ C.aBody a)
                 return $ A.BrCon conInfo (C.aCon a) vars body
     C.TPi _ _ -> __IMPOSSIBLE__
     C.TUnit -> return UNIT
