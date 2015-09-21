@@ -36,52 +36,6 @@ import Agda.Utils.Monad
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-
--- | Converts a whole module into a Treeless module.
-ifToTreeless :: Interface -> TCM C.TModule
-ifToTreeless iface = do
-  let defns = HMap.toList $ sigDefinitions $ iSignature iface
-  funs <- forDefs defns $ \nm def mkCDef -> do
-    case theDef def of
-      f@(Function {}) -> do
-        reportSDoc "treeless.convert" 20 $ text "converting fun:" <+> prettyTCM nm
-        let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled $ f
-
-        body' <- ccToTreeless True nm cc
-        (\x -> [(nm, x)]) <$> mkCDef (C.Fun body')
-      (Axiom {}) -> do
-        -- TODO compiled stuff
---        (\x -> [(nm, x)]) <$> (mkCDef $ C.Fun (C.TError $ C.TAxiomEvaluated nm))
-        __IMPOSSIBLE__
-      _ -> return []
-
-  cons <- Map.unionsWith (++) <$> (forDefs defns $ \nm def mkCDef -> do
-    case theDef def of
-      c@(Constructor {}) -> do --- | not (Map.member nm conInstMp) -> do
-        con' <- mkCDef $ C.Con nm
-        return [Map.singleton (conData c) [con']]
-      _ -> return []
-    )
-
-  dats <- forDefs defns $ \nm def mkCDef -> do
-    case theDef def of
-      (Datatype {dataClause = Nothing}) -> do
-        let myCons = fromMaybe [] (Map.lookup nm cons)
-        (\x -> [(nm, x)]) <$> (mkCDef $ C.Datatype myCons)
-      (Record{recClause = Nothing}) -> do
-        let myCon = fromMaybe __IMPOSSIBLE__ (Map.lookup nm cons >>= headMaybe)
-        (\x -> [(nm, x)]) <$> (mkCDef $ C.Record myCon)
-      _ -> return []
-
-
-  return $ C.TModule (iModuleName iface) (Map.fromList dats) (Map.fromList funs)
-
-  where
-    forDefs :: [(QName, Definition)] -> (QName -> Definition -> (a -> TCM (C.Def a)) -> TCM [b]) -> TCM [b]
-    forDefs defs cont = concat <$>
-        traverse (\(nm, def) -> cont nm def (return . C.Def nm undefined)) defs
-
-
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: Bool -> QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless optim funNm cc = do
