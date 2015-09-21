@@ -150,6 +150,10 @@ hsPrimOpApp op e e1 = HS.InfixApp e (hsPrimOp op) e1
 hsInt :: Integer -> HS.Exp
 hsInt n = HS.Lit (HS.Int n)
 
+hspLet :: HS.Pat -> HS.Exp -> HS.Exp -> HS.Exp
+hspLet p e b =
+  HS.Let (HS.BDecls [HS.PatBind dummy p (HS.UnGuardedRhs e) (HS.BDecls [])]) b
+
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =
   HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]) b

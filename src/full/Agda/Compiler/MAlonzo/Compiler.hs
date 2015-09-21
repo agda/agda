@@ -403,6 +403,13 @@ term tm0 = case tm0 of
     intros 1 $ \[x] -> do
       t2' <- term t2
       return $ hsLet x t1' t2'
+  -- Single clause case: turn into let binding
+  T.TCase sc _ (T.TError _) [T.TACon c a b] -> do
+    sc <- term (T.TVar sc)
+    intros a $ \xs -> do
+      hc <- lift $ conhqn c
+      hspLet (HS.PApp hc $ map HS.PVar xs) (hsCast sc) <$> term b
+
   T.TCase sc ct def alts -> do
     sc' <- term (T.TVar sc)
     alts' <- traverse alt alts
@@ -549,11 +556,14 @@ hsCast = addcast . go where
   go e = [e]
 -}
 
+-- TODO: what's the specification for hsCast, hsCast' and hsCoerce???
 hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
 hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` hsCastApp e2
 hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
+hsCast' (HS.Let bs e)      = HS.Let bs $ hsCast' e
+hsCast' (HS.Case sc alts)  = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
 hsCast' e = hsCoerce e
 
 -- We still have to coerce function applications in arguments to coerced
@@ -570,6 +580,7 @@ hsCastApp e =
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
 hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
+hsCoerce (HS.Let bs e) = HS.Let bs $ hsCoerce e
 hsCoerce e =
   case hsAppView e of
     c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
