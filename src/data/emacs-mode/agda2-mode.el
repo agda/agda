@@ -1565,11 +1565,6 @@ From the beginning of the current line to the end of the buffer."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site
 
-(defun agda2-goto (filepos &optional other-window)
-  "Like `annotation-goto', unless `agda2-highlight-in-progress' is nil."
-  (if agda2-highlight-in-progress
-      (annotation-goto filepos other-window)))
-
 (defun agda2-goto-definition-keyboard (&optional other-window)
   "Go to the definition site of the name under point (if any).
 If this function is invoked with a prefix argument then another window is used
