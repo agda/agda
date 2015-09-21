@@ -150,16 +150,18 @@ type Interval = Interval' SrcFile
 
 intervalInvariant :: Ord a => Interval' a -> Bool
 intervalInvariant i =
-  all positionInvariant [iStart i, iEnd i] &&
+  all positionInvariant [iStart i, iEnd i]
+    &&
   iStart i <= iEnd i
+    &&
+  srcFile (iStart i) == srcFile (iEnd i)
 
--- | The length of an interval, assuming that the start and end
--- positions are in the same file.
+-- | The length of an interval.
 iLength :: Interval' a -> Int32
 iLength i = posPos (iEnd i) - posPos (iStart i)
 
 -- | A range is a sequence of intervals. The intervals should be
--- consecutive and separated.
+-- consecutive and separated, and point to the same file.
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 newtype Range' a = Range (Seq (Interval' a))
@@ -178,11 +180,13 @@ rangeIntervals (Range is) = Fold.toList is
 intervalsToRange :: [Interval' a] -> Range' a
 intervalsToRange is = Range (Seq.fromList is)
 
--- | Are the intervals consecutive and separated, and do they satisfy
--- the interval invariant?
+-- | Are the intervals consecutive and separated, do they all point to
+-- the same file, and do they satisfy the interval invariant?
 consecutiveAndSeparated :: Ord a => [Interval' a] -> Bool
 consecutiveAndSeparated is =
   all intervalInvariant is
+    &&
+  allEqual (map (srcFile . iStart) is)
     &&
   (null is
      ||
@@ -216,24 +220,38 @@ instance HasRange Range where
 instance HasRange Bool where
     getRange _ = noRange
 
+-- | Precondition: The ranges of the list elements must point to the
+-- same file (or be empty).
 instance HasRange a => HasRange [a] where
     getRange = foldr fuseRange noRange
 
+-- | Precondition: The ranges of the tuple elements must point to the
+-- same file (or be empty).
 instance (HasRange a, HasRange b) => HasRange (a,b) where
     getRange = uncurry fuseRange
 
+-- | Precondition: The ranges of the tuple elements must point to the
+-- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
     getRange (x,y,z) = getRange (x,(y,z))
 
+-- | Precondition: The ranges of the tuple elements must point to the
+-- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d) => HasRange (a,b,c,d) where
     getRange (x,y,z,w) = getRange (x,(y,(z,w)))
 
+-- | Precondition: The ranges of the tuple elements must point to the
+-- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e) => HasRange (a,b,c,d,e) where
     getRange (x,y,z,w,v) = getRange (x,(y,(z,(w,v))))
 
+-- | Precondition: The ranges of the tuple elements must point to the
+-- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f) => HasRange (a,b,c,d,e,f) where
     getRange (x,y,z,w,v,u) = getRange (x,(y,(z,(w,(v,u)))))
 
+-- | Precondition: The ranges of the tuple elements must point to the
+-- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f, HasRange g) => HasRange (a,b,c,d,e,f,g) where
     getRange (x,y,z,w,v,u,t) = getRange (x,(y,(z,(w,(v,(u,t))))))
 
@@ -633,6 +651,8 @@ rEnd :: Range' a -> Maybe (Position' a)
 rEnd r = iEnd <$> rangeToInterval r
 
 -- | Finds the least interval which covers the arguments.
+--
+-- Precondition: The intervals must point to the same file.
 fuseIntervals :: Ord a => Interval' a -> Interval' a -> Interval' a
 fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
     where ps = sort [iStart x, iStart y, iEnd x, iEnd y]
@@ -640,6 +660,8 @@ fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
 -- | @fuseRanges r r'@ unions the ranges @r@ and @r'@.
 --
 --   Meaning it finds the least range @r0@ that covers @r@ and @r'@.
+--
+-- Precondition: The ranges must point to the same file (or be empty).
 fuseRanges :: (Ord a) => Range' a -> Range' a -> Range' a
 fuseRanges (Range is1) (Range is2) = Range (fuse is1 is2)
   where
@@ -675,6 +697,8 @@ fuseRanges (Range is1) (Range is2) = Range (fuse is1 is2)
     where
     r1' = Seq.dropWhileL (\s -> iEnd s <= iEnd s2) r1
 
+-- | Precondition: The ranges must point to the same file (or be
+-- empty).
 fuseRange :: (HasRange u, HasRange t) => u -> t -> Range
 fuseRange x y = fuseRanges (getRange x) (getRange y)
 
@@ -702,15 +726,14 @@ x `withRangeOf` y = setRange (getRange y) x
 ------------------------------------------------------------------------
 -- Test suite
 
--- | The positions corresponding to the interval, /including/ the
--- end-point. This function assumes that the two end points belong to
--- the same file. Note that the 'Arbitrary' instance for 'Position's
--- uses a single, hard-wired file name.
+-- | The positions corresponding to the interval. The positions do not
+-- refer to characters, but to the positions between characters, with
+-- zero pointing to the position before the first character.
 iPositions :: Interval' a -> Set Int32
 iPositions i = Set.fromList [posPos (iStart i) .. posPos (iEnd i)]
 
 -- | The positions corresponding to the range, including the
--- end-points. All ranges are assumed to belong to a single file.
+-- end-points.
 rPositions :: Range' a -> Set Int32
 rPositions r = Set.unions (map iPositions $ rangeIntervals r)
 
@@ -784,11 +807,13 @@ prop_fuseIntervals i1 =
     iPositions i ==
       makeInterval (Set.union (iPositions i1) (iPositions i2))
 
-prop_fuseRanges :: Range -> Range -> Bool
-prop_fuseRanges r1 r2 =
-  rangeInvariant r &&
-  rPositions r == Set.union (rPositions r1) (rPositions r2)
-  where r = fuseRanges r1 r2
+prop_fuseRanges :: Range -> Property
+prop_fuseRanges r1 =
+  forAll (rangeInSameFileAs r1) $ \r2 ->
+    let r = fuseRanges r1 r2 in
+    rangeInvariant r
+      &&
+    rPositions r == Set.union (rPositions r1) (rPositions r2)
 
 prop_beginningOf :: Range -> Bool
 prop_beginningOf r = rangeInvariant (beginningOf r)
@@ -815,7 +840,8 @@ setFile f (Interval p1 p2) =
 -- | Generates an interval located in the same file as the given
 -- interval.
 
-intervalInSameFileAs :: Interval' Integer -> Gen (Interval' Integer)
+intervalInSameFileAs ::
+  (Arbitrary a, Ord a) => Interval' a -> Gen (Interval' a)
 intervalInSameFileAs i = setFile (srcFile $ iStart i) <$> arbitrary
 
 prop_intervalInSameFileAs :: Interval' Integer -> Property
@@ -823,6 +849,26 @@ prop_intervalInSameFileAs i =
   forAll (intervalInSameFileAs i) $ \i' ->
     intervalInvariant i' &&
     srcFile (iStart i) == srcFile (iStart i')
+
+-- | Generates a range located in the same file as the given
+-- range.
+
+rangeInSameFileAs :: (Arbitrary a, Ord a) => Range' a -> Gen (Range' a)
+rangeInSameFileAs (Range is) = case Seq.viewl is of
+  Seq.EmptyL -> arbitrary
+  i Seq.:< _ -> do
+    Range is <- arbitrary
+    return $ Range (fmap (setFile (srcFile $ iStart i)) is)
+
+prop_rangeInSameFileAs :: Range' Integer -> Property
+prop_rangeInSameFileAs r =
+  forAll (rangeInSameFileAs r) $ \r' ->
+    rangeInvariant r'
+      &&
+    case rStart r of
+      Nothing                   -> True
+      Just (Pn { srcFile = f }) ->
+        all ((== f) . srcFile . iStart) (rangeIntervals r')
 
 instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where
   arbitrary = do
