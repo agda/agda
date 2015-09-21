@@ -28,7 +28,6 @@ data _≤_ : Rel ℕ Level.zero where
   s≤s : ∀ {m n} (m≤n : m ≤ n) → suc m ≤ suc n
 
 {-# BUILTIN NATURAL ℕ #-}
-{-# COMPILED_DATA_UHC ℕ __NAT__ __ZERO__ __SUC__ #-}
 
 infixl 6 _+_ _∸_
 infixl 7 _*_
