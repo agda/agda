@@ -771,3 +771,18 @@ LaTeX-backend
     http://www.ctan.org/tex-archive/fonts/xits/
 
   This font is more complete with respect to Unicode.
+
+
+agda-ghc-names
+--------------
+
+* New tool: THe command
+
+    agda-ghc-names fixprof <compile-dir> <ProgName>.prof
+    
+  converts *.prof files obtained from profiling runs of MAlonzo-compiled
+  code to *.agdaIdents.prof, with the original Agda identifiers replacing
+  the MAlonzo-generated Haskell identifiers.
+
+  For usage and more details, see src/agda-ghc-names/README.txt.
+
