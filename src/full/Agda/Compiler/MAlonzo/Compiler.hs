@@ -271,7 +271,17 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   functionViaTreeless q cc = do
     treeless <- ccToTreeless q cc
     e <- closedTerm treeless
-    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
+    let (ps, b) =
+          case stripTopCoerce e of
+            HS.Lambda _ ps b -> (ps, b)
+            b                -> ([], b)
+        stripTopCoerce (HS.Lambda i ps b) = HS.Lambda i ps $ stripTopCoerce b
+        stripTopCoerce e =
+          case hsAppView e of
+            [c,  e] | c == mazCoerce -> e
+            _                        -> e
+
+    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) ps Nothing (HS.UnGuardedRhs b) (HS.BDecls [])]]
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
