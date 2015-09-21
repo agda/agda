@@ -223,30 +223,7 @@ instance HasRange Bool where
 -- | Precondition: The ranges of the list elements must point to the
 -- same file (or be empty).
 instance HasRange a => HasRange [a] where
-  getRange xs = fuseList (map getRange xs)
-    where
-    fuseList :: [Range] -> Range
-    fuseList []  = noRange
-    fuseList [r] = r
-    fuseList rs  = fuseList (fusePairs rs)
-
-    fusePairs :: [Range] -> [Range]
-    fusePairs []             = []
-    fusePairs [r]            = [r]
-    fusePairs (r1 : r2 : rs) = fuseRanges r1 r2 : fusePairs rs
-
-getRange_list_property :: [Range] -> Bool
-getRange_list_property rs =
-  getRange rs == foldr fuseRanges noRange rs
-
-prop_getRange_list_empty :: Bool
-prop_getRange_list_empty =
-  getRange_list_property []
-
-prop_getRange_list_nonempty :: Range -> Property
-prop_getRange_list_nonempty r =
-  forAll (listOf (rangeInSameFileAs r)) $ \rs ->
-    getRange_list_property (r : rs)
+    getRange = foldr fuseRange noRange
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
@@ -261,22 +238,22 @@ instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d) => HasRange (a,b,c,d) where
-    getRange (x,y,z,w) = getRange ((x,y),(z,w))
+    getRange (x,y,z,w) = getRange (x,(y,(z,w)))
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e) => HasRange (a,b,c,d,e) where
-    getRange (x,y,z,w,v) = getRange (((x,y),z),(w,v))
+    getRange (x,y,z,w,v) = getRange (x,(y,(z,(w,v))))
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f) => HasRange (a,b,c,d,e,f) where
-    getRange (x,y,z,w,v,u) = getRange ((x,(y,z)),((w,v),u))
+    getRange (x,y,z,w,v,u) = getRange (x,(y,(z,(w,(v,u)))))
 
 -- | Precondition: The ranges of the tuple elements must point to the
 -- same file (or be empty).
 instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f, HasRange g) => HasRange (a,b,c,d,e,f,g) where
-    getRange (x,y,z,w,v,u,t) = getRange (((x,y),z),((w,v),(u,t)))
+    getRange (x,y,z,w,v,u,t) = getRange (x,(y,(z,(w,(v,(u,t))))))
 
 instance HasRange a => HasRange (Maybe a) where
     getRange Nothing  = noRange
