@@ -26,7 +26,6 @@ instance Subst TTerm TTerm where
     TVar i         -> lookupS rho i
     TApp f ts      -> TApp (applySubst rho f) (applySubst rho ts)
     TLam b         -> TLam (applySubst (liftS 1 rho) b)
-    TPlus k t      -> TPlus k (applySubst rho t)
     TLet e b       -> TLet (applySubst rho e) (applySubst (liftS 1 rho) b)
     TPi a b        -> TPi (applySubst rho a) (applySubst (liftS 1 rho) b)
     TCase i t d bs ->

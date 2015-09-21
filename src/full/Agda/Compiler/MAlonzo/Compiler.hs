@@ -391,9 +391,6 @@ term tm0 = case tm0 of
   T.TApp t ts -> do
     t' <- term t
     t' `apps` ts
-  T.TPlus k t -> do
-    t' <- term t
-    return $ hsPrimOpApp "+" (hsTypedInt k) t'
   T.TLam at -> do
     (nm:_) <- asks ccNameSupply
     intros 1 $ \ [x] ->
@@ -446,6 +443,7 @@ compilePrim s =
     "div" -> fakeExp "(Prelude.div :: Integer -> Integer -> Integer)"
     "mod" -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
     "-"   -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
+    "+"   -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
     _     -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt

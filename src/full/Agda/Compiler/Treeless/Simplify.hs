@@ -16,6 +16,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Maybe
 
 import Agda.Compiler.Treeless.Subst
+import Agda.Compiler.Treeless.NPlusK
 
 type S = Reader (Substitution' TTerm)
 
@@ -50,16 +51,13 @@ simplify FunctionKit{..} = simpl
     simpl t = case t of
 
       TApp (TDef f) [TLit (LitInt _ 0), m, n, m']
-        | m == m', Just f == divAux -> simpl $ TApp (TPrim "div") [n, TPlus 1 m]
-        | m == m', Just f == modAux -> simpl $ TApp (TPrim "mod") [n, TPlus 1 m]
+        | m == m', Just f == divAux -> simpl $ TApp (TPrim "div") [n, plus 1 m]
+        | m == m', Just f == modAux -> simpl $ TApp (TPrim "mod") [n, plus 1 m]
 
       TVar{}         -> pure t
       TDef{}         -> pure t
       TPrim{}        -> pure t
-      TApp f es      -> TApp <$> simpl f <*> traverse simpl es
-      TLam b         -> TLam <$> underLam (simpl b)
-      TLit{}         -> pure t
-      TPlus k n      -> do
+      t@TApp{} | Just (k, n) <- plusView t -> do
         n <- simpl n
         case n of
           TVar x -> do
@@ -67,10 +65,13 @@ simplify FunctionKit{..} = simpl
             case u of
               TApp (TPrim "-") [TVar y, TLit (LitInt _ j)]
                 | k == j    -> pure $ TVar y
-                | k > j     -> pure $ TPlus (k - j) (TVar y)
+                | k > j     -> pure $ plus (k - j) (TVar y)
                 | otherwise -> pure $ TApp (TPrim "-") [TVar y, tInt (j - k)]
-              _ -> pure $ TPlus k n
-          _      -> pure $ TPlus k n
+              _ -> pure $ plus k n
+          _      -> pure $ plus k n
+      TApp f es      -> TApp <$> simpl f <*> traverse simpl es
+      TLam b         -> TLam <$> underLam (simpl b)
+      TLit{}         -> pure t
       TCon{}         -> pure t
       TLet e b       -> do
         e <- simpl e

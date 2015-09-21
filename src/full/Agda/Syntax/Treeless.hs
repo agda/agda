@@ -99,7 +99,6 @@ data TTerm = TVar Int
            | TApp TTerm Args
            | TLam TTerm
            | TLit Literal
-           | TPlus Integer TTerm
            | TCon QName
            | TLet TTerm TTerm
            -- ^ introduces a new local binding. The bound term
@@ -127,6 +126,10 @@ mkLet x body = TLet x body
 
 tInt :: Integer -> TTerm
 tInt = TLit . LitInt noRange
+
+intView :: TTerm -> Maybe Integer
+intView (TLit (LitInt _ x)) = Just x
+intView _ = Nothing
 
 data CaseType
   = CTData QName -- case on datatype

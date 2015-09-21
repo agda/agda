@@ -275,7 +275,6 @@ substTerm term = case term of
     C.TDef nm -> do
       nm' <- lift . lift $ getCoreName1 nm
       return $ A.Var nm'
-    C.TPlus i t -> error "TODO"
     C.TApp t xs -> do
       A.apps <$> substTerm t <*> mapM substTerm xs
     C.TLam t -> do

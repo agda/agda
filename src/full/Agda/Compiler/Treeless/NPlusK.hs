@@ -9,8 +9,9 @@
 -- a primitive less-than function, which will be much easier once Treeless
 -- is used for whole modules.
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.NPlusK
-  ( introduceNPlusK ) where
+  ( introduceNPlusK, plus, plusView ) where
 
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Abstract.Name (QName)
@@ -48,12 +49,12 @@ transform isZero isSuc = tr
     tr t = case t of
 
       TCon c | isZero c -> tInt 0
-             | isSuc c  -> TLam (TPlus 1 (TVar 0))
+             | isSuc c  -> TLam (plus 1 (TVar 0))
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
           TLit (LitInt r n) -> tInt (n + 1)
-          TPlus i e         -> TPlus (i + 1) e
-          e                 -> TPlus 1 e
+          e | Just (i, e) <- plusView e -> plus (i + 1) e
+          e                 -> plus 1 e
 
       TCase e t d bs -> TCase e t (tr d) $ concatMap trAlt bs
         where
@@ -91,5 +92,9 @@ transform isZero isSuc = tr
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
 
-      TPlus{} -> __IMPOSSIBLE__
+plusView :: TTerm -> Maybe (Integer, TTerm)
+plusView (TApp (TPrim "+") [i, j]) | Just i <- intView i = Just (i, j)
+plusView _ = Nothing
 
+plus :: Integer -> TTerm -> TTerm
+plus i j = TApp (TPrim "+") [(tInt i), j]
