@@ -633,11 +633,6 @@ Type checking
   only on the second argument could be small, but not the version above which
   indexes on both arguments.
 
-* Call-by-need evaluation.
-
-  Compile-time evaluation (during type checking and from the Emacs mode) is now
-  using call-by-need rather than call-by-name.
-
 Compiler backends
 =================
 
