@@ -124,6 +124,13 @@ mkTApp :: TTerm -> Args -> TTerm
 mkTApp x [] = x
 mkTApp x as = TApp x as
 
+tAppView :: TTerm -> [TTerm]
+tAppView = view
+  where
+    view t = case t of
+      TApp a bs -> view a ++ bs
+      _         -> [t]
+
 -- | Introduces a new binding
 mkLet :: TTerm -> TTerm -> TTerm
 mkLet x body = TLet x body
