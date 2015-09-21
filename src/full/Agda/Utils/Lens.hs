@@ -13,6 +13,9 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import Data.Map (Map)
+import qualified Data.Map as Map
+
 import Data.Functor.Identity
 
 import Agda.Utils.Functor ((<&>))
@@ -79,3 +82,7 @@ view l = asks (^. l)
 -- | Modify a part of the state in a subcomputation.
 locally :: MonadReader o m => Lens' i o -> (i -> i) -> m a -> m a
 locally l = local . over l
+
+key :: Ord k => k -> Lens' (Maybe v) (Map k v)
+key k f m = f (Map.lookup k m) <&> \ v -> Map.alter (const v) k m
+
