@@ -532,15 +532,19 @@ test-suite agda-tests
   hs-source-dirs:   test/
   main-is:          Main.hs
   other-modules:    Compiler.Tests
+                    , Fail.Tests
                     , LatexBackend.Tests
                     , Utils
-  build-depends:      base >= 4.6.0.1 && < 4.9
+  build-depends:      array >= 0.4.0.1 && < 0.6
+                    , base >= 4.6.0.1 && < 4.9
                     , bytestring >= 0.10.0.2 && < 0.11
                     , directory >= 1.2.0.1 && < 1.3
                     , containers >= 0.5.0.0 && < 0.6
                     , filepath >= 1.3.0.1 && < 1.5
                     , process >= 1.1.0.2 && < 1.3
                     , process-extras >= 0.2.0 && < 0.4
+                    , regex-tdfa >= 1.2.0 && < 1.3
+                    , regex-tdfa-text >= 1.0.0.3 && < 1.1
                     , tasty >= 0.10 && < 0.11
                     , tasty-silver >= 3.1.7 && < 3.2
                     , temporary >= 1.2.0.3 && < 1.3

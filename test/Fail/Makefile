@@ -36,61 +36,9 @@ V = 0
 # Enable read -n
 SHELL=bash
 
-# Getting all agda files.  This is a placeholder in case you want to
-# exclude some tests.  But don't push it.
-excluded=
-allagda=$(filter-out $(excluded),$(shell ls *agda))
-allstems=$(patsubst %.agda,%,$(allagda))
-allout=$(patsubst %.agda,%.err,$(allagda))
 
-.PHONY : $(allstems)
+default : customised
 
-default : all customised
-all : $(allstems)
-
-debug :
-	@echo $(allagda)
-
-# No error recorded
-
-$(allout) : %.err : %.agda
-	@echo "$*.agda"
-	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e "$*.flags" ]; then cat "$*.flags"; fi) "$<" > "$*.tmp"; \
-		then echo "Unexpected success"; rm -f "$*.tmp"; false; \
-    else if [ -s "$*.tmp" ]; \
-				 then cat "$*.tmp" | $(clean) > "$@"; cat "$@"; rm -f "$*.tmp"; true; \
-				 else rm -f "$@" "$*.tmp"; false; \
-				 fi; \
-		fi
-
-# Existing error
-
-$(allstems) : % : %.err
-	@echo "$*.agda"
-	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e "$*.flags" ]; then cat "$*.flags"; fi) "$*.agda" \
-		 > "$*.tmp.2"; \
-		then echo "Unexpected success"; rm -f "$*.tmp.2"; false; \
-    else cat "$*.tmp.2" | $(clean) > "$*.tmp"; \
-				 echo `cat "$*.err"` > "$*.tmp.2"; \
-				 echo `cat "$*.tmp"` > "$*.tmp.3"; \
-				 true; \
-		fi
-	@if cmp "$*.tmp.2" "$*.tmp.3"; \
-		then rm -f "$*.tmp" "$*.tmp.2" "$*.tmp.3"; true; \
-		else echo "== Old error ==="; \
-			 cat "$*.err"; \
-			 echo "== New error ==="; \
-			 cat "$*.tmp"; \
-			 /bin/echo -n "Accept new error [y/N/q]? "; \
-			 read -n 1; \
-			 echo ""; \
-			 if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
-			   then echo "Keeping old error"; [ "X$$REPLY" != "Xq" ]; \
-			   else echo "Replacing error, continuing..."; \
-			     mv "$*.tmp" "$*.err"; \
-			     rm -f "$*.tmp.2" "$*.tmp.3"; true; \
-			 fi; \
-	 fi
 
 # Customised test cases.
 
