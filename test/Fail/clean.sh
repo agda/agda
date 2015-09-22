@@ -2,7 +2,7 @@
 
 sed=$1
 
-$sed -e 's/[^ (]*test.fail.//g' \
+$sed -e 's/[^ (]*test.Fail.//g' \
   | $sed -e 's/[^ (]*lib.prim/agda-default-include-path/g' \
   | $sed -e 's/[^ (]*test.Common.//g' \
   | $sed -e 's/\\/\//g' \
