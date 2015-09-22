@@ -62,7 +62,7 @@ extractResolveHsNamesFct :: FilePath -> IO (String -> String)
 extractResolveHsNamesFct = liftM (\ f s -> maybe s id $ f s) . extractResolveHsNamesFctM
 
 hsIdentMapFilename :: FilePath
-hsIdentMapFilename = "MAlonzoHsToAgdaIdentMap.dat"
+hsIdentMapFilename = "agda-ghc-name-cache.dat"
 
 writeResolveHsNamesMap :: FilePath -> IO (FilePath, Map String (Map String String))
 writeResolveHsNamesMap dir = let outFile = dir </> hsIdentMapFilename in do

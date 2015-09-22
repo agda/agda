@@ -513,6 +513,7 @@ executable agda-ghc-names
     , haskell-src-exts >= 1.16.0.1 && < 1.17
     , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
     , filepath >= 1.3.0.1 && < 1.5
+  ghc-options:  -rtsopts
 
 
 -- Cabal testsuite integration has some serious bugs, but we
