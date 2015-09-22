@@ -38,21 +38,18 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 -- | Converts compiled clauses to treeless syntax.
-ccToTreeless :: Bool -> QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless optim funNm cc = do
+ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless funNm cc = do
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (text $ show cc)
   body <- casetree cc `runReaderT` (initCCEnv funNm)
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (text $ show body)
-  if optim then do
-      body <- introduceNPlusK body
-      reportSDoc "treeless.opt.n+k" 30 $ text "-- after n+k translation:" $$ nest 2 (text $ show body)
-      body <- simplifyTTerm body
-      reportSDoc "treeless.opt.simpl" 30 $ text "-- after simplification"  $$ nest 2 (text $ show body)
-      body <- eraseTerms body
-      reportSDoc "treeless.opt.erase" 30 $ text "-- after erasure"  $$ nest 2 (text $ show body)
-      return body
-    else
-      return body
+  body <- introduceNPlusK body
+  reportSDoc "treeless.opt.n+k" 30 $ text "-- after n+k translation:" $$ nest 2 (text $ show body)
+  body <- simplifyTTerm body
+  reportSDoc "treeless.opt.simpl" 30 $ text "-- after simplification"  $$ nest 2 (text $ show body)
+  body <- eraseTerms body
+  reportSDoc "treeless.opt.erase" 30 $ text "-- after erasure"  $$ nest 2 (text $ show body)
+  return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do

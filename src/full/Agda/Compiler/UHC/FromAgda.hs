@@ -198,7 +198,7 @@ translateDefn (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        funBody <- convertNPlusK <$> (lift . lift) (ccToTreeless False n cc)
+        funBody <- convertNPlusK <$> (lift . lift) (ccToTreeless n cc)
         lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
         funBody' <- runCompile $ compileTerm funBody
         lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'

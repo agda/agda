@@ -269,7 +269,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
   functionViaTreeless :: QName -> CompiledClauses -> TCM [HS.Decl]
   functionViaTreeless q cc = do
-    treeless <- ccToTreeless True q cc
+    treeless <- ccToTreeless q cc
     e <- closedTerm treeless
     let (ps, b) =
           case stripTopCoerce e of
