@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.Erase (eraseTerms) where
 
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
@@ -90,7 +91,7 @@ eraseTerms = runE . erase
       TACon c a b -> TACon c a <$> erase b
       TAPlus k b  -> TAPlus k  <$> erase b
 
-data TypeInfo = Erasable | NotErasable
+data TypeInfo = Empty | Erasable | NotErasable
   deriving (Eq, Show)
 
 erasableR :: Relevance -> Bool
@@ -102,6 +103,7 @@ erasableR UnusedArg  = True
 
 erasable :: TypeInfo -> Bool
 erasable Erasable    = True
+erasable Empty       = True
 erasable NotErasable = False
 
 type FunInfo = ([Relevance], TypeInfo)
@@ -117,6 +119,11 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
       lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ show q ++ ": " ++ show rs ++ " -> " ++ show h
       return (rs, h)
 
+telListView :: Type -> TCM (ListTel, Type)
+telListView t = do
+  TelV tel t <- telView t
+  return (telToList tel, t)
+
 typeWithoutParams :: QName -> TCM (ListTel, Type)
 typeWithoutParams q = do
   def <- getConstInfo q
@@ -124,21 +131,24 @@ typeWithoutParams q = do
         Function{ funProjection = Just Projection{ projIndex = i } } -> i - 1
         Constructor{ conPars = n } -> n
         _                          -> 0
-  TelV tel t <- telView (defType def)
-  return (drop d $ telToList tel, t)
+  first (drop d) <$> telListView (defType def)
 
 getTypeInfo :: Type -> E TypeInfo
 getTypeInfo t = do
-  t <- lift $ reduce t
-  e <- case ignoreSharing $ I.unEl t of
+  (tel, t) <- lift $ telListView t
+  et <- case ignoreSharing $ I.unEl t of
     I.Def d _ -> typeInfo d
     Sort{}    -> return Erasable
     _         -> return NotErasable
+  is <- mapM (getTypeInfo . snd . dget) tel
+  let e | et == Empty       = Empty
+        | any (== Empty) is = Erasable
+        | otherwise         = et
   lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t <+> text ("is " ++ show e)
   return e
   where
     typeInfo :: QName -> E TypeInfo
-    typeInfo q = memo (typeMap . key q) $ do
+    typeInfo q = memoRec (typeMap . key q) Erasable $ do  -- assume recursive occurrences are erasable
       def <- lift $ getConstInfo q
       mcs <- return $ case I.theDef def of
         I.Datatype{ dataCons = cs } -> Just cs
@@ -151,6 +161,6 @@ getTypeInfo t = do
           is <- mapM (getTypeInfo . snd . dget) ts
           let er = and [ erasable i || erasableR r | (i, r) <- zip is rs ]
           return $ if er then Erasable else NotErasable
-        Just [] -> return Erasable
+        Just [] -> return Empty
         _       -> return NotErasable
 
