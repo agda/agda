@@ -1,7 +1,7 @@
 -- {-# OPTIONS -v tc.constr.findInScope:15 -v tc.meta.new:50 #-}
 -- Andreas, 2012-10-20 issue raised by d.starosud
 -- solved by dropping UnBlock constraints during trial candidate assignment
-module fail.Issue723 where
+module Fail.Issue723 where
 
 import Common.Level
 open import Common.Prelude using (Bool; false; zero) renaming (Nat to ℕ)
