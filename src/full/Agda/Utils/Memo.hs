@@ -1,27 +1,32 @@
-{-# LANGUAGE CPP        #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Agda.Utils.Memo where
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ( (<$) )
-#endif
-
+import Control.Applicative
 import Control.Monad.State
 import Agda.Utils.Lens
 
 -- Simple memoisation in a state monad
 
-#if __GLASGOW_HASKELL__ <= 708
+-- | Simple, non-reentrant memoisation.
 memo :: (Functor m, MonadState s m) => Lens' (Maybe a) s -> m a -> m a
-#else
-memo :: MonadState s m => Lens' (Maybe a) s -> m a -> m a
-#endif
 memo tbl compute = do
   mv <- use tbl
   case mv of
     Just x  -> return x
     Nothing -> do
+      x <- compute
+      x <$ (tbl .= Just x)
+
+-- | Recursive memoisation, second argument is the value you get
+--   on recursive calls.
+memoRec :: (Functor m, MonadState s m) => Lens' (Maybe a) s -> a -> m a -> m a
+memoRec tbl ih compute = do
+  mv <- use tbl
+  case mv of
+    Just x  -> return x
+    Nothing -> do
+      tbl .= Just ih
       x <- compute
       x <$ (tbl .= Just x)
 
