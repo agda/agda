@@ -41,8 +41,7 @@ simplifyTTerm :: TTerm -> TCM TTerm
 simplifyTTerm t = do
   modAux <- getBuiltinName builtinNatModSucAux
   divAux <- getBuiltinName builtinNatDivSucAux
-  return $ if isNothing modAux && isNothing divAux then t else
-    runS $ simplify FunctionKit{ modAux = modAux, divAux = divAux } t
+  return $ runS $ simplify FunctionKit{ modAux = modAux, divAux = divAux } t
 
 simplify :: FunctionKit -> TTerm -> S TTerm
 simplify FunctionKit{..} = simpl
