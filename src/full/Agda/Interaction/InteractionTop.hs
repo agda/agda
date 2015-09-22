@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -38,6 +39,8 @@ import qualified Data.Traversable as Trav
 
 import System.Directory
 import System.FilePath
+
+import Test.QuickCheck
 
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
@@ -470,8 +473,8 @@ instance Read InteractionId where
     readsPrec = parseToReadsPrec $
         fmap InteractionId readParse
 
--- | Note that the grammar implemented by this instances matches an
--- old representation of ranges, not necessarily the current one.
+-- | Note that the grammar implemented by this instance matches an old
+-- representation of ranges, not necessarily the current one.
 
 instance Read a => Read (Range' a) where
     readsPrec = parseToReadsPrec $ do
@@ -480,6 +483,35 @@ instance Read a => Read (Range' a) where
           `mplus` do
                 exact "noRange"
                 return noRange
+      where
+      intervalsToRange [] = maybeIntervalToRange Nothing
+      intervalsToRange is =
+        maybeIntervalToRange $ Just $
+          Interval { iStart = iStart (head is)
+                   , iEnd   = iEnd   (last is)
+                   }
+
+prop_reads_Range_empty :: Bool
+prop_reads_Range_empty =
+  reads "noRange"
+    ==
+  [(maybeIntervalToRange Nothing :: Range, "")]
+    &&
+  reads "Range []"
+    ==
+  [(maybeIntervalToRange Nothing :: Range, "")]
+
+prop_reads_Range_interval :: Property
+prop_reads_Range_interval =
+  forAll (fmap getNonNegative <$> vector 6) $ \[x, y, z, u, v, w] ->
+    reads ("Range [Interval " ++ pn x y z ++ pn u v w ++ "]")
+      ==
+    [(maybeIntervalToRange
+        (Just (Interval (Pn Strict.Nothing x y z)
+                        (Pn Strict.Nothing u v w))) :: Range, "")]
+  where
+  pn x y z =
+    "(Pn Nothing " ++ show x ++ " " ++ show y ++ " " ++ show z ++ ")"
 
 instance Read a => Read (Interval' a) where
     readsPrec = parseToReadsPrec $ do
@@ -1246,3 +1278,15 @@ tellEmacsToJumpToError r =
     Just (Pn { srcFile = Strict.Nothing })            -> []
     Just (Pn { srcFile = Strict.Just f, posPos = p }) ->
        [ Resp_JumpToError (filePath f) p ]
+
+------------------------------------------------------------------------
+-- * All tests
+------------------------------------------------------------------------
+
+return []
+
+-- | Test suite.
+tests :: IO Bool
+tests = do
+  putStrLn "Agda.Interaction.InteractionTop"
+  $quickCheckAll

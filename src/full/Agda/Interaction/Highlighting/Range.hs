@@ -19,6 +19,7 @@ module Agda.Interaction.Highlighting.Range
 
 import Control.Applicative ((<$>))
 import Data.List
+import Data.Maybe
 import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Position as P
@@ -87,7 +88,7 @@ prop_rangesToPositions rs = sorted (rangesToPositions rs)
 -- | Converts a 'P.Range' to a 'Ranges'.
 
 rToR :: P.Range -> Ranges
-rToR r = Ranges (map iToR (P.rangeIntervals r))
+rToR r = Ranges $ map iToR $ maybeToList $ P.rangeToInterval r
   where
   iToR (P.Interval { P.iStart = P.Pn { P.posPos = pos1 }
                    , P.iEnd   = P.Pn { P.posPos = pos2 }
