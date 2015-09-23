@@ -335,7 +335,6 @@ compileTerm term =
                 vars <- lift $ replicateM (C.aArity a) freshLocalName
                 body <- addToEnv (reverse vars) (compileTerm $ C.aBody a)
                 return $ A.BrCon conInfo (C.aCon a) vars body
-    C.TPi _ _ -> __IMPOSSIBLE__
     C.TUnit -> return UNIT
     C.TSort -> return UNIT
     C.TErased -> return UNIT
@@ -347,5 +346,5 @@ compilePrim C.PDiv = A.Var $ primFunNm "primIntegerDiv"
 compilePrim C.PMod = A.Var $ primFunNm "primIntegerMod"
 compilePrim C.PSub = A.Var $ primFunNm "primIntegerMinus"
 compilePrim C.PAdd = A.Var $ primFunNm "primIntegerPlus"
-compilePrim C.PIfThenElse = A.Var $ primFunNm "primIfThenElse"
-compilePrim C.PGreaterOrEqual = A.Var $ primFunNm "primIntegerGreaterOrEqual"
+compilePrim C.PIf  = A.Var $ primFunNm "primIfThenElse"
+compilePrim C.PGeq = A.Var $ primFunNm "primIntegerGreaterOrEqual"

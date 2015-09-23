@@ -27,15 +27,11 @@ instance Subst TTerm TTerm where
     TApp f ts      -> TApp (applySubst rho f) (applySubst rho ts)
     TLam b         -> TLam (applySubst (liftS 1 rho) b)
     TLet e b       -> TLet (applySubst rho e) (applySubst (liftS 1 rho) b)
-    TPi a b        -> TPi (applySubst rho a) (applySubst (liftS 1 rho) b)
     TCase i t d bs ->
       case applySubst rho (TVar i) of
         TVar j -> TCase j t (applySubst rho d) (applySubst rho bs)
         e -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
           where rho' = liftS 1 rho
-
-instance Subst TTerm TType where
-  applySubst rho (TType t) = TType (applySubst rho t)
 
 instance Subst TTerm TAlt where
   applySubst rho (TACon c i b)  = TACon c i (applySubst (liftS i rho) b)

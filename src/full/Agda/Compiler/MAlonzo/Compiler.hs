@@ -429,7 +429,6 @@ term tm0 = case tm0 of
       then HS.Var <$> lift (xhqn "d" q)
       else hsCast' . HS.Con <$> lift (conhqn q)
   T.TPrim p  -> return $ compilePrim p
-  T.TPi _ _  -> return HS.unit_con
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
   T.TErased  -> return HS.unit_con
@@ -445,8 +444,8 @@ compilePrim s =
     T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
     -- primitives only used by NPlusKToPrims transformation, which MAlonzo doesn't use
-    T.PGreaterOrEqual -> __IMPOSSIBLE__
-    T.PIfThenElse -> __IMPOSSIBLE__
+    T.PGeq -> __IMPOSSIBLE__
+    T.PIf  -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt
 alt a = do

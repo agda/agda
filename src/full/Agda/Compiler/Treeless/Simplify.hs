@@ -80,7 +80,6 @@ simplify FunctionKit{..} = simpl
         bs <- traverse simplAlt bs
         tCase x t d bs
 
-      TPi a b        -> TPi <$> simplTy a <*> underLam (simplTy b)
       TUnit          -> pure t
       TSort          -> pure t
       TErased        -> pure t
@@ -89,8 +88,6 @@ simplify FunctionKit{..} = simpl
     simplAlt (TACon c a b) = TACon c a <$> underLams a (simpl b)
     simplAlt (TALit l b)   = TALit l   <$> simpl b
     simplAlt (TAPlus k b)  = TAPlus k  <$> underLam (simpl b)
-
-    simplTy (TType t) = TType <$> simpl t
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
     tCase x t d bs

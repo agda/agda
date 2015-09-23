@@ -33,8 +33,8 @@ convertNPlusK = tr
 
           guardedAlt :: TAlt -> TTerm -> TTerm
           guardedAlt (TAPlus{aSucs = k, aBody = body}) cont =
-            TApp (TPrim PIfThenElse)
-              [ TApp (TPrim PGreaterOrEqual) [TVar sc, tInt k]
+            TApp (TPrim PIf)
+              [ tOp PGeq (TVar sc) (tInt k)
               , TLet (tOp PSub (TVar sc) (tInt k)) (tr body)
               , cont
               ]
@@ -55,7 +55,6 @@ convertNPlusK = tr
       TErased{} -> t
       TError{}  -> t
 
-      TPi (TType a) (TType b) -> TPi (TType $ tr a) (TType $ tr b)
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)

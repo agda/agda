@@ -77,7 +77,6 @@ eraseTerms = runE . erase
         TLet e b       -> TLet <$> erase e <*> erase b
         TCase x t d bs -> TCase x t <$> erase d <*> mapM eraseAlt bs
 
-        TPi a b        -> pure TErased
         TUnit          -> pure t
         TSort          -> pure t
         TErased        -> pure t

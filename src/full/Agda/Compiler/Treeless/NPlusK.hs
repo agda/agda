@@ -90,7 +90,6 @@ transform isZero isSuc = tr
       TErased{} -> t
       TError{}  -> t
 
-      TPi (TType a) (TType b) -> TPi (TType $ tr a) (TType $ tr b)
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)

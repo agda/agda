@@ -49,9 +49,6 @@ data TModule
   }
   deriving (Typeable, Show)
 
-data TType = TType { unEl :: TTerm }
-  deriving (Typeable, Show, Eq, Ord)
-
 data Def a
   = Def
     { name :: QName
@@ -108,8 +105,6 @@ data TTerm = TVar Int
            -- It is also perfectly valid to just inline the bound term in the body.
            | TCase Int CaseType TTerm [TAlt]
            -- ^ Case scrutinee (always variable), case type, default value, alternatives
-           | TPi TType TType
-           -- ^ TODO: get rid of this?
            | TUnit -- used for levels right now
            | TSort
            | TErased
@@ -117,7 +112,7 @@ data TTerm = TVar Int
            -- ^ A runtime error, something bad has happened.
   deriving (Typeable, Show, Eq, Ord)
 
-data TPrim = PAdd | PSub | PDiv | PMod | PGreaterOrEqual | PIfThenElse
+data TPrim = PAdd | PSub | PDiv | PMod | PGeq | PIf
   deriving (Typeable, Show, Eq, Ord)
 
 mkTApp :: TTerm -> Args -> TTerm
