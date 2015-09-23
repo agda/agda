@@ -38,22 +38,10 @@ tests = do
   return $ testGroup "Fail" tests'
 
 data AgdaResult
-  = AgdaResult T.Text -- the cleaned stderr? stdout?
+  = AgdaResult T.Text -- the cleaned stdout
   | AgdaUnexpectedSuccess ProgramResult
 
 
-{-
-diffRes :: T.Text -> T.Text -> GDiff
-diffRes t1 t2 =
-  if t1' == t2'
-    then
-      Equal
-    else
-      DiffText t1 t2
-  where
-    t1' = T.replace "\n" "" t1
-    t2' = T.replace "\n" "" t2
--}
 
 mkFailTest :: FilePath -- agda binary
     -> FilePath -- inp file
@@ -62,8 +50,6 @@ mkFailTest agdaBin inp = do
   goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = dropExtension $ takeFileName inp
         goldenFile = (dropExtension inp) <.> ".err"
---        readGolden = fmap decodeUtf8 <$> readFileMaybe ref
---        updGolden  = (BL.writeFile goldenFile . fromStrict . encodeUtf8)
         flagFile = (dropExtension inp) <.> ".flags"
 
         doRun = (do
