@@ -1,15 +1,5 @@
-{-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE PatternGuards #-}
 
 -- | The treeless syntax is intended to be used as input for the compiler backends.
 -- It is more low-level than Internal syntax and is not used for type checking.
@@ -22,70 +12,16 @@ module Agda.Syntax.Treeless
     , module Agda.Syntax.Treeless
     ) where
 
-import Prelude hiding (foldr, mapM, null)
+import Prelude
 
 import Data.Map (Map)
-
--- base-4.7 defines the Num instance for Sum
-#if !(MIN_VERSION_base(4,7,0))
-import Data.Orphans             ()
-#endif
-
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
-
 type Args = [TTerm]
-
-data TModule
-  = TModule
-  { mName :: ModuleName
-  , mDataRec :: Map QName DataRecDef
-  -- ^ Data and record types
-  , mFuns :: Map QName FunDef
-  }
-  deriving (Typeable, Show)
-
-data Def a
-  = Def
-    { name :: QName
-    , ty :: TType
-    , theDef :: a
-    }
-  deriving (Typeable, Show)
-
-type DataRecDef = Def DataRecDef'
-data DataRecDef'
-  = Record
-    { drdCon :: ConDef
-    }
-  | Datatype
-    { drdCons :: [ConDef]
-    }
-  deriving (Typeable, Show)
-
-type ConDef = Def ConDef'
-data ConDef'
-  = Con
-    { cdName :: QName
-    }
-  deriving (Typeable, Show)
-
-type FunDef = Def FunDef'
-data FunDef'
-  = Fun
-    { fdBody :: TTerm
-    }
-  | Axiom
-  | Primitive
-    { fdPrimName :: String
-    }
-  | ForeignImport
-  deriving (Typeable, Show)
-
 
 -- this currently assumes that TApp is translated in a lazy/cbn fashion.
 -- The AST should also support strict translation.
