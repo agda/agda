@@ -203,7 +203,7 @@ script:
   - if [ $TEST = "non-require-stdlib" ]; then
        make check-whitespace &&
        make BUILD_DIR=$BUILD_DIR succeed &&
-       make BUILD_DIR=$BUILD_DIR fail &&
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail &&
        make BUILD_DIR=$BUILD_DIR interaction &&
        make BUILD_DIR=$BUILD_DIR interactive &&
        make BUILD_DIR=$BUILD_DIR examples &&
