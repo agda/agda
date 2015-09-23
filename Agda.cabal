@@ -182,6 +182,7 @@ library
                     Agda.Compiler.Treeless.Erase
                     Agda.Compiler.Treeless.NPlusK
                     Agda.Compiler.Treeless.NPlusKToPrims
+                    Agda.Compiler.Treeless.Pretty
                     Agda.Compiler.Treeless.Simplify
                     Agda.Compiler.Treeless.Subst
                     Agda.Compiler.UHC.AuxAST
