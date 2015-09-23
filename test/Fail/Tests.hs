@@ -11,7 +11,6 @@ import System.FilePath
 import qualified System.Process.Text as PT
 import qualified Data.Text as T
 import Data.Text.Encoding
-import Data.Array
 import System.Exit
 import System.Directory
 import qualified Data.ByteString as BS
@@ -113,15 +112,3 @@ clean inp = do
           , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
           ]
 
-replace :: R.Regex -> T.Text -> T.Text -> T.Text
-replace rgx new inp =
-  fst $ foldl repl (inp, 0) matches
-  where
-    matches = R.matchAll rgx inp
-    repl :: (T.Text, Int) -> R.MatchArray -> (T.Text, Int)
-    repl (t, globalOffset) match =
-      (T.take ix t `T.append` new `T.append` T.drop (ix + len) t, globalOffset + lenDiff)
-      where
-        (off, len) = match ! 0
-        ix = off - globalOffset
-        lenDiff = len - (T.length new)

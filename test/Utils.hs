@@ -15,6 +15,9 @@ import Data.Char
 import qualified Data.Set as S
 import System.Directory
 
+import Data.Array
+import Text.Regex.TDFA.Text ()
+import qualified Text.Regex.TDFA as R
 
 type ProgramResult = (ExitCode, T.Text, T.Text)
 
@@ -47,4 +50,22 @@ agdaExts = S.fromList [".agda", ".lagda"]
 
 getAgdaFilesInDir :: String -> IO [FilePath]
 getAgdaFilesInDir dir = map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$> getDirectoryContents dir
+
+
+-- | Replaces all matches of a regex with the given text.
+--
+-- (There doesn't seem to be any such function in the regex-tdfa libraries?)
+replace :: R.Regex -> T.Text -> T.Text -> T.Text
+replace rgx new inp =
+  foldr repl inp matches
+  where
+    -- the matches are in ascending, non-overlapping order. We take advantage
+    -- of this by replacing the matches in last-to-first order,
+    -- which means we don't have to worry about changing offsets.
+    matches = R.matchAll rgx inp
+    repl :: R.MatchArray -> T.Text -> T.Text
+    repl match t =
+      T.take off t `T.append` new `T.append` T.drop (off + len) t
+      where
+        (off, len) = match ! 0
 
