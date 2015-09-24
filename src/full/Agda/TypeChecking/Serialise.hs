@@ -56,6 +56,8 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 
 import qualified Codec.Compression.GZip as G
@@ -114,7 +116,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150924 * 10 + 0
+currentInterfaceVersion = 20150920 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -593,14 +595,18 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toList s)
   value s = Set.fromList `fmap` value s
 
+instance EmbPrj a => EmbPrj (Seq a) where
+  icod_ s = icode (Fold.toList s)
+  value s = Seq.fromList `fmap` value s
+
 instance EmbPrj P.Interval where
   icod_ (P.Interval p q) = icode2' p q
   value = vcase valu where valu [p, q] = valu2 P.Interval p q
                            valu _      = malformed
 
 instance EmbPrj Range where
-  icod_ r = icode (P.rangeToInterval r)
-  value r = P.maybeIntervalToRange `fmap` value r
+  icod_ r = icode (P.rangeIntervals r)
+  value r = P.intervalsToRange `fmap` value r
 
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icode2' a b

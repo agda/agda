@@ -1034,8 +1034,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     -- @
                     -- and we need to store the ranges of both occurences of y in order
                     -- for the highlighter to do the right thing.
-                    -- x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
-                    x <- toAbstract (NewName $ mkBoundName x fx)
+                    x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
                     info <- toAbstract info
                     return [ A.LetBind (LetRange $ getRange d) info x t e ]
 

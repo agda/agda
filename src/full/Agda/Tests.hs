@@ -8,7 +8,6 @@ import Agda.Interaction.Highlighting.Emacs    as InteEmac   (tests)
 import Agda.Interaction.Highlighting.Generate as InteGene   (tests)
 import Agda.Interaction.Highlighting.Precise  as IntePrec   (tests)
 import Agda.Interaction.Highlighting.Range    as InteRang   (tests)
-import Agda.Interaction.InteractionTop        as InteTop    (tests)
 import Agda.Interaction.Options               as InteOpti   (tests)
 import Agda.Syntax.Parser.Parser              as SyntPars   (tests)
 import Agda.Syntax.Position                   as SyntPosi   (tests)
@@ -52,7 +51,6 @@ testSuite = runTests "QuickCheck test suite:"
   , InteGene.tests
   , IntePrec.tests
   , InteRang.tests
-  , InteTop.tests
   , InteOpti.tests
   , SyntPars.tests
   , SyntPosi.tests

@@ -49,7 +49,7 @@ traceCall mkCall m = do
   -- outside the current file
   verboseS "check.ranges" 10 $
     unlessNull callRange $ \ r ->
-      let is = maybeToList (rangeToInterval r) in
+      let is = rangeIntervals r in
       unlessNull (Strict.mapMaybe srcFile $
                     map iStart is ++ map iEnd is) $ \ files -> do
         whenJustM (asks envCurrentPath) $ \ currentFile -> do

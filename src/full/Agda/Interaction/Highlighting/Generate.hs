@@ -73,7 +73,8 @@ import Agda.Utils.Impossible
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
 --   result. Additionally, some code may be highlighted:
 --
--- * If @r@ is non-empty and not a sub-range of @rPre@: @r@ is
+-- * If @r@ is non-empty and not a sub-range of @rPre@ (after
+--   'P.continuousPerLine' has been applied to both): @r@ is
 --   highlighted as being type-checked while @m@ is running (this
 --   highlighting is removed if @m@ completes /successfully/).
 --
@@ -91,8 +92,8 @@ highlightAsTypeChecked rPre r m
   | r /= P.noRange && delta == rPre' = wrap r'    highlight clear
   | otherwise                        = wrap delta clear     highlight
   where
-  rPre'     = rToR rPre
-  r'        = rToR r
+  rPre'     = rToR (P.continuousPerLine rPre)
+  r'        = rToR (P.continuousPerLine r)
   delta     = rPre' `minus` r'
   clear     = mempty
   highlight = mempty { otherAspects = [TypeChecks] }
@@ -461,21 +462,20 @@ generateConstructorInfo modMap file kinds decl = do
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
   -- it makes sense to return the empty File.
-  case P.rangeToInterval (P.getRange decl) of
-    Nothing -> return mempty
-    Just i  -> do
-      let start = fromIntegral $ P.posPos $ P.iStart i
-          end   = fromIntegral $ P.posPos $ P.iEnd   i
+  ifNull (P.rangeIntervals $ P.getRange decl)
+         (return mempty) $ \is -> do
+    let start = fromIntegral $ P.posPos $ P.iStart $ head is
+        end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
 
-      -- Get all disambiguated names that fall within the range of decl.
-      m0 <- use stDisambiguatedNames
-      let (_, m1) = IntMap.split (pred start) m0
-          (m2, _) = IntMap.split end m1
-          constrs = IntMap.elems m2
+    -- Get all disambiguated names that fall within the range of decl.
+    m0 <- use stDisambiguatedNames
+    let (_, m1) = IntMap.split (pred start) m0
+        (m2, _) = IntMap.split end m1
+        constrs = IntMap.elems m2
 
-      -- Return suitable syntax highlighting information.
-      let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
-      return $ Fold.fold files
+    -- Return suitable syntax highlighting information.
+    let files = for constrs $ \ q -> generate modMap file kinds $ A.AmbQ [q]
+    return $ Fold.fold files
 
 printSyntaxInfo :: P.Range -> TCM ()
 printSyntaxInfo r = do
@@ -503,7 +503,7 @@ errorHighlighting e = do
 
   -- Erase previous highlighting.
   let r     = P.getRange e
-      erase = singleton (rToR r) mempty
+      erase = singleton (rToR $ P.continuousPerLine r) mempty
 
   -- Print new highlighting.
   s <- E.prettyError e
@@ -549,7 +549,7 @@ computeUnsolvedMetaWarnings = do
   ms <- filterM notBlocked =<< getOpenMetas
 
   rs <- mapM getMetaRange (ms \\ is)
-  return $ several (map rToR rs)
+  return $ several (map (rToR . P.continuousPerLine) rs)
                    (mempty { otherAspects = [UnsolvedMeta] })
 
 -- | Generates syntax highlighting information for unsolved constraints
@@ -560,7 +560,7 @@ computeUnsolvedConstraints = do
   cs <- getAllConstraints
   -- get ranges of emptyness constraints
   let rs = [ r | PConstr{ theConstraint = Closure{ clValue = IsEmpty r t }} <- cs ]
-  return $ several (map rToR rs)
+  return $ several (map (rToR . P.continuousPerLine) rs)
                    (mempty { otherAspects = [UnsolvedConstraint] })
 
 -- | Generates a suitable file for a possibly ambiguous name.

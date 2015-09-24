@@ -731,7 +731,7 @@ An error is raised if no responses are received."
             (t (setq input-from-goal t)))
       (apply 'agda2-go t t t cmd
              (format "%d" g)
-             (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
+             (if input-from-goal (agda2-goal-Range o) "noRange")
              (agda2-string-quote txt) args))))
 
 ;; Note that the following function is a security risk, since it
@@ -1373,7 +1373,7 @@ text properties."
         (if (and (not (equal new-txt 'paren)) (not (equal new-txt 'no-paren)))
             (apply 'agda2-go t t nil "Cmd_highlight"
               (format "%d" old-g)
-              (agda2-mkRange `(,p ,(- q 2)))
+              (agda2-mkRange p (- q 2))
               (agda2-string-quote new-txt) nil))
     )))
 
@@ -1391,20 +1391,14 @@ text properties."
 
 (defun agda2-goal-Range (o)
   "The Haskell Range of goal overlay O."
-  (agda2-mkRange `(,(+ (overlay-start o) 2)
-                   ,(- (overlay-end   o) 2))))
+  (agda2-mkRange (+ (overlay-start o) 2)
+                 (- (overlay-end   o) 2)))
 
-(defun agda2-mkRange (points)
-  "The Haskell Range corresponding to POINTS.
-An empty range if POINTS is empty, and a single interval if
-POINTS contains two elements.
-
-POINTS must be a list with length 0 or 2."
-  (if points
-      (format "(Range [Interval %s %s])"
-              (agda2-mkPos (car points))
-              (agda2-mkPos (cadr points)))
-    "noRange"))
+(defun agda2-mkRange (p q)
+  "The Haskell Range corresponding to two points."
+  (format "(Range [Interval %s %s])"
+          (agda2-mkPos p)
+          (agda2-mkPos q)))
 
 (defun agda2-mkPos (&optional p)
   "The Haskell Position corresponding to P or `point'."
