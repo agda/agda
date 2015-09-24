@@ -197,6 +197,9 @@ data LetBinding
     -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
   | LetOpen ModuleInfo ModuleName
     -- ^ only for highlighting and abstractToConcrete
+  | LetDeclaredVariable Name
+    -- ^ Only used for highlighting. Refers to the first occurrence of
+    -- @x@ in @let x : A; x = e@.
   deriving (Typeable, Show, Eq)
 
 -- | Only 'Axiom's.
@@ -528,6 +531,7 @@ instance HasRange LetBinding where
     getRange (LetPatBind  i _ _      ) = getRange i
     getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _           ) = getRange i
+    getRange (LetDeclaredVariable x)   = getRange x
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -646,6 +650,7 @@ instance KillRange LetBinding where
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
   killRange (LetApply   i a b c d   ) = killRange3 LetApply i a b c d
   killRange (LetOpen    i x         ) = killRange2 LetOpen  i x
+  killRange (LetDeclaredVariable x)   = killRange1 LetDeclaredVariable x
 
 instanceUniverseBiT' [] [t| (Declaration, QName)          |]
 instanceUniverseBiT' [] [t| (Declaration, AmbiguousQName) |]
@@ -763,10 +768,11 @@ instance AllNames TypedBinding where
   allNames (TLet _ lbs)  = allNames lbs
 
 instance AllNames LetBinding where
-  allNames (LetBind _ _ _ e1 e2)  = allNames e1 >< allNames e2
-  allNames (LetPatBind _ _ e)     = allNames e
-  allNames (LetApply _ _ app _ _) = allNames app
-  allNames LetOpen{}              = Seq.empty
+  allNames (LetBind _ _ _ e1 e2)   = allNames e1 >< allNames e2
+  allNames (LetPatBind _ _ e)      = allNames e
+  allNames (LetApply _ _ app _ _)  = allNames app
+  allNames LetOpen{}               = Seq.empty
+  allNames (LetDeclaredVariable _) = Seq.empty
 
 instance AllNames ModuleApplication where
   allNames (SectionApp bindss _ es) = allNames bindss >< allNames es

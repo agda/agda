@@ -1726,8 +1726,9 @@ checkLetBinding (A.LetApply i x modapp rd rm) ret = do
     ]
   checkSectionApplication i x modapp rd rm
   withAnonymousModule x new ret
--- LetOpen is only used for highlighting and has no semantics
+-- LetOpen and LetDeclaredVariable are only used for highlighting.
 checkLetBinding A.LetOpen{} ret = ret
+checkLetBinding (A.LetDeclaredVariable _) ret = ret
 
 class ConvColor a i where
   convColor :: a -> i

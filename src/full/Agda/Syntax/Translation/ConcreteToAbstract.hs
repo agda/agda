@@ -1026,17 +1026,16 @@ instance ToAbstract LetDef [A.LetBinding] where
                       genericError $ "Macros cannot be defined in a let expression."
                     (x', e) <- letToAbstract cl
                     t <- toAbstract t
-                    -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
-                    -- The situation is
-                    -- @
-                    --    let y : t
-                    --        y = e
-                    -- @
-                    -- and we need to store the ranges of both occurences of y in order
-                    -- for the highlighter to do the right thing.
-                    x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
+                    x <- toAbstract (NewName $ mkBoundName x fx)
                     info <- toAbstract info
-                    return [ A.LetBind (LetRange $ getRange d) info x t e ]
+                    -- There are sometimes two instances of the
+                    -- let-bound variable, one declaration and one
+                    -- definition. The first list element below is
+                    -- used to highlight the declared instance in the
+                    -- right way (see Issue 1618).
+                    return [ A.LetDeclaredVariable (setRange (getRange x') x)
+                           , A.LetBind (LetRange $ getRange d) info x t e
+                           ]
 
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do

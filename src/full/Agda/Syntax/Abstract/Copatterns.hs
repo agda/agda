@@ -267,10 +267,13 @@ class Rename e where
 instance Rename QName where
   rename _ q = q
 
+instance Rename Name where
+  rename rho x = maybe x id (rho x)
+
 instance Rename Expr where
   rename rho e =
     case e of
-      Var x                 -> Var $ maybe x id (rho x)
+      Var x                 -> Var (rename rho x)
       Def f                 -> e
       Proj f                -> e
       Con c                 -> e
@@ -310,10 +313,11 @@ instance Rename a => Rename (FieldAssignment' a) where
 instance Rename LetBinding where
   rename rho e =
       case e of
-        LetBind i r n e e' -> LetBind i r n (rename rho e) (rename rho e')
-        LetPatBind i p e   -> LetPatBind i (rename rho p) (rename rho e)
-        LetApply{}         -> e
-        LetOpen{}          -> e
+        LetBind i r n e e'    -> LetBind i r n (rename rho e) (rename rho e')
+        LetPatBind i p e      -> LetPatBind i (rename rho p) (rename rho e)
+        LetApply{}            -> e
+        LetOpen{}             -> e
+        LetDeclaredVariable x -> LetDeclaredVariable (rename rho x)
 
 instance Rename LamBinding where
   rename rho e =

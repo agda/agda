@@ -884,10 +884,11 @@ instance EmbPrj A.LamBinding where
                            valu _         = malformed
 
 instance EmbPrj A.LetBinding where
-  icod_ (A.LetBind _ a b c d)  = icode4 0 a b c d
-  icod_ (A.LetPatBind _ a b )  = icode2 1 a b
-  icod_ (A.LetApply _ _ _ _ _) = icode0 2
-  icod_ (A.LetOpen _ _)        = icode0 2
+  icod_ (A.LetBind _ a b c d)     = icode4 0 a b c d
+  icod_ (A.LetPatBind _ a b )     = icode2 1 a b
+  icod_ (A.LetApply _ _ _ _ _)    = icode0 2
+  icod_ (A.LetOpen _ _)           = icode0 2
+  icod_ (A.LetDeclaredVariable a) = icode1 3 a
 
   value = vcase valu
     where
@@ -895,6 +896,7 @@ instance EmbPrj A.LetBinding where
       valu [1, a, b]       = valu2 (A.LetPatBind (LetRange noRange)) a b
       valu [2]             = throwError $ NotSupported
                                  "importing pattern synonym containing let module"
+      valu [3, a]          = valu1 A.LetDeclaredVariable a
       valu _               = malformed
 
 instance EmbPrj A.TypedBindings where

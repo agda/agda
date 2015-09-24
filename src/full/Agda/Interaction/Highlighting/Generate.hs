@@ -256,10 +256,11 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
-    getLet (A.LetBind _ _ x _ _) = bound x
-    getLet A.LetPatBind{}        = mempty
-    getLet A.LetApply{}          = mempty
-    getLet A.LetOpen{}           = mempty
+    getLet (A.LetBind _ _ x _ _)     = bound x
+    getLet A.LetPatBind{}            = mempty
+    getLet A.LetApply{}              = mempty
+    getLet A.LetOpen{}               = mempty
+    getLet (A.LetDeclaredVariable x) = bound x
 
     getLam :: A.LamBinding -> File
     getLam (A.DomainFree _ x) = bound x
