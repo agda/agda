@@ -134,7 +134,7 @@ data Declaration
   | DataDef    DefInfo QName [LamBinding] [Constructor]
       -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
   | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe QName) [LamBinding] Expr [Declaration]
+  | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe Bool) (Maybe QName) [LamBinding] Expr [Declaration]
       -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
   | PatternSynDef QName [Arg Name] Pattern
@@ -156,7 +156,7 @@ instance GetDefInfo Declaration where
   getDefInfo (DataSig i _ _ _)      = Just i
   getDefInfo (DataDef i _ _ _)      = Just i
   getDefInfo (RecSig i _ _ _)       = Just i
-  getDefInfo (RecDef i _ _ _ _ _ _) = Just i
+  getDefInfo (RecDef i _ _ _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
 data ModuleApplication
@@ -184,8 +184,6 @@ data Pragma
   | CompiledDataUHCPragma QName String [String]
   | NoSmashingPragma QName
   | StaticPragma QName
-  | EtaPragma QName
-  | NoEtaPragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr
   deriving (Typeable, Show, Eq)
 
@@ -199,6 +197,9 @@ data LetBinding
     -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
   | LetOpen ModuleInfo ModuleName
     -- ^ only for highlighting and abstractToConcrete
+  | LetDeclaredVariable Name
+    -- ^ Only used for highlighting. Refers to the first occurrence of
+    -- @x@ in @let x : A; x = e@.
   deriving (Typeable, Show, Eq)
 
 -- | Only 'Axiom's.
@@ -489,7 +490,7 @@ instance HasRange Declaration where
     getRange (DataSig    i _ _ _    ) = getRange i
     getRange (DataDef    i _ _ _    ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
-    getRange (RecDef   i _ _ _ _ _ _) = getRange i
+    getRange (RecDef   i _ _ _ _ _ _ _) = getRange i
     getRange (PatternSynDef x _ _   ) = getRange x
     getRange (UnquoteDecl _ i _ _)    = getRange i
     getRange (UnquoteDef i _ _)       = getRange i
@@ -530,6 +531,7 @@ instance HasRange LetBinding where
     getRange (LetPatBind  i _ _      ) = getRange i
     getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _           ) = getRange i
+    getRange (LetDeclaredVariable x)   = getRange x
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -603,7 +605,7 @@ instance KillRange Declaration where
   killRange (DataSig i a b c          ) = killRange4 DataSig i a b c
   killRange (DataDef i a b c          ) = killRange4 DataDef i a b c
   killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
-  killRange (RecDef  i a b c d e f    ) = killRange7 RecDef  i a b c d e f
+  killRange (RecDef  i a b c d e f g  ) = killRange8 RecDef  i a b c d e f g
   killRange (PatternSynDef x xs p     ) = killRange3 PatternSynDef x xs p
   killRange (UnquoteDecl mi i x e     ) = killRange4 UnquoteDecl mi i x e
   killRange (UnquoteDef i x e         ) = killRange3 UnquoteDef i x e
@@ -648,6 +650,7 @@ instance KillRange LetBinding where
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
   killRange (LetApply   i a b c d   ) = killRange3 LetApply i a b c d
   killRange (LetOpen    i x         ) = killRange2 LetOpen  i x
+  killRange (LetDeclaredVariable x)   = killRange1 LetDeclaredVariable x
 
 instanceUniverseBiT' [] [t| (Declaration, QName)          |]
 instanceUniverseBiT' [] [t| (Declaration, AmbiguousQName) |]
@@ -700,7 +703,7 @@ instance AllNames Declaration where
   allNames (DataSig _ q _ _)          = Seq.singleton q
   allNames (DataDef _ q _ decls)      = q <| allNames decls
   allNames (RecSig _ q _ _)           = Seq.singleton q
-  allNames (RecDef _ q _ c _ _ decls) = q <| allNames c >< allNames decls
+  allNames (RecDef _ q _ _ c _ _ decls) = q <| allNames c >< allNames decls
   allNames (PatternSynDef q _ _)      = Seq.singleton q
   allNames (UnquoteDecl _ _ q _)      = Seq.singleton q
   allNames (UnquoteDef _ q _)         = Seq.singleton q
@@ -765,10 +768,11 @@ instance AllNames TypedBinding where
   allNames (TLet _ lbs)  = allNames lbs
 
 instance AllNames LetBinding where
-  allNames (LetBind _ _ _ e1 e2)  = allNames e1 >< allNames e2
-  allNames (LetPatBind _ _ e)     = allNames e
-  allNames (LetApply _ _ app _ _) = allNames app
-  allNames LetOpen{}              = Seq.empty
+  allNames (LetBind _ _ _ e1 e2)   = allNames e1 >< allNames e2
+  allNames (LetPatBind _ _ e)      = allNames e
+  allNames (LetApply _ _ app _ _)  = allNames app
+  allNames LetOpen{}               = Seq.empty
+  allNames (LetDeclaredVariable _) = Seq.empty
 
 instance AllNames ModuleApplication where
   allNames (SectionApp bindss _ es) = allNames bindss >< allNames es
@@ -800,7 +804,7 @@ instance AnyAbstract Declaration where
   anyAbstract (Section _ _ _ ds)     = anyAbstract ds
   anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract (DataDef i _ _ _)      = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (DataSig i _ _ _)      = defAbstract i == AbstractDef
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__

@@ -42,6 +42,7 @@ import Control.Monad.State.Strict (StateT, runStateT, gets, modify)
 import Data.Array.IArray
 import Data.Word
 import qualified Data.ByteString.Lazy as L
+import qualified Data.Foldable as Fold
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
@@ -55,6 +56,8 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.List as List
 import Data.Function
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 
 import qualified Codec.Compression.GZip as G
@@ -99,6 +102,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.FileName
 import Agda.Utils.IORef
 import Agda.Utils.Lens
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 
@@ -112,7 +116,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150829 * 10 + 0
+currentInterfaceVersion = 20150920 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -528,6 +532,10 @@ instance EmbPrj a => EmbPrj (Maybe a) where
                            valu [x] = valu1 Just x
                            valu _   = malformed
 
+instance EmbPrj a => EmbPrj (Strict.Maybe a) where
+  icod_ m = icode (Strict.toLazy m)
+  value m = Strict.toStrict `fmap` value m
+
 instance EmbPrj Bool where
   icod_ True  = icode0'
   icod_ False = icode0 0
@@ -587,15 +595,18 @@ instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
   icod_ s = icode (Set.toList s)
   value s = Set.fromList `fmap` value s
 
+instance EmbPrj a => EmbPrj (Seq a) where
+  icod_ s = icode (Fold.toList s)
+  value s = Seq.fromList `fmap` value s
+
 instance EmbPrj P.Interval where
   icod_ (P.Interval p q) = icode2' p q
   value = vcase valu where valu [p, q] = valu2 P.Interval p q
                            valu _      = malformed
 
 instance EmbPrj Range where
-  icod_ (P.Range is) = icode1' is
-  value = vcase valu where valu [is] = valu1 P.Range is
-                           valu _    = malformed
+  icod_ r = icode (P.rangeIntervals r)
+  value r = P.intervalsToRange `fmap` value r
 
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icode2' a b
@@ -873,10 +884,11 @@ instance EmbPrj A.LamBinding where
                            valu _         = malformed
 
 instance EmbPrj A.LetBinding where
-  icod_ (A.LetBind _ a b c d)  = icode4 0 a b c d
-  icod_ (A.LetPatBind _ a b )  = icode2 1 a b
-  icod_ (A.LetApply _ _ _ _ _) = icode0 2
-  icod_ (A.LetOpen _ _)        = icode0 2
+  icod_ (A.LetBind _ a b c d)     = icode4 0 a b c d
+  icod_ (A.LetPatBind _ a b )     = icode2 1 a b
+  icod_ (A.LetApply _ _ _ _ _)    = icode0 2
+  icod_ (A.LetOpen _ _)           = icode0 2
+  icod_ (A.LetDeclaredVariable a) = icode1 3 a
 
   value = vcase valu
     where
@@ -884,6 +896,7 @@ instance EmbPrj A.LetBinding where
       valu [1, a, b]       = valu2 (A.LetPatBind (LetRange noRange)) a b
       valu [2]             = throwError $ NotSupported
                                  "importing pattern synonym containing let module"
+      valu [3, a]          = valu1 A.LetDeclaredVariable a
       valu _               = malformed
 
 instance EmbPrj A.TypedBindings where
@@ -1324,6 +1337,14 @@ instance EmbPrj CompiledRepresentation where
   icod_ (CompiledRep a b c d e) = icode5' a b c d e
   value = vcase valu where valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
                            valu _         = malformed
+
+instance EmbPrj EtaEquality where
+  icod_ (Specified a) = icode1 0 a
+  icod_ (Inferred a)  = icode1 1 a
+  value = vcase valu where
+    valu [0,a] = valu1 Specified a
+    valu [1,a] = valu1 Inferred a
+    valu _     = malformed
 
 instance EmbPrj Defn where
   icod_ Axiom                                   = icode0 0

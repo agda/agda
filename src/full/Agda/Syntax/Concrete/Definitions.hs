@@ -119,7 +119,7 @@ data NiceDeclaration
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
   | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
-  | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
+  | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
   | NiceUnquoteDecl Range Fixity' Access IsInstance IsAbstract TerminationCheck Name Expr
   | NiceUnquoteDef Range Fixity' Access IsAbstract TerminationCheck Name Expr
@@ -214,7 +214,7 @@ instance HasRange NiceDeclaration where
   getRange (FunSig r _ _ _ _ _ _ _ _)      = r
   getRange (FunDef r _ _ _ _ _ _)          = r
   getRange (DataDef r _ _ _ _ _)           = r
-  getRange (RecDef r _ _ _ _ _ _ _)        = r
+  getRange (RecDef r _ _ _ _ _ _ _ _)      = r
   getRange (NiceRecSig r _ _ _ _ _)        = r
   getRange (NiceDataSig r _ _ _ _ _)       = r
   getRange (NicePatternSyn r _ _ _ _)      = r
@@ -457,7 +457,7 @@ declKind (NiceRecSig _ _ _ x pars _)     = LoneSig (RecName $ parameters pars) x
 declKind (NiceDataSig _ _ _ x pars _)    = LoneSig (DataName $ parameters pars) x
 declKind (FunDef _ _ _ _ tc x _)         = LoneDef (FunName tc) x
 declKind (DataDef _ _ _ x pars _)        = LoneDef (DataName $ parameters pars) x
-declKind (RecDef _ _ _ x _ _ pars _)     = LoneDef (RecName $ parameters pars) x
+declKind (RecDef _ _ _ x _ _ _ pars _)   = LoneDef (RecName $ parameters pars) x
 declKind (NiceUnquoteDef _ _ _ _ tc x _) = LoneDef (FunName tc) x
 declKind Axiom{}                         = OtherDecl
 declKind NiceField{}                     = OtherDecl
@@ -511,7 +511,7 @@ niceDeclarations ds = do
       DataSig _ _ x _ _    -> [x]
       Data _ _ x _ _ cs    -> x : concatMap declaredNames cs
       RecordSig _ x _ _    -> [x]
-      Record _ x _ c _ _ _ -> x : foldMap (:[]) (fst <$> c)
+      Record _ x _ _ c _ _ _ -> x : foldMap (:[]) (fst <$> c)
       Infix _ _            -> []
       Syntax _ _           -> []
       PatternSyn _ x _ _   -> [x]
@@ -610,10 +610,10 @@ niceDeclarations ds = do
           addLoneSig x (RecName $ parameters tel)
           fx <- getFixity x
           (NiceRecSig r fx PublicAccess x tel t :) <$> nice ds
-        Record r x i c tel t cs -> do
+        Record r x i e c tel t cs -> do
           t <- defaultTypeSig (RecName $ parameters tel) x t
           c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
-          (++) <$> dataOrRec (\x1 x2 x3 x4 -> RecDef x1 x2 x3 x4 i c) NiceRecSig
+          (++) <$> dataOrRec (\x1 x2 x3 x4 -> RecDef x1 x2 x3 x4 i e c) NiceRecSig
                              niceDeclarations r x tel t (Just cs)
                <*> nice ds
         Mutual r ds' ->
@@ -952,7 +952,7 @@ niceDeclarations ds = do
         NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkAbstract ds
         FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x)  <$> setAbstract a <*> mapM mkAbstractClause cs
         DataDef r f a x ps cs            -> (\ a -> DataDef r f a x ps)    <$> setAbstract a <*> mapM mkAbstract cs
-        RecDef r f a x i c ps cs         -> (\ a -> RecDef r f a x i c ps) <$> setAbstract a <*> mapM mkAbstract cs
+        RecDef r f a x i e c ps cs       -> (\ a -> RecDef r f a x i e c ps) <$> setAbstract a <*> mapM mkAbstract cs
         NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> setAbstract a
         -- no effect on fields or primitives, the InAbstract field there is unused
         NiceField r f p _ x e            -> return $ NiceField r f p AbstractDef x e
@@ -1175,7 +1175,7 @@ notSoNiceDeclaration d =
       FunDef r [d] _ _ _ _ _           -> d
       FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
       DataDef r _ _ x bs cs            -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs
-      RecDef r _ _ x i c bs ds         -> Record r x i (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
+      RecDef r _ _ x i e c bs ds       -> Record r x i e (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
         where unThing (ThingWithFixity c _, inst) = (c, inst)
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
       NiceUnquoteDecl r _ _ _ _ _ x e  -> UnquoteDecl r x e

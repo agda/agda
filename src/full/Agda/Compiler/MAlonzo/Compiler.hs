@@ -5,7 +5,9 @@
 
 module Agda.Compiler.MAlonzo.Compiler where
 
-import Prelude hiding (mapM_, mapM, sequence, concat)
+#if __GLASGOW_HASKELL__ <= 708
+import Prelude hiding (foldl, mapM_, mapM, sequence, concat)
+#endif
 
 import Control.Applicative
 import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
@@ -147,7 +149,7 @@ definitions :: Definitions -> TCM [HS.Decl]
 definitions defs = do
   kit <- coinductionKit
   HMap.foldr (liftM2 (++) . (definition kit <=< instantiateFull))
-             declsForPrim defs
+             (return []) defs
 
 -- | Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):
@@ -225,9 +227,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
           ]
 
       Axiom{} -> return $ fb axiomErr
-      Primitive{ primCompiled = Nothing, primName = s } -> fb <$> primBody s
-      Primitive{ primCompiled = Just cc } -> function Nothing $
-        functionViaTreeless q cc
+      Primitive{ primName = s } -> fb <$> primBody s
 
       Function{ funCompiled = Just cc } ->
         function (exportHaskell compiled) $ functionViaTreeless q cc
@@ -235,9 +235,11 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
-        ccs <- List.concat <$> mapM checkConstructorType cs
-        cov <- checkCover q ty np cs
-        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
+        ccscov <- ifM (isPrimNat q) (return []) $ do
+            ccs <- List.concat <$> mapM checkConstructorType cs
+            cov <- checkCover q ty np cs
+            return $ ccs ++ cov
+        return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
         (ars, cds) <- unzip <$> mapM condecl cs
         return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
@@ -269,7 +271,17 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   functionViaTreeless q cc = do
     treeless <- ccToTreeless q cc
     e <- closedTerm treeless
-    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
+    let (ps, b) =
+          case stripTopCoerce e of
+            HS.Lambda _ ps b -> (ps, b)
+            b                -> ([], b)
+        stripTopCoerce (HS.Lambda i ps b) = HS.Lambda i ps $ stripTopCoerce b
+        stripTopCoerce e =
+          case hsAppView e of
+            [c,  e] | c == mazCoerce -> e
+            _                        -> e
+
+    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) ps Nothing (HS.UnGuardedRhs b) (HS.BDecls [])]]
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
@@ -317,13 +329,16 @@ lookupIndex i xs = fromMaybe __IMPOSSIBLE__ $ xs !!! i
 
 type CC = ReaderT CCEnv TCM
 
+freshNames :: Int -> ([HS.Name] -> CC a) -> CC a
+freshNames n _ | n < 0 = __IMPOSSIBLE__
+freshNames n cont = do
+  (xs, rest) <- splitAt n <$> asks ccNameSupply
+  local (mapNameSupply (const rest)) $ cont xs
+
 -- | Introduce n variables into the context.
 intros :: Int -> ([HS.Name] -> CC a) -> CC a
-intros n cont = do
-  if n < 0 then __IMPOSSIBLE__ else do
-    (xs, rest) <- splitAt n <$> asks ccNameSupply
-    local (mapNameSupply (const rest) . mapContext (reverse xs ++)) $
-      cont xs
+intros n cont = freshNames n $ \xs ->
+  local (mapContext (reverse xs ++)) $ cont xs
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
@@ -379,15 +394,26 @@ term tm0 = case tm0 of
   T.TLam at -> do
     (nm:_) <- asks ccNameSupply
     intros 1 $ \ [x] ->
-      HS.Lambda dummy [HS.PVar x] <$> term at
+      hsLambda [HS.PVar x] <$> term at
   T.TLet t1 t2 -> do
     t1' <- term t1
     intros 1 $ \[x] -> do
       t2' <- term t2
-      return $ HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x []
-                Nothing (HS.UnGuardedRhs t1') (HS.BDecls [])]]) t2'
+      return $ hsLet x (hsCast t1') t2'
+
+  -- Single clause case: turn into let binding
+  -- Ulf, 2015-09-21: It's not clear that this is a good thing. Maybe we should
+  -- keep the strict behaviour? Need benchmarks. It's clear that we should do
+  -- this when the constructor arguments are unused, but that could be taken
+  -- care of in Treeless.
+  T.TCase sc _ (T.TError _) [T.TACon c a b] -> do
+    sc <- term (T.TVar sc)
+    intros a $ \xs -> do
+      hc <- lift $ conhqn c
+      hspLet (HS.PApp hc $ map HS.PVar xs) (hsCast sc) <$> term b
+
   T.TCase sc ct def alts -> do
-    sc' <- term sc
+    sc' <- term (T.TVar sc)
     alts' <- traverse alt alts
     def' <- term def
     let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') (HS.BDecls [])
@@ -401,14 +427,25 @@ term tm0 = case tm0 of
     kit <- lift coinductionKit
     if Just q == (nameOfSharp <$> kit)
       then HS.Var <$> lift (xhqn "d" q)
-      else HS.Con <$> lift (conhqn q)
-  T.TPi _ _  -> return HS.unit_con
+      else hsCast' . HS.Con <$> lift (conhqn q)
+  T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
   T.TErased  -> return HS.unit_con
   T.TError e -> return $ case e of
     T.TPatternMatchFailure funNm ->  rtmIncompleteMatch funNm
   where apps =  foldM (\ h a -> HS.App h <$> term a)
+
+compilePrim :: T.TPrim -> HS.Exp
+compilePrim s =
+  case s of
+    T.PDiv -> fakeExp "(Prelude.div :: Integer -> Integer -> Integer)"
+    T.PMod -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
+    T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
+    T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
+    -- primitives only used by NPlusKToPrims transformation, which MAlonzo doesn't use
+    T.PGeq -> __IMPOSSIBLE__
+    T.PIf  -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt
 alt a = do
@@ -417,6 +454,17 @@ alt a = do
       intros (T.aArity a) $ \xs -> do
         hConNm <- lift $ conhqn $ T.aCon a
         mkAlt (HS.PApp hConNm $ map HS.PVar xs)
+    (T.TAPlus { T.aSucs = k, T.aBody = b }) ->
+        -- Turn  n + k -> b
+        -- into  n' | n' >= k -> let n = n' - k in b
+      freshNames 1 $ \[n'] ->
+      intros     1 $ \[n] -> do
+        b <- term b
+        let qn' = HS.Var (HS.UnQual n')
+            ik  = hsTypedInt k
+            g = [HS.Qualifier $ hsPrimOpApp ">=" qn' ik]
+            body = hsLet n (hsPrimOpApp "-" qn' ik) b
+        return $ HS.Alt dummy (HS.PVar n') (HS.GuardedRhss [HS.GuardedRhs dummy g body]) (HS.BDecls [])
     (T.TALit { T.aLit = (LitQName _ q) }) -> mkAlt (litqnamepat q)
     (T.TALit {}) -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
   where
@@ -427,8 +475,7 @@ alt a = do
 
 literal :: Literal -> TCM HS.Exp
 literal l = case l of
-  LitInt    _ _   -> do toN <- bltQual "NATURAL" mazIntegerToNat
-                        return $ HS.Var toN `HS.App` typed "Integer"
+  LitInt    _ _   -> return $ typed "Integer"
   LitFloat  _ _   -> return $ typed "Double"
   LitQName  _ x   -> return $ litqname x
   _               -> return $ l'
@@ -445,8 +492,8 @@ hslit l = case l of LitInt    _ x -> HS.Int    x
 litqname :: QName -> HS.Exp
 litqname x =
   HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
-  HS.Lit (HS.Int n) `HS.App`
-  HS.Lit (HS.Int m) `HS.App`
+  hsTypedInt n `HS.App`
+  hsTypedInt m `HS.App`
   (rtmError "primQNameType: not implemented") `HS.App`
   (rtmError "primQNameDefinition: not implemented") `HS.App`
   HS.Lit (HS.String $ show x )
@@ -513,17 +560,39 @@ hsCast = addcast . go where
   go e = [e]
 -}
 
-hsCast e = mazCoerce `HS.App` hsCast' e
+-- TODO: what's the specification for hsCast, hsCast' and hsCoerce???
+hsCast e = hsCoerce (hsCast' e)
 
 hsCast' :: HS.Exp -> HS.Exp
-hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` (hsCoerce $ hsCast' e2)
-hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
-hsCast' e = e
+hsCast' (HS.InfixApp e1 op e2) = hsCoerce $ HS.InfixApp (hsCast' e1) op (hsCast' e2)
+hsCast' (HS.Lambda _ ps e)     = HS.Lambda dummy ps $ hsCast' e
+hsCast' (HS.Let bs e)          = HS.Let bs $ hsCast' e
+hsCast' (HS.Case sc alts)      = HS.Case (hsCast' sc) (map (hsMapAlt hsCast') alts)
+hsCast' e =
+  case hsAppView e of
+    f : es -> foldl HS.App (hsCoerce f) (map hsCastApp es)
+    _      -> __IMPOSSIBLE__
+
+-- We still have to coerce function applications in arguments to coerced
+-- functions.
+hsCastApp :: HS.Exp -> HS.Exp
+hsCastApp (HS.Lambda i ps b) = HS.Lambda i ps (hsCastApp b)
+hsCastApp (HS.Case sc bs) = HS.Case (hsCastApp sc) (map (hsMapAlt hsCastApp) bs)
+hsCastApp (HS.InfixApp e1 op e2) = HS.InfixApp (hsCastApp e1) op (hsCastApp e2)
+hsCastApp e =
+  case hsAppView e of
+    f : es@(_:_) -> foldl HS.App (hsCoerce f) $ map hsCastApp es
+    _ -> e
 
 -- No coercion for literal integers
 hsCoerce :: HS.Exp -> HS.Exp
 hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
-hsCoerce e = HS.App mazCoerce e
+hsCoerce (HS.Case sc alts) = HS.Case sc (map (hsMapAlt hsCoerce) alts)
+hsCoerce (HS.Let bs e) = HS.Let bs $ hsCoerce e
+hsCoerce e =
+  case hsAppView e of
+    c : _ | c == mazCoerce || c == mazIncompleteMatch -> e
+    _ -> mazCoerce `HS.App` e
 
 --------------------------------------------------
 -- Writing out a haskell module

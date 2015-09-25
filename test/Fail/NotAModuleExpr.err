@@ -1,0 +1,6 @@
+NotAModuleExpr.agda:5,14-14
+NotAModuleExpr.agda:5,14: Parse error
+/<ERROR>
+x -> x
+
+...

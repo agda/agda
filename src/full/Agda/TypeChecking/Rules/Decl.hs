@@ -166,8 +166,8 @@ checkDecl d = setCurrentRange d $ do
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x ind c ps tel cs -> mutual mi [d] $ check x i $ do
-                                    checkRecDef i x ind c ps tel cs
+      A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
+                                    checkRecDef i x ind eta c ps tel cs
                                     return (Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
@@ -346,8 +346,8 @@ highlight_ d = do
       -- Each block in the section has already been highlighted,
       -- all that remains is the module declaration.
     A.RecSig{}               -> highlight d
-    A.RecDef i x ind c ps tel cs ->
-      highlight (A.RecDef i x ind c [] tel (fields cs))
+    A.RecDef i x ind eta c ps tel cs ->
+      highlight (A.RecDef i x ind eta c [] tel (fields cs))
       -- The telescope and all record module declarations except
       -- for the fields have already been highlighted.
       where
@@ -386,7 +386,7 @@ checkPositivity_ names = Bench.billTo [Bench.Positivity] $ do
 --   for the old coinduction.)
 checkCoinductiveRecords :: [A.Declaration] -> TCM ()
 checkCoinductiveRecords ds = forM_ ds $ \ d -> case d of
-  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ -> setCurrentRange r $ do
+  A.RecDef _ q (Just (Ranged r CoInductive)) _ _ _ _ _ -> setCurrentRange r $ do
     unlessM (isRecursiveRecord q) $ typeError $ GenericError $
       "Only recursive records can be coinductive"
   _ -> return ()
@@ -465,6 +465,20 @@ checkAxiom funSig i info0 x e = do
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
     , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
+
+  -- check macro type if necessary
+  when (Info.defMacro i == MacroDef) $ do
+    (Def nTerm _) <- primAgdaTerm
+    t' <- normalise t
+    TelV tel _ <- telView t'
+    tn <- getOutputTypeName t'
+
+    case tn of
+      OutputTypeName n | n == nTerm -> return ()
+      _ -> typeError $ GenericError $ "Result type of a macro must be Term."
+    unless (all (visible) (telToList tel)) $ do
+      typeError $ GenericError $ "Hidden / instance arguments are not allowed in macros."
+
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
   when (funSig == A.NoFunSig) $ do
@@ -492,7 +506,13 @@ checkAxiom funSig i info0 x e = do
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO!! (qnameName)
-    (_, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
+    (name, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
+    -- Primitive functions on nats are BUILTIN not 'primitive'
+    let builtinPrimitives =
+          [ "primNatPlus", "primNatMinus" , "primNatTimes"
+          , "primNatDivSucAux", "primNatModSucAux"
+          , "primNatEquality", "primNatLess" ]
+    when (elem name builtinPrimitives) $ typeError $ NoSuchPrimitiveFunction name
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = prettyShow $ qnameName x
@@ -658,19 +678,7 @@ checkPragma r p =
             Function{} -> markStatic x
             _          -> typeError $ GenericError "STATIC directive only works on functions"
         A.OptionsPragma{} -> typeError $ GenericError $ "OPTIONS pragma only allowed at beginning of file, before top module declaration"
-        A.EtaPragma r -> etaPragmas True r
-        A.NoEtaPragma r -> etaPragmas False r
         A.DisplayPragma f ps e -> checkDisplayPragma f ps e
-  where
-    etaPragmas b r = do
-          let name = if b then "ETA" else "NO_ETA"
-          whenNothingM (isRecord r) $
-            typeError $ GenericError $ name ++ " pragma is only applicable to records"
-          modifySignature $ updateDefinition r $ updateTheDef $ setEta
-          where
-            setEta d = case d of
-              Record{} -> d { recEtaEquality = b }
-              _        -> __IMPOSSIBLE__
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 --

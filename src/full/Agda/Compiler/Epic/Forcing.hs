@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Compiler.Epic.Forcing where
 

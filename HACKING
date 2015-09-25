@@ -157,6 +157,16 @@ Testing and documentation
 * Run the test-suite, using make test.  Maybe you want to `cabal build'
   first as well.
 
+* Additional options for the tests using the Haskell/tasty test runner
+  can be given using AGDA_TESTS_OPTIONS. By default,
+  the interactive mode (-i) is used and the number of parallel tests
+  to run (-j) is set to the number of CPU cores.
+
+  You can select certain tests to run by using the "-p" pattern option.
+  For example, to only run the simple MAlonzo compiler tests, you
+  can use the following command:
+    make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo/simple" compiler-test
+
 * Tests under test/fail can fail if an error message has changed.
   You will be asked whether to accept the new error message.
   Alternatively, you can touch the corresponding source file, since,

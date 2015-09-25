@@ -87,7 +87,7 @@ bindBuiltinSharp e =
                   , recFields         = []  -- flat is added later
                   , recTel            = fieldTel
                   , recRecursive      = False
-                  , recEtaEquality    = False
+                  , recEtaEquality'   = Inferred False
                   , recMutual         = []
                   , recAbstr          = ConcreteDef
                   }

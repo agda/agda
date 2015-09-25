@@ -219,7 +219,7 @@ data Associativity = NonAssoc | LeftAssoc | RightAssoc
 -- | Fixity of operators.
 
 data Fixity =
-  Fixity { fixityRange :: !Range
+  Fixity { fixityRange :: Range
          , fixityLevel :: !PrecedenceLevel
          , fixityAssoc :: !Associativity
          }

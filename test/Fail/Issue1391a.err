@@ -1,0 +1,5 @@
+Issue1391a.agda:5,16-16
+Issue1391a.agda:5,16: expected sequence of bound identifiers
+:<ERROR>
+ Set} → Set
+...

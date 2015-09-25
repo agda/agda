@@ -92,21 +92,31 @@ addClauses q cls = do
   tel <- getContextTelescope
   modifyFunClauses q (++ abstract tel cls)
 
+ensureNoCompiledHaskell :: QName -> TCM ()
+ensureNoCompiledHaskell q =
+  whenM (isJust . compiledHaskell . defCompiledRep <$> getConstInfo q) $
+    typeError $ GenericError $ "Multiple Haskell bindings for " ++ show q ++ ". " ++
+                               "Note that builtin natural numbers and booleans don't need " ++
+                               "COMPILED pragmas."
+
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
-addHaskellCode q hsTy hsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
-  -- TODO: sanity checking
+addHaskellCode q hsTy hsDef = do
+  ensureNoCompiledHaskell q
+  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   where
     addHs crep = crep { compiledHaskell = Just $ HsDefn hsTy hsDef }
 
 addHaskellExport :: QName -> HaskellType -> String -> TCM ()
-addHaskellExport q hsTy hsName = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
-  -- TODO: sanity checking
+addHaskellExport q hsTy hsName = do
+  ensureNoCompiledHaskell q
+  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   where
     addHs crep = crep { exportHaskell = Just (HsExport hsTy hsName)}
 
 addHaskellType :: QName -> HaskellType -> TCM ()
-addHaskellType q hsTy = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
-  -- TODO: sanity checking
+addHaskellType q hsTy = do
+  ensureNoCompiledHaskell q
+  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addHs
   where
     addHs crep = crep { compiledHaskell = Just $ HsType hsTy }
 

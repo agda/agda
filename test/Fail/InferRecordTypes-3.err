@@ -1,0 +1,4 @@
+InferRecordTypes-3.agda:17,7-33
+There is no known record with the fields x₂ x₃
+when checking that the expression record { x₂ = A ; x₃ = A } has
+type _1

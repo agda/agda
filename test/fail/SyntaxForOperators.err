@@ -1,4 +1,0 @@
-SyntaxForOperators.agda:6,1-1
-SyntaxForOperators.agda:6,1: Syntax
-declarations are allowed only for simple names (without holes)
-<EOF><ERROR> ...

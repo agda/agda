@@ -29,6 +29,7 @@ import Agda.Utils.Pretty
 import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.ModuleInfo
+import Agda.Compiler.UHC.Primitives
 
 import Agda.Compiler.UHC.Bridge
 
@@ -153,9 +154,10 @@ exprToCore (Case e brs def ct) = do
   css <- buildPrimCases (eq ct) (mkVar var) brs getLit def'
   return $ mkLet1Strict var e' css
   where eq :: CaseType -> CExpr
-        eq CTChar = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primCharEquality"
-        eq CTString = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primStringEquality"
-        eq CTQName = mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primQNameEquality"
+        eq CTChar = mkVar $ primFunNm "primCharEquality"
+        eq CTString = mkVar $ primFunNm "primStringEquality"
+        eq CTQName = mkVar $ primFunNm "primQNameEquality"
+        eq CTInteger = mkVar $ primFunNm "primIntegerEquality"
         eq _ = __IMPOSSIBLE__
         getLit :: Branch -> CExpr
         getLit (BrLit { brLit = l }) = litToCore l
@@ -217,12 +219,12 @@ defaultBranches dt brs def = mapM mkAlt' missingCons
 
 
 litToCore :: Literal -> CExpr
-litToCore (LitInt _ i)   = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primIntegerToNat") [mkInteger opts i]
+litToCore (LitInt _ i)   = mkApp (mkVar $ primFunNm "primIntegerToNat") [mkInteger opts i]
 litToCore (LitString _ s) = mkString opts s
 litToCore (LitChar _ c)  = mkChar c
 -- TODO this is just a dirty work around
-litToCore (LitFloat _ f) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkFloat") [mkString opts (show f)]
-litToCore (LitQName _ q) = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primMkQName")
+litToCore (LitFloat _ f) = mkApp (mkVar $ primFunNm "primMkFloat") [mkString opts (show f)]
+litToCore (LitQName _ q) = mkApp (mkVar $ primFunNm "primMkQName")
                              [mkInteger opts n, mkInteger opts m, mkString opts $ prettyShow q]
   where NameId n m = nameId $ qnameName q
 
@@ -239,7 +241,7 @@ coreTrace1 lvl msg e = do
   else return e
 
 coreTrace :: String -> CExpr -> CExpr
-coreTrace msg x = mkApp (mkVar $ mkHsName ["UHC", "Agda", "Builtins"] "primTrace") [mkString opts msg, x]
+coreTrace msg x = mkApp (mkVar $ primFunNm "primTrace") [mkString opts msg, x]
 
 coreError :: String -> CExpr
 coreError msg = mkError opts $ "Fatal error: " ++ msg

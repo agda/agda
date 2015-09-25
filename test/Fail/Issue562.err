@@ -1,0 +1,5 @@
+Issue562.agda:9,14-15
+Not in scope:
+  b
+  at Issue562.agda:9,14-15
+when scope checking b

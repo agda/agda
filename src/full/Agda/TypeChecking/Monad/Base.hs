@@ -1181,6 +1181,16 @@ data Projection = Projection
     -- ^ The info of the principal (record) argument.
   } deriving (Typeable, Show)
 
+data EtaEquality = Specified !Bool | Inferred !Bool deriving (Typeable,Show)
+
+etaEqualityToBool :: EtaEquality -> Bool
+etaEqualityToBool (Specified b) = b
+etaEqualityToBool (Inferred b) = b
+
+setEtaEquality :: EtaEquality -> Bool -> EtaEquality
+setEtaEquality e@Specified{} _ = e
+setEtaEquality _ b = Inferred b
+
 data Defn = Axiom
             -- ^ Postulate.
           | Function
@@ -1244,12 +1254,12 @@ data Defn = Axiom
                                                         --   Note: @TelV recTel _ == telView' recConType@.
                                                         --   Thus, @recTel@ is redundant.
             , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.  Does not include this record.
-            , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records and coinductive records.
+            , recEtaEquality'    :: EtaEquality          -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records and coinductive records unless the user specifies otherwise.
             , recInduction      :: Maybe Induction
               -- ^ 'Inductive' or 'CoInductive'?  Matters only for recursive records.
               --   'Nothing' means that the user did not specify it, which is an error
               --   for recursive records.
-            , recRecursive      :: Bool                 -- ^ Recursive record.  Implies @recEtaEquality = False@.  Projections are not size-preserving.
+            , recRecursive      :: Bool                 -- ^ Recursive record.  Infers @recEtaEquality = False@.  Projections are not size-preserving.
             , recAbstr          :: IsAbstract
             }
           | Constructor
@@ -1270,6 +1280,9 @@ data Defn = Axiom
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Show)
+
+recEtaEquality :: Defn -> Bool
+recEtaEquality = etaEqualityToBool . recEtaEquality'
 
 -- | A template for creating 'Function' definitions, with sensible defaults.
 emptyFunction :: Defn
@@ -2512,6 +2525,9 @@ instance KillRange RewriteRule where
     killRange5 RewriteRule q gamma lhs rhs t
 
 instance KillRange CompiledRepresentation where
+  killRange = id
+
+instance KillRange EtaEquality where
   killRange = id
 
 instance KillRange Defn where

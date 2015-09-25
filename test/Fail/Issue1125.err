@@ -1,0 +1,6 @@
+Issue1125.agda:6,4-4
+Issue1125.agda:6,4: Parse error
+A-}<ERROR>
+ = A-
+
+-- Should give a parse ...

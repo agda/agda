@@ -163,6 +163,22 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
       A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
       A.RecP _ fs            -> concatMap (vars . (^. exprFieldA)) fs
 
+-- | Make sure that each variable occurs only once.
+hasDotPattern :: A.Pattern' e -> Bool
+hasDotPattern = dot
+  where
+    dot p = case p of
+      A.VarP{}               -> False
+      A.ConP _ _ args        -> any (dot . namedArg) args
+      A.WildP{}              -> False
+      A.AsP _ _ p            -> dot p
+      A.DotP{}               -> True
+      A.AbsurdP{}            -> False
+      A.LitP{}               -> False
+      A.DefP _ _ args        -> any (dot . namedArg) args
+      A.PatternSynP _ _ args -> any (dot . namedArg) args
+      A.RecP _ fs            -> any (dot . (^. exprFieldA)) fs
+
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> C.Expr
 recordConstructorType fields = build fs
@@ -944,14 +960,13 @@ data TopLevel a = TopLevel
 
 data TopLevelInfo = TopLevelInfo
         { topLevelDecls :: [A.Declaration]
-        , outsideScope  :: ScopeInfo
-        , insideScope   :: ScopeInfo
+        , topLevelScope :: ScopeInfo  -- ^ as seen from inside the module
         }
 
 -- | The top-level module name.
 
 topLevelModuleName :: TopLevelInfo -> A.ModuleName
-topLevelModuleName topLevel = scopeCurrent (insideScope topLevel)
+topLevelModuleName topLevel = scopeCurrent (topLevelScope topLevel)
 
 -- | Top-level declarations are always
 --   @
@@ -980,8 +995,9 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecls) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          outsideScope <- getScope
-          return $ TopLevelInfo (outsideDecls ++ insideDecls) outsideScope insideScope
+          let scope = mapScopeInfo restrictPrivate insideScope
+          setScope scope
+          return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
@@ -1026,17 +1042,16 @@ instance ToAbstract LetDef [A.LetBinding] where
                       genericError $ "Macros cannot be defined in a let expression."
                     (x', e) <- letToAbstract cl
                     t <- toAbstract t
-                    -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
-                    -- The situation is
-                    -- @
-                    --    let y : t
-                    --        y = e
-                    -- @
-                    -- and we need to store the ranges of both occurences of y in order
-                    -- for the highlighter to do the right thing.
-                    x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
+                    x <- toAbstract (NewName $ mkBoundName x fx)
                     info <- toAbstract info
-                    return [ A.LetBind (LetRange $ getRange d) info x t e ]
+                    -- There are sometimes two instances of the
+                    -- let-bound variable, one declaration and one
+                    -- definition. The first list element below is
+                    -- used to highlight the declared instance in the
+                    -- right way (see Issue 1618).
+                    return [ A.LetDeclaredVariable (setRange (getRange x') x)
+                           , A.LetBind (LetRange $ getRange d) info x t e
+                           ]
 
             -- irrefutable let binding, like  (x , y) = rhs
             NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
@@ -1245,7 +1260,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind cm pars fields -> do
+    C.RecDef r f a x ind eta cm pars fields -> do
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
@@ -1270,7 +1285,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         cm' <- mapM (\(ThingWithFixity c f, _) -> bindConstructorName m c f a p YesRec) cm
         let inst = caseMaybe cm NotInstanceDef snd
         printScope "rec" 15 "record complete"
-        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' ind cm' pars contel afields ]
+        return [ A.RecDef (mkDefInfoInstance x f PublicAccess a inst NotMacroDef r) x' ind eta cm' pars contel afields ]
 
     NiceModule r p a x@(C.QName name) tel ds -> do
       reportSDoc "scope.decl" 70 $ vcat $
@@ -1392,6 +1407,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
+         when (hasDotPattern p) $
+          typeError $ GenericError "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
          return (as, p)
@@ -1559,22 +1576,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImportUHCPragma _ i) = do
       addHaskellImportUHC i
       return []
-    toAbstract (C.EtaPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.EtaPragma x ]
-        _       -> do
-         e <- showA e
-         genericError $ "Pragma ETA: expected identifier, " ++
-           "but found expression " ++ e
-    toAbstract (C.NoEtaPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.NoEtaPragma x ]
-        _       -> do
-         e <- showA e
-         genericError $ "Pragma NO_ETA: expected identifier, " ++
-           "but found expression " ++ e
     toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
       let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
           getHead (C.IdentP x)          = return x

@@ -250,26 +250,29 @@ instance ExprLike LetBinding where
   recurseExpr f e = do
     let recurse e = recurseExpr f e
     case e of
-      LetBind li ai x e e' -> LetBind li ai x <$> recurse e <*> recurse e'
-      LetPatBind li p e    -> LetPatBind li <$> recurse p <*> recurse e
-      LetApply{}           -> pure e
-      LetOpen{}            -> pure e
+      LetBind li ai x e e'  -> LetBind li ai x <$> recurse e <*> recurse e'
+      LetPatBind li p e     -> LetPatBind li <$> recurse p <*> recurse e
+      LetApply{}            -> pure e
+      LetOpen{}             -> pure e
+      LetDeclaredVariable _ -> pure e
 
   foldExpr f e =
     case e of
-      LetBind _ _ _ e e' -> fold e `mappend` fold e'
-      LetPatBind _ p e   -> fold p `mappend` fold e
-      LetApply{}         -> mempty
-      LetOpen{}          -> mempty
+      LetBind _ _ _ e e'    -> fold e `mappend` fold e'
+      LetPatBind _ p e      -> fold p `mappend` fold e
+      LetApply{}            -> mempty
+      LetOpen{}             -> mempty
+      LetDeclaredVariable _ -> mempty
     where fold e = foldExpr f e
 
   traverseExpr f e = do
     let trav e = traverseExpr f e
     case e of
-      LetBind li ai x e e' -> LetBind li ai x <$> trav e <*> trav e'
-      LetPatBind li p e    -> LetPatBind li <$> trav p <*> trav e
-      LetApply{}           -> pure e
-      LetOpen{}            -> pure e
+      LetBind li ai x e e'  -> LetBind li ai x <$> trav e <*> trav e'
+      LetPatBind li p e     -> LetPatBind li <$> trav p <*> trav e
+      LetApply{}            -> pure e
+      LetOpen{}             -> pure e
+      LetDeclaredVariable _ -> pure e
 
 instance ExprLike a => ExprLike (Pattern' a) where
 

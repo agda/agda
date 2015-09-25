@@ -373,6 +373,10 @@ The command which arrived last is stored first in the list.")
   "The Agda buffer.
 Note that this variable is not buffer-local.")
 
+(defvar agda2-in-agda2-file-buffer nil
+  "Was `agda2-file-buffer' active when `agda2-output-filter' started?
+Note that this variable is not buffer-local.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
 
@@ -578,6 +582,9 @@ reloaded from `agda2-highlighting-file', unless
   ;; extract the fontified text and kill the temp buffer; so when Agda
   ;; finally answers, the temp buffer is long gone.
   (when (buffer-live-p agda2-file-buffer)
+  (setq agda2-in-agda2-file-buffer
+        (and agda2-file-buffer
+             (equal (current-buffer) agda2-file-buffer)))
   (let (;; The input lines in the current chunk.
         (lines (split-string chunk "\n"))
 
@@ -1565,11 +1572,6 @@ From the beginning of the current line to the end of the buffer."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site
 
-(defun agda2-goto (filepos &optional other-window)
-  "Like `annotation-goto', unless `agda2-highlight-in-progress' is nil."
-  (if agda2-highlight-in-progress
-      (annotation-goto filepos other-window)))
-
 (defun agda2-goto-definition-keyboard (&optional other-window)
   "Go to the definition site of the name under point (if any).
 If this function is invoked with a prefix argument then another window is used
@@ -1592,6 +1594,35 @@ Otherwise, yank (see `mouse-yank-primary')."
 invoked."
   (interactive)
   (annotation-go-back))
+
+(defun agda2-goto-asynchronously (filepos)
+  "Might move point to the given error.
+FILEPOS should have the form (FILE . POSITION).
+
+If `agda2-highlight-in-progress' is nil, then nothing happens.
+Otherwise, if the current buffer is the one that is connected to
+the Agda process, then point is moved to POSITION in
+FILE (assuming that the FILE is readable). Otherwise point is
+moved to the given position in the buffer visiting the file, if
+any, and in every window displaying the buffer, but the window
+configuration and the selected window are not changed."
+  (when (and agda2-highlight-in-progress
+             (consp filepos)
+             (stringp (car filepos))
+             (integerp (cdr filepos)))
+    (if agda2-in-agda2-file-buffer
+        (annotation-goto-and-push (current-buffer) (point) filepos)
+      (save-excursion
+        (let ((buffer (find-buffer-visiting (car filepos))))
+          (when buffer
+            (let ((windows (get-buffer-window-list buffer
+                                                   'no-minibuffer t)))
+              (if windows
+                  (dolist (window windows)
+                    (with-selected-window window
+                      (annotation-goto-position (cdr filepos))))
+                (with-current-buffer buffer
+                  (annotation-goto-position (cdr filepos)))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Implicit arguments

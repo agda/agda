@@ -90,7 +90,7 @@ type NamedArg a = Common.NamedArg Color a
 type ArgInfo    = Common.ArgInfo Color
 
 data OpApp e
-  = SyntaxBindingLambda !Range [LamBinding] e
+  = SyntaxBindingLambda Range [LamBinding] e
     -- ^ An abstraction inside a special syntax declaration
     --   (see Issue 358 why we introduce this).
   | Ordinary e
@@ -133,11 +133,11 @@ importDirModA f r = f (_importDirModA r) <&> \x -> r { _importDirModA = x }
 data Expr
   = Ident QName                                -- ^ ex: @x@
   | Lit Literal                                -- ^ ex: @1@ or @\"foo\"@
-  | QuestionMark !Range (Maybe Nat)            -- ^ ex: @?@ or @{! ... !}@
-  | Underscore !Range (Maybe String)           -- ^ ex: @_@ or @_A_5@
-  | RawApp !Range [Expr]                       -- ^ before parsing operators
-  | App !Range Expr (NamedArg Expr)            -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-  | OpApp !Range QName (Set A.Name)
+  | QuestionMark Range (Maybe Nat)             -- ^ ex: @?@ or @{! ... !}@
+  | Underscore Range (Maybe String)            -- ^ ex: @_@ or @_A_5@
+  | RawApp Range [Expr]                        -- ^ before parsing operators
+  | App Range Expr (NamedArg Expr)             -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
+  | OpApp Range QName (Set A.Name)
           [NamedArg
              (MaybePlaceholder (OpApp Expr))]  -- ^ ex: @e + e@
                                                -- The 'QName' is
@@ -146,56 +146,56 @@ data Expr
                                                -- correspond to one of
                                                -- the names in the
                                                -- set.
-  | WithApp !Range Expr [Expr]                 -- ^ ex: @e | e1 | .. | en@
-  | HiddenArg !Range (Named_ Expr)             -- ^ ex: @{e}@ or @{x=e}@
-  | InstanceArg !Range (Named_ Expr)           -- ^ ex: @{{e}}@ or @{{x=e}}@
-  | Lam !Range [LamBinding] Expr               -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
-  | AbsurdLam !Range Hiding                    -- ^ ex: @\\ ()@
-  | ExtendedLam !Range [(LHS,RHS,WhereClause)] -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
-  | Fun !Range Expr Expr                       -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
+  | WithApp Range Expr [Expr]                  -- ^ ex: @e | e1 | .. | en@
+  | HiddenArg Range (Named_ Expr)              -- ^ ex: @{e}@ or @{x=e}@
+  | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
+  | Lam Range [LamBinding] Expr                -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
+  | AbsurdLam Range Hiding                     -- ^ ex: @\\ ()@
+  | ExtendedLam Range [(LHS,RHS,WhereClause)]  -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
+  | Fun Range Expr Expr                        -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope Expr                          -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
-  | Set !Range                                 -- ^ ex: @Set@
-  | Prop !Range                                -- ^ ex: @Prop@
-  | SetN !Range Integer                        -- ^ ex: @Set0, Set1, ..@
-  | Rec !Range RecordAssignments               -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
-  | RecUpdate !Range Expr [FieldAssignment]    -- ^ ex: @record e {x = a; y = b}@
-  | Let !Range [Declaration] Expr              -- ^ ex: @let Ds in e@
-  | Paren !Range Expr                          -- ^ ex: @(e)@
-  | Absurd !Range                              -- ^ ex: @()@ or @{}@, only in patterns
-  | As !Range Name Expr                        -- ^ ex: @x\@p@, only in patterns
-  | Dot !Range Expr                            -- ^ ex: @.p@, only in patterns
+  | Set Range                                  -- ^ ex: @Set@
+  | Prop Range                                 -- ^ ex: @Prop@
+  | SetN Range Integer                         -- ^ ex: @Set0, Set1, ..@
+  | Rec Range RecordAssignments                -- ^ ex: @record {x = a; y = b}@, or @record { x = a; M1; M2 }@
+  | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
+  | Let Range [Declaration] Expr               -- ^ ex: @let Ds in e@
+  | Paren Range Expr                           -- ^ ex: @(e)@
+  | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
+  | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
+  | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
   | ETel Telescope                             -- ^ only used for printing telescopes
-  | QuoteGoal !Range Name Expr                 -- ^ ex: @quoteGoal x in e@
-  | QuoteContext !Range                        -- ^ ex: @quoteContext@
-  | Quote !Range                               -- ^ ex: @quote@, should be applied to a name
-  | QuoteTerm !Range                           -- ^ ex: @quoteTerm@, should be applied to a term
-  | Tactic !Range Expr [Expr]                  -- ^ @tactic solve | subgoal1 | .. | subgoalN@
-  | Unquote !Range                             -- ^ ex: @unquote@, should be applied to a term of type @Term@
+  | QuoteGoal Range Name Expr                  -- ^ ex: @quoteGoal x in e@
+  | QuoteContext Range                         -- ^ ex: @quoteContext@
+  | Quote Range                                -- ^ ex: @quote@, should be applied to a name
+  | QuoteTerm Range                            -- ^ ex: @quoteTerm@, should be applied to a term
+  | Tactic Range Expr [Expr]                   -- ^ @tactic solve | subgoal1 | .. | subgoalN@
+  | Unquote Range                              -- ^ ex: @unquote@, should be applied to a term of type @Term@
   | DontCare Expr                              -- ^ to print irrelevant things
-  | Equal !Range Expr Expr                     -- ^ ex: @a = b@, used internally in the parser
+  | Equal Range Expr Expr                      -- ^ ex: @a = b@, used internally in the parser
   deriving (Typeable)
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
-  = IdentP QName                            -- ^ @c@ or @x@
-  | QuoteP !Range                           -- ^ @quote@
-  | AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
-  | RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
-  | OpAppP !Range QName (Set A.Name)
-           [NamedArg Pattern]               -- ^ eg: @p => p'@ for operator @_=>_@
-                                            -- The 'QName' is possibly
-                                            -- ambiguous, but it must
-                                            -- correspond to one of
-                                            -- the names in the set.
-  | HiddenP !Range (Named_ Pattern)         -- ^ @{p}@ or @{x = p}@
-  | InstanceP !Range (Named_ Pattern)       -- ^ @{{p}}@ or @{{x = p}}@
-  | ParenP !Range Pattern                   -- ^ @(p)@
-  | WildP !Range                            -- ^ @_@
-  | AbsurdP !Range                          -- ^ @()@
-  | AsP !Range Name Pattern                 -- ^ @x\@p@ unused
-  | DotP !Range Expr                        -- ^ @.e@
-  | LitP Literal                            -- ^ @0@, @1@, etc.
-  | RecP !Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
+  = IdentP QName                           -- ^ @c@ or @x@
+  | QuoteP Range                           -- ^ @quote@
+  | AppP Pattern (NamedArg Pattern)        -- ^ @p p'@ or @p {x = p'}@
+  | RawAppP Range [Pattern]                -- ^ @p1..pn@ before parsing operators
+  | OpAppP Range QName (Set A.Name)
+           [NamedArg Pattern]              -- ^ eg: @p => p'@ for operator @_=>_@
+                                           -- The 'QName' is possibly
+                                           -- ambiguous, but it must
+                                           -- correspond to one of
+                                           -- the names in the set.
+  | HiddenP Range (Named_ Pattern)         -- ^ @{p}@ or @{x = p}@
+  | InstanceP Range (Named_ Pattern)       -- ^ @{{p}}@ or @{{x = p}}@
+  | ParenP Range Pattern                   -- ^ @(p)@
+  | WildP Range                            -- ^ @_@
+  | AbsurdP Range                          -- ^ @()@
+  | AsP Range Name Pattern                 -- ^ @x\@p@ unused
+  | DotP Range Expr                        -- ^ @.e@
+  | LitP Literal                           -- ^ @0@, @1@, etc.
+  | RecP Range [FieldAssignment' Pattern]  -- ^ @record {x = p; y = q}@
   deriving (Typeable)
 
 -- | A lambda binding is either domain free or typed.
@@ -214,7 +214,7 @@ data LamBinding' a
 
 type TypedBindings = TypedBindings' TypedBinding
 
-data TypedBindings' a = TypedBindings !Range (Arg a)
+data TypedBindings' a = TypedBindings Range (Arg a)
      -- ^ . @(xs : e)@ or @{xs : e}@ or something like @(x {y} _ : e)@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
@@ -236,8 +236,8 @@ mkBoundName x f = BName x x f
 type TypedBinding = TypedBinding' Expr
 
 data TypedBinding' e
-  = TBind !Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
-  | TLet  !Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
+  = TBind Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
+  | TLet  Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Color a TypeBinding. Used by Pretty.
@@ -268,7 +268,7 @@ data LHS
         , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
         }
     -- ^ original pattern, with-patterns, rewrite equations and with-expressions
-  | Ellipsis !Range [Pattern] [RewriteEqn] [WithExpr]
+  | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
     -- ^ new with-patterns, rewrite equations and with-expressions
   deriving (Typeable)
 
@@ -306,7 +306,7 @@ data WhereClause' decls
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
 data ImportDirective = ImportDirective
-  { importDirRange :: !Range
+  { importDirRange :: Range
   , using          :: Using
   , hiding         :: [ImportedName]
   , renaming       :: [Renaming]
@@ -346,7 +346,7 @@ data Renaming = Renaming
     -- ^ Rename from this name.
   , renTo      :: Name
     -- ^ To this one.
-  , renToRange :: !Range
+  , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
   deriving (Typeable, Eq)
@@ -354,7 +354,7 @@ data Renaming = Renaming
 data AsName = AsName
   { asName  :: Name
     -- ^ The \"as\" name.
-  , asRange :: !Range
+  , asRange :: Range
     -- ^ The range of the \"as\" keyword.  Retained for highlighting purposes.
   }
   deriving (Typeable, Show)
@@ -378,34 +378,34 @@ data Declaration
   -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
   | FunClause LHS RHS WhereClause
-  | DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
-  | Data        !Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
-  | RecordSig   !Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-  | Record      !Range Name (Maybe (Ranged Induction)) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
+  | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
+  | Data        Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
+  | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
+  | Record      Range Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (Name, IsInstance)) [LamBinding] (Maybe Expr) [Declaration]
     -- ^ The optional name is a name for the record constructor.
   | Infix Fixity [Name]
   | Syntax      Name Notation -- ^ notation declaration for a name
-  | PatternSyn  !Range Name [Arg Name] Pattern
-  | Mutual      !Range [Declaration]
-  | Abstract    !Range [Declaration]
-  | Private     !Range [Declaration]
-  | InstanceB   !Range [Declaration]
-  | Macro       !Range [Declaration]
-  | Postulate   !Range [TypeSignatureOrInstanceBlock]
-  | Primitive   !Range [TypeSignature]
-  | Open        !Range QName ImportDirective
-  | Import      !Range QName (Maybe AsName) !OpenShortHand ImportDirective
-  | ModuleMacro !Range  Name ModuleApplication !OpenShortHand ImportDirective
-  | Module      !Range QName [TypedBindings] [Declaration]
-  | UnquoteDecl !Range Name Expr
-  | UnquoteDef  !Range Name Expr
+  | PatternSyn  Range Name [Arg Name] Pattern
+  | Mutual      Range [Declaration]
+  | Abstract    Range [Declaration]
+  | Private     Range [Declaration]
+  | InstanceB   Range [Declaration]
+  | Macro       Range [Declaration]
+  | Postulate   Range [TypeSignatureOrInstanceBlock]
+  | Primitive   Range [TypeSignature]
+  | Open        Range QName ImportDirective
+  | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
+  | ModuleMacro Range  Name ModuleApplication !OpenShortHand ImportDirective
+  | Module      Range QName [TypedBindings] [Declaration]
+  | UnquoteDecl Range Name Expr
+  | UnquoteDef  Range Name Expr
   | Pragma      Pragma
   deriving (Typeable)
 
 data ModuleApplication
-  = SectionApp !Range [TypedBindings] Expr
+  = SectionApp Range [TypedBindings] Expr
     -- ^ @tel. M args@
-  | RecordModuleIFS !Range QName
+  | RecordModuleIFS Range QName
     -- ^ @M {{...}}@
   deriving (Typeable)
 
@@ -415,30 +415,28 @@ data OpenShortHand = DoOpen | DontOpen
 -- Pragmas ----------------------------------------------------------------
 
 data Pragma
-  = OptionsPragma          !Range [String]
-  | BuiltinPragma          !Range String Expr
-  | RewritePragma          !Range QName
-  | CompiledDataPragma     !Range QName String [String]
-  | CompiledDeclareDataPragma !Range QName String
-  | CompiledTypePragma     !Range QName String
-  | CompiledPragma         !Range QName String
-  | CompiledExportPragma   !Range QName String
-  | CompiledEpicPragma     !Range QName String
-  | CompiledJSPragma       !Range QName String
-  | CompiledUHCPragma !Range QName String
-  | CompiledDataUHCPragma  !Range QName String [String]
-  | NoSmashingPragma        !Range QName
-  | StaticPragma           !Range QName
-  | ImportPragma           !Range String
+  = OptionsPragma          Range [String]
+  | BuiltinPragma          Range String Expr
+  | RewritePragma          Range QName
+  | CompiledDataPragma     Range QName String [String]
+  | CompiledDeclareDataPragma Range QName String
+  | CompiledTypePragma     Range QName String
+  | CompiledPragma         Range QName String
+  | CompiledExportPragma   Range QName String
+  | CompiledEpicPragma     Range QName String
+  | CompiledJSPragma       Range QName String
+  | CompiledUHCPragma Range QName String
+  | CompiledDataUHCPragma  Range QName String [String]
+  | NoSmashingPragma        Range QName
+  | StaticPragma           Range QName
+  | ImportPragma           Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
-  | ImportUHCPragma        !Range String
+  | ImportUHCPragma        Range String
     -- ^ same as above, but for the UHC backend
-  | ImpossiblePragma       !Range
-  | EtaPragma              !Range QName
-  | NoEtaPragma            !Range QName
-  | TerminationCheckPragma !Range (TerminationCheck Name)
-  | CatchallPragma         !Range
-  | DisplayPragma          !Range Pattern Expr
+  | ImpossiblePragma       Range
+  | TerminationCheckPragma Range (TerminationCheck Name)
+  | CatchallPragma         Range
+  | DisplayPragma          Range Pattern Expr
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -618,7 +616,7 @@ instance HasRange Declaration where
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
   getRange (RecordSig r _ _ _)     = r
-  getRange (Record r _ _ _ _ _ _)  = r
+  getRange (Record r _ _ _ _ _ _ _)  = r
   getRange (Mutual r _)            = r
   getRange (Abstract r _)          = r
   getRange (Open r _ _)            = r
@@ -667,8 +665,6 @@ instance HasRange Pragma where
   getRange (ImportPragma r _)           = r
   getRange (ImportUHCPragma r _)        = r
   getRange (ImpossiblePragma r)         = r
-  getRange (EtaPragma r _)              = r
-  getRange (NoEtaPragma r _)            = r
   getRange (TerminationCheckPragma r _) = r
   getRange (CatchallPragma r)           = r
   getRange (DisplayPragma r _ _)        = r
@@ -746,7 +742,7 @@ instance KillRange Declaration where
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
   killRange (Data _ i n l e c)      = killRange4 (Data noRange i) n l e c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (Record _ n mi mn k e d)= killRange6 (Record noRange) n mi mn k e d
+  killRange (Record _ n mi mb mn k e d)= killRange7 (Record noRange) n mi mb mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
@@ -863,8 +859,6 @@ instance KillRange Pragma where
   killRange (ImportPragma _ s)            = ImportPragma noRange s
   killRange (ImportUHCPragma _ s)         = ImportUHCPragma noRange s
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
-  killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
-  killRange (NoEtaPragma _ q)             = killRange1 (NoEtaPragma noRange) q
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)            = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)     = killRange2 (DisplayPragma noRange) lhs rhs
@@ -956,7 +950,7 @@ instance NFData Declaration where
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Data _ a b c d e)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c
-  rnf (Record _ a b c d e f)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f
+  rnf (Record _ a b c d e f g)  = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e `seq` rnf f `seq` rnf g
   rnf (Infix a b)             = rnf a `seq` rnf b
   rnf (Syntax a b)            = rnf a `seq` rnf b
   rnf (PatternSyn _ a b c)    = rnf a `seq` rnf b `seq` rnf c
@@ -995,8 +989,6 @@ instance NFData Pragma where
   rnf (ImportPragma _ a)                = rnf a
   rnf (ImportUHCPragma _ a)             = rnf a
   rnf (ImpossiblePragma _)              = ()
-  rnf (EtaPragma _ a)                   = rnf a
-  rnf (NoEtaPragma _ a)                 = rnf a
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b

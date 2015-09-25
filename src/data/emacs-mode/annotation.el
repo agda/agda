@@ -48,24 +48,34 @@ display the target position."
           (t (error "Not an integer or event object: %S" link)))
     (when (and source-pos source-buffer)
       (with-current-buffer source-buffer
-        (setq source-file-name buffer-file-name)
         (setq target (get-text-property source-pos 'annotation-goto)))
       (when target
         (unless (equal source-window (selected-window))
           (select-window source-window))
-        (when (annotation-goto target other-window)
-          (unless (and (equal source-buffer (current-buffer))
-                       (eq source-pos (point)))
-            (push `(,source-file-name . ,source-pos)
-                  annotation-goto-stack))
-          t)))))
+        (annotation-goto-and-push source-buffer source-pos target
+                                  other-window)))))
 
 (defun annotation-go-back nil
-  "Go back to the previous position in which `annotation-goto' was
+  "Go back to the previous position.
+The previous position in which `annotation-goto-and-push' was
 successfully invoked."
   (when annotation-goto-stack
     (let ((pos (pop annotation-goto-stack)))
       (annotation-goto pos))))
+
+(defun annotation-goto-and-push (source-buffer source-pos filepos &optional other-window)
+  "Like `annotation-goto', but pushes a position when successful.
+The position consists of the file visited by SOURCE-BUFFER, and
+the position given by SOURCE-POS."
+  (let (source-file-name)
+    (with-current-buffer source-buffer
+      (setq source-file-name buffer-file-name))
+    (when (annotation-goto filepos other-window)
+      (unless (and (equal source-buffer (current-buffer))
+                   (eq source-pos (point)))
+        (push `(,source-file-name . ,source-pos)
+              annotation-goto-stack))
+      t)))
 
 (defun annotation-goto (filepos &optional other-window)
   "Go to file position FILEPOS if the file is readable.
@@ -80,9 +90,13 @@ given position."
             (if other-window
                 (find-file-other-window file)
               (find-file file))
-            (goto-char (+ (cdr filepos) annotations-offset))
+            (annotation-goto-position (cdr filepos))
             t)
         (error "File does not exist or is unreadable: %s." file)))))
+
+(defun annotation-goto-position (position)
+  "Move point to POSITION."
+  (goto-char (+ position annotations-offset)))
 
 (defun annotation-annotate (start end anns &optional info goto)
   "Annotate text between START and END in the current buffer.

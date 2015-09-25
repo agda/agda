@@ -1,0 +1,6 @@
+Tabs.agda:5,1-1
+Tabs.agda:5,1: Lexical error (you may want to replace tabs with spaces):
+tab:<ERROR>
+	 : Set₁
+tab:	 = Set
+...

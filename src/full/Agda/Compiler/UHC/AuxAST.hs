@@ -82,6 +82,7 @@ data CaseType
   | CTChar
   | CTString
   | CTQName
+  | CTInteger
   deriving (Show, Ord, Eq)
 
 data Expr

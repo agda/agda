@@ -9,6 +9,8 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
@@ -199,7 +201,7 @@ constructorMismatchHH aHH u v = do
         return $ length us == car && length vs == dar
       _ -> return True  -- could be literals
 
-instance Subst Equality where
+instance Subst Term Equality where
   applySubst rho (Equal a s t) =
     Equal (applySubst rho a) (applySubst rho s) (applySubst rho t)
 
@@ -416,7 +418,7 @@ rightHH :: HomHet a -> a
 rightHH (Hom a) = a
 rightHH (Het a1 a2) = a2
 
-instance (Subst a) => Subst (HomHet a) where
+instance (Subst t a) => Subst t (HomHet a) where
   applySubst rho u = fmap (applySubst rho) u
 
 instance (PrettyTCM a) => PrettyTCM (HomHet a) where
@@ -451,7 +453,7 @@ class SubstHH t tHH where
   substUnderHH :: Nat -> TermHH -> t -> tHH
   trivialHH    :: t -> tHH
 
-instance (Free a, Subst a) => SubstHH (HomHet a) (HomHet a) where
+instance (Free a, Subst Term a) => SubstHH (HomHet a) (HomHet a) where
   substUnderHH n (Hom u) t = fmap (substUnder n u) t
   substUnderHH n (Het u1 u2) (Hom t) =
     if n `relevantIn` t then Het (substUnder n u1 t) (substUnder n u2 t)
@@ -1045,7 +1047,10 @@ data ShapeView a
   | SortSh
   | MetaSh        -- ^ some meta
   | ElseSh        -- ^ not a type or not definitely same shape
-  deriving (Typeable, Show, Eq, Ord, Functor)
+  deriving (Typeable, Show, Functor)
+
+deriving instance (Subst t a, Eq  a) => Eq  (ShapeView a)
+deriving instance (Subst t a, Ord a) => Ord (ShapeView a)
 
 -- | Return the type and its shape.  Expects input in (u)reduced form.
 shapeView :: Type -> Unify (Type, ShapeView Type)

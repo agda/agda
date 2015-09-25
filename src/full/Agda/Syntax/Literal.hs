@@ -9,11 +9,11 @@ import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
 
-data Literal = LitInt    !Range !Integer
-             | LitFloat  !Range !Double
-             | LitString !Range String
-             | LitChar   !Range !Char
-             | LitQName  !Range QName
+data Literal = LitInt    Range !Integer
+             | LitFloat  Range !Double
+             | LitString Range String
+             | LitChar   Range !Char
+             | LitQName  Range QName
   deriving (Typeable)
 
 instance Show Literal where
@@ -89,6 +89,8 @@ instance KillRange Literal where
   killRange (LitString r x) = LitString (killRange r) x
   killRange (LitChar   r x) = LitChar   (killRange r) x
   killRange (LitQName  r x) = killRange2 LitQName r x
+
+-- | Ranges are not forced.
 
 instance NFData Literal where
   rnf (LitInt _ _)    = ()

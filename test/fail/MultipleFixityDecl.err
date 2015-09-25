@@ -1,2 +1,0 @@
-MultipleFixityDecl.agda:4,11-14
-Multiple fixity or syntax declarations for _+_: infixl 40 infixr 60

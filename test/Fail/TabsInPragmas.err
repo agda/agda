@@ -1,0 +1,6 @@
+TabsInPragmas.agda:1,5-5
+TabsInPragmas.agda:1,5: Lexical error (you may want to replace tabs with spaces):
+OPTIONS<ERROR>
+	--type-in-type #-}
+
+module Ta...

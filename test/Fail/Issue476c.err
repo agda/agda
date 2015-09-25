@@ -1,0 +1,5 @@
+Issue476c.agda:12,5-8
+Not in scope:
+  M.c
+  at Issue476c.agda:12,5-8
+when scope checking M.c

@@ -1,16 +1,11 @@
 module Common.Nat where
 
-{-# IMPORT Common.FFI #-}
-
-
 data Nat : Set where
   zero : Nat
   suc  : Nat → Nat
 
 {-# BUILTIN NATURAL Nat  #-}
 
-{-# COMPILED_DATA Nat Common.FFI.Nat Common.FFI.Zero Common.FFI.Suc #-}
-{-# COMPILED_DATA_UHC Nat __NAT__ __ZERO__ __SUC__ #-}
 {-# COMPILED_JS     Nat function (x,v) { return (x < 1? v.zero(): v.suc(x-1)); } #-}
 {-# COMPILED_JS     zero 0 #-}
 {-# COMPILED_JS     suc function (x) { return x+1; } #-}

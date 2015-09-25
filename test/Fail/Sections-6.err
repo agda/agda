@@ -1,0 +1,5 @@
+Sections-6.agda:4,12-12
+Sections-6.agda:4,12: a name cannot contain two consecutive underscores
+2<ERROR>
+
+...

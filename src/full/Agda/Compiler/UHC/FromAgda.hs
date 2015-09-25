@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE PatternGuards   #-}
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
 --
@@ -33,6 +34,7 @@ import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.NPlusKToPrims
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr)
 import Agda.Compiler.UHC.AuxAST as A
@@ -45,6 +47,8 @@ import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.MagicTypes
 
 import Agda.Compiler.UHC.Bridge as CA
+
+import Agda.Utils.Except ( MonadError (catchError) )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -194,9 +198,12 @@ translateDefn (n, defini) = do
         lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        funBody <- runSubst . substTerm =<< (lift . lift) (ccToTreeless n cc)
+        funBody <- convertNPlusK <$> (lift . lift) (ccToTreeless n cc)
+        lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
+        funBody' <- runCompile $ compileTerm funBody
+        lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
 
-        return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("function: " ++ show n) [] funBody
+        return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("function: " ++ show n) [] funBody'
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         Just <$> mkIdentityFun n "coind-sharp" 0
@@ -249,11 +256,14 @@ translateDefn (n, defini) = do
         return $ Fun False crName (Just n) comment xs (Var $ last xs)
 
 
-runSubst :: NM a -> FreshNameT (CompileT TCM) a
-runSubst r = r `runReaderT` (NMEnv [])
+runCompile :: NM a -> FreshNameT (CompileT TCM) a
+runCompile r = do
+  natKit' <- lift $ lift natKit
+  r `runReaderT` (NMEnv [] natKit')
 
 data NMEnv = NMEnv
   { nmEnv :: [HsName] -- maps de-bruijn indices to names
+  , nmNatKit :: Maybe QName
   }
 
 type NM = ReaderT NMEnv (FreshNameT (CompileT TCM))
@@ -263,11 +273,20 @@ addToEnv :: [HsName] -> NM a -> NM a
 addToEnv nms cont =
   local (\e -> e { nmEnv = nms ++ (nmEnv e) }) cont
 
+
+natKit :: TCM (Maybe QName)
+natKit = do
+    I.Def nat _ <- primNat
+    return $ Just nat
+  `catchError` \_ -> return Nothing
+
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-substTerm :: C.TTerm -> NM A.Expr
-substTerm term = case term of
+compileTerm :: C.TTerm -> NM A.Expr
+compileTerm term =
+  case term of
+    C.TPrim t -> return $ compilePrim t
     C.TVar x -> do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
       return $ A.Var nm
@@ -275,11 +294,11 @@ substTerm term = case term of
       nm' <- lift . lift $ getCoreName1 nm
       return $ A.Var nm'
     C.TApp t xs -> do
-      A.apps <$> substTerm t <*> mapM substTerm xs
+      A.apps <$> compileTerm t <*> mapM compileTerm xs
     C.TLam t -> do
        name <- lift freshLocalName
        addToEnv [name] $ do
-         A.Lam name <$> substTerm t
+         A.Lam name <$> compileTerm t
     C.TLit l -> return $ Lit l
     C.TCon c -> do
         con <- lift . lift $ getConstrFun c
@@ -287,33 +306,45 @@ substTerm term = case term of
     C.TLet x body -> do
         nm <- lift freshLocalName
         A.Let nm
-            <$> substTerm x
-            <*> addToEnv [nm] (substTerm body)
+            <$> compileTerm x
+            <*> addToEnv [nm] (compileTerm body)
     C.TCase sc ct def alts -> do
         A.Case
-          <$> substTerm sc
-          <*> mapM substAlt alts
-          <*> substTerm def
+          <$> compileTerm (C.TVar sc)
+          <*> mapM compileAlt alts
+          <*> compileTerm def
           <*> mapCaseType ct
       where mapCaseType :: C.CaseType -> NM A.CaseType
             mapCaseType C.CTChar = return $ A.CTChar
             mapCaseType C.CTString = return $ A.CTString
             mapCaseType C.CTQName = return $ A.CTQName
-            mapCaseType (C.CTData _) = do
-                let (C.TACon {C.aCon = conNm}) = head alts
-                di <- aciDataType <$> (lift . lift) (getConstrInfo conNm)
-                return $ A.CTCon di
-            substAlt :: C.TAlt -> NM A.Branch
-            substAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> substTerm (C.aBody a)
-            substAlt a@(C.TACon {}) = do
+            mapCaseType (C.CTData nm) = do
+              natKit <- asks nmNatKit
+              if natKit == Just nm
+                then
+                  return $ A.CTInteger
+                else do
+                  let (C.TACon {C.aCon = conNm}) = head alts
+                  di <- aciDataType <$> (lift . lift) (getConstrInfo conNm)
+                  return $ A.CTCon di
+            compileAlt :: C.TAlt -> NM A.Branch
+            compileAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> compileTerm (C.aBody a)
+            compileAlt a@(C.TAPlus {}) = __IMPOSSIBLE__
+            compileAlt a@(C.TACon {}) = do
                 conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo $ C.aCon a)
                 vars <- lift $ replicateM (C.aArity a) freshLocalName
-                body <- addToEnv (reverse vars) (substTerm $ C.aBody a)
+                body <- addToEnv (reverse vars) (compileTerm $ C.aBody a)
                 return $ A.BrCon conInfo (C.aCon a) vars body
-    C.TPi _ _ -> __IMPOSSIBLE__
     C.TUnit -> return UNIT
     C.TSort -> return UNIT
     C.TErased -> return UNIT
     C.TError e -> return $ case e of
       C.TPatternMatchFailure funNm -> Error $ "Non-exhaustive patterns in function: " ++ P.prettyShow funNm
 
+compilePrim :: C.TPrim -> A.Expr
+compilePrim C.PDiv = A.Var $ primFunNm "primIntegerDiv"
+compilePrim C.PMod = A.Var $ primFunNm "primIntegerMod"
+compilePrim C.PSub = A.Var $ primFunNm "primIntegerMinus"
+compilePrim C.PAdd = A.Var $ primFunNm "primIntegerPlus"
+compilePrim C.PIf  = A.Var $ primFunNm "primIfThenElse"
+compilePrim C.PGeq = A.Var $ primFunNm "primIntegerGreaterOrEqual"

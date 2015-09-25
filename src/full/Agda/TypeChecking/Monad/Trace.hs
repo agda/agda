@@ -15,6 +15,7 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Function
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Pretty (prettyShow)
@@ -46,15 +47,18 @@ traceCall mkCall m = do
       callRange = getRange call
   -- Andreas, 2015-02-09 Make sure we do not set a range
   -- outside the current file
-  unlessNull callRange $ \ (Range is) ->
-    unlessNull (mapMaybe srcFile $ map iStart is ++ map iEnd is) $ \ files -> do
-      whenJustM (asks envCurrentPath) $ \ currentFile -> do
-        unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
-          reportSLn "impossible" 10 $
-            prettyShow call ++
-            " is trying to set the current range to " ++ show callRange ++
-            " which is outside of the current file " ++ show currentFile
-          __IMPOSSIBLE__
+  verboseS "check.ranges" 10 $
+    unlessNull callRange $ \ r ->
+      let is = rangeIntervals r in
+      unlessNull (Strict.mapMaybe srcFile $
+                    map iStart is ++ map iEnd is) $ \ files -> do
+        whenJustM (asks envCurrentPath) $ \ currentFile -> do
+          unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
+            reportSLn "impossible" 10 $
+              prettyShow call ++
+              " is trying to set the current range to " ++ show callRange ++
+              " which is outside of the current file " ++ show currentFile
+            __IMPOSSIBLE__
   cl <- liftTCM $ buildClosure call
   let trace = local $ foldr (.) id $
         [ \e -> e { envCall = Just cl } | interestingCall cl ] ++

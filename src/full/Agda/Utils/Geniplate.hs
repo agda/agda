@@ -15,7 +15,10 @@ import qualified Language.Haskell.TH as TH
 
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
+import qualified Agda.Syntax.Position as P
 import qualified Agda.Syntax.Scope.Base as S
+import qualified Agda.Utils.FileName as F
+import qualified Agda.Utils.Maybe.Strict as MS
 
 -- | Types which Geniplate should not descend into.
 
@@ -29,6 +32,7 @@ dontDescendInto =
   , [t| Map A.QName A.QName |]
   , [t| Map A.ModuleName A.ModuleName |]
   , [t| A.AmbiguousQName |]
+  , [t| P.Range' (MS.Maybe F.AbsolutePath) |]
   ]
 
 -- | A localised instance of 'instanceUniverseBiT'. The generated

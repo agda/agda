@@ -20,6 +20,12 @@ import qualified Agda.Syntax.Literal as TL
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.CompiledClause
+
+import Agda.Compiler.Treeless.NPlusK
+import Agda.Compiler.Treeless.Simplify
+import Agda.Compiler.Treeless.Erase
+import Agda.Compiler.Treeless.Pretty
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -29,63 +35,27 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-
--- | Converts a whole module into a Treeless module.
-ifToTreeless :: Interface -> TCM C.TModule
-ifToTreeless iface = do
-  let defns = HMap.toList $ sigDefinitions $ iSignature iface
-  funs <- forDefs defns $ \nm def mkCDef -> do
-    case theDef def of
-      f@(Function {}) -> do
-        reportSDoc "treeless.convert" 20 $ text "converting fun:" <+> prettyTCM nm
-        let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled $ f
-
-        body' <- ccToTreeless nm cc
-        (\x -> [(nm, x)]) <$> mkCDef (C.Fun body')
-      (Axiom {}) -> do
-        -- TODO compiled stuff
---        (\x -> [(nm, x)]) <$> (mkCDef $ C.Fun (C.TError $ C.TAxiomEvaluated nm))
-        __IMPOSSIBLE__
-      _ -> return []
-
-  cons <- Map.unionsWith (++) <$> (forDefs defns $ \nm def mkCDef -> do
-    case theDef def of
-      c@(Constructor {}) -> do --- | not (Map.member nm conInstMp) -> do
-        con' <- mkCDef $ C.Con nm
-        return [Map.singleton (conData c) [con']]
-      _ -> return []
-    )
-
-  dats <- forDefs defns $ \nm def mkCDef -> do
-    case theDef def of
-      (Datatype {dataClause = Nothing}) -> do
-        let myCons = fromMaybe [] (Map.lookup nm cons)
-        (\x -> [(nm, x)]) <$> (mkCDef $ C.Datatype myCons)
-      (Record{recClause = Nothing}) -> do
-        let myCon = fromMaybe __IMPOSSIBLE__ (Map.lookup nm cons >>= headMaybe)
-        (\x -> [(nm, x)]) <$> (mkCDef $ C.Record myCon)
-      _ -> return []
-
-
-  return $ C.TModule (iModuleName iface) (Map.fromList dats) (Map.fromList funs)
-
-  where
-    forDefs :: [(QName, Definition)] -> (QName -> Definition -> (a -> TCM (C.Def a)) -> TCM [b]) -> TCM [b]
-    forDefs defs cont = concat <$>
-        traverse (\(nm, def) -> cont nm def (return . C.Def nm undefined)) defs
-
+prettyPure :: P.Pretty a => a -> TCM Doc
+prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless funNm cc = do
-  reportSDoc "treeless.convert" 30 $ text "compiled clauses:" <+> (text . show) cc
-  body' <- casetree cc `runReaderT` (initCCEnv funNm)
-  reportSDoc "treeless.convert" 30 $ text " converted body:" <+> (text . show) body'
-  return body'
+  reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
+  body <- casetree cc `runReaderT` (initCCEnv funNm)
+  reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
+  body <- introduceNPlusK body
+  reportSDoc "treeless.opt.n+k" 30 $ text "-- after n+k translation:" $$ nest 2 (prettyPure body)
+  body <- simplifyTTerm body
+  reportSDoc "treeless.opt.simpl" 30 $ text "-- after simplification"  $$ nest 2 (prettyPure body)
+  body <- eraseTerms body
+  reportSDoc "treeless.opt.erase" 30 $ text "-- after erasure"  $$ nest 2 (prettyPure body)
+  return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
@@ -162,7 +132,7 @@ casetree cc = do
           -- so this normally shouldn't happen
           def <- fromMaybe <$> patMatchFailure
             <*> (fmap C.TVar <$> asks ccCatchAll)
-          C.TCase (C.TVar x) caseTy def <$> do
+          C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)

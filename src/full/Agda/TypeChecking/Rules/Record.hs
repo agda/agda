@@ -56,13 +56,14 @@ checkRecDef
   :: Info.DefInfo              -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
+  -> Maybe Bool
   -> Maybe A.QName             -- ^ Optional: constructor name.
   -> [A.LamBinding]            -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
   -> [A.Field]                 -- ^ Field signatures.
   -> TCM ()
-checkRecDef i name ind con ps contel fields =
+checkRecDef i name ind eta con ps contel fields =
   traceCall (CheckRecDef (getRange name) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
@@ -136,7 +137,7 @@ checkRecDef i name ind con ps contel fields =
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          haveEta      = conInduction == Inductive && etaenabled
+          haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
@@ -149,7 +150,7 @@ checkRecDef i name ind con ps contel fields =
                                 , recFields         = fs
                                 , recTel            = ftel     -- addConstant adds params!
                                 , recAbstr          = Info.defAbstract i
-                                , recEtaEquality    = haveEta
+                                , recEtaEquality'   = haveEta
                                 , recInduction      = indCo    -- we retain the original user declaration, in case the record turns out to be recursive
                                 -- determined by positivity checker:
                                 , recRecursive      = False

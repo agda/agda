@@ -1,0 +1,6 @@
+Issue308a.agda:6,18-18
+Issue308a.agda:6,18: Malformed syntax declaration: syntax must alternate holes and non-holes
+x<ERROR>
+f : D → D
+f x = d d x
+...

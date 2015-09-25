@@ -30,7 +30,7 @@ makeClosed = OpenThing []
 
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
-getOpen :: Subst a => Open a -> TCM a
+getOpen :: Subst t a => Open a -> TCM a
 getOpen (OpenThing []  x) = return x
 getOpen (OpenThing ctx x) = do
   ctx' <- getContextId
@@ -40,7 +40,7 @@ getOpen (OpenThing ctx x) = do
 -- | Try to use an 'Open' the current context.
 --   Returns 'Nothing' if current context is not an extension of the
 --   context in which the 'Open' was created.
-tryOpen :: Subst a => Open a -> TCM (Maybe a)
+tryOpen :: Subst t a => Open a -> TCM (Maybe a)
 tryOpen o =
   (Just <$> getOpen o)
   `catchError` \_ -> return Nothing

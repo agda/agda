@@ -16,6 +16,7 @@
  -}
 module Agda.Syntax.Parser.Parser (
       moduleParser
+    , moduleNameParser
     , exprParser
     , tokensParser
     , tests
@@ -59,6 +60,7 @@ import Agda.Utils.Tuple
 %name tokensParser Tokens
 %name exprParser Expr
 %name moduleParser File
+%name moduleNameParser ModuleName
 %name funclauseParser FunClause
 %tokentype { Token }
 %monad { Parser }
@@ -96,6 +98,8 @@ import Agda.Utils.Tuple
     'constructor'   { TokKeyword KwConstructor $$ }
     'inductive'     { TokKeyword KwInductive $$ }
     'coinductive'   { TokKeyword KwCoInductive $$ }
+    'eta-equality'     { TokKeyword KwEta $$ }
+    'no-eta-equality' { TokKeyword KwNoEta $$ }
     'field'         { TokKeyword KwField $$ }
     'infix'         { TokKeyword KwInfix $$ }
     'infixl'        { TokKeyword KwInfixL $$ }
@@ -116,8 +120,6 @@ import Agda.Utils.Tuple
     'IMPORT'        { TokKeyword KwIMPORT $$ }
     'IMPORT_UHC'    { TokKeyword KwIMPORT_UHC $$ }
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
-    'ETA'           { TokKeyword KwETA $$ }
-    'NO_ETA'        { TokKeyword KwNO_ETA $$ }
     'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $$ }
     'TERMINATING'   { TokKeyword KwTERMINATING $$ }
@@ -219,6 +221,8 @@ Token
     | 'constructor' { TokKeyword KwConstructor $1 }
     | 'inductive'   { TokKeyword KwInductive $1 }
     | 'coinductive' { TokKeyword KwCoInductive $1 }
+    | 'eta-equality'   { TokKeyword KwEta $1 }
+    | 'no-eta-equality' { TokKeyword KwNoEta $1 }
     | 'field'       { TokKeyword KwField $1 }
     | 'infix'       { TokKeyword KwInfix $1 }
     | 'infixl'      { TokKeyword KwInfixL $1 }
@@ -250,8 +254,6 @@ Token
     | 'NO_SMASHING'  { TokKeyword KwNO_SMASHING $1 }
     | 'STATIC'       { TokKeyword KwSTATIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
-    | 'ETA'           { TokKeyword KwETA $1 }
-    | 'NO_ETA'        { TokKeyword KwNO_ETA $1 }
     | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $1 }
     | 'TERMINATING'   { TokKeyword KwTERMINATING $1 }
@@ -1079,10 +1081,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n (fst3 $7) (snd3 $7) $3 (Just $5) (thd3 $7) }
+         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $7 in return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n x y z $3 (Just $5) ds }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
             RecordDeclarations
-         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5)) n (fst3 $5) (snd3 $5) $3 Nothing (thd3 $5) }
+         {% exprToName $2 >>= \ n -> let ((x,y,z),ds) = $5 in return $ Record (getRange ($1,$2,$3,$4,$5)) n x y z $3 Nothing ds }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
@@ -1332,8 +1334,6 @@ DeclarationPragma
   | ImportPragma             { $1 }
   | ImportUHCPragma          { $1 }
   | ImpossiblePragma         { $1 }
-  | RecordEtaPragma          { $1 }
-  | RecordNoEtaPragma        { $1 }
   | TerminatingPragma        { $1 }
   | NonTerminatingPragma     { $1 }
   | NoTerminationCheckPragma { $1 }
@@ -1422,16 +1422,6 @@ DisplayPragma
       let (r, s) = $3 in
       parseDisplayPragma (fuseRange $1 $5) (iStart r) (unwords (s : $4)) }
 
-RecordEtaPragma :: { Pragma }
-RecordEtaPragma
-  : '{-#' 'ETA' PragmaQName '#-}'
-    { EtaPragma (getRange ($1,$2,$3,$4)) $3 }
-
-RecordNoEtaPragma :: { Pragma }
-RecordNoEtaPragma
-  : '{-#' 'NO_ETA' PragmaQName '#-}'
-    { NoEtaPragma (getRange ($1,$2,$3,$4)) $3 }
-
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma
   : '{-#' 'NO_TERMINATION_CHECK' '#-}'
@@ -1510,16 +1500,29 @@ ArgTypeSignatures1
     | ArgTypeSigs                         { reverse $1 }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { (Maybe (Ranged Induction), Maybe (Name, IsInstance), [Declaration]) }
+RecordDeclarations :: { ((Maybe (Ranged Induction), Maybe Bool, Maybe (Name, IsInstance)), [Declaration]) }
 RecordDeclarations
-    : vopen                                          close { (Nothing, Nothing, []) }
-    | vopen RecordConstructorName                    close { (Nothing, Just $2, []) }
-    | vopen RecordConstructorName semi Declarations1 close { (Nothing, Just $2, $4) }
-    | vopen                            Declarations1 close { (Nothing, Nothing, $2) }
-    | vopen RecordInduction                                               close { (Just $2, Nothing, []) }
-    | vopen RecordInduction semi RecordConstructorName                    close { (Just $2, Just $4, []) }
-    | vopen RecordInduction semi RecordConstructorName semi Declarations1 close { (Just $2, Just $4, $6) }
-    | vopen RecordInduction semi                            Declarations1 close { (Just $2, Nothing, $4) }
+                                  : vopen RecordDirectives close {% ((,) `fmap` verifyRecordDirectives $2 <*> pure []) }
+                                  | vopen RecordDirectives semi Declarations1 close {% ((,) `fmap` verifyRecordDirectives $2 <*> pure $4) }
+                                  | vopen Declarations1 close {% ((,) `fmap` verifyRecordDirectives [] <*> pure $2)  }
+
+
+RecordDirectives :: { [RecordDirective] }
+RecordDirectives
+                                  : { [] }
+                                  | RecordDirectives semi RecordDirective { $3 : $1 }
+                                  | RecordDirective { [$1] }
+
+RecordDirective :: { RecordDirective }
+RecordDirective
+                                  : RecordConstructorName { Constructor $1 }
+                                  | RecordInduction       { Induction $1 }
+                                  | RecordEta             { Eta $1 }
+
+RecordEta :: { Ranged Bool }
+RecordEta
+                                  : 'eta-equality' { Ranged (getRange $1) True }
+                                  | 'no-eta-equality' { Ranged (getRange $1) False }
 
 -- Declaration of record as 'inductive' or 'coinductive'.
 RecordInduction :: { Ranged Induction }
@@ -1683,6 +1686,31 @@ verifyImportDirective i =
         xs = names (using i) ++ hiding i ++ map renFrom (renaming i)
         names (Using xs)    = xs
         names UseEverything = []
+
+data RecordDirective
+   = Induction (Ranged Induction)
+   | Constructor (Name, IsInstance)
+   | Eta         (Ranged Bool)
+   deriving (Eq,Show)
+
+verifyRecordDirectives :: [RecordDirective] -> Parser (Maybe (Ranged Induction), Maybe Bool, Maybe (Name, IsInstance))
+verifyRecordDirectives xs | null rs = return (ltm is, ltm es, ltm cs)
+                          | otherwise = let Just pos = rStart $ (head rs) in
+                                          parseErrorAt pos $ "Repeated record directives at: \n" ++ intercalate "\n" (map show rs)
+
+ where
+  ltm :: [a] -> Maybe a
+  ltm [] = Nothing
+  ltm (x:xs) = Just x
+  errorFromList [] = []
+  errorFromList [x] = []
+  errorFromList xs = map getRange xs
+  rs = sort (concat ([errorFromList is, errorFromList es', errorFromList cs]))
+  is = [ i | Induction i <- xs ]
+  es' = [ i | Eta i <- xs ]
+  es = map rangedThing es'
+  cs = [ i | Constructor i <- xs ]
+
 
 -- | Breaks up a string into substrings. Returns every maximal
 -- subsequence of zero or more characters distinct from @'.'@.

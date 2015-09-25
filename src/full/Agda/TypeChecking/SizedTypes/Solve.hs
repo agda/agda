@@ -334,7 +334,7 @@ instance Ord SizeMeta where compare = compare `on` sizeMetaId
 instance PrettyTCM SizeMeta where
   prettyTCM (SizeMeta x es) = prettyTCM (MetaV x $ map (Apply . defaultArg . var) es)
 
-instance Subst SizeMeta where
+instance Subst Term SizeMeta where
   applySubst sigma (SizeMeta x es) = SizeMeta x (map raise es)
     where
       raise i =
@@ -350,7 +350,7 @@ type DBSizeExpr = SizeExpr' NamedRigid SizeMeta
 -- deriving instance Traversable (SizeExpr' Int)
 
 -- | Only for 'raise'.
-instance Subst (SizeExpr' NamedRigid SizeMeta) where
+instance Subst Term (SizeExpr' NamedRigid SizeMeta) where
   applySubst sigma a =
     case a of
       Infty   -> a
@@ -363,7 +363,7 @@ instance Subst (SizeExpr' NamedRigid SizeMeta) where
 
 type SizeConstraint = Constraint' NamedRigid SizeMeta
 
-instance Subst (SizeConstraint) where
+instance Subst Term SizeConstraint where
   applySubst sigma (Constraint a cmp b) =
     Constraint (applySubst sigma a) cmp (applySubst sigma b)
 

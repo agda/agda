@@ -61,6 +61,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
+import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
 import Agda.Utils.TestHelpers
 import Agda.Utils.HashMap (HashMap)
@@ -255,10 +256,11 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getNamedArg x = singleton (rToR $ P.getRange x) mempty{ aspect = Just $ Name (Just Argument) False }
 
     getLet :: A.LetBinding -> File
-    getLet (A.LetBind _ _ x _ _) = bound x
-    getLet A.LetPatBind{}        = mempty
-    getLet A.LetApply{}          = mempty
-    getLet A.LetOpen{}           = mempty
+    getLet (A.LetBind _ _ x _ _)     = bound x
+    getLet A.LetPatBind{}            = mempty
+    getLet A.LetApply{}              = mempty
+    getLet A.LetOpen{}               = mempty
+    getLet (A.LetDeclaredVariable x) = bound x
 
     getLam :: A.LamBinding -> File
     getLam (A.DomainFree _ x) = bound x
@@ -288,7 +290,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getExpr _                = mempty
 
     getFieldDecl :: A.Declaration -> File
-    getFieldDecl (A.RecDef _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
+    getFieldDecl (A.RecDef _ _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
       where
       extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
       extractField (A.Field _ x _)     = field (concreteQualifier x)
@@ -303,7 +305,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       isTopLevelModule =
         case catMaybes $
              map (join .
-                  fmap P.srcFile .
+                  fmap (Strict.toLazy . P.srcFile) .
                   P.rStart .
                   A.nameBindingSite) xs of
           f : _ -> Map.lookup f modMap ==
@@ -438,7 +440,7 @@ nameKinds hlLevel decl = do
                                                           (Constructor Common.Inductive))
                                             m cs
   declToKind (A.RecSig _ q _ _)     = insert q Record
-  declToKind (A.RecDef _ q _ c _ _ _) = insert q Record .
+  declToKind (A.RecDef _ q _ _ c _ _ _) = insert q Record .
                                       case c of
                                         Nothing -> id
                                         Just q  -> insert q (Constructor Common.Inductive)
@@ -461,7 +463,8 @@ generateConstructorInfo modMap file kinds decl = do
   -- Get boundaries of current declaration.
   -- @noRange@ should be impossible, but in case of @noRange@
   -- it makes sense to return the empty File.
-  ifNull (P.getRange decl) (return mempty) $ \ (P.Range is) -> do
+  ifNull (P.rangeIntervals $ P.getRange decl)
+         (return mempty) $ \is -> do
     let start = fromIntegral $ P.posPos $ P.iStart $ head is
         end   = fromIntegral $ P.posPos $ P.iEnd   $ last is
 
@@ -610,7 +613,7 @@ nameToFile :: SourceToModule
            -> File
 nameToFile modMap file xs x m mR =
   -- We don't care if we get any funny ranges.
-  if all (== Just file) fileNames then
+  if all (== Strict.Just file) fileNames then
     several (map rToR rs)
             ((m $ C.isOperator x) { definitionSite = mFilePos })
    else
@@ -620,7 +623,7 @@ nameToFile modMap file xs x m mR =
   rs         = map P.getRange (x : xs)
   mFilePos   = do
     r <- mR
-    P.Pn { P.srcFile = Just f, P.posPos = p } <- P.rStart r
+    P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
     mod <- Map.lookup f modMap
     return (mod, fromIntegral p)
 
@@ -663,9 +666,7 @@ storeDisambiguatedName :: A.QName -> TCM ()
 storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
   stDisambiguatedNames %= IntMap.insert i q
   where
-    start (P.Range [])    = Nothing
-    start (P.Range (i:_)) = Just $ fromIntegral $ P.posPos $ P.iStart i
-    -- TODO: Move start to Agda.Syntax.Position
+  start r = fromIntegral . P.posPos <$> P.rStart r
 
 ------------------------------------------------------------------------
 -- All tests

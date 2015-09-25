@@ -23,8 +23,8 @@ import Control.Exception (bracket)
 import System.Win32 (findFirstFile, findClose, getFindDataFileName)
 #endif
 
-import Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as ByteString
+import Data.Text (Text)
+import qualified Data.Text as Text
 import Data.Function
 import Data.Hashable
 import Data.Typeable (Typeable)
@@ -40,19 +40,13 @@ import Agda.Utils.Impossible
 --
 -- Note that the 'Eq' and 'Ord' instances do not check if different
 -- paths point to the same files or directories.
---
--- Andreas, 2014-03-30:
--- For efficiency of serialization, 'AbsolutePath' is implemented
--- as 'ByteString' which short-cuts equality testing using
--- pointer equality.  This saves 20% of the serialization time
--- of the standard library!
 
-newtype AbsolutePath = AbsolutePath { byteStringPath :: ByteString }
+newtype AbsolutePath = AbsolutePath { byteStringPath :: Text }
   deriving (Eq, Ord, Typeable, Hashable)
 
 -- | Extract the 'AbsolutePath' to be used as 'FilePath'.
 filePath :: AbsolutePath -> FilePath
-filePath = ByteString.unpack . byteStringPath
+filePath = Text.unpack . byteStringPath
 
 -- TODO: 'Show' should output Haskell-parseable representations.
 -- The following instance is deprecated, and Pretty should be used
@@ -82,7 +76,7 @@ absolutePathInvariant x =
 mkAbsolute :: FilePath -> AbsolutePath
 mkAbsolute f
   | isAbsolute f =
-      AbsolutePath $ ByteString.pack $ dropTrailingPathSeparator $ normalise f
+      AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
 
 #if mingw32_HOST_OS

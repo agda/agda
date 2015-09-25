@@ -1,0 +1,6 @@
+AmbiguousName.agda:8,10-11
+Duplicate definition of module A. Previous definition of module A
+at
+AmbiguousName.agda:4,8-9
+when scope checking the declaration
+  module A where

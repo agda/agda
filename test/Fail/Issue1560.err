@@ -1,0 +1,5 @@
+Issue1560.agda:14,8-14
+SType' is not strictly positive, because it occurs
+to the left of an arrow
+in the type of the constructor c
+in the definition of SType'.

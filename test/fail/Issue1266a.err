@@ -1,6 +1,0 @@
-Issue1266a.agda:13,34-35
-Ambiguous name A. It could refer to any one of
-  .A bound at Issue1266a.agda:13,9-10
-  A bound at Issue1266a.agda:11,3-4
-(hint: Use C-c C-w (in Emacs) if you want to know why)
-when scope checking A

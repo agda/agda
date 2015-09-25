@@ -1,0 +1,3 @@
+MultipleNotations.agda:5,8-9
+Multiple fixity or syntax declarations for
+c:  syntax ⟦_⟧ syntax _+_

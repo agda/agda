@@ -115,7 +115,7 @@ lispifyResponse (Resp_Status s)
 
 lispifyResponse (Resp_JumpToError f p) = return
   [ lastTag 3 $
-      L [ A "agda2-goto", Q $ L [A (quote f), A ".", A (show p)] ]
+      L [ A "agda2-goto-asynchronously", Q $ L [A (quote f), A ".", A (show p)] ]
   ]
 lispifyResponse (Resp_InteractionPoints is) = return
   [ lastTag 1 $

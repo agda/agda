@@ -46,6 +46,7 @@ mutual
             Signature
 
   record Record (Sig : Signature) : Set where
+    eta-equality
     inductive
     constructor rec
     field fun : Record-fun Sig
@@ -53,8 +54,6 @@ mutual
   Record-fun : Signature → Set
   Record-fun ∅             = ⊤
   Record-fun (Sig , ℓ ∶ A) = Σ (Record Sig) A
-
-{-# ETA Record #-}
 
 _∈_ : String → Signature → Set
 ℓ ∈ ∅              = ⊥

@@ -1,6 +1,0 @@
-BadInductionRecursion4.agda:5,10-11
-R is not strictly positive, because it occurs
-in the first clause
-in the definition of T, which occurs to the left of an arrow
-                                     in the first clause
-                                     in the definition of T, which occurs in the definition of R.

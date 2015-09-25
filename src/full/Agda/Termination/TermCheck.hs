@@ -113,7 +113,7 @@ termDecl' d = case d of
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
     A.Mutual _ ds
-      | [A.RecSig{}, A.RecDef _ _ _ _ _ _ rds] <- unscopeDefs ds
+      | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ rds] <- unscopeDefs ds
                           -> termDecls rds
     A.Mutual i ds         -> termMutual i ds
     A.Section _ _ _ ds    -> termDecls ds
@@ -128,7 +128,7 @@ termDecl' d = case d of
     A.ScopedDecl _ ds     -> termDecls ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ ds -> termDecls ds
+    A.RecDef _ r _ _ _ _ _ ds -> termDecls ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}  -> __IMPOSSIBLE__
     A.DataSig{} -> __IMPOSSIBLE__
@@ -210,7 +210,7 @@ termMutual i ds = if names == [] then return mempty else
 
   where
     getName (A.FunDef i x delayed cs) = [x]
-    getName (A.RecDef _ _ _ _ _ _ ds) = concatMap getName ds
+    getName (A.RecDef _ _ _ _ _ _ _ ds) = concatMap getName ds
     getName (A.Mutual _ ds)       = concatMap getName ds
     getName (A.Section _ _ _ ds)  = concatMap getName ds
     getName (A.ScopedDecl _ ds)   = concatMap getName ds
