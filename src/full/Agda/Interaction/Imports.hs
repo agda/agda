@@ -574,7 +574,8 @@ createInterface file mname =
       concreteToAbstract_ (TopLevel file top)
     reportSLn "import.iface.create" 7 $ "Finished scope checking."
 
-    let ds = topLevelDecls topLevel
+    let ds    = topLevelDecls topLevel
+        scope = topLevelScope topLevel
 
     -- Highlighting from scope checker.
     reportSLn "import.iface.create" 7 $ "Starting highlighting from scope."
@@ -631,11 +632,11 @@ createInterface file mname =
 
       whenM (optGenerateVimFile <$> commandLineOptions) $
         -- Generate Vim file.
-        withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
+        withScope_ scope $ generateVimFile $ filePath file
     reportSLn "import.iface.create" 7 $ "Finished highlighting from type info."
 
-    setScope $ outsideScope topLevel
-    reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
+    setScope scope
+    reportSLn "scope.top" 50 $ "SCOPE " ++ show scope
 
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
@@ -737,7 +738,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
       , iImportedModules = mhs
       , iModuleName      = m
       , iScope           = empty -- publicModules scope
-      , iInsideScope     = insideScope topLevel
+      , iInsideScope     = topLevelScope topLevel
       , iSignature       = sig
       , iBuiltin         = builtin'
       , iHaskellImports  = hsImps `Set.difference` previousHsImports

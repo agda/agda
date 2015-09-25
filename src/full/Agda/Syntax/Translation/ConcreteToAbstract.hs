@@ -944,14 +944,13 @@ data TopLevel a = TopLevel
 
 data TopLevelInfo = TopLevelInfo
         { topLevelDecls :: [A.Declaration]
-        , outsideScope  :: ScopeInfo
-        , insideScope   :: ScopeInfo
+        , topLevelScope :: ScopeInfo  -- ^ as seen from inside the module
         }
 
 -- | The top-level module name.
 
 topLevelModuleName :: TopLevelInfo -> A.ModuleName
-topLevelModuleName topLevel = scopeCurrent (insideScope topLevel)
+topLevelModuleName topLevel = scopeCurrent (topLevelScope topLevel)
 
 -- | Top-level declarations are always
 --   @
@@ -980,8 +979,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecls) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          outsideScope <- getScope
-          return $ TopLevelInfo (outsideDecls ++ insideDecls) outsideScope insideScope
+          return $ TopLevelInfo (outsideDecls ++ insideDecls) insideScope
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
