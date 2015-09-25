@@ -2,6 +2,7 @@
 module Agda.TypeChecking.DeadCode (eliminateDeadCode) where
 
 import Control.Applicative
+import Control.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -11,6 +12,9 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
+import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Abstract as A
+
 import Agda.Syntax.Internal hiding (Arg, Dom)
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
@@ -32,21 +36,24 @@ import Agda.Utils.Impossible
 --   from the public interface to the module.
 eliminateDeadCode :: Signature -> TCM Signature
 eliminateDeadCode sig = Bench.billTo [Bench.DeadCode] $ do
+  patsyn <- getPatternSyns
   public <- Set.map anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sigDefinitions sig
-  let r     = reachableFrom public defs
+  let r     = reachableFrom public patsyn defs
       defs' = HMap.filterWithKey (\ x _ -> Set.member x r) defs
   reportSLn "tc.dead" 10 $ "Removed " ++ show (HMap.size defs - HMap.size defs') ++ " unused definitions."
   return sig{ sigDefinitions = defs' }
 
-reachableFrom :: Set QName -> Definitions -> Set QName
-reachableFrom names defs = follow names (Set.toList names)
+reachableFrom :: Set QName -> A.PatternSynDefns -> Definitions -> Set QName
+reachableFrom names psyns defs = follow names (Set.toList names)
   where
     follow visited [] = visited
     follow visited (x : xs) = follow (Set.union visited new) (Set.toList new ++ xs)
       where
-        def = HMap.lookup x defs
-        new = Set.filter (not . (`Set.member` visited)) $ namesIn def
+        new = Set.filter (not . (`Set.member` visited)) $
+                case HMap.lookup x defs of
+                  Nothing -> namesIn (PSyn <$> Map.lookup x psyns)
+                  Just d  -> namesIn d
 
 class NamesIn a where
   namesIn :: a -> Set QName
@@ -63,6 +70,8 @@ instance NamesIn a => NamesIn (Abs a)         where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (WithArity a)   where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Tele a)        where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (ClauseBodyF a) where namesIn = namesInFoldable
+
+instance NamesIn a => NamesIn (C.FieldAssignment' a) where namesIn = namesInFoldable
 
 instance (NamesIn a, NamesIn b) => NamesIn (a, b) where
   namesIn (x, y) = Set.union (namesIn x) (namesIn y)
@@ -158,4 +167,26 @@ instance NamesIn a => NamesIn (Elim' a) where
 
 instance NamesIn QName   where namesIn x = Set.singleton x
 instance NamesIn ConHead where namesIn h = namesIn (conName h)
+
+-- Pattern synonym stuff --
+
+newtype PSyn = PSyn A.PatternSynDefn
+instance NamesIn PSyn where
+  namesIn (PSyn (_args, p)) = namesIn p
+
+instance NamesIn (A.Pattern' a) where
+  namesIn p = case p of
+    A.VarP{}               -> Set.empty
+    A.ConP _ c args        -> namesIn (c, args)
+    A.DefP _ f args        -> namesIn (f, args)
+    A.WildP{}              -> Set.empty
+    A.AsP _ _ p            -> namesIn p
+    A.AbsurdP{}            -> Set.empty
+    A.LitP l               -> namesIn l
+    A.PatternSynP _ c args -> namesIn (c, args)
+    A.RecP _ fs            -> namesIn fs
+    A.DotP{}               -> __IMPOSSIBLE__    -- Dot patterns are not allowed in pattern synonyms
+
+instance NamesIn AmbiguousQName where
+  namesIn (AmbQ cs) = namesIn cs
 
