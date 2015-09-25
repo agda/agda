@@ -163,6 +163,22 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
       A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
       A.RecP _ fs            -> concatMap (vars . (^. exprFieldA)) fs
 
+-- | Make sure that each variable occurs only once.
+hasDotPattern :: A.Pattern' e -> Bool
+hasDotPattern = dot
+  where
+    dot p = case p of
+      A.VarP{}               -> False
+      A.ConP _ _ args        -> any (dot . namedArg) args
+      A.WildP{}              -> False
+      A.AsP _ _ p            -> dot p
+      A.DotP{}               -> True
+      A.AbsurdP{}            -> False
+      A.LitP{}               -> False
+      A.DefP _ _ args        -> any (dot . namedArg) args
+      A.PatternSynP _ _ args -> any (dot . namedArg) args
+      A.RecP _ fs            -> any (dot . (^. exprFieldA)) fs
+
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> C.Expr
 recordConstructorType fields = build fs
@@ -1391,6 +1407,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
+         when (hasDotPattern p) $
+          typeError $ GenericError "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
          return (as, p)

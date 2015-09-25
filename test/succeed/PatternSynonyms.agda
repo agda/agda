@@ -11,7 +11,7 @@ data ℕ : Set where
 
 pattern z    = zero
 pattern sz   = suc z
-pattern ss x = suc (suc x)
+pattern ss x = suc  (suc x)
 
 data _≡_ {A : Set}(x : A) : A → Set where
   refl : x ≡ x
@@ -168,7 +168,7 @@ test-lengthV = refl
 ------------------------------------------------------------------------
 -- .-patterns
 
-pattern zr          = (.zero , refl)
+pattern refl²       = (_ , refl)
 pattern underscore² = _ , _
 
 dot : (p : Σ ℕ λ n → n ≡ zero) → ⊤ × ⊤
@@ -225,7 +225,7 @@ postulate
 p : (x : X)(y : Y) → h x ≡ y → ⊤
 p x .((λ x → x) (h x)) refl = _
 
-pattern app x = x , .((λ x → x) (h x))
+pattern app x = x , _
 
 p′ : (p : X × Y) → h (proj₁ p) ≡ proj₂ p → ⊤
 p′ (app x) refl = _
@@ -249,7 +249,7 @@ rrrr : (a : Rec × ℕ) → proj₁ a ≡ record { r = proj₂ a } → ⊤
 rrrr (.(rr 0)       , 0)     refl = _
 rrrr (.(rr (suc n)) , suc n) refl = _
 
-pattern pair x = (.(record { r = x }) , x)
+pattern pair x = (_ , x)
 
 rrrr′ : (a : Rec × ℕ) → proj₁ a ≡ record { r = proj₂ a } → ⊤
 rrrr′ (pair 0)       refl = _
@@ -296,7 +296,7 @@ unamb = ss z
 ------------------------------------------------------------------------
 -- underscore
 
-pattern trivial = ._
+pattern trivial = _
 
 trivf : (a : ⊤) -> a ≡ tt -> ⊤
 trivf trivial refl = trivial
