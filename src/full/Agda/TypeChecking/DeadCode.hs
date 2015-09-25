@@ -7,7 +7,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Foldable (foldMap)
+import Data.Foldable (foldMap, Foldable)
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
