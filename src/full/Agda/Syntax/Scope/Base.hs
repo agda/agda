@@ -149,6 +149,9 @@ updateScopeLocals f sc = sc { scopeLocals = f (scopeLocals sc) }
 setScopeLocals :: LocalVars -> ScopeInfo -> ScopeInfo
 setScopeLocals vars = updateScopeLocals (const vars)
 
+mapScopeInfo :: (Scope -> Scope) -> ScopeInfo -> ScopeInfo
+mapScopeInfo f i = i{ scopeModules = f <$> scopeModules i }
+
 ------------------------------------------------------------------------
 -- * Name spaces
 --

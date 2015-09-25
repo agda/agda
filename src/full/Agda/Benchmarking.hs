@@ -51,6 +51,8 @@ data Phase
     -- ^ Generating highlighting info.
   | Serialization
     -- ^ Writing interface files.
+  | DeadCode
+    -- ^ Deac code elimination.
   | Graph
     -- ^ Subphase for 'Termination'.
   | RecCheck

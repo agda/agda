@@ -979,7 +979,9 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           outsideDecls <- toAbstract outsideDecls
           (insideScope, insideDecls) <- scopeCheckModule r m am tel $
              toAbstract insideDecls
-          return $ TopLevelInfo (outsideDecls ++ insideDecls) insideScope
+          let scope = mapScopeInfo restrictPrivate insideScope
+          setScope scope
+          return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]

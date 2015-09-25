@@ -8,7 +8,7 @@ Important changes since 2.4.2.X:
 Installation and infrastructure
 ===============================
 
-* For best performance, compile Agda with ghc-7.8.
+* For best performance, compile Agda with ghc >= 7.8.
   Agda is significantly slower if compiled with ghc-7.6.
   [Issue 1347]
 
@@ -292,6 +292,16 @@ Reflection
     open M using (D) hiding (module D)
 
   See discussion on Issue 836 (https://github.com/agda/agda/issues/836).
+
+* Private definitions of a module are no longer in scope at the Emacs
+  mode top-level.
+
+  The reason for this change is that .agdai-files are stripped of unused
+  private definitions (which can yield significant performance
+  improvements for module-heavy code).
+
+  To test private definitions you can create a hole at the bottom of the
+  module, in which private definitions will be visible.
 
 Operator syntax
 ---------------

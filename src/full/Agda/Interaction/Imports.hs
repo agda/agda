@@ -51,6 +51,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.DeadCode
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TheTypeChecker
@@ -720,7 +721,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
     -- with discarding also the nameBindingSite in QName:
     -- Saves 10% on serialization time (and file size)!
-    sig     <- killRange <$> getSignature
+    sig     <- killRange <$> (eliminateDeadCode =<< getSignature)
     builtin <- use stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
