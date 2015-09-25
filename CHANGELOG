@@ -1,8 +1,8 @@
 ------------------------------------------------------------------------
--- Release notes for Agda standard library version X.Y
+-- Release notes for Agda standard library version 0.10
 ------------------------------------------------------------------------
 
-The library has been tested using Agda version A.B.C.
+The library has been tested using Agda version 2.4.2.3.
 
 Note that no guarantees are made about backwards or forwards
 compatibility, the library is still at an experimental stage.
