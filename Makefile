@@ -100,7 +100,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed lib-interaction
+test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed lib-interaction
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -150,12 +150,12 @@ fail :
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail
 	@$(MAKE) -C test/Fail
 
-.PHONY : latex-test
-latex-test :
+.PHONY : latex-html-test
+latex-html-test :
 	@echo "======================================================================"
-	@echo "================== Suite of tests for LaTeX backend =================="
+	@echo "=========== Suite of tests for the LaTeX and HTML backends ==========="
 	@echo "======================================================================"
-	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LatexBackend
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/LaTeXAndHTML
 
 .PHONY : std-lib
 std-lib :
