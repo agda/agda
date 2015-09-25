@@ -2,7 +2,28 @@
 -- Release notes for Agda standard library version X.Y
 ------------------------------------------------------------------------
 
-The library has been tested using Agda version A.B.C.
+The library has been tested using Agda version TODO.
+
+Note that no guarantees are made about backwards or forwards
+compatibility, the library is still at an experimental stage.
+
+If you want to compile the library using the MAlonzo compiler, then
+you should first install some supporting Haskell code, for instance as
+follows:
+
+  cd ffi
+  cabal install
+
+Currently the library does not support the Epic or JavaScript compiler
+backends.
+
+Important changes since 0.10:
+
+------------------------------------------------------------------------
+-- Release notes for Agda standard library version 0.10
+------------------------------------------------------------------------
+
+The library has been tested using Agda version 2.4.2.3.
 
 Note that no guarantees are made about backwards or forwards
 compatibility, the library is still at an experimental stage.
