@@ -52,6 +52,11 @@ source-repository head
   type:     git
   location: https://github.com/agda/agda.git
 
+source-repository this
+  type:     git
+  location: https://github.com/agda/agda
+  tag:      2.4.2.4
+
 flag cpphs
   default:     True
   manual:      True
