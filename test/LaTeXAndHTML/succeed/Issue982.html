@@ -1,0 +1,515 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><title
+    >Issue982</title
+    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><meta http-equiv="Content-Style-Type" content="text/css"
+     /><link href="Agda.css" rel="stylesheet" type="text/css"
+     /></head
+  ><body
+  ><pre
+    ><a name="1" class="Comment"
+      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</a
+      ><a name="79"
+      >
+</a
+      ><a name="80" class="Comment"
+      >% Testing with Ubuntu 14.04.</a
+      ><a name="108"
+      >
+
+</a
+      ><a name="110" class="Comment"
+      >% For testing this issue it is necessary to install the following</a
+      ><a name="175"
+      >
+</a
+      ><a name="176" class="Comment"
+      >% packages:</a
+      ><a name="187"
+      >
+
+</a
+      ><a name="189" class="Comment"
+      >%  sudo apt-get install texlive</a
+      ><a name="220"
+      >
+</a
+      ><a name="221" class="Comment"
+      >%  sudo apt-get install texlive-latex-extra</a
+      ><a name="264"
+      >
+</a
+      ><a name="265" class="Comment"
+      >%  sudo apt-get install texlive-xetex</a
+      ><a name="302"
+      >
+</a
+      ><a name="303" class="Comment"
+      >%  sudo apt-get install texlive-math-extra</a
+      ><a name="345"
+      >
+</a
+      ><a name="346" class="Comment"
+      >%  sudo apt-get install texlive-fonts-extra</a
+      ><a name="389"
+      >
+
+</a
+      ><a name="391" class="Comment"
+      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</a
+      ><a name="469"
+      >
+</a
+      ><a name="470" class="Comment"
+      >% Testing with Ubuntu 12.04.</a
+      ><a name="498"
+      >
+
+</a
+      ><a name="500" class="Comment"
+      >% Ubuntu 12.04 uses an outdated TeX Live 2009. For testing this issue</a
+      ><a name="569"
+      >
+</a
+      ><a name="570" class="Comment"
+      >% it is necessary to install the following packages:</a
+      ><a name="622"
+      >
+
+</a
+      ><a name="624" class="Comment"
+      >%  sudo add-apt-repository ppa:texlive-backports/ppa -y</a
+      ><a name="679"
+      >
+</a
+      ><a name="680" class="Comment"
+      >%  sudo apt-get update</a
+      ><a name="702"
+      >
+</a
+      ><a name="703" class="Comment"
+      >%  sudo apt-get install texlive</a
+      ><a name="734"
+      >
+</a
+      ><a name="735" class="Comment"
+      >%  sudo apt-get install texlive-latex-extra</a
+      ><a name="778"
+      >
+</a
+      ><a name="779" class="Comment"
+      >%  sudo apt-get install texlive-xetex</a
+      ><a name="816"
+      >
+</a
+      ><a name="817" class="Comment"
+      >%  sudo apt-get install texlive-math-extra</a
+      ><a name="859"
+      >
+</a
+      ><a name="860" class="Comment"
+      >%  sudo apt-get install texlive-fonts-extra</a
+      ><a name="903"
+      >
+
+</a
+      ><a name="905" class="Comment"
+      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</a
+      ><a name="983"
+      >
+
+</a
+      ><a name="985" class="Comment"
+      >\documentclass{article}</a
+      ><a name="1008"
+      >
+
+</a
+      ><a name="1010" class="Comment"
+      >\usepackage{agda}</a
+      ><a name="1027"
+      >
+
+</a
+      ><a name="1029" class="Comment"
+      >\begin{document}</a
+      ><a name="1045"
+      >
+
+</a
+      ><a name="1047" class="Comment"
+      >%\renewcommand{\AgdaIndent}{\;\;}</a
+      ><a name="1080"
+      >
+
+\begin{code}
+</a
+      ><a name="1095" class="Keyword"
+      >record</a
+      ><a name="1101"
+      > </a
+      ><a name="1102" href="Issue982.html#1102" class="Record"
+      >Sigma</a
+      ><a name="1107"
+      > </a
+      ><a name="1108" class="Symbol"
+      >(</a
+      ><a name="1109" href="Issue982.html#1109" class="Bound"
+      >A</a
+      ><a name="1110"
+      > </a
+      ><a name="1111" class="Symbol"
+      >:</a
+      ><a name="1112"
+      > </a
+      ><a name="1113" class="PrimitiveType"
+      >Set</a
+      ><a name="1116" class="Symbol"
+      >)</a
+      ><a name="1117"
+      > </a
+      ><a name="1118" class="Symbol"
+      >(</a
+      ><a name="1119" href="Issue982.html#1119" class="Bound"
+      >B</a
+      ><a name="1120"
+      > </a
+      ><a name="1121" class="Symbol"
+      >:</a
+      ><a name="1122"
+      > </a
+      ><a name="1123" href="Issue982.html#1109" class="Bound"
+      >A</a
+      ><a name="1124"
+      > </a
+      ><a name="1125" class="Symbol"
+      >&#8594;</a
+      ><a name="1126"
+      > </a
+      ><a name="1127" class="PrimitiveType"
+      >Set</a
+      ><a name="1130" class="Symbol"
+      >)</a
+      ><a name="1131"
+      > </a
+      ><a name="1132" class="Symbol"
+      >:</a
+      ><a name="1133"
+      > </a
+      ><a name="1134" class="PrimitiveType"
+      >Set</a
+      ><a name="1137"
+      > </a
+      ><a name="1138" class="Keyword"
+      >where</a
+      ><a name="1143"
+      >
+  </a
+      ><a name="1146" class="Keyword"
+      >constructor</a
+      ><a name="1157"
+      > </a
+      ><a name="1158" href="Issue982.html#1158" class="InductiveConstructor Operator"
+      >_,_</a
+      ><a name="1161"
+      >
+  </a
+      ><a name="1164" class="Keyword"
+      >field</a
+      ><a name="1169"
+      >
+    </a
+      ><a name="1174" href="Issue982.html#1174" class="Field"
+      >proj&#8321;</a
+      ><a name="1179"
+      > </a
+      ><a name="1180" class="Symbol"
+      >:</a
+      ><a name="1181"
+      > </a
+      ><a name="1182" href="Issue982.html#1109" class="Bound"
+      >A</a
+      ><a name="1183"
+      >
+    </a
+      ><a name="1188" href="Issue982.html#1188" class="Field"
+      >proj&#8322;</a
+      ><a name="1193"
+      > </a
+      ><a name="1194" class="Symbol"
+      >:</a
+      ><a name="1195"
+      > </a
+      ><a name="1196" href="Issue982.html#1119" class="Bound"
+      >B</a
+      ><a name="1197"
+      > </a
+      ><a name="1198" href="Issue982.html#1174" class="Bound"
+      >proj&#8321;</a
+      ><a name="1203"
+      >
+
+</a
+      ><a name="1205" class="Keyword"
+      >open</a
+      ><a name="1209"
+      > </a
+      ><a name="1210" href="Issue982.html#1102" class="Module"
+      >Sigma</a
+      ><a name="1215"
+      > </a
+      ><a name="1216" class="Keyword"
+      >public</a
+      ><a name="1222"
+      >
+\end{code}
+
+\begin{code}
+</a
+      ><a name="1248" href="Issue982.html#1248" class="Function"
+      >uncurry</a
+      ><a name="1255"
+      > </a
+      ><a name="1256" class="Symbol"
+      >:</a
+      ><a name="1257"
+      > </a
+      ><a name="1258" class="Symbol"
+      >{</a
+      ><a name="1259" href="Issue982.html#1259" class="Bound"
+      >A</a
+      ><a name="1260"
+      > </a
+      ><a name="1261" class="Symbol"
+      >:</a
+      ><a name="1262"
+      > </a
+      ><a name="1263" class="PrimitiveType"
+      >Set</a
+      ><a name="1266" class="Symbol"
+      >}</a
+      ><a name="1267"
+      > </a
+      ><a name="1268" class="Symbol"
+      >{</a
+      ><a name="1269" href="Issue982.html#1269" class="Bound"
+      >B</a
+      ><a name="1270"
+      > </a
+      ><a name="1271" class="Symbol"
+      >:</a
+      ><a name="1272"
+      > </a
+      ><a name="1273" href="Issue982.html#1259" class="Bound"
+      >A</a
+      ><a name="1274"
+      > </a
+      ><a name="1275" class="Symbol"
+      >&#8594;</a
+      ><a name="1276"
+      > </a
+      ><a name="1277" class="PrimitiveType"
+      >Set</a
+      ><a name="1280" class="Symbol"
+      >}</a
+      ><a name="1281"
+      > </a
+      ><a name="1282" class="Symbol"
+      >{</a
+      ><a name="1283" href="Issue982.html#1283" class="Bound"
+      >C</a
+      ><a name="1284"
+      > </a
+      ><a name="1285" class="Symbol"
+      >:</a
+      ><a name="1286"
+      > </a
+      ><a name="1287" href="Issue982.html#1102" class="Record"
+      >Sigma</a
+      ><a name="1292"
+      > </a
+      ><a name="1293" href="Issue982.html#1259" class="Bound"
+      >A</a
+      ><a name="1294"
+      > </a
+      ><a name="1295" href="Issue982.html#1269" class="Bound"
+      >B</a
+      ><a name="1296"
+      > </a
+      ><a name="1297" class="Symbol"
+      >&#8594;</a
+      ><a name="1298"
+      > </a
+      ><a name="1299" class="PrimitiveType"
+      >Set</a
+      ><a name="1302" class="Symbol"
+      >}</a
+      ><a name="1303"
+      > </a
+      ><a name="1304" class="Symbol"
+      >&#8594;</a
+      ><a name="1305"
+      >
+          </a
+      ><a name="1316" class="Symbol"
+      >((</a
+      ><a name="1318" href="Issue982.html#1318" class="Bound"
+      >x</a
+      ><a name="1319"
+      > </a
+      ><a name="1320" class="Symbol"
+      >:</a
+      ><a name="1321"
+      > </a
+      ><a name="1322" href="Issue982.html#1259" class="Bound"
+      >A</a
+      ><a name="1323" class="Symbol"
+      >)</a
+      ><a name="1324"
+      > </a
+      ><a name="1325" class="Symbol"
+      >&#8594;</a
+      ><a name="1326"
+      > </a
+      ><a name="1327" class="Symbol"
+      >(</a
+      ><a name="1328" href="Issue982.html#1328" class="Bound"
+      >y</a
+      ><a name="1329"
+      > </a
+      ><a name="1330" class="Symbol"
+      >:</a
+      ><a name="1331"
+      > </a
+      ><a name="1332" href="Issue982.html#1269" class="Bound"
+      >B</a
+      ><a name="1333"
+      > </a
+      ><a name="1334" href="Issue982.html#1318" class="Bound"
+      >x</a
+      ><a name="1335" class="Symbol"
+      >)</a
+      ><a name="1336"
+      > </a
+      ><a name="1337" class="Symbol"
+      >&#8594;</a
+      ><a name="1338"
+      > </a
+      ><a name="1339" href="Issue982.html#1283" class="Bound"
+      >C</a
+      ><a name="1340"
+      > </a
+      ><a name="1341" class="Symbol"
+      >(</a
+      ><a name="1342" href="Issue982.html#1318" class="Bound"
+      >x</a
+      ><a name="1343"
+      > </a
+      ><a name="1344" href="Issue982.html#1158" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1345"
+      > </a
+      ><a name="1346" href="Issue982.html#1328" class="Bound"
+      >y</a
+      ><a name="1347" class="Symbol"
+      >))</a
+      ><a name="1349"
+      > </a
+      ><a name="1350" class="Symbol"
+      >&#8594;</a
+      ><a name="1351"
+      >
+          </a
+      ><a name="1362" class="Symbol"
+      >((</a
+      ><a name="1364" href="Issue982.html#1364" class="Bound"
+      >p</a
+      ><a name="1365"
+      > </a
+      ><a name="1366" class="Symbol"
+      >:</a
+      ><a name="1367"
+      > </a
+      ><a name="1368" href="Issue982.html#1102" class="Record"
+      >Sigma</a
+      ><a name="1373"
+      > </a
+      ><a name="1374" href="Issue982.html#1259" class="Bound"
+      >A</a
+      ><a name="1375"
+      > </a
+      ><a name="1376" href="Issue982.html#1269" class="Bound"
+      >B</a
+      ><a name="1377" class="Symbol"
+      >)</a
+      ><a name="1378"
+      > </a
+      ><a name="1379" class="Symbol"
+      >&#8594;</a
+      ><a name="1380"
+      > </a
+      ><a name="1381" href="Issue982.html#1283" class="Bound"
+      >C</a
+      ><a name="1382"
+      > </a
+      ><a name="1383" href="Issue982.html#1364" class="Bound"
+      >p</a
+      ><a name="1384" class="Symbol"
+      >)</a
+      ><a name="1385"
+      >
+</a
+      ><a name="1386" href="Issue982.html#1248" class="Function"
+      >uncurry</a
+      ><a name="1393"
+      > </a
+      ><a name="1394" href="Issue982.html#1394" class="Bound"
+      >f</a
+      ><a name="1395"
+      > </a
+      ><a name="1396" class="Symbol"
+      >(</a
+      ><a name="1397" href="Issue982.html#1397" class="Bound"
+      >x</a
+      ><a name="1398"
+      > </a
+      ><a name="1399" href="Issue982.html#1158" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="1400"
+      > </a
+      ><a name="1401" href="Issue982.html#1401" class="Bound"
+      >y</a
+      ><a name="1402" class="Symbol"
+      >)</a
+      ><a name="1403"
+      > </a
+      ><a name="1404" class="Symbol"
+      >=</a
+      ><a name="1405"
+      > </a
+      ><a name="1406" href="Issue982.html#1394" class="Bound"
+      >f</a
+      ><a name="1407"
+      > </a
+      ><a name="1408" href="Issue982.html#1397" class="Bound"
+      >x</a
+      ><a name="1409"
+      > </a
+      ><a name="1410" href="Issue982.html#1401" class="Bound"
+      >y</a
+      ><a name="1411"
+      >
+\end{code}
+
+</a
+      ><a name="1424" class="Comment"
+      >\end{document}</a
+      ><a name="1438"
+      >
+</a
+      ></pre
+    ></body
+  ></html
+>

@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><title
+    >PatternSynonyms3</title
+    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><meta http-equiv="Content-Style-Type" content="text/css"
+     /><link href="Agda.css" rel="stylesheet" type="text/css"
+     /></head
+  ><body
+  ><pre
+    ><a name="1" class="Comment"
+      >\documentclass{article}</a
+      ><a name="24"
+      >
+</a
+      ><a name="25" class="Comment"
+      >\usepackage{agda}</a
+      ><a name="42"
+      >
+</a
+      ><a name="43" class="Comment"
+      >\begin{document}</a
+      ><a name="59"
+      >
+
+\begin{code}
+</a
+      ><a name="74" class="Keyword"
+      >data</a
+      ><a name="78"
+      > </a
+      ><a name="79" href="PatternSynonyms3.html#79" class="Datatype"
+      >Nat</a
+      ><a name="82"
+      > </a
+      ><a name="83" class="Symbol"
+      >:</a
+      ><a name="84"
+      > </a
+      ><a name="85" class="PrimitiveType"
+      >Set</a
+      ><a name="88"
+      > </a
+      ><a name="89" class="Keyword"
+      >where</a
+      ><a name="94"
+      >
+  </a
+      ><a name="97" href="PatternSynonyms3.html#97" class="InductiveConstructor"
+      >zero</a
+      ><a name="101"
+      > </a
+      ><a name="102" class="Symbol"
+      >:</a
+      ><a name="103"
+      > </a
+      ><a name="104" href="PatternSynonyms3.html#79" class="Datatype"
+      >Nat</a
+      ><a name="107"
+      >
+  </a
+      ><a name="110" href="PatternSynonyms3.html#110" class="InductiveConstructor"
+      >suc</a
+      ><a name="113"
+      > </a
+      ><a name="114" class="Symbol"
+      >:</a
+      ><a name="115"
+      > </a
+      ><a name="116" href="PatternSynonyms3.html#79" class="Datatype"
+      >Nat</a
+      ><a name="119"
+      > </a
+      ><a name="120" class="Symbol"
+      >&#8594;</a
+      ><a name="121"
+      > </a
+      ><a name="122" href="PatternSynonyms3.html#79" class="Datatype"
+      >Nat</a
+      ><a name="125"
+      >
+
+</a
+      ><a name="127" class="Keyword"
+      >pattern</a
+      ><a name="134"
+      > </a
+      ><a name="135" href="PatternSynonyms3.html#135" class="InductiveConstructor"
+      >two</a
+      ><a name="138"
+      >   </a
+      ><a name="141" class="Symbol"
+      >=</a
+      ><a name="142"
+      > </a
+      ><a name="143" href="PatternSynonyms3.html#110" class="InductiveConstructor"
+      >suc</a
+      ><a name="146"
+      > </a
+      ><a name="147" class="Symbol"
+      >(</a
+      ><a name="148" href="PatternSynonyms3.html#110" class="InductiveConstructor"
+      >suc</a
+      ><a name="151"
+      > </a
+      ><a name="152" href="PatternSynonyms3.html#97" class="InductiveConstructor"
+      >zero</a
+      ><a name="156" class="Symbol"
+      >)</a
+      ><a name="157"
+      >
+</a
+      ><a name="158" class="Keyword"
+      >pattern</a
+      ><a name="165"
+      > </a
+      ><a name="166" href="PatternSynonyms3.html#166" class="InductiveConstructor"
+      >three</a
+      ><a name="171"
+      > </a
+      ><a name="172" class="Symbol"
+      >=</a
+      ><a name="173"
+      > </a
+      ><a name="174" href="PatternSynonyms3.html#110" class="InductiveConstructor"
+      >suc</a
+      ><a name="177"
+      > </a
+      ><a name="178" href="PatternSynonyms3.html#135" class="InductiveConstructor"
+      >two</a
+      ><a name="181"
+      >
+</a
+      ><a name="182" class="Keyword"
+      >pattern</a
+      ><a name="189"
+      > </a
+      ><a name="190" href="PatternSynonyms3.html#190" class="InductiveConstructor"
+      >four</a
+      ><a name="194"
+      >  </a
+      ><a name="196" class="Symbol"
+      >=</a
+      ><a name="197"
+      > </a
+      ><a name="198" href="PatternSynonyms3.html#110" class="InductiveConstructor"
+      >suc</a
+      ><a name="201"
+      > </a
+      ><a name="202" href="PatternSynonyms3.html#166" class="InductiveConstructor"
+      >three</a
+      ><a name="207"
+      >
+
+</a
+      ><a name="209" class="Keyword"
+      >pattern</a
+      ><a name="216"
+      > </a
+      ><a name="217" href="PatternSynonyms3.html#217" class="InductiveConstructor"
+      >five</a
+      ><a name="221"
+      >  </a
+      ><a name="223" class="Symbol"
+      >=</a
+      ><a name="224"
+      > </a
+      ><a name="225" href="PatternSynonyms3.html#110" class="InductiveConstructor"
+      >suc</a
+      ><a name="228"
+      > </a
+      ><a name="229" href="PatternSynonyms3.html#190" class="InductiveConstructor"
+      >four</a
+      ><a name="233"
+      >
+
+</a
+      ><a name="235" class="Keyword"
+      >data</a
+      ><a name="239"
+      > </a
+      ><a name="240" href="PatternSynonyms3.html#240" class="Datatype"
+      >Bot</a
+      ><a name="243"
+      > </a
+      ><a name="244" class="Symbol"
+      >:</a
+      ><a name="245"
+      > </a
+      ><a name="246" class="PrimitiveType"
+      >Set</a
+      ><a name="249"
+      > </a
+      ><a name="250" class="Keyword"
+      >where</a
+      ><a name="255"
+      >
+\end{code}
+
+</a
+      ><a name="268" class="Comment"
+      >\end{document}</a
+      ></pre
+    ></body
+  ></html
+>
