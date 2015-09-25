@@ -155,6 +155,9 @@ instance Arbitrary AbsolutePath where
                 listOf (listOf1 (elements "a1"))
     where mk ps = mkAbsolute (joinPath $ rootPath : ps)
 
+instance CoArbitrary AbsolutePath where
+  coarbitrary (AbsolutePath t) = coarbitrary (Text.unpack t)
+
 ------------------------------------------------------------------------
 -- All tests
 

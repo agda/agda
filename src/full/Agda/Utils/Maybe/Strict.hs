@@ -51,7 +51,7 @@ import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
 #if __GLASGOW_HASKELL__ >= 706
 import           GHC.Generics        (Generic (..))
 #endif
-import           Test.QuickCheck     (Arbitrary (..))
+import           Test.QuickCheck     (Arbitrary (..), CoArbitrary (..))
 
 import Agda.Utils.Null
 
@@ -104,6 +104,8 @@ instance Arbitrary a => Arbitrary (Maybe a) where
   arbitrary = toStrict <$> arbitrary
   shrink    = map toStrict . shrink . toLazy
 
+instance CoArbitrary a => CoArbitrary (Maybe a) where
+  coarbitrary = coarbitrary . toLazy
 
 -- | Analogous to 'Lazy.listToMaybe' in "Data.Maybe".
 listToMaybe :: [a] -> Maybe a
