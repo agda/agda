@@ -7,6 +7,8 @@ Important changes since 2.4.2.3:
 Installation and infrastructure
 ===============================
 
+* Added support for GHC 7.10.2.
+
 * Removed support for GHC 7.4.2.
 
 Pragmas and options
