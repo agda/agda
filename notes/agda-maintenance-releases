@@ -157,10 +157,6 @@ followed:
   NEWVERSION branch in the standard library to be used with the
   maintenance branch of Agda.
 
-the release of the new version on the Agda mailing lists
-  (users and developers).
-
-
 * Update the Agda Wiki:
 
   ** Update the Download page:
