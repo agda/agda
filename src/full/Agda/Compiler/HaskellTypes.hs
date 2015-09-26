@@ -53,12 +53,6 @@ hsApp d as = "(" ++ unwords (d : as) ++ ")"
 hsForall :: String -> HaskellType -> HaskellType
 hsForall x a = "(forall " ++ x ++ ". " ++ a ++ ")"
 
-notAHaskellKind :: Type -> TCM a
-notAHaskellKind a = do
-  err <- fsep $ pwords "The type" ++ [prettyTCM a] ++
-                pwords "cannot be translated to a Haskell kind."
-  typeError $ GenericError $ show err
-
 notAHaskellType :: Type -> TCM a
 notAHaskellType a = do
   err <- fsep $ pwords "The type" ++ [prettyTCM a] ++
@@ -75,23 +69,6 @@ getHsType x = do
 
 getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
-
-isHaskellKind :: Type -> TCM Bool
-isHaskellKind a =
-  (const True <$> haskellKind a) `catchError` \_ -> return False
-
-haskellKind :: Type -> TCM HaskellKind
-haskellKind a = do
-  a <- reduce a
-  case unEl a of
-    Sort _  -> return hsStar
-    Pi a b  -> hsKFun <$> haskellKind (unDom a) <*> underAbstraction a b haskellKind
-    Def d _ -> do
-      d <- compiledHaskell . defCompiledRep <$> getConstInfo d
-      case d of
-        Just (HsType t) -> return hsStar
-        _               -> notAHaskellKind a
-    _       -> notAHaskellKind a
 
 -- | Note that @Inf a b@, where @Inf@ is the INFINITY builtin, is
 -- translated to @<translation of b>@ (assuming that all coinductive
