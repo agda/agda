@@ -7,7 +7,7 @@ SHELL=bash
 PROFVERB=7
 
 # Agda standard library branch.
-STD_LIB_BRANCH = 2.4.2.4
+STD_LIB_BRANCH = 2.4.2.5
 
 # Various paths and commands
 
