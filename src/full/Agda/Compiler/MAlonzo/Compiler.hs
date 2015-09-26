@@ -433,7 +433,7 @@ term tm0 = case tm0 of
   T.TSort    -> return HS.unit_con
   T.TErased  -> return HS.unit_con
   T.TError e -> return $ case e of
-    T.TPatternMatchFailure funNm ->  rtmIncompleteMatch funNm
+    T.TUnreachable q ->  rtmUnreachableError q
   where apps =  foldM (\ h a -> HS.App h <$> term a)
 
 compilePrim :: T.TPrim -> HS.Exp
@@ -632,6 +632,9 @@ rteModule = ok $ parse $ unlines
   , ""
   , "mazIncompleteMatch :: String -> a"
   , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
+  , ""
+  , "mazUnreachableError :: String -> a"
+  , "mazUnreachableError s = error (\"MAlonzo Runtime Error: unreachable code reached in definition: \" ++ s)"
   ]
   where
     parse :: String -> HS.ParseResult HS.Module

@@ -339,7 +339,7 @@ compileTerm term =
     C.TSort -> return UNIT
     C.TErased -> return UNIT
     C.TError e -> return $ case e of
-      C.TPatternMatchFailure funNm -> Error $ "Non-exhaustive patterns in function: " ++ P.prettyShow funNm
+      C.TUnreachable q -> Error $ "Unreachable code reached in " ++ P.prettyShow q ++ ". This should never happen! Crashing..."
 
 compilePrim :: C.TPrim -> A.Expr
 compilePrim C.PDiv = A.Var $ primFunNm "primIntegerDiv"
