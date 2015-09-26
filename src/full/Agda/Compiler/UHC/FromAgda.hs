@@ -396,7 +396,7 @@ defaultBranches dt alts def = do
   let altCons = map C.aCon alts
       missingCons = dtCons \\ altCons
 
-  mapM (\a -> makeConAlt a (\_ -> return def)) missingCons 
+  mapM (\a -> makeConAlt a (\_ -> return def)) missingCons
   where
     getCons r@(Record{}) = [recCon r]
     getCons d@(Datatype{}) = dataCons d
