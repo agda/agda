@@ -22,9 +22,10 @@ plusSucT = ∀{x y} → (x + (suc y)) ≡ suc (x + y)
 
 postulate
   plus0p : plus0T
+  {-# REWRITE plus0p #-}
+
   plusSucp : plusSucT
 
-{-# REWRITE plus0p #-}
 {-# REWRITE plusSucp #-}
 
 plus0 : plus0T
