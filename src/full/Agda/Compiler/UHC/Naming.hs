@@ -36,6 +36,9 @@ module Agda.Compiler.UHC.Naming
   , FreshNameT
   , evalFreshNameT
   , freshLocalName
+
+  -- misc
+  , ctagCtorName
   )
 where
 
@@ -214,6 +217,11 @@ unqualifyQ qnm = do
     -- not sure when the name doesn't have a module prefix... just force generation of a name for the time being
     Nothing -> return $ Left qnms
     Just nm -> return $ Right nm
+
+
+-- | Helper function, probably should be moved somewhere else...
+ctagCtorName :: CTag -> HsName
+ctagCtorName = destructCTag __IMPOSSIBLE__ (\_ x _ _ -> x)
 
 ------------------------------------
 ---- local fresh names

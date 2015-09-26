@@ -21,10 +21,11 @@ import Control.Monad.Reader
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Either
+import Data.List
 
 import Agda.Syntax.Internal hiding (Term(..))
 import qualified Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Literal  as TL
+import Agda.Syntax.Literal  as TL
 import qualified Agda.Syntax.Treeless as C
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -32,13 +33,14 @@ import Agda.TypeChecking.Pretty
 import Agda.Utils.List
 import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common
 
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.NPlusKToPrims
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr)
 import Agda.Compiler.UHC.AuxAST as A
-import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Primitives
@@ -52,6 +54,9 @@ import Agda.Utils.Except ( MonadError (catchError) )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+opts :: EHCOpts
+opts = defaultEHCOpts
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
 fromAgdaModule :: ModuleName
@@ -189,7 +194,7 @@ translateDefn (n, defini) = do
   case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
-        return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) vars UNIT
+        return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("datatype: " ++ show n) (mkLam vars $ mkUnit opts)
     (Function{}) | Just n == (nameOfFlat <$> kit) -> do
         Just <$> mkIdentityFun n "coind-flat" 0
     f@(Function{}) | otherwise -> do
@@ -203,7 +208,7 @@ translateDefn (n, defini) = do
         funBody' <- runCompile $ compileTerm funBody
         lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
 
-        return $ Just $ Fun False (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("function: " ++ show n) [] funBody'
+        return $ Just $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("function: " ++ show n) funBody'
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         Just <$> mkIdentityFun n "coind-sharp" 0
@@ -217,13 +222,15 @@ translateDefn (n, defini) = do
                         arity' = xconArity conCon
 
                     vars <- replicateM arity' freshLocalName
-                    return $ Just $ Fun True (ctagCtorName $ xconCTag conCon) (Just n)
-                            ("constructor: " ++ show n) vars (Con (aciDataType conInfo) conCon (map Var vars))
+                    let conWrapper = mkLam vars (mkTagTup (xconCTag conCon) $ map mkVar vars)
+
+                    return $ Just $ CoreFun (ctagCtorName $ xconCTag conCon) (Just n)
+                            ("constructor: " ++ show n) conWrapper
           Nothing -> return Nothing -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
 
     r@(Record{}) -> do
         vars <- replicateM (recPars r) freshLocalName
-        return . return $ Fun True (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("record: " ++ show n) vars UNIT
+        return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("record: " ++ show n) (mkLam vars $ mkUnit opts)
     (Axiom{}) -> do -- Axioms get their code from COMPILED_UHC pragmas
         case crRep of
             Nothing -> return . return $ CoreFun (fromMaybe __IMPOSSIBLE__ crName) (Just n) ("AXIOM_UNDEFINED: " ++ show n)
@@ -253,17 +260,15 @@ translateDefn (n, defini) = do
     mkIdentityFun nm comment ignArgs = do
         crName <- lift $ getCoreName1 nm
         xs <- replicateM (ignArgs + 1) freshLocalName
-        return $ Fun False crName (Just n) comment xs (Var $ last xs)
+        return $ CoreFun crName (Just n) comment (mkLam xs (mkVar $ last xs))
 
 
 runCompile :: NM a -> FreshNameT (CompileT TCM) a
 runCompile r = do
-  natKit' <- lift $ lift natKit
-  r `runReaderT` (NMEnv [] natKit')
+  r `runReaderT` (NMEnv [])
 
 data NMEnv = NMEnv
   { nmEnv :: [HsName] -- maps de-bruijn indices to names
-  , nmNatKit :: Maybe QName
   }
 
 type NM = ReaderT NMEnv (FreshNameT (CompileT TCM))
@@ -283,68 +288,137 @@ natKit = do
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-compileTerm :: C.TTerm -> NM A.Expr
-compileTerm term =
+compileTerm :: C.TTerm -> NM CExpr
+compileTerm term = do
+  natKit' <- lift $ lift $ lift natKit
   case term of
     C.TPrim t -> return $ compilePrim t
     C.TVar x -> do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
-      return $ A.Var nm
+      return $ mkVar nm
     C.TDef nm -> do
       nm' <- lift . lift $ getCoreName1 nm
-      return $ A.Var nm'
+      return $ mkVar nm'
     C.TApp t xs -> do
-      A.apps <$> compileTerm t <*> mapM compileTerm xs
+      mkApp <$> compileTerm t <*> mapM compileTerm xs
     C.TLam t -> do
        name <- lift freshLocalName
        addToEnv [name] $ do
-         A.Lam name <$> compileTerm t
-    C.TLit l -> return $ Lit l
+         mkLam [name] <$> compileTerm t
+    C.TLit l -> return $ litToCore l
     C.TCon c -> do
         con <- lift . lift $ getConstrFun c
-        return $ A.Var con
+        return $ mkVar con
     C.TLet x body -> do
         nm <- lift freshLocalName
-        A.Let nm
-            <$> compileTerm x
-            <*> addToEnv [nm] (compileTerm body)
-    C.TCase sc ct def alts -> do
-        A.Case
-          <$> compileTerm (C.TVar sc)
-          <*> mapM compileAlt alts
-          <*> compileTerm def
-          <*> mapCaseType ct
-      where mapCaseType :: C.CaseType -> NM A.CaseType
-            mapCaseType C.CTChar = return $ A.CTChar
-            mapCaseType C.CTString = return $ A.CTString
-            mapCaseType C.CTQName = return $ A.CTQName
-            mapCaseType (C.CTData nm) = do
-              natKit <- asks nmNatKit
-              if natKit == Just nm
-                then
-                  return $ A.CTInteger
-                else do
-                  let (C.TACon {C.aCon = conNm}) = head alts
-                  di <- aciDataType <$> (lift . lift) (getConstrInfo conNm)
-                  return $ A.CTCon di
-            compileAlt :: C.TAlt -> NM A.Branch
-            compileAlt a@(C.TALit {}) = A.BrLit (C.aLit a) <$> compileTerm (C.aBody a)
-            compileAlt a@(C.TAPlus {}) = __IMPOSSIBLE__
-            compileAlt a@(C.TACon {}) = do
-                conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo $ C.aCon a)
-                vars <- lift $ replicateM (C.aArity a) freshLocalName
-                body <- addToEnv (reverse vars) (compileTerm $ C.aBody a)
-                return $ A.BrCon conInfo (C.aCon a) vars body
-    C.TUnit -> return UNIT
-    C.TSort -> return UNIT
-    C.TErased -> return UNIT
-    C.TError e -> return $ case e of
-      C.TUnreachable q -> Error $ "Unreachable code reached in " ++ P.prettyShow q ++ ". This should never happen! Crashing..."
+        mkLet1Plain nm
+          <$> compileTerm x
+          <*> addToEnv [nm] (compileTerm body)
+    C.TCase sc (C.CTData dt) def alts | Just dt /= natKit'-> do
+      -- normal constructor case
+      caseScr <- lift freshLocalName
+      defVar <- lift freshLocalName
+      def' <- compileTerm def
 
-compilePrim :: C.TPrim -> A.Expr
-compilePrim C.PDiv = A.Var $ primFunNm "primIntegerDiv"
-compilePrim C.PMod = A.Var $ primFunNm "primIntegerMod"
-compilePrim C.PSub = A.Var $ primFunNm "primIntegerMinus"
-compilePrim C.PAdd = A.Var $ primFunNm "primIntegerPlus"
-compilePrim C.PIf  = A.Var $ primFunNm "primIfThenElse"
-compilePrim C.PGeq = A.Var $ primFunNm "primIntegerGreaterOrEqual"
+      branches <- traverse compileConAlt alts
+      defBranches <- defaultBranches dt alts (mkVar defVar)
+      let cas = mkCase (mkVar caseScr) (branches ++ defBranches)
+      caseScr' <- compileTerm (C.TVar sc)
+
+      return $ mkLet1Plain defVar def' (mkLet1Strict caseScr caseScr' cas)
+
+    C.TCase sc ct def alts | otherwise -> do
+      -- cases on literals
+      sc <- compileTerm (C.TVar sc)
+      var <- lift freshLocalName
+      def <- compileTerm def
+
+      css <- buildPrimCases eq (mkVar var) alts def
+      return $ mkLet1Strict var sc css
+      where
+        eq :: CExpr
+        eq = case ct of
+          C.CTChar -> mkVar $ primFunNm "primCharEquality"
+          C.CTString -> mkVar $ primFunNm "primStringEquality"
+          C.CTQName -> mkVar $ primFunNm "primQNameEquality"
+          C.CTData nm | Just nm == natKit' -> mkVar $ primFunNm "primIntegerEquality"
+          _ -> __IMPOSSIBLE__
+
+    C.TUnit -> unit
+    C.TSort -> unit
+    C.TErased -> unit
+    C.TError e -> return $ case e of
+      C.TUnreachable q -> coreError $ "Unreachable code reached in " ++ P.prettyShow q ++ ". This should never happen! Crashing..."
+  where unit = return $ mkUnit opts
+
+
+buildPrimCases :: CExpr -- ^ equality function
+    -> CExpr    -- ^ case scrutinee (in WHNF)
+    -> [C.TAlt]
+    -> CExpr    -- ^ default value
+    -> NM CExpr
+buildPrimCases _ _ [] def = return def
+buildPrimCases eq scr (b:brs) def = do
+    var <- lift     freshLocalName
+    e' <- compileTerm (C.aBody b)
+    rec' <- buildPrimCases eq scr brs def
+
+    let lit = litToCore $ C.aLit b
+        eqTest = mkApp eq [scr, lit]
+
+    return $ mkLet1Strict var eqTest (mkIfThenElse (mkVar var) e' rec')
+
+-- move to UHC Core API
+mkIfThenElse :: CExpr -> CExpr -> CExpr -> CExpr
+mkIfThenElse c t e = mkCase c [b1, b2]
+  where b1 = mkAlt (mkPatCon (ctagTrue opts) mkPatRestEmpty []) t
+        b2 = mkAlt (mkPatCon (ctagFalse opts) mkPatRestEmpty []) e
+
+compileConAlt :: C.TAlt -> NM CAlt
+compileConAlt a =
+  makeConAlt (C.aCon a)
+    (\vars -> addToEnv (reverse vars) $ compileTerm (C.aBody a))
+
+makeConAlt :: QName -> ([HsName] -> NM CExpr) -> NM CAlt
+makeConAlt con mkBody = do
+  conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo con)
+  vars <- lift $ replicateM (xconArity conInfo) freshLocalName
+  body <- mkBody vars
+
+  let patFlds = [mkPatFldBind (mkHsName [] "", mkInt opts i) (mkBind1Nm1 v) | (i, v) <- zip [0..] vars]
+  return $ mkAlt (mkPatCon (xconCTag conInfo) mkPatRestEmpty patFlds) body
+
+-- | Constructs an alternative for all constructors not explicitly matched by a branch.
+defaultBranches :: QName -> [C.TAlt] -> CExpr -> NM [CAlt]
+defaultBranches dt alts def = do
+  dtCons <- getCons . theDef <$> (lift . lift . lift) (getConstInfo dt)
+  let altCons = map C.aCon alts
+      missingCons = dtCons \\ altCons
+
+  mapM (\a -> makeConAlt a (\_ -> return def)) missingCons 
+  where
+    getCons r@(Record{}) = [recCon r]
+    getCons d@(Datatype{}) = dataCons d
+    getCons _ = __IMPOSSIBLE__
+
+
+litToCore :: Literal -> CExpr
+litToCore (LitInt _ i)   = mkApp (mkVar $ primFunNm "primIntegerToNat") [mkInteger opts i]
+litToCore (LitString _ s) = mkString opts s
+litToCore (LitChar _ c)  = mkChar c
+-- TODO this is just a dirty work around
+litToCore (LitFloat _ f) = mkApp (mkVar $ primFunNm "primMkFloat") [mkString opts (show f)]
+litToCore (LitQName _ q) = mkApp (mkVar $ primFunNm "primMkQName")
+                             [mkInteger opts n, mkInteger opts m, mkString opts $ P.prettyShow q]
+  where NameId n m = nameId $ qnameName q
+
+coreError :: String -> CExpr
+coreError msg = mkError opts $ "Fatal error: " ++ msg
+
+compilePrim :: C.TPrim -> CExpr
+compilePrim C.PDiv = mkVar $ primFunNm "primIntegerDiv"
+compilePrim C.PMod = mkVar $ primFunNm "primIntegerMod"
+compilePrim C.PSub = mkVar $ primFunNm "primIntegerMinus"
+compilePrim C.PAdd = mkVar $ primFunNm "primIntegerPlus"
+compilePrim C.PIf  = mkVar $ primFunNm "primIfThenElse"
+compilePrim C.PGeq = mkVar $ primFunNm "primIntegerGreaterOrEqual"
