@@ -33,8 +33,7 @@ import Data.Typeable (Typeable)
 
 import Debug.Trace (trace)
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
@@ -133,8 +132,8 @@ defApp f [] (Apply a : es) | Just v <- canProject f (unArg a)
 defApp f es0 es = Def f $ es0 ++ es
 
 -- protect irrelevant fields (see issue 610)
-argToDontCare :: Common.Arg c Term -> Term
-argToDontCare (Common.Arg ai v)
+argToDontCare :: Arg Term -> Term
+argToDontCare (Arg ai v)
   | Irrelevant <- getRelevance ai     = dontCare v
   | otherwise                         = v
 
@@ -493,8 +492,8 @@ telVars = map (fmap namedThing) . namedTelVars
 
 namedTelVars :: Telescope -> [NamedArg Pattern]
 namedTelVars EmptyTel                            = []
-namedTelVars (ExtendTel (Common.Dom info a) tel) =
-  Common.Arg info (namedVarP $ absName tel) :
+namedTelVars (ExtendTel (Dom info a) tel) =
+  Arg info (namedVarP $ absName tel) :
   namedTelVars (unAbs tel)
 
 instance Abstract FunctionInverse where
@@ -521,7 +520,7 @@ instance Abstract v => Abstract (Map k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\(Common.Arg info x) -> ExtendTel (Common.Dom info $ sort Prop) . Abs x)
+        tel   = foldr (\(Arg info x) -> ExtendTel (Dom info $ sort Prop) . Abs x)
                       EmptyTel
               $ zipWith (<$) names args
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
@@ -847,7 +846,7 @@ type ListTel = ListTel' ArgName
 telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
 telFromList' f = foldr extTel EmptyTel
   where
-    extTel (Common.Dom info (x, a)) = ExtendTel (Common.Dom info a) . Abs (f x)
+    extTel (Dom info (x, a)) = ExtendTel (Dom info a) . Abs (f x)
 
 telFromList :: ListTel -> Telescope
 telFromList = telFromList' id
@@ -859,7 +858,7 @@ telToList (ExtendTel arg tel) = fmap (absName tel,) arg : telToList (absBody tel
   -- since 'absBody' raises.
 
 telToArgs :: Telescope -> [Arg ArgName]
-telToArgs tel = [ Common.Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
+telToArgs tel = [ Arg (domInfo d) (fst $ unDom d) | d <- telToList tel ]
 
 -- | Turn a typed binding @(x1 .. xn : A)@ into a telescope.
 bindsToTel' :: (Name -> a) -> [Name] -> Dom Type -> ListTel' a
@@ -887,7 +886,7 @@ telView' t = case ignoreSharing $ unEl t of
 
 -- | @mkPi dom t = telePi (telFromList [dom]) t@
 mkPi :: Dom (ArgName, Type) -> Type -> Type
-mkPi (Common.Dom info (x, a)) b = el $ Pi (Common.Dom info a) (mkAbs x b)
+mkPi (Dom info (x, a)) b = el $ Pi (Dom info a) (mkAbs x b)
   where
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
 
@@ -932,7 +931,7 @@ class TeleNoAbs a where
   teleNoAbs :: a -> Term -> Term
 
 instance TeleNoAbs ListTel where
-  teleNoAbs tel t = foldr (\ (Common.Dom ai (x, _)) -> Lam ai . NoAbs x) t tel
+  teleNoAbs tel t = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) t tel
 
 instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel

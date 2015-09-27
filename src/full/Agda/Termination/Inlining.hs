@@ -55,7 +55,7 @@ import Control.Monad.State
 import Data.Traversable (traverse)
 import Data.List as List
 
-import Agda.Syntax.Common as Common hiding (NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad

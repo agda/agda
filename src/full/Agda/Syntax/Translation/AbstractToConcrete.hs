@@ -40,8 +40,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Info
@@ -313,19 +312,12 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
         where
             reorder (x,(y,z)) = (x,y,z)
 
-instance ToConcrete (Common.ArgInfo ac) C.ArgInfo where
-  toConcrete info = -- do cs <- mapM toConcrete $ argInfoColors info
-                    return $ info { argInfoColors = [] } -- TODO: zapping ignoring colours
+instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
+    toConcrete (Arg i a) = Arg i <$> toConcreteHiding i a
 
-instance ToConcrete a c => ToConcrete (Common.Arg ac a) (C.Arg c) where
-    toConcrete (Common.Arg info x) = Common.Arg
-      <$> toConcrete info
-      <*> toConcreteHiding info x
-
-    bindToConcrete (Common.Arg info x) ret = do
-      info <- toConcrete info
+    bindToConcrete (Arg info x) ret =
       bindToConcreteCtx (hiddenArgumentCtx $ getHiding info) x $
-        ret . Common.Arg info
+        ret . Arg info
 
 instance ToConcrete a c => ToConcrete (WithHiding a) (WithHiding c) where
   toConcrete     (WithHiding h a) = WithHiding h <$> toConcreteHiding h a
@@ -464,7 +456,7 @@ instance ToConcrete A.Expr C.Expr where
                            NonStrict  -> addDot a (addDot a e)
                            _          -> e
             addDot a e = Dot (getRange a) e
-            mkArg (Common.Arg info e) = case getHiding info of
+            mkArg (Arg info e) = case getHiding info of
                                           Hidden    -> HiddenArg   (getRange e) (unnamed e)
                                           Instance  -> InstanceArg (getRange e) (unnamed e)
                                           NotHidden -> e
@@ -522,7 +514,7 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete n
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
-makeDomainFree b@(A.DomainFull (A.TypedBindings r (Common.Arg info (A.TBind _ [WithHiding h x] t)))) =
+makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg info (A.TBind _ [WithHiding h x] t)))) =
   case unScope t of
     A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree (mapHiding (mappend h) info) x
     _ -> b
@@ -534,8 +526,7 @@ instance ToConcrete a c => ToConcrete (FieldAssignment' a) (FieldAssignment' c) 
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding [C.LamBinding] where
-    bindToConcrete (A.DomainFree info x) ret = do info <- toConcrete info
-                                                  bindToConcrete x $ ret . (:[]) . C.DomainFree info . mkBoundName_
+    bindToConcrete (A.DomainFree info x) ret = bindToConcrete x $ ret . (:[]) . C.DomainFree info . mkBoundName_
     bindToConcrete (A.DomainFull b)      ret = bindToConcrete b $ ret . map C.DomainFull
 
 instance ToConcrete A.TypedBindings [C.TypedBindings] where
@@ -543,7 +534,7 @@ instance ToConcrete A.TypedBindings [C.TypedBindings] where
     bindToConcrete bs $ \cbs ->
     ret (map (C.TypedBindings r) $ recoverLabels bs cbs)
     where
-      recoverLabels :: A.Arg A.TypedBinding -> C.Arg C.TypedBinding -> [C.Arg C.TypedBinding]
+      recoverLabels :: Arg A.TypedBinding -> Arg C.TypedBinding -> [Arg C.TypedBinding]
       recoverLabels b cb
         | getHiding b == NotHidden = [cb]   -- We don't care about labels for explicit args
         | otherwise = traverse (recover (unArg b)) cb
@@ -575,7 +566,6 @@ instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =
         bindToConcrete x $ \x ->
         do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e)
-           info <- toConcrete info
            ret [ C.TypeSig info x t
                , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                              e C.NoWhere
@@ -673,7 +663,7 @@ telToTypedBindingss = map lamBindingToTypedBindings where
     case b of
       C.DomainFull t     -> t
       C.DomainFree info n -> C.TypedBindings noRange $
-        Common.Arg info $ C.TBind noRange [n] $ C.Underscore noRange Nothing
+        Arg info $ C.TBind noRange [n] $ C.Underscore noRange Nothing
 -}
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
@@ -682,7 +672,6 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.Axiom _ i info x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteTop t
-    info <- toConcrete info
     return $ C.TypeSig info x' t'
   toConcrete (Constr d) = head <$> toConcrete d
 
@@ -720,7 +709,6 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      info <- toConcrete info
       return [C.Postulate (getRange i) [C.TypeSig info x' t']]
 
   toConcrete (A.Field i x t) = do
@@ -946,7 +934,7 @@ tryToRecoverOpAppP p def = recoverOpApp bracketP_ opApp view p def
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c)
   -> (Range -> C.QName -> A.Name -> [c] -> c)
-  -> (a -> Maybe (Hd, [A.NamedArg a]))
+  -> (a -> Maybe (Hd, [NamedArg a]))
   -> a
   -> AbsToCon c
   -> AbsToCon c

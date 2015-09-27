@@ -13,8 +13,7 @@ import Prelude hiding (null)
 import Data.Functor
 import Data.Maybe
 
-import qualified Agda.Syntax.Common as Common
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -204,7 +203,7 @@ instance Pretty LamBinding where
 
 instance Pretty TypedBindings where
   pretty (TypedBindings _ a) = prettyRelevance a $ prettyHiding a p $
-    pretty $ WithColors (argColors a) $ unArg a
+    pretty $ unArg a
       where
         p | isUnderscore (unArg a) = id
           | otherwise        = parens
@@ -219,27 +218,13 @@ instance Pretty Tel where
       | any isMeta tel = text "∀" <+> fsep (map pretty tel)
       | otherwise      = fsep (map pretty tel)
       where
-        isMeta (TypedBindings _ (Common.Arg _ (TBind _ _ (Underscore _ Nothing)))) = True
+        isMeta (TypedBindings _ (Arg _ (TBind _ _ (Underscore _ Nothing)))) = True
         isMeta _ = False
 
 
-instance Pretty ColoredTypedBinding where
-                -- (x y :{ i j } A) -> ...
-    pretty (WithColors [] (TBind _ xs (Underscore _ Nothing))) =
-        fsep (map pretty xs)
-    pretty (WithColors [] (TLet _ ds)) =
-        text "let" <+> vcat (map pretty ds)
-    pretty (WithColors _ (TLet _ _)) = __IMPOSSIBLE__
-    pretty (WithColors cs (TBind _ xs e)) =
-        sep [ fsep (map pretty xs)
-            , pColors ":" cs <+> pretty e
-            ]
-
-pColors :: String -> [Color] -> Doc
-pColors s [] = text s
-pColors s cs = text (s ++ "{") <+> fsep (map pretty cs) <+> text "}"
-
 instance Pretty TypedBinding where
+    pretty (TBind _ xs (Underscore _ Nothing)) =
+      fsep (map pretty xs)
     pretty (TBind _ xs e) =
         sep [ fsep (map pretty xs)
             , text ":" <+> pretty e
@@ -248,10 +233,10 @@ instance Pretty TypedBinding where
         text "let" <+> vcat (map pretty ds)
 
 smashTel :: Telescope -> Telescope
-smashTel (TypedBindings r (Common.Arg i  (TBind r' xs e)) :
-          TypedBindings _ (Common.Arg i' (TBind _  ys e')) : tel)
+smashTel (TypedBindings r (Arg i  (TBind r' xs e)) :
+          TypedBindings _ (Arg i' (TBind _  ys e')) : tel)
   | show i == show i' && show e == show e' && all (isUnnamed . dget) (xs ++ ys) =
-    smashTel (TypedBindings r (Common.Arg i (TBind r' (xs ++ ys) e)) : tel)
+    smashTel (TypedBindings r (Arg i (TBind r' (xs ++ ys) e)) : tel)
   where
     isUnnamed x = boundLabel x == boundName x
 smashTel (b : tel) = b : smashTel tel
@@ -308,10 +293,10 @@ instance Pretty Declaration where
     pretty d =
         case d of
             TypeSig i x e ->
-                sep [ prettyRelevance i $ pretty x <+> pColors ":" (argInfoColors i)
+                sep [ prettyRelevance i $ pretty x <+> text ":"
                     , nest 2 $ pretty e
                     ]
-            Field x (Common.Arg i e) ->
+            Field x (Arg i e) ->
                 sep [ text "field"
                     , nest 2 $ prettyRelevance i $ prettyHiding i id $
                         pretty $ TypeSig (i {argInfoRelevance = Relevant}) x e

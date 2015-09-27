@@ -47,7 +47,7 @@ data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term
   , quoteTypeWithKit   :: Type       -> ReduceM Term
   , quoteClauseWithKit :: Clause     -> ReduceM Term
-  , quoteDomWithKit    :: I.Dom Type -> ReduceM Term
+  , quoteDomWithKit    :: Dom Type -> ReduceM Term
   }
 
 quotingKit :: TCM QuotingKit
@@ -115,12 +115,9 @@ quotingKit = do
       quoteRelevance Forced{}   = pure relevant
       quoteRelevance UnusedArg  = pure relevant
 
---      quoteColors _ = nil -- TODO guilhem
-
-      quoteArgInfo :: I.ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h r cs) = arginfo !@ quoteHiding h
-                                              @@ quoteRelevance r
-                                --              @@ quoteColors cs
+      quoteArgInfo :: ArgInfo -> ReduceM Term
+      quoteArgInfo (ArgInfo h r) = arginfo !@ quoteHiding h
+                                           @@ quoteRelevance r
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitInt{}    = lit !@ (litNat    !@! Lit l)
@@ -149,7 +146,7 @@ quotingKit = do
       quoteQName :: QName -> ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
 
-      quotePats :: [I.NamedArg Pattern] -> ReduceM Term
+      quotePats :: [NamedArg Pattern] -> ReduceM Term
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
 
       quotePat :: Pattern -> ReduceM Term
@@ -175,17 +172,17 @@ quotingKit = do
       list []       = pure nil
       list (a : as) = cons !@ a @@ list as
 
-      quoteDom :: (Type -> ReduceM Term) -> I.Dom Type -> ReduceM Term
+      quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
       quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
 
       quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t
       quoteAbs q (NoAbs s t) = abs !@! quoteString s @@ q (raise 1 t)
 
-      quoteArg :: (a -> ReduceM Term) -> I.Arg a -> ReduceM Term
+      quoteArg :: (a -> ReduceM Term) -> Arg a -> ReduceM Term
       quoteArg q (Arg info t) = arg !@ quoteArgInfo info @@ q t
 
-      quoteArgs :: I.Args -> ReduceM Term
+      quoteArgs :: Args -> ReduceM Term
       quoteArgs ts = list (map (quoteArg quoteTerm) ts)
 
       quoteTerm :: Term -> ReduceM Term
@@ -240,7 +237,7 @@ quoteType v = do
   kit <- quotingKit
   runReduceM (quoteTypeWithKit kit v)
 
-quoteDom :: I.Dom Type -> TCM Term
+quoteDom :: Dom Type -> TCM Term
 quoteDom v = do
   kit <- quotingKit
   runReduceM (quoteDomWithKit kit v)

@@ -137,7 +137,7 @@ initialRels ty rel = case SI.ignoreSharing $ SI.unEl ty of
   SI.Pi  a b -> mkRel a : initialRels (SI.unAbs b) rel
   _          -> []
   where
-    mkRel :: SI.Dom SI.Type -> Relevance
+    mkRel :: Common.Dom SI.Type -> Relevance
     mkRel a | ignoreForced (Common.getRelevance a) = Irr
     mkRel a = case SI.ignoreSharing $ SI.unEl (Common.unDom a) of
        SI.Sort _ -> Irr

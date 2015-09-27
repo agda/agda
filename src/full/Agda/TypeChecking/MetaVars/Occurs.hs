@@ -29,7 +29,7 @@ import qualified Data.Set as Set
 import qualified Agda.Benchmarking as Bench
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -442,7 +442,7 @@ instance (Occurs a, Subst t a) => Occurs (Abs a) where
   metaOccurs m (Abs   s x) = metaOccurs m x
   metaOccurs m (NoAbs s x) = metaOccurs m x
 
-instance Occurs a => Occurs (I.Arg a) where
+instance Occurs a => Occurs (Arg a) where
   occurs red ctx m xs (Arg info x) | isIrrelevant info = Arg info <$>
     occurs red Irrel m (goIrrelevant xs) x
   occurs red ctx m xs (Arg info x) = Arg info <$>
@@ -450,7 +450,7 @@ instance Occurs a => Occurs (I.Arg a) where
 
   metaOccurs m a = metaOccurs m (unArg a)
 
-instance Occurs a => Occurs (I.Dom a) where
+instance Occurs a => Occurs (Dom a) where
   occurs red ctx m xs (Dom info x) = Dom info <$> occurs red ctx m xs x
   metaOccurs m = metaOccurs m . unDom
 
@@ -634,14 +634,14 @@ instance FoldRigid LevelAtom where
 instance (Subst t a, FoldRigid a) => FoldRigid (Abs a) where
   foldRigid abs f b = underAbstraction_ b $ foldRigid abs f
 
-instance FoldRigid a => FoldRigid (I.Arg a) where
+instance FoldRigid a => FoldRigid (Arg a) where
   foldRigid abs f a =
     case getRelevance a of
       Irrelevant -> mempty
       UnusedArg  -> mempty
       _          -> foldRigid abs f $ unArg a
 
-instance FoldRigid a => FoldRigid (I.Dom a) where
+instance FoldRigid a => FoldRigid (Dom a) where
   foldRigid abs f dom = foldRigid abs f $ unDom dom
 
 instance FoldRigid a => FoldRigid (Elim' a) where
@@ -708,7 +708,7 @@ killArgs kills m = do
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(I.Dom (ArgName, Type), Bool)] -> Type -> ([I.Arg Bool], Type)
+killedType :: [(Dom (ArgName, Type), Bool)] -> Type -> ([Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg@(Dom info _), kill) : kills) b
   | dontKill  = (Arg info False : args, mkPi arg b')
@@ -718,7 +718,7 @@ killedType ((arg@(Dom info _), kill) : kills) b
     dontKill = not kill || 0 `freeIn` b'
 
 -- The list starts with the last argument
-performKill :: [I.Arg Bool] -> MetaId -> Type -> TCM ()
+performKill :: [Arg Bool] -> MetaId -> Type -> TCM ()
 performKill kills m a = do
   mv <- lookupMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__

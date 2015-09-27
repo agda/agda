@@ -69,7 +69,7 @@ import qualified Agda.Compiler.UHC.AuxAST as UHCA
 import qualified Agda.Compiler.UHC.Naming as UHCN
 import qualified Agda.Compiler.UHC.Bridge as UHCB
 
-import Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
@@ -116,7 +116,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20150920 * 10 + 0
+currentInterfaceVersion = 20150927 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -913,11 +913,11 @@ instance EmbPrj A.TypedBinding where
                            valu [1, a, b]    = valu2 A.TLet a b
                            valu _            = malformed
 
-instance EmbPrj c => EmbPrj (Common.ArgInfo c) where
-  icod_ (ArgInfo h r cs) = icode3' h r cs
+instance EmbPrj ArgInfo where
+  icod_ (ArgInfo h r) = icode2' h r
 
-  value = vcase valu where valu [h, r, cs] = valu3 ArgInfo h r cs
-                           valu _          = malformed
+  value = vcase valu where valu [h, r] = valu2 ArgInfo h r
+                           valu _      = malformed
 
 instance EmbPrj NameId where
   icod_ (NameId a b) = icode2' a b
@@ -967,24 +967,24 @@ instance EmbPrj a => EmbPrj (WithHiding a) where
   value = vcase valu where valu [a, b] = valu2 WithHiding a b
                            valu _      = malformed
 
-instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Arg c a) where
+instance EmbPrj a => EmbPrj (Arg a) where
   icod_ (Arg i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Arg i e
                            valu _      = malformed
 
-instance (EmbPrj a, EmbPrj c) => EmbPrj (Common.Dom c a) where
+instance EmbPrj a => EmbPrj (Dom a) where
   icod_ (Dom i e) = icode2' i e
   value = vcase valu where valu [i, e] = valu2 Dom i e
                            valu _      = malformed
 
-instance EmbPrj Common.Induction where
+instance EmbPrj Induction where
   icod_ Inductive   = icode0'
   icod_ CoInductive = icode0 1
   value = vcase valu where valu []  = valu0 Inductive
                            valu [1] = valu0 CoInductive
                            valu _   = malformed
 
-instance EmbPrj Common.Hiding where
+instance EmbPrj Hiding where
   icod_ Hidden    = return 0
   icod_ NotHidden = return 1
   icod_ Instance  = return 2
@@ -993,7 +993,7 @@ instance EmbPrj Common.Hiding where
   value 2 = return Instance
   value _ = malformed
 
-instance EmbPrj Common.Relevance where
+instance EmbPrj Relevance where
   icod_ Relevant       = return 0
   icod_ Irrelevant     = return 1
   icod_ (Forced Small) = return 2
@@ -1008,7 +1008,7 @@ instance EmbPrj Common.Relevance where
   value 5 = return UnusedArg
   value _ = malformed
 
--- instance EmbPrj Common.Relevance where
+-- instance EmbPrj Relevance where
 --   icod_ Relevant   = icode0'
 --   icod_ Irrelevant = icode0 1
 --   icod_ (Forced Small) = icode0 2
@@ -1403,7 +1403,7 @@ instance EmbPrj TermHead where
                            valu [2, a] = valu1 ConsHead a
                            valu _      = malformed
 
-instance EmbPrj Common.IsAbstract where
+instance EmbPrj IsAbstract where
   icod_ AbstractDef = icode0 0
   icod_ ConcreteDef = icode0'
   value = vcase valu where valu [0] = valu0 AbstractDef

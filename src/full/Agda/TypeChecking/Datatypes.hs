@@ -5,7 +5,7 @@ module Agda.TypeChecking.Datatypes where
 import Data.Maybe (fromMaybe)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
@@ -81,7 +81,7 @@ data HasEta = NoEta | YesEta
   deriving (Eq)
 
 data ConstructorInfo = DataCon Nat  -- arity
-                     | RecordCon HasEta [I.Arg QName]
+                     | RecordCon HasEta [Arg QName]
 
 -- | Return the number of non-parameter arguments to a data constructor,
 --   or the field names of a record constructor.

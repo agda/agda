@@ -13,7 +13,7 @@ import Data.Monoid
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
@@ -114,7 +114,7 @@ foldMatch match = loop where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [I.NamedArg Pattern] -> [Elim] -> ReduceM (Match Term, [Elim])
+matchCopatterns :: [NamedArg Pattern] -> [Elim] -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchCopatterns"
@@ -134,7 +134,7 @@ matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
-matchPatterns :: [I.NamedArg Pattern] -> [I.Arg Term] -> ReduceM (Match Term, [I.Arg Term])
+matchPatterns :: [NamedArg Pattern] -> [Arg Term] -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchPatterns"
@@ -147,7 +147,7 @@ matchPatterns ps vs = do
      foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
-matchPattern :: Pattern -> I.Arg Term -> ReduceM (Match Term, I.Arg Term)
+matchPattern :: Pattern -> Arg Term -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
   (VarP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
@@ -209,7 +209,7 @@ matchPattern p u = case (p, u) of
             where r' = stuckOn (Apply arg) r
 -- ASR (08 November 2014). The type of the function could be
 --
--- @(Match Term, [I.Arg Term]) -> (Match Term, [I.Arg Term])@.
+-- @(Match Term, [Arg Term]) -> (Match Term, [Arg Term])@.
 yesSimplification :: (Match a, b) -> (Match a, b)
 yesSimplification (Yes _ vs, us) = (Yes YesSimplification vs, us)
 yesSimplification r              = r

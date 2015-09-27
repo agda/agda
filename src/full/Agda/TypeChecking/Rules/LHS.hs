@@ -65,7 +65,7 @@ import Agda.Utils.Impossible
 
 -- | Compute the set of flexible patterns in a list of patterns. The result is
 --   the deBruijn indices of the flexible patterns.
-flexiblePatterns :: [A.NamedArg A.Pattern] -> TCM FlexibleVars
+flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
 flexiblePatterns nps = do
   forMaybeM (zip (downFrom $ length nps) nps) $ \ (i, Arg ai p) -> do
     runMaybeT $ (\ f -> FlexibleVar (getHiding ai) f i) <$> maybeFlexiblePattern p
@@ -106,14 +106,14 @@ instance IsFlexiblePattern (I.Pattern' a) where
 instance IsFlexiblePattern a => IsFlexiblePattern [a] where
   maybeFlexiblePattern ps = RecordFlex <$> mapM maybeFlexiblePattern ps
 
-instance IsFlexiblePattern a => IsFlexiblePattern (Common.Arg c a) where
+instance IsFlexiblePattern a => IsFlexiblePattern (Arg a) where
   maybeFlexiblePattern = maybeFlexiblePattern . unArg
 
 instance IsFlexiblePattern a => IsFlexiblePattern (Common.Named name a) where
   maybeFlexiblePattern = maybeFlexiblePattern . namedThing
 
 -- | Compute the dot pattern instantiations.
-dotPatternInsts :: [A.NamedArg A.Pattern] -> Substitution -> [I.Dom Type] -> TCM [DotPatternInst]
+dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Dom Type] -> TCM [DotPatternInst]
 dotPatternInsts ps s as = dpi (map namedArg ps) (reverse s) as
   where
     dpi (_ : _)  []            _       = __IMPOSSIBLE__
@@ -152,9 +152,9 @@ instantiatePattern
      --   (not in the order of occurrence in the patterns).
   -> Permutation
      -- ^ Map from the pattern variables to the telescope variables.
-  -> [I.NamedArg Pattern]
+  -> [NamedArg Pattern]
      -- ^ Input patterns.
-  -> [I.NamedArg Pattern]
+  -> [NamedArg Pattern]
      -- ^ Output patterns, with some @VarP@ replaced by @DotP@
      --   according to the @Substitution@.
 instantiatePattern sub perm ps
@@ -234,9 +234,9 @@ instantiatePattern'
      --   (not in the order of occurrence in the patterns).
   -> Permutation
      -- ^ Map from the pattern variables to the telescope variables.
-  -> [I.NamedArg Pattern]
+  -> [NamedArg Pattern]
      -- ^ Input patterns.
-  -> [I.NamedArg Pattern]
+  -> [NamedArg Pattern]
      -- ^ Output patterns, with some @VarP@ replaced by @DotP@
      --   according to the @Substitution@.
 instantiatePattern' sub perm ps = evalState (mapM goArg ps) 0
@@ -368,7 +368,7 @@ checkDotPattern (DPI e v (Dom info a)) =
 --   telescope should have the same size as the pattern list.
 --   There could also be 'A.ConP's resulting from eta expanded implicit record
 --   patterns.
-bindLHSVars :: [A.NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
+bindLHSVars :: [NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
 bindLHSVars []        tel@ExtendTel{}  _   = do
   reportSDoc "impossible" 10 $
     text "bindLHSVars: no patterns left, but tel =" <+> prettyTCM tel
@@ -394,7 +394,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret = do
       ftel     <- (`apply` vs) <$> getRecordFieldTypes r
       con      <- getConHead c
       let n   = size ftel
-          eta = Con con [ var i <$ (namedThing <$> setArgColors [] q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
+          eta = Con con [ var i <$ (namedThing <$> q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
           -- ^ TODO guilhem
       bindLHSVars (qs ++ ps) (ftel `abstract` absApp (raise (size ftel) tel) eta) ret
     A.ConP{}        -> __IMPOSSIBLE__
@@ -424,9 +424,9 @@ data LHSResult = LHSResult
   { lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
-  , lhsPatterns     :: [I.NamedArg Pattern]
+  , lhsPatterns     :: [NamedArg Pattern]
     -- ^ The patterns in internal syntax.
-  , lhsBodyType     :: I.Arg Type
+  , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
     -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
   , lhsPermutation  :: Permutation
@@ -452,7 +452,7 @@ checkLeftHandSide
      -- ^ Trace, e.g. @CheckPatternShadowing clause@
   -> Maybe QName
      -- ^ The name of the definition we are checking.
-  -> [A.NamedArg A.Pattern]
+  -> [NamedArg A.Pattern]
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
@@ -855,7 +855,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
 
 -- | Ensures that we are not performing pattern matching on codata.
 
-noPatternMatchingOnCodata :: [I.NamedArg Pattern] -> TCM ()
+noPatternMatchingOnCodata :: [NamedArg Pattern] -> TCM ()
 noPatternMatchingOnCodata = mapM_ (check . namedArg)
   where
   check (VarP {})   = return ()

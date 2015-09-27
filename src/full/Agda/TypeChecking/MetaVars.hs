@@ -16,7 +16,7 @@ import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 
 import Agda.TypeChecking.Monad
@@ -100,14 +100,14 @@ isEtaExpandable x = do
 --   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
-assignTerm :: MetaId -> [I.Arg ArgName] -> Term -> TCM ()
+assignTerm :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTerm x tel v = do
      -- verify (new) invariants
     whenM (isFrozen x) __IMPOSSIBLE__
     assignTerm' x tel v
 
 -- | Skip frozen check.  Used for eta expanding frozen metas.
-assignTerm' :: MetaId -> [I.Arg ArgName] -> Term -> TCM ()
+assignTerm' :: MetaId -> [Arg ArgName] -> Term -> TCM ()
 assignTerm' x tel v = do
     reportSLn "tc.meta.assign" 70 $ prettyShow x ++ " := " ++ show v ++ "\n  in " ++ show tel
      -- verify (new) invariants
@@ -251,7 +251,7 @@ newValueMetaCtx' b t vs = do
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ typeDontCare)
 
-type Condition = I.Dom Type -> Abs Type -> Bool
+type Condition = Dom Type -> Abs Type -> Bool
 
 trueCondition :: Condition
 trueCondition _ _ = True
@@ -965,7 +965,7 @@ instance NoProjectedVar Term where
       Con (ConHead _ Inductive (_:_)) vs -> noProjectedVar vs
       _ -> return ()
 
-instance NoProjectedVar a => NoProjectedVar (I.Arg a) where
+instance NoProjectedVar a => NoProjectedVar (Arg a) where
   noProjectedVar = Fold.mapM_ noProjectedVar
 
 instance NoProjectedVar a => NoProjectedVar [a] where
@@ -1046,7 +1046,7 @@ checkLinearity ids0 = do
         (throwError ())
 
 -- Intermediate result in the following function
-type Res = [(I.Arg Nat, Term)]
+type Res = [(Arg Nat, Term)]
 
 -- | Exceptions raised when substitution cannot be inverted.
 data InvertExcept
@@ -1082,7 +1082,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
       throwError CantInvert
     neutralArg = throwError NeutralArg
 
-    isVarOrIrrelevant :: Res -> (I.Arg Term, Term) -> ExceptT InvertExcept TCM Res
+    isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ExceptT InvertExcept TCM Res
     isVarOrIrrelevant vars (arg, t) =
       case ignoreSharing <$> arg of
         -- i := x
@@ -1104,8 +1104,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
               | length fs == length vs -> do
                 let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj f] where
                      ai = ArgInfo
-                       { argInfoColors    = argInfoColors info -- TODO guilhem
-                       , argInfoHiding    = min (getHiding info) (getHiding info')
+                       { argInfoHiding    = min (getHiding info) (getHiding info')
                        , argInfoRelevance = max (getRelevance info) (getRelevance info')
                        }
                 res <- loop $ zipWith aux vs fs
@@ -1139,8 +1138,8 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
     append res vars = foldr cons vars res
 
     -- adding an irrelevant entry only if not present
-    cons :: (I.Arg Nat, Term) -> Res -> Res
-    cons a@(Arg (ArgInfo _ Irrelevant _) i, t) vars    -- TODO? UnusedArg?!
+    cons :: (Arg Nat, Term) -> Res -> Res
+    cons a@(Arg (ArgInfo _ Irrelevant) i, t) vars    -- TODO? UnusedArg?!
       | any ((i==) . unArg . fst) vars  = vars
       | otherwise                       = a : vars
     -- adding a relevant entry:

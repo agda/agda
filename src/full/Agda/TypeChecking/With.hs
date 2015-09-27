@@ -9,7 +9,7 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 
-import Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
@@ -69,7 +69,7 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
 buildWithFunction
   :: QName                -- ^ Name of the with-function.
   -> Type                 -- ^ Types of the parent function.
-  -> [I.NamedArg Pattern] -- ^ Parent patterns.
+  -> [NamedArg Pattern] -- ^ Parent patterns.
   -> Permutation          -- ^ Final permutation.
   -> Nat                  -- ^ Number of needed vars.
   -> Nat                  -- ^ Number of with expressions.
@@ -154,10 +154,10 @@ The projection patterns have vanished from ps' (as they are already in qs).
 stripWithClausePatterns
   :: QName                      -- ^ @f@
   -> Type                       -- ^ @t@
-  -> [I.NamedArg Pattern]       -- ^ @qs@
+  -> [NamedArg Pattern]       -- ^ @qs@
   -> Permutation                -- ^ @π@
-  -> [A.NamedArg A.Pattern]     -- ^ @ps@
-  -> TCM [A.NamedArg A.Pattern] -- ^ @ps'@
+  -> [NamedArg A.Pattern]     -- ^ @ps@
+  -> TCM [NamedArg A.Pattern] -- ^ @ps'@
 stripWithClausePatterns f t qs perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
@@ -197,9 +197,9 @@ stripWithClausePatterns f t qs perm ps = do
     strip
       :: Term                         -- ^ Self.
       -> Type                         -- ^ The type to be eliminated.
-      -> [A.NamedArg A.Pattern]       -- ^ With-clause patterns.
-      -> [I.NamedArg DeBruijnPattern] -- ^ Parent-clause patterns with de Bruijn indices relative to Δ.
-      -> TCM [A.NamedArg A.Pattern]   -- ^ With-clause patterns decomposed by parent-clause patterns.
+      -> [NamedArg A.Pattern]       -- ^ With-clause patterns.
+      -> [NamedArg DeBruijnPattern] -- ^ Parent-clause patterns with de Bruijn indices relative to Δ.
+      -> TCM [NamedArg A.Pattern]   -- ^ With-clause patterns decomposed by parent-clause patterns.
 
     -- Case: out of with-clause patterns.
     strip self t [] qs@(_ : _) = do
@@ -364,7 +364,7 @@ stripWithClausePatterns f t qs perm ps = do
         mismatch = typeError $
           WithClausePatternMismatch (namedArg p0) (snd <$> namedArg q)
         -- | Make an ImplicitP, keeping arg. info.
-        makeImplicitP :: A.NamedArg A.Pattern -> A.NamedArg A.Pattern
+        makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
 
 -- | Construct the display form for a with function. It will display
@@ -378,7 +378,7 @@ withDisplayForm
   -> Telescope   -- ^ The arguments of the with function before the with exprs.
   -> Telescope   -- ^ The arguments of the with function after the with exprs.
   -> Nat         -- ^ The number of with expressions.
-  -> [I.NamedArg Pattern] -- ^ The parent patterns.
+  -> [NamedArg Pattern] -- ^ The parent patterns.
   -> Permutation -- ^ Permutation to split into needed and unneeded vars.
   -> Permutation -- ^ Permutation reordering the variables in parent patterns.
   -> TCM DisplayForm
@@ -455,18 +455,18 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 -- Andreas, 2014-12-05 refactored using numberPatVars
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
 -- The permutation is the one of the original clause.
-patsToElims :: Permutation -> [I.NamedArg Pattern] -> [I.Elim' DisplayTerm]
+patsToElims :: Permutation -> [NamedArg Pattern] -> [I.Elim' DisplayTerm]
 patsToElims perm ps = toElims $ numberPatVars perm ps
   where
-    toElims :: [I.NamedArg DeBruijnPattern] -> [I.Elim' DisplayTerm]
+    toElims :: [NamedArg DeBruijnPattern] -> [I.Elim' DisplayTerm]
     toElims = map $ toElim . fmap namedThing
 
-    toElim :: I.Arg DeBruijnPattern -> I.Elim' DisplayTerm
-    toElim (Common.Arg ai p) = case p of
+    toElim :: Arg DeBruijnPattern -> I.Elim' DisplayTerm
+    toElim (Arg ai p) = case p of
       ProjP d -> I.Proj d
-      p       -> I.Apply $ Common.Arg ai $ toTerm p
+      p       -> I.Apply $ Arg ai $ toTerm p
 
-    toTerms :: [I.NamedArg DeBruijnPattern] -> [I.Arg DisplayTerm]
+    toTerms :: [NamedArg DeBruijnPattern] -> [Arg DisplayTerm]
     toTerms = map $ fmap $ toTerm . namedThing
 
     toTerm :: DeBruijnPattern -> DisplayTerm

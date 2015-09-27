@@ -37,8 +37,7 @@ import Data.Traversable (traverse)
 import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Concrete.Pretty ()
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
 import qualified Agda.Syntax.Abstract.Name as A
@@ -518,8 +517,8 @@ patternAppView p = case p of
 parsePat ::
   (ParseSections, Parser Pattern Pattern) -> Pattern -> [Pattern]
 parsePat prs p = case p of
-    AppP p (Common.Arg info q) ->
-        fullParen' <$> (AppP <$> parsePat prs p <*> (Common.Arg info <$> traverse (parsePat prs) q))
+    AppP p (Arg info q) ->
+        fullParen' <$> (AppP <$> parsePat prs p <*> (Arg info <$> traverse (parsePat prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
     OpAppP r d ns ps -> fullParen' . OpAppP r d ns <$> (mapM . traverse . traverse) (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
@@ -625,12 +624,12 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Common.Arg _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
+    Arg _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
       guard $ all validPat ps
       return $ Right (f, LHSHead f ps)
 
     -- case @d ps@
-    Common.Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
+    Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
       -- ps0 :: [NamedArg ParseLHS]
       ps0 <- mapM classPat ps
       let (ps1, rest) = span (isLeft . namedArg) ps0
@@ -650,8 +649,8 @@ classifyPattern conf p =
         classPat :: NamedArg Pattern -> Maybe (NamedArg ParseLHS)
         classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
         fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
-        fromR (Common.Arg info (Named n (Right (b, c)))) = (b, Common.Arg info (Named n c))
-        fromR (Common.Arg info (Named n (Left  a     ))) = __IMPOSSIBLE__
+        fromR (Arg info (Named n (Right (b, c)))) = (b, Arg info (Named n c))
+        fromR (Arg info (Named n (Left  a     ))) = __IMPOSSIBLE__
 
 
 
@@ -804,7 +803,7 @@ fullParen' e = case exprView e of
     HiddenArgV _ -> e
     InstanceArgV _ -> e
     ParenV _     -> e
-    AppV e1 (Common.Arg info e2) -> par $ unExprView $ AppV (fullParen' e1) (Common.Arg info e2')
+    AppV e1 (Arg info e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg info e2')
         where
             e2' = case argInfoHiding info of
                 Hidden    -> e2

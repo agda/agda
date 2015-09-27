@@ -148,7 +148,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     --   @ips@ are the one-hole patterns of the current split state (outPats)
     --   in one-to-one correspondence with the pattern variables
     --   recorded in @tel@.
-    splitP :: [A.NamedArg A.Pattern]
+    splitP :: [NamedArg A.Pattern]
            -> [(Int, OneHolePatterns)]
            -> Telescope
            -> ListT TCM SplitProblem
@@ -234,7 +234,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 ]
               let c = killRange $ conName $ recConHead def
               let -- Field names with ArgInfo.
-                  axs  = map (mapArgInfo $ mapArgInfoColors $ const []) $ recordFieldNames def -- TODO guilhem
+                  axs = recordFieldNames def
               let arg x p =
                     case [ a | a <- axs, unArg a == x ] of
                       [a] -> unnamed p <$ a

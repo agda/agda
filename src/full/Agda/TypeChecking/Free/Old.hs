@@ -43,7 +43,7 @@ import Control.Monad.Reader
 import Data.Foldable (foldMap)
 import Data.Monoid
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.Utils.Functor

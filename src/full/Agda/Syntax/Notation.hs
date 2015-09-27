@@ -53,7 +53,7 @@ type Notation = [GenPart]
 data GenPart
   = BindHole !Int
     -- ^ Argument is the position of the hole (with binding) where the binding should occur.
-  | NormalHole (NamedArg () Int)
+  | NormalHole (NamedArg Int)
     -- ^ Argument is where the expression should go.
   | WildHole !Int
     -- ^ An underscore in binding position.
@@ -140,7 +140,7 @@ notationKind syn =
 --      , IdPart "return" , NormalHole 0
 --      ]
 --   @
-mkNotation :: [NamedArg c HoleName] -> [RawName] -> Either String Notation
+mkNotation :: [NamedArg HoleName] -> [RawName] -> Either String Notation
 mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   unless uniqueHoleNames     $ throwError "syntax must use unique argument names"
@@ -177,7 +177,7 @@ mkNotation holes ids = do
       -- but distinguished by BindHole vs. NormalHole.
       holeMap = do
         (i, h) <- numberedHoles
-        let normalHole = NormalHole $ setArgColors [] $ fmap (i <$) h
+        let normalHole = NormalHole $ fmap (i <$) h
         case namedArg h of
           ExprHole y       -> [(y, normalHole)]
           LambdaHole "_" y -> [("_", WildHole i), (y, normalHole)]

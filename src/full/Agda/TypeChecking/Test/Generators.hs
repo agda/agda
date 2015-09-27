@@ -12,7 +12,7 @@ import Control.Monad.State
 import qualified Data.List as List (sort, nub)
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal as I
@@ -196,10 +196,10 @@ instance GenC Hiding where
       HiddenFreqs {hiddenFreq = hideF, notHiddenFreq = nohideF } =
         hiddenFreqs $ tcFrequencies conf
 
-instance (GenC c, GenC a) => GenC (Common.Arg c a) where
+instance GenC a => GenC (Arg a) where
   genC conf = (\ (h, a) -> Arg (setHiding h defaultArgInfo) a) <$> genC conf
 
-instance (GenC c, GenC a) => GenC (Common.Dom c a) where
+instance GenC a => GenC (Dom a) where
   genC conf = (\ (h, a) -> Dom (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
@@ -424,11 +424,11 @@ instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
   shrinkC conf (Abs   s x) = Abs s <$> shrinkC (extendConf conf) x
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (I.Arg a) (I.Arg b) where
+instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
   shrinkC conf (Arg info x) = (\ (h,x) -> Arg (setHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
-instance ShrinkC a b => ShrinkC (I.Dom a) (I.Dom b) where
+instance ShrinkC a b => ShrinkC (Dom a) (Dom b) where
   shrinkC conf (Dom info x) = (\ (h,x) -> Dom (setHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
@@ -527,10 +527,10 @@ instance KillVar Telescope where
 instance KillVar a => KillVar (Elim' a) where
   killVar i = fmap (killVar i)
 
-instance KillVar a => KillVar (I.Arg a) where
+instance KillVar a => KillVar (Arg a) where
   killVar i = fmap (killVar i)
 
-instance KillVar a => KillVar (I.Dom a) where
+instance KillVar a => KillVar (Dom a) where
   killVar i = fmap (killVar i)
 
 instance KillVar a => KillVar (Abs a) where

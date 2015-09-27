@@ -13,7 +13,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -366,10 +366,10 @@ polarity i x = do
     [] -> return Nonvariant
     ps -> return $ foldr1 (/\) ps
 
-instance HasPolarity a => HasPolarity (I.Arg a) where
+instance HasPolarity a => HasPolarity (Arg a) where
   polarities i = polarities i . unArg
 
-instance HasPolarity a => HasPolarity (I.Dom a) where
+instance HasPolarity a => HasPolarity (Dom a) where
   polarities i = polarities i . unDom
 
 instance HasPolarity a => HasPolarity (Abs a) where

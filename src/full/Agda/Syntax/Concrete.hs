@@ -27,7 +27,6 @@ module Agda.Syntax.Concrete
   , RecordAssignments
   , FieldAssignment, FieldAssignment'(..), nameFieldA, exprFieldA
   , ModuleAssignment(..)
-  , ColoredTypedBinding(..)
   , BoundName(..), mkBoundName_, mkBoundName
   , Telescope -- (..)
   , countTelVars
@@ -51,12 +50,6 @@ module Agda.Syntax.Concrete
   , patternNames, patternQNames
     -- * Lenses
   , mapLhsOriginalPattern
-    -- * Concrete instances
-  , Color
-  , Arg
-  -- , Dom
-  , NamedArg
-  , ArgInfo
   )
   where
 
@@ -69,8 +62,7 @@ import Data.Set (Set)
 import Data.Monoid
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
@@ -82,12 +74,6 @@ import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-
-type Color      = Expr
-type Arg a      = Common.Arg Color a
--- type Dom a      = Common.Dom Color a
-type NamedArg a = Common.NamedArg Color a
-type ArgInfo    = Common.ArgInfo Color
 
 data OpApp e
   = SyntaxBindingLambda Range [LamBinding] e
@@ -239,9 +225,6 @@ data TypedBinding' e
   = TBind Range [WithHiding BoundName] e  -- ^ Binding @(x1 ... xn : A)@.
   | TLet  Range [Declaration]  -- ^ Let binding @(let Ds)@ or @(open M args)@.
   deriving (Typeable, Functor, Foldable, Traversable)
-
--- | Color a TypeBinding. Used by Pretty.
-data ColoredTypedBinding = WithColors [Color] TypedBinding
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
 --   in later types.
@@ -477,9 +460,9 @@ appView (App r e1 e2) = vApp (appView e1) e2
     vApp (AppView e es) arg = AppView e (es ++ [arg])
 appView (RawApp _ (e:es)) = AppView e $ map arg es
   where
-    arg (HiddenArg   _ e) = noColorArg Hidden    Relevant e
-    arg (InstanceArg _ e) = noColorArg Instance  Relevant e
-    arg e                 = noColorArg NotHidden Relevant (unnamed e)
+    arg (HiddenArg   _ e) = setHiding Hidden   $ defaultArg e
+    arg (InstanceArg _ e) = setHiding Instance $ defaultArg e
+    arg e                 = defaultArg (unnamed e)
 appView e = AppView e []
 
 {--------------------------------------------------------------------------

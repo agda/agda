@@ -6,6 +6,7 @@ import Control.Applicative
 import Data.Traversable
 import Data.Monoid
 import Data.Foldable
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 class TermLike a where

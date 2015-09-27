@@ -114,7 +114,7 @@ nrBinds p = case p of
     LitP l          -> 0
     ProjP{}         -> 0
 
-substForDot :: [I.NamedArg Pattern] -> Substitution
+substForDot :: [NamedArg Pattern] -> Substitution
 substForDot = makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = raiseS (i + accum)
@@ -250,7 +250,7 @@ unionConstraints (Just c : cs) = do
 class Injectible a where
   (<:) :: a -> a -> ReaderT (Map QName InjectiveFun) (Compile TCM) InjConstraints
 
-instance Injectible a => Injectible (I.Arg a) where
+instance Injectible a => Injectible (Arg a) where
   a1 <: a2 = unArg a1 <: unArg a2
 
 instance Injectible a => Injectible [a] where

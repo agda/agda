@@ -26,7 +26,7 @@ import Debug.Trace
 import Test.QuickCheck
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
 import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
@@ -402,7 +402,7 @@ instance ComputeOccurrences Clause where
 
       -- @patItem i p@ replicates index @i@ as often as there are
       -- pattern variables in @p@ (dot patterns count as variable)
-      patItem :: Int -> I.Arg Pattern -> [Maybe Item]
+      patItem :: Int -> Arg Pattern -> [Maybe Item]
       patItem i p = map (const $ Just $ AnArg i) $ patternVars p
 
 instance ComputeOccurrences Term where
@@ -468,10 +468,10 @@ instance ComputeOccurrences a => ComputeOccurrences (Elim' a) where
   occurrences Proj{}    = __IMPOSSIBLE__
   occurrences (Apply a) = occurrences a
 
-instance ComputeOccurrences a => ComputeOccurrences (I.Arg a) where
+instance ComputeOccurrences a => ComputeOccurrences (Arg a) where
   occurrences = occurrences . unArg
 
-instance ComputeOccurrences a => ComputeOccurrences (I.Dom a) where
+instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
   occurrences = occurrences . unDom
 
 instance ComputeOccurrences a => ComputeOccurrences [a] where

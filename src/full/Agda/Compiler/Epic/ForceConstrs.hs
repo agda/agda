@@ -22,7 +22,7 @@ makeForcedArgs (T.El _ term) = case T.ignoreSharing term of
     T.Pi  arg ab  -> isRel arg : makeForcedArgs (T.unAbs ab)
     _             -> []
   where
-    isRel :: T.Dom T.Type -> Forced
+    isRel :: Common.Dom T.Type -> Forced
     isRel arg = case Common.getRelevance arg of
       Common.Relevant   -> NotForced
       Common.Irrelevant -> Forced

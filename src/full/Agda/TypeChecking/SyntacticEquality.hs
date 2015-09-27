@@ -22,7 +22,7 @@ import Control.Applicative hiding ((<**>))
 import Control.Arrow ((***))
 import Control.Monad.State hiding (mapM)
 
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -181,21 +181,21 @@ instance (Subst t a, SynEq a) => SynEq (Abs a) where
 
 {- TRIGGERS test/fail/UnequalHiding
 -- | Ignores 'ArgInfo'.
-instance SynEq a => SynEq (Common.Arg c a) where
-  synEq (Common.Arg ai a) (Common.Arg ai' a') = (Common.Arg ai *** Common.Arg ai') <$> synEq a a'
+instance SynEq a => SynEq (Arg c a) where
+  synEq (Arg ai a) (Arg ai' a') = (Arg ai *** Arg ai') <$> synEq a a'
 
 -- | Ignores 'ArgInfo'.
-instance SynEq a => SynEq (Common.Dom c a) where
-  synEq (Common.Dom ai a) (Common.Dom ai' a') = (Common.Dom ai *** Common.Dom ai') <$> synEq a a'
+instance SynEq a => SynEq (Dom c a) where
+  synEq (Dom ai a) (Dom ai' a') = (Dom ai *** Dom ai') <$> synEq a a'
 -}
 
-instance (SynEq a, SynEq c) => SynEq (Common.Arg c a) where
-  synEq (Common.Arg ai a) (Common.Arg ai' a') = Common.Arg <$$> synEq ai ai' <**> synEq a a'
+instance SynEq a => SynEq (Arg a) where
+  synEq (Arg ai a) (Arg ai' a') = Arg <$$> synEq ai ai' <**> synEq a a'
 
-instance (SynEq a, SynEq c) => SynEq (Common.Dom c a) where
-  synEq (Common.Dom ai a) (Common.Dom ai' a') = Common.Dom <$$> synEq ai ai' <**> synEq a a'
+instance SynEq a => SynEq (Dom a) where
+  synEq (Dom ai a) (Dom ai' a') = Dom <$$> synEq ai ai' <**> synEq a a'
 
-instance (SynEq c) => SynEq (Common.ArgInfo c) where
-  synEq ai@(Common.ArgInfo h r c) ai'@(Common.ArgInfo h' r' c')
-    | h == h', r == r' = Common.ArgInfo h r <$$> synEq c c'
+instance SynEq ArgInfo where
+  synEq ai@(ArgInfo h r) ai'@(ArgInfo h' r')
+    | h == h', r == r' = pure2 ai
     | otherwise        = inequal (ai, ai')

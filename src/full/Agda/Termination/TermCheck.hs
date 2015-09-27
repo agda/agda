@@ -37,7 +37,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
-import Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -655,12 +655,12 @@ introHiddenLambdas clause = liftTCM $ do
               perm' = liftP n perm
           return $ Clause range ctel' perm' ps' body' (Just (t $> t')) catchall
   where
-    toPat (Common.Arg (Common.ArgInfo h r c) x) =
-           Common.Arg (Common.ArgInfo h r []) $ namedVarP x
-    removeHiddenLambdas :: ClauseBody -> ([I.Arg ArgName], ClauseBody)
+    toPat (Arg (ArgInfo h r) x) =
+           Arg (ArgInfo h r) $ namedVarP x
+    removeHiddenLambdas :: ClauseBody -> ([Arg ArgName], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 
-    hlamsToBinds :: Term -> ([I.Arg ArgName], ClauseBody)
+    hlamsToBinds :: Term -> ([Arg ArgName], ClauseBody)
     hlamsToBinds v =
       case ignoreSharing v of
         Lam info b | getHiding info == Hidden ->
@@ -683,10 +683,10 @@ instance ExtractCalls a => ExtractCalls (Abs a) where
   extract (NoAbs _ a) = extract a
   extract (Abs x a)   = addContext x $ terRaise $ extract a
 
-instance ExtractCalls a => ExtractCalls (I.Arg a) where
+instance ExtractCalls a => ExtractCalls (Arg a) where
   extract = extract . unArg
 
-instance ExtractCalls a => ExtractCalls (I.Dom a) where
+instance ExtractCalls a => ExtractCalls (Dom a) where
   extract = extract . unDom
 
 instance ExtractCalls a => ExtractCalls (Elim' a) where
@@ -731,7 +731,7 @@ data TerConstructor = TerConstructor
     -- ^ Constructor name.
   , terConsInduction :: Induction
     -- ^ Should the constructor be treated as inductive or coinductive?
-  , terConsArgs      :: [(I.Arg Term, Bool)]
+  , terConsArgs      :: [(Arg Term, Bool)]
     -- ^ All the arguments,
     --   and for every argument a boolean which is 'True' iff the
     --   argument should be viewed as preserving guardedness.
@@ -754,7 +754,7 @@ constructor
     -- ^ Constructor name.
   -> Induction
     -- ^ Should the constructor be treated as inductive or coinductive?
-  -> [(I.Arg Term, Bool)]
+  -> [(Arg Term, Bool)]
     -- ^ All the arguments,
     --   and for every argument a boolean which is 'True' iff the
     --   argument should be viewed as preserving guardedness.
@@ -995,7 +995,7 @@ instance ExtractCalls LevelAtom where
   extract (UnreducedLevel t) = extract t
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
-maskSizeLt :: MonadTCM tcm => I.Dom Type -> tcm (I.Dom Type)
+maskSizeLt :: MonadTCM tcm => Dom Type -> tcm (Dom Type)
 maskSizeLt dom@(Dom info a) = liftTCM $ do
   (msize, msizelt) <- getBuiltinSize
   case (msize, msizelt) of
@@ -1174,7 +1174,7 @@ compareTerm t p = Order.supremum $ compareTerm' t p : map cmp (subPatterns p)
 class StripAllProjections a where
   stripAllProjections :: a -> TCM a
 
-instance StripAllProjections a => StripAllProjections (I.Arg a) where
+instance StripAllProjections a => StripAllProjections (Arg a) where
   stripAllProjections = traverse stripAllProjections
   -- stripAllProjections (Arg info a) = Arg info <$> stripAllProjections a
 

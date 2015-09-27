@@ -14,7 +14,7 @@ import Data.Function
 import Debug.Trace
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
@@ -63,7 +63,7 @@ compileClauses mt cs = do
       cc <- translateCompiledClauses cc
       return cc
 
-type Cl  = ([I.Arg Pattern], ClauseBody)
+type Cl  = ([Arg Pattern], ClauseBody)
 type Cls = [Cl]
 
 compileWithSplitTree :: (Term -> Term) -> SplitTree -> Cls -> CompiledClauses

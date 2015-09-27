@@ -15,7 +15,7 @@ import Data.Traversable
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
@@ -74,7 +74,7 @@ instance Ord (FlexibleVar Nat) where
 --   @ps@ are the user patterns of supposed type @delta@.
 --   @p@ is the pattern resulting from the splitting.
 data Problem' p = Problem
-  { problemInPat  :: [A.NamedArg A.Pattern]  -- ^ User patterns.
+  { problemInPat  :: [NamedArg A.Pattern]  -- ^ User patterns.
   , problemOutPat :: p                       -- ^ Patterns after splitting.
   , problemTel    :: Telescope               -- ^ Type of patterns.
   , problemRest   :: ProblemRest             -- ^ Patterns that cannot be typed yet.
@@ -83,7 +83,7 @@ data Problem' p = Problem
 
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.
-type Problem     = Problem' (Permutation, [I.NamedArg Pattern])
+type Problem     = Problem' (Permutation, [NamedArg Pattern])
 type ProblemPart = Problem' ()
 
 -- | User patterns that could not be given a type yet.
@@ -106,9 +106,9 @@ type ProblemPart = Problem' ()
 --   @Nat -> Nat@ and we can move pattern @zero@ over to @problemInPat@.
 
 data ProblemRest = ProblemRest
-  { restPats :: [A.NamedArg A.Pattern]
+  { restPats :: [NamedArg A.Pattern]
     -- ^ List of user patterns which could not yet be typed.
-  , restType :: I.Arg Type
+  , restType :: Arg Type
     -- ^ Type eliminated by 'restPats'.
     --   Can be 'Irrelevant' to indicate that we came by
     --   an irrelevant projection and, hence, the rhs must
@@ -120,13 +120,13 @@ data Focus
   = Focus
     { focusCon      :: QName
     , focusPatOrigin:: ConPOrigin -- ^ Do we come from an implicit or record pattern?
-    , focusConArgs  :: [A.NamedArg A.Pattern]
+    , focusConArgs  :: [NamedArg A.Pattern]
     , focusRange    :: Range
     , focusOutPat   :: OneHolePatterns
     , focusHoleIx   :: Int  -- ^ Index of focused variable in the out patterns.
     , focusDatatype :: QName
-    , focusParams   :: [I.Arg Term]
-    , focusIndices  :: [I.Arg Term]
+    , focusParams   :: [Arg Term]
+    , focusIndices  :: [Arg Term]
     , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
     }
   | LitFocus Literal OneHolePatterns Int Type
@@ -141,7 +141,7 @@ data SplitProblem
         --   Invariant: @'problemRest' == empty@.
       , splitAsNames :: [Name]
         -- ^ The as-bindings for the focus.
-      , splitFocus   :: I.Arg Focus
+      , splitFocus   :: Arg Focus
         -- ^ How to split the variable at the split position.
       , splitRPats   :: Abs ProblemPart
         -- ^ The typed user patterns right of the split position.
@@ -149,16 +149,16 @@ data SplitProblem
 
   | -- | Split on projection pattern.
     SplitRest
-      { splitProjection :: I.Arg QName
+      { splitProjection :: Arg QName
         -- ^ The projection could be belonging to an irrelevant record field.
       , splitRestType   :: Type
       }
 
 -- | Put a typed pattern on the very left of a @SplitProblem@.
 consSplitProblem
-  :: A.NamedArg A.Pattern -- ^ @p@ A pattern.
+  :: NamedArg A.Pattern -- ^ @p@ A pattern.
   -> ArgName              -- ^ @x@ The name of the argument (from its type).
-  -> I.Dom Type           -- ^ @t@ Its type.
+  -> Dom Type           -- ^ @t@ Its type.
   -> SplitProblem         -- ^ The split problem, containing 'splitLPats' @ps;xs:ts@.
   -> SplitProblem         -- ^ The result, now containing 'splitLPats' @(p,ps);(x,xs):(t,ts)@.
 consSplitProblem p x dom s@SplitRest{}              = s
@@ -167,7 +167,7 @@ consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProble
   consProblem' (Problem ps () tel pr) =
     Problem (p:ps) () (ExtendTel dom $ Abs x tel) pr
 
-data DotPatternInst = DPI A.Expr Term (I.Dom Type)
+data DotPatternInst = DPI A.Expr Term (Dom Type)
 data AsBinding      = AsB Name Term Type
 
 -- | State worked on during the main loop of checking a lhs.

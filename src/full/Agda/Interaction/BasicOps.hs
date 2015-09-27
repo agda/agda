@@ -294,7 +294,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
             CheckLambda (Arg ai (xs, mt)) body target -> do
               domType <- maybe (return underscore) reify mt
               target  <- reify target
-              let bs = TypedBindings noRange $ Arg (mapArgInfoColors (const []) ai) $
+              let bs = TypedBindings noRange $ Arg ai $
                        TBind noRange xs domType
                   e  = A.Lam Info.exprNoRange (DomainFull bs) body
               return $ TypedAssign m' e target
@@ -705,7 +705,7 @@ introTactic pmLambda ii = do
             okHiding    = if allHidden then const True else okHiding0
         vars <- -- setShowImplicitArguments (imp || allHidden) $
                 (if allHidden then withShowAllArguments else id) $
-                  mapM showTCM [ setHiding h $ defaultArg $ var i :: I.Arg Term
+                  mapM showTCM [ setHiding h $ defaultArg $ var i :: Arg Term
                                | (h, i) <- zip hs $ downFrom n
                                , okHiding h
                                ]
@@ -752,7 +752,7 @@ atTopLevel m = inConcreteMode $ do
       -- and put them into the context.
       let names :: [A.Name]
           names = reverse $ map snd $ notShadowedLocals $ scopeLocals scope
-          types :: [I.Dom I.Type]
+          types :: [Dom I.Type]
           types = map (snd <$>) $ telToList tel
           gamma :: ListTel' A.Name
           gamma = zipWith' (\ x dom -> (x,) <$> dom) names types

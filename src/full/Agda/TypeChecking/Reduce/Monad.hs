@@ -30,7 +30,7 @@ import Data.Monoid
 import Debug.Trace
 import System.IO.Unsafe
 
-import Agda.Syntax.Common (unDom)
+import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad hiding

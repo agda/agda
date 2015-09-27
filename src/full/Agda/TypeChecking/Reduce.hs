@@ -21,8 +21,7 @@ import Data.Traversable
 import Data.Hashable
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
@@ -348,7 +347,7 @@ rewriteAfter f = trampolineM $ rewrite <=< f
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE e@(Proj f)           = return $ notBlocked e
-unfoldCorecursionE (Apply (Common.Arg info v)) = fmap (Apply . Common.Arg info) <$>
+unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
   unfoldCorecursion v
 
 unfoldCorecursion :: Term -> ReduceM (Blocked Term)

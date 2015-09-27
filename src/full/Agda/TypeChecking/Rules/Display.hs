@@ -15,7 +15,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty
 
-checkDisplayPragma :: QName -> [A.NamedArg A.Pattern] -> A.Expr -> TCM ()
+checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = inTopContext $ do
   pappToTerm f id ps $ \n args -> do
     let lhs = map unArg args
@@ -26,10 +26,10 @@ checkDisplayPragma f ps e = inTopContext $ do
 
 -- Compute a left-hand side for a display form. Inserts implicits, but no type
 -- checking so does the wrong thing if implicitness is computed. Binds variables.
-displayLHS :: Telescope -> [A.NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
+displayLHS :: Telescope -> [NamedArg A.Pattern] -> (Int -> [Term] -> TCM a) -> TCM a
 displayLHS tel ps ret = patternsToTerms tel ps $ \n vs -> ret n (map unArg vs)
 
-patternsToTerms :: Telescope -> [A.NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
+patternsToTerms :: Telescope -> [NamedArg A.Pattern] -> (Int -> Args -> TCM a) -> TCM a
 patternsToTerms _ [] ret = ret 0 []
 patternsToTerms EmptyTel (p : ps) ret =
   patternToTerm (namedArg p) $ \n v ->
@@ -45,10 +45,10 @@ patternsToTerms (ExtendTel a tel) (p : ps) ret = do
     False ->
       bindWild $ patternsToTerms (unAbs tel) (p : ps) $ \n vs -> ret (1 + n) (inheritHiding a (Var 0 []) : vs)
 
-inheritHiding :: LensHiding a => a -> b -> I.Arg b
+inheritHiding :: LensHiding a => a -> b -> Arg b
 inheritHiding a b = setHiding (getHiding a) (defaultArg b)
 
-pappToTerm :: QName -> (Args -> b) -> [A.NamedArg A.Pattern] -> (Int -> b -> TCM a) -> TCM a
+pappToTerm :: QName -> (Args -> b) -> [NamedArg A.Pattern] -> (Int -> b -> TCM a) -> TCM a
 pappToTerm x f ps ret = do
   def <- getConstInfo x
   TelV tel _ <- telView $ defType def

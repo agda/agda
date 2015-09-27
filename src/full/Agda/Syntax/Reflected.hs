@@ -2,15 +2,9 @@
 
 module Agda.Syntax.Reflected where
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
-
-type Color      = Term
-type ArgInfo    = Common.ArgInfo Color
-type Arg a      = Common.Arg Color a
-type Dom a      = Common.Dom Color a
 
 type Args       = [Arg Term]
 

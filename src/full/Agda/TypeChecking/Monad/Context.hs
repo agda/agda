@@ -15,8 +15,7 @@ import qualified Data.Map as Map
 import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 
@@ -201,7 +200,7 @@ addCtxTel tel ret = loop tel where
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
 addLetBinding info x v t0 ret = do
-    let t = Common.Dom (setHiding NotHidden info) t0
+    let t = Dom (setHiding NotHidden info) t0
     vt <- liftTCM $ makeOpen (v, t)
     flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
@@ -222,7 +221,7 @@ getContextSize = genericLength <$> asks envContext
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
 getContextArgs :: MonadTCM tcm => tcm Args
 getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
-  where mkArg i (Common.Dom info _) = Common.Arg info $ var i
+  where mkArg i (Dom info _) = Arg info $ var i
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}

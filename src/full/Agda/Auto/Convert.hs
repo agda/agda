@@ -306,7 +306,7 @@ tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
            Nothing -> Nothing
 
 
-tomyPat :: I.Arg I.Pattern -> TOM (Pat O)
+tomyPat :: Common.Arg I.Pattern -> TOM (Pat O)
 tomyPat p = case Common.unArg p of
  I.ProjP _ -> lift $ copatternsNotImplemented
  I.VarP n -> return $ PatVar (show n)
@@ -479,7 +479,7 @@ cnvh info = case Common.getHiding info of
     Common.Instance  -> Instance
     Common.Hidden    -> Hidden
 
-icnvh :: FMode -> I.ArgInfo
+icnvh :: FMode -> Common.ArgInfo
 icnvh h = (Common.setHiding h' Common.defaultArgInfo)
     where
     h' = case h of

@@ -69,7 +69,7 @@ class Evaluate a where
 instance Evaluate a => Evaluate [a] where
   evaluate = traverse evaluate
 
-instance Evaluate a => Evaluate (I.Arg a) where
+instance Evaluate a => Evaluate (Arg a) where
   evaluate = traverse evaluate
 
 instance Evaluate a => Evaluate (Abs a) where

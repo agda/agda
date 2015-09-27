@@ -14,7 +14,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (isBinderUsed)
@@ -38,12 +38,12 @@ import Agda.Utils.Impossible
 data ProjectionView
   = ProjectionView
     { projViewProj  :: QName
-    , projViewSelf  :: I.Arg Term
+    , projViewSelf  :: Arg Term
     , projViewSpine :: Elims
     }
     -- ^ A projection or projection-like function, applied to its
     --   principal argument
-  | LoneProjectionLike QName I.ArgInfo
+  | LoneProjectionLike QName ArgInfo
     -- ^ Just a lone projection-like function, missing its principal
     --   argument (from which we could infer the parameters).
   | NoProjection Term

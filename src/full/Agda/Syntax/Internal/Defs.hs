@@ -9,7 +9,7 @@ import Control.Monad.Writer
 import qualified Data.Foldable as Fold
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal hiding (ArgInfo, Arg, Dom)
+import Agda.Syntax.Internal
 
 -- | @getDefs' lookup emb a@ extracts all used definitions
 --   (functions, data/record types) from @a@, embedded into a monoid via @emb@.
@@ -104,14 +104,11 @@ instance GetDefs a => GetDefs [a] where
 instance GetDefs a => GetDefs (Elim' a) where
   getDefs = Fold.mapM_ getDefs
 
-instance GetDefs c => GetDefs (ArgInfo c) where
-  getDefs = Fold.mapM_ getDefs
+instance GetDefs a => GetDefs (Arg a) where
+  getDefs = getDefs . unArg
 
-instance (GetDefs c, GetDefs a) => GetDefs (Arg c a) where
-  getDefs (Arg c a) = getDefs c >> getDefs a
-
-instance (GetDefs c, GetDefs a) => GetDefs (Dom c a) where
-  getDefs (Dom c a) = getDefs c >> getDefs a
+instance GetDefs a => GetDefs (Dom a) where
+  getDefs = getDefs . unDom
 
 instance GetDefs a => GetDefs (Abs a) where
   getDefs = getDefs . unAbs

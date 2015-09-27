@@ -7,8 +7,7 @@ module Agda.TypeChecking.EtaContract where
 
 import Control.Monad.Reader
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
@@ -72,7 +71,7 @@ etaOnce v = case v of
   Lam i (Abs _ b) -> do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
       case binAppView b of
-        App u (Common.Arg info v)
+        App u (Arg info v)
           | (isIrrelevant info || isVar0 v)
                     && allowed imp info
                     && not (freeIn 0 u) ->

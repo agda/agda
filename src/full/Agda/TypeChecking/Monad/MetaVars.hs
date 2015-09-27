@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 
-import Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -125,7 +125,7 @@ instance IsInstantiatedMeta a => IsInstantiatedMeta [a] where
 instance IsInstantiatedMeta a => IsInstantiatedMeta (Maybe a) where
   isInstantiatedMeta = isInstantiatedMeta . maybeToList
 
-instance IsInstantiatedMeta a => IsInstantiatedMeta (Common.Arg c a) where
+instance IsInstantiatedMeta a => IsInstantiatedMeta (Arg a) where
   isInstantiatedMeta = isInstantiatedMeta . unArg
 
 -- | Does not worry about raising.

@@ -737,10 +737,6 @@ typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 relOfConst :: QName -> TCM Relevance
 relOfConst q = defRelevance <$> getConstInfo q
 
--- | Get colors of a constant.
-colOfConst :: QName -> TCM [Color]
-colOfConst q = defColors <$> getConstInfo q
-
 -- | The name must be a datatype.
 sortOfConst :: QName -> TCM Sort
 sortOfConst q =
@@ -802,7 +798,7 @@ usesCopatterns q = do
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.
-applyDef :: QName -> I.Arg Term -> TCM Term
+applyDef :: QName -> Arg Term -> TCM Term
 applyDef f a = do
   let fallback = return $ Def f [Apply a]
   caseMaybeM (isProjection f) fallback $ \ isP -> do

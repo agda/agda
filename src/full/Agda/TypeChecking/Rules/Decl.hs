@@ -24,7 +24,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
@@ -452,12 +452,12 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
                "mutual definitions are not considered for projection-likeness"
 
 -- | Type check an axiom.
-checkAxiom :: A.Axiom -> Info.DefInfo -> A.ArgInfo -> QName -> A.Expr -> TCM ()
+checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
 checkAxiom funSig i info0 x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max (getRelevance info0) <$> asks envRelevance
-  let info = setRelevance rel $ convColor info0
+  let info = setRelevance rel info0
   -- rel <- ifM ((Irrelevant ==) <$> asks envRelevance) (return Irrelevant) (return rel0)
   t <- workOnTypes $ isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
@@ -734,7 +734,7 @@ checkSection i x tel ds =
 checkModuleArity
   :: ModuleName           -- ^ Name of applied module.
   -> Telescope            -- ^ The module parameters.
-  -> [I.NamedArg A.Expr]  -- ^ The arguments this module is applied to.
+  -> [NamedArg A.Expr]  -- ^ The arguments this module is applied to.
   -> TCM Telescope        -- ^ The remaining module parameters (has free de Bruijn indices!).
 checkModuleArity m tel args = check tel args
   where
@@ -798,12 +798,11 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
     tel <- lookupSection m2
     vs  <- freeVarsToApply $ mnameToQName m2
     let tel'  = apply tel vs
-        args' = convColor args
     -- Compute the remaining parameter telescope after stripping of
     -- the initial parameters that are determined by the @args@.
     -- Warning: @etaTel@ is not well-formed in @ptel@, since
     -- the actual application has not happened.
-    etaTel <- checkModuleArity m2 tel' args'
+    etaTel <- checkModuleArity m2 tel' args
     -- Take the module parameters that will be instantiated by @args@.
     let tel'' = telFromList $ take (size tel' - size etaTel) $ telToList tel'
     reportSDoc "tc.mod.apply" 15 $ vcat
@@ -816,7 +815,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
       , nest 2 $ text "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
-    ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args' tel''
+    ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel''
     -- Perform the application of the module parameters.
     let aTel = tel' `apply` ts
     reportSDoc "tc.mod.apply" 15 $ vcat

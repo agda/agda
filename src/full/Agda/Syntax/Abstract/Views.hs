@@ -14,8 +14,7 @@ import Data.Monoid
 import Data.Traversable
 
 import Agda.Syntax.Position
-import qualified Agda.Syntax.Common as Common
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
@@ -186,8 +185,7 @@ instance ExprLike Expr where
       PatternSyn{}            -> f e
       Macro{}                 -> f e
 
--- | TODO: currently does not go into colors.
-instance ExprLike a => ExprLike (Common.Arg c a) where
+instance ExprLike a => ExprLike (Arg a) where
   foldExpr     = foldMap . foldExpr
   traverseExpr = traverse . traverseExpr
 

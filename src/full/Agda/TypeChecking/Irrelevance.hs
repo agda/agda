@@ -11,8 +11,8 @@ import qualified Data.Map as Map
 
 import Agda.Interaction.Options hiding (tests)
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import Agda.Syntax.Internal (Dom)
+import Agda.Syntax.Common
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 

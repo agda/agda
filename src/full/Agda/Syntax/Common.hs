@@ -362,93 +362,70 @@ nonStrictToIrr rel       = rel
 
 -- | A function argument can be hidden and/or irrelevant.
 
-data ArgInfo c = ArgInfo
+data ArgInfo = ArgInfo
   { argInfoHiding    :: Hiding
   , argInfoRelevance :: Relevance
-  , argInfoColors    :: [c]
-  } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
+  } deriving (Typeable, Eq, Ord, Show)
 
-instance KillRange c => KillRange (ArgInfo c) where
-  killRange (ArgInfo h r cs) = killRange3 ArgInfo h r cs
+instance KillRange ArgInfo where
+  killRange (ArgInfo h r) = killRange2 ArgInfo h r
 
-{- FAILED to define a lens for ArgInfo, since it is parametrized by c
-
-   can't instantiate the following to f c = Arg c e
-   since Haskell does not have lambda abstraction
-
-class LensArgInfo f where
-  getArgInfo :: f c -> ArgInfo c
-  setArgInfo :: ArgInfo c' -> f c -> f c'
+class LensArgInfo a where
+  getArgInfo :: a -> ArgInfo
+  setArgInfo :: ArgInfo -> a -> a
   setArgInfo ai = mapArgInfo (const ai)
-  mapArgInfo :: (ArgInfo c -> ArgInfo c') -> f c -> f c'
+  mapArgInfo :: (ArgInfo -> ArgInfo) -> a -> a
   mapArgInfo f a = setArgInfo (f $ getArgInfo a) a
 
 instance LensArgInfo ArgInfo where
   getArgInfo = id
   setArgInfo = const
   mapArgInfo = id
--}
-{- FAILS because map is too restricted
-class LensArgInfo c a where
-  getArgInfo :: a -> ArgInfo c
-  setArgInfo :: ArgInfo c -> a -> a
-  setArgInfo ai = mapArgInfo (const ai)
-  mapArgInfo :: (ArgInfo c -> ArgInfo c) -> a -> a
-  mapArgInfo f a = setArgInfo (f $ getArgInfo a) a
 
-instance LensArgInfo c (ArgInfo c) where
-  getArgInfo = id
-  setArgInfo = const
-  mapArgInfo = id
--}
+instance NFData ArgInfo where
+  rnf (ArgInfo a b) = rnf a `seq` rnf b
 
-instance NFData c => NFData (ArgInfo c) where
-  rnf (ArgInfo a b c) = rnf a `seq` rnf b `seq` rnf c
-
-instance LensHiding (ArgInfo c) where
+instance LensHiding ArgInfo where
   getHiding = argInfoHiding
   setHiding h ai = ai { argInfoHiding = h }
   mapHiding f ai = ai { argInfoHiding = f (argInfoHiding ai) }
 
-instance LensRelevance (ArgInfo c) where
+instance LensRelevance ArgInfo where
   getRelevance = argInfoRelevance
   setRelevance h ai = ai { argInfoRelevance = h }
   mapRelevance f ai = ai { argInfoRelevance = f (argInfoRelevance ai) }
 
-mapArgInfoColors :: ([c] -> [c']) -> ArgInfo c -> ArgInfo c'
-mapArgInfoColors f info = info { argInfoColors = f $ argInfoColors info }
-
-defaultArgInfo :: ArgInfo c
+defaultArgInfo :: ArgInfo
 defaultArgInfo =  ArgInfo { argInfoHiding    = NotHidden
-                          , argInfoRelevance = Relevant
-                          , argInfoColors    = [] }
+                          , argInfoRelevance = Relevant }
+
 
 ---------------------------------------------------------------------------
 -- * Arguments
 ---------------------------------------------------------------------------
 
-data Arg c e  = Arg
-  { argInfo :: ArgInfo c
+data Arg e  = Arg
+  { argInfo :: ArgInfo
   , unArg :: e
   } deriving (Typeable, Ord, Functor, Foldable, Traversable)
 
-instance Decoration (Arg c) where
+instance Decoration Arg where
   traverseF f (Arg ai a) = Arg ai <$> f a
 
-instance HasRange a => HasRange (Arg c a) where
+instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
 
-instance SetRange a => SetRange (Arg c a) where
+instance SetRange a => SetRange (Arg a) where
   setRange r = fmap $ setRange r
 
-instance (KillRange c, KillRange a) => KillRange (Arg c a) where
+instance KillRange a => KillRange (Arg a) where
   killRange (Arg info a) = killRange2 Arg info a
 
-instance (Eq a, Eq c) => Eq (Arg c a) where
-  Arg (ArgInfo h1 _ cs1) x1 == Arg (ArgInfo h2 _ cs2) x2 = (h1, cs1, x1) == (h2, cs2, x2)
+instance Eq a => Eq (Arg a) where
+  Arg (ArgInfo h1 _) x1 == Arg (ArgInfo h2 _) x2 = (h1, x1) == (h2, x2)
 
-instance (Show a, Show c) => Show (Arg c a) where
-    show (Arg (ArgInfo h r cs) x) = showC cs $ showR r $ showH h $ show x
+instance Show a => Show (Arg a) where
+    show (Arg (ArgInfo h r) x) = showR r $ showH h $ show x
       where
         showH Hidden     s = "{" ++ s ++ "}"
         showH NotHidden  s = "(" ++ s ++ ")"
@@ -460,64 +437,46 @@ instance (Show a, Show c) => Show (Arg c a) where
           Forced Small -> "!" ++ s
           UnusedArg    -> "k" ++ s -- constant
           Relevant     -> "r" ++ s -- Andreas: I want to see it explicitly
-        showC cs         s = show cs ++ s
 
-instance (NFData c, NFData e) => NFData (Arg c e) where
+instance NFData e => NFData (Arg e) where
   rnf (Arg a b) = rnf a `seq` rnf b
 
-instance LensHiding (Arg c e) where
+instance LensHiding (Arg e) where
   getHiding = getHiding . argInfo
   mapHiding = mapArgInfo . mapHiding
 
-instance LensRelevance (Arg c e) where
+instance LensRelevance (Arg e) where
   getRelevance = getRelevance . argInfo
   mapRelevance = mapArgInfo . mapRelevance
 
 {- RETIRED
-hide :: Arg c a -> Arg c a
+hide :: Arg a -> Arg a
 hide = setArgHiding Hidden
 
-makeInstance :: Arg c a -> Arg c a
+makeInstance :: Arg a -> Arg a
 makeInstance = setHiding Instance
 
-isHiddenArg :: Arg c a -> Bool
+isHiddenArg :: Arg a -> Bool
 isHiddenArg arg = argHiding arg /= NotHidden
 -}
 
-mapArgInfo :: (ArgInfo c -> ArgInfo c') -> Arg c a -> Arg c' a
-mapArgInfo f arg = arg { argInfo = f $ argInfo arg }
+instance LensArgInfo (Arg a) where
+  getArgInfo        = argInfo
+  mapArgInfo f arg  = arg { argInfo = f $ argInfo arg }
 
-argColors :: Arg c a -> [c]
-argColors = argInfoColors . argInfo
-
-mapArgColors :: ([c] -> [c']) -> Arg c a -> Arg c' a
-mapArgColors = mapArgInfo . mapArgInfoColors
-
-setArgColors :: [c] -> Arg c' a -> Arg c a
-setArgColors = mapArgColors . const
-
-defaultArg :: a -> Arg c a
+defaultArg :: a -> Arg a
 defaultArg = Arg defaultArgInfo
-
-defaultColoredArg :: ([c],a) -> Arg c a
-defaultColoredArg (cs,a) = setArgColors cs $ defaultArg a
-
-noColorArg :: Hiding -> Relevance -> a -> Arg c a
-noColorArg h r = Arg ArgInfo { argInfoHiding    = h
-                             , argInfoRelevance = r
-                             , argInfoColors    = []
-                             }
 
 -- | @xs \`withArgsFrom\` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
 --
 -- Precondition: The two lists should have equal length.
 
-withArgsFrom :: [a] -> [Arg c b] -> [Arg c a]
+withArgsFrom :: [a] -> [Arg b] -> [Arg a]
 xs `withArgsFrom` args =
   zipWith (\x arg -> fmap (const x) arg) xs args
 
-withNamedArgsFrom :: [a] -> [NamedArg c b] -> [NamedArg c a]
+withNamedArgsFrom :: [a] -> [NamedArg b] -> [NamedArg a]
 xs `withNamedArgsFrom` args =
   zipWith (\x -> fmap (x <$)) xs args
 
@@ -551,44 +510,42 @@ instance Underscore Doc where
 --   @Dom@ is used in 'Pi' of internal syntax, in 'Context' and 'Telescope'.
 --   'Arg' is used for actual arguments ('Var', 'Con', 'Def' etc.)
 --   and in 'Abstract' syntax and other situations.
-data Dom c e = Dom
-  { domInfo   :: ArgInfo c
+data Dom e = Dom
+  { domInfo   :: ArgInfo
   , unDom     :: e
   } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
-instance Decoration (Dom c) where
+instance Decoration Dom where
   traverseF f (Dom ai a) = Dom ai <$> f a
 
-instance HasRange a => HasRange (Dom c a) where
+instance HasRange a => HasRange (Dom a) where
   getRange = getRange . unDom
 
-instance (KillRange c, KillRange a) => KillRange (Dom c a) where
+instance KillRange a => KillRange (Dom a) where
   killRange (Dom info a) = killRange2 Dom info a
 
-instance (Show a, Show c) => Show (Dom c a) where
+instance Show a => Show (Dom a) where
   show = show . argFromDom
 
-instance LensHiding (Dom c e) where
+instance LensHiding (Dom e) where
   getHiding = getHiding . domInfo
-  mapHiding = mapDomInfo . mapHiding
+  mapHiding = mapArgInfo . mapHiding
 
-instance LensRelevance (Dom c e) where
+instance LensRelevance (Dom e) where
   getRelevance = getRelevance . domInfo
-  mapRelevance = mapDomInfo . mapRelevance
+  mapRelevance = mapArgInfo . mapRelevance
 
-mapDomInfo :: (ArgInfo c -> ArgInfo c') -> Dom c a -> Dom c' a
-mapDomInfo f arg = arg { domInfo = f $ domInfo arg }
+instance LensArgInfo (Dom e) where
+  getArgInfo = domInfo
+  mapArgInfo f arg = arg { domInfo = f $ domInfo arg }
 
-domColors :: Dom c a -> [c]
-domColors = argInfoColors . domInfo
-
-argFromDom :: Dom c a -> Arg c a
+argFromDom :: Dom a -> Arg a
 argFromDom (Dom i a) = Arg i a
 
-domFromArg :: Arg c a -> Dom c a
+domFromArg :: Arg a -> Dom a
 domFromArg (Arg i a) = Dom i a
 
-defaultDom :: a -> Dom c a
+defaultDom :: a -> Dom a
 defaultDom = Dom defaultArgInfo
 
 ---------------------------------------------------------------------------
@@ -631,18 +588,18 @@ instance (NFData name, NFData a) => NFData (Named name a) where
   rnf (Named a b) = rnf a `seq` rnf b
 
 -- | Only 'Hidden' arguments can have names.
-type NamedArg c a = Arg c (Named_ a)
+type NamedArg a = Arg (Named_ a)
 
 -- | Get the content of a 'NamedArg'.
-namedArg :: NamedArg c a -> a
+namedArg :: NamedArg a -> a
 namedArg = namedThing . unArg
 
-defaultNamedArg :: a -> NamedArg c a
+defaultNamedArg :: a -> NamedArg a
 defaultNamedArg = defaultArg . unnamed
 
 -- | The functor instance for 'NamedArg' would be ambiguous,
 --   so we give it another name here.
-updateNamedArg :: (a -> b) -> NamedArg c a -> NamedArg c b
+updateNamedArg :: (a -> b) -> NamedArg a -> NamedArg b
 updateNamedArg = fmap . fmap
 
 ---------------------------------------------------------------------------

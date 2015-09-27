@@ -39,8 +39,7 @@ import Data.Traversable
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Abstract.Name
@@ -64,12 +63,6 @@ import Agda.Utils.Tuple
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-
-type Color      = Term
-type ArgInfo    = Common.ArgInfo Color
-type Arg a      = Common.Arg Color a
-type Dom a      = Common.Dom Color a
-type NamedArg a = Common.NamedArg Color a
 
 -- | Type of argument lists.
 --
@@ -196,7 +189,7 @@ instance LensSort (Type' a) where
 
 -- General instance leads to overlapping instances.
 -- instance (Decoration f, LensSort a) => LensSort (f a) where
-instance LensSort a => LensSort (Common.Dom c a) where
+instance LensSort a => LensSort (Dom a) where
   lensSort = traverseF . lensSort
 
 instance LensSort a => LensSort (Abs a) where
@@ -501,11 +494,11 @@ noConPatternInfo = ConPatternInfo Nothing Nothing
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
 patternVars :: Arg Pattern -> [Arg (Either PatVarName Term)]
-patternVars (Common.Arg i (VarP x)     ) = [Common.Arg i $ Left x]
-patternVars (Common.Arg i (DotP t)     ) = [Common.Arg i $ Right t]
-patternVars (Common.Arg i (ConP _ _ ps)) = List.concat $ map (patternVars . fmap namedThing) ps
-patternVars (Common.Arg i (LitP l)     ) = []
-patternVars (Common.Arg i ProjP{}      ) = []
+patternVars (Arg i (VarP x)     ) = [Arg i $ Left x]
+patternVars (Arg i (DotP t)     ) = [Arg i $ Right t]
+patternVars (Arg i (ConP _ _ ps)) = List.concat $ map (patternVars . fmap namedThing) ps
+patternVars (Arg i (LitP l)     ) = []
+patternVars (Arg i ProjP{}      ) = []
 
 -- | Does the pattern perform a match that could fail?
 properlyMatching :: Pattern -> Bool
@@ -721,7 +714,7 @@ instance SgTel (ArgName, Dom Type) where
   sgTel (x, dom) = ExtendTel dom $ Abs x EmptyTel
 
 instance SgTel (Dom (ArgName, Type)) where
-  sgTel (Common.Dom ai (x, t)) = ExtendTel (Common.Dom ai t) $ Abs x EmptyTel
+  sgTel (Dom ai (x, t)) = ExtendTel (Dom ai t) $ Abs x EmptyTel
 
 instance SgTel (Dom Type) where
   sgTel dom = sgTel (stringToArgName "_", dom)
@@ -864,14 +857,14 @@ argsFromElims = map argFromElim . dropProjElims
 {- NOTE: Elim' already contains Arg.
 
 -- | Commute functors 'Arg' and 'Elim\''.
-swapArgElim :: Common.Arg c (Elim' a) -> Elim' (Common.Arg c a)
+swapArgElim :: Arg (Elim' a) -> Elim' (Arg a)
 
-swapArgElim (Common.Arg ai (Apply a)) = Apply (Common.Arg ai a)
-swapArgElim (Common.Arg ai (Proj  d)) = Proj  d
+swapArgElim (Arg ai (Apply a)) = Apply (Arg ai a)
+swapArgElim (Arg ai (Proj  d)) = Proj  d
 
 -- IMPOSSIBLE TO DEFINE
-swapElimArg :: Elim' (Common.Arg c a) -> Common.Arg c (Elim' a)
-swapElimArg (Apply (Common.Arg ai a)) = Common.Arg ai (Apply a)
+swapElimArg :: Elim' (Arg a) -> Arg (Elim' a)
+swapElimArg (Apply (Arg ai a)) = Arg ai (Apply a)
 swapElimArg (Proj  d) = defaultArg (Proj  d)
 -}
 
@@ -1187,10 +1180,3 @@ instance Pretty Elim where
   prettyPrec p (Apply v) = prettyPrec p v
   prettyPrec _ (Proj x)  = text ("." ++ show x)
 
-instance Pretty a => Pretty (Arg a) where
-  prettyPrec p a =
-    ($ unArg a) $
-    case getHiding a of
-      NotHidden -> prettyPrec p
-      Hidden    -> braces . pretty
-      Instance  -> braces . braces . pretty

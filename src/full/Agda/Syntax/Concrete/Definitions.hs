@@ -68,7 +68,7 @@ import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo, TerminationCheck())
+import Agda.Syntax.Common hiding (TerminationCheck())
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -476,8 +476,8 @@ declKind NiceUnquoteDecl{}               = OtherDecl
 parameters :: [LamBinding] -> Params
 parameters = List.concat . List.map numP where
   numP (DomainFree i _) = [argInfoHiding i]
-  numP (DomainFull (TypedBindings _ (Common.Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
-  numP (DomainFull (TypedBindings _ (Common.Arg _ TLet{})))         = []
+  numP (DomainFull (TypedBindings _ (Arg i (TBind _ xs _)))) = List.replicate (length xs) $ argInfoHiding i
+  numP (DomainFull (TypedBindings _ (Arg _ TLet{})))         = []
 
 -- | Main.
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
@@ -743,9 +743,9 @@ niceDeclarations ds = do
         ]
       where
         dropType :: LamBinding -> [LamBinding]
-        dropType (DomainFull (TypedBindings _r (Common.Arg ai (TBind _ xs _)))) =
+        dropType (DomainFull (TypedBindings _r (Arg ai (TBind _ xs _)))) =
           map (mergeHiding . fmap (DomainFree ai)) xs
-        dropType (DomainFull (TypedBindings _r (Common.Arg _ TLet{}))) = []
+        dropType (DomainFull (TypedBindings _r (Arg _ TLet{}))) = []
         dropType b@DomainFree{} = [b]
 
     -- Translate axioms

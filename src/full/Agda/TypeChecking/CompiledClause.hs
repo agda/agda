@@ -21,6 +21,7 @@ import Data.Typeable (Typeable)
 import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable)
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position

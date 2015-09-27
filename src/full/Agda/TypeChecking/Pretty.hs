@@ -13,8 +13,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Agda.Syntax.Position
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
@@ -276,7 +275,7 @@ instance PrettyTCM TypeCheckingProblem where
     sep [ parens $ text "_ :" <+> prettyTCM t0
         , nest 2 $ prettyList $ map prettyA es
         , nest 2 $ text ":?" <+> prettyTCM t1 ]
-  prettyTCM (CheckLambda (Common.Arg ai (xs, mt)) e t) =
+  prettyTCM (CheckLambda (Arg ai (xs, mt)) e t) =
     sep [ return CP.lambda <+>
           (CP.prettyRelevance ai .
            CP.prettyHiding ai (if isNothing mt && length xs == 1 then id
@@ -318,7 +317,7 @@ instance PrettyTCM PrettyContext where
     where
     pr :: [Dom (Name, Type)] -> TCM [P.Doc]
     pr []                            = return []
-    pr (Common.Dom info (x,t) : ctx) = escapeContext 1 $ do
+    pr (Dom info (x,t) : ctx) = escapeContext 1 $ do
       -- TODO guilhem: show colors
       d <- CP.prettyRelevance info . CP.prettyHiding info P.parens <$> do
              prettyTCM x <+> text ":" <+> prettyTCM t
@@ -366,7 +365,7 @@ instance PrettyTCM NLPat where
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
   prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
-  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (Common.unDom a) <+>
+  prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (unDom a) <+>
                           (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)

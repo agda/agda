@@ -13,7 +13,7 @@ import Data.Monoid
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Abstract (IsProjP(..))
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal

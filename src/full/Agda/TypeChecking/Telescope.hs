@@ -12,8 +12,7 @@ import Control.Monad (forM_, unless)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -114,7 +113,7 @@ teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: Telescope -> Args
-teleArgs tel = [ Common.Arg info (var i) | (i, Common.Dom info _) <- zip (downFrom $ size l) l ]
+teleArgs tel = [ Arg info (var i) | (i, Dom info _) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
 -- | Recursively computes dependencies of a set of variables in a given

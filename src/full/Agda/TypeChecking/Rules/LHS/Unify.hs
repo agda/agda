@@ -368,7 +368,7 @@ instance (UReduce a, UReduce b) => UReduce (a, b) where
 instance (UReduce a, UReduce b, UReduce c) => UReduce (a, b, c) where
   ureduce (a, b, c) = (\x y z -> (x, y, z)) <$> ureduce a <*> ureduce b <*> ureduce c
 
-instance (UReduce a) => UReduce (I.Arg a) where
+instance (UReduce a) => UReduce (Arg a) where
   ureduce (Arg c e) = Arg c <$> ureduce e
 
 instance (UReduce a) => UReduce [ a ] where
@@ -428,7 +428,7 @@ instance (PrettyTCM a) => PrettyTCM (HomHet a) where
 type TermHH    = HomHet Term
 type TypeHH    = HomHet Type
 --type FunViewHH = FunV TypeHH
-type TelHH     = Tele (I.Dom TypeHH)
+type TelHH     = Tele (Dom TypeHH)
 type TelViewHH = TelV TypeHH
 type ArgsHH    = HomHet Args
 
@@ -472,11 +472,11 @@ instance SubstHH Type (HomHet Type) where
   -- terms we can match on
   trivialHH = Hom
 
-instance SubstHH a b => SubstHH (I.Arg a) (I.Arg b) where
+instance SubstHH a b => SubstHH (Arg a) (Arg b) where
   substUnderHH n u = fmap $ substUnderHH n u
   trivialHH = fmap trivialHH
 
-instance SubstHH a b => SubstHH (I.Dom a) (I.Dom b) where
+instance SubstHH a b => SubstHH (Dom a) (Dom b) where
   substUnderHH n u = fmap $ substUnderHH n u
   trivialHH = fmap trivialHH
 
@@ -567,8 +567,8 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyConstructorArgs ::
          TypeHH  -- ^ The ureduced type of the constructor, instantiated to the parameters.
                  --   Possibly heterogeneous, since pars of lhs and rhs might differ.
-      -> [I.Arg Term]  -- ^ the arguments of the constructor (lhs)
-      -> [I.Arg Term]  -- ^ the arguments of the constructor (rhs)
+      -> [Arg Term]  -- ^ the arguments of the constructor (lhs)
+      -> [Arg Term]  -- ^ the arguments of the constructor (rhs)
       -> Unify ()
     unifyConstructorArgs a12 [] [] = return ()
     unifyConstructorArgs a12 vs1 vs2 = do
@@ -632,7 +632,7 @@ unifyIndices flex a us vs = liftTCM $ do
       unifyConArgs (tel `absAppHH` uHH) us vs
 
     -- | Used for arguments of a 'Def' (data/record/postulate), not 'Con'.
-    unifyArgs :: Type -> [I.Arg Term] -> [I.Arg Term] -> Unify ()
+    unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyArgs _ [] (_ : _) = __IMPOSSIBLE__
     unifyArgs _ [] [] = return ()
@@ -1039,8 +1039,8 @@ isEtaRecordTypeHH (Het a1 a2) = do
 
 -- | Views an expression (pair) as type shape.  Fails if not same shape.
 data ShapeView a
-  = PiSh (I.Dom a) (I.Abs a)
-  | FunSh (I.Dom a) a
+  = PiSh (Dom a) (I.Abs a)
+  | FunSh (Dom a) a
   | DefSh QName   -- ^ data/record
   | VarSh Nat     -- ^ neutral type
   | LitSh Literal -- ^ built-in type

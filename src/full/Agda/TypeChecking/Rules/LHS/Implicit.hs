@@ -50,14 +50,14 @@ insertImplicitProblem (Problem ps qs tel pr) = do
   return $ Problem ps' qs tel pr
 
 -- | Eta-expand implicit pattern if of record type.
-expandImplicitPattern :: Type -> A.NamedArg A.Pattern -> TCM (A.NamedArg A.Pattern)
+expandImplicitPattern :: Type -> NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
 expandImplicitPattern a p = maybe (return p) return =<< expandImplicitPattern' a p
 
 -- | Try to eta-expand implicit pattern.
 --   Returns 'Nothing' unless dealing with a record type that has eta-expansion
 --   and a constructor @c@.  In this case, it returns 'Just' @c _ _ ... _@
 --   (record constructor applied to as many implicit patterns as there are fields).
-expandImplicitPattern' :: Type -> A.NamedArg A.Pattern -> TCM (Maybe (A.NamedArg A.Pattern))
+expandImplicitPattern' :: Type -> NamedArg A.Pattern -> TCM (Maybe (NamedArg A.Pattern))
 expandImplicitPattern' a p
   | A.WildP{} <- namedArg p, getHiding p /= Instance = do
      -- Eta expand implicit patterns of record type (issue 473),
@@ -73,7 +73,7 @@ expandImplicitPattern' a p
        -- if not (recNamedCon def) then return Nothing else do
        do
          -- generate one implicit pattern for each field
-         qs <- forM (recFields def) $ \ f -> flip Arg implicitP <$> reify (argInfo f)
+         let qs = for (recFields def) $ \ f -> Arg (argInfo f) implicitP
          -- generate the pattern (c _ _ ... _)
          let q  = A.ConP (ConPatInfo ConPImplicit patNoRange) (A.AmbQ [recCon def]) qs
          -- equip it with the name/arginfo of the original implicit pattern
@@ -86,13 +86,13 @@ implicitP = unnamed $ A.WildP $ PatRange $ noRange
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
-insertImplicitPatterns :: ExpandHidden -> [A.NamedArg A.Pattern] ->
-                          Telescope -> TCM [A.NamedArg A.Pattern]
+insertImplicitPatterns :: ExpandHidden -> [NamedArg A.Pattern] ->
+                          Telescope -> TCM [NamedArg A.Pattern]
 insertImplicitPatterns exh ps tel =
   insertImplicitPatternsT exh ps (telePi tel typeDontCare)
 
 -- | Insert trailing SizeLt patterns, if any.
-insertImplicitSizeLtPatterns :: Type -> TCM [A.NamedArg A.Pattern]
+insertImplicitSizeLtPatterns :: Type -> TCM [NamedArg A.Pattern]
 insertImplicitSizeLtPatterns t = do
   -- Testing for SizeLt.  In case of blocked type, we return no.
   -- We assume that on the LHS, we know the type.  (TODO: Sufficient?)
@@ -106,12 +106,12 @@ insertImplicitSizeLtPatterns t = do
   let ts = reverse $ takeWhile (not . visible) $ telToList tel
   keep <- reverse <$> dropWhileM (not <.> isSizeLt . snd . unDom) ts
   -- Insert implicit patterns upto (including) the last SizeLt type.
-  forM keep $ \ (Dom ai _) -> flip Arg implicitP <$> reify ai
+  return [ Arg ai implicitP | Dom ai _ <- keep ]
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
-insertImplicitPatternsT :: ExpandHidden -> [A.NamedArg A.Pattern] -> Type ->
-                           TCM [A.NamedArg A.Pattern]
+insertImplicitPatternsT :: ExpandHidden -> [NamedArg A.Pattern] -> Type ->
+                           TCM [NamedArg A.Pattern]
 insertImplicitPatternsT DontExpandLast [] a = insertImplicitSizeLtPatterns a
 insertImplicitPatternsT exh            ps a = do
   TelV tel b <- telViewUpTo' (-1) (not . visible) a

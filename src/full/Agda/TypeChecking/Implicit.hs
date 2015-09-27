@@ -10,7 +10,6 @@ import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Abstract as A (NamedArg)
 
 import Agda.TypeChecking.Irrelevance
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -72,11 +71,11 @@ impInsert [] = NoInsertNeeded
 impInsert hs = ImpInsert hs
 
 -- | The list should be non-empty.
-insertImplicit :: A.NamedArg e -> [I.Arg ArgName] -> ImplicitInsertion
+insertImplicit :: NamedArg e -> [Arg ArgName] -> ImplicitInsertion
 insertImplicit _ [] = __IMPOSSIBLE__
 insertImplicit a ts | notHidden a = impInsert $ nofHidden ts
   where
-    nofHidden :: [I.Arg a] -> [Hiding]
+    nofHidden :: [Arg a] -> [Hiding]
     nofHidden = takeWhile (NotHidden /=) . map getHiding
 insertImplicit a ts =
   case nameOf (unArg a) of
@@ -87,7 +86,7 @@ insertImplicit a ts =
     upto h (NotHidden:_) = Nothing
     upto h (h':_) | h == h' = Just []
     upto h (h':hs) = (h':) <$> upto h hs
-    find :: [Hiding] -> ArgName -> Hiding -> [I.Arg ArgName] -> ImplicitInsertion
+    find :: [Hiding] -> ArgName -> Hiding -> [Arg ArgName] -> ImplicitInsertion
     find _ x _ (a@(Arg{}) : _) | notHidden a = NoSuchName x
     find hs x hidingx (a@(Arg _ y) : ts)
       | x == y && hidingx == getHiding a = impInsert $ reverse hs

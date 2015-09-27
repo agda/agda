@@ -15,7 +15,7 @@ import Agda.Syntax.Literal
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.Syntax.Internal hiding (Arg, Dom)
+import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
@@ -63,8 +63,8 @@ namesInFoldable x = Set.unions $ foldMap ((:[]) . namesIn) x
 
 instance NamesIn a => NamesIn (Maybe a)       where namesIn = namesInFoldable
 instance NamesIn a => NamesIn [a]             where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Arg c a)       where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (Dom c a)       where namesIn = namesInFoldable
+instance NamesIn a => NamesIn (Arg a)         where namesIn = namesInFoldable
+instance NamesIn a => NamesIn (Dom a)         where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Named n a)     where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Abs a)         where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (WithArity a)   where namesIn = namesInFoldable

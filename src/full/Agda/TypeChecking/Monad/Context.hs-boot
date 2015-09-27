@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.Monad.Context where
 
+import Agda.Syntax.Common (Dom)
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 

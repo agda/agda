@@ -32,9 +32,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
 
-import qualified Agda.Syntax.Common as Common
-import Agda.Syntax.Common hiding (Arg,Dom)
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Common
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
@@ -75,7 +74,7 @@ data SplitClause = SClause
     -- ^ Type of variables in @scPats@.
   , scPerm   :: Permutation
     -- ^ How to get from the variables in the patterns to the telescope.
-  , scPats   :: [I.NamedArg Pattern]
+  , scPats   :: [NamedArg Pattern]
     -- ^ The patterns leading to the currently considered branch of
     --   the split tree.
   , scSubst  :: Substitution
@@ -91,7 +90,7 @@ data SplitClause = SClause
     --   'splitResult', which does not split on a variable,
     --   should reset it to the identity 'idS', lest it be
     --   applied to 'scTarget' again, leading to Issue 1294.
-  , scTarget :: Maybe (I.Arg Type)
+  , scTarget :: Maybe (Arg Type)
     -- ^ The type of the rhs, living in context 'scTel'.
     --   This invariant is broken before calls to 'fixTarget';
     --   there, 'scTarget' lives in the old context.
@@ -164,7 +163,7 @@ coverageCheck f t cs = do
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
 cover :: QName -> [Clause] -> SplitClause ->
-         TCM (SplitTree, Set Nat, [[I.NamedArg Pattern]])
+         TCM (SplitTree, Set Nat, [[NamedArg Pattern]])
 cover f cs sc@(SClause tel perm ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -312,7 +311,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       ]
     let n         = size tel
         lgamma    = telToList tel
-        xs        = for lgamma $ \ (Common.Dom ai (x, _)) -> Common.Arg ai $ namedVarP "_"
+        xs        = for lgamma $ \ (Dom ai (x, _)) -> Arg ai $ namedVarP "_"
         -- Compute new split clause
         sctel'    = telFromList $ telToList (raise n sctel) ++ lgamma
         perm'     = liftP n $ scPerm sc
@@ -550,7 +549,7 @@ splitClauseWithAbsurd c x = split' Inductive c (BlockingVar x Nothing)
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
-splitLast :: Induction -> Telescope -> [I.NamedArg Pattern] -> TCM (Either SplitError Covering)
+splitLast :: Induction -> Telescope -> [NamedArg Pattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
   where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
 
@@ -621,8 +620,8 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
-    let (tel1, Common.Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (n, Common.Dom info t, telFromList tel1, telFromList tel2)
+    let (tel1, Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (n, Dom info t, telFromList tel1, telFromList tel2)
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do

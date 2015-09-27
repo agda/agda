@@ -74,10 +74,10 @@ getRecordOfField d = maybe Nothing fromP <$> isProjection d
   where fromP Projection{ projProper = mp, projFromType = r} = mp $> r
 
 -- | Get the field names of a record.
-getRecordFieldNames :: QName -> TCM [I.Arg C.Name]
+getRecordFieldNames :: QName -> TCM [Arg C.Name]
 getRecordFieldNames r = recordFieldNames <$> getRecordDef r
 
-recordFieldNames :: Defn -> [I.Arg C.Name]
+recordFieldNames :: Defn -> [Arg C.Name]
 recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
 
 -- | Find all records with at least the given fields.
@@ -97,7 +97,7 @@ getRecordFieldTypes :: QName -> TCM Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the field names belonging to a record type.
-getRecordTypeFields :: Type -> TCM [I.Arg QName]
+getRecordTypeFields :: Type -> TCM [Arg QName]
 getRecordTypeFields t =
   case ignoreSharing $ unEl t of
     Def r _ -> do
@@ -425,7 +425,7 @@ etaExpandAtRecordType t u = do
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> Args -> m Term
 etaContractRecord r c args = do
   Just Record{ recFields = xs } <- isRecord r
-  let check :: I.Arg Term -> I.Arg QName -> Maybe (Maybe Term)
+  let check :: Arg Term -> Arg QName -> Maybe (Maybe Term)
       check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
@@ -471,7 +471,7 @@ isSingletonRecord' regardIrrelevance r ps = do
   def <- getRecordDef r
   emap (Con $ recConHead def) <$> check (recTel def `apply` ps)
   where
-  check :: Telescope -> TCM (Either MetaId (Maybe [I.Arg Term]))
+  check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
   check tel = do
     reportSDoc "tc.meta.eta" 30 $
       text "isSingletonRecord' checking telescope " <+> prettyTCM tel

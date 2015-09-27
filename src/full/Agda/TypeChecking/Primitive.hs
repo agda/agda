@@ -21,7 +21,7 @@ import Agda.Interaction.Options
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike)
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
@@ -130,7 +130,7 @@ instance ToTerm Type where
   toTerm  = do kit <- quotingKit; runReduceF (quoteTypeWithKit kit)
   toTermR = do kit <- quotingKit; return (quoteTypeWithKit kit)
 
-instance ToTerm I.ArgInfo where
+instance ToTerm ArgInfo where
   toTerm = do
     info <- primArgArgInfo
     vis  <- primVisible
@@ -138,7 +138,7 @@ instance ToTerm I.ArgInfo where
     ins  <- primInstance
     rel  <- primRelevant
     irr  <- primIrrelevant
-    return $ \(ArgInfo h r _) ->
+    return $ \(ArgInfo h r) ->
       apply info $ map defaultArg
       [ case h of
           NotHidden -> vis
@@ -170,8 +170,8 @@ instance (PrimTerm a, ToTerm a) => ToTerm [a] where
 
 -- From Haskell value to Agda term
 
-type FromTermFunction a = I.Arg Term ->
-                          ReduceM (Reduced (MaybeReduced (I.Arg Term)) a)
+type FromTermFunction a = Arg Term ->
+                          ReduceM (Reduced (MaybeReduced (Arg Term)) a)
 
 class FromTerm a where
   fromTerm :: TCM (FromTermFunction a)
@@ -503,7 +503,7 @@ garr f a b = do
   return $ El (getSort a' `sLub` getSort b') $
            Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
 
-gpi :: I.ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
+gpi :: ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
 gpi info name a b = do
   a <- a
   b <- addContext (name, Dom info a) b
@@ -554,17 +554,17 @@ tSizeUniv = return $ El SizeUniv $ Sort SizeUniv
 -- tSizeUniv = return $ El Inf $ Sort SizeUniv
 
 -- | Abbreviation: @argN = 'Arg' 'defaultArgInfo'@.
-argN :: e -> I.Arg e
+argN :: e -> Arg e
 argN = Arg defaultArgInfo
 
-domN :: e -> I.Dom e
+domN :: e -> Dom e
 domN = Dom defaultArgInfo
 
 -- | Abbreviation: @argH = 'hide' 'Arg' 'defaultArgInfo'@.
-argH :: e -> I.Arg e
+argH :: e -> Arg e
 argH = Arg $ setHiding Hidden defaultArgInfo
 
-domH :: e -> I.Dom e
+domH :: e -> Dom e
 domH = Dom $ setHiding Hidden defaultArgInfo
 
 ---------------------------------------------------------------------------

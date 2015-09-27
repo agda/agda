@@ -18,9 +18,9 @@ import Control.Monad.State
 import Data.Maybe
 import Data.Traversable (traverse)
 
-import Agda.Syntax.Common as Common hiding (NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Abstract (IsProjP(..))
-import Agda.Syntax.Internal hiding (Arg)
+import Agda.Syntax.Internal
 import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.List
@@ -80,7 +80,7 @@ class LabelPatVars a b i | b -> i where
   -- ^ Intended, but unpractical due to the absence of type-level lambda, is:
   --   @labelPatVars :: f (Pattern' x) -> State [i] (f (Pattern' (i,x)))@
 
-instance LabelPatVars a b i => LabelPatVars (Arg c a) (Arg c b) i where
+instance LabelPatVars a b i => LabelPatVars (Arg a) (Arg b) i where
   labelPatVars = traverse labelPatVars
 
 instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
@@ -120,14 +120,14 @@ numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
 numberPatVars perm ps = evalState (labelPatVars ps) $
   permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
-patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
+patternsToElims :: Permutation -> [NamedArg Pattern] -> [Elim]
 patternsToElims perm ps = map build' $ numberPatVars perm ps
   where
 
     build' :: NamedArg (Pattern' (Int, PatVarName)) -> Elim
     build' = build . fmap namedThing
 
-    build :: I.Arg (Pattern' (Int, PatVarName)) -> Elim
+    build :: Arg (Pattern' (Int, PatVarName)) -> Elim
     build (Arg ai (VarP (i, _))) = Apply $ Arg ai $ var i
     build (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
       map (argFromElim . build') ps
@@ -135,7 +135,7 @@ patternsToElims perm ps = map build' $ numberPatVars perm ps
     build (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
     build (Arg ai (ProjP dest) ) = Proj  $ dest
 
--- patternsToElims :: Permutation -> [I.NamedArg Pattern] -> [Elim]
+-- patternsToElims :: Permutation -> [NamedArg Pattern] -> [Elim]
 -- patternsToElims perm ps = evalState (mapM build' ps) xs
 --   where
 --     xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
@@ -146,7 +146,7 @@ patternsToElims perm ps = map build' $ numberPatVars perm ps
 --     build' :: NamedArg Pattern -> State [Int] Elim
 --     build' = build . fmap namedThing
 
---     build :: I.Arg Pattern -> State [Int] Elim
+--     build :: Arg Pattern -> State [Int] Elim
 --     build (Arg ai (VarP _)     ) = Apply . Arg ai . var <$> tick
 --     build (Arg ai (ConP c _ ps)) =
 --       Apply . Arg ai . Con c <$> mapM (argFromElim <.> build') ps

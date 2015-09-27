@@ -7,7 +7,7 @@ import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
@@ -22,7 +22,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
-import Agda.TypeChecking.Rules.Term ( isType_, ConvColor(..) )
+import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Size
@@ -57,7 +57,7 @@ checkRecDef
   -> QName                     -- ^ Record type identifier.
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
   -> Maybe Bool
-  -> Maybe A.QName             -- ^ Optional: constructor name.
+  -> Maybe QName               -- ^ Optional: constructor name.
   -> [A.LamBinding]            -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
                                --   Does not include record parameters.
@@ -126,12 +126,12 @@ checkRecDef i name ind eta con ps contel fields =
 
       etaenabled <- etaEnabled
 
-      let getName :: A.Declaration -> [A.Arg QName]
+      let getName :: A.Declaration -> [Arg QName]
           getName (A.Field _ x arg)    = [x <$ arg]
           getName (A.ScopedDecl _ [f]) = getName f
           getName _                    = []
 
-          fs = concatMap (convColor . getName) fields
+          fs = concatMap getName fields
           -- indCo is what the user wrote: inductive/coinductive/Nothing.
           -- We drop the Range.
           indCo = rangedThing <$> ind

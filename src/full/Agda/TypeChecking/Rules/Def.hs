@@ -46,7 +46,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope, ConvColor(..) )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..) )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 
@@ -95,7 +95,7 @@ isAlias cs t =
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> I.ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
+checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkAlias t' ai delayed i name e = do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
@@ -153,7 +153,7 @@ checkAlias t' ai delayed i name e = do
 
 -- | Type check a definition by pattern matching.
 checkFunDef' :: Type             -- ^ the type we expect the function to have
-             -> I.ArgInfo        -- ^ is it irrelevant (for instance)
+             -> ArgInfo        -- ^ is it irrelevant (for instance)
              -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
              -> Maybe (Int, Int) -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
@@ -315,7 +315,7 @@ data WithFunctionProblem
     , wfExprs      :: [Term]               -- ^ With expressions.
     , wfExprTypes  :: [Type]               -- ^ Types of the with expressions.
     , wfRHSType    :: Type                 -- ^ Type of the right hand side.
-    , wfParentPats :: [I.NamedArg Pattern] -- ^ Parent patterns.
+    , wfParentPats :: [NamedArg Pattern]   -- ^ Parent patterns.
     , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
     , wfPermParent :: Permutation          -- ^ Permutation reordering the variables in the parent pattern.
     , wfPermFinal  :: Permutation          -- ^ Final permutation (including permutation for the parent clause).
@@ -344,7 +344,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
         -- introduce trailing implicits for checking the where decls
         TelV htel t0 <- telViewUpTo' (-1) (not . visible) $ unArg trhs
         let n = size htel
-            aps' = convColor aps
             checkWhere' wh = addCtxTel htel . checkWhere (size delta + n) wh . escapeContext (size htel)
         (body, with) <- checkWhere' wh $ let
             -- for the body, we remove the implicits again
@@ -352,14 +351,14 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                 case rhs of
                   A.RHS e
                     | any (containsAbsurdPattern . namedArg) aps ->
-                      typeError $ AbsurdPatternRequiresNoRHS aps'
+                      typeError $ AbsurdPatternRequiresNoRHS aps
                     | otherwise -> do
                       v <- checkExpr e $ unArg trhs
                       return (mkBody v, NoWithFunction)
                   A.AbsurdRHS
                     | any (containsAbsurdPattern . namedArg) aps
                                 -> return (NoBody, NoWithFunction)
-                    | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps'
+                    | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
                   A.RewriteRHS [] rhs [] -> handleRHS rhs
                   -- Andreas, 2014-01-17, Issue 1402:
                   -- If the rewrites are discarded since lhs=rhs, then
@@ -401,9 +400,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                          case ignoreSharing $ unEl t' of
                            Def equality'
                              [ _level
-                             , Apply (Arg (ArgInfo Hidden    Relevant _) rewriteType)
-                             , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteFrom)
-                             , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteTo)
+                             , Apply (Arg (ArgInfo Hidden    Relevant) rewriteType)
+                             , Apply (Arg (ArgInfo NotHidden Relevant) rewriteFrom)
+                             , Apply (Arg (ArgInfo NotHidden Relevant) rewriteTo)
                              ] | equality' == equality ->
                                  return (El (getSort t') rewriteType, rewriteFrom, rewriteTo)
                            _ -> do

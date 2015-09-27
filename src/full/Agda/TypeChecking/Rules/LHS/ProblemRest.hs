@@ -4,7 +4,7 @@
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
@@ -24,7 +24,7 @@ import Agda.Utils.Impossible
 
 -- MOVED from LHS:
 -- | Rename the variables in a telescope using the names from a given pattern
-useNamesFromPattern :: [A.NamedArg A.Pattern] -> Telescope -> Telescope
+useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
@@ -66,7 +66,7 @@ noProblemRest (Problem _ _ _ (ProblemRest ps _)) = null ps
 --        restType    = "Case m Bool (Maybe A -> Bool)"
 --   @
 
-problemFromPats :: [A.NamedArg A.Pattern] -- ^ The user patterns.
+problemFromPats :: [NamedArg A.Pattern] -- ^ The user patterns.
   -> Type            -- ^ The type the user patterns eliminate.
   -> TCM Problem     -- ^ The initial problem constructed from the user patterns.
 problemFromPats ps a = do

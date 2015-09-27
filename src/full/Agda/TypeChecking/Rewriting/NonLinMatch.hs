@@ -40,7 +40,7 @@ import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 
-import Agda.Syntax.Common (unArg)
+import Agda.Syntax.Common
 import qualified Agda.Syntax.Common as C
 import Agda.Syntax.Internal
 
@@ -228,7 +228,7 @@ instance Match NLPat Term where
             matchingBlocked $ Blocked m ()
           _ -> no
       PLam i p' -> do
-        let body = Abs (absName p') $ raise 1 v `apply` [C.Arg i (var 0)]
+        let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
         body <- liftRed (etaContract =<< reduce' body)
         match k p' body
       PPi pa pb  -> case ignoreSharing v of

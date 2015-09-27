@@ -18,7 +18,7 @@ module Agda.TypeChecking.CheckInternal
 import Control.Monad
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Datatypes (getConType)
@@ -167,7 +167,7 @@ checkDef f es t = do
   checkSpine a (Def f []) es t
 
 -- | Check possibly projection-like function application
-checkDef' :: QName -> I.Arg Term -> Elims -> Type -> TCM ()
+checkDef' :: QName -> Arg Term -> Elims -> Type -> TCM ()
 checkDef' f a es t = do
   isProj <- isProjection f
   case isProj of
@@ -197,11 +197,10 @@ checkArgs :: Type -> Term -> Args -> Type -> TCM ()
 checkArgs a self vs t = checkSpine a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
-checkArgInfo :: I.ArgInfo -> I.ArgInfo -> TCM ()
+checkArgInfo :: ArgInfo -> ArgInfo -> TCM ()
 checkArgInfo ai ai' = do
   checkHiding    (getHiding ai)     (getHiding ai')
   checkRelevance (getRelevance ai)  (getRelevance ai')
-  checkColor     (argInfoColors ai) (argInfoColors ai')
 
 checkHiding    :: Hiding -> Hiding -> TCM ()
 checkHiding    h h' = unless (h == h') $ typeError $ HidingMismatch h h'
@@ -214,10 +213,6 @@ checkRelevance r0 r0' = unless (r == r') $ typeError $ RelevanceMismatch r r'
     canon Forced{}  = Relevant
     canon UnusedArg = Relevant
     canon r         = r
-
-checkColor     :: [Color] -> [Color] -> TCM ()
-checkColor     c c' = unless (c == c') $ typeError $ ColorMismatch c c'
-  -- TODO guilhem
 
 -- | Infer type of a neutral term.
 infer :: Term -> TCM Type
@@ -241,7 +236,7 @@ inferDef f es = do
   inferSpine a (Def f []) es
 
 -- | Infer possibly projection-like function application
-inferDef' :: QName -> I.Arg Term -> Elims -> TCM Type
+inferDef' :: QName -> Arg Term -> Elims -> TCM Type
 inferDef' f a es = do
   isProj <- isProjection f
   case isProj of
@@ -278,7 +273,7 @@ shouldBeProjectible t f = maybe failure return =<< getDefType f =<< reduce t
   where failure = typeError $ ShouldBeRecordType t
     -- TODO: more accurate error that makes sense also for proj.-like funs.
 
-shouldBePi :: Type -> TCM (I.Dom Type, Abs Type)
+shouldBePi :: Type -> TCM (Dom Type, Abs Type)
 shouldBePi t = ifPiType t (\ a b -> return (a, b)) $ const $ typeError $ ShouldBePi t
 
 -- | Result is in reduced form.
@@ -304,7 +299,7 @@ checkSort s =
     SizeUniv -> typeError $ InvalidTypeSort s
     DLub a b -> do
       checkSort a
-      addContext (absName b, defaultDom (sort a) :: I.Dom Type) $ do
+      addContext (absName b, defaultDom (sort a) :: Dom Type) $ do
         checkSort (absBody b)
 
 -- | Check if level is well-formed.

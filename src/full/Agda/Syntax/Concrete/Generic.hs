@@ -14,7 +14,7 @@ import Data.Traversable
 import Data.Monoid
 import Data.Foldable
 
-import Agda.Syntax.Common hiding (Arg)
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 
 import Agda.Utils.Either

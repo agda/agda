@@ -13,6 +13,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal (QName)
 import qualified Agda.Syntax.Treeless as C
 import qualified Agda.Syntax.Internal as I
@@ -249,7 +250,7 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.MetaV _ _ -> __IMPOSSIBLE__
     I.DontCare _ -> __IMPOSSIBLE__ -- when does this happen?
 
-substArgs :: [I.Arg I.Term] -> CC [C.TTerm]
+substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse
   (\x -> if isIrrelevant x
             then return C.TErased

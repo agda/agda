@@ -604,7 +604,7 @@ data Kind = VarPat | DotPat
 -- patterns, should be removed, and a new variable, with the name @x@,
 -- inserted instead. The type of the new variable is @t@.
 
-type Change  = Either Pattern (Kind -> Nat, ArgName, I.Dom Type)
+type Change  = Either Pattern (Kind -> Nat, ArgName, Dom Type)
 type Changes = [Change]
 
 instance Pretty (Kind -> Nat) where
@@ -625,7 +625,7 @@ data RecordTree
   = Leaf Pattern
     -- ^ Corresponds to variable and dot patterns; contains the
     -- original pattern.
-  | RecCon (I.Arg Type) [(Term -> Term, RecordTree)]
+  | RecCon (Arg Type) [(Term -> Term, RecordTree)]
     -- ^ @RecCon t args@ stands for a record constructor application:
     -- @t@ is the type of the application, and the list contains a
     -- projection function and a tree for every argument.
@@ -705,7 +705,7 @@ translatePattern p@DotP{} = removeTree (Leaf p)
 translatePattern p@LitP{} = return (p, [], [])
 translatePattern p@ProjP{}= return (p, [], [])
 
-translatePatterns :: [I.NamedArg Pattern] -> RecPatM ([I.NamedArg Pattern], [Term], Changes)
+translatePatterns :: [NamedArg Pattern] -> RecPatM ([NamedArg Pattern], [Term], Changes)
 translatePatterns ps = do
   (ps', ss, cs) <- unzip3 <$> mapM (translatePattern . namedArg) ps
   return (zipWith (\p -> fmap (p <$)) ps' ps, concat ss, concat cs)
@@ -758,10 +758,10 @@ translateTel
   :: Changes
      -- ^ Explanation of how the telescope should be changed. Types
      -- should be in the context of the old telescope.
-  -> [(ArgName, I.Dom Type)]
+  -> [(ArgName, Dom Type)]
      -- ^ Old telescope, flattened, in textual left-to-right
      -- order.
-  -> [Maybe (ArgName, I.Dom Type)]
+  -> [Maybe (ArgName, Dom Type)]
      -- ^ New telescope, flattened, in textual left-to-right order.
      -- 'Nothing' is used to indicate the locations of dot patterns.
 translateTel (Left (DotP{}) : rest)   tel = Nothing : translateTel rest tel

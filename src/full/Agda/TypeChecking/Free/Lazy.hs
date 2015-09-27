@@ -40,7 +40,7 @@ import Data.Monoid
 
 import Test.QuickCheck
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 -- import Agda.TypeChecking.Irrelevance

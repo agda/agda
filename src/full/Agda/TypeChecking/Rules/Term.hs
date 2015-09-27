@@ -118,7 +118,7 @@ isType_ e =
       a <- Dom info <$> isType_ t
       b <- isType_ b
       s <- ptsRule a b
-      let t' = El s $ Pi (convColor a) $ NoAbs underscore b
+      let t' = El s $ Pi a $ NoAbs underscore b
       noFunctionsIntoSize b t'
       return t'
     A.Pi _ tel e | null tel -> isType_ e
@@ -132,7 +132,7 @@ isType_ e =
     A.Set _ n    -> do
       n <- ifM typeInType (return 0) (return n)
       return $ sort (mkType n)
-    A.App i s (Arg (ArgInfo NotHidden r cs) l)
+    A.App i s (Arg (ArgInfo NotHidden r) l)
       | A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -248,7 +248,7 @@ checkTypedBindings lamOrPi (A.TypedBindings i (Arg info b)) ret =
     checkTypedBinding lamOrPi info b $ \ bs ->
     ret $ telFromList bs
 
-checkTypedBinding :: LamOrPi -> A.ArgInfo -> A.TypedBinding -> (ListTel -> TCM a) -> TCM a
+checkTypedBinding :: LamOrPi -> ArgInfo -> A.TypedBinding -> (ListTel -> TCM a) -> TCM a
 checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
@@ -256,8 +256,8 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-    addContext (xs, convColor (Dom info' t) :: I.Dom Type) $
-      ret $ bindsWithHidingToTel xs (convColor $ Dom info t)
+    addContext (xs, Dom info' t) $
+      ret $ bindsWithHidingToTel xs (Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -275,7 +275,7 @@ checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
 ---------------------------------------------------------------------------
 
 -- | Type check a lambda expression.
-checkLambda :: I.Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
+checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda (Arg info (A.TBind _ xs typ)) body target = do
@@ -353,7 +353,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
     useTargetType _ _ = __IMPOSSIBLE__
 
 -- | Checking a lambda whose domain type has already been checked.
-checkPostponedLambda :: I.Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
+checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
 checkPostponedLambda args@(Arg _    ([]    , _ )) body target = do
   checkExpr body target
 checkPostponedLambda args@(Arg info (WithHiding h x : xs, mt)) body target = do
@@ -663,7 +663,7 @@ checkRecordUpdate ei recexpr fs e t = do
           coerce v inferred t
     _         -> typeError $ ShouldBeRecordType t
   where
-    replaceFields :: Name -> A.ExprInfo -> I.Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
+    replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
     replaceFields n ei a@(Arg _ p) Nothing | notHidden a =
         Just $ A.App ei (A.Def p) $ defaultNamedArg $ A.Var n
     replaceFields _ _  (Arg _ _) Nothing  = Nothing
@@ -689,7 +689,7 @@ checkLiteral lit t = do
 --
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
-  ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
+  ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
   (Args -> Type -> TCM Term) -> TCM Term
 checkArguments' exph r args t0 t k = do
   z <- runExceptT $ checkArguments exph r args t0 t
@@ -744,7 +744,6 @@ checkExpr e t0 =
             , not (hiddenLambdaOrHole h e)
             -> do
                 x <- freshName rx $ notInScopeName $ absName b
-                info <- reify info
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
                 checkExpr (A.Lam (A.ExprRange re) (domainFree info x) e) t
             where
@@ -827,7 +826,7 @@ checkExpr e t0 =
 
         A.ExtendedLam i di qname cs -> checkExtendedLambda i di qname cs e t
 
-        A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda (convColor b) e t
+        A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda b e t
 
         A.Lam i (A.DomainFree info x) e0 -> checkExpr (A.Lam i (domainFree info x) e0) t
 
@@ -852,7 +851,7 @@ checkExpr e t0 =
             a' <- isType_ a
             b' <- isType_ b
             s <- ptsRule a' b'
-            let v = Pi (convColor $ Dom info a') (NoAbs underscore b')
+            let v = Pi (Dom info a') (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
         A.Set _ n    -> do
@@ -973,14 +972,14 @@ checkApplication hd args e t = do
       let unblock = isJust <$> getCon -- to unblock, call getCon later again
       mc <- getCon
       case mc of
-        Just c  -> checkConstructorApplication e t c $ map convColor args
+        Just c  -> checkConstructorApplication e t c args
         Nothing -> postponeTypeCheckingProblem (CheckExpr e t) unblock
 
     -- Subcase: non-ambiguous constructor
     A.Con (AmbQ [c]) -> do
       -- augment c with record fields, but do not revert to original name
       con <- getOrigConHead c
-      checkConstructorApplication e t con $ map convColor args
+      checkConstructorApplication e t con args
 
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
@@ -1008,7 +1007,7 @@ checkApplication hd args e t = do
       let tel' = map (snd . unDom) $ telToList tel
           (macroArgs, otherArgs) = splitAt (length tel') args
           -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
-          mkArg :: Type -> A.NamedArg A.Expr -> A.NamedArg A.Expr
+          mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
           mkArg t a | unEl t == tTerm =
             (fmap . fmap)
               (A.App (A.ExprRange (getRange a)) (A.QuoteTerm A.exprNoRange) . defaultNamedArg) a
@@ -1035,7 +1034,7 @@ checkApplication hd args e t = do
             checkExpr e t
       | arg : args <- args -> do
           unquoteTerm (namedArg arg) $ \e ->
-            checkHeadApplication e t e $ map convColor args
+            checkHeadApplication e t e args
       where
         unquoteTerm :: A.Expr -> (A.Expr -> TCM Term) -> TCM Term
         unquoteTerm qv cont = do
@@ -1055,11 +1054,11 @@ checkApplication hd args e t = do
               cont e
 
     -- Subcase: defined symbol or variable.
-    _ -> checkHeadApplication e t hd $ map convColor args
+    _ -> checkHeadApplication e t hd args
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.
-domainFree :: A.ArgInfo -> A.Name -> A.LamBinding
+domainFree :: ArgInfo -> A.Name -> A.LamBinding
 domainFree info x =
   A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure x] $ A.Underscore underscoreInfo
   where
@@ -1181,7 +1180,7 @@ inferDef mkTerm x =
 -- | Check the type of a constructor application. This is easier than
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
-checkConstructorApplication :: A.Expr -> Type -> ConHead -> [I.NamedArg A.Expr] -> TCM Term
+checkConstructorApplication :: A.Expr -> Type -> ConHead -> [NamedArg A.Expr] -> TCM Term
 checkConstructorApplication org t c args = do
   reportSDoc "tc.term.con" 50 $ vcat
     [ text "entering checkConstructorApplication"
@@ -1297,7 +1296,7 @@ checkConstructorApplication org t c args = do
 --
 -- Precondition: The head @hd@ has to be unambiguous, and there should
 -- not be any need to insert hidden lambdas.
-checkHeadApplication :: A.Expr -> Type -> A.Expr -> [I.NamedArg A.Expr] -> TCM Term
+checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
   case hd of
@@ -1384,7 +1383,7 @@ checkHeadApplication e t hd args = do
           emptyFunction
 
       -- Define and type check the fresh function.
-      ctx <- getContext >>= mapM (\d -> flip Dom (unDom d) <$> reify (domInfo d))
+      ctx <- getContext
       let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                PublicAccess ConcreteDef noRange
           pats   = map (\ (Dom info (n, _)) -> Arg info $ Named Nothing $ A.VarP n) $
@@ -1437,8 +1436,8 @@ traceCallE call m = do
 --   make this happen.  Returns the evaluated arguments @vs@, the remaining
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
-checkArguments :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Type -> Type ->
-                  ExceptT (Args, [I.NamedArg A.Expr], Type) TCM (Args, Type)
+checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+                  ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArguments DontExpandLast _ [] t0 t1 = return ([], t0)
@@ -1533,7 +1532,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
           throwError (us ++ u : vs, es, t)
 
 -- | Check that a list of arguments fits a telescope.
-checkArguments_ :: ExpandHidden -> Range -> [I.NamedArg A.Expr] -> Telescope -> TCM Args
+checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM Args
 checkArguments_ exh r args tel = do
     z <- runExceptT $ checkArguments exh r args (telePi tel $ sort Prop) (sort Prop)
     case z of
@@ -1551,7 +1550,7 @@ inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
-    res <- runExceptT $ checkArguments exh (getRange hd) (map convColor args) t0 (sort Prop)
+    res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)
     case res of
       Right (vs, t1) -> return (f vs, t1)
       Left t1 -> fallback -- blocked on type t1
@@ -1584,7 +1583,7 @@ inferOrCheck e mt = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
     res <- runErrorT $ checkArguments DontExpandLast
-                                      (getRange hd) (map convColor args) t0 $
+                                      (getRange hd) args t0 $
                                       maybe (sort Prop) id mt
     case res of
       Right (vs, t1) -> maybe (return (f vs, t1))
@@ -1651,7 +1650,7 @@ checkLetBinding b@(A.LetBind i info x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
     v <- applyRelevanceToContext (getRelevance info) $ checkDontExpandLast e t
-    addLetBinding (convColor info) x v t ret
+    addLetBinding info x v t ret
 
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
@@ -1730,17 +1729,3 @@ checkLetBinding (A.LetApply i x modapp rd rm) ret = do
 checkLetBinding A.LetOpen{} ret = ret
 checkLetBinding (A.LetDeclaredVariable _) ret = ret
 
-class ConvColor a i where
-  convColor :: a -> i
-
-instance ConvColor A.ArgInfo I.ArgInfo where
-  convColor = mapArgInfoColors $ const [] -- "TODO guilhem 5"
-
-instance ConvColor (A.Arg e) (I.Arg e) where
-  convColor = mapArgInfo convColor
-
-instance ConvColor (A.Dom e) (I.Dom e) where
-  convColor = mapDomInfo convColor
-
-instance ConvColor a i => ConvColor [a] [i] where
-  convColor = map convColor

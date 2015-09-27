@@ -17,7 +17,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Info
-import Agda.Syntax.Common as C
+import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A hiding (Apply)
 import Agda.Syntax.Reflected as R
 
@@ -57,20 +57,16 @@ toAbstract_ x = runReaderT (toAbstract x) =<< getContextNames
 instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
   toAbstract = traverse toAbstract
 
-instance ToAbstract r a => ToAbstract (C.ArgInfo r) (C.ArgInfo a) where
+instance ToAbstract r a => ToAbstract (Arg r) (NamedArg a) where
+  toAbstract (Arg i x) = Arg i <$> toAbstract (unnamed x)
+
+instance ToAbstract [Arg Term] [NamedArg Expr] where
   toAbstract = traverse toAbstract
 
-instance ToAbstract r a => ToAbstract (R.Arg r) (A.NamedArg a) where
-  toAbstract (C.Arg i x) = C.Arg <$> toAbstract i <*> toAbstract (unnamed x)
-
-instance ToAbstract [R.Arg Term] [A.NamedArg Expr] where
-  toAbstract = traverse toAbstract
-
-instance ToAbstract r Expr => ToAbstract (R.Dom r, Name) (A.TypedBindings) where
-  toAbstract (C.Dom i x, name) = do
+instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBindings) where
+  toAbstract (Dom i x, name) = do
     dom <- toAbstract x
-    i   <- toAbstract i
-    return $ TypedBindings noRange $ C.Arg i $ TBind noRange [pure name] dom
+    return $ TypedBindings noRange $ Arg i $ TBind noRange [pure name] dom
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
@@ -148,7 +144,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
     R.ProjP p -> return ([], A.DefP patNoRange p [])
 
-toAbstractPats :: [R.Arg R.Pattern] -> WithNames (Names, [A.NamedArg A.Pattern])
+toAbstractPats :: [Arg R.Pattern] -> WithNames (Names, [NamedArg A.Pattern])
 toAbstractPats pats = case pats of
     []   -> return ([], [])
     p:ps -> do

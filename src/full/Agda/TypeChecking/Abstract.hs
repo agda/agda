@@ -9,8 +9,7 @@ module Agda.TypeChecking.Abstract where
 import Control.Monad
 import Data.Function
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Substitute
@@ -20,7 +19,7 @@ import Agda.Utils.List (splitExactlyAt)
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)
   where
-    fun a b = El s $ Pi (Common.Dom defaultArgInfo a) $ mkAbs "w" b
+    fun a b = El s $ Pi (Dom defaultArgInfo a) $ mkAbs "w" b
       where s = (sLub `on` getSort) a b
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.

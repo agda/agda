@@ -21,8 +21,7 @@ import Data.Maybe
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
-import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
@@ -245,7 +244,6 @@ errorString err = case err of
   UnequalTerms{}                           -> "UnequalTerms"
   UnequalTypes{}                           -> "UnequalTypes"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
-  UnequalColors{}                          -> "UnequalTelescopes"
   HeterogeneousEquality{}                  -> "HeterogeneousEquality"
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
   UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
@@ -268,7 +266,6 @@ errorString err = case err of
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
   HidingMismatch{}                         -> "HidingMismatch"
   RelevanceMismatch{}                      -> "RelevanceMismatch"
-  ColorMismatch{}                          -> "ColorMismatch"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
@@ -378,10 +375,6 @@ instance PrettyTCM TypeError where
     RelevanceMismatch r r' -> fwords $
       "Expected " ++ verbalize (Indefinite r') ++ " argument, but found " ++
       verbalize (Indefinite r) ++ " argument"
-
-    ColorMismatch c c' -> fsep $   -- TODO guilhem
-      pwords "Expected argument color to be" ++ [prettyTCM c'] ++
-      pwords "but found color" ++ [prettyTCM c]
 
     NotInductive t -> fsep $
       [prettyTCM t] ++ pwords "is not an inductive data type"
@@ -532,8 +525,6 @@ instance PrettyTCM TypeError where
 
     UnequalTypes cmp a b -> prettyUnequal a (notCmp cmp) b
 --              fsep $ [prettyTCM a, notCmp cmp, prettyTCM b]
-
-    UnequalColors a b -> error "TODO guilhem 4"
 
     HeterogeneousEquality u a v b -> fsep $
       pwords "Refuse to solve heterogeneous constraint" ++
@@ -1116,8 +1107,8 @@ instance PrettyTCM TypeError where
       | n > 0 && not (null args) = parens
       | otherwise                = id
 
-    prettyArg :: I.Arg I.Pattern -> TCM Doc
-    prettyArg (Common.Arg info x) = case getHiding info of
+    prettyArg :: Arg I.Pattern -> TCM Doc
+    prettyArg (Arg info x) = case getHiding info of
       Hidden    -> braces $ prettyPat 0 x
       Instance  -> dbraces $ prettyPat 0 x
       NotHidden -> prettyPat 1 x
@@ -1299,11 +1290,8 @@ instance PrettyTCM Call where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
     where
-    hPretty :: I.Arg (Named_ Expr) -> TCM Doc
-    hPretty a = do
-      info <- reify $ argInfo a
-      pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (getHiding a))
-                   (Common.Arg info $ unArg a)
+    hPretty :: Arg (Named_ Expr) -> TCM Doc
+    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (getHiding a)) a
 
     simpleDecl = D.notSoNiceDeclaration
 

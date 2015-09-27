@@ -73,12 +73,12 @@ reduceQuotedTerm t = ifBlocked t
 class Unquote a where
   unquote :: I.Term -> UnquoteM a
 
-unquoteH :: Unquote a => I.Arg Term -> UnquoteM a
+unquoteH :: Unquote a => Arg Term -> UnquoteM a
 unquoteH a | isHidden a && isRelevant a =
     unquote $ unArg a
 unquoteH a = throwException $ BadVisibility "hidden"  a
 
-unquoteN :: Unquote a => I.Arg Term -> UnquoteM a
+unquoteN :: Unquote a => Arg Term -> UnquoteM a
 unquoteN a | notHidden a && isRelevant a =
     unquote $ unArg a
 unquoteN a = throwException $ BadVisibility "visible" a
@@ -116,18 +116,18 @@ pickName a =
               isAlpha c -> [toLower c]
     _        -> "_"
 
-instance Unquote R.ArgInfo where
+instance Unquote ArgInfo where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Con c [h,r] -> do
         choice
-          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> return [])]
+          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "ArgInfo" t
 
-instance Unquote a => Unquote (R.Arg a) where
+instance Unquote a => Unquote (Arg a) where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
@@ -174,7 +174,7 @@ instance Unquote Str where
 unquoteString :: Term -> UnquoteM String
 unquoteString x = unStr <$> unquote x
 
-unquoteNString :: I.Arg Term -> UnquoteM String
+unquoteNString :: Arg Term -> UnquoteM String
 unquoteNString x = unStr <$> unquoteN x
 
 instance Unquote a => Unquote [a] where
@@ -238,7 +238,7 @@ instance Unquote a => Unquote (R.Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
-instance Unquote a => Unquote (R.Dom a) where
+instance Unquote a => Unquote (Dom a) where
   unquote t = domFromArg <$> unquote t
 
 instance Unquote R.Sort where
@@ -312,7 +312,7 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
         where
-          mkPi :: R.Dom R.Type -> R.Abs R.Type -> R.Term
+          mkPi :: Dom R.Type -> R.Abs R.Type -> R.Term
           -- TODO: implement Free for reflected syntax so this works again
           --mkPi a (R.Abs "_" b) = R.Pi a (R.Abs x b)
           --  where x | 0 `freeIn` b = pickName (unDom a)

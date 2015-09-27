@@ -9,7 +9,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Maybe
 
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg, ArgInfo)
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 

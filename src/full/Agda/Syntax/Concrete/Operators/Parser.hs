@@ -18,8 +18,7 @@ import GHC.Generics (Generic)
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
-import qualified Agda.Syntax.Common as C
-import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
+import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
@@ -231,8 +230,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
   let (normal, binders) = partitionEithers hs
       lastHole          = maximum $ mapMaybe holeTarget syn
 
-      app :: ([(MaybePlaceholder e, C.NamedArg () Int)] ->
-              [(MaybePlaceholder e, C.NamedArg () Int)]) -> e
+      app :: ([(MaybePlaceholder e, NamedArg Int)] ->
+              [(MaybePlaceholder e, NamedArg Int)]) -> e
       app f =
         -- If we have an operator and there is exactly one
         -- placeholder for every hole, then we only return
@@ -269,7 +268,7 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
 
   worker ::
     [Name] -> Notation ->
-    Parser e (Range, [Either (MaybePlaceholder e, C.NamedArg () Int)
+    Parser e (Range, [Either (MaybePlaceholder e, NamedArg Int)
                              (LamBinding, Int)])
   worker ms []              = return (noRange, [])
   worker ms (IdPart x : xs) = do
@@ -307,13 +306,11 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
   set x arg = fmap (fmap (const x)) arg
 
   findExprFor ::
-    [(MaybePlaceholder e, C.NamedArg () Int)] ->
+    [(MaybePlaceholder e, NamedArg Int)] ->
     [(LamBinding, Int)] -> Int ->
     NamedArg (MaybePlaceholder (OpApp e))
   findExprFor normalHoles binders n =
-    case [ (e, setArgColors [] m)
-         | (e, m) <- normalHoles, namedArg m == n
-         ] of
+    case [ h | h@(_, m) <- normalHoles, namedArg m == n ] of
       [(Placeholder p,   arg)] -> set (Placeholder p) arg
       [(NoPlaceholder e, arg)] -> case [b | (b, m) <- binders, m == n] of
         [] -> set (NoPlaceholder (Ordinary e)) arg -- no variable to bind
