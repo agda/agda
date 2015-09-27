@@ -60,16 +60,7 @@ data ADataCon
   deriving (Eq, Ord, Show, Typeable)
 
 data Fun
-  = Fun
-      { xfunInline  :: Inline
-      , xfunName    :: HsName
-      , xfunQName   :: Maybe QName
-      , xfunComment :: Comment
-      , xfunArgs    :: [HsName] -- args will always be empty right now, we use lambdas inside the body instead.
-                                -- Would be nicer to have them here, but coinduction (copatterns) make this tricky.
-      , xfunExpr    :: Expr
-      }
-  | CoreFun
+  = CoreFun
       { xfunName     :: HsName
       , xfunQName    :: Maybe QName
       , xfunComment  :: Comment
@@ -77,32 +68,6 @@ data Fun
       }
   deriving (Eq, Show)
 
-data CaseType
-  = CTCon ADataTy -- rename this to CTData
-  | CTChar
-  | CTString
-  | CTQName
-  | CTInteger
-  deriving (Show, Ord, Eq)
-
-data Expr
-  = Var HsName
-  | Lit Literal
-  | Lam HsName Expr
-  | Con ADataTy ADataCon [Expr]
-  | App Expr [Expr]
-  | Case Expr [Branch] Expr CaseType -- scrutinee, alts, default, case ty
-  | Let HsName Expr Expr
-  | UNIT    -- ^ Used for internally generated unit values. If an Agda datatype is bound to the
-            -- Unit builtin, two representations of unit exists, but will be compiled to the same
-            -- thing.
-  | Error String
-  deriving (Show, Ord, Eq)
-
-data Branch
-  = BrCon   {brCon  :: ADataCon, brName :: QName, brVars :: [HsName], brExpr :: Expr}
-  | BrLit   {brLit :: Literal, brExpr :: Expr}
-  deriving (Show, Ord, Eq)
 
 -- | Returns the arity of a constructor.
 xconArity :: ADataCon -> Int
@@ -113,94 +78,3 @@ getCTagArity :: CTag -> Int
 -- it is the unit constructor, so just return zero.
 getCTagArity = destructCTag 0 (\_ _ _ ar -> ar)
 
-getBrVars :: Branch -> [HsName]
-getBrVars (BrCon {brVars = vs}) = vs
-getBrVars (BrLit {})            = []
-
---------------------------------------------------------------------------------
--- * Some smart constructors
-
--- | Smart constructor for let expressions to avoid unneceessary lets
-lett :: HsName -> Expr -> Expr -> Expr
-lett v (Var v') e' = subst v v' e'
-lett v e        e' = if v `elem` fv e' then Let v e e' else e'
-
---   TODO we should use the type information from inside the case statement to also handle defaults and literals.
--- | If casing on the same expression in a sub-expression, we know what branch to
---   pick
-casee :: ADataTy -> Expr -> [Branch] -> Expr -> CaseType -> Expr
-casee _ x brs def cty = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs] def cty
-  where
-    casingE br expr = let rec = casingE br in case expr of
-      Var v -> Var v
-      Lit l -> Lit l
-      Lam v e -> Lam v (rec e)
-      Con t n es -> Con t n (map rec es)
-      App v es   -> App v (map rec es)
-      Case e brs' def' cty' | expr == e -> case filter (sameCon br) brs' of
-        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (rec def') cty'
-        [b] -> substs (getBrVars br `zip` getBrVars b) (brExpr b)
-        _   -> __IMPOSSIBLE__
-                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs'] (rec def') cty'
-      Let v e1 e2 -> Let v (rec e1) (rec e2)
-      UNIT        -> UNIT
-      Error e     -> Error e
-    sameCon (BrCon {brCon = c1}) (BrCon {brCon = c2}) = c1 == c2
-    sameCon _                     _                     = False
-
--- | Smart constructor for applications to avoid empty applications
-apps :: Expr -> [Expr] -> Expr
-apps v [] = v
-apps v as = App v as
-
-apps1 :: HsName -> [Expr] -> Expr
-apps1 v = apps (Var v)
-
---------------------------------------------------------------------------------
--- * Substitution
-
--- | Substitution
-subst :: HsName  -- ^ Substitute this ...
-      -> HsName  -- ^ with this ...
-      -> Expr -- ^ in this.
-      -> Expr
-subst var var' expr = case expr of
-    Var v      | var == v  -> Var var'
-               | otherwise -> Var v
-    Lit l -> Lit l
-    Lam v e    | var == v  -> Lam v e
-               | otherwise -> Lam v (subst var var' e)
-    Con t q es -> Con t q (map (subst var var') es)
-    App v es   -> App (subst var var' v) (map (subst var var') es)
-    Case e brs def ty -> Case (subst var var' e) (map (substBranch var var') brs) (subst var var' def) ty
-    Let v e e' | var == v  -> Let v (subst var var' e) e'
-               | otherwise -> Let v (subst var var' e) (subst var var' e')
-    UNIT       -> UNIT
-    Error e    -> Error e
-
-substs :: [(HsName, HsName)] -> Expr -> Expr
-substs ss e = foldr (uncurry subst) e ss
-
-substBranch :: HsName -> HsName -> Branch -> Branch
-substBranch x e br = br { brExpr = subst x e (brExpr br) }
-
--- | Get the free variables in an expression
-fv :: Expr -> [HsName]
-fv = S.toList . fv'
-  where
-    fv' :: Expr -> Set HsName
-    fv' expr = case expr of
-      Var v    -> S.singleton v
-      Lit _    -> S.empty
-      Lam v e1 -> S.delete v (fv' e1)
-      Con _ _ es -> S.unions (map fv' es)
-      App v es -> S.unions (fv' v : map fv' es)
-      Case e brs def _ -> fv' e `S.union` S.unions (map fvBr brs) `S.union` (fv' def)
-      Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
-      UNIT       -> S.empty
-      Error _    -> S.empty
-
-    fvBr :: Branch -> Set HsName
-    fvBr b = case b of
-      BrCon _ _ vs e -> fv' e S.\\ S.fromList vs
-      BrLit _ e -> fv' e

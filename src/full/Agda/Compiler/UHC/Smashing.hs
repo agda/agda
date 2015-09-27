@@ -1,3 +1,5 @@
+
+
 {-# LANGUAGE CPP #-}
 
 -- | Smash functions which return something that can be inferred
@@ -38,6 +40,7 @@ import qualified Agda.Utils.HashMap as HM
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+{-
 type SmashT m = FreshNameT (TransformT m)
 
 defnPars :: Integral n => Defn -> n
@@ -155,3 +158,5 @@ buildLambda n e | otherwise = do
   v <- freshLocalName
   e' <- buildLambda (n - 1) e
   return $ AA.Lam v e'
+
+-}

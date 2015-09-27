@@ -11,7 +11,7 @@ Agda2> (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : .A × .B " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 Agda2> (agda2-info-action "*Error*" "SplitOnResultCopatternsDisabled.agda:7,12-16 OPTION --copatterns needed to split on result here when checking that the expression ? has type .A × .B" nil)
-((last . 3) . (agda2-goto-asynchronously '("SplitOnResultCopatternsDisabled.agda" . 140)))
+((last . 3) . (agda2-maybe-goto '("SplitOnResultCopatternsDisabled.agda" . 140)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 Agda2> 

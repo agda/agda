@@ -96,16 +96,17 @@ lookupLevel :: Int -- ^ case tree de bruijn level
     -> Int -- ^ TTerm de bruijn index
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
-patMatchFailure :: CC C.TTerm
-patMatchFailure = do
+unreachableError :: CC C.TTerm
+unreachableError = do
   fun <- asks ccFunction
-  return $ C.TError $ C.TPatternMatchFailure fun
+  return $ C.TError $ C.TUnreachable fun
+
 
 -- | Compile a case tree into nested case and record expressions.
 casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
-    CC.Fail -> patMatchFailure
+    CC.Fail -> unreachableError
     CC.Done xs v -> lambdasUpTo (length xs) $ do
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
@@ -113,8 +114,8 @@ casetree cc = do
     CC.Case n (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
-        fromMaybe <$> patMatchFailure
-            <*> (fmap C.TVar <$> asks ccCatchAll)
+        fromMaybe <$> unreachableError
+          <*> (fmap C.TVar <$> asks ccCatchAll)
       else do
         caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
               ((c:_), []) -> do
@@ -127,10 +128,9 @@ casetree cc = do
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
-          -- should this be internal error, or pat match failure by default?
           -- normally, Agda should make sure that a pattern match is total,
-          -- so this normally shouldn't happen
-          def <- fromMaybe <$> patMatchFailure
+          -- so we set the default to unreachable if no default has been provided.
+          def <- fromMaybe <$> unreachableError
             <*> (fmap C.TVar <$> asks ccCatchAll)
           C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs

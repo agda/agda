@@ -91,7 +91,7 @@ simplify FunctionKit{..} = simpl
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
     tCase x t d bs
-      | isError d =
+      | isUnreachable d =
         case reverse bs' of
           [] -> pure d
           TALit _ b   : as  -> pure $ tCase' x t b (reverse as)
@@ -102,14 +102,14 @@ simplify FunctionKit{..} = simpl
           TACon c a b : _   -> pure $ tCase' x t d bs'
       | otherwise = pure $ TCase x t d bs'
       where
-        bs' = filter (not . isErrorAlt) bs
+        bs' = filter (not . isUnreachableAlt) bs
 
         tCase' x t d [] = d
         tCase' x t d bs = TCase x t d bs
 
-isErrorAlt :: TAlt -> Bool
-isErrorAlt = isError . aBody
+isUnreachableAlt :: TAlt -> Bool
+isUnreachableAlt = isUnreachable . aBody
 
-isError :: TTerm -> Bool
-isError TError{} = True
-isError _ = False
+isUnreachable :: TTerm -> Bool
+isUnreachable (TError (TUnreachable{})) = True
+isUnreachable _ = False

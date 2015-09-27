@@ -1,0 +1,355 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><title
+    >Issue1618</title
+    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><meta http-equiv="Content-Style-Type" content="text/css"
+     /><link href="Agda.css" rel="stylesheet" type="text/css"
+     /></head
+  ><body
+  ><pre
+    ><a name="1" class="Comment"
+      >\documentclass{article}</a
+      ><a name="24"
+      >
+</a
+      ><a name="25" class="Comment"
+      >\usepackage{agda}</a
+      ><a name="42"
+      >
+</a
+      ><a name="43" class="Comment"
+      >\setlength{\parindent}{0pt}</a
+      ><a name="70"
+      >
+</a
+      ><a name="71" class="Comment"
+      >\setlength{\parskip}{1ex}</a
+      ><a name="96"
+      >
+</a
+      ><a name="97" class="Comment"
+      >\begin{document}</a
+      ><a name="113"
+      >
+</a
+      ><a name="114" class="Comment"
+      >The let should be properly aligned in the following code:</a
+      ><a name="171"
+      >
+
+\begin{code}
+</a
+      ><a name="186" href="Issue1618.html#186" class="Function"
+      >id</a
+      ><a name="188"
+      > </a
+      ><a name="189" class="Symbol"
+      >:</a
+      ><a name="190"
+      > </a
+      ><a name="191" class="Symbol"
+      >(</a
+      ><a name="192" href="Issue1618.html#192" class="Bound"
+      >A</a
+      ><a name="193"
+      > </a
+      ><a name="194" class="Symbol"
+      >:</a
+      ><a name="195"
+      > </a
+      ><a name="196" class="PrimitiveType"
+      >Set</a
+      ><a name="199" class="Symbol"
+      >)</a
+      ><a name="200"
+      > </a
+      ><a name="201" class="Symbol"
+      >&#8594;</a
+      ><a name="202"
+      > </a
+      ><a name="203" href="Issue1618.html#192" class="Bound"
+      >A</a
+      ><a name="204"
+      > </a
+      ><a name="205" class="Symbol"
+      >&#8594;</a
+      ><a name="206"
+      > </a
+      ><a name="207" href="Issue1618.html#192" class="Bound"
+      >A</a
+      ><a name="208"
+      >
+</a
+      ><a name="209" href="Issue1618.html#186" class="Function"
+      >id</a
+      ><a name="211"
+      > </a
+      ><a name="212" href="Issue1618.html#212" class="Bound"
+      >A</a
+      ><a name="213"
+      > </a
+      ><a name="214" class="Symbol"
+      >=</a
+      ><a name="215"
+      >
+  </a
+      ><a name="218" class="Keyword"
+      >let</a
+      ><a name="221"
+      >
+    </a
+      ><a name="226" href="Issue1618.html#226" class="Bound"
+      >id'</a
+      ><a name="229"
+      > </a
+      ><a name="230" class="Symbol"
+      >:</a
+      ><a name="231"
+      > </a
+      ><a name="232" href="Issue1618.html#277" class="Function"
+      >B</a
+      ><a name="233"
+      > </a
+      ><a name="234" class="Symbol"
+      >&#8594;</a
+      ><a name="235"
+      > </a
+      ><a name="236" href="Issue1618.html#277" class="Function"
+      >B</a
+      ><a name="237"
+      >
+    </a
+      ><a name="242" href="Issue1618.html#226" class="Bound"
+      >id'</a
+      ><a name="245"
+      > </a
+      ><a name="246" class="Symbol"
+      >=</a
+      ><a name="247"
+      > </a
+      ><a name="248" class="Symbol"
+      >&#955;</a
+      ><a name="249"
+      > </a
+      ><a name="250" href="Issue1618.html#250" class="Bound"
+      >a</a
+      ><a name="251"
+      > </a
+      ><a name="252" class="Symbol"
+      >&#8594;</a
+      ><a name="253"
+      > </a
+      ><a name="254" href="Issue1618.html#250" class="Bound"
+      >a</a
+      ><a name="255"
+      >
+  </a
+      ><a name="258" class="Keyword"
+      >in</a
+      ><a name="260"
+      > </a
+      ><a name="261" href="Issue1618.html#226" class="Bound"
+      >id'</a
+      ><a name="264"
+      >
+  </a
+      ><a name="267" class="Keyword"
+      >where</a
+      ><a name="272"
+      >
+    </a
+      ><a name="277" href="Issue1618.html#277" class="Function"
+      >B</a
+      ><a name="278"
+      > </a
+      ><a name="279" class="Symbol"
+      >:</a
+      ><a name="280"
+      > </a
+      ><a name="281" class="PrimitiveType"
+      >Set</a
+      ><a name="284"
+      >
+    </a
+      ><a name="289" href="Issue1618.html#277" class="Function"
+      >B</a
+      ><a name="290"
+      > </a
+      ><a name="291" class="Symbol"
+      >=</a
+      ><a name="292"
+      > </a
+      ><a name="293" href="Issue1618.html#212" class="Bound"
+      >A</a
+      ><a name="294"
+      >
+\end{code}
+
+</a
+      ><a name="307" class="Comment"
+      >This should also work if the new block is following after the</a
+      ><a name="368"
+      >
+</a
+      ><a name="369" class="Comment"
+      >keyword, as opposed to on a new line.</a
+      ><a name="406"
+      >
+
+\begin{code}
+</a
+      ><a name="421" href="Issue1618.html#421" class="Function"
+      >di</a
+      ><a name="423"
+      > </a
+      ><a name="424" class="Symbol"
+      >:</a
+      ><a name="425"
+      > </a
+      ><a name="426" class="Symbol"
+      >(</a
+      ><a name="427" href="Issue1618.html#427" class="Bound"
+      >A</a
+      ><a name="428"
+      > </a
+      ><a name="429" class="Symbol"
+      >:</a
+      ><a name="430"
+      > </a
+      ><a name="431" class="PrimitiveType"
+      >Set</a
+      ><a name="434" class="Symbol"
+      >)</a
+      ><a name="435"
+      > </a
+      ><a name="436" class="Symbol"
+      >&#8594;</a
+      ><a name="437"
+      > </a
+      ><a name="438" href="Issue1618.html#427" class="Bound"
+      >A</a
+      ><a name="439"
+      > </a
+      ><a name="440" class="Symbol"
+      >&#8594;</a
+      ><a name="441"
+      > </a
+      ><a name="442" href="Issue1618.html#427" class="Bound"
+      >A</a
+      ><a name="443"
+      >
+</a
+      ><a name="444" href="Issue1618.html#421" class="Function"
+      >di</a
+      ><a name="446"
+      > </a
+      ><a name="447" href="Issue1618.html#447" class="Bound"
+      >A</a
+      ><a name="448"
+      > </a
+      ><a name="449" class="Symbol"
+      >=</a
+      ><a name="450"
+      >
+  </a
+      ><a name="453" class="Keyword"
+      >let</a
+      ><a name="456"
+      >  </a
+      ><a name="458" href="Issue1618.html#458" class="Bound"
+      >id'</a
+      ><a name="461"
+      > </a
+      ><a name="462" class="Symbol"
+      >:</a
+      ><a name="463"
+      > </a
+      ><a name="464" href="Issue1618.html#509" class="Function"
+      >B</a
+      ><a name="465"
+      > </a
+      ><a name="466" class="Symbol"
+      >&#8594;</a
+      ><a name="467"
+      > </a
+      ><a name="468" href="Issue1618.html#509" class="Function"
+      >B</a
+      ><a name="469"
+      >
+       </a
+      ><a name="477" href="Issue1618.html#458" class="Bound"
+      >id'</a
+      ><a name="480"
+      > </a
+      ><a name="481" class="Symbol"
+      >=</a
+      ><a name="482"
+      > </a
+      ><a name="483" class="Symbol"
+      >&#955;</a
+      ><a name="484"
+      > </a
+      ><a name="485" href="Issue1618.html#485" class="Bound"
+      >a</a
+      ><a name="486"
+      > </a
+      ><a name="487" class="Symbol"
+      >&#8594;</a
+      ><a name="488"
+      > </a
+      ><a name="489" href="Issue1618.html#485" class="Bound"
+      >a</a
+      ><a name="490"
+      >
+  </a
+      ><a name="493" class="Keyword"
+      >in</a
+      ><a name="495"
+      > </a
+      ><a name="496" href="Issue1618.html#458" class="Bound"
+      >id'</a
+      ><a name="499"
+      >
+  </a
+      ><a name="502" class="Keyword"
+      >where</a
+      ><a name="507"
+      >  </a
+      ><a name="509" href="Issue1618.html#509" class="Function"
+      >B</a
+      ><a name="510"
+      > </a
+      ><a name="511" class="Symbol"
+      >:</a
+      ><a name="512"
+      > </a
+      ><a name="513" class="PrimitiveType"
+      >Set</a
+      ><a name="516"
+      >
+         </a
+      ><a name="526" href="Issue1618.html#509" class="Function"
+      >B</a
+      ><a name="527"
+      > </a
+      ><a name="528" class="Symbol"
+      >=</a
+      ><a name="529"
+      > </a
+      ><a name="530" href="Issue1618.html#447" class="Bound"
+      >A</a
+      ><a name="531"
+      >
+\end{code}
+</a
+      ><a name="543" class="Comment"
+      >\end{document}</a
+      ><a name="557"
+      >
+</a
+      ></pre
+    ></body
+  ></html
+>

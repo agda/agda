@@ -1,0 +1,469 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+><head
+  ><title
+    >IndentingContainer</title
+    ><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"
+     /><meta http-equiv="Content-Style-Type" content="text/css"
+     /><link href="Agda.css" rel="stylesheet" type="text/css"
+     /></head
+  ><body
+  ><pre
+    ><a name="1" class="Comment"
+      >\documentclass{article}</a
+      ><a name="24"
+      >
+
+</a
+      ><a name="26" class="Comment"
+      >\usepackage{agda}</a
+      ><a name="43"
+      >
+
+</a
+      ><a name="45" class="Comment"
+      >\begin{document}</a
+      ><a name="61"
+      >
+
+\begin{code}
+</a
+      ><a name="76" class="Keyword"
+      >record</a
+      ><a name="82"
+      > </a
+      ><a name="83" href="IndentingContainer.html#83" class="Record"
+      >Sigma</a
+      ><a name="88"
+      > </a
+      ><a name="89" class="Symbol"
+      >(</a
+      ><a name="90" href="IndentingContainer.html#90" class="Bound"
+      >A</a
+      ><a name="91"
+      > </a
+      ><a name="92" class="Symbol"
+      >:</a
+      ><a name="93"
+      > </a
+      ><a name="94" class="PrimitiveType"
+      >Set</a
+      ><a name="97" class="Symbol"
+      >)</a
+      ><a name="98"
+      > </a
+      ><a name="99" class="Symbol"
+      >(</a
+      ><a name="100" href="IndentingContainer.html#100" class="Bound"
+      >B</a
+      ><a name="101"
+      > </a
+      ><a name="102" class="Symbol"
+      >:</a
+      ><a name="103"
+      > </a
+      ><a name="104" href="IndentingContainer.html#90" class="Bound"
+      >A</a
+      ><a name="105"
+      > </a
+      ><a name="106" class="Symbol"
+      >&#8594;</a
+      ><a name="107"
+      > </a
+      ><a name="108" class="PrimitiveType"
+      >Set</a
+      ><a name="111" class="Symbol"
+      >)</a
+      ><a name="112"
+      > </a
+      ><a name="113" class="Symbol"
+      >:</a
+      ><a name="114"
+      > </a
+      ><a name="115" class="PrimitiveType"
+      >Set</a
+      ><a name="118"
+      > </a
+      ><a name="119" class="Keyword"
+      >where</a
+      ><a name="124"
+      >
+  </a
+      ><a name="127" class="Keyword"
+      >constructor</a
+      ><a name="138"
+      > </a
+      ><a name="139" href="IndentingContainer.html#139" class="InductiveConstructor Operator"
+      >_,_</a
+      ><a name="142"
+      >
+  </a
+      ><a name="145" class="Keyword"
+      >field</a
+      ><a name="150"
+      >
+    </a
+      ><a name="155" href="IndentingContainer.html#155" class="Field"
+      >proj&#8321;</a
+      ><a name="160"
+      > </a
+      ><a name="161" class="Symbol"
+      >:</a
+      ><a name="162"
+      > </a
+      ><a name="163" href="IndentingContainer.html#90" class="Bound"
+      >A</a
+      ><a name="164"
+      >
+    </a
+      ><a name="169" href="IndentingContainer.html#169" class="Field"
+      >proj&#8322;</a
+      ><a name="174"
+      > </a
+      ><a name="175" class="Symbol"
+      >:</a
+      ><a name="176"
+      > </a
+      ><a name="177" href="IndentingContainer.html#100" class="Bound"
+      >B</a
+      ><a name="178"
+      > </a
+      ><a name="179" href="IndentingContainer.html#155" class="Bound"
+      >proj&#8321;</a
+      ><a name="184"
+      >
+
+</a
+      ><a name="186" class="Keyword"
+      >open</a
+      ><a name="190"
+      > </a
+      ><a name="191" href="IndentingContainer.html#83" class="Module"
+      >Sigma</a
+      ><a name="196"
+      > </a
+      ><a name="197" class="Keyword"
+      >public</a
+      ><a name="203"
+      >
+\end{code}
+
+\begin{code}
+</a
+      ><a name="229" href="IndentingContainer.html#229" class="Function"
+      >uncurry</a
+      ><a name="236"
+      > </a
+      ><a name="237" class="Symbol"
+      >:</a
+      ><a name="238"
+      > </a
+      ><a name="239" class="Symbol"
+      >{</a
+      ><a name="240" href="IndentingContainer.html#240" class="Bound"
+      >A</a
+      ><a name="241"
+      > </a
+      ><a name="242" class="Symbol"
+      >:</a
+      ><a name="243"
+      > </a
+      ><a name="244" class="PrimitiveType"
+      >Set</a
+      ><a name="247" class="Symbol"
+      >}</a
+      ><a name="248"
+      > </a
+      ><a name="249" class="Symbol"
+      >{</a
+      ><a name="250" href="IndentingContainer.html#250" class="Bound"
+      >B</a
+      ><a name="251"
+      > </a
+      ><a name="252" class="Symbol"
+      >:</a
+      ><a name="253"
+      > </a
+      ><a name="254" href="IndentingContainer.html#240" class="Bound"
+      >A</a
+      ><a name="255"
+      > </a
+      ><a name="256" class="Symbol"
+      >&#8594;</a
+      ><a name="257"
+      > </a
+      ><a name="258" class="PrimitiveType"
+      >Set</a
+      ><a name="261" class="Symbol"
+      >}</a
+      ><a name="262"
+      > </a
+      ><a name="263" class="Symbol"
+      >{</a
+      ><a name="264" href="IndentingContainer.html#264" class="Bound"
+      >C</a
+      ><a name="265"
+      > </a
+      ><a name="266" class="Symbol"
+      >:</a
+      ><a name="267"
+      > </a
+      ><a name="268" href="IndentingContainer.html#83" class="Record"
+      >Sigma</a
+      ><a name="273"
+      > </a
+      ><a name="274" href="IndentingContainer.html#240" class="Bound"
+      >A</a
+      ><a name="275"
+      > </a
+      ><a name="276" href="IndentingContainer.html#250" class="Bound"
+      >B</a
+      ><a name="277"
+      > </a
+      ><a name="278" class="Symbol"
+      >&#8594;</a
+      ><a name="279"
+      > </a
+      ><a name="280" class="PrimitiveType"
+      >Set</a
+      ><a name="283" class="Symbol"
+      >}</a
+      ><a name="284"
+      > </a
+      ><a name="285" class="Symbol"
+      >&#8594;</a
+      ><a name="286"
+      >
+          </a
+      ><a name="297" class="Symbol"
+      >((</a
+      ><a name="299" href="IndentingContainer.html#299" class="Bound"
+      >x</a
+      ><a name="300"
+      > </a
+      ><a name="301" class="Symbol"
+      >:</a
+      ><a name="302"
+      > </a
+      ><a name="303" href="IndentingContainer.html#240" class="Bound"
+      >A</a
+      ><a name="304" class="Symbol"
+      >)</a
+      ><a name="305"
+      > </a
+      ><a name="306" class="Symbol"
+      >&#8594;</a
+      ><a name="307"
+      > </a
+      ><a name="308" class="Symbol"
+      >(</a
+      ><a name="309" href="IndentingContainer.html#309" class="Bound"
+      >y</a
+      ><a name="310"
+      > </a
+      ><a name="311" class="Symbol"
+      >:</a
+      ><a name="312"
+      > </a
+      ><a name="313" href="IndentingContainer.html#250" class="Bound"
+      >B</a
+      ><a name="314"
+      > </a
+      ><a name="315" href="IndentingContainer.html#299" class="Bound"
+      >x</a
+      ><a name="316" class="Symbol"
+      >)</a
+      ><a name="317"
+      > </a
+      ><a name="318" class="Symbol"
+      >&#8594;</a
+      ><a name="319"
+      > </a
+      ><a name="320" href="IndentingContainer.html#264" class="Bound"
+      >C</a
+      ><a name="321"
+      > </a
+      ><a name="322" class="Symbol"
+      >(</a
+      ><a name="323" href="IndentingContainer.html#299" class="Bound"
+      >x</a
+      ><a name="324"
+      > </a
+      ><a name="325" href="IndentingContainer.html#139" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="326"
+      > </a
+      ><a name="327" href="IndentingContainer.html#309" class="Bound"
+      >y</a
+      ><a name="328" class="Symbol"
+      >))</a
+      ><a name="330"
+      > </a
+      ><a name="331" class="Symbol"
+      >&#8594;</a
+      ><a name="332"
+      >
+          </a
+      ><a name="343" class="Symbol"
+      >((</a
+      ><a name="345" href="IndentingContainer.html#345" class="Bound"
+      >p</a
+      ><a name="346"
+      > </a
+      ><a name="347" class="Symbol"
+      >:</a
+      ><a name="348"
+      > </a
+      ><a name="349" href="IndentingContainer.html#83" class="Record"
+      >Sigma</a
+      ><a name="354"
+      > </a
+      ><a name="355" href="IndentingContainer.html#240" class="Bound"
+      >A</a
+      ><a name="356"
+      > </a
+      ><a name="357" href="IndentingContainer.html#250" class="Bound"
+      >B</a
+      ><a name="358" class="Symbol"
+      >)</a
+      ><a name="359"
+      > </a
+      ><a name="360" class="Symbol"
+      >&#8594;</a
+      ><a name="361"
+      > </a
+      ><a name="362" href="IndentingContainer.html#264" class="Bound"
+      >C</a
+      ><a name="363"
+      > </a
+      ><a name="364" href="IndentingContainer.html#345" class="Bound"
+      >p</a
+      ><a name="365" class="Symbol"
+      >)</a
+      ><a name="366"
+      >
+</a
+      ><a name="367" href="IndentingContainer.html#229" class="Function"
+      >uncurry</a
+      ><a name="374"
+      > </a
+      ><a name="375" href="IndentingContainer.html#375" class="Bound"
+      >f</a
+      ><a name="376"
+      > </a
+      ><a name="377" class="Symbol"
+      >(</a
+      ><a name="378" href="IndentingContainer.html#378" class="Bound"
+      >x</a
+      ><a name="379"
+      > </a
+      ><a name="380" href="IndentingContainer.html#139" class="InductiveConstructor Operator"
+      >,</a
+      ><a name="381"
+      > </a
+      ><a name="382" href="IndentingContainer.html#382" class="Bound"
+      >y</a
+      ><a name="383" class="Symbol"
+      >)</a
+      ><a name="384"
+      > </a
+      ><a name="385" class="Symbol"
+      >=</a
+      ><a name="386"
+      > </a
+      ><a name="387" href="IndentingContainer.html#375" class="Bound"
+      >f</a
+      ><a name="388"
+      > </a
+      ><a name="389" href="IndentingContainer.html#378" class="Bound"
+      >x</a
+      ><a name="390"
+      > </a
+      ><a name="391" href="IndentingContainer.html#382" class="Bound"
+      >y</a
+      ><a name="392"
+      >
+\end{code}
+
+\begin{code}
+</a
+      ><a name="418" class="Keyword"
+      >record</a
+      ><a name="424"
+      > </a
+      ><a name="425" href="IndentingContainer.html#425" class="Record"
+      >Container</a
+      ><a name="434"
+      > </a
+      ><a name="435" class="Symbol"
+      >:</a
+      ><a name="436"
+      > </a
+      ><a name="437" class="PrimitiveType"
+      >Set&#8321;</a
+      ><a name="441"
+      > </a
+      ><a name="442" class="Keyword"
+      >where</a
+      ><a name="447"
+      >
+  </a
+      ><a name="450" class="Keyword"
+      >constructor</a
+      ><a name="461"
+      > </a
+      ><a name="462" href="IndentingContainer.html#462" class="InductiveConstructor Operator"
+      >_&#9667;_</a
+      ><a name="465"
+      >
+  </a
+      ><a name="468" class="Keyword"
+      >field</a
+      ><a name="473"
+      >
+    </a
+      ><a name="478" href="IndentingContainer.html#478" class="Field"
+      >Parameter</a
+      ><a name="487"
+      > </a
+      ><a name="488" class="Symbol"
+      >:</a
+      ><a name="489"
+      > </a
+      ><a name="490" class="PrimitiveType"
+      >Set</a
+      ><a name="493"
+      >
+    </a
+      ><a name="498" href="IndentingContainer.html#498" class="Field"
+      >Arity</a
+      ><a name="503"
+      > </a
+      ><a name="504" class="Symbol"
+      >:</a
+      ><a name="505"
+      > </a
+      ><a name="506" href="IndentingContainer.html#478" class="Bound"
+      >Parameter</a
+      ><a name="515"
+      > </a
+      ><a name="516" class="Symbol"
+      >&#8594;</a
+      ><a name="517"
+      > </a
+      ><a name="518" class="PrimitiveType"
+      >Set</a
+      ><a name="521"
+      >
+\end{code}
+
+</a
+      ><a name="534" class="Comment"
+      >\end{document}</a
+      ><a name="548"
+      >
+</a
+      ></pre
+    ></body
+  ></html
+>

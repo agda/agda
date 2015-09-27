@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -86,6 +87,8 @@ import Data.Typeable (Typeable)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
+import GHC.Generics (Generic)
+
 import Test.QuickCheck.All
 
 import Agda.Utils.FileName hiding (tests)
@@ -121,7 +124,7 @@ data Position' a = Pn
   , posCol  :: !Int32
     -- ^ Column number, counting from 1.
   }
-    deriving (Typeable, Functor, Foldable, Traversable)
+  deriving (Typeable, Functor, Foldable, Traversable, Generic)
 
 positionInvariant :: Position' a -> Bool
 positionInvariant p =
@@ -144,7 +147,7 @@ type Position = Position' SrcFile
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
-    deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Generic)
 
 type Interval = Interval' SrcFile
 
@@ -165,7 +168,8 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 newtype Range' a = Range (Seq (Interval' a))
-  deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null)
+  deriving
+    (Typeable, Eq, Ord, Functor, Foldable, Traversable, Null, Generic)
 
 type Range = Range' SrcFile
 
@@ -886,6 +890,12 @@ instance (Ord a, Arbitrary a) => Arbitrary (Range' a) where
       | iEnd i1 >= iStart i2 = fuse (fuseIntervals i1 i2 : is)
       | otherwise            = i1 : fuse (i2 : is)
     fuse is = is
+
+instance CoArbitrary a => CoArbitrary (Position' a)
+instance CoArbitrary a => CoArbitrary (Interval' a)
+
+instance CoArbitrary a => CoArbitrary (Range' a) where
+  coarbitrary (Range is) = coarbitrary (Fold.toList is)
 
 prop_positionInvariant :: Position' Integer -> Bool
 prop_positionInvariant = positionInvariant

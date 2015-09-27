@@ -40,7 +40,6 @@ import Data.Monoid
 #endif
 
 import Agda.Compiler.UHC.AuxAST as AuxAST
-import Agda.Compiler.UHC.AuxASTUtil
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.MagicTypes
 import Agda.Syntax.Internal

@@ -153,6 +153,10 @@ followed:
 
     git push
 
+* Announce on the Agda developers mailing list the creation of the
+  NEWVERSION branch in the standard library to be used with the
+  maintenance branch of Agda.
+
 * Update the Agda Wiki:
 
   ** Update the Download page:

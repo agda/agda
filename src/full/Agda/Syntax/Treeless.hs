@@ -41,6 +41,8 @@ data TTerm = TVar Int
            -- It is also perfectly valid to just inline the bound term in the body.
            | TCase Int CaseType TTerm [TAlt]
            -- ^ Case scrutinee (always variable), case type, default value, alternatives
+           -- The order of alternatives is significant if there is any TAPlus alternative;
+           -- alternatives are matched top to bottom in that case.
            | TUnit -- used for levels right now
            | TSort
            | TErased
@@ -48,6 +50,8 @@ data TTerm = TVar Int
            -- ^ A runtime error, something bad has happened.
   deriving (Typeable, Show, Eq, Ord)
 
+-- | Compiler-related primitives. This are NOT the same thing as primitives
+-- in Agda's surface or internal syntax!
 data TPrim = PAdd | PSub | PDiv | PMod | PGeq | PIf
   deriving (Typeable, Show, Eq, Ord)
 
@@ -101,5 +105,9 @@ data TAlt
   deriving (Typeable, Show, Eq, Ord)
 
 data TError
-  = TPatternMatchFailure QName -- function name
+  = TUnreachable QName {- def name where it happend -}
+  -- ^ Code which is unreachable. E.g. absurd branches or missing case defaults.
+  -- Runtime behaviour of unreachable code is undefined, but preferably
+  -- the program will exit with an error message. The compiler is free
+  -- to assume that this code is unreachable and to remove it.
   deriving (Typeable, Show, Eq, Ord)

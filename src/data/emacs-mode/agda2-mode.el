@@ -1595,7 +1595,7 @@ invoked."
   (interactive)
   (annotation-go-back))
 
-(defun agda2-goto-asynchronously (filepos)
+(defun agda2-maybe-goto (filepos)
   "Might move point to the given error.
 FILEPOS should have the form (FILE . POSITION).
 

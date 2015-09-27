@@ -48,7 +48,7 @@ import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Core
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
-import qualified Agda.Compiler.UHC.Smashing     as Smash
+--import qualified Agda.Compiler.UHC.Smashing     as Smash
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.AuxAST
 
@@ -276,7 +276,7 @@ compileDefns modNm curModImps transModIface opts iface = do
 
     (amod', modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface iface $ \amod ->
                    return amod
-               >>= optim optOptimSmashing "smashing"      Smash.smash'em
+--               >>= optim optOptimSmashing "smashing"      Smash.smash'em
                >>= idPrint "done" return
     reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show modNm ++ "\"."
     crMod <- toCore amod' modInfo (transModIface `mappend` (amiInterface modInfo)) curModImps

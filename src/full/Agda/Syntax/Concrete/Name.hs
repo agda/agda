@@ -214,7 +214,6 @@ projectRoot file (TopLevelModuleName m) =
 noName_ :: Name
 noName_ = noName noRange
 
--- | @noName r = 'Name' r ['Hole']@
 noName :: Range -> Name
 noName r = NoName r (NameId 0 0)
 
