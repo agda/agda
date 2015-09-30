@@ -14,6 +14,7 @@ import qualified Data.IntSet as IntSet
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
@@ -112,8 +113,16 @@ teleNames = map (fst . unDom) . telToList
 teleArgNames :: Telescope -> [Arg ArgName]
 teleArgNames = map (argFromDom . fmap fst) . telToList
 
-teleArgs :: Telescope -> Args
-teleArgs tel = [ Arg info (var i) | (i, Dom info _) <- zip (downFrom $ size l) l ]
+teleArgs :: (DeBruijn a) => Telescope -> [Arg a]
+teleArgs tel =
+  [ Arg info (debruijnNamedVar n i)
+  | (i, Dom info (n,_)) <- zip (downFrom $ size l) l ]
+  where l = telToList tel
+
+teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
+teleNamedArgs tel =
+  [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) (debruijnNamedVar name i))
+  | (i, Dom info (name,_)) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
 -- | Recursively computes dependencies of a set of variables in a given
