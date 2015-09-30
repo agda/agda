@@ -92,78 +92,11 @@ instance EmbPrj LocalVar where
                            valu [a, b] = valu2 ShadowedVar a b
                            valu _      = malformed
 
--- Only used for pattern synonyms
-instance EmbPrj A.Expr where
-  icod_ (A.Var n)               = icode1 0 n
-  icod_ (A.Def n)               = icode1 1 n
-  icod_ (A.Con ns)              = icode1 2 ns
-  icod_ (A.Lit l)               = icode1 3 l
-  icod_ (A.QuestionMark{})      = icode0 4
-  icod_ (A.Underscore _)        = icode0 5
-  icod_ (A.App _ a b)           = icode2 6 a b
-  icod_ (A.WithApp _ a b)       = icode2 7 a b
-  icod_ (A.Lam  _ a b)          = icode2 8 a b
-  icod_ (A.AbsurdLam _ a)       = icode1 9 a
-  icod_ (A.ExtendedLam _ _ _ _) = __IMPOSSIBLE__
-  icod_ (A.Pi   _ a b)          = icode2 11 a b
-  icod_ (A.Fun  _ a b)          = icode2 12 a b
-  icod_ (A.Set  _ a)            = icode1 13 a
-  icod_ (A.Prop _)              = icode0 14
-  icod_ (A.Let  _ _ _)          = __IMPOSSIBLE__
-  icod_ (A.ETel{})              = __IMPOSSIBLE__
-  icod_ (A.Rec  _ a)            = icode1 17 a
-  icod_ (A.RecUpdate _ a b)     = icode2 18 a b
-  -- Andreas, 2015-07-15, drop scopes embedded in expressions.
-  -- As expressions are not @unScope@d before serialization,
-  -- this case is not __IMPOSSIBLE__.
-  icod_ (A.ScopedExpr a b)      = icod_ b -- WAS: icode2 19 a b
-  icod_ (A.QuoteGoal _ a b)     = icode2 20 a b
-  icod_ (A.QuoteContext _)      = icode0 21
-  icod_ (A.Quote _)             = icode0 22
-  icod_ (A.QuoteTerm _)         = icode0 23
-  icod_ (A.Unquote _)           = icode0 24
-  icod_ (A.Tactic _ _ _ _)      = __IMPOSSIBLE__
-  icod_ (A.DontCare a)          = icode1 25 a
-  icod_ (A.PatternSyn a)        = icode1 26 a
-  icod_ (A.Proj a)              = icode1 27 a
-  icod_ (A.Macro a)             = icode1 28 a
-
-  value = vcase valu
-    where
-      valu [0, a]     = valu1 A.Var a
-      valu [1, a]     = valu1 A.Def a
-      valu [2, a]     = valu1 A.Con a
-      valu [3, a]     = valu1 A.Lit a
-      valu [4]        = valu0 (A.QuestionMark emptyMetaInfo 0)
-      valu [5]        = valu0 (A.Underscore emptyMetaInfo)
-      valu [6, a, b]  = valu2 (A.App i) a b
-      valu [7, a, b]  = valu2 (A.WithApp i) a b
-      valu [8, a, b]  = valu2 (A.Lam i) a b
-      valu [9, a]     = valu1 (A.AbsurdLam i) a
-      valu [11, a, b] = valu2 (A.Pi i) a b
-      valu [12, a, b] = valu2 (A.Fun i) a b
-      valu [13, a]    = valu1 (A.Set i) a
-      valu [14]       = valu0 (A.Prop i)
-      valu [17, a]    = valu1 (A.Rec i) a
-      valu [18, a, b] = valu2 (A.RecUpdate i) a b
-      -- valu [19, a, b] = valu2 A.ScopedExpr a b
-      valu [20, a, b] = valu2 (A.QuoteGoal i) a b
-      valu [21]       = valu0 (A.QuoteContext i)
-      valu [22]       = valu0 (A.Quote i)
-      valu [23]       = valu0 (A.QuoteTerm i)
-      valu [24]       = valu0 (A.Unquote i)
-      valu [25, a]    = valu1 A.DontCare a
-      valu [26, a]    = valu1 A.PatternSyn a
-      valu [27, a]    = valu1 A.Proj a
-      valu [28, a]    = valu1 A.Macro a
-      valu _          = malformed
-
-      i = ExprRange noRange
-
 instance EmbPrj ConPatInfo where
   icod_ (ConPatInfo a _) = icod_ a
   value a = flip ConPatInfo patNoRange <$> value a
 
+-- Only for pattern synonyms (where a is Void)
 instance EmbPrj a => EmbPrj (A.Pattern' a) where
   icod_ (A.VarP a)            = icode1 0 a
   icod_ (A.ConP a b c)        = icode3 1 a b c
@@ -178,57 +111,19 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
 
   value = vcase valu
     where
-     valu [0, a]    = valu1 A.VarP a
+     valu [0, a]       = valu1 A.VarP a
      valu [1, a, b, c] = valu3 A.ConP a b c
-     valu [2, a, b] = valu2 (A.DefP i) a b
-     valu [3]       = valu0 (A.WildP i)
-     valu [4, a, b] = valu2 (A.AsP i) a b
-     valu [5, a]    = valu1 (A.DotP i) a
-     valu [6]       = valu0 (A.AbsurdP i)
-     valu [7, a]    = valu1 (A.LitP) a
-     valu [9, a, b] = valu2 (A.PatternSynP i) a b
-     valu [10, a]   = valu1 (A.RecP i) a
-     valu _         = malformed
+     valu [2, a, b]    = valu2 (A.DefP i) a b
+     valu [3]          = valu0 (A.WildP i)
+     valu [4, a, b]    = valu2 (A.AsP i) a b
+     valu [5, a]       = valu1 (A.DotP i) a
+     valu [6]          = valu0 (A.AbsurdP i)
+     valu [7, a]       = valu1 (A.LitP) a
+     valu [9, a, b]    = valu2 (A.PatternSynP i) a b
+     valu [10, a]      = valu1 (A.RecP i) a
+     valu _            = malformed
 
      i  = patNoRange
-
-instance EmbPrj A.LamBinding where
-  icod_ (A.DomainFree i e) = icode2 0 i e
-  icod_ (A.DomainFull a)   = icode1 1 a
-
-  value = vcase valu where valu [0, i, e] = valu2 A.DomainFree i e
-                           valu [1, a]    = valu1 A.DomainFull a
-                           valu _         = malformed
-
-instance EmbPrj A.LetBinding where
-  icod_ (A.LetBind _ a b c d)     = icode4 0 a b c d
-  icod_ (A.LetPatBind _ a b )     = icode2 1 a b
-  icod_ (A.LetApply _ _ _ _ _)    = icode0 2
-  icod_ (A.LetOpen _ _)           = icode0 2
-  icod_ (A.LetDeclaredVariable a) = icode1 3 a
-
-  value = vcase valu
-    where
-      valu [0, a, b, c, d] = valu4 (A.LetBind (LetRange noRange)) a b c d
-      valu [1, a, b]       = valu2 (A.LetPatBind (LetRange noRange)) a b
-      valu [2]             = throwError $ NotSupported
-                                 "importing pattern synonym containing let module"
-      valu [3, a]          = valu1 A.LetDeclaredVariable a
-      valu _               = malformed
-
-instance EmbPrj A.TypedBindings where
-  icod_ (A.TypedBindings a b) = icode2' a b
-
-  value = vcase valu where valu [a, b] = valu2 A.TypedBindings a b
-                           valu _      = malformed
-
-instance EmbPrj A.TypedBinding where
-  icod_ (A.TBind a b c) = icode3 0 a b c
-  icod_ (A.TLet a b)    = icode2 1 a b
-
-  value = vcase valu where valu [0, a, b, c] = valu3 A.TBind a b c
-                           valu [1, a, b]    = valu2 A.TLet a b
-                           valu _            = malformed
 
 instance EmbPrj Precedence where
   icod_ TopCtx                 = icode0'

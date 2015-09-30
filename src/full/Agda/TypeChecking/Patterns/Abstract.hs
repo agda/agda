@@ -9,6 +9,7 @@ module Agda.TypeChecking.Patterns.Abstract where
 
 import Data.List
 import Data.Traversable hiding (mapM, sequence)
+import Data.Void
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views
@@ -92,7 +93,7 @@ instance ExpandPatternSynonyms A.Pattern where
       where
         instPatternSyn :: A.PatternSynDefn -> [NamedArg A.Pattern] -> TCM A.Pattern
         instPatternSyn (ns, p) as = do
-          p <- expandPatternSynonyms p
+          p <- expandPatternSynonyms (vacuous p)
           case A.insertImplicitPatSynArgs (A.WildP . PatRange) (getRange x) ns as of
             Nothing       -> typeError $ BadArgumentsToPatternSynonym x
             Just (_, _:_) -> typeError $ TooFewArgumentsToPatternSynonym x

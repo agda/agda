@@ -42,6 +42,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Void
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Generic
@@ -162,21 +163,22 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
       A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
       A.RecP _ fs            -> concatMap (vars . (^. exprFieldA)) fs
 
--- | Make sure that each variable occurs only once.
-hasDotPattern :: A.Pattern' e -> Bool
-hasDotPattern = dot
+-- | Make sure that there are no dot patterns (called on pattern synonyms).
+noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
+noDotPattern err = dot
   where
+    dot :: A.Pattern' e -> ScopeM (A.Pattern' Void)
     dot p = case p of
-      A.VarP{}               -> False
-      A.ConP _ _ args        -> any (dot . namedArg) args
-      A.WildP{}              -> False
-      A.AsP _ _ p            -> dot p
-      A.DotP{}               -> True
-      A.AbsurdP{}            -> False
-      A.LitP{}               -> False
-      A.DefP _ _ args        -> any (dot . namedArg) args
-      A.PatternSynP _ _ args -> any (dot . namedArg) args
-      A.RecP _ fs            -> any (dot . (^. exprFieldA)) fs
+      A.VarP x               -> pure $ A.VarP x
+      A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
+      A.WildP i              -> pure $ A.WildP i
+      A.AsP i x p            -> A.AsP i x <$> dot p
+      A.DotP{}               -> typeError $ GenericError err
+      A.AbsurdP i            -> pure $ A.AbsurdP i
+      A.LitP l               -> pure $ A.LitP l
+      A.DefP i f args        -> A.DefP i f <$> (traverse $ traverse $ traverse dot) args
+      A.PatternSynP i c args -> A.PatternSynP i c <$> (traverse $ traverse $ traverse dot) args
+      A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> C.Expr
@@ -1402,10 +1404,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
       defn@(as, p) <- withLocalVars $ do
-         p  <- toAbstract =<< toAbstract =<< parsePatternSyn p
+         p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
-         when (hasDotPattern p) $
-          typeError $ GenericError "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
+         let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
+         p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
          return (as, p)

@@ -39,6 +39,7 @@ import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -787,7 +788,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
 
   toConcrete (A.PatternSynDef x xs p) = do
     C.QName x <- toConcrete x
-    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete p
+    bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete (vacuous p :: A.Pattern)
 
   toConcrete (A.UnquoteDecl _ i x e) = do
     C.QName x <- toConcrete x
