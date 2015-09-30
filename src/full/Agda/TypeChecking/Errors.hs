@@ -38,6 +38,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (instantiate)
 
@@ -600,9 +601,14 @@ instance PrettyTCM TypeError where
       pwords "Duplicate binding for built-in thing" ++ [text b <> comma] ++
       pwords "previous binding to" ++ [prettyTCM x]
 
-    NoBindingForBuiltin x -> fsep $
-      pwords "No binding for builtin thing" ++ [text x <> comma] ++
-      pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
+    NoBindingForBuiltin x
+      | elem x [builtinZero, builtinSuc] -> fsep $
+        pwords "No binding for builtin " ++ [text x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ builtinNat ++ " name #-} to bind builtin natural " ++
+                "numbers to the type 'name'")
+      | otherwise -> fsep $
+        pwords "No binding for builtin thing" ++ [text x <> comma] ++
+        pwords ("use {-# BUILTIN " ++ x ++ " name #-} to bind it to 'name'")
 
     NoSuchPrimitiveFunction x -> fsep $
       pwords "There is no primitive function called" ++ [text x]
