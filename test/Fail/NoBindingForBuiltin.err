@@ -1,4 +1,4 @@
 NoBindingForBuiltin.agda:3,7-9
-No binding for builtin thing ZERO, use {-# BUILTIN ZERO name #-} to
-bind it to 'name'
+No binding for builtin ZERO, use {-# BUILTIN NATURAL name #-} to
+bind builtin natural numbers to the type 'name'
 when checking that the expression 42 has type _1
