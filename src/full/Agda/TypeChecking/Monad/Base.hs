@@ -1082,6 +1082,12 @@ data CompiledRepresentation = CompiledRep
 noCompiledRep :: CompiledRepresentation
 noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing
 
+-- | Additional information for extended lambdas.
+data ExtLamInfo = ExtLamInfo
+  { extLamNumHidden :: Int  -- Number of hidden args to be dropped when printing.
+  , extLamNumNonHid :: Int  -- Number of visible args to be dropped when printing.
+  } deriving (Typeable, Eq, Ord, Show)
+
 -- | Additional information for projection 'Function's.
 data Projection = Projection
   { projProper    :: Maybe QName
@@ -1137,7 +1143,7 @@ data Defn = Axiom
                                    -- instantiation?
             , funTerminates     :: Maybe Bool
               -- ^ Has this function been termination checked?  Did it pass?
-            , funExtLam         :: Maybe (Int,Int)
+            , funExtLam         :: Maybe ExtLamInfo
               -- ^ Is this function generated from an extended lambda?
               --   If yes, then return the number of hidden and non-hidden lambda-lifted arguments
             , funWith           :: Maybe QName
@@ -2410,6 +2416,9 @@ instance KillRange RewriteRule where
     killRange5 RewriteRule q gamma lhs rhs t
 
 instance KillRange CompiledRepresentation where
+  killRange = id
+
+instance KillRange ExtLamInfo where
   killRange = id
 
 instance KillRange Defn where

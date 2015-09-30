@@ -45,10 +45,7 @@ import qualified Agda.Utils.HashMap as HMap
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-data CaseContext
-  = FunctionDef
-  | ExtendedLambda Int Int
-  deriving (Eq)
+type CaseContext = Maybe ExtLamInfo
 
 -- | Find the clause whose right hand side is the given meta
 -- BY SEARCHING THE WHOLE SIGNATURE. Returns
@@ -68,7 +65,7 @@ findClause m = do
         Function{funClauses = cs, funExtLam = extlam} <- [theDef def]
         c <- cs
         unless (rhsIsm $ clauseBody c) []
-        return (defName def, c, extlam)
+        return (extlam, defName def, c)
   case res of
     []  -> do
       reportSDoc "interaction.case" 10 $ vcat $
@@ -84,8 +81,7 @@ findClause m = do
         -- SUPER UGLY HACK.
         (typeError $ GenericError "Since goal is solved, further case distinction is not supported; try `Solve constraints' instead")
         (typeError $ GenericError "Right hand side must be a single hole when making a case distinction")
-    [(n,c, Just (h, nh))] -> return (ExtendedLambda h nh , n , c)
-    [(n,c, Nothing)]      -> return (FunctionDef , n , c)
+    [triple] -> return triple
     _   -> __IMPOSSIBLE__
   where
     rhsIsm (Bind b)   = rhsIsm $ unAbs b
