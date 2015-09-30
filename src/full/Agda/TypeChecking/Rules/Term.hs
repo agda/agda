@@ -24,6 +24,7 @@ import Data.Monoid (mappend)
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 import Data.Traversable (sequenceA)
+import Data.Void
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
@@ -984,7 +985,7 @@ checkApplication hd args e t = do
     -- Subcase: pattern synonym
     A.PatternSyn n -> do
       (ns, p) <- lookupPatternSyn n
-      p <- setRange (getRange n) . killRange <$> expandPatternSynonyms p  -- expand recursive pattern synonyms
+      p <- setRange (getRange n) . killRange <$> expandPatternSynonyms (vacuous p)  -- expand recursive pattern synonyms
       -- Expand the pattern synonym by substituting for
       -- the arguments we have got and lambda-lifting
       -- over the ones we haven't.

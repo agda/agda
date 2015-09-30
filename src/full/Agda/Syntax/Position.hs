@@ -86,6 +86,7 @@ import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Void
 
 import GHC.Generics (Generic)
 
@@ -413,6 +414,9 @@ killRange19 f a = killRange18 (f $ killRange a)
 
 instance KillRange Range where
   killRange _ = noRange
+
+instance KillRange Void where
+  killRange = id
 
 instance KillRange () where
   killRange = id

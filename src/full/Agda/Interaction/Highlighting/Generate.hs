@@ -34,6 +34,7 @@ import Data.Maybe
 import Data.List ((\\), isPrefixOf)
 import qualified Data.Foldable as Fold (fold, foldMap)
 import qualified Data.IntMap as IntMap
+import Data.Void
 
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 import Agda.Interaction.Highlighting.Precise hiding (tests)
@@ -212,6 +213,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     , Fold.foldMap getLam         $ universeBi decl
     , Fold.foldMap getTyped       $ universeBi decl
     , Fold.foldMap getPattern     $ universeBi decl
+    , Fold.foldMap getPatternSyn  $ universeBi decl
     , Fold.foldMap getExpr        $ universeBi decl
     , Fold.foldMap getPatSynArgs  $ universeBi decl
     , Fold.foldMap getModuleName  $ universeBi decl
@@ -274,15 +276,21 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getPatSynArgs (A.PatternSynDef _ xs _) = mconcat $ map (bound . Common.unArg) xs
     getPatSynArgs _                        = mempty
 
-    getPattern :: A.Pattern -> File
-    getPattern (A.VarP x)    = bound x
-    getPattern (A.AsP _ x _) = bound x
-    getPattern (A.DotP pi _) =
+    getPattern' :: A.Pattern' e -> File
+    getPattern' (A.VarP x)    = bound x
+    getPattern' (A.AsP _ x _) = bound x
+    getPattern' (A.DotP pi _) =
       singleton (rToR $ P.getRange pi)
                 (mempty { otherAspects = [DottedPattern] })
-    getPattern (A.PatternSynP _ q _) = patsyn q
-    getPattern (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
-    getPattern _             = mempty
+    getPattern' (A.PatternSynP _ q _) = patsyn q
+    getPattern' (A.RecP _ fs) = mconcat [ field [] x | FieldAssignment x _ <- fs ]
+    getPattern' _             = mempty
+
+    getPattern :: A.Pattern -> File
+    getPattern = getPattern'
+
+    getPatternSyn :: A.Pattern' Void -> File
+    getPatternSyn = getPattern'
 
     getExpr :: A.Expr -> File
     getExpr (A.PatternSyn q) = patsyn q

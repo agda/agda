@@ -32,6 +32,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Void
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
@@ -97,6 +98,10 @@ instance EmbPrj Char where
 instance EmbPrj Double where
   icod_   = icodeDouble
   value i = (! i) `fmap` gets doubleE
+
+instance EmbPrj Void where
+  icod_ = absurd
+  value = vcase valu where valu _ = malformed
 
 instance EmbPrj () where
   icod_ () = icode0'

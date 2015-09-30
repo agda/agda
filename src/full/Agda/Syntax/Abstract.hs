@@ -27,6 +27,7 @@ import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
 import Data.Traversable
 import Data.Typeable (Typeable)
+import Data.Void
 
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import qualified Agda.Syntax.Concrete as C
@@ -125,7 +126,7 @@ data Declaration
   | RecDef     DefInfo QName (Maybe (Ranged Induction)) (Maybe Bool) (Maybe QName) [LamBinding] Expr [Declaration]
       -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
       --   and the optional name is the constructor's name.
-  | PatternSynDef QName [Arg Name] Pattern
+  | PatternSynDef QName [Arg Name] (Pattern' Void)
       -- ^ Only for highlighting purposes
   | UnquoteDecl MutualInfo DefInfo QName Expr
   | UnquoteDef  DefInfo QName Expr
@@ -647,6 +648,7 @@ instanceUniverseBiT' [] [t| (Declaration, LetBinding)     |]
 instanceUniverseBiT' [] [t| (Declaration, LamBinding)     |]
 instanceUniverseBiT' [] [t| (Declaration, TypedBinding)   |]
 instanceUniverseBiT' [] [t| (Declaration, Pattern)        |]
+instanceUniverseBiT' [] [t| (Declaration, Pattern' Void)  |]
 instanceUniverseBiT' [] [t| (Declaration, Declaration)    |]
 instanceUniverseBiT' [] [t| (Declaration, ModuleName)     |]
 instanceUniverseBiT' [] [t| (Declaration, ModuleInfo)     |]
@@ -830,7 +832,7 @@ patternToExpr (LitP l)            = Lit l
 patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
 patternToExpr (RecP _ as)         = Rec exprNoRange $ map (Left . fmap patternToExpr) as
 
-type PatternSynDefn = ([Arg Name], Pattern)
+type PatternSynDefn = ([Arg Name], Pattern' Void)
 type PatternSynDefns = Map QName PatternSynDefn
 
 lambdaLiftExpr :: [Name] -> Expr -> Expr
