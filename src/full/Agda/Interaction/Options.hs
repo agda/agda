@@ -4,7 +4,7 @@ module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , PragmaOptions(..)
     , OptionsPragma
-    , Flag
+    , Flag, OptM, runOptM
     , Verbosity
     , IncludeDirs
     , checkOpts
@@ -28,6 +28,7 @@ module Agda.Interaction.Options
     , getOptSimple
     ) where
 
+import Control.Applicative
 import Control.Monad            ( when )
 
 -- base-4.7 defines the Functor instances for OptDescr and ArgDescr
@@ -35,6 +36,9 @@ import Control.Monad            ( when )
 import Data.Orphans             ()
 #endif
 
+import Control.Monad.Except
+
+import Data.Either
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
@@ -45,6 +49,8 @@ import System.Directory         ( doesDirectoryExist )
 import Text.EditDistance
 
 import Agda.Termination.CutOff  ( CutOff(..) )
+
+import Agda.Interaction.Library
 
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
@@ -239,49 +245,52 @@ defaultLaTeXDir = "latex"
 defaultHTMLDir :: String
 defaultHTMLDir = "html"
 
-prop_defaultOptions :: Bool
-prop_defaultOptions = case checkOpts defaultOptions of
-  Left  _ -> False
-  Right _ -> True
+prop_defaultOptions :: IO Bool
+prop_defaultOptions = isRight <$> runOptM (checkOpts defaultOptions)
+
+type OptM = ExceptT String IO
+
+runOptM :: OptM a -> IO (Either String a)
+runOptM = runExceptT
 
 {- | @f :: Flag opts@  is an action on the option record that results from
      parsing an option.  @f opts@ produces either an error message or an
      updated options record
 -}
-type Flag opts = opts -> Either String opts
+type Flag opts = opts -> OptM opts
 
 -- | Checks that the given options are consistent.
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x]) = Left
+  | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x]) = throwError
       "Unsolved meta variables are not allowed when compiling.\n"
-  | optCompileNoMain opts && (not (optCompile opts || optUHCCompile opts)) = Left
+  | optCompileNoMain opts && (not (optCompile opts || optUHCCompile opts)) = throwError
       "--no-main only allowed in combination with --compile.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
-      Left "Choose at most one: input file or --interaction.\n"
+      throwError "Choose at most one: input file or --interaction.\n"
   | not (atMostOne $ interactive ++ [\x -> optCompile x, optEpicCompile, optJSCompile]) =
-      Left "Choose at most one: compilers/--interactive/--interaction.\n"
+      throwError "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
-      Left "Choose at most one: --html/--interactive/--interaction.\n"
+      throwError "Choose at most one: --html/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
-      Left "Choose at most one: --dependency-graph/--interactive/--interaction.\n"
+      throwError "Choose at most one: --dependency-graph/--interactive/--interaction.\n"
   | not (atMostOne [ optUniversePolymorphism . p
                    , not . optUniverseCheck . p
                    ]) =
-      Left "Cannot have both universe polymorphism and type in type.\n"
+      throwError "Cannot have both universe polymorphism and type in type.\n"
   | not (atMostOne $ interactive ++ [optGenerateLaTeX]) =
-      Left "Choose at most one: --latex/--interactive/--interaction.\n"
+      throwError "Choose at most one: --latex/--interactive/--interaction.\n"
   | (not . null . optEpicFlags $ opts)
       && not (optEpicCompile opts) =
-      Left "Cannot set Epic flags without using the Epic backend.\n"
+      throwError "Cannot set Epic flags without using the Epic backend.\n"
   | (isJust $ optUHCBin opts)
       && not (optUHCCompile opts) =
-      Left "Cannot set uhc binary without using UHC backend.\n"
+      throwError "Cannot set uhc binary without using UHC backend.\n"
   | (optUHCTextualCore opts)
       && not (optUHCCompile opts) =
-      Left "Cannot set --uhc-textual-core without using UHC backend.\n"
-  | otherwise = Right opts
+      throwError "Cannot set --uhc-textual-core without using UHC backend.\n"
+  | otherwise = return opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
 
@@ -523,7 +532,7 @@ terminationDepthFlag s o =
        return $ o { optTerminationDepth = CutOff $ k-1 }
     where usage = throwError "argument to termination-depth should be >= 1"
 
-integerArgument :: String -> String -> Either String Int
+integerArgument :: String -> String -> OptM Int
 integerArgument flag s =
     readM s `catchError` \_ ->
         throwError $ "option '" ++ flag ++ "' requires an integer argument"
@@ -715,7 +724,7 @@ getOptSimple argv opts fileArg = \ defaults ->
       sugs as  = "any of " ++ intercalate " " as
 
 -- | Parse the standard options.
-parseStandardOptions :: [String] -> Either String CommandLineOptions
+parseStandardOptions :: [String] -> OptM CommandLineOptions
 parseStandardOptions argv =
   checkOpts =<<
     getOptSimple argv standardOptions inputFlag defaultOptions
@@ -726,7 +735,7 @@ parsePragmaOptions
      -- ^ Pragma options.
   -> CommandLineOptions
      -- ^ Command-line options which should be updated.
-  -> Either String PragmaOptions
+  -> OptM PragmaOptions
 parsePragmaOptions argv opts = do
   ps <- getOptSimple argv pragmaOptions
           (\s _ -> throwError $ "Bad option in pragma: " ++ s)
@@ -784,6 +793,6 @@ defaultLibDir = do
 
 tests :: IO Bool
 tests = runTests "Agda.Interaction.Options"
-  [ quickCheck' prop_defaultOptions
+  [ prop_defaultOptions
   , defaultPragmaOptionsSafe
   ]

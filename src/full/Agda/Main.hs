@@ -52,7 +52,7 @@ runAgda :: TCM ()
 runAgda = do
   progName <- liftIO getProgName
   argv     <- liftIO getArgs
-  let opts = parseStandardOptions argv
+  opts     <- liftIO $ runOptM $ parseStandardOptions argv
   case opts of
     Left err -> liftIO $ optionError err
     Right opts -> runAgdaWithOptions generateHTML progName opts

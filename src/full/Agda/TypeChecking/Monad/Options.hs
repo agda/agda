@@ -46,7 +46,8 @@ setPragmaOptions opts = do
   clo <- commandLineOptions
   let unsafe = unsafePragmaOptions opts
   when (optSafe clo && not (null unsafe)) $ typeError (SafeFlagPragma unsafe)
-  case checkOpts (clo { optPragmaOptions = opts }) of
+  ok <- liftIO $ runOptM $ checkOpts (clo { optPragmaOptions = opts })
+  case ok of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       stPragmaOptions .= optPragmaOptions opts
@@ -64,8 +65,9 @@ setPragmaOptions opts = do
 -- interpreted as @["."]@.
 
 setCommandLineOptions :: CommandLineOptions -> TCM ()
-setCommandLineOptions opts =
-  case checkOpts opts of
+setCommandLineOptions opts = do
+  z <- liftIO $ runOptM $ checkOpts opts
+  case z of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       incs <- case optIncludeDirs opts of
@@ -96,9 +98,10 @@ instance MonadIO m => HasOptions (TCMT m) where
 setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
-    case parsePragmaOptions ps opts of
-        Left err    -> typeError $ GenericError err
-        Right opts' -> setPragmaOptions opts'
+    z    <- liftIO $ runOptM (parsePragmaOptions ps opts)
+    case z of
+      Left err    -> typeError $ GenericError err
+      Right opts' -> setPragmaOptions opts'
 
 -- | Disable display forms.
 enableDisplayForms :: TCM a -> TCM a
