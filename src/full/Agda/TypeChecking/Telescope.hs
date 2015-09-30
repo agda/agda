@@ -8,19 +8,24 @@
 module Agda.TypeChecking.Telescope where
 
 import Control.Applicative
-import Control.Monad (forM_, unless)
+import Control.Monad (forM_, unless, guard)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
+import Data.List
+import Data.Maybe
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Free
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -177,6 +182,107 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     m     = size is
     (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
+
+-- | As splitTelescope, but fails if any additional variables or reordering
+--   would be needed to make the first part well-typed.
+splitTelescopeExact
+  :: [Int]          -- ^ A list of de Bruijn indices
+  -> Telescope      -- ^ The telescope to split
+  -> Maybe SplitTel -- ^ @firstPart@ mentions the given variables in the given order,
+                    --   @secondPart@ contains all other variables
+splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
+  where
+    names = teleNames tel
+    ts0   = flattenTel tel
+    n     = size tel
+
+    checkDependencies :: IntSet -> [Int] -> Bool
+    checkDependencies soFar []     = True
+    checkDependencies soFar (j:js) = ok && checkDependencies (IntSet.insert j soFar) js
+      where
+        fv' = allFreeVars $ ts0 !! (n-1-j)
+        fv  = fv' `IntSet.intersection` IntSet.fromAscList [ 0 .. n-1 ]
+        ok  = fv `IntSet.isSubsetOf` soFar
+
+    ok    = all (<n) is && checkDependencies IntSet.empty is
+
+    isC   = downFrom n \\ is
+
+    perm  = Perm n $ map (n-1-) $ is ++ isC
+
+    ts1   = renameP (reverseP perm) (permute perm ts0)
+
+    tel'  = unflattenTel (permute perm names) ts1
+
+    m     = size is
+    (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
+
+-- | Try to instantiate one variable in the telescope (given by its de Bruijn
+--   level) with the given value, returning the new telescope and a
+--   substitution to the old one. Returns Nothing if the given value depends
+--   (directly or indirectly) on the variable.
+instantiateTelescope
+  :: Telescope -- ^ ⊢ Γ
+  -> Int       -- ^ Γ ⊢ var k : A
+  -> Term      -- ^ Γ ⊢ u : A
+  -> Maybe (Telescope,           -- ^ ⊢ Γ'
+            PatternSubstitution, -- ^ Γ' ⊢ σ : Γ
+            Permutation)         -- ^ Γ  ⊢ flipP ρ : Γ'
+instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
+  where
+    names = teleNames tel
+    ts0   = flattenTel tel
+    n     = size tel
+    j     = n-1-k
+
+    -- is0 is the part of Γ that is needed to type u
+    is0   = varDependencies tel $ allFreeVars u
+    -- is1 is the rest of Γ (minus the variable we are instantiating)
+    is1   = IntSet.delete j $
+              IntSet.fromAscList [ 0 .. n-1 ] `IntSet.difference` is0
+    -- we work on de Bruijn indices, so later parts come first
+    is    = IntSet.toAscList is1 ++ IntSet.toAscList is0
+
+    -- if u depends on var j, we cannot instantiate
+    ok    = not $ j `IntSet.member` is0
+
+    perm  = Perm n $ is    -- works on de Bruijn indices
+    rho   = reverseP perm  -- works on de Bruijn levels
+
+    u'    = renameP perm u -- Γ' ⊢ u' : A'
+    us    = map (\i -> fromMaybe (DotP u') (debruijnVar <$> findIndex (i ==) is)) [ 0 .. n-1 ]
+    sigma = us ++# raiseS (n-1)
+
+    ts1   = permute rho $ applyPatSubst sigma ts0
+    tel'  = unflattenTel (permute rho names) ts1
+
+-- | Try to eta-expand one variable in the telescope (given by its de Bruijn
+--   level)
+expandTelescopeVar
+  :: Telescope  -- Γ = Γ₁(x : D pars)Γ₂
+  -> Int        -- k = size Γ₁
+  -> Telescope  -- Γ₁ ⊢ Δ
+  -> ConHead    -- Γ₁ ⊢ c : Δ → D pars
+  -> ( Telescope            -- Γ' = Γ₁ΔΓ₂[x ↦ c Δ]
+     , PatternSubstitution) -- Γ' ⊢ ρ : Γ
+expandTelescopeVar gamma k delta c = (tel', rho)
+  where
+    (ts1,a:ts2) = fromMaybe __IMPOSSIBLE__ $
+                    splitExactlyAt k $ telToList gamma
+
+    cpi         = ConPatternInfo
+      { conPRecord = Just ConPImplicit
+      , conPType   = Just $ snd <$> argFromDom a
+      }
+    cdelta      = ConP c cpi $ teleNamedArgs delta    -- Γ₁Δ ⊢ c Δ : D pars
+    rho0        = consS cdelta $ raiseS (size delta)  -- Γ₁Δ ⊢ ρ₀ : Γ₁(x : D pars)
+    rho         = liftS (size ts2) rho0               -- Γ₁ΔΓ₂ρ₀ ⊢ ρ : Γ₁(x : D pars)Γ₂
+
+    gamma1      = telFromList ts1
+    gamma2'     = applyPatSubst rho0 $ telFromList ts2
+
+    tel'        = gamma1 `abstract` (delta `abstract` gamma2')
+
 
 telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)
