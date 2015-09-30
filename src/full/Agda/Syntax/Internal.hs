@@ -855,6 +855,10 @@ dropProjElims = filter (isNothing . isProjElim)
 argsFromElims :: Elims -> Args
 argsFromElims = map argFromElim . dropProjElims
 
+-- | Drop 'Proj' constructors. (Safe)
+allProjElims :: Elims -> Maybe [QName]
+allProjElims = mapM isProjElim
+
 {- NOTE: Elim' already contains Arg.
 
 -- | Commute functors 'Arg' and 'Elim\''.
