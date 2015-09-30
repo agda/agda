@@ -6,9 +6,6 @@ SHELL=bash
 # Profiling verbosity for library-test
 PROFVERB=7
 
-# Agda standard library branch.
-STD_LIB_BRANCH = 2.4.2.5
-
 # Various paths and commands
 
 TOP=.
@@ -162,18 +159,11 @@ latex-test :
 
 .PHONY : std-lib
 std-lib :
-	if [ ! -d $@ ]; then \
-	   git clone https://github.com/agda/agda-stdlib.git \
-	       --branch $(STD_LIB_BRANCH) --single-branch $@; \
-	fi
+	git submodule update --init --remote std-lib
 
 .PHONY : up-to-date-std-lib
-up-to-date-std-lib : std-lib
-	@(cd std-lib && \
-	  git fetch && \
-          git checkout $(STD_LIB_BRANCH) && \
-          git merge origin/$(STD_LIB_BRANCH) && \
-	  make setup)
+up-to-date-std-lib :
+	git submodule update --init --remote std-lib
 
 .PHONY : library-test
 library-test : # up-to-date-std-lib
