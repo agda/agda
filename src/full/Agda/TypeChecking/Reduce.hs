@@ -27,7 +27,7 @@ import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Monad hiding ( underAbstraction_, enterClosure, isInstantiatedMeta
-                                      , reportSDoc, reportSLn, getConstInfo
+                                      , getConstInfo
                                       , lookupMeta )
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin hiding (getPrimitive, constructorForm)
@@ -491,16 +491,16 @@ reduceHead' v = do -- ignoreAbstractMode $ do
 
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
-  reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
+  traceSDoc "tc.inj.reduce" 30 (text "reduceHead" <+> prettyTCM v) $ do
   case ignoreSharing v of
     Def f es -> do
 
       abstractMode <- envAbstractMode <$> ask
       isAbstract <- treatAbstractly f
-      reportSLn "tc.inj.reduce" 50 $
+      traceSLn "tc.inj.reduce" 50 (
         "reduceHead: we are in " ++ show abstractMode++ "; " ++ show f ++
         " is treated " ++ if isAbstract then "abstractly" else "concretely"
-
+        ) $ do
       let v0  = Def f []
           red = unfoldDefinitionE False reduceHead' v0 f es
       def <- theDef <$> getConstInfo f
@@ -511,7 +511,7 @@ reduceHead' v = do -- ignoreAbstractMode $ do
         -- type checker loop here on non-terminating functions.
         -- see test/fail/TerminationInfiniteRecord
         Function{ funClauses = [ _ ], funDelayed = NotDelayed, funTerminates = Just True } -> do
-          reportSLn "tc.inj.reduce" 50 $ "reduceHead: head " ++ show f ++ " is Function"
+          traceSLn "tc.inj.reduce" 50 ("reduceHead: head " ++ show f ++ " is Function") $ do
           red
         Datatype{ dataClause = Just _ } -> red
         Record{ recClause = Just _ }    -> red
@@ -551,7 +551,7 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
-      reportSLn "tc.reduce'" 95 $ "Reduce.goCls tries reduction, #clauses = " ++ show (length cl)
+      traceSLn "tc.reduce'" 95 ("Reduce.goCls tries reduction, #clauses = " ++ show (length cl)) $ do
       case cl of
         -- Andreas, 2013-10-26  In case of an incomplete match,
         -- we just do not reduce.  This allows adding single function
@@ -643,9 +643,9 @@ instance Simplify Term where
       Def f vs   -> do
         let keepGoing v = (,notBlocked v) <$> getSimplification  -- Andrea(s), 2014-12-05 OK?
         (simpl, v) <- unfoldDefinition' False keepGoing (Def f []) f vs
-        reportSDoc "tc.simplify'" 20 $
+        traceSDoc "tc.simplify'" 20 (
           text ("simplify': unfolding definition returns " ++ show simpl)
-            <+> prettyTCM (ignoreBlocking v)
+            <+> prettyTCM (ignoreBlocking v)) $ do
         case simpl of
           YesSimplification -> simplifyBlocked' v -- Dangerous, but if @simpl@ then @v /= Def f vs@
           NoSimplification  -> Def f <$> simplify' vs
