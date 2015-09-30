@@ -134,6 +134,9 @@ library
   if impl(ghc < 7.8)
     build-depends: base-orphans >= 0.3.1 && < 0.5
 
+  if impl(ghc < 7.10)
+    build-depends: void >= 0.5.4 && < 0.9
+
   build-tools:
     alex >= 3.1.0 && < 3.2
     , happy >= 1.19.4 && < 2
