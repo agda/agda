@@ -531,6 +531,9 @@ abstractArgs args x = abstract tel x
 
 class DeBruijn a where
   debruijnVar  :: Int -> a
+  debruijnVar = debruijnNamedVar underscore
+  debruijnNamedVar :: String -> Int -> a
+  debruijnNamedVar _ = debruijnVar
   debruijnView :: a -> Maybe Int
 
 instance DeBruijn Term where
