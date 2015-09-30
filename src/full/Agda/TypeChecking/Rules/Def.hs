@@ -155,7 +155,7 @@ checkAlias t' ai delayed i name e = do
 checkFunDef' :: Type             -- ^ the type we expect the function to have
              -> ArgInfo        -- ^ is it irrelevant (for instance)
              -> Delayed          -- ^ are the clauses delayed (not unfolded willy-nilly)
-             -> Maybe (Int, Int) -- ^ does the definition come from an extended lambda
+             -> Maybe ExtLamInfo -- ^ does the definition come from an extended lambda
                                  --   (if so, we need to know some stuff about lambda-lifted args)
              -> Maybe QName      -- ^ is it a with function (if so, what's the name of the parent function)
              -> Info.DefInfo     -- ^ range info

@@ -201,6 +201,11 @@ instance EmbPrj Projection where
   value = vcase valu where valu [a, b, c, d, e] = valu5 Projection a b c d e
                            valu _               = malformed
 
+instance EmbPrj ExtLamInfo where
+  icod_ (ExtLamInfo a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 ExtLamInfo a b
+                           valu _      = malformed
+
 instance EmbPrj Polarity where
   icod_ Covariant     = return 0
   icod_ Contravariant = return 1
@@ -332,4 +337,3 @@ instance EmbPrj a => EmbPrj (Builtin a) where
   value = vcase valu where valu [a]    = valu1 Prim    a
                            valu [1, a] = valu1 Builtin a
                            valu _      = malformed
-

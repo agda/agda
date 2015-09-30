@@ -413,7 +413,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
   -- let flex = [0..size delta1 + size gamma - 1]
   let gammaDelta1  = gammal ++ telToList delta1
       makeFlex i d = flexibleVarFromHiding (getHiding d) i
-      flex = zipWith makeFlex [0 .. size gammaDelta1 - 1] gammaDelta1
+      flex = zipWith makeFlex [0..] gammaDelta1
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs

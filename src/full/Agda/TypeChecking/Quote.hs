@@ -197,7 +197,7 @@ quotingKit = do
             qx d @@ quoteArgs ts
             where
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-              qx Function{ funExtLam = Just (h, nh), funClauses = cs } =
+              qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } =
                     extlam !@ list (map (quoteClause . dropArgs (h + nh)) cs)
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
                     extlam !@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]

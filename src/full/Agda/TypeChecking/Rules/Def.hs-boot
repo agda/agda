@@ -8,6 +8,6 @@ import qualified Agda.Syntax.Internal as I
 
 checkFunDef :: Delayed -> DefInfo -> QName -> [Clause] -> TCM ()
 
-checkFunDef' :: I.Type -> ArgInfo -> Delayed -> Maybe (Int, Int) -> Maybe QName -> DefInfo -> QName -> [Clause] -> TCM ()
+checkFunDef' :: I.Type -> ArgInfo -> Delayed -> Maybe ExtLamInfo -> Maybe QName -> DefInfo -> QName -> [Clause] -> TCM ()
 
 useTerPragma :: Definition -> TCM Definition

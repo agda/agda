@@ -235,4 +235,3 @@ icodeFileMod fileMod = do
   forM_ (Map.toList fileMod) $ \ (absolutePath, topLevelModuleName) -> do
     i <- icod_ topLevelModuleName
     liftIO $ H.insert hmap absolutePath i
-

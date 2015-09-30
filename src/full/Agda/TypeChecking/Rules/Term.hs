@@ -492,7 +492,7 @@ checkExtendedLambda i di qname cs e t = do
      addConstant qname =<< do
        useTerPragma $
          (defaultDefn info qname t emptyFunction) { defMutual = j }
-     reportSDoc "tc.term.exlam" 50 $
+     reportSDoc "tc.term.exlam" 20 $
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
      args     <- getContextArgs
@@ -501,8 +501,13 @@ checkExtendedLambda i di qname cs e t = do
      -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
      let argsNoParam = genericDrop freevars args -- don't count module parameters
      let (hid, notHid) = partition isHidden argsNoParam
-     abstract (A.defAbstract di) $ checkFunDef' t info NotDelayed
-                                                (Just (length hid, length notHid)) Nothing di qname cs
+     reportSDoc "tc.term.exlam" 30 $ vcat $
+       [ text "dropped args: " <+> prettyTCM (take freevars args)
+       , text "hidden  args: " <+> prettyTCM hid
+       , text "visible args: " <+> prettyTCM notHid
+       ]
+     abstract (A.defAbstract di) $
+       checkFunDef' t info NotDelayed (Just $ ExtLamInfo (length hid) (length notHid)) Nothing di qname cs
      return $ Def qname $ map Apply args
   where
     -- Concrete definitions cannot use information about abstract things.

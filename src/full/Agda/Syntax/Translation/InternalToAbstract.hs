@@ -500,7 +500,7 @@ reifyTerm expandAnonDefs0 v = do
         let extLam = case mdefn of
                       Nothing -> Nothing
                       Just defn -> case theDef defn of
-                                    Function{ funExtLam = Just (h, nh) } -> Just (h + nh)
+                                    Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (h + nh)
                                     _                                    -> Nothing
         case extLam of
           Just pars | df -> do
