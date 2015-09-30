@@ -25,6 +25,7 @@ import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
 import qualified Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
@@ -140,6 +141,15 @@ instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 instance PrettyTCM Permutation where prettyTCM = text . show
 instance PrettyTCM Polarity where prettyTCM = text . show
+
+instance (Show a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
+  prettyTCM IdS        = text "idS"
+  prettyTCM (Wk m IdS) = text "wkS" <+> pretty m
+  prettyTCM EmptyS     = text "emptyS"
+  prettyTCM rho = prettyTCM u <+> comma <+> prettyTCM rho1
+    where
+      (rho1, rho2) = splitS 1 rho
+      u            = lookupS rho2 0
 
 instance PrettyTCM Clause where
   prettyTCM cl = do
