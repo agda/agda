@@ -170,7 +170,8 @@ instance Instantiate a => Instantiate (Closure a) where
         return $ cl { clValue = x }
 
 instance Instantiate Telescope where
-  instantiate' tel = return tel
+  instantiate' EmptyTel = return EmptyTel
+  instantiate' (ExtendTel a tel) = ExtendTel <$> instantiate' a <*> instantiate' tel
 
 instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do
@@ -603,7 +604,8 @@ instance Reduce a => Reduce (Closure a) where
         return $ cl { clValue = x }
 
 instance Reduce Telescope where
-  reduce' tel = return tel
+  reduce' EmptyTel          = return EmptyTel
+  reduce' (ExtendTel a tel) = ExtendTel <$> reduce' a <*> reduce' tel
 
 instance Reduce Constraint where
   reduce' (ValueCmp cmp t u v) = do
