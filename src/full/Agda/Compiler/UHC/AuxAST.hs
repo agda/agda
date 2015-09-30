@@ -62,8 +62,6 @@ data ADataCon
 data Fun
   = CoreFun
       { xfunName     :: HsName
-      , xfunQName    :: Maybe QName
-      , xfunComment  :: Comment
       , xfunCoreExpr :: CExpr
       }
   deriving (Eq, Show)

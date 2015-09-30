@@ -105,5 +105,5 @@ buildCMetaDeclL dts = catMaybes $ map f dts
 
 
 funToBind :: Monad m => Fun -> ToCoreT m CBind
-funToBind (CoreFun name _ _ crExpr) = return $ mkBind1 name crExpr
+funToBind (CoreFun name crExpr) = return $ mkBind1 name crExpr
 
