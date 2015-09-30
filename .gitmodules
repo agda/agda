@@ -1,0 +1,4 @@
+[submodule "std-lib"]
+	path = std-lib
+	url = https://github.com/agda/agda-stdlib
+	branch = master

@@ -31,7 +31,6 @@ src/full/Agda/Syntax/Parser/Lexer.hs
 src/full/Agda/Syntax/Parser/Parser.hs
 src/full/tags
 src/full/TAGS
-std-lib
 test/compiler/Main
 test/epic/RunTests
 test/epic/tests/bin/
