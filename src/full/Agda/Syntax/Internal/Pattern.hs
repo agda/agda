@@ -16,6 +16,7 @@ import Control.Applicative
 import Control.Monad.State
 
 import Data.Maybe
+import Data.List
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -23,6 +24,7 @@ import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Internal as I
 
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size (size)
@@ -43,7 +45,7 @@ clauseArgs cl = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ clauseElims cl
 -- | Translate the clause patterns to an elimination spine
 --   with free variables bound by the clause telescope.
 clauseElims :: Clause -> Elims
-clauseElims cl = patternsToElims (clausePerm cl) (namedClausePats cl)
+clauseElims cl = patternsToElims $ numberPatVars (clausePerm cl) (namedClausePats cl)
 
 -- | Arity of a function, computed from clauses.
 class FunArity a where
@@ -120,20 +122,42 @@ numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
 numberPatVars perm ps = evalState (labelPatVars ps) $
   permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
-patternsToElims :: Permutation -> [NamedArg Pattern] -> [Elim]
-patternsToElims perm ps = map build' $ numberPatVars perm ps
+unnumberPatVars :: [NamedArg DeBruijnPattern] -> [NamedArg Pattern]
+unnumberPatVars = fmap $ fmap $ fmap $ fmap snd
+
+dbPatPerm :: [NamedArg DeBruijnPattern] -> Permutation
+dbPatPerm ps = Perm (size ixs) picks
   where
+    ixs   = concatMap (getIndices . namedThing . unArg) ps
+    n     = size $ catMaybes ixs
+    picks = for (downFrom n) $ \i ->
+      fromMaybe __IMPOSSIBLE__ $ findIndex (Just i ==) ixs
 
-    build' :: NamedArg (Pattern' (Int, PatVarName)) -> Elim
-    build' = build . fmap namedThing
+    getIndices :: DeBruijnPattern -> [Maybe Int]
+    getIndices (VarP (i,_))  = [Just i]
+    getIndices (ConP c _ ps) = concatMap (getIndices . namedThing . unArg) ps
+    getIndices (DotP _)      = [Nothing]
+    getIndices (LitP _)      = []
+    getIndices (ProjP _)     = []
 
-    build :: Arg (Pattern' (Int, PatVarName)) -> Elim
-    build (Arg ai (VarP (i, _))) = Apply $ Arg ai $ var i
-    build (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
-      map (argFromElim . build') ps
-    build (Arg ai (DotP t)     ) = Apply $ Arg ai t
-    build (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
-    build (Arg ai (ProjP dest) ) = Proj  $ dest
+patternToElim :: Arg DeBruijnPattern -> Elim
+patternToElim (Arg ai (VarP (i, _))) = Apply $ Arg ai $ var i
+patternToElim (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
+      map (argFromElim . patternToElim . fmap namedThing) ps
+patternToElim (Arg ai (DotP t)     ) = Apply $ Arg ai t
+patternToElim (Arg ai (LitP l)     ) = Apply $ Arg ai $ Lit l
+patternToElim (Arg ai (ProjP dest) ) = Proj  $ dest
+
+patternsToElims :: [NamedArg DeBruijnPattern] -> [Elim]
+patternsToElims ps = map build ps
+  where
+    build :: NamedArg DeBruijnPattern -> Elim
+    build = patternToElim . fmap namedThing
+
+patternToTerm :: DeBruijnPattern -> Term
+patternToTerm p = case patternToElim (defaultArg p) of
+  Apply x -> unArg x
+  Proj  f -> __IMPOSSIBLE__
 
 -- patternsToElims :: Permutation -> [NamedArg Pattern] -> [Elim]
 -- patternsToElims perm ps = evalState (mapM build' ps) xs

@@ -127,7 +127,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 -- Get the field decoration.
                 -- If the projection pattern @d@ is not a field name, that's an error.
                 argd <- maybe failure return $ find ((d ==) . unArg) fs
-                let es = patternsToElims perm qs
+                let es = patternsToElims $ numberPatVars perm qs
                 -- the record "self" is the definition f applied to the patterns
                 fvs <- lift $ freeVarsToApply f
                 let self = defaultArg $ Def f (map Apply fvs) `applyE` es

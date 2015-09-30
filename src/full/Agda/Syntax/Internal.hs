@@ -569,6 +569,7 @@ data Substitution' a
   deriving (Show, Functor, Foldable, Traversable)
 
 type Substitution = Substitution' Term
+type PatternSubstitution = Substitution' DeBruijnPattern
 
 infixr 4 :#
 
