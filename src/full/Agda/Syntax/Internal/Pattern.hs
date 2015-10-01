@@ -79,17 +79,21 @@ instance FunArity [Clause] where
 --   using one label for each variable pattern and one for each dot pattern.
 class LabelPatVars a b i | b -> i where
   labelPatVars :: a -> State [i] b
+  unlabelPatVars :: b -> a
   -- ^ Intended, but unpractical due to the absence of type-level lambda, is:
   --   @labelPatVars :: f (Pattern' x) -> State [i] (f (Pattern' (i,x)))@
 
 instance LabelPatVars a b i => LabelPatVars (Arg a) (Arg b) i where
   labelPatVars = traverse labelPatVars
+  unlabelPatVars = fmap unlabelPatVars
 
 instance LabelPatVars a b i => LabelPatVars (Named x a) (Named x b) i where
   labelPatVars = traverse labelPatVars
+  unlabelPatVars = fmap unlabelPatVars
 
 instance LabelPatVars a b i => LabelPatVars [a] [b] i where
   labelPatVars = traverse labelPatVars
+  unlabelPatVars = fmap unlabelPatVars
 
 instance LabelPatVars (Pattern' x) (Pattern' (i,x)) i where
   labelPatVars p =
@@ -100,6 +104,7 @@ instance LabelPatVars (Pattern' x) (Pattern' (i,x)) i where
       LitP l       -> return $ LitP l
       ProjP q      -> return $ ProjP q
     where next = do (x:xs) <- get; put xs; return x
+  unlabelPatVars = fmap snd
 
 -- | Augment pattern variables with their de Bruijn index.
 {-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg (Pattern' x)] -> [NamedArg (Pattern' (Int, x))] #-}
@@ -122,8 +127,8 @@ numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
 numberPatVars perm ps = evalState (labelPatVars ps) $
   permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
-unnumberPatVars :: [NamedArg DeBruijnPattern] -> [NamedArg Pattern]
-unnumberPatVars = fmap $ fmap $ fmap $ fmap snd
+unnumberPatVars :: LabelPatVars a b i => b -> a
+unnumberPatVars = unlabelPatVars
 
 dbPatPerm :: [NamedArg DeBruijnPattern] -> Permutation
 dbPatPerm ps = Perm (size ixs) picks
