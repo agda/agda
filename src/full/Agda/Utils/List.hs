@@ -202,6 +202,24 @@ chop _ [] = []
 chop n xs = ys : chop n zs
     where (ys,zs) = splitAt n xs
 
+-- | Chop a list at the positions when the predicate holds. Contrary to
+--   'wordsBy', consecutive separator elements will result in an empty segment
+--   in the result.
+--    > intercalate [x] (chopWhen (== x) xs) == xs
+chopWhen :: (a -> Bool) -> [a] -> [[a]]
+chopWhen p [] = []
+chopWhen p xs =
+  case break p xs of
+    (w, [])     -> [w]
+    (w, [_])    -> [w, []]
+    (w, _ : ys) -> w : chopWhen p ys
+
+prop_chop_intercalate :: Property
+prop_chop_intercalate =
+  forAllShrink (choose (0, 4 :: Int))          shrink $ \ d ->
+  forAllShrink (listOf (choose (0, 4 :: Int))) shrink $ \ xs ->
+  xs === intercalate [d] (chopWhen (== d) xs)
+
 -- | All ways of removing one element from a list.
 holes :: [a] -> [(a, [a])]
 holes []     = []
