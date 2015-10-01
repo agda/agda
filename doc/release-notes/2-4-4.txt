@@ -38,10 +38,13 @@ Pragmas and options
 
   To be useable, a library file has to be listed (with its full path) in
   AGDA_DIR/libraries (where AGDA_DIR is ~/.agda on unix-like systems and
-  C:/Users/USERNAME/AppData/Roaming/agda or similar on Windows). You can
-  find out the precise location by calling 'agda -l fjdsk' and looking
-  at the error message (assuming you don't have a library called fjdsk
-  installed).
+  C:/Users/USERNAME/AppData/Roaming/agda or similar on Windows).
+  Environment variables in the paths (of the form $VAR or ${VAR}) are
+  expanded.
+
+  You can find out the precise location of the 'libraries' file by
+  calling 'agda -l fjdsk' and looking at the error message (assuming you
+  don't have a library called fjdsk installed).
 
   There are three ways a library gets used:
 

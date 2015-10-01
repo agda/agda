@@ -19,6 +19,7 @@ import System.FilePath
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
 import Agda.Utils.Monad
+import Agda.Utils.Environment
 
 type LibM = ExceptT String IO
 
@@ -67,7 +68,7 @@ getInstalledLibraries = mkLibM [] $ do
     agdaDir <- getAgdaAppDir
     let file = agdaDir </> libraryFile
     ifM (doesFileExist file) (do
-      files <- stripCommentLines <$> readFile file
+      files <- mapM expandEnvironmentVariables =<< stripCommentLines <$> readFile file
       parseLibFiles files
       ) {- else -} (return ([], []))
   `catchIO` \e -> return ([], [OtherError $ "Failed to read installed libraries.\n" ++ show e])
