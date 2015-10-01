@@ -188,7 +188,7 @@ matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 --     F true = Set
 --     F      = \ x -> Set
 --   @
-matchPats :: MatchLit -> [Arg Pattern] -> [Arg MPat] -> Match [MPat]
+matchPats :: MatchLit -> [Arg (Pattern' a)] -> [Arg MPat] -> Match [MPat]
 matchPats mlit ps qs = mconcat $ properMatchesLeft :
     zipWith (matchPat mlit) (map unArg ps) (map unArg qs) ++
     [ projPatternsLeft ]
@@ -239,7 +239,7 @@ instance Monoid a => Monoid (Match a) where
 --   @No@ means it does not cover.
 --   @Block [x]@ means @p@ is a proper instance of @q@ and could become
 --   a cover if @q@ was split on variable @x@.
-matchPat :: MatchLit -> Pattern -> MPat -> Match [MPat]
+matchPat :: MatchLit -> Pattern' a -> MPat -> Match [MPat]
 matchPat _    (VarP _) q = Yes [q]
 matchPat _    (DotP _) q = Yes []
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.

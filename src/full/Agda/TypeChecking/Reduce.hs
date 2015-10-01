@@ -900,12 +900,18 @@ instance Normalise Constraint where
 instance Normalise Bool where
   normalise' = return
 
+instance Normalise Int where
+  normalise' = return
+
+instance Normalise Char where
+  normalise' = return
+
 instance Normalise ConPatternInfo where
   normalise' (ConPatternInfo mr mt) = ConPatternInfo mr <$> normalise' mt
 
-instance Normalise Pattern where
+instance Normalise a => Normalise (Pattern' a) where
   normalise' p = case p of
-    VarP _       -> return p
+    VarP x       -> VarP <$> normalise' x
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DotP v       -> DotP <$> normalise' v
@@ -1004,11 +1010,14 @@ instance InstantiateFull Substitution where
 instance InstantiateFull Bool where
     instantiateFull' = return
 
+instance InstantiateFull Int where
+    instantiateFull' = return
+
 instance InstantiateFull ConPatternInfo where
   instantiateFull' (ConPatternInfo mr mt) = ConPatternInfo mr <$> instantiateFull' mt
 
-instance InstantiateFull Pattern where
-    instantiateFull' v@VarP{}       = return v
+instance InstantiateFull a => InstantiateFull (Pattern' a) where
+    instantiateFull' (VarP x)       = VarP <$> instantiateFull' x
     instantiateFull' (DotP t)       = DotP <$> instantiateFull' t
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l

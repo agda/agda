@@ -114,7 +114,7 @@ nrBinds p = case p of
     LitP l          -> 0
     ProjP{}         -> 0
 
-substForDot :: [NamedArg Pattern] -> Substitution
+substForDot :: [NamedArg (Pattern' a)] -> Substitution
 substForDot = makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = raiseS (i + accum)

@@ -493,7 +493,7 @@ noConPatternInfo = ConPatternInfo Nothing Nothing
 
 -- | Extract pattern variables in left-to-right order.
 --   A 'DotP' is also treated as variable (see docu for 'Clause').
-patternVars :: Arg Pattern -> [Arg (Either PatVarName Term)]
+patternVars :: Arg (Pattern' a) -> [Arg (Either a Term)]
 patternVars (Arg i (VarP x)     ) = [Arg i $ Left x]
 patternVars (Arg i (DotP t)     ) = [Arg i $ Right t]
 patternVars (Arg i (ConP _ _ ps)) = List.concat $ map (patternVars . fmap namedThing) ps
@@ -501,7 +501,7 @@ patternVars (Arg i (LitP l)     ) = []
 patternVars (Arg i ProjP{}      ) = []
 
 -- | Does the pattern perform a match that could fail?
-properlyMatching :: Pattern -> Bool
+properlyMatching :: Pattern' a -> Bool
 properlyMatching VarP{} = False
 properlyMatching DotP{} = False
 properlyMatching LitP{} = True
@@ -509,7 +509,7 @@ properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record c
   List.any (properlyMatching . namedArg) ps  -- or one of subpatterns is a proper m
 properlyMatching ProjP{} = True
 
-instance IsProjP Pattern where
+instance IsProjP (Pattern' a) where
   isProjP (ProjP d) = Just d
   isProjP _         = Nothing
 
@@ -1051,10 +1051,10 @@ instance KillRange Substitution where
 instance KillRange ConPatternInfo where
   killRange (ConPatternInfo mr mt) = killRange1 (ConPatternInfo mr) mt
 
-instance KillRange Pattern where
+instance KillRange a => KillRange (Pattern' a) where
   killRange p =
     case p of
-      VarP{}           -> p
+      VarP x           -> killRange1 VarP x
       DotP v           -> killRange1 DotP v
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
