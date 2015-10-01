@@ -250,7 +250,8 @@ defaultHTMLDir :: String
 defaultHTMLDir = "html"
 
 prop_defaultOptions :: IO Bool
-prop_defaultOptions = isRight <$> runOptM (checkOpts defaultOptions)
+prop_defaultOptions =
+  either (const False) (const True) <$> runOptM (checkOpts defaultOptions)
 
 type OptM = ExceptT String IO
 
