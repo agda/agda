@@ -12,6 +12,7 @@ import Control.Monad.Writer
 import Control.Monad.Except
 import Data.Char
 import Data.Either
+import Data.Function
 import Data.List
 import System.Directory
 import System.FilePath
@@ -20,6 +21,7 @@ import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
 import Agda.Utils.Monad
 import Agda.Utils.Environment
+import Agda.Utils.List
 
 type LibM = ExceptT String IO
 
@@ -107,22 +109,42 @@ libraryIncludePaths libs xs0 = mkLibM libs $ return $ runWriter ((dot ++) . incs
     incs = nub . concatMap libIncludes
     dot = [ "." | elem "." xs0 ]
 
-    findLib x = [ (m, l) | l <- libs, let m = matchLib x l, m /= NoMatch ]
-
     find :: [LibName] -> [LibName] -> Writer [LibError] [AgdaLibFile]
     find _ [] = pure []
     find visited (x : xs)
       | elem x visited = find visited xs
       | otherwise =
-          case findLib x of
-            [(Exact, l)] -> (l :) <$> find (x : visited) (libDepends l ++ xs)
-            []           -> tell [LibNotFound x] >> find (x : visited) xs
-            ls           -> tell [AmbiguousLib x (map snd ls)] >> find (x : visited) xs
+          case findLib x libs of
+            [l] -> (l :) <$> find (x : visited) (libDepends l ++ xs)
+            []  -> tell [LibNotFound x] >> find (x : visited) xs
+            ls  -> tell [AmbiguousLib x ls] >> find (x : visited) xs
 
-data MatchedName = Exact | NoMatch
-  deriving (Eq, Show)
+findLib :: LibName -> [AgdaLibFile] -> [AgdaLibFile]
+findLib x libs =
+  case ls of
+    l : ls -> l : takeWhile ((== versionMeasure l) . versionMeasure) ls
+    []     -> []
+  where
+    ls = sortBy (flip compare `on` versionMeasure) [ l | l <- libs, matchLib x l ]
 
-matchLib :: LibName -> AgdaLibFile -> MatchedName
-matchLib x l | x == libName l = Exact
-matchLib _ _ = NoMatch
+    -- foo > foo-2.2 > foo-2.0.1 > foo-2 > foo-1.0
+    versionMeasure l = (rx, null vs, vs)
+      where
+        (rx, vs) = versionView (libName l)
+
+matchLib :: LibName -> AgdaLibFile -> Bool
+matchLib x l = rx == ry && (vx == vy || null vx)
+  where
+    (rx, vx) = versionView x
+    (ry, vy) = versionView $ libName l
+
+-- versionView "foo-1.2.3" == ("foo", [1, 2, 3])
+versionView :: LibName -> (LibName, [Int])
+versionView s =
+  case span (\ c -> isDigit c || c == '.') (reverse s) of
+    (v, '-' : x) | valid vs -> (reverse x, reverse $ map (read . reverse) vs)
+      where vs = chopWhen (== '.') v
+            valid [] = False
+            valid vs = not $ any null vs
+    _ -> (s, [])
 
