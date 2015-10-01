@@ -129,9 +129,16 @@ followed:
 * Create a new branch in the standard library repository from the
   VERSION branch called NEWVERSION.
 
-* Update in the Makefile the STD_LIB_BRANCH variable:
+* Update the git submodule branch, by running the following at the root
+  of the main repository:
 
-    STD_LIB_BRANCH = NEWVERSION
+    git config -f .gitmodules submodule.std-lib.branch NEWVERSION
+    git submodule sync
+    git submodule update --init --remote std-lib
+
+  Remember to add the new reference to the index before committing:
+
+    git add std-lib
 
 * Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
 
