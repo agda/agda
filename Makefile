@@ -159,11 +159,11 @@ latex-test :
 
 .PHONY : std-lib
 std-lib :
-	git submodule update --init --remote std-lib
+	git submodule update --init std-lib
 
 .PHONY : up-to-date-std-lib
 up-to-date-std-lib :
-	@(git submodule update --init --remote std-lib && \
+	@(git submodule update --init std-lib && \
 	  cd std-lib && \
 	  make setup)
 
