@@ -1,2 +1,2 @@
-top_command (cmd_load currentFile [".",".."])
+top_command (cmd_load currentFile ["-i.","-i.."])
 goal_command 0 cmd_give "λ (j : Size< i) → fixU j f"

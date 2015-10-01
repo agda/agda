@@ -791,6 +791,10 @@ Emacs mode
   can now use the go-back functionality to return to the previous
   position.
 
+* Removed the agda-include-dirs customization parameter.
+
+  Use agda-program-args with -i DIR instead.
+
 Tools
 =====
 

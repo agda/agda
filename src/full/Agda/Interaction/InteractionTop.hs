@@ -288,13 +288,13 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
 type Interaction = Interaction' Range
 
 data Interaction' range
-    -- | @cmd_load m includes@ loads the module in file @m@, using
-    -- @includes@ as the include directories.
-  = Cmd_load            FilePath [FilePath]
+    -- | @cmd_load m argv@ loads the module in file @m@, using
+    -- @argv@ as the command-line options.
+  = Cmd_load            FilePath [String]
 
-    -- | @cmd_compile b m includes@ compiles the module in file @m@ using
-    -- the backend @b@, using @includes@ as the include directories.
-  | Cmd_compile         Backend FilePath [FilePath]
+    -- | @cmd_compile b m argv@ compiles the module in file @m@ using
+    -- the backend @b@, using @argv@ as the command-line options.
+  | Cmd_compile         Backend FilePath [String]
 
   | Cmd_constraints
 
@@ -512,11 +512,11 @@ independent _                               = False
 
 interpret :: Interaction -> CommandM ()
 
-interpret (Cmd_load m includes) =
-  cmd_load' m includes True $ \_ -> interpret Cmd_metas
+interpret (Cmd_load m argv) =
+  cmd_load' m argv True $ \_ -> interpret Cmd_metas
 
-interpret (Cmd_compile b file includes) =
-  cmd_load' file includes False $ \(i, mw) -> do
+interpret (Cmd_compile b file argv) =
+  cmd_load' file argv False $ \(i, mw) -> do
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
@@ -569,21 +569,21 @@ interpret (Cmd_compute_toplevel ignore s) =
 
 interpret (ShowImplicitArgs showImpl) = do
   opts <- lift commandLineOptions
-  setCommandLineOptions' $
+  setCommandLineOpts $
     opts { optPragmaOptions =
              (optPragmaOptions opts) { optShowImplicit = showImpl } }
 
 interpret ToggleImplicitArgs = do
   opts <- lift commandLineOptions
   let ps = optPragmaOptions opts
-  setCommandLineOptions' $
+  setCommandLineOpts $
     opts { optPragmaOptions =
              ps { optShowImplicit = not $ optShowImplicit ps } }
 
 interpret (Cmd_load_highlighting_info source) = do
     -- Make sure that the include directories have
     -- been set.
-    setCommandLineOptions' =<< lift commandLineOptions
+    setCommandLineOpts =<< lift commandLineOptions
 
     resp <- lift $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
@@ -788,23 +788,23 @@ showOpenMetas = do
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
 
--- | @cmd_load' file includes unsolvedOk cmd@
+-- | @cmd_load' file argv unsolvedOk cmd@
 --   loads the module in file @file@,
---   using @includes@ as the include directories.
+--   using @argv@ as the command-line options.
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
 -- result of 'Imp.typeCheckMain'.
 
-cmd_load' :: FilePath -> [FilePath]
+cmd_load' :: FilePath -> [String]
           -> Bool -- ^ Allow unsolved meta-variables?
           -> ((Interface, Imp.MaybeWarnings) -> CommandM ())
           -> CommandM ()
-cmd_load' file includes unsolvedOK cmd = do
+cmd_load' file argv unsolvedOK cmd = do
     f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
-    lift $ TM.setIncludeDirs includes $
-      if ex then ProjectRoot f else CurrentDir
+    let relativeTo | ex        = ProjectRoot f
+                   | otherwise = CurrentDir
 
     -- Forget the previous "current file" and interaction points.
     modify $ \st -> st { theInteractionPoints = []
@@ -814,15 +814,15 @@ cmd_load' file includes unsolvedOK cmd = do
     t <- liftIO $ getModificationTime file
 
     -- All options are reset when a file is reloaded, including the
-    -- choice of whether or not to display implicit arguments. (At
-    -- this point the include directories have already been set, so
-    -- they are preserved.)
-    opts <- lift $ commandLineOptions
-    defaultOptions <- gets optionsOnReload
-    setCommandLineOptions' $
-      Lenses.setIncludeDirs (optIncludeDirs opts) $
-      mapPragmaOptions (\ o -> o { optAllowUnsolved = unsolvedOK }) $
-      defaultOptions
+    -- choice of whether or not to display implicit arguments.
+    opts0 <- gets optionsOnReload
+    z <- liftIO $ runOptM $ parseStandardOptions' argv opts0
+    case z of
+      Left err   -> lift $ typeError $ GenericError err
+      Right opts -> do
+        lift $ TM.setCommandLineOptions' relativeTo $
+          mapPragmaOptions (\ o -> o { optAllowUnsolved = unsolvedOK }) opts
+        displayStatus
 
     -- Reset the state, preserving options and decoded modules. Note
     -- that if the include directories have changed, then the decoded
@@ -1116,8 +1116,8 @@ whyInScope s = do
 
 -- | Sets the command line options and updates the status information.
 
-setCommandLineOptions' :: CommandLineOptions -> CommandM ()
-setCommandLineOptions' opts = do
+setCommandLineOpts :: CommandLineOptions -> CommandM ()
+setCommandLineOpts opts = do
     lift $ TM.setCommandLineOptions opts
     displayStatus
 

@@ -8,7 +8,7 @@ module Agda.Interaction.Options
     , Verbosity
     , IncludeDirs
     , checkOpts
-    , parseStandardOptions
+    , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
     , parsePluginOptions
     , defaultOptions
@@ -725,9 +725,12 @@ getOptSimple argv opts fileArg = \ defaults ->
 
 -- | Parse the standard options.
 parseStandardOptions :: [String] -> OptM CommandLineOptions
-parseStandardOptions argv =
-  checkOpts =<<
-    getOptSimple argv standardOptions inputFlag defaultOptions
+parseStandardOptions argv = parseStandardOptions' argv defaultOptions
+
+parseStandardOptions' :: [String] -> Flag CommandLineOptions
+parseStandardOptions' argv opts = do
+  opts <- getOptSimple (stripRTS argv) standardOptions inputFlag opts
+  checkOpts opts
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
@@ -775,6 +778,15 @@ usage options pluginInfos progName =
                 inheritedOptions [] = ""
                 inheritedOptions pls =
                     "\n    Inherits options from: " ++ unwords pls
+
+-- Remove +RTS .. -RTS from arguments
+stripRTS :: [String] -> [String]
+stripRTS [] = []
+stripRTS (arg : argv)
+  | is "+RTS" arg = stripRTS $ drop 1 $ dropWhile (not . is "-RTS") argv
+  | otherwise     = arg : stripRTS argv
+  where
+    is x arg = [x] == take 1 (words arg)
 
 ------------------------------------------------------------------------
 -- Some paths

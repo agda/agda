@@ -77,14 +77,6 @@ All the elements of XS are included, in their original order."
   "Major mode for interactively developing Agda programs."
   :group 'languages)
 
-(defcustom agda2-include-dirs
-  '(".")
-  "The directories Agda uses to search for files.
-The directory names should either be absolute or be relative to
-the root of the current project."
-  :type '(repeat directory)
-  :group 'agda2)
-
 (defcustom agda2-program-name "agda"
   "The name of the Agda executable."
   :type 'string
@@ -753,7 +745,7 @@ An error is raised if no responses are received."
   (interactive)
   (agda2-go t t t "Cmd_load"
             (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-include-dirs)
+            (agda2-list-quote agda2-program-args)
             ))
 
 (defun agda2-measure-load-time
@@ -786,7 +778,7 @@ The variable `agda2-backend' determines which backend is used."
   (agda2-go t t t "Cmd_compile"
             agda2-backend
             (agda2-string-quote (buffer-file-name))
-            (agda2-list-quote agda2-include-dirs)
+            (agda2-list-quote agda2-program-args)
             ))
 
 (defun agda2-give()

@@ -63,9 +63,11 @@ setPragmaOptions opts = do
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
-
 setCommandLineOptions :: CommandLineOptions -> TCM ()
-setCommandLineOptions opts = do
+setCommandLineOptions = setCommandLineOptions' CurrentDir
+
+setCommandLineOptions' :: RelativeTo -> CommandLineOptions -> TCM ()
+setCommandLineOptions' relativeTo opts = do
   z <- liftIO $ runOptM $ checkOpts opts
   case z of
     Left err   -> __IMPOSSIBLE__
@@ -73,9 +75,9 @@ setCommandLineOptions opts = do
       incs <- case optIncludeDirs opts of
         Right absolutePathes -> return absolutePathes
         Left  relativePathes -> do
-          -- setIncludeDirs makes pathes (relative to CurrentDir) absolute
+          -- setIncludeDirs makes paths (relative to relativeTo) absolute
           -- and possible adds the current directory (if no pathes given)
-          setIncludeDirs relativePathes CurrentDir
+          setIncludeDirs relativePathes relativeTo
           getIncludeDirs
       modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
              . Lens.setPragmaOptions (optPragmaOptions opts)
