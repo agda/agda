@@ -47,9 +47,9 @@ customised : customised/NestedProjectRoots customised/FFI
 
 customised/NestedProjectRoots.err : %.err : %.agda
 	@echo "$*.agda"
-	@if ($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
-	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
-	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) > $*.tmp; \
+	@if ($(AGDA_BIN) --ignore-interfaces --no-default-libraries -icustomised -icustomised/Imports $*.agda; \
+	    $(AGDA_BIN) --no-default-libraries -icustomised/Imports customised/Imports/A.agda; \
+	    $(AGDA_BIN) --no-default-libraries -icustomised -icustomised/Imports $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
 		then cat $*.tmp | $(clean) > $@; cat $@; rm -f $*.tmp; true; \
@@ -61,9 +61,9 @@ customised/NestedProjectRoots.err : %.err : %.agda
 customised/NestedProjectRoots : % : %.err
 	@echo $*.agda
 	-@rm -f customised/Imports/A.agdai
-	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
-	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
-	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) \
+	-@($(AGDA_BIN) --ignore-interfaces --no-default-libraries -icustomised -icustomised/Imports $*.agda; \
+	    $(AGDA_BIN) --no-default-libraries -icustomised/Imports customised/Imports/A.agda; \
+	    $(AGDA_BIN) --no-default-libraries -icustomised -icustomised/Imports $*.agda) \
 	    | $(clean) > $*.err.tmp
 	@echo `cat $*.err.tmp` > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3

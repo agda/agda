@@ -28,7 +28,7 @@ remove_interface_files :
 
 #  --vim
 
-RUN_AGDA = time $(AGDA_BIN) -i. -i../../std-lib/src -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) +RTS -H1G -M1.5G -RTS
+RUN_AGDA = time $(AGDA_BIN) --no-default-libraries -i. -i../../std-lib/src -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) +RTS -H1G -M1.5G -RTS
 
 %.test : %.agda
 	@echo $<

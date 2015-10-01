@@ -30,6 +30,7 @@ module Agda.Interaction.Options
 
 import Control.Applicative
 import Control.Monad            ( when )
+import Control.Monad.Trans
 
 -- base-4.7 defines the Functor instances for OptDescr and ArgDescr
 #if !(MIN_VERSION_base(4,7,0))
@@ -84,6 +85,8 @@ data CommandLineOptions = Options
   { optProgramName      :: String
   , optInputFile        :: Maybe FilePath
   , optIncludeDirs      :: IncludeDirs
+  , optExplicitLibs     :: Bool
+  -- ^ Don't use ~/.agda/defaults or look for .agda-lib file if there are explicit --library flags.
   , optShowVersion      :: Bool
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
@@ -171,6 +174,7 @@ defaultOptions = Options
   { optProgramName      = "agda"
   , optInputFile        = Nothing
   , optIncludeDirs      = Left []
+  , optExplicitLibs     = False
   , optShowVersion      = False
   , optShowHelp         = False
   , optInteractive      = False
@@ -513,6 +517,19 @@ includeFlag :: FilePath -> Flag CommandLineOptions
 includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
   where ds = either id (const []) $ optIncludeDirs o
 
+libraryFlag :: String -> Flag CommandLineOptions
+libraryFlag s = setLibraryIncludes [s] >=> setExplicitLibs
+
+setExplicitLibs :: Flag CommandLineOptions
+setExplicitLibs o = return $ o { optExplicitLibs = True }
+
+setLibraryIncludes :: [String] -> Flag CommandLineOptions
+setLibraryIncludes libs o = do
+    installed <- getInstalledLibraries
+    paths     <- libraryIncludePaths installed libs
+    return o { optIncludeDirs  = Left (paths ++ ds) }
+  where ds = either id (const []) $ optIncludeDirs o
+
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
@@ -594,6 +611,10 @@ standardOptions =
                     "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
                     "look for imports in DIR"
+    , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
+                    "use library LIB"
+    , Option []     ["no-default-libraries"] (NoArg setExplicitLibs)
+                    "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
     , Option []     ["safe"] (NoArg safeFlag)
@@ -730,7 +751,14 @@ parseStandardOptions argv = parseStandardOptions' argv defaultOptions
 parseStandardOptions' :: [String] -> Flag CommandLineOptions
 parseStandardOptions' argv opts = do
   opts <- getOptSimple (stripRTS argv) standardOptions inputFlag opts
+  opts <- addDefaultLibraries opts
   checkOpts opts
+
+addDefaultLibraries :: Flag CommandLineOptions
+addDefaultLibraries o | optExplicitLibs o = pure o
+addDefaultLibraries o = do
+  libs <- getDefaultLibraries
+  setLibraryIncludes libs o
 
 -- | Parse options from an options pragma.
 parsePragmaOptions

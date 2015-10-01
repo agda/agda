@@ -58,7 +58,7 @@ mkFailTest agdaBin inp = do
 
         doRun = (do
           flags <- fromMaybe [] . fmap (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
-          let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces"] ++ words flags
+          let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces", "--no-default-libraries"] ++ words flags
           res@(ret, stdout, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
 
           if ret == ExitSuccess

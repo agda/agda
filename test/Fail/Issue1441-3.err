@@ -30,6 +30,8 @@ Usage: agda [OPTIONS...] [FILE]
           --css=URL                                   the CSS file used by the HTML files (can be relative)
           --ignore-interfaces                         ignore interface files (re-type check everything)
   -i DIR  --include-path=DIR                          look for imports in DIR
+  -l LIB  --library=LIB                               use library LIB
+          --no-default-libraries                      don't use default libraries
           --no-forcing                                disable the forcing optimisation
           --safe                                      disable postulates, unsafe OPTION pragmas and primTrustMe
           --sharing                                   enable sharing and call-by-need evaluation (experimental) (default: OFF)

@@ -17,7 +17,7 @@ Naked :
 
 Issue1430 :
 	@echo $@
-	@$(AGDA) $@.agda < $@.in > /dev/null
+	@$(AGDA) --no-default-libraries $@.agda < $@.in > /dev/null
 
 # Debugging the Makefile
 

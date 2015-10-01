@@ -15,6 +15,54 @@ Installation and infrastructure
 Pragmas and options
 ===================
 
+* Library management
+
+  There is a new 'library' concept for managing include paths. A library
+  consists of
+    - a name,
+    - a set of libraries it depends on, and
+    - a set of include paths.
+
+  A library is defined in a .agda-lib file using the following format:
+
+    name: LIBRARY-NAME  -- Comment
+    depend: LIB1 LIB2
+      LIB3
+      LIB4
+    include: PATH1
+      PATH2
+      PATH3
+
+  Dependencies are library names, not paths to .agda-lib files, and
+  include paths are relative to the location of the library-file.
+
+  To be useable, a library file has to be listed (with its full path) in
+  AGDA_DIR/libraries (where AGDA_DIR is ~/.agda on unix-like systems and
+  C:/Users/USERNAME/AppData/Roaming/agda or similar on Windows). You can
+  find out the precise location by calling 'agda -l fjdsk' and looking
+  at the error message (assuming you don't have a library called fjdsk
+  installed).
+
+  There are three ways a library gets used:
+
+    - You supply the --library=LIB (or -l LIB) option to Agda. This is
+      equivalent to adding a -iPATH for each of the include paths of LIB
+      and its (transitive) dependencies.
+
+    - No explicit --library flag is given, and the current project root
+      (of the Agda file that is being loaded) contains a .agda-lib file
+      defining a library LIB. This library is then added to the path
+      (equivalent to --library=LIB).
+
+    - No explicit --library flag, and no .agda-lib file in the project
+      root. In this case the file AGDA_DIR/defaults is read and all
+      libraries listed are added to the path. The defaults file should
+      contain a list of library names, each on a separate line. In this
+      case the current directory is also added to the path.
+
+      To disable default libraries, you can give the flag
+      --no-default-libraries.
+
 * New Pragma COMPILED_DECLARE_DATA for binding recursively defined
   Haskell data types to recursively defined Agda data types.
 
@@ -793,7 +841,10 @@ Emacs mode
 
 * Removed the agda-include-dirs customization parameter.
 
-  Use agda-program-args with -i DIR instead.
+  Use agda-program-args with -iDIR or -lLIB instead, or add libraries to
+  ~/.agda/defaults (C:/Users/USERNAME/AppData/Roaming/agda/defaults or
+  similar on Windows). See Library management, above, for more
+  information.
 
 Tools
 =====

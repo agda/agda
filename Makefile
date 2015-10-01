@@ -178,14 +178,14 @@ library-test : # up-to-date-std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	(cd std-lib && runhaskell GenerateEverything.hs && \
-          time $(AGDA_BIN) --ignore-interfaces -v profile:$(PROFVERB) \
+          time $(AGDA_BIN) --ignore-interfaces --no-default-libraries -v profile:$(PROFVERB) \
                            -i. -isrc README.agda \
                            +RTS -s -H1G -M1.5G)
 
 .PHONY : continue-library-test
 continue-library-test :
 	@(cd std-lib && \
-          time $(AGDA_BIN) -v profile:$(PROFVERB) -i. -isrc README.agda +RTS -s -H1G -M1.5G)
+          time $(AGDA_BIN) -v profile:$(PROFVERB) --no-default-libraries -i. -isrc README.agda +RTS -s -H1G -M1.5G)
 
 .PHONY : lib-succeed
 lib-succeed :

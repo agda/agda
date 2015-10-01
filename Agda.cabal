@@ -222,6 +222,9 @@ library
                     Agda.Interaction.Response
                     Agda.Interaction.MakeCase
                     Agda.Interaction.Monad
+                    Agda.Interaction.Library
+                    Agda.Interaction.Library.Base
+                    Agda.Interaction.Library.Parse
                     Agda.Interaction.Options
                     Agda.Interaction.Options.Lenses
                     Agda.Main

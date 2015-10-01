@@ -20,7 +20,7 @@ alllagda=$(patsubst %.lagda,%.test,$(filter-out $(excluded),$(shell find . -name
 default : all
 all : $(allagda) $(alllagda)
 
-RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim --ignore-interfaces -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
+RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim --ignore-interfaces --no-default-libraries -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
 
 check_CompiledRecord        = ./checkOutput ./CompiledRecord yes
 check_CompilingCoinduction  = ./checkOutput ./CompilingCoinduction a

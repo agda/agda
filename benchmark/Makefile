@@ -38,7 +38,7 @@ $(logDir) :
 
 $(LOG_DIR)/$(TAG)/% :
 	@echo Running benchmark $*
-	@$(AGDA_BIN) $(verbose) $($*) +RTS -slogs/.tmp > $@
+	@$(AGDA_BIN) $(verbose) --no-default-libraries $($*) +RTS -slogs/.tmp > $@
 	@cat logs/.tmp >> $@
 	@rm logs/.tmp
 	@echo "──────────────────────────────────────────────────────────────────" >> $@
