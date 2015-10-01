@@ -450,9 +450,9 @@ checkAbsurdLambda i h e t = do
               { funClauses        =
                   [Clause
                     { clauseRange     = getRange e
-                    , clauseTel       = EmptyTel   -- telFromList [fmap ("()",) dom]
                     , clausePerm      = Perm 1 []  -- Perm 1 [0]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP "()"]
+                    , clauseTel       = telFromList [fmap ("()",) dom]
                     , clauseBody      = Bind $ NoAbs "()" NoBody
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
