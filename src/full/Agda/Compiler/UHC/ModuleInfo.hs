@@ -6,7 +6,6 @@
 module Agda.Compiler.UHC.ModuleInfo
   ( AModuleInfo (..)
   , AModuleInterface (..)
-  , AConInfo (..)
   , ModVersion
   , currentModInfoVersion
   )
@@ -49,24 +48,14 @@ data AModuleInfo
 -- of this module to get the actual interface to use.
 data AModuleInterface
   = AModuleInterface
-  { amifConMp :: M.Map QName AConInfo  -- ^ Maps agda constructor qnames to types/constructor.
-  , amifNameMp :: NameMap    -- ^ Maps Agda module-level names to core name.
-  }
-  deriving (Show, Typeable)
-
-data AConInfo
-  = AConInfo
-  { aciDataType :: ADataTy
-  , aciDataCon :: ADataCon
+  { amifNameMp :: NameMap    -- ^ Maps Agda module-level names to core name.
   }
   deriving (Show, Typeable)
 
 instance Monoid AModuleInterface where
   mempty = AModuleInterface
-            { amifConMp = M.empty
-            , amifNameMp = mempty
+            { amifNameMp = mempty
             }
   mappend x y = AModuleInterface
-        { amifConMp = amifConMp x `M.union` amifConMp y
-        , amifNameMp = amifNameMp x `mappend` amifNameMp y
+        { amifNameMp = amifNameMp x `mappend` amifNameMp y
         }

@@ -9,29 +9,30 @@
 module Agda.Compiler.UHC.CompileState
   ( CompileT (..) -- we don't really want to export the ctor, but we need it in Transform
   , runCompileT
-  , uhcError
 
-  , addConMap
+  , addExports
+  , addMetaCon
+  , addMetaData
+  , getExports
+  , getDeclMetas
 
   , getCoreName
   , getCoreName1
-  , getConstrInfo
+  , getConstrCTag
   , getConstrFun
   , getCoinductionKit
 
   , getCurrentModule
 
   , conArityAndPars
-
-  -- internal use only
-  , CompileState (..)
+  , dataRecCons
   )
 where
 
 import Control.Monad.State
 import Control.Monad.Reader.Class
 import Data.List
-import qualified Data.Map as M
+import qualified Data.Map as Map
 import Data.Maybe
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -44,12 +45,14 @@ import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.MagicTypes
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad (MonadTCM, TCM, internalError, defType, theDef, getConstInfo)
+import Agda.TypeChecking.Monad -- (MonadTCM, TCM, internalError, defType, theDef, getConstInfo)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.Compiler.UHC.Naming
+import Agda.Compiler.UHC.Bridge
+import Agda.Compiler.UHC.Pragmas.Base
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -65,11 +68,16 @@ data CompileState = CompileState
     , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
     , curModuleInterface :: AModuleInterface -- ^ Interface of the current module only.
     , coinductionKit' :: Maybe CoinductionKit
+    , coreMetaData :: Map.Map QName ( [CDataCon] -> CDeclMeta )
+    , coreMetaCon :: Map.Map QName [CDataCon] -- map data name to constructors
+    , coreExports :: [CExport] -- ^ UHC core exports
     }
 
 -- | Compiler monad
 newtype CompileT m a = CompileT { unCompileT :: StateT CompileState m a }
   deriving (Monad, MonadIO, MonadTrans, Applicative, Functor)
+
+type Compile = CompileT TCM
 
 -- | Used to run the Agda-to-AuxAST transformation.
 -- During this transformation,
@@ -102,22 +110,35 @@ runCompileT coind amod curImpMods transImpIface nmMp comp = do
                 initialModIface `mappend` transImpIface
             , curModuleInterface = initialModIface
             , coinductionKit' = coind
+            , coreMetaData = Map.empty
+            , coreMetaCon = Map.empty
+            , coreExports = []
             }
 
+addExports :: Monad m => [HsName] -> CompileT m ()
+addExports = addExports' . map mkExport
 
--- | Add the given constructor map to the transitive interface, and set it
--- as the constructor map for the current module.
-addConMap :: Monad m => M.Map QName AConInfo -> CompileT m ()
-addConMap conMp = CompileT $ modify (\s -> s
-                    { moduleInterface = (moduleInterface s `mappend` ifaceConMp)
-                    , curModuleInterface = ( (curModuleInterface s) { amifConMp = conMp })
-                    })
-  where ifaceConMp = mempty { amifConMp = conMp }
+addExports' :: Monad m => [CExport] -> CompileT m ()
+addExports' nms =
+  CompileT $ modify (\s -> s { coreExports = nms ++ (coreExports s) } )
 
+addMetaCon :: QName -> CDataCon -> Compile ()
+addMetaCon q c = do
+  dtNm <- conData . theDef <$> lift (getConstInfo q)
+  CompileT $ modify (\s -> s { coreMetaCon = Map.insertWith (++) dtNm [c] (coreMetaCon s) } )
 
--- | When normal errors are not enough
-uhcError :: MonadTCM m => String -> CompileT m a
-uhcError = CompileT . lift . internalError
+addMetaData :: QName -> ([CDataCon] -> CDeclMeta) -> Compile ()
+addMetaData q d =
+  CompileT $ modify (\s -> s {coreMetaData = Map.insert q d (coreMetaData s) } )
+
+getExports :: Monad m => CompileT m [CExport]
+getExports = CompileT $ gets coreExports
+
+getDeclMetas :: Monad m => CompileT m [CDeclMeta]
+getDeclMetas = CompileT $ do
+  cons <- gets coreMetaCon
+  dts <- gets coreMetaData
+  return $ map (\(dtNm, f) -> f (Map.findWithDefault [] dtNm cons)) (Map.toList dts)
 
 getCoreName :: Monad m => QName -> CompileT m (Maybe HsName)
 getCoreName qnm = CompileT $ do
@@ -126,10 +147,6 @@ getCoreName qnm = CompileT $ do
 
 getCoreName1 :: Monad m => QName -> CompileT m HsName
 getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
-
-getConstrInfo :: (Functor m, Monad m) => QName -> CompileT m AConInfo
-getConstrInfo n = CompileT $ do
-  M.findWithDefault __IMPOSSIBLE__ n <$> gets (amifConMp . moduleInterface)
 
 getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
 getCoinductionKit = CompileT $ gets coinductionKit'
@@ -144,29 +161,45 @@ conArityAndPars :: QName -> TCM (Nat, Nat)
 conArityAndPars q = do
   def <- getConstInfo q
   TelV tel _ <- telView $ defType def
-  let TM.Constructor{ TM.conPars = np } = theDef def
+  let Constructor{ conPars = np } = theDef def
       n = genericLength (telToList tel)
   return (n - np, np)
 
+-- | Returns the CTag for a constructor. Not defined
+-- for Sharp and magic __UNIT__ constructor.
+getConstrCTag :: QName -> Compile CTag
+getConstrCTag q = do
+  def <- lift $ getConstInfo q
+  (arity, _) <- lift $ conArityAndPars q
+  case compiledCore $ defCompiledRep def of
+    Nothing -> do
+      nm <- getCoreName1 q
+      let dtQ = conData $ theDef def
+      -- get tag, which is the index of current con in datatype con list
+      tag <- fromJust . elemIndex q . dataRecCons . theDef <$> lift (getConstInfo dtQ)
+      mkCTag <$> getCoreName1 dtQ <*> (getCoreName1 q) <*> pure tag <*> pure arity
+    Just (CrConstr crCon) -> do
+      return $ coreConstrToCTag crCon arity
+    _ -> __IMPOSSIBLE__
+
 
 -- | Returns the expression to use to build a value of the given datatype/constructor.
--- The returned expression may be fully or partially applied.
-getConstrFun :: MonadTCM m => QName -> CompileT m HsName
-getConstrFun conNm = do
-  kit <- getCoinductionKit
+getConstrFun :: QName -> Compile HsName
+getConstrFun q = do
+  def <- lift $ getConstInfo q
+  case compiledCore $ defCompiledRep def of
+    Nothing -> getCoreName1 q
+    Just (CrConstr crCon) ->
+      return $
+        destructCTag builtinUnitCtor (\_ con _ _ -> con)
+          (coreConstrToCTag crCon 0) -- Arity doesn't matter here, as we immediately destruct the ctag again!
+    _ -> __IMPOSSIBLE__
 
-  case (Just conNm) == (nameOfSharp <$> kit) of
-    True -> getCoreName1 conNm
-    False -> do
-            -- we can't just use getCoreName here, because foreign constructors
-            -- are not part of the name map.
-            conInfo <- getConstrInfo conNm
-            let conDef = aciDataCon conInfo
-                tyDef = aciDataType conInfo
+dataRecCons :: Defn -> [QName]
+dataRecCons r@(Record{}) = [recCon r]
+dataRecCons d@(Datatype{}) = dataCons d
+dataRecCons _ = __IMPOSSIBLE__
 
-            case xdatImplType tyDef of
-              (ADataImplMagic nm) | nm == "UNIT" -> return $ builtinUnitCtor -- already fully applied
-              _ -> return $ ctagCtorName $ xconCTag conDef
 
 instance MonadReader r m => MonadReader r (CompileT m) where
   ask = lift ask

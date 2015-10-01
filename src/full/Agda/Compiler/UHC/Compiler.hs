@@ -44,9 +44,7 @@ import Agda.Utils.Pretty
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.UHC.Bridge as UB
-import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.ModuleInfo
-import Agda.Compiler.UHC.Core
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 --import qualified Agda.Compiler.UHC.Smashing     as Smash
 import Agda.Compiler.UHC.Naming
@@ -206,7 +204,7 @@ compileModule addImps i = do
                     lift $ reportSLn "" 1 $
                         "Compiling: " ++ show (iModuleName i)
                     opts <- lift commandLineOptions
-                    (code, modInfo, _) <- lift $ compileDefns modNm curModInfos transModInfos opts i
+                    (code, modInfo) <- lift $ compileDefns modNm curModInfos transModInfos opts i
                     lift $ do
                         crFile <- getCorePath modInfo
                         _ <- writeCoreFile crFile code
@@ -261,31 +259,18 @@ getMain iface = case concatMap f defs of
             (Function{}) | "main" == show (qnameName qn) -> [qn]
             _   -> []
 
-idPrint :: String -> Transform -> Transform
-idPrint s m x = do
-  reportSLn "uhc.phases" 10 s
-  m x
-
 -- | Perform the chain of compilation stages, from definitions to UHC Core code
 compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
     -> AModuleInterface -- ^ transitive iface
     -> CommandLineOptions
-    -> Interface -> TCM (UB.CModule, AModuleInfo, AMod)
+    -> Interface -> TCM (UB.CModule, AModuleInfo)
 compileDefns modNm curModImps transModIface opts iface = do
 
-    (amod', modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface iface $ \amod ->
-                   return amod
---               >>= optim optOptimSmashing "smashing"      Smash.smash'em
-               >>= idPrint "done" return
-    reportSLn "uhc" 10 $ "Done generating AuxAST for \"" ++ show modNm ++ "\"."
-    crMod <- toCore amod' modInfo (transModIface `mappend` (amiInterface modInfo)) curModImps
+    (crMod, modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface iface
 
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
-    return (crMod, modInfo, amod')
-  where optim :: (CommandLineOptions -> Bool) -> String -> Transform -> Transform
-        optim p s m x | p opts = idPrint s m x
-                      | otherwise = return x
+    return (crMod, modInfo)
 
 writeCoreFile :: String -> UB.CModule -> TCM FilePath
 writeCoreFile f cmod = do
@@ -329,7 +314,7 @@ runUhcMain otherMods mainInfo = do
             Nothing -> return []
             Just (mainMod, mainName) -> do
                 let fp = "Main"
-                let mmod = createMainModule mainMod mainName
+                let mmod = FAgda.createMainModule mainMod mainName
                 fp' <- writeCoreFile fp mmod
                 return [fp']
 

@@ -160,38 +160,10 @@ instance EmbPrj UHC.AModuleInfo where
     valu _ = malformed
 
 instance EmbPrj UHC.AModuleInterface where
-  icod_ (UHC.AModuleInterface a b) = icode2' a b
+  icod_ (UHC.AModuleInterface a) = icode1' a
   value = vcase valu where
-    valu [a, b] = valu2 UHC.AModuleInterface a b
-    valu _      = malformed
-
-instance EmbPrj UHC.AConInfo where
-  icod_ (UHC.AConInfo a b) = icode2' a b
-  value = vcase valu where
-    valu [a, b] = valu2 UHC.AConInfo a b
-    valu _      = malformed
-
-instance EmbPrj UHCA.ADataTy where
-  icod_ (UHCA.ADataTy a b c d) = icode4' a b c d
-  value = vcase valu where
-    valu [a, b, c, d] = valu4 UHCA.ADataTy a b c d
-    valu _            = malformed
-
-instance EmbPrj UHCA.ADataCon where
-  icod_ (UHCA.ADataCon a b) = icode2' a b
-  value = vcase valu where
-    valu [a, b] = valu2 UHCA.ADataCon a b
-    valu _         = malformed
-
-instance EmbPrj UHCA.ADataImplType where
-  icod_ (UHCA.ADataImplNormal)    = icode0 0
-  icod_ (UHCA.ADataImplMagic a)   = icode1 1 a
-  icod_ (UHCA.ADataImplForeign)   = icode0 2
-  value = vcase valu where
-    valu [0]    = valu0 UHCA.ADataImplNormal
-    valu [1, a] = valu1 UHCA.ADataImplMagic a
-    valu [2]    = valu0 UHCA.ADataImplForeign
-    valu _      = malformed
+    valu [a] = valu1 UHC.AModuleInterface a
+    valu _   = malformed
 
 instance EmbPrj UHCN.NameMap where
   icod_ (UHCN.NameMap a b) = icode2' a b

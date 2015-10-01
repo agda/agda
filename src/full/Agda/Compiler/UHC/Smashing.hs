@@ -25,7 +25,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 
 import Agda.Compiler.UHC.AuxAST as AA
-import Agda.Compiler.UHC.Transform
+--import Agda.Compiler.UHC.Transform
 import Agda.Compiler.UHC.Naming
 
 import Agda.Utils.Lens

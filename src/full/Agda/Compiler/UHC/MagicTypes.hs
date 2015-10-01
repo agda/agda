@@ -6,6 +6,7 @@ module Agda.Compiler.UHC.MagicTypes
   , getMagicTypes
   , MagicConstrInfo
   , MagicTypeInfo
+  , HsDataType (..)
   )
 where
 
@@ -19,19 +20,23 @@ import Agda.Compiler.UHC.Bridge
 -- | name of a magic, differently translated datatype/constructor
 type MagicName = String
 
+data HsDataType
+  = HsDataType HsName
+  | HsUnit
 
 type MagicConstrInfo = M.Map MagicName CTag -- maps primitive names to constructor ctags
-type MagicTypeInfo = M.Map MagicName (Maybe HsName, MagicConstrInfo) -- maps types to the UHC Core name
+type MagicTypeInfo = M.Map MagicName (HsDataType, MagicConstrInfo) -- maps types to the UHC Core name
 -- (or nothing for unit) and to their constructors.
 
 getMagicTypes :: MagicTypeInfo
 getMagicTypes = M.fromList $ map f primCrTys1
-  where f :: (MagicName, [(MagicName, CTag)]) -> (MagicName, (Maybe HsName, MagicConstrInfo))
+  where f :: (MagicName, [(MagicName, CTag)]) -> (MagicName, (HsDataType, MagicConstrInfo))
         f (dtMgcNm, constrs) = let dtCrNm = ctagDataTyNm $ snd $ head constrs
                                 in (dtMgcNm, (dtCrNm, M.fromList constrs))
+
 -- | Returns the name of the datatype or 'Nothing' for the unit datatype.
-ctagDataTyNm :: CTag -> Maybe HsName
-ctagDataTyNm = destructCTag Nothing (\dt _ _ _ -> Just dt)
+ctagDataTyNm :: CTag -> HsDataType
+ctagDataTyNm = destructCTag HsUnit (\dt _ _ _ -> HsDataType dt)
 
 
 primCrTys1 :: [(

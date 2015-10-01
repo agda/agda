@@ -192,7 +192,6 @@ library
                     Agda.Compiler.UHC.Bridge
                     Agda.Compiler.UHC.Compiler
                     Agda.Compiler.UHC.CompileState
-                    Agda.Compiler.UHC.Core
                     Agda.Compiler.UHC.FromAgda
                     Agda.Compiler.UHC.MagicTypes
                     Agda.Compiler.UHC.ModuleInfo
