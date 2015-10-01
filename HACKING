@@ -174,8 +174,14 @@ Standard library submodule
     git commit
 
 * The standard library is tracked as a git submodule, which means that the
-  `/std-lib` subdirectory will appear as a git repository in detached-head
+  `/std-lib` subdirectory will appear as a git repository in a detached-HEAD
   state.
+
+  To avoid this, you may run, inside the submodule directory:
+    git checkout <branch name>
+
+  and then, from the root directory:
+    git submodule update --remote [--merge|--rebase]
 
   See: https://www.git-scm.com/book/en/v2/Git-Tools-Submodules
 
