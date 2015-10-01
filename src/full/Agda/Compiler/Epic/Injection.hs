@@ -18,7 +18,7 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Internal.Pattern (FunArity(..))
+import Agda.Syntax.Internal.Pattern (FunArity(..), unnumberPatVars)
 import Agda.Syntax.Literal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
@@ -144,9 +144,9 @@ isInjectiveHere nam idx clause = do
   Nothing -> return emptyC
   Just body -> do
     let t    = patternToTerm idxR $ unArg $ fromMaybe __IMPOSSIBLE__ $
-                 clausePats clause !!! idx
+                 unnumberPatVars (clausePats clause) !!! idx
         t'   = applySubst (substForDot $ namedClausePats clause) t
-        idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ clausePats clause
+        idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ unnumberPatVars $ clausePats clause
     body' <- lift $ reduce body
     lift $ reportSLn "epic.injection" 40 "reduced body"
     injFs <- gets (injectiveFuns . importedModules)

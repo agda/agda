@@ -9,6 +9,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TupleSections              #-}
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
 #endif
@@ -379,7 +380,7 @@ stuckOn e r =
 -- | A clause is a list of patterns and the clause body should @Bind@.
 --
 --  The telescope contains the types of the pattern variables and the
---  permutation is how to get from the order the variables occur in
+--  de Bruijn indices say how to get from the order the variables occur in
 --  the patterns to the order they occur in the telescope. The body
 --  binds the variables in the order they appear in the patterns.
 --
@@ -393,9 +394,7 @@ data Clause = Clause
     { clauseRange     :: Range
     , clauseTel       :: Telescope
       -- ^ @Δ@: The types of the pattern variables.
-    , clausePerm      :: Permutation
-      -- ^ @π@ with @Γ ⊢ renamingR π : Δ@, which means @Δ ⊢ renaming π : Γ@.
-    , namedClausePats :: [NamedArg Pattern]
+    , namedClausePats :: [NamedArg DeBruijnPattern]
       -- ^ @let Γ = patternVars namedClausePats@
     , clauseBody      :: ClauseBody
       -- ^ @λΓ.v@
@@ -408,7 +407,7 @@ data Clause = Clause
     }
   deriving (Typeable, Show)
 
-clausePats :: Clause -> [Arg Pattern]
+clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
 
 data ClauseBodyF a = Body a
@@ -466,6 +465,9 @@ type DeBruijnPattern = Pattern' (Int, PatVarName)
 namedVarP :: PatVarName -> Named (Ranged PatVarName) Pattern
 namedVarP x = Named named $ VarP x
   where named = if isUnderscore x then Nothing else Just $ unranged x
+
+namedDBVarP :: Int -> PatVarName -> Named (Ranged PatVarName) DeBruijnPattern
+namedDBVarP m = (fmap . fmap) (m,) . namedVarP
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).
@@ -890,8 +892,8 @@ instance Null ClauseBody where
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
-  empty = Clause empty empty empty empty empty empty False
-  null (Clause r tel perm pats body t catchall)
+  empty = Clause empty empty empty empty empty False
+  null (Clause r tel pats body t catchall)
     =  null tel
     && null pats
     && null body
@@ -1061,7 +1063,7 @@ instance KillRange a => KillRange (Pattern' a) where
       ProjP q          -> killRange1 ProjP q
 
 instance KillRange Clause where
-  killRange (Clause r tel perm ps body t catchall) = killRange7 Clause r tel perm ps body t catchall
+  killRange (Clause r tel ps body t catchall) = killRange6 Clause r tel ps body t catchall
 
 instance KillRange a => KillRange (ClauseBodyF a) where
   killRange = fmap killRange

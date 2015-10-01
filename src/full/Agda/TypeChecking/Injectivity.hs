@@ -18,6 +18,7 @@ import Data.Traversable hiding (for)
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
@@ -180,9 +181,9 @@ useInjectivity cmp a u v = do
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing -> typeError $ UnequalTerms cmp u v a
-      Just cl@Clause{ clauseTel  = tel
-                    , clausePerm = perm } -> maybeAbort $ do
-          let ps = clausePats cl
+      Just cl@Clause{ clauseTel  = tel } -> maybeAbort $ do
+          let ps   = clausePats cl
+              perm = clausePerm cl
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat

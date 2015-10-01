@@ -27,6 +27,7 @@ import Test.QuickCheck
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
 import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
@@ -381,7 +382,7 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
-    let ps = clausePats cl
+    let ps = unnumberPatVars $ clausePats cl
     (concatOccurs (mapMaybe matching (zip [0..] ps)) >+<) <$>
       walk (patItems ps) (clauseBody cl)
     where
@@ -531,15 +532,14 @@ computeOccurrences q = inConcreteOrAbstractMode q $ do
 --   This is used instead of special treatment of lambdas
 --   (which was unsound: issue 121)
 etaExpandClause :: Nat -> Clause -> Clause
-etaExpandClause n c@Clause{ clauseTel = tel, clausePerm = perm, namedClausePats = ps, clauseBody = b }
+etaExpandClause n c@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
   | otherwise = c
-      { namedClausePats = ps ++ genericReplicate m (defaultArg $ unnamed $ VarP underscore)
+      { namedClausePats = raise m ps ++ map (defaultArg . unnamed . VarP . (,underscore)) (downFrom m)
       , clauseBody      = liftBody m b
       , clauseTel       = telFromList $
           telToList tel ++ (replicate m $ (underscore,) <$> dummyDom)
           -- dummyDom, not __IMPOSSIBLE__, because of debug printing.
-      , clausePerm      = Perm.liftP m perm -- Andreas, 2015-06-28 this is probably correct.
       }
   where
     m = n - genericLength ps

@@ -27,6 +27,7 @@ import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern as I
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
@@ -441,7 +442,7 @@ translateRecordPatterns clause = do
   -- cs: List of changes, with types in the context of the old
   -- telescope.
 
-  (ps, s, cs) <- runRecPatM $ translatePatterns $ namedClausePats clause
+  (ps, s, cs) <- runRecPatM $ translatePatterns $ unnumberPatVars $ namedClausePats clause
 
   let -- Number of variables + dot patterns in new clause.
       noNewPatternVars = size cs
@@ -512,8 +513,7 @@ translateRecordPatterns clause = do
       -- New clause.
       c = clause
             { clauseTel       = newTel
-            , clausePerm      = newPerm
-            , namedClausePats = applySubst lhsSubst ps
+            , namedClausePats = numberPatVars newPerm $ applySubst lhsSubst ps
             , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
             }
 
@@ -521,7 +521,6 @@ translateRecordPatterns clause = do
       [ text "Original clause:"
       , nest 2 $ inTopContext $ vcat
         [ text "delta =" <+> prettyTCM (clauseTel clause)
-        , text "perm  =" <+> prettyTCM (clausePerm clause)
         , text "pats  =" <+> text (show $ clausePats clause)
         ]
       , text "Intermediate results:"
@@ -546,7 +545,6 @@ translateRecordPatterns clause = do
       [ text "Translated clause:"
       , nest 2 $ vcat
         [ text "delta =" <+> prettyTCM (clauseTel c)
-        , text "perm  =" <+> text (show $ clausePerm c)
         , text "ps    =" <+> text (show $ clausePats c)
         , text "body  =" <+> text (show $ clauseBody c)
         , text "body  =" <+> prettyTCM (clauseBody c)

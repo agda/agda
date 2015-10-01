@@ -253,10 +253,9 @@ instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause r tel perm ps b t catchall) args =
+    apply (Clause r tel ps b t catchall) args =
       Clause r
              (apply tel args)
-             (apply perm args)
              (List.drop (size args) ps)
              (apply b args)
              (applySubst (parallelS (map unArg args)) t)
@@ -468,11 +467,12 @@ instance Abstract PrimFun where
         where n = size tel
 
 instance Abstract Clause where
-  abstract tel (Clause r tel' perm ps b t catchall) =
-    Clause r (abstract tel tel') (abstract tel perm)
-           (namedTelVars tel ++ ps) (abstract tel b)
+  abstract tel (Clause r tel' ps b t catchall) =
+    Clause r (abstract tel tel')
+           (namedTelVars m tel ++ ps) (abstract tel b)
            t -- nothing to do for t, since it lives under the telescope
            catchall
+      where m = size tel + size tel'
 
 instance Abstract CompiledClauses where
   abstract tel Fail = Fail
@@ -487,14 +487,14 @@ instance Abstract a => Abstract (Case a) where
   abstract tel (Branches cop cs ls m) =
     Branches cop (abstract tel cs) (abstract tel ls) (abstract tel m)
 
-telVars :: Telescope -> [Arg Pattern]
-telVars = map (fmap namedThing) . namedTelVars
+telVars :: Int -> Telescope -> [Arg DeBruijnPattern]
+telVars m = map (fmap namedThing) . (namedTelVars m)
 
-namedTelVars :: Telescope -> [NamedArg Pattern]
-namedTelVars EmptyTel                            = []
-namedTelVars (ExtendTel (Dom info a) tel) =
-  Arg info (namedVarP $ absName tel) :
-  namedTelVars (unAbs tel)
+namedTelVars :: Int -> Telescope -> [NamedArg DeBruijnPattern]
+namedTelVars m EmptyTel                     = []
+namedTelVars m (ExtendTel (Dom info a) tel) =
+  Arg info (namedDBVarP (m-1) $ absName tel) :
+  namedTelVars (m-1) (unAbs tel)
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective

@@ -19,6 +19,7 @@ import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern as I
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.InternalToAbstract
@@ -128,7 +129,6 @@ checkAlias t' ai delayed i name e = do
                       { funClauses        = [ Clause  -- trivial clause @name = v@
                           { clauseRange     = getRange i
                           , clauseTel       = EmptyTel
-                          , clausePerm      = idP 0
                           , namedClausePats = []
                           , clauseBody      = Body v
                           , clauseType      = Just $ Arg ai t
@@ -556,8 +556,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
         return $
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
-                 , clausePerm      = perm
-                 , namedClausePats = ps
+                 , namedClausePats = numberPatVars perm ps
                  , clauseBody      = body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall

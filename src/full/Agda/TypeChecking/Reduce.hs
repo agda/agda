@@ -23,6 +23,7 @@ import Data.Hashable
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Base (Scope)
 import Agda.Syntax.Literal
 
@@ -566,7 +567,7 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
           -- if clause is underapplied, skip to next clause
           if length es < n then goCls cls es else do
             let (es0, es1) = splitAt n es
-            (m, es0) <- matchCopatterns pats es0
+            (m, es0) <- matchCopatterns (unnumberPatVars pats) es0
             es <- return $ es0 ++ es1
             case m of
               No         -> goCls cls es
@@ -1181,9 +1182,8 @@ instance InstantiateFull CompiledClauses where
   instantiateFull' (Case n bs) = Case n <$> instantiateFull' bs
 
 instance InstantiateFull Clause where
-    instantiateFull' (Clause r tel perm ps b t catchall) =
+    instantiateFull' (Clause r tel ps b t catchall) =
        Clause r <$> instantiateFull' tel
-       <*> return perm
        <*> instantiateFull' ps
        <*> instantiateFull' b
        <*> instantiateFull' t

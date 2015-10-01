@@ -45,7 +45,7 @@ clauseArgs cl = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ clauseElims cl
 -- | Translate the clause patterns to an elimination spine
 --   with free variables bound by the clause telescope.
 clauseElims :: Clause -> Elims
-clauseElims cl = patternsToElims $ numberPatVars (clausePerm cl) (namedClausePats cl)
+clauseElims cl = patternsToElims $ namedClausePats cl
 
 -- | Arity of a function, computed from clauses.
 class FunArity a where
@@ -144,6 +144,9 @@ dbPatPerm ps = Perm (size ixs) picks
     getIndices (DotP _)      = [Nothing]
     getIndices (LitP _)      = []
     getIndices (ProjP _)     = []
+
+clausePerm :: Clause -> Permutation
+clausePerm = dbPatPerm . namedClausePats
 
 patternToElim :: Arg DeBruijnPattern -> Elim
 patternToElim (Arg ai (VarP (i, _))) = Apply $ Arg ai $ var i

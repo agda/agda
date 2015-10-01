@@ -173,8 +173,7 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
              applySubst (renamingR perm) .
              applySubst (renaming $ reverseP $ clausePerm wcl)
               <$> clauseBody wcl
-  return wcl { clausePerm      = perm
-             , namedClausePats = pats
+  return wcl { namedClausePats = numberPatVars perm pats
              , clauseBody      = body
              , clauseType      = Nothing -- TODO: renaming of original clause type
              }

@@ -15,6 +15,7 @@ import Debug.Trace
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Coverage.SplitTree
@@ -41,7 +42,7 @@ compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
   -> [Clause] -> TCM CompiledClauses
 compileClauses mt cs = do
-  let cls = [(clausePats c, clauseBody c) | c <- cs]
+  let cls = [(unnumberPatVars (clausePats c), clauseBody c) | c <- cs]
   shared <- sharedFun
   case mt of
     Nothing -> return $ compile shared cls

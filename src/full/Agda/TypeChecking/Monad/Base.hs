@@ -2050,7 +2050,7 @@ data TypeError
     -- the SplitError constructor has been added?
         | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
         | CoverageFailure QName [[Arg Pattern]]
-        | UnreachableClauses QName [[Arg Pattern]]
+        | UnreachableClauses QName [[Arg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type

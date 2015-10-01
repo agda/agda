@@ -146,16 +146,16 @@ quotingKit = do
       quoteQName :: QName -> ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
 
-      quotePats :: [NamedArg Pattern] -> ReduceM Term
+      quotePats :: [NamedArg DeBruijnPattern] -> ReduceM Term
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
 
-      quotePat :: Pattern -> ReduceM Term
-      quotePat (VarP "()")   = pure absurdP
-      quotePat (VarP x)      = varP !@! quoteString x
-      quotePat (DotP _)      = pure dotP
-      quotePat (ConP c _ ps) = conP !@ quoteQName (conName c) @@ quotePats ps
-      quotePat (LitP l)      = litP !@! Lit l
-      quotePat (ProjP x)     = projP !@ quoteQName x
+      quotePat :: DeBruijnPattern -> ReduceM Term
+      quotePat (VarP (_,"()"))   = pure absurdP
+      quotePat (VarP (_,x))      = varP !@! quoteString x
+      quotePat (DotP _)          = pure dotP
+      quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
+      quotePat (LitP l)          = litP !@! Lit l
+      quotePat (ProjP x)         = projP !@ quoteQName x
 
       quoteBody :: I.ClauseBody -> Maybe (ReduceM Term)
       quoteBody (Body a) = Just (quoteTerm a)

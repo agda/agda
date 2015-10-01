@@ -412,7 +412,6 @@ applySection' new ptel old ts rd rm = do
                      _ -> Def x []
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel
-                        , clausePerm      = idP 0
                         , namedClausePats = []
                         , clauseBody      = Body $ head `apply` ts'
                         , clauseType      = Just $ defaultArg t

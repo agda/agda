@@ -114,7 +114,7 @@ clauseToSplitClause :: Clause -> SplitClause
 clauseToSplitClause cl = SClause
   { scTel    = clauseTel  cl
   , scPerm   = clausePerm cl
-  , scPats   = namedClausePats cl
+  , scPats   = unnumberPatVars $ namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
   , scTarget = clauseType cl
   }

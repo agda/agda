@@ -370,12 +370,12 @@ auto ii rng argstr = do
             case cls' of
              Left{} -> dispmsg "No solution found"
              Right cls' -> do
-              cls'' <- forM cls' $ \ (I.Clause _ tel perm ps body t catchall) -> do
+              cls'' <- forM cls' $ \ (I.Clause _ tel ps body t catchall) -> do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
                  ps <- addCtxTel tel $ normalise ps
                  body <- etaContractBody body
-                 liftM modifyAbstractClause $ inContext [] $ reify $ AN.QNamed def $ I.Clause noRange tel perm ps body t catchall
+                 liftM modifyAbstractClause $ inContext [] $ reify $ AN.QNamed def $ I.Clause noRange tel ps body t catchall
               pcs <- withInteractionId ii $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks
 

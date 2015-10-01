@@ -14,6 +14,7 @@ import Data.Traversable (traverse)
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -246,7 +247,7 @@ nonvariantToUnusedArgInDef pol def = case def of
   _ -> def
 
 nonvariantToUnusedArgInClause :: [Polarity] -> Clause -> Clause
-nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, clausePerm = perm, namedClausePats = ps} =
+nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, namedClausePats = ps} =
   let adjPat p Nonvariant
         | properlyMatching (namedArg p) = __IMPOSSIBLE__ -- if we match, we cannot be Nonvariant (sanity check)
         | otherwise                     = mapRelevance mkUnused p
@@ -257,6 +258,7 @@ nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, clausePerm = perm, 
       -- get a list of 'Relevance's for the variables bound in the pattern
       rels0 = getRelevance <$> (concatMap (patternVars . fmap namedThing) ps')
       -- this is the order the variables appear in the telescope
+      perm  = clausePerm cl
       rels  = permute perm rels0
       -- now improve 'Relevance' in 'Telescope' by pattern relevance
       updateDom UnusedArg = mapRelevance mkUnused

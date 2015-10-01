@@ -32,6 +32,7 @@ import Agda.Syntax.Internal
     conName,
     derefPtr,
     toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
+import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
 import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
@@ -303,8 +304,9 @@ numPars (c : _) = genericLength (clausePats c)
 
 clause :: Clause -> TCM Case
 clause c = do
-  ps <- mapM (pattern . unArg) (clausePats c)
-  (av,bv,es) <- return (mapping (map unArg (clausePats c)))
+  let pats = unnumberPatVars $ clausePats c
+  ps <- mapM (pattern . unArg) pats
+  (av,bv,es) <- return (mapping (map unArg pats))
   e <- body (clauseBody c)
   return (Case ps (subst av es e))
 

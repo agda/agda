@@ -14,6 +14,7 @@ import Control.Monad.State
 
 import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
+import qualified Agda.Syntax.Internal.Pattern as IP
 import qualified Agda.Syntax.Common as Common
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
@@ -297,9 +298,9 @@ tomyClauses (cl:cls) = do
   Nothing -> cls'
 
 tomyClause :: I.Clause -> TOM (Maybe ([Pat O], MExp O))
-tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clauseBody = body}) = do
+tomyClause cl@(I.Clause {I.clauseBody = body}) = do
  let pats = I.clausePats cl
- pats' <- mapM tomyPat pats
+ pats' <- mapM tomyPat $ IP.unnumberPatVars pats
  body' <- tomyBody body
  return $ case body' of
            Just (body', _) -> Just (pats', body')
@@ -619,7 +620,7 @@ constructPats cmap mainm clause = do
         return (ns, HI hid (CSPatExp t2))
        I.ProjP{} -> copatternsNotImplemented
        _ -> __IMPOSSIBLE__
- (names, pats) <- cnvps [] (I.namedClausePats clause)
+ (names, pats) <- cnvps [] (IP.unnumberPatVars $ I.namedClausePats clause)
  return (reverse names, pats)
 
 
@@ -692,8 +693,7 @@ frommyClause (ids, pats, mrhs) = do
  return $ I.Clause
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
-   , I.clausePerm  = cperm
-   , I.namedClausePats = applySubst (renamingR $ compactP cperm) ps
+   , I.namedClausePats = IP.numberPatVars cperm $ applySubst (renamingR $ compactP cperm) ps
    , I.clauseBody  = applySubst (renamingR cperm) <$> body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False

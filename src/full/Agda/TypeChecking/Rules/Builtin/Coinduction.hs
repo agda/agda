@@ -129,9 +129,8 @@ bindBuiltinFlat e =
     let clause   = Clause
           { clauseRange     = noRange
           , clauseTel       = tel
-          , clausePerm      = idP 1
           , namedClausePats = [ argN $ Named Nothing $
-              ConP sharpCon cpi [ argN $ Named Nothing $ VarP "x" ] ]
+              ConP sharpCon cpi [ argN $ Named Nothing $ VarP (0,"x") ] ]
           , clauseBody      = Bind $ Abs "x" $ Body $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False

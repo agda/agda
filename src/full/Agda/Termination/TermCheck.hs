@@ -34,6 +34,7 @@ import Data.Traversable (traverse)
 import Agda.Syntax.Abstract (IsProjP(..), AllNames(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
@@ -585,9 +586,9 @@ termClause clause = do
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
   cl @ Clause { clauseTel  = tel
-              , clausePerm = perm
               , clauseBody = body } <- introHiddenLambdas clause
   let argPats' = clausePats cl
+      perm     = clausePerm cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
@@ -597,7 +598,7 @@ termClause' clause = do
     ]
   addCtxTel tel $ do
     ps <- liftTCM $ normalise $ map unArg argPats'
-    (dbpats, res) <- openClause perm ps body
+    (dbpats, res) <- openClause perm (unnumberPatVars ps) body
     case res of
       Nothing -> return empty
       Just v -> do
@@ -637,8 +638,8 @@ termClause' clause = do
 introHiddenLambdas :: MonadTCM tcm => Clause -> tcm Clause
 introHiddenLambdas clause = liftTCM $ do
   case clause of
-    Clause range ctel perm ps body Nothing catchall  -> return clause
-    Clause range ctel perm ps body (Just t) catchall -> do
+    Clause range ctel ps body Nothing catchall  -> return clause
+    Clause range ctel ps body (Just t) catchall -> do
       case removeHiddenLambdas body of
         -- nobody or no hidden lambdas
         ([], _) -> return clause
@@ -651,12 +652,10 @@ introHiddenLambdas clause = liftTCM $ do
           when (size ttel < n) __IMPOSSIBLE__
           -- join with lhs telescope
           let ctel' = telFromList $ telToList ctel ++ telToList ttel
-              ps'   = ps ++ map toPat axs
-              perm' = liftP n perm
-          return $ Clause range ctel' perm' ps' body' (Just (t $> t')) catchall
+              ps'   = raise n ps ++ zipWith toPat (downFrom $ size axs) axs
+          return $ Clause range ctel' ps' body' (Just (t $> t')) catchall
   where
-    toPat (Arg (ArgInfo h r) x) =
-           Arg (ArgInfo h r) $ namedVarP x
+    toPat i (Arg (ArgInfo h r) x) = Arg (ArgInfo h r) $ namedDBVarP i x
     removeHiddenLambdas :: ClauseBody -> ([Arg ArgName], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 

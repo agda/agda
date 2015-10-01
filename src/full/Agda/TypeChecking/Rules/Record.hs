@@ -8,6 +8,7 @@ import Data.Maybe
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
@@ -383,8 +384,7 @@ checkRecordProjections m r con tel ftel fs = do
             cltel  = ftel
             clause = Clause { clauseRange = getRange info
                             , clauseTel       = killRange cltel
-                            , clausePerm      = idP $ size ftel
-                            , namedClausePats = [Named Nothing <$> conp]
+                            , namedClausePats = [Named Nothing <$> numberPatVars (idP $ size ftel) conp]
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False

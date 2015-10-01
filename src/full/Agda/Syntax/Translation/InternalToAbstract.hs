@@ -46,6 +46,7 @@ import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern as I
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.Monad.Builtin
@@ -897,7 +898,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 
 
 instance Reify NamedClause A.Clause where
-  reify (QNamed f (I.Clause _ tel perm ps body _ catchall)) = addCtxTel tel $ do
+  reify (QNamed f (I.Clause _ tel ps' body _ catchall)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f `catchError` \_ -> return 0
@@ -910,6 +911,8 @@ instance Reify NamedClause A.Clause where
     return result
     where
       info = LHSRange noRange
+      ps   = unnumberPatVars ps'
+      perm = dbPatPerm ps'
 
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do

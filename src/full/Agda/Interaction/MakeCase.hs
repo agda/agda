@@ -16,6 +16,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Scope.Monad (resolveName, ResolvedName(..))
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.InternalToAbstract
@@ -151,7 +152,8 @@ parseVariables ii rng ss = do
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
   meta <- lookupInteractionId hole
-  (casectxt, f, clause@(Clause{ clauseTel = tel, clausePerm = perm, namedClausePats = ps })) <- findClause meta
+  (casectxt, f, clause@(Clause{ clauseTel = tel, namedClausePats = ps })) <- findClause meta
+  let perm = clausePerm clause
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
     , nest 2 $ vcat
@@ -227,7 +229,7 @@ makeAbsurdClause f (SClause tel perm ps _ t) = do
   withCurrentModule (qnameModule f) $ do
     -- Andreas, 2015-05-29 Issue 635
     -- Contract implicit record patterns before printing.
-    c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
+    c <- translateRecordPatterns $ Clause noRange tel (numberPatVars perm ps) NoBody t False
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise $ namedClausePats c
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
