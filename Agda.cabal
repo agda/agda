@@ -396,6 +396,7 @@ library
                     Agda.Utils.Char
                     Agda.Utils.Cluster
                     Agda.Utils.Empty
+                    Agda.Utils.Environment
                     Agda.Utils.Except
                     Agda.Utils.Either
                     Agda.Utils.Favorites
