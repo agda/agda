@@ -68,10 +68,8 @@ toCore :: AMod      -- ^ The current module to compile.
     -> TCM CModule
 toCore amod modInfo transModIface modImps = do
 
-  traceLvl <- optUHCTraceLevel <$> commandLineOptions
-  funs <- flip runReaderT traceLvl $ evalFreshNameT "nl.uu.agda.to_core" $ funsToCore (xmodFunDefs amod)
-
-  let cMetaDeclL = buildCMetaDeclL (xmodDataTys amod)
+  let funs = xmodFunDefs amod
+      cMetaDeclL = buildCMetaDeclL (xmodDataTys amod)
 
   let imps = map mkHsName1
         ( Set.toList
@@ -87,11 +85,6 @@ toCore amod modInfo transModIface modImps = do
   where mnmToCrNm :: ModuleName -> HsName
         mnmToCrNm mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp transModIface) mnm)
 
-funsToCore :: Monad m => [Fun] -> ToCoreT m CExpr
-funsToCore funs = do
-  binds <- mapM funToBind funs
-  let body = mkLetRec binds (mkInt opts 0)
-  return body
 
 buildCMetaDeclL :: [ADataTy] -> [CDeclMeta]
 buildCMetaDeclL dts = catMaybes $ map f dts
@@ -103,7 +96,4 @@ buildCMetaDeclL dts = catMaybes $ map f dts
           -- mkMetaDataConFromCTag can return Nothing for the tuple/record/() ctag, but should never happen
           g c@(ADataCon{}) = fromMaybe __IMPOSSIBLE__ $ mkMetaDataConFromCTag (xconCTag c)
 
-
-funToBind :: Monad m => Fun -> ToCoreT m CBind
-funToBind (CoreFun name crExpr) = return $ mkBind1 name crExpr
 

@@ -31,7 +31,7 @@ data AMod
   = AMod
       { xmodName    :: ModuleName
       , xmodDataTys :: [ADataTy]
-      , xmodFunDefs :: [Fun]
+      , xmodFunDefs :: CExpr
       , xmodCrImports :: Set String -- ^ Imports of other Core/Haskell modules for the FFI. Includes transitive imports.
       }
 
@@ -58,14 +58,6 @@ data ADataCon
       , xconCTag     :: CTag
       }
   deriving (Eq, Ord, Show, Typeable)
-
-data Fun
-  = CoreFun
-      { xfunName     :: HsName
-      , xfunCoreExpr :: CExpr
-      }
-  deriving (Eq, Show)
-
 
 -- | Returns the arity of a constructor.
 xconArity :: ADataCon -> Int

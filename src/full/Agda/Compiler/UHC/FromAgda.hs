@@ -87,7 +87,8 @@ fromAgdaModule modNm curModImps transModIface iface cont = do
     lift $ reportSLn "uhc" 25 $ "Constructor Map for " ++ show modNm ++ ":\n" ++ show conMp
 
 
-    funs <- evalFreshNameT "nl.uu.agda.from-agda" (concat <$> mapM translateDefn defs)
+    funs' <- evalFreshNameT "nl.uu.agda.from-agda" (concat <$> mapM translateDefn defs)
+    let funs = mkLetRec funs' (mkInt opts 0)
 
     -- additional core/HS imports for the FFI
     additionalImports <- lift getHaskellImportsUHC
@@ -186,7 +187,7 @@ translateDataTypes defs = do
 
 
 -- | Translate an Agda definition to an UHC Core function where applicable
-translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) [Fun]
+translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) [CBind]
 translateDefn (n, defini) = do
 
   crName <- lift $ getCoreName n
@@ -195,7 +196,7 @@ translateDefn (n, defini) = do
   case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
-        return [CoreFun (fromMaybe __IMPOSSIBLE__ crName) (mkLam vars $ mkUnit opts)]
+        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) (mkLam vars $ mkUnit opts)]
     (Function{}) | Just n == (nameOfFlat <$> kit) -> do
         (\x -> [x]) <$> mkIdentityFun n "coind-flat" 0
     f@(Function{}) | otherwise -> do
@@ -209,7 +210,7 @@ translateDefn (n, defini) = do
         funBody' <- runCompile $ compileTerm funBody
         lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
 
-        return [CoreFun (fromMaybe __IMPOSSIBLE__ crName) funBody']
+        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) funBody']
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         (\x -> [x]) <$> mkIdentityFun n "coind-sharp" 0
@@ -225,15 +226,15 @@ translateDefn (n, defini) = do
                     vars <- replicateM arity' freshLocalName
                     let conWrapper = mkLam vars (mkTagTup (xconCTag conCon) $ map mkVar vars)
 
-                    return [CoreFun (ctagCtorName $ xconCTag conCon) conWrapper]
+                    return [mkBind1 (ctagCtorName $ xconCTag conCon) conWrapper]
           Nothing -> return [] -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
 
     r@(Record{}) -> do
         vars <- replicateM (recPars r) freshLocalName
-        return [CoreFun (fromMaybe __IMPOSSIBLE__ crName) (mkLam vars $ mkUnit opts)]
+        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) (mkLam vars $ mkUnit opts)]
     (Axiom{}) -> do -- Axioms get their code from COMPILED_UHC pragmas
         case crRep of
-            Nothing -> return [CoreFun (fromMaybe __IMPOSSIBLE__ crName)
+            Nothing -> return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName)
                 (coreError $ "Axiom " ++ show n ++ " used but has no computation.")]
             Just (CrDefn x) -> do
                         x' <- case coreExprToCExpr x of
@@ -241,7 +242,7 @@ translateDefn (n, defini) = do
                                 -- without UHC support enabled.
                                 Left err -> internalError $ "Invalid COMPILED_UHC pragma value: " ++ err
                                 Right y -> return y
-                        return [CoreFun (fromMaybe __IMPOSSIBLE__ crName) x']
+                        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) x']
             _ -> __IMPOSSIBLE__
 
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
@@ -250,17 +251,17 @@ translateDefn (n, defini) = do
         Nothing     -> internalError $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just expr) -> do
                 expr' <- lift expr
-                return [CoreFun (fromMaybe __IMPOSSIBLE__ crName) expr']
+                return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) expr']
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
     mkIdentityFun :: Monad m => QName
         -> String -- ^ comment
         -> Int      -- ^ How many arguments to ignore.
-        -> FreshNameT (CompileT m) Fun
+        -> FreshNameT (CompileT m) CBind
     mkIdentityFun nm comment ignArgs = do
         crName <- lift $ getCoreName1 nm
         xs <- replicateM (ignArgs + 1) freshLocalName
-        return $ CoreFun crName (mkLam xs (mkVar $ last xs))
+        return $ mkBind1 crName (mkLam xs (mkVar $ last xs))
 
 
 runCompile :: NM a -> FreshNameT (CompileT TCM) a
