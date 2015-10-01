@@ -163,9 +163,13 @@ std-lib :
 
 .PHONY : up-to-date-std-lib
 up-to-date-std-lib :
-	@(git submodule update --init --remote std-lib && \
-	  cd std-lib && \
-	  make setup)
+	git submodule update --init std-lib
+	@(cd std-lib && make setup)
+
+.PHONY : fast-forward-std-lib
+fast-forward-std-lib :
+	git submodule update --init --remote std-lib
+	@(cd std-lib && make setup)
 
 .PHONY : library-test
 library-test : # up-to-date-std-lib
