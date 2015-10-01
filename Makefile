@@ -161,16 +161,17 @@ latex-html-test :
 
 .PHONY : std-lib
 std-lib :
-	if [ ! -d $@ ]; then \
-	   git clone https://github.com/agda/agda-stdlib.git \
-	             --single-branch $@; \
-	fi
+	git submodule update --init std-lib
 
 .PHONY : up-to-date-std-lib
-up-to-date-std-lib : std-lib
-	@(cd std-lib && \
-	  git fetch && git checkout master && git merge origin/master && \
-	  make setup)
+up-to-date-std-lib :
+	git submodule update --init std-lib
+	@(cd std-lib && make setup)
+
+.PHONY : fast-forward-std-lib
+fast-forward-std-lib :
+	git submodule update --init --remote std-lib
+	@(cd std-lib && make setup)
 
 .PHONY : library-test
 library-test : # up-to-date-std-lib

@@ -1,4 +1,4 @@
-Working with Git (from 2014-06-15)
+Working with Git (from 2013-06-15)
 
 * Maintenance branches.
 
@@ -142,6 +142,49 @@ Working with Git (from 2014-06-15)
     git reset --hard
 
     exit $status
+
+Standard library submodule
+
+* A large part of the test suite involves the standard library.
+  Each version of Agda is deemed compatible with a corresponding version of the
+  standard library.
+
+* Each commit in the main agda repository has a reference to a branch and a
+  commit in the standard library repository. The tests are run using this
+  referenced version of the standard library.
+
+  + The file `/.gitmodules` contains the URL of the standard library
+    repository and the name of the branch.
+
+  + The path `/std-lib` is treated by git as a file containing the hash of the
+    referenced commit.
+
+* To obtain the referenced version of the standard library, run:
+    make std-lib
+
+* To obtain and install the referenced version of the standard library, run:
+    make up-to-date-std-lib
+
+* To obtain and install  the newest version of the standard library for the
+  referenced branch, run:
+    make fast-forward-std-lib
+
+  If the new version of the standard library also passes all tests, you can
+  have the repository point to it:
+    git add std-lib
+    git commit
+
+* The standard library is tracked as a git submodule, which means that the
+  `/std-lib` subdirectory will appear as a git repository in a detached-HEAD
+  state.
+
+  To avoid this, you may run, inside the submodule directory:
+    git checkout <branch name>
+
+  and then, from the root directory:
+    git submodule update --remote [--merge|--rebase]
+
+  See: https://www.git-scm.com/book/en/v2/Git-Tools-Submodules
 
 Testing and documentation
 
