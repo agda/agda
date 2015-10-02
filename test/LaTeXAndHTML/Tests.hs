@@ -44,7 +44,7 @@ tests = do
 
 data LaTeXResult
   = AgdaFailed ProgramResult
-  | LaTeXFailed LaTeXProg ProgramResult
+  | LaTeXFailed LaTeXProg ProgramResult (Maybe T.Text)
   | Success T.Text -- ^ The resulting LaTeX or HTML file.
 
 data Kind = LaTeX | HTML
@@ -116,16 +116,20 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
 #endif
       if ret == ExitSuccess then
         cont
-      else
-        return $ LaTeXFailed prog res
+      else do
+        logFile <- fmap (decodeUtf8With (\_ _ -> Just $ '?'))
+          <$> readFileMaybe (wd </> (dropExtension $ takeFileName texFile) <.> "log")
+        return $ LaTeXFailed prog res logFile
 
 printLaTeXResult :: LaTeXResult -> T.Text
 printLaTeXResult (Success t) = t
 printLaTeXResult (AgdaFailed p)= "AGDA_COMPILE_FAILED\n\n" `T.append` printProcResult p
-printLaTeXResult (LaTeXFailed prog p) = "LATEX_COMPILE_FAILED with "
+printLaTeXResult (LaTeXFailed prog p llog) = "LATEX_COMPILE_FAILED with "
     `T.append` (T.pack prog)
     `T.append` "\n\n"
     `T.append` printProcResult p
+    `T.append` T.pack "\n\nXeLaTeX log file:\n"
+    `T.append` fromMaybe T.empty llog
 
 readMaybe :: Read a => String -> Maybe a
 readMaybe s =
