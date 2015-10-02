@@ -9,7 +9,6 @@ import Control.Arrow (first, second)
 import Control.Applicative
 import Control.Exception
 import Control.Monad.Writer
-import Control.Monad.Except
 import Data.Char
 import Data.Either
 import Data.Function
@@ -21,6 +20,7 @@ import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
 import Agda.Utils.Monad
 import Agda.Utils.Environment
+import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
 import Agda.Utils.List
 
 type LibM = ExceptT String IO

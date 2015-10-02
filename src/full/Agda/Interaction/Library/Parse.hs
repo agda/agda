@@ -6,13 +6,13 @@ module Agda.Interaction.Library.Parse (parseLibFile, stripComments, splitCommas)
 
 import Control.Applicative
 import Control.Exception
-import Control.Monad.Except
 import Control.Monad
 import Data.Char
 import Data.List
 import System.FilePath
 
 import Agda.Interaction.Library.Base
+import Agda.Utils.Except ( MonadError(throwError) )
 
 catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO = catch

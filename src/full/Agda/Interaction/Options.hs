@@ -29,15 +29,13 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Applicative
-import Control.Monad            ( when )
+import Control.Monad            ( (>=>), when )
 import Control.Monad.Trans
 
 -- base-4.7 defines the Functor instances for OptDescr and ArgDescr
 #if !(MIN_VERSION_base(4,7,0))
 import Data.Orphans             ()
 #endif
-
-import Control.Monad.Except
 
 import Data.Either
 import Data.Maybe
@@ -53,6 +51,12 @@ import Agda.Termination.CutOff  ( CutOff(..) )
 
 import Agda.Interaction.Library
 
+import Agda.Utils.Except
+  ( ExceptT
+  , MonadError(catchError, throwError)
+  , runExceptT
+  )
+
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
@@ -61,8 +65,6 @@ import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
-
-import Agda.Utils.Except ( MonadError(catchError, throwError) )
 
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
