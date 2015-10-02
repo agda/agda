@@ -336,7 +336,7 @@ instance Monoid Blocked_ where
 -- See Issue 1573.
 #if !MIN_VERSION_transformers(0,4,1)
 instance Error Blocked_ where
-  noMsg = __IMPOSSIBLE__
+  noMsg = mempty
 #endif
 
 -- | When trying to reduce @f es@, on match failed on one
