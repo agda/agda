@@ -48,7 +48,6 @@ import Agda.Compiler.UHC.Bridge as UB
 import Agda.Compiler.UHC.ModuleInfo
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 --import qualified Agda.Compiler.UHC.Smashing     as Smash
-import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.AuxAST
 
 #include "undefined.h"

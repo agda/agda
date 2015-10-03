@@ -21,9 +21,9 @@ module Agda.Compiler.UHC.CompileState
   , getCoreName1
   , getConstrCTag
   , getConstrFun
-  , getCoinductionKit
   , moduleNameToCoreName
   , moduleNameToCoreNameParts
+  , freshLocalName
 
   , getCurrentModule
 
@@ -54,7 +54,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
-import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.Bridge
 import Agda.Compiler.UHC.Pragmas.Base
 
@@ -71,10 +70,10 @@ getTime = round <$> getPOSIXTime
 -- | Stuff we need in our compiler
 data CompileState = CompileState
     { curModule       :: ModuleName
-    , coinductionKit' :: Maybe CoinductionKit
     , coreMetaData :: Map.Map QName ( [CDataCon] -> CDeclMeta )
     , coreMetaCon :: Map.Map QName [CDataCon] -- map data name to constructors
     , coreExports :: [CExport] -- ^ UHC core exports
+    , nameSupply :: Integer
     }
 
 -- | Compiler monad
@@ -85,13 +84,12 @@ type Compile = CompileT TCM
 
 -- | Used to run the Agda-to-AuxAST transformation.
 -- During this transformation,
-runCompileT :: MonadIO m
-    => Maybe CoinductionKit
-    -> ModuleName   -- ^ The module to compile.
+runCompileT :: MonadIO m =>
+       ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info, non-transitive.
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind amod curImpMods comp = do
+runCompileT amod curImpMods comp = do
   (result, state') <- runStateT (unCompileT comp) initial
 
   version <- liftIO getTime
@@ -106,10 +104,10 @@ runCompileT coind amod curImpMods comp = do
   return (result, modInfo)
   where initial = CompileState
             { curModule     = amod
-            , coinductionKit' = coind
             , coreMetaData = Map.empty
             , coreMetaCon = Map.empty
             , coreExports = []
+            , nameSupply = 0
             }
 
 addExports :: Monad m => [HsName] -> CompileT m ()
@@ -138,12 +136,14 @@ getDeclMetas = CompileT $ do
   return $ map (\(dtNm, f) -> f (Map.findWithDefault [] dtNm cons)) (Map.toList dts)
 
 
-getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
-getCoinductionKit = CompileT $ gets coinductionKit'
-
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = CompileT $ gets curModule
 
+freshLocalName :: Monad m => CompileT m HsName
+freshLocalName = CompileT $ do
+    i <- gets nameSupply
+    modify (\s -> s { nameSupply = i + 1 } )
+    return $ mkUniqueHsName "nl.uu.agda.fresh-local-name" [] ("x" ++ show i)
 
 -----------------
 -- Constructors

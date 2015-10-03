@@ -46,7 +46,6 @@ import Agda.Compiler.UHC.AuxAST as A
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Primitives
-import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.MagicTypes
 
 import Agda.Compiler.UHC.Bridge as CA
@@ -65,14 +64,13 @@ fromAgdaModule :: ModuleName
     -> Interface         -- interface to compile
     -> TCM (CModule, AModuleInfo)
 fromAgdaModule modNm curModImps iface = do
-  kit <- coinductionKit
 
   let defs = HMap.toList $ sigDefinitions $ iSignature iface
 
-  (mod', modInfo') <- runCompileT kit modNm curModImps (do
+  (mod', modInfo') <- runCompileT modNm curModImps (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
 
-    funs' <- evalFreshNameT "nl.uu.agda.from-agda" (concat <$> mapM translateDefn defs)
+    funs' <- concat <$> mapM translateDefn defs
     let funs = mkLetRec funs' (mkInt opts 0)
 
 
@@ -94,52 +92,52 @@ fromAgdaModule modNm curModImps iface = do
 
 
 -- | Translate an Agda definition to an UHC Core function where applicable
-translateDefn :: (QName, Definition) -> FreshNameT (CompileT TCM) [CBind]
+translateDefn :: (QName, Definition) -> Compile [CBind]
 translateDefn (n, defini) = do
 
-  crName <- lift $ getCoreName n
+  crName <- getCoreName n
   let crRep = compiledCore $ defCompiledRep defini
-  kit <- lift getCoinductionKit
+  kit <- lift coinductionKit
   case theDef defini of
     d@(Datatype {}) -> do
 
         unless (isJust crRep || Just n == (nameOfInf <$> kit)) $ do
-          lift $ addMetaData n (mkMetaData crName)
+          addMetaData n (mkMetaData crName)
 
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
-        lift $ addExports [crName]
+        addExports [crName]
         return [mkBind1 crName (mkLam vars $ mkUnit opts)]
     (Function{}) | Just n == (nameOfFlat <$> kit) -> do
-        lift $ addExports [crName]
+        addExports [crName]
         (\x -> [x]) <$> mkIdentityFun n "coind-flat" 0
     f@(Function{}) | otherwise -> do
         let ty    = (defType defini)
-        lift . lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
-        lift . lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
+        lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
+        lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        funBody <- convertNPlusK <$> (lift . lift) (ccToTreeless n cc)
-        lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
-        funBody' <- runCompile $ compileTerm funBody
-        lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
+        funBody <- convertNPlusK <$> lift (ccToTreeless n cc)
+        lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
+        funBody' <- runTT $ compileTerm funBody
+        lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
 
-        lift $ addExports [crName]
+        addExports [crName]
         return [mkBind1 crName funBody']
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
-        lift $ addExports [crName]
+        addExports [crName]
         (\x -> [x]) <$> mkIdentityFun n "coind-sharp" 0
 
     (Constructor{}) | Nothing <- crRep -> do -- become functions returning a constructor with their tag
       -- we have to ignore instantiated constructors here!
-      n' <- lift $ lift $ canonicalName n
+      n' <- lift $ canonicalName n
       if (n /= n')
         then return []
         else do
-          lift $ addExports [crName]
-          ctag <- lift $ getConstrCTag n
+          addExports [crName]
+          ctag <- getConstrCTag n
 
-          lift $ addMetaCon n (fromJust $ mkMetaDataConFromCTag ctag)
+          addMetaCon n (fromJust $ mkMetaDataConFromCTag ctag)
 
           vars <- replicateM (getCTagArity ctag) freshLocalName
           let conWrapper = mkLam vars (mkTagTup ctag $ map mkVar vars)
@@ -149,13 +147,13 @@ translateDefn (n, defini) = do
 
     r@(Record{}) -> do
         unless (isJust crRep) $ do
-          lift $ addMetaData n (mkMetaData crName)
+          addMetaData n (mkMetaData crName)
 
         vars <- replicateM (recPars r) freshLocalName
-        lift $ addExports [crName]
+        addExports [crName]
         return [mkBind1 crName (mkLam vars $ mkUnit opts)]
     (Axiom{}) -> do -- Axioms get their code from COMPILED_UHC pragmas
-        lift $ addExports [crName]
+        addExports [crName]
         case crRep of
             Nothing -> return [mkBind1 crName
                 (coreError $ "Axiom " ++ show n ++ " used but has no computation.")]
@@ -169,37 +167,37 @@ translateDefn (n, defini) = do
             _ -> __IMPOSSIBLE__
 
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
-      lift $ addExports [crName]
+      addExports [crName]
 
       case primName p `M.lookup` primFunctions of
         Nothing     -> internalError $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just expr) -> do
-                expr' <- lift expr
+                expr' <- expr
                 return [mkBind1 crName expr']
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
     mkIdentityFun :: QName
         -> String -- ^ comment
         -> Int      -- ^ How many arguments to ignore.
-        -> FreshNameT Compile CBind
+        -> Compile CBind
     mkIdentityFun nm comment ignArgs = do
-        crName <- lift $ getCoreName nm
+        crName <- getCoreName nm
         xs <- replicateM (ignArgs + 1) freshLocalName
         return $ mkBind1 crName (mkLam xs (mkVar $ last xs))
 
 
-runCompile :: NM a -> FreshNameT (CompileT TCM) a
-runCompile r = do
-  r `runReaderT` (NMEnv [])
+runTT :: TT a -> Compile a
+runTT r = do
+  r `runReaderT` (TTEnv [])
 
-data NMEnv = NMEnv
+data TTEnv = TTEnv
   { nmEnv :: [HsName] -- maps de-bruijn indices to names
   }
 
-type NM = ReaderT NMEnv (FreshNameT (CompileT TCM))
+type TT = ReaderT TTEnv Compile
 
 
-addToEnv :: [HsName] -> NM a -> NM a
+addToEnv :: [HsName] -> TT a -> TT a
 addToEnv nms cont =
   local (\e -> e { nmEnv = nms ++ (nmEnv e) }) cont
 
@@ -213,16 +211,16 @@ natKit = do
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-compileTerm :: C.TTerm -> NM CExpr
+compileTerm :: C.TTerm -> TT CExpr
 compileTerm term = do
-  natKit' <- lift $ lift $ lift natKit
+  natKit' <- lift $ lift natKit
   case term of
     C.TPrim t -> return $ compilePrim t
     C.TVar x -> do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
       return $ mkVar nm
     C.TDef nm -> do
-      nm' <- lift . lift $ getCoreName nm
+      nm' <- lift $ getCoreName nm
       return $ mkVar nm'
     C.TApp t xs -> do
       mkApp <$> compileTerm t <*> mapM compileTerm xs
@@ -232,7 +230,7 @@ compileTerm term = do
          mkLam [name] <$> compileTerm t
     C.TLit l -> return $ litToCore l
     C.TCon c -> do
-        con <- lift . lift $ getConstrFun c
+        con <- lift $ getConstrFun c
         return $ mkVar con
     C.TLet x body -> do
         nm <- lift freshLocalName
@@ -281,7 +279,7 @@ buildPrimCases :: CExpr -- ^ equality function
     -> CExpr    -- ^ case scrutinee (in WHNF)
     -> [C.TAlt]
     -> CExpr    -- ^ default value
-    -> NM CExpr
+    -> TT CExpr
 buildPrimCases _ _ [] def = return def
 buildPrimCases eq scr (b:brs) def = do
     var <- lift     freshLocalName
@@ -299,15 +297,14 @@ mkIfThenElse c t e = mkCase c [b1, b2]
   where b1 = mkAlt (mkPatCon (ctagTrue opts) mkPatRestEmpty []) t
         b2 = mkAlt (mkPatCon (ctagFalse opts) mkPatRestEmpty []) e
 
-compileConAlt :: C.TAlt -> NM CAlt
+compileConAlt :: C.TAlt -> TT CAlt
 compileConAlt a =
   makeConAlt (C.aCon a)
     (\vars -> addToEnv (reverse vars) $ compileTerm (C.aBody a))
 
-makeConAlt :: QName -> ([HsName] -> NM CExpr) -> NM CAlt
+makeConAlt :: QName -> ([HsName] -> TT CExpr) -> TT CAlt
 makeConAlt con mkBody = do
-  ctag <- lift $ lift $ getConstrCTag con
---  conInfo <- aciDataCon <$> (lift . lift) (getConstrInfo con)
+  ctag <- lift $ getConstrCTag con
   vars <- lift $ replicateM (getCTagArity ctag) freshLocalName
   body <- mkBody vars
 
@@ -315,9 +312,9 @@ makeConAlt con mkBody = do
   return $ mkAlt (mkPatCon ctag mkPatRestEmpty patFlds) body
 
 -- | Constructs an alternative for all constructors not explicitly matched by a branch.
-defaultBranches :: QName -> [C.TAlt] -> CExpr -> NM [CAlt]
+defaultBranches :: QName -> [C.TAlt] -> CExpr -> TT [CAlt]
 defaultBranches dt alts def = do
-  dtCons <- dataRecCons . theDef <$> (lift . lift . lift) (getConstInfo dt)
+  dtCons <- dataRecCons . theDef <$> (lift . lift) (getConstInfo dt)
   let altCons = map C.aCon alts
       missingCons = dtCons \\ altCons
 
