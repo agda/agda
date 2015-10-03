@@ -123,8 +123,6 @@ collectNames defs = do
                   _ | otherwise -> Just AgdaName
                         { anName = qnm
                         , anType = ty
-                        , anNeedsAgdaExport = True -- TODO, only set this to true for things which are actually exported
-                        , anForceName = Nothing -- TODO add pragma to force name
                         }
 
 

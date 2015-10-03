@@ -73,8 +73,6 @@ data AgdaName
   = AgdaName
   { anName :: QName
   , anType :: EntityType
-  , anNeedsAgdaExport :: Bool       -- ^ If true, this item needs to be exported on the Agda level.
-  , anForceName :: Maybe HsName     -- ^ Forces use of the given name.
   }
   deriving (Eq, Ord, Show)
 
@@ -82,7 +80,6 @@ data CoreName
   = CoreName
   { cnName :: HsName        -- ^ The Core name.
   , cnType :: EntityType
-  , cnAgdaExported :: Bool  -- ^ True if the name is exported on the Agda level.
   }
   deriving (Show, Typeable)
 
@@ -171,13 +168,10 @@ getNameMappingFor nmMp ty = M.filter ((ty ==) . cnType) $ entMapping nmMp
 -- | Assigns the proper names for entities.
 assignNameProper :: (Monad m, Functor m) => AgdaName -> AssignM m CoreName
 assignNameProper anm = do
-  nm <- case anForceName anm of
-    (Just x) -> return x
-    Nothing -> freshCrName anm
+  nm <- freshCrName anm
 
   return $ CoreName { cnName = nm
                     , cnType = anType anm
-                    , cnAgdaExported = anNeedsAgdaExport anm
                     }
 
 -- | Creates a unique fresh core name.
