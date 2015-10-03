@@ -160,7 +160,7 @@ install:
 
 ##############################################################################
 # Testing compilation with transformers 0.3.0.0 which is shipped with
-# GHC 7.8.* [Issue 1156]
+# GHC 7.8.* [Issues 1156 and 1539]
 
 # N.B. that this test is not include in the Makefile tests.
 
@@ -173,8 +173,8 @@ install:
        cat $HOME/.cabal/config &&
        cabal install alex --constraint=transformers==0.3.0.0 &&
        cabal install happy --constraint=transformers==0.3.0.0 &&
-       cabal install --avoid-reinstalls --only-dependencies --constraint=transformers==0.3.0.0 &&
-       cabal configure -v2 --builddir=$BUILD_DIR --constraint=transformers==0.3.0.0 &&
+       cabal install --enable-tests --avoid-reinstalls --only-dependencies --constraint=transformers==0.3.0.0 &&
+       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
        cabal build -v2 --builddir=$BUILD_DIR;
     fi
 
