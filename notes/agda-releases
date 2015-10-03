@@ -66,11 +66,6 @@ followed:
   ** Change the message "(default: ON)" to "(default: OFF)" in the
      above module.
 
-* Test compilation using cpp instead of cpphs:
-
-    make install-bin CABAL_OPTS='-f -cpphs'
-    make clean
-
 * Ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning):
 

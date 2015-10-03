@@ -46,11 +46,6 @@ followed:
 
     cabal configure && cabal haddock
 
-* Test compilation using cpp instead of cpphs:
-
-    make install-bin CABAL_OPTS='-f -cpphs'
-    make clean
-
 * Run the test-suite:
 
     make install
