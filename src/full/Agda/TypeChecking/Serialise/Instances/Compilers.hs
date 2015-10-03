@@ -6,9 +6,6 @@ import qualified Data.Binary.Put as B
 
 import qualified Agda.Compiler.Epic.Interface as Epic
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
-import qualified Agda.Compiler.UHC.ModuleInfo as UHC
-import qualified Agda.Compiler.UHC.AuxAST as UHCA
-import qualified Agda.Compiler.UHC.Naming as UHCN
 import qualified Agda.Compiler.UHC.Bridge as UHCB
 import qualified Agda.Compiler.JS.Syntax as JS
 
@@ -150,44 +147,4 @@ instance EmbPrj Epic.Tag where
     valu [0, a] = valu1 Epic.Tag a
     valu [1, a] = valu1 Epic.PrimTag a
     valu _      = malformed
-
--- Used by UHC backend. Will be stored in a seperate file,
--- not part of the .agdai files. Should be moved somewhere else.
-instance EmbPrj UHC.AModuleInfo where
-  icod_ (UHC.AModuleInfo a b c d e) = icode5' a b c d e
-  value = vcase valu where
-    valu [a, b, c, d, e] = valu5 UHC.AModuleInfo a b c d e
-    valu _ = malformed
-
-instance EmbPrj UHC.AModuleInterface where
-  icod_ (UHC.AModuleInterface a) = icode1' a
-  value = vcase valu where
-    valu [a] = valu1 UHC.AModuleInterface a
-    valu _   = malformed
-
-instance EmbPrj UHCN.NameMap where
-  icod_ (UHCN.NameMap a b) = icode2' a b
-  value = vcase valu where
-    valu [a, b] = valu2 UHCN.NameMap a b
-    valu _      = malformed
-
-instance EmbPrj UHCA.CTag where
-  icod_ = icode . B.runPut . UHCB.serialize
-  value n = value n >>= return . (B.runGet UHCB.unserialize)
-
-instance EmbPrj UHCN.CoreName where
-  icod_ (UHCN.CoreName a b) = icode2' a b
-  value = vcase valu where
-    valu [a, b] = valu2 UHCN.CoreName a b
-    valu _         = malformed
-
-instance EmbPrj UHCN.EntityType where
-  icod_ UHCN.EtDatatype     = icode0 0
-  icod_ UHCN.EtConstructor  = icode0 1
-  icod_ UHCN.EtFunction     = icode0 2
-  value = vcase valu where
-    valu [0] = valu0 UHCN.EtDatatype
-    valu [1] = valu0 UHCN.EtConstructor
-    valu [2] = valu0 UHCN.EtFunction
-    valu _   = malformed
 

@@ -43,6 +43,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Pretty
 import qualified Agda.Utils.HashMap as HMap
 
+import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Bridge as UB
 import Agda.Compiler.UHC.ModuleInfo
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
@@ -58,12 +59,12 @@ import Agda.Utils.Impossible
 type CompModT = StateT CompModState
 
 data CompModState = CompModState
-  { compileInfo :: M.Map ModuleName (AModuleInfo, AModuleInterface)
+  { compileInfo :: M.Map ModuleName (AModuleInfo)
   }
 
-putCompModule :: Monad m => AModuleInfo -> AModuleInterface -> CompModT m ()
-putCompModule amod modTrans = modify (\s -> s
-    { compileInfo = M.insert (amiModule amod) (amod, modTrans) (compileInfo s) })
+putCompModule :: Monad m => AModuleInfo -> CompModT m ()
+putCompModule amod = modify (\s -> s
+    { compileInfo = M.insert (amiModule amod) amod (compileInfo s) })
 
 emptyCompModState :: CompModState
 emptyCompModState = CompModState M.empty
@@ -118,18 +119,18 @@ compilerMain inters mainInter = do
             copyUHCAgdaBase outDir
             (modInfos, mainInfo) <- evalStateT (do
                 -- first compile the Agda.Primitive module
-                agdaPrimModInfo <- fst <$> compileModule [] agdaPrimInter
+                agdaPrimModInfo <- compileModule [] agdaPrimInter
                 -- Always implicitly import Agda.Primitive now
-                modInfos <- fst . unzip <$> mapM (compileModule [agdaPrimInter]) inters
+                modInfos <- mapM (compileModule [agdaPrimInter]) inters
                 let modInfos' = agdaPrimModInfo : modInfos
 
                 case mainInter of
                   Nothing -> return (modInfos', Nothing)
                   Just mainInter' -> do
-                    mainModInfo <- fst <$> compileModule [agdaPrimInter] mainInter'
+                    mainModInfo <- compileModule [agdaPrimInter] mainInter'
                     main <- lift $ getMain mainInter'
                     -- get core name from modInfo
-                    let crMain = cnName $ fromJust $ qnameToCoreName (amifNameMp $ amiInterface mainModInfo) main
+                    crMain <- lift $ getCoreName1 main
                     return (modInfos', Just (mainModInfo, crMain))
                 )
                 emptyCompModState
@@ -154,7 +155,7 @@ auiFile modNm = do
 -- of this module, and the accumulating module interface.
 compileModule :: [Interface] -- additional modules to import. Used to bring Agda.Primitive in scope.
     -> Interface
-    -> CompModT TCM (AModuleInfo, AModuleInterface)
+    -> CompModT TCM AModuleInfo
 compileModule addImps i = do
     -- we can't use the Core module name to get the name of the aui file,
     -- as we don't know the Core module name before we loaded/compiled the file.
@@ -171,59 +172,23 @@ compileModule addImps i = do
             imports <- (addImps ++) . map miInterface . catMaybes
                                       <$> lift (mapM (getVisitedModule . toTopLevelModuleName . fst)
                                                      (iImportedModules i))
-            (curModInfos, transModInfos) <- (fmap mconcat) . unzip <$> mapM (compileModule addImps) imports
-            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile topModuleName)
-            let uifFile = auiFile' <.> "aui"
-            uptodate <- liftIO $ isNewerThan uifFile ifile
-            lift $ reportSLn "UHC" 15 $ "Interface file " ++ uifFile ++ " is uptodate: " ++ show uptodate
+            curModInfos <- mapM (compileModule addImps) imports
+
             -- check for uhc interface file
-            modInfoCached <- case uptodate of
-              True  -> do
-                    lift $ reportSLn "" 5 $
-                        show modNm ++ " : UHC backend interface file is up to date."
-                    uif <- lift $ readModInfoFile uifFile
-                    case uif of
-                      Nothing -> do
-                        lift $ reportSLn "" 5 $
-                            show modNm ++ " : Could not read UHC interface file, will compile this module from scratch."
-                        return Nothing
-                      Just uif' -> do
-                        -- now check if the versions inside modInfos match with the dep info
-                        let deps = amiDepsVersion uif'
-                        if depsMatch deps curModInfos then do
-                          lift $ reportSLn "" 1 $
-                            show modNm ++ " : module didn't change, skip compiling it."
-                          return $ Just uif'
-                        else
-                          return Nothing
-              False -> return Nothing
+            lift $ reportSLn "" 1 $
+              "Compiling: " ++ show (iModuleName i)
+            opts <- lift commandLineOptions
+            (code, modInfo) <- lift $ compileDefns modNm curModInfos opts i
+            crFile <- lift $ getCorePath modInfo
+            _ <- lift $ writeCoreFile crFile code
 
-            case modInfoCached of
-              Just x  -> let tmi' = transModInfos `mappend` (amiInterface x) in putCompModule x tmi' >> return (x, tmi')
-              Nothing -> do
-                    lift $ reportSLn "" 1 $
-                        "Compiling: " ++ show (iModuleName i)
-                    opts <- lift commandLineOptions
-                    (code, modInfo) <- lift $ compileDefns modNm curModInfos transModInfos opts i
-                    lift $ do
-                        crFile <- getCorePath modInfo
-                        _ <- writeCoreFile crFile code
-                        writeModInfoFile uifFile modInfo
+            putCompModule modInfo
+            return modInfo
 
-                    let tmi' = transModInfos `mappend` amiInterface modInfo
-                    putCompModule modInfo tmi'
-                    return (modInfo, tmi')
-
-  where depsMatch :: [(ModuleName, ModVersion)] -> [AModuleInfo] -> Bool
-        depsMatch modDeps otherMods = all (checkDep otherMods) modDeps
-        checkDep :: [AModuleInfo] -> (ModuleName, ModVersion) -> Bool
-        checkDep otherMods (nm, v) = case find ((nm==) . amiModule) otherMods of
-                    Just v' -> (amiVersion v') == v
-                    Nothing -> False
 
 getCorePath :: AModuleInfo -> TCM FilePath
 getCorePath amod = do
-  let modParts = fst $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface amod) (amiModule amod)
+  let modParts = moduleNameToCoreNameParts (amiModule amod)
   outFile modParts
   where
     outFile :: [String] -> TCM FilePath
@@ -234,20 +199,6 @@ getCorePath amod = do
       liftIO $ createDirectoryIfMissing True dir
       return $ fp
 
-
-readModInfoFile :: String -> TCM (Maybe AModuleInfo)
-readModInfoFile f = do
-  modInfo <- liftIO (BS.readFile f) >>= decode
-  return $ maybe Nothing (\mi ->
-    if amiFileVersion mi == currentModInfoVersion then
-      Just mi
-    else
-      Nothing) modInfo
-
-writeModInfoFile :: String -> AModuleInfo -> TCM ()
-writeModInfoFile f mi = do
-  mi' <- encode mi
-  liftIO $ BS.writeFile f mi'
 
 getMain :: MonadTCM m => Interface -> m QName
 getMain iface = case concatMap f defs of
@@ -262,12 +213,11 @@ getMain iface = case concatMap f defs of
 -- | Perform the chain of compilation stages, from definitions to UHC Core code
 compileDefns :: ModuleName
     -> [AModuleInfo] -- ^ top level imports
-    -> AModuleInterface -- ^ transitive iface
     -> CommandLineOptions
     -> Interface -> TCM (UB.CModule, AModuleInfo)
-compileDefns modNm curModImps transModIface opts iface = do
+compileDefns modNm curModImps opts iface = do
 
-    (crMod, modInfo) <- FAgda.fromAgdaModule modNm curModImps transModIface iface
+    (crMod, modInfo) <- FAgda.fromAgdaModule modNm curModImps iface
 
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
     return (crMod, modInfo)

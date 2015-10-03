@@ -5,7 +5,6 @@
 --
 module Agda.Compiler.UHC.ModuleInfo
   ( AModuleInfo (..)
-  , AModuleInterface (..)
   , ModVersion
   , currentModInfoVersion
   )
@@ -36,26 +35,9 @@ data AModuleInfo
                                 -- serialization for us. If we were to not use EmbPrj anymore, the
                                 -- Agda interface version would need to be stored explicitly!
   , amiModule :: ModuleName
-  , amiInterface :: AModuleInterface    -- ^ Contains linking information for the current module (non-transitive).
   , amiVersion :: ModVersion
   , amiDepsVersion :: [(ModuleName, ModVersion)] -- dependency versions for the current module (non-transitive)
   }
   deriving (Show, Typeable)
 
 
--- | The interface of a module. Contains all information required to import
--- a module. Needs to be merged with the module interface of all imports
--- of this module to get the actual interface to use.
-data AModuleInterface
-  = AModuleInterface
-  { amifNameMp :: NameMap    -- ^ Maps Agda module-level names to core name.
-  }
-  deriving (Show, Typeable)
-
-instance Monoid AModuleInterface where
-  mempty = AModuleInterface
-            { amifNameMp = mempty
-            }
-  mappend x y = AModuleInterface
-        { amifNameMp = amifNameMp x `mappend` amifNameMp y
-        }

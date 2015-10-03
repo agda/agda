@@ -62,21 +62,14 @@ opts = defaultEHCOpts
 -- | Convert from Agda's internal representation to our auxiliary AST.
 fromAgdaModule :: ModuleName
     -> [AModuleInfo]     -- Module info of imported modules.
-    -> AModuleInterface  -- Transitive module interface of all dependencies.
     -> Interface         -- interface to compile
     -> TCM (CModule, AModuleInfo)
-fromAgdaModule modNm curModImps transModIface iface = do
+fromAgdaModule modNm curModImps iface = do
   kit <- coinductionKit
 
   let defs = HMap.toList $ sigDefinitions $ iSignature iface
 
-  reportSLn "uhc" 15 "Building name database..."
-  defNames <- collectNames defs
-  nameMp <- assignCoreNames modNm defNames
-  reportSLn "uhc" 25 $ "NameMap for " ++ show modNm ++ ":\n" ++ show nameMp
-
-
-  (mod', modInfo') <- runCompileT kit modNm curModImps transModIface nameMp (do
+  (mod', modInfo') <- runCompileT kit modNm curModImps (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
 
     funs' <- evalFreshNameT "nl.uu.agda.from-agda" (concat <$> mapM translateDefn defs)
@@ -85,45 +78,19 @@ fromAgdaModule modNm curModImps transModIface iface = do
 
 
     additionalImports <- lift getHaskellImportsUHC
-    let mnmToCrNm :: NameMap -> ModuleName -> HsName
-        mnmToCrNm nmMp mnm = snd (fromMaybe __IMPOSSIBLE__ $ mnameToCoreName nmMp mnm)
-
-        imps = map mkImport $ nub $
+    let imps = map mkImport $ nub $
           [ mkHsName1 "UHC.Base"
           , mkHsName1 "UHC.Agda.Builtins" ]
-          ++ map (mnmToCrNm (amifNameMp transModIface) . amiModule) curModImps
+          ++ map (moduleNameToCoreName . amiModule) curModImps
           ++ map mkHsName1 (Set.toList additionalImports)
 
-        crModNm = mnmToCrNm nameMp modNm
+        crModNm = moduleNameToCoreName modNm
 
     mkModule crModNm
       <$> getExports <*> pure imps <*> getDeclMetas <*> pure funs
     )
 
   return (mod', modInfo')
-
--- | Collect module-level names.
-collectNames :: [(QName, Definition)] -> TCM [AgdaName]
-collectNames defs = do
-  return $ catMaybes $ map collectName defs
-  where collectName :: (QName, Definition) -> Maybe AgdaName
-        collectName (qnm, def) =
-            let ty = case theDef def of
-                    (Datatype {}) -> EtDatatype
-                    (Function {}) -> EtFunction
-                    (Constructor {}) -> EtConstructor
-                    (Record {}) -> EtConstructor
-                    (Axiom {})  -> EtFunction
-                    (Primitive {}) -> EtFunction
-                isForeign = isJust $ compiledCore $ defCompiledRep def
-            -- builtin/foreign constructors already have a core-level representation, so we don't need any fresh names
-            -- but for the datatypes themselves we still want to create the type-dummy function
-            in case theDef def of
-                  _ | ty == EtConstructor && isForeign -> Nothing
-                  _ | otherwise -> Just AgdaName
-                        { anName = qnm
-                        , anType = ty
-                        }
 
 
 -- | Translate an Agda definition to an UHC Core function where applicable
@@ -135,16 +102,15 @@ translateDefn (n, defini) = do
   kit <- lift getCoinductionKit
   case theDef defini of
     d@(Datatype {}) -> do
-        let crNm = fromMaybe __IMPOSSIBLE__ crName
 
         unless (isJust crRep || Just n == (nameOfInf <$> kit)) $ do
-          lift $ addMetaData n (mkMetaData crNm)
+          lift $ addMetaData n (mkMetaData crName)
 
         vars <- replicateM (dataPars d + dataIxs d) freshLocalName
-        lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
-        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) (mkLam vars $ mkUnit opts)]
+        lift $ addExports [crName]
+        return [mkBind1 crName (mkLam vars $ mkUnit opts)]
     (Function{}) | Just n == (nameOfFlat <$> kit) -> do
-        lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
+        lift $ addExports [crName]
         (\x -> [x]) <$> mkIdentityFun n "coind-flat" 0
     f@(Function{}) | otherwise -> do
         let ty    = (defType defini)
@@ -157,11 +123,11 @@ translateDefn (n, defini) = do
         funBody' <- runCompile $ compileTerm funBody
         lift $ lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
 
-        lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
-        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) funBody']
+        lift $ addExports [crName]
+        return [mkBind1 crName funBody']
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
-        lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
+        lift $ addExports [crName]
         (\x -> [x]) <$> mkIdentityFun n "coind-sharp" 0
 
     (Constructor{}) | Nothing <- crRep -> do -- become functions returning a constructor with their tag
@@ -170,30 +136,28 @@ translateDefn (n, defini) = do
       if (n /= n')
         then return []
         else do
-          lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
+          lift $ addExports [crName]
           ctag <- lift $ getConstrCTag n
 
           lift $ addMetaCon n (fromJust $ mkMetaDataConFromCTag ctag)
 
           vars <- replicateM (getCTagArity ctag) freshLocalName
           let conWrapper = mkLam vars (mkTagTup ctag $ map mkVar vars)
-          return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) conWrapper]
+          return [mkBind1 crName conWrapper]
     Constructor{} -> return []
     -- either foreign or builtin type. We can just assume existence of the wrapper functions then.
 
     r@(Record{}) -> do
-        let crNm = fromMaybe __IMPOSSIBLE__ crName
-
         unless (isJust crRep) $ do
-          lift $ addMetaData n (mkMetaData crNm)
+          lift $ addMetaData n (mkMetaData crName)
 
         vars <- replicateM (recPars r) freshLocalName
-        lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
-        return [mkBind1 crNm (mkLam vars $ mkUnit opts)]
+        lift $ addExports [crName]
+        return [mkBind1 crName (mkLam vars $ mkUnit opts)]
     (Axiom{}) -> do -- Axioms get their code from COMPILED_UHC pragmas
-        lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
+        lift $ addExports [crName]
         case crRep of
-            Nothing -> return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName)
+            Nothing -> return [mkBind1 crName
                 (coreError $ "Axiom " ++ show n ++ " used but has no computation.")]
             Just (CrDefn x) -> do
                         x' <- case coreExprToCExpr x of
@@ -201,25 +165,25 @@ translateDefn (n, defini) = do
                                 -- without UHC support enabled.
                                 Left err -> internalError $ "Invalid COMPILED_UHC pragma value: " ++ err
                                 Right y -> return y
-                        return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) x']
+                        return [mkBind1 crName x']
             _ -> __IMPOSSIBLE__
 
     p@(Primitive{}) -> do -- Primitives use primitive functions from UHC.Agda.Builtins of the same name.
-      lift $ addExports [fromMaybe __IMPOSSIBLE__ crName]
+      lift $ addExports [crName]
 
       case primName p `M.lookup` primFunctions of
         Nothing     -> internalError $ "Primitive " ++ show (primName p) ++ " declared, but no such primitive exists."
         (Just expr) -> do
                 expr' <- lift expr
-                return [mkBind1 (fromMaybe __IMPOSSIBLE__ crName) expr']
+                return [mkBind1 crName expr']
   where
     -- | Produces an identity function, optionally ignoring the first n arguments.
-    mkIdentityFun :: Monad m => QName
+    mkIdentityFun :: QName
         -> String -- ^ comment
         -> Int      -- ^ How many arguments to ignore.
-        -> FreshNameT (CompileT m) CBind
+        -> FreshNameT Compile CBind
     mkIdentityFun nm comment ignArgs = do
-        crName <- lift $ getCoreName1 nm
+        crName <- lift $ getCoreName nm
         xs <- replicateM (ignArgs + 1) freshLocalName
         return $ mkBind1 crName (mkLam xs (mkVar $ last xs))
 
@@ -258,7 +222,7 @@ compileTerm term = do
       nm <- fromMaybe __IMPOSSIBLE__ . (!!! x) <$> asks nmEnv
       return $ mkVar nm
     C.TDef nm -> do
-      nm' <- lift . lift $ getCoreName1 nm
+      nm' <- lift . lift $ getCoreName nm
       return $ mkVar nm'
     C.TApp t xs -> do
       mkApp <$> compileTerm t <*> mapM compileTerm xs
@@ -389,4 +353,5 @@ compilePrim C.PGeq = mkVar $ primFunNm "primIntegerGreaterOrEqual"
 
 createMainModule :: AModuleInfo -> HsName -> CModule
 createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainModAux] [] (mkMain main)
-  where mainModAux = snd $ fromMaybe __IMPOSSIBLE__ $ mnameToCoreName (amifNameMp $ amiInterface mainMod) (amiModule mainMod)
+  where mainModAux = moduleNameToCoreName (amiModule mainMod)
+

@@ -8,6 +8,7 @@
 --   for tampering with the state.
 module Agda.Compiler.UHC.CompileState
   ( CompileT (..) -- we don't really want to export the ctor, but we need it in Transform
+  , Compile
   , runCompileT
 
   , addExports
@@ -21,6 +22,8 @@ module Agda.Compiler.UHC.CompileState
   , getConstrCTag
   , getConstrFun
   , getCoinductionKit
+  , moduleNameToCoreName
+  , moduleNameToCoreNameParts
 
   , getCurrentModule
 
@@ -34,6 +37,7 @@ import Control.Monad.Reader.Class
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Char
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
@@ -45,7 +49,7 @@ import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.MagicTypes
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad -- (MonadTCM, TCM, internalError, defType, theDef, getConstInfo)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
@@ -53,6 +57,8 @@ import qualified Agda.TypeChecking.Monad as TM
 import Agda.Compiler.UHC.Naming
 import Agda.Compiler.UHC.Bridge
 import Agda.Compiler.UHC.Pragmas.Base
+
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -65,8 +71,6 @@ getTime = round <$> getPOSIXTime
 -- | Stuff we need in our compiler
 data CompileState = CompileState
     { curModule       :: ModuleName
-    , moduleInterface :: AModuleInterface    -- ^ Contains the interface of all imported and the currently compiling module.
-    , curModuleInterface :: AModuleInterface -- ^ Interface of the current module only.
     , coinductionKit' :: Maybe CoinductionKit
     , coreMetaData :: Map.Map QName ( [CDataCon] -> CDeclMeta )
     , coreMetaCon :: Map.Map QName [CDataCon] -- map data name to constructors
@@ -85,11 +89,9 @@ runCompileT :: MonadIO m
     => Maybe CoinductionKit
     -> ModuleName   -- ^ The module to compile.
     -> [AModuleInfo] -- ^ Imported module info, non-transitive.
-    -> AModuleInterface -- ^ Imported module interface, transitive.
-    -> NameMap      -- ^ NameMap for the current module, non-transitive.
     -> CompileT m a
     -> m (a, AModuleInfo)
-runCompileT coind amod curImpMods transImpIface nmMp comp = do
+runCompileT coind amod curImpMods comp = do
   (result, state') <- runStateT (unCompileT comp) initial
 
   version <- liftIO getTime
@@ -97,18 +99,13 @@ runCompileT coind amod curImpMods transImpIface nmMp comp = do
   let modInfo = AModuleInfo
         { amiFileVersion = currentModInfoVersion
         , amiModule = amod
-        , amiInterface = curModuleInterface state'
         , amiVersion = version
         , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- curImpMods]
         }
 
   return (result, modInfo)
-  where initialModIface = mempty { amifNameMp = nmMp }
-        initial = CompileState
+  where initial = CompileState
             { curModule     = amod
-            , moduleInterface =
-                initialModIface `mappend` transImpIface
-            , curModuleInterface = initialModIface
             , coinductionKit' = coind
             , coreMetaData = Map.empty
             , coreMetaCon = Map.empty
@@ -140,19 +137,17 @@ getDeclMetas = CompileT $ do
   dts <- gets coreMetaData
   return $ map (\(dtNm, f) -> f (Map.findWithDefault [] dtNm cons)) (Map.toList dts)
 
-getCoreName :: Monad m => QName -> CompileT m (Maybe HsName)
-getCoreName qnm = CompileT $ do
-  nmMp <- gets (amifNameMp . moduleInterface)
-  return $ (cnName <$> qnameToCoreName nmMp qnm)
-
-getCoreName1 :: Monad m => QName -> CompileT m HsName
-getCoreName1 nm = getCoreName nm >>= return . (fromMaybe __IMPOSSIBLE__)
 
 getCoinductionKit :: Monad m => CompileT m (Maybe CoinductionKit)
 getCoinductionKit = CompileT $ gets coinductionKit'
 
 getCurrentModule :: Monad m => CompileT m ModuleName
 getCurrentModule = CompileT $ gets curModule
+
+
+-----------------
+-- Constructors
+-----------------
 
 
 -- | Copy pasted from MAlonzo....
@@ -173,11 +168,10 @@ getConstrCTag q = do
   (arity, _) <- lift $ conArityAndPars q
   case compiledCore $ defCompiledRep def of
     Nothing -> do
-      nm <- getCoreName1 q
       let dtQ = conData $ theDef def
       -- get tag, which is the index of current con in datatype con list
       tag <- fromJust . elemIndex q . dataRecCons . theDef <$> lift (getConstInfo dtQ)
-      mkCTag <$> getCoreName1 dtQ <*> (getCoreName1 q) <*> pure tag <*> pure arity
+      mkCTag <$> getCoreName dtQ <*> (getCoreName q) <*> pure tag <*> pure arity
     Just (CrConstr crCon) -> do
       return $ coreConstrToCTag crCon arity
     _ -> __IMPOSSIBLE__
@@ -188,7 +182,7 @@ getConstrFun :: QName -> Compile HsName
 getConstrFun q = do
   def <- lift $ getConstInfo q
   case compiledCore $ defCompiledRep def of
-    Nothing -> getCoreName1 q
+    Nothing -> getCoreName q
     Just (CrConstr crCon) ->
       return $
         destructCTag builtinUnitCtor (\_ con _ _ -> con)
@@ -199,6 +193,74 @@ dataRecCons :: Defn -> [QName]
 dataRecCons r@(Record{}) = [recCon r]
 dataRecCons d@(Datatype{}) = dataCons d
 dataRecCons _ = __IMPOSSIBLE__
+
+
+-----------------
+-- Names
+-----------------
+
+-- All agda modules live in their own namespace in Agda.XXX, to avoid
+-- clashes with existing haskell modules. (e.g. Data.List) with confusing error messages.
+-- If we don't wan't this, we would have to avoid loading the HS base libraries
+-- or would need package-specific imports. As we don't have this in UHC right now,
+-- this is the best we can do.
+moduleNameToCoreNameParts :: ModuleName -> [String]
+moduleNameToCoreNameParts modNm = "Agda" : (map show $ mnameToList modNm)
+
+moduleNameToCoreName :: ModuleName -> HsName
+moduleNameToCoreName modNm = mkHsName (init nmParts) (last nmParts)
+  where nmParts = moduleNameToCoreNameParts modNm
+
+getCoreName :: QName -> Compile HsName
+getCoreName qnm = CompileT $ do
+  lift $ getCoreName1 qnm
+
+getCoreName1 :: QName -> TCM HsName
+getCoreName1 qnm = do
+
+  modNm <- topLevelModuleName qnm
+
+  def <- theDef <$> getConstInfo qnm
+
+  let locName = intercalate "_" $ map show $ either id id $ unqualifyQ modNm qnm
+      modParts = moduleNameToCoreNameParts modNm
+      identName = locName ++ "_" ++ show idnum
+      identName' = case def of
+        Datatype{} -> capitalize identName
+        Record{} -> capitalize identName
+        Constructor{} -> capitalize identName
+        _ -> identName
+
+  return $ mkUniqueHsName "nl.uu.agda.top-level-def" modParts identName
+  where
+    idnum = let (NameId x _) = nameId $ qnameName qnm in x
+    -- we don't really care about the original name, we just keep it for easier debugging
+    capitalize (x:xs) = (toUpper x):xs
+    capitalize _      = __IMPOSSIBLE__
+
+topLevelModuleName :: QName -> TCM ModuleName
+topLevelModuleName qnm = go (qnameModule qnm)
+  where
+    go :: ModuleName -> TCM ModuleName
+    go mnm = do
+      topMods <- use stModuleToSource
+      if (toTopLevelModuleName mnm) `Map.member` topMods
+        then return mnm
+        else go (mnameFromList $ init $ mnameToList mnm)
+
+-- | Returns the names inside a QName, with the module prefix stripped away.
+-- If the name is not module-qualified, returns the full name as left. (TODO investigate when this happens)
+unqualifyQ :: ModuleName -> QName -> Either [Name] [Name]
+unqualifyQ modNm qnm =
+  case stripPrefix modNs qnms of
+    -- not sure when the name doesn't have a module prefix... just force generation of a name for the time being
+    Nothing -> Left qnms
+    Just nm -> Right nm
+  where
+    modNs = mnameToList modNm
+    qnms = qnameToList qnm
+
+
 
 
 instance MonadReader r m => MonadReader r (CompileT m) where
