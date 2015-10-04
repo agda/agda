@@ -20,7 +20,6 @@ import Data.Typeable (Typeable)
 
 import Agda.Syntax.Internal
 
-import Agda.Compiler.UHC.AuxAST
 import Data.Word
 
 type ModVersion = Integer

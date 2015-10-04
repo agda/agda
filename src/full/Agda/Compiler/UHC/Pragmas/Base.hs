@@ -17,7 +17,6 @@ where
 import Data.Typeable
 import qualified Data.Map as M
 
-import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Bridge as CA
 import Agda.Compiler.UHC.MagicTypes
 

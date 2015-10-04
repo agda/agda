@@ -18,7 +18,6 @@ import Data.List
 import qualified Data.Map as M
 
 import Agda.TypeChecking.Monad
-import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.MagicTypes
 

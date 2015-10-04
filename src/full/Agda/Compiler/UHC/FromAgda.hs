@@ -42,7 +42,6 @@ import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.NPlusKToPrims
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr)
-import Agda.Compiler.UHC.AuxAST as A
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Primitives
@@ -119,7 +118,7 @@ translateDefn (n, defini) = do
         funBody <- convertNPlusK <$> lift (ccToTreeless n cc)
         lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
         funBody' <- runTT $ compileTerm funBody
-        lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled AuxAST fun:" <+> (text . show) funBody'
+        lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled UHC Core fun:" <+> (text . show) funBody'
 
         addExports [crName]
         return [mkBind1 crName funBody']

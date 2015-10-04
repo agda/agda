@@ -6,7 +6,6 @@ module Agda.Compiler.UHC.Primitives
   )
 where
 
-import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.CompileState
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin

@@ -13,7 +13,6 @@ where
 import Data.List
 import qualified Data.Map as M
 
-import Agda.Compiler.UHC.AuxAST
 import Agda.Compiler.UHC.Bridge
 
 

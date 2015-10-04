@@ -7,7 +7,7 @@
 -- | Contains the state monad that the compiler works in and some functions
 --   for tampering with the state.
 module Agda.Compiler.UHC.CompileState
-  ( CompileT (..) -- we don't really want to export the ctor, but we need it in Transform
+  ( CompileT
   , Compile
   , runCompileT
 
@@ -44,7 +44,6 @@ import Control.Applicative
 import Data.Monoid
 #endif
 
-import Agda.Compiler.UHC.AuxAST as AuxAST
 import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.MagicTypes
 import Agda.Syntax.Internal
@@ -82,7 +81,7 @@ newtype CompileT m a = CompileT { unCompileT :: StateT CompileState m a }
 
 type Compile = CompileT TCM
 
--- | Used to run the Agda-to-AuxAST transformation.
+-- | Used to run the Agda-to-UHC Core transformation.
 -- During this transformation,
 runCompileT :: MonadIO m =>
        ModuleName   -- ^ The module to compile.
