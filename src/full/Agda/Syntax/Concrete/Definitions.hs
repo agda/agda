@@ -1197,11 +1197,11 @@ niceHasAbstract d =
     NicePragma{}                    -> Nothing
     NiceRecSig{}                    -> Nothing
     NiceDataSig{}                   -> Nothing
-    NiceFunClause _ _ a _ _         -> Just a
+    NiceFunClause _ _ a _ _ _       -> Just a
     FunSig{}                        -> Nothing
     FunDef _ _ _ a _ _ _            -> Just a
     DataDef _ _ a _ _ _             -> Just a
-    RecDef _ _ a _ _ _ _ _          -> Just a
+    RecDef _ _ a _ _ _ _ _ _        -> Just a
     NicePatternSyn{}                -> Nothing
     NiceUnquoteDecl _ _ _ _ a _ _ _ -> Just a
     NiceUnquoteDef _ _ _ a _ _ _    -> Just a
