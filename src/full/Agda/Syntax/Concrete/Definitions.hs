@@ -39,6 +39,7 @@ module Agda.Syntax.Concrete.Definitions
     , Nice, runNice
     , niceDeclarations
     , notSoNiceDeclaration
+    , niceHasAbstract
     , Measure
     ) where
 
@@ -1180,3 +1181,27 @@ notSoNiceDeclaration d =
       NicePatternSyn r _ n as p        -> PatternSyn r n as p
       NiceUnquoteDecl r _ _ _ _ _ x e  -> UnquoteDecl r x e
       NiceUnquoteDef r _ _ _ _ x e     -> UnquoteDef r x e
+
+-- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
+niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
+niceHasAbstract d =
+  case d of
+    Axiom{}                         -> Nothing
+    NiceField _ _ _ a _ _           -> Just a
+    PrimitiveFunction _ _ _ a _ _   -> Just a
+    NiceMutual{}                    -> Nothing
+    NiceModule _ _ a _ _ _          -> Just a
+    NiceModuleMacro{}               -> Nothing
+    NiceOpen{}                      -> Nothing
+    NiceImport{}                    -> Nothing
+    NicePragma{}                    -> Nothing
+    NiceRecSig{}                    -> Nothing
+    NiceDataSig{}                   -> Nothing
+    NiceFunClause _ _ a _ _         -> Just a
+    FunSig{}                        -> Nothing
+    FunDef _ _ _ a _ _ _            -> Just a
+    DataDef _ _ a _ _ _             -> Just a
+    RecDef _ _ a _ _ _ _ _          -> Just a
+    NicePatternSyn{}                -> Nothing
+    NiceUnquoteDecl _ _ _ _ a _ _ _ -> Just a
+    NiceUnquoteDef _ _ _ a _ _ _    -> Just a

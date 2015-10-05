@@ -493,6 +493,7 @@ checkExtendedLambda i di qname cs e t = do
        useTerPragma $
          (defaultDefn info qname t emptyFunction) { defMutual = j }
      reportSDoc "tc.term.exlam" 20 $
+       text (show $ A.defAbstract di) <+>
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
      args     <- getContextArgs

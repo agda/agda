@@ -64,6 +64,7 @@ import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
 import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
   , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
+  , envAbstractMode , AbstractMode(..)
   )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
@@ -610,12 +611,13 @@ scopeCheckExtendedLam r cs = do
   bindName PrivateAccess DefName cname qname
 
   -- Compose a function definition an scope check it.
+  a <- aModeToDef <$> asks envAbstractMode
   let
     insertApp (C.RawAppP r es) = C.RawAppP r $ IdentP (C.QName cname) : es
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
-    d = C.FunDef r [] noFixity' ConcreteDef TerminationCheck cname $
+    d = C.FunDef r [] noFixity' a __IMPOSSIBLE__ cname $
           for cs $ \ (lhs, rhs, wh) -> -- wh == NoWhere, see parser for more info
             C.Clause cname False (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
@@ -1146,12 +1148,26 @@ newtype Blind a = Blind { unBlind :: a }
 instance ToAbstract (Blind a) (Blind a) where
   toAbstract = return
 
+aDefToMode :: IsAbstract -> AbstractMode
+aDefToMode AbstractDef = AbstractMode
+aDefToMode ConcreteDef = ConcreteMode
+
+aModeToDef :: AbstractMode -> IsAbstract
+aModeToDef AbstractMode = AbstractDef
+aModeToDef ConcreteMode = ConcreteDef
+aModeToDef _ = __IMPOSSIBLE__
+
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
 
   toAbstract d = annotateDecls $
     traceCall (ScopeCheckDeclaration d) $
+    -- Andreas, 2015-10-05, Issue 1677:
+    -- We record in the environment whether we are scope checking an
+    -- abstract definition.  This way, we can propagate this attribute
+    -- the extended lambdas.
+    caseMaybe (niceHasAbstract d) id (\ a -> local $ \ e -> e { envAbstractMode = aDefToMode a }) $
     case d of
 
   -- Axiom (actual postulate)
