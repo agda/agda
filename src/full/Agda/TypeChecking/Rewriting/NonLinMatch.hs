@@ -86,7 +86,7 @@ instance (PatternFrom a b) => PatternFrom (Type' a) (Type' b) where
 
 instance PatternFrom Term NLPat where
   patternFrom k v = do
-    v <- etaContract =<< reduce v
+    v <- reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
       Var i es
@@ -233,7 +233,7 @@ instance Match NLPat Term where
           _ -> no
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
-        body <- liftRed (etaContract =<< reduce' body)
+        body <- liftRed $ reduce' body
         match k p' body
       PPi pa pb  -> case ignoreSharing v of
         Pi a b -> match k pa a >> match k pb b
@@ -244,7 +244,7 @@ instance Match NLPat Term where
       PTerm u -> tellEq k u v
     where
       matchArgs :: Int -> [Elim' NLPat] -> Elims -> NLM ()
-      matchArgs k ps es = match k ps =<< liftRed (etaContract =<< reduce' es)
+      matchArgs k ps es = match k ps =<< liftRed (reduce' es)
 
 makeSubstitution :: Sub -> Substitution
 makeSubstitution sub

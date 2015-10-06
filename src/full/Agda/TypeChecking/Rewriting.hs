@@ -319,7 +319,7 @@ rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- els
       case rules of
         [] -> return $ Left $ bv $> hd es
         _  -> do
-          es <- etaContract =<< instantiateFull' es
+          es <- instantiateFull' es
           loop (void bv) es rules
       where
       loop :: Blocked_ -> Elims -> [RewriteRule] -> ReduceM (Either (Blocked Term) Term)
