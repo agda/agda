@@ -617,7 +617,7 @@ scopeCheckExtendedLam r cs = do
     insertApp (C.IdentP q    ) = C.RawAppP r $ IdentP (C.QName cname) : [C.IdentP q]
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
-    d = C.FunDef r [] noFixity' a __IMPOSSIBLE__ cname $
+    d = C.FunDef r [] noFixity' {-'-} a __IMPOSSIBLE__ cname $
           for cs $ \ (lhs, rhs, wh) -> -- wh == NoWhere, see parser for more info
             C.Clause cname False (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
