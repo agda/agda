@@ -805,9 +805,10 @@ instance Normalise Type where
     normalise' (El s t) = El <$> normalise' s <*> normalise' t
 
 instance Normalise Term where
-    normalise' v =
-        do  v <- reduce' v
-            case v of
+    normalise' = ignoreBlocking <.> rewriteAfter (reduceB' >=> traverse normaliseArgs)
+      where
+        normaliseArgs :: Term -> ReduceM Term
+        normaliseArgs v = case v of
                 Var n vs    -> Var n <$> normalise' vs
                 Con c vs    -> Con c <$> normalise' vs
                 Def f vs    -> Def f <$> normalise' vs
