@@ -224,6 +224,10 @@ instance Match NLPat Term where
           Con c vs
             | f == conName c -> matchArgs k ps (Apply <$> vs)
             | otherwise -> no
+          Lam i u -> do
+            let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PBoundVar 0 []])
+            body <- liftRed $ reduce' $ absBody u
+            match (k+1) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           _ -> no
@@ -277,3 +281,42 @@ equal u v = do
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
       ]) $ return False
+
+-- | Raise (bound) variables in a NLPat
+
+class RaiseNLP a where
+  raiseNLPFrom :: Int -> Int -> a -> a
+
+  raiseNLP :: Int -> a -> a
+  raiseNLP = raiseNLPFrom 0
+
+instance RaiseNLP a => RaiseNLP [a] where
+  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+
+instance RaiseNLP a => RaiseNLP (Arg a) where
+  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+
+instance RaiseNLP a => RaiseNLP (Elim' a) where
+  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+
+instance RaiseNLP a => RaiseNLP (Dom a) where
+  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+
+instance RaiseNLP a => RaiseNLP (Type' a) where
+  raiseNLPFrom c k = fmap $ raiseNLPFrom c k
+
+instance RaiseNLP a => RaiseNLP (Abs a) where
+  raiseNLPFrom c k (Abs i p)   = Abs i   $ raiseNLPFrom (c+1) k p
+  raiseNLPFrom c k (NoAbs i p) = NoAbs i $ raiseNLPFrom c     k p
+
+instance RaiseNLP NLPat where
+  raiseNLPFrom c k p = case p of
+    PVar _ -> p
+    PWild  -> p
+    PDef f ps -> PDef f $ raiseNLPFrom c k ps
+    PLam i q -> PLam i $ raiseNLPFrom c k q
+    PPi a b -> PPi (raiseNLPFrom c k a) (raiseNLPFrom c k b)
+    PBoundVar i ps -> let j = if i < c then i else i + k
+                      in PBoundVar j $ raiseNLPFrom c k ps
+    PTerm u -> PTerm $ raiseFrom c k u
+
