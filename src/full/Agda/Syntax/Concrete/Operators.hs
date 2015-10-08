@@ -102,7 +102,7 @@ getDefinedNames kinds names =
 localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
 localNames flat = do
   let defs = getDefinedNames allKindsOfNames flat
-  locals <- notShadowedLocals <$> getLocalVars
+  locals <- nubOn fst . notShadowedLocals <$> getLocalVars
   -- Note: Debug printout aligned with the one in buildParsers.
   reportSLn "scope.operators" 50 $ unlines
     [ "flat  = " ++ show flat

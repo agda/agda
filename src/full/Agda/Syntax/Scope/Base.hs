@@ -138,7 +138,7 @@ notShadowedLocal :: LocalVar -> Maybe A.Name
 notShadowedLocal (LocalVar x) = Just x
 notShadowedLocal ShadowedVar{} = Nothing
 
--- | Get all locals that are not shadowed.
+-- | Get all locals that are not shadowed __by imports__.
 notShadowedLocals :: LocalVars -> AssocList C.Name A.Name
 notShadowedLocals = mapMaybe $ \ (c,x) -> (c,) <$> notShadowedLocal x
 
