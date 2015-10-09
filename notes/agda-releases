@@ -173,6 +173,13 @@ followed:
     git checkout maint-$VERSION
     git push -u origin maint-$VERSION
 
+* Disable force push on the maint-$VERSION branch, see
+
+  https://help.github.com/articles/about-protected-branches/
+  https://github.com/agda/agda-stdlib/settings/branches
+
+* Close in the bug tracker the milestone VERSION.
+
 * Update the Agda Wiki:
 
   ** Update the Download page:
