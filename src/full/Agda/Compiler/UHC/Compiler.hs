@@ -100,7 +100,7 @@ compilerMain
     -> TCM ()
 compilerMain inters mainInter = do
     when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
-    -- TODO do proper check for uhc existance
+    -- TODO we should do a version check here at some point.
     let uhc_exist = ExitSuccess
     case uhc_exist of
         ExitSuccess -> do

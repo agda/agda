@@ -2,7 +2,7 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE PatternGuards   #-}
 
--- | Convert from Agda's internal representation to UHC Core.
+-- | Convert from Agda's internal representation to UHC Core via Treeless.
 --
 --
 -- The coinduction kit is translated the same way as in MAlonzo:
@@ -324,7 +324,8 @@ litToCore :: Literal -> CExpr
 litToCore (LitInt _ i)   = mkApp (mkVar $ primFunNm "primIntegerToNat") [mkInteger opts i]
 litToCore (LitString _ s) = mkString opts s
 litToCore (LitChar _ c)  = mkChar c
--- TODO this is just a dirty work around
+-- UHC and GHC handle trailing zeros slightly different. Work around to make sure
+-- we have the same semantics as MAlonzo.
 litToCore (LitFloat _ f) = mkApp (mkVar $ primFunNm "primMkFloat") [mkString opts (show f)]
 litToCore (LitQName _ q) = mkApp (mkVar $ primFunNm "primMkQName")
                              [mkInteger opts n, mkInteger opts m, mkString opts $ P.prettyShow q]

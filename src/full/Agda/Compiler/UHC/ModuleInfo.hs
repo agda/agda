@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
--- | Contains all information required to link Agda modules.
+-- | Contains all information required to link Agda modules (in addition to the TCM interface).
 --
 module Agda.Compiler.UHC.ModuleInfo
   ( AModuleInfo (..)
