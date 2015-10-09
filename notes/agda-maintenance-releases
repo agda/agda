@@ -124,6 +124,11 @@ followed:
 * Create a new branch in the standard library repository from the
   VERSION branch called NEWVERSION.
 
+* Disable force push on the NEWVERSION branch of the standard library, see
+
+  https://help.github.com/articles/about-protected-branches/
+  https://github.com/agda/agda-stdlib/settings/branches
+
 * Update the git submodule branch, by running the following at the root
   of the main repository:
 
@@ -154,6 +159,8 @@ followed:
 * Push master
 
     git push
+
+* Close in the bug tracker the milestone VERSION.
 
 * Announce on the Agda developers mailing list the creation of the
   NEWVERSION branch in the standard library to be used with the
