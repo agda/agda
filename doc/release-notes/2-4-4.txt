@@ -762,7 +762,7 @@ Compiler backends
 
     git clone https://github.com/UU-ComputerScience/uhc.git
     cd uhc
-    git checkout 0363bbcf4cf8c47d30c3a188e3e53b3f8454bbe4
+    git checkout 82149a515aa0cbc492d8aa3f1ff10850a9cbe8d8
     cd EHC
     ./configure
     make
