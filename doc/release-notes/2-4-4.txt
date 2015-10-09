@@ -775,18 +775,6 @@ Compiler backends
         [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
 
 
-  Smashing
-
-  The Smashing optimisation from the Epic backend has been ported to
-  the UHC backend. Smashing can be disabled globally using the --no-smashing
-  command line option, or per definition using the {-# NO_SMASHING myDef #-}
-  pragma. The NO_SMASHING pragma has two effects:
-    1. The definition myDef will not be smashed.
-    2. Any definition where the myDef definition is used in the type will
-       not be smashed.
-  The smashing optimisation is experimental and may change in later versions.
-
-
   FFI
 
   The UHC backend has a FFI to Haskell similar to MAlonzo's.
