@@ -12,6 +12,7 @@ import System.Exit
 import System.FilePath
 import System.Process
 import qualified System.Process.Text as PT
+import qualified System.Process.ByteString as PB
 import qualified Data.Text as T
 import System.IO.Temp
 import Data.Text.Encoding
@@ -44,7 +45,7 @@ tests = do
 
 data LaTeXResult
   = AgdaFailed ProgramResult
-  | LaTeXFailed LaTeXProg ProgramResult (Maybe T.Text)
+  | LaTeXFailed LaTeXProg ProgramResult
   | Success T.Text -- ^ The resulting LaTeX or HTML file.
 
 data Kind = LaTeX | HTML
@@ -106,30 +107,28 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
       -> LaTeXProg
       -> IO LaTeXResult
   runLaTeX texFile wd cont prog = do
-      let proc' = (proc prog ["-interaction=batchmode", texFile]) { cwd = Just wd }
+      let proc' = (proc prog ["-interaction=errorstopmode", texFile]) { cwd = Just wd }
 #if MIN_VERSION_process_extras(0,3,0)
-      res@(ret, _, _) <- PT.readCreateProcessWithExitCode proc' T.empty
+      (ret, out, err) <- PB.readCreateProcessWithExitCode proc' BS.empty
 #else
       (_, _, _, pHandle) <- createProcess proc'
       ret <- waitForProcess pHandle
-      let res = (ret, T.empty, T.empty)
+      let res = (ret, BS.empty, BS.empty)
 #endif
       if ret == ExitSuccess then
         cont
       else do
-        logFile <- fmap (decodeUtf8With (\_ _ -> Just $ '?'))
-          <$> readFileMaybe (wd </> (dropExtension $ takeFileName texFile) <.> "log")
-        return $ LaTeXFailed prog res logFile
+        let dec = decodeUtf8With (\_ _ -> Just '?')
+            res = (ret, dec out, dec err)
+        return $ LaTeXFailed prog res
 
 printLaTeXResult :: LaTeXResult -> T.Text
 printLaTeXResult (Success t) = t
 printLaTeXResult (AgdaFailed p)= "AGDA_COMPILE_FAILED\n\n" `T.append` printProcResult p
-printLaTeXResult (LaTeXFailed prog p llog) = "LATEX_COMPILE_FAILED with "
+printLaTeXResult (LaTeXFailed prog p) = "LATEX_COMPILE_FAILED with "
     `T.append` (T.pack prog)
     `T.append` "\n\n"
     `T.append` printProcResult p
-    `T.append` T.pack "\n\nXeLaTeX log file:\n"
-    `T.append` fromMaybe T.empty llog
 
 readMaybe :: Read a => String -> Maybe a
 readMaybe s =
