@@ -225,9 +225,9 @@ instantiateTelescope
   :: Telescope -- ^ ⊢ Γ
   -> Int       -- ^ Γ ⊢ var k : A
   -> Term      -- ^ Γ ⊢ u : A
-  -> Maybe (Telescope,           -- ^ ⊢ Γ'
-            PatternSubstitution, -- ^ Γ' ⊢ σ : Γ
-            Permutation)         -- ^ Γ  ⊢ flipP ρ : Γ'
+  -> Maybe (Telescope,           -- ⊢ Γ'
+            PatternSubstitution, -- Γ' ⊢ σ : Γ
+            Permutation)         -- Γ  ⊢ flipP ρ : Γ'
 instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
   where
     names = teleNames tel
