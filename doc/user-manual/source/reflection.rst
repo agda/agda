@@ -3,6 +3,9 @@
 Reflection
 ==========
 
+.. note::
+   This section is not yet finished and may contain outdated material!
+
 Builtin types
 -------------
 
