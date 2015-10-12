@@ -1,4 +1,4 @@
-
+{-# LANGUAGE TupleSections #-}
 module Agda.Interaction.Library
   ( getDefaultLibraries
   , getInstalledLibraries
@@ -51,11 +51,13 @@ mkLibM libs m = do
     [] -> return x
     _  -> throwError =<< lift (unlines <$> mapM (formatLibError libs) err)
 
-getDefaultLibraries :: FilePath -> LibM [LibName]
+getDefaultLibraries :: FilePath -> LibM ([LibName], [FilePath])
 getDefaultLibraries root = mkLibM [] $ do
   libs <- filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
-  if null libs then readDefaultsFile
-    else first (map libName) <$> parseLibFiles libs
+  if null libs then first (, []) <$> readDefaultsFile
+    else first libsAndPaths <$> parseLibFiles libs
+  where
+    libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
 
 readDefaultsFile :: IO ([LibName], [LibError])
 readDefaultsFile = do

@@ -110,8 +110,8 @@ addDefaultLibraries rel o
        , optShowVersion o ] = pure o
   | otherwise = do
   root <- getProjectRoot rel
-  libs <- libToTCM $ getDefaultLibraries (filePath root)
-  return o{ optLibraries = libs }
+  (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root)
+  return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the pragma options which are currently in effect.
