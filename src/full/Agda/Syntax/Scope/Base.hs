@@ -12,6 +12,7 @@ module Agda.Syntax.Scope.Base where
 import Control.Arrow (first)
 import Control.Applicative
 import Control.DeepSeq
+import Control.Monad
 
 import Data.Function
 import Data.List as List
@@ -351,6 +352,13 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
              Scope -> Scope
 mapScope_ fd fm = mapScope (const fd) (const fm)
 
+-- | Same as 'mapScope' but applies the function only on the given name space.
+mapScope' :: NameSpaceId -> (NamesInScope   -> NamesInScope) ->
+                            (ModulesInScope -> ModulesInScope) ->
+                            Scope -> Scope
+mapScope' i fd fm = mapScope (\ j -> if i == j then fd else id)
+                             (\ j -> if i == j then fm else id)
+
 -- | Map monadic functions over the names and modules in a scope.
 mapScopeM :: (Functor m, Applicative m) =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
@@ -540,9 +548,16 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
 --   Should be a right identity for 'exportedNamesInScope'.
 --   @exportedNamesInScope . restrictPrivate == exportedNamesInScope@.
 restrictPrivate :: Scope -> Scope
-restrictPrivate s
-  = setNameSpace PrivateNS  emptyNameSpace
-  $ s { scopeImports = Map.empty }
+restrictPrivate s = setNameSpace PrivateNS emptyNameSpace
+                  $ s { scopeImports = Map.empty }
+
+-- | Remove private things from the given module from a scope.
+restrictLocalPrivate :: ModuleName -> Scope -> Scope
+restrictLocalPrivate m = mapScope' PrivateNS (Map.mapMaybe rName) (Map.mapMaybe rMod)
+  where
+    check p x = x <$ guard (p x)
+    rName as = check (not . null) $ filter (not . (`isInModule`    m) . anameName) as
+    rMod  as = check (not . null) $ filter (not . (`isSubModuleOf` m) . amodName)  as
 
 -- | Remove names that can only be used qualified (when opening a scope)
 removeOnlyQualified :: Scope -> Scope

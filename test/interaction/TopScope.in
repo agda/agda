@@ -1,3 +1,9 @@
-top_command (cmd_load currentFile [])
-goal_command 0 (cmd_infer Normalised) "F"
-top_command (cmd_infer_toplevel Normalised "F")
+top_command (cmd_load currentFile ["-i.", "-i.."])
+top_command (cmd_load currentFile ["-i.", "-i.."])
+-- These should give not in scope errors:
+top_command (cmd_infer_toplevel Normalised "unused")
+top_command (cmd_infer_toplevel Normalised "used")
+top_command (cmd_infer_toplevel Normalised "Private.not-in-scope")
+-- These should return "Bool"
+top_command (cmd_infer_toplevel Normalised "true")
+top_command (cmd_infer_toplevel Normalised "in-scope")

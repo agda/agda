@@ -1,8 +1,14 @@
--- Check that F is in not in scope at the top-level (but in the hole).
+
 module _ where
 
-private
-  postulate F : Set → Set
+open import Common.Bool
 
-Hole : Set
-Hole = {!!}
+private
+  unused = true
+  used = true
+
+private
+ module Private where
+  not-in-scope = true
+
+in-scope = used
