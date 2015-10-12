@@ -32,6 +32,7 @@ Usage: agda [OPTIONS...] [FILE]
           --ignore-interfaces                         ignore interface files (re-type check everything)
   -i DIR  --include-path=DIR                          look for imports in DIR
   -l LIB  --library=LIB                               use library LIB
+          --library-file=FILE                         use FILE instead of the standard libraries file
           --no-default-libraries                      don't use default libraries
           --no-forcing                                disable the forcing optimisation
           --safe                                      disable postulates, unsafe OPTION pragmas and primTrustMe
