@@ -53,9 +53,10 @@ Pragmas and options
       and its (transitive) dependencies.
 
     - No explicit --library flag is given, and the current project root
-      (of the Agda file that is being loaded) contains a .agda-lib file
-      defining a library LIB. This library is then added to the path
-      (equivalent to --library=LIB).
+      (of the Agda file that is being loaded) or one of its parent directories
+      contains a .agda-lib file defining a library LIB. This library is used as
+      if a --librarary=LIB option had been given, except that it is not
+      necessary for the library to be listed in the AGDA_DIR/libraries file.
 
     - No explicit --library flag, and no .agda-lib file in the project
       root. In this case the file AGDA_DIR/defaults is read and all

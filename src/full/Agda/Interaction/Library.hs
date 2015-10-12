@@ -51,9 +51,18 @@ mkLibM libs m = do
     [] -> return x
     _  -> throwError =<< lift (unlines <$> mapM (formatLibError libs) err)
 
+findAgdaLibFiles :: FilePath -> IO [FilePath]
+findAgdaLibFiles root = do
+  libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
+  case libs of
+    []    -> do
+      up <- canonicalizePath $ root </> ".."
+      if up == root then return [] else findAgdaLibFiles up
+    files -> return files
+
 getDefaultLibraries :: FilePath -> LibM ([LibName], [FilePath])
 getDefaultLibraries root = mkLibM [] $ do
-  libs <- filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
+  libs <- findAgdaLibFiles root
   if null libs then first (, []) <$> readDefaultsFile
     else first libsAndPaths <$> parseLibFiles libs
   where
