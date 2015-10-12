@@ -15,6 +15,7 @@ import Data.Char
 import Data.Either
 import Data.Function
 import Data.List
+import Data.Maybe
 import System.Directory
 import System.FilePath
 
@@ -78,10 +79,10 @@ readDefaultsFile = do
       ) {- else -} (return (["."], []))
   `catchIO` \e -> return (["."], [OtherError $ "Failed to read defaults file.\n" ++ show e])
 
-getInstalledLibraries :: LibM [AgdaLibFile]
-getInstalledLibraries = mkLibM [] $ do
+getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
+getInstalledLibraries overrideLibFile = mkLibM [] $ do
     agdaDir <- getAgdaAppDir
-    let file = agdaDir </> libraryFile
+    let file = fromMaybe (agdaDir </> libraryFile) overrideLibFile
     ifM (doesFileExist file) (do
       files <- mapM expandEnvironmentVariables =<< stripCommentLines <$> readFile file
       parseLibFiles files

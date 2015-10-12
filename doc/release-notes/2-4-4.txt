@@ -40,7 +40,8 @@ Pragmas and options
   AGDA_DIR/libraries (where AGDA_DIR is ~/.agda on unix-like systems and
   C:/Users/USERNAME/AppData/Roaming/agda or similar on Windows).
   Environment variables in the paths (of the form $VAR or ${VAR}) are
-  expanded.
+  expanded. The location of the libraries file used can be overridden using the
+  --library-file=FILE flag, although this is not expected to be very useful.
 
   You can find out the precise location of the 'libraries' file by
   calling 'agda -l fjdsk' and looking at the error message (assuming you

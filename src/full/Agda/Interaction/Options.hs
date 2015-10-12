@@ -82,6 +82,8 @@ data CommandLineOptions = Options
   , optIncludePaths     :: [FilePath]
   , optAbsoluteIncludePaths :: [AbsolutePath]
   , optLibraries        :: [LibName]
+  , optOverrideLibrariesFile :: Maybe FilePath
+  -- ^ Use this (if Just) instead of .agda/libraries
   , optDefaultLibs      :: Bool
   -- ^ Use ~/.agda/defaults or look for .agda-lib file.
   , optShowVersion      :: Bool
@@ -173,6 +175,7 @@ defaultOptions = Options
   , optIncludePaths     = []
   , optAbsoluteIncludePaths = []
   , optLibraries        = []
+  , optOverrideLibrariesFile = Nothing
   , optDefaultLibs      = True
   , optShowVersion      = False
   , optShowHelp         = False
@@ -519,6 +522,9 @@ includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 
+overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
+overrideLibrariesFileFlag s o = return $ o { optOverrideLibrariesFile = Just s }
+
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }
 
@@ -605,6 +611,8 @@ standardOptions =
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
                     "use library LIB"
+    , Option []     ["library-file"] (ReqArg overrideLibrariesFileFlag "FILE")
+                    "use FILE instead of the standard libraries file"
     , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
