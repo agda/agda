@@ -758,7 +758,7 @@ parseStandardOptions' argv opts = do
   checkOpts opts
 
 addDefaultLibraries :: Flag CommandLineOptions
-addDefaultLibraries o | optExplicitLibs o = pure o
+addDefaultLibraries o | optExplicitLibs o || optShowVersion o = pure o
 addDefaultLibraries o = do
   libs <- getDefaultLibraries
   setLibraryIncludes libs o
