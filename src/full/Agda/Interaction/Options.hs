@@ -6,7 +6,6 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag, OptM, runOptM
     , Verbosity
-    , IncludeDirs
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
@@ -77,16 +76,11 @@ isLiterate file = ".lagda" `isSuffixOf` file
 
 type Verbosity = Trie String Int
 
-type IncludeDirs = Either [FilePath] [AbsolutePath]
-     -- ^ 'Left' is used temporarily, before the paths have
-     -- been made absolute. An empty 'Left' list is
-     -- interpreted as @["."]@ (see
-     -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
-
 data CommandLineOptions = Options
   { optProgramName      :: String
   , optInputFile        :: Maybe FilePath
-  , optIncludeDirs      :: IncludeDirs
+  , optIncludePaths     :: [FilePath]
+  , optAbsoluteIncludePaths :: [AbsolutePath]
   , optLibraries        :: [LibName]
   , optDefaultLibs      :: Bool
   -- ^ Use ~/.agda/defaults or look for .agda-lib file.
@@ -176,7 +170,8 @@ defaultOptions :: CommandLineOptions
 defaultOptions = Options
   { optProgramName      = "agda"
   , optInputFile        = Nothing
-  , optIncludeDirs      = Left []
+  , optIncludePaths     = []
+  , optAbsoluteIncludePaths = []
   , optLibraries        = []
   , optDefaultLibs      = True
   , optShowVersion      = False
@@ -519,8 +514,7 @@ cssFlag :: FilePath -> Flag CommandLineOptions
 cssFlag f o = return $ o { optCSSFile = Just f }
 
 includeFlag :: FilePath -> Flag CommandLineOptions
-includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
-  where ds = either id (const []) $ optIncludeDirs o
+includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
 libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }

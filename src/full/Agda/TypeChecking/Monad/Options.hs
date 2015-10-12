@@ -71,19 +71,18 @@ setCommandLineOptions = setCommandLineOptions' CurrentDir
 
 setCommandLineOptions' :: RelativeTo -> CommandLineOptions -> TCM ()
 setCommandLineOptions' relativeTo opts = do
-  opts <- setLibraryPaths opts
   z <- liftIO $ runOptM $ checkOpts opts
   case z of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
-      incs <- case optIncludeDirs opts of
-        Right absolutePathes -> return absolutePathes
-        Left  relativePathes -> do
-          -- setIncludeDirs makes paths (relative to relativeTo) absolute
-          -- and possible adds the current directory (if no pathes given)
-          setIncludeDirs relativePathes relativeTo
+      incs <- case optAbsoluteIncludePaths opts of
+        [] -> do
+          opts' <- setLibraryPaths relativeTo opts
+          let incs = optIncludePaths opts'
+          setIncludeDirs incs relativeTo
           getIncludeDirs
-      modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
+        incs -> return incs
+      modify $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
              . Lens.setPragmaOptions (optPragmaOptions opts)
       updateBenchmarkingStatus
 
@@ -94,25 +93,24 @@ libToTCM m = do
     Left s  -> typeError $ GenericError s
     Right x -> return x
 
-setLibraryPaths :: CommandLineOptions -> TCM CommandLineOptions
-setLibraryPaths o
-  | isRight (optIncludeDirs o) = pure o   -- if include dirs are absolute we already did this
-  | otherwise = setLibraryIncludes =<< addDefaultLibraries o
+setLibraryPaths :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
+setLibraryPaths rel o = setLibraryIncludes =<< addDefaultLibraries rel o
 
 setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
 setLibraryIncludes o = do
     let libs = optLibraries o
     installed <- libToTCM $ getInstalledLibraries
     paths     <- libToTCM $ libraryIncludePaths installed libs
-    return o{ optIncludeDirs  = Left (paths ++ ds) }
-  where ds = either id (const []) $ optIncludeDirs o
+    return o{ optIncludePaths = paths ++ optIncludePaths o }
 
-addDefaultLibraries :: CommandLineOptions -> TCM CommandLineOptions
-addDefaultLibraries o | or [ not $ null $ optLibraries o
-                           , not $ optDefaultLibs o
-                           , optShowVersion o ] = pure o
-addDefaultLibraries o = do
-  libs <- libToTCM $ getDefaultLibraries
+addDefaultLibraries :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
+addDefaultLibraries rel o
+  | or [ not $ null $ optLibraries o
+       , not $ optDefaultLibs o
+       , optShowVersion o ] = pure o
+  | otherwise = do
+  root <- getProjectRoot rel
+  libs <- libToTCM $ getDefaultLibraries (filePath root)
   return o{ optLibraries = libs }
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where
@@ -174,14 +172,15 @@ shouldReifyInteractionPoints = asks envReifyInteractionPoints
 
 -- | Gets the include directories.
 --
--- Precondition: 'optIncludeDirs' must be @'Right' something@.
+-- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
+-- 'setCommandLineOptions' must have run).
 
 getIncludeDirs :: TCM [AbsolutePath]
 getIncludeDirs = do
-  incs <- optIncludeDirs <$> commandLineOptions
+  incs <- optAbsoluteIncludePaths <$> commandLineOptions
   case incs of
-    Left  _    -> __IMPOSSIBLE__
-    Right incs -> return incs
+    [] -> __IMPOSSIBLE__
+    _  -> return incs
 
 -- | Which directory should form the base of relative include paths?
 
@@ -193,36 +192,37 @@ data RelativeTo
   | CurrentDir
     -- ^ The current working directory.
 
+getProjectRoot :: RelativeTo -> TCM AbsolutePath
+getProjectRoot CurrentDir = liftIO (absolute =<< getCurrentDirectory)
+getProjectRoot (ProjectRoot f) = do
+  m <- moduleName' f
+  return (projectRoot f m)
+
 -- | Makes the given directories absolute and stores them as include
 -- directories.
 --
--- If the include directories change (and they were previously
--- @'Right' something@), then the state is reset (completely, except
--- for the include directories and 'stInteractionOutputCallback').
+-- If the include directories change, then the state is reset (completely,
+-- except for the include directories and 'stInteractionOutputCallback').
 --
 -- An empty list is interpreted as @["."]@.
 
-setIncludeDirs
-  :: [FilePath]
-  -- ^ New include directories.
-  -> RelativeTo
-  -- ^ How should relative paths be interpreted?
-  -> TCM ()
+setIncludeDirs :: [FilePath] -- ^ New include directories.
+               -> RelativeTo -- ^ How should relative paths be interpreted?
+               -> TCM ()
 setIncludeDirs incs relativeTo = do
   -- save the previous include dirs
-  oldIncs <- gets Lens.getIncludeDirs
+  oldIncs <- gets Lens.getAbsoluteIncludePaths
 
-  (root, check) <- case relativeTo of
-    CurrentDir -> do
-      root <- liftIO (absolute =<< getCurrentDirectory)
-      return (root, return ())
+  root <- getProjectRoot relativeTo
+  check <- case relativeTo of
+    CurrentDir -> return (return ())
     ProjectRoot f -> do
       m <- moduleName' f
-      return (projectRoot f m, checkModuleName m f)
+      return (checkModuleName m f)
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
-  -- Make pathes absolute
+  -- Make paths absolute
   incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
@@ -234,7 +234,6 @@ setIncludeDirs incs relativeTo = do
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
   incs <- return $ incs ++ [primdir]
-  Lens.putIncludeDirs $ Right $ incs
 
   -- Check whether the include dirs have changed.  If yes, reset state.
   -- Andreas, 2013-10-30 comments:
@@ -242,14 +241,12 @@ setIncludeDirs incs relativeTo = do
   -- for the interaction, qualifies for a code-obfuscation contest.
   -- I guess one Boolean more in the state cost 10.000 EUR at the time
   -- of this implementation...
-  case oldIncs of
-    Right incs' | incs' /= incs -> do
-      ho <- getInteractionOutputCallback
-      resetAllState
-      setInteractionOutputCallback ho
-      Lens.putIncludeDirs $ Right incs
-    _ -> return ()
+  when (oldIncs /= incs) $ do
+    ho <- getInteractionOutputCallback
+    resetAllState
+    setInteractionOutputCallback ho
 
+  Lens.putAbsoluteIncludePaths incs
   check
 
 setInputFile :: FilePath -> TCM ()

@@ -25,6 +25,7 @@ import Agda.Interaction.Response as R
 import Agda.Interaction.InteractionTop
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Highlighting.Emacs
+import Agda.Interaction.Options
 
 import Agda.Version
 
@@ -48,7 +49,7 @@ mimicGHCi = do
         liftIO . mapM_ print <=< lispifyResponse
 
     opts <- commandLineOptions
-    _ <- interact' `runStateT` initCommandState { optionsOnReload = opts }
+    _ <- interact' `runStateT` initCommandState { optionsOnReload = opts{ optAbsoluteIncludePaths = [] } }
     return ()
   where
 

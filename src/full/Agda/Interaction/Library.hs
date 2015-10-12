@@ -51,9 +51,9 @@ mkLibM libs m = do
     [] -> return x
     _  -> throwError =<< lift (unlines <$> mapM (formatLibError libs) err)
 
-getDefaultLibraries :: LibM [LibName]
-getDefaultLibraries = mkLibM [] $ do
-  libs <- filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents "."
+getDefaultLibraries :: FilePath -> LibM [LibName]
+getDefaultLibraries root = mkLibM [] $ do
+  libs <- filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
   if null libs then readDefaultsFile
     else first (map libName) <$> parseLibFiles libs
 
