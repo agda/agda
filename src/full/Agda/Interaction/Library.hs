@@ -26,8 +26,9 @@ import Agda.Utils.Monad
 import Agda.Utils.Environment
 import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
 import Agda.Utils.List
+import Agda.Utils.Pretty
 
-type LibM = ExceptT String IO
+type LibM = ExceptT Doc IO
 
 catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO = catch
@@ -59,7 +60,7 @@ mkLibM libs m = do
   (x, err) <- lift m
   case err of
     [] -> return x
-    _  -> throwError =<< lift (unlines <$> mapM (formatLibError libs) err)
+    _  -> throwError =<< lift (vcat <$> mapM (formatLibError libs) err)
 
 findAgdaLibFiles :: FilePath -> IO [FilePath]
 findAgdaLibFiles root = do
@@ -111,18 +112,24 @@ stripCommentLines = concatMap strip . lines
     strip s = [ s' | not $ null s' ]
       where s' = stripComments $ dropWhile isSpace s
 
-formatLibError :: [AgdaLibFile] -> LibError -> IO String
+formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
 formatLibError installed (LibNotFound lib) = do
   agdaDir <- getAgdaAppDir
-  return $ "Library '" ++ lib ++ "' not found. " ++
-           " Add the path to its .agda-lib file to " ++ (agdaDir </> libraryFile) ++ " to install.\n" ++
-           unlines ("Installed libraries:" :
-                    if null installed then ["  (none)"]
-                    else [ "  " ++ libName l ++ " (" ++ libFile l ++ ")" | l <- installed ])
+  return $ vcat $
+    [ text $ "Library '" ++ lib ++ "' not found."
+    , sep [ text "Add the path to its .agda-lib file to"
+          , nest 2 $ text (agdaDir </> libraryFile)
+          , text "to install." ]
+    , text "Installed libraries:"
+    ] ++
+    map (nest 2)
+      (if null installed then [text "(none)"]
+      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ] | l <- installed ])
 formatLibError _ (AmbiguousLib lib tgts) = return $
-  "Ambiguous library '" ++ lib ++ "'. Could refer to any one of\n" ++
-  init (unlines [ "  " ++ libName l ++ " (" ++ libFile l ++ ")" | l <- tgts ])
-formatLibError _ (OtherError err) = return err
+  vcat $ sep [ text $ "Ambiguous library '" ++ lib ++ "'."
+             , text "Could refer to any one of" ]
+       : [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
+formatLibError _ (OtherError err) = return $ text err
 
 libraryIncludePaths :: [AgdaLibFile] -> [LibName] -> LibM [FilePath]
 libraryIncludePaths libs xs0 = mkLibM libs $ return $ runWriter ((dot ++) . incs <$> find [] xs)

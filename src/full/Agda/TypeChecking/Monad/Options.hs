@@ -90,7 +90,7 @@ libToTCM :: LibM a -> TCM a
 libToTCM m = do
   z <- liftIO $ runExceptT m
   case z of
-    Left s  -> typeError $ GenericError s
+    Left s  -> typeError $ GenericDocError s
     Right x -> return x
 
 setLibraryPaths :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
