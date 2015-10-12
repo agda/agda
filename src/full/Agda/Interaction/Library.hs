@@ -18,6 +18,7 @@ import Data.List
 import Data.Maybe
 import System.Directory
 import System.FilePath
+import System.Environment
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
@@ -32,7 +33,15 @@ catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO = catch
 
 getAgdaAppDir :: IO FilePath
-getAgdaAppDir = getAppUserDataDirectory "agda"
+getAgdaAppDir = do
+  agdaDir <- lookupEnv "AGDA_DIR"
+  case agdaDir of
+    Nothing  -> getAppUserDataDirectory "agda"
+    Just dir ->
+      ifM (doesDirectoryExist dir) (canonicalizePath dir) $ do
+        d <- getAppUserDataDirectory "agda"
+        putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
+        return d
 
 libraryFile :: FilePath
 libraryFile = "libraries"
