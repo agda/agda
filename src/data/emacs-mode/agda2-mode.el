@@ -393,52 +393,48 @@ The following paragraph does not apply to Emacs 23 or newer.
 Special commands:
 \\{agda2-mode-map}"
 
- ;; Check that the right version of Agda is used.
- (let* ((coding-system-for-read 'utf-8)
-        (output (with-output-to-string
-                  (call-process agda2-program-name
-                                nil standard-output nil "--version")))
-        (version (and (string-match "^Agda version \\([0-9.]+\\)$" output)
-                      (match-string 1 output))))
-   (unless (equal version agda2-version)
-     (error "The Agda mode's version (%s) does not match that of %s (%s)."
-            agda2-version
-            agda2-program-name (or version "unknown"))))
+  ;; Check that the right version of Agda is used.
+  (let* ((coding-system-for-read 'utf-8)
+	 (output (with-output-to-string
+		   (call-process agda2-program-name
+				 nil standard-output nil "--version")))
+	 (version (and (string-match "^Agda version \\([0-9.]+\\)$" output)
+		       (match-string 1 output)))))
 
- (setq local-abbrev-table agda2-mode-abbrev-table
-       indent-tabs-mode   nil
-       mode-line-process
-         '((:eval (unless (eq 0 (length agda2-buffer-external-status))
-                    (concat ":" agda2-buffer-external-status)))))
- (let ((l '(max-specpdl-size    2600
-            max-lisp-eval-depth 2800)))
-   (while l (set (make-local-variable (pop l)) (pop l))))
- (if (and window-system agda2-fontset-name)
-     (condition-case nil
-         (set-frame-font agda2-fontset-name)
-       (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
- ;; Deactivate highlighting if the buffer is edited before
- ;; typechecking is complete.
- (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
- ;; If Agda is not running syntax highlighting does not work properly.
- (unless (eq 'run (agda2-process-status))
-   (agda2-restart))
- (agda2-highlight-setup)
- (condition-case err
-     (agda2-highlight-reload)
-   (error (message "Highlighting not loaded: %s"
-                   (error-message-string err))))
- (agda2-comments-and-paragraphs-setup)
- (force-mode-line-update)
- ;; Protect global value of default-input-method from set-input-method.
- (make-local-variable 'default-input-method)
- (set-input-method "Agda")
- ;; Highlighting etc. is removed when we switch from the Agda mode.
- ;; Use case: When a file M.lagda with a local variables list
- ;; including "mode: latex" is loaded chances are that the Agda mode
- ;; is activated before the LaTeX mode, and the LaTeX mode does not
- ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+  (setq local-abbrev-table agda2-mode-abbrev-table
+	indent-tabs-mode nil
+	mode-line-process
+	'((:eval (unless (eq 0 (length agda2-buffer-external-status))
+		   (concat ":" agda2-buffer-external-status)))))
+  (let ((l '(max-specpdl-size 2600
+			      max-lisp-eval-depth 2800)))
+    (while l (set (make-local-variable (pop l)) (pop l))))
+  (if (and window-system agda2-fontset-name)
+      (condition-case nil
+	  (set-frame-font agda2-fontset-name)
+	(error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
+  ;; Deactivate highlighting if the buffer is edited before
+  ;; typechecking is complete.
+  (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
+  ;; If Agda is not running syntax highlighting does not work properly.
+  (unless (eq 'run (agda2-process-status))
+    (agda2-restart))
+  (agda2-highlight-setup)
+  (condition-case err
+      (agda2-highlight-reload)
+    (error (message "Highlighting not loaded: %s"
+		    (error-message-string err))))
+  (agda2-comments-and-paragraphs-setup)
+  (force-mode-line-update)
+  ;; Protect global value of default-input-method from set-input-method.
+  (make-local-variable 'default-input-method)
+  (set-input-method "Agda")
+  ;; Highlighting etc. is removed when we switch from the Agda mode.
+  ;; Use case: When a file M.lagda with a local variables list
+  ;; including "mode: latex" is loaded chances are that the Agda mode
+  ;; is activated before the LaTeX mode, and the LaTeX mode does not
+  ;; seem to remove the text properties set by the Agda mode.
+  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
 
 (defun agda2-restart ()
   "Kill and restart the *agda2* buffer and load `agda2-toplevel-module'."
