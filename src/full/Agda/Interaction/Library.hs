@@ -3,6 +3,8 @@ module Agda.Interaction.Library
   ( getDefaultLibraries
   , getInstalledLibraries
   , libraryIncludePaths
+  , LibName
+  , LibM
   ) where
 
 import Control.Arrow (first, second)
@@ -20,7 +22,7 @@ import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
 import Agda.Utils.Monad
 import Agda.Utils.Environment
-import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
+import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
 import Agda.Utils.List
 
 type LibM = ExceptT String IO

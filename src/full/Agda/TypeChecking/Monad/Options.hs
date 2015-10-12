@@ -26,6 +26,7 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
+import Agda.Interaction.Library
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
@@ -35,6 +36,8 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
+import Agda.Utils.Except
+import Agda.Utils.Either
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -68,6 +71,7 @@ setCommandLineOptions = setCommandLineOptions' CurrentDir
 
 setCommandLineOptions' :: RelativeTo -> CommandLineOptions -> TCM ()
 setCommandLineOptions' relativeTo opts = do
+  opts <- setLibraryPaths opts
   z <- liftIO $ runOptM $ checkOpts opts
   case z of
     Left err   -> __IMPOSSIBLE__
@@ -82,6 +86,34 @@ setCommandLineOptions' relativeTo opts = do
       modify $ Lens.setCommandLineOptions opts{ optIncludeDirs = Right incs }
              . Lens.setPragmaOptions (optPragmaOptions opts)
       updateBenchmarkingStatus
+
+libToTCM :: LibM a -> TCM a
+libToTCM m = do
+  z <- liftIO $ runExceptT m
+  case z of
+    Left s  -> typeError $ GenericError s
+    Right x -> return x
+
+setLibraryPaths :: CommandLineOptions -> TCM CommandLineOptions
+setLibraryPaths o
+  | isRight (optIncludeDirs o) = pure o   -- if include dirs are absolute we already did this
+  | otherwise = setLibraryIncludes =<< addDefaultLibraries o
+
+setLibraryIncludes :: CommandLineOptions -> TCM CommandLineOptions
+setLibraryIncludes o = do
+    let libs = optLibraries o
+    installed <- libToTCM $ getInstalledLibraries
+    paths     <- libToTCM $ libraryIncludePaths installed libs
+    return o{ optIncludeDirs  = Left (paths ++ ds) }
+  where ds = either id (const []) $ optIncludeDirs o
+
+addDefaultLibraries :: CommandLineOptions -> TCM CommandLineOptions
+addDefaultLibraries o | or [ not $ null $ optLibraries o
+                           , not $ optDefaultLibs o
+                           , optShowVersion o ] = pure o
+addDefaultLibraries o = do
+  libs <- libToTCM $ getDefaultLibraries
+  return o{ optLibraries = libs }
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where
   -- | Returns the pragma options which are currently in effect.
