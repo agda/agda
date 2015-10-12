@@ -9,9 +9,9 @@ Builtin types
 Literals
 ~~~~~~~~
 
-The Term data type AGDATERM now needs an additional constructor AGDATERMLIT
+The Term data type ``AGDATERM`` now needs an additional constructor ``AGDATERMLIT``
 taking a reflected literal defined as follows (with appropriate builtin
-bindings for the types Nat, Float, etc).
+bindings for the types ``Nat``, ``Float``, etc).
 
 ::
 
@@ -29,23 +29,71 @@ bindings for the types Nat, Float, etc).
     {-# BUILTIN AGDALITSTRING string  #-}
     {-# BUILTIN AGDALITQNAME  qname   #-}
 
-When quoting (quoteGoal or quoteTerm) literals will be mapped to the
-AGDATERMLIT constructor. Previously natural number literals were quoted
+When quoting (``quoteGoal`` or ``quoteTerm``) literals will be mapped to the
+``AGDATERMLIT`` constructor. Previously natural number literals were quoted
 to suc/zero application and other literals were quoted to
-AGDATERMUNSUPPORTED.
+``AGDATERMUNSUPPORTED``.
 
-Pattern-Matching Lambdas
-~~~~~~~~~~~~~~~~~~~~~~~~
+Terms
+~~~~~
 
-New reflection builtins for extended (pattern-matching) lambda.
-
-The AGDATERM data type has been augmented with a constructor
+The ``Term``, ``Type`` and ``Sort`` datatype:
 
 ::
 
-    AGDATERMEXTLAM : List AGDACLAUSE → List (ARG AGDATERM) → AGDATERM
+  mutual
+    data Term : Set where
+      -- Variable applied to arguments.
+      var     : (x : ℕ) (args : List (Arg Term)) → Term
+      -- Constructor applied to arguments.
+      con     : (c : Name) (args : List (Arg Term)) → Term
+      -- Identifier applied to arguments.
+      def     : (f : Name) (args : List (Arg Term)) → Term
+      -- Different kinds of λ-abstraction.
+      lam     : (v : Visibility) (t : Abs Term) → Term
+      -- Pattern matching λ-abstraction.
+      pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
+      -- Pi-type.
+      pi      : (t₁ : Arg Type) (t₂ : Abs Type) → Term
+      -- A sort.
+      sort    : (s : Sort) → Term
+      -- A literal.
+      lit     : (l : Literal) → Term
+      -- Reflection constructions.
+      quote-goal : (t : Abs Term) → Term
+      quote-term : (t : Term) → Term
+      quote-context : Term
+      unquote-term : (t : Term) (args : List (Arg Term)) → Term
+      -- Anything else.
+      unknown : Term
 
-Absurd lambdas (λ ()) are quoted to extended lambdas with an absurd clause.
+    data Type : Set where
+      el : (s : Sort) (t : Term) → Type
+
+    data Sort : Set where
+      -- A Set of a given (possibly neutral) level.
+      set     : (t : Term) → Sort
+      -- A Set of a given concrete level.
+      lit     : (n : ℕ) → Sort
+      -- Anything else.
+      unknown : Sort
+
+    data Clause : Set where
+      clause        : (pats : List (Arg Pattern))(body : Term) → Clause
+      absurd-clause : (pats : List (Arg Pattern)) → Clause
+
+  {-# BUILTIN AGDASORT    Sort    #-}
+  {-# BUILTIN AGDATYPE    Type    #-}
+  {-# BUILTIN AGDATERM    Term    #-}
+  {-# BUILTIN AGDACLAUSE  Clause  #-}
+
+  {-# BUILTIN AGDATERMVAR         var     #-}
+  {-# BUILTIN AGDATERMCON         con     #-}
+  {-# BUILTIN AGDATERMDEF         def     #-}
+  {-# BUILTIN AGDATERMLAM         lam     #-}
+
+
+Absurd lambdas ``(λ ())`` are quoted to extended lambdas with an absurd clause.
 
 Meta variables
 ~~~~~~~~~~~~~~
