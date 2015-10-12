@@ -161,7 +161,7 @@ runAgdaWithOptions generateHTML progName opts
 printUsage :: IO ()
 printUsage = do
   progName <- getProgName
-  putStr $ usage standardOptions_ [] progName
+  putStr $ usage standardOptions_ progName
 
 -- | Print version information.
 printVersion :: IO ()
@@ -171,8 +171,7 @@ printVersion =
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err = do
-  putStrLn $ "Error: " ++ err
-  printUsage
+  putStrLn $ "Error: " ++ err ++ "\nRun 'agda --help' for help on command line options."
   exitFailure
 
 -- | Run a TCM action in IO; catch and pretty print errors.

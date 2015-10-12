@@ -65,6 +65,7 @@ import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 
+import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
 
@@ -776,29 +777,11 @@ parsePluginOptions argv opts =
 
 -- | The usage info message. The argument is the program name (probably
 --   agda).
-usage :: [OptDescr ()] -> [(String, String, [String], [OptDescr ()])] -> String -> String
-usage options pluginInfos progName =
-        usageInfo (header progName) options ++
-        "\nPlugins:\n" ++
-        indent 2 (concatMap pluginMsg pluginInfos)
-
+usage :: [OptDescr ()] -> String -> String
+usage options progName = usageInfo (header progName) options
     where
-        header progName = unlines [ "Agda"
-                                  , ""
-                                  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
-                                  ]
-
-        pluginMsg (name, help, inherited, opts)
-            | null opts && null inherited = optHeader
-            | otherwise = usageInfo (optHeader ++
-                                     "  Plugin-specific options:" ++
-                                     inheritedOptions inherited
-                                     ) opts
-            where
-                optHeader = "\n" ++ name ++ "-plugin:\n" ++ indent 2 help
-                inheritedOptions [] = ""
-                inheritedOptions pls =
-                    "\n    Inherits options from: " ++ unwords pls
+        header progName = unlines [ "Agda version " ++ version, ""
+                                  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]" ]
 
 -- Remove +RTS .. -RTS from arguments
 stripRTS :: [String] -> [String]
