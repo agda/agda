@@ -715,19 +715,22 @@ Type checking
 Compiler backends
 =================
 
+* Major Bug Fixes:
+
+  - Function clauses with different arities are now always compiled correctly
+    by the GHC/UHC backends. (Issue #727)
+
+* Co-patterns
+
+  - The GHC/UHC backends now support co-patterns. (Issues #1567, #1632)
+
+* Optimizations
+
+  - Builtin naturals are now represented as arbitrary-precision
+    Integers. See the user manual, section
+    "Agda Compilers -> Optimizations" for details.
+
 * GHC Haskell backend (MAlonzo)
-
-  - Builtin natural numbers
-
-    Builtin natural numbers are now properly represented as Haskell
-    Integers, and the builtin functions on natural numbers are compiled to
-    their corresponding Haskell functions.
-
-    Note that pattern matching on an Integer is slower than on a unary
-    natural number, so code that does a lot of unary manipulations and
-    doesn't use builtin arithmetic will most likely become slower. If you
-    find that this is the case, it is recommended to use a different, but
-    isomorphic type to the builtin natural numbers.
 
   - Pragmas
 
@@ -735,47 +738,13 @@ Compiler backends
     give a {-# COMPILED_DATA #-} pragma for Nat. The same goes for
     builtin booleans which are now hard-wired to Haskell booleans.
 
-  - Optimisations
-
-    Pattern matches with a single alternative is compiled to a lazy
-    match (using 'let' instead of 'case'). This means that matching on
-    'refl' will not force the proof, and programs using well-founded
-    recursion will be lazy in the accessibility proof.
 
 * UHC compiler backend
 
   A new backend targeting the Utrecht Haskell Compiler (UHC) is available.
   It targets the UHC Core language, and it's design is inspired by
-  the Epic backend.
-
-  This backend is currently experimental, but should work for most Agda code.
-  The Agda Standard Library has been updated to support this new backend.
-  It properly supports having function clauses with different arities.
-
-  The backend is disabled by default, as it will pull in some large
-  dependencies. To enable the backend, use the "uhc" cabal flag when
-  installing Agda:
-
-    cabal install Agda -fuhc
-
-  The backend also requires UHC to be installed. UHC is not available on
-  Hackage and needs to be installed manually. This version of Agda has been
-  tested with UHC 1.1.9.0, using other UHC versions may cause problems.
-  To install UHC, the following commands can be used:
-
-    git clone https://github.com/UU-ComputerScience/uhc.git
-    cd uhc
-    git checkout 82149a515aa0cbc492d8aa3f1ff10850a9cbe8d8
-    cd EHC
-    ./configure
-    make
-    make install
-
-  The Agda UHC compiler can be invoked from the command line using the
-  flag --uhc:
-
-    agda --uhc [--compile-dir=<DIR>] [--no-smashing]
-        [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
+  the Epic backend. See the user manual, section
+  "Agda Compilers -> UHC Backend" for installation instructions.
 
 
   FFI
@@ -823,7 +792,7 @@ Compiler backends
     Bool          __BOOL__          True             __TRUE__
                                     False            __FALSE__
 
- Functions
+  Functions
   Agda postulates can be bound to Haskell functions. Similar as in MAlonzo,
   all arguments of type Set need to be dropped before calling Haskell
   functions. An example calling the return function:
