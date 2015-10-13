@@ -219,8 +219,11 @@ script:
 
 ##############################################################################
 
+# Running XeLaTeX/LuaLaTeX on travis fails randomly, presumably because they
+# consume too much memory. We just don't run them on travis, but we still
+# compare the generated tex/html files with the golden files.
   - if [ $TEST = "latex-html-test" ]; then
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR latex-html-test;
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
 ##############################################################################
