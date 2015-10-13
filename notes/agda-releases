@@ -29,7 +29,8 @@ followed:
 * Update the LICENSE file, if necessary.
 
 * Update the version numbers in Agda.cabal (twice),
-  src/data/emacs-mode/agda2-mode.el, mk/version.mk.
+  src/data/emacs-mode/agda2-mode.el, mk/version.mk, and
+  doc/user-manual/conf.py.
 
 * Add a second source-repository section to Agda.cabal:
 
