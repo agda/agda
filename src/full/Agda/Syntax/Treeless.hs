@@ -87,6 +87,9 @@ plusKView _ = Nothing
 tOp :: TPrim -> TTerm -> TTerm -> TTerm
 tOp op a b = TApp (TPrim op) [a, b]
 
+tUnreachable :: TTerm
+tUnreachable = TError TUnreachable
+
 data CaseType
   = CTData QName -- case on datatype
   | CTChar
@@ -105,9 +108,21 @@ data TAlt
   deriving (Typeable, Show, Eq, Ord)
 
 data TError
-  = TUnreachable QName {- def name where it happend -}
+  = TUnreachable
   -- ^ Code which is unreachable. E.g. absurd branches or missing case defaults.
   -- Runtime behaviour of unreachable code is undefined, but preferably
   -- the program will exit with an error message. The compiler is free
   -- to assume that this code is unreachable and to remove it.
   deriving (Typeable, Show, Eq, Ord)
+
+
+class Unreachable a where
+  -- | Checks if the given expression is unreachable or not.
+  isUnreachable :: a -> Bool
+
+instance Unreachable TAlt where
+  isUnreachable = isUnreachable . aBody
+
+instance Unreachable TTerm where
+  isUnreachable (TError (TUnreachable{})) = True
+  isUnreachable _ = False

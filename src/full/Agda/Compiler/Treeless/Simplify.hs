@@ -102,14 +102,8 @@ simplify FunctionKit{..} = simpl
           TACon c a b : _   -> pure $ tCase' x t d bs'
       | otherwise = pure $ TCase x t d bs'
       where
-        bs' = filter (not . isUnreachableAlt) bs
+        bs' = filter (not . isUnreachable) bs
 
         tCase' x t d [] = d
         tCase' x t d bs = TCase x t d bs
 
-isUnreachableAlt :: TAlt -> Bool
-isUnreachableAlt = isUnreachable . aBody
-
-isUnreachable :: TTerm -> Bool
-isUnreachable (TError (TUnreachable{})) = True
-isUnreachable _ = False

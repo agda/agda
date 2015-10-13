@@ -73,7 +73,7 @@ Pattern matches
 ~~~~~~~~~~~~~~~
 
 .. note::
-   GHC backend only.
+   GHC/UHC backend only.
 
 Pattern matches with a single alternative are compiled to a lazy
 match (using 'let' instead of 'case'). This means that matching on
