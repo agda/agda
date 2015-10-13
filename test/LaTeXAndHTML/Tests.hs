@@ -99,7 +99,11 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
                     fromMaybe allLaTeXProgs
                       (readMaybe $ T.unpack $ decodeUtf8 content)
               -- run all latex compilers
-              foldl (runLaTeX outFileName outDir) done latexProgs
+              rl <- doesEnvContain "DONT_RUN_LATEX"
+              if rl
+                then done
+                else
+                  foldl (runLaTeX outFileName outDir) done latexProgs
 
   runLaTeX :: FilePath -- tex file
       -> FilePath -- working dir
