@@ -6,14 +6,14 @@
 Welcome to Agda's documentation!
 ================================
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 
+   overview
+   getting-started
+   language/index
+   tools/index
    license
-   compilers
-   reflection
 
 
 Indices and tables

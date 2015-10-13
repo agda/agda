@@ -1,5 +1,8 @@
-Agda Compilers
-===================
+.. _compilers:
+
+***********
+Compilers
+***********
 
 Backends
 --------

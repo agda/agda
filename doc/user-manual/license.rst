@@ -1,7 +1,8 @@
 .. _License:
 
+################
 The Agda License
-================
+################
 
 Copyright (c) 2005-2015 Ulf Norell, Andreas Abel, Nils Anders
 Danielsson, Andrés Sicard-Ramírez, Dominique Devriese, Péter
