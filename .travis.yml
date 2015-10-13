@@ -34,8 +34,9 @@ ghc:
 # make compiler-test
 # make benchmark-without-logs
 #
-# Other tests: These tests use a different set up.
+# Other tests: These tests use a some how different set up.
 #
+# latex-html-test
 # ghc-7.8.4-transformers-0.3.0.0
 # cpp
 
