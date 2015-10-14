@@ -7,6 +7,20 @@ Compilers
 Backends
 --------
 
+GHC Backend
+~~~~~~~~~~~
+
+.. note::
+   This is a stub.
+
+The Agda GHC compiler can be invoked from the command line using the
+flag ``--compile``:
+
+.. code-block:: bash
+
+  agda --compile [--compile-dir=<DIR>]
+      [--ghc-flag=<FLAG>] <FILE>.agda
+
 UHC Backend
 ~~~~~~~~~~~
 
@@ -14,10 +28,7 @@ UHC Backend
    This backend is available from Agda 2.4.4 on.
    The Agda Standard Library has been updated to support this new backend.
 
-A backend targeting the Utrecht Haskell Compiler (UHC) is available.
-It targets the UHC Core language, and it's design is inspired by
-the Epic backend.
-
+The Agda UHC backend targets the Core language of the Utrecht Haskell Compiler (UHC).
 This backend is currently experimental, but should work for most Agda code.
 
 The backend is disabled by default, as it will pull in some large
@@ -44,12 +55,18 @@ To install UHC, the following commands can be used:
   make install
 
 The Agda UHC compiler can be invoked from the command line using the
-flag --uhc:
+flag ``--uhc``:
 
 .. code-block:: bash
 
   agda --uhc [--compile-dir=<DIR>]
       [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
+
+JavaScript Backend
+~~~~~~~~~~~~~~~~~~
+
+.. note::
+   This is a stub.
 
 Optimizations
 -------------
