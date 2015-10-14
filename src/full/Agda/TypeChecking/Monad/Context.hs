@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -8,6 +9,7 @@
 
 module Agda.TypeChecking.Monad.Context where
 
+import Control.Applicative
 import Control.Monad.Reader
 
 import Data.List hiding (sort)
@@ -23,6 +25,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
 
+import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!), downFrom)
 
@@ -209,44 +212,44 @@ addLetBinding info x v t0 ret = do
 
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Dom (Name, Type)] #-}
-getContext :: MonadTCM tcm => tcm [Dom (Name, Type)]
+getContext :: MonadReader TCEnv m => m [Dom (Name, Type)]
 getContext = asks $ map ctxEntry . envContext
 
 -- | Get the size of the current context.
 {-# SPECIALIZE getContextSize :: TCM Nat #-}
-getContextSize :: MonadTCM tcm => tcm Nat
+getContextSize :: (Applicative m, MonadReader TCEnv m) => m Nat
 getContextSize = genericLength <$> asks envContext
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
-getContextArgs :: MonadTCM tcm => tcm Args
+getContextArgs :: (Applicative m, MonadReader TCEnv m) => m Args
 getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
   where mkArg i (Dom info _) = Arg info $ var i
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
-getContextTerms :: MonadTCM tcm => tcm [Term]
+getContextTerms :: (Applicative m, MonadReader TCEnv m) => m [Term]
 getContextTerms = map var . downFrom <$> getContextSize
 
 -- | Get the current context as a 'Telescope'.
 {-# SPECIALIZE getContextTelescope :: TCM Telescope #-}
-getContextTelescope :: MonadTCM tcm => tcm Telescope
+getContextTelescope :: (Applicative m, MonadReader TCEnv m) => m Telescope
 getContextTelescope = telFromList' nameToArgName . reverse <$> getContext
 
 -- | Check if we are in a compatible context, i.e. an extension of the given context.
 {-# SPECIALIZE getContextId :: TCM [CtxId] #-}
-getContextId :: MonadTCM tcm => tcm [CtxId]
+getContextId :: MonadReader TCEnv m => m [CtxId]
 getContextId = asks $ map ctxId . envContext
 
 -- | Get the names of all declarations in the context.
 {-# SPECIALIZE getContextNames :: TCM [Name] #-}
-getContextNames :: MonadTCM tcm => tcm [Name]
+getContextNames :: (Applicative m, MonadReader TCEnv m) => m [Name]
 getContextNames = map (fst . unDom) <$> getContext
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: MonadTCM tcm => Nat -> tcm (Dom (Name, Type))
+lookupBV :: (Applicative m, MonadReader TCEnv m) => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   ctx <- getContext
   let failure = fail $ "deBruijn index out of scope: " ++ show n ++
@@ -254,22 +257,23 @@ lookupBV n = do
   maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
 
 {-# SPECIALIZE typeOfBV' :: Nat -> TCM (Dom Type) #-}
-typeOfBV' :: MonadTCM tcm => Nat -> tcm (Dom Type)
+typeOfBV' :: (Applicative m, MonadReader TCEnv m) => Nat -> m (Dom Type)
 typeOfBV' n = fmap snd <$> lookupBV n
 
 {-# SPECIALIZE typeOfBV :: Nat -> TCM Type #-}
-typeOfBV :: MonadTCM tcm => Nat -> tcm Type
+typeOfBV :: (Applicative m, MonadReader TCEnv m) => Nat -> m Type
 typeOfBV i = unDom <$> typeOfBV' i
 
 {-# SPECIALIZE nameOfBV :: Nat -> TCM Name #-}
-nameOfBV :: MonadTCM tcm => Nat -> tcm Name
+nameOfBV :: (Applicative m, MonadReader TCEnv m) => Nat -> m Name
 nameOfBV n = fst . unDom <$> lookupBV n
 
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Dom Type)
+getVarInfo :: (Applicative m, MonadReader TCEnv m, MonadError TCErr m)
+           => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asks envLetBindings
@@ -279,5 +283,5 @@ getVarInfo x =
                 return (var n, t)
             _       ->
                 case Map.lookup x def of
-                    Just vt -> liftTCM $ getOpen vt
+                    Just vt -> getOpen vt
                     _       -> fail $ "unbound variable " ++ show (nameConcrete x)

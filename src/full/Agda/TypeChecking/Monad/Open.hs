@@ -1,4 +1,5 @@
 -- {-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Open
         ( makeOpen
@@ -9,6 +10,7 @@ module Agda.TypeChecking.Monad.Open
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Reader
 import Data.List
 
 import Agda.TypeChecking.Substitute
@@ -30,7 +32,7 @@ makeClosed = OpenThing []
 
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
-getOpen :: Subst t a => Open a -> TCM a
+getOpen :: (Subst t a, MonadReader TCEnv m, MonadError TCErr m) => Open a -> m a
 getOpen (OpenThing []  x) = return x
 getOpen (OpenThing ctx x) = do
   ctx' <- getContextId
@@ -40,7 +42,10 @@ getOpen (OpenThing ctx x) = do
 -- | Try to use an 'Open' the current context.
 --   Returns 'Nothing' if current context is not an extension of the
 --   context in which the 'Open' was created.
-tryOpen :: Subst t a => Open a -> TCM (Maybe a)
-tryOpen o =
-  (Just <$> getOpen o)
-  `catchError` \_ -> return Nothing
+tryOpen :: (Subst t a, MonadReader TCEnv m) => Open a -> m (Maybe a)
+tryOpen (OpenThing []  x) = return $ Just x
+tryOpen (OpenThing ctx x) = do
+  ctx' <- getContextId
+  if (ctx `isSuffixOf` ctx')
+    then return $ Just $ raise (genericLength ctx' - genericLength ctx) x
+    else return Nothing
