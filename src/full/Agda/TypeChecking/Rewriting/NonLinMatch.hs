@@ -147,7 +147,7 @@ tellSub i v = do
 tellEq :: Int -> Term -> Term -> NLM ()
 tellEq k u v =
   traceSDocNLM "rewriting" 60 (sep
-               [ text "adding equality between" <+> prettyTCM u <+> "(printed in wrong context)"
+               [ text "adding equality between" <+> prettyTCM u <+> text "(printed in wrong context)"
                , text " and " <+> prettyTCM v
                , text ("(with " ++ show k ++ " free variables)") ]) $ do
   modify $ second $ (PostponedEquation k u v:)
