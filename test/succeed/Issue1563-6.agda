@@ -19,8 +19,8 @@ module _ (P : Set) (base* : P) (loop* : base* == base*) where
   postulate
     Circle-rec : Circle → P
     Circle-base-recβ : Circle-rec base == base*
-  {-# REWRITE Circle-base-recβ #-}
 
+{-# REWRITE Circle-base-recβ #-}
 
 f : Circle → Circle
 f = Circle-rec Circle base loop

@@ -1061,7 +1061,7 @@ data NLPat
   deriving (Typeable, Show)
 type PElims = [Elim' NLPat]
 
-type RewriteRules = [RewriteRule]
+type RewriteRules = [Open RewriteRule]
 
 -- | Rewrite rules can be added independently from function clauses.
 data RewriteRule = RewriteRule

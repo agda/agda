@@ -389,7 +389,7 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
+  prettyTCM (RewriteRule q gamma lhs rhs b) = do
     prettyTCM q <+> text " rule " <+> do
       prettyTCM gamma <+> text " |- " <+> do
         addContext gamma $ do

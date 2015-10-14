@@ -753,6 +753,14 @@ instance Subst Term NLPat where
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applySubst rho u
 
+instance Subst Term RewriteRule where
+  applySubst rho (RewriteRule q gamma lhs rhs t) =
+    RewriteRule q (applySubst rho gamma)
+                  (applySubst (liftS n rho) lhs)
+                  (applySubst (liftS n rho) rhs)
+                  (applySubst (liftS n rho) t)
+    where n = size gamma
+
 instance Subst t a => Subst t (Blocked a) where
   applySubst rho b = fmap (applySubst rho) b
 

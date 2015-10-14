@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
@@ -64,41 +65,42 @@ import Agda.Utils.Impossible
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
---   The first argument is the number of bound variables.
+--   The first argument is the number of pattern variables.
+--   The second argument is the number of bound variables (from pattern lambdas).
 
 class PatternFrom a b where
-  patternFrom :: Int -> a -> TCM b
+  patternFrom :: Int -> Int -> a -> TCM b
 
 instance (PatternFrom a b) => PatternFrom [a] [b] where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Elim' a) (Elim' b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Type' a) (Type' b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance PatternFrom Term NLPat where
-  patternFrom k v = do
+  patternFrom n k v = do
     v <- reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
       Var i es
-       | i < k     -> PBoundVar i <$> patternFrom k es
-       | otherwise -> if null es
-                      then return $ PVar (i-k)
-                      else done
-      Lam i t  -> PLam i <$> patternFrom k t
+       | i < k     -> PBoundVar i <$> patternFrom n k es
+       | i-k < n,
+         null es   -> return $ PVar (i-k)
+       | otherwise -> done
+      Lam i t  -> PLam i <$> patternFrom n k t
       Lit{}    -> done
-      Def f es -> PDef f <$> patternFrom k es
-      Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
-      Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
+      Def f es -> PDef f <$> patternFrom n k es
+      Con c vs -> PDef (conName c) <$> patternFrom n k (Apply <$> vs)
+      Pi a b   -> PPi <$> patternFrom n k a <*> patternFrom n k b
       Sort{}   -> done
       Level{}  -> return PWild   -- TODO: unLevel and continue
       DontCare{} -> return PWild
@@ -106,8 +108,8 @@ instance PatternFrom Term NLPat where
       Shared{}   -> __IMPOSSIBLE__
 
 instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
-  patternFrom k (Abs n x)   = Abs n   <$> patternFrom (k+1) x
-  patternFrom k (NoAbs n x) = NoAbs n <$> patternFrom k x
+  patternFrom n k (Abs name x)   = Abs name   <$> patternFrom n (k+1) x
+  patternFrom n k (NoAbs name x) = NoAbs name <$> patternFrom n k x
 
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
@@ -145,7 +147,7 @@ tellSub i v = do
 tellEq :: Int -> Term -> Term -> NLM ()
 tellEq k u v =
   traceSDocNLM "rewriting" 60 (sep
-               [ text "adding equality between" <+> prettyTCM u
+               [ text "adding equality between" <+> prettyTCM u <+> "(printed in wrong context)"
                , text " and " <+> prettyTCM v
                , text ("(with " ++ show k ++ " free variables)") ]) $ do
   modify $ second $ (PostponedEquation k u v:)
@@ -249,7 +251,7 @@ instance Match NLPat Term where
 makeSubstitution :: Sub -> Substitution
 makeSubstitution sub
   | IntMap.null sub = idS
-  | otherwise       = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
+  | otherwise       = map val [0 .. highestIndex] ++# idS
   where
     highestIndex = fst $ IntMap.findMax sub  -- find highest key
     val i = fromMaybe (var i) $ IntMap.lookup i sub
