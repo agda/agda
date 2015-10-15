@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternGuards #-}
 
 -- | Computing the free variables of a term.
 --
@@ -24,6 +25,7 @@ module Agda.TypeChecking.Free
     ( FreeVars(..)
     , Free, FreeV, FreeVS
     , IgnoreSorts(..)
+    , runFree , rigidVars, relevantVars, allVars
     , allFreeVars, allRelevantVars, allRelevantVarsIgnoring
     , freeIn, freeInIgnoringSorts, isBinderUsed
     , relevantIn, relevantInIgnoringSortAnn
@@ -33,11 +35,16 @@ module Agda.TypeChecking.Free
     , freeVars -- only for testing
     ) where
 
+import Prelude hiding (null)
+
 import Control.Monad.Reader
 
+import Data.Maybe
 import Data.Monoid
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as Map
 
 import qualified Agda.Benchmarking as Bench
 
@@ -50,6 +57,7 @@ import Agda.TypeChecking.Free.Lazy
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
+import Agda.Utils.Null
 import Agda.Utils.Singleton
 
 type VarSet = IntSet
@@ -67,7 +75,7 @@ data FreeVars = FV
     --   whereas weakly rigid ones stay weakly rigid.
   , weaklyRigidVars   :: VarSet
     -- ^ Ordinary rigid variables, e.g., in arguments of variables.
-  , flexibleVars      :: VarSet
+  , flexibleVars      :: IntMap [MetaId]
     -- ^ Variables occuring in arguments of metas.
     --   These are only potentially free, depending how the meta variable is instantiated.
   , irrelevantVars    :: VarSet
@@ -77,14 +85,16 @@ data FreeVars = FV
     -- ^ Variables in 'UnusedArg'uments.
   } deriving (Eq, Show)
 
-mapSRV, mapUGV, mapWRV, mapFXV, mapIRV, mapUUV
+mapSRV, mapUGV, mapWRV, mapIRV, mapUUV
   :: (VarSet -> VarSet) -> FreeVars -> FreeVars
 mapSRV f fv = fv { stronglyRigidVars = f $ stronglyRigidVars fv }
 mapUGV f fv = fv { unguardedVars     = f $ unguardedVars     fv }
 mapWRV f fv = fv { weaklyRigidVars   = f $ weaklyRigidVars   fv }
-mapFXV f fv = fv { flexibleVars      = f $ flexibleVars      fv }
 mapIRV f fv = fv { irrelevantVars    = f $ irrelevantVars    fv }
 mapUUV f fv = fv { unusedVars        = f $ unusedVars        fv }
+
+mapFXV :: (IntMap [MetaId] -> IntMap [MetaId]) -> FreeVars -> FreeVars
+mapFXV f fv = fv { flexibleVars      = f $ flexibleVars      fv }
 
 -- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
 rigidVars :: FreeVars -> VarSet
@@ -96,7 +106,7 @@ rigidVars fv = Set.unions
 
 -- | All but the irrelevant variables.
 relevantVars :: FreeVars -> VarSet
-relevantVars fv = Set.unions [rigidVars fv, flexibleVars fv]
+relevantVars fv = Set.unions [rigidVars fv, Map.keysSet (flexibleVars fv)]
 
 -- | @allVars fv@ includes irrelevant variables.
 allVars :: FreeVars -> VarSet
@@ -105,10 +115,10 @@ allVars fv = Set.unions [relevantVars fv, irrelevantVars fv, unusedVars fv]
 data Occurrence
   = NoOccurrence
   | Irrelevantly
-  | StronglyRigid -- ^ Under at least one and only inductive constructors.
-  | Unguarded     -- ^ In top position, or only under inductive record constructors.
-  | WeaklyRigid   -- ^ In arguments to variables and definitions.
-  | Flexible      -- ^ In arguments of metas.
+  | StronglyRigid     -- ^ Under at least one and only inductive constructors.
+  | Unguarded         -- ^ In top position, or only under inductive record constructors.
+  | WeaklyRigid       -- ^ In arguments to variables and definitions.
+  | Flexible [MetaId] -- ^ In arguments of metas.
   | Unused
   deriving (Eq,Show)
 
@@ -122,18 +132,20 @@ occurrenceFV x fv
   | x `Set.member` stronglyRigidVars fv = StronglyRigid
   | x `Set.member` unguardedVars     fv = Unguarded
   | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
-  | x `Set.member` flexibleVars      fv = Flexible
+  | Just ms <- Map.lookup x (flexibleVars fv) = Flexible ms
   | x `Set.member` irrelevantVars    fv = Irrelevantly
   | x `Set.member` unusedVars        fv = Unused
   | otherwise                           = NoOccurrence
 
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
-flexible :: FreeVars -> FreeVars
-flexible fv =
+flexible :: [MetaId] -> FreeVars -> FreeVars
+flexible ms fv =
     fv { stronglyRigidVars = Set.empty
        , unguardedVars     = Set.empty
        , weaklyRigidVars   = Set.empty
-       , flexibleVars      = relevantVars fv
+       , flexibleVars      = Map.unionsWith mappend
+                               [ Map.fromSet (const ms) (rigidVars fv)
+                               , fmap (ms++) (flexibleVars fv) ]
        }
 
 -- | Mark rigid variables as non-strongly.  Useful when traversing arguments of variables.
@@ -172,19 +184,20 @@ irrelevantly fv = empty { irrelevantVars = allVars fv }
 unused :: FreeVars -> FreeVars
 unused fv = empty
   { irrelevantVars = irrelevantVars fv
-  , unusedVars     = Set.unions [ rigidVars fv, flexibleVars fv, unusedVars fv ]
+  , unusedVars     = Set.unions [ rigidVars fv, Map.keysSet (flexibleVars fv), unusedVars fv ]
   }
 
 -- | Pointwise union.
 union :: FreeVars -> FreeVars -> FreeVars
 union (FV sv1 gv1 rv1 fv1 iv1 uv1) (FV sv2 gv2 rv2 fv2 iv2 uv2) =
-  FV (Set.union sv1 sv2) (Set.union gv1 gv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2) (Set.union uv1 uv2)
+  FV (Set.union sv1 sv2) (Set.union gv1 gv2) (Set.union rv1 rv2) (Map.unionWith mappend fv1 fv2) (Set.union iv1 iv2) (Set.union uv1 uv2)
 
 unions :: [FreeVars] -> FreeVars
 unions = foldr union empty
 
-empty :: FreeVars
-empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty Set.empty
+instance Null FreeVars where
+  empty = FV Set.empty Set.empty Set.empty Map.empty Set.empty Set.empty
+  null (FV a b c d e f) = null a && null b && null c && null d && null e && null f
 
 -- | Free variable sets form a monoid under 'union'.
 instance Monoid FreeVars where
@@ -194,18 +207,18 @@ instance Monoid FreeVars where
 
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
 delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv) (Set.delete n uv)
+delete n (FV sv gv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n gv) (Set.delete n rv) (Map.delete n fv) (Set.delete n iv) (Set.delete n uv)
 
 instance Singleton Variable FreeVars where
-  singleton (i, VarOcc o r) = mod (Set.insert i) empty where
-    mod :: (VarSet -> VarSet) -> FreeVars -> FreeVars
+  singleton (i, VarOcc o r) = mod empty where
+    mod :: FreeVars -> FreeVars
     mod = case (o, r) of
-      (_, Irrelevant) -> mapIRV
-      (_, UnusedArg ) -> mapUUV
-      (Free.StronglyRigid, _) -> mapSRV
-      (Free.Unguarded    , _) -> mapUGV
-      (Free.WeaklyRigid  , _) -> mapWRV
-      (Free.Flexible     , _) -> mapFXV
+      (_, Irrelevant) -> mapIRV (Set.insert i)
+      (_, UnusedArg ) -> mapUUV (Set.insert i)
+      (Free.StronglyRigid, _) -> mapSRV (Set.insert i)
+      (Free.Unguarded    , _) -> mapUGV (Set.insert i)
+      (Free.WeaklyRigid  , _) -> mapWRV (Set.insert i)
+      (Free.Flexible ms  , _) -> mapFXV (Map.insert i ms)
 
 -- * Collecting free variables.
 

@@ -954,7 +954,7 @@ instance TeleNoAbs Telescope where
 dLub :: Sort -> Abs Sort -> Sort
 dLub s1 (NoAbs _ s2) = sLub s1 s2
 dLub s1 b@(Abs _ s2) = case occurrence 0 s2 of
-  Flexible      -> DLub s1 b
+  Flexible _    -> DLub s1 b
   Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (noabsApp __IMPOSSIBLE__ b)
 --  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__) -- triggers Issue784
