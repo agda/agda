@@ -195,14 +195,10 @@ instance Match a b => Match (Dom a) (Dom b) where
 instance Match a b => Match (Type' a) (Type' b) where
   match k p v = match k (unEl p) (unEl v)
 
-instance (Match a b, Subst t b, Free b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
+instance (Match a b, Subst t1 a, Subst t2 b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
   match k (Abs _ p) (Abs _ v) = match (k+1) p v
   match k (Abs _ p) (NoAbs _ v) = match (k+1) p (raise 1 v)
-  match k (NoAbs _ p) (Abs _ v) = if (0 `freeIn` v) then no else match k p (raise (-1) v)
-    where
-      no = traceSDocNLM "rewriting" 100 (sep
-        [ text "mismatch between" <+> prettyTCM p
-        , text " and " <+> prettyTCM v ]) mzero
+  match k (NoAbs _ p) (Abs _ v) = match (k+1) (raise 1 p) v
   match k (NoAbs _ p) (NoAbs _ v) = match k p v
 
 instance Match NLPat Term where
