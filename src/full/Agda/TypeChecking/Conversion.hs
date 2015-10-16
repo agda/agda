@@ -135,7 +135,7 @@ compareTerm cmp a u v = do
       checkPointerEquality def = def
   checkPointerEquality $ do
     -- Check syntactic equality. This actually saves us quite a bit of work.
-    ((u, v), equal) <- SynEq.checkSyntacticEquality u v
+    ((u, v), equal) <- runReduceM $ SynEq.checkSyntacticEquality u v
   -- OLD CODE, traverses the *full* terms u v at each step, even if they
   -- are different somewhere.  Leads to infeasibility in issue 854.
   -- (u, v) <- instantiateFull (u, v)

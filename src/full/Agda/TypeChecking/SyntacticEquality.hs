@@ -25,8 +25,9 @@ import Control.Monad.State hiding (mapM)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce (instantiate)
+import Agda.TypeChecking.Monad (ReduceM)
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad (ifM)
@@ -43,13 +44,13 @@ import Agda.Utils.Impossible
 --   only that @v,v'@ are only fully instantiated to the depth
 --   where they are equal.
 
-{-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> TCM ((Term, Term), Bool) #-}
-{-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> TCM ((Type, Type), Bool) #-}
-checkSyntacticEquality :: (SynEq a) => a -> a -> TCM ((a, a), Bool)
+{-# SPECIALIZE checkSyntacticEquality :: Term -> Term -> ReduceM ((Term, Term), Bool) #-}
+{-# SPECIALIZE checkSyntacticEquality :: Type -> Type -> ReduceM ((Type, Type), Bool) #-}
+checkSyntacticEquality :: (SynEq a) => a -> a -> ReduceM ((a, a), Bool)
 checkSyntacticEquality v v' = synEq v v' `runStateT` True
 
 -- | Monad for checking syntactic equality
-type SynEqM = StateT Bool TCM
+type SynEqM = StateT Bool ReduceM
 
 -- | Return, flagging inequalty.
 inequal :: a -> SynEqM a
@@ -96,7 +97,7 @@ class SynEq a where
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
   synEq v v' = do
-    (v, v') <- lift $ instantiate (v, v')
+    (v, v') <- lift $ instantiate' (v, v')
     -- currently destroys sharing
     -- TODO: preserve sharing!
     case (ignoreSharing v, ignoreSharing v') of
@@ -128,7 +129,7 @@ instance SynEq PlusLevel where
 
 instance SynEq LevelAtom where
   synEq l l' = do
-    l  <- lift (unBlock =<< instantiate l)
+    l  <- lift (unBlock =<< instantiate' l)
     case (l, l') of
       (MetaLevel m vs  , MetaLevel m' vs'  ) | m == m' -> MetaLevel m    <$$> synEq vs vs'
       (UnreducedLevel v, UnreducedLevel v' )           -> UnreducedLevel <$$> synEq v v'
@@ -147,7 +148,7 @@ instance SynEq LevelAtom where
 
 instance SynEq Sort where
   synEq s s' = do
-    (s, s') <- lift $ instantiate (s, s')
+    (s, s') <- lift $ instantiate' (s, s')
     case (s, s') of
       (Type l  , Type l'   ) -> levelSort <$$> synEq l l'
       (DLub a b, DLub a' b') -> dLub <$$> synEq a a' <**> synEq' b b'
