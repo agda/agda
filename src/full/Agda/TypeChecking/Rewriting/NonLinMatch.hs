@@ -34,6 +34,7 @@ import Debug.Trace
 import System.IO.Unsafe
 
 import Data.Maybe
+import Data.Foldable
 import Data.Functor
 import Data.Traversable hiding (for)
 import Data.IntMap (IntMap)
@@ -59,6 +60,7 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -213,9 +215,14 @@ instance Match NLPat Term where
             , text " and " <+> prettyTCM v]) mzero
     case p of
       PWild  -> yes
-      PVar i -> if null (allFreeVars v `IntSet.intersection` IntSet.fromList [0..(k-1)])
+      PVar i ->
+        let boundVarOccs :: FreeVars
+            boundVarOccs = runFree (\var@(i,_) -> if i < k then singleton var else empty) IgnoreNot v
+        in if null (rigidVars boundVarOccs)
+           then if null (flexibleVars boundVarOccs)
                 then tellSub i (raise (-k) v)
-                else no
+                else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
+           else no
       PDef f ps -> do
         v <- liftRed $ constructorForm v
         case ignoreSharing v of
