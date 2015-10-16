@@ -183,7 +183,7 @@ instance Match a b => Match (Elim' a) (Elim' b) where
    case (p, v) of
      (Apply p, Apply v) -> match k p v
      (Proj x , Proj y ) -> if x == y then return () else
-                             traceSDocNLM "rewriting" 100 (sep
+                             traceSDocNLM "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
                                , text " and " <+> prettyTCM y ]) mzero
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
@@ -207,9 +207,12 @@ instance (Match a b, Subst t b, Free b, PrettyTCM a, PrettyTCM b) => Match (Abs 
 
 instance Match NLPat Term where
   match k p v = do
+    traceSDocNLM "rewriting" 100 (sep
+      [ text "matching" <+> prettyTCM p
+      , text "with" <+> prettyTCM v]) $ do
     let yes = return ()
-        no  =
-          traceSDocNLM "rewriting" 100 (sep
+        no =
+          traceSDocNLM "rewriting" 80 (sep
             [ text "mismatch between" <+> prettyTCM p
             , text " and " <+> prettyTCM v]) mzero
     case p of
@@ -263,7 +266,7 @@ checkPostponedEquations sub eqs = andM $ for eqs $
 -- main function
 nonLinMatch :: (Match a b) => a -> b -> ReduceM (Either Blocked_ Substitution)
 nonLinMatch p v = do
-  let no msg b = traceSDoc "rewriting" 100 (sep
+  let no msg b = traceSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match 0 p v) (no "matching") $ \ (s, eqs) -> do
@@ -279,7 +282,7 @@ equal u v = do
   (u, v) <- etaContract =<< normalise' (u, v)
   let ok = u == v
   if ok then return True else
-    traceSDoc "rewriting" 100 (sep
+    traceSDoc "rewriting" 80 (sep
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
       ]) $ return False
