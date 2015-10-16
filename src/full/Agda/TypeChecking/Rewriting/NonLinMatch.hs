@@ -245,9 +245,11 @@ instance Match NLPat Term where
         match k p' body
       PPi pa pb  -> case ignoreSharing v of
         Pi a b -> match k pa a >> match k pb b
+        MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> matchArgs k ps es
+        MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no
       PTerm u -> tellEq k u v
     where
