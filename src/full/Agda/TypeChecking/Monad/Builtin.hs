@@ -85,20 +85,13 @@ constructorForm :: Term -> TCM Term
 constructorForm v = constructorForm' primZero primSuc v
 
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
-constructorForm' pZero pSuc v = case ignoreSharing v of
-{- 2012-04-02 changed semantics of DontCare
--- Andreas, 2011-10-03, the following line restores IrrelevantLevel
-    DontCare v                  -> constructorForm v
--}
-    Lit (LitInt r n)            -> cons (Lit . LitInt r) n
---     Level (Max [])              -> primLevelZero
---     Level (Max [ClosedLevel n]) -> cons primLevelZero primLevelSuc (Level . Max . (:[]) . ClosedLevel) n
-    _                           -> pure v
-  where
-    cons lit n
-      | n == 0    = pZero
-      | n > 0     = (`apply` [defaultArg $ lit $ n - 1]) <$> pSuc
-      | otherwise = pure v
+constructorForm' pZero pSuc v =
+  case ignoreSharing v of
+    Lit (LitInt r n)
+      | n == 0    -> pZero
+      | n > 0     -> (`apply` [defaultArg $ Lit $ LitInt r $ n - 1]) <$> pSuc
+      | otherwise -> pure v
+    _ -> pure v
 
 ---------------------------------------------------------------------------
 -- * The names of built-in things
