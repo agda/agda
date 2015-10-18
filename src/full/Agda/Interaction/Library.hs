@@ -1,8 +1,10 @@
-
+{-# LANGUAGE TupleSections #-}
 module Agda.Interaction.Library
   ( getDefaultLibraries
   , getInstalledLibraries
   , libraryIncludePaths
+  , LibName
+  , LibM
   ) where
 
 import Control.Arrow (first, second)
@@ -13,23 +15,34 @@ import Data.Char
 import Data.Either
 import Data.Function
 import Data.List
+import Data.Maybe
 import System.Directory
 import System.FilePath
+import System.Environment
 
 import Agda.Interaction.Library.Base
 import Agda.Interaction.Library.Parse
 import Agda.Utils.Monad
 import Agda.Utils.Environment
-import Agda.Utils.Except ( ExceptT, MonadError(throwError) )
+import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
 import Agda.Utils.List
+import Agda.Utils.Pretty
 
-type LibM = ExceptT String IO
+type LibM = ExceptT Doc IO
 
 catchIO :: IO a -> (IOException -> IO a) -> IO a
 catchIO = catch
 
 getAgdaAppDir :: IO FilePath
-getAgdaAppDir = getAppUserDataDirectory "agda"
+getAgdaAppDir = do
+  agdaDir <- lookupEnv "AGDA_DIR"
+  case agdaDir of
+    Nothing  -> getAppUserDataDirectory "agda"
+    Just dir ->
+      ifM (doesDirectoryExist dir) (canonicalizePath dir) $ do
+        d <- getAppUserDataDirectory "agda"
+        putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
+        return d
 
 libraryFile :: FilePath
 libraryFile = "libraries"
@@ -47,13 +60,24 @@ mkLibM libs m = do
   (x, err) <- lift m
   case err of
     [] -> return x
-    _  -> throwError =<< lift (unlines <$> mapM (formatLibError libs) err)
+    _  -> throwError =<< lift (vcat <$> mapM (formatLibError libs) err)
 
-getDefaultLibraries :: LibM [LibName]
-getDefaultLibraries = mkLibM [] $ do
-  libs <- filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents "."
-  if null libs then readDefaultsFile
-    else first (map libName) <$> parseLibFiles libs
+findAgdaLibFiles :: FilePath -> IO [FilePath]
+findAgdaLibFiles root = do
+  libs <- map (root </>) . filter ((== ".agda-lib") . takeExtension) <$> getDirectoryContents root
+  case libs of
+    []    -> do
+      up <- canonicalizePath $ root </> ".."
+      if up == root then return [] else findAgdaLibFiles up
+    files -> return files
+
+getDefaultLibraries :: FilePath -> LibM ([LibName], [FilePath])
+getDefaultLibraries root = mkLibM [] $ do
+  libs <- findAgdaLibFiles root
+  if null libs then first (, []) <$> readDefaultsFile
+    else first libsAndPaths <$> parseLibFiles libs
+  where
+    libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
 
 readDefaultsFile :: IO ([LibName], [LibError])
 readDefaultsFile = do
@@ -65,10 +89,10 @@ readDefaultsFile = do
       ) {- else -} (return (["."], []))
   `catchIO` \e -> return (["."], [OtherError $ "Failed to read defaults file.\n" ++ show e])
 
-getInstalledLibraries :: LibM [AgdaLibFile]
-getInstalledLibraries = mkLibM [] $ do
+getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
+getInstalledLibraries overrideLibFile = mkLibM [] $ do
     agdaDir <- getAgdaAppDir
-    let file = agdaDir </> libraryFile
+    let file = fromMaybe (agdaDir </> libraryFile) overrideLibFile
     ifM (doesFileExist file) (do
       files <- mapM expandEnvironmentVariables =<< stripCommentLines <$> readFile file
       parseLibFiles files
@@ -88,18 +112,24 @@ stripCommentLines = concatMap strip . lines
     strip s = [ s' | not $ null s' ]
       where s' = stripComments $ dropWhile isSpace s
 
-formatLibError :: [AgdaLibFile] -> LibError -> IO String
+formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
 formatLibError installed (LibNotFound lib) = do
   agdaDir <- getAgdaAppDir
-  return $ "Library '" ++ lib ++ "' not found. " ++
-           " Add the path to its .agda-lib file to " ++ (agdaDir </> libraryFile) ++ " to install.\n" ++
-           unlines ("Installed libraries:" :
-                    if null installed then ["  (none)"]
-                    else [ "  " ++ libName l ++ " (" ++ libFile l ++ ")" | l <- installed ])
+  return $ vcat $
+    [ text $ "Library '" ++ lib ++ "' not found."
+    , sep [ text "Add the path to its .agda-lib file to"
+          , nest 2 $ text (agdaDir </> libraryFile)
+          , text "to install." ]
+    , text "Installed libraries:"
+    ] ++
+    map (nest 2)
+      (if null installed then [text "(none)"]
+      else [ sep [ text $ libName l, nest 2 $ parens $ text $ libFile l ] | l <- installed ])
 formatLibError _ (AmbiguousLib lib tgts) = return $
-  "Ambiguous library '" ++ lib ++ "'. Could refer to any one of\n" ++
-  init (unlines [ "  " ++ libName l ++ " (" ++ libFile l ++ ")" | l <- tgts ])
-formatLibError _ (OtherError err) = return err
+  vcat $ sep [ text $ "Ambiguous library '" ++ lib ++ "'."
+             , text "Could refer to any one of" ]
+       : [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
+formatLibError _ (OtherError err) = return $ text err
 
 libraryIncludePaths :: [AgdaLibFile] -> [LibName] -> LibM [FilePath]
 libraryIncludePaths libs xs0 = mkLibM libs $ return $ runWriter ((dot ++) . incs <$> find [] xs)

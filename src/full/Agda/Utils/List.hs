@@ -361,23 +361,56 @@ zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
   where (zs , as , bs) = zipWithTails f xs ys
 -}
 
--- | Efficient version of nub that sorts the list via a search tree ('Data.Map').
+-- | Efficient variant of 'nubBy' for finite lists.
+--
+-- Specification:
+--
+-- > nubOn f xs == 'nubBy' ((==) `'on'` f) xs.
+nubOn :: (Ord a, Ord b) => (a -> b) -> [a] -> [a]
+nubOn tag =
+  map snd
+  . sortBy (compare `on` fst)
+  . map (snd . head)
+  . groupBy ((==) `on` fst)
+  . sortBy (compare `on` fst)
+  . map (\p@(_, x) -> (tag x, p))
+  . zip [1..]
+
+prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
+prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
+
+-- | Efficient variant of 'nubBy' for finite lists.
+--
+-- Specification: For each list @xs@ there is a list @ys@ which is a
+-- permutation of @xs@ such that
+--
+-- > uniqOn f xs == 'nubBy' ((==) `'on'` f) ys.
+--
+-- Furthermore
+--
+-- > sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs.
 uniqOn :: Ord b => (a -> b) -> [a] -> [a]
 uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 
--- Andreas, 2014-10-09 RETIRED, the Map version is simpler,
--- and possibly more efficient (discards duplicates early).
--- -- | Efficient version of nub that sorts the list first. The tag function is
--- --   assumed to be cheap. If it isn't pair up the elements with their tags and
--- --   call uniqOn fst (or snd).
--- uniqOn :: Ord b => (a -> b) -> [a] -> [a]
--- uniqOn tag =
---   map head
---   . groupBy ((==) `on` tag)
---   . sortBy (compare `on` tag)
+prop_uniqOn1 :: (Integer -> Integer) -> [Integer] -> Bool
+prop_uniqOn1 f xs' =
+  or [ uniqOn f xs == nubBy ((==) `on` f) ys
+     | ys <- permutations xs
+     ]
+  where
+  xs = take 5 xs'
 
-prop_uniqOn :: [Integer] -> Bool
-prop_uniqOn xs = sort (nub xs) == uniqOn id xs
+  permutations []       = [[]]
+  permutations (x : xs) =
+    [ ys1 ++ x : ys2
+    | ys <- permutations xs
+    , n  <- [0..length ys]
+    , let (ys1, ys2) = splitAt n ys
+    ]
+
+prop_uniqOn2 :: (Integer -> Integer) -> [Integer] -> Bool
+prop_uniqOn2 f xs =
+  sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs
 
 -- | Compute the common suffix of two lists.
 commonSuffix :: Eq a => [a] -> [a] -> [a]

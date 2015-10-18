@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
@@ -32,6 +33,10 @@ import Control.Monad.State
 import Debug.Trace
 import System.IO.Unsafe
 
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Foldable ( foldMap )
+#endif
+
 import Data.Maybe
 import Data.Functor
 import Data.Traversable hiding (for)
@@ -58,47 +63,49 @@ import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
 -- | Turn a term into a non-linear pattern, treating the
 --   free variables as pattern variables.
---   The first argument is the number of bound variables.
+--   The first argument is the number of pattern variables.
+--   The second argument is the number of bound variables (from pattern lambdas).
 
 class PatternFrom a b where
-  patternFrom :: Int -> a -> TCM b
+  patternFrom :: Int -> Int -> a -> TCM b
 
 instance (PatternFrom a b) => PatternFrom [a] [b] where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Arg a) (Arg b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Elim' a) (Elim' b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Dom a) (Dom b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance (PatternFrom a b) => PatternFrom (Type' a) (Type' b) where
-  patternFrom k = traverse $ patternFrom k
+  patternFrom n k = traverse $ patternFrom n k
 
 instance PatternFrom Term NLPat where
-  patternFrom k v = do
+  patternFrom n k v = do
     v <- reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
       Var i es
-       | i < k     -> PBoundVar i <$> patternFrom k es
-       | otherwise -> if null es
-                      then return $ PVar (i-k)
-                      else done
-      Lam i t  -> PLam i <$> patternFrom k t
+       | i < k     -> PBoundVar i <$> patternFrom n k es
+       | i-k < n,
+         null es   -> return $ PVar (i-k)
+       | otherwise -> done
+      Lam i t  -> PLam i <$> patternFrom n k t
       Lit{}    -> done
-      Def f es -> PDef f <$> patternFrom k es
-      Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
-      Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
+      Def f es -> PDef f <$> patternFrom n k es
+      Con c vs -> PDef (conName c) <$> patternFrom n k (Apply <$> vs)
+      Pi a b   -> PPi <$> patternFrom n k a <*> patternFrom n k b
       Sort{}   -> done
       Level{}  -> return PWild   -- TODO: unLevel and continue
       DontCare{} -> return PWild
@@ -106,8 +113,8 @@ instance PatternFrom Term NLPat where
       Shared{}   -> __IMPOSSIBLE__
 
 instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
-  patternFrom k (Abs n x)   = Abs n   <$> patternFrom (k+1) x
-  patternFrom k (NoAbs n x) = NoAbs n <$> patternFrom k x
+  patternFrom n k (Abs name x)   = Abs name   <$> patternFrom n (k+1) x
+  patternFrom n k (NoAbs name x) = NoAbs name <$> patternFrom n k x
 
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
@@ -145,7 +152,7 @@ tellSub i v = do
 tellEq :: Int -> Term -> Term -> NLM ()
 tellEq k u v =
   traceSDocNLM "rewriting" 60 (sep
-               [ text "adding equality between" <+> prettyTCM u
+               [ text "adding equality between" <+> prettyTCM u <+> text "(printed in wrong context)"
                , text " and " <+> prettyTCM v
                , text ("(with " ++ show k ++ " free variables)") ]) $ do
   modify $ second $ (PostponedEquation k u v:)
@@ -181,7 +188,7 @@ instance Match a b => Match (Elim' a) (Elim' b) where
    case (p, v) of
      (Apply p, Apply v) -> match k p v
      (Proj x , Proj y ) -> if x == y then return () else
-                             traceSDocNLM "rewriting" 100 (sep
+                             traceSDocNLM "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
                                , text " and " <+> prettyTCM y ]) mzero
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
@@ -193,28 +200,32 @@ instance Match a b => Match (Dom a) (Dom b) where
 instance Match a b => Match (Type' a) (Type' b) where
   match k p v = match k (unEl p) (unEl v)
 
-instance (Match a b, Subst t b, Free b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
+instance (Match a b, Subst t1 a, Subst t2 b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
   match k (Abs _ p) (Abs _ v) = match (k+1) p v
   match k (Abs _ p) (NoAbs _ v) = match (k+1) p (raise 1 v)
-  match k (NoAbs _ p) (Abs _ v) = if (0 `freeIn` v) then no else match k p (raise (-1) v)
-    where
-      no = traceSDocNLM "rewriting" 100 (sep
-        [ text "mismatch between" <+> prettyTCM p
-        , text " and " <+> prettyTCM v ]) mzero
+  match k (NoAbs _ p) (Abs _ v) = match (k+1) (raise 1 p) v
   match k (NoAbs _ p) (NoAbs _ v) = match k p v
 
 instance Match NLPat Term where
   match k p v = do
+    traceSDocNLM "rewriting" 100 (sep
+      [ text "matching" <+> prettyTCM p
+      , text "with" <+> prettyTCM v]) $ do
     let yes = return ()
-        no  =
-          traceSDocNLM "rewriting" 100 (sep
+        no =
+          traceSDocNLM "rewriting" 80 (sep
             [ text "mismatch between" <+> prettyTCM p
             , text " and " <+> prettyTCM v]) mzero
     case p of
       PWild  -> yes
-      PVar i -> if null (allFreeVars v `IntSet.intersection` IntSet.fromList [0..(k-1)])
+      PVar i ->
+        let boundVarOccs :: FreeVars
+            boundVarOccs = runFree (\var@(i,_) -> if i < k then singleton var else empty) IgnoreNot v
+        in if null (rigidVars boundVarOccs)
+           then if null (flexibleVars boundVarOccs)
                 then tellSub i (raise (-k) v)
-                else no
+                else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
+           else no
       PDef f ps -> do
         v <- liftRed $ constructorForm v
         case ignoreSharing v of
@@ -237,9 +248,11 @@ instance Match NLPat Term where
         match k p' body
       PPi pa pb  -> case ignoreSharing v of
         Pi a b -> match k pa a >> match k pb b
+        MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> matchArgs k ps es
+        MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no
       PTerm u -> tellEq k u v
     where
@@ -249,7 +262,7 @@ instance Match NLPat Term where
 makeSubstitution :: Sub -> Substitution
 makeSubstitution sub
   | IntMap.null sub = idS
-  | otherwise       = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
+  | otherwise       = map val [0 .. highestIndex] ++# idS
   where
     highestIndex = fst $ IntMap.findMax sub  -- find highest key
     val i = fromMaybe (var i) $ IntMap.lookup i sub
@@ -261,7 +274,7 @@ checkPostponedEquations sub eqs = andM $ for eqs $
 -- main function
 nonLinMatch :: (Match a b) => a -> b -> ReduceM (Either Blocked_ Substitution)
 nonLinMatch p v = do
-  let no msg b = traceSDoc "rewriting" 100 (sep
+  let no msg b = traceSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
   caseEitherM (runNLM $ match 0 p v) (no "matching") $ \ (s, eqs) -> do
@@ -277,7 +290,7 @@ equal u v = do
   (u, v) <- etaContract =<< normalise' (u, v)
   let ok = u == v
   if ok then return True else
-    traceSDoc "rewriting" 100 (sep
+    traceSDoc "rewriting" 80 (sep
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
       ]) $ return False

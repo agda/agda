@@ -17,6 +17,8 @@
 
 module Agda.TypeChecking.Free.Tests (tests) where
 
+import qualified Data.IntMap as Map
+
 import Test.QuickCheck
 
 import Agda.Syntax.Common
@@ -37,10 +39,10 @@ import Agda.Utils.TestHelpers
 
 -- | Ensure the correct linear order is derived.
 
-prop_FlexRig_min = minBound == Free.Flexible
+--prop_FlexRig_min = minBound == Free.Flexible
 
 prop_FlexRig_order = strictlyAscending
-  [ Free.Flexible, Free.WeaklyRigid, Free.Unguarded, Free.StronglyRigid ]
+  [ Free.Flexible [], Free.WeaklyRigid, Free.Unguarded, Free.StronglyRigid ]
 
 strictlyAscending l = and $ zipWith (<) l $ tail l
 
@@ -50,8 +52,8 @@ strictlyAscending l = and $ zipWith (<) l $ tail l
 prop_composeFlexRig_associative = associative composeFlexRig
 prop_composeFlexRig_commutative = commutative composeFlexRig
 prop_composeFlexRig_idempotent  = idempotent  composeFlexRig
-prop_composeFlexRig_zero = isZero   Free.Flexible  composeFlexRig
-prop_composeFlexRig_unit = identity Free.Unguarded composeFlexRig
+prop_composeFlexRig_zero = isZero   (Free.Flexible []) composeFlexRig
+prop_composeFlexRig_unit = identity Free.Unguarded     composeFlexRig
 
 prop_FlexRig_distributive = distributive composeFlexRig max
 
@@ -77,8 +79,8 @@ prop_old_freeVars_Pi = same_freeVars ty
 
 same_freeVars t = new_to_old_FV (New.freeVars t) == Old.freeVars t
 
-old_to_new_FV (Old.FV a b c d e f) = New.FV a b c d e f
-new_to_old_FV (New.FV a b c d e f) = Old.FV a b c d e f
+old_to_new_FV (Old.FV a b c d e f) = New.FV a b c (Map.fromSet (const []) d) e f
+new_to_old_FV (New.FV a b c d e f) = Old.FV a b c (Map.keysSet d) e f
 
 ty = Pi (defaultDom ab) $ Abs "x" $ El (Type $ Max []) $ var 5
   where

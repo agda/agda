@@ -1,4 +1,6 @@
 -- Andreas, 2015-08-27 Rewrite rules in parametrized modules are fine.
+-- Jesper, 2015-10-14 Semantics of rewrite rules in parametrized modules has
+--                    changed (see issue 1652)
 
 {-# OPTIONS --rewriting #-}
 
@@ -13,7 +15,7 @@ module _ (y z : Nat) where
   assoc+ zero = refl
   assoc+ (suc x) rewrite assoc+ x = refl
 
-  {-# REWRITE assoc+ #-}  -- same as without indentation
+{-# REWRITE assoc+ #-}  -- NOT the same as without indentation
 
 test : ∀{x y} → (x + 0) + y ≡ x + y
 test = refl

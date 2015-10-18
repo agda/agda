@@ -37,10 +37,12 @@ Pragmas and options
   include paths are relative to the location of the library-file.
 
   To be useable, a library file has to be listed (with its full path) in
-  AGDA_DIR/libraries (where AGDA_DIR is ~/.agda on unix-like systems and
-  C:/Users/USERNAME/AppData/Roaming/agda or similar on Windows).
+  AGDA_DIR/libraries (where AGDA_DIR defaults to ~/.agda on unix-like systems
+  and C:/Users/USERNAME/AppData/Roaming/agda or similar on Windows, and can be
+  overridden by setting the AGDA_DIR environment variable).
   Environment variables in the paths (of the form $VAR or ${VAR}) are
-  expanded.
+  expanded. The location of the libraries file used can be overridden using the
+  --library-file=FILE flag, although this is not expected to be very useful.
 
   You can find out the precise location of the 'libraries' file by
   calling 'agda -l fjdsk' and looking at the error message (assuming you
@@ -53,9 +55,10 @@ Pragmas and options
       and its (transitive) dependencies.
 
     - No explicit --library flag is given, and the current project root
-      (of the Agda file that is being loaded) contains a .agda-lib file
-      defining a library LIB. This library is then added to the path
-      (equivalent to --library=LIB).
+      (of the Agda file that is being loaded) or one of its parent directories
+      contains a .agda-lib file defining a library LIB. This library is used as
+      if a --librarary=LIB option had been given, except that it is not
+      necessary for the library to be listed in the AGDA_DIR/libraries file.
 
     - No explicit --library flag, and no .agda-lib file in the project
       root. In this case the file AGDA_DIR/defaults is read and all
@@ -712,19 +715,22 @@ Type checking
 Compiler backends
 =================
 
+* Major Bug Fixes:
+
+  - Function clauses with different arities are now always compiled correctly
+    by the GHC/UHC backends. (Issue #727)
+
+* Co-patterns
+
+  - The GHC/UHC backends now support co-patterns. (Issues #1567, #1632)
+
+* Optimizations
+
+  - Builtin naturals are now represented as arbitrary-precision
+    Integers. See the user manual, section
+    "Agda Compilers -> Optimizations" for details.
+
 * GHC Haskell backend (MAlonzo)
-
-  - Builtin natural numbers
-
-    Builtin natural numbers are now properly represented as Haskell
-    Integers, and the builtin functions on natural numbers are compiled to
-    their corresponding Haskell functions.
-
-    Note that pattern matching on an Integer is slower than on a unary
-    natural number, so code that does a lot of unary manipulations and
-    doesn't use builtin arithmetic will most likely become slower. If you
-    find that this is the case, it is recommended to use a different, but
-    isomorphic type to the builtin natural numbers.
 
   - Pragmas
 
@@ -732,59 +738,13 @@ Compiler backends
     give a {-# COMPILED_DATA #-} pragma for Nat. The same goes for
     builtin booleans which are now hard-wired to Haskell booleans.
 
-  - Optimisations
-
-    Pattern matches with a single alternative is compiled to a lazy
-    match (using 'let' instead of 'case'). This means that matching on
-    'refl' will not force the proof, and programs using well-founded
-    recursion will be lazy in the accessibility proof.
 
 * UHC compiler backend
 
   A new backend targeting the Utrecht Haskell Compiler (UHC) is available.
   It targets the UHC Core language, and it's design is inspired by
-  the Epic backend.
-
-  This backend is currently experimental, but should work for most Agda code.
-  The Agda Standard Library has been updated to support this new backend.
-  It properly supports having function clauses with different arities.
-
-  The backend is disabled by default, as it will pull in some large
-  dependencies. To enable the backend, use the "uhc" cabal flag when
-  installing Agda:
-
-    cabal install Agda -fuhc
-
-  The backend also requires UHC to be installed. UHC is not available on
-  Hackage and needs to be installed manually. This version of Agda has been
-  tested with UHC 1.1.9.0, using other UHC versions may cause problems.
-  To install UHC, the following commands can be used:
-
-    git clone https://github.com/UU-ComputerScience/uhc.git
-    cd uhc
-    git checkout 0363bbcf4cf8c47d30c3a188e3e53b3f8454bbe4
-    cd EHC
-    ./configure
-    make
-    make install
-
-  The Agda UHC compiler can be invoked from the command line using the
-  flag --uhc:
-
-    agda --uhc [--compile-dir=<DIR>] [--no-smashing]
-        [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
-
-
-  Smashing
-
-  The Smashing optimisation from the Epic backend has been ported to
-  the UHC backend. Smashing can be disabled globally using the --no-smashing
-  command line option, or per definition using the {-# NO_SMASHING myDef #-}
-  pragma. The NO_SMASHING pragma has two effects:
-    1. The definition myDef will not be smashed.
-    2. Any definition where the myDef definition is used in the type will
-       not be smashed.
-  The smashing optimisation is experimental and may change in later versions.
+  the Epic backend. See the user manual, section
+  "Agda Compilers -> UHC Backend" for installation instructions.
 
 
   FFI
@@ -832,7 +792,7 @@ Compiler backends
     Bool          __BOOL__          True             __TRUE__
                                     False            __FALSE__
 
- Functions
+  Functions
   Agda postulates can be bound to Haskell functions. Similar as in MAlonzo,
   all arguments of type Set need to be dropped before calling Haskell
   functions. An example calling the return function:

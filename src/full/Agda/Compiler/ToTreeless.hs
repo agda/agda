@@ -46,9 +46,9 @@ prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless funNm cc = do
+ccToTreeless _ cc = do
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
-  body <- casetree cc `runReaderT` (initCCEnv funNm)
+  body <- casetree cc `runReaderT` initCCEnv
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
   body <- introduceNPlusK body
   reportSDoc "treeless.opt.n+k" 30 $ text "-- after n+k translation:" $$ nest 2 (prettyPure body)
@@ -60,21 +60,19 @@ ccToTreeless funNm cc = do
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
-  substTerm t `runReaderT` (initCCEnv __IMPOSSIBLE__)
+  substTerm t `runReaderT` initCCEnv
 
 
 -- | Initial environment for expression generation.
-initCCEnv :: QName -> CCEnv
-initCCEnv fun = CCEnv
-  { ccFunction   = fun
-  , ccCxt        = []
+initCCEnv :: CCEnv
+initCCEnv = CCEnv
+  { ccCxt        = []
   , ccCatchAll   = Nothing
   }
 
 -- | Environment for naming of local variables.
 data CCEnv = CCEnv
-  { ccFunction   :: QName
-  , ccCxt        :: CCContext  -- ^ Maps case tree de-bruijn indices to TTerm de-bruijn indices
+  { ccCxt        :: CCContext  -- ^ Maps case tree de-bruijn indices to TTerm de-bruijn indices
   , ccCatchAll   :: Maybe Int  -- ^ TTerm de-bruijn index of the current catch all
   -- If an inner case has no catch-all clause, we use the one from its parent.
   }
@@ -97,17 +95,11 @@ lookupLevel :: Int -- ^ case tree de bruijn level
     -> Int -- ^ TTerm de bruijn index
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
-unreachableError :: CC C.TTerm
-unreachableError = do
-  fun <- asks ccFunction
-  return $ C.TError $ C.TUnreachable fun
-
-
 -- | Compile a case tree into nested case and record expressions.
 casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
-    CC.Fail -> unreachableError
+    CC.Fail -> return C.tUnreachable
     CC.Done xs v -> lambdasUpTo (length xs) $ do
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
@@ -115,8 +107,8 @@ casetree cc = do
     CC.Case n (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
-        fromMaybe <$> unreachableError
-          <*> (fmap C.TVar <$> asks ccCatchAll)
+        fromMaybe C.tUnreachable
+          <$> (fmap C.TVar <$> asks ccCatchAll)
       else do
         caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
               ((c:_), []) -> do
@@ -131,8 +123,8 @@ casetree cc = do
           x <- lookupLevel n <$> asks ccCxt
           -- normally, Agda should make sure that a pattern match is total,
           -- so we set the default to unreachable if no default has been provided.
-          def <- fromMaybe <$> unreachableError
-            <*> (fmap C.TVar <$> asks ccCatchAll)
+          def <- fromMaybe C.tUnreachable
+            <$> (fmap C.TVar <$> asks ccCatchAll)
           C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs

@@ -6,7 +6,6 @@ module Agda.Interaction.Options
     , OptionsPragma
     , Flag, OptM, runOptM
     , Verbosity
-    , IncludeDirs
     , checkOpts
     , parseStandardOptions, parseStandardOptions'
     , parsePragmaOptions
@@ -66,6 +65,7 @@ import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
 import qualified Agda.Utils.Trie as Trie
 
+import Agda.Version
 -- Paths_Agda.hs is in $(BUILD_DIR)/build/autogen/.
 import Paths_Agda ( getDataFileName )
 
@@ -77,18 +77,16 @@ isLiterate file = ".lagda" `isSuffixOf` file
 
 type Verbosity = Trie String Int
 
-type IncludeDirs = Either [FilePath] [AbsolutePath]
-     -- ^ 'Left' is used temporarily, before the paths have
-     -- been made absolute. An empty 'Left' list is
-     -- interpreted as @["."]@ (see
-     -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
-
 data CommandLineOptions = Options
   { optProgramName      :: String
   , optInputFile        :: Maybe FilePath
-  , optIncludeDirs      :: IncludeDirs
-  , optExplicitLibs     :: Bool
-  -- ^ Don't use ~/.agda/defaults or look for .agda-lib file if there are explicit --library flags.
+  , optIncludePaths     :: [FilePath]
+  , optAbsoluteIncludePaths :: [AbsolutePath]
+  , optLibraries        :: [LibName]
+  , optOverrideLibrariesFile :: Maybe FilePath
+  -- ^ Use this (if Just) instead of .agda/libraries
+  , optDefaultLibs      :: Bool
+  -- ^ Use ~/.agda/defaults or look for .agda-lib file.
   , optShowVersion      :: Bool
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
@@ -175,8 +173,11 @@ defaultOptions :: CommandLineOptions
 defaultOptions = Options
   { optProgramName      = "agda"
   , optInputFile        = Nothing
-  , optIncludeDirs      = Left []
-  , optExplicitLibs     = False
+  , optIncludePaths     = []
+  , optAbsoluteIncludePaths = []
+  , optLibraries        = []
+  , optOverrideLibrariesFile = Nothing
+  , optDefaultLibs      = True
   , optShowVersion      = False
   , optShowHelp         = False
   , optInteractive      = False
@@ -517,21 +518,16 @@ cssFlag :: FilePath -> Flag CommandLineOptions
 cssFlag f o = return $ o { optCSSFile = Just f }
 
 includeFlag :: FilePath -> Flag CommandLineOptions
-includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
-  where ds = either id (const []) $ optIncludeDirs o
+includeFlag d o = return $ o { optIncludePaths = d : optIncludePaths o }
 
 libraryFlag :: String -> Flag CommandLineOptions
-libraryFlag s = setLibraryIncludes [s] >=> setExplicitLibs
+libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 
-setExplicitLibs :: Flag CommandLineOptions
-setExplicitLibs o = return $ o { optExplicitLibs = True }
+overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
+overrideLibrariesFileFlag s o = return $ o { optOverrideLibrariesFile = Just s }
 
-setLibraryIncludes :: [String] -> Flag CommandLineOptions
-setLibraryIncludes libs o = do
-    installed <- getInstalledLibraries
-    paths     <- libraryIncludePaths installed libs
-    return o { optIncludeDirs  = Left (paths ++ ds) }
-  where ds = either id (const []) $ optIncludeDirs o
+noDefaultLibsFlag :: Flag CommandLineOptions
+noDefaultLibsFlag o = return $ o { optDefaultLibs = False }
 
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
@@ -616,7 +612,9 @@ standardOptions =
                     "look for imports in DIR"
     , Option ['l']  ["library"] (ReqArg libraryFlag "LIB")
                     "use library LIB"
-    , Option []     ["no-default-libraries"] (NoArg setExplicitLibs)
+    , Option []     ["library-file"] (ReqArg overrideLibrariesFileFlag "FILE")
+                    "use FILE instead of the standard libraries file"
+    , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
@@ -754,14 +752,7 @@ parseStandardOptions argv = parseStandardOptions' argv defaultOptions
 parseStandardOptions' :: [String] -> Flag CommandLineOptions
 parseStandardOptions' argv opts = do
   opts <- getOptSimple (stripRTS argv) standardOptions inputFlag opts
-  opts <- addDefaultLibraries opts
   checkOpts opts
-
-addDefaultLibraries :: Flag CommandLineOptions
-addDefaultLibraries o | optExplicitLibs o = pure o
-addDefaultLibraries o = do
-  libs <- getDefaultLibraries
-  setLibraryIncludes libs o
 
 -- | Parse options from an options pragma.
 parsePragmaOptions
@@ -786,29 +777,11 @@ parsePluginOptions argv opts =
 
 -- | The usage info message. The argument is the program name (probably
 --   agda).
-usage :: [OptDescr ()] -> [(String, String, [String], [OptDescr ()])] -> String -> String
-usage options pluginInfos progName =
-        usageInfo (header progName) options ++
-        "\nPlugins:\n" ++
-        indent 2 (concatMap pluginMsg pluginInfos)
-
+usage :: [OptDescr ()] -> String -> String
+usage options progName = usageInfo (header progName) options
     where
-        header progName = unlines [ "Agda"
-                                  , ""
-                                  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
-                                  ]
-
-        pluginMsg (name, help, inherited, opts)
-            | null opts && null inherited = optHeader
-            | otherwise = usageInfo (optHeader ++
-                                     "  Plugin-specific options:" ++
-                                     inheritedOptions inherited
-                                     ) opts
-            where
-                optHeader = "\n" ++ name ++ "-plugin:\n" ++ indent 2 help
-                inheritedOptions [] = ""
-                inheritedOptions pls =
-                    "\n    Inherits options from: " ++ unwords pls
+        header progName = unlines [ "Agda version " ++ version, ""
+                                  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]" ]
 
 -- Remove +RTS .. -RTS from arguments
 stripRTS :: [String] -> [String]

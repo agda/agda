@@ -222,8 +222,8 @@ rtmIncompleteMatch q = mazIncompleteMatch `HS.App` hsVarUQ (unqhname "name" q)
 mazUnreachableError :: HS.Exp
 mazUnreachableError = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazUnreachableError"
 
-rtmUnreachableError :: QName -> HS.Exp
-rtmUnreachableError q = mazUnreachableError `HS.App` hsVarUQ (unqhname "name" q)
+rtmUnreachableError :: HS.Exp
+rtmUnreachableError = mazUnreachableError
 
 mazRTE :: HS.ModuleName
 mazRTE = HS.ModuleName "MAlonzo.RTE"

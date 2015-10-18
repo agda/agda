@@ -51,6 +51,8 @@ agdaExts = S.fromList [".agda", ".lagda"]
 getAgdaFilesInDir :: String -> IO [FilePath]
 getAgdaFilesInDir dir = map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$> getDirectoryContents dir
 
+doesEnvContain :: String -> IO Bool
+doesEnvContain v = isJust <$> getEnvVar v
 
 -- | Replaces all matches of a regex with the given text.
 --

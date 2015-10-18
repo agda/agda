@@ -13,6 +13,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.Interaction.Options
 
 import Agda.Utils.Lens
+import Agda.Utils.FileName
 
 ---------------------------------------------------------------------------
 -- * Pragma options
@@ -127,32 +128,50 @@ putSafeMode = modify . setSafeMode
 -- ** Include directories
 ---------------------------------------------------------------------------
 
-class LensIncludeDirs a where
-  getIncludeDirs :: a -> IncludeDirs
-  setIncludeDirs :: IncludeDirs -> a -> a
-  mapIncludeDirs :: (IncludeDirs -> IncludeDirs) -> a -> a
+class LensIncludePaths a where
+  getIncludePaths :: a -> [FilePath]
+  setIncludePaths :: [FilePath] -> a -> a
+  mapIncludePaths :: ([FilePath] -> [FilePath]) -> a -> a
+
+  getAbsoluteIncludePaths :: a -> [AbsolutePath]
+  setAbsoluteIncludePaths :: [AbsolutePath] -> a -> a
+  mapAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> a -> a
 
   -- default implementations
-  setIncludeDirs     = mapIncludeDirs . const
-  mapIncludeDirs f a = setIncludeDirs (f $ getIncludeDirs a) a
+  setIncludePaths     = mapIncludePaths . const
+  mapIncludePaths f a = setIncludePaths (f $ getIncludePaths a) a
+  setAbsoluteIncludePaths     = mapAbsoluteIncludePaths . const
+  mapAbsoluteIncludePaths f a = setAbsoluteIncludePaths (f $ getAbsoluteIncludePaths a) a
 
-instance LensIncludeDirs CommandLineOptions where
-  getIncludeDirs = optIncludeDirs
-  setIncludeDirs is opts = opts { optIncludeDirs = is }
+instance LensIncludePaths CommandLineOptions where
+  getIncludePaths = optIncludePaths
+  setIncludePaths is opts = opts { optIncludePaths = is }
+  getAbsoluteIncludePaths = optAbsoluteIncludePaths
+  setAbsoluteIncludePaths is opts = opts { optAbsoluteIncludePaths = is }
 
-instance LensIncludeDirs PersistentTCState where
-  getIncludeDirs = getIncludeDirs . getCommandLineOptions
-  mapIncludeDirs = mapCommandLineOptions . mapIncludeDirs
+instance LensIncludePaths PersistentTCState where
+  getIncludePaths = getIncludePaths . getCommandLineOptions
+  mapIncludePaths = mapCommandLineOptions . mapIncludePaths
+  getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
+  mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
 
-instance LensIncludeDirs TCState where
-  getIncludeDirs = getIncludeDirs . getCommandLineOptions
-  mapIncludeDirs = mapCommandLineOptions . mapIncludeDirs
+instance LensIncludePaths TCState where
+  getIncludePaths = getIncludePaths . getCommandLineOptions
+  mapIncludePaths = mapCommandLineOptions . mapIncludePaths
+  getAbsoluteIncludePaths = getAbsoluteIncludePaths . getCommandLineOptions
+  mapAbsoluteIncludePaths = mapCommandLineOptions . mapAbsoluteIncludePaths
 
-modifyIncludeDirs :: (IncludeDirs -> IncludeDirs) -> TCM ()
-modifyIncludeDirs = modify . mapIncludeDirs
+modifyIncludePaths :: ([FilePath] -> [FilePath]) -> TCM ()
+modifyIncludePaths = modify . mapIncludePaths
 
-putIncludeDirs :: IncludeDirs -> TCM ()
-putIncludeDirs = modify . setIncludeDirs
+putIncludePaths :: [FilePath] -> TCM ()
+putIncludePaths = modify . setIncludePaths
+
+modifyAbsoluteIncludePaths :: ([AbsolutePath] -> [AbsolutePath]) -> TCM ()
+modifyAbsoluteIncludePaths = modify . mapAbsoluteIncludePaths
+
+putAbsoluteIncludePaths :: [AbsolutePath] -> TCM ()
+putAbsoluteIncludePaths = modify . setAbsoluteIncludePaths
 
 ---------------------------------------------------------------------------
 -- ** Include directories

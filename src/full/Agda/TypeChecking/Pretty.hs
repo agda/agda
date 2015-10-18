@@ -366,7 +366,7 @@ raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
 raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
-raisePatVars k (PBoundVar i es) = PBoundVar k $ (fmap . fmap) (raisePatVars k) es
+raisePatVars k (PBoundVar i es) = PBoundVar i $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
 
 instance PrettyTCM NLPat where
@@ -374,7 +374,8 @@ instance PrettyTCM NLPat where
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = text "λ" <+> (addContext (absName u) $ prettyTCM (raisePatVars 1 $ unAbs u))
+  prettyTCM (PLam i u)  = text ("λ" ++ absName u ++ " →") <+>
+                          (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
   prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (unDom a) <+>
                           (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
@@ -388,7 +389,7 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma lhs rhs b) = inTopContext $ do
+  prettyTCM (RewriteRule q gamma lhs rhs b) = do
     prettyTCM q <+> text " rule " <+> do
       prettyTCM gamma <+> text " |- " <+> do
         addContext gamma $ do

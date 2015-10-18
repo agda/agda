@@ -18,16 +18,18 @@ import Test.Tasty.Silver.Filter (RegexFilter)
 import Control.Applicative ((<$>))
 #endif
 
-import System.Environment
 import System.Exit
+
+import Utils
 
 main :: IO ()
 main = do
-  env <- getEnvironment
-  case "AGDA_BIN" `lookup` env of
-    Just _ -> tests >>= TM.defaultMain1 disabledTests
-    Nothing -> do
-        putStrLn $ unlines
+  agdaBin <- doesEnvContain "AGDA_BIN"
+  if agdaBin
+    then
+      tests >>= TM.defaultMain1 disabledTests
+    else do
+      putStrLn $ unlines
             [ "The AGDA_BIN environment variable is not set. Do not execute"
             , "these tests directly using \"cabal test\" or \"cabal install --run-tests\", instead"
             , "use the Makefile."
@@ -36,7 +38,7 @@ main = do
             , "The Makefile requries cabal-install 1.20.0.0 or later to work properly."
             , "See also Issue 1489 and 1490."
             ]
-        exitWith (ExitFailure 1)
+      exitWith (ExitFailure 1)
 
 tests :: IO TestTree
 tests =

@@ -53,6 +53,7 @@ instance Error String where
 ------------------------------------------------------------------------
 
 import Control.Monad.Error
+import Text.PrettyPrint
 
 type ExceptT = ErrorT
 
@@ -69,6 +70,9 @@ runExceptT = runErrorT
 mapExceptT :: (m (Either e a) -> m' (Either e' a')) -> ExceptT e m a -> ExceptT e' m' a'
 mapExceptT = mapErrorT
 
+instance Error Doc where
+  noMsg  = empty
+  strMsg = text
 #endif
 
 -- | To simulate @MaybeT@ by @ExceptT@.

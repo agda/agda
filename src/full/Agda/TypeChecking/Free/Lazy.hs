@@ -47,6 +47,7 @@ import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
 import Agda.Utils.Monad
+import Agda.Utils.Singleton
 
 -- | Depending on the surrounding context of a variable,
 --   it's occurrence can be classified as flexible or rigid,
@@ -54,11 +55,11 @@ import Agda.Utils.Monad
 --
 --   The constructors are listed in increasing order (wrt. information content).
 data FlexRig
-  = Flexible      -- ^ In arguments of metas.
-  | WeaklyRigid   -- ^ In arguments to variables and definitions.
-  | Unguarded     -- ^ In top position, or only under inductive record constructors.
-  | StronglyRigid -- ^ Under at least one and only inductive constructors.
-  deriving (Eq, Ord, Show, Enum, Bounded)
+  = Flexible [MetaId] -- ^ In arguments of metas.
+  | WeaklyRigid       -- ^ In arguments to variables and definitions.
+  | Unguarded         -- ^ In top position, or only under inductive record constructors.
+  | StronglyRigid     -- ^ Under at least one and only inductive constructors.
+  deriving (Eq, Ord, Show)
 
 -- | 'FlexRig' composition.  For accumulating the context of a variable.
 --
@@ -73,8 +74,9 @@ data FlexRig
 composeFlexRig :: FlexRig -> FlexRig -> FlexRig
 composeFlexRig o o' =
   case (o, o') of
-    (Flexible, _) -> Flexible
-    (_, Flexible) -> Flexible
+    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 ++ ms2
+    (Flexible ms1, _) -> Flexible ms1
+    (_, Flexible ms2) -> Flexible ms2
     (WeaklyRigid, _) -> WeaklyRigid
     (_, WeaklyRigid) -> WeaklyRigid
     (StronglyRigid, _) -> StronglyRigid
@@ -105,7 +107,7 @@ topVarOcc :: VarOcc
 topVarOcc = VarOcc StronglyRigid Relevant
 
 botVarOcc :: VarOcc
-botVarOcc = VarOcc Flexible Irrelevant
+botVarOcc = VarOcc (Flexible []) Irrelevant
 
 type VarMap = IntMap VarOcc
 
@@ -225,7 +227,7 @@ instance Free' Term c where
     Pi a b       -> freeVars' (a,b)
     Sort s       -> freeVars' s
     Level l      -> freeVars' l
-    MetaV _ ts   -> go Flexible $ freeVars' ts
+    MetaV m ts   -> go (Flexible $ singleton m) $ freeVars' ts
     DontCare mt  -> goRel Irrelevant $ freeVars' mt
     Shared p     -> freeVars' (derefPtr p)
 
@@ -279,7 +281,7 @@ instance Free' LevelAtom c where
   -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM VarSet #-}
   -- {-# SPECIALIZE freeVars' :: LevelAtom -> FreeM VarMap #-}
   freeVars' l = case l of
-    MetaLevel _ vs   -> go Flexible $ freeVars' vs
+    MetaLevel m vs   -> go (Flexible $ singleton m) $ freeVars' vs
     NeutralLevel _ v -> freeVars' v
     BlockedLevel _ v -> freeVars' v
     UnreducedLevel v -> freeVars' v
@@ -372,7 +374,12 @@ instance Free' Clause c where
 -- Generators
 
 instance Arbitrary FlexRig where
-  arbitrary = arbitraryBoundedEnum
+  arbitrary = oneof
+    [ pure $ Flexible [] -- TODO
+    , pure WeaklyRigid
+    , pure Unguarded
+    , pure StronglyRigid
+    ]
 
 instance Arbitrary VarOcc where
   arbitrary = VarOcc <$> arbitrary <*> arbitrary
