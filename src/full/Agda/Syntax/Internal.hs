@@ -611,6 +611,7 @@ ignoreSharingType (El s v) = El s (ignoreSharing v)
 shared_ :: Term -> Term
 shared_ v@Shared{}   = v
 shared_ v@(Var _ []) = v
+shared_ v@(Con _ []) = v -- Issue 1691: sharing (zero : Nat) destroys constructorForm
 shared_ v            = Shared (newPtr v)
 
 -- | Typically m would be TCM and f would be Blocked.

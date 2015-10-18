@@ -157,7 +157,8 @@ match' ((c, es, patch) : stack) = do
                         vs          = map argFromElim es1
 
             -- Now do the matching on the @n@ths argument:
-            case fmap ignoreSharing <$> eb of
+            traceSLn "reduce.compiled" 100 ("caseing on raw " ++ show eb) $
+             case fmap ignoreSharing <$> eb of
               Blocked x _            -> no (Blocked x) es'
               NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
@@ -167,7 +168,8 @@ match' ((c, es, patch) : stack) = do
                 let cFrame stack = case ignoreSharing cv of
                       Con c vs -> conFrame c vs stack
                       _        -> stack
-                match' $ litFrame l $ cFrame $ catchAllFrame stack
+                traceSLn "reduce.compiled" 100 ("constructorForm = " ++ show cv) $
+                 match' $ litFrame l $ cFrame $ catchAllFrame stack
 
               -- In case of a constructor, push the conFrame
               NotBlocked _ (Apply (Arg info (Con c vs))) -> performedSimplification $
