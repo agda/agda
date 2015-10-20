@@ -5,7 +5,7 @@ Reflection
 **********
 
 .. note::
-   This section is not yet finished and may contain outdated material!
+   This section is incomplete.
 
 Builtin types
 -------------
@@ -13,9 +13,9 @@ Builtin types
 Literals
 ~~~~~~~~
 
-The Term data type ``AGDATERM`` now needs an additional constructor ``AGDATERMLIT``
-taking a reflected literal defined as follows (with appropriate builtin
-bindings for the types ``Nat``, ``Float``, etc).
+Literals are mapped to the builtin ``AGDALITERAL`` datatype. Given the appropriate
+builtin binding for the types ``Nat``, ``Float``, etc, the ``AGDALITERAL`` datatype
+has the following shape:
 
 ::
 
@@ -33,15 +33,12 @@ bindings for the types ``Nat``, ``Float``, etc).
     {-# BUILTIN AGDALITSTRING string  #-}
     {-# BUILTIN AGDALITQNAME  qname   #-}
 
-When quoting (``quoteGoal`` or ``quoteTerm``) literals will be mapped to the
-``AGDATERMLIT`` constructor. Previously natural number literals were quoted
-to suc/zero application and other literals were quoted to
-``AGDATERMUNSUPPORTED``.
-
 Terms
 ~~~~~
 
-The ``Term``, ``Type`` and ``Sort`` datatype:
+Terms, types and sorts are mapped to the ``AGDATERM``, ``AGDATYPE`` and ``AGDASORT``
+respectively. Terms use a locally-nameless representation using de Bruijn indices.
+
 
 ::
 
@@ -89,71 +86,52 @@ The ``Term``, ``Type`` and ``Sort`` datatype:
   {-# BUILTIN AGDASORT    Sort    #-}
   {-# BUILTIN AGDATYPE    Type    #-}
   {-# BUILTIN AGDATERM    Term    #-}
-  {-# BUILTIN AGDACLAUSE  Clause  #-}
 
   {-# BUILTIN AGDATERMVAR         var     #-}
   {-# BUILTIN AGDATERMCON         con     #-}
   {-# BUILTIN AGDATERMDEF         def     #-}
   {-# BUILTIN AGDATERMLAM         lam     #-}
+  {-# BUILTIN AGDATERMEXTLAM      pat-lam #-}
+  {-# BUILTIN AGDATERMPI          pi      #-}
+  {-# BUILTIN AGDATERMSORT        sort    #-}
+  {-# BUILTIN AGDATERMLIT         lit     #-}
+  {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
+  {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
+  {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
+  {-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
+  {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+  {-# BUILTIN AGDATYPEEL          el      #-}
+  {-# BUILTIN AGDASORTSET         set     #-}
+  {-# BUILTIN AGDASORTLIT         lit     #-}
+  {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 
 Absurd lambdas ``(λ ())`` are quoted to extended lambdas with an absurd clause.
 
-Meta variables
-~~~~~~~~~~~~~~
-
-The builtin constructors AGDATERMUNSUPPORTED and AGDASORTUNSUPPORTED are now
-translated to meta variables when unquoting.
-
-Levels
-~~~~~~
-
-Universe levels are now quoted properly instead of being quoted to
-AGDASORTUNSUPPORTED. Setω  still gets an unsupported sort, however.
+The builtin constructors AGDATERMUNSUPPORTED and AGDASORTUNSUPPORTED are
+translated to meta variables when unquoting. The sort Setω is translated
+to ``AGDASORTUNSUPPORTED``.
 
 Function Definitions
 ~~~~~~~~~~~~~~~~~~~~
 
-AGDAFUNDEF should now map to a data type defined as follows:
+Functions definitions are mapped to the ``AGDAFUNDEF`` builtin:
 
 ::
 
-    data Pattern : Set where
-      con    : QName → List (Arg Pattern) → Pattern
-      dot    : Pattern
-      var    : Pattern
-      lit    : Literal → Pattern
-      proj   : QName → Pattern
-      absurd : Pattern
+  -- Function definition.
+  data FunctionDef : Set where
+    fun-def : Type → Clauses → FunctionDef
 
-    {-# BUILTIN AGDAPATTERN   Pattern #-}
-    {-# BUILTIN AGDAPATCON    con     #-}
-    {-# BUILTIN AGDAPATDOT    dot     #-}
-    {-# BUILTIN AGDAPATVAR    var     #-}
-    {-# BUILTIN AGDAPATLIT    lit     #-}
-    {-# BUILTIN AGDAPATPROJ   proj    #-}
-    {-# BUILTIN AGDAPATABSURD absurd  #-}
-
-    data Clause : Set where
-      clause        : List (Arg Pattern) → Term → Clause
-      absurd-clause : List (Arg Pattern) → Clause
-
-    {-# BUILTIN AGDACLAUSE       Clause        #-}
-    {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
-    {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
-
-    data FunDef : Set where
-      fun-def : Type → List Clause → FunDef
-
-    {-# BUILTIN AGDAFUNDEF    FunDef  #-}
-    {-# BUILTIN AGDAFUNDEFCON fun-def #-}
+  {-# BUILTIN AGDAFUNDEF    FunctionDef #-}
+  {-# BUILTIN AGDAFUNDEFCON fun-def     #-}
 
 
 Quoting and Unquoting
 ---------------------
 
-Unquoting
-~~~~~~~~~
+Unquoting Terms
+~~~~~~~~~~~~~~~
 
 The construction "unquote t" converts a representation of an Agda term
 to actual Agda code in the following way:
@@ -180,12 +158,28 @@ Examples:
     id-ok = refl
 
 
+Unquoting Declarations
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can define (recursive) functions by reflection using the new
+unquoteDecl declaration:
+
+::
+
+    unquoteDecl x = e
+
+Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
+is then spliced in as the definition of x. In the body e, x has type QNAME
+which lets you splice in recursive definitions.
+
+Standard modifiers, such as fixity declarations, can be applied to x as
+expected.
+
 Quoting Terms
 ~~~~~~~~~~~~~
 
-The construction "quoteTerm t" is similar to "quote n", but whereas
-quote is restricted to names n, quoteTerm accepts terms t. The
-construction is handled in the following way:
+The construction "quoteTerm t" evaluates to the ``AGDATERM``
+representation of the term t. This is done in the following way:
 
 1. The type of t is inferred. The term t must be type-correct.
 
@@ -211,11 +205,39 @@ Examples:
     test₃ : quoteTerm (0 + 0) ≡ con (quote zero) []
 
 
+Quoting Names
+~~~~~~~~~~~~~
+
+The "quote x" expression returns the builtin ``QNAME`` representation
+of the given name.
+
+::
+
+  test : Name
+  test = quote ℕ
+
+
+Quoting Goals
+~~~~~~~~~~~~~
+
+The "quoteGoal x in e" construct allows inspecting the current goal type
+(the type expected of the whole expression):
+
+::
+
+      example : ℕ
+      example = quoteGoal x in {! at this point x = def (quote ℕ) [] !}
+
+
+
+
+
 Quote Patterns
 ~~~~~~~~~~~~~~
 
+Quote patterns allow pattern matching on quoted names.
 For instance, here is a function that unquotes a (closed) natural number
-term.
+term:
 
 ::
 
@@ -224,89 +246,11 @@ term.
     unquoteNat (con (quote Nat.suc) (arg _ n ∷ [])) = fmap suc (unquoteNat n)
     unquoteNat _                                    = nothing
 
-
-
-Unquoting Declarations
-~~~~~~~~~~~~~~~~~~~~~~
-
-You can now define (recursive) functions by reflection using the new
-unquoteDecl declaration
-
-::
-
-    unquoteDecl x = e
-
-Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
-is then spliced in as the definition of x. In the body e, x has type QNAME
-which lets you splice in recursive definitions.
-
-Standard modifiers, such as fixity declarations, can be applied to x as
-expected.
-
-Quoting Goals
-~~~~~~~~~~~~~
-
-  - quoteGoal x in e
-
-    In e the value of x will be a representation of the goal type
-    (the type expected of the whole expression) as an element in a
-    datatype of Agda terms (see below). For instance,
-
-::
-
-      example : ℕ
-      example = quoteGoal x in {! at this point x = def (quote ℕ) [] !}
-
-Quoting Terms
-~~~~~~~~~~~~~
-
-  - quote x : Name
-
-    If x is the name of a definition (function, datatype, record, or
-    a constructor), quote x gives you the representation of x as a
-    value in the primitive type Name (see below).
-
-Quoted terms use the following BUILTINs and primitives (available
-from the standard library module Reflection):
-
-::
-
-    -- The type of Agda names.
-
-    postulate Name : Set
-
-    {-# BUILTIN QNAME Name #-}
-
-    primitive primQNameEquality : Name → Name → Bool
-
-    -- Arguments.
-
-    Explicit? = Bool
-
-    data Arg A : Set where
-      arg : Explicit? → A → Arg A
-
-    {-# BUILTIN ARG    Arg #-}
-    {-# BUILTIN ARGARG arg #-}
-
-    -- The type of Agda terms.
-
-    data Term : Set where
-      var     : ℕ → List (Arg Term) → Term
-      con     : Name → List (Arg Term) → Term
-      def     : Name → List (Arg Term) → Term
-      lam     : Explicit? → Term → Term
-      pi      : Arg Term → Term → Term
-      sort    : Term
-      unknown : Term
-
 Tactics
 -------
 
-New syntactic sugar 'tactic e' and 'tactic e | e1 | .. | en'.
-
-It desugars as follows and makes it less unwieldy to call reflection-based
-tactics.
+Tactis are syntactic sugar which allow using reflection in a syntactically
+lightweigt manner. It desugars as follows:
 
 ::
 
