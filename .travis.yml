@@ -1,5 +1,23 @@
 language: haskell
 
+sudo: false
+
+##############################################################################
+# Installing the `kpsewhich` program
+
+# This program is required by the LaTeX/HTML test-suite.
+
+# TODO (21 October 2015). The texlive-binaries package is only
+# required by the LaTeX/HTML test-suite, so we should install this
+# package only when TEST=non-require-stdlib.
+
+addons:
+  apt:
+    packages:
+    - texlive-binaries
+
+##################################################################
+
 # We build with all the latest GHC versions for each 7.X, so we reduce
 # build times, possibly avoid compiler bugs and still test all the major
 # interface changes.
@@ -191,15 +209,6 @@ install:
 
   - if [ $TEST = "non-require-stdlib" ]; then
        make install-fix-agda-whitespace;
-    fi
-
-##############################################################################
-# Installing the `kpsewhich` program
-
-# This program is required by the LaTeX/HTML test-suite.
-
-  - if [ $TEST = "non-require-stdlib" ]; then
-       sudo apt-get install texlive-binaries;
     fi
 
 ##############################################################################
