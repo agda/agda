@@ -1,8 +1,8 @@
 .. _auto:
 
-****
-Auto
-****
+*****************************
+Automatic Proof Search (Auto)
+*****************************
 
 .. note::
    This is a stub.
