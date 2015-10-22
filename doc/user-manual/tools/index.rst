@@ -8,8 +8,8 @@ Tools
 .. toctree::
    :maxdepth: 2
 
-   auto
    emacs-mode
+   auto
    compilers
    generating-html
    generating-latex
