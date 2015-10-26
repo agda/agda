@@ -693,6 +693,8 @@ Other changes
   -- x != fst x , snd x of type Σ .A .B
   -- when checking that the expression refl has type x ≡ (fst x , snd x)
 
+* Prop is no longer a reserved word.
+
 
 Goal and error display
 ======================
