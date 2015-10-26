@@ -19,6 +19,14 @@ backends.
 
 Important changes since 0.10:
 
+* Relation.Binary.PropositionalEquality.TrustMe.erase was added.
+
+* Added Data.Nat.Base.{_≤″_,_≥″_,_<″_,_>″_,erase},
+  Data.Nat.Properties.{≤⇒≤″,≤″⇒≤}, Data.Fin.fromℕ≤″, and
+  Data.Fin.Properties.fromℕ≤≡fromℕ≤″.
+
+* The functions in Data.Nat.DivMod have been optimised.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.10
 ------------------------------------------------------------------------
@@ -107,15 +115,15 @@ Important changes since 0.9:
 
 * New in Data.Fin:
 
-   strengthen     : ∀ {n} (i : Fin n) → Fin′ (suc i)
+   strengthen : ∀ {n} (i : Fin n) → Fin′ (suc i)
 
 * New in Data.Fin.Properties:
 
    from-to        : ∀ {n} (i : Fin n) → fromℕ (toℕ i) ≡ strengthen i
    toℕ-strengthen : ∀ {n} (i : Fin n) → toℕ (strengthen i) ≡ toℕ i
 
-   fromℕ-def      : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
-   reverse-suc : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
+   fromℕ-def    : ∀ n → fromℕ n ≡ fromℕ≤ ℕ≤-refl
+   reverse-suc  : ∀{n}{i : Fin n} → toℕ (reverse (suc i)) ≡ toℕ (reverse i)
    inject≤-refl : ∀ {n} (i : Fin n) (n≤n : n ℕ≤ n) → inject≤ i n≤n ≡ i
 
 * New in Data.List.NonEmpty:
