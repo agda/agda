@@ -276,8 +276,11 @@ instance Pretty DeclarationException where
     pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
-  pretty (WrongContentBlock b _)      = fsep $
-    pwords "A postulate block can only contain type signatures or instance blocks"
+  pretty (WrongContentBlock b _)      = fsep . pwords $
+    case b of
+      PostulateBlock -> "A postulate block can only contain type signatures, possibly under keyword instance"
+      DataBlock -> "A data definition can only contain type signatures, possibly under keyword instance"
+      _ -> __IMPOSSIBLE__
   pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
   pretty (InvalidTerminationCheckPragma _) = fsep $
