@@ -18,7 +18,7 @@ Most non-whitespace unicode can be used as part of an Agda name, but there are
 two kinds of exceptions:
 
 special symbols
-  Characters with special meaning that cannot appear in at all in a name. These are
+  Characters with special meaning that cannot appear at all in a name. These are
   ``.;{}()@"``.
 
 keywords
