@@ -140,6 +140,8 @@ the obvious implementations::
     primNatToInteger    : Nat → Int
     primShowInteger     : Int → String
 
+.. _built-in-float:
+
 Floats
 ------
 
@@ -150,7 +152,9 @@ Floating point numbers are bound with the ``FLOAT`` built-in::
 
 This lets you use :ref:`floating point literals <lexical-structure-float-literals>`.
 Floats are represented by the type checker as Haskell Doubles. The following
-primitive functions are available for floats::
+primitive functions are available (with suitable bindings for `Nat <Natural
+numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
+<Integers_>`_)::
 
   primitive
     primNatToFloat    : Nat → Float
@@ -160,9 +164,9 @@ primitive functions are available for floats::
     primFloatDiv      : Float → Float → Float
     primFloatEquality : Float → Float → Bool
     primFloatLess     : Float → Float → Bool
-    primRound         : Float → Float
-    primFloor         : Float → Float
-    primCeiling       : Float → Float
+    primRound         : Float → Int
+    primFloor         : Float → Int
+    primCeiling       : Float → Int
     primExp           : Float → Float
     primLog           : Float → Float
     primSin           : Float → Float
@@ -228,10 +232,8 @@ The character type is bound with the ``CHARACTER`` built-in::
 
 Binding the character type lets you use :ref:`character literals
 <lexical-structure-char-literals>`. The following primitive functions are
-available on characters (given suitable bindings for `Bool <Booleans_>`_ and
-`Nat <Natural numbers_>`_):
-
-::
+available on characters (given suitable bindings for `Bool <Booleans_>`_,
+`Nat <Natural numbers_>`_ and `String <Strings_>`_)::
 
   primitive
     primIsLower    : Char → Bool
@@ -246,6 +248,7 @@ available on characters (given suitable bindings for `Bool <Booleans_>`_ and
     primToLower    : Char → Char
     primCharToNat  : Char → Nat
     primNatToChar  : Nat → Char
+    primShowChar   : Char → String
 
 These functions are implemented by the corresponding Haskell functions from
 `Data.Char <data-char_>`_ (``ord`` and ``chr`` for ``primCharToNat`` and
@@ -259,13 +262,67 @@ natural number modulo ``0x110000``.
 Strings
 -------
 
-.. _built-in-float:
+The string type is bound with the ``STRING`` built-in::
+
+  postulate String : Set
+  {-# BUILTIN STRING String #-}
+
+Binding the string type lets you use :ref:`string literals
+<lexical-structure-string-literals>`. The following primitive functions are
+available on strings (given suitable bindings for `Bool <Booleans_>`_, `Char
+<Characters_>`_ and `List <Lists_>`_)::
+
+  primStringToList   : String → List Char
+  primStringFromList : List Char → String
+  primStringAppend   : String → String → String
+  primStringEquality : String → String → Bool
+  primShowString     : String → String
 
 Equality
 --------
 
+The identity typed can be bound to the built-in ``EQUALITY`` as follows::
+
+  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+    refl : x ≡ x
+  {-# BUILTIN EQUALITY _≡_  #-}
+  {-# BUILTIN REFL     refl #-}
+
+This lets you use proofs of type ``lhs ≡ rhs`` in the :ref:`rewrite
+construction <with-rewrite>`.
+
+primTrustMe
+~~~~~~~~~~~
+
+Binding the built-in equality type also enables the ``primTrustMe`` primitive::
+
+  primitive
+    primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+
+As can be seen from the type, ``primTrustMe`` must be used with the utmost care
+to avoid inconsistencies.  What makes it different from a postulate is that if
+``x`` and ``y`` are actually definitionally equal, ``primTrustMe`` reduces to
+``refl``. One use of ``primTrustMe`` is to lift the primitive boolean equality
+on built-in types like `String <Strings_>`_ to something that returns a proof
+object::
+
+  eqString : (a b : String) → Maybe (a ≡ b)
+  eqString a b = if primStringEquality a b
+                 then just primTrustMe
+                 else nothing
+
+With this definition ``eqString "foo" "foo"`` computes to ``just refl``.
+Another use case is to erase computationally expensive equality proofs and
+replace them by ``primTrustMe``::
+
+  eraseEquality : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≡ y
+  eraseEquality _ = primTrustMe
+
 Universe levels
 ---------------
+
+Sized types
+-----------
 
 Coinduction
 -----------
