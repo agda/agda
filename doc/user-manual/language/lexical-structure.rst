@@ -75,14 +75,18 @@ There are four types of literal values: integers, floats, characters, and
 strings. See :doc:`built-ins` for the corresponding types, and
 :doc:`literal-overloading` for how to support literals for user-defined types.
 
+.. _lexical-structure-int-literals:
+
 Integers
   Integer values in decimal or hexadecimal (prefixed by ``0x``) notation.
   Non-negative numbers map by default to :doc:`built-in natural numbers
-  <built-ins>`, but can be overloaded. Negative numbers have no default
+  <built-in-nat>`, but can be overloaded. Negative numbers have no default
   interpretation and can only be used through :doc:`overloading
   <literal-overloading>`.
 
   Examples: ``123``, ``0xF0F080``, ``-42``, ``-0xF``
+
+.. _lexical-structure-float-literals:
 
 Floats
   Floating point numbers in the standard notation (with square brackets
@@ -94,11 +98,12 @@ Floats
                 | [-] decimal exponent
      exponent ::= (e | E) [+ | -] decimal
 
-  These map to :doc:`built-in floats <built-ins>` and cannot be overloaded.
+  These map to :doc:`built-in floats <built-in-float>` and cannot be overloaded.
 
   Examples: ``1.0``, ``-5.0e+12``, ``1.01e-16``, ``4.2E9``, ``50e3``.
 
 .. _characters:
+.. _lexical-structure-char-literals:
 
 Characters
   Character literals are enclosed in single quotes (``'``). They can be a
@@ -124,20 +129,21 @@ Characters
   ``US``   31       ``SP``   32       ``DEL``  127
   ======== ======== ======== ======== ======== ======== ======== ========
 
-  Character literals map to the :doc:`built-in character type <built-ins>` and
+  Character literals map to the :ref:`built-in character type <built-in-char>` and
   cannot be overloaded.
 
   Examples: ``'A'``, ``'∀'``, ``'\x2200'``, ``'\ESC'``, ``'\32'``, ``'\n'``,
   ``'\''``, ``'"'``.
 
 .. _strings:
+.. _lexical-structure-string-literals:
 
 Strings
   String literals are sequences of, possibly escaped, characters enclosed in
   double quotes ``"``. They follow the same rules as `character literals
   <characters_>`_ except that double quotes ``"`` need to be escaped rather
   than single quotes ``'``. String literals map to the :doc:`built-in string
-  type <built-ins>` and cannot be overloaded.
+  type <built-in-string>` and cannot be overloaded.
 
   Example: ``"Привет \"мир\"\n"``.
 

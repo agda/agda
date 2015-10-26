@@ -71,6 +71,8 @@ JavaScript Backend
 Optimizations
 -------------
 
+.. _compile-nat:
+
 Builtin natural numbers
 ~~~~~~~~~~~~~~~~~~~~~~~
 
