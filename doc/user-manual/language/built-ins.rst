@@ -321,8 +321,33 @@ replace them by ``primTrustMe``::
 Universe levels
 ---------------
 
+ :ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
+ pragmas. This is done in the auto-imported ``Agda.Primitive`` module, however,
+ so it need never be done by a library. For reference these are the bindings::
+
+  postulate
+    Level : Set
+    lzero : Level
+    lsuc  : Level → Level
+    _⊔_   : Level → Level → Level
+  {-# BUILTIN LEVEL     Level #-}
+  {-# BUILTIN LEVELZERO lzero #-}
+  {-# BUILTIN LEVELSUC  lsuc  #-}
+  {-# BUILTIN LEVELMAX  _⊔_   #-}
+
 Sized types
 -----------
+
+The built-ins for :ref:`sized types <sized-types>` are different from other
+built-ins in that the names are defined by the ``BUILTIN`` pragma. Hence, to
+bind the size primitives it is enough to write::
+
+  {-# BUILTIN SIZEUNIV SizeUniv #-}  --  SizeUniv : SizeUniv
+  {-# BUILTIN SIZE     Size     #-}  --  Size     : SizeUniv
+  {-# BUILTIN SIZELT   Size<_   #-}  --  Size<_   : ..Size → SizeUniv
+  {-# BUILTIN SIZESUC  ↑_       #-}  --  ↑_       : Size → Size
+  {-# BUILTIN SIZEINF   ω       #-}  --  ω        : Size
+  {-# BUILTIN SIZEMAX  _⊔ˢ_     #-}  --  _⊔ˢ_     : Size → Size → Size
 
 Coinduction
 -----------
