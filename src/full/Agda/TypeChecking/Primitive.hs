@@ -638,7 +638,7 @@ primitiveFunctions = Map.fromList
   , "primToUpper"         |-> mkPrimFun1 toUpper
   , "primToLower"         |-> mkPrimFun1 toLower
   , "primCharToNat"       |-> mkPrimFun1 (fromIntegral . fromEnum :: Char -> Nat)
-  , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral   :: Nat -> Char)
+  , "primNatToChar"       |-> mkPrimFun1 (toEnum . fromIntegral . (`mod` 0x110000)  :: Nat -> Char)
   , "primShowChar"        |-> mkPrimFun1 (Str . show . pretty . LitChar noRange)
 
   -- String functions
