@@ -126,8 +126,9 @@ Working with Git (from 2013-06-15)
 
   The script:
 
+    ## Remove cpphs upper bound
     sed -ri -e 's/cpphs >=.*/cpphs/' Agda.cabal
-
+    ## Run the test
     if cabal install --force-reinstalls \
                      --disable-library-profiling \
                      --disable-documentation
@@ -138,9 +139,8 @@ Working with Git (from 2013-06-15)
     else
         status=125
     fi
-
+    ## Clean up and exit
     git reset --hard
-
     exit $status
 
 Standard library submodule

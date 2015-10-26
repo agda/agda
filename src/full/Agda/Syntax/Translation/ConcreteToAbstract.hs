@@ -851,7 +851,9 @@ scopeCheckNiceModule r p name tel checkDs
       (name, p, open) <- do
         if isNoName name then do
           (i :: NameId) <- fresh
-          return (C.NoName (getRange name) i, PrivateAccess, True)
+          -- Issue 1701: PublicAccess is necessary for being copied
+          -- during module aliasing and subsequent query with getSection.
+          return (C.NoName (getRange name) i, p, True) -- Before Issue 1701, p was PrivateAccess
          else return (name, p, False)
 
       -- Check and bind the module, using the supplied check for its contents.
