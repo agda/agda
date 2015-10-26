@@ -1,3 +1,4 @@
 PropNoMore.agda:5,7-11
-Prop is no longer supported
-when checking that the expression Prop has type Set _0
+Not in scope:
+  Prop at PropNoMore.agda:5,7-11
+when scope checking Prop
