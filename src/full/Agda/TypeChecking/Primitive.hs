@@ -616,14 +616,14 @@ primitiveFunctions = Map.fromList
   , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
   , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
   , "primFloatEquality"   |-> mkPrimFun2 (floatEq      :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 ((<)          :: Rel Double)
+  , "primFloatLess"       |-> mkPrimFun2 (floatLt      :: Rel Double)
   , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
   , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
   , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)
   , "primExp"             |-> mkPrimFun1 (exp          :: Fun Double)
-  , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)    -- partial
+  , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)
   , "primSin"             |-> mkPrimFun1 (sin          :: Fun Double)
-  , "primShowFloat"       |-> mkPrimFun1 (Str . show   :: Double -> Str)
+  , "primShowFloat"       |-> mkPrimFun1 (Str . floatShow :: Double -> Str)
 
   -- Character functions
   , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
@@ -666,6 +666,19 @@ primitiveFunctions = Map.fromList
 floatEq :: Double -> Double -> Bool
 floatEq x y | isNaN x && isNaN y = True
             | otherwise          = x == y
+
+floatLt :: Double -> Double -> Bool
+floatLt x y
+  | isNegInf y = False
+  | isNegInf x = True
+  | isNaN x    = True
+  | otherwise  = x < y
+  where
+    isNegInf z = z < 0 && isInfinite z
+
+floatShow :: Double -> String
+floatShow x | isNegativeZero x = "0.0"
+            | otherwise        = show x
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
