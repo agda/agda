@@ -583,8 +583,8 @@ primitiveFunctions = Map.fromList
   [ "primIntegerPlus"     |-> mkPrimFun2 ((+)        :: Op Integer)
   , "primIntegerMinus"    |-> mkPrimFun2 ((-)        :: Op Integer)
   , "primIntegerTimes"    |-> mkPrimFun2 ((*)        :: Op Integer)
-  , "primIntegerDiv"      |-> mkPrimFun2 (div        :: Op Integer)    -- partial
-  , "primIntegerMod"      |-> mkPrimFun2 (mod        :: Op Integer)    -- partial
+  -- , "primIntegerDiv"      |-> mkPrimFun2 (div        :: Op Integer)    -- partial
+  -- , "primIntegerMod"      |-> mkPrimFun2 (mod        :: Op Integer)    -- partial
   , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
   , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
   , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
