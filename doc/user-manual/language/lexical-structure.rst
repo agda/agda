@@ -66,6 +66,8 @@ Qualified names are used to refer to entities defined in other modules. For
 instance ``Prelude.Bool.true`` refers to the name ``true`` defined in the
 module ``Prelude.Bool``. See :doc:`module-system` for more information.
 
+.. _lexical-structure-literals:
+
 Literals
 ~~~~~~~~
 
@@ -103,7 +105,8 @@ Characters
   single (unicode) character, other than ``'`` or ``\``, or an escaped
   character. Escaped characters starts with a backslash ``\`` followed by an
   escape code. Escape codes are natural numbers in decimal or hexadecimal
-  (prefixed by ``x``), or one of the following special escape codes:
+  (prefixed by ``x``) between ``0`` and ``0x10ffff`` (``1114111``), or one of
+  the following special escape codes:
 
   ======== ======== ======== ======== ======== ======== ======== ========
   Code     ASCII    Code     ASCII    Code     ASCII    Code     ASCII
