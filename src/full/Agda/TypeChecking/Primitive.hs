@@ -615,7 +615,7 @@ primitiveFunctions = Map.fromList
   , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
   , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
   , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
-  , "primFloatEquality"   |-> mkPrimFun2 ((==)         :: Rel Double)
+  , "primFloatEquality"   |-> mkPrimFun2 (floatEq      :: Rel Double)
   , "primFloatLess"       |-> mkPrimFun2 ((<)          :: Rel Double)
   , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
   , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
@@ -662,6 +662,10 @@ primitiveFunctions = Map.fromList
   ]
   where
     (|->) = (,)
+
+floatEq :: Double -> Double -> Bool
+floatEq x y | isNaN x && isNaN y = True
+            | otherwise          = x == y
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =
