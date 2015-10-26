@@ -66,7 +66,7 @@ primitive
   primShowInteger     : Int -> String
 
     -- Floating point functions
-  primIntegerToFloat : Int -> Float
+  primNatToFloat     : Nat   -> Float
   primFloatPlus      : Float -> Float -> Float
   primFloatMinus     : Float -> Float -> Float
   primFloatTimes     : Float -> Float -> Float

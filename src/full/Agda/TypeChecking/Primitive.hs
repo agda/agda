@@ -610,7 +610,7 @@ primitiveFunctions = Map.fromList
   , "primLevelMax"        |-> mkPrimLevelMax
 
   -- Floating point functions
-  , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)
+  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral :: Nat -> Double)
   , "primFloatPlus"       |-> mkPrimFun2 ((+)          :: Op Double)
   , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
   , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
