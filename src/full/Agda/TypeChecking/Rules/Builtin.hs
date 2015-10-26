@@ -145,10 +145,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   -- postulate max : {i : Size} -> Size< i -> Size< i -> Size< i
   , (builtinSizeMax            |-> builtinPostulate (tsize --> tsize --> tsize))
      -- (hPi "i" tsize $ let a = el $ primSizeLt <@> v0 in (a --> a --> a)))
-  -- postulate .irrelevant : {a : Level}{A : Set a} -> .A -> A
-  , (builtinIrrAxiom           |-> BuiltinPostulate Irrelevant
-                                     (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
-                                      (El (varSort 1) <$> varM 0) .--> (El (varSort 1) <$> varM 0)))
   , (builtinAgdaSortSet        |-> BuiltinDataCons (tterm --> tsort))
   , (builtinAgdaSortLit        |-> BuiltinDataCons (tnat --> tsort))
   , (builtinAgdaSortUnsupported|-> BuiltinDataCons tsort)

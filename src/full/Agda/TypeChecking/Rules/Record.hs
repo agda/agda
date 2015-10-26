@@ -349,23 +349,13 @@ checkRecordProjections m r con tel ftel fs = do
         -- Andreas, 2012-01-12: irrelevant projections get translated to
         --  P.xi (r _ .. x .. _) = irrAxiom {level of t} {t} x
         -- PROBLEM: because of dropped parameters, cannot refer to t
+        -- 2012-04-02: DontCare instead of irrAxiom
 
         -- compute body modification for irrelevant projections
         let bodyMod = case rel of
               Relevant   -> id
               Irrelevant -> DontCare
               _          -> __IMPOSSIBLE__
-
-  -- 2012-04-02: DontCare instead of irrAxiom
-  --          Irrelevant -> do
-  --            irrAxiom <- primIrrAxiom
-  --            let sortToLevel (Type l) = l
-  --                sortToLevel _        = Max [ClosedLevel 0] -- something random here, we don't care a lot
-  --                levelOfT = Level $ sortToLevel $ getSort t
-  --            return $ \ n x -> let -- mkArg t = Arg Hidden Relevant $ raise n t
-  --                                  -- ERR: Variables of t not in Scope!
-  --                                  mkArg t = Arg Hidden Relevant $ Sort Prop
-  --                              in  apply irrAxiom [mkArg levelOfT, mkArg (unEl t), Arg NotHidden Irrelevant x]
 
         let -- Andreas, 2010-09-09: comment for existing code
             -- split the telescope into parameters (ptel) and the type or the record

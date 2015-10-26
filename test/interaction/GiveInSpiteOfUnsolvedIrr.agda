@@ -4,10 +4,6 @@
 module GiveInSpiteOfUnsolvedIrr where
 
 postulate
-  .irrAxiom : ∀ {a}{A : Set a} → .A → A
-{-# BUILTIN IRRAXIOM irrAxiom #-}
-
-postulate
   _≡_ : {A : Set} → A → A → Set
   funExt : ∀ {A : Set}{B : A → Set}{f g : (x : A) → B x} →
     (∀ x → f x ≡ g x) → f ≡ g
