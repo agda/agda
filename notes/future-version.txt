@@ -9,12 +9,4 @@ future release. Don't remove this message please!
   consequence, a new type Abs was added, and the types Clause,
   Pattern, Term and Type were modified in Reflection.agda.
 
-* Relation.Binary.PropositionalEquality.TrustMe.erase was added.
-
-* Added Data.Nat.Base.{_≤″_,_≥″_,_<″_,_>″_,erase},
-  Data.Nat.Properties.{≤⇒≤″,≤″⇒≤}, Data.Fin.fromℕ≤″, and
-  Data.Fin.Properties.fromℕ≤≡fromℕ≤″.
-
-* The functions in Data.Nat.DivMod have been optimised.
-
 * Support for the UHC backend has been added.
