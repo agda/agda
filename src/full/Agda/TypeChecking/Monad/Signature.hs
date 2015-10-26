@@ -239,10 +239,10 @@ applySection new ptel old ts rd rm = do
     argsToUse new = do
       let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
-      let ms = tail . map mnameFromList . inits . mnameToList $ m
-      ps <- mapM (maybe 0 secFreeVars <.> getSection) ms
+      let ms = map mnameFromList . tail . inits . mnameToList $ m  -- NB: tail . inits computes the non-empty prefixes
+      ps <- mapM (fmap secFreeVars <.> getSection) ms
       reportSLn "tc.mod.apply" 80 $ "  params: " ++ show (zip ms ps)
-      return $ sum ps
+      return $ sum $ map (fromMaybe 0) ps
 
     copyDef :: Args -> (QName, QName) -> TCM ()
     copyDef ts (x, y) = do
