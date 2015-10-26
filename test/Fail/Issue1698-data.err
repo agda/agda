@@ -1,0 +1,3 @@
+Issue1698-data.agda:2,3-12
+A postulate block can only contain type signatures or instance
+blocks

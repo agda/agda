@@ -162,7 +162,7 @@ data DeclarationException
         | UselessPrivate Range
         | UselessAbstract Range
         | UselessInstance Range
-        | WrongContentPostulateBlock Range
+        | WrongContentBlock KindOfBlock Range
         | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
         | InvalidTerminationCheckPragma Range
         | InvalidMeasureMutual Range
@@ -175,6 +175,16 @@ data DeclarationException
         | UnquoteDefRequiresSignature Name
         | BadMacroDef NiceDeclaration
     deriving (Typeable)
+
+-- | Several declarations expect only type signatures as sub-declarations.  These are:
+data KindOfBlock
+  = PostulateBlock  -- ^ @postulate@
+  | PrimitiveBlock  -- ^ @primitive@.  Ensured by parser.
+  | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
+  | FieldBlock      -- ^ @field@.  Ensured by parser.
+  | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.4.3 (Issue 1698).
+  deriving (Typeable, Eq, Ord, Show)
+
 
 instance HasRange DeclarationException where
     getRange (MultipleFixityDecls xs)      = getRange (fst $ head xs)
@@ -194,7 +204,7 @@ instance HasRange DeclarationException where
     getRange (UselessPrivate r)            = r
     getRange (UselessAbstract r)           = r
     getRange (UselessInstance r)           = r
-    getRange (WrongContentPostulateBlock r) = r
+    getRange (WrongContentBlock _ r)       = r
     getRange (InvalidTerminationCheckPragma r) = r
     getRange (InvalidMeasureMutual r)      = r
     getRange (PragmaNoTerminationCheck r)  = r
@@ -266,7 +276,7 @@ instance Pretty DeclarationException where
     pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
     pwords "Using instance here has no effect. Instance applies only to declarations that introduce new identifiers into the module, like type signatures and axioms."
-  pretty (WrongContentPostulateBlock _)      = fsep $
+  pretty (WrongContentBlock b _)      = fsep $
     pwords "A postulate block can only contain type signatures or instance blocks"
   pretty (PragmaNoTerminationCheck _) = fsep $
     pwords "Pragma {-# NO_TERMINATION_CHECK #-} has been removed.  To skip the termination check, label your definitions either as {-# TERMINATING #-} or {-# NON_TERMINATING #-}."
@@ -596,16 +606,16 @@ niceDeclarations ds = do
       case d of
         TypeSig{} -> niceTypeSig TerminationCheck d ds
         FunClause{} -> niceFunClause TerminationCheck False d ds
-        Field x t                     -> (++) <$> niceAxioms [ d ] <*> nice ds
+        Field x t                     -> (++) <$> niceAxioms FieldBlock [ d ] <*> nice ds
         DataSig r CoInductive x tel t -> throwError (Codata r)
         Data r CoInductive x tel t cs -> throwError (Codata r)
         DataSig r Inductive   x tel t -> do
           addLoneSig x (DataName $ parameters tel)
-          (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel (Just t) Nothing
+          (++) <$> dataOrRec DataDef NiceDataSig (niceAxioms DataBlock) r x tel (Just t) Nothing
                <*> nice ds
         Data r Inductive x tel t cs -> do
           t <- defaultTypeSig (DataName $ parameters tel) x t
-          (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel t (Just cs)
+          (++) <$> dataOrRec DataDef NiceDataSig (niceAxioms DataBlock) r x tel t (Just cs)
                <*> nice ds
         RecordSig r x tel t -> do
           addLoneSig x (RecName $ parameters tel)
@@ -632,9 +642,9 @@ niceDeclarations ds = do
         Macro r ds' ->
           (++) <$> (macroBlock r =<< nice ds') <*> nice ds
 
-        Postulate _ ds' -> (++) <$> niceAxioms ds' <*> nice ds
+        Postulate _ ds' -> (++) <$> niceAxioms PostulateBlock ds' <*> nice ds
 
-        Primitive _ ds' -> (++) <$> (map toPrim <$> niceAxioms ds') <*> nice ds
+        Primitive _ ds' -> (++) <$> (map toPrim <$> niceAxioms PrimitiveBlock ds') <*> nice ds
 
         Module r x tel ds' ->
           (NiceModule r PublicAccess ConcreteDef x tel ds' :) <$> nice ds
@@ -750,19 +760,22 @@ niceDeclarations ds = do
         dropType b@DomainFree{} = [b]
 
     -- Translate axioms
-    niceAxioms :: [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
-    niceAxioms ds = liftM List.concat $ mapM niceAxiom ds
+    niceAxioms :: KindOfBlock -> [TypeSignatureOrInstanceBlock] -> Nice [NiceDeclaration]
+    niceAxioms b ds = liftM List.concat $ mapM (niceAxiom b) ds
 
-    niceAxiom :: TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
-    niceAxiom d@(TypeSig rel x t) = do
-      fx <- getFixity x
-      return $ [ Axiom (getRange d) fx PublicAccess NotInstanceDef rel x t ]
-    niceAxiom d@(Field x argt) = do
-      fx <- getFixity x
-      return $ [ NiceField (getRange d) fx PublicAccess ConcreteDef x argt ]
-    niceAxiom d@(InstanceB r decls) = instanceBlock r =<< niceAxioms decls
-    niceAxiom d@(Pragma (RewritePragma r n)) = return $ [ NicePragma r (RewritePragma r n) ]
-    niceAxiom d = throwError $ WrongContentPostulateBlock $ getRange d
+    niceAxiom :: KindOfBlock -> TypeSignatureOrInstanceBlock -> Nice [NiceDeclaration]
+    niceAxiom b d = case d of
+      TypeSig rel x t -> do
+        fx <- getFixity x
+        return [ Axiom (getRange d) fx PublicAccess NotInstanceDef rel x t ]
+      Field x argt -> do
+        fx <- getFixity x
+        return [ NiceField (getRange d) fx PublicAccess ConcreteDef x argt ]
+      InstanceB r decls -> do
+        instanceBlock r =<< niceAxioms InstanceBlock decls
+      Pragma p@(RewritePragma r _) -> do
+        return [ NicePragma r p ]
+      _ -> throwError $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
     toPrim (Axiom r f a i rel x t) = PrimitiveFunction r f a ConcreteDef x t
