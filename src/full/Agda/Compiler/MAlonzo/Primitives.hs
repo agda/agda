@@ -129,21 +129,26 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primNatLess"      |-> relNat "(<)"
 
   -- Floating point functions
-  , "primIntegerToFloat"    |-> return "(fromIntegral :: Integer -> Double)"
+  , "primNatToFloat"        |-> return "(fromIntegral :: Integer -> Double)"
   , "primFloatPlus"         |-> return "((+) :: Double -> Double -> Double)"
   , "primFloatMinus"        |-> return "((-) :: Double -> Double -> Double)"
   , "primFloatTimes"        |-> return "((*) :: Double -> Double -> Double)"
   , "primFloatDiv"          |-> return "((/) :: Double -> Double -> Double)"
-  , "primFloatEquality"     |-> rel "(==)" "Double"
-  , "primFloatLess"         |-> rel "(<)" "Double"
+  , "primFloatEquality"     |-> return "((\\ x y -> if isNaN x && isNaN y then True else x == y) :: Double -> Double -> Bool)"
+  , "primFloatLess"         |-> return $ unwords
+                                  [ "((\\ x y ->"
+                                  , "let isNegInf z = z < 0 && isInfinite z in"
+                                  , "if isNegInf y then False else"
+                                  , "if isNegInf x then True  else"
+                                  , "if isNaN x    then True  else"
+                                  , "x < y) :: Double -> Double -> Bool)" ]
   , "primRound"             |-> return "(round :: Double -> Integer)"
   , "primFloor"             |-> return "(floor :: Double -> Integer)"
   , "primCeiling"           |-> return "(ceiling :: Double -> Integer)"
   , "primExp"               |-> return "(exp :: Double -> Double)"
-  , "primLog"               |-> return "(log :: Double -> Double)"  -- partial
+  , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
-  , "primShowFloat"         |-> return "(show :: Double -> String)"
-  , "primRound"             |-> return "(round :: Double -> Integer)"
+  , "primShowFloat"         |-> return "((\\ x -> if isNegativeZero then \"0.0\" else show x) :: Double -> String)"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"

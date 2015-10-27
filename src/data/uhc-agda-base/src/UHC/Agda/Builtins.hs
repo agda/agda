@@ -271,13 +271,17 @@ primToLower     = C.toLower
 -- ====================
 primShowFloat :: Double -> String
 -- GHC drops trailing zeroes, UHC doesn't seem to do so. Quick fix for now...
-primShowFloat = reverse . dropWhile (=='0') . reverse . show
+primShowFloat x
+  | isNegativeZero x = "0.0"
+  | otherwise        = reverse . dropWhile (=='0') . reverse $ show x
 
 primMkFloat :: String -> Double
 primMkFloat = read
 
 primFloatEquality :: Double -> Double -> Bool
-primFloatEquality = (==)
+primFloatEquality x y
+  | isNaN x && isNaN y = True
+  | otherwise          = x == y
 
 -- ====================
 -- Reflection
