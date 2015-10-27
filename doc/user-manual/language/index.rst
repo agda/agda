@@ -29,6 +29,7 @@ Language Reference
    pragmas
    record-types
    reflection
+   rewriting
    safe-agda
    sized-types
    telescopes

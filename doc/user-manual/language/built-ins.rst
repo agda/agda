@@ -4,9 +4,6 @@
 Built-ins
 *********
 
-.. note::
-   This page is incomplete.
-
 The Agda type checker knows about, and has special treatment for, a number of
 different concepts. The most prominent is natural numbers, which has a special
 representation as Haskell integers and support for fast arithmetic. The surface
@@ -352,9 +349,42 @@ bind the size primitives it is enough to write::
 Coinduction
 -----------
 
+The following built-ins are used for coinductive definitions::
+
+  postulate
+    ∞  : ∀ {a} (A : Set a) → Set a
+    ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+    ♭  : ∀ {a} {A : Set a} → ∞ A → A
+  {-# BUILTIN INFINITY ∞  #-}
+  {-# BUILTIN SHARP    ♯_ #-}
+  {-# BUILTIN FLAT     ♭  #-}
+
+See :ref:`coinduction` for more information.
+
+IO
+--
+
+The sole purpose of binding the built-in ``IO`` type is to let Agda check that
+the ``main`` function has the right type (see :ref:`compilers`).
+
+::
+
+  postulate IO : Set → Set
+  {-# BUILTIN IO IO #-}
+
 Reflection
 ----------
 
 The reflection machinery has built-in types for representing Agda programs. See
-:doc:`reflection` for a detailed description of these types.
+:doc:`reflection` for a detailed description.
+
+Rewriting
+---------
+
+The experimental and totally unsafe :doc:`rewriting machinery <rewriting>` (not
+to be confused with the :ref:`rewrite construct <with-rewrite>`) has a built-in
+``REWRITE`` for the rewriting relation::
+
+  postulate _↦_ : ∀ {a} {A : Set a} → A → A → Set a
+  {-# BUILTIN REWRITE _↦_ #-}
 
