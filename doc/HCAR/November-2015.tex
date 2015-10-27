@@ -1,0 +1,58 @@
+\documentclass{article}
+
+\usepackage{hcar}
+
+\begin{document}
+
+% Agda-NA.tex
+\begin{hcarentry}[section,updated]{Agda}
+\label{agda}
+\report{Ulf Norell}%11/13
+\status{actively developed}
+\participants{Ulf Norell, Nils Anders Danielsson, Andreas Abel,
+Jesper Cockx, Makoto Takeyama,
+Stevan Andjelkovic, Jean-Philippe Bernardy, James Chapman,
+Dominique Devriese, Peter Divianszki,
+Fredrik Nordvall Forsberg, Olle Fredriksson, Daniel Gustafsson,
+Alan Jeffrey, Fredrik Lindblad, Guilhem Moulin, Nicolas Pouillard, Andrés Sicard-Ramírez
+and many others}
+\makeheader
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). A central feature of Agda is inductive families,
+i.e., GADTs which can be indexed by \emph{values} and not just types.
+The language also supports coinductive types, parameterized modules,
+and mixfix operators, and comes with an \emph{interactive}
+interface---the type checker can assist you in the development of your
+code.
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of fun as
+a platform for experiments in dependently typed programming.
+
+Since the release of Agda~2.4.0 in June 2014 a lot has happened in the Agda
+project and community. For instance:
+\begin{itemize}
+\item There have been two Agda courses at the Oregon Programming Languages
+Summer School (OPLSS). In 2014 by Ulf Norell, and in 2015 by Peter Dybjer.
+\item Agda has moved to github: \url{https://github.com/agda/agda}.
+\item Agda~2.4.2 was released in September 2014, and the latest stable
+version is Agda~2.4.2.4, released in September 2015.
+\item The restriction of Agda to not use Streicher's Axiom K was proved
+correct by Jesper Cockx et al. in the ICFP 2014 paper {\em Pattern Matching
+without K}.
+\item Instance arguments are now powerful enough to emulate Haskell-style
+type classes.
+\item The reflection machinery has been extended, making it possible to
+define convenient reflection based tactics.
+\item Improved compiler performance, and a new backend targeting the
+Utrecht Haskell Compiler (UHC).
+\end{itemize}
+Release of Agda~2.4.4 is planned for early 2016.
+
+\FurtherReading
+  The Agda Wiki: \url{http://wiki.portal.chalmers.se/agda/}
+\end{hcarentry}
+
+\end{document}
