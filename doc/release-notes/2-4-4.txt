@@ -199,6 +199,14 @@ Pragmas and options
   If used with the OPTIONS pragma it will not affect records defined
   in other modules.
 
+* The semantics of {-# REWRITE r #-} pragmas in parametrized modules has
+  changed (see Issue 1652).
+
+  Rewrite rules are no longer lifted to the top context. Instead, they now only
+  apply to terms in (extensions of) the module context. If you want the old
+  behaviour, you should put the {-# REWRITE r #-} pragma outside of the module
+  (i.e. unindent it).
+
 
 Language
 ========
