@@ -37,6 +37,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -426,14 +427,17 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       , text "n      =" <+> text (show n)
       , text "perm   =" <+> text (show perm)
       , text "top    =" <+> do addFullCtx $ prettyTCM topArgs
-      , text "qs     =" <+> text (show qs)
-      , text "dt     =" <+> do addFullCtx $ prettyTCM dt
-      , text "ys     =" <+> text (show ys)
-      , text "raw    =" <+> text (show display)
+      , text "qs     =" <+> sep (map (prettyTCM . namedArg) qs)
       , text "qsToTm =" <+> prettyTCM tqs0 -- ctx would be permuted form of delta1 ++ delta2
-      , text "sub qs =" <+> prettyTCM tqs
+      , text "ys     =" <+> text (show ys)
+      , text "rho    =" <+> text (prettyShow rho)
+      , text "qs[rho]=" <+> do addFullCtx $ prettyTCM tqs
+      , text "dt     =" <+> do addFullCtx $ prettyTCM dt
       ]
     ]
+  reportSDoc "tc.with.display" 70 $ nest 2 $ vcat
+      [ text "raw    =" <+> text (show display)
+      ]
 
   return display
   where
