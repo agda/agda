@@ -29,6 +29,10 @@ data ℤ : Set where
   -[1+_] : (n : ℕ) → ℤ  -- -[1+ n ] stands for - (1 + n).
   +_     : (n : ℕ) → ℤ  -- + n stands for n.
 
+{-# BUILTIN INTEGER       ℤ      #-}
+{-# BUILTIN INTEGERPOS    +_     #-}
+{-# BUILTIN INTEGERNEGSUC -[1+_] #-}
+
 ------------------------------------------------------------------------
 -- Conversions
 
