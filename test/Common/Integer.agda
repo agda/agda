@@ -1,7 +1,11 @@
 module Common.Integer where
 
+open import Common.Nat
 
-postulate
-  Integer : Set
+data Integer : Set where
+  pos : Nat → Integer
+  negsuc : Nat → Integer
 
 {-# BUILTIN INTEGER Integer #-}
+{-# BUILTIN INTEGERPOS pos #-}
+{-# BUILTIN INTEGERNEGSUC negsuc #-}

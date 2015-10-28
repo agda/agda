@@ -32,13 +32,18 @@ zero' = 0
 one : Nat
 one = 1
 
+data Int : Set where
+  pos : Nat → Int
+  negsuc : Nat → Int
+
 postulate
-  Int    : Set
   String : Set
   Float  : Set
   Char   : Set
 
 {-# BUILTIN INTEGER Int    #-}
+{-# BUILTIN INTEGERPOS pos #-}
+{-# BUILTIN INTEGERNEGSUC negsuc #-}
 {-# BUILTIN STRING  String #-}
 {-# BUILTIN FLOAT   Float  #-}
 {-# BUILTIN CHAR    Char   #-}
@@ -55,14 +60,6 @@ data List (A : Set) : Set where
 primitive
 
   -- Integer functions
-  primIntegerPlus     : Int -> Int -> Int
-  primIntegerMinus    : Int -> Int -> Int
-  primIntegerTimes    : Int -> Int -> Int
-  -- primIntegerDiv      : Int -> Int -> Int
-  -- primIntegerMod      : Int -> Int -> Int
-  primIntegerEquality : Int -> Int -> Bool
-  primIntegerLess     : Int -> Int -> Bool
-  primNatToInteger    : Nat -> Int
   primShowInteger     : Int -> String
 
     -- Floating point functions
@@ -112,19 +109,11 @@ isAlpha = primIsAlpha
 isUpper : Char -> Bool
 isUpper c = isAlpha c && not (isLower c)
 
-infixl 14 _*_ _/_
-infix  12 -_
-infixl 12 _+_ _-_
-infixl 8  _==_
+infixl 14 _/_
 
 nat0 = primCharToNat '\0'
-int0 = primNatToInteger nat0
+int0 = pos nat0
 
-_+_  = primIntegerPlus
-_*_  = primIntegerTimes
-_-_  = primIntegerMinus
--_   = \(x : Int) -> int0 - x
-_==_ = primIntegerEquality
 _/_  = primFloatDiv
 
 pi : Float
@@ -166,3 +155,18 @@ mapStr f = stringAsList (map f)
 -- Testing unicode literals
 uString = "åäö⊢ξ∀"
 uChar   = '∀'
+
+data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+  refl : x ≡ x
+
+thm-show-pos : primShowInteger (pos 42) ≡ "42"
+thm-show-pos = refl
+
+thm-show-neg : primShowInteger (negsuc 41) ≡ "-42"
+thm-show-neg = refl
+
+thm-floor : primFloor 4.2 ≡ pos 4
+thm-floor = refl
+
+thm-ceiling : primCeiling -5.1 ≡ negsuc 4
+thm-ceiling = refl

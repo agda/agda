@@ -39,7 +39,6 @@ charToStr c = primStringFromList (c ∷ [])
 private
   primitive
     primShowInteger  : Integer -> String
-    primNatToInteger : Nat -> Integer
 
 natToString : Nat -> String
-natToString n = primShowInteger (primNatToInteger n)
+natToString n = primShowInteger (pos n)

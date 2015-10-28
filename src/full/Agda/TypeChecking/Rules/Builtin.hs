@@ -74,7 +74,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaPatProj        |-> BuiltinDataCons (tqname --> tpat))
   , (builtinAgdaPatAbsurd      |-> BuiltinDataCons tpat)
   , (builtinLevel              |-> builtinPostulate tset)
-  , (builtinInteger            |-> builtinPostulate tset)
+  , (builtinInteger            |-> BuiltinData tset [builtinIntegerPos, builtinIntegerNegSuc])
+  , (builtinIntegerPos         |-> BuiltinDataCons (tnat --> tinteger))
+  , (builtinIntegerNegSuc      |-> BuiltinDataCons (tnat --> tinteger))
   , (builtinFloat              |-> builtinPostulate tset)
   , (builtinChar               |-> builtinPostulate tset)
   , (builtinString             |-> builtinPostulate tset)
@@ -197,6 +199,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
         tnat       = el primNat
+        tinteger   = el primInteger
         tfloat     = el primFloat
         tchar      = el primChar
         tstring    = el primString
@@ -382,11 +385,18 @@ getDef t = do
     Def d _ -> return d
     _ -> __IMPOSSIBLE__
 
+bindAndSetHaskellType :: String -> String -> Term -> TCM ()
+bindAndSetHaskellType b hs t = do
+  d <- getDef t
+  addHaskellType d hs
+  bindBuiltinName b t
+
 bindBuiltinBool :: Term -> TCM ()
-bindBuiltinBool t = do
-  bool <- getDef t
-  addHaskellType bool "Bool"
-  bindBuiltinName builtinBool t
+bindBuiltinBool = bindAndSetHaskellType builtinBool "Bool"
+
+bindBuiltinInt :: Term -> TCM ()
+bindBuiltinInt = bindAndSetHaskellType builtinInteger "Either Integer Integer"
+
 
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
@@ -417,9 +427,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
         let n = length cs
         inductiveCheck s n e'
         case () of
-          _ | s == builtinBool -> bindBuiltinBool e'
-            | s == builtinNat  -> bindBuiltinNat e'
-            | otherwise        -> bindBuiltinName s e'
+          _ | s == builtinBool    -> bindBuiltinBool e'
+            | s == builtinNat     -> bindBuiltinNat e'
+            | s == builtinInteger -> bindBuiltinInt e'
+            | otherwise           -> bindBuiltinName s e'
 
       BuiltinDataCons t -> do
 
@@ -436,8 +447,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let v@(Con h []) = name e'
             c = conName h
-        when (s == builtinTrue)  $ addHaskellCode c "Bool" "True"
-        when (s == builtinFalse) $ addHaskellCode c "Bool" "False"
+        when (s == builtinTrue)          $ addHaskellCode c "Bool" "True"
+        when (s == builtinFalse)         $ addHaskellCode c "Bool" "False"
+        when (s == builtinIntegerPos)    $ addHaskellCode c "Integer -> Either Integer Integer" "Right"
+        when (s == builtinIntegerNegSuc) $ addHaskellCode c "Integer -> Either Integer Integer" "Left"
         bindBuiltinName s v
 
       BuiltinPrim pfname axioms -> do

@@ -57,12 +57,10 @@ Equiv-≡ {a} =
 postulate
   String : Set
   Char   : Set
-  Int    : Set
   Float  : Set
 
 {-# BUILTIN STRING  String #-}
 {-# BUILTIN CHAR    Char   #-}
-{-# BUILTIN INTEGER Int    #-}
 {-# BUILTIN FLOAT   Float  #-}
 
 {-# BUILTIN NATURAL ℕ      #-}

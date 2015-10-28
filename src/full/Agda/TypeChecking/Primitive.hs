@@ -22,7 +22,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic (TermLike)
+import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
 
@@ -64,6 +64,11 @@ instance Integral Nat where
   toInteger = unNat
   quotRem (Nat a) (Nat b) = (Nat q, Nat r)
     where (q, r) = quotRem a b
+
+instance TermLike Nat where
+  traverseTerm  _ = id
+  traverseTermM _ = pure
+  foldTerm _      = mempty
 
 instance Show Nat where
   show = show . toInteger
@@ -108,13 +113,22 @@ class ToTerm a where
 
   toTermR = (pure .) <$> toTerm
 
-instance ToTerm Integer where toTerm = return $ Lit . LitNat noRange
 instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
 instance ToTerm Lvl     where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
+
+instance ToTerm Integer where
+  toTerm = do
+    pos     <- primIntegerPos
+    negsuc  <- primIntegerNegSuc
+    fromNat <- toTerm :: TCM (Nat -> Term)
+    let intToTerm = fromNat . fromIntegral :: Integer -> Term
+    let fromInt n | n >= 0    = apply pos    [defaultArg $ intToTerm n]
+                  | otherwise = apply negsuc [defaultArg $ intToTerm (-n - 1)]
+    return fromInt
 
 instance ToTerm Bool where
   toTerm = do
@@ -177,9 +191,25 @@ class FromTerm a where
   fromTerm :: TCM (FromTermFunction a)
 
 instance FromTerm Integer where
-  fromTerm = fromLiteral $ \l -> case l of
-    LitNat _ n -> Just n
-    _          -> Nothing
+  fromTerm = do
+    Con pos    [] <- ignoreSharing <$> primIntegerPos
+    Con negsuc [] <- ignoreSharing <$> primIntegerNegSuc
+    toNat         <- fromTerm :: TCM (FromTermFunction Nat)
+    return $ \ v -> do
+      b <- reduceB' v
+      let v'  = ignoreBlocking b
+          arg = (<$ v')
+      case ignoreSharing $ unArg (ignoreBlocking b) of
+        Con c [u]
+          | c == pos    ->
+            redBind (toNat u)
+              (\ u' -> notReduced $ arg $ Con c [ignoreReduced u']) $ \ n ->
+            redReturn $ fromIntegral n
+          | c == negsuc ->
+            redBind (toNat u)
+              (\ u' -> notReduced $ arg $ Con c [ignoreReduced u']) $ \ n ->
+            redReturn $ fromIntegral $ -n - 1
+        _ -> return $ NoReduction (reduced b)
 
 instance FromTerm Nat where
   fromTerm = fromLiteral $ \l -> case l of
@@ -371,7 +401,8 @@ primQNameDefinition = do
 primDataNumberOfParameters :: TCM PrimitiveImpl
 primDataNumberOfParameters =
   mkPrimFun1TCM (el primAgdaDataDef --> el primNat)
-                (fmap (toInteger . dataPars . theDef) . getConstInfo)
+                (fmap (toNat . dataPars . theDef) . getConstInfo)
+  where toNat = fromIntegral :: Int -> Nat
 
 primDataConstructors :: TCM PrimitiveImpl
 primDataConstructors =
@@ -579,17 +610,22 @@ type Pred a = a -> Bool
 primitiveFunctions :: Map String (TCM PrimitiveImpl)
 primitiveFunctions = Map.fromList
 
-  -- Integer functions
-  [ "primIntegerPlus"     |-> mkPrimFun2 ((+)        :: Op Integer)
-  , "primIntegerMinus"    |-> mkPrimFun2 ((-)        :: Op Integer)
-  , "primIntegerTimes"    |-> mkPrimFun2 ((*)        :: Op Integer)
+  -- Ulf, 2015-10-28: Builtin integers now map to a datatype, and since you
+  -- can define these functions (reasonably) efficiently using the primitive
+  -- functions on natural numbers there's no need for them anymore. Keeping the
+  -- show function around for convenience, and as a test case for a primitive
+  -- function taking an integer.
+  -- -- Integer functions
+  -- [ "primIntegerPlus"     |-> mkPrimFun2 ((+)        :: Op Integer)
+  -- , "primIntegerMinus"    |-> mkPrimFun2 ((-)        :: Op Integer)
+  -- , "primIntegerTimes"    |-> mkPrimFun2 ((*)        :: Op Integer)
   -- , "primIntegerDiv"      |-> mkPrimFun2 (div        :: Op Integer)    -- partial
   -- , "primIntegerMod"      |-> mkPrimFun2 (mod        :: Op Integer)    -- partial
-  , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
-  , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
-  , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
-  , "primNatToInteger"    |-> mkPrimFun1 (toInteger  :: Nat -> Integer)
-  , "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
+  -- , "primIntegerEquality" |-> mkPrimFun2 ((==)       :: Rel Integer)
+  -- , "primIntegerLess"     |-> mkPrimFun2 ((<)        :: Rel Integer)
+  -- , "primIntegerAbs"      |-> mkPrimFun1 (Nat . abs  :: Integer -> Nat)
+  -- , "primNatToInteger"    |-> mkPrimFun1 (toInteger  :: Nat -> Integer)
+  [ "primShowInteger"     |-> mkPrimFun1 (Str . show :: Integer -> Str)
 
   -- Natural number functions
   , "primNatPlus"         |-> mkPrimFun2 ((+)                     :: Op Nat)

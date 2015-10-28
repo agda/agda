@@ -38,14 +38,12 @@ module Prelude where
 
   postulate
     String : Set
-    Int    : Set
     Char   : Set
 
   {-# BUILTIN BOOL    Bool   #-}
   {-# BUILTIN FALSE   false  #-}
   {-# BUILTIN TRUE    true   #-}
   {-# BUILTIN STRING  String #-}
-  {-# BUILTIN INTEGER Int    #-}
   {-# BUILTIN CHAR    Char   #-}
   {-# BUILTIN LIST    List   #-}
   {-# BUILTIN NIL     nil    #-}

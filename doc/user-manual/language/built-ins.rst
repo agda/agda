@@ -111,31 +111,29 @@ properties
 Integers
 --------
 
-.. warning::
-   **The built-in integers will likely change in future versions of Agda.** The
-   current version is not satisfactory since it is completely opaque to the
-   type checker. This means that, unlike for natural numbers, you cannot prove
-   properties about the primitive functions on integers.
+Built-in integers are bound with the ``INTEGER`` built-in to a data type with
+two constructors: one for positive and one for negative numbers. The built-ins
+for the constructors are ``INTEGERPOS`` and ``INTEGERNEGSUC``.
 
-Built-in integers are bound using the ``INTEGER`` built-in as follows::
+::
 
-  postulate Int : Set
-  {-# BUILTIN INTEGER Int #-}
+  data Int : Set where
+    pos    : Nat → Int
+    negsuc : Nat → Int
+  {-# BUILTIN INTEGER       Int    #-}
+  {-# BUILTIN INTEGERPOS    pos    #-}
+  {-# BUILTIN INTEGERNEGSUC negsuc #-}
 
-It supports the following primitive operations (given suitable bindings for
-`Nat <Natural numbers_>`_, `Bool <Booleans_>`_ and `String <Strings_>`_) with
-the obvious implementations::
+Here ``negsuc n`` represents the integer ``-n - 1``. Unlike for natural
+numbers, there is no special representation of integers at compile-time since
+the overhead of using the data type compared to Haskell integers is not that
+big.
+
+Built-in integers support the following primitive operation (given a suitable
+binding for `String <Strings_>`_)::
 
   primitive
-    primNatToInteger    : Nat → Int
-    primIntegerMinus    : Int → Int → Int
-    primIntegerPlus     : Int → Int → Int
-    primIntegerTimes    : Int → Int → Int
-    primIntegerEquality : Int → Int → Bool
-    primIntegerLess     : Int → Int → Bool
-    primIntegerAbs      : Int → Nat
-    primNatToInteger    : Nat → Int
-    primShowInteger     : Int → String
+    primShowInteger : Int → String
 
 .. _built-in-float:
 

@@ -60,15 +60,21 @@ Equiv-≡ {a} =
 postulate
   String : Set
   Char   : Set
-  Int    : Set
   Float  : Set
+
+data Int : Set where
+  pos    : ℕ → Int
+  negsuc : ℕ → Int
 
 {-# BUILTIN STRING  String #-}
 {-# BUILTIN CHAR    Char   #-}
-{-# BUILTIN INTEGER Int    #-}
 {-# BUILTIN FLOAT   Float  #-}
 
 {-# BUILTIN NATURAL ℕ      #-}
+
+{-# BUILTIN INTEGER       Int    #-}
+{-# BUILTIN INTEGERPOS    pos    #-}
+{-# BUILTIN INTEGERNEGSUC negsuc #-}
 
 data [_] (a : Set) : Set where
   []  : [ a ]

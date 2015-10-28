@@ -97,7 +97,8 @@ constructorForm' pZero pSuc v =
 -- * The names of built-in things
 ---------------------------------------------------------------------------
 
-primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
+primInteger, primIntegerPos, primIntegerNegSuc,
+    primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -126,6 +127,8 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
+primIntegerPos   = getBuiltin builtinIntegerPos
+primIntegerNegSuc = getBuiltin builtinIntegerNegSuc
 primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar
 primString       = getBuiltin builtinString
@@ -229,7 +232,8 @@ primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
-  builtinNatLess, builtinInteger, builtinFloat, builtinChar, builtinString,
+  builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
+  builtinFloat, builtinChar, builtinString,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinSizeUniv, builtinSize, builtinSizeLt,
@@ -271,6 +275,8 @@ builtinNatModSucAux                  = "NATMODSUCAUX"
 builtinNatEquals                     = "NATEQUALS"
 builtinNatLess                       = "NATLESS"
 builtinInteger                       = "INTEGER"
+builtinIntegerPos                    = "INTEGERPOS"
+builtinIntegerNegSuc                 = "INTEGERNEGSUC"
 builtinFloat                         = "FLOAT"
 builtinChar                          = "CHAR"
 builtinString                        = "STRING"

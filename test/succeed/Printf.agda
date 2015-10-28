@@ -20,12 +20,22 @@ data List (A : Set) : Set where
 module Primitive where
 
   postulate
-    Int    : Set
     String : Set
     Float  : Set
     Char   : Set
 
+  data Nat : Set where
+    zero : Nat
+    suc  : Nat → Nat
+
+  data Int : Set where
+    pos    : Nat → Int
+    negsuc : Nat → Int
+
+  {-# BUILTIN NATURAL Nat    #-}
   {-# BUILTIN INTEGER Int    #-}
+  {-# BUILTIN INTEGERPOS pos #-}
+  {-# BUILTIN INTEGERNEGSUC negsuc #-}
   {-# BUILTIN STRING  String #-}
   {-# BUILTIN FLOAT   Float  #-}
   {-# BUILTIN CHAR    Char   #-}

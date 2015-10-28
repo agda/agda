@@ -580,6 +580,36 @@ Other changes
   The will cause string literals 's' to be desugared to 'fromString s' before
   type checking.
 
+* Change to builtin integers.
+
+  The INTEGER builtin now needs to be bound to a datatype with two constructors
+  that should be bound to the new builtins INTEGERPOS and INTEGERNEGSUC as follows:
+
+    data Int : Set where
+      pos    : Nat -> Int
+      negsuc : Nat -> Int
+    {-# BUILTIN INTEGER       Int    #-}
+    {-# BUILTIN INTEGERPOS    pos    #-}
+    {-# BUILTIN INTEGERNEGSUC negsuc #-}
+
+  where 'negsuc n' represents the integer '-n - 1'. For instance, '-5' is
+  represented as 'negsuc 4'. All primitive functions on integers except
+  primShowInteger have been removed, since these can be defined without too
+  much trouble on the above representation using the corresponding functions on
+  natural numbers.
+
+  The primitives that have been removed are
+
+    primIntegerPlus
+    primIntegerMinus
+    primIntegerTimes
+    primIntegerDiv
+    primIntegerMod
+    primIntegerEquality
+    primIntegerLess
+    primIntegerAbs
+    primNatToInteger
+
 * Building records from modules.
 
   The "record { <fields> }" syntax is now extended to accept module names as

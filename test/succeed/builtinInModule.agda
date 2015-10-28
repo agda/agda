@@ -1,9 +1,9 @@
 
 module builtinInModule where
 
-module Int where
+module Str where
 
-  postulate I : Set
-  {-# BUILTIN INTEGER I #-}
-  primitive primIntegerPlus : I -> I -> I
+  postulate S : Set
+  {-# BUILTIN STRING S #-}
+  primitive primStringAppend : S → S → S
 

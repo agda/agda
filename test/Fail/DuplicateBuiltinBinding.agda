@@ -1,7 +1,7 @@
 module DuplicateBuiltinBinding where
 
-postulate Int : Set
+postulate String : Set
 
-{-# BUILTIN INTEGER Int #-}
-{-# BUILTIN INTEGER Int #-}
+{-# BUILTIN STRING String #-}
+{-# BUILTIN STRING String #-}
 
