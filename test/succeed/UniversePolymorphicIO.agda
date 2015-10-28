@@ -19,7 +19,6 @@ postulate
   String : Set
 
 {-# BUILTIN STRING String #-}
-{-# COMPILED_TYPE String String #-}
 
 {-# COMPILED return (\_ _ -> return :: a -> IO a) #-}
 {-# COMPILED _>>=_  (\_ _ _ _ ->

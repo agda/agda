@@ -785,7 +785,8 @@ Compiler backends
 
     Since builtin naturals are compiled to Integer you can no longer
     give a {-# COMPILED_DATA #-} pragma for Nat. The same goes for
-    builtin booleans which are now hard-wired to Haskell booleans.
+    builtin booleans, integers, floats, characters and strings which are now
+    hard-wired to appropriate Haskell types.
 
 
 * UHC compiler backend

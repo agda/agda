@@ -19,7 +19,6 @@ data Unit : Set where
 
 postulate String : Set
 
-{-# COMPILED_TYPE String String #-}
 {-# BUILTIN STRING String #-}
 
 data _×_ (A B : Set) : Set where

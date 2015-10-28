@@ -1,4 +1,5 @@
 CompiledBuiltinBool.agda:12,1-43
 Multiple Haskell bindings for CompiledBuiltinBool.Bool. Note that
-builtin natural numbers and booleans don't need COMPILED pragmas.
+builtin numbers, booleans, chars and strings don't need COMPILED
+pragmas.
 when checking the pragma COMPILED_DATA Bool Bool True False

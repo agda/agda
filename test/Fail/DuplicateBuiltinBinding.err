@@ -1,4 +1,5 @@
 DuplicateBuiltinBinding.agda:6,1-30
-Duplicate binding for built-in thing STRING, previous binding to
-String
+Multiple Haskell bindings for DuplicateBuiltinBinding.String. Note
+that builtin numbers, booleans, chars and strings don't need
+COMPILED pragmas.
 when checking the pragma BUILTIN STRING String

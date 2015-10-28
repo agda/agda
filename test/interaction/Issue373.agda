@@ -25,7 +25,6 @@ postulate
   String : Set
 
 {-# BUILTIN STRING String #-}
-{-# COMPILED_TYPE String String #-}
 
 postulate
   IO : Set → Set

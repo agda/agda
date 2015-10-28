@@ -397,6 +397,8 @@ bindBuiltinBool = bindAndSetHaskellType builtinBool "Bool"
 bindBuiltinInt :: Term -> TCM ()
 bindBuiltinInt = bindAndSetHaskellType builtinInteger "Either Integer Integer"
 
+bindBuiltinString :: Term -> TCM ()
+bindBuiltinString = bindAndSetHaskellType builtinString "String"
 
 bindBuiltinNat :: Term -> TCM ()
 bindBuiltinNat t = do
@@ -485,6 +487,9 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             case theDef def of
               Axiom {} -> do
                 builtinSizeHook s q t'
+                when (s == builtinChar)   $ addHaskellType q "Char"
+                when (s == builtinString) $ addHaskellType q "String"
+                when (s == builtinFloat)  $ addHaskellType q "Double"
                 bindBuiltinName s e'
               _        -> err
           _ -> err

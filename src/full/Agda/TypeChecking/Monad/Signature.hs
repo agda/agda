@@ -96,7 +96,7 @@ ensureNoCompiledHaskell :: QName -> TCM ()
 ensureNoCompiledHaskell q =
   whenM (isJust . compiledHaskell . defCompiledRep <$> getConstInfo q) $
     typeError $ GenericError $ "Multiple Haskell bindings for " ++ show q ++ ". " ++
-                               "Note that builtin natural numbers and booleans don't need " ++
+                               "Note that builtin numbers, booleans, chars and strings don't need " ++
                                "COMPILED pragmas."
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
