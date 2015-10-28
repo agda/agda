@@ -82,12 +82,12 @@ isBlockedTerm x = do
       if r then "  yes, because " ++ show i else "  no"
     return r
 
-isEtaExpandable :: MetaId -> TCM Bool
-isEtaExpandable x = do
+isEtaExpandable :: [MetaKind] -> MetaId -> TCM Bool
+isEtaExpandable kinds x = do
     i <- mvInstantiation <$> lookupMeta x
     return $ case i of
       Open{}                         -> True
-      OpenIFS{}                      -> False
+      OpenIFS{}                      -> notElem Records kinds
       InstV{}                        -> False
       InstS{}                        -> False
       BlockedConst{}                 -> False
@@ -203,6 +203,7 @@ newIFSMetaCtx s t vs cands = do
     [ nest 2 $ pretty x <+> text ":" <+> prettyTCM t
     ]
   addConstraint $ FindInScope x Nothing cands
+  etaExpandMetaSafe x
   return $ MetaV x $ map Apply vs
 
 
@@ -439,7 +440,7 @@ allMetaKinds = [minBound .. maxBound]
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
-etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
+etaExpandMeta kinds m = whenM (isEtaExpandable kinds m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ prettyShow m) $ do
     let waitFor x = do
           reportSDoc "tc.meta.eta" 20 $ do
