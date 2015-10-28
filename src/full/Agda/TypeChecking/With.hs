@@ -35,6 +35,7 @@ import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -398,7 +399,8 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       -- Build a substitution to replace the parent pattern vars
       -- by the pattern vars of the with-function.
       (ys0, ys1) = splitAt (size delta1) $ permute perm $ downFrom m
-      ys         = reverse $ map Just ys0 ++ replicate n Nothing ++ map Just ys1
+      ys         = reverse (map Just ys0 ++ replicate n Nothing ++ map Just ys1)
+                   ++ map (Just . (m +)) [0..top-1]
       rho        = sub top ys wild
       tqs        = applySubst rho tqs0
       -- Build the arguments to the with function.
@@ -424,22 +426,27 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       , text "n      =" <+> text (show n)
       , text "perm   =" <+> text (show perm)
       , text "top    =" <+> do addFullCtx $ prettyTCM topArgs
-      , text "qs     =" <+> text (show qs)
-      , text "dt     =" <+> do addFullCtx $ prettyTCM dt
-      , text "ys     =" <+> text (show ys)
-      , text "raw    =" <+> text (show display)
+      , text "qs     =" <+> sep (map (prettyTCM . namedArg) qs)
       , text "qsToTm =" <+> prettyTCM tqs0 -- ctx would be permuted form of delta1 ++ delta2
-      , text "sub qs =" <+> prettyTCM tqs
+      , text "ys     =" <+> text (show ys)
+      , text "rho    =" <+> text (prettyShow rho)
+      , text "qs[rho]=" <+> do addFullCtx $ prettyTCM tqs
+      , text "dt     =" <+> do addFullCtx $ prettyTCM dt
       ]
     ]
+  reportSDoc "tc.with.display" 70 $ nest 2 $ vcat
+      [ text "raw    =" <+> text (show display)
+      ]
 
   return display
   where
     -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
-    sub top ys wild = map term [0 .. m - 1] ++# raiseS (length qs)
+    -- sub top ys wild = map term [0 .. m - 1] ++# raiseS (length qs)
+    -- Andreas, 2015-10-28: Yes, but properly! (Issue 1407)
+    sub top ys wild = parallelS $ map term [0 .. m + top - 1]
       where
         term i = maybe wild var $ findIndex (Just i ==) ys
-    -- OLD
+    -- -- OLD
     -- sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
     --   where
     --     -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)

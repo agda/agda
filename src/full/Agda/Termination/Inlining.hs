@@ -87,15 +87,27 @@ inlineWithClauses f cl = inTopContext $ do
         -- The clause body is a with-function call @wf args@.
         -- @f@ is the function the with-function belongs to.
         let args = fromMaybe __IMPOSSIBLE__ . allApplyElims $ els
+
+        reportSDoc "term.with.inline" 70 $ sep
+          [ text "Found with (raw):", nest 2 $ text $ show cl ]
         reportSDoc "term.with.inline" 20 $ sep
           [ text "Found with:", nest 2 $ prettyTCM $ QNamed f cl ]
+
         t   <- defType <$> getConstInfo wf
         cs1 <- withExprClauses cl t args
+
+        reportSDoc "term.with.inline" 70 $ vcat $
+          text "withExprClauses (raw)" : map (nest 2 . text . show) cs1
         reportSDoc "term.with.inline" 20 $ vcat $
           text "withExprClauses" : map (nest 2 . prettyTCM . QNamed f) cs1
+
         cs2 <- inlinedClauses f cl t wf
+
+        reportSDoc "term.with.inline" 70 $ vcat $
+          text "inlinedClauses (raw)" : map (nest 2 . text . show) cs2
         reportSDoc "term.with.inline" 20 $ vcat $
           text "inlinedClauses" : map (nest 2 . prettyTCM . QNamed f) cs2
+
         return $ cs1 ++ cs2
     _ -> noInline
 
@@ -153,8 +165,11 @@ inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
   -- of the arguments to the parent function. Fortunately we have already
   -- figured out how to turn an application of the with-function into an
   -- application of the parent function in the display form.
+  reportSDoc "term.with.inline" 70 $ text "inlining (raw) =" <+> text (show wcl)
   let vs = clauseArgs wcl
   Just disp <- displayForm wf vs
+  reportSDoc "term.with.inline" 70 $ text "display form (raw) =" <+> text (show disp)
+  reportSDoc "term.with.inline" 40 $ text "display form =" <+> prettyTCM disp
   (pats, perm) <- dispToPats disp
 
   -- Now we need to sort out the right hand side. We have

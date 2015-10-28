@@ -347,7 +347,7 @@ showPat' :: (a -> TCM Doc) -> Pattern' a -> TCM Doc
 showPat' showVar = showPat
   where
       showPat (VarP x)      = showVar x
-      showPat (DotP t)      = text $ ".(" ++ show t ++ ")"
+      showPat (DotP t)      = text $ ".(" ++ P.prettyShow t ++ ")"
       showPat (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (showPat . namedArg) ps)
         where
