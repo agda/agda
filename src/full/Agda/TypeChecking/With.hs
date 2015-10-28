@@ -401,7 +401,8 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
       -- Build a substitution to replace the parent pattern vars
       -- by the pattern vars of the with-function.
       (ys0, ys1) = splitAt (size delta1) $ permute perm $ downFrom m
-      ys         = reverse $ map Just ys0 ++ replicate n Nothing ++ map Just ys1
+      ys         = reverse (map Just ys0 ++ replicate n Nothing ++ map Just ys1)
+                   ++ map (Just . (m +)) [0..top-1]
       rho        = sub top ys wild
       tqs        = applySubst rho tqs0
       -- Build the arguments to the with function.
@@ -442,10 +443,12 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   return display
   where
     -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
-    sub top ys wild = map term [0 .. m - 1] ++# raiseS (length qs)
+    -- sub top ys wild = map term [0 .. m - 1] ++# raiseS (length qs)
+    -- Andreas, 2015-10-28: Yes, but properly! (Issue 1407)
+    sub top ys wild = parallelS $ map term [0 .. m + top - 1]
       where
         term i = maybe wild var $ findIndex (Just i ==) ys
-    -- OLD
+    -- -- OLD
     -- sub top rho wild = parallelS $ map term [0 .. m - 1] ++ topTerms
     --   where
     --     -- Ulf, 2014-02-19: We need to rename the module parameters as well! (issue1035)
