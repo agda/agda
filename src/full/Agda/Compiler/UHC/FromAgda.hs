@@ -357,7 +357,7 @@ lazyPatternMatches t = go t
 
 
 litToCore :: Literal -> CExpr
-litToCore (LitInt _ i)   = mkApp (mkVar $ primFunNm "primIntegerToNat") [mkInteger opts i]
+litToCore (LitNat _ i)   = mkApp (mkVar $ primFunNm "primIntegerToNat") [mkInteger opts i]
 litToCore (LitString _ s) = mkString opts s
 litToCore (LitChar _ c)  = mkChar c
 -- UHC and GHC handle trailing zeros slightly different. Work around to make sure

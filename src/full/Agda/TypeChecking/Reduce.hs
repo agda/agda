@@ -329,7 +329,7 @@ instance Reduce Term where
       reduceNat v@(Con c []) = do
         mz  <- getBuiltin' builtinZero
         case v of
-          _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
+          _ | Just v == mz  -> return $ Lit $ LitNat (getRange c) 0
           _                 -> return v
       reduceNat v@(Con c [a]) | notHidden a && isRelevant a = do
         ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
@@ -338,7 +338,7 @@ instance Reduce Term where
           _                         -> return v
           where
             inc w = case ignoreSharing w of
-              Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
+              Lit (LitNat r n) -> Lit (LitNat (fuseRange c r) $ n + 1)
               _                -> Con c [defaultArg w]
       reduceNat v = return v
 

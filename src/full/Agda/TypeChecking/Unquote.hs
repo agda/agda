@@ -147,7 +147,7 @@ instance Unquote Integer where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Lit (LitInt _ n) -> return n
+      Lit (LitNat _ n) -> return n
       _ -> throwException $ NotALiteral "Integer" t
 
 instance Unquote Double where
@@ -274,7 +274,7 @@ instance Unquote Literal where
     case ignoreSharing t of
       Con c [x] ->
         choice
-          [ (c `isCon` primAgdaLitNat,    LitInt    noRange <$> unquoteN x)
+          [ (c `isCon` primAgdaLitNat,    LitNat    noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitString, LitString noRange <$> unquoteNString x)

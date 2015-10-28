@@ -155,7 +155,7 @@ instance NamesIn LevelAtom where
 -- For QName literals!
 instance NamesIn Literal where
   namesIn l = case l of
-    LitInt{}      -> Set.empty
+    LitNat{}      -> Set.empty
     LitString{}   -> Set.empty
     LitChar{}     -> Set.empty
     LitFloat{}    -> Set.empty

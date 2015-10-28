@@ -28,7 +28,7 @@ class (Functor m, Applicative m, Monad m) => HasBuiltins m where
 
 litType :: Literal -> TCM Type
 litType l = case l of
-  LitInt _ n    -> do
+  LitNat _ n    -> do
     _ <- primZero
     when_ (n > 0) $ primSuc
     el <$> primNat
@@ -87,9 +87,9 @@ constructorForm v = constructorForm' primZero primSuc v
 constructorForm' :: Applicative m => m Term -> m Term -> Term -> m Term
 constructorForm' pZero pSuc v =
   case ignoreSharing v of
-    Lit (LitInt r n)
+    Lit (LitNat r n)
       | n == 0    -> pZero
-      | n > 0     -> (`apply` [defaultArg $ Lit $ LitInt r $ n - 1]) <$> pSuc
+      | n > 0     -> (`apply` [defaultArg $ Lit $ LitNat r $ n - 1]) <$> pSuc
       | otherwise -> pure v
     _ -> pure v
 

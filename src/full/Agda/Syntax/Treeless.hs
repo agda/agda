@@ -71,10 +71,10 @@ mkLet :: TTerm -> TTerm -> TTerm
 mkLet x body = TLet x body
 
 tInt :: Integer -> TTerm
-tInt = TLit . LitInt noRange
+tInt = TLit . LitNat noRange
 
 intView :: TTerm -> Maybe Integer
-intView (TLit (LitInt _ x)) = Just x
+intView (TLit (LitNat _ x)) = Just x
 intView _ = Nothing
 
 tPlusK :: Integer -> TTerm -> TTerm

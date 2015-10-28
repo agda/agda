@@ -475,7 +475,7 @@ alt a = do
 
 literal :: Literal -> TCM HS.Exp
 literal l = case l of
-  LitInt    _ _   -> return $ typed "Integer"
+  LitNat    _ _   -> return $ typed "Integer"
   LitFloat  _ _   -> return $ typed "Double"
   LitQName  _ x   -> return $ litqname x
   _               -> return $ l'
@@ -483,7 +483,7 @@ literal l = case l of
         typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
 
 hslit :: Literal -> HS.Literal
-hslit l = case l of LitInt    _ x -> HS.Int    x
+hslit l = case l of LitNat    _ x -> HS.Int    x
                     LitFloat  _ x -> HS.Frac   (toRational x)
                     LitString _ x -> HS.String x
                     LitChar   _ x -> HS.Char   x

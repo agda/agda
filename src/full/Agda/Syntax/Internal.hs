@@ -724,10 +724,10 @@ instance SgTel (Dom Type) where
   sgTel dom = sgTel (stringToArgName "_", dom)
 
 hackReifyToMeta :: Term
-hackReifyToMeta = DontCare $ Lit $ LitInt noRange (-42)
+hackReifyToMeta = DontCare $ Lit $ LitNat noRange (-42)
 
 isHackReifyToMeta :: Term -> Bool
-isHackReifyToMeta (DontCare (Lit (LitInt r (-42)))) = r == noRange
+isHackReifyToMeta (DontCare (Lit (LitNat r (-42)))) = r == noRange
 isHackReifyToMeta _ = False
 
 ---------------------------------------------------------------------------

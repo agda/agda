@@ -304,7 +304,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
 instance Reify Literal Expr where
   reifyWhen = reifyWhenE
-  reify l@(LitInt    {}) = return (A.Lit l)
+  reify l@(LitNat    {}) = return (A.Lit l)
   reify l@(LitFloat  {}) = return (A.Lit l)
   reify l@(LitString {}) = return (A.Lit l)
   reify l@(LitChar   {}) = return (A.Lit l)

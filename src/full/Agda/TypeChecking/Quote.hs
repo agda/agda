@@ -120,7 +120,7 @@ quotingKit = do
                                            @@ quoteRelevance r
 
       quoteLit :: Literal -> ReduceM Term
-      quoteLit l@LitInt{}    = lit !@ (litNat    !@! Lit l)
+      quoteLit l@LitNat{}    = lit !@ (litNat    !@! Lit l)
       quoteLit l@LitFloat{}  = lit !@ (litFloat  !@! Lit l)
       quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
       quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
@@ -129,8 +129,8 @@ quotingKit = do
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
       quoteSortLevelTerm :: Level -> ReduceM Term
-      quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitInt noRange 0)
-      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitInt noRange n)
+      quoteSortLevelTerm (Max [])              = setLit !@! Lit (LitNat noRange 0)
+      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit !@! Lit (LitNat noRange n)
       quoteSortLevelTerm l                     = set !@ quoteTerm (unlevelWithKit lkit l)
 
       quoteSort :: Sort -> ReduceM Term
@@ -190,7 +190,7 @@ quotingKit = do
         case unSpine v of
           Var n es   ->
              let ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-             in  var !@! Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
+             in  var !@! Lit (LitNat noRange $ fromIntegral n) @@ quoteArgs ts
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             d <- theDef <$> getConstInfo x

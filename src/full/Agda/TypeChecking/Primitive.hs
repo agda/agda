@@ -108,8 +108,8 @@ class ToTerm a where
 
   toTermR = (pure .) <$> toTerm
 
-instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
-instance ToTerm Nat     where toTerm = return $ Lit . LitInt noRange . toInteger
+instance ToTerm Integer where toTerm = return $ Lit . LitNat noRange
+instance ToTerm Nat     where toTerm = return $ Lit . LitNat noRange . toInteger
 instance ToTerm Lvl     where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
@@ -178,12 +178,12 @@ class FromTerm a where
 
 instance FromTerm Integer where
   fromTerm = fromLiteral $ \l -> case l of
-    LitInt _ n -> Just n
+    LitNat _ n -> Just n
     _          -> Nothing
 
 instance FromTerm Nat where
   fromTerm = fromLiteral $ \l -> case l of
-    LitInt _ n -> Just $ fromInteger n
+    LitNat _ n -> Just $ fromInteger n
     _          -> Nothing
 
 instance FromTerm Lvl where

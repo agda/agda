@@ -245,7 +245,7 @@ instance GenC Integer where
 
 instance GenC Literal where
   genC conf = oneof (concat $ zipWith gen useLits
-              [ uncurry LitInt    <$> genC conf
+              [ uncurry LitNat    <$> genC conf
               , uncurry LitFloat  <$> genC conf
               , uncurry LitString <$> genC conf
               , uncurry LitChar   <$> genC conf
@@ -399,9 +399,9 @@ instance ShrinkC ConName ConHead where
   noShrink = unConName
 
 instance ShrinkC Literal Literal where
-  shrinkC _ (LitInt _ 0) = []
-  shrinkC conf l         = LitInt noRange 0 : case l of
-      LitInt    r n -> LitInt    r <$> shrink n
+  shrinkC _ (LitNat _ 0) = []
+  shrinkC conf l         = LitNat noRange 0 : case l of
+      LitNat    r n -> LitNat    r <$> shrink n
       LitString r s -> LitString r <$> shrinkC conf s
       LitChar   r c -> LitChar   r <$> shrinkC conf c
       LitFloat  r x -> LitFloat  r <$> shrink x

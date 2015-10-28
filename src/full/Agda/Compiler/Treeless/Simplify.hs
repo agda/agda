@@ -48,7 +48,7 @@ simplify FunctionKit{..} = simpl
   where
     simpl t = case t of
 
-      TApp (TDef f) [TLit (LitInt _ 0), m, n, m']
+      TApp (TDef f) [TLit (LitNat _ 0), m, n, m']
         | m == m', Just f == divAux -> simpl $ tOp PDiv n (tPlusK 1 m)
         | m == m', Just f == modAux -> simpl $ tOp PMod n (tPlusK 1 m)
 
@@ -61,7 +61,7 @@ simplify FunctionKit{..} = simpl
           TVar x -> do
             u <- lookupVar x
             case u of
-              TApp (TPrim PSub) [TVar y, TLit (LitInt _ j)]
+              TApp (TPrim PSub) [TVar y, TLit (LitNat _ j)]
                 | k == j    -> pure $ TVar y
                 | k > j     -> pure $ tPlusK (k - j) (TVar y)
                 | otherwise -> pure $ tOp PSub (TVar y) (tInt (j - k))

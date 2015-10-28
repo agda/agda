@@ -370,12 +370,12 @@ instance EmbPrj ConPOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitInt    a b) = icode2' a b
+  icod_ (LitNat    a b) = icode2' a b
   icod_ (LitFloat  a b) = icode2 1 a b
   icod_ (LitString a b) = icode2 2 a b
   icod_ (LitChar   a b) = icode2 3 a b
   icod_ (LitQName  a b) = icode2 5 a b
-  value = vcase valu where valu [a, b]    = valu2 LitInt    a b
+  value = vcase valu where valu [a, b]    = valu2 LitNat    a b
                            valu [1, a, b] = valu2 LitFloat  a b
                            valu [2, a, b] = valu2 LitString a b
                            valu [3, a, b] = valu2 LitChar   a b

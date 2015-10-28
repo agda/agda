@@ -34,7 +34,7 @@ import Agda.Syntax.Internal
     toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
 import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
 import Agda.TypeChecking.Substitute ( absBody )
-import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
+import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
   ( TCM, Definition(Defn), Interface,
@@ -455,7 +455,7 @@ qname q = do
   return (foldl Lookup e ls)
 
 literal :: Literal -> Exp
-literal (LitInt    _ x) = Integer x
+literal (LitNat    _ x) = Integer x
 literal (LitFloat  _ x) = Double  x
 literal (LitString _ x) = String  x
 literal (LitChar   _ x) = Char    x

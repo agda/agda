@@ -257,7 +257,7 @@ substTerm env term = case T.ignoreSharing $ T.unSpine term of
 -- | Translate Agda literals to our AUX definition
 substLit :: TL.Literal -> Compile TCM Lit
 substLit lit = case lit of
-  TL.LitInt    _ i -> return $ LInt i
+  TL.LitNat    _ i -> return $ LInt i
   TL.LitString _ s -> return $ LString s
   TL.LitChar   _ c -> return $ LChar c
   TL.LitFloat  _ f -> return $ LFloat f

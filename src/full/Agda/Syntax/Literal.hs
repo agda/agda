@@ -9,7 +9,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
 
-data Literal = LitInt    Range !Integer
+data Literal = LitNat    Range !Integer
              | LitFloat  Range !Double
              | LitString Range String
              | LitChar   Range !Char
@@ -18,7 +18,7 @@ data Literal = LitInt    Range !Integer
 
 instance Show Literal where
   showsPrec p l = showParen (p > 9) $ case l of
-    LitInt _ n    -> sh "LitInt" n
+    LitNat _ n    -> sh "LitNat" n
     LitFloat _ x  -> sh "LitFloat" x
     LitString _ s -> sh "LitString" s
     LitChar _ c   -> sh "LitChar" c
@@ -28,7 +28,7 @@ instance Show Literal where
       sh c x = showString (c ++ " ") . shows x
 
 instance Pretty Literal where
-    pretty (LitInt _ n)     = text $ show n
+    pretty (LitNat _ n)     = text $ show n
     pretty (LitFloat _ x)   = text $ show x
     pretty (LitString _ s)  = text $ showString' s ""
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
@@ -47,7 +47,7 @@ showChar' c
         escapeMe c = not (isPrint c) || c == '\\'
 
 instance Eq Literal where
-  LitInt _ n    == LitInt _ m    = n == m
+  LitNat _ n    == LitNat _ m    = n == m
   LitFloat _ x  == LitFloat _ y  = x == y
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
@@ -55,13 +55,13 @@ instance Eq Literal where
   _             == _             = False
 
 instance Ord Literal where
-  LitInt _ n    `compare` LitInt _ m    = n `compare` m
+  LitNat _ n    `compare` LitNat _ m    = n `compare` m
   LitFloat _ x  `compare` LitFloat _ y  = x `compare` y
   LitString _ s `compare` LitString _ t = s `compare` t
   LitChar _ c   `compare` LitChar _ d   = c `compare` d
   LitQName _ x  `compare` LitQName _ y  = x `compare` y
-  compare LitInt{}    _ = LT
-  compare _ LitInt{} = GT
+  compare LitNat{}    _ = LT
+  compare _ LitNat{} = GT
   compare LitFloat{}  _ = LT
   compare _ LitFloat{} = GT
   compare LitString{} _ = LT
@@ -70,21 +70,21 @@ instance Ord Literal where
   compare _ LitQName{}  = GT
 
 instance HasRange Literal where
-  getRange (LitInt    r _) = r
+  getRange (LitNat    r _) = r
   getRange (LitFloat  r _) = r
   getRange (LitString r _) = r
   getRange (LitChar   r _) = r
   getRange (LitQName  r _) = r
 
 instance SetRange Literal where
-  setRange r (LitInt    _ x) = LitInt    r x
+  setRange r (LitNat    _ x) = LitNat    r x
   setRange r (LitFloat  _ x) = LitFloat  r x
   setRange r (LitString _ x) = LitString r x
   setRange r (LitChar   _ x) = LitChar   r x
   setRange r (LitQName  _ x) = LitQName  r x
 
 instance KillRange Literal where
-  killRange (LitInt    r x) = LitInt    (killRange r) x
+  killRange (LitNat    r x) = LitNat    (killRange r) x
   killRange (LitFloat  r x) = LitFloat  (killRange r) x
   killRange (LitString r x) = LitString (killRange r) x
   killRange (LitChar   r x) = LitChar   (killRange r) x
@@ -93,7 +93,7 @@ instance KillRange Literal where
 -- | Ranges are not forced.
 
 instance NFData Literal where
-  rnf (LitInt _ _)    = ()
+  rnf (LitNat _ _)    = ()
   rnf (LitFloat _ _)  = ()
   rnf (LitString _ a) = rnf a
   rnf (LitChar _ _)   = ()

@@ -232,7 +232,7 @@ tokens :-
 -- Literals
 <0,code> \'             { litChar }
 <0,code> \"             { litString }
-<0,code> @integer       { literal LitInt }
+<0,code> @integer       { literal LitNat }
 <0,code> @float         { literal LitFloat }
 
 -- Identifiers

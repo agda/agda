@@ -34,7 +34,7 @@ expandLitPattern :: NamedArg A.Pattern -> TCM (NamedArg A.Pattern)
 expandLitPattern p = traverse (traverse expand) p
   where
     expand p = case asView p of
-      (xs, A.LitP (LitInt r n))
+      (xs, A.LitP (LitNat r n))
         | n < 0     -> __IMPOSSIBLE__
         | n > 20    -> tooBig
         | otherwise -> do

@@ -351,7 +351,7 @@ beginImpDir : {- empty -}   {% pushLexState imp_dir }
 -- An integer. Used in fixity declarations.
 Int :: { Integer }
 Int : literal   {% case $1 of {
-                     LitInt _ i -> return i;
+                     LitNat _ i -> return i;
                      _          -> fail $ "Expected integer"
                    }
                 }
