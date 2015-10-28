@@ -45,8 +45,8 @@ Pragmas and options
   --library-file=FILE flag, although this is not expected to be very useful.
 
   You can find out the precise location of the 'libraries' file by
-  calling 'agda -l fjdsk' and looking at the error message (assuming you
-  don't have a library called fjdsk installed).
+  calling 'agda -l fjdsk Dummy.agda' and looking at the error message (assuming
+  you don't have a library called fjdsk installed).
 
   There are three ways a library gets used:
 
