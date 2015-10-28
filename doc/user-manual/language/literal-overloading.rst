@@ -4,6 +4,8 @@
 Literal Overloading
 *******************
 
+.. _overloaded-nats:
+
 Natural numbers
 ---------------
 
@@ -35,7 +37,7 @@ the ``Number`` class with an additional constraint::
   record Number {a} (A : Set a) : Set (lsuc a) where
     field
       Constraint : Nat → Set a
-      fromNat : ∀ n → {{_ : Constraint n}} → A
+      fromNat : (n : Nat) {{_ : Constraint n}} → A
 
   open Number {{...}} public using (fromNat)
 
@@ -53,6 +55,8 @@ for ``Fin n`` can then be defined as follows::
 
 .. _agda-prelude: https://github.com/UlfNorell/agda-prelude
 
+.. _overloaded-negative-numbers:
+
 Negative numbers
 ----------------
 
@@ -64,14 +68,31 @@ is a :ref:`built-in natural number <built-in-nat>`. From the agda-prelude_::
   record Negative {a} (A : Set a) : Set (lsuc a) where
     field
       Constraint : Nat → Set a
-      fromNeg : ∀ n → {{_ : Constraint n}} → A
+      fromNeg : (n : Nat) {{_ : Constraint n}} → A
 
   open Negative {{...}} public using (fromNeg)
-
   {-# BUILTIN FROMNEG fromNeg #-}
+
+.. _overloaded-strings:
+
+Strings
+-------
+
+:ref:`String literals <lexical-structure-string-literals>` are overloaded with
+the ``FROMSTRING`` built-in, which works just like ``FROMNAT``. If it is not
+bound string literals map to :ref:`built-in strings <built-in-string>`. From the agda-prelude_::
+
+  record IsString {a} (A : Set a) : Set (lsuc a) where
+    field
+      Constraint : String → Set a
+      fromString : (s : String) {{_ : Constraint s}} → A
+
+  open IsString {{...}} public using (fromString)
+  {-# BUILTIN FROMSTRING fromString #-}
+
 
 Other types
 -----------
 
-Currently only integer literals can be overloaded.
+Currently only integer and string literals can be overloaded.
 

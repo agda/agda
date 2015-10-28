@@ -275,6 +275,8 @@ available on strings (given suitable bindings for `Bool <Booleans_>`_, `Char
   primStringEquality : String → String → Bool
   primShowString     : String → String
 
+String literals can be :ref:`overloaded <overloaded-strings>`.
+
 Equality
 --------
 

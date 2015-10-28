@@ -106,7 +106,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primEquality, primRefl,
     primRewrite, -- Name of rewrite relation
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
-    primFromNat, primFromNeg,
+    primFromNat, primFromNeg, primFromString,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
@@ -164,6 +164,7 @@ primLevelSuc     = getBuiltin builtinLevelSuc
 primLevelMax     = getBuiltin builtinLevelMax
 primFromNat      = getBuiltin builtinFromNat
 primFromNeg      = getBuiltin builtinFromNeg
+primFromString   = getBuiltin builtinFromString
 primQName        = getBuiltin builtinQName
 primArg          = getBuiltin builtinArg
 primArgArg       = getBuiltin builtinArgArg
@@ -236,7 +237,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinInf, builtinSharp, builtinFlat,
   builtinEquality, builtinRefl, builtinRewrite, builtinLevelMax,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
-  builtinFromNat, builtinFromNeg,
+  builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
   builtinAgdaSortUnsupported, builtinAgdaType, builtinAgdaTypeEl,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
@@ -298,6 +299,7 @@ builtinLevelZero                     = "LEVELZERO"
 builtinLevelSuc                      = "LEVELSUC"
 builtinFromNat                       = "FROMNAT"
 builtinFromNeg                       = "FROMNEG"
+builtinFromString                    = "FROMSTRING"
 builtinQName                         = "QNAME"
 builtinAgdaSort                      = "AGDASORT"
 builtinAgdaSortSet                   = "AGDASORTSET"

@@ -563,6 +563,15 @@ Other changes
 
   This causes negative literals '-n' to be desugared to 'fromNeg n'.
 
+* Overloaded string literals.
+
+  String literals can be overladed using the FROMSTRING builtin:
+
+    {-# BUILTIN FROMSTRING fromString #-}
+
+  The will cause string literals 's' to be desugared to 'fromString s' before
+  type checking.
+
 * Building records from modules.
 
   The "record { <fields> }" syntax is now extended to accept module names as

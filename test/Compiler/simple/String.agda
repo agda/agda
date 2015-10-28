@@ -18,7 +18,7 @@ printList p (x ∷ xs) =
 main : IO Unit
 main =
     putStrLn testString ,,
-    printList printChar (fromString testString) ,,
+    printList printChar (stringToList testString) ,,
     putStrLn "" ,,
-    putStrLn (fromList (fromString testString)) ,,
+    putStrLn (fromList (stringToList testString)) ,,
     return unit

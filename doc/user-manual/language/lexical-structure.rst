@@ -142,8 +142,9 @@ Strings
   String literals are sequences of, possibly escaped, characters enclosed in
   double quotes ``"``. They follow the same rules as `character literals
   <characters_>`_ except that double quotes ``"`` need to be escaped rather
-  than single quotes ``'``. String literals map to the :doc:`built-in string
-  type <built-in-string>` and cannot be overloaded.
+  than single quotes ``'``. String literals map to the :ref:`built-in string
+  type <built-in-string>` by default, but can be :ref:`overloaded
+  <overloaded-strings>`.
 
   Example: ``"Привет \"мир\"\n"``.
 

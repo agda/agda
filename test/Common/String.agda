@@ -30,8 +30,8 @@ _+S+_ = primStringAppend
 fromList : List Char -> String
 fromList = primStringFromList
 
-fromString : String -> List Char
-fromString = primStringToList
+stringToList : String -> List Char
+stringToList = primStringToList
 
 charToStr : Char → String
 charToStr c = primStringFromList (c ∷ [])

@@ -501,7 +501,7 @@ bindBuiltin b e = do
       "It is now bound by BUILTIN " ++ builtinNat
 
 isUntypedBuiltin :: String -> Bool
-isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg]
+isUntypedBuiltin b = elem b [builtinFromNat, builtinFromNeg, builtinFromString]
 
 bindUntypedBuiltin :: String -> A.Expr -> TCM ()
 bindUntypedBuiltin b e =
