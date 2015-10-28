@@ -329,7 +329,16 @@ dropSameCandidates m cands = do
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM [Candidate]
 checkCandidates m t cands = disableDestructiveUpdate $ do
-  filterResetingState m cands (checkCandidateForMeta m t)
+  verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $ do
+    reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
+    reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
+      [ text "candidates"
+      , vcat [ text "-" <+> prettyTCM v <+> text ":" <+> prettyTCM t | Candidate v t _ <- cands ] ]
+    cands' <- filterResetingState m cands (checkCandidateForMeta m t)
+    reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
+      [ text "valid candidates"
+      , vcat [ text "-" <+> prettyTCM v <+> text ":" <+> prettyTCM t | Candidate v t _ <- cands' ] ]
+    return cands'
   where
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM Bool
     checkCandidateForMeta m t (Candidate term t' eti) = do
