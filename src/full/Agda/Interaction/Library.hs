@@ -50,7 +50,7 @@ libraryFile = "libraries"
 defaultsFile :: FilePath
 defaultsFile = "defaults"
 
-data LibError = LibNotFound LibName
+data LibError = LibNotFound FilePath LibName
               | AmbiguousLib LibName [AgdaLibFile]
               | OtherError String
   deriving (Show)
@@ -89,10 +89,14 @@ readDefaultsFile = do
       ) {- else -} (return (["."], []))
   `catchIO` \e -> return (["."], [OtherError $ "Failed to read defaults file.\n" ++ show e])
 
+getLibrariesFile :: Maybe FilePath -> IO FilePath
+getLibrariesFile overrideLibFile = do
+  agdaDir <- getAgdaAppDir
+  return $ fromMaybe (agdaDir </> libraryFile) overrideLibFile
+
 getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
-    agdaDir <- getAgdaAppDir
-    let file = fromMaybe (agdaDir </> libraryFile) overrideLibFile
+    file <- getLibrariesFile overrideLibFile
     ifM (doesFileExist file) (do
       files <- mapM expandEnvironmentVariables =<< stripCommentLines <$> readFile file
       parseLibFiles files
@@ -113,12 +117,11 @@ stripCommentLines = concatMap strip . lines
       where s' = stripComments $ dropWhile isSpace s
 
 formatLibError :: [AgdaLibFile] -> LibError -> IO Doc
-formatLibError installed (LibNotFound lib) = do
-  agdaDir <- getAgdaAppDir
+formatLibError installed (LibNotFound file lib) = do
   return $ vcat $
     [ text $ "Library '" ++ lib ++ "' not found."
     , sep [ text "Add the path to its .agda-lib file to"
-          , nest 2 $ text (agdaDir </> libraryFile)
+          , nest 2 $ text $ "'" ++ file ++ "'"
           , text "to install." ]
     , text "Installed libraries:"
     ] ++
@@ -131,23 +134,25 @@ formatLibError _ (AmbiguousLib lib tgts) = return $
        : [ nest 2 $ text (libName l) <+> parens (text $ libFile l) | l <- tgts ]
 formatLibError _ (OtherError err) = return $ text err
 
-libraryIncludePaths :: [AgdaLibFile] -> [LibName] -> LibM [FilePath]
-libraryIncludePaths libs xs0 = mkLibM libs $ return $ runWriter ((dot ++) . incs <$> find [] xs)
+libraryIncludePaths :: Maybe FilePath -> [AgdaLibFile] -> [LibName] -> LibM [FilePath]
+libraryIncludePaths overrideLibFile libs xs0 = mkLibM libs $ do
+    file <- getLibrariesFile overrideLibFile
+    return $ runWriter ((dot ++) . incs <$> find file [] xs)
   where
     xs = map trim $ delete "." xs0
     trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
     incs = nub . concatMap libIncludes
     dot = [ "." | elem "." xs0 ]
 
-    find :: [LibName] -> [LibName] -> Writer [LibError] [AgdaLibFile]
-    find _ [] = pure []
-    find visited (x : xs)
-      | elem x visited = find visited xs
+    find :: FilePath -> [LibName] -> [LibName] -> Writer [LibError] [AgdaLibFile]
+    find _ _ [] = pure []
+    find file visited (x : xs)
+      | elem x visited = find file visited xs
       | otherwise =
           case findLib x libs of
-            [l] -> (l :) <$> find (x : visited) (libDepends l ++ xs)
-            []  -> tell [LibNotFound x] >> find (x : visited) xs
-            ls  -> tell [AmbiguousLib x ls] >> find (x : visited) xs
+            [l] -> (l :) <$> find file (x : visited) (libDepends l ++ xs)
+            []  -> tell [LibNotFound file x] >> find file (x : visited) xs
+            ls  -> tell [AmbiguousLib x ls] >> find file (x : visited) xs
 
 findLib :: LibName -> [AgdaLibFile] -> [AgdaLibFile]
 findLib x libs =
