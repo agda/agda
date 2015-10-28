@@ -13,4 +13,3 @@ postulate
   Char : Set
 
 {-# BUILTIN CHAR Char #-}
-{-# COMPILED_TYPE Char Char #-}
