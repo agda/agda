@@ -102,7 +102,7 @@ Other commands
 |``TAB``                  |Indent current line, cycles between     |
 |                         |points                                  |
 +-------------------------+----------------------------------------+
-|``S-TAB``                |indent curent line, cycles in opposite  |
+|``S-TAB``                |Indent current line, cycles in opposite |
 |                         |direction                               |
 +-------------------------+----------------------------------------+
 |``M-.``                  |Go to definition of identifier under    |
@@ -113,6 +113,7 @@ Other commands
 +-------------------------+----------------------------------------+
 |``M-*``                  |Go back                                 |
 +-------------------------+----------------------------------------+
+
 
 
 Unicode input
