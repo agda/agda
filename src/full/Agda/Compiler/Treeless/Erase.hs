@@ -24,6 +24,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Pretty
 
 import Agda.Compiler.Treeless.Subst
+import Agda.Compiler.Treeless.Pretty
 
 import Agda.Utils.Maybe
 import Agda.Utils.Impossible
@@ -74,7 +75,14 @@ eraseTerms = runE . erase
         TCon{}         -> pure t
         TApp f es      -> TApp <$> erase f <*> mapM erase es
         TLam b         -> TLam <$> erase b
-        TLet e b       -> TLet <$> erase e <*> erase b
+        TLet e b       -> do
+          b <- erase b
+          if freeIn 0 b then TLet <$> erase e <*> pure b
+                        else do
+            lift $ reportSDoc "treeless.opt.erase.let" 50 $
+              vcat [ text "erasing:" <+> pretty (TLet e b)
+                   , text "free vars:" <+> text (show $ freeVars b) ]
+            pure $ applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
         TCase x t d bs -> TCase x t <$> erase d <*> mapM eraseAlt bs
 
         TUnit          -> pure t
