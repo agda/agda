@@ -39,7 +39,7 @@ Global commands
 +-------------------------+-------------------------------------------------+
 |``C-c C-?``              |Show all goals                                   |
 +-------------------------+-------------------------------------------------+
-|``C-c C-f``              |Move to next goal (**f** \orward)                |
+|``C-c C-f``              |Move to next goal (**f**\ orward)                |
 +-------------------------+-------------------------------------------------+
 |``C-c C-b``              |Move to previous goal (**b**\ ackwards)          |
 +-------------------------+-------------------------------------------------+
@@ -59,6 +59,9 @@ Global commands
 
 Commands in context of a goal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Commands expecting input (for example which variable to case split)
+will either use the text inside the goal or ask the user for input.
 
 +-------------------------+--------------------------------------------------------+
 |``C-c C-SPC``            |Give (fill goal)                                        |
@@ -99,7 +102,7 @@ Other commands
 |``TAB``                  |Indent current line, cycles between     |
 |                         |points                                  |
 +-------------------------+----------------------------------------+
-|``S-TAB``                |indent curent line, cycles in opposite  |
+|``S-TAB``                |Indent current line, cycles in opposite |
 |                         |direction                               |
 +-------------------------+----------------------------------------+
 |``M-.``                  |Go to definition of identifier under    |
@@ -110,3 +113,88 @@ Other commands
 +-------------------------+----------------------------------------+
 |``M-*``                  |Go back                                 |
 +-------------------------+----------------------------------------+
+
+
+
+Unicode input
+=============
+
+The Agda emacs mode comes with an input method for for easily writing
+Unicode characters. Most Unicode character can be input by typing
+their corresponding TeX or LaTeX commands, eg. typing ``\lambda`` will
+input ``λ``. To see all characters you can input using the Agda input
+method see ``M-x describe-input-method Agda``.
+
+If you know the Unicode name of a character you can input it using
+``M-x ucs-insert`` or ``C-x 8 RET``. Example: ``C-x 8 RET not SPACE a
+SPACE sub TAB RET`` to insert "NOT A SUBSET OF" ``⊄``.
+
+To find out how to input a specific character, eg from the standard
+library, position the cursor over the character and use ``M-x
+describe-char`` or ``C-u C-x =``.
+
+The Agda input method can be customised via ``M-x customize-group
+agda-input``.
+
+
+Common characters
+~~~~~~~~~~~~~~~~~
+
+Many common characters have a shorter input sequence than the
+corresponding TeX command:
+
+- **Arrows**: ``\r-`` for ``→``. You can replace ``r`` with another
+  direction: ``u``, ``d``, ``l``. Eg. ``\d-`` for ``↓``. Replace
+  ``-`` with ``=`` or ``==`` to get a double and triple arrows.
+- **Greek letters** can be input by ``\G`` followed by the
+  first character of the letters Latin name. Eg. ``\Gl`` will input
+  ``λ`` while ``\GL`` will input ``Λ``.
+- **Negation**: you can get the negated form of many characters by
+  appending ``n`` to the name. Eg. while ``\ni`` inputs ``∋``,
+  ``\nin`` will input ``∌``.
+- **Subscript** and **superscript**: you can input subscript or
+  superscript forms by prepending the character with ``\_`` (subscript)
+  or ``\^`` (superscript). Note that not all characters have a
+  subscript or superscript counterpart in Unicode.
+
+Some characters which are commonly used in the standard library:
+
++-----------+--------------------+--------------------+
+|Character  |Short key-binding   |TeX command         |
++===========+====================+====================+
+|→          |``\r-``             |``\to``             |
++-----------+--------------------+--------------------+
+|₁          |``\_1``             |                    |
++-----------+--------------------+--------------------+
+|₂          |``\_2``             |                    |
++-----------+--------------------+--------------------+
+|≈          |``\~~``             |``\approx``         |
++-----------+--------------------+--------------------+
+|∀          |``\all``            |``\forall``         |
++-----------+--------------------+--------------------+
+|⟨          |``\<``              |                    |
++-----------+--------------------+--------------------+
+|⟩          |``\>``              |                    |
++-----------+--------------------+--------------------+
+|ℓ          |                    |``\ell``            |
++-----------+--------------------+--------------------+
+|≡          |``\==``             |``\equiv``          |
++-----------+--------------------+--------------------+
+|∼          |``\~``              |``\sim``            |
++-----------+--------------------+--------------------+
+|≤          |``\<=``             |``\le``             |
++-----------+--------------------+--------------------+
+|′          |``\'1``             |``\prime``          |
++-----------+--------------------+--------------------+
+|∷          |``\::``             |                    |
++-----------+--------------------+--------------------+
+|λ          |``\Gl``             |``\lambda``         |
++-----------+--------------------+--------------------+
+|¬          |                    |``\neg``            |
++-----------+--------------------+--------------------+
+|∘          |``\o``              |``\circ``           |
++-----------+--------------------+--------------------+
+|ℕ          |``\bn``             |``\Bbb{N}``         |
++-----------+--------------------+--------------------+
+|×          |``\x``              |``\times`           |
++-----------+--------------------+--------------------+
