@@ -102,8 +102,8 @@ data TAlt
   -- ^ Matches on the given constructor. If the match succeeds,
   -- the pattern variables are prepended to the current environment
   -- (pushes all existing variables aArity steps further away)
-  | TAPlus   { aSucs :: Integer, aBody :: TTerm }
-  -- ^ n+k pattern
+  | TAGuard  { aGuard :: TTerm, aBody :: TTerm }
+  -- ^ Binds no variables
   | TALit    { aLit :: Literal,   aBody:: TTerm }
   deriving (Typeable, Show, Eq, Ord)
 
@@ -124,5 +124,6 @@ instance Unreachable TAlt where
   isUnreachable = isUnreachable . aBody
 
 instance Unreachable TTerm where
-  isUnreachable (TError (TUnreachable{})) = True
+  isUnreachable (TError TUnreachable{}) = True
+  isUnreachable (TLet _ b) = isUnreachable b
   isUnreachable _ = False

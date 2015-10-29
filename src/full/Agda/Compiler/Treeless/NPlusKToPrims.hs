@@ -32,17 +32,13 @@ convertNPlusK = tr
           (plusAlts, otherAlts) = splitAlts alts
 
           guardedAlt :: TAlt -> TTerm -> TTerm
-          guardedAlt (TAPlus{aSucs = k, aBody = body}) cont =
-            TApp (TPrim PIf)
-              [ tOp PGeq (TVar sc) (tInt k)
-              , TLet (tOp PSub (TVar sc) (tInt k)) (tr body)
-              , cont
-              ]
+          guardedAlt (TAGuard g body) cont =
+            TApp (TPrim PIf) [tr g, tr body, cont]
           guardedAlt _ _ = __IMPOSSIBLE__
 
           def' = foldr guardedAlt (tr def) plusAlts
 
-          trAlt (TAPlus{}) = __IMPOSSIBLE__
+          trAlt (TAGuard{}) = __IMPOSSIBLE__
           trAlt a = a { aBody = tr (aBody a) }
 
       TVar{}    -> t
@@ -59,8 +55,8 @@ convertNPlusK = tr
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
 
--- | Split alts into TAPlus alts and other alts.
+-- | Split alts into TAGuard alts and other alts.
 splitAlts :: [TAlt] -> ([TAlt], [TAlt])
-splitAlts = partition isPlusAlt
-  where isPlusAlt (TAPlus _ _) = True
-        isPlusAlt _ = False
+splitAlts = partition isGuardAlt
+  where isGuardAlt (TAGuard _ _) = True
+        isGuardAlt _ = False

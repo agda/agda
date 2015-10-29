@@ -88,7 +88,7 @@ eraseTerms = runE . erase
     eraseAlt a = case a of
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> TACon c a <$> erase b
-      TAPlus k b  -> TAPlus k  <$> erase b
+      TAGuard g b -> TAGuard   <$> erase g <*> erase b
 
 data TypeInfo = Empty | Erasable | NotErasable
   deriving (Eq, Show)

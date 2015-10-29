@@ -66,19 +66,26 @@ transform isZero isSuc = tr
             TACon c 1 b | isSuc c  ->
               case tr b of
                 -- Collapse nested n+k patterns
-                TCase 0 _ d bs' -> map sucBranch bs' ++ [TAPlus 1 d]
-                b -> [TAPlus 1 b]
+                TCase 0 _ d bs' -> map sucBranch bs' ++ [nPlusKAlt 1 d]
+                b -> [nPlusKAlt 1 b]
               where
                 sucBranch (TALit (LitNat r i) b) = TALit (LitNat r (i + 1)) $ applySubst (str __IMPOSSIBLE__) b
-                sucBranch (TAPlus k b) = TAPlus (k + 1) $ applySubst (liftS 1 $ str __IMPOSSIBLE__) b
-                sucBranch TACon{} = __IMPOSSIBLE__
-                sucBranch TALit{} = __IMPOSSIBLE__
+                sucBranch alt | Just (k, b) <- nPlusKView alt = nPlusKAlt (k + 1) $ applySubst (liftS 1 $ str __IMPOSSIBLE__) b
+                sucBranch _ = __IMPOSSIBLE__
+
+                nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $
+                                TLet (tOp PSub (TVar e) (tInt k)) b
+
+                nPlusKView (TAGuard (TApp (TPrim PGeq) [TVar 0, (TLit (LitNat _ k))])
+                                    (TLet (TApp (TPrim PSub) [TVar 0, (TLit (LitNat _ j))]) b))
+                  | k == j = Just (k, b)
+                nPlusKView _ = Nothing
 
                 str err = compactS err [Nothing]
 
             TACon c a b -> [TACon c a (tr b)]
             TALit{}     -> [b]
-            TAPlus{}    -> __IMPOSSIBLE__
+            TAGuard{}   -> __IMPOSSIBLE__
 
       TVar{}    -> t
       TDef{}    -> t

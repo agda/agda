@@ -36,4 +36,4 @@ instance Subst TTerm TTerm where
 instance Subst TTerm TAlt where
   applySubst rho (TACon c i b)  = TACon c i (applySubst (liftS i rho) b)
   applySubst rho (TALit l b)  = TALit l (applySubst rho b)
-  applySubst rho (TAPlus k b) = TAPlus k (applySubst (liftS 1 rho) b)
+  applySubst rho (TAGuard g b) = TAGuard (applySubst rho g) (applySubst rho b)

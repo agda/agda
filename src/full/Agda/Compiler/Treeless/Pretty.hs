@@ -126,10 +126,9 @@ pTerm t = case t of
       <*> pTerm' 0 def
     where
       pAlt (TALit l b) = pAlt' <$> pTerm' 0 (TLit l) <*> pTerm' 0 b
-      pAlt (TAPlus k b) =
-        withName $ \ x -> bindName x $
-        pAlt' <$> pTerm' 0 (tOp PAdd (TVar 0) (tInt k))
-              <*> pTerm' 0 b
+      pAlt (TAGuard g b) =
+        pAlt' <$> ((text "_" <+> text "|" <+>) <$> pTerm' 0 g)
+              <*> (pTerm' 0 b)
       pAlt (TACon c a b) =
         withNames a $ \ xs -> bindNames xs $
         pAlt' <$> pTerm' 0 (TApp (TCon c) [TVar i | i <- reverse [0..a - 1]])

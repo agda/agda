@@ -87,7 +87,7 @@ simplify FunctionKit{..} = simpl
 
     simplAlt (TACon c a b) = TACon c a <$> underLams a (simpl b)
     simplAlt (TALit l b)   = TALit l   <$> simpl b
-    simplAlt (TAPlus k b)  = TAPlus k  <$> underLam (simpl b)
+    simplAlt (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
     tCase x t d bs
@@ -95,10 +95,7 @@ simplify FunctionKit{..} = simpl
         case reverse bs' of
           [] -> pure d
           TALit _ b   : as  -> pure $ tCase' x t b (reverse as)
-          TAPlus k b  : as  -> do
-                 -- TODO: retraversing the body (quadratic in nesting level!)
-            b <- simpl (TLet (tOp PSub (TVar x) (tInt k)) b)
-            pure $ tCase' x t b (reverse as)
+          TAGuard _ b : as  -> pure $ tCase' x t b (reverse as)
           TACon c a b : _   -> pure $ tCase' x t d bs'
       | otherwise = pure $ TCase x t d bs'
       where
