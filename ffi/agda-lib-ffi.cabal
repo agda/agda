@@ -1,5 +1,5 @@
 name:            agda-lib-ffi
-version:         0.10
+version:         0.11
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Auxiliary Haskell code used by Agda's standard library.
