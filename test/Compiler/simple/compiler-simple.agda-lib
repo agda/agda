@@ -1,0 +1,4 @@
+name: compiler-simple
+include:
+  .
+  ../..
