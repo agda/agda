@@ -12,6 +12,8 @@
 -- Ulf, 2015-09-21: No, actually we need the n+k patterns, or at least guards.
 -- Representing them with if-then-else would make it a lot harder to do
 -- optimisations that analyse case tree, like impossible case elimination.
+--
+-- Ulf, 2015-10-30: Guards are actually a better primitive. Fixed that.
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
