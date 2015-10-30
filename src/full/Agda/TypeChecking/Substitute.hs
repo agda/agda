@@ -165,8 +165,14 @@ instance Apply Definition where
     Defn info x (piApply t args) (apply pol args) (apply occ args) df m c inst (apply d args)
 
 instance Apply RewriteRule where
-  apply (RewriteRule q gamma lhs rhs t) args =
-    RewriteRule q (apply gamma args) lhs rhs t
+  apply r args = RewriteRule
+    { rewName    = rewName r
+    , rewContext = apply (rewContext r) args
+    , rewLHS     = applySubst sub (rewLHS r)
+    , rewRHS     = applySubst sub (rewRHS r)
+    , rewType    = applySubst sub (rewType r)
+    }
+    where sub = parallelS (map unArg args)
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Apply [Occ.Occurrence] where
