@@ -1562,14 +1562,16 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.NoSmashingPragma _ x) = do
         e <- toAbstract $ OldQName x Nothing
         y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
+            A.Def  x -> return x
+            A.Proj x -> return x
+            _        -> genericError "Target of NO_SMASHING pragma should be a function"
         return [ A.NoSmashingPragma y ]
     toAbstract (C.StaticPragma _ x) = do
         e <- toAbstract $ OldQName x Nothing
         y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
+            A.Def  x -> return x
+            A.Proj x -> return x
+            _        -> genericError "Target of STATIC pragma should be a function"
         return [ A.StaticPragma y ]
     toAbstract (C.BuiltinPragma _ b e) | isUntypedBuiltin b = do
       bindUntypedBuiltin b =<< toAbstract e

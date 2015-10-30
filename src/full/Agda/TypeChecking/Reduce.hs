@@ -403,7 +403,8 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
                       cls (defCompiled info)
     _  -> do
       if FunctionReductions `elem` allowed ||
-         (isJust (isProjection_ def) && ProjectionReductions `elem` allowed)  -- includes projection-like
+         (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
+         (isStaticFun def && StaticReductions `elem` allowed)
         then
           reduceNormalE keepGoing v0 f (map notReduced es)
                        dontUnfold

@@ -776,6 +776,11 @@ isProjection_ def =
     Function { funProjection = result } -> result
     _                                   -> Nothing
 
+-- | Is it a function marked STATIC?
+isStaticFun :: Defn -> Bool
+isStaticFun Function{ funStatic = b } = b
+isStaticFun _ = False
+
 -- | Returns @True@ if we are dealing with a proper projection,
 --   i.e., not a projection-like function nor a record field value
 --   (projection applied to argument).

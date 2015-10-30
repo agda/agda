@@ -30,6 +30,7 @@ import Agda.Compiler.Treeless.Pretty
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
@@ -47,7 +48,7 @@ prettyPure = return . P.pretty
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
-  reportSDoc "treeless.opt" 30 $ text "compiling" <+> prettyTCM q
+  reportSDoc "treeless.opt" 20 $ text "compiling" <+> prettyTCM q
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
   body <- casetree cc `runReaderT` initCCEnv
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
@@ -102,6 +103,7 @@ casetree cc = do
   case cc of
     CC.Fail -> return C.tUnreachable
     CC.Done xs v -> lambdasUpTo (length xs) $ do
+        v <- lift $ putAllowedReductions [ProjectionReductions, StaticReductions] $ normalise v
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
