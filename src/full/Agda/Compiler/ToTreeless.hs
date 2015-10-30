@@ -48,7 +48,7 @@ prettyPure = return . P.pretty
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
-  reportSDoc "treeless.opt" 20 $ text "compiling" <+> prettyTCM q
+  reportSDoc "treeless.opt" 20 $ text "-- compiling" <+> prettyTCM q
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
   body <- casetree cc `runReaderT` initCCEnv
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)

@@ -45,33 +45,25 @@ data BuiltinKit = BuiltinKit
   , isSuc    :: QName -> Bool
   , isPos    :: QName -> Bool
   , isNegSuc :: QName -> Bool
+  , isPlus   :: QName -> Bool
+  , isLess   :: QName -> Bool
   }
 
-natKit :: TCM (Maybe (QName, QName))
-natKit = do
-    I.Con zero _ <- primZero
-    I.Con suc  _ <- primSuc
-    return $ Just (I.conName zero, I.conName suc)
-  `catchError` \_ -> return Nothing
-
-intKit :: TCM (Maybe (QName, QName))
-intKit = do
-    I.Con pos _    <- primIntegerPos
-    I.Con negsuc _ <- primIntegerNegSuc
-    return $ Just (I.conName pos, I.conName negsuc)
-  `catchError` \_ -> return Nothing
-
 builtinKit :: TCM BuiltinKit
-builtinKit = do
-  nat <- natKit
-  int <- intKit
-  let is proj kit = maybe (const False) (==) (proj <$> kit)
-  return $ BuiltinKit
-    { isZero   = is fst nat
-    , isSuc    = is snd nat
-    , isPos    = is fst int
-    , isNegSuc = is snd int
-    }
+builtinKit =
+  BuiltinKit <$> is con builtinZero
+             <*> is con builtinSuc
+             <*> is con builtinIntegerPos
+             <*> is con builtinIntegerNegSuc
+             <*> is def builtinNatPlus
+             <*> is def builtinNatLess
+  where
+    con (I.Con c _) = pure $ I.conName c
+    con _           = Nothing
+    def (I.Def d _) = pure d
+    def _           = Nothing
+
+    is a b = maybe (const False) (==) . (a =<<) <$> getBuiltin' b
 
 translateBuiltins :: TTerm -> TCM TTerm
 translateBuiltins t = do
@@ -87,6 +79,12 @@ transform BuiltinKit{..} = tr
              | isSuc c    -> TLam (tPlusK 1 (TVar 0))
              | isPos c    -> TLam (TVar 0)
              | isNegSuc c -> TLam $ tNegPlusK 1 (TVar 0)
+
+      TDef f | isPlus f   -> TPrim PAdd
+             | isLess f   -> TPrim PLt
+        -- Note: Don't do this for builtinNatMinus! PSub is integer minus and
+        --       builtin minus is monus.
+
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
           TLit (LitNat r n) -> tInt (n + 1)
