@@ -37,6 +37,7 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
               -e 's/\(\\n\| \)\+/ /g' \
+							-e 's/Agda2> //g' \
      | $(clean)
 
 run_test=if test -f $*.in; \

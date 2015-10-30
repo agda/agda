@@ -1,4 +1,4 @@
-Agda2> (agda2-status-action "")
+(agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue619 (Issue619.agda). " t)
@@ -30,6 +30,5 @@ Agda2> (agda2-status-action "")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Bool " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-Agda2> ((last . 2) . (agda2-make-case-action '("foo (quote Nat.zero) true = ?" "foo (quote Nat.zero) false = ?")))
+((last . 2) . (agda2-make-case-action '("foo (quote Nat.zero) true = ?" "foo (quote Nat.zero) false = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
-Agda2> 
