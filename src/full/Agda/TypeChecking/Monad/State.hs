@@ -200,7 +200,12 @@ withSignature sig m = do
 
 -- ** Modifiers for rewrite rules
 addRewriteRulesFor :: QName -> RewriteRules -> Signature -> Signature
-addRewriteRulesFor f rews = over sigRewriteRules $ HMap.insertWith mappend f rews
+addRewriteRulesFor f rews =
+    (over sigRewriteRules $ HMap.insertWith mappend f rews)
+  . (updateDefinition f $ updateTheDef setNotInjective)
+    where
+      setNotInjective def@Function{} = def { funInv = NotInjective }
+      setNotInjective def            = def
 
 -- ** Modifiers for parts of the signature
 

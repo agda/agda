@@ -254,10 +254,6 @@ addRewriteRules :: QName -> RewriteRules -> TCM ()
 addRewriteRules f rews = do
   reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
   modifySignature $ addRewriteRulesFor f rews
-  modifySignature $ updateDefinition f $ updateTheDef setNotInjective
-    where
-      setNotInjective def@Function{} = def { funInv = NotInjective }
-      setNotInjective def            = def
   --rules <- getRewriteRulesFor f
   --reportSDoc "rewriting" 20 $ vcat
   --  [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
