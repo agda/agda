@@ -97,7 +97,7 @@ pTerm t = case t of
     paren 9 $ (\a bs -> sep [a, nest 2 $ fsep bs])
               <$> pTerm' 9 f
               <*> mapM (pTerm' 10) es
-  TLam _ -> withNames n $ \xs -> bindNames xs $
+  TLam _ -> paren 0 $ withNames n $ \xs -> bindNames xs $
     (\b -> sep [ text ("λ " ++ unwords xs ++ " →")
                , nest 2 b ]) <$> pTerm' 0 b
     where
