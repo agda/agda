@@ -39,5 +39,8 @@ private
   primitive
     primShowInteger  : Integer -> String
 
+intToString : Integer → String
+intToString = primShowInteger
+
 natToString : Nat -> String
-natToString n = primShowInteger (pos n)
+natToString n = intToString (pos n)

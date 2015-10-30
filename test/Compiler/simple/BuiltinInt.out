@@ -1,0 +1,10 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > 100
+out > -100
+out > 10
+out > 100
+out > -10
+out > -100
+out >
