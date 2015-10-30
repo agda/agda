@@ -78,6 +78,8 @@ intView (TLit (LitNat _ x)) = Just x
 intView _ = Nothing
 
 tPlusK :: Integer -> TTerm -> TTerm
+tPlusK 0 n = n
+tPlusK k n | k < 0 = tOp PSub n (tInt (-k))
 tPlusK k n = tOp PAdd (tInt k) n
 
 -- -(k + n)
@@ -87,6 +89,10 @@ tNegPlusK k n = tOp PSub (tInt (-k)) n
 plusKView :: TTerm -> Maybe (Integer, TTerm)
 plusKView (TApp (TPrim PAdd) [k, n]) | Just k <- intView k = Just (k, n)
 plusKView _ = Nothing
+
+negPlusKView :: TTerm -> Maybe (Integer, TTerm)
+negPlusKView (TApp (TPrim PSub) [k, n]) | Just k <- intView k = Just (-k, n)
+negPlusKView _ = Nothing
 
 tOp :: TPrim -> TTerm -> TTerm -> TTerm
 tOp op a b = TApp (TPrim op) [a, b]

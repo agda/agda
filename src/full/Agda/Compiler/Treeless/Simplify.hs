@@ -1,4 +1,6 @@
-{-# LANGUAGE RecordWildCards, PatternGuards #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
 import Control.Applicative
@@ -16,6 +18,9 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Maybe
 
 import Agda.Compiler.Treeless.Subst
+
+import Agda.Utils.Impossible
+#include "undefined.h"
 
 type S = Reader (Substitution' TTerm)
 
@@ -55,18 +60,14 @@ simplify FunctionKit{..} = simpl
       TVar{}         -> pure t
       TDef{}         -> pure t
       TPrim{}        -> pure t
-      t@TApp{} | Just (k, n) <- plusKView t -> do
-        n <- simpl n
-        case n of
-          TVar x -> do
-            u <- lookupVar x
-            case u of
-              TApp (TPrim PSub) [TVar y, TLit (LitNat _ j)]
-                | k == j    -> pure $ TVar y
-                | k > j     -> pure $ tPlusK (k - j) (TVar y)
-                | otherwise -> pure $ tOp PSub (TVar y) (tInt (j - k))
-              _ -> pure $ tPlusK k n
-          _ -> pure $ tPlusK k n
+      TApp (TPrim op) args -> do
+        args <- mapM simpl args
+        let inline (TVar x) = lookupVar x
+            inline u        = pure u
+        inlined <- mapM inline args
+        let nosimpl = TApp (TPrim op) args
+        pure $ fromMaybe nosimpl $ simplPrim $ TApp (TPrim op) inlined
+
       TApp f es      -> TApp <$> simpl f <*> traverse simpl es
       TLam b         -> TLam <$> underLam (simpl b)
       TLit{}         -> pure t
@@ -84,6 +85,26 @@ simplify FunctionKit{..} = simpl
       TSort          -> pure t
       TErased        -> pure t
       TError{}       -> pure t
+
+    simplPrim :: TTerm -> Maybe TTerm
+    simplPrim u
+      | Just (op,  k, v) <- constArithView u,
+        Just (op1, j, v) <- constArithView v = pure $ arithFusion k op j op1 v
+    simplPrim _ = Nothing
+
+    arithFusion k PAdd j PAdd v = tPlusK (k + j) v
+    arithFusion k PAdd j PSub v = tOp PSub (tInt (k + j)) v
+    arithFusion k PSub j PAdd v = tOp PSub (tInt (k - j)) v
+    arithFusion k PSub j PSub v = tPlusK (k - j) v
+    arithFusion _ _ _ _ _ = __IMPOSSIBLE__
+
+    constArithView :: TTerm -> Maybe (TPrim, Integer, TTerm)
+    constArithView (TApp (TPrim op) [TLit (LitNat _ k), u])
+      | elem op [PAdd, PSub] = Just (op, k, u)
+    constArithView (TApp (TPrim op) [u, TLit (LitNat _ k)])
+      | op == PAdd = Just (op, k, u)
+      | op == PSub = Just (PAdd, -k, u)
+    constArithView _ = Nothing
 
     simplAlt (TACon c a b) = TACon c a <$> underLams a (simpl b)
     simplAlt (TALit l b)   = TALit l   <$> simpl b
