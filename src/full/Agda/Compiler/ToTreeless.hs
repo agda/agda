@@ -23,7 +23,7 @@ import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.CompiledClause
 
-import Agda.Compiler.Treeless.NPlusK
+import Agda.Compiler.Treeless.Builtin
 import Agda.Compiler.Treeless.Simplify
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Pretty
@@ -50,8 +50,8 @@ ccToTreeless _ cc = do
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
   body <- casetree cc `runReaderT` initCCEnv
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
-  body <- introduceNPlusK body
-  reportSDoc "treeless.opt.n+k" 30 $ text "-- after n+k translation:" $$ nest 2 (prettyPure body)
+  body <- translateBuiltins body
+  reportSDoc "treeless.opt.n+k" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" 30 $ text "-- after simplification"  $$ nest 2 (prettyPure body)
   body <- eraseTerms body

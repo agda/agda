@@ -1,10 +1,8 @@
--- | Translates NPlusK alternatives to if-then-else cascades.
+-- | Translates guard alternatives to if-then-else cascades.
 --
--- The NPlusK optimization must be run before this transformation.
+-- The builtin translation must be run before this transformation.
 {-# LANGUAGE CPP #-}
-module Agda.Compiler.Treeless.NPlusKToPrims
-  ( convertNPlusK )
-where
+module Agda.Compiler.Treeless.GuardsToPrims ( convertGuards ) where
 
 import Data.List
 
@@ -23,8 +21,8 @@ import Agda.Utils.Impossible
 
 
 
-convertNPlusK :: TTerm -> TTerm
-convertNPlusK = tr
+convertGuards :: TTerm -> TTerm
+convertGuards = tr
   where
     tr t = case t of
       TCase sc t def alts -> TCase sc t def' (fmap trAlt otherAlts)

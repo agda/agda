@@ -182,9 +182,9 @@ library
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
                     Agda.Compiler.ToTreeless
+                    Agda.Compiler.Treeless.Builtin
                     Agda.Compiler.Treeless.Erase
-                    Agda.Compiler.Treeless.NPlusK
-                    Agda.Compiler.Treeless.NPlusKToPrims
+                    Agda.Compiler.Treeless.GuardsToPrims
                     Agda.Compiler.Treeless.Pretty
                     Agda.Compiler.Treeless.Simplify
                     Agda.Compiler.Treeless.Subst

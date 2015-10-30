@@ -444,7 +444,7 @@ compilePrim s =
     T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
     T.PGeq -> fakeExp "((Prelude.>=) :: Integer -> Integer -> Bool)"
-    -- primitives only used by NPlusKToPrims transformation, which MAlonzo doesn't use
+    -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
     T.PIf  -> __IMPOSSIBLE__
 
 alt :: T.TAlt -> CC HS.Alt

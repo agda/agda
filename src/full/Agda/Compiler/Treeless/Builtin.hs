@@ -14,7 +14,7 @@
 -- optimisations that analyse case tree, like impossible case elimination.
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
-module Agda.Compiler.Treeless.NPlusK (introduceNPlusK) where
+module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Abstract.Name (QName)
@@ -41,8 +41,8 @@ natKit = do
     return $ Just (I.conName zero, I.conName suc)
   `catchError` \_ -> return Nothing
 
-introduceNPlusK :: TTerm -> TCM TTerm
-introduceNPlusK t =
+translateBuiltins :: TTerm -> TCM TTerm
+translateBuiltins t =
   caseMaybeM natKit (return t) $ \(zero, suc) ->
     return $ transform (== zero) (== suc) t
 
