@@ -431,7 +431,7 @@ term tm0 = case tm0 of
   T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
-  T.TErased  -> return HS.unit_con
+  T.TErased  -> return $ hsVarUQ $ HS.Ident "undefined"
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
   where apps =  foldM (\ h a -> HS.App h <$> term a)
