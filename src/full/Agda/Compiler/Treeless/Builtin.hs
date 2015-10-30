@@ -17,6 +17,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
@@ -115,19 +116,35 @@ transform BuiltinKit{..} = tr
                 nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $
                                 TLet (tOp PSub (TVar e) (tInt k)) b
 
-                nPlusKView (TAGuard (TApp (TPrim PGeq) [TVar 0, (TLit (LitNat _ k))])
-                                    (TLet (TApp (TPrim PSub) [TVar 0, (TLit (LitNat _ j))]) b))
-                  | k == j = Just (k, b)
-                nPlusKView _ = Nothing
-
                 str err = compactS err [Nothing]
 
             TACon c 1 b | isPos c ->
-              -- TODO: collapse nested suc patterns
-              [TAGuard (tOp PGeq (TVar e) (tInt 0)) $ tr $ applySubst (TVar e :# IdS) b]
+              case tr b of
+                -- collapse nested nat patterns
+                TCase 0 _ d bs -> map sub bs ++ [posAlt d]
+                b -> [posAlt  b]
+              where
+                -- subst scrutinee for the pos argument
+                sub :: Subst TTerm a => a -> a
+                sub = applySubst (TVar e :# IdS)
+
+                posAlt b = TAGuard (tOp PGeq (TVar e) (tInt 0)) $ sub b
 
             TACon c 1 b | isNegSuc c ->
-              [TAGuard (tOp PLt (TVar e) (tInt 0)) $ TLet (tNegPlusK 1 (TVar e)) $ tr b]
+              case tr b of
+                -- collapse nested nat patterns
+                TCase 0 _ d bs -> map negsucBranch bs ++ [negAlt d]
+                b -> [negAlt b]
+              where
+                body b   = TLet (tNegPlusK 1 (TVar e)) b
+                negAlt b = TAGuard (tOp PLt (TVar e) (tInt 0)) $ body b
+
+                negsucBranch (TALit (LitNat r i) b) = TALit (LitNat r (-i - 1)) $ body b
+                negsucBranch alt | Just (k, b) <- nPlusKView alt =
+                  TAGuard (tOp PLt (TVar e) (tInt (-k))) $
+                  body $ TLet (tNegPlusK (k + 1) (TVar $ e + 1)) b
+                negsucBranch _ = __IMPOSSIBLE__
+
 
             TACon c a b -> [TACon c a (tr b)]
             TALit{}     -> [b]
@@ -146,4 +163,8 @@ transform BuiltinKit{..} = tr
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
+    nPlusKView (TAGuard (TApp (TPrim PGeq) [TVar 0, (TLit (LitNat _ k))])
+                        (TLet (TApp (TPrim PSub) [TVar 0, (TLit (LitNat _ j))]) b))
+      | k == j = Just (k, b)
+    nPlusKView _ = Nothing
 
