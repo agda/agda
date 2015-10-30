@@ -55,6 +55,7 @@ opName PSub = "-"
 opName PDiv = "div"
 opName PMod = "mod"
 opName PGeq = ">="
+opName PLt  = "<"
 opName PIf  = "if_then_else_"
 
 isInfix :: TPrim -> Maybe (Int, Int, Int)
@@ -63,6 +64,7 @@ isInfix op =
     PAdd -> l 6
     PSub -> l 6
     PGeq -> non 4
+    PLt  -> non 4
     _    -> Nothing
   where
     l n   = Just (n, n, n + 1)

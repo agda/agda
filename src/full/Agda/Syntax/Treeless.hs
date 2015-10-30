@@ -52,7 +52,7 @@ data TTerm = TVar Int
 
 -- | Compiler-related primitives. This are NOT the same thing as primitives
 -- in Agda's surface or internal syntax!
-data TPrim = PAdd | PSub | PDiv | PMod | PGeq | PIf
+data TPrim = PAdd | PSub | PDiv | PMod | PGeq | PLt | PIf
   deriving (Typeable, Show, Eq, Ord)
 
 mkTApp :: TTerm -> Args -> TTerm
@@ -78,7 +78,11 @@ intView (TLit (LitNat _ x)) = Just x
 intView _ = Nothing
 
 tPlusK :: Integer -> TTerm -> TTerm
-tPlusK k n = TApp (TPrim PAdd) [tInt k, n]
+tPlusK k n = tOp PAdd (tInt k) n
+
+-- -(k + n)
+tNegPlusK :: Integer -> TTerm -> TTerm
+tNegPlusK k n = tOp PSub (tInt (-k)) n
 
 plusKView :: TTerm -> Maybe (Integer, TTerm)
 plusKView (TApp (TPrim PAdd) [k, n]) | Just k <- intView k = Just (k, n)

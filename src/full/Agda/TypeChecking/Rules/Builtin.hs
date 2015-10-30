@@ -395,7 +395,7 @@ bindBuiltinBool :: Term -> TCM ()
 bindBuiltinBool = bindAndSetHaskellType builtinBool "Bool"
 
 bindBuiltinInt :: Term -> TCM ()
-bindBuiltinInt = bindAndSetHaskellType builtinInteger "Either Integer Integer"
+bindBuiltinInt = bindAndSetHaskellType builtinInteger "Integer"
 
 bindBuiltinString :: Term -> TCM ()
 bindBuiltinString = bindAndSetHaskellType builtinString "String"
@@ -449,10 +449,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
         let v@(Con h []) = name e'
             c = conName h
-        when (s == builtinTrue)          $ addHaskellCode c "Bool" "True"
-        when (s == builtinFalse)         $ addHaskellCode c "Bool" "False"
-        when (s == builtinIntegerPos)    $ addHaskellCode c "Integer -> Either Integer Integer" "Right"
-        when (s == builtinIntegerNegSuc) $ addHaskellCode c "Integer -> Either Integer Integer" "Left"
+        when (s == builtinTrue)  $ addHaskellCode c "Bool" "True"
+        when (s == builtinFalse) $ addHaskellCode c "Bool" "False"
         bindBuiltinName s v
 
       BuiltinPrim pfname axioms -> do

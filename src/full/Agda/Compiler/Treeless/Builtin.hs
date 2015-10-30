@@ -16,6 +16,7 @@
 -- Ulf, 2015-10-30: Guards are actually a better primitive. Fixed that.
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE RecordWildCards #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import qualified Agda.Syntax.Internal as I
@@ -36,6 +37,13 @@ import Agda.Utils.Impossible
 
 #include "undefined.h"
 
+data BuiltinKit = BuiltinKit
+  { isZero   :: QName -> Bool
+  , isSuc    :: QName -> Bool
+  , isPos    :: QName -> Bool
+  , isNegSuc :: QName -> Bool
+  }
+
 natKit :: TCM (Maybe (QName, QName))
 natKit = do
     I.Con zero _ <- primZero
@@ -43,23 +51,52 @@ natKit = do
     return $ Just (I.conName zero, I.conName suc)
   `catchError` \_ -> return Nothing
 
-translateBuiltins :: TTerm -> TCM TTerm
-translateBuiltins t =
-  caseMaybeM natKit (return t) $ \(zero, suc) ->
-    return $ transform (== zero) (== suc) t
+intKit :: TCM (Maybe (QName, QName))
+intKit = do
+    I.Con pos _    <- primIntegerPos
+    I.Con negsuc _ <- primIntegerNegSuc
+    return $ Just (I.conName pos, I.conName negsuc)
+  `catchError` \_ -> return Nothing
 
-transform :: (QName -> Bool) -> (QName -> Bool) -> TTerm -> TTerm
-transform isZero isSuc = tr
+builtinKit :: TCM BuiltinKit
+builtinKit = do
+  nat <- natKit
+  int <- intKit
+  let is proj kit = maybe (const False) (==) (proj <$> kit)
+  return $ BuiltinKit
+    { isZero   = is fst nat
+    , isSuc    = is snd nat
+    , isPos    = is fst int
+    , isNegSuc = is snd int
+    }
+
+translateBuiltins :: TTerm -> TCM TTerm
+translateBuiltins t = do
+  kit <- builtinKit
+  return $ transform kit t
+
+transform :: BuiltinKit -> TTerm -> TTerm
+transform BuiltinKit{..} = tr
   where
     tr t = case t of
 
-      TCon c | isZero c -> tInt 0
-             | isSuc c  -> TLam (tPlusK 1 (TVar 0))
+      TCon c | isZero c   -> tInt 0
+             | isSuc c    -> TLam (tPlusK 1 (TVar 0))
+             | isPos c    -> TLam (TVar 0)
+             | isNegSuc c -> TLam $ tNegPlusK 1 (TVar 0)
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
           TLit (LitNat r n) -> tInt (n + 1)
           e | Just (i, e) <- plusKView e -> tPlusK (i + 1) e
           e                 -> tPlusK 1 e
+
+      TApp (TCon c) [e]
+        | isPos c    -> tr e
+        | isNegSuc c ->
+        case tr e of
+          TLit (LitNat _ n) -> tInt (-n - 1)
+          e | Just (i, e) <- plusKView e -> tNegPlusK (i + 1) e
+          e -> tNegPlusK 1 e
 
       TCase e t d bs -> TCase e t (tr d) $ concatMap trAlt bs
         where
@@ -84,6 +121,13 @@ transform isZero isSuc = tr
                 nPlusKView _ = Nothing
 
                 str err = compactS err [Nothing]
+
+            TACon c 1 b | isPos c ->
+              -- TODO: collapse nested suc patterns
+              [TAGuard (tOp PGeq (TVar e) (tInt 0)) $ tr $ applySubst (TVar e :# IdS) b]
+
+            TACon c 1 b | isNegSuc c ->
+              [TAGuard (tOp PLt (TVar e) (tInt 0)) $ TLet (tNegPlusK 1 (TVar e)) $ tr b]
 
             TACon c a b -> [TACon c a (tr b)]
             TALit{}     -> [b]

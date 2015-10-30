@@ -382,6 +382,7 @@ compilePrim C.PSub = mkVar $ primFunNm "primIntegerMinus"
 compilePrim C.PAdd = mkVar $ primFunNm "primIntegerPlus"
 compilePrim C.PIf  = mkVar $ primFunNm "primIfThenElse"
 compilePrim C.PGeq = mkVar $ primFunNm "primIntegerGreaterOrEqual"
+compilePrim C.PLt  = mkVar $ primFunNm "primIntegerLess"
 
 
 createMainModule :: AModuleInfo -> HsName -> CModule

@@ -112,7 +112,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primIntegerLess"    |-> rel "(<)"  "Integer"
   , "primIntegerAbs"     |-> return "(abs :: Integer -> Integer)"
   , "primNatToInteger"   |-> return "(id :: Integer -> Integer)"
-  , "primShowInteger"    |-> return "(either (show . negate . succ) show :: Either Integer Integer -> String)"
+  , "primShowInteger"    |-> return "(show :: Integer -> String)"
 
   -- Levels
   , "primLevelZero"   |-> return "()"
@@ -142,9 +142,9 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
                                   , "if isNegInf x then True  else"
                                   , "if isNaN x    then True  else"
                                   , "x < y) :: Double -> Double -> Bool)" ])
-  , "primRound"             |-> return ("(" ++ mkInt ++ " . round :: Double -> Either Integer Integer)")
-  , "primFloor"             |-> return ("(" ++ mkInt ++ " . floor :: Double -> Either Integer Integer)")
-  , "primCeiling"           |-> return ("(" ++ mkInt ++ " . ceiling :: Double -> Either Integer Integer)")
+  , "primRound"             |-> return "(round :: Double -> Integer)"
+  , "primFloor"             |-> return "(floor :: Double -> Integer)"
+  , "primCeiling"           |-> return "(ceiling :: Double -> Integer)"
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
@@ -189,8 +189,6 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
        closedTerm =<< (closedTermToTreeless $ lam "a" (lam "A" (lam "x" (lam "y" refl)))))
   ]
   where
-  mkInt = "(\\ n -> if n < 0 then Left (-n - 1) else Right n)"
-
   x |-> s = (x, Left <$> s)
   bin blt op ty from to = do
     from' <- bltQual' blt from
@@ -212,8 +210,8 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
 
   lam x t = Lam (setHiding Hidden defaultArgInfo) (Abs x t)
 
-isPrimNat :: QName -> TCM Bool
-isPrimNat q = isBuiltin q builtinNat
+noCheckCover :: QName -> TCM Bool
+noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 ----------------------
 

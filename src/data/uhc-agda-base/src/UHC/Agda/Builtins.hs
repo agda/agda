@@ -111,6 +111,9 @@ primIntegerPlus = (+)
 primIntegerGreaterOrEqual :: Integer -> Integer -> Bool
 primIntegerGreaterOrEqual = (>=)
 
+primIntegerLess :: Integer -> Integer -> Bool
+primIntegerLess = (<)
+
 primIntegerEquality :: Integer -> Integer -> Bool
 primIntegerEquality = (==)
 

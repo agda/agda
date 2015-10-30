@@ -235,7 +235,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
-        ccscov <- ifM (isPrimNat q) (return []) $ do
+        ccscov <- ifM (noCheckCover q) (return []) $ do
             ccs <- List.concat <$> mapM checkConstructorType cs
             cov <- checkCover q ty np cs
             return $ ccs ++ cov
@@ -444,6 +444,7 @@ compilePrim s =
     T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
     T.PGeq -> fakeExp "((Prelude.>=) :: Integer -> Integer -> Bool)"
+    T.PLt  -> fakeExp "((Prelude.<) :: Integer -> Integer -> Bool)"
     -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
     T.PIf  -> __IMPOSSIBLE__
 
