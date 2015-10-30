@@ -1,4 +1,4 @@
-Agda2> (agda2-status-action "")
+(agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue639 (Issue639.agda). " t)
@@ -6,4 +6,3 @@ Agda2> (agda2-status-action "")
 ((last . 3) . (agda2-maybe-goto '("Issue639.agda" . 34)))
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
-Agda2> 

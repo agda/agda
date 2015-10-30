@@ -1,4 +1,4 @@
-Agda2> (agda2-status-action "")
+(agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue635b (Issue635b.agda). " t)
@@ -32,6 +32,5 @@ Agda2> (agda2-status-action "")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : update (.ρ , .h₂ ⊕ .n₃ < .h ⊕ .n ∣ record {}) vz (max (↑ (.h₁ ⊕ .n₂) - .n₁)) ≤V (.ξ , .h₃ ⊕ .n₄ < .h ⊕ .n ∣ .q) ?1 : update (.ρ , .h₂ ⊕ .n₃ < .h ⊕ .n ∣ record {}) (vs x) (max (↑ (.h₁ ⊕ .n₂) - .n₁)) ≤V (.ξ , .h₃ ⊕ .n₄ < .h ⊕ .n ∣ .q) " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
-Agda2> ((last . 2) . (agda2-make-case-action '("lemma-str vz (p , s) (leZZ p₁) = ?" "lemma-str vz (p , s) leZ∞ = ?" "lemma-str vz (p , s) (le∞∞ p₁) = ?")))
+((last . 2) . (agda2-make-case-action '("lemma-str vz (p , s) (leZZ p₁) = ?" "lemma-str vz (p , s) leZ∞ = ?" "lemma-str vz (p , s) (le∞∞ p₁) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))
-Agda2> 

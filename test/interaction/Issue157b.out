@@ -1,4 +1,4 @@
-Agda2> (agda2-status-action "")
+(agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue157b (Issue157b.agda). " t)
@@ -11,4 +11,3 @@ Agda2> (agda2-status-action "")
 ((last . 3) . (agda2-maybe-goto '("Issue157b.agda" . 96)))
 (agda2-highlight-add-annotations '(94 96 (unsolvedmeta) nil) '(96 97 (error unsolvedmeta) "Issue157b.agda:7,29-30 B !=< A of type Set when checking that the expression b has type A"))
 (agda2-status-action "")
-Agda2> 

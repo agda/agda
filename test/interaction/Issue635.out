@@ -1,4 +1,4 @@
-Agda2> (agda2-status-action "")
+(agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue635 (Issue635.agda). " t)
@@ -6,6 +6,5 @@ Agda2> (agda2-status-action "")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : PointedMorphism (record { Carrier = .Carrier ; empty = .empty ; equal = .equal }) (record { Carrier = .Carrier₁ ; empty = .empty₁ ; equal = .equal₁ }) " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-Agda2> ((last . 2) . (agda2-make-case-action '("f (morph f identity) = ?")))
+((last . 2) . (agda2-make-case-action '("f (morph f identity) = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
-Agda2> 

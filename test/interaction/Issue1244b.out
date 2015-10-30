@@ -1,3 +1,2 @@
-Agda2> (agda2-status-action "")
+(agda2-status-action "")
 (agda2-info-action "*Agda Version*" "Agda version 2.4.3" nil)
-Agda2> 
