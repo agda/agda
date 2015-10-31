@@ -329,7 +329,8 @@ dropSameCandidates m cands = do
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM [Candidate]
 checkCandidates m t cands = disableDestructiveUpdate $ do
-  verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $ do
+  verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
+  ifM (anyMetaTypes cands) (return cands) $ do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ text "candidates"
@@ -340,6 +341,14 @@ checkCandidates m t cands = disableDestructiveUpdate $ do
       , vcat [ text "-" <+> prettyTCM v <+> text ":" <+> prettyTCM t | Candidate v t _ <- cands' ] ]
     return cands'
   where
+    anyMetaTypes :: [Candidate] -> TCM Bool
+    anyMetaTypes [] = return False
+    anyMetaTypes (Candidate _ a _ : cands) = do
+      a <- instantiate a
+      case ignoreSharing $ unEl a of
+        MetaV{} -> return True
+        _       -> anyMetaTypes cands
+
     checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM Bool
     checkCandidateForMeta m t (Candidate term t' eti) = do
       -- Andreas, 2015-02-07: New metas should be created with range of the
