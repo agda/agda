@@ -50,7 +50,7 @@ ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   reportSDoc "treeless.opt" 20 $ text "-- compiling" <+> prettyTCM q
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
-  body <- casetree cc `runReaderT` initCCEnv
+  body <- casetreeTop cc `runReaderT` initCCEnv
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
   body <- translateBuiltins body
   reportSDoc "treeless.opt.n+k" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
@@ -98,6 +98,12 @@ lookupLevel :: Int -- ^ case tree de bruijn level
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
 -- | Compile a case tree into nested case and record expressions.
+casetreeTop :: CC.CompiledClauses -> CC C.TTerm
+casetreeTop cc = do
+  let a = commonArity cc
+  lift $ reportSLn "treeless.convert.arity" 40 $ "-- common arity: " ++ show a
+  lambdasUpTo a $ casetree cc
+
 casetree :: CC.CompiledClauses -> CC C.TTerm
 casetree cc = do
   case cc of
@@ -132,6 +138,24 @@ casetree cc = do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)
+
+commonArity :: CC.CompiledClauses -> Int
+commonArity cc =
+  case arities 0 cc of
+    [] -> 0
+    as -> minimum as
+  where
+    arities cxt (Case x (Branches False cons lits def)) =
+      concatMap (wArities cxt') (Map.elems cons) ++
+      concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
+      concat [ arities cxt' c | Just c <- [def] ] -- ??
+      where cxt' = max (x + 1) cxt
+    arities cxt (Case _ (Branches True _ _ _)) = [cxt]
+    arities cxt (Done xs _) = [max cxt (length xs)]
+    arities _   Fail        = []
+
+
+    wArities cxt (WithArity k c) = map (\ x -> x - k + 1) $ arities (cxt - 1 + k) c
 
 updateCatchAll :: Maybe CC.CompiledClauses -> (CC C.TTerm -> CC C.TTerm)
 updateCatchAll Nothing cont = cont
