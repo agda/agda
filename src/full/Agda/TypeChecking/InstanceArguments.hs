@@ -328,7 +328,7 @@ dropSameCandidates m cands = do
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM [Candidate]
-checkCandidates m t cands = disableDestructiveUpdate $ do
+checkCandidates m t cands = disableDestructiveUpdate $
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
   ifM (anyMetaTypes cands) (return cands) $ do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
