@@ -458,6 +458,7 @@ checkAbsurdLambda i h e t = do
                     }
                   ]
               , funCompiled       = Just Fail
+              , funTreeless       = Nothing
               , funDelayed        = NotDelayed
               , funInv            = NotInjective
               , funAbstr          = ConcreteDef

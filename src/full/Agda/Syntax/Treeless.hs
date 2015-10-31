@@ -138,3 +138,6 @@ instance Unreachable TTerm where
   isUnreachable (TError TUnreachable{}) = True
   isUnreachable (TLet _ b) = isUnreachable b
   isUnreachable _ = False
+
+instance KillRange TTerm where
+  killRange t = t -- bogus, but not that important(?)

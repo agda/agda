@@ -135,6 +135,7 @@ checkAlias t' ai delayed i name e = do
                           , clauseCatchall  = False
                           } ]
                       , funCompiled       = Just $ Done [] v
+                      , funTreeless       = Nothing
                       , funDelayed        = delayed
                       , funInv            = NotInjective
                       , funAbstr          = Info.defAbstract i
@@ -255,6 +256,7 @@ checkFunDef' t ai delayed extlam with i name cs =
              Function
              { funClauses        = cs
              , funCompiled       = Just cc
+             , funTreeless       = Nothing
              , funDelayed        = delayed
              , funInv            = inv
              , funAbstr          = Info.defAbstract i

@@ -52,6 +52,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
+import Agda.Syntax.Treeless (TTerm)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -1198,6 +1199,8 @@ data Defn = Axiom
               -- ^ 'Nothing' while function is still type-checked.
               --   @Just cc@ after type and coverage checking and
               --   translation to case trees.
+            , funTreeless       :: Maybe TTerm
+              -- ^ Intermediate representation for compiler backends.
             , funInv            :: FunctionInverse
             , funMutual         :: [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
@@ -1290,6 +1293,7 @@ emptyFunction :: Defn
 emptyFunction = Function
   { funClauses     = []
   , funCompiled    = Nothing
+  , funTreeless    = Nothing
   , funInv         = NotInjective
   , funMutual      = []
   , funAbstr       = ConcreteDef
@@ -2536,8 +2540,8 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      Function cls comp inv mut isAbs delayed proj static inline smash copy term extlam with cop ->
-        killRange14 Function cls comp inv mut isAbs delayed proj static inline smash copy term extlam with cop
+      Function cls comp tt inv mut isAbs delayed proj static inline smash copy term extlam with cop ->
+        killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash copy term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e          -> killRange5 Constructor a b c d e

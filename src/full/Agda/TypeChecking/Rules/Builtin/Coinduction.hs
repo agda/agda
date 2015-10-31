@@ -153,6 +153,7 @@ bindBuiltinFlat e =
                , theDef = Function
                    { funClauses    = [clause]
                    , funCompiled   = Just $ cc
+                   , funTreeless   = Nothing
                    , funInv        = NotInjective
                    , funMutual     = []
                    , funAbstr      = ConcreteDef

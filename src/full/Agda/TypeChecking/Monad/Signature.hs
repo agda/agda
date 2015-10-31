@@ -23,6 +23,7 @@ import Agda.Syntax.Abstract (Ren)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
+import Agda.Syntax.Treeless (TTerm)
 
 import qualified Agda.Compiler.JS.Parser as JS
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
@@ -397,6 +398,7 @@ applySection' new ptel old ts rd rm = do
                   let newDef = Function
                         { funClauses        = [cl]
                         , funCompiled       = Just $ cc
+                        , funTreeless       = Nothing
                         , funDelayed        = NotDelayed
                         , funInv            = NotInjective
                         , funMutual         = mutual
@@ -589,6 +591,20 @@ setArgOccurrences d os = modifyArgOccurrences d $ const os
 modifyArgOccurrences :: QName -> ([Occurrence] -> [Occurrence]) -> TCM ()
 modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
+
+setTreeless :: QName -> TTerm -> TCM ()
+setTreeless q t =
+  modifySignature $ updateDefinition q $ updateTheDef $ \ def ->
+  case def of
+    Function{} -> def { funTreeless = Just t }
+    _          -> __IMPOSSIBLE__
+
+getTreeless :: QName -> TCM (Maybe TTerm)
+getTreeless q = do
+  def <- theDef <$> getConstInfo q
+  return $ case def of
+    Function{ funTreeless = t } -> t
+    _                           -> Nothing
 
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]
