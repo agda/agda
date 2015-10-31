@@ -34,7 +34,7 @@ instance Subst TTerm TTerm where
       case applySubst rho (TVar i) of
         TVar j -> TCase j t (applySubst rho d) (applySubst rho bs)
         e -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
-          where rho' = liftS 1 rho
+          where rho' = wkS 1 rho
 
 instance Subst TTerm TAlt where
   applySubst rho (TACon c i b)  = TACon c i (applySubst (liftS i rho) b)
