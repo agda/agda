@@ -104,7 +104,7 @@ pTerm t = case t of
       (n, b) = lamV t
       lamV (TLam b) = first succ $ lamV b
       lamV t        = (0, t)
-  TLet{} -> withNames (length es) $ \ xs ->
+  TLet{} -> paren 0 $ withNames (length es) $ \ xs ->
     (\ (binds, b) -> sep [ text "let" <+> vcat [ sep [ text x <+> text "="
                                                      , nest 2 e ] | (x, e) <- binds ]
                               <+> text "in", b ])
@@ -119,7 +119,7 @@ pTerm t = case t of
         e <- pTerm' 0 e
         first ((x, e) :) <$> bindName x (pLets bs b)
 
-  TCase x _ def alts ->
+  TCase x _ def alts -> paren 0 $
     (\ sc alts def ->
       sep [ text "case" <+> sc <+> text "of"
           , nest 2 $ vcat (alts ++ [ text "_ →" <+> def ]) ]
