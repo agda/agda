@@ -55,16 +55,19 @@ eraseTerms = runE . erase
     erase t = case tAppView t of
 
       TCon c : vs -> do
-        (rs, _) <- getFunInfo c
+        (rs, h) <- getFunInfo c
         when (length rs < length vs) __IMPOSSIBLE__
-        TApp (TCon c) <$> zipWithM eraseRel rs vs
+        case h of
+          Erasable -> pure TErased
+          Empty    -> pure TErased
+          _        -> TApp (TCon c) <$> zipWithM eraseRel rs vs
 
       TDef f : vs -> do
         (rs, h) <- getFunInfo f
-        let dontErase = TApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat Relevant) vs
         case h of
           Erasable -> pure TErased
-          _        -> dontErase
+          Empty    -> pure TErased
+          _        -> TApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat Relevant) vs
 
       _ -> case t of
         TVar{}         -> pure t
