@@ -24,13 +24,15 @@ postulate
 {-# COMPILED _>>=_  (\_ _ _ _ ->
                         (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 
+{-# IMPORT Data.Text.IO #-}
+
 postulate
   Unit : Set
   putStrLn : String →  IO Unit
 
 {-# COMPILED_TYPE Unit () #-}
 
-{-# COMPILED putStrLn putStrLn #-}
+{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
 
 data List A : Set where
   [] : List A
