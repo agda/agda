@@ -65,6 +65,7 @@ checkTypeOfMain q ty ret
 -- Haskell modules to be imported for BUILT-INs
 importsForPrim :: TCM [HS.ModuleName]
 importsForPrim =
+  fmap (++ [HS.ModuleName "Data.Text"]) $
   xForPrim $
   L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
   [ "CHAR"           |-> ["Data.Char"]
@@ -112,7 +113,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primIntegerLess"    |-> rel "(<)"  "Integer"
   , "primIntegerAbs"     |-> return "(abs :: Integer -> Integer)"
   , "primNatToInteger"   |-> return "(id :: Integer -> Integer)"
-  , "primShowInteger"    |-> return "(show :: Integer -> String)"
+  , "primShowInteger"    |-> return "(Data.Text.pack . show :: Integer -> Data.Text.Text)"
 
   -- Levels
   , "primLevelZero"   |-> return "()"
@@ -148,7 +149,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
-  , "primShowFloat"         |-> return "((\\ x -> if isNegativeZero x then \"0.0\" else show x) :: Double -> String)"
+  , "primShowFloat"         |-> return "(Data.Text.pack . (\\ x -> if isNegativeZero x then \"0.0\" else show x) :: Double -> Data.Text.Text)"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"
@@ -164,19 +165,19 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primToLower"        |-> return "Data.Char.toLower"
   , "primCharToNat" |-> return "(fromIntegral . fromEnum :: Char -> Integer)"
   , "primNatToChar" |-> return "(toEnum . fromIntegral :: Integer -> Char)"
-  , "primShowChar"  |-> return "(show :: Char -> String)"
+  , "primShowChar"  |-> return "(Data.Text.pack . show :: Char -> Data.Text.Text)"
 
   -- String functions
-  , "primStringToList"   |-> return "(id :: String -> String)"
-  , "primStringFromList" |-> return "(id :: String -> String)"
-  , "primStringAppend"   |-> binAsis "(++)" "String"
-  , "primStringEquality" |-> rel "(==)" "String"
-  , "primShowString"     |-> return "(show :: String -> String)"
+  , "primStringToList"   |-> return "Data.Text.unpack"
+  , "primStringFromList" |-> return "Data.Text.pack"
+  , "primStringAppend"   |-> binAsis "Data.Text.append" "Data.Text.Text"
+  , "primStringEquality" |-> rel "(==)" "Data.Text.Text"
+  , "primShowString"     |-> return "Data.Text.unpack"
 
   -- Reflection
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName () ()"
   , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName () ()"
-  , "primShowQName"       |-> return "MAlonzo.RTE.qnameString"
+  , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , "primQNameType"       |-> return "MAlonzo.RTE.qnameType"
   , "primQNameDefinition" |-> return "MAlonzo.RTE.qnameDefinition"
 

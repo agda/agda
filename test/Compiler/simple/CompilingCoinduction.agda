@@ -14,10 +14,12 @@ postulate
 {-# COMPILED_TYPE IO IO #-}
 {-# BUILTIN IO IO #-}
 
+{-# IMPORT Data.Text.IO #-}
+
 postulate
   putStrLn : ∞ String → IO Unit
 
-{-# COMPILED putStrLn putStrLn #-}
+{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
 {-# COMPILED_UHC putStrLn (UHC.Agda.Builtins.primPutStrLn) #-}
 
 main = putStrLn (♯ "a")

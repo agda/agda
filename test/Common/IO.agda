@@ -29,10 +29,13 @@ postulate
 {-# COMPILED_UHC return (\_ _ x -> UHC.Agda.Builtins.primReturn x) #-}
 {-# COMPILED_UHC _>>=_ (\_ _ _ _ x y -> UHC.Agda.Builtins.primBind x y) #-}
 
+
+{-# IMPORT Data.Text.IO #-}
+
 postulate
   putStr     : String -> IO Unit
 
-{-# COMPILED putStr putStr #-}
+{-# COMPILED putStr Data.Text.IO.putStr #-}
 {-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
 {-# COMPILED_UHC putStr (UHC.Agda.Builtins.primPutStr) #-}
 

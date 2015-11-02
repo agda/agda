@@ -1,6 +1,7 @@
 module Main where
 
 import MAlonzo.Code.ExportTestAgda
+import Data.Text
 
 main :: IO ()
-main = putStrLn itWorksText
+main = putStrLn $ Data.Text.unpack itWorksText

@@ -414,7 +414,7 @@ term tm0 = case tm0 of
 
   T.TCase sc ct def alts -> do
     sc' <- term (T.TVar sc)
-    alts' <- traverse alt alts
+    alts' <- traverse (alt sc) alts
     def' <- term def
     let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') (HS.BDecls [])
 
@@ -448,8 +448,8 @@ compilePrim s =
     -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
     T.PIf  -> __IMPOSSIBLE__
 
-alt :: T.TAlt -> CC HS.Alt
-alt a = do
+alt :: Int -> T.TAlt -> CC HS.Alt
+alt sc a = do
   case a of
     T.TACon {} -> do
       intros (T.aArity a) $ \xs -> do
@@ -462,6 +462,16 @@ alt a = do
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier g] b])
                       (HS.BDecls [])
     T.TALit { T.aLit = (LitQName _ q) } -> mkAlt (litqnamepat q)
+    T.TALit { T.aLit = (LitString _ s) , T.aBody = b } -> do
+      b <- term b
+      sc <- term (T.TVar sc)
+      let guard =
+            HS.Var (HS.UnQual (HS.Ident "(==)")) `HS.App`
+              sc`HS.App`
+              litString s
+      return $ HS.Alt dummy HS.PWildCard
+                      (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier guard] b])
+                      (HS.BDecls [])
     T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
   where
     mkAlt :: HS.Pat -> CC HS.Alt
@@ -474,6 +484,7 @@ literal l = case l of
   LitNat    _ _   -> return $ typed "Integer"
   LitFloat  _ _   -> return $ typed "Double"
   LitQName  _ x   -> return $ litqname x
+  LitString _ s   -> return $ litString s
   _               -> return $ l'
   where l'    = HS.Lit $ hslit l
         typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
@@ -481,9 +492,14 @@ literal l = case l of
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitNat    _ x -> HS.Int    x
                     LitFloat  _ x -> HS.Frac   (toRational x)
-                    LitString _ x -> HS.String x
                     LitChar   _ x -> HS.Char   x
                     LitQName  _ x -> __IMPOSSIBLE__
+                    LitString _ _ -> __IMPOSSIBLE__
+
+litString :: String -> HS.Exp
+litString s =
+  HS.Var (HS.Qual (HS.ModuleName "Data.Text") (HS.Ident "pack")) `HS.App`
+    (HS.Lit $ HS.String s)
 
 litqname :: QName -> HS.Exp
 litqname x =
