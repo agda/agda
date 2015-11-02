@@ -41,8 +41,9 @@ data TTerm = TVar Int
            -- It is also perfectly valid to just inline the bound term in the body.
            | TCase Int CaseType TTerm [TAlt]
            -- ^ Case scrutinee (always variable), case type, default value, alternatives
-           -- The order of alternatives is significant if there is any TAPlus alternative;
-           -- alternatives are matched top to bottom in that case.
+           -- First, all TACon alternatives are tried; then all TAGuard alternatives
+           -- in top to bottom order.
+           -- TACon alternatives must not overlap.
            | TUnit -- used for levels right now
            | TSort
            | TErased
