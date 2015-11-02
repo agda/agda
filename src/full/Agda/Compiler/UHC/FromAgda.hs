@@ -202,12 +202,20 @@ addToEnv :: [HsName] -> TT a -> TT a
 addToEnv nms cont =
   local (\e -> e { nmEnv = nms ++ (nmEnv e) }) cont
 
+data BuiltinKit = BuiltinKit
+  { isNat :: QName -> Bool
+  , isInt :: QName -> Bool
+  }
 
-natKit :: TCM (Maybe QName)
-natKit = do
-    I.Def nat _ <- primNat
-    return $ Just nat
-  `catchError` \_ -> return Nothing
+builtinKit :: TCM BuiltinKit
+builtinKit =
+  BuiltinKit <$> is dat builtinNat
+             <*> is dat builtinInteger
+  where
+    dat (I.Def d _) = pure d
+    dat _           = Nothing
+
+    is a b = maybe (const False) (==) . (a =<<) <$> getBuiltin' b
 
 compileTerm :: C.TTerm -> TT CExpr
 compileTerm t = do
@@ -220,7 +228,7 @@ compileTerm t = do
 --   names in the position.
 compileTerm' :: C.TTerm -> TT CExpr
 compileTerm' term = do
-  natKit' <- lift $ lift natKit
+  builtinKit' <- lift $ lift builtinKit
   case term of
     C.TPrim t -> return $ compilePrim t
     C.TVar x -> do
@@ -244,7 +252,7 @@ compileTerm' term = do
         mkLet1Plain nm
           <$> compileTerm' x
           <*> addToEnv [nm] (compileTerm' body)
-    C.TCase sc (C.CTData dt) def alts | Just dt /= natKit'-> do
+    C.TCase sc (C.CTData dt) def alts | not (isNat builtinKit' dt || isInt builtinKit' dt) -> do
       -- normal constructor case
       caseScr <- lift freshLocalName
       defVar <- lift freshLocalName
@@ -271,7 +279,8 @@ compileTerm' term = do
           C.CTChar -> mkVar $ primFunNm "primCharEquality"
           C.CTString -> mkVar $ primFunNm "primStringEquality"
           C.CTQName -> mkVar $ primFunNm "primQNameEquality"
-          C.CTData nm | Just nm == natKit' -> mkVar $ primFunNm "primIntegerEquality"
+          C.CTData nm | isNat builtinKit' nm -> mkVar $ primFunNm "primIntegerEquality"
+          C.CTData nm | isInt builtinKit' nm -> mkVar $ primFunNm "primIntegerEquality"
           _ -> __IMPOSSIBLE__
 
     C.TUnit -> unit
