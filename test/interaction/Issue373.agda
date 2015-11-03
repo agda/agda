@@ -39,10 +39,12 @@ postulate
 
 {-# COMPILED _>>=_ (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 
+{-# IMPORT Data.Text.IO #-}
+
 postulate
   putStrLn : String → IO ⊤
 
-{-# COMPILED putStrLn putStrLn #-}
+{-# COMPILED putStrLn Data.Text.IO.putStrLn #-}
 
 f : ℕ → String
 f zero = "bad"
