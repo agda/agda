@@ -4,6 +4,10 @@
 Built-ins
 *********
 
+.. contents::
+   :depth: 1
+   :local:
+
 The Agda type checker knows about, and has special treatment for, a number of
 different concepts. The most prominent is natural numbers, which has a special
 representation as Haskell integers and support for fast arithmetic. The surface
@@ -274,6 +278,8 @@ available on strings (given suitable bindings for `Bool <Booleans_>`_, `Char
   primShowString     : String → String
 
 String literals can be :ref:`overloaded <overloaded-strings>`.
+
+.. _built-in-equality:
 
 Equality
 --------

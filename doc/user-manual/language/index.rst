@@ -10,6 +10,7 @@ Language Reference
    built-ins
    coinduction
    copatterns
+   core-language
    data-types
    foreign-function-interface
    function-definitions
