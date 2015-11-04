@@ -1,0 +1,4 @@
+name: stdlib-tests
+include:
+  .
+  ../../../std-lib/src
