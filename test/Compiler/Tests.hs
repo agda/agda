@@ -178,16 +178,16 @@ withGhcLibs pkgDirs mkTree =
           return (tempDir, pkgDb)
           )
         installPkg :: FilePath -> FilePath -> FilePath -> IO ()
-        installPkg tempDir pkgDb pkgDir = do
+        installPkg tempDir _pkgDb pkgDir = do
           pwd <- getCurrentDirectory
           withTempDirectory pwd "pkg-build" $ \builddir -> (do
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "configure", "--builddir=" ++ builddir
-                                             , "--prefix=" ++ tempDir, "--package-db=" ++ pkgDb]
+                                             , "--prefix=" ++ tempDir, "--user"] -- , "--package-db=" ++ pkgDb]
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "build", "--builddir=" ++ builddir]
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "install", "--builddir=" ++ builddir]
             )
         mkArgs :: (FilePath, FilePath) -> AgdaArgs
-        mkArgs (_, pkgDb) = ["-no-user-package-db",   "-package-db=" ++ pkgDb]
+        mkArgs (_, _pkgDb) = [] -- ["-no-user-package-db", "-package-db=" ++ pkgDb]
 
         callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
 #if MIN_VERSION_process(1,2,3)
