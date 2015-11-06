@@ -75,17 +75,18 @@ eraseTerms = runE . erase
         TPrim{}        -> pure t
         TLit{}         -> pure t
         TCon{}         -> pure t
-        TApp f es      -> TApp <$> erase f <*> mapM erase es
+        TApp f es      -> tApp <$> erase f <*> mapM erase es
         TLam b         -> tLam <$> erase b
         TLet e b       -> do
-          b <- erase b
-          if freeIn 0 b then TLet <$> erase e <*> pure b
-                        else do
-            lift $ reportSDoc "treeless.opt.erase.let" 50 $
-              vcat [ text "erasing:" <+> pretty (TLet e b)
-                   , text "free vars:" <+> text (show $ freeVars b) ]
-            pure $ applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
-        TCase x t d bs -> TCase x t <$> erase d <*> mapM eraseAlt bs
+          e <- erase e
+          if isErased e then erase $ subst 0 TErased b else do
+            b <- erase b
+            if freeIn 0 b then pure (TLet e b)
+                          else pure $ applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
+        TCase x t d bs -> do
+          d  <- erase d
+          bs <- mapM eraseAlt bs
+          tCase x t d bs
 
         TUnit          -> pure t
         TSort          -> pure t
@@ -95,8 +96,26 @@ eraseTerms = runE . erase
     tLam TErased = TErased
     tLam t       = TLam t
 
-    tApp f [] = f
-    tApp f es = TApp f es
+    tApp f []      = f
+    tApp TErased _ = TErased
+    tApp f es      = TApp f es
+
+    tCase x t d bs
+      | isErased d && all (isErased . aBody) bs = pure TErased
+      | not $ isErased d = noerase
+      | otherwise = case bs of
+        [TACon c a b] -> do
+          h <- snd <$> getFunInfo c
+          case h of
+            NotErasable -> noerase
+            Empty       -> pure TErased
+            Erasable    -> (if a == 0 then pure else erase) $ applySubst (replicate a TErased ++# idS) b
+                              -- might enable more erasure
+        _ -> noerase
+      where
+        noerase = pure $ TCase x t d bs
+
+    isErased t = t == TErased || isUnreachable t
 
     eraseRel r t | erasableR r = pure TErased
                  | otherwise   = erase t
