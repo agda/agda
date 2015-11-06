@@ -181,7 +181,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
     , nest 2 $ text (show d)
     ]
   checkTypeOfMain q ty $ do
-    (infodecl q :) <$> case d of
+    infodecl q <$> case d of
 
       _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->
         return $ fbWithType ty (fakeExp hs)
@@ -553,8 +553,9 @@ tvaldecl q ind ntv npar cds cl =
     (Inductive, [HS.RecDecl _ [_]]) -> HS.NewType
     _                               -> HS.DataType
 
-infodecl :: QName -> HS.Decl
-infodecl q = fakeD (unqhname "name" q) $ show $ prettyShow q
+infodecl :: QName -> [HS.Decl] -> [HS.Decl]
+infodecl _ [] = []
+infodecl q ds = fakeD (unqhname "name" q) (show $ prettyShow q) : ds
 
 --------------------------------------------------
 -- Inserting unsafeCoerce
