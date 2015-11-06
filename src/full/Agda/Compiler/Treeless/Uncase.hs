@@ -9,7 +9,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 
 caseToSeq :: Monad m => TTerm -> m TTerm
-caseToSeq t = pure $ uncase t
+caseToSeq t = return $ uncase t
 
 uncase :: TTerm -> TTerm
 uncase t = case t of
