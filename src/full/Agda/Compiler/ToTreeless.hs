@@ -118,7 +118,7 @@ casetree cc = do
   case cc of
     CC.Fail -> return C.tUnreachable
     CC.Done xs v -> lambdasUpTo (length xs) $ do
-        v <- lift $ putAllowedReductions [ProjectionReductions, StaticReductions] $ normalise v
+        v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions, StaticReductions] $ normalise v
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
@@ -280,22 +280,11 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
 
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
-  ifM (lift $ alwaysInline q) (C.mkTApp <$> inline q <*> substArgs vs) $ do
-  prj <- lift $ isProjection q
-  let noinline = C.mkTApp (C.TDef q) <$> substArgs vs
-  case prj of
-    Just Projection{ projProper = Just _, projIndex = i } | i > 0 ->
-      case vs of
-        v : vs2 | I.Def r es <- unArg v -> do
-          ifM (lift $ not <$> usesCopatterns r) noinline $ do
-            (simp, u) <- lift $ runReduceM $ unfoldDefinition' False (\ v -> return (YesSimplification, pure v))
-                                                               (I.Def r []) r (es ++ [I.Proj q] ++ map I.Apply vs2)
-            case simp of
-              YesSimplification -> substTerm $ I.ignoreBlocking u
-              NoSimplification  -> noinline
-        _ -> noinline
-    _ -> noinline
+  ifM (lift $ alwaysInline q)
+      (C.mkTApp <$> inline q <*> substArgs vs)
+      noinline
   where
+    noinline = C.mkTApp (C.TDef q) <$> substArgs vs
     inline q = lift $ do
       Just cc <- defCompiled <$> getConstInfo q
       casetreeTop cc

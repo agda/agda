@@ -1381,6 +1381,7 @@ reduced b = case fmap ignoreSharing <$> b of
 data AllowedReduction
   = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
   | StaticReductions         -- ^ Functions marked STATIC may be reduced.
+  | CopatternReductions      -- ^ Copattern definitions may be reduced.
   | FunctionReductions       -- ^ Functions which are not projections may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
   | NonTerminatingReductions -- ^ Functions that have not passed termination checking.

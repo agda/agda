@@ -394,6 +394,10 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
       dontUnfold =
         (defNonterminating info && notElem NonTerminatingReductions allowed)
         || (defDelayed info == Delayed && not unfoldDelayed)
+      copatterns =
+        case def of
+          Function{funCopatternLHS = b} -> b
+          _                             -> False
   case def of
     Constructor{conSrcCon = c} ->
       retSimpl $ notBlocked $ Con (c `withRangeOf` f) [] `applyE` es
@@ -404,7 +408,8 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
     _  -> do
       if FunctionReductions `elem` allowed ||
          (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
-         (isStaticFun def && StaticReductions `elem` allowed)
+         (isStaticFun def && StaticReductions `elem` allowed) ||
+         (copatterns && CopatternReductions `elem` allowed)
         then
           reduceNormalE keepGoing v0 f (map notReduced es)
                        dontUnfold
