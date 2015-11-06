@@ -56,13 +56,17 @@ simplify FunctionKit{..} = simpl
   where
     simpl t = case t of
 
+      TDef{}         -> pure t
+      TPrim{}        -> pure t
+
+      TVar x  -> do
+        v <- lookupVar x
+        pure $ if isAtomic v then v else t
+
       TApp (TDef f) [TLit (LitNat _ 0), m, n, m']
         | m == m', Just f == divAux -> simpl $ tOp PDiv n (tPlusK 1 m)
         | m == m', Just f == modAux -> simpl $ tOp PMod n (tPlusK 1 m)
 
-      TVar{}         -> pure t
-      TDef{}         -> pure t
-      TPrim{}        -> pure t
       TApp (TPrim op) args -> do
         args <- mapM simpl args
         let inline (TVar x) = lookupVar x
@@ -157,12 +161,13 @@ simplify FunctionKit{..} = simpl
       d  <- tApp d es
       bs <- mapM (`tAppAlt` es) bs
       simpl $ TCase x t d bs    -- will resimplify branches
-    tApp f [] = pure f
     tApp (TVar x) es = do
       v <- lookupVar x
       case v of
+        _ | v /= TVar x && isAtomic v -> tApp v es
         TLam{} -> tApp v es   -- could blow up the code
-        _      -> pure $ TApp (TVar x) es
+        _      -> pure $ mkTApp (TVar x) es
+    tApp f [] = pure f
     tApp (TLam b) (TVar i : es) = tApp (subst 0 (TVar i) b) es
     tApp (TLam b) (e : es) = tApp (TLet e b) es
     tApp f es = pure $ TApp f es
@@ -170,4 +175,15 @@ simplify FunctionKit{..} = simpl
     tAppAlt (TACon c a b) es = TACon c a <$> underLams a (tApp b (raise a es))
     tAppAlt (TALit l b) es   = TALit l   <$> tApp b es
     tAppAlt (TAGuard g b) es = TAGuard g <$> tApp b es
+
+    isAtomic v = case v of
+      TVar{}    -> True
+      TCon{}    -> True
+      TPrim{}   -> True
+      TDef{}    -> True
+      TLit{}    -> True
+      TSort{}   -> True
+      TErased{} -> True
+      TError{}  -> True
+      _         -> False
 
