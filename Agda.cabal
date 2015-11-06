@@ -188,6 +188,7 @@ library
                     Agda.Compiler.Treeless.Pretty
                     Agda.Compiler.Treeless.Simplify
                     Agda.Compiler.Treeless.Subst
+                    Agda.Compiler.Treeless.Uncase
                     Agda.Compiler.UHC.Bridge
                     Agda.Compiler.UHC.Compiler
                     Agda.Compiler.UHC.CompileState

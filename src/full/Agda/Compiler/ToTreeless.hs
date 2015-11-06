@@ -28,6 +28,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.Compiler.Treeless.Builtin
 import Agda.Compiler.Treeless.Simplify
 import Agda.Compiler.Treeless.Erase
+import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Pretty
 
 import Agda.Syntax.Common
@@ -56,11 +57,13 @@ ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> do
   body <- casetreeTop cc
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
   body <- translateBuiltins body
-  reportSDoc "treeless.opt.n+k" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.builtin" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" 30 $ text "-- after simplification"  $$ nest 2 (prettyPure body)
   body <- eraseTerms body
   reportSDoc "treeless.opt.erase" 30 $ text "-- after erasure"  $$ nest 2 (prettyPure body)
+  body <- caseToSeq body
+  reportSDoc "treeless.opt.uncase" 30 $ text "-- after uncase"  $$ nest 2 (prettyPure body)
   return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
