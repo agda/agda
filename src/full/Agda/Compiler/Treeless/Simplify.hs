@@ -88,9 +88,23 @@ simplify FunctionKit{..} = simpl
 
       TCase x t d bs -> do
         v <- lookupVar x
-        case conView v of
-          Just (lets, (c, as)) -> simpl $ matchCon lets c as d bs
-          _ -> do   -- TODO: also for literals
+        let (lets, u) = letView v
+        case u of                          -- TODO: also for literals
+          _ | Just (c, as) <- conView u -> simpl $ matchCon lets c as d bs
+          TCase y t1 d1 bs1 -> simpl $ mkLets lets $ TCase y t1 d1 $
+                                       map (distrCase case1) bs1
+            where
+              -- Γ x Δ -> Γ x Δ Θ y, where x maps to y and Θ are the lets
+              n     = length lets
+              rho   = liftS (x + n + 1) (raiseS 1)    `composeS`
+                      singletonS (x + n + 1) (TVar 0) `composeS`
+                      raiseS (n + 1)
+              case1 = applySubst rho (TCase x t d bs)
+
+              distrCase v (TACon c a b) = TACon c a $ TLet b $ raiseFrom 1 a v
+              distrCase v (TALit l b)   = TALit l   $ TLet b v
+              distrCase v (TAGuard g b) = TAGuard g $ TLet b v
+          _ -> do
             d  <- simpl d
             bs <- traverse simplAlt bs
             tCase x t d bs
@@ -100,10 +114,14 @@ simplify FunctionKit{..} = simpl
       TErased        -> pure t
       TError{}       -> pure t
 
-    conView (TCon c)           = Just ([], (c, []))
-    conView (TApp (TCon c) as) = Just ([], (c, as))
-    conView (TLet e b)  = first (e :) <$> conView b
-    conView e           = Nothing
+    conView (TCon c)           = Just (c, [])
+    conView (TApp (TCon c) as) = Just (c, as)
+    conView e                  = Nothing
+
+    letView (TLet e b) = first (e :) $ letView b
+    letView e          = ([], e)
+
+    mkLets es b = foldr TLet b es
 
     matchCon _ _ _ d [] = d
     matchCon lets c as d (TALit{}   : bs) = matchCon lets c as d bs
