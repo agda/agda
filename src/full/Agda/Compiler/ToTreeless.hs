@@ -68,8 +68,8 @@ closedTermToTreeless t = do
 alwaysInline :: QName -> TCM Bool
 alwaysInline q = do
   def <- theDef <$> getConstInfo q
-  pure $ case def of
-    Function{ funExtLam = Just _ } -> True
+  pure $ case def of  -- always inline with functions and pattern lambdas
+    Function{} -> isJust (funExtLam def) || isJust (funWith def)
     _ -> False
 
 -- | Initial environment for expression generation.
