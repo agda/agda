@@ -47,8 +47,8 @@ prettyPure :: P.Pretty a => a -> TCM Doc
 prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
-ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless q cc = ifM (alwaysInline q) (pure C.TErased) $ do
+ccToTreeless :: QName -> CC.CompiledClauses -> TCM (Maybe C.TTerm)
+ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> do
   reportSDoc "treeless.opt" 20 $ text "-- compiling" <+> prettyTCM q
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc

@@ -268,8 +268,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
         return ([tsig,def] ++ ccls)
 
   functionViaTreeless :: QName -> CompiledClauses -> TCM [HS.Decl]
-  functionViaTreeless q cc = do
-    treeless <- ccToTreeless q cc
+  functionViaTreeless q cc = caseMaybeM (ccToTreeless q cc) (pure []) $ \ treeless -> do
     e <- closedTerm treeless
     let (ps, b) =
           case stripTopCoerce e of

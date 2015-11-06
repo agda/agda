@@ -51,6 +51,7 @@ import Agda.Compiler.UHC.MagicTypes
 
 import Agda.Compiler.UHC.Bridge as CA
 
+import Agda.Utils.Maybe
 import Agda.Utils.Except ( MonadError (catchError) )
 
 #include "undefined.h"
@@ -117,13 +118,14 @@ translateDefn (n, defini) = do
         lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
         let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        funBody <- convertGuards <$> lift (ccToTreeless n cc)
-        lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
-        funBody' <- runTT $ compileTerm funBody
-        lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled UHC Core fun:" <+> (text . show) funBody'
+        caseMaybeM (lift $ ccToTreeless n cc) (pure []) $ \ treeless -> do
+          let funBody = convertGuards treeless
+          lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
+          funBody' <- runTT $ compileTerm funBody
+          lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled UHC Core fun:" <+> (text . show) funBody'
 
-        addExports [crName]
-        return [mkBind1 crName funBody']
+          addExports [crName]
+          return [mkBind1 crName funBody']
 
     Constructor{} | Just n == (nameOfSharp <$> kit) -> do
         addExports [crName]
