@@ -19,6 +19,8 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Maybe
 
 import Agda.Compiler.Treeless.Subst
+import Agda.Compiler.Treeless.Pretty
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -69,7 +71,10 @@ simplify FunctionKit{..} = simpl
         let nosimpl = TApp (TPrim op) args
         pure $ fromMaybe nosimpl $ simplPrim $ TApp (TPrim op) inlined
 
-      TApp f es      -> tApp <$> simpl f <*> traverse simpl es
+      TApp f es      -> do
+        f  <- simpl f
+        es <- traverse simpl es
+        tApp f es
       TLam b         -> TLam <$> underLam (simpl b)
       TLit{}         -> pure t
       TCon{}         -> pure t
@@ -78,14 +83,34 @@ simplify FunctionKit{..} = simpl
         TLet e <$> underLet e (simpl b)
 
       TCase x t d bs -> do
-        d  <- simpl d
-        bs <- traverse simplAlt bs
-        tCase x t d bs
+        v <- lookupVar x
+        case conView v of
+          Just (lets, (c, as)) -> simpl $ matchCon lets c as d bs
+          _ -> do   -- TODO: also for literals
+            d  <- simpl d
+            bs <- traverse simplAlt bs
+            tCase x t d bs
 
       TUnit          -> pure t
       TSort          -> pure t
       TErased        -> pure t
       TError{}       -> pure t
+
+    conView (TCon c)           = Just ([], (c, []))
+    conView (TApp (TCon c) as) = Just ([], (c, as))
+    conView (TLet e b)  = first (e :) <$> conView b
+    conView e           = Nothing
+
+    matchCon _ _ _ d [] = d
+    matchCon lets c as d (TALit{}   : bs) = matchCon lets c as d bs
+    matchCon lets c as d (TAGuard{} : bs) = matchCon lets c as d bs
+    matchCon lets c as d (TACon c' a b : bs)
+      | length as /= a = __IMPOSSIBLE__
+      | c == c'        = flip (foldr TLet) lets $ mkLet 0 as (raiseFrom a (length lets) b)
+      | otherwise      = matchCon lets c as d bs
+      where
+        mkLet _ []       b = b
+        mkLet i (a : as) b = TLet (raise i a) $ mkLet (i + 1) as b
 
     simplPrim :: TTerm -> Maybe TTerm
     simplPrim u
@@ -126,10 +151,23 @@ simplify FunctionKit{..} = simpl
         tCase' x t d [] = d
         tCase' x t d bs = TCase x t d bs
 
-    tApp :: TTerm -> [TTerm] -> TTerm
+    tApp :: TTerm -> [TTerm] -> S TTerm
+    tApp (TLet e b) es = TLet e <$> underLet e (tApp b (raise 1 es))
+    tApp (TCase x t d bs) es = do
+      d  <- tApp d es
+      bs <- mapM (`tAppAlt` es) bs
+      simpl $ TCase x t d bs    -- will resimplify branches
+    tApp f [] = pure f
+    tApp (TVar x) es = do
+      v <- lookupVar x
+      case v of
+        TLam{} -> tApp v es   -- could blow up the code
+        _      -> pure $ TApp (TVar x) es
     tApp (TLam b) (TVar i : es) = tApp (subst 0 (TVar i) b) es
     tApp (TLam b) (e : es) = tApp (TLet e b) es
-    tApp (TLet e b) es = TLet e (tApp b $ raise 1 es)
-    tApp f [] = f
-    tApp f es = TApp f es
+    tApp f es = pure $ TApp f es
+
+    tAppAlt (TACon c a b) es = TACon c a <$> underLams a (tApp b (raise a es))
+    tAppAlt (TALit l b) es   = TALit l   <$> tApp b es
+    tAppAlt (TAGuard g b) es = TAGuard g <$> tApp b es
 

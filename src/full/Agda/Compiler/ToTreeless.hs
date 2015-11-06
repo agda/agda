@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternGuards       #-}
 
 module Agda.Compiler.ToTreeless
   ( ccToTreeless
@@ -18,7 +19,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal (QName)
 import qualified Agda.Syntax.Treeless as C
 import qualified Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Literal as TL
+import Agda.Syntax.Literal
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Records (getRecordConstructor)
 import Agda.TypeChecking.Pretty
@@ -32,6 +33,7 @@ import Agda.Compiler.Treeless.Pretty
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
@@ -131,9 +133,9 @@ casetree cc = do
                 c' <- lift (canonicalName c)
                 dtNm <- conData . theDef <$> lift (getConstInfo c')
                 return $ C.CTData dtNm
-              ([], (TL.LitChar _ _):_)  -> return C.CTChar
-              ([], (TL.LitString _ _):_) -> return C.CTString
-              ([], (TL.LitQName _ _):_) -> return C.CTQName
+              ([], (LitChar _ _):_)  -> return C.CTChar
+              ([], (LitString _ _):_) -> return C.CTString
+              ([], (LitQName _ _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
@@ -203,7 +205,7 @@ conAlts x br = forM (Map.toList br) $ \ (c, CC.WithArity n cc) -> do
   replaceVar x n $ do
     branch (C.TACon c' n) cc
 
-litAlts :: Int -> Map TL.Literal CC.CompiledClauses -> CC [C.TAlt]
+litAlts :: Int -> Map Literal CC.CompiledClauses -> CC [C.TAlt]
 litAlts x br = forM (Map.toList br) $ \ (l, cc) ->
   -- Issue1624: we need to drop the case scrutinee from the environment here!
   replaceVar x 0 $ do
@@ -265,9 +267,8 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit -- TODO can we really do this here?
     I.Def q es -> do
-      t <- maybeInlineDef q
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
-      C.mkTApp t <$> substArgs args
+      maybeInlineDef q args
     I.Con c args -> do
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
@@ -277,10 +278,25 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.MetaV _ _ -> __IMPOSSIBLE__
     I.DontCare _ -> __IMPOSSIBLE__ -- when does this happen?
 
-maybeInlineDef :: I.QName -> CC C.TTerm
-maybeInlineDef q = lift $ ifM (not <$> alwaysInline q) (pure $ C.TDef q) $ do
-  Just cc <- defCompiled <$> getConstInfo q
-  casetreeTop cc
+maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
+maybeInlineDef q vs =
+  ifM (lift $ alwaysInline q) (C.mkTApp <$> inline q <*> substArgs vs) $ do
+  prj <- lift $ isProjection q
+  let noinline = C.mkTApp (C.TDef q) <$> substArgs vs
+  case prj of
+    Just Projection{ projProper = Just _, projIndex = i } | i > 0 ->
+      case vs of
+        v : vs2 | I.Def r es <- unArg v -> do
+          ifM (lift $ not <$> usesCopatterns r) noinline $ do
+            let vs1 = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
+            -- TODO: missing recursive inlining here?
+            C.mkTApp <$> inline q <*> ((:) <$> (C.mkTApp <$> inline r <*> substArgs vs1) <*> substArgs vs2)
+        _ -> noinline
+    _ -> noinline
+  where
+    inline q = lift $ do
+      Just cc <- defCompiled <$> getConstInfo q
+      casetreeTop cc
 
 substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse
