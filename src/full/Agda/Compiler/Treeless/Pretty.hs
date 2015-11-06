@@ -57,6 +57,7 @@ opName PMod = "mod"
 opName PGeq = ">="
 opName PLt  = "<"
 opName PIf  = "if_then_else_"
+opName PSeq = "seq"
 
 isInfix :: TPrim -> Maybe (Int, Int, Int)
 isInfix op =

@@ -73,6 +73,7 @@ module UHC.Agda.Builtins
 
     -- Misc
   , primIfThenElse
+  , primSeq
   , unit
   )
 where
@@ -332,6 +333,9 @@ primTrace = trace
 
 primIfThenElse :: Bool -> a -> a -> a
 primIfThenElse c t e = if c then t else e
+
+primSeq :: a -> b -> b
+primSeq = seq
 
 -- | Unit wrapper function (instead of dropping a dummy function inside each module).
 unit :: ()
