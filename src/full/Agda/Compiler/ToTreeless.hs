@@ -56,10 +56,12 @@ ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> do
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
+  body <- simplifyTTerm body
+  reportSDoc "treeless.opt.simpl" 35 $ text "-- after first simplification"  $$ nest 2 (prettyPure body)
   body <- translateBuiltins body
   reportSDoc "treeless.opt.builtin" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
   body <- simplifyTTerm body
-  reportSDoc "treeless.opt.simpl" 30 $ text "-- after simplification"  $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.simpl" 30 $ text "-- after second simplification"  $$ nest 2 (prettyPure body)
   body <- eraseTerms body
   reportSDoc "treeless.opt.erase" 30 $ text "-- after erasure"  $$ nest 2 (prettyPure body)
   body <- caseToSeq body
