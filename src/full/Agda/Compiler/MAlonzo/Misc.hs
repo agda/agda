@@ -208,9 +208,13 @@ mazMod = mazMod' . prettyShow
 mazerror :: String -> a
 mazerror msg = error $ mazstr ++ ": " ++ msg
 
+mazCoerceName :: String
+mazCoerceName = "coe"
+
 mazCoerce :: HS.Exp
 -- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
-mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazCoerce"
+-- mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident mazCoerceName
+mazCoerce = HS.Var $ HS.UnQual $ HS.Ident mazCoerceName
 
 -- Andreas, 2011-11-16: error incomplete match now RTE-call
 mazIncompleteMatch :: HS.Exp

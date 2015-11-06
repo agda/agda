@@ -123,9 +123,13 @@ compile i = do
 imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
   hsImps :: TCM [HS.ImportDecl]
-  hsImps = (List.map decl . Set.toList .
+  hsImps = ((unqualRTE :) . List.map decl . Set.toList .
             Set.insert mazRTE . Set.map HS.ModuleName) <$>
              getHaskellImports
+
+  unqualRTE :: HS.ImportDecl
+  unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
+              (False, [HS.IVar HS.NoNamespace $ HS.Ident mazCoerceName])
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -632,9 +636,9 @@ rteModule = ok $ parse $ unlines
   , "import Unsafe.Coerce"
   , ""
   , "-- Special version of coerce that plays well with rules."
-  , "{-# INLINE [1] mazCoerce #-}"
-  , "mazCoerce = Unsafe.Coerce.unsafeCoerce"
-  , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
+  , "{-# INLINE [1] " ++ mazCoerceName ++ " #-}"
+  , mazCoerceName ++ " = Unsafe.Coerce.unsafeCoerce"
+  , "{-# RULES \"coerce-id\" forall (x :: a) . " ++ mazCoerceName ++ " x = x #-}"
   , ""
   , "-- Builtin QNames, the third field is for the type."
   , "data QName a b = QName { nameId, moduleId :: Integer, qnameType :: a, qnameDefinition :: b, qnameString :: String}"
