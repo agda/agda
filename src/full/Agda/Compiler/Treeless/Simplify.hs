@@ -3,6 +3,7 @@
 {-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
+import Control.Arrow (first, second, (***))
 import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -68,7 +69,7 @@ simplify FunctionKit{..} = simpl
         let nosimpl = TApp (TPrim op) args
         pure $ fromMaybe nosimpl $ simplPrim $ TApp (TPrim op) inlined
 
-      TApp f es      -> TApp <$> simpl f <*> traverse simpl es
+      TApp f es      -> tApp <$> simpl f <*> traverse simpl es
       TLam b         -> TLam <$> underLam (simpl b)
       TLit{}         -> pure t
       TCon{}         -> pure t
@@ -124,4 +125,11 @@ simplify FunctionKit{..} = simpl
 
         tCase' x t d [] = d
         tCase' x t d bs = TCase x t d bs
+
+    tApp :: TTerm -> [TTerm] -> TTerm
+    tApp (TLam b) (TVar i : es) = tApp (subst 0 (TVar i) b) es
+    tApp (TLam b) (e : es) = tApp (TLet e b) es
+    tApp (TLet e b) es = TLet e (tApp b $ raise 1 es)
+    tApp f [] = f
+    tApp f es = TApp f es
 
