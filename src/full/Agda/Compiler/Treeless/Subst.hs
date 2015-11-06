@@ -36,7 +36,6 @@ instance Subst TTerm TTerm where
     TCase i t d bs ->
       case applySubst rho (TVar i) of
         TVar j  -> TCase j t (applySubst rho d) (applySubst rho bs)
-        TErased -> TErased
         e       -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
           where rho' = wkS 1 rho
 

@@ -79,7 +79,10 @@ eraseTerms = runE . erase
         TLam b         -> tLam <$> erase b
         TLet e b       -> do
           e <- erase e
-          if isErased e then erase $ subst 0 TErased b else do
+          if isErased e
+            then case b of
+                   TCase 0 _ _ _ -> TLet TErased <$> erase b
+                   _             -> erase $ subst 0 TErased b else do
             b <- erase b
             if freeIn 0 b then pure (TLet e b)
                           else pure $ applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
