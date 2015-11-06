@@ -60,14 +60,14 @@ eraseTerms = runE . erase
         case h of
           Erasable -> pure TErased
           Empty    -> pure TErased
-          _        -> TApp (TCon c) <$> zipWithM eraseRel rs vs
+          _        -> tApp (TCon c) <$> zipWithM eraseRel rs vs
 
       TDef f : vs -> do
         (rs, h) <- getFunInfo f
         case h of
           Erasable -> pure TErased
           Empty    -> pure TErased
-          _        -> TApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat Relevant) vs
+          _        -> tApp (TDef f) <$> zipWithM eraseRel (rs ++ repeat Relevant) vs
 
       _ -> case t of
         TVar{}         -> pure t
@@ -94,6 +94,9 @@ eraseTerms = runE . erase
 
     tLam TErased = TErased
     tLam t       = TLam t
+
+    tApp f [] = f
+    tApp f es = TApp f es
 
     eraseRel r t | erasableR r = pure TErased
                  | otherwise   = erase t
