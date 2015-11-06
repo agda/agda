@@ -285,11 +285,14 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
 
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
-  ifM (lift $ alwaysInline q)
-      (C.mkTApp <$> inline q <*> substArgs vs)
-      noinline
+  ifM (lift $ alwaysInline q) doinline $ do
+    def <- lift $ theDef <$> getConstInfo q
+    case def of
+      Function{ funStatic = True } -> doinline
+      _                            -> noinline
   where
     noinline = C.mkTApp (C.TDef q) <$> substArgs vs
+    doinline = C.mkTApp <$> inline q <*> substArgs vs
     inline q = lift $ do
       Just cc <- defCompiled <$> getConstInfo q
       casetreeTop cc
