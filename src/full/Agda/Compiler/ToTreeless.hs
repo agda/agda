@@ -288,9 +288,11 @@ maybeInlineDef q vs =
       case vs of
         v : vs2 | I.Def r es <- unArg v -> do
           ifM (lift $ not <$> usesCopatterns r) noinline $ do
-            let vs1 = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
-            -- TODO: missing recursive inlining here?
-            C.mkTApp <$> inline q <*> ((:) <$> (C.mkTApp <$> inline r <*> substArgs vs1) <*> substArgs vs2)
+            (simp, u) <- lift $ runReduceM $ unfoldDefinition' False (\ v -> return (YesSimplification, pure v))
+                                                               (I.Def r []) r (es ++ [I.Proj q] ++ map I.Apply vs2)
+            case simp of
+              YesSimplification -> substTerm $ I.ignoreBlocking u
+              NoSimplification  -> noinline
         _ -> noinline
     _ -> noinline
   where
