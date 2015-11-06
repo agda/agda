@@ -7,6 +7,7 @@ module Agda.Compiler.ToTreeless
   , closedTermToTreeless
   ) where
 
+import Control.Applicative
 import Control.Monad.Reader
 import Data.Maybe
 import Data.Map (Map)
@@ -47,10 +48,10 @@ prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless q cc = do
+ccToTreeless q cc = ifM (alwaysInline q) (pure C.TErased) $ do
   reportSDoc "treeless.opt" 20 $ text "-- compiling" <+> prettyTCM q
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
-  body <- casetreeTop cc `runReaderT` initCCEnv
+  body <- casetreeTop cc
   reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
   body <- translateBuiltins body
   reportSDoc "treeless.opt.n+k" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
@@ -64,6 +65,12 @@ closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
   substTerm t `runReaderT` initCCEnv
 
+alwaysInline :: QName -> TCM Bool
+alwaysInline q = do
+  def <- theDef <$> getConstInfo q
+  pure $ case def of
+    Function{ funExtLam = Just _ } -> True
+    _ -> False
 
 -- | Initial environment for expression generation.
 initCCEnv :: CCEnv
@@ -98,8 +105,8 @@ lookupLevel :: Int -- ^ case tree de bruijn level
 lookupLevel l xs = fromMaybe __IMPOSSIBLE__ $ xs !!! (length xs - 1 - l)
 
 -- | Compile a case tree into nested case and record expressions.
-casetreeTop :: CC.CompiledClauses -> CC C.TTerm
-casetreeTop cc = do
+casetreeTop :: CC.CompiledClauses -> TCM C.TTerm
+casetreeTop cc = flip runReaderT initCCEnv $ do
   let a = commonArity cc
   lift $ reportSLn "treeless.convert.arity" 40 $ "-- common arity: " ++ show a
   lambdasUpTo a $ casetree cc
@@ -258,8 +265,9 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Lit l -> return $ C.TLit l
     I.Level _ -> return C.TUnit -- TODO can we really do this here?
     I.Def q es -> do
+      t <- maybeInlineDef q
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
-      C.mkTApp (C.TDef q) <$> substArgs args
+      C.mkTApp t <$> substArgs args
     I.Con c args -> do
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
@@ -268,6 +276,11 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Sort _  -> return C.TSort
     I.MetaV _ _ -> __IMPOSSIBLE__
     I.DontCare _ -> __IMPOSSIBLE__ -- when does this happen?
+
+maybeInlineDef :: I.QName -> CC C.TTerm
+maybeInlineDef q = lift $ ifM (not <$> alwaysInline q) (pure $ C.TDef q) $ do
+  Just cc <- defCompiled <$> getConstInfo q
+  casetreeTop cc
 
 substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse
