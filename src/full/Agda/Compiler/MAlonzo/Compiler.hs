@@ -82,8 +82,10 @@ compilerMain modIsMain mainI =
   -- so use localTCState.
   localTCState $ do
 
-    -- Compute the output directory.
-    opts <- commandLineOptions
+    -- Compute the output directory. Note: using commandLineOptions would make
+    -- the current pragma options persistent when we setCommandLineOptions
+    -- below.
+    opts <- gets $ stPersistentOptions . stPersistentState
     compileDir <- case optCompileDir opts of
       Just dir -> return dir
       Nothing  -> do

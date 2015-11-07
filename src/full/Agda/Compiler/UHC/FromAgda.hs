@@ -67,6 +67,10 @@ fromAgdaModule :: ModuleName
     -> TCM (CModule, AModuleInfo)
 fromAgdaModule modNm curModImps iface = do
 
+  -- Set correct pragma options
+  setCommandLineOptions =<< gets (stPersistentOptions . stPersistentState)
+  mapM_ setOptionsFromPragma (iPragmaOptions iface)
+
   let defs = HMap.toList $ sigDefinitions $ iSignature iface
 
   (mod', modInfo') <- runCompileT modNm curModImps (do

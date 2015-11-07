@@ -2,6 +2,7 @@
 
 module Agda.Compiler.MAlonzo.Misc where
 
+import Control.Monad.State (gets)
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
@@ -28,6 +29,9 @@ import Agda.Utils.Impossible
 
 setInterface :: Interface -> TCM ()
 setInterface i = do
+  opts <- gets (stPersistentOptions . stPersistentState)
+  setCommandLineOptions opts
+  mapM_ setOptionsFromPragma (iPragmaOptions i)
   stImportedModules .= Set.empty
   stCurrentModule   .= Just (iModuleName i)
 
