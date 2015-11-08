@@ -160,6 +160,7 @@ bindBuiltinFlat e =
                    , funProjection = Just projection
                    , funSmashable  = False
                    , funStatic     = False
+                   , funInline     = False
                    , funCopy       = False
                    , funTerminates = Just True
                    , funExtLam     = Nothing

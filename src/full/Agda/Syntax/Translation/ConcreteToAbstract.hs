@@ -1573,6 +1573,13 @@ instance ToAbstract C.Pragma [A.Pragma] where
             A.Proj x -> return x
             _        -> genericError "Target of STATIC pragma should be a function"
         return [ A.StaticPragma y ]
+    toAbstract (C.InlinePragma _ x) = do
+        e <- toAbstract $ OldQName x Nothing
+        y <- case e of
+            A.Def  x -> return x
+            A.Proj x -> return x
+            _        -> genericError "Target of INLINE pragma should be a function"
+        return [ A.InlinePragma y ]
     toAbstract (C.BuiltinPragma _ b e) | isUntypedBuiltin b = do
       bindUntypedBuiltin b =<< toAbstract e
       return []

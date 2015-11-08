@@ -136,6 +136,7 @@ import Agda.Utils.Tuple
     'COMPILED_DATA_UHC'   { TokKeyword KwCOMPILED_DATA_UHC $$ }
     'NO_SMASHING'   { TokKeyword KwNO_SMASHING $$ }
     'STATIC'        { TokKeyword KwSTATIC $$ }
+    'INLINE'        { TokKeyword KwINLINE $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quoteContext'  { TokKeyword KwQuoteContext $$ }
     'quote'         { TokKeyword KwQuote $$ }
@@ -252,6 +253,7 @@ Token
     | 'COMPILED_DATA_UHC' {TokKeyword KwCOMPILED_DATA_UHC $1 }
     | 'NO_SMASHING'  { TokKeyword KwNO_SMASHING $1 }
     | 'STATIC'       { TokKeyword KwSTATIC $1 }
+    | 'INLINE'       { TokKeyword KwINLINE $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $1 }
@@ -1330,6 +1332,7 @@ DeclarationPragma
   | CompiledDataUHCPragma    { $1 }
   | NoSmashingPragma         { $1 }
   | StaticPragma             { $1 }
+  | InlinePragma             { $1 }
   | ImportPragma             { $1 }
   | ImportUHCPragma          { $1 }
   | ImpossiblePragma         { $1 }
@@ -1414,6 +1417,11 @@ StaticPragma :: { Pragma }
 StaticPragma
   : '{-#' 'STATIC' PragmaQName '#-}'
     { StaticPragma (getRange ($1,$2,$3,$4)) $3 }
+
+InlinePragma :: { Pragma }
+InlinePragma
+  : '{-#' 'INLINE' PragmaQName '#-}'
+    { InlinePragma (getRange ($1,$2,$3,$4)) $3 }
 
 DisplayPragma :: { Pragma }
 DisplayPragma

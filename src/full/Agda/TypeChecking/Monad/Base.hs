@@ -1214,6 +1214,8 @@ data Defn = Axiom
               --   checker.
             , funStatic         :: Bool
               -- ^ Should calls to this function be normalised at compile-time?
+            , funInline         :: Bool
+              -- ^ Should calls to this function be inlined by the compiler?
             , funSmashable      :: Bool
               -- ^ Are we allowed to smash this function?
             , funCopy           :: Bool
@@ -1294,6 +1296,7 @@ emptyFunction = Function
   , funDelayed     = NotDelayed
   , funProjection  = Nothing
   , funStatic      = False
+  , funInline      = False
   , funSmashable   = True
   , funCopy        = False
   , funTerminates  = Nothing
@@ -1380,7 +1383,7 @@ reduced b = case fmap ignoreSharing <$> b of
 -- | Controlling 'reduce'.
 data AllowedReduction
   = ProjectionReductions     -- ^ (Projection and) projection-like functions may be reduced.
-  | StaticReductions         -- ^ Functions marked STATIC may be reduced.
+  | InlineReductions         -- ^ Functions marked INLINE may be reduced.
   | CopatternReductions      -- ^ Copattern definitions may be reduced.
   | FunctionReductions       -- ^ Functions which are not projections may be reduced.
   | LevelReductions          -- ^ Reduce @'Level'@ terms.
@@ -2533,8 +2536,8 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      Function cls comp inv mut isAbs delayed proj static smash copy term extlam with cop ->
-        killRange13 Function cls comp inv mut isAbs delayed proj static smash copy term extlam with cop
+      Function cls comp inv mut isAbs delayed proj static inline smash copy term extlam with cop ->
+        killRange14 Function cls comp inv mut isAbs delayed proj static inline smash copy term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e          -> killRange5 Constructor a b c d e

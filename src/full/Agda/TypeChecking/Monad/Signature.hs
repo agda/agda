@@ -166,6 +166,13 @@ markStatic q = modifySignature $ updateDefinition q $ mark
       def{theDef = fun{funStatic = True}}
     mark def = def
 
+markInline :: QName -> TCM ()
+markInline q = modifySignature $ updateDefinition q $ mark
+  where
+    mark def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funInline = True}}
+    mark def = def
+
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
@@ -396,6 +403,7 @@ applySection' new ptel old ts rd rm = do
                         , funAbstr          = ConcreteDef -- OR: abstr -- ?!
                         , funProjection     = proj
                         , funStatic         = False
+                        , funInline         = False
                         , funSmashable      = True
                         , funCopy           = True
                         , funTerminates     = Just True
@@ -780,6 +788,11 @@ isProjection_ def =
 isStaticFun :: Defn -> Bool
 isStaticFun Function{ funStatic = b } = b
 isStaticFun _ = False
+
+-- | Is it a function marked INLINE?
+isInlineFun :: Defn -> Bool
+isInlineFun Function{ funInline = b } = b
+isInlineFun _ = False
 
 -- | Returns @True@ if we are dealing with a proper projection,
 --   i.e., not a projection-like function nor a record field value

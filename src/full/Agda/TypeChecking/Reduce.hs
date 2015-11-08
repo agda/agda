@@ -408,7 +408,7 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
     _  -> do
       if FunctionReductions `elem` allowed ||
          (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
-         (isStaticFun def && StaticReductions `elem` allowed) ||
+         (isInlineFun def && InlineReductions `elem` allowed) ||
          (copatterns && CopatternReductions `elem` allowed)
         then
           reduceNormalE keepGoing v0 f (map notReduced es)

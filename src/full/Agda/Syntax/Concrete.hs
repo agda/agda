@@ -412,6 +412,7 @@ data Pragma
   | CompiledDataUHCPragma  Range QName String [String]
   | NoSmashingPragma        Range QName
   | StaticPragma           Range QName
+  | InlinePragma           Range QName
   | ImportPragma           Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
   | ImportUHCPragma        Range String
@@ -645,6 +646,7 @@ instance HasRange Pragma where
   getRange (CompiledDataUHCPragma r _ _ _) = r
   getRange (NoSmashingPragma r _)        = r
   getRange (StaticPragma r _)           = r
+  getRange (InlinePragma r _)           = r
   getRange (ImportPragma r _)           = r
   getRange (ImportUHCPragma r _)        = r
   getRange (ImpossiblePragma r)         = r
@@ -839,6 +841,7 @@ instance KillRange Pragma where
   killRange (CompiledDataUHCPragma _ q s ss) = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
   killRange (NoSmashingPragma _ q)        = killRange1 (NoSmashingPragma noRange) q
   killRange (StaticPragma _ q)            = killRange1 (StaticPragma noRange) q
+  killRange (InlinePragma _ q)            = killRange1 (InlinePragma noRange) q
   killRange (ImportPragma _ s)            = ImportPragma noRange s
   killRange (ImportUHCPragma _ s)         = ImportUHCPragma noRange s
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
@@ -969,6 +972,7 @@ instance NFData Pragma where
   rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (NoSmashingPragma _ a)            = rnf a
   rnf (StaticPragma _ a)                = rnf a
+  rnf (InlinePragma _ a)                = rnf a
   rnf (ImportPragma _ a)                = rnf a
   rnf (ImportUHCPragma _ a)             = rnf a
   rnf (ImpossiblePragma _)              = ()

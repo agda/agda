@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as SI
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad hiding (funInline)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Pretty

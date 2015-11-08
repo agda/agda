@@ -100,6 +100,7 @@ tokens :-
 <pragma_>   "DISPLAY"              { keyword KwDISPLAY }
 <pragma_>   "NO_SMASHING"          { keyword KwNO_SMASHING }
 <pragma_>   "STATIC"               { keyword KwSTATIC }
+<pragma_>   "INLINE"               { keyword KwINLINE }
 <pragma_>   "IMPORT"               { keyword KwIMPORT }
 <pragma_>   "IMPORT_UHC"           { keyword KwIMPORT_UHC }
 <pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }

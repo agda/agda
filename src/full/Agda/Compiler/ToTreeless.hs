@@ -123,7 +123,7 @@ casetree cc = do
   case cc of
     CC.Fail -> return C.tUnreachable
     CC.Done xs v -> lambdasUpTo (length xs) $ do
-        v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions, StaticReductions] $ normalise v
+        v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions, InlineReductions] $ normalise v
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
@@ -288,7 +288,7 @@ maybeInlineDef q vs =
   ifM (lift $ alwaysInline q) doinline $ do
     def <- lift $ theDef <$> getConstInfo q
     case def of
-      Function{ funStatic = True } -> doinline
+      Function{ funInline = True } -> doinline
       _                            -> noinline
   where
     noinline = C.mkTApp (C.TDef q) <$> substArgs vs

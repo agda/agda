@@ -431,6 +431,12 @@ icode14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
            S Int32
 
+icode15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+           , EmbPrj m, EmbPrj n, EmbPrj o ) =>
+           Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o ->
+           S Int32
+
 icode0  tag                       = icodeN [tag]
 icode1  tag a                     = icodeN . (tag :) =<< sequence [icode a]
 icode2  tag a b                   = icodeN . (tag :) =<< sequence [icode a, icode b]
@@ -446,6 +452,7 @@ icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icod
 icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
+icode15 tag a b c d e f g h i j k l m n o = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n, icode o]
 
 
 -- Andreas, Makoto, AIM XX (2014-10-15):
@@ -628,6 +635,13 @@ valu14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
           R o
 
+valu15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
+          , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
+          , EmbPrj m, EmbPrj n, EmbPrj o ) =>
+          (a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o -> p) ->
+          Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
+          R p
+
 valu0  z                           = return z
 valu1  z a                         = valu0 z                        `ap` value a
 valu2  z a b                       = valu1 z a                      `ap` value b
@@ -643,3 +657,4 @@ valu11 z a b c d e f g h i j k     = valu10 z a b c d e f g h i j   `ap` value k
 valu12 z a b c d e f g h i j k l   = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
+valu15 z a b c d e f g h i j k l m n o = valu14 z a b c d e f g h i j k l m n `ap` value o

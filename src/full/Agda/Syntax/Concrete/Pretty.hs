@@ -442,6 +442,8 @@ instance Pretty Pragma where
       hsep $ [text "NO_SMASHING", pretty i]
     pretty (StaticPragma _ i) =
       hsep $ [text "STATIC", pretty i]
+    pretty (InlinePragma _ i) =
+      hsep $ [text "INLINE", pretty i]
     pretty (ImportPragma _ i) =
       hsep $ [text "IMPORT", text i]
     pretty (ImportUHCPragma _ i) =

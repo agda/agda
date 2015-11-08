@@ -207,6 +207,7 @@ Pragmas and options
   behaviour, you should put the {-# REWRITE r #-} pragma outside of the module
   (i.e. unindent it).
 
+* New pragma {-# INLINE f #-} causes f to be inlined during compilation.
 
 Language
 ========
