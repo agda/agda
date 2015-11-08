@@ -1,10 +1,10 @@
 Checking Issue1232.All (Issue1232/All.agda).
- Checking Issue1232.Fin (Issue1232/Fin.agda).
- Finished Issue1232.Fin.
- Checking Issue1232.List (Issue1232/List.agda).
- Checking Issue1232.Nat (Issue1232/Nat.agda).
- Finished Issue1232.Nat.
- Finished Issue1232.List.
+Checking Issue1232.Fin (Issue1232/Fin.agda).
+Finished Issue1232.Fin.
+Checking Issue1232.List (Issue1232/List.agda).
+Checking Issue1232.Nat (Issue1232/Nat.agda).
+Finished Issue1232.Nat.
+Finished Issue1232.List.
 Finished Issue1232.All.
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
