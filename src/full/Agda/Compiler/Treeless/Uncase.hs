@@ -33,13 +33,21 @@ uncase t = case t of
     uncaseAlt (TAGuard g b) = TAGuard (uncase g) (uncase b)
 
     doCase x t d bs
-      | isUnreachable d      = fallback   -- only happens for constructor cases which we ignore anyway
-      | all (equalTo x d) bs = tOp PSeq (TVar x) d
+      | fv > 0               = fallback   -- can't do it for constructors with arguments
+      | all (equalTo x u) bs = tOp PSeq (TVar x) u
       | otherwise            = fallback
-      where fallback = TCase x t d bs
+      where
+        fallback = TCase x t d bs
+        (fv, u)
+          | isUnreachable d =
+            case last bs of
+              TACon _ a b -> (a, b)
+              TALit l b   -> (0, b)
+              TAGuard _ b -> (0, b)
+          | otherwise = (0, d)
 
     equalTo :: Int -> TTerm -> TAlt -> Bool
-    equalTo _ _ TACon{}       = False -- skip constructor cases (don't need to be uncased)
+    equalTo x t (TACon c a b) = a == 0 && equalTerms (subst x (TCon c) t) (subst x (TCon c) b)
     equalTo x t (TALit l b)   = equalTerms (subst x (TLit l) t) (subst x (TLit l) b)
     equalTo x t (TAGuard _ b) = equalTerms t b
 
