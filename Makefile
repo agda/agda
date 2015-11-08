@@ -118,7 +118,6 @@ succeed :
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/Common
-	@chmod +x test/Succeed/checkOutput
 	@$(MAKE) -C test/Succeed
 
 .PHONY : interaction
