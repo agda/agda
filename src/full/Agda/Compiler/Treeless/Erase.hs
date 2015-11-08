@@ -88,11 +88,9 @@ eraseTerms q = runE . eraseTop q
           e <- erase e
           if isErased e
             then case b of
-                   TCase 0 _ _ _ -> TLet TErased <$> erase b
+                   TCase 0 _ _ _ -> tLet TErased <$> erase b
                    _             -> erase $ subst 0 TErased b else do
-            b <- erase b
-            if freeIn 0 b then pure (TLet e b)
-                          else pure $ applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
+            tLet e <$> erase b
         TCase x t d bs -> do
           d  <- erase d
           bs <- mapM eraseAlt bs
@@ -105,6 +103,10 @@ eraseTerms q = runE . eraseTop q
 
     tLam TErased = TErased
     tLam t       = TLam t
+
+    tLet e b
+      | freeIn 0 b = TLet e b
+      | otherwise  = applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
 
     tApp f []                  = f
     tApp TErased _             = TErased
