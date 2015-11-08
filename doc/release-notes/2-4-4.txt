@@ -209,6 +209,12 @@ Pragmas and options
 
 * New pragma {-# INLINE f #-} causes f to be inlined during compilation.
 
+* The STATIC pragma is now taken into account during compilation.
+
+  Calls to a function marked STATIC are normalised before compilation. The
+  typical use case for this is to mark the interpreter of an embedded language
+  as STATIC.
+
 Language
 ========
 

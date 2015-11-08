@@ -260,7 +260,8 @@ recConFromProj q = do
 --   introduced by the catch-all machinery, so we need to lookup casetree de bruijn
 --   indices in the environment as well.
 substTerm :: I.Term -> CC C.TTerm
-substTerm term = case I.ignoreSharing $ I.unSpine term of
+substTerm term = normaliseStatic term >>= \ term ->
+  case I.ignoreSharing $ I.unSpine term of
     I.Var ind es -> do
       ind' <- lookupIndex ind <$> asks ccCxt
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
@@ -282,6 +283,12 @@ substTerm term = case I.ignoreSharing $ I.unSpine term of
     I.Sort _  -> return C.TSort
     I.MetaV _ _ -> __IMPOSSIBLE__
     I.DontCare _ -> __IMPOSSIBLE__ -- when does this happen?
+
+normaliseStatic :: I.Term -> CC I.Term
+normaliseStatic v@(I.Def f es) = lift $ do
+  static <- isStaticFun . theDef <$> getConstInfo f
+  if static then normalise v else pure v
+normaliseStatic v = pure v
 
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
