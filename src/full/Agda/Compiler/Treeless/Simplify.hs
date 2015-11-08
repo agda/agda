@@ -20,18 +20,20 @@ import Agda.Utils.Maybe
 
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Pretty
+import Agda.Compiler.Treeless.Compare
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 #include "undefined.h"
 
 data SEnv = SEnv
-  { envSubst   :: Substitution' TTerm }
+  { envSubst   :: Substitution' TTerm
+  , envRewrite :: [(TTerm, TTerm)] }
 
 type S = Reader SEnv
 
 runS :: S a -> a
-runS m = runReader m $ SEnv IdS
+runS m = runReader m $ SEnv IdS []
 
 lookupVar :: Int -> S TTerm
 lookupVar i = asks $ (`lookupS` i) . envSubst
@@ -39,14 +41,27 @@ lookupVar i = asks $ (`lookupS` i) . envSubst
 onSubst :: (Substitution' TTerm -> Substitution' TTerm) -> S a -> S a
 onSubst f = local $ \ env -> env { envSubst = f (envSubst env) }
 
+onRewrite :: Substitution' TTerm -> S a -> S a
+onRewrite rho = local $ \ env -> env { envRewrite = map (applySubst rho *** applySubst rho) (envRewrite env) }
+
+addRewrite :: TTerm -> TTerm -> S a -> S a
+addRewrite lhs rhs = local $ \ env -> env { envRewrite = (lhs, rhs) : envRewrite env }
+
 underLams :: Int -> S a -> S a
-underLams i = onSubst (liftS i)
+underLams i = onRewrite (raiseS i) . onSubst (liftS i)
 
 underLam :: S a -> S a
 underLam = underLams 1
 
 underLet :: TTerm -> S a -> S a
-underLet u = onSubst $ \rho -> wkS 1 $ composeS rho (singletonS 0 u)
+underLet u = onRewrite (raiseS 1) . onSubst (\rho -> wkS 1 $ composeS rho (singletonS 0 u))
+
+rewrite :: TTerm -> S TTerm
+rewrite t = do
+  rules <- asks envRewrite
+  case [ rhs | (lhs, rhs) <- rules, equalTerms t lhs ] of
+    rhs : _ -> pure rhs
+    []      -> pure t
 
 data FunctionKit = FunctionKit
   { modAux, divAux :: Maybe QName }
@@ -60,7 +75,7 @@ simplifyTTerm t = do
 simplify :: FunctionKit -> TTerm -> S TTerm
 simplify FunctionKit{..} = simpl
   where
-    simpl t = case t of
+    simpl t = rewrite (fromMaybe t (simplPrim t)) >>= \ t -> case t of
 
       TDef{}         -> pure t
       TPrim{}        -> pure t
@@ -112,7 +127,7 @@ simplify FunctionKit{..} = simpl
               distrCase v (TAGuard g b) = TAGuard g $ TLet b v
           _ -> do
             d  <- simpl d
-            bs <- traverse simplAlt bs
+            bs <- traverse (simplAlt x) bs
             tCase x t d bs
 
       TUnit          -> pure t
@@ -141,6 +156,11 @@ simplify FunctionKit{..} = simpl
         mkLet i (a : as) b = TLet (raise i a) $ mkLet (i + 1) as b
 
     simplPrim :: TTerm -> Maybe TTerm
+    simplPrim (TApp (TPrim PLt) [u, v])
+      | Just (op,  k, u) <- constArithView u,
+        Just (op1, j, v) <- constArithView v,
+        op == op1, k == j,
+        elem op [PAdd, PSub]  = pure $ tOp PLt u v
     simplPrim u
       | Just (op,  k, v) <- constArithView u,
         Just (op1, j, v) <- constArithView v = pure $ arithFusion k op j op1 v
@@ -160,9 +180,16 @@ simplify FunctionKit{..} = simpl
       | op == PSub = Just (PAdd, -k, u)
     constArithView _ = Nothing
 
-    simplAlt (TACon c a b) = TACon c a <$> underLams a (simpl b)
-    simplAlt (TALit l b)   = TALit l   <$> simpl b
-    simplAlt (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
+    simplAlt x (TACon c a b) = TACon c a <$> underLams a (maybeRewrite (x + a) conTerm $ simpl b)
+      where conTerm = TApp (TCon c) [TVar i | i <- reverse $ take a [0..]]
+    simplAlt x (TALit l b)   = TALit l   <$> maybeRewrite x (TLit l) (simpl b)
+    simplAlt x (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
+
+    maybeRewrite x rhs cont = do
+      v <- lookupVar x
+      case v of
+        TVar y | x == y -> cont
+        _ -> addRewrite v rhs cont
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
     tCase x t d bs
