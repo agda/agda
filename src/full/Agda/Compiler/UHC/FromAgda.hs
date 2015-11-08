@@ -223,17 +223,11 @@ builtinKit =
 
     is a b = maybe (const False) (==) . (a =<<) <$> getBuiltin' b
 
-compileTerm :: C.TTerm -> TT CExpr
-compileTerm t = do
-  let t' = lazyPatternMatches t
-  lift $ lift $ reportSDoc "uhc.fromAgda" 30 $ text "-- after lazy pattern matches:"  $$ nest 2 (return $ P.pretty t')
-  compileTerm' t'
-
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-compileTerm' :: C.TTerm -> TT CExpr
-compileTerm' term = do
+compileTerm :: C.TTerm -> TT CExpr
+compileTerm term = do
   builtinKit' <- lift $ lift builtinKit
   case term of
     C.TPrim t -> return $ compilePrim t
@@ -244,11 +238,11 @@ compileTerm' term = do
       nm' <- lift $ getCoreName nm
       return $ mkVar nm'
     C.TApp t xs -> do
-      mkApp <$> compileTerm' t <*> mapM compileTerm' xs
+      mkApp <$> compileTerm t <*> mapM compileTerm xs
     C.TLam t -> do
        name <- lift freshLocalName
        addToEnv [name] $ do
-         mkLam [name] <$> compileTerm' t
+         mkLam [name] <$> compileTerm t
     C.TLit l -> return $ litToCore l
     C.TCon c -> do
         con <- lift $ getConstrFun c
@@ -256,26 +250,26 @@ compileTerm' term = do
     C.TLet x body -> do
         nm <- lift freshLocalName
         mkLet1Plain nm
-          <$> compileTerm' x
-          <*> addToEnv [nm] (compileTerm' body)
+          <$> compileTerm x
+          <*> addToEnv [nm] (compileTerm body)
     C.TCase sc (C.CTData dt) def alts | not (isNat builtinKit' dt || isInt builtinKit' dt) -> do
       -- normal constructor case
       caseScr <- lift freshLocalName
       defVar <- lift freshLocalName
-      def' <- compileTerm' def
+      def' <- compileTerm def
 
       branches <- traverse compileConAlt alts
       defBranches <- defaultBranches dt alts (mkVar defVar)
       let cas = mkCase (mkVar caseScr) (branches ++ defBranches)
-      caseScr' <- compileTerm' (C.TVar sc)
+      caseScr' <- compileTerm (C.TVar sc)
 
       return $ mkLet1Plain defVar def' (mkLet1Strict caseScr caseScr' cas)
 
     C.TCase sc ct def alts | otherwise -> do
       -- cases on literals
-      sc <- compileTerm' (C.TVar sc)
+      sc <- compileTerm (C.TVar sc)
       var <- lift freshLocalName
-      def <- compileTerm' def
+      def <- compileTerm def
 
       css <- buildPrimCases eq (mkVar var) alts def
       return $ mkLet1Strict var sc css
@@ -305,7 +299,7 @@ buildPrimCases :: CExpr -- ^ equality function
 buildPrimCases _ _ [] def = return def
 buildPrimCases eq scr (b:brs) def = do
     var <- lift     freshLocalName
-    e' <- compileTerm' (C.aBody b)
+    e' <- compileTerm (C.aBody b)
     rec' <- buildPrimCases eq scr brs def
 
     let lit = litToCore $ C.aLit b
@@ -322,7 +316,7 @@ mkIfThenElse c t e = mkCase c [b1, b2]
 compileConAlt :: C.TAlt -> TT CAlt
 compileConAlt a =
   makeConAlt (C.aCon a)
-    (\vars -> addToEnv (reverse vars) $ compileTerm' (C.aBody a))
+    (\vars -> addToEnv (reverse vars) $ compileTerm (C.aBody a))
 
 makeConAlt :: QName -> ([HsName] -> TT CExpr) -> TT CAlt
 makeConAlt con mkBody = do
@@ -341,35 +335,6 @@ defaultBranches dt alts def = do
       missingCons = dtCons \\ altCons
 
   mapM (\a -> makeConAlt a (\_ -> return def)) missingCons
-
--- Convert case expressions with just one alternative and an unreachable
--- default value to lazy pattern matches.
-lazyPatternMatches :: TTerm -> TTerm
-lazyPatternMatches t = go t
-  where
-    go t = case t of
-      TCase sc ct@(C.CTData _) def [alt] | C.isUnreachable def ->
-        -- add a binding for each constructor field
-        foldr f (go $ aBody alt) [0..(aArity alt - 1)]
-        where
-          f i bd = let alt' = TACon (aCon alt) (aArity alt) (TVar (aArity alt - i - 1))
-                    in C.TLet (TCase (sc + i) ct C.tUnreachable [alt']) bd
-      TCase sc ct def alts -> TCase sc ct (go def) (map goAlt alts)
-      TVar{}    -> t
-      TDef{}    -> t
-      TCon{}    -> t
-      TPrim{}   -> t
-      TLit{}    -> t
-      TUnit{}   -> t
-      TSort{}   -> t
-      TErased{} -> t
-      TError{}  -> t
-
-      TLam b                  -> TLam (go b)
-      TApp a bs               -> TApp (go a) (map go bs)
-      TLet e b                -> TLet (go e) (go b)
-    goAlt a = a { aBody = go (aBody a) }
-
 
 litToCore :: Literal -> CExpr
 litToCore (LitNat _ i)   = mkApp (mkVar $ primFunNm "primIntegerToNat") [mkInteger opts i]

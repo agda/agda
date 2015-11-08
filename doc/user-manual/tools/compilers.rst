@@ -85,20 +85,38 @@ their corresponding Haskell functions.
 
 Note that pattern matching on an Integer is slower than on an unary
 natural number. Code that does a lot of unary manipulations
-and doesn't use builtin arithmentic likely becomes slower
+and doesn't use builtin arithmetic likely becomes slower
 due to this optimization. If you find that this is the case,
 it is recommended to use a different, but
 isomorphic type to the builtin natural numbers.
 
 
-Pattern matches
-~~~~~~~~~~~~~~~
+Erasable types
+~~~~~~~~~~~~~~
 
-.. note::
-   GHC/UHC backend only.
+A data type is considered *erasable* if it has a single constructor whose
+arguments are all erasable types, or functions into erasable types. The
+compilers will erase
 
-Pattern matches with a single alternative are compiled to a lazy
-match (using 'let' instead of 'case'). This means that matching on
-'refl' will not force the proof, and programs using well-founded
-recursion will be lazy in the accessibility proof.
+- calls to functions into erasable types
+- pattern matches on values of erasable type
+
+At the moment the compilers only have enough type information to erase calls of
+top-level functions that can be seen to return a value of erasable type without
+looking at the arguments of the call. In other words, a function call will not
+be erased if it calls a lambda bound variable, or the result is erasable for
+the given arguments, but not for others.
+
+Typical examples of erasable types are the equality type and the accessibility
+predicate used for well-founded recursion::
+
+  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+    refl : x ≡ x
+
+  data Acc {a} {A : Set a} (_<_ : A → A → Set a) (x : A) : Set a where
+    acc : (∀ y → y < x → Acc _<_ y) → Acc _<_ x
+
+The erasure means that equality proofs will (mostly) be erased, and never
+looked at, and functions defined by well-founded recursion will ignore the
+accessibility proof.
 
