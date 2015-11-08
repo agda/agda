@@ -49,9 +49,16 @@ type E = StateT ESt TCM
 runE :: E a -> TCM a
 runE m = evalStateT m (ESt Map.empty Map.empty)
 
-eraseTerms :: TTerm -> TCM TTerm
-eraseTerms = runE . erase
+eraseTerms :: QName -> TTerm -> TCM TTerm
+eraseTerms q = runE . eraseTop q
   where
+    eraseTop q t = do
+      (_, h) <- getFunInfo q
+      case h of
+        Erasable -> pure TErased
+        Empty    -> pure TErased
+        _        -> erase t
+
     erase t = case tAppView t of
 
       TCon c : vs -> do
