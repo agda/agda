@@ -11,6 +11,8 @@ data _≡_ {a} {A : Set a} (x : A) : A → Set a where
 {-# BUILTIN EQUALITY _≡_  #-}
 {-# BUILTIN REFL     refl #-}
 
+primitive primTrustMe : ∀ {a} {A : Set a} {x y : A} → x ≡ y
+
 subst : ∀ {a p}{A : Set a}(P : A → Set p){x y : A} → x ≡ y → P x → P y
 subst P refl t = t
 
