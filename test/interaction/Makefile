@@ -38,6 +38,7 @@ filter=$(sed) -e 's"$(pwdPlusDelimiter)""g' \
               -e 's" \"$(TMPDIR).*\"""' \
               -e 's"[^ (\"]*lib.prim"agda-default-include-path"g' \
               -e 's/\(\\n\| \)\+/ /g' \
+							-e 's/^ //g' \
               -e '/Linking /d' \
 							-e 's/Agda2> //g' \
      | $(clean)
