@@ -7,9 +7,6 @@ module FlexibleInterpreter where
 open import Common.Equality
 open import Common.IO
 open import Common.Nat renaming (zero to Z; suc to S) hiding (pred)
---open import Common.Prelude using (Nat; zero; suc)
---open import Common.MAlonzo hiding (main)
---open import Common.Equality
 
 data Ty : Set where
   nat : Ty
