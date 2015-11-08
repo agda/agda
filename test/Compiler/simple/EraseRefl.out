@@ -1,0 +1,23 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > -- compiling main
+out > -- after uncase
+out >   Common.IO.putStrLn ""
+out > -- compiling decEq₂
+out > -- after uncase
+out >   λ a b c d e f g h i j k l m n o →
+out >     let p =
+out >           case o of
+out >             EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (i j l k m r))
+out >             _ → error "TUnreachable" in
+out >     case n of
+out >       EraseRefl.Dec.yes q →
+out >         case o of
+out >           EraseRefl.Dec.yes r → EraseRefl.Dec.yes _
+out >           EraseRefl.Dec.no r → EraseRefl.Dec.no (λ s → r (i j l k m s))
+out >           _ → p
+out >       EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (h j l k m r))
+out >       _ → p
+out >
+out >
