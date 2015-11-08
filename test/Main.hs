@@ -7,6 +7,7 @@
 module Main where
 
 import qualified Compiler.Tests as COMP
+import qualified Succeed.Tests as SUCCEED
 import qualified Fail.Tests as FAIL
 import qualified LaTeXAndHTML.Tests as LATEXHTML
 
@@ -43,7 +44,7 @@ main = do
 tests :: IO TestTree
 tests =
   testGroup "all" <$>
-    sequence [COMP.tests, LATEXHTML.tests, FAIL.tests]
+    sequence [COMP.tests, LATEXHTML.tests, FAIL.tests, SUCCEED.tests]
 
 disabledTests :: [RegexFilter]
 disabledTests = COMP.disabledTests

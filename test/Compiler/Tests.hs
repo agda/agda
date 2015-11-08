@@ -77,6 +77,8 @@ disabledTests =
   , RFInclude "Compiler/.*/simple/Sharing"
   ]
 
+
+
 tests :: IO TestTree
 tests = do
   ts <- mapM forComp enabledCompilers
@@ -92,7 +94,7 @@ simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
   agdaBin <- getAgdaBin
   let testDir = "test" </> "Compiler" </> "simple"
-  inps <- getAgdaFilesInDir testDir
+  inps <- getAgdaFilesInDir NonRec testDir
 
   withSetup setup agdaBin inps testDir ["-i" ++ testDir, "-itest/"] comp "simple"
   where setup :: Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree
@@ -103,7 +105,7 @@ stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   agdaBin <- getAgdaBin
   let testDir = "test" </> "Compiler" </> "with-stdlib"
-  inps <- getAgdaFilesInDir testDir
+  inps <- getAgdaFilesInDir NonRec testDir
 
   withSetup setup agdaBin inps testDir ["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] comp "with-stdlib"
   where setup :: Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree
@@ -238,7 +240,7 @@ agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts cont
       Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
   where goldenFile = (dropExtension inp) <.> ".out"
-        testName = dropExtension $ takeFileName inp
+        testName = asTestName dir inp
 
         doRun cOpts = withTempDirectory dir testName (\compDir -> do
           -- get extra arguments

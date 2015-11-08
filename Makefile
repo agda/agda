@@ -118,7 +118,7 @@ succeed :
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/Common
-	@$(MAKE) -C test/Succeed
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Succeed
 
 .PHONY : interaction
 interaction :
