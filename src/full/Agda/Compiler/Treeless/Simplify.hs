@@ -25,22 +25,28 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 #include "undefined.h"
 
-type S = Reader (Substitution' TTerm)
+data SEnv = SEnv
+  { envSubst   :: Substitution' TTerm }
+
+type S = Reader SEnv
 
 runS :: S a -> a
-runS m = runReader m IdS
+runS m = runReader m $ SEnv IdS
 
 lookupVar :: Int -> S TTerm
-lookupVar i = asks (`lookupS` i)
+lookupVar i = asks $ (`lookupS` i) . envSubst
+
+onSubst :: (Substitution' TTerm -> Substitution' TTerm) -> S a -> S a
+onSubst f = local $ \ env -> env { envSubst = f (envSubst env) }
 
 underLams :: Int -> S a -> S a
-underLams i = local (liftS i)
+underLams i = onSubst (liftS i)
 
 underLam :: S a -> S a
 underLam = underLams 1
 
 underLet :: TTerm -> S a -> S a
-underLet u = local $ \rho -> wkS 1 $ composeS rho (singletonS 0 u)
+underLet u = onSubst $ \rho -> wkS 1 $ composeS rho (singletonS 0 u)
 
 data FunctionKit = FunctionKit
   { modAux, divAux :: Maybe QName }
