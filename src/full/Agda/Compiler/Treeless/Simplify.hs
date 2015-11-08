@@ -8,6 +8,7 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.Traversable (traverse)
+import Data.List
 
 import Agda.Syntax.Treeless
 import Agda.Syntax.Internal (Substitution'(..))
@@ -75,7 +76,7 @@ simplifyTTerm t = do
 simplify :: FunctionKit -> TTerm -> S TTerm
 simplify FunctionKit{..} = simpl
   where
-    simpl t = rewrite (fromMaybe t (simplPrim t)) >>= \ t -> case t of
+    simpl t = rewrite' t >>= \ t -> case t of
 
       TDef{}         -> pure t
       TPrim{}        -> pure t
@@ -88,13 +89,7 @@ simplify FunctionKit{..} = simpl
         | m == m', Just f == divAux -> simpl $ tOp PDiv n (tPlusK 1 m)
         | m == m', Just f == modAux -> simpl $ tOp PMod n (tPlusK 1 m)
 
-      TApp (TPrim op) args -> do
-        args <- mapM simpl args
-        let inline (TVar x) = lookupVar x
-            inline u        = pure u
-        inlined <- mapM inline args
-        let nosimpl = TApp (TPrim op) args
-        pure $ fromMaybe nosimpl $ simplPrim $ TApp (TPrim op) inlined
+      TApp (TPrim _) _ -> pure t  -- taken care of by rewrite'
 
       TApp f es      -> do
         f  <- simpl f
@@ -155,16 +150,26 @@ simplify FunctionKit{..} = simpl
         mkLet _ []       b = b
         mkLet i (a : as) b = TLet (raise i a) $ mkLet (i + 1) as b
 
-    simplPrim :: TTerm -> Maybe TTerm
-    simplPrim (TApp (TPrim PLt) [u, v])
-      | Just (op,  k, u) <- constArithView u,
-        Just (op1, j, v) <- constArithView v,
-        op == op1, k == j,
-        elem op [PAdd, PSub]  = pure $ tOp PLt u v
-    simplPrim u
-      | Just (op,  k, v) <- constArithView u,
-        Just (op1, j, v) <- constArithView v = pure $ arithFusion k op j op1 v
-    simplPrim _ = Nothing
+    simplPrim (TApp f@TPrim{} args) = do
+        args    <- mapM simpl args
+        inlined <- mapM inline args
+        pure $ fromMaybe (TApp f args) $ simplPrim' (TApp f inlined)
+      where
+        inline (TVar x) = lookupVar x
+        inline u        = pure u
+    simplPrim t = pure t
+
+    simplPrim' :: TTerm -> Maybe TTerm
+    simplPrim' (TApp (TPrim PLt) [u, v])
+      | Just (PAdd, k, u) <- constArithView u,
+        Just (PAdd, j, v) <- constArithView v,
+        k == j = pure $ tOp PLt u v
+    simplPrim' u | u == v    = Nothing
+                 | otherwise = Just v
+      where
+        v = simplArith u
+
+    rewrite' t = rewrite =<< simplPrim t
 
     arithFusion k PAdd j PAdd v = tPlusK (k + j) v
     arithFusion k PAdd j PSub v = tOp PSub (tInt (k + j)) v
@@ -180,12 +185,12 @@ simplify FunctionKit{..} = simpl
       | op == PSub = Just (PAdd, -k, u)
     constArithView _ = Nothing
 
-    simplAlt x (TACon c a b) = TACon c a <$> underLams a (maybeRewrite (x + a) conTerm $ simpl b)
-      where conTerm = TApp (TCon c) [TVar i | i <- reverse $ take a [0..]]
-    simplAlt x (TALit l b)   = TALit l   <$> maybeRewrite x (TLit l) (simpl b)
+    simplAlt x (TACon c a b) = TACon c a <$> underLams a (maybeAddRewrite (x + a) conTerm $ simpl b)
+      where conTerm = mkTApp (TCon c) [TVar i | i <- reverse $ take a [0..]]
+    simplAlt x (TALit l b)   = TALit l   <$> maybeAddRewrite x (TLit l) (simpl b)
     simplAlt x (TAGuard g b) = TAGuard   <$> simpl g <*> simpl b
 
-    maybeRewrite x rhs cont = do
+    maybeAddRewrite x rhs cont = do
       v <- lookupVar x
       case v of
         TVar y | x == y -> cont
@@ -237,4 +242,46 @@ simplify FunctionKit{..} = simpl
       TErased{} -> True
       TError{}  -> True
       _         -> False
+
+type Arith = (Integer, [Atom])
+
+data Atom = Pos TTerm | Neg TTerm
+  deriving (Show, Eq)
+
+aNeg :: Atom -> Atom
+aNeg (Pos a) = Neg a
+aNeg (Neg a) = Pos a
+
+aCancel :: [Atom] -> [Atom]
+aCancel (a : as)
+  | elem (aNeg a) as = aCancel (delete (aNeg a) as)
+  | otherwise        = a : aCancel as
+aCancel [] = []
+
+aAdd :: Arith -> Arith -> Arith
+aAdd (a, xs) (b, ys) = (a + b, aCancel $ xs ++ ys)
+
+aSub :: Arith -> Arith -> Arith
+aSub (a, xs) (b, ys) = (a - b, aCancel $ xs ++ map aNeg ys)
+
+fromArith :: Arith -> TTerm
+fromArith (n, []) = tInt n
+fromArith (0, xs)
+  | (ys, Pos a : zs) <- break isPos xs = foldl addAtom a (ys ++ zs)
+  where isPos Pos{} = True
+        isPos Neg{} = False
+fromArith (n, xs) = foldl addAtom (tInt n) xs
+
+addAtom :: TTerm -> Atom -> TTerm
+addAtom t (Pos a) = tOp PAdd t a
+addAtom t (Neg a) = tOp PSub t a
+
+toArith :: TTerm -> Arith
+toArith t | Just n <- intView t = (n, [])
+toArith (TApp (TPrim PAdd) [a, b]) = aAdd (toArith a) (toArith b)
+toArith (TApp (TPrim PSub) [a, b]) = aSub (toArith a) (toArith b)
+toArith t = (0, [Pos t])
+
+simplArith :: TTerm -> TTerm
+simplArith = fromArith . toArith
 
