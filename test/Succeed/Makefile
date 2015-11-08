@@ -22,15 +22,8 @@ all : $(allagda) $(alllagda)
 
 RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim --ignore-interfaces --no-default-libraries -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
 
-check_CompiledRecord        = ./checkOutput ./CompiledRecord yes
-check_CompilingCoinduction  = ./checkOutput ./CompilingCoinduction a
-check_UniversePolymorphicIO = ./checkOutput ./UniversePolymorphicIO ok
-check_Issue1632             = ./checkOutput ./Issue1632 yes
-
 check_Issue481 = diff Issue481.dot.orig Issue481.dot
 cleanup_Issue481 = rm Issue481.dot
-
-check_CompilingQNamePats = ./checkOutput ./CompilingQNamePats yesno
 
 does_compile = $(shell if [ -e $1.flags ]; then grep compile $1.flags; fi)
 cleanup	     = $(if $(call does_compile,$1),rm -rf MAlonzo $1,true)
