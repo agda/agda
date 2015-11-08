@@ -1,1 +1,1 @@
-../succeed/Makefile
+../Succeed/Makefile

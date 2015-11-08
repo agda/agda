@@ -1,4 +1,4 @@
-module succeed.RecursiveInstanceSearchLevel where
+module Succeed.RecursiveInstanceSearchLevel where
 
 open import Common.Prelude
 open import Common.Product

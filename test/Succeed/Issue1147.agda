@@ -1,7 +1,7 @@
 -- 2014-05-26 Andrea & Andreas, AIM XIX
 -- Too eager pruning
 
-module succeed.Issue1147 where
+module Succeed.Issue1147 where
 
 open import Common.Equality
 open import Common.Product

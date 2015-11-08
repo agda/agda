@@ -118,8 +118,8 @@ succeed :
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/Common
-	@chmod +x test/succeed/checkOutput
-	@$(MAKE) -C test/succeed
+	@chmod +x test/Succeed/checkOutput
+	@$(MAKE) -C test/Succeed
 
 .PHONY : interaction
 interaction :
@@ -268,7 +268,7 @@ hpc-build:
 	$(CABAL_CMD) configure --enable-library-coverage $(CABAL_OPTS)
 	$(CABAL_CMD) build $(CABAL_OPTS)
 
-agda.tix: ./examples/agda.tix ./test/succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/fail/Epic/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
+agda.tix: ./examples/agda.tix ./test/Succeed/agda.tix ./test/compiler/agda.tix ./test/api/agda.tix ./test/interaction/agda.tix ./test/fail/agda.tix ./test/fail/Epic/agda.tix ./test/lib-succeed/agda.tix ./std-lib/agda.tix
 	hpc sum --output=$@ $^
 
 .PHONY: hpc
