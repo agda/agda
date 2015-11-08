@@ -99,9 +99,10 @@ eraseTerms = runE . erase
     tLam TErased = TErased
     tLam t       = TLam t
 
-    tApp f []      = f
-    tApp TErased _ = TErased
-    tApp f es      = TApp f es
+    tApp f []                  = f
+    tApp TErased _             = TErased
+    tApp f _ | isUnreachable f = tUnreachable
+    tApp f es                  = TApp f es
 
     tCase x t d bs
       | isErased d && all (isErased . aBody) bs = pure TErased
