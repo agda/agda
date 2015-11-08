@@ -65,13 +65,16 @@ rewrite t = do
     []      -> pure t
 
 data FunctionKit = FunctionKit
-  { modAux, divAux :: Maybe QName }
+  { modAux, divAux, natMinus, true, false :: Maybe QName }
 
 simplifyTTerm :: TTerm -> TCM TTerm
 simplifyTTerm t = do
-  modAux <- getBuiltinName builtinNatModSucAux
-  divAux <- getBuiltinName builtinNatDivSucAux
-  return $ runS $ simplify FunctionKit{ modAux = modAux, divAux = divAux } t
+  kit <- FunctionKit <$> getBuiltinName builtinNatModSucAux
+                     <*> getBuiltinName builtinNatDivSucAux
+                     <*> getBuiltinName builtinNatMinus
+                     <*> getBuiltinName builtinTrue
+                     <*> getBuiltinName builtinFalse
+  return $ runS $ simplify kit t
 
 simplify :: FunctionKit -> TTerm -> S TTerm
 simplify FunctionKit{..} = simpl
@@ -91,10 +94,10 @@ simplify FunctionKit{..} = simpl
 
       TApp (TPrim _) _ -> pure t  -- taken care of by rewrite'
 
-      TApp f es      -> do
+      TApp f es -> do
         f  <- simpl f
         es <- traverse simpl es
-        tApp f es
+        maybeMinusToPrim f es
       TLam b         -> TLam <$> underLam (simpl b)
       TLit{}         -> pure t
       TCon{}         -> pure t
@@ -195,6 +198,23 @@ simplify FunctionKit{..} = simpl
       case v of
         TVar y | x == y -> cont
         _ -> addRewrite v rhs cont
+
+    isTrue (TCon c) = Just c == true
+    isTrue _        = False
+
+    isFalse (TCon c) = Just c == false
+    isFalse _        = False
+
+    maybeMinusToPrim f@(TDef minus) es@[a, b]
+      | Just minus == natMinus = do
+      b_a  <- rewrite' (tOp PLt b a)
+      b_sa <- rewrite' (tOp PLt b (tOp PAdd (tInt 1) a))
+      a_b  <- rewrite' (tOp PLt a b)
+      if isTrue b_a || isTrue b_sa || isFalse b_a && isFalse a_b
+        then pure $ tOp PSub a b
+        else tApp f es
+
+    maybeMinusToPrim f es = tApp f es
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
     tCase x t d bs
