@@ -2,7 +2,6 @@
 module Utils where
 
 import qualified Data.Text as T
-import System.FilePath
 import System.Exit
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -13,6 +12,9 @@ import System.Environment
 import Data.Maybe
 import Data.Char
 import qualified Data.Set as S
+import Test.Tasty.Silver
+import Data.List
+import System.FilePath
 import System.Directory
 
 import Data.Array
@@ -48,8 +50,20 @@ getEnvVar v =
 agdaExts :: S.Set String
 agdaExts = S.fromList [".agda", ".lagda"]
 
-getAgdaFilesInDir :: String -> IO [FilePath]
-getAgdaFilesInDir dir = map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$> getDirectoryContents dir
+data SearchMode = Rec | NonRec
+
+getAgdaFilesInDir :: SearchMode -> FilePath -> IO [FilePath]
+getAgdaFilesInDir rec dir =
+  sort <$> do
+    case rec of
+      Rec -> findByExtension (S.toList agdaExts) dir
+      NonRec -> map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$>
+                  getDirectoryContents dir
+
+-- | An Agda file path as test name
+asTestName :: FilePath -> FilePath -> String
+asTestName testDir path = intercalate "-" parts
+  where parts = splitDirectories $ dropExtension $ makeRelative testDir path
 
 doesEnvContain :: String -> IO Bool
 doesEnvContain v = isJust <$> getEnvVar v

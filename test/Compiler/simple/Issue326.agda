@@ -1,15 +1,12 @@
 
 module Issue326 where
 
-open import Common.Prelude hiding (printBool)
-open import Common.MAlonzo using () -- see issue 561
+open import Common.Prelude
 
 postulate
   QName : Set
-  printBool : Bool → IO Unit
 
 {-# BUILTIN QNAME QName #-}
-{-# COMPILED printBool print #-}
 
 primitive primQNameEquality : QName → QName → Bool
 

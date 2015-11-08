@@ -30,7 +30,7 @@ testDir = "test" </> "Fail"
 
 tests :: IO TestTree
 tests = do
-  inpFiles <- getAgdaFilesInDir testDir
+  inpFiles <- getAgdaFilesInDir NonRec testDir
   agdaBin <- getAgdaBin
 
   let tests' = map (mkFailTest agdaBin) inpFiles
@@ -49,7 +49,7 @@ mkFailTest :: FilePath -- agda binary
 mkFailTest agdaBin inp = do
   goldenTest1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
 --  goldenVsAction testName goldenFile doRun printAgdaResult
-  where testName = dropExtension $ takeFileName inp
+  where testName = asTestName testDir inp
         goldenFile = (dropExtension inp) <.> ".err"
         flagFile = (dropExtension inp) <.> ".flags"
 

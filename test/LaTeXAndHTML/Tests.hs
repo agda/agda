@@ -35,7 +35,7 @@ testDir = "test" </> "LaTeXAndHTML" </> "succeed"
 
 tests :: IO TestTree
 tests = do
-  inpFiles <- getAgdaFilesInDir testDir
+  inpFiles <- getAgdaFilesInDir NonRec testDir
   agdaBin  <- getAgdaBin
   return $ testGroup "LaTeXAndHTML"
     [ mkLaTeXOrHTMLTest k agdaBin f
@@ -67,7 +67,7 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
     LaTeX -> "latex"
     HTML  -> "html"
 
-  testName    = dropExtension (takeFileName inp) ++ "_" ++ show k
+  testName    = (asTestName testDir inp) ++ "_" ++ show k
   goldenFile  = (dropExtension inp) <.> extension
   compFile    = (dropExtension inp) <.> ".compile"
   outFileName = takeFileName goldenFile
