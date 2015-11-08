@@ -105,7 +105,6 @@ eraseTerms = runE . erase
 
     tCase x t d bs
       | isErased d && all (isErased . aBody) bs = pure TErased
-      | not $ isErased d = noerase
       | otherwise = case bs of
         [TACon c a b] -> do
           h <- snd <$> getFunInfo c
