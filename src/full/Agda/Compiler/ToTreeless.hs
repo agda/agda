@@ -59,20 +59,22 @@ ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> ccToTreeless'
 
 ccToTreeless' :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless' q cc = do
-  reportSDoc "treeless.opt" 20 $ text "-- compiling" <+> prettyTCM q
-  reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
+  let pbody b = sep [ text (show q) <+> text "=", nest 2 $ prettyPure b ]
+  v <- ifM (alwaysInline q) (return 20) (return 0)
+  reportSDoc "treeless.convert" (30 + v) $ text "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc
-  reportSDoc "treeless.opt.converted" 30 $ text "-- converted body:" $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.converted" (30 + v) $ text "-- converted" $$ pbody body
   body <- simplifyTTerm body
-  reportSDoc "treeless.opt.simpl" 35 $ text "-- after first simplification"  $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.simpl" (35 + v) $ text "-- after first simplification"  $$ pbody body
   body <- translateBuiltins body
-  reportSDoc "treeless.opt.builtin" 30 $ text "-- after builtin translation:" $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.builtin" (30 + v) $ text "-- after builtin translation" $$ pbody body
   body <- simplifyTTerm body
-  reportSDoc "treeless.opt.simpl" 30 $ text "-- after second simplification"  $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after second simplification"  $$ pbody body
   body <- eraseTerms q body
-  reportSDoc "treeless.opt.erase" 30 $ text "-- after erasure"  $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
   body <- caseToSeq body
-  reportSDoc "treeless.opt.uncase" 30 $ text "-- after uncase"  $$ nest 2 (prettyPure body)
+  reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
+  reportSDoc "treeless.opt.final" (20 + v) $ text "-- compiled"  $$ pbody body
   return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm

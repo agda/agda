@@ -1,4 +1,4 @@
-{-# OPTIONS -v treeless.opt:20 -v treeless.opt.uncase:30 #-}
+{-# OPTIONS -v treeless.opt:20 #-}
 module _ where
 
 open import Common.Prelude
