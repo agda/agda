@@ -60,12 +60,9 @@ toTreeless' q =
   flip fromMaybeM (getTreeless q) $ do
     Just cc <- defCompiled <$> getConstInfo q
     setTreeless q (C.TDef q)  -- so recursive inlining doesn't loop
-    (used, t) <- ccToTreeless q cc
-    setTreeless q t
-    setCompiledArgUse q used
-    return t
+    ccToTreeless q cc
 
-ccToTreeless :: QName -> CC.CompiledClauses -> TCM ([Bool], C.TTerm)
+ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   let pbody b = pbody' "" b
       pbody' suf b = sep [ text (show q ++ suf) <+> text "=", nest 2 $ prettyPure b ]
@@ -83,13 +80,15 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
   body <- caseToSeq body
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
-  let used = usedArguments body
-  when (not $ null used ) $
+  used <- usedArguments q body
+  when (any not used) $
     reportSDoc "treeless.opt.unused" (30 + v) $
       text "-- used args:" <+> hsep [ if u then text [x] else text "_" | (x, u) <- zip ['a'..] used ] $$
       pbody' "[stripped]" (stripUnusedArguments used body)
   reportSDoc "treeless.opt.final" (20 + v) $ pbody body
-  return (used, body)
+  setTreeless q body
+  setCompiledArgUse q used
+  return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do

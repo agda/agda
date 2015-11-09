@@ -1,12 +1,12 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > -- used args: a b c d e
+out > -- used args: _ _ c d e
 out > UnusedArguments.foldr[stripped] =
-out >   λ a b c d e →
-out >     case e of
-out >       Common.List.List.[] → d
-out >       Common.List.List._∷_ f g → c f (UnusedArguments.foldr a b c d g)
+out >   λ a b c →
+out >     case c of
+out >       Common.List.List.[] → b
+out >       Common.List.List._∷_ d e → a d (UnusedArguments.foldr _ _ a b e)
 out >       _ → error "TUnreachable"
 out > UnusedArguments.foldr =
 out >   λ a b c d e →
@@ -27,9 +27,6 @@ out >     case g of
 out >       UnusedArguments.Maybe.nothing → e
 out >       UnusedArguments.Maybe.just h → f h
 out >       _ → error "TUnreachable"
-out > -- used args: a
-out > UnusedArguments.maybeToNat[stripped] =
-out >   λ a → UnusedArguments.maybe _ _ _ _ 0 (λ b → b) a
 out > UnusedArguments.maybeToNat =
 out >   λ a → UnusedArguments.maybe _ _ _ _ 0 (λ b → b) a
 out > -- used args: _ _ _ _ e f
