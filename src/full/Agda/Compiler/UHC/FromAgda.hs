@@ -362,6 +362,7 @@ compilePrim C.PAdd = mkVar $ primFunNm "primIntegerPlus"
 compilePrim C.PIf  = mkVar $ primFunNm "primIfThenElse"
 compilePrim C.PGeq = mkVar $ primFunNm "primIntegerGreaterOrEqual"
 compilePrim C.PLt  = mkVar $ primFunNm "primIntegerLess"
+compilePrim C.PEq  = mkVar $ primFunNm "primIntegerEquality"
 compilePrim C.PSeq = mkVar $ primFunNm "primSeq"
 
 

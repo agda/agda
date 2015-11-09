@@ -167,6 +167,11 @@ simplify FunctionKit{..} = simpl
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
         k == j = pure $ tOp PLt u v
+    simplPrim' (TApp (TPrim PEq) [u, v])
+      | Just (op1, k, u) <- constArithView u,
+        Just (op2, j, v) <- constArithView v,
+        op1 == op2, k == j,
+        elem op1 [PAdd, PSub] = pure $ tOp PEq u v
     simplPrim' u | u == v    = Nothing
                  | otherwise = Just v
       where
