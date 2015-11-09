@@ -148,7 +148,7 @@ transform BuiltinKit{..} = tr
 
             TACon c a b -> [TACon c a (tr b)]
             TALit{}     -> [b]
-            TAGuard{}   -> __IMPOSSIBLE__
+            TAGuard{}   -> [b]
 
       TVar{}    -> t
       TDef{}    -> t

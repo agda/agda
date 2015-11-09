@@ -10,6 +10,7 @@ module Agda.Compiler.ToTreeless
 
 import Control.Applicative
 import Control.Monad.Reader
+import Control.Monad.State
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -35,12 +36,15 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.Interaction.Options
+import Agda.Interaction.Options.Lenses (getPragmaOptions)
 
 import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import qualified Agda.Utils.Trie as Trie
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -51,7 +55,10 @@ prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM (Maybe C.TTerm)
-ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> do
+ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> ccToTreeless' q cc
+
+ccToTreeless' :: QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless' q cc = do
   reportSDoc "treeless.opt" 20 $ text "-- compiling" <+> prettyTCM q
   reportSDoc "treeless.convert" 30 $ text "-- compiled clauses:" $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc
@@ -123,7 +130,7 @@ casetree cc = do
   case cc of
     CC.Fail -> return C.tUnreachable
     CC.Done xs v -> lambdasUpTo (length xs) $ do
-        v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions, InlineReductions] $ normalise v
+        v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v
         substTerm v
     CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
@@ -302,7 +309,11 @@ maybeInlineDef q vs =
     doinline = C.mkTApp <$> inline q <*> substArgs vs
     inline q = lift $ do
       Just cc <- defCompiled <$> getConstInfo q
-      casetreeTop cc
+      opts <- gets getPragmaOptions
+      setPragmaOptions opts{ optVerbose = Trie.empty }
+      t <- ccToTreeless' q cc
+      setPragmaOptions opts
+      return t
 
 substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse

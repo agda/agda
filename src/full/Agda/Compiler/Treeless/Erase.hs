@@ -106,7 +106,7 @@ eraseTerms q = runE . eraseTop q
 
     tLet e b
       | freeIn 0 b = TLet e b
-      | otherwise  = applySubst (compactS __IMPOSSIBLE__ [Nothing]) b
+      | otherwise  = strengthen __IMPOSSIBLE__ b
 
     tApp f []                  = f
     tApp TErased _             = TErased
