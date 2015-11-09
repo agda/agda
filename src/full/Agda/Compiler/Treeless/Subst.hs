@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Agda.Compiler.Treeless.Subst where
@@ -21,50 +22,53 @@ instance DeBruijn TTerm where
 instance Subst TTerm TTerm where
   applySubst IdS t = t
   applySubst rho t = case t of
-    TDef{}    -> t
-    TLit{}    -> t
-    TCon{}    -> t
-    TPrim{}   -> t
-    TUnit{}   -> t
-    TSort{}   -> t
-    TErased{} -> t
-    TError{}  -> t
-    TVar i         -> lookupS rho i
-    TApp f ts      -> TApp (applySubst rho f) (applySubst rho ts)
-    TLam b         -> TLam (applySubst (liftS 1 rho) b)
-    TLet e b       -> TLet (applySubst rho e) (applySubst (liftS 1 rho) b)
-    TCase i t d bs ->
-      case applySubst rho (TVar i) of
-        TVar j  -> TCase j t (applySubst rho d) (applySubst rho bs)
-        e       -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
-          where rho' = wkS 1 rho
+      TDef{}    -> t
+      TLit{}    -> t
+      TCon{}    -> t
+      TPrim{}   -> t
+      TUnit{}   -> t
+      TSort{}   -> t
+      TErased{} -> t
+      TError{}  -> t
+      TVar i         -> lookupS rho i
+      TApp f ts      -> tApp (applySubst rho f) (applySubst rho ts)
+      TLam b         -> TLam (applySubst (liftS 1 rho) b)
+      TLet e b       -> TLet (applySubst rho e) (applySubst (liftS 1 rho) b)
+      TCase i t d bs ->
+        case applySubst rho (TVar i) of
+          TVar j  -> TCase j t (applySubst rho d) (applySubst rho bs)
+          e       -> TLet e $ TCase 0 t (applySubst rho' d) (applySubst rho' bs)
+            where rho' = wkS 1 rho
+    where
+      tApp (TPrim PSeq) [TErased, b] = b
+      tApp f ts = TApp f ts
 
 instance Subst TTerm TAlt where
   applySubst rho (TACon c i b) = TACon c i (applySubst (liftS i rho) b)
   applySubst rho (TALit l b)   = TALit l (applySubst rho b)
   applySubst rho (TAGuard g b) = TAGuard (applySubst rho g) (applySubst rho b)
 
-data UnderLambda = YesUnderLambda | NoUnderLambda
-  deriving (Eq, Ord, Show)
+newtype UnderLambda = UnderLambda Any
+  deriving (Eq, Ord, Show, Monoid)
 
-data Occurs = Occurs Int UnderLambda
+newtype SeqArg = SeqArg All
+  deriving (Eq, Ord, Show, Monoid)
+
+data Occurs = Occurs Int UnderLambda SeqArg
   deriving (Eq, Ord, Show)
 
 once :: Occurs
-once = Occurs 1 NoUnderLambda
+once = Occurs 1 mempty (SeqArg $ All False)
+
+inSeq :: Occurs -> Occurs
+inSeq (Occurs n l _) = Occurs n l mempty
 
 underLambda :: Occurs -> Occurs
-underLambda o = o <> Occurs 0 YesUnderLambda
-
-instance Monoid UnderLambda where
-  mempty = NoUnderLambda
-  mappend YesUnderLambda _            = YesUnderLambda
-  mappend _ YesUnderLambda            = YesUnderLambda
-  mappend NoUnderLambda NoUnderLambda = NoUnderLambda
+underLambda o = o <> Occurs 0 (UnderLambda $ Any True) mempty
 
 instance Monoid Occurs where
-  mempty = Occurs 0 NoUnderLambda
-  mappend (Occurs a k) (Occurs b l) = Occurs (a + b) (k <> l)
+  mempty = Occurs 0 mempty mempty
+  mappend (Occurs a k s) (Occurs b l t) = Occurs (a + b) (k <> l) (s <> t)
 
 class HasFree a where
   freeVars :: a -> Map Int Occurs
@@ -90,6 +94,11 @@ instance HasFree a => HasFree (Binder a) where
   freeVars (Binder 0 x) = freeVars x
   freeVars (Binder k x) = Map.filterWithKey (\ k _ -> k >= 0) $ Map.mapKeysMonotonic (subtract k) $ freeVars x
 
+newtype InSeq a = InSeq a
+
+instance HasFree a => HasFree (InSeq a) where
+  freeVars (InSeq x) = inSeq <$> freeVars x
+
 instance HasFree TTerm where
   freeVars t = case t of
     TDef{}    -> Map.empty
@@ -101,6 +110,7 @@ instance HasFree TTerm where
     TErased{} -> Map.empty
     TError{}  -> Map.empty
     TVar i         -> freeVars i
+    TApp (TPrim PSeq) [TVar x, b] -> freeVars (InSeq x, b)
     TApp f ts      -> freeVars (f, ts)
     TLam b         -> underLambda <$> freeVars (Binder 1 b)
     TLet e b       -> freeVars (e, Binder 1 b)

@@ -1,13 +1,18 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
 import Control.Applicative
+import Data.Monoid
 
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Substitute
 import Agda.Compiler.Treeless.Subst
 import Agda.Compiler.Treeless.Compare
+
+import Agda.Utils.Impossible
+#include "undefined.h"
 
 caseToSeq :: Monad m => TTerm -> m TTerm
 caseToSeq t = return $ uncase t
@@ -17,11 +22,11 @@ uncase t = case t of
   TVar{}    -> t
   TPrim{}   -> t
   TDef{}    -> t
-  TApp f es -> TApp (uncase f) (map uncase es)
+  TApp f es -> tApp (uncase f) (map uncase es)
   TLam b    -> TLam $ uncase b
   TLit{}    -> t
   TCon{}    -> t
-  TLet e b  -> TLet (uncase e) (uncase b)
+  TLet e b  -> tLet (uncase e) (uncase b)
   TCase x t d bs -> doCase x t (uncase d) (map uncaseAlt bs)
   TUnit{}   -> t
   TSort{}   -> t
@@ -34,7 +39,7 @@ uncase t = case t of
 
     doCase x t d bs
       | fv > 0               = fallback   -- can't do it for constructors with arguments
-      | all (equalTo x u) bs = tOp PSeq (TVar x) u
+      | all (equalTo x u) bs = tApp (TPrim PSeq) [TVar x, u]
       | otherwise            = fallback
       where
         fallback = TCase x t d bs
@@ -51,3 +56,14 @@ uncase t = case t of
     equalTo x t (TALit l b)   = equalTerms (subst x (TLit l) t) (subst x (TLit l) b)
     equalTo x t (TAGuard _ b) = equalTerms t b
 
+    -- There's no sense binding an expression just to seq on it.
+    tLet e b =
+      case occursIn 0 b of
+        Occurs 0 _ _                   -> strengthen __IMPOSSIBLE__ b
+        Occurs _ _ (SeqArg (All True)) -> subst 0 TErased b -- this will get rid of the seq
+        _                              -> TLet e b
+
+    -- Primitive operations are already strict
+    tApp (TPrim PSeq) [_, b@(TApp (TPrim op) _)]
+      | op `elem` [PAdd, PSub, PLt, PGeq, PMod, PDiv] = b
+    tApp f es = TApp f es
