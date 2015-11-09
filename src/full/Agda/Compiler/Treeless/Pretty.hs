@@ -52,6 +52,7 @@ instance Pretty TTerm where
 opName :: TPrim -> String
 opName PAdd = "+"
 opName PSub = "-"
+opName PMul = "*"
 opName PDiv = "div"
 opName PMod = "mod"
 opName PGeq = ">="
@@ -63,6 +64,7 @@ opName PSeq = "seq"
 isInfix :: TPrim -> Maybe (Int, Int, Int)
 isInfix op =
   case op of
+    PMul -> l 7
     PAdd -> l 6
     PSub -> l 6
     PGeq -> non 4

@@ -39,6 +39,7 @@ evalPrims t = t
 applyPrim :: TPrim -> Integer -> Integer -> Maybe Integer
 applyPrim PAdd a b = Just (a + b)
 applyPrim PSub a b = Just (a - b)
+applyPrim PMul a b = Just (a * b)
 applyPrim PDiv a b | b /= 0    = Just (div a b)
                    | otherwise = Nothing
 applyPrim PMod a b | b /= 0    = Just (mod a b)

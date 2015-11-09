@@ -460,6 +460,7 @@ compilePrim s =
     T.PMod -> fakeExp "(Prelude.mod :: Integer -> Integer -> Integer)"
     T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
+    T.PMul -> fakeExp "((Prelude.*) :: Integer -> Integer -> Integer)"
     T.PGeq -> fakeExp "((Prelude.>=) :: Integer -> Integer -> Bool)"
     T.PLt  -> fakeExp "((Prelude.<) :: Integer -> Integer -> Bool)"
     T.PEq  -> fakeExp "((Prelude.==) :: Integer -> Integer -> Bool)"
