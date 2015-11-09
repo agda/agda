@@ -174,7 +174,16 @@ simplify FunctionKit{..} = simpl
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
         elem op1 [PAdd, PSub] = tOp PEq u v
+    simplPrim' (TApp (TPrim PMul) [u, v])
+      | Just u <- negView u,
+        Just v <- negView v   = tOp PMul u v
+      | Just u <- negView u   = tOp PSub (tInt 0) (tOp PMul u v)
+      | Just v <- negView v   = tOp PSub (tInt 0) (tOp PMul u v)
     simplPrim' u = simplArith u
+
+    negView (TApp (TPrim PSub) [a, b])
+      | Just 0 <- intView a = Just b
+    negView _ = Nothing
 
     -- Count arithmetic operations
     betterThan u v = operations u <= operations v
