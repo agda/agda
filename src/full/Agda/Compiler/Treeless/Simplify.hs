@@ -146,7 +146,6 @@ simplify FunctionKit{..} = simpl
     matchCon lets c as d (TALit{}   : bs) = matchCon lets c as d bs
     matchCon lets c as d (TAGuard{} : bs) = matchCon lets c as d bs
     matchCon lets c as d (TACon c' a b : bs)
-      | length as /= a = __IMPOSSIBLE__
       | c == c'        = flip (foldr TLet) lets $ mkLet 0 as (raiseFrom a (length lets) b)
       | otherwise      = matchCon lets c as d bs
       where
@@ -160,8 +159,9 @@ simplify FunctionKit{..} = simpl
             v = simplPrim' (TApp f inlined)
         pure $ if v `betterThan` u then v else u
       where
-        inline (TVar x) = lookupVar x
-        inline u        = pure u
+        inline (TVar x)              = lookupVar x
+        inline (TApp f@TPrim{} args) = TApp f <$> mapM inline args
+        inline u                     = pure u
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
