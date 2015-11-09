@@ -79,7 +79,7 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
   body <- caseToSeq body
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
-  reportSDoc "treeless.opt.final" (20 + v) $ text "-- compiled"  $$ pbody body
+  reportSDoc "treeless.opt.final" (20 + v) $ pbody body
   return body
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm

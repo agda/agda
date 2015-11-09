@@ -1,9 +1,7 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > -- compiled
 out > EraseRefl.main = Common.IO.putStrLn ""
-out > -- compiled
 out > EraseRefl.decEq₂ =
 out >   λ a b c d e f g h i j k l m n o →
 out >     let p =

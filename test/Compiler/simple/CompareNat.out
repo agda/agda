@@ -1,7 +1,6 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > -- compiled
 out > CompareNat.compare =
 out >   λ a b →
 out >     let c = a < b in
@@ -16,7 +15,6 @@ out >             CompareNat.Comparison.greater (CompareNat._<_.diff (-1 - b + a
 out >           Common.Bool.Bool.false → CompareNat.Comparison.equal _
 out >           _ → error "TUnreachable"
 out >       _ → error "TUnreachable"
-out > -- compiled
 out > CompareNat.compare-lots =
 out >   λ a b →
 out >     let c = a < b in
@@ -29,7 +27,6 @@ out >           Common.Bool.Bool.true → "greater-greater"
 out >           Common.Bool.Bool.false → "equal-equal"
 out >           _ → error "TUnreachable"
 out >       _ → error "TUnreachable"
-out > -- compiled
 out > CompareNat.main =
 out >   Common.IO.then
 out >     () () _ _ (Common.IO.putStrLn (CompareNat.compare-lots 1500 2000))
