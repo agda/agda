@@ -103,7 +103,7 @@ simplify FunctionKit{..} = simpl
       TCon{}         -> pure t
       TLet e b       -> do
         e <- simpl e
-        TLet e <$> underLet e (simpl b)
+        tLet e <$> underLet e (simpl b)
 
       TCase x t d bs -> do
         v <- lookupVar x
@@ -156,34 +156,35 @@ simplify FunctionKit{..} = simpl
     simplPrim (TApp f@TPrim{} args) = do
         args    <- mapM simpl args
         inlined <- mapM inline args
-        pure $ fromMaybe (TApp f args) $ simplPrim' (TApp f inlined)
+        let u = TApp f args
+            v = simplPrim' (TApp f inlined)
+        pure $ if v `betterThan` u then v else u
       where
         inline (TVar x) = lookupVar x
         inline u        = pure u
     simplPrim t = pure t
 
-    simplPrim' :: TTerm -> Maybe TTerm
+    simplPrim' :: TTerm -> TTerm
     simplPrim' (TApp (TPrim PLt) [u, v])
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
-        k == j = pure $ tOp PLt u v
+        k == j = tOp PLt u v
     simplPrim' (TApp (TPrim PEq) [u, v])
       | Just (op1, k, u) <- constArithView u,
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
-        elem op1 [PAdd, PSub] = pure $ tOp PEq u v
-    simplPrim' u | u == v    = Nothing
-                 | otherwise = Just v
+        elem op1 [PAdd, PSub] = tOp PEq u v
+    simplPrim' u = simplArith u
+
+    -- Count arithmetic operations
+    betterThan u v = operations u <= operations v
       where
-        v = simplArith u
+        operations (TApp (TPrim _) [a, b]) = 1 + operations a + operations b
+        operations TVar{}                  = 0
+        operations TLit{}                  = 0
+        operations _                       = 1000
 
     rewrite' t = rewrite =<< simplPrim t
-
-    arithFusion k PAdd j PAdd v = tPlusK (k + j) v
-    arithFusion k PAdd j PSub v = tOp PSub (tInt (k + j)) v
-    arithFusion k PSub j PAdd v = tOp PSub (tInt (k - j)) v
-    arithFusion k PSub j PSub v = tPlusK (k - j) v
-    arithFusion _ _ _ _ _ = __IMPOSSIBLE__
 
     constArithView :: TTerm -> Maybe (TPrim, Integer, TTerm)
     constArithView (TApp (TPrim op) [TLit (LitNat _ k), u])
@@ -220,6 +221,9 @@ simplify FunctionKit{..} = simpl
         else tApp f es
 
     maybeMinusToPrim f es = tApp f es
+
+    tLet (TVar x) b = subst 0 (TVar x) b
+    tLet e b        = TLet e b
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
     tCase x t d bs
@@ -296,9 +300,14 @@ fromArith :: Arith -> TTerm
 fromArith (n, []) = tInt n
 fromArith (0, xs)
   | (ys, Pos a : zs) <- break isPos xs = foldl addAtom a (ys ++ zs)
-  where isPos Pos{} = True
-        isPos Neg{} = False
+fromArith (n, xs)
+  | n < 0, (ys, Pos a : zs) <- break isPos xs =
+    tOp PSub (foldl addAtom a (ys ++ zs)) (tInt (-n))
 fromArith (n, xs) = foldl addAtom (tInt n) xs
+
+isPos :: Atom -> Bool
+isPos Pos{} = True
+isPos Neg{} = False
 
 addAtom :: TTerm -> Atom -> TTerm
 addAtom t (Pos a) = tOp PAdd t a

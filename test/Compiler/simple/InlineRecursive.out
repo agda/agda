@@ -5,7 +5,7 @@ out > InlineRecursive.f =
 out >   λ a →
 out >     case a of
 out >       0 → 0
-out >       _ → let b = -1 + a in InlineRecursive.f b
+out >       _ → let b = a - 1 in InlineRecursive.f b
 out > InlineRecursive.main =
 out >   Common.IO.printNat
 out >     (let a = 4 in
