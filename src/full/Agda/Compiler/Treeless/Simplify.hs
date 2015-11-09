@@ -159,9 +159,13 @@ simplify FunctionKit{..} = simpl
             v = simplPrim' (TApp f inlined)
         pure $ if v `betterThan` u then v else u
       where
-        inline (TVar x)              = lookupVar x
-        inline (TApp f@TPrim{} args) = TApp f <$> mapM inline args
-        inline u                     = pure u
+        inline (TVar x)                   = do
+          v <- lookupVar x
+          if v == TVar x then pure v else inline v
+        inline (TApp f@TPrim{} args)      = TApp f <$> mapM inline args
+        inline u@(TLet _ (TCase 0 _ _ _)) = pure u
+        inline (TLet e b)                 = inline (subst 0 e b)
+        inline u                          = pure u
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
@@ -174,12 +178,22 @@ simplify FunctionKit{..} = simpl
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
         elem op1 [PAdd, PSub] = tOp PEq u v
-    simplPrim' (TApp (TPrim PMul) [u, v])
+    simplPrim' (TApp (TPrim op) [u, v])
       | Just u <- negView u,
-        Just v <- negView v   = tOp PMul u v
-      | Just u <- negView u   = tOp PSub (tInt 0) (tOp PMul u v)
-      | Just v <- negView v   = tOp PSub (tInt 0) (tOp PMul u v)
-    simplPrim' u = simplArith u
+        Just v <- negView v,
+        elem op [PMul, PDiv] = tOp op u v
+      | Just u <- negView u,
+        elem op [PMul, PDiv] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
+      | Just v <- negView v,
+        elem op [PMul, PDiv] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
+    simplPrim' (TApp (TPrim PMod) [u, v])
+      | Just u <- negView u  = simplArith $ tOp PSub (tInt 0) (tOp PMod u (unNeg v))
+      | Just v <- negView v  = tOp PMod u v
+    simplPrim' (TApp f@(TPrim op) [u, v]) = simplArith $ TApp f [simplPrim' u, simplPrim' v]
+    simplPrim' u = u
+
+    unNeg u | Just v <- negView u = v
+            | otherwise           = u
 
     negView (TApp (TPrim PSub) [a, b])
       | Just 0 <- intView a = Just b
