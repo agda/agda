@@ -98,10 +98,10 @@ primShowInteger :: Integer -> String
 primShowInteger = show
 
 primIntegerDiv :: Integer -> Integer -> Integer
-primIntegerDiv = div
+primIntegerDiv = quot
 
 primIntegerMod :: Integer -> Integer -> Integer
-primIntegerMod = mod
+primIntegerMod = rem
 
 primIntegerMinus :: Integer -> Integer -> Integer
 primIntegerMinus = (-)
