@@ -151,8 +151,8 @@ transform BuiltinKit{..} = tr
 
 
             TACon c a b -> [TACon c a (tr b)]
-            TALit{}     -> [b]
-            TAGuard{}   -> [b]
+            TALit l b   -> [TALit l (tr b)]
+            TAGuard g b -> [TAGuard (tr g) (tr b)]
 
       TVar{}    -> t
       TDef{}    -> t
