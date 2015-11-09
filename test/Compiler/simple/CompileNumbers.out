@@ -1,6 +1,15 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
+out > CompileNumbers.nested-match =
+out >   λ a →
+out >     case a of
+out >       0 → "zero"
+out >       1 → "one"
+out >       _ | a >= 2 → "lots"
+out >       -1 → "minus one"
+out >       -2 → "minus two"
+out >       _ → "minus lots"
 out > CompileNumbers.compareNat =
 out >   λ a b →
 out >     let c = a < b in
@@ -15,22 +24,15 @@ out >           _ → error "TUnreachable"
 out >       _ → error "TUnreachable"
 out > CompileNumbers._-N_ = λ a b → a - b
 out > CompileNumbers._+Z_ = λ a b → a + b
-out > CompileNumbers.nested-match =
-out >   λ a →
-out >     case a of
-out >       0 → "zero"
-out >       1 → "one"
-out >       _ | a >= 2 → "lots"
-out >       -1 → "minus one"
-out >       -2 → "minus two"
-out >       _ → "minus lots"
-out > CompileNumbers.printInt =
-out >   λ a → Common.IO.putStrLn (Common.String.intToString a)
+out > CompileNumbers.neg = λ a → 0 - a
+out > CompileNumbers._*Z_ = λ a b → a * b
 out > CompileNumbers.match-on-lit =
 out >   λ a b →
 out >     case a of
 out >       "neg" → 0 - b
 out >       _ → b
+out > CompileNumbers.printInt =
+out >   λ a → Common.IO.putStrLn (Common.String.intToString a)
 out > CompileNumbers.match-on-lit₂ =
 out >   λ a b →
 out >     case b of

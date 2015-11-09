@@ -50,6 +50,12 @@ compareNat a b with a < b
 ...   | false = equal
 {-# INLINE compareNat #-}
 
+-- Should compile to 0 - a
+neg : Nat → Integer
+neg zero    = pos zero
+neg (suc a) = negsuc a
+{-# INLINE neg #-}
+
 -- Should compile to a - b
 _-N_ : Nat → Nat → Integer
 a -N b with compareNat a b
@@ -64,6 +70,15 @@ pos    a +Z pos    b = pos (a + b)
 pos    a +Z negsuc b = a -N suc b
 negsuc a +Z pos    b = b -N suc a
 negsuc a +Z negsuc b = negsuc (suc a + b)
+{-# INLINE _+Z_ #-}
+
+-- Should compile to a * b
+_*Z_ : Integer → Integer → Integer
+pos    a *Z pos    b = pos (a * b)
+pos    a *Z negsuc b = neg (a * suc b)
+negsuc a *Z pos    b = neg (suc a * b)
+negsuc a *Z negsuc b = pos (suc a * suc b)
+{-# INLINE _*Z_ #-}
 
 printInt : Integer → IO Unit
 printInt x = putStrLn (intToString x)
