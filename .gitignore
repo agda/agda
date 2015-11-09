@@ -39,3 +39,5 @@ test/latex-backend/succeed/latex/
 test/succeed/latex/
 test/succeed/EpicNat
 test/succeed/Issue1441
+exec-test*
+pkg-build*
