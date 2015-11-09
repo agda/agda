@@ -146,7 +146,6 @@ simplify FunctionKit{..} = simpl
     matchCon lets c as d (TALit{}   : bs) = matchCon lets c as d bs
     matchCon lets c as d (TAGuard{} : bs) = matchCon lets c as d bs
     matchCon lets c as d (TACon c' a b : bs)
-      | length as /= a = __IMPOSSIBLE__
       | c == c'        = flip (foldr TLet) lets $ mkLet 0 as (raiseFrom a (length lets) b)
       | otherwise      = matchCon lets c as d bs
       where
@@ -160,8 +159,9 @@ simplify FunctionKit{..} = simpl
             v = simplPrim' (TApp f inlined)
         pure $ if v `betterThan` u then v else u
       where
-        inline (TVar x) = lookupVar x
-        inline u        = pure u
+        inline (TVar x)              = lookupVar x
+        inline (TApp f@TPrim{} args) = TApp f <$> mapM inline args
+        inline u                     = pure u
     simplPrim t = pure t
 
     simplPrim' :: TTerm -> TTerm
@@ -174,7 +174,16 @@ simplify FunctionKit{..} = simpl
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
         elem op1 [PAdd, PSub] = tOp PEq u v
+    simplPrim' (TApp (TPrim PMul) [u, v])
+      | Just u <- negView u,
+        Just v <- negView v   = tOp PMul u v
+      | Just u <- negView u   = tOp PSub (tInt 0) (tOp PMul u v)
+      | Just v <- negView v   = tOp PSub (tInt 0) (tOp PMul u v)
     simplPrim' u = simplArith u
+
+    negView (TApp (TPrim PSub) [a, b])
+      | Just 0 <- intView a = Just b
+    negView _ = Nothing
 
     -- Count arithmetic operations
     betterThan u v = operations u <= operations v

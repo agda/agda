@@ -46,6 +46,7 @@ data BuiltinKit = BuiltinKit
   , isPos    :: QName -> Bool
   , isNegSuc :: QName -> Bool
   , isPlus   :: QName -> Bool
+  , isTimes  :: QName -> Bool
   , isLess   :: QName -> Bool
   , isEqual  :: QName -> Bool
   }
@@ -57,6 +58,7 @@ builtinKit =
              <*> is con builtinIntegerPos
              <*> is con builtinIntegerNegSuc
              <*> is def builtinNatPlus
+             <*> is def builtinNatTimes
              <*> is def builtinNatLess
              <*> is def builtinNatEquals
   where
@@ -83,6 +85,7 @@ transform BuiltinKit{..} = tr
              | isNegSuc c -> TLam $ tNegPlusK 1 (TVar 0)
 
       TDef f | isPlus f   -> TPrim PAdd
+             | isTimes f  -> TPrim PMul
              | isLess f   -> TPrim PLt
              | isEqual f  -> TPrim PEq
         -- Note: Don't do this for builtinNatMinus! PSub is integer minus and

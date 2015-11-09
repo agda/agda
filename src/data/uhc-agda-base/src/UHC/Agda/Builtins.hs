@@ -109,6 +109,9 @@ primIntegerMinus = (-)
 primIntegerPlus :: Integer -> Integer -> Integer
 primIntegerPlus = (+)
 
+primIntegerTimes :: Integer -> Integer -> Integer
+primIntegerTimes = (*)
+
 primIntegerGreaterOrEqual :: Integer -> Integer -> Bool
 primIntegerGreaterOrEqual = (>=)
 
