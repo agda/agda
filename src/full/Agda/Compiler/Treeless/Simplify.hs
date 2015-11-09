@@ -266,7 +266,7 @@ simplify FunctionKit{..} = simpl
 type Arith = (Integer, [Atom])
 
 data Atom = Pos TTerm | Neg TTerm
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 aNeg :: Atom -> Atom
 aNeg (Pos a) = Neg a
@@ -278,11 +278,14 @@ aCancel (a : as)
   | otherwise        = a : aCancel as
 aCancel [] = []
 
+sortR :: Ord a => [a] -> [a]
+sortR = sortBy (flip compare)
+
 aAdd :: Arith -> Arith -> Arith
-aAdd (a, xs) (b, ys) = (a + b, aCancel $ xs ++ ys)
+aAdd (a, xs) (b, ys) = (a + b, aCancel $ sortR $ xs ++ ys)
 
 aSub :: Arith -> Arith -> Arith
-aSub (a, xs) (b, ys) = (a - b, aCancel $ xs ++ map aNeg ys)
+aSub (a, xs) (b, ys) = (a - b, aCancel $ sortR $ xs ++ map aNeg ys)
 
 fromArith :: Arith -> TTerm
 fromArith (n, []) = tInt n
