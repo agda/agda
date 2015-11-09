@@ -67,7 +67,7 @@ mkSucceedTest agdaBin inp = do
           let run = \extraArgs -> PT.readProcessWithExitCode agdaBin (agdaArgs ++ extraArgs) T.empty
 
           res@(ret, _, _) <-
-            if "--compile" `isSubsequenceOf` flags
+            if "--compile" `isInfixOf` flags
               then do
                 withTempDirectory testDir ("MAZ_compile_" ++ testName) (\compDir -> do
                   run ["--compile-dir=" ++ compDir]
