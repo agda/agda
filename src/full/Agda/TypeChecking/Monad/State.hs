@@ -175,6 +175,14 @@ getSignature = use stSignature
 getImportedSignature :: TCM Signature
 getImportedSignature = use stImports
 
+-- | Update a possibly imported definition. Warning: changes made to imported
+--   definitions (during type checking) will not persist outside the current
+--   module. This function is currently used to update the compiled
+--   representation of a function during compilation.
+modifyGlobalDefinition :: QName -> (Definition -> Definition) -> TCM ()
+modifyGlobalDefinition q f = modifySignature (updateDefinition q f) >>
+                             modifyImportedSignature (updateDefinition q f)
+
 setSignature :: Signature -> TCM ()
 setSignature sig = modifySignature $ const sig
 

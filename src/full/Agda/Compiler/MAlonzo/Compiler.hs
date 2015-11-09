@@ -235,9 +235,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       Axiom{} -> return $ fb axiomErr
       Primitive{ primName = s } -> fb <$> primBody s
 
-      Function{ funCompiled = Just cc } ->
-        function (exportHaskell compiled) $ functionViaTreeless q cc
-      Function { funCompiled = Nothing } -> __IMPOSSIBLE__
+      Function{} -> function (exportHaskell compiled) $ functionViaTreeless q
 
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
         | Just (HsType ty) <- compiledHaskell compiled -> do
@@ -273,8 +271,8 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
         return ([tsig,def] ++ ccls)
 
-  functionViaTreeless :: QName -> CompiledClauses -> TCM [HS.Decl]
-  functionViaTreeless q cc = caseMaybeM (ccToTreeless q cc) (pure []) $ \ treeless -> do
+  functionViaTreeless :: QName -> TCM [HS.Decl]
+  functionViaTreeless q = caseMaybeM (toTreeless q) (pure []) $ \ treeless -> do
     e <- closedTerm treeless
     let (ps, b) =
           case stripTopCoerce e of

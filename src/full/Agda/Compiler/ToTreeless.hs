@@ -4,7 +4,7 @@
 {-# LANGUAGE PatternGuards       #-}
 
 module Agda.Compiler.ToTreeless
-  ( ccToTreeless
+  ( toTreeless
   , closedTermToTreeless
   ) where
 
@@ -36,15 +36,12 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.Interaction.Options
-import Agda.Interaction.Options.Lenses (getPragmaOptions)
 
 import Agda.Utils.Functor
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import qualified Agda.Utils.Trie as Trie
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -54,11 +51,19 @@ prettyPure :: P.Pretty a => a -> TCM Doc
 prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
-ccToTreeless :: QName -> CC.CompiledClauses -> TCM (Maybe C.TTerm)
-ccToTreeless q cc = ifM (alwaysInline q) (pure Nothing) $ Just <$> ccToTreeless' q cc
+toTreeless :: QName -> TCM (Maybe C.TTerm)
+toTreeless q = ifM (alwaysInline q) (pure Nothing) $ Just <$> toTreeless' q
 
-ccToTreeless' :: QName -> CC.CompiledClauses -> TCM C.TTerm
-ccToTreeless' q cc = do
+toTreeless' :: QName -> TCM C.TTerm
+toTreeless' q =
+  flip fromMaybeM (getTreeless q) $ do
+    Just cc <- defCompiled <$> getConstInfo q
+    setTreeless q (C.TDef q)  -- so recursive inlining doesn't loop
+    t <- ccToTreeless q cc
+    t <$ setTreeless q t
+
+ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless q cc = do
   let pbody b = sep [ text (show q) <+> text "=", nest 2 $ prettyPure b ]
   v <- ifM (alwaysInline q) (return 20) (return 0)
   reportSDoc "treeless.convert" (30 + v) $ text "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
@@ -309,13 +314,7 @@ maybeInlineDef q vs =
   where
     noinline = C.mkTApp (C.TDef q) <$> substArgs vs
     doinline = C.mkTApp <$> inline q <*> substArgs vs
-    inline q = lift $ do
-      Just cc <- defCompiled <$> getConstInfo q
-      opts <- gets getPragmaOptions
-      setPragmaOptions opts{ optVerbose = Trie.empty }
-      t <- ccToTreeless' q cc
-      setPragmaOptions opts
-      return t
+    inline q = lift $ toTreeless' q
 
 substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse

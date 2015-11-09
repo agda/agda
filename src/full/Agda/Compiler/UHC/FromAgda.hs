@@ -120,9 +120,8 @@ translateDefn (n, defini) = do
         let ty    = (defType defini)
         lift $ reportSDoc "uhc.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
         lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
-        let cc = fromMaybe __IMPOSSIBLE__ $ funCompiled f
 
-        caseMaybeM (lift $ ccToTreeless n cc) (pure []) $ \ treeless -> do
+        caseMaybeM (lift $ toTreeless n) (pure []) $ \ treeless -> do
           let funBody = convertGuards treeless
           lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
           funBody' <- runTT $ compileTerm funBody

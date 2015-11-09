@@ -593,11 +593,11 @@ modifyArgOccurrences d f =
   modifySignature $ updateDefinition d $ updateDefArgOccurrences f
 
 setTreeless :: QName -> TTerm -> TCM ()
-setTreeless q t =
-  modifySignature $ updateDefinition q $ updateTheDef $ \ def ->
-  case def of
-    Function{} -> def { funTreeless = Just t }
-    _          -> __IMPOSSIBLE__
+setTreeless q t = modifyGlobalDefinition q $ setTT
+  where
+    setTT def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funTreeless = Just t}}
+    setTT def = __IMPOSSIBLE__
 
 getTreeless :: QName -> TCM (Maybe TTerm)
 getTreeless q = do
