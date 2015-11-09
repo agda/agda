@@ -1,7 +1,7 @@
 -- Andreas, 2015-06-11
 -- testing with in copattern matching with dependent record
 
-{-# OPTIONS --copatterns #-}
+-- {-# OPTIONS -v tc.with:20 #-}
 
 open import Common.Prelude
 open import Common.Equality
