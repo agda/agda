@@ -68,7 +68,8 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
-  :: QName                -- ^ Name of the with-function.
+  :: QName                -- ^ Name of the parent function.
+  -> QName                -- ^ Name of the with-function.
   -> Type                 -- ^ Types of the parent function.
   -> [NamedArg Pattern] -- ^ Parent patterns.
   -> Permutation          -- ^ Final permutation.
@@ -76,13 +77,13 @@ buildWithFunction
   -> Nat                  -- ^ Number of with expressions.
   -> [A.SpineClause]      -- ^ With-clauses.
   -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
-buildWithFunction aux t qs perm n1 n cs = mapM buildWithClause cs
+buildWithFunction f aux t qs perm n1 n cs = mapM buildWithClause cs
   where
     buildWithClause (A.Clause (A.SpineLHS i _ ps wps) rhs wh catchall) = do
       let (wps0, wps1) = genericSplitAt n wps
           ps0          = map defaultNamedArg wps0
       rhs <- buildRHS rhs
-      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns aux t qs perm ps
+      (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns f aux t qs perm ps
       let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
@@ -95,7 +96,7 @@ buildWithFunction aux t qs perm n1 n cs = mapM buildWithClause cs
       mapM (A.spineToLhs <.> buildWithClause . A.lhsToSpine) cs
     buildRHS (A.RewriteRHS qes rhs wh) = flip (A.RewriteRHS qes) wh <$> buildRHS rhs
 
-{-| @stripWithClausePatterns f t qs π ps = ps'@
+{-| @stripWithClausePatterns parent f t qs π ps = ps'@
 
     @Δ@   - context bound by lhs of original function (not an argument)
 
@@ -153,13 +154,14 @@ The projection patterns have vanished from ps' (as they are already in qs).
 @
 -}
 stripWithClausePatterns
-  :: QName                      -- ^ @f@
+  :: QName                      -- ^ Name of the parent function.
+  -> QName                      -- ^ Name of with-function @f@.
   -> Type                       -- ^ @t@
   -> [NamedArg Pattern]       -- ^ @qs@
   -> Permutation                -- ^ @π@
   -> [NamedArg A.Pattern]     -- ^ @ps@
   -> TCM [NamedArg A.Pattern] -- ^ @ps'@
-stripWithClausePatterns f t qs perm ps = do
+stripWithClausePatterns parent f t qs perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
   psi <- insertImplicitPatternsT ExpandLast ps t
@@ -169,7 +171,8 @@ stripWithClausePatterns f t qs perm ps = do
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
     ]
-  ps' <- strip (Def f []) t psi $ numberPatVars perm qs
+  -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
+  ps' <- strip (Def parent []) t psi $ numberPatVars perm qs
   let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
@@ -232,6 +235,7 @@ stripWithClausePatterns f t qs perm ps = do
         , nest 2 $ text "ps0 =" <+> fsep (punctuate comma $ map prettyA ps0)
         , nest 2 $ text "exp =" <+> prettyA p
         , nest 2 $ text "qs0 =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs0)
+        , nest 2 $ text "self=" <+> prettyTCM self
         , nest 2 $ text "t   =" <+> prettyTCM t
         ]
       let failDotPat = do
@@ -324,6 +328,7 @@ stripWithClausePatterns f t qs perm ps = do
             -- Compute the new type
             let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
                 t' = tel' `abstract` absApp (raise (size tel') b) v
+                self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
 
             reportSDoc "tc.with.strip" 15 $ sep
               [ text "inserting implicit"
@@ -337,7 +342,7 @@ stripWithClausePatterns f t qs perm ps = do
               WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
 
             -- Keep going
-            strip (self `apply1` v) t' (psi' ++ ps) (qs' ++ qs)
+            strip self' t' (psi' ++ ps) (qs' ++ qs)
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $

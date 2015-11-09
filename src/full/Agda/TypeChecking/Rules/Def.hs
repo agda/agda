@@ -657,7 +657,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction aux t qs finalPerm (size delta1) (size as) cs
+  cs <- buildWithFunction f aux t qs finalPerm (size delta1) (size as) cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
