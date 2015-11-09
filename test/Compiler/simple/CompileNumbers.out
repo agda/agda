@@ -1,0 +1,46 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > CompileNumbers.nested-match =
+out >   λ a →
+out >     case a of
+out >       0 → "zero"
+out >       1 → "one"
+out >       _ | a >= 2 → "lots"
+out >       -1 → "minus one"
+out >       -2 → "minus two"
+out >       _ → "minus lots"
+out > CompileNumbers.match-on-lit =
+out >   λ a b →
+out >     case a of
+out >       "neg" → 0 - b
+out >       _ → b
+out > CompileNumbers.printInt =
+out >   λ a → Common.IO.putStrLn (Common.String.intToString a)
+out > CompileNumbers.match-on-lit₂ =
+out >   λ a b →
+out >     case b of
+out >       _ | b >= 0 →
+out >         case a of
+out >           "neg" →
+out >             case b of
+out >               _ | b >= 1 → 0 - b
+out >               _ → b
+out >           _ → b
+out >       _ | b < 0 →
+out >         case a of
+out >           "neg" → 0 - b
+out >           _ → b
+out >       _ → b
+out > CompileNumbers.main =
+out >   Common.IO.then
+out >     () () _ _
+out >     (CompileNumbers.printInt (CompileNumbers.match-on-lit "neg" 42))
+out >     (Common.IO.then
+out >        () () _ _
+out >        (CompileNumbers.printInt (CompileNumbers.match-on-lit₂ "neg" 42))
+out >        (Common.IO.putStrLn (CompileNumbers.nested-match -6)))
+out > -42
+out > -42
+out > minus lots
+out >
