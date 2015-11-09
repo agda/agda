@@ -31,6 +31,7 @@ import Agda.Compiler.Treeless.Simplify
 import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Pretty
+import Agda.Compiler.Treeless.Unused
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -59,12 +60,15 @@ toTreeless' q =
   flip fromMaybeM (getTreeless q) $ do
     Just cc <- defCompiled <$> getConstInfo q
     setTreeless q (C.TDef q)  -- so recursive inlining doesn't loop
-    t <- ccToTreeless q cc
-    t <$ setTreeless q t
+    (used, t) <- ccToTreeless q cc
+    setTreeless q t
+    setCompiledArgUse q used
+    return t
 
-ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
+ccToTreeless :: QName -> CC.CompiledClauses -> TCM ([Bool], C.TTerm)
 ccToTreeless q cc = do
-  let pbody b = sep [ text (show q) <+> text "=", nest 2 $ prettyPure b ]
+  let pbody b = pbody' "" b
+      pbody' suf b = sep [ text (show q ++ suf) <+> text "=", nest 2 $ prettyPure b ]
   v <- ifM (alwaysInline q) (return 20) (return 0)
   reportSDoc "treeless.convert" (30 + v) $ text "-- compiled clauses of" <+> prettyTCM q $$ nest 2 (prettyPure cc)
   body <- casetreeTop cc
@@ -79,8 +83,13 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
   body <- caseToSeq body
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
+  let used = usedArguments body
+  when (not $ null used ) $
+    reportSDoc "treeless.opt.unused" (30 + v) $
+      text "-- used args:" <+> hsep [ if u then text [x] else text "_" | (x, u) <- zip ['a'..] used ] $$
+      pbody' "[stripped]" (stripUnusedArguments used body)
   reportSDoc "treeless.opt.final" (20 + v) $ pbody body
-  return body
+  return (used, body)
 
 closedTermToTreeless :: I.Term -> TCM C.TTerm
 closedTermToTreeless t = do
@@ -307,18 +316,25 @@ normaliseStatic v = pure v
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
   ifM (lift $ alwaysInline q) doinline $ do
-    def <- lift $ theDef <$> getConstInfo q
-    case def of
-      Function{ funInline = True } -> doinline
-      _                            -> noinline
+    def <- lift $ getConstInfo q
+    case theDef def of
+      Function{ funInline = inline }
+        | inline    -> doinline
+        | otherwise -> do
+        _ <- lift $ toTreeless' q
+        used <- lift $ getCompiledArgUse q
+        let substUsed False _   = pure C.TErased
+            substUsed True  arg = substArg arg
+        C.mkTApp (C.TDef q) <$> sequence [ substUsed u arg | (arg, u) <- zip vs $ used ++ repeat True ]
+      _ -> C.mkTApp (C.TDef q) <$> substArgs vs
   where
-    noinline = C.mkTApp (C.TDef q) <$> substArgs vs
     doinline = C.mkTApp <$> inline q <*> substArgs vs
     inline q = lift $ toTreeless' q
 
 substArgs :: [Arg I.Term] -> CC [C.TTerm]
-substArgs = traverse
-  (\x -> if isIrrelevant x
-            then return C.TErased
-            else substTerm (unArg x)
-  )
+substArgs = traverse substArg
+
+substArg :: Arg I.Term -> CC C.TTerm
+substArg x | isIrrelevant x = return C.TErased
+           | otherwise      = substTerm (unArg x)
+

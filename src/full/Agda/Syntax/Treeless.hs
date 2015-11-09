@@ -21,6 +21,11 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
+data Compiled = Compiled
+  { cTreeless :: TTerm
+  , cArgUsage :: [Bool] }
+  deriving (Typeable, Show, Eq, Ord)
+
 type Args = [TTerm]
 
 -- this currently assumes that TApp is translated in a lazy/cbn fashion.
@@ -139,5 +144,6 @@ instance Unreachable TTerm where
   isUnreachable (TLet _ b) = isUnreachable b
   isUnreachable _ = False
 
-instance KillRange TTerm where
-  killRange t = t -- bogus, but not that important(?)
+instance KillRange Compiled where
+  killRange c = c -- bogus, but not used anyway
+

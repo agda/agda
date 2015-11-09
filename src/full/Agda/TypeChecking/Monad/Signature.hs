@@ -23,7 +23,7 @@ import Agda.Syntax.Abstract (Ren)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
-import Agda.Syntax.Treeless (TTerm)
+import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
 import qualified Agda.Compiler.JS.Parser as JS
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
@@ -596,15 +596,28 @@ setTreeless :: QName -> TTerm -> TCM ()
 setTreeless q t = modifyGlobalDefinition q $ setTT
   where
     setTT def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funTreeless = Just t}}
+      def{theDef = fun{funTreeless = Just (Compiled t [])}}
     setTT def = __IMPOSSIBLE__
 
-getTreeless :: QName -> TCM (Maybe TTerm)
-getTreeless q = do
+setCompiledArgUse :: QName -> [Bool] -> TCM ()
+setCompiledArgUse q use = modifyGlobalDefinition q $ setTT
+  where
+    setTT def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funTreeless = for (funTreeless fun) $ \ c -> c { cArgUsage = use }}}
+    setTT def = __IMPOSSIBLE__
+
+getCompiled :: QName -> TCM (Maybe Compiled)
+getCompiled q = do
   def <- theDef <$> getConstInfo q
   return $ case def of
     Function{ funTreeless = t } -> t
     _                           -> Nothing
+
+getTreeless :: QName -> TCM (Maybe TTerm)
+getTreeless q = fmap cTreeless <$> getCompiled q
+
+getCompiledArgUse :: QName -> TCM [Bool]
+getCompiledArgUse q = maybe [] cArgUsage <$> getCompiled q
 
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]

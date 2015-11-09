@@ -52,7 +52,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract (AllNames)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern ()
-import Agda.Syntax.Treeless (TTerm)
+import Agda.Syntax.Treeless (Compiled)
 import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -1199,7 +1199,7 @@ data Defn = Axiom
               -- ^ 'Nothing' while function is still type-checked.
               --   @Just cc@ after type and coverage checking and
               --   translation to case trees.
-            , funTreeless       :: Maybe TTerm
+            , funTreeless       :: Maybe Compiled
               -- ^ Intermediate representation for compiler backends.
             , funInv            :: FunctionInverse
             , funMutual         :: [QName]
