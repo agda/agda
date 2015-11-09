@@ -36,6 +36,7 @@ import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.Unused
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
@@ -268,13 +269,19 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
+            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dname q)) (HS.BDecls [])]
         return ([tsig,def] ++ ccls)
 
   functionViaTreeless :: QName -> TCM [HS.Decl]
   functionViaTreeless q = caseMaybeM (toTreeless q) (pure []) $ \ treeless -> do
-    e <- closedTerm treeless
-    let (ps, b) =
+
+    used <- getCompiledArgUse q
+    let dostrip = any not used
+
+    e <- if dostrip then closedTerm (stripUnusedArguments used treeless)
+                    else closedTerm treeless
+    let (ps, b) = lamView e
+        lamView e =
           case stripTopCoerce e of
             HS.Lambda _ ps b -> (ps, b)
             b                -> ([], b)
@@ -284,7 +291,16 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             [c,  e] | c == mazCoerce -> e
             _                        -> e
 
-    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) ps Nothing (HS.UnGuardedRhs b) (HS.BDecls [])]]
+        funbind f ps b = HS.FunBind [HS.Match dummy f ps Nothing (HS.UnGuardedRhs b) (HS.BDecls [])]
+
+    -- The definition of the non-stripped function
+    (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
+    let b0 = foldl HS.App (hsVarUQ $ duname q) [ hsVarUQ x | (~(HS.PVar x), True) <- zip ps0 used ]
+
+    return $ if dostrip
+      then [ funbind (dname q) ps0 b0
+           , funbind (duname q) ps b ]
+      else [ funbind (dname q) ps b ]
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
   mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
@@ -391,6 +407,15 @@ term tm0 = case tm0 of
   T.TVar i -> do
     x <- lookupIndex i <$> asks ccCxt
     return $ hsVarUQ x
+  T.TApp (T.TDef f) ts -> do
+    used <- lift $ getCompiledArgUse f
+    if any not used && length ts >= length used
+      then do
+        f <- lift $ HS.Var <$> xhqn "du" f  -- used stripped function
+        f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
+      else do
+        t' <- term (T.TDef f)
+        t' `apps` ts
   T.TApp t ts -> do
     t' <- term t
     t' `apps` ts

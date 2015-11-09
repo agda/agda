@@ -143,10 +143,12 @@ bltQual b s = do
   Def q _ <- ignoreSharing <$> getBuiltin b
   xqual q (HS.Ident s)
 
--- Sub-naming for cascaded definitions for consecutive clauses.
-dsubname :: QName -> Nat -> HS.Name
-dsubname q i | i == 0    = unqhname "d"                     q
-             | otherwise = unqhname ("d_" ++ show i ++ "_") q
+dname :: QName -> HS.Name
+dname q = unqhname "d" q
+
+-- | Name for definition stripped of unused arguments
+duname :: QName -> HS.Name
+duname q = unqhname "du" q
 
 hsPrimOp :: String -> HS.QOp
 hsPrimOp s = HS.QVarOp $ HS.UnQual $ HS.Symbol s
