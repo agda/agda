@@ -239,10 +239,7 @@ applySection new ptel old ts rd rm = do
     argsToUse new = do
       let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
-      let ms = map mnameFromList . tail . inits . mnameToList $ m  -- NB: tail . inits computes the non-empty prefixes
-      ps <- mapM (fmap secFreeVars <.> getSection) ms
-      reportSLn "tc.mod.apply" 80 $ "  params: " ++ show (zip ms ps)
-      return $ sum $ map (fromMaybe 0) ps
+      getModuleFreeVars' (fmap secFreeVars <.> getSection) m
 
     copyDef :: Args -> (QName, QName) -> TCM ()
     copyDef ts (x, y) = do
@@ -539,19 +536,31 @@ getSection m = do
 
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.
-getSecFreeVars :: ModuleName -> TCM Nat
+getSecFreeVars :: ModuleName -> TCM (Maybe Nat)
 getSecFreeVars m = do
   top <- currentModule
   case top `isSubModuleOf` m || top == m of
-    True  -> maybe 0 secFreeVars <$> getSection m
-    False -> return 0
+    True  -> fmap secFreeVars <$> getSection m
+    False -> return $ Just 0
+
+-- | Compute the number of free variables of a module.
+--   This is the sum of the free variables of its sections.
+--   Parametrized over @getSecFreeVars@.
+getModuleFreeVars' :: (ModuleName -> TCM (Maybe Nat)) -> ModuleName -> TCM Nat
+getModuleFreeVars' getSecFreeVars m = do
+  -- NB: tail . inits computes the non-empty prefixes
+  let ms = map mnameFromList . tail . inits . mnameToList $ m
+  mfvs <- mapM getSecFreeVars ms
+  reportSLn "tc.mod.apply" 80 $ "  params: " ++ show (zip ms mfvs)
+  -- Andreas, 2015-11-10: there can be initial @Nothing@s from
+  -- top-level hierachical module names, see comment on 'getSection'.
+  -- However, after the initial @Nothing@s, there can only be @Just@s.
+  return $ sum $ map (fromMaybe __IMPOSSIBLE__) $ dropWhile isNothing mfvs
 
 -- | Compute the number of free variables of a module. This is the sum of
 --   the free variables of its sections.
 getModuleFreeVars :: ModuleName -> TCM Nat
-getModuleFreeVars m = sum <$> ((:) <$> getAnonymousVariables m <*> mapM getSecFreeVars ms)
-  where
-    ms = map mnameFromList . inits . mnameToList $ m
+getModuleFreeVars m = (+) <$> getAnonymousVariables m <*> getModuleFreeVars' getSecFreeVars m
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   the free variables of the sections it's contained in.
