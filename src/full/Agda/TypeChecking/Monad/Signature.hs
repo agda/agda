@@ -550,12 +550,18 @@ getModuleFreeVars' :: (ModuleName -> TCM (Maybe Nat)) -> ModuleName -> TCM Nat
 getModuleFreeVars' getSecFreeVars m = do
   -- NB: tail . inits computes the non-empty prefixes
   let ms = map mnameFromList . tail . inits . mnameToList $ m
-  mfvs <- mapM getSecFreeVars ms
-  reportSLn "tc.mod.apply" 80 $ "  params: " ++ show (zip ms mfvs)
+  mfvs <- zip ms <$> mapM getSecFreeVars ms
+  reportSLn "tc.mod.apply" 80 $ "  params: " ++ show mfvs
   -- Andreas, 2015-11-10: there can be initial @Nothing@s from
   -- top-level hierachical module names, see comment on 'getSection'.
   -- However, after the initial @Nothing@s, there can only be @Just@s.
-  return $ sum $ map (fromMaybe __IMPOSSIBLE__) $ dropWhile isNothing mfvs
+  ps <- forM (dropWhile (isNothing . snd) mfvs) $ \ (m', mp) -> do
+    case mp of
+      Just n  -> return n
+      Nothing -> do
+        reportSLn "impossible" 10 $ "undefined section " ++ show m'
+        __IMPOSSIBLE__
+  return $ sum ps
 
 -- | Compute the number of free variables of a module. This is the sum of
 --   the free variables of its sections.
