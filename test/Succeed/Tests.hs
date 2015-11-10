@@ -5,7 +5,7 @@ module Succeed.Tests where
 
 import Test.Tasty
 import Test.Tasty.Silver
-import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
+import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
 import Data.Maybe
 import System.FilePath
 import System.IO.Temp
@@ -47,7 +47,7 @@ mkSucceedTest :: FilePath -- agda binary
     -> FilePath -- inp file
     -> TestTree
 mkSucceedTest agdaBin inp = do
-  goldenTest1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
+  goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName testDir inp
         flagFile = (dropExtension inp) <.> ".flags"
@@ -56,7 +56,6 @@ mkSucceedTest agdaBin inp = do
         -- a dummy update function.
         -- TODO extend tasty-silver to handle this use case properly
         readGolden = return $ Just $ printAgdaResult AgdaSuccess
-        updGolden = \_ -> return ()
 
         doRun = (do
           flags <- fromMaybe [] . fmap (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
@@ -90,16 +89,16 @@ mkSucceedTest agdaBin inp = do
             _ -> return $ AgdaUnexpectedFail res
           )
 
-resDiff :: T.Text -> T.Text -> GDiff
+resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
   if t1 == t2
     then
-      Equal
+      return Equal
     else
-      DiffText Nothing t1 t2
+      return $ DiffText Nothing t1 t2
 
-resShow :: T.Text -> GShow
-resShow = ShowText
+resShow :: T.Text -> IO GShow
+resShow = return . ShowText
 
 printAgdaResult :: AgdaResult -> T.Text
 printAgdaResult (AgdaSuccess) = "AGDA_SUCCESS"
