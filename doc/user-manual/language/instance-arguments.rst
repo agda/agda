@@ -5,4 +5,271 @@ Instance Arguments
 ******************
 
 .. note::
-   This is a stub.
+   This section is incomplete.
+
+.. contents::
+   :depth: 2
+   :local:
+
+Instance arguments are the Agda equivalent of Haskell type class constraints
+and can be used for many of the same purposes. In Agda terms, they are
+:ref:`implicit arguments <implicit-arguments>` that get solved by a special
+`instance resolution`_ algorithm, rather than by the unification algorithm used
+for normal implicit arguments. In principle, an instance argument is resolved,
+if a unique *instance* of the required type can be built from `declared
+instances <declaring instances_>`_ and the current context.
+
+Usage
+-----
+
+Instance arguments are enclosed in double curly braces ``{{ }}``, or their
+unicode equivalent ``⦃ ⦄`` (``U+2983`` and ``U+2984``, which can be typed as
+``\{{`` and ``\}}`` in the :ref:`Emacs mode <unicode-input>`). For instance,
+given a function ``_==_``
+
+::
+
+  _==_ : {A : Set} {{eqA : Eq A}} → A → A → Bool
+
+for some suitable type ``Eq``, you might define
+
+::
+
+  elem : {A : Set} {{eqA : Eq A}} → A → List A → Bool
+  elem x (y ∷ xs) = x == y || elem x xs
+  elem x []       = false
+
+Here the instance argument to ``_==_`` is solved by the corresponding argument
+to ``elem``. Just like ordinary implicit arguments, instance arguments can be
+given explicitly. The above definition is equivalent to
+
+::
+
+  elem : {A : Set} {{eqA : Eq A}} → A → List A → Bool
+  elem {{eqA}} x (y ∷ xs) = _==_ {{eqA}} x y || elem {{eqA}} x xs
+  elem         x []       = false
+
+A very useful function that exploits this is the function ``it`` which lets you
+apply instance resolution to solve an arbitrary goal::
+
+  it : ∀ {a} {A : Set a} {{_ : A}} → A
+  it {{x}} = x
+
+Note that instance arguments in types are always named, but the name can be ``_``::
+
+  _==_ : {A : Set} → {{Eq A}} → A → A → Bool    -- INVALID
+  _==_ : {A : Set} {{_ : Eq A}} → A → A → Bool  -- VALID
+
+Defining type classes
+~~~~~~~~~~~~~~~~~~~~~
+
+The type of an instance argument must have the form ``{Γ} → C vs``, where ``C``
+is a bound variable or the name of a data or record type, and ``{Γ}`` denotes
+an arbitrary number of (ordinary) implicit arguments (see `dependent
+instances`_ below for an example where ``Γ`` is non-empty). Other than that
+there are no requirements on the type of an instance argument. In particular,
+there is no special declaration to say that a type is a "type class". Instead,
+Haskell-style type classes are usually defined as :ref:`record types
+<record-types>`. For instance,
+
+::
+
+  record Monoid {a} (A : Set a) : Set a where
+    field
+      mempty : A
+      _<>_   : A → A → A
+
+In order to make the fields of the record available as functions taking
+instance arguments you can use the special module application
+
+::
+
+  open Monoid {{...}} public
+
+This will bring into scope
+
+::
+
+  mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
+  _<>_   : ∀ {a} {A : Set a} {{_ : Monoid A}} → A → A → A
+
+See :ref:`module-application` and :ref:`record-modules` for details about how
+the module application is desugared. If defined by hand, ``mempty`` would be
+
+::
+
+  mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
+  mempty {{mon}} = Monoid.mempty mon
+
+Although record types are a natural fit for Haskell-style type classes, you can
+use instance arguments with data types to good effect. See the `examples`_ below.
+
+Declaring instances
+~~~~~~~~~~~~~~~~~~~
+
+A seen above, instance arguments in the context are available when solving
+instance arguments\ [#context-variables]_, but you also need to be able to
+define top-level instances for concrete types. This is done using the
+``instance`` keyword. For instance, an instance ``Monoid (List A)`` can be
+defined as
+
+::
+
+  instance
+    ListMonoid : ∀ {a} {A : Set a} → Monoid (List A)
+    ListMonoid = record { mempty = []; _<>_ = _++_ }
+
+Or equivalently, using :ref:`copatterns <copatterns>`::
+
+  instance
+    ListMonoid : ∀ {a} {A : Set a} → Monoid (List A)
+    mempty {{ListMonoid}} = []
+    _<>_   {{ListMonoid}} xs ys = xs ++ ys
+
+Top-level instances must target a named type (``Monoid`` in this case), and
+cannot be declared for types in the context.
+
+Instances can have instance arguments themselves, which will be filled in
+recursively during instance resolution. For instance,
+
+::
+
+  record Eq {a} (A : Set a) : Set a where
+    field
+      _==_ : A → A → Bool
+
+  open Eq {{...}} public
+
+  instance
+    eqList : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq (List A)
+    _==_ {{eqList}} []       []       = true
+    _==_ {{eqList}} (x ∷ xs) (y ∷ ys) = x == y && xs == ys
+    _==_ {{eqList}} _        _        = false
+
+    eqNat : Eq Nat
+    _==_ {{eqNat}} = natEquals
+
+  ex : Bool
+  ex = (1 ∷ 2 ∷ 3 ∷ []) == (1 ∷ 2 ∷ []) -- false
+
+Note the two calls to ``_==_`` in the right-hand side of the second clause. The
+first uses the ``Eq A`` instance and the second uses a recursive call to
+``eqList``. In the example ``ex``, instance resolution, needing a value of type ``Eq
+(List Nat)``, will try to use the ``eqList`` instance and find that it needs an
+instance argument of type ``Eq Nat``, it will then solve that with ``eqNat``
+and return the solution ``eqList {{eqNat}}``.
+
+.. warning::
+   At the moment there is no termination check on instances, so it is possible
+   to make instance resolution loop by defining non-sensical instances like
+   ``loop : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq A``. See `Termination`_ below.
+
+Examples
+~~~~~~~~
+
+Proof search
+++++++++++++
+
+Instance arguments are useful not only for Haskell-style type classes, but they
+can also be used to get some limited form of proof search (which, to be fair,
+is also true for Haskell type classes). Consider the following type, which
+models a proof that a particular element is present in a list as the index at
+which the element appears::
+
+  infix 4 _∈_
+  data _∈_ {A : Set} (x : A) : List A → Set where
+    instance
+      zero : ∀ {xs} → x ∈ x ∷ xs
+      suc  : ∀ {y xs} → x ∈ xs → x ∈ y ∷ xs
+
+Here we have declared the constructors of ``_∈_`` to be instances, which allows
+instance resolution to find proofs for concrete cases. For example,
+
+::
+
+  ex₁ : 1 + 2 ∈ 1 ∷ 2 ∷ 3 ∷ 4 ∷ []
+  ex₁ = it  -- computes to suc (suc zero)
+
+  ex₂ : {A : Set} (x y : A) (xs : List A) → x ∈ y ∷ y ∷ x ∷ xs
+  ex₂ x y xs = it  -- suc (suc zero)
+
+  ex₃ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ y ∷ xs
+  ex₃ x y xs = it  -- suc (suc i)
+
+It will fail, however, if there are more than one solution, since instance
+arguments must be unique. For example,
+
+::
+
+  fail₁ : 1 ∈ 1 ∷ 2 ∷ 1 ∷ []
+  fail₁ = it  -- ambiguous: zero or suc (suc zero)
+
+  fail₂ : {A : Set} (x y : A) (xs : List A) {{i : x ∈ xs}} → x ∈ y ∷ x ∷ xs
+  fail₂ x y xs = it -- suc zero or suc (suc i)
+
+Dependent instances
++++++++++++++++++++
+
+Consider a variant on the ``Eq`` class where the equality function produces a
+proof in the case the arguments are equal::
+
+  record Eq {a} (A : Set a) : Set a where
+    field
+      _==_ : (x y : A) → Maybe (x ≡ y)
+
+  open Eq {{...}} public
+
+A simple boolean-valued equality function is problematic for types with
+dependencies, like the Σ-type
+
+::
+
+  data Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+    _,_ : (x : A) → B x → Σ A B
+
+since given two pairs ``x , y`` and ``x₁ , y₁``, the types of the second
+components ``y`` and ``y₁`` can be completely different and not admit an
+equality test. Only when ``x`` and ``x₁`` are *really equal* can we hope to
+compare ``y`` and ``y₁``. Having the equality function return a proof means
+that we are guaranteed that when ``x`` and ``x₁`` compare equal, they really
+are equal, and comparing ``y`` and ``y₁`` makes sense.
+
+An ``Eq`` instance for ``Σ`` can be defined as follows::
+
+  instance
+    eqΣ : ∀ {a b} {A : Set a} {B : A → Set b} {{_ : Eq A}} {{_ : ∀ {x} → Eq (B x)}} → Eq (Σ A B)
+    _==_ {{eqΣ}} (x , y) (x₁ , y₁) with x == x₁
+    _==_ {{eqΣ}} (x , y) (x₁ , y₁)    | nothing = nothing
+    _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl with y == y₁
+    _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl    | nothing   = nothing
+    _==_ {{eqΣ}} (x , y) (.x , .y)    | just refl    | just refl = just refl
+
+Note that the instance argument for ``B`` states that there should be an ``Eq``
+instance for ``B x``, for any ``x : A``. The argument ``x`` must be implicit,
+indicating that it needs to be inferred by unification whenever the ``B``
+instance is used. See `instance resolution`_ below for more details.
+
+Instance resolution
+-------------------
+
+.. - Interaction with metavariables
+   - Recursive search
+   - Which instances are available
+
+Limitations
+-----------
+
+Termination
+~~~~~~~~~~~
+
+Super classes
+~~~~~~~~~~~~~
+
+.. overlapping instances would help here
+
+Error messages
+~~~~~~~~~~~~~~
+
+.. [#context-variables] In fact any variable in the context is considered for
+   instance resolution, but this may change in the future. See `issue #1716
+   <https://github.com/agda/agda/issues/1716>`_ for some discussion.
