@@ -389,13 +389,17 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma lhs rhs b) = do
-    prettyTCM q <+> text " rule " <+> do
-      prettyTCM gamma <+> text " |- " <+> do
-        addContext gamma $ do
-          prettyTCM lhs <+> text " --> " <+> do
-            prettyTCM rhs <+> text " : " <+> do
-              prettyTCM b
+  prettyTCM (RewriteRule q gamma lhs rhs b) = sep
+    [ prettyTCM q <+> text " rule "
+    , prettyTCM gamma <+> text " |- "
+    , addContext gamma $ hsep
+      [ prettyTCM lhs
+      , text " --> "
+      , prettyTCM rhs
+      , text " : "
+      , prettyTCM b
+      ]
+    ]
 
 instance PrettyTCM Occurrence where
   prettyTCM GuardPos  = text "-[g+]->"
