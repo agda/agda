@@ -355,8 +355,8 @@ coreError :: String -> CExpr
 coreError msg = mkError opts $ "Fatal error: " ++ msg
 
 compilePrim :: C.TPrim -> CExpr
-compilePrim C.PDiv = mkVar $ primFunNm "primIntegerDiv"
-compilePrim C.PMod = mkVar $ primFunNm "primIntegerMod"
+compilePrim C.PQuot = mkVar $ primFunNm "primIntegerQuot"
+compilePrim C.PRem = mkVar $ primFunNm "primIntegerRem"
 compilePrim C.PSub = mkVar $ primFunNm "primIntegerMinus"
 compilePrim C.PAdd = mkVar $ primFunNm "primIntegerPlus"
 compilePrim C.PMul = mkVar $ primFunNm "primIntegerTimes"

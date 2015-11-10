@@ -40,9 +40,9 @@ applyPrim :: TPrim -> Integer -> Integer -> Maybe Integer
 applyPrim PAdd a b = Just (a + b)
 applyPrim PSub a b = Just (a - b)
 applyPrim PMul a b = Just (a * b)
-applyPrim PDiv a b | b /= 0    = Just (div a b)
+applyPrim PQuot a b | b /= 0    = Just (quot a b)
                    | otherwise = Nothing
-applyPrim PMod a b | b /= 0    = Just (mod a b)
+applyPrim PRem a b | b /= 0    = Just (rem a b)
                    | otherwise = Nothing
 applyPrim PGeq _ _ = Nothing
 applyPrim PLt  _ _ = Nothing

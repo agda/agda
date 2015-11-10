@@ -1,8 +1,8 @@
 module UHC.Agda.Builtins
   ( -- Integer
     primShowInteger
-  , primIntegerDiv
-  , primIntegerMod
+  , primIntegerQuot
+  , primIntegerRem
   , primIntegerMinus
   , primIntegerPlus
   , primIntegerGreaterOrEqual
@@ -97,11 +97,11 @@ notImplError f = error $ "Feature " ++ f ++ " is not implemented in the UHC back
 primShowInteger :: Integer -> String
 primShowInteger = show
 
-primIntegerDiv :: Integer -> Integer -> Integer
-primIntegerDiv = quot
+primIntegerQuot :: Integer -> Integer -> Integer
+primIntegerQuot = quot
 
-primIntegerMod :: Integer -> Integer -> Integer
-primIntegerMod = rem
+primIntegerRem :: Integer -> Integer -> Integer
+primIntegerRem = rem
 
 primIntegerMinus :: Integer -> Integer -> Integer
 primIntegerMinus = (-)

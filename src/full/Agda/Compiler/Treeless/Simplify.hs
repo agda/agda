@@ -89,8 +89,9 @@ simplify FunctionKit{..} = simpl
         pure $ if isAtomic v then v else t
 
       TApp (TDef f) [TLit (LitNat _ 0), m, n, m']
-        | m == m', Just f == divAux -> simpl $ tOp PDiv n (tPlusK 1 m)
-        | m == m', Just f == modAux -> simpl $ tOp PMod n (tPlusK 1 m)
+        -- div/mod are equivalent to quot/rem on natural numbers.
+        | m == m', Just f == divAux -> simpl $ tOp PQuot n (tPlusK 1 m)
+        | m == m', Just f == modAux -> simpl $ tOp PRem n (tPlusK 1 m)
 
       TApp (TPrim _) _ -> pure t  -- taken care of by rewrite'
 
@@ -181,14 +182,14 @@ simplify FunctionKit{..} = simpl
     simplPrim' (TApp (TPrim op) [u, v])
       | Just u <- negView u,
         Just v <- negView v,
-        elem op [PMul, PDiv] = tOp op u v
+        elem op [PMul, PQuot] = tOp op u v
       | Just u <- negView u,
-        elem op [PMul, PDiv] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
+        elem op [PMul, PQuot] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
       | Just v <- negView v,
-        elem op [PMul, PDiv] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
-    simplPrim' (TApp (TPrim PMod) [u, v])
-      | Just u <- negView u  = simplArith $ tOp PSub (tInt 0) (tOp PMod u (unNeg v))
-      | Just v <- negView v  = tOp PMod u v
+        elem op [PMul, PQuot] = simplArith $ tOp PSub (tInt 0) (tOp op u v)
+    simplPrim' (TApp (TPrim PRem) [u, v])
+      | Just u <- negView u  = simplArith $ tOp PSub (tInt 0) (tOp PRem u (unNeg v))
+      | Just v <- negView v  = tOp PRem u v
     simplPrim' (TApp f@(TPrim op) [u, v]) = simplArith $ TApp f [simplPrim' u, simplPrim' v]
     simplPrim' u = u
 

@@ -58,7 +58,7 @@ data TTerm = TVar Int
 
 -- | Compiler-related primitives. This are NOT the same thing as primitives
 -- in Agda's surface or internal syntax!
-data TPrim = PAdd | PSub | PMul | PDiv | PMod | PGeq | PLt | PEq | PIf | PSeq
+data TPrim = PAdd | PSub | PMul | PQuot | PRem | PGeq | PLt | PEq | PIf | PSeq
   deriving (Typeable, Show, Eq, Ord)
 
 mkTApp :: TTerm -> Args -> TTerm

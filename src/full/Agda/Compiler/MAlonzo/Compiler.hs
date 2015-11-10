@@ -456,8 +456,8 @@ term tm0 = case tm0 of
 compilePrim :: T.TPrim -> HS.Exp
 compilePrim s =
   case s of
-    T.PDiv -> fakeExp "(Prelude.quot :: Integer -> Integer -> Integer)"
-    T.PMod -> fakeExp "(Prelude.rem :: Integer -> Integer -> Integer)"
+    T.PQuot -> fakeExp "(Prelude.quot :: Integer -> Integer -> Integer)"
+    T.PRem -> fakeExp "(Prelude.rem :: Integer -> Integer -> Integer)"
     T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
     T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
     T.PMul -> fakeExp "((Prelude.*) :: Integer -> Integer -> Integer)"
