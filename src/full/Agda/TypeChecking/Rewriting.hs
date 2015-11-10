@@ -63,6 +63,7 @@ import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
@@ -163,25 +164,20 @@ addRewriteRule q = do
       inTopContext $ prettyTCM (telFromList delta) <+> text " |- " <+> do
         addContext delta $ prettyTCM a
   -- Get rewrite rule (type of q).
-  TelV gamma core <- telView $ defType def
+  TelV gamma1 core <- telView $ defType def
   reportSDoc "rewriting" 30 $ do
     text "attempting to add rewrite rule of type " <+> do
-      prettyTCM gamma <+> text " |- " <+> do
-        addContext gamma $ prettyTCM core
-  ctx <- getContext
-  reportSDoc "rewriting" 40 $ do
-    text "current context: " <+> prettyTCM ctx
+      prettyTCM gamma1 <+> text " |- " <+> do
+        addContext gamma1 $ prettyTCM core
   let failureWrongTarget = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " does not target rewrite relation" ]
   let failureMetas       = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since it contains unsolved meta variables" ]
   let failureNotDefOrCon = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
-  let failureFreeVars xs = typeError . GenericDocError =<< do
-       addContext gamma $ hsep $
-        [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) xs) ]
-  let failureLhsReduction lhs = typeError . GenericDocError =<< do
-       addContext gamma $ hsep $
+  let failureFreeVars xs = typeError . GenericDocError =<< hsep
+        [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
+  let failureLhsReduction lhs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side " , prettyTCM lhs , text " has top-level reductions" ]
   let failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule" ]
@@ -196,7 +192,12 @@ addRewriteRule q = do
           (us, [lhs, rhs]) = splitAt (n - 2) vs
       unless (size delta == size us) __IMPOSSIBLE__
       b <- instantiateFull $ applySubst (parallelS $ reverse us) a
-      gamma <- instantiateFull gamma
+
+      gamma0 <- getContextTelescope
+      gamma1 <- instantiateFull gamma1
+      let gamma = gamma0 `abstract` gamma1
+
+      unless (null $ allMetas (telToList gamma1)) failureMetas
 
       -- Find head symbol f of the lhs.
       f <- case ignoreSharing lhs of
@@ -204,26 +205,25 @@ addRewriteRule q = do
         Con c vs -> return $ conName c
         _        -> failureNotDefOrCon
 
-      -- Normalize lhs: we do not want to match redexes.
-      lhs <- normaliseArgs lhs
-      unlessM (isNormal lhs) $ failureLhsReduction lhs
+      rew <- addContext gamma1 $ do
+        -- Normalize lhs: we do not want to match redexes.
+        lhs <- normaliseArgs lhs
+        unlessM (isNormal lhs) $ failureLhsReduction lhs
 
-      -- Normalize rhs: might be more efficient.
-      rhs <- etaContract =<< normalise rhs
-      unless (null $ allMetas (telToList gamma, lhs, rhs, b)) failureMetas
-      pat <- patternFrom (size gamma) 0 lhs
-      let rew = RewriteRule q gamma pat rhs b
+        -- Normalize rhs: might be more efficient.
+        rhs <- etaContract =<< normalise rhs
+        unless (null $ allMetas (lhs, rhs, b)) failureMetas
+        pat <- patternFrom 0 lhs
+
+        -- check that FV(rhs) ⊆ nlPatVars(lhs)
+        unlessNull (allFreeVars rhs IntSet.\\ nlPatVars pat) failureFreeVars
+
+        return $ RewriteRule q gamma pat rhs b
+
       reportSDoc "rewriting" 10 $
         text "considering rewrite rule " <+> prettyTCM rew
       reportSDoc "rewriting" 60 $
         text "considering rewrite rule" <+> text (show rew)
-
-      -- Check that all variables of Γ are pattern variables in the lhs.
-      unlessNull ([0 .. size gamma - 1] List.\\ IntSet.toList (nlPatVars pat)) failureFreeVars
-
-      -- -- check that FV(rhs) ⊆ nlPatVars(lhs)
-      -- unless (allVars (freeVars rhs) `IntSet.isSubsetOf` nlPatVars pat) $
-      --   failureFreeVars
 
       -- NO LONGER WORKS:
       -- -- Check whether lhs can be rewritten with itself.
@@ -233,7 +233,6 @@ addRewriteRule q = do
       --     failureFreeVars
 
       -- Add rewrite rule gamma ⊢ lhs ↦ rhs : b for f.
-      rew <- makeOpen rew
       addRewriteRules f [rew]
 
     _ -> failureWrongTarget
@@ -268,7 +267,7 @@ rewriteWith mt v rew@(RewriteRule q gamma lhs rhs b) = do
     [ text "attempting to rewrite term " <+> prettyTCM v
     , text " with rule " <+> prettyTCM rew
     ]) $ do
-    result <- nonLinMatch lhs v
+    result <- nonLinMatch gamma lhs v
     case result of
       Left block -> return $ Left $ const v <$> block
       Right sub  -> do
@@ -327,17 +326,15 @@ rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- els
       where
       loop :: Blocked_ -> Elims -> RewriteRules -> ReduceM (Either (Blocked Term) Term)
       loop block es [] = return $ Left $ block $> hd es
-      loop block es (rew:rews) = do
-        mrew <- tryOpen rew
-        case mrew of
-          Just rew | let n = rewArity rew, length es >= n -> do
+      loop block es (rew:rews)
+       | let n = rewArity rew, length es >= n = do
             let (es1, es2) = List.genericSplitAt n es
             result <- rewriteWith Nothing (hd es1) rew
             case result of
               Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) es rews
               Left (NotBlocked _ _) -> loop block es rews
               Right w               -> return $ Right $ w `applyE` es2
-          _ -> loop (block `mappend` NotBlocked Underapplied ()) es rews
+       | otherwise = loop (block `mappend` NotBlocked Underapplied ()) es rews
 
 ------------------------------------------------------------------------
 -- * Auxiliary functions
@@ -352,7 +349,7 @@ instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
 instance NLPatVars NLPat where
   nlPatVars p =
     case p of
-      PVar i    -> singleton i
+      PVar _ i  -> singleton i
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'

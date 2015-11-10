@@ -751,7 +751,7 @@ instance Subst Term Pattern where
 
 instance Subst Term NLPat where
   applySubst rho p = case p of
-    PVar i -> p
+    PVar id i -> p
     PWild  -> p
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u

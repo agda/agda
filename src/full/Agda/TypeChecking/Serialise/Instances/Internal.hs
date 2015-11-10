@@ -174,14 +174,14 @@ instance EmbPrj Definition where
                            valu _ = malformed
 
 instance EmbPrj NLPat where
-  icod_ (PVar a)   = icode1 0 a
+  icod_ (PVar a b) = icode2 0 a b
   icod_ (PWild)    = icode0 1
   icod_ (PDef a b) = icode2 2 a b
   icod_ (PLam a b) = icode2 3 a b
   icod_ (PPi a b)  = icode2 4 a b
   icod_ (PBoundVar a b) = icode2 5 a b
   icod_ (PTerm a)  = icode1 6 a
-  value = vcase valu where valu [0, a]    = valu1 PVar a
+  value = vcase valu where valu [0, a, b] = valu2 PVar a b
                            valu [1]       = valu0 PWild
                            valu [2, a, b] = valu2 PDef a b
                            valu [3, a, b] = valu2 PLam a b
