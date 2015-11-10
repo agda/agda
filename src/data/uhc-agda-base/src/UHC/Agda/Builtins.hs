@@ -5,8 +5,10 @@ module UHC.Agda.Builtins
   , primIntegerRem
   , primIntegerMinus
   , primIntegerPlus
+  , primIntegerTimes
   , primIntegerGreaterOrEqual
   , primIntegerEquality
+  , primIntegerLess
     -- Levels
   , primLevelZero
   , primLevelSuc
@@ -22,6 +24,7 @@ module UHC.Agda.Builtins
   , primNatDivSucAux
   , primNatModSuc
   , primNatModSucAux
+  , primNatLess
     -- IO
   , primReturn
   , primBind
@@ -138,38 +141,46 @@ primLevelMax _ _ = ()
 -- Nat
 -- ====================
 
--- In the long term, we should either make sure that uhc optimizes Nats to Integers
--- or do something clever here
+newtype Nat = Nat Integer
 
-type Nat = Integer
+liftN2 :: (Integer -> Integer -> Integer) -> Nat -> Nat -> Nat
+liftN2 f x y = Nat (f (unNat x) (unNat y))
+
+unNat :: Nat -> Integer
+unNat (Nat i) = i
 
 primNatToInteger :: Nat -> Integer
-primNatToInteger = id
+primNatToInteger = unNat
 
+-- unsafe!
 primIntegerToNat :: Integer -> Nat
-primIntegerToNat = id
+primIntegerToNat = Nat
 
 primNatPlus :: Nat -> Nat -> Nat
-primNatPlus = (+)
+primNatPlus = liftN2 (+)
 
 primNatTimes :: Nat -> Nat -> Nat
-primNatTimes = (*)
+primNatTimes = liftN2 (*)
 
 primNatMinus :: Nat -> Nat -> Nat
-primNatMinus x y = max 0 (x - y)
+primNatMinus x y = Nat $ max 0 (unNat x - unNat y)
 
 primNatDivSuc :: Nat -> Nat -> Nat
-primNatDivSuc x y = div x (y + 1)
+primNatDivSuc x y = Nat $ div (unNat x) (unNat y + 1)
 
 primNatDivSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
-primNatDivSucAux k m n j = k + div (max 0 $ n + m - j) (m + 1)
+primNatDivSucAux (Nat k) (Nat m) (Nat n) (Nat j) =
+  Nat $ k + div (max 0 $ n + m - j) (m + 1)
 
 primNatModSuc :: Nat -> Nat -> Nat
-primNatModSuc x y = mod x (y + 1)
+primNatModSuc x y = Nat $ mod (unNat x) (unNat y + 1)
 
 primNatModSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
-primNatModSucAux k m n j = if n > j then mod (n - j - 1) (m + 1) else k + n
+primNatModSucAux (Nat k) (Nat m) (Nat n) (Nat j) =
+  Nat $ if n > j then mod (n - j - 1) (m + 1) else k + n
 
+primNatLess :: Nat -> Nat -> Bool
+primNatLess x y = unNat x < unNat y
 
 -- ====================
 -- IO

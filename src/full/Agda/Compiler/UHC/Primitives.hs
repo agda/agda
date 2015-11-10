@@ -47,6 +47,7 @@ primFunctions = M.fromList $
         , "primNatModSuc"
         , "primNatModSucAux"
         , "primNatToInteger"
+        , "primNatLess"
         , "primIntegerToNat"
         -- String
         , "primStringAppend"
