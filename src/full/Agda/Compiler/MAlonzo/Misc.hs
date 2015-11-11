@@ -238,10 +238,6 @@ rtmUnreachableError = mazUnreachableError
 mazRTE :: HS.ModuleName
 mazRTE = HS.ModuleName "MAlonzo.RTE"
 
--- for Runtime module: Not really used (Runtime modules has been abolished).
-rtmMod :: HS.ModuleName
-rtmMod = mazMod' "Runtime"
-
 rtmQual :: String -> HS.QName
 rtmQual = HS.UnQual . HS.Ident
 

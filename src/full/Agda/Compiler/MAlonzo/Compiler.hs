@@ -63,6 +63,7 @@ import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.FileName
 import Agda.Utils.Functor
+import Agda.Utils.IO.Directory
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -72,6 +73,8 @@ import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
+
+import Paths_Agda
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -99,7 +102,7 @@ compilerMain modIsMain mainI =
 
     ignoreAbstractMode $ do
       mapM_ (compile . miInterface) =<< (Map.elems <$> getVisitedModules)
-      writeModule rteModule
+      copyRTEModules
       callGHC modIsMain mainI
 
 compile :: Interface -> TCM ()
@@ -631,6 +634,12 @@ hsCoerce e =
 -- Writing out a haskell module
 --------------------------------------------------
 
+copyRTEModules :: TCM ()
+copyRTEModules = do
+  dataDir <- lift getDataDir
+  let srcDir = dataDir </> "MAlonzo" </> "src"
+  (lift . copyDirContent srcDir) =<< compileDir
+
 writeModule :: HS.Module -> TCM ()
 writeModule (HS.Module l m ps w ex imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
@@ -646,38 +655,6 @@ writeModule (HS.Module l m ps w ex imp ds) = do
         , "Rank2Types"
         ]
 
-rteModule :: HS.Module
-rteModule = ok $ parse $ unlines
-  [ "module " ++ prettyPrint mazRTE ++ " where"
-  , "import Unsafe.Coerce"
-  , ""
-  , "-- Special version of coerce that plays well with rules."
-  , "{-# INLINE [1] " ++ mazCoerceName ++ " #-}"
-  , mazCoerceName ++ " = Unsafe.Coerce.unsafeCoerce"
-  , "{-# RULES \"coerce-id\" forall (x :: a) . " ++ mazCoerceName ++ " x = x #-}"
-  , ""
-  , "-- Builtin QNames, the third field is for the type."
-  , "data QName a b = QName { nameId, moduleId :: Integer, qnameType :: a, qnameDefinition :: b, qnameString :: String}"
-  , "instance Eq (QName a b) where"
-  , "  QName a b _ _ _ == QName c d _ _ _ = (a, b) == (c, d)"
-  , "instance Ord (QName a b) where"
-  , "  compare (QName a b _ _ _) (QName c d _ _ _) = compare (a, b) (c, d)"
-  , ""
-  , "mazIncompleteMatch :: String -> a"
-  , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
-  , ""
-  , "mazUnreachableError :: a"
-  , "mazUnreachableError = error (\"MAlonzo Runtime Error: unreachable code reached.\")"
-  ]
-  where
-    parse :: String -> HS.ParseResult HS.Module
-    parse = HS.parseModuleWithMode
-              HS.defaultParseMode
-                { HS.extensions = [ HS.EnableExtension HS.ExplicitForAll ] }
-
-    ok :: HS.ParseResult HS.Module -> HS.Module
-    ok (HS.ParseOk d)   = d
-    ok HS.ParseFailed{} = __IMPOSSIBLE__
 
 compileDir :: TCM FilePath
 compileDir = do

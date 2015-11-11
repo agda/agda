@@ -49,6 +49,7 @@ data-files:         Agda.css
                     uhc-agda-base/LICENSE
                     uhc-agda-base/uhc-agda-base.cabal
                     uhc-agda-base/src/UHC/Agda/*.hs
+                    MAlonzo/src/MAlonzo/*.hs
 
 source-repository head
   type:     git
