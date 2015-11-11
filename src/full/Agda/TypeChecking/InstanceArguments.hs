@@ -280,13 +280,15 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
   where
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
     areThereNonRigidMetaArgs []             = return Nothing
-    areThereNonRigidMetaArgs (Proj _ : _)   = __IMPOSSIBLE__
+    areThereNonRigidMetaArgs (Proj _ : xs)  = areThereNonRigidMetaArgs xs
     areThereNonRigidMetaArgs (Apply x : xs) = do
       ifJustM (isNonRigidMeta $ unArg x) (return . Just) (areThereNonRigidMetaArgs xs)
 
     isNonRigidMeta :: Term -> TCM (Maybe MetaId)
     isNonRigidMeta v =
       case ignoreSharing v of
+        Def _ es  -> areThereNonRigidMetaArgs es
+        Var _ es  -> areThereNonRigidMetaArgs es
         MetaV i _ -> ifM (not <$> isRigid i) (return (Just i)) (return Nothing)
         Lam _ t   -> isNonRigidMeta (unAbs t)
         _         -> return Nothing
