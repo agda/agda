@@ -15,6 +15,7 @@ Commands working with types can be prefixed with ``C-u`` to compute
 type without further normalisation and with ``C-u C-u`` to compute
 normalised types.
 
+.. _emacs-global-commands:
 
 Global commands
 ~~~~~~~~~~~~~~~

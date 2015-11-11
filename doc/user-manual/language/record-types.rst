@@ -12,3 +12,8 @@ Record Types
 Record modules
 --------------
 
+.. _eta-expansion:
+
+Eta-expansion
+-------------
+

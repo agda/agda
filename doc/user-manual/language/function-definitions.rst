@@ -14,3 +14,9 @@ Pattern matching
 
 Dot patterns
 ~~~~~~~~~~~~
+
+.. _absurd-patterns:
+
+Absurd patterns
+~~~~~~~~~~~~~~~
+

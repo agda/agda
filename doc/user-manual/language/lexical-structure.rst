@@ -135,7 +135,6 @@ Characters
   Examples: ``'A'``, ``'∀'``, ``'\x2200'``, ``'\ESC'``, ``'\32'``, ``'\n'``,
   ``'\''``, ``'"'``.
 
-.. _strings:
 .. _lexical-structure-string-literals:
 
 Strings
@@ -165,7 +164,7 @@ Comments
 
 Single-line comments are written with a double dash ``--`` followed by arbitrary
 text. Multi-line comments are enclosed in ``{-`` and ``-}`` and can be nested.
-Comments cannot appear in `string literals <strings_>`_.
+Comments cannot appear in `string literals <lexical-structure-string-literals_>`_.
 
 Example::
 
@@ -179,6 +178,8 @@ Pragmas
 
 Pragmas are special comments enclosed in ``{-#`` and ``#-}`` that have special
 meaning to the system. See :doc:`pragmas` for a full list of pragmas.
+
+.. _lexical-structure-layout:
 
 Layout
 ------

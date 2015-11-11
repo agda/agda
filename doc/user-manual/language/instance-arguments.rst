@@ -4,9 +4,6 @@
 Instance Arguments
 ******************
 
-.. note::
-   This section is incomplete.
-
 .. contents::
    :depth: 2
    :local:
@@ -110,8 +107,9 @@ Declaring instances
 A seen above, instance arguments in the context are available when solving
 instance arguments\ [#context-variables]_, but you also need to be able to
 define top-level instances for concrete types. This is done using the
-``instance`` keyword. For instance, an instance ``Monoid (List A)`` can be
-defined as
+``instance`` keyword, which starts a :ref:`block <lexical-structure-layout>` in
+which each definition is marked as an instance available for instance
+resolution. For example, an instance ``Monoid (List A)`` can be defined as
 
 ::
 
@@ -162,7 +160,52 @@ and return the solution ``eqList {{eqNat}}``.
 .. warning::
    At the moment there is no termination check on instances, so it is possible
    to make instance resolution loop by defining non-sensical instances like
-   ``loop : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq A``. See `Termination`_ below.
+   ``loop : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq A``.
+
+Constructor instances
++++++++++++++++++++++
+
+Although instance arguments are most commonly used for record types, mimicking
+Haskell-style type classes, they can also be used with data types. In this case
+you often want the constructors to be instances, which is achieved by declaring
+them inside an ``instance`` block. Typically arguments to constructors are not
+instance arguments, so during instance resolution explicit arguments are
+treated as instance arguments. See `instance resolution`_ below for the details.
+
+A simple example of a constructor that can be made an instance is the
+reflexivity constructor of the equality type::
+
+  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
+    instance refl : x ≡ x
+
+This allows trivial equality proofs to be inferred by instance resolution,
+which can make working with functions that have preconditions less of a burden.
+As an example, here is how one could use this to define a function that takes a
+natural number and gives back a ``Fin n`` (the type of naturals smaller than
+``n``)::
+
+  data Fin : Nat → Set where
+    zero : ∀ {n} → Fin (suc n)
+    suc  : ∀ {n} → Fin n → Fin (suc n)
+
+  mkFin : ∀ {n} (m : Nat) {{_ : suc m - n ≡ 0}} → Fin n
+  mkFin {zero}  m {{}}
+  mkFin {suc n} zero    = zero
+  mkFin {suc n} (suc m) = suc (mkFin m)
+
+  five : Fin 6
+  five = mkFin 5 -- OK
+
+  badfive : Fin 5
+  badfive = mkFin 5 -- Error: No instance of type 1 ≡ 0 was found in scope.
+
+In the first clause of ``mkFin`` we use an :ref:`absurd pattern
+<absurd-patterns>` to discharge the impossible assumption ``suc m ≡ 0``.  See
+the `next section <examples_>`_ for another example of constructor instances.
+
+Currently you cannot declare record fields to be instances, but this will
+likely be possible in the future. See `issue #1273
+<https://github.com/agda/agda/issues/1273>`_.
 
 Examples
 ~~~~~~~~
@@ -252,24 +295,74 @@ instance is used. See `instance resolution`_ below for more details.
 Instance resolution
 -------------------
 
-.. - Interaction with metavariables
-   - Recursive search
-   - Which instances are available
+Given a goal that should be solved using instance resolution we proceed in the
+following four stages:
 
-Limitations
------------
+Verify the goal
+  First we check that the goal is not already solved. This can happen if there
+  are :ref:`unification constraints <implicit-arguments>` determining the
+  value, or if it is of singleton record type and thus solved by
+  :ref:`eta-expansion <eta-expansion>`.
 
-Termination
-~~~~~~~~~~~
+  Next we check that the goal type has the right shape to be solved by instance
+  resolution. It should be of the form ``{Γ} → C vs``, where the target type
+  ``C`` is a variable from the context or the name of a data or record type,
+  and ``{Γ}`` denotes a telescope of implicit arguments. If this is not the
+  case instance resolution fails with an error message\ [#issue1322]_.
 
-Super classes
-~~~~~~~~~~~~~
+  Finally we have to check that there are no *unconstrained*
+  :ref:`metavariables <metavariables>` in ``vs``. A metavariable ``α`` is
+  considered constrained if it appears in an argument that is determined by the
+  type of some later argument, or if there is an existing constraint of the
+  form ``α us = C vs``, where ``C`` inert (i.e. a data or type constructor).
+  For example, ``α`` is constrained in ``T α xs`` if ``T : (n : Nat) → Vec A
+  n → Set``, since the type of the second argument of ``T`` determines the value
+  of the first argument. The reason for this restriction is that instance
+  resolution risks looping in the presence of unconstrained metavariables. For
+  example, suppose the goal is ``Eq α`` for some metavariable ``α``. Instance
+  resolution would decide that the ``eqList`` instance was applicable if
+  setting ``α := List β`` for a fresh metavariable ``β``, and then proceed to
+  search for an instance of ``Eq β``.
 
-.. overlapping instances would help here
+Find candidates
+  In the second stage we compute a set of *candidates*. These are the variables
+  in the context (both lambda-bound and :ref:`let-bound <let-expressions>`)\
+  [#context-variables]_ and the names of top-level instances that compute something of
+  type ``C us``, where ``C`` is the target type computed in the previous stage.
+  If ``C`` is a variable from the context there will be no top-level instances.
 
-Error messages
-~~~~~~~~~~~~~~
+Check the candidates
+  We attempt to use each candidate in turn to build an instance of the goal
+  type ``{Γ} → C vs``. First we extend the current context by ``Γ``. Then,
+  given a candidate ``c : Δ → A`` we generate fresh metavariables ``αs : Δ``
+  for the arguments of ``c``, with ordinary metavariables for implicit
+  arguments, and instance metavariables, solved by a recursive call to instance
+  resolution, for explicit arguments and instance arguments.
 
-.. [#context-variables] In fact any variable in the context is considered for
-   instance resolution, but this may change in the future. See `issue #1716
+  Next we :ref:`unify <unification>` ``A[Δ := αs]`` with ``C vs`` and apply
+  instance resolution to the instance metavariables in ``αs``. Both unification
+  and instance resolution have three possible outcomes: *yes*, *no*, or
+  *maybe*. In case we get a *no* answer from any of them, the current candidate
+  is discarded, otherwise we return the potential solution ``λ {Γ} → c αs``.
+
+Compute the result
+  From the previous stage we get a list of potential solutions. If the list is
+  empty we fail with an error saying that no instance for ``C vs`` could be
+  found (*no*). If there is a single solution we use it to solve the goal
+  (*yes*), and if there are multiple solutions we check if they are all equal.
+  If they are, we solve the goal with one of them (*yes*), but if they are not,
+  we postpone instance resolution (*maybe*), hoping that some of the *maybes*
+  will turn into *nos* once we know more about the involved metavariables.
+
+  If there are left-over instance problems at the end of type checking, the
+  corresponding metavariables are printed in the Emacs status buffer together
+  with their types and source location. The candidates that gave rise to
+  potential solutions can be printed with the :ref:`show constraints command
+  <emacs-global-commands>` (``C-c C-=``).
+
+.. [#context-variables] At the moment any variable in the context is considered
+   for instance resolution, but this may change in the future. See `issue #1716
    <https://github.com/agda/agda/issues/1716>`_ for some discussion.
+
+.. [#issue1322] Instance goal verification is buggy at the moment. See `issue
+   #1322 <https://github.com/agda/agda/issues/1716>`_.
