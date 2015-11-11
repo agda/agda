@@ -551,7 +551,7 @@ getModuleFreeVars' getSecFreeVars m = do
   -- NB: tail . inits computes the non-empty prefixes
   let ms = map mnameFromList . tail . inits . mnameToList $ m
   mfvs <- zip ms <$> mapM getSecFreeVars ms
-  reportSLn "tc.mod.apply" 80 $ "  params: " ++ show mfvs
+  reportSLn "tc.mod.apply" 100 $ "  params: " ++ show mfvs
   -- Andreas, 2015-11-10: there can be initial @Nothing@s from
   -- top-level hierachical module names, see comment on 'getSection'.
   -- However, after the initial @Nothing@s, there can only be @Just@s.
