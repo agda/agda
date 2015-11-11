@@ -1,4 +1,4 @@
 Issue1321.agda:22,5-16
-No variable of type ⊥ was found in scope.
+No instance of type ⊥ was found in scope.
 when checking that (suc zero) is a valid argument to a function of
 type (n : Nat) {{_ : n ≠ zero}} → Nat

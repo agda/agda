@@ -1054,7 +1054,7 @@ instance PrettyTCM TypeError where
         com (_:_) = comma
 
     IFSNoCandidateInScope t -> fsep $
-      pwords "No variable of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+      pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
 
     UnquoteFailed e -> case e of
       BadVisibility msg arg -> fsep $
