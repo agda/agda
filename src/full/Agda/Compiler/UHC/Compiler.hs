@@ -42,6 +42,7 @@ import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.IO.Directory
 
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Bridge as UB
@@ -79,17 +80,6 @@ copyUHCAgdaBase outDir = do
 
     liftIO $ copyDirContent srcDir (outDir </> "UHC")
 
-  where copyDirContent :: FilePath -> FilePath -> IO ()
-        copyDirContent src dest = do
-            createDirectoryIfMissing True dest
-            chlds <- getDirectoryContents src
-            mapM_ (\x -> do
-                isDir <- doesDirectoryExist (src </> x)
-                case isDir of
-                    _ | x == "." || x == ".." -> return ()
-                    True  -> copyDirContent (src </> x) (dest </> x)
-                    False -> copyFile (src </> x) (dest </> x)
-              ) chlds
 
 -- | Compile an interface into an executable using UHC
 compilerMain

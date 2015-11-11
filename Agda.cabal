@@ -410,6 +410,7 @@ library
                     Agda.Utils.HashMap
                     Agda.Utils.Impossible
                     Agda.Utils.IO.Binary
+                    Agda.Utils.IO.Directory
                     Agda.Utils.IO.UTF8
                     Agda.Utils.IORef
                     Agda.Utils.Lens
