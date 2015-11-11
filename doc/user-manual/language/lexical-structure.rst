@@ -35,7 +35,7 @@ keywords
     unquote unquoteDecl unquoteDef using where with
 
   The ``Set`` keyword can appear with a number suffix, optionally subscripted
-  (see :doc:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
+  (see :ref:`universe-levels`). For instance ``Set42`` and ``Set₄₂`` are both
   keywords.
 
 
@@ -56,7 +56,7 @@ Examples
 
 The underscores in a name indicate where the arguments go when the name is used
 as an operator. For instance, the application ``_+_ 1 2`` can be written as ``1
-+ 2``. See :doc:`mixfix-operators` for more information. Since most sequences
++ 2``. See :ref:`mixfix-operators` for more information. Since most sequences
 of characters are valid names, whitespace is more important than in other
 languages. In the example above the whitespace around ``+`` is required, since
 ``1+2`` is a valid name.
@@ -64,7 +64,7 @@ languages. In the example above the whitespace around ``+`` is required, since
 
 Qualified names are used to refer to entities defined in other modules. For
 instance ``Prelude.Bool.true`` refers to the name ``true`` defined in the
-module ``Prelude.Bool``. See :doc:`module-system` for more information.
+module ``Prelude.Bool``. See :ref:`module-system` for more information.
 
 .. _lexical-structure-literals:
 
@@ -72,16 +72,16 @@ Literals
 ~~~~~~~~
 
 There are four types of literal values: integers, floats, characters, and
-strings. See :doc:`built-ins` for the corresponding types, and
-:doc:`literal-overloading` for how to support literals for user-defined types.
+strings. See :ref:`built-ins` for the corresponding types, and
+:ref:`literal-overloading` for how to support literals for user-defined types.
 
 .. _lexical-structure-int-literals:
 
 Integers
   Integer values in decimal or hexadecimal (prefixed by ``0x``) notation.
-  Non-negative numbers map by default to :doc:`built-in natural numbers
+  Non-negative numbers map by default to :ref:`built-in natural numbers
   <built-in-nat>`, but can be overloaded. Negative numbers have no default
-  interpretation and can only be used through :doc:`overloading
+  interpretation and can only be used through :ref:`overloading
   <literal-overloading>`.
 
   Examples: ``123``, ``0xF0F080``, ``-42``, ``-0xF``
@@ -98,7 +98,7 @@ Floats
                 | [-] decimal exponent
      exponent ::= (e | E) [+ | -] decimal
 
-  These map to :doc:`built-in floats <built-in-float>` and cannot be overloaded.
+  These map to :ref:`built-in floats <built-in-float>` and cannot be overloaded.
 
   Examples: ``1.0``, ``-5.0e+12``, ``1.01e-16``, ``4.2E9``, ``50e3``.
 
@@ -155,7 +155,7 @@ Holes are an integral part of the interactive development supported by the
 hole and may contain nested holes. A hole with no contents can be written
 ``?``. There are a number of Emacs commands that operate on the contents of a
 hole. The type checker ignores the contents of a hole and treats it as an
-unknown (see :doc:`implicit-arguments`).
+unknown (see :ref:`implicit-arguments`).
 
 Example: ``{! f {!x!} 5 !}``
 
@@ -177,7 +177,7 @@ Pragmas
 ~~~~~~~
 
 Pragmas are special comments enclosed in ``{-#`` and ``#-}`` that have special
-meaning to the system. See :doc:`pragmas` for a full list of pragmas.
+meaning to the system. See :ref:`pragmas` for a full list of pragmas.
 
 .. _lexical-structure-layout:
 
