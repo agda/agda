@@ -218,175 +218,6 @@ Pragmas and options
 Language
 ========
 
-Reflection
-----------
-
-* Unquoting function definitions.
-
-  There is a new declaration
-
-    unquoteDef x = e
-
-  Here e should have type LIST AGDACLAUSE and evaluate to a closed value. Since
-  unquoteDef only contains the function clauses you need a separate type
-  signature. For instance, given that you have a 'derivingEq' function that
-  builds decidable equality functions, you would say
-
-    eqNat : (x y : Nat) → Dec (x ≡ y)
-    unquoteDef eqNat = derivingEq (quote Nat) (quote eqNat)
-
-  Note that, in contrast to unquoteDecl, you have to quote the name of the
-  defined function to get a QNAME.
-
-  The main advantage of unquoteDef over unquoteDecl is that unquoteDef is
-  allowed in mutual blocks, allowing you to create mutually recursive
-  definitions by unquoting.
-
-* The reflection interface now exposes the name hint (as a string)
-  for variables. As before, the actual binding structure is with
-  de Bruijn indices. The String value is just a hint used as a prefix
-  to help display the variable. The type Abs is a new bultin type used
-  for the constructors `Term.lam`, `Term.pi`, `Pattern.var`
-  (bultins `AGDATERMLAM`, `AGDATERMPI` and `AGDAPATVAR`).
-
-    data Abs (A : Set) : Set where
-      abs : (s : String) (x : A) → Abs A
-    {-# BUILTIN ABS    Abs #-}
-    {-# BUILTIN ABSABS abs #-}
-
-  Updated constructor types:
-
-    Term.lam    : Hiding   → Abs Term → Term
-    Term.pi     : Arg Type → Abs Type → Term
-    Pattern.var : String   → Pattern
-
-* QuoteContext.
-
-  The `quoteContext' keyword now returns a reflected representation of the current context as
-  a term of type `List (Arg Type)'. For example:
-
-    test : (n : Nat) (x y : Fin n) → quoteContext ≡
-      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 1 []) ∷ []))) ∷
-      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 0 []) ∷ []))) ∷
-      arg₀ (el (lit 0) (def (quote Nat) [])) ∷ []
-    test n x y = refl
-
-  In addition, tactics now take an additional argument for the current context, i.e. instead
-  of type `Term → Term', they should now have type `List (Arg Type) → Term → Term'.
-
-* New constructors have been added to the reflected term data type:
-
-  data Term : Set where
-    ...
-    quote-term    : Term → Term
-    quote-goal    : Abs Term → Term
-    quote-context : Term
-    unquote-term  : Term → Term
-
-  {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
-  {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
-  {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
-  {-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
-
-  These constructors will never be present in a term returned by quoteTerm,
-  quoteGoal or quoteContext, but they can appear in argument to unquote. This
-  makes it possible to write tactics that compute terms containing calls to
-  other tactics.
-
-  Example: Implementing (a version of) the tactic keyword using reflection
-
-    -- unquote (`tactic (quote x)) == tactic (λ _ → x)
-    `tactic : QName → Term
-    `tactic x = quote-goal (abs "g" (unquote-term (def x (vArg (var 0 []) ∷ []))))
-
-* Reflection-based macros
-
-  Macros are functions of type t1 → t2 → .. → Term that are defined in a 'macro'
-  block. Macro application is guided by the type of the macro, where Term
-  arguments desugar into the 'quoteTerm' syntax and Name arguments into the
-  'quote' syntax. Arguments of any other type are preserved as-is.
-
-  For example, the macro application 'f u v w' where the macro
-  f has the type 'Term → Name → Bool → Term' desugars into
-    'unquote (f (quoteTerm u) (quote v) w)'
-
-  Limitations:
-
-    - Macros cannot be recursive. This can be worked around by defining the
-      recursive function outside the macro block and have the macro call the
-      recursive function.
-
-  Silly example:
-
-    macro
-      plus-to-times : Term -> Term
-      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) = def (quote _*_) (a ∷ b ∷ [])
-      plus-to-times v = v
-
-    thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
-    thm a b = refl
-
-  Macros are most useful when writing tactics, since they let you hide the
-  reflection machinery. For instance, suppose you have a solver
-
-    magic : Term → Term
-
-  that takes a reflected goal and outputs a proof (when successful). You can
-  then use the `tactic function from above to define
-
-    macro
-      by-magic : Term
-      by-magic = `tactic (quote magic)
-
-  This lets you apply the magic tactic without any syntactic noise at all:
-
-    thm : ¬ P ≡ NP
-    thm = by-magic
-
-* Modules in import directives
-
-  When you use using/hiding/renaming on a name it now automatically applies to
-  any module of the same name, unless you explicitly mention the module. For
-  instance,
-
-    open M using (D)
-
-  is equivalent to
-
-    open M using (D; module D)
-
-  if M defines a module D. This is most useful for record and data types where
-  you always get a module of the same name as the type.
-
-  With this feature there is no longer useful to be able to qualify a
-  constructor (or field) by the name of the data type even when it differs from
-  the name of the corresponding module. The follow (weird) code used to work,
-  but doesn't work anymore:
-
-    module M where
-      data D where
-        c : D
-    open M using (D) renaming (module D to MD)
-    foo : D
-    foo = D.c
-
-  If you want to import only the type name and not the module you have to hide
-  it explicitly:
-
-    open M using (D) hiding (module D)
-
-  See discussion on Issue 836 (https://github.com/agda/agda/issues/836).
-
-* Private definitions of a module are no longer in scope at the Emacs
-  mode top-level.
-
-  The reason for this change is that .agdai-files are stripped of unused
-  private definitions (which can yield significant performance
-  improvements for module-heavy code).
-
-  To test private definitions you can create a hole at the bottom of the
-  module, in which private definitions will be visible.
-
 Operator syntax
 ---------------
 
@@ -546,8 +377,133 @@ Operator syntax
     -- corresponding to A._∙_, one corresponding to B._∙_, and one
     -- corresponding to both B.bind and C.bind.
 
-Other changes
--------------
+Reflection
+----------
+
+* Unquoting function definitions.
+
+  There is a new declaration
+
+    unquoteDef x = e
+
+  Here e should have type LIST AGDACLAUSE and evaluate to a closed value. Since
+  unquoteDef only contains the function clauses you need a separate type
+  signature. For instance, given that you have a 'derivingEq' function that
+  builds decidable equality functions, you would say
+
+    eqNat : (x y : Nat) → Dec (x ≡ y)
+    unquoteDef eqNat = derivingEq (quote Nat) (quote eqNat)
+
+  Note that, in contrast to unquoteDecl, you have to quote the name of the
+  defined function to get a QNAME.
+
+  The main advantage of unquoteDef over unquoteDecl is that unquoteDef is
+  allowed in mutual blocks, allowing you to create mutually recursive
+  definitions by unquoting.
+
+* The reflection interface now exposes the name hint (as a string)
+  for variables. As before, the actual binding structure is with
+  de Bruijn indices. The String value is just a hint used as a prefix
+  to help display the variable. The type Abs is a new bultin type used
+  for the constructors `Term.lam`, `Term.pi`, `Pattern.var`
+  (bultins `AGDATERMLAM`, `AGDATERMPI` and `AGDAPATVAR`).
+
+    data Abs (A : Set) : Set where
+      abs : (s : String) (x : A) → Abs A
+    {-# BUILTIN ABS    Abs #-}
+    {-# BUILTIN ABSABS abs #-}
+
+  Updated constructor types:
+
+    Term.lam    : Hiding   → Abs Term → Term
+    Term.pi     : Arg Type → Abs Type → Term
+    Pattern.var : String   → Pattern
+
+* QuoteContext.
+
+  The `quoteContext' keyword now returns a reflected representation of the current context as
+  a term of type `List (Arg Type)'. For example:
+
+    test : (n : Nat) (x y : Fin n) → quoteContext ≡
+      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 1 []) ∷ []))) ∷
+      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 0 []) ∷ []))) ∷
+      arg₀ (el (lit 0) (def (quote Nat) [])) ∷ []
+    test n x y = refl
+
+  In addition, tactics now take an additional argument for the current context, i.e. instead
+  of type `Term → Term', they should now have type `List (Arg Type) → Term → Term'.
+
+* New constructors have been added to the reflected term data type:
+
+  data Term : Set where
+    ...
+    quote-term    : Term → Term
+    quote-goal    : Abs Term → Term
+    quote-context : Term
+    unquote-term  : Term → Term
+
+  {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
+  {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
+  {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
+  {-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
+
+  These constructors will never be present in a term returned by quoteTerm,
+  quoteGoal or quoteContext, but they can appear in argument to unquote. This
+  makes it possible to write tactics that compute terms containing calls to
+  other tactics.
+
+  Example: Implementing (a version of) the tactic keyword using reflection
+
+    -- unquote (`tactic (quote x)) == tactic (λ _ → x)
+    `tactic : QName → Term
+    `tactic x = quote-goal (abs "g" (unquote-term (def x (vArg (var 0 []) ∷ []))))
+
+* Reflection-based macros
+
+  Macros are functions of type t1 → t2 → .. → Term that are defined in a 'macro'
+  block. Macro application is guided by the type of the macro, where Term
+  arguments desugar into the 'quoteTerm' syntax and Name arguments into the
+  'quote' syntax. Arguments of any other type are preserved as-is.
+
+  For example, the macro application 'f u v w' where the macro
+  f has the type 'Term → Name → Bool → Term' desugars into
+    'unquote (f (quoteTerm u) (quote v) w)'
+
+  Limitations:
+
+    - Macros cannot be recursive. This can be worked around by defining the
+      recursive function outside the macro block and have the macro call the
+      recursive function.
+
+  Silly example:
+
+    macro
+      plus-to-times : Term -> Term
+      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) = def (quote _*_) (a ∷ b ∷ [])
+      plus-to-times v = v
+
+    thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
+    thm a b = refl
+
+  Macros are most useful when writing tactics, since they let you hide the
+  reflection machinery. For instance, suppose you have a solver
+
+    magic : Term → Term
+
+  that takes a reflected goal and outputs a proof (when successful). You can
+  then use the `tactic function from above to define
+
+    macro
+      by-magic : Term
+      by-magic = `tactic (quote magic)
+
+  This lets you apply the magic tactic without any syntactic noise at all:
+
+    thm : ¬ P ≡ NP
+    thm = by-magic
+
+Literals and built-ins
+----------------------
 
 * Overloaded number literals.
 
@@ -617,6 +573,75 @@ Other changes
     primIntegerAbs
     primNatToInteger
 
+Modules
+-------
+
+* Modules in import directives
+
+  When you use using/hiding/renaming on a name it now automatically applies to
+  any module of the same name, unless you explicitly mention the module. For
+  instance,
+
+    open M using (D)
+
+  is equivalent to
+
+    open M using (D; module D)
+
+  if M defines a module D. This is most useful for record and data types where
+  you always get a module of the same name as the type.
+
+  With this feature there is no longer useful to be able to qualify a
+  constructor (or field) by the name of the data type even when it differs from
+  the name of the corresponding module. The follow (weird) code used to work,
+  but doesn't work anymore:
+
+    module M where
+      data D where
+        c : D
+    open M using (D) renaming (module D to MD)
+    foo : D
+    foo = D.c
+
+  If you want to import only the type name and not the module you have to hide
+  it explicitly:
+
+    open M using (D) hiding (module D)
+
+  See discussion on Issue 836 (https://github.com/agda/agda/issues/836).
+
+* Private definitions of a module are no longer in scope at the Emacs
+  mode top-level.
+
+  The reason for this change is that .agdai-files are stripped of unused
+  private definitions (which can yield significant performance
+  improvements for module-heavy code).
+
+  To test private definitions you can create a hole at the bottom of the
+  module, in which private definitions will be visible.
+
+Records
+-------
+
+* New record directives eta-equality/no-eta-equality
+
+  The keywords eta-equality/no-eta-equality enable/disable eta rules
+  for the (inductive) record type being declared.
+
+  record Σ (A : Set) (B : A -> Set) : Set where
+    no-eta-equality
+    constructor _,_
+    field
+      fst : A
+      snd : B fst
+  open Σ
+
+  -- fail : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
+  -- fail x = refl
+  --
+  -- x != fst x , snd x of type Σ .A .B
+  -- when checking that the expression refl has type x ≡ (fst x , snd x)
+
 * Building records from modules.
 
   The "record { <fields> }" syntax is now extended to accept module names as
@@ -677,16 +702,13 @@ Other changes
     thd3 : ...
     thd3 record{ proj₂ = record { proj₂ = c }} = c
 
-* Unicode ellipsis character is allowed for the ellipsis token ... in
-  `with` expressions.
+Instance search
+---------------
 
-* Instance search
-
-  Performance has been improved, recursive instance search which was previously
+* Performance has been improved, recursive instance search which was previously
   exponential in the depth is now only quadratic.
 
-
-  Constructors of records and datatypes are not anymore automatically considered
+* Constructors of records and datatypes are not anymore automatically considered
   as instances, you have to do so explicitely, for instance:
 
     -- only [b] is an instance of D
@@ -700,8 +722,7 @@ Other changes
     record tt : Set where
       instance constructor tt
 
-
-  Instance search can now find arguments in variable types (but such candidates can
+* Instance search can now find arguments in variable types (but such candidates can
   only be lambda-bound variables, they can’t be declared as instances)
 
     module _ {A : Set} (P : A → Set) where
@@ -718,34 +739,11 @@ Other changes
        postulate
         forbidden : {x : A} → P x
 
-* Detection of datatypes that satisfy K (i.e. sets)
+Other changes
+-------------
 
-  Agda will now try to detect datatypes that satisfy K when --without-K is
-  enabled. A datatype satisfies K when it follows these three rules:
-  - The types of all non-recursive constructor arguments should satisfy K
-  - All recursive constructor arguments should be first-order
-  - The types of all indices should satisfy K
-  For example, the types [Nat], [List Nat], and [x ≡ x] (where x : Nat) are
-  all recognized by Agda as satisfying K.
-
-* New record directives eta-equality/no-eta-equality
-
-  The keywords eta-equality/no-eta-equality enable/disable eta rules
-  for the (inductive) record type being declared.
-
-  record Σ (A : Set) (B : A -> Set) : Set where
-    no-eta-equality
-    constructor _,_
-    field
-      fst : A
-      snd : B fst
-  open Σ
-
-  -- fail : ∀ {A : Set}{B : A -> Set} → (x : Σ A B) → x ≡ (fst x , snd x)
-  -- fail x = refl
-  --
-  -- x != fst x , snd x of type Σ .A .B
-  -- when checking that the expression refl has type x ≡ (fst x , snd x)
+* Unicode ellipsis character is allowed for the ellipsis token ... in
+  `with` expressions.
 
 * Prop is no longer a reserved word.
 
@@ -767,6 +765,20 @@ Type checking
   This gets rid of the asymmetry that the version of equality which indexes
   only on the second argument could be small, but not the version above which
   indexes on both arguments.
+
+* Detection of datatypes that satisfy K (i.e. sets)
+
+  Agda will now try to detect datatypes that satisfy K when --without-K is
+  enabled. A datatype satisfies K when it follows these three rules:
+
+  - The types of all non-recursive constructor arguments should satisfy K.
+
+  - All recursive constructor arguments should be first-order.
+
+  - The types of all indices should satisfy K.
+
+  For example, the types [Nat], [List Nat], and [x ≡ x] (where x : Nat) are
+  all recognized by Agda as satisfying K.
 
 Compiler backends
 =================
