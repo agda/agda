@@ -111,7 +111,7 @@ simplify FunctionKit{..} = simpl
         let (lets, u) = letView v
         case u of                          -- TODO: also for literals
           _ | Just (c, as) <- conView u -> simpl $ matchCon lets c as d bs
-          TCase y t1 d1 bs1 -> simpl $ mkLets lets $ TCase y t1 d1 $
+          TCase y t1 d1 bs1 -> simpl $ mkLets lets $ TCase y t1 (distrDef case1 d1) $
                                        map (distrCase case1) bs1
             where
               -- Γ x Δ -> Γ x Δ Θ y, where x maps to y and Θ are the lets
@@ -121,9 +121,13 @@ simplify FunctionKit{..} = simpl
                       raiseS (n + 1)
               case1 = applySubst rho (TCase x t d bs)
 
+              distrDef v d | isUnreachable d = tUnreachable
+                           | otherwise       = tLet d v
+
               distrCase v (TACon c a b) = TACon c a $ TLet b $ raiseFrom 1 a v
               distrCase v (TALit l b)   = TALit l   $ TLet b v
               distrCase v (TAGuard g b) = TAGuard g $ TLet b v
+
           _ -> do
             d  <- simpl d
             bs <- traverse (simplAlt x) bs

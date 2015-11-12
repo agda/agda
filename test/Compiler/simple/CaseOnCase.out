@@ -1,0 +1,47 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > CaseOnCase.isLess =
+out >   λ a →
+out >     case a of
+out >       CaseOnCase.Cmp.less → Common.Bool.Bool.true
+out >       CaseOnCase.Cmp.equal → Common.Bool.Bool.false
+out >       CaseOnCase.Cmp.greater → Common.Bool.Bool.false
+out >       _ → error "TUnreachable"
+out > CaseOnCase.compareInt =
+out >   λ a b →
+out >     let c = CaseOnCase._-_ a b in
+out >     case c of
+out >       0 → CaseOnCase.Cmp.equal
+out >       _ | c >= 1 → CaseOnCase.Cmp.greater
+out >       _ → CaseOnCase.Cmp.less
+out > CaseOnCase._<_ =
+out >   λ a b →
+out >     let c = CaseOnCase._-_ a b in
+out >     case c of
+out >       0 → Common.Bool.Bool.false
+out >       _ | c >= 1 → Common.Bool.Bool.false
+out >       _ → Common.Bool.Bool.true
+out > Common.IO.then =
+out >   λ a b c d e f → Common.IO._>>=_ a b c d e (λ g → f)
+out > Common.IO.putStrLn =
+out >   λ a →
+out >     Common.IO._>>=_
+out >       () () _ _ (Common.IO.putStr a) (λ b → Common.IO.putStr "\n")
+out > CaseOnCase.cmp =
+out >   λ a b →
+out >     let c = CaseOnCase._-_ a b in
+out >     case c of
+out >       0 → "not less"
+out >       _ | c >= 1 → "not less"
+out >       _ → "less"
+out > CaseOnCase.main =
+out >   Common.IO.then
+out >     () () _ _ (Common.IO.putStrLn (CaseOnCase.cmp 31 -6))
+out >     (Common.IO.then
+out >        () () _ _ (Common.IO.putStrLn (CaseOnCase.cmp 5 5))
+out >        (Common.IO.putStrLn (CaseOnCase.cmp -5 -3)))
+out > not less
+out > not less
+out > less
+out >
