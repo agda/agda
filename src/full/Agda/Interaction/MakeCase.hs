@@ -35,6 +35,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.BasicOps
 
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -62,7 +63,7 @@ findClause :: MetaId -> TCM (CaseContext, QName, Clause)
 findClause m = do
   sig <- getImportedSignature
   let res = do
-        def <- HMap.elems $ sigDefinitions sig
+        def <- HMap.elems $ sig ^. sigDefinitions
         Function{funClauses = cs, funExtLam = extlam} <- [theDef def]
         c <- cs
         unless (rhsIsm $ clauseBody c) []
@@ -74,7 +75,7 @@ findClause m = do
         , text "expected rhs to be meta var" <+> (text $ show m)
         , text "but could not find it in the signature"
         ]
-      reportSDoc "interaction.case" 100 $ vcat $ map (text . show) (HMap.elems $ sigDefinitions sig)  -- you asked for it!
+      reportSDoc "interaction.case" 100 $ vcat $ map (text . show) (HMap.elems $ sig ^. sigDefinitions)  -- you asked for it!
       ifM (isInstantiatedMeta m)
         -- Andreas, 2012-03-22 If the goal has been solved by eta expansion, further
         -- case splitting is pointless and `smart-ass Agda' will refuse.

@@ -187,15 +187,15 @@ addSection :: ModuleName -> Nat -> TCM ()
 addSection m fv = do
   tel <- getContextTelescope
   let sec = Section tel fv
-  modifySignature $ \sig -> sig { sigSections = Map.insert m sec $ sigSections sig }
+  modifySignature $ over sigSections $ Map.insert m sec
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
 lookupSection :: ModuleName -> TCM Telescope
 lookupSection m = do
-  sig  <- sigSections <$> getSignature
-  isig <- sigSections <$> getImportedSignature
-  return $ maybe EmptyTel secTelescope $ Map.lookup m sig `mplus` Map.lookup m isig
+  sig  <- use $ stSignature . sigSections
+  isig <- use $ stImports   . sigSections
+  return $ maybe EmptyTel (^. secTelescope) $ Map.lookup m sig `mplus` Map.lookup m isig
 
 -- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
 addDisplayForms :: QName -> TCM ()
@@ -315,7 +315,7 @@ applySection' new ptel old ts rd rm = do
     argsToUse new = do
       let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
-      getModuleFreeVars' (fmap secFreeVars <.> getSection) m
+      getModuleFreeVars' (fmap (^. secFreeVars) <.> getSection) m
 
     copyDef :: Args -> (QName, QName) -> TCM ()
     copyDef ts (x, y) = do
@@ -447,7 +447,7 @@ addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeOpen df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
-  inCurrentSig <- isJust . HMap.lookup x . sigDefinitions <$> use stSignature
+  inCurrentSig <- isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
   if inCurrentSig
      then modifySignature add
      else stImportsDisplayForms %= HMap.insertWith (++) x [d]
@@ -521,14 +521,14 @@ defaultGetRewriteRulesFor getTCState q = do
   st <- getTCState
   let sig = st^.stSignature
       imp = st^.stImports
-      look s = HMap.lookup q $ sigRewriteRules s
+      look s = HMap.lookup q $ s ^. sigRewriteRules
   return $ mconcat $ catMaybes [look sig, look imp]
 
 instance HasConstInfo (TCMT IO) where
   getRewriteRulesFor = defaultGetRewriteRulesFor get
   getConstInfo q = join $ pureTCM $ \st env ->
-    let defs  = sigDefinitions $ st^.stSignature
-        idefs = sigDefinitions $ st^.stImports
+    let defs  = st^.(stSignature . sigDefinitions)
+        idefs = st^.(stImports . sigDefinitions)
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
         [d] -> mkAbs env d
@@ -644,8 +644,8 @@ mutuallyRecursive d d' = (d `elem`) <$> getMutual d'
 --   A.B.C say, A and A.B do not exist.
 getSection :: ModuleName -> TCM (Maybe Section)
 getSection m = do
-  sig  <- sigSections <$> getSignature
-  isig <- sigSections <$> getImportedSignature
+  sig  <- use $ stSignature . sigSections
+  isig <- use $ stImports   . sigSections
   return $ Map.lookup m sig <|> Map.lookup m isig
 
 -- | Look up the number of free variables of a section. This is equal to the
@@ -654,7 +654,7 @@ getSecFreeVars :: ModuleName -> TCM (Maybe Nat)
 getSecFreeVars m = do
   top <- currentModule
   case top `isSubModuleOf` m || top == m of
-    True  -> fmap secFreeVars <$> getSection m
+    True  -> fmap (^. secFreeVars) <$> getSection m
     False -> return $ Just 0
 
 -- | Compute the number of free variables of a module.

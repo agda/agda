@@ -199,20 +199,16 @@ withSignature sig m = do
   return r
 
 -- ** Modifiers for rewrite rules
-
-mapRewriteRules :: (RewriteRuleMap -> RewriteRuleMap) -> Signature -> Signature
-mapRewriteRules f sig = sig { sigRewriteRules = f (sigRewriteRules sig) }
-
 addRewriteRulesFor :: QName -> RewriteRules -> Signature -> Signature
-addRewriteRulesFor f rews = mapRewriteRules $ HMap.insertWith mappend f rews
+addRewriteRulesFor f rews = over sigRewriteRules $ HMap.insertWith mappend f rews
 
 -- ** Modifiers for parts of the signature
 
 lookupDefinition :: QName -> Signature -> Maybe Definition
-lookupDefinition q sig = HMap.lookup q $ sigDefinitions sig
+lookupDefinition q sig = HMap.lookup q $ sig ^. sigDefinitions
 
 updateDefinitions :: (Definitions -> Definitions) -> Signature -> Signature
-updateDefinitions f sig = sig { sigDefinitions = f (sigDefinitions sig) }
+updateDefinitions = over sigDefinitions
 
 updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
 updateDefinition q f = updateDefinitions $ HMap.adjust f q
@@ -375,7 +371,7 @@ freshTCM m = do
 addSignatureInstances :: Signature -> TCM ()
 addSignatureInstances sig = do
   let itable = Map.fromListWith (++)
-               [ (c, [i]) | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sigDefinitions sig ]
+               [ (c, [i]) | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sig ^. sigDefinitions ]
   modifyInstanceDefs $ first $ Map.unionWith (++) itable
 
 -- | Lens for 'stInstanceDefs'.

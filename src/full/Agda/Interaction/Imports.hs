@@ -649,7 +649,7 @@ createInterface file mname =
       "Signature:\n" :
       [ show x ++ "\n  type: " ++ show (defType def)
                ++ "\n  def:  " ++ show cc ++ "\n"
-      | (x, def) <- HMap.toList $ sigDefinitions $ iSignature i,
+      | (x, def) <- HMap.toList $ iSignature i ^. sigDefinitions,
         Function{ funCompiled = cc } <- [theDef def]
       ]
     reportSLn "import.iface.create" 7 $ "Finished serialization."

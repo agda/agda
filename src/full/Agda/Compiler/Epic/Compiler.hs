@@ -53,6 +53,7 @@ import qualified Agda.Compiler.Epic.Smashing     as Smash
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Pretty ( prettyShow )
 
@@ -134,7 +135,7 @@ compileModule i = do
                         "Compiling: " ++ (prettyShow . iModuleName) i
                     resetNameSupply
                     initialAnalysis i
-                    let defns = HMap.toList $ sigDefinitions $ iSignature i
+                    let defns = HMap.toList $ iSignature i ^. sigDefinitions
                     -- Epic cannot parse files with no definitions
                     if (not $ null defns) then do
                         code <- compileDefns defns
@@ -156,7 +157,7 @@ initialAnalysis :: Interface -> Compile TCM ()
 initialAnalysis inter = do
   Prim.initialPrims
   modify $ \s -> s {curModule = mempty}
-  let defs = HMap.toList $ sigDefinitions $ iSignature inter
+  let defs = HMap.toList $ iSignature inter ^. sigDefinitions
   forM_ defs $ \(q, def) -> do
     addDefName q
     case theDef def of

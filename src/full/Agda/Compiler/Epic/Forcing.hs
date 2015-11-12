@@ -48,7 +48,7 @@ dataParameters = lift . dataParametersTCM
 -- | Returns how many parameters a datatype has
 dataParametersTCM :: QName -> TCM Nat
 dataParametersTCM name = do
-    m <- (sigDefinitions <$> use stImports)
+    m <- use $ stImports . sigDefinitions
     return $ maybe __IMPOSSIBLE__ (defnPars . theDef) (HM.lookup name m)
   where
     defnPars :: Defn -> Nat
@@ -155,7 +155,7 @@ takeTele _ _ = __IMPOSSIBLE__
 -- | Main function for removing pattern matching on forced variables
 remForced :: [Fun] -> Compile TCM [Fun]
 remForced fs = do
-    defs <- lift (sigDefinitions  <$> use stImports)
+    defs <- lift $ use $ stImports . sigDefinitions
     forM fs $ \f -> case f of
         Fun{} -> case funQName f >>= flip HM.lookup defs of
             Nothing -> __IMPOSSIBLE__

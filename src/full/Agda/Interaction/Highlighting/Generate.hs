@@ -397,7 +397,7 @@ nameKinds hlLevel decl = do
   let merged = unions [local, imported, syntax]
   return (\n -> HMap.lookup n merged)
   where
-  fix = HMap.map (defnToKind . theDef) . sigDefinitions
+  fix = HMap.map (defnToKind . theDef) . (^. sigDefinitions)
 
   -- | The 'M.Axiom' constructor is used to represent various things
   -- which are not really axioms, so when maps are merged 'Postulate's

@@ -67,7 +67,7 @@ getsEI f = gets (f . curModule)
 -- | Returns the type of a definition given its name
 getType :: QName -> Compile TCM Type
 getType q = do
-    map <- lift (sigDefinitions <$> use stImports)
+    map <- lift $ use $ stImports . sigDefinitions
     return $ maybe __IMPOSSIBLE__ defType (HM.lookup q map)
 
 -- | Create a name which can be used in Epic code from a QName.
@@ -109,7 +109,7 @@ assignConstrTag' constr constrs = do
 
 getConData :: QName -> Compile TCM QName
 getConData con = do
-    lmap <- lift (TM.sigDefinitions <$> use TM.stImports)
+    lmap <- lift $ use $ TM.stImports . TM.sigDefinitions
     case HM.lookup con lmap of
         Just def -> case theDef def of
             c@(TM.Constructor{}) -> return $ TM.conData c
@@ -118,7 +118,7 @@ getConData con = do
 
 getDataCon :: QName -> Compile TCM [QName]
 getDataCon con = do
-    lmap <- lift (TM.sigDefinitions <$> use TM.stImports)
+    lmap <- lift $ use $ TM.stImports . TM.sigDefinitions
     case HM.lookup con lmap of
         Just def -> case theDef def of
             d@(TM.Datatype{}) -> return $ TM.dataCons d

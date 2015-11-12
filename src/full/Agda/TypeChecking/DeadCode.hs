@@ -28,6 +28,7 @@ import Agda.TypeChecking.Reduce
 
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -38,11 +39,11 @@ eliminateDeadCode :: Signature -> TCM Signature
 eliminateDeadCode sig = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
   public <- Set.map anameName . publicNames <$> getScope
-  defs <- traverse instantiateFull $ sigDefinitions sig
+  defs <- traverse instantiateFull $ sig ^. sigDefinitions
   let r     = reachableFrom public patsyn defs
       defs' = HMap.filterWithKey (\ x _ -> Set.member x r) defs
   reportSLn "tc.dead" 10 $ "Removed " ++ show (HMap.size defs - HMap.size defs') ++ " unused definitions."
-  return sig{ sigDefinitions = defs' }
+  return $ set sigDefinitions defs' sig
 
 reachableFrom :: Set QName -> A.PatternSynDefns -> Definitions -> Set QName
 reachableFrom names psyns defs = follow names (Set.toList names)
@@ -189,4 +190,3 @@ instance NamesIn (A.Pattern' a) where
 
 instance NamesIn AmbiguousQName where
   namesIn (AmbQ cs) = namesIn cs
-

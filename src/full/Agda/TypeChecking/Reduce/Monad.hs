@@ -168,8 +168,8 @@ traceSLn k n s = applyWhenVerboseS k n (trace s)
 instance HasConstInfo ReduceM where
   getRewriteRulesFor = defaultGetRewriteRulesFor (gets id)
   getConstInfo q = ReduceM $ \(ReduceEnv env st) ->
-    let defs  = sigDefinitions $ st^.stSignature
-        idefs = sigDefinitions $ st^.stImports
+    let defs  = st^.(stSignature . sigDefinitions)
+        idefs = st^.(stImports . sigDefinitions)
     in case catMaybes [HMap.lookup q defs, HMap.lookup q idefs] of
         []  -> trace ("Unbound name: " ++ show q ++ " " ++ showQNameId q) __IMPOSSIBLE__
         [d] -> mkAbs env d

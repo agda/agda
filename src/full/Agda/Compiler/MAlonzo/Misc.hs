@@ -56,10 +56,10 @@ curHsMod :: TCM HS.ModuleName
 curHsMod = mazMod <$> curMName
 
 curDefs :: TCM Definitions
-curDefs = sigDefinitions <$> curSig
+curDefs = (^. sigDefinitions) <$> curSig
 
 sigMName :: Signature -> ModuleName
-sigMName sig = case Map.keys (sigSections sig) of
+sigMName sig = case Map.keys (sig ^. sigSections) of
   []    -> __IMPOSSIBLE__
   m : _ -> m
 

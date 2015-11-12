@@ -53,6 +53,7 @@ import Agda.Compiler.UHC.Bridge as CA
 
 import Agda.Utils.Maybe
 import Agda.Utils.Except ( MonadError (catchError) )
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -71,7 +72,7 @@ fromAgdaModule modNm curModImps iface = do
   setCommandLineOptions =<< gets (stPersistentOptions . stPersistentState)
   mapM_ setOptionsFromPragma (iPragmaOptions iface)
 
-  let defs = HMap.toList $ sigDefinitions $ iSignature iface
+  let defs = HMap.toList $ iSignature iface ^. sigDefinitions
 
   (mod', modInfo') <- runCompileT modNm curModImps (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
@@ -370,4 +371,3 @@ compilePrim C.PSeq = mkVar $ primFunNm "primSeq"
 createMainModule :: AModuleInfo -> HsName -> CModule
 createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainModAux] [] (mkMain main)
   where mainModAux = moduleNameToCoreName (amiModule mainMod)
-

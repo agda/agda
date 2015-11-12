@@ -399,8 +399,8 @@ auto ii rng argstr = do
 
       hits <- if elem "-a" hints then do
         st <- liftTCM $ join $ pureTCM $ \st _ -> return st
-        let defs = sigDefinitions $ st^.stSignature
-            idefs = sigDefinitions $ st^.stImports
+        let defs = st^.stSignature.sigDefinitions
+            idefs = st^.stImports.sigDefinitions
             alldefs = HMap.keys defs ++ HMap.keys idefs
         liftM catMaybes $ mapM (\n ->
           case thisdefinfo of

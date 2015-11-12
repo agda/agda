@@ -54,7 +54,7 @@ evaluateCC ccs = case ccs of
 
 etaExpand :: Term -> Compile TCM Term
 etaExpand def@(Def n ts) = do
-    defs <- lift (sigDefinitions <$> use stImports)
+    defs <- lift $ use $ stImports . sigDefinitions
     let f   = maybe __IMPOSSIBLE__ theDef (HM.lookup n defs)
         len = length . clausePats . head .  funClauses $ f
         toEta :: Num a => a
@@ -114,7 +114,7 @@ instance Evaluate Term where
 -}
     isStatic :: QName -> Compile TCM Bool
     isStatic q = do
-      defs <- lift (sigDefinitions <$> use stImports)
+      defs <- lift $ use $ stImports . sigDefinitions
       return $ case fmap theDef $ HM.lookup q defs of
           Nothing -> False
           Just (f@Function{}) -> funStatic f

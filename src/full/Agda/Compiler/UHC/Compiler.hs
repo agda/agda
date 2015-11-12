@@ -43,6 +43,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Pretty
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.IO.Directory
+import Agda.Utils.Lens
 
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Bridge as UB
@@ -193,7 +194,7 @@ getMain iface = case concatMap f defs of
     [] -> typeError $ GenericError $ "Could not find main."
     [x] -> return x
     _   -> __IMPOSSIBLE__
-  where defs = HMap.toList $ sigDefinitions $ iSignature iface
+  where defs = HMap.toList $ iSignature iface ^. sigDefinitions
         f (qn, def) = case theDef def of
             (Function{}) | "main" == show (qnameName qn) -> [qn]
             _   -> []

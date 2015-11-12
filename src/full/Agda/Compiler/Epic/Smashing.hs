@@ -41,7 +41,7 @@ defnPars d                           = 0
 -- | Main function, smash as much as possible
 smash'em :: [Fun] -> Compile TCM [Fun]
 smash'em funs = do
-    defs <- lift (sigDefinitions <$> use stImports)
+    defs <- lift $ use $ stImports . sigDefinitions
     funs' <- forM funs $ \f -> case f of
       AA.Fun{} -> case funQName f >>= flip HM.lookup defs of
           Nothing -> do
@@ -75,7 +75,7 @@ inferable :: Set QName -> QName -> [Arg Term] ->  Compile TCM (Maybe Expr)
 inferable visited dat args | dat `Set.member` visited = return Nothing
 inferable visited dat args = do
   lift $ reportSLn "epic.smashing" 10 $ "  inferring:" ++ (show dat)
-  defs <- lift (sigDefinitions <$> use stImports)
+  defs <- lift $ use $ stImports . sigDefinitions
   let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup dat defs
   case theDef def of
       d@Datatype{} -> do
@@ -91,7 +91,7 @@ inferable visited dat args = do
         return Nothing
   where
     inferableArgs c pars = do
-        defs <- lift (sigDefinitions <$> use stImports)
+        defs <- lift $ use $ stImports . sigDefinitions
         let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup c defs
         forc <- getForcedArgs c
         TelV tel _ <- lift $ telView (defType def `apply` genericTake pars args)
@@ -120,7 +120,7 @@ inferableTerm visited t = do
 -- | Find the only possible value for a certain type. If we fail return Nothing
 smashable :: Int -> Type -> Compile TCM (Maybe Expr)
 smashable origArity typ = do
-    defs <- lift (sigDefinitions <$> use stImports)
+    defs <- lift $ use $ stImports . sigDefinitions
     TelV tele retType <- lift $ telView typ
     retType' <- return retType -- lift $ reduce retType
 
