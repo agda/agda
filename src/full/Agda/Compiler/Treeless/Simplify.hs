@@ -55,7 +55,7 @@ underLam :: S a -> S a
 underLam = underLams 1
 
 underLet :: TTerm -> S a -> S a
-underLet u = onRewrite (raiseS 1) . onSubst (\rho -> wkS 1 $ composeS rho (singletonS 0 u))
+underLet u = onRewrite (raiseS 1) . onSubst (\rho -> wkS 1 $ u :# rho)
 
 rewrite :: TTerm -> S TTerm
 rewrite t = do
@@ -114,7 +114,7 @@ simplify FunctionKit{..} = simpl
           TCase y t1 d1 bs1 -> simpl $ mkLets lets $ TCase y t1 (distrDef case1 d1) $
                                        map (distrCase case1) bs1
             where
-              -- Γ x Δ -> Γ x Δ Θ y, where x maps to y and Θ are the lets
+              -- Γ x Δ -> Γ _ Δ Θ y, where x maps to y and Θ are the lets
               n     = length lets
               rho   = liftS (x + n + 1) (raiseS 1)    `composeS`
                       singletonS (x + n + 1) (TVar 0) `composeS`
