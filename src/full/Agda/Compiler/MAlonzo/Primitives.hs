@@ -143,6 +143,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
                                   , "if isNegInf x then True  else"
                                   , "if isNaN x    then True  else"
                                   , "x < y) :: Double -> Double -> Bool)" ])
+  , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
   , "primRound"             |-> return "(round :: Double -> Integer)"
   , "primFloor"             |-> return "(floor :: Double -> Integer)"
   , "primCeiling"           |-> return "(ceiling :: Double -> Integer)"

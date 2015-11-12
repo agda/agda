@@ -654,6 +654,7 @@ primitiveFunctions = Map.fromList
   , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
   , "primFloatEquality"   |-> mkPrimFun2 (floatEq      :: Rel Double)
   , "primFloatLess"       |-> mkPrimFun2 (floatLt      :: Rel Double)
+  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt         :: Double -> Double)
   , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
   , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
   , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)

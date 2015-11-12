@@ -69,6 +69,7 @@ primitive
   primFloatTimes     : Float -> Float -> Float
   primFloatDiv       : Float -> Float -> Float
   primFloatLess      : Float -> Float -> Bool
+  primFloatSqrt      : Float -> Float
   primRound          : Float -> Int
   primFloor          : Float -> Int
   primCeiling        : Float -> Int
