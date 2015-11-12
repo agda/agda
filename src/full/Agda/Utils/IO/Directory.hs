@@ -3,6 +3,7 @@ module Agda.Utils.IO.Directory
   )
 where
 
+import Control.Monad
 import System.Directory
 import System.FilePath
 
@@ -17,6 +18,14 @@ copyDirContent src dest = do
     case isDir of
       _ | x == "." || x == ".." -> return ()
       True  -> copyDirContent (src </> x) (dest </> x)
-      False -> copyFile (src </> x) (dest </> x)
+      False -> copyIfChanged (src </> x) (dest </> x)
     ) chlds
+
+copyIfChanged :: FilePath -> FilePath -> IO ()
+copyIfChanged src dst = do
+  exist <- doesFileExist dst
+  if not exist then copyFile src dst else do
+    new <- readFile src
+    old <- readFile dst
+    unless (old == new) $ copyFile src dst
 
