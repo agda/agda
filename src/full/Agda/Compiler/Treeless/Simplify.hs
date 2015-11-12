@@ -179,6 +179,9 @@ simplify FunctionKit{..} = simpl
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
         elem op1 [PAdd, PSub] = tOp PEq u v
+    simplPrim' (TApp (TPrim PMul) [u, v])
+      | Just 0 <- intView u = tInt 0
+      | Just 0 <- intView v = tInt 0
     simplPrim' (TApp (TPrim op) [u, v])
       | Just u <- negView u,
         Just v <- negView v,
