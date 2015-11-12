@@ -26,8 +26,9 @@ import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
-import Agda.Utils.List
 import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -83,7 +84,7 @@ recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
 -- | Find all records with at least the given fields.
 findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
-  defs <- (HMap.union `on` sigDefinitions) <$> getSignature <*> getImportedSignature
+  defs <- (HMap.union `on` (^. sigDefinitions)) <$> getSignature <*> getImportedSignature
   let possible def = case theDef def of
         Record{ recFields = fs } -> Set.isSubsetOf given inrecord
           where inrecord = Set.fromList $ map (nameConcrete . qnameName . unArg) fs

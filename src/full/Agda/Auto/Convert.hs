@@ -45,6 +45,7 @@ import Agda.Utils.Except
   , ExceptT
   , MonadError(catchError, throwError)
   )
+import Agda.Utils.Lens
 
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -753,7 +754,7 @@ findClauseDeep :: I.MetaId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
 findClauseDeep m = do
   sig <- getImportedSignature
   let res = do
-        def <- HMap.elems $ MB.sigDefinitions sig
+        def <- HMap.elems $ sig ^. MB.sigDefinitions
         MB.Function{MB.funClauses = cs} <- [MB.theDef def]
         c <- cs
         unless (peelbinds False findMeta $ I.clauseBody c) []

@@ -905,26 +905,50 @@ type InteractionPoints = Map InteractionId InteractionPoint
 ---------------------------------------------------------------------------
 
 data Signature = Sig
-      { sigSections    :: Sections
-      , sigDefinitions :: Definitions
-      , sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
+      { _sigSections    :: Sections
+      , _sigDefinitions :: Definitions
+      , _sigRewriteRules:: RewriteRuleMap  -- ^ The rewrite rules defined in this file.
       }
   deriving (Typeable, Show)
+
+sigSections :: Lens' Sections Signature
+sigSections f s =
+  f (_sigSections s) <&>
+  \x -> s {_sigSections = x}
+
+sigDefinitions :: Lens' Definitions Signature
+sigDefinitions f s =
+  f (_sigDefinitions s) <&>
+  \x -> s {_sigDefinitions = x}
+
+sigRewriteRules :: Lens' RewriteRuleMap Signature
+sigRewriteRules f s =
+  f (_sigRewriteRules s) <&>
+  \x -> s {_sigRewriteRules = x}
 
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 
 data Section = Section
-      { secTelescope :: Telescope
-      , secFreeVars  :: Nat         -- ^ This is the number of parameters when
-                                    --   we're inside the section and 0
-                                    --   outside. It's used to know how much of
-                                    --   the context to apply function from the
-                                    --   section to when translating from
-                                    --   abstract to internal syntax.
+      { _secTelescope :: Telescope
+      , _secFreeVars  :: Nat
+        -- ^ This is the number of parameters when we're inside the section and
+        --   0 outside. It's used to know how much of the context to apply
+        --   function from the section to when translating from abstract to
+        --   internal syntax.
       }
   deriving (Typeable, Show)
+
+secTelescope :: Lens' Telescope Section
+secTelescope f s =
+  f (_secTelescope s) <&>
+  \x -> s {_secTelescope = x}
+
+secFreeVars :: Lens' Nat Section
+secFreeVars f s =
+  f (_secFreeVars s) <&>
+  \x -> s {_secFreeVars = x}
 
 emptySignature :: Signature
 emptySignature = Sig Map.empty HMap.empty HMap.empty
