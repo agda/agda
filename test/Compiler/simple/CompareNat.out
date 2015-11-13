@@ -6,7 +6,7 @@ out >   λ a b →
 out >     let c = a < b in
 out >     case c of
 out >       Common.Bool.Bool.true →
-out >         CompareNat.Comparison.less (CompareNat._<_.diff (b - (1 + a)) _)
+out >         CompareNat.Comparison.less (CompareNat._<_.diff (b - a - 1) _)
 out >       Common.Bool.Bool.false →
 out >         let d = b < a in
 out >         case d of

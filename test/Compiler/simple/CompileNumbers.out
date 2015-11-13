@@ -14,7 +14,7 @@ out > CompileNumbers.compareNat =
 out >   λ a b →
 out >     let c = a < b in
 out >     case c of
-out >       Common.Bool.Bool.true → CompileNumbers.Diff.less (b - (1 + a))
+out >       Common.Bool.Bool.true → CompileNumbers.Diff.less (b - a - 1)
 out >       Common.Bool.Bool.false →
 out >         let d = b < a in
 out >         case d of
