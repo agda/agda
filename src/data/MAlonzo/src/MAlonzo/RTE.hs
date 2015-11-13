@@ -1,10 +1,11 @@
 module MAlonzo.RTE where
 
 import Unsafe.Coerce
+import GHC.Prim
 
 -- Special version of coerce that plays well with rules.
 {-# INLINE [1] coe #-}
-coe = Unsafe.Coerce.unsafeCoerce
+coe = unsafeCoerce
 {-# RULES "coerce-id" forall (x :: a) . coe x = x #-}
 
 -- Builtin QNames, the third field is for the type.
@@ -16,9 +17,12 @@ instance Eq (QName a b) where
 instance Ord (QName a b) where
   compare (QName a b _ _ _) (QName c d _ _ _) = compare (a, b) (c, d)
 
+erased :: Any
+erased = unsafeCoerce (\ _ -> erased)
+
 mazIncompleteMatch :: String -> a
-mazIncompleteMatch s = error ("MAlonzo Runtime Error: incomplete pattern matching: " ++ s)
+mazIncompleteMatch s = error ("Agda: incomplete pattern matching: " ++ s)
 
 mazUnreachableError :: a
-mazUnreachableError = error ("MAlonzo Runtime Error: unreachable code reached.")
+mazUnreachableError = error ("Agda: unreachable code reached.")
 

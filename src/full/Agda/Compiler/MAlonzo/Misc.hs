@@ -217,6 +217,9 @@ mazerror msg = error $ mazstr ++ ": " ++ msg
 mazCoerceName :: String
 mazCoerceName = "coe"
 
+mazErasedName :: String
+mazErasedName = "erased"
+
 mazCoerce :: HS.Exp
 -- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
 -- mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident mazCoerceName

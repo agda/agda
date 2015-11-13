@@ -135,7 +135,7 @@ imports = (++) <$> hsImps <*> imps where
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
-              (False, [HS.IVar HS.NoNamespace $ HS.Ident mazCoerceName])
+              (False, [HS.IVar HS.NoNamespace $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -451,7 +451,7 @@ term tm0 = case tm0 of
   T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
-  T.TErased  -> return $ hsVarUQ $ HS.Ident "undefined"
+  T.TErased  -> return $ hsVarUQ $ HS.Ident mazErasedName
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
   where apps =  foldM (\ h a -> HS.App h <$> term a)
