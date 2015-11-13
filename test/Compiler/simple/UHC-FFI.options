@@ -1,1 +1,1 @@
-TestOptions {forCompilers = [(UHC, CompilerOptions {extraAgdaArgs = []})], executeProg = True}
+TestOptions {forCompilers = [(UHC, CompilerOptions {extraAgdaArgs = []})], runtimeOptions = [], executeProg = True}

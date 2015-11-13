@@ -1,1 +1,1 @@
-TestOptions {forCompilers = [(MAlonzo, CompilerOptions {extraAgdaArgs = ["--no-main"]})], executeProg = False}
+TestOptions {forCompilers = [(MAlonzo, CompilerOptions {extraAgdaArgs = ["--no-main"]})], runtimeOptions = [], executeProg = False}

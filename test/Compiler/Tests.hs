@@ -56,14 +56,16 @@ data CompilerOptions
 
 data TestOptions
   = TestOptions
-    { forCompilers :: [(Compiler, CompilerOptions)]
-    , executeProg :: Bool
+    { forCompilers   :: [(Compiler, CompilerOptions)]
+    , runtimeOptions :: [String]
+    , executeProg    :: Bool
     } deriving (Show, Read)
 
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
-  { forCompilers = [ (c, co) | c <- enabledCompilers ]
-  , executeProg = True
+  { forCompilers   = [ (c, co) | c <- enabledCompilers ]
+  , runtimeOptions = []
+  , executeProg    = True
   }
   where co = CompilerOptions []
 
@@ -225,7 +227,7 @@ agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts =
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
-          (ret, out', err') <- PT.readProcessWithExitCode exec [] inp'
+          (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
           return $ ExecutedProg (ret, out <> out', err <> err')
         else
           return $ CompileSucceeded
