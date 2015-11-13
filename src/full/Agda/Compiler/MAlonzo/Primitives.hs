@@ -185,6 +185,10 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primDataConstructors" |-> return "(error \"primDataConstructors: not implemented\")"
   , "primDataNumberOfParameters" |-> return "(error \"primDataNumberOfParameters: not implemented\")"
 
+  -- Seq
+  , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"
+  , "primForceLemma" |-> return "erased"
+
   -- Trust me
   , ("primTrustMe"       , Right <$> do
        refl <- primRefl

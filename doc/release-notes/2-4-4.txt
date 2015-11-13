@@ -573,6 +573,23 @@ Literals and built-ins
     primIntegerAbs
     primNatToInteger
 
+* New primitives for strict evaluation
+
+    primitive
+      primForce      : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
+      primForceLemma : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
+
+  'primForce x f' evaluates to 'f x' if x is in weak head normal form, and
+  'primForceLemma x f' evaluates to 'refl' in the same situation. The following
+  values are considered to be in weak head normal form:
+
+    - constructor applications
+    - literals
+    - lambda abstractions
+    - type constructor (data/record types) applications
+    - function types
+    - Set a
+
 Modules
 -------
 

@@ -353,6 +353,69 @@ primTrustMe = do
 -}
         _ -> __IMPOSSIBLE__
 
+-- Used for both primForce and primForceLemma.
+genPrimForce :: TCM Type -> (Term -> Arg Term -> Term) -> TCM PrimitiveImpl
+genPrimForce b ret = do
+  let varEl s a = El (varSort s) <$> a
+      varT s a  = varEl s (varM a)
+      varS s    = pure $ sort $ varSort s
+  t <- hPi "a" (el primLevel) $
+       hPi "b" (el primLevel) $
+       hPi "A" (varS 1) $
+       hPi "B" (varT 2 0 --> varS 1) b
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts ->
+    case ts of
+      [a, b, s, t, u, f] -> do
+        u <- reduceB' u
+        let isWHNF Blocked{} = return False
+            isWHNF (NotBlocked _ u) =
+              case ignoreSharing $ unArg u of
+                Lit{}      -> return True
+                Con{}      -> return True
+                Lam{}      -> return True
+                Pi{}       -> return True
+                Sort{}     -> return True  -- sorts and levels are considered whnf
+                Level{}    -> return True
+                DontCare{} -> return True
+                Def q _    -> do
+                  def <- theDef <$> getConstInfo q
+                  return $ case def of
+                    Datatype{} -> True
+                    Record{}   -> True
+                    _          -> False
+                MetaV{}    -> return False
+                Var{}      -> return False
+                Shared{}   -> __IMPOSSIBLE__
+
+        ifM (isWHNF u)
+            (redReturn $ ret (unArg f) (ignoreBlocking u))
+            (return $ NoReduction $ map notReduced [a, b, s, t] ++ [reduced u, notReduced f])
+      _ -> __IMPOSSIBLE__
+
+primForce :: TCM PrimitiveImpl
+primForce = do
+  let varEl s a = El (varSort s) <$> a
+      varT s a  = varEl s (varM a)
+      varS s    = pure $ sort $ varSort s
+  genPrimForce (nPi "x" (varT 3 1) $
+                (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) -->
+                varEl 3 (varM 1 <@> varM 0)) $
+    \ f u -> apply f [u]
+
+primForceLemma :: TCM PrimitiveImpl
+primForceLemma = do
+  let varEl s a = El (varSort s) <$> a
+      varT s a  = varEl s (varM a)
+      varS s    = pure $ sort $ varSort s
+  refl  <- primRefl
+  force <- primFunName <$> getPrimitive "primForce"
+  genPrimForce (nPi "x" (varT 3 1) $
+                nPi "f" (nPi "y" (varT 4 2) $ varEl 4 $ varM 2 <@> varM 0) $
+                varEl 4 $ primEquality <#> varM 4 <#> (varM 2 <@> varM 1)
+                                       <@> (pure (Def force []) <#> varM 5 <#> varM 4 <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
+                                       <@> (varM 0 <@> varM 1)
+               ) $ \ _ _ -> refl
+
 primQNameType :: TCM PrimitiveImpl
 primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
                               (\q -> normalise' . defType =<< getConstInfo q)
@@ -694,6 +757,9 @@ primitiveFunctions = Map.fromList
 
   -- Other stuff
   , "primTrustMe"         |-> primTrustMe
+    -- This needs to be force : A → ((x : A) → B x) → B x rather than seq because of call-by-name.
+  , "primForce"           |-> primForce
+  , "primForceLemma"      |-> primForceLemma
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
   , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
