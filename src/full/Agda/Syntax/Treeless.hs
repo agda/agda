@@ -62,8 +62,9 @@ data TPrim = PAdd | PSub | PMul | PQuot | PRem | PGeq | PLt | PEq | PIf | PSeq
   deriving (Typeable, Show, Eq, Ord)
 
 mkTApp :: TTerm -> Args -> TTerm
-mkTApp x [] = x
-mkTApp x as = TApp x as
+mkTApp x           [] = x
+mkTApp (TApp x as) bs = TApp x (as ++ bs)
+mkTApp x           as = TApp x as
 
 tAppView :: TTerm -> [TTerm]
 tAppView = view

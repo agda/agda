@@ -49,25 +49,31 @@ data BuiltinKit = BuiltinKit
   , isTimes  :: QName -> Bool
   , isLess   :: QName -> Bool
   , isEqual  :: QName -> Bool
+  , isForce  :: QName -> Bool
   }
 
 builtinKit :: TCM BuiltinKit
 builtinKit =
-  BuiltinKit <$> is con builtinZero
-             <*> is con builtinSuc
-             <*> is con builtinIntegerPos
-             <*> is con builtinIntegerNegSuc
-             <*> is def builtinNatPlus
-             <*> is def builtinNatTimes
-             <*> is def builtinNatLess
-             <*> is def builtinNatEquals
+  BuiltinKit <$> isB con builtinZero
+             <*> isB con builtinSuc
+             <*> isB con builtinIntegerPos
+             <*> isB con builtinIntegerNegSuc
+             <*> isB def builtinNatPlus
+             <*> isB def builtinNatTimes
+             <*> isB def builtinNatLess
+             <*> isB def builtinNatEquals
+             <*> isP pf  "primForce"
   where
     con (I.Con c _) = pure $ I.conName c
     con _           = Nothing
     def (I.Def d _) = pure d
     def _           = Nothing
 
-    is a b = maybe (const False) (==) . (a =<<) <$> getBuiltin' b
+    pf = Just . primFunName
+
+    is  a b = maybe (const False) (==) . (a =<<) <$> b
+    isB a b = is a (getBuiltin' b)
+    isP a p = is a (getPrimitive' p)
 
 translateBuiltins :: TTerm -> TCM TTerm
 translateBuiltins t = do
@@ -91,6 +97,9 @@ transform BuiltinKit{..} = tr
         -- Note: Don't do this for builtinNatMinus! PSub is integer minus and
         --       builtin minus is monus. The simplifier will do it if it can see
         --       that it won't underflow.
+
+      TApp (TDef q) [_, _, _, _, e, f]
+        | isForce q -> tr $ TLet e $ tOp PSeq (TVar 0) $ mkTApp (raise 1 f) [TVar 0]
 
       TApp (TCon s) [e] | isSuc s ->
         case tr e of
