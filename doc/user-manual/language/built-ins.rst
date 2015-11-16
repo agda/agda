@@ -394,3 +394,48 @@ to be confused with the :ref:`rewrite construct <with-rewrite>`) has a built-in
   postulate _↦_ : ∀ {a} {A : Set a} → A → A → Set a
   {-# BUILTIN REWRITE _↦_ #-}
 
+Strictness
+----------
+
+There are two primitives for controlling evaluation order::
+
+  primitive
+    primForce      : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) → (∀ x → B x) → B x
+    primForceLemma : ∀ {a b} {A : Set a} {B : A → Set b} (x : A) (f : ∀ x → B x) → primForce x f ≡ f x
+
+where ``_≡_`` is the `built-in equality <built-in-equality_>`_. At compile-time
+``primForce x f`` evaluates to ``f x`` when ``x`` is in weak head normal form (whnf),
+i.e. one of the following:
+
+  - a constructor application
+  - a literal
+  - a lambda abstraction
+  - a type constructor application (data or record type)
+  - a function type
+  - a universe (``Set _``)
+
+Similarly ``primForceLemma x f``, which lets you reason about programs using
+``primForce``, evaluates to ``refl`` when ``x`` is in whnf.  At run-time,
+``primForce e f`` is compiled (by the GHC and UHC :ref:`backends <compilers>`)
+to ``let x = e in seq x (f x)``.
+
+For example, consider the following function::
+
+  -- pow n a = a 2ⁿ
+  pow : Nat → Nat → Nat
+  pow zero    a = a
+  pow (suc n) a = pow n (a + a)
+
+At compile-time this will be exponential, due to call-by-name evaluation, and
+at run-time there is a space leak caused by unevaluated ``a + a`` thunks. Both
+problems can be fixed with ``primForce``::
+
+  infixr 0 _$!_
+  _$!_ : ∀ {a b} {A : Set a} {B : A → Set b} → (∀ x → B x) → ∀ x → B x
+  f $! x = primForce x f
+
+  -- pow n a = a 2ⁿ
+  pow : Nat → Nat → Nat
+  pow zero    a = a
+  pow (suc n) a =  pow n $! a + a
+
