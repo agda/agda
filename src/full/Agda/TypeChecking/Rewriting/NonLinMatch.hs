@@ -158,7 +158,7 @@ tellSub i v = do
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
 tellEq gamma k u v =
   traceSDocNLM "rewriting" 60 (sep
-               [ text "adding equality between" <+> addContext gamma (addContext k (prettyTCM u))
+               [ text "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
                , text " and " <+> addContext k (prettyTCM v) ]) $ do
   modify $ second $ (PostponedEquation k u v:)
 
@@ -217,18 +217,18 @@ instance (Match a b, Subst t1 a, Subst t2 b, PrettyTCM a, PrettyTCM b) => Match 
 
 instance Match NLPat Term where
   match gamma k p v = do
+    let n = size k
     traceSDocNLM "rewriting" 100 (sep
-      [ text "matching" <+> addContext gamma (addContext k (prettyTCM p))
+      [ text "matching" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
       , text "with" <+> addContext k (prettyTCM v)]) $ do
     let yes = return ()
         no =
           traceSDocNLM "rewriting" 80 (sep
-            [ text "mismatch between" <+> addContext gamma (addContext k (prettyTCM p))
+            [ text "mismatch between" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
             , text " and " <+> addContext k (prettyTCM v)]) mzero
     case p of
       PWild  -> yes
       PVar id i -> do
-        let n = size k
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
         ifJustM (elemIndex id <$> getContextId)

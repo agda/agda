@@ -374,7 +374,7 @@ instance PrettyTCM NLPat where
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)
-  prettyTCM (PLam i u)  = text ("λ" ++ absName u ++ " →") <+>
+  prettyTCM (PLam i u)  = text ("λ " ++ absName u ++ " →") <+>
                           (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
   prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (unDom a) <+>
                           (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
