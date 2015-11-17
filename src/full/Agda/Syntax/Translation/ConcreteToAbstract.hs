@@ -883,7 +883,10 @@ telHasOpenStmsOrModuleMacros = any yesBinds
     yesBind (C.TLet _ ds) = any yes ds
     yes C.ModuleMacro{}   = True
     yes C.Open{}          = True
-    yes C.Import{}        = __IMPOSSIBLE__
+    yes C.Import{}        = True -- not __IMPOSSIBLE__, see Issue #1718
+      -- However, it does not matter what we return here, as this will
+      -- become an error later: "Not a valid let-declaration".
+      -- (Andreas, 2015-11-17)
     yes (C.Mutual   _ ds) = any yes ds
     yes (C.Abstract _ ds) = any yes ds
     yes (C.Private  _ ds) = any yes ds
