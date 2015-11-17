@@ -232,7 +232,7 @@ instance Match NLPat Term where
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
         ifJustM (elemIndex id <$> getContextId)
-          (\j -> if v == var (j+n) then tellSub i v else no) $ do
+          (\j -> if v == var (j+n) then tellSub i (var j) else no) $ do
           let boundVarOccs :: FreeVars
               boundVarOccs = runFree (\var@(i,_) -> if i < n then singleton var else empty) IgnoreNot v
           if null (rigidVars boundVarOccs)
