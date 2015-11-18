@@ -3,12 +3,12 @@ TC.Rules.Def.checkclause reached A.WithRHS
 with function module: [DebugWith] free variables: 0
 delta  = (trash1 : Trash) (b : A) (trash2 : Trash)
          (f : (x : A) → P x) (trash3 : Trash)
-delta1 = (b : A) (f : (x : A) → P x)
-delta2 = (trash1 : Trash) (trash2 : Trash) (trash3 : Trash)
 vs     = [f b]
 as     = [P b]
-perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
 perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
+delta1 = (b : A) (f : (x : A) → P x)
+delta2 = (trash1 : Trash) (trash2 : Trash) (trash3 : Trash)
+perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
 fPerm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
     with arguments [f b]
              types [P b]
@@ -18,7 +18,6 @@ with function call .DebugWith.with-17 b f (f b) trash1 trash2
                    (f : (x : A) → P x) (trash3 : Trash)
              delta (trash1 : Trash) (b : A) (trash2 : Trash)
                    (f : (x : A) → P x) (trash3 : Trash)
-                fv fromList [1,3]
               body [h0 h1 h2 h3 h4]
                    .DebugWith.with-17 h1 h3 (h3 h1) h0 h2 h4
 checkWithFunction

@@ -510,15 +510,9 @@ metaHelperType norm ii rng s = case words s of
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
-          fv = allFreeVars (vs, as)
-          SplitTel delta1 delta2 perm = splitTelescope fv tel
-          a' = renameP (reverseP perm) a
-      (vs, as) <- do
-        let -- We know that as does not depend on Δ₂
-            rho = compactS __IMPOSSIBLE__ (replicate (size delta2) Nothing)
-        return $ applySubst rho $ renameP (reverseP perm) (vs, as)
+          (delta1, delta2, _, a', as', vs') = splitTelForWith tel a as vs
       a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType delta1 vs as delta2 a'
+        reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType delta1 vs' as' delta2 a'
       return (OfType' h a)
   where
     cleanupType arity args t = do

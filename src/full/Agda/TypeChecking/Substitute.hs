@@ -617,6 +617,12 @@ parallelS us = us ++# idS
 compactS :: Empty -> [Maybe Term] -> Substitution
 compactS err us = prependS err us idS
 
+-- | Γ ⊢ (strengthenS ⊥ |Δ|) : Γ,Δ
+strengthenS :: Empty -> Int -> Substitution
+strengthenS err n
+  | n < 0     = __IMPOSSIBLE__
+  | otherwise = iterate (Strengthen err) idS !! n
+
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
   IdS                    -> var i
