@@ -57,7 +57,7 @@ toTreeless q = ifM (alwaysInline q) (pure Nothing) $ Just <$> toTreeless' q
 
 toTreeless' :: QName -> TCM C.TTerm
 toTreeless' q =
-  flip fromMaybeM (getTreeless q) $ do
+  flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ show q) $ do
     Just cc <- defCompiled <$> getConstInfo q
     setTreeless q (C.TDef q)  -- so recursive inlining doesn't loop
     ccToTreeless q cc
@@ -297,7 +297,7 @@ substTerm term = normaliseStatic term >>= \ term ->
         local (\e -> e { ccCxt = 0 : (shift 1 $ ccCxt e) })
           (substTerm $ I.unAbs ab)
     I.Lit l -> return $ C.TLit l
-    I.Level _ -> return C.TUnit -- TODO can we really do this here?
+    I.Level _ -> return C.TUnit
     I.Def q es -> do
       let args = fromMaybe __IMPOSSIBLE__ $ I.allApplyElims es
       maybeInlineDef q args
@@ -305,10 +305,10 @@ substTerm term = normaliseStatic term >>= \ term ->
         c' <- lift $ canonicalName $ I.conName c
         C.mkTApp (C.TCon c') <$> substArgs args
     I.Shared _ -> __IMPOSSIBLE__ -- the ignoreSharing fun should already take care of this
-    I.Pi _ _ -> return C.TUnit -- TODO return proper pi here
+    I.Pi _ _ -> return C.TUnit
     I.Sort _  -> return C.TSort
-    I.MetaV _ _ -> __IMPOSSIBLE__
-    I.DontCare _ -> __IMPOSSIBLE__ -- when does this happen?
+    I.MetaV _ _ -> __IMPOSSIBLE__   -- we don't compiled if unsolved metas
+    I.DontCare _ -> return C.TErased
 
 normaliseStatic :: I.Term -> CC I.Term
 normaliseStatic v@(I.Def f es) = lift $ do
