@@ -319,6 +319,13 @@ library
                     Agda.TypeChecking.Rules.Record
                     Agda.TypeChecking.Rules.Term
                     Agda.TypeChecking.Serialise
+                    Agda.TypeChecking.Serialise.Base
+                    Agda.TypeChecking.Serialise.Instances
+                    Agda.TypeChecking.Serialise.Instances.Abstract
+                    Agda.TypeChecking.Serialise.Instances.Common
+                    Agda.TypeChecking.Serialise.Instances.Compilers
+                    Agda.TypeChecking.Serialise.Instances.Highlighting
+                    Agda.TypeChecking.Serialise.Instances.Internal
                     Agda.TypeChecking.SizedTypes
                     Agda.TypeChecking.SizedTypes.Solve
                     Agda.TypeChecking.SizedTypes.Syntax
