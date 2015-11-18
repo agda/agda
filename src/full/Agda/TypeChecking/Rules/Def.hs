@@ -521,9 +521,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
 
                     -- Andreas, 2013-02-26 separate msgs to see which goes wrong
                     reportSDoc "tc.with.top" 20 $
-                      text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)
+                      text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
                     reportSDoc "tc.with.top" 20 $
-                      text "             types" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM as)
+                      text "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
                     reportSDoc "tc.with.top" 20 $
                       text "with function call" <+> prettyTCM v
                     reportSDoc "tc.with.top" 20 $
