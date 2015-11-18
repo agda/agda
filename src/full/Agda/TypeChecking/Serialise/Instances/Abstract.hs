@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.TypeChecking.Serialise.Instances.Abstract where
 
 import Control.Applicative
@@ -23,6 +25,7 @@ import Agda.Utils.Impossible
 
 instance EmbPrj Scope where
   icod_ (Scope a b c d e) = icode5' a b c d e
+
   value = vcase valu where valu [a, b, c, d, e] = valu5 Scope a b c d e
                            valu _               = malformed
 
@@ -31,6 +34,7 @@ instance EmbPrj NameSpaceId where
   icod_ PrivateNS       = icode0 1
   icod_ ImportedNS      = icode0 2
   icod_ OnlyQualifiedNS = icode0 3
+
   value = vcase valu where valu []  = valu0 PublicNS
                            valu [1] = valu0 PrivateNS
                            valu [2] = valu0 ImportedNS
@@ -41,6 +45,7 @@ instance EmbPrj Access where
   icod_ PrivateAccess = icode0 0
   icod_ PublicAccess  = icode0'
   icod_ OnlyQualified = icode0 2
+
   value = vcase valu where valu [0] = valu0 PrivateAccess
                            valu []  = valu0 PublicAccess
                            valu [2] = valu0 OnlyQualified
@@ -48,6 +53,7 @@ instance EmbPrj Access where
 
 instance EmbPrj NameSpace where
   icod_ (NameSpace a b) = icode2' a b
+
   value = vcase valu where valu [a, b] = valu2 NameSpace a b
                            valu _      = malformed
 
@@ -55,6 +61,7 @@ instance EmbPrj WhyInScope where
   icod_ Defined       = icode0'
   icod_ (Opened a b)  = icode2 0 a b
   icod_ (Applied a b) = icode2 1 a b
+
   value = vcase valu where valu []        = valu0 Defined
                            valu [0, a, b] = valu2 Opened a b
                            valu [1, a, b] = valu2 Applied a b
@@ -62,11 +69,13 @@ instance EmbPrj WhyInScope where
 
 instance EmbPrj AbstractName where
   icod_ (AbsName a b c) = icode3' a b c
+
   value = vcase valu where valu [a, b, c] = valu3 AbsName a b c
                            valu _         = malformed
 
 instance EmbPrj AbstractModule where
   icod_ (AbsModule a b) = icode2' a b
+
   value = vcase valu where valu [a, b] = valu2 AbsModule a b
                            valu _      = malformed
 
@@ -77,6 +86,7 @@ instance EmbPrj KindOfName where
   icod_ PatternSynName = icode0 3
   icod_ QuotableName   = icode0 4
   icod_ MacroName      = icode0 5
+
   value = vcase valu where valu []  = valu0 DefName
                            valu [1] = valu0 ConName
                            valu [2] = valu0 FldName
@@ -88,13 +98,14 @@ instance EmbPrj KindOfName where
 instance EmbPrj LocalVar where
   icod_ (LocalVar a)      = icode1' a
   icod_ (ShadowedVar a b) = icode2' a b
+
   value = vcase valu where valu [a]    = valu1 LocalVar a
                            valu [a, b] = valu2 ShadowedVar a b
                            valu _      = malformed
 
 instance EmbPrj ConPatInfo where
   icod_ (ConPatInfo a _) = icod_ a
-  value a = flip ConPatInfo patNoRange <$> value a
+  value a                = flip ConPatInfo patNoRange <$> value a
 
 -- Only for pattern synonyms (where a is Void)
 instance EmbPrj a => EmbPrj (A.Pattern' a) where
@@ -136,6 +147,7 @@ instance EmbPrj Precedence where
   icod_ WithFunCtx             = icode0 7
   icod_ WithArgCtx             = icode0 8
   icod_ DotPatternCtx          = icode0 9
+
   value = vcase valu
     where
     valu []     = valu0 TopCtx
@@ -152,6 +164,6 @@ instance EmbPrj Precedence where
 
 instance EmbPrj ScopeInfo where
   icod_ (ScopeInfo a b c d) = icode4' a b c d
+
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
                            valu _            = malformed
-

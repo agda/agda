@@ -1,6 +1,7 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+
 module Agda.TypeChecking.Serialise.Base where
 
 import Control.Applicative
@@ -127,7 +128,7 @@ emptyDict collectStats = Dict
   <*> H.new
 
 -- | Universal type, wraps everything.
-data U    = forall a . Typeable a => U !a
+data U = forall a . Typeable a => U !a
 
 -- | Univeral memo structure, to introduce sharing during decoding
 type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
@@ -437,17 +438,17 @@ icode15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
            Int32 -> a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n -> o ->
            S Int32
 
-icode0  tag                       = icodeN [tag]
-icode1  tag a                     = icodeN . (tag :) =<< sequence [icode a]
-icode2  tag a b                   = icodeN . (tag :) =<< sequence [icode a, icode b]
-icode3  tag a b c                 = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
-icode4  tag a b c d               = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
-icode5  tag a b c d e             = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6  tag a b c d e f           = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
-icode7  tag a b c d e f g         = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
-icode8  tag a b c d e f g h       = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
-icode9  tag a b c d e f g h i     = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
-icode10 tag a b c d e f g h i j   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
+icode0 tag = icodeN [tag]
+icode1 tag a = icodeN . (tag :) =<< sequence [icode a]
+icode2 tag a b = icodeN . (tag :) =<< sequence [icode a, icode b]
+icode3 tag a b c = icodeN . (tag :) =<< sequence [icode a, icode b, icode c]
+icode4 tag a b c d = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d]
+icode5 tag a b c d e = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e]
+icode6 tag a b c d e f = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode7 tag a b c d e f g = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
+icode8 tag a b c d e f g h = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
+icode9 tag a b c d e f g h i = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
+icode10 tag a b c d e f g h i j = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
 icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
 icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
@@ -540,17 +541,17 @@ icode14' :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
             a -> b -> c -> d -> e -> f -> g -> h -> i -> j -> k -> l -> m -> n ->
             S Int32
 
-icode0'                        = icodeN []
-icode1'  a                     = icodeN =<< sequence [icode a]
-icode2'  a b                   = icodeN =<< sequence [icode a, icode b]
-icode3'  a b c                 = icodeN =<< sequence [icode a, icode b, icode c]
-icode4'  a b c d               = icodeN =<< sequence [icode a, icode b, icode c, icode d]
-icode5'  a b c d e             = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
-icode6'  a b c d e f           = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
-icode7'  a b c d e f g         = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
-icode8'  a b c d e f g h       = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
-icode9'  a b c d e f g h i     = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
-icode10' a b c d e f g h i j   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
+icode0' = icodeN []
+icode1' a = icodeN =<< sequence [icode a]
+icode2' a b = icodeN =<< sequence [icode a, icode b]
+icode3' a b c = icodeN =<< sequence [icode a, icode b, icode c]
+icode4' a b c d = icodeN =<< sequence [icode a, icode b, icode c, icode d]
+icode5' a b c d e = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e]
+icode6' a b c d e f = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f]
+icode7' a b c d e f g = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g]
+icode8' a b c d e f g h = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h]
+icode9' a b c d e f g h i = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
+icode10' a b c d e f g h i j = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
 icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
 icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
@@ -635,6 +636,7 @@ valu14 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
           R o
 
+
 valu15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           , EmbPrj g, EmbPrj h, EmbPrj i, EmbPrj j, EmbPrj k, EmbPrj l
           , EmbPrj m, EmbPrj n, EmbPrj o ) =>
@@ -642,19 +644,19 @@ valu15 :: ( EmbPrj a, EmbPrj b, EmbPrj c, EmbPrj d, EmbPrj e, EmbPrj f
           Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 -> Int32 ->
           R p
 
-valu0  z                           = return z
-valu1  z a                         = valu0 z                        `ap` value a
-valu2  z a b                       = valu1 z a                      `ap` value b
-valu3  z a b c                     = valu2 z a b                    `ap` value c
-valu4  z a b c d                   = valu3 z a b c                  `ap` value d
-valu5  z a b c d e                 = valu4 z a b c d                `ap` value e
-valu6  z a b c d e f               = valu5 z a b c d e              `ap` value f
-valu7  z a b c d e f g             = valu6 z a b c d e f            `ap` value g
-valu8  z a b c d e f g h           = valu7 z a b c d e f g          `ap` value h
-valu9  z a b c d e f g h i         = valu8 z a b c d e f g h        `ap` value i
-valu10 z a b c d e f g h i j       = valu9 z a b c d e f g h i      `ap` value j
-valu11 z a b c d e f g h i j k     = valu10 z a b c d e f g h i j   `ap` value k
-valu12 z a b c d e f g h i j k l   = valu11 z a b c d e f g h i j k `ap` value l
+valu0 z = return z
+valu1 z a = valu0 z `ap` value a
+valu2 z a b = valu1 z a `ap` value b
+valu3 z a b c = valu2 z a b `ap` value c
+valu4 z a b c d = valu3 z a b c `ap` value d
+valu5 z a b c d e = valu4 z a b c d `ap` value e
+valu6 z a b c d e f = valu5 z a b c d e `ap` value f
+valu7 z a b c d e f g = valu6 z a b c d e f `ap` value g
+valu8 z a b c d e f g h = valu7 z a b c d e f g `ap` value h
+valu9 z a b c d e f g h i = valu8 z a b c d e f g h `ap` value i
+valu10 z a b c d e f g h i j = valu9 z a b c d e f g h i `ap` value j
+valu11 z a b c d e f g h i j k = valu10 z a b c d e f g h i j `ap` value k
+valu12 z a b c d e f g h i j k l = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
 valu15 z a b c d e f g h i j k l m n o = valu14 z a b c d e f g h i j k l m n `ap` value o

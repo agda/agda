@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Agda.TypeChecking.Serialise.Instances.Highlighting where
 
 import qualified Agda.Interaction.Highlighting.Range   as HR
@@ -9,6 +10,7 @@ import Agda.TypeChecking.Serialise.Instances.Common ()
 
 instance EmbPrj HR.Range where
   icod_ (HR.Range a b) = icode2' a b
+
   value = vcase valu where valu [a, b] = valu2 HR.Range a b
                            valu _      = malformed
 
@@ -86,8 +88,8 @@ instance EmbPrj HP.Aspects where
 
 instance EmbPrj HP.CompressedFile where
   icod_ (HP.CompressedFile f) = icode1' f
+
   value = vcase valu
     where
     valu [f] = valu1 HP.CompressedFile f
     valu _   = malformed
-

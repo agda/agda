@@ -117,7 +117,6 @@ encode a = do
       tickN (kind ++ "  (fresh)") $ fromIntegral fresh
       tickN (kind ++ " (reused)") $ fromIntegral reused
 
-
 -- encode :: EmbPrj a => a -> TCM L.ByteString
 -- encode a = do
 --     fileMod <- sourceToModule
