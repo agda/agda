@@ -59,7 +59,9 @@ toTreeless' :: QName -> TCM C.TTerm
 toTreeless' q =
   flip fromMaybeM (getTreeless q) $ verboseBracket "treeless.convert" 20 ("compiling " ++ show q) $ do
     Just cc <- defCompiled <$> getConstInfo q
-    setTreeless q (C.TDef q)  -- so recursive inlining doesn't loop
+    unlessM (alwaysInline q) $ setTreeless q (C.TDef q)
+      -- so recursive inlining doesn't loop, but not for always inlined
+      -- functions, since that would risk inlining to fail.
     ccToTreeless q cc
 
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
