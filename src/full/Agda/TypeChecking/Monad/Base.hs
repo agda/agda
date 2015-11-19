@@ -1069,7 +1069,7 @@ defRelevance = argInfoRelevance . defArgInfo
 
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
-  = PVar CtxId !Int
+  = PVar (Maybe CtxId) !Int
     -- ^ Matches anything (modulo non-linearity).
   | PWild
     -- ^ Matches anything (e.g. irrelevant terms).

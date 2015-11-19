@@ -336,6 +336,9 @@ instance PrettyTCM PrettyContext where
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
 
+instance PrettyTCM CtxId where
+  prettyTCM (CtxId x) = prettyTCM x
+
 instance PrettyTCM Pattern where
   prettyTCM = showPat' (text . patVarNameToString)
 

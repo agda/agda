@@ -361,3 +361,23 @@ rewArity :: RewriteRule -> Int
 rewArity rew = case rewLHS rew of
   PDef _f es -> length es
   _          -> __IMPOSSIBLE__
+
+-- | Erase the CtxId's of rewrite rules
+class KillCtxId a where
+  killCtxId :: a -> a
+
+instance (Functor f, KillCtxId a) => KillCtxId (f a) where
+  killCtxId = fmap killCtxId
+
+instance KillCtxId RewriteRule where
+  killCtxId rule@RewriteRule{ rewLHS = lhs } = rule{ rewLHS = killCtxId lhs }
+
+instance KillCtxId NLPat where
+  killCtxId p = case p of
+    PVar _ i       -> PVar Nothing i
+    PWild          -> p
+    PDef f es      -> PDef f $ killCtxId es
+    PLam i x       -> PLam i $ killCtxId x
+    PPi a b        -> PPi (killCtxId a) (killCtxId b)
+    PBoundVar i es -> PBoundVar i $ killCtxId es
+    PTerm _        -> p

@@ -105,7 +105,7 @@ instance PatternFrom Term NLPat where
            -- can only be instantiated once they're no longer bound by the
            -- context (see Issue 1652).
            id <- (!! i') <$> getContextId
-           return $ PVar id i'
+           return $ PVar (Just id) i'
        | otherwise -> done
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
@@ -222,40 +222,47 @@ instance Match NLPat Term where
       [ text "matching" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
       , text "with" <+> addContext k (prettyTCM v)]) $ do
     let yes = return ()
-        no =
+        no msg =
           traceSDocNLM "rewriting" 80 (sep
             [ text "mismatch between" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
-            , text " and " <+> addContext k (prettyTCM v)]) mzero
+            , text " and " <+> addContext k (prettyTCM v)
+            , msg ]) mzero
     case p of
       PWild  -> yes
       PVar id i -> do
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
-        ifJustM (elemIndex id <$> getContextId)
-          (\j -> if v == var (j+n) then tellSub i (var j) else no) $ do
-          let boundVarOccs :: FreeVars
-              boundVarOccs = runFree (\var@(i,_) -> if i < n then singleton var else empty) IgnoreNot v
-          if null (rigidVars boundVarOccs)
-             then if null (flexibleVars boundVarOccs)
-                  then tellSub i (raise (-n) v)
-                  else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
-             else no
+        ctx <- zip <$> getContextNames <*> getContextId
+        traceSDocNLM "rewriting" 90 (text "Current context:" <+> (prettyTCM ctx)) $ do
+        cid <- getContextId
+        case (maybe Nothing (\i -> elemIndex i cid) id) of
+          Just j -> if v == var (j+n)
+                    then tellSub i (var j)
+                    else no (text $ "(CtxId = " ++ show id ++ ")")
+          Nothing -> do
+            let boundVarOccs :: FreeVars
+                boundVarOccs = runFree (\var@(i,_) -> if i < n then singleton var else empty) IgnoreNot v
+            if null (rigidVars boundVarOccs)
+               then if null (flexibleVars boundVarOccs)
+                    then tellSub i (raise (-n) v)
+                    else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
+               else no (text "")
       PDef f ps -> do
         v <- liftRed $ constructorForm v
         case ignoreSharing v of
           Def f' es
             | f == f'   -> matchArgs gamma k ps es
-            | otherwise -> no
+            | otherwise -> no (text "")
           Con c vs
             | f == conName c -> matchArgs gamma k ps (Apply <$> vs)
-            | otherwise -> no
+            | otherwise -> no (text "")
           Lam i u -> do
             let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PBoundVar 0 []])
             body <- liftRed $ reduce' $ absBody u
             match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
-          _ -> no
+          _ -> no (text "")
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
         body <- liftRed $ reduce' body
@@ -263,11 +270,11 @@ instance Match NLPat Term where
       PPi pa pb  -> case ignoreSharing v of
         Pi a b -> match gamma k pa a >> match gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
-        _ -> no
+        _ -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> matchArgs gamma k ps es
         MetaV m es -> matchingBlocked $ Blocked m ()
-        _ -> no
+        _ -> no (text "")
       PTerm u -> tellEq gamma k u v
     where
       matchArgs :: Telescope -> Telescope -> [Elim' NLPat] -> Elims -> NLM ()

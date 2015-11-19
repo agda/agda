@@ -51,6 +51,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Rewriting (killCtxId)
 import Agda.TypeChecking.DeadCode
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
@@ -122,7 +123,7 @@ addImportedThings ::
   Set String -> -- UHC backend imports
   A.PatternSynDefns -> TCM ()
 addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns = do
-  stImports %= \imp -> unionSignatures [imp, isig]
+  stImports %= \imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
   stImportedBuiltins %= \imp -> Map.union imp ibuiltin
   stHaskellImports %= \imp -> Set.union imp hsImports
   stHaskellImportsUHC %= \imp -> Set.union imp hsImportsUHC
