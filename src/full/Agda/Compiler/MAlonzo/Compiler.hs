@@ -197,7 +197,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                , HS.FunBind [HS.Match dummy infV
                                       (List.map HS.PVar vars) Nothing
                                       (HS.UnGuardedRhs HS.unit_con)
-                                      (HS.BDecls [])]
+                                      emptyBinds]
                ]
       Constructor{} | Just q == (nameOfSharp <$> kit) -> do
         let sharp = unqhname "d" q
@@ -209,7 +209,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                                  [HS.PVar x]
                                  Nothing
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 (HS.BDecls [])]
+                                 emptyBinds]
           ]
       Function{} | Just q == (nameOfFlat <$> kit) -> do
         let flat = unqhname "d" q
@@ -221,7 +221,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                                  [HS.PVar x]
                                  Nothing
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 (HS.BDecls [])]
+                                 emptyBinds]
           ]
 
       Axiom{} -> return $ fb axiomErr
@@ -264,7 +264,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) (HS.BDecls [])]
+            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dsubname q 0)) emptyBinds]
         return ([tsig,def] ++ ccls)
 
   functionFromClauses :: [Clause] -> TCM [HS.Decl]
@@ -273,7 +273,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   functionFromCaseTree :: QName -> CompiledClauses -> TCM [HS.Decl]
   functionFromCaseTree q cc = do
     e <- casetree cc `runReaderT` initCCEnv (Just q)
-    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]
+    return $ [HS.FunBind [HS.Match dummy (dsubname q 0) [] Nothing (HS.UnGuardedRhs e) emptyBinds]]
 
   tag :: Nat -> [Clause] -> [(Nat, Bool, Clause)]
   tag _ []       = []
@@ -281,9 +281,17 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
   tag i (cl:cls) = (i, False, cl) : tag (i + 1) cls
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
-  mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
+  mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs emptyBinds] :
            fbs@(_:_)) =
-          [HS.FunBind [m0, HS.Match dummy dn ps mt rhs (HS.BDecls fbs)]]
+          [HS.FunBind [m0, HS.Match dummy dn ps mt rhs bindsAux]]
+    where
+#if MIN_VERSION_haskell_src_exts(1,17,0)
+    bindsAux :: Maybe HS.Binds
+    bindsAux = Just $ HS.BDecls fbs
+#else
+    bindsAux :: HS.Binds
+    bindsAux = HS.BDecls fbs
+#endif
   mkwhere fbs = fbs
 
   fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]
@@ -292,7 +300,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
   fb :: HS.Exp -> [HS.Decl]
   fb e  = [HS.FunBind [HS.Match dummy (unqhname "d" q) [] Nothing
-                                (HS.UnGuardedRhs $ e) (HS.BDecls [])]]
+                                (HS.UnGuardedRhs $ e) emptyBinds]]
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
@@ -377,12 +385,12 @@ catchAllAlts :: Maybe CompiledClauses -> CC [HS.Alt]
 catchAllAlts (Just cc) = mapM (branch HS.PWildCard) [cc]
 catchAllAlts Nothing   = do
   q <- fromMaybe __IMPOSSIBLE__ <$> asks ccFunName
-  return [ HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs $ rtmIncompleteMatch q) (HS.BDecls []) ]
+  return [ HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs $ rtmIncompleteMatch q) emptyBinds ]
 
 branch :: HS.Pat -> CompiledClauses -> CC HS.Alt
 branch pat cc = do
   e <- casetree cc
-  return $ HS.Alt dummy pat (HS.UnGuardedRhs e) (HS.BDecls [])
+  return $ HS.Alt dummy pat (HS.UnGuardedRhs e) emptyBinds
 
 -- | Replace de Bruijn Level @x@ by @n@ new variables.
 replaceVar :: Int -> Int -> ([HS.Name] -> CC a) -> CC a
@@ -466,7 +474,7 @@ checkConstructorType q = do
   Just (HsDefn ty hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
   return [ HS.TypeSig dummy [unqhname "check" q] $ fakeType ty
          , HS.FunBind [HS.Match dummy (unqhname "check" q) [] Nothing
-                                (HS.UnGuardedRhs $ fakeExp hs) (HS.BDecls [])]
+                                (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
 checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
@@ -476,7 +484,7 @@ checkCover q ty n cs = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
-        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) (HS.BDecls [])
+        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
 
   cs <- mapM makeClause cs
   let rhs = case cs of
@@ -485,7 +493,7 @@ checkCover q ty n cs = do
 
   return [ HS.TypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
          , HS.FunBind [HS.Match dummy (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
-                                Nothing (HS.UnGuardedRhs rhs) (HS.BDecls [])]
+                                Nothing (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
 -- | Move somewhere else!
@@ -509,7 +517,7 @@ clause q maybeName (i, isLast, Clause{ namedClausePats = ps, clauseBody = b }) =
   failrhs = rtmIncompleteMatch q  -- Andreas, 2011-11-16 call to RTE instead of inlined error
 --  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
   match hps rhs = HS.Match dummy (maybe (dsubname q i) HS.Ident maybeName) hps Nothing
-                           (HS.UnGuardedRhs rhs) (HS.BDecls [])
+                           (HS.UnGuardedRhs rhs) emptyBinds
   bvars (Body _)           _ = []
   bvars (Bind (Abs _ b'))  n = HS.PVar (ihname "v" n) : bvars b' (n + 1)
   bvars (Bind (NoAbs _ b)) n = HS.PWildCard : bvars b n
@@ -676,7 +684,7 @@ tvaldecl :: QName
          -> Nat -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
 tvaldecl q ind ntv npar cds cl =
   HS.FunBind [HS.Match dummy vn pvs Nothing
-                       (HS.UnGuardedRhs HS.unit_con) (HS.BDecls [])] :
+                       (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
   maybe [HS.DataDecl dummy kind [] tn tvs
                      (List.map (HS.QualConDecl dummy [] []) cds) []]
         (const []) cl
