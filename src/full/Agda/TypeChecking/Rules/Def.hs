@@ -477,26 +477,33 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                     (vs0, as) <- unzip <$> mapM inferExprForWith es
                     (vs, as)  <- normalise (vs0, as)
 
+                    -- Andreas, 2012-09-17: for printing delta,
+                    -- we should remove it from the context first
+                    reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
+                      [ text "delta  =" <+> prettyTCM delta
+                      ]
+                    reportSDoc "tc.with.top" 25 $ vcat
+                      [ text "vs     =" <+> prettyTCM vs
+                      , text "as     =" <+> prettyTCM as
+                      , text "perm   =" <+> text (show perm)
+                      ]
+
                     -- Split the telescope into the part needed to type the with arguments
                     -- and all the other stuff
-                    let fv = allFreeVars (vs, as)
-                        SplitTel delta1 delta2 perm' = splitTelescope fv delta
-                        finalPerm = composeP perm' perm
+                    (delta1, delta2, perm', t', as, vs) <- return $
+                      splitTelForWith delta (unArg trhs) as vs
+                    let finalPerm = composeP perm' perm
 
                     reportSLn "tc.with.top" 75 $ "delta  = " ++ show delta
 
                     -- Andreas, 2012-09-17: for printing delta,
                     -- we should remove it from the context first
                     reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
-                      [ text "delta  =" <+> prettyTCM delta
-                      , text "delta1 =" <+> prettyTCM delta1
+                      [ text "delta1 =" <+> prettyTCM delta1
                       , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
                       ]
                     reportSDoc "tc.with.top" 25 $ vcat
-                      [ text "vs     =" <+> prettyTCM vs
-                      , text "as     =" <+> prettyTCM as
-                      , text "perm'  =" <+> text (show perm')
-                      , text "perm   =" <+> text (show perm)
+                      [ text "perm'  =" <+> text (show perm')
                       , text "fPerm  =" <+> text (show finalPerm)
                       ]
 
@@ -513,32 +520,21 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                         -- Now stuff the with arguments in between and finish with the remaining variables
                         v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
 
-                    -- We need Δ₁Δ₂ ⊢ t'
-                    t' <- return $ renameP (reverseP perm') $ unArg trhs
-                    -- and Δ₁ ⊢ vs : as
-                    (vs, as) <- do
-                      let -- We know that as does not depend on Δ₂
-                          rho = compactS __IMPOSSIBLE__ (replicate (size delta2) Nothing)
-                      return $ applySubst rho $ renameP (reverseP perm') (vs, as)
-
-
                     -- Andreas, 2013-02-26 add with-name to signature for printing purposes
                     addConstant aux =<< do
                       useTerPragma $ Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep Nothing emptyFunction
 
                     -- Andreas, 2013-02-26 separate msgs to see which goes wrong
                     reportSDoc "tc.with.top" 20 $
-                      text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)
+                      text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
                     reportSDoc "tc.with.top" 20 $
-                      text "             types" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM as)
+                      text "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
                     reportSDoc "tc.with.top" 20 $
                       text "with function call" <+> prettyTCM v
                     reportSDoc "tc.with.top" 20 $
                       text "           context" <+> (prettyTCM =<< getContextTelescope)
                     reportSDoc "tc.with.top" 20 $
                       text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
-                    reportSDoc "tc.with.top" 20 $
-                      text "                fv" <+> text (show fv)
                     reportSDoc "tc.with.top" 20 $
                       text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
 
@@ -583,7 +579,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
-      , text "fperm   =" <+> text (show finalPerm)
+      , text "fperm  =" <+> text (show finalPerm)
       ]
     ]
 

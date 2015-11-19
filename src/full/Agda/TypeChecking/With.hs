@@ -21,6 +21,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Free
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
@@ -40,6 +41,46 @@ import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+
+-- | Split pattern variables according to with-expressions.
+
+splitTelForWith
+  -- Input:
+  :: Telescope      -- ^ @Δ@        context of types and with-arguments.
+  -> Type           -- ^ @Δ ⊢ t@    type of rhs.
+  -> [Type]         -- ^ @Δ ⊢ as@   types of with arguments.
+  -> [Term]         -- ^ @Δ ⊢ vs@   with arguments.
+  -- Output:
+  -> ( Telescope    -- ^ @Δ₁@       part of context not needed for with arguments and their types.
+     , Telescope    -- ^ @Δ₂@       part of context needed for with arguments and their types.
+     , Permutation  -- ^ @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+     , Type         -- ^ @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
+     , [Type]       -- ^ @Δ₁ ⊢ as'@ types with with-arguments depending only on $Δ₁@.
+     , [Term]       -- ^ @Δ₁ ⊢ vs'@ with-arguments under @π@.
+     )
+splitTelForWith delta t as vs = let
+    -- Split the telescope into the part needed to type the with arguments
+    -- and all the other stuff
+    fv = allFreeVars (vs, as)
+    SplitTel delta1 delta2 perm = splitTelescope fv delta
+
+    -- Δ₁Δ₂ ⊢ π : Δ
+    pi = renaming (reverseP perm)
+    -- Δ₁ ⊢ ρ : Δ₁Δ₂  (We know that as does not depend on Δ₂.)
+    rho = strengthenS __IMPOSSIBLE__ $ size delta2
+    -- Δ₁ ⊢ ρ ∘ π : Δ
+    rhopi = composeS rho pi
+
+    -- We need Δ₁Δ₂ ⊢ t'
+    t' = applySubst pi t
+    -- and Δ₁ ⊢ as'
+    as' = applySubst rhopi as
+    -- and Δ₁ ⊢ vs' : as'
+    vs' = applySubst rhopi vs
+
+  in (delta1, delta2, perm, t', as', vs')
+
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do

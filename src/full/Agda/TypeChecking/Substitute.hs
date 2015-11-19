@@ -631,6 +631,12 @@ parallelS us = us ++# idS
 compactS :: DeBruijn a => Empty -> [Maybe a] -> Substitution' a
 compactS err us = prependS err us idS
 
+-- | Γ ⊢ (strengthenS ⊥ |Δ|) : Γ,Δ
+strengthenS :: Empty -> Int -> Substitution' a
+strengthenS err n
+  | n < 0     = __IMPOSSIBLE__
+  | otherwise = iterate (Strengthen err) idS !! n
+
 lookupS :: Subst a a => Substitution' a -> Nat -> a
 lookupS rho i = case rho of
   IdS                    -> debruijnVar i
@@ -894,9 +900,17 @@ bindsWithHidingToTel' f (WithHiding h x : xs) t =
 bindsWithHidingToTel :: [WithHiding Name] -> Dom Type -> ListTel
 bindsWithHidingToTel = bindsWithHidingToTel' nameToArgName
 
+-- | Takes off all exposed function domains from the given type.
+--   This means that it does not reduce to expose @Pi@-types.
 telView' :: Type -> TelView
-telView' t = case ignoreSharing $ unEl t of
-  Pi a b  -> absV a (absName b) $ telView' (absBody b)
+telView' = telView'UpTo (-1)
+
+-- | @telView'UpTo n t@ takes off the first @n@ exposed function types of @t@.
+-- Takes off all (exposed ones) if @n < 0@.
+telView'UpTo :: Int -> Type -> TelView
+telView'UpTo 0 t = TelV EmptyTel t
+telView'UpTo n t = case ignoreSharing $ unEl t of
+  Pi a b  -> absV a (absName b) $ telView'UpTo (n - 1) (absBody b)
   _       -> TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
