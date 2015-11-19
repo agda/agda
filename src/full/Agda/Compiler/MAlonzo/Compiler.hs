@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
@@ -135,7 +135,11 @@ imports = (++) <$> hsImps <*> imps where
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
+#if MIN_VERSION_haskell_src_exts(1,17,0)
+              (False, [HS.IVar $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
+#else
               (False, [HS.IVar HS.NoNamespace $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
+#endif
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -209,7 +213,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                , HS.FunBind [HS.Match dummy infV
                                       (List.map HS.PVar vars) Nothing
                                       (HS.UnGuardedRhs HS.unit_con)
-                                      (HS.BDecls [])]
+                                      emptyBinds]
                ]
       Constructor{} | Just q == (nameOfSharp <$> kit) -> do
         let sharp = unqhname "d" q
@@ -221,7 +225,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                                  [HS.PVar x]
                                  Nothing
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 (HS.BDecls [])]
+                                 emptyBinds]
           ]
       Function{} | Just q == (nameOfFlat <$> kit) -> do
         let flat = unqhname "d" q
@@ -233,7 +237,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
                                  [HS.PVar x]
                                  Nothing
                                  (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
-                                 (HS.BDecls [])]
+                                 emptyBinds]
           ]
 
       Axiom{} -> return $ fb axiomErr
@@ -272,7 +276,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             tsig = HS.TypeSig dummy [HS.Ident name] (fakeType t)
 
             def :: HS.Decl
-            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dname q)) (HS.BDecls [])]
+            def = HS.FunBind [HS.Match dummy (HS.Ident name) [] Nothing (HS.UnGuardedRhs (hsVarUQ $ dname q)) emptyBinds]
         return ([tsig,def] ++ ccls)
 
   functionViaTreeless :: QName -> TCM [HS.Decl]
@@ -294,7 +298,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             [c,  e] | c == mazCoerce -> e
             _                        -> e
 
-        funbind f ps b = HS.FunBind [HS.Match dummy f ps Nothing (HS.UnGuardedRhs b) (HS.BDecls [])]
+        funbind f ps b = HS.FunBind [HS.Match dummy f ps Nothing (HS.UnGuardedRhs b) emptyBinds]
 
     -- The definition of the non-stripped function
     (ps0, _) <- lamView <$> closedTerm (foldr ($) T.TErased $ replicate (length used) T.TLam)
@@ -306,9 +310,17 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
       else [ funbind (dname q) ps b ]
 
   mkwhere :: [HS.Decl] -> [HS.Decl]
-  mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
+  mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs emptyBinds] :
            fbs@(_:_)) =
-          [HS.FunBind [m0, HS.Match dummy dn ps mt rhs (HS.BDecls fbs)]]
+          [HS.FunBind [m0, HS.Match dummy dn ps mt rhs bindsAux]]
+    where
+#if MIN_VERSION_haskell_src_exts(1,17,0)
+    bindsAux :: Maybe HS.Binds
+    bindsAux = Just $ HS.BDecls fbs
+#else
+    bindsAux :: HS.Binds
+    bindsAux = HS.BDecls fbs
+#endif
   mkwhere fbs = fbs
 
   fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]
@@ -317,7 +329,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
   fb :: HS.Exp -> [HS.Decl]
   fb e  = [HS.FunBind [HS.Match dummy (unqhname "d" q) [] Nothing
-                                (HS.UnGuardedRhs $ e) (HS.BDecls [])]]
+                                (HS.UnGuardedRhs $ e) emptyBinds]]
 
   axiomErr :: HS.Exp
   axiomErr = rtmError $ "postulate evaluated: " ++ show (A.qnameToConcrete q)
@@ -367,7 +379,7 @@ checkConstructorType q = do
   Just (HsDefn ty hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
   return [ HS.TypeSig dummy [unqhname "check" q] $ fakeType ty
          , HS.FunBind [HS.Match dummy (unqhname "check" q) [] Nothing
-                                (HS.UnGuardedRhs $ fakeExp hs) (HS.BDecls [])]
+                                (HS.UnGuardedRhs $ fakeExp hs) emptyBinds]
          ]
 
 checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
@@ -377,7 +389,7 @@ checkCover q ty n cs = do
         (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
-        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) (HS.BDecls [])
+        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
 
   cs <- mapM makeClause cs
   let rhs = case cs of
@@ -386,7 +398,7 @@ checkCover q ty n cs = do
 
   return [ HS.TypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
          , HS.FunBind [HS.Match dummy (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
-                                Nothing (HS.UnGuardedRhs rhs) (HS.BDecls [])]
+                                Nothing (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
 -- | Move somewhere else!
@@ -397,7 +409,6 @@ conArityAndPars q = do
   let Constructor{ conPars = np } = theDef def
       n = length (telToList tel)
   return (n - np, np)
-
 
 closedTerm :: T.TTerm -> TCM HS.Exp
 closedTerm v = hsCast <$> term v `runReaderT` initCCEnv
@@ -436,7 +447,7 @@ term tm0 = case tm0 of
     sc' <- term (T.TVar sc)
     alts' <- traverse (alt sc) alts
     def' <- term def
-    let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') (HS.BDecls [])
+    let defAlt = HS.Alt dummy HS.PWildCard (HS.UnGuardedRhs def') emptyBinds
 
     return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
 
@@ -483,7 +494,7 @@ alt sc a = do
       b <- term b
       return $ HS.Alt dummy HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier g] b])
-                      (HS.BDecls [])
+                      emptyBinds
     T.TALit { T.aLit = (LitQName _ q) } -> mkAlt (litqnamepat q)
     T.TALit { T.aLit = (LitString _ s) , T.aBody = b } -> do
       b <- term b
@@ -494,13 +505,13 @@ alt sc a = do
               litString s
       return $ HS.Alt dummy HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier guard] b])
-                      (HS.BDecls [])
+                      emptyBinds
     T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
   where
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
-        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ hsCast body') (HS.BDecls [])
+        return $ HS.Alt dummy pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
 
 literal :: Literal -> TCM HS.Exp
 literal l = case l of
@@ -561,7 +572,7 @@ tvaldecl :: QName
          -> Nat -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
 tvaldecl q ind ntv npar cds cl =
   HS.FunBind [HS.Match dummy vn pvs Nothing
-                       (HS.UnGuardedRhs HS.unit_con) (HS.BDecls [])] :
+                       (HS.UnGuardedRhs HS.unit_con) emptyBinds] :
   maybe [HS.DataDecl dummy kind [] tn tvs
                      (List.map (HS.QualConDecl dummy [] []) cds) []]
         (const []) cl

@@ -58,7 +58,7 @@ checkTypeOfMain q ty ret
           [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
         typeError $ GenericError $ show err
   where
-    mainAlias = HS.FunBind [HS.Match dummy mainLHS [] Nothing mainRHS $ HS.BDecls [] ]
+    mainAlias = HS.FunBind [HS.Match dummy mainLHS [] Nothing mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
     mainRHS   = HS.UnGuardedRhs $ HS.Var $ HS.UnQual $ unqhname "d" q
 

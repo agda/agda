@@ -164,11 +164,11 @@ hsTypedInt n = HS.ExpTypeSig dummy (HS.Lit (HS.Int n)) (HS.TyCon (hsName "Intege
 
 hspLet :: HS.Pat -> HS.Exp -> HS.Exp -> HS.Exp
 hspLet p e b =
-  HS.Let (HS.BDecls [HS.PatBind dummy p (HS.UnGuardedRhs e) (HS.BDecls [])]) b
+  HS.Let (HS.BDecls [HS.PatBind dummy p (HS.UnGuardedRhs e) emptyBinds]) b
 
 hsLet :: HS.Name -> HS.Exp -> HS.Exp -> HS.Exp
 hsLet x e b =
-  HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x [] Nothing (HS.UnGuardedRhs e) (HS.BDecls [])]]) b
+  HS.Let (HS.BDecls [HS.FunBind [HS.Match dummy x [] Nothing (HS.UnGuardedRhs e) emptyBinds]]) b
 
 hsVarUQ :: HS.Name -> HS.Exp
 hsVarUQ = HS.Var . HS.UnQual
@@ -261,7 +261,7 @@ unsafeCoerceMod = HS.ModuleName "Unsafe.Coerce"
 fakeD :: HS.Name -> String -> HS.Decl
 fakeD v s = HS.FunBind [ HS.Match dummy v [] Nothing
                            (HS.UnGuardedRhs $ hsVarUQ $ HS.Ident $ s)
-                           (HS.BDecls [])
+                           emptyBinds
                        ]
 
 fakeDS :: String -> String -> HS.Decl
@@ -278,3 +278,15 @@ fakeExp = HS.Var . HS.UnQual . HS.Ident
 
 dummy :: a
 dummy = error "MAlonzo : this dummy value should not have been eval'ed."
+
+--------------------------------------------------
+-- Auxiliary definitions
+--------------------------------------------------
+
+#if MIN_VERSION_haskell_src_exts(1,17,0)
+emptyBinds :: Maybe HS.Binds
+emptyBinds = Nothing
+#else
+emptyBinds :: HS.Binds
+emptyBinds = HS.BDecls []
+#endif

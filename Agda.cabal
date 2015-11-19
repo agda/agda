@@ -107,7 +107,7 @@ library
     -- much slower (infinitely slower?) in some cases.
     , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
     , haskeline >= 0.7.1.3 && < 0.8
-    , haskell-src-exts >= 1.16.0.1 && < 1.17
+    , haskell-src-exts >= 1.16.0.1 && < 1.18
     -- mtl-2.1 contains a severe bug.
     --
     -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
@@ -528,7 +528,7 @@ executable agda-ghc-names
     , binary >= 0.7.2.1 && < 0.8
     , containers >= 0.5.0.0 && < 0.6
     , filemanip >= 0.3.6.3 && < 0.4
-    , haskell-src-exts >= 1.16.0.1 && < 1.17
+    , haskell-src-exts >= 1.16.0.1 && < 1.18
     , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
     , filepath >= 1.3.0.1 && < 1.5
   ghc-options:  -rtsopts
