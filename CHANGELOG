@@ -10,6 +10,18 @@ Pragmas and options
 * Termination pragmas are not allowed inside `where` clauses
   [Issue 1137].
 
+Fixed issues
+============
+
+See https://github.com/agda/agda/issues
+* 1407
+* 1670
+* 1677
+* 1698
+* 1701
+* 1710
+* 1718
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.4
 ------------------------------------------------------------------------
