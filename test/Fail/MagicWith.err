@@ -1,5 +1,5 @@
 MagicWith.agda:35,1-36,16
 fst p != w of type Nat
 when checking that the type
-(p : Nat × IsZero) (w : Nat) → F w (snd p) of the generated with
+(w : Nat) (p : Nat × IsZero) → F w (snd p) of the generated with
 function is well-formed

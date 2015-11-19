@@ -10,6 +10,41 @@ Pragmas and options
 * Termination pragmas are not allowed inside `where` clauses
   [Issue 1137].
 
+Type checking
+=============
+
+* `with`-abstraction is more agressive, abstracts also in types of
+  variables that are used in the `with`-expressions, unless they are
+  also used in the types of the `with`-expressions. [Issue 1692]
+
+  Example:
+
+  ```agda
+    test : (f : (x : A) → a ≡ x) (b : A) → b ≡ a
+    test f b with a | f b
+    test f b | .b | refl = f b
+  ```
+
+  Previously, `with` would not abstract in types of variables that
+  appear in the `with`-expressions, in this case, both `f` and `b`,
+  leaving their types unchanged.
+  Now, it tries to abstract in `f`, as only `b` appears in the types of
+  the `with`-expressions which are `A` (of `a`) and `a ≡ b` (of `f b`).
+  As a result, the type of `f` changes to `(x : A) → b ≡ x` and the
+  type of the goal to `b ≡ b` (as previously).
+
+  This also affects `rewrite`, which is implemented in terms of
+  `with`.
+
+  ```agda
+    test : (f : (x : A) → a ≡ x) (b : A) → b ≡ a
+    test f b rewrite f b = f b
+  ```
+
+  As the new `with` is not fully backwards-compatible, some parts of
+  your Agda developments using `with` or `rewrite` might need
+  maintenance.
+
 Fixed issues
 ============
 
