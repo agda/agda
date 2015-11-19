@@ -1,5 +1,7 @@
 -- Andreas, 2015-02-07
 
+-- {-# OPTIONS -v tc.with:40 #-}
+
 open import Common.Prelude hiding (not)
 
 not : Bool → Bool

@@ -1,4 +1,4 @@
-{-# OPTIONS --universe-polymorphism #-}
+-- {-# OPTIONS -v tc.with:50 #-}
 
 module Issue311 where
 

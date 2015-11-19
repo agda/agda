@@ -572,7 +572,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
-      , text "fperm   =" <+> text (show finalPerm)
+      , text "fperm  =" <+> text (show finalPerm)
       ]
     ]
 

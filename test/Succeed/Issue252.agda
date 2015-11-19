@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v tc.with:50 #-}
+
 module Issue252 where
 
 data I : Set where

@@ -1,6 +1,8 @@
 -- Andreas, 2015-05-01
 -- With clauses for functions with flexible arity.
 
+-- {-# OPTIONS -v tc.with:40 #-}
+
 open import Common.Prelude
 open import Common.Equality
 
