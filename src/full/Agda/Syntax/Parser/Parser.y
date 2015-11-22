@@ -76,110 +76,111 @@ import Agda.Utils.Tuple
 %nonassoc '->'
 
 %token
-    'let'           { TokKeyword KwLet $$ }
-    'in'            { TokKeyword KwIn $$ }
-    'where'         { TokKeyword KwWhere $$ }
-    'with'          { TokKeyword KwWith $$ }
-    'rewrite'       { TokKeyword KwRewrite $$ }
-    'postulate'     { TokKeyword KwPostulate $$ }
-    'primitive'     { TokKeyword KwPrimitive $$ }
-    'open'          { TokKeyword KwOpen $$ }
-    'import'        { TokKeyword KwImport $$ }
-    'using'         { TokKeyword KwUsing $$ }
-    'hiding'        { TokKeyword KwHiding $$ }
-    'renaming'      { TokKeyword KwRenaming $$ }
-    'to'            { TokKeyword KwTo $$ }
-    'public'        { TokKeyword KwPublic $$ }
-    'module'        { TokKeyword KwModule $$ }
-    'data'          { TokKeyword KwData $$ }
-    'codata'        { TokKeyword KwCoData $$ }
-    'record'        { TokKeyword KwRecord $$ }
-    'constructor'   { TokKeyword KwConstructor $$ }
-    'inductive'     { TokKeyword KwInductive $$ }
-    'coinductive'   { TokKeyword KwCoInductive $$ }
-    'eta-equality'     { TokKeyword KwEta $$ }
-    'no-eta-equality' { TokKeyword KwNoEta $$ }
-    'field'         { TokKeyword KwField $$ }
-    'infix'         { TokKeyword KwInfix $$ }
-    'infixl'        { TokKeyword KwInfixL $$ }
-    'infixr'        { TokKeyword KwInfixR $$ }
-    'mutual'        { TokKeyword KwMutual $$ }
-    'abstract'      { TokKeyword KwAbstract $$ }
-    'private'       { TokKeyword KwPrivate $$ }
-    'instance'      { TokKeyword KwInstance $$ }
-    'macro'         { TokKeyword KwMacro $$ }
-    'Prop'          { TokKeyword KwProp $$ }
-    'Set'           { TokKeyword KwSet $$ }
-    'forall'        { TokKeyword KwForall $$ }
-    'syntax'        { TokKeyword KwSyntax $$ }
-    'pattern'       { TokKeyword KwPatternSyn $$ }
-    'OPTIONS'       { TokKeyword KwOPTIONS $$ }
-    'BUILTIN'       { TokKeyword KwBUILTIN $$ }
-    'REWRITE'       { TokKeyword KwREWRITE $$ }
-    'IMPORT'        { TokKeyword KwIMPORT $$ }
-    'IMPORT_UHC'    { TokKeyword KwIMPORT_UHC $$ }
-    'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
-    'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
-    'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $$ }
-    'TERMINATING'   { TokKeyword KwTERMINATING $$ }
-    'MEASURE'       { TokKeyword KwMEASURE $$ }
-    'CATCHALL'      { TokKeyword KwCATCHALL $$ }
-    'DISPLAY'       { TokKeyword KwDISPLAY $$ }
-    'COMPILED'      { TokKeyword KwCOMPILED $$ }
-    'COMPILED_EXPORT'      { TokKeyword KwCOMPILED_EXPORT $$ }
-    'COMPILED_DECLARE_DATA' { TokKeyword KwCOMPILED_DECLARE_DATA $$ }
-    'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
-    'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
-    'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
-    'COMPILED_JS'   { TokKeyword KwCOMPILED_JS $$ }
-    'COMPILED_UHC'  { TokKeyword KwCOMPILED_UHC $$ }
-    'COMPILED_DATA_UHC'   { TokKeyword KwCOMPILED_DATA_UHC $$ }
-    'NO_SMASHING'   { TokKeyword KwNO_SMASHING $$ }
-    'STATIC'        { TokKeyword KwSTATIC $$ }
-    'INLINE'        { TokKeyword KwINLINE $$ }
-    'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
-    'quoteContext'  { TokKeyword KwQuoteContext $$ }
-    'quote'         { TokKeyword KwQuote $$ }
-    'quoteTerm'     { TokKeyword KwQuoteTerm $$ }
-    'tactic'        { TokKeyword KwTactic $$ }
-    'unquote'       { TokKeyword KwUnquote $$ }
-    'unquoteDecl'   { TokKeyword KwUnquoteDecl $$ }
-    'unquoteDef'    { TokKeyword KwUnquoteDef $$ }
+    'abstract'                { TokKeyword KwAbstract $$ }
+    'codata'                  { TokKeyword KwCoData $$ }
+    'coinductive'             { TokKeyword KwCoInductive $$ }
+    'constructor'             { TokKeyword KwConstructor $$ }
+    'data'                    { TokKeyword KwData $$ }
+    'eta-equality'            { TokKeyword KwEta $$ }
+    'field'                   { TokKeyword KwField $$ }
+    'forall'                  { TokKeyword KwForall $$ }
+    'hiding'                  { TokKeyword KwHiding $$ }
+    'import'                  { TokKeyword KwImport $$ }
+    'in'                      { TokKeyword KwIn $$ }
+    'inductive'               { TokKeyword KwInductive $$ }
+    'infix'                   { TokKeyword KwInfix $$ }
+    'infixl'                  { TokKeyword KwInfixL $$ }
+    'infixr'                  { TokKeyword KwInfixR $$ }
+    'instance'                { TokKeyword KwInstance $$ }
+    'let'                     { TokKeyword KwLet $$ }
+    'macro'                   { TokKeyword KwMacro $$ }
+    'module'                  { TokKeyword KwModule $$ }
+    'mutual'                  { TokKeyword KwMutual $$ }
+    'no-eta-equality'         { TokKeyword KwNoEta $$ }
+    'open'                    { TokKeyword KwOpen $$ }
+    'pattern'                 { TokKeyword KwPatternSyn $$ }
+    'postulate'               { TokKeyword KwPostulate $$ }
+    'primitive'               { TokKeyword KwPrimitive $$ }
+    'private'                 { TokKeyword KwPrivate $$ }
+    'Prop'                    { TokKeyword KwProp $$ }
+    'public'                  { TokKeyword KwPublic $$ }
+    'quote'                   { TokKeyword KwQuote $$ }
+    'quoteContext'            { TokKeyword KwQuoteContext $$ }
+    'quoteGoal'               { TokKeyword KwQuoteGoal $$ }
+    'quoteTerm'               { TokKeyword KwQuoteTerm $$ }
+    'record'                  { TokKeyword KwRecord $$ }
+    'renaming'                { TokKeyword KwRenaming $$ }
+    'rewrite'                 { TokKeyword KwRewrite $$ }
+    'Set'                     { TokKeyword KwSet $$ }
+    'syntax'                  { TokKeyword KwSyntax $$ }
+    'tactic'                  { TokKeyword KwTactic $$ }
+    'to'                      { TokKeyword KwTo $$ }
+    'unquote'                 { TokKeyword KwUnquote $$ }
+    'unquoteDecl'             { TokKeyword KwUnquoteDecl $$ }
+    'unquoteDef'              { TokKeyword KwUnquoteDef $$ }
+    'using'                   { TokKeyword KwUsing $$ }
+    'where'                   { TokKeyword KwWhere $$ }
+    'with'                    { TokKeyword KwWith $$ }
 
-    setN        { TokSetN $$ }
-    tex         { TokTeX $$ }
-    comment     { TokComment $$ }
+    'BUILTIN'                 { TokKeyword KwBUILTIN $$ }
+    'CATCHALL'                { TokKeyword KwCATCHALL $$ }
+    'COMPILED'                { TokKeyword KwCOMPILED $$ }
+    'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $$ }
+    'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $$ }
+    'COMPILED_DECLARE_DATA'   { TokKeyword KwCOMPILED_DECLARE_DATA $$ }
+    'COMPILED_EPIC'           { TokKeyword KwCOMPILED_EPIC $$ }
+    'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $$ }
+    'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
+    'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
+    'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $$ }
+    'DISPLAY'                 { TokKeyword KwDISPLAY $$ }
+    'IMPORT'                  { TokKeyword KwIMPORT $$ }
+    'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
+    'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
+    'INLINE'                  { TokKeyword KwINLINE $$ }
+    'MEASURE'                 { TokKeyword KwMEASURE $$ }
+    'NO_SMASHING'             { TokKeyword KwNO_SMASHING $$ }
+    'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $$ }
+    'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
+    'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
+    'REWRITE'                 { TokKeyword KwREWRITE $$ }
+    'STATIC'                  { TokKeyword KwSTATIC $$ }
+    'TERMINATING'             { TokKeyword KwTERMINATING $$ }
 
-    '...'       { TokSymbol SymEllipsis $$ }
-    '..'        { TokSymbol SymDotDot $$ }
-    '.'         { TokSymbol SymDot $$ }
-    ';'         { TokSymbol SymSemi $$ }
-    ':'         { TokSymbol SymColon $$ }
-    '='         { TokSymbol SymEqual $$ }
-    '_'         { TokSymbol SymUnderscore $$ }
-    '?'         { TokSymbol SymQuestionMark $$ }
-    '->'        { TokSymbol SymArrow $$ }
-    '\\'        { TokSymbol SymLambda $$ }
-    '@'         { TokSymbol SymAs $$ }
-    '|'         { TokSymbol SymBar $$ }
-    '('         { TokSymbol SymOpenParen $$ }
-    ')'         { TokSymbol SymCloseParen $$ }
-    '{{'        { TokSymbol SymDoubleOpenBrace $$ }
-    '}}'        { TokSymbol SymDoubleCloseBrace $$ }
-    '{'         { TokSymbol SymOpenBrace $$ }
-    '}'         { TokSymbol SymCloseBrace $$ }
---    ':{'      { TokSymbol SymColonBrace $$ }
-    vopen       { TokSymbol SymOpenVirtualBrace $$ }
-    vclose      { TokSymbol SymCloseVirtualBrace $$ }
-    vsemi       { TokSymbol SymVirtualSemi $$ }
-    '{-#'       { TokSymbol SymOpenPragma $$ }
-    '#-}'       { TokSymbol SymClosePragma $$ }
+    setN                      { TokSetN $$ }
+    tex                       { TokTeX $$ }
+    comment                   { TokComment $$ }
 
-    id          { TokId $$ }
-    q_id        { TokQId $$ }
+    '...'                     { TokSymbol SymEllipsis $$ }
+    '..'                      { TokSymbol SymDotDot $$ }
+    '.'                       { TokSymbol SymDot $$ }
+    ';'                       { TokSymbol SymSemi $$ }
+    ':'                       { TokSymbol SymColon $$ }
+    '='                       { TokSymbol SymEqual $$ }
+    '_'                       { TokSymbol SymUnderscore $$ }
+    '?'                       { TokSymbol SymQuestionMark $$ }
+    '->'                      { TokSymbol SymArrow $$ }
+    '\\'                      { TokSymbol SymLambda $$ }
+    '@'                       { TokSymbol SymAs $$ }
+    '|'                       { TokSymbol SymBar $$ }
+    '('                       { TokSymbol SymOpenParen $$ }
+    ')'                       { TokSymbol SymCloseParen $$ }
+    '{{'                      { TokSymbol SymDoubleOpenBrace $$ }
+    '}}'                      { TokSymbol SymDoubleCloseBrace $$ }
+    '{'                       { TokSymbol SymOpenBrace $$ }
+    '}'                       { TokSymbol SymCloseBrace $$ }
+--    ':{'                      { TokSymbol SymColonBrace $$ }
+    vopen                     { TokSymbol SymOpenVirtualBrace $$ }
+    vclose                    { TokSymbol SymCloseVirtualBrace $$ }
+    vsemi                     { TokSymbol SymVirtualSemi $$ }
+    '{-#'                     { TokSymbol SymOpenPragma $$ }
+    '#-}'                     { TokSymbol SymClosePragma $$ }
 
-    string      { TokString $$ }
-    literal     { TokLiteral $$ }
+    id                        { TokId $$ }
+    q_id                      { TokQId $$ }
+
+    string                    { TokString $$ }
+    literal                   { TokLiteral $$ }
 
 %%
 
@@ -200,109 +201,110 @@ TokensR : TokensR Token { $2 : $1 }
 -- Parse single token.
 Token :: { Token }
 Token
-    : 'let'         { TokKeyword KwLet $1 }
-    | 'in'          { TokKeyword KwIn $1 }
-    | 'where'       { TokKeyword KwWhere $1 }
-    | 'with'        { TokKeyword KwWith $1 }
-    | 'rewrite'     { TokKeyword KwRewrite $1 }
-    | 'postulate'   { TokKeyword KwPostulate $1 }
-    | 'primitive'   { TokKeyword KwPrimitive $1 }
-    | 'open'        { TokKeyword KwOpen $1 }
-    | 'import'      { TokKeyword KwImport $1 }
-    | 'using'       { TokKeyword KwUsing $1 }
-    | 'hiding'      { TokKeyword KwHiding $1 }
-    | 'renaming'    { TokKeyword KwRenaming $1 }
-    | 'to'          { TokKeyword KwTo $1 }
-    | 'public'      { TokKeyword KwPublic $1 }
-    | 'module'      { TokKeyword KwModule $1 }
-    | 'data'        { TokKeyword KwData $1 }
-    | 'codata'      { TokKeyword KwCoData $1 }
-    | 'record'      { TokKeyword KwRecord $1 }
-    | 'constructor' { TokKeyword KwConstructor $1 }
-    | 'inductive'   { TokKeyword KwInductive $1 }
-    | 'coinductive' { TokKeyword KwCoInductive $1 }
-    | 'eta-equality'   { TokKeyword KwEta $1 }
-    | 'no-eta-equality' { TokKeyword KwNoEta $1 }
-    | 'field'       { TokKeyword KwField $1 }
-    | 'infix'       { TokKeyword KwInfix $1 }
-    | 'infixl'      { TokKeyword KwInfixL $1 }
-    | 'infixr'      { TokKeyword KwInfixR $1 }
-    | 'mutual'      { TokKeyword KwMutual $1 }
-    | 'abstract'    { TokKeyword KwAbstract $1 }
-    | 'private'     { TokKeyword KwPrivate $1 }
-    | 'instance'    { TokKeyword KwInstance $1 }
-    | 'macro'       { TokKeyword KwMacro $1 }
-    | 'Prop'        { TokKeyword KwProp $1 }
-    | 'Set'         { TokKeyword KwSet $1 }
-    | 'forall'      { TokKeyword KwForall $1 }
-    | 'syntax'      { TokKeyword KwSyntax $1 }
-    | 'pattern'     { TokKeyword KwPatternSyn $1 }
-    | 'OPTIONS'     { TokKeyword KwOPTIONS $1 }
-    | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
-    | 'REWRITE'     { TokKeyword KwREWRITE $1 }
-    | 'IMPORT'      { TokKeyword KwIMPORT $1 }
-    | 'IMPORT_UHC'  { TokKeyword KwIMPORT_UHC $1 }
-    | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
-    | 'COMPILED_EXPORT'    { TokKeyword KwCOMPILED_EXPORT $1 }
-    | 'COMPILED_DECLARE_DATA'{ TokKeyword KwCOMPILED_DECLARE_DATA $1 }
-    | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
-    | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
-    | 'COMPILED_EPIC'{ TokKeyword KwCOMPILED_EPIC $1 }
-    | 'COMPILED_JS'  { TokKeyword KwCOMPILED_JS $1 }
-    | 'COMPILED_UHC' { TokKeyword KwCOMPILED_UHC $1 }
-    | 'COMPILED_DATA_UHC' {TokKeyword KwCOMPILED_DATA_UHC $1 }
-    | 'NO_SMASHING'  { TokKeyword KwNO_SMASHING $1 }
-    | 'STATIC'       { TokKeyword KwSTATIC $1 }
-    | 'INLINE'       { TokKeyword KwINLINE $1 }
-    | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
-    | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
-    | 'NON_TERMINATING' { TokKeyword KwNON_TERMINATING $1 }
-    | 'TERMINATING'   { TokKeyword KwTERMINATING $1 }
-    | 'MEASURE'       { TokKeyword KwMEASURE $1 }
-    | 'CATCHALL'      { TokKeyword KwCATCHALL $1 }
-    | 'DISPLAY'       { TokKeyword KwDISPLAY $1 }
-    | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
-    | 'quoteContext'     { TokKeyword KwQuoteContext $1 }
-    | 'quote'         { TokKeyword KwQuote $1 }
-    | 'quoteTerm'     { TokKeyword KwQuoteTerm $1 }
-    | 'tactic'        { TokKeyword KwTactic $1 }
-    | 'unquote'       { TokKeyword KwUnquote $1 }
-    | 'unquoteDecl'   { TokKeyword KwUnquoteDecl $1 }
-    | 'unquoteDef'    { TokKeyword KwUnquoteDef $1 }
+    : 'abstract'                { TokKeyword KwAbstract $1 }
+    | 'codata'                  { TokKeyword KwCoData $1 }
+    | 'coinductive'             { TokKeyword KwCoInductive $1 }
+    | 'constructor'             { TokKeyword KwConstructor $1 }
+    | 'data'                    { TokKeyword KwData $1 }
+    | 'eta-equality'            { TokKeyword KwEta $1 }
+    | 'field'                   { TokKeyword KwField $1 }
+    | 'forall'                  { TokKeyword KwForall $1 }
+    | 'hiding'                  { TokKeyword KwHiding $1 }
+    | 'import'                  { TokKeyword KwImport $1 }
+    | 'in'                      { TokKeyword KwIn $1 }
+    | 'inductive'               { TokKeyword KwInductive $1 }
+    | 'infix'                   { TokKeyword KwInfix $1 }
+    | 'infixl'                  { TokKeyword KwInfixL $1 }
+    | 'infixr'                  { TokKeyword KwInfixR $1 }
+    | 'instance'                { TokKeyword KwInstance $1 }
+    | 'let'                     { TokKeyword KwLet $1 }
+    | 'macro'                   { TokKeyword KwMacro $1 }
+    | 'module'                  { TokKeyword KwModule $1 }
+    | 'mutual'                  { TokKeyword KwMutual $1 }
+    | 'no-eta-equality'         { TokKeyword KwNoEta $1 }
+    | 'open'                    { TokKeyword KwOpen $1 }
+    | 'pattern'                 { TokKeyword KwPatternSyn $1 }
+    | 'postulate'               { TokKeyword KwPostulate $1 }
+    | 'primitive'               { TokKeyword KwPrimitive $1 }
+    | 'private'                 { TokKeyword KwPrivate $1 }
+    | 'Prop'                    { TokKeyword KwProp $1 }
+    | 'public'                  { TokKeyword KwPublic $1 }
+    | 'quote'                   { TokKeyword KwQuote $1 }
+    | 'quoteContext'            { TokKeyword KwQuoteContext $1 }
+    | 'quoteGoal'               { TokKeyword KwQuoteGoal $1 }
+    | 'quoteTerm'               { TokKeyword KwQuoteTerm $1 }
+    | 'record'                  { TokKeyword KwRecord $1 }
+    | 'renaming'                { TokKeyword KwRenaming $1 }
+    | 'rewrite'                 { TokKeyword KwRewrite $1 }
+    | 'Set'                     { TokKeyword KwSet $1 }
+    | 'syntax'                  { TokKeyword KwSyntax $1 }
+    | 'tactic'                  { TokKeyword KwTactic $1 }
+    | 'to'                      { TokKeyword KwTo $1 }
+    | 'unquote'                 { TokKeyword KwUnquote $1 }
+    | 'unquoteDecl'             { TokKeyword KwUnquoteDecl $1 }
+    | 'unquoteDef'              { TokKeyword KwUnquoteDef $1 }
+    | 'using'                   { TokKeyword KwUsing $1 }
+    | 'where'                   { TokKeyword KwWhere $1 }
+    | 'with'                    { TokKeyword KwWith $1 }
 
-    | setN          { TokSetN $1 }
-    | tex           { TokTeX $1 }
-    | comment       { TokComment $1 }
+    | 'BUILTIN'                 { TokKeyword KwBUILTIN $1 }
+    | 'CATCHALL'                { TokKeyword KwCATCHALL $1 }
+    | 'COMPILED'                { TokKeyword KwCOMPILED $1 }
+    | 'COMPILED_DATA'           { TokKeyword KwCOMPILED_DATA $1 }
+    | 'COMPILED_DATA_UHC'       { TokKeyword KwCOMPILED_DATA_UHC $1 }
+    | 'COMPILED_DECLARE_DATA'   { TokKeyword KwCOMPILED_DECLARE_DATA $1 }
+    | 'COMPILED_EPIC'           { TokKeyword KwCOMPILED_EPIC $1 }
+    | 'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $1 }
+    | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
+    | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
+    | 'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $1 }
+    | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
+    | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
+    | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
+    | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
+    | 'INLINE'                  { TokKeyword KwINLINE $1 }
+    | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
+    | 'NO_SMASHING'             { TokKeyword KwNO_SMASHING $1 }
+    | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
+    | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
+    | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
+    | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
+    | 'STATIC'                  { TokKeyword KwSTATIC $1 }
+    | 'TERMINATING'             { TokKeyword KwTERMINATING $1 }
 
-    | '...'         { TokSymbol SymEllipsis $1 }
-    | '..'          { TokSymbol SymDotDot $1 }
-    | '.'           { TokSymbol SymDot $1 }
-    | ';'           { TokSymbol SymSemi $1 }
-    | ':'           { TokSymbol SymColon $1 }
-    | '='           { TokSymbol SymEqual $1 }
-    | '_'           { TokSymbol SymUnderscore $1 }
-    | '?'           { TokSymbol SymQuestionMark $1 }
-    | '->'          { TokSymbol SymArrow $1 }
-    | '\\'          { TokSymbol SymLambda $1 }
-    | '@'           { TokSymbol SymAs $1 }
-    | '|'           { TokSymbol SymBar $1 }
-    | '('           { TokSymbol SymOpenParen $1 }
-    | ')'           { TokSymbol SymCloseParen $1 }
-    | '{{'          { TokSymbol SymDoubleOpenBrace $1 }
-    | '}}'          { TokSymbol SymDoubleCloseBrace $1 }
-    | '{'           { TokSymbol SymOpenBrace $1 }
-    | '}'           { TokSymbol SymCloseBrace $1 }
-    | vopen         { TokSymbol SymOpenVirtualBrace $1 }
-    | vclose        { TokSymbol SymCloseVirtualBrace $1 }
-    | vsemi         { TokSymbol SymVirtualSemi $1 }
-    | '{-#'         { TokSymbol SymOpenPragma $1 }
-    | '#-}'         { TokSymbol SymClosePragma $1 }
+    | setN                      { TokSetN $1 }
+    | tex                       { TokTeX $1 }
+    | comment                   { TokComment $1 }
 
-    | id            { TokId $1 }
-    | q_id          { TokQId $1 }
-    | string        { TokString $1 }
+    | '...'                     { TokSymbol SymEllipsis $1 }
+    | '..'                      { TokSymbol SymDotDot $1 }
+    | '.'                       { TokSymbol SymDot $1 }
+    | ';'                       { TokSymbol SymSemi $1 }
+    | ':'                       { TokSymbol SymColon $1 }
+    | '='                       { TokSymbol SymEqual $1 }
+    | '_'                       { TokSymbol SymUnderscore $1 }
+    | '?'                       { TokSymbol SymQuestionMark $1 }
+    | '->'                      { TokSymbol SymArrow $1 }
+    | '\\'                      { TokSymbol SymLambda $1 }
+    | '@'                       { TokSymbol SymAs $1 }
+    | '|'                       { TokSymbol SymBar $1 }
+    | '('                       { TokSymbol SymOpenParen $1 }
+    | ')'                       { TokSymbol SymCloseParen $1 }
+    | '{{'                      { TokSymbol SymDoubleOpenBrace $1 }
+    | '}}'                      { TokSymbol SymDoubleCloseBrace $1 }
+    | '{'                       { TokSymbol SymOpenBrace $1 }
+    | '}'                       { TokSymbol SymCloseBrace $1 }
+    | vopen                     { TokSymbol SymOpenVirtualBrace $1 }
+    | vclose                    { TokSymbol SymCloseVirtualBrace $1 }
+    | vsemi                     { TokSymbol SymVirtualSemi $1 }
+    | '{-#'                     { TokSymbol SymOpenPragma $1 }
+    | '#-}'                     { TokSymbol SymClosePragma $1 }
 
-    | literal       { TokLiteral $1 }
+    | id                        { TokId $1 }
+    | q_id                      { TokQId $1 }
+    | string                    { TokString $1 }
+
+    | literal                   { TokLiteral $1 }
 
 {--------------------------------------------------------------------------
     Top level
