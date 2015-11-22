@@ -1468,7 +1468,7 @@ ImportPragma
     }
 
 ImportUHCPragma :: { Pragma }
-ImportPragma
+ImportUHCPragma
   : '{-#' 'IMPORT_UHC' string '#-}'
     {% let s = snd $3 in
        if validHaskellModuleName s
