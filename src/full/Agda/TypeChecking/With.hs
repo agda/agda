@@ -52,12 +52,12 @@ splitTelForWith
   -> [Type]         -- ^ @Δ ⊢ as@   types of with arguments.
   -> [Term]         -- ^ @Δ ⊢ vs@   with arguments.
   -- Output:
-  -> ( Telescope    -- ^ @Δ₁@       part of context not needed for with arguments and their types.
-     , Telescope    -- ^ @Δ₂@       part of context needed for with arguments and their types.
-     , Permutation  -- ^ @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
-     , Type         -- ^ @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [Type]       -- ^ @Δ₁ ⊢ as'@ types with with-arguments depending only on $Δ₁@.
-     , [Term]       -- ^ @Δ₁ ⊢ vs'@ with-arguments under @π@.
+  -> ( Telescope    -- @Δ₁@       part of context not needed for with arguments and their types.
+     , Telescope    -- @Δ₂@       part of context needed for with arguments and their types.
+     , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+     , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
+     , [Type]       -- @Δ₁ ⊢ as'@ types with with-arguments depending only on $Δ₁@.
+     , [Term]       -- @Δ₁ ⊢ vs'@ with-arguments under @π@.
      )
 splitTelForWith delta t as vs = let
     -- Split the telescope into the part needed to type the with arguments
