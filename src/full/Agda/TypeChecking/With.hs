@@ -45,20 +45,58 @@ import Agda.Utils.Impossible
 
 -- | Split pattern variables according to with-expressions.
 
+--   Input:
+--
+--   [@Δ@]         context of types and with-arguments.
+--
+--   [@Δ ⊢ t@]     type of rhs.
+--
+--   [@Δ ⊢ as@]    types of with arguments.
+--
+--   [@Δ ⊢ vs@]    with arguments.
+--
+--
+--   Output:
+--
+--   [@Δ₁@]        part of context not needed for with arguments and their types.
+--
+--   [@Δ₂@]        part of context needed for with arguments and their types.
+--
+--   [@π@]         permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+--
+--   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
+--
+--   [@Δ₁ ⊢ as'@]  types with with-arguments depending only on @Δ₁@.
+--
+--   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
+
 splitTelForWith
   -- Input:
-  :: Telescope      -- ^ @Δ@        context of types and with-arguments.
-  -> Type           -- ^ @Δ ⊢ t@    type of rhs.
-  -> [Type]         -- ^ @Δ ⊢ as@   types of with arguments.
-  -> [Term]         -- ^ @Δ ⊢ vs@   with arguments.
+  :: Telescope      -- ^ __@Δ@__        context of types and with-arguments.
+  -> Type           -- ^ __@Δ ⊢ t@__    type of rhs.
+  -> [Type]         -- ^ __@Δ ⊢ as@__   types of with arguments.
+  -> [Term]         -- ^ __@Δ ⊢ vs@__   with arguments.
   -- Output:
-  -> ( Telescope    -- ^ @Δ₁@       part of context not needed for with arguments and their types.
-     , Telescope    -- ^ @Δ₂@       part of context needed for with arguments and their types.
-     , Permutation  -- ^ @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
-     , Type         -- ^ @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [Type]       -- ^ @Δ₁ ⊢ as'@ types with with-arguments depending only on $Δ₁@.
-     , [Term]       -- ^ @Δ₁ ⊢ vs'@ with-arguments under @π@.
-     )
+  -> ( Telescope    -- @Δ₁@       part of context not needed for with arguments and their types.
+     , Telescope    -- @Δ₂@       part of context needed for with arguments and their types.
+     , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+     , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
+     , [Type]       -- @Δ₁ ⊢ as'@ types with with-arguments depending only on @Δ₁@.
+     , [Term]       -- @Δ₁ ⊢ vs'@ with-arguments under @π@.
+     )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@as'@__,__@vs'@__) where
+--
+--   [@Δ₁@]        part of context not needed for with arguments and their types.
+--
+--   [@Δ₂@]        part of context needed for with arguments and their types.
+--
+--   [@π@]         permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
+--
+--   [@Δ₁Δ₂ ⊢ t'@] type of rhs under @π@
+--
+--   [@Δ₁ ⊢ as'@]  types with with-arguments depending only on @Δ₁@.
+--
+--   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
+
 splitTelForWith delta t as vs = let
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff
@@ -139,21 +177,22 @@ buildWithFunction f aux t qs perm n1 n cs = mapM buildWithClause cs
 
 {-| @stripWithClausePatterns parent f t qs π ps = ps'@
 
-    @Δ@   - context bound by lhs of original function (not an argument)
+[@Δ@]   context bound by lhs of original function (not an argument).
 
-    @f@   - name of with-function
+[@f@]   name of @with@-function.
 
-    @t@   - type of the original function
+[@t@]   type of the original function.
 
-    @qs@  - internal patterns for original function
+[@qs@]  internal patterns for original function.
 
-    @π@   - permutation taking @vars(qs)@ to @support(Δ)@
+[@π@]   permutation taking @vars(qs)@ to @support(Δ)@.
 
-    @ps@  - patterns in with clause (eliminating type @t@)
+[@ps@]  patterns in with clause (eliminating type @t@).
 
-    @ps'@ - patterns for with function (presumably of type @Δ@)
+[@ps'@] patterns for with function (presumably of type @Δ@).
 
 Example:
+
 @
 record Stream (A : Set) : Set where
   coinductive
@@ -170,9 +209,11 @@ record SEq (s t : Stream A) : Set where
 test : (s : Nat × Stream Nat) (t : Stream Nat) → SEq (delay s) t → SEq t (delay s)
 ~force (test (a     , as) t p) with force t
 ~force (test (suc n , as) t p) | b , bs = {!!}
+@
 
 With function:
 
+@
   f : (t : Stream Nat) (w : Nat × Stream Nat) (a : Nat) (as : Stream Nat)
       (p : SEq (delay (a , as)) t) → (fst w ≡ a) × SEq (snd w) as
 
@@ -181,27 +222,32 @@ With function:
   qs = (a     , as) t p ~force
   ps = (suc n , as) t p ~force
   ps' = (suc n) as t p
+@
 
 Resulting with-function clause is:
 
-  f t (b , bs) (suc n) as t p
-
-Note: stripWithClausePatterns factors ps through qs, thus
-
-  ps = qs[ps']
-
-where [..] is to be understood as substitution.
-The projection patterns have vanished from ps' (as they are already in qs).
 @
+  f t (b , bs) (suc n) as t p
+@
+
+Note: stripWithClausePatterns factors @ps@ through @qs@, thus
+
+@
+  ps = qs[ps']
+@
+
+where @[..]@ is to be understood as substitution.
+The projection patterns have vanished from @ps'@ (as they are already in @qs@).
 -}
+
 stripWithClausePatterns
   :: QName                      -- ^ Name of the parent function.
-  -> QName                      -- ^ Name of with-function @f@.
-  -> Type                       -- ^ @t@
-  -> [NamedArg Pattern]       -- ^ @qs@
-  -> Permutation                -- ^ @π@
-  -> [NamedArg A.Pattern]     -- ^ @ps@
-  -> TCM [NamedArg A.Pattern] -- ^ @ps'@
+  -> QName                    -- ^ Name of with-function.
+  -> Type                     -- ^ __@t@__   type of the original function.
+  -> [NamedArg Pattern]       -- ^ __@qs@__  internal patterns for original function.
+  -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
+  -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
+  -> TCM [NamedArg A.Pattern] -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
 stripWithClausePatterns parent f t qs perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
@@ -416,18 +462,26 @@ stripWithClausePatterns parent f t qs perm ps = do
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.
---   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
+--   For instance,
 --
---   @n@ is the number of with arguments.
+--   @
+--     aux a b c
+--   @
+--
+--   as
+--
+--   @
+--     f (suc a) (suc b) | c
+--   @
 withDisplayForm
-  :: QName       -- ^ The name of parent function.
-  -> QName       -- ^ The name of the with-function.
-  -> Telescope   -- ^ The arguments of the with function before the with exprs.
-  -> Telescope   -- ^ The arguments of the with function after the with exprs.
-  -> Nat         -- ^ The number of with expressions.
-  -> [NamedArg Pattern] -- ^ The parent patterns.
-  -> Permutation -- ^ Permutation to split into needed and unneeded vars.
-  -> Permutation -- ^ Permutation reordering the variables in parent patterns.
+  :: QName                -- ^ The name of parent function.
+  -> QName                -- ^ The name of the @with@-function.
+  -> Telescope            -- ^ __@Δ₁@__      The arguments of the @with@ function before the @with@ expressions.
+  -> Telescope            -- ^ __@Δ₂@__      The arguments of the @with@ function after the @with@ expressions.
+  -> Nat                  -- ^ __@n@__       The number of @with@ expressions.
+  -> [NamedArg Pattern]   -- ^ __@qs@__      The parent patterns.
+  -> Permutation          -- ^ __@perm@__    Permutation to split into needed and unneeded vars.
+  -> Permutation          -- ^ __@lhsPerm@__ Permutation reordering the variables in parent patterns.
   -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
