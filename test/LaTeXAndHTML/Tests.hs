@@ -112,13 +112,7 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
       -> IO LaTeXResult
   runLaTeX texFile wd cont prog = do
       let proc' = (proc prog ["-interaction=errorstopmode", texFile]) { cwd = Just wd }
-#if MIN_VERSION_process_extras(0,3,0)
       (ret, out, err) <- PB.readCreateProcessWithExitCode proc' BS.empty
-#else
-      (_, _, _, pHandle) <- createProcess proc'
-      ret <- waitForProcess pHandle
-      let res = (ret, BS.empty, BS.empty)
-#endif
       if ret == ExitSuccess then
         cont
       else do
