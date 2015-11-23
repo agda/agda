@@ -17,8 +17,8 @@ instance Eq (QName a b) where
 instance Ord (QName a b) where
   compare (QName a b _ _ _) (QName c d _ _ _) = compare (a, b) (c, d)
 
-erased :: Any
-erased = unsafeCoerce (\ _ -> erased)
+erased :: a
+erased = coe (\ _ -> erased)
 
 mazIncompleteMatch :: String -> a
 mazIncompleteMatch s = error ("Agda: incomplete pattern matching: " ++ s)
