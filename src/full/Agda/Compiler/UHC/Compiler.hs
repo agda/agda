@@ -131,14 +131,6 @@ compilerMain inters mainInter = do
            [ "Agda cannot find the UHC compiler."
            ]
 
-auiFile :: CN.TopLevelModuleName -> TCM FilePath
-auiFile modNm = do
-  let (dir, fn) = splitFileName . foldl1 (</>) $ ("Cache" : (CN.moduleNameParts modNm))
-      fp  | dir == "./"  = fn
-          | otherwise = dir </> fn
-  liftIO $ createDirectoryIfMissing True dir
-  return $ fp
-
 
 -- | Compiles a module and it's imports. Returns the module info
 -- of this module, and the accumulating module interface.
@@ -153,7 +145,6 @@ compileModule addImps i = do
     compMods <- gets compileInfo
     let modNm = iModuleName i
     let topModuleName = toTopLevelModuleName modNm
-    auiFile' <- lift $ auiFile topModuleName
     -- check if this module has already been compiled
     case M.lookup modNm compMods of
         Just x -> return x
