@@ -255,6 +255,7 @@ applySection
   -> TCM ()
 applySection new ptel old ts rd rm = do
   rd <- closeConstructors rd
+  rm <- closeParentModules rm
   applySection' new ptel old ts rd rm
   where
     -- If a datatype is being copied, all its constructors need to be copied,
@@ -285,6 +286,24 @@ applySection new ptel old ts rd rm = do
             Record{ recConHead = h }      -> [conName h]
             _                         -> []
 
+    -- If a module is copied, all its parents (up to the copied module) need to
+    -- be copied (#1701).
+    closeParentModules rm = do
+      let parents = [ (p, p')
+                    | (m, m') <- rm
+                    , p <- parentModules m
+                    , let p' = dropM (lenM m - lenM p) m'
+                    , p  `isSubModuleOf` old
+                    , p' `isSubModuleOf` new  -- datatype modules get copied weirdly
+                    , notElem p (map fst rm)
+                    ]
+      reportSLn "tc.mod.apply.complete" 30 $
+        "also copying modules: " ++ show parents
+      return $ rm ++ parents
+      where
+        dropM n       = mnameFromList . reverse . drop n . reverse . mnameToList
+        lenM          = length . mnameToList
+        parentModules = map mnameFromList . init . tail . inits . mnameToList
 
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> Ren QName -> Ren ModuleName -> TCM ()
 applySection' new ptel old ts rd rm = do
