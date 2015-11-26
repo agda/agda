@@ -10,6 +10,8 @@ import Data.Function
 
 import qualified Language.Haskell.Exts.Syntax as HS
 
+import Agda.Compiler.Common
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -27,41 +29,8 @@ import Agda.Utils.Impossible
 -- Setting up Interface before compile
 --------------------------------------------------
 
-setInterface :: Interface -> TCM ()
-setInterface i = do
-  opts <- gets (stPersistentOptions . stPersistentState)
-  setCommandLineOptions opts
-  mapM_ setOptionsFromPragma (iPragmaOptions i)
-  stImportedModules .= Set.empty
-  stCurrentModule   .= Just (iModuleName i)
-
-curIF :: TCM Interface
-curIF = do
-  mName <- use stCurrentModule
-  case mName of
-    Nothing   -> __IMPOSSIBLE__
-    Just name -> do
-      mm <- getVisitedModule (toTopLevelModuleName name)
-      case mm of
-        Nothing -> __IMPOSSIBLE__
-        Just mi -> return $ miInterface mi
-
-curSig :: TCM Signature
-curSig = iSignature <$> curIF
-
-curMName :: TCM ModuleName
-curMName = sigMName <$> curSig
-
 curHsMod :: TCM HS.ModuleName
 curHsMod = mazMod <$> curMName
-
-curDefs :: TCM Definitions
-curDefs = (^. sigDefinitions) <$> curSig
-
-sigMName :: Signature -> ModuleName
-sigMName sig = case Map.keys (sig ^. sigSections) of
-  []    -> __IMPOSSIBLE__
-  m : _ -> m
 
 --------------------------------------------------
 -- utilities for haskell names

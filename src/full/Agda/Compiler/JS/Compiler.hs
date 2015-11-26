@@ -57,8 +57,7 @@ import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
-import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
-import Agda.Compiler.MAlonzo.Primitives ( repl )
+import Agda.Compiler.Common ( curDefs, curIF, curMName, setInterface, repl )
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),

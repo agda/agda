@@ -155,6 +155,7 @@ library
                     Agda.Auto.Typecheck
                     Agda.Benchmarking
                     Agda.Compiler.CallCompiler
+                    Agda.Compiler.Common
                     Agda.Compiler.Epic.AuxAST
                     Agda.Compiler.Epic.CaseOpts
                     Agda.Compiler.Epic.Compiler

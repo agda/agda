@@ -8,6 +8,7 @@ import Data.List as L
 import Data.Map as M
 import qualified Language.Haskell.Exts.Syntax as HS
 
+import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
 import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (closedTerm)
 import Agda.Compiler.MAlonzo.Misc
@@ -221,12 +222,6 @@ noCheckCover q = (||) <$> isBuiltin q builtinNat <*> isBuiltin q builtinInteger
 
 ----------------------
 
-repl :: [String] -> String -> String
-repl subs = go where
-  go ('<':'<':c:'>':'>':s) | 0 <= i && i < length subs = subs !! i ++ go s
-     where i = ord c - ord '0'
-  go (c:s) = c : go s
-  go []    = []
 
 pconName :: String -> TCM String
 pconName s = toS . ignoreSharing =<< getBuiltin s where

@@ -32,6 +32,7 @@ import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
 
 import Agda.Compiler.CallCompiler
+import Agda.Compiler.Common
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
@@ -401,15 +402,6 @@ checkCover q ty n cs = do
                                 Nothing (HS.UnGuardedRhs rhs) emptyBinds]
          ]
 
--- | Move somewhere else!
-conArityAndPars :: QName -> TCM (Nat, Nat)
-conArityAndPars q = do
-  def <- getConstInfo q
-  TelV tel _ <- telView $ defType def
-  let Constructor{ conPars = np } = theDef def
-      n = length (telToList tel)
-  return (n - np, np)
-
 closedTerm :: T.TTerm -> TCM HS.Exp
 closedTerm v = hsCast <$> term v `runReaderT` initCCEnv
 
@@ -666,13 +658,6 @@ writeModule (HS.Module l m ps w ex imp ds) = do
         , "Rank2Types"
         ]
 
-
-compileDir :: TCM FilePath
-compileDir = do
-  mdir <- optCompileDir <$> commandLineOptions
-  case mdir of
-    Just dir -> return dir
-    Nothing  -> __IMPOSSIBLE__
 
 outFile' :: (HS.Pretty a, TransformBi HS.ModuleName (Wrap a)) =>
             a -> TCM (FilePath, FilePath)

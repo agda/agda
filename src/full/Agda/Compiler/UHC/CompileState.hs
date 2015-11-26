@@ -55,6 +55,7 @@ import Agda.TypeChecking.Monad.Builtin hiding (coinductionKit')
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.Compiler.UHC.Bridge
 import Agda.Compiler.UHC.Pragmas.Base
+import Agda.Compiler.Common
 
 import Agda.Utils.Lens
 
@@ -148,16 +149,6 @@ freshLocalName = CompileT $ do
 -- Constructors
 -----------------
 
-
--- | Copy pasted from MAlonzo....
---   Move somewhere else!
-conArityAndPars :: QName -> TCM (Nat, Nat)
-conArityAndPars q = do
-  def <- getConstInfo q
-  TelV tel _ <- telView $ defType def
-  let Constructor{ conPars = np } = theDef def
-      n = genericLength (telToList tel)
-  return (n - np, np)
 
 -- | Returns the CTag for a constructor. Not defined
 -- for Sharp and magic __UNIT__ constructor.

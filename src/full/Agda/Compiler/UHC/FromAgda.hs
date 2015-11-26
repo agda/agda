@@ -39,6 +39,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
 
+import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.GuardsToPrims
 import Agda.Compiler.Treeless.Pretty
