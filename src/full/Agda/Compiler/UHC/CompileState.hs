@@ -10,6 +10,7 @@ module Agda.Compiler.UHC.CompileState
   ( CompileT
   , Compile
   , runCompileT
+  , CoreMeta
 
   , addExports
   , addMetaCon
@@ -24,8 +25,6 @@ module Agda.Compiler.UHC.CompileState
   , moduleNameToCoreName
   , moduleNameToCoreNameParts
   , freshLocalName
-
-  , getCurrentModule
 
   , conArityAndPars
   , dataRecCons
@@ -67,14 +66,22 @@ import Data.Time.Clock.POSIX
 getTime :: IO Integer
 getTime = round <$> getPOSIXTime
 
+data CoreMeta = CoreMeta
+  { coreMetaData :: Map.Map QName ( [CDataCon] -> CDeclMeta )
+  , coreMetaCon :: Map.Map QName [CDataCon] -- map data name to constructors
+  , coreExports :: [CExport] -- ^ UHC core exports
+  }
+
+instance Monoid CoreMeta where
+  mempty = CoreMeta mempty mempty []
+  mappend (CoreMeta a b c) (CoreMeta r s t) =
+    CoreMeta (Map.union a r) (Map.unionWith (++) b s) (c ++ t)
+
 -- | Stuff we need in our compiler
 data CompileState = CompileState
-    { curModule       :: ModuleName
-    , coreMetaData :: Map.Map QName ( [CDataCon] -> CDeclMeta )
-    , coreMetaCon :: Map.Map QName [CDataCon] -- map data name to constructors
-    , coreExports :: [CExport] -- ^ UHC core exports
-    , nameSupply :: Integer
-    }
+  { coreMeta :: CoreMeta
+  , nameSupply :: Integer
+  }
 
 -- | Compiler monad
 newtype CompileT m a = CompileT { unCompileT :: StateT CompileState m a }
@@ -103,41 +110,37 @@ runCompileT amod curImpMods comp = do
 
   return (result, modInfo)
   where initial = CompileState
-            { curModule     = amod
-            , coreMetaData = Map.empty
-            , coreMetaCon = Map.empty
-            , coreExports = []
+            { coreMeta = mempty
             , nameSupply = 0
             }
+
+appendCoreMeta :: Monad m => CoreMeta -> CompileT m ()
+appendCoreMeta cm =
+  CompileT $ modify (\s -> s { coreMeta = cm `mappend` coreMeta s })
 
 addExports :: Monad m => [HsName] -> CompileT m ()
 addExports = addExports' . map mkExport
 
 addExports' :: Monad m => [CExport] -> CompileT m ()
-addExports' nms =
-  CompileT $ modify (\s -> s { coreExports = nms ++ (coreExports s) } )
+addExports' nms = appendCoreMeta (mempty { coreExports = nms })
 
 addMetaCon :: QName -> CDataCon -> Compile ()
 addMetaCon q c = do
   dtNm <- conData . theDef <$> lift (getConstInfo q)
-  CompileT $ modify (\s -> s { coreMetaCon = Map.insertWith (++) dtNm [c] (coreMetaCon s) } )
+  appendCoreMeta (mempty { coreMetaCon = Map.singleton dtNm [c] })
 
 addMetaData :: QName -> ([CDataCon] -> CDeclMeta) -> Compile ()
 addMetaData q d =
-  CompileT $ modify (\s -> s {coreMetaData = Map.insert q d (coreMetaData s) } )
+  appendCoreMeta (mempty { coreMetaData = Map.singleton q d })
 
-getExports :: Monad m => CompileT m [CExport]
-getExports = CompileT $ gets coreExports
+getExports :: Compile [CExport]
+getExports = CompileT $ gets (coreExports . coreMeta)
 
-getDeclMetas :: Monad m => CompileT m [CDeclMeta]
+getDeclMetas :: Compile [CDeclMeta]
 getDeclMetas = CompileT $ do
-  cons <- gets coreMetaCon
-  dts <- gets coreMetaData
+  cons <- gets (coreMetaCon . coreMeta)
+  dts <- gets (coreMetaData . coreMeta)
   return $ map (\(dtNm, f) -> f (Map.findWithDefault [] dtNm cons)) (Map.toList dts)
-
-
-getCurrentModule :: Monad m => CompileT m ModuleName
-getCurrentModule = CompileT $ gets curModule
 
 freshLocalName :: Monad m => CompileT m HsName
 freshLocalName = CompileT $ do
