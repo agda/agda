@@ -99,3 +99,27 @@ conArityAndPars q = do
       n = length (telToList tel)
   return (n - np, np)
 
+-- | Sets up the compilation environment.
+inCompilerEnv :: Interface -> TCM a -> TCM a
+inCompilerEnv mainI cont =
+  -- Preserve the state (the compiler modifies the state).
+  -- Andreas, 2014-03-23 But we might want to collect Benchmark info,
+  -- so use localTCState.
+  localTCState $ do
+
+    -- Compute the output directory. Note: using commandLineOptions would make
+    -- the current pragma options persistent when we setCommandLineOptions
+    -- below.
+    opts <- gets $ stPersistentOptions . stPersistentState
+    compileDir <- case optCompileDir opts of
+      Just dir -> return dir
+      Nothing  -> do
+        -- The default output directory is the project root.
+        let tm = toTopLevelModuleName $ iModuleName mainI
+        f <- findFile tm
+        return $ filePath $ C.projectRoot f tm
+    setCommandLineOptions $
+      opts { optCompileDir = Just compileDir }
+
+    ignoreAbstractMode $ do
+      cont

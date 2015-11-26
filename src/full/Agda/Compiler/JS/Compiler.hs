@@ -57,7 +57,7 @@ import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
-import Agda.Compiler.Common ( curDefs, curIF, curMName, setInterface, repl )
+import Agda.Compiler.Common ( curDefs, curIF, curMName, setInterface, repl, inCompilerEnv)
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
@@ -76,24 +76,8 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 --------------------------------------------------
 
 compilerMain :: Interface -> TCM ()
-compilerMain mainI =
-  -- Preserve the state (the compiler modifies the state).
-  localTCState $ do
-
-    -- Compute the output directory.
-    opts <- commandLineOptions
-    compileDir <- case optCompileDir opts of
-      Just dir -> return dir
-      Nothing  -> do
-        -- The default output directory is the project root.
-        let tm = toTopLevelModuleName $ iModuleName mainI
-        f <- findFile tm
-        return $ filePath $ projectRoot f tm
-    setCommandLineOptions $
-      opts { optCompileDir = Just compileDir }
-
-    ignoreAbstractMode $ do
-      mapM_ (compile . miInterface) =<< (elems <$> getVisitedModules)
+compilerMain mainI = inCompilerEnv mainI $ do
+  mapM_ (compile . miInterface) =<< (elems <$> getVisitedModules)
 
 compile :: Interface -> TCM ()
 compile i = do

@@ -49,7 +49,7 @@ import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Bridge as UB
 import Agda.Compiler.UHC.ModuleInfo
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
---import qualified Agda.Compiler.UHC.Smashing     as Smash
+import Agda.Compiler.Common
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -83,19 +83,18 @@ copyUHCAgdaBase outDir = do
 
 
 -- | Compile an interface into an executable using UHC
-compilerMain
-    :: [Interface] -- modules to compile. Imported modules will also be compiled,
+compilerMain :: [Interface] -- modules to compile. Imported modules will also be compiled,
                    -- no matter if they are mentioned here or not. The main module
                    -- should not be in this list.
     -> Maybe Interface -- The main module.
     -> TCM ()
-compilerMain inters mainInter = do
+compilerMain inters mainInter = inCompilerEnv mainI $ do
     when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
     -- TODO we should do a version check here at some point.
     let uhc_exist = ExitSuccess
     case uhc_exist of
         ExitSuccess -> do
-            outDir <- setUHCDir (fromMaybe (head inters) mainInter)
+            outDir <- setUHCDir mainI
 
             -- look for the Agda.Primitive interface in visited modules.
             -- (It will not be in ImportedModules, if it has not been
@@ -130,6 +129,7 @@ compilerMain inters mainInter = do
         ExitFailure _ -> internalError $ unlines
            [ "Agda cannot find the UHC compiler."
            ]
+  where mainI = fromMaybe (head inters) mainInter
 
 
 -- | Compiles a module and it's imports. Returns the module info
@@ -159,25 +159,21 @@ compileModule addImps i = do
               "Compiling: " ++ show (iModuleName i)
             opts <- lift commandLineOptions
             (code, modInfo) <- lift $ compileDefns modNm curModInfos opts i
-            crFile <- lift $ getCorePath modInfo
+            crFile <- lift $ corePath modNm
             _ <- lift $ writeCoreFile crFile code
 
             putCompModule modInfo
             return modInfo
 
+corePath :: ModuleName -> TCM FilePath
+corePath mName = do
+  mdir <- compileDir
+  let fp = mdir </> "UHC" </> replaceExtension fp' "bcr"
+  liftIO $ createDirectoryIfMissing True (takeDirectory fp)
+  return fp
+   where
+    fp' = foldl1 (</>) $ moduleNameToCoreNameParts mName
 
-getCorePath :: AModuleInfo -> TCM FilePath
-getCorePath amod = do
-  let modParts = moduleNameToCoreNameParts (amiModule amod)
-  outFile modParts
-  where
-    outFile :: [String] -> TCM FilePath
-    outFile modParts = do
-      let (dir, fn) = splitFileName $ foldl1 (</>) modParts
-          fp  | dir == "./"  = fn
-              | otherwise = dir </> fn
-      liftIO $ createDirectoryIfMissing True dir
-      return $ fp
 
 
 getMain :: MonadTCM m => Interface -> m QName
@@ -238,7 +234,7 @@ runUhcMain
     -> Maybe (AModuleInfo, HsName)  -- main module
     -> TCM ()
 runUhcMain otherMods mainInfo = do
-    otherFps <- mapM getCorePath otherMods
+    otherFps <- mapM (corePath . amiModule) otherMods
     allFps <- (otherFps++)
         <$> case mainInfo of
             Nothing -> return []
