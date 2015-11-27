@@ -278,8 +278,7 @@ readOptions inpFile =
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
-getExecForComp MAlonzo compDir inpFile = compDir </> (takeFileName $ dropExtension inpFile)
-getExecForComp UHC compDir inpFile = compDir </> "UHC" </> (takeFileName $ dropExtension inpFile)
+getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r

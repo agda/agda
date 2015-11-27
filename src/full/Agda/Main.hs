@@ -113,8 +113,8 @@ runAgdaWithOptions generateHTML progName opts
                       | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
                       | uhc && compileNoMain
-                                      = ((\x -> UHC.compilerMain [x] Nothing) =<<) . (failIfNoInt =<<)
-                      | uhc           = (UHC.compilerMain [] . Just =<<) . (failIfNoInt =<<)
+                                      = (UHC.compilerMain False =<<) . (failIfNoInt =<<)
+                      | uhc           = (UHC.compilerMain True =<<)  . (failIfNoInt =<<)
                       | otherwise     = (() <$)
       interaction $ do
         hasFile <- hasInputFile

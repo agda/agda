@@ -46,7 +46,6 @@ import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr)
 import Agda.Compiler.UHC.CompileState
-import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.Primitives
 import Agda.Compiler.UHC.MagicTypes
 
@@ -64,9 +63,9 @@ opts = defaultEHCOpts
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
 fromAgdaModule :: ModuleName
-    -> [AModuleInfo]     -- Module info of imported modules.
+    -> [ModuleName]      -- imported modules.
     -> Interface         -- interface to compile
-    -> TCM (CModule, AModuleInfo)
+    -> TCM CModule
 fromAgdaModule modNm curModImps iface = do
 
   -- Set correct pragma options
@@ -75,7 +74,7 @@ fromAgdaModule modNm curModImps iface = do
 
   let defs = HMap.toList $ iSignature iface ^. sigDefinitions
 
-  (mod', modInfo') <- runCompileT modNm curModImps (do
+  runCompileT modNm (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."
 
     funs' <- concat <$> mapM translateDefn defs
@@ -87,7 +86,7 @@ fromAgdaModule modNm curModImps iface = do
     let imps = map mkImport $ nub $
           [ mkHsName1 "UHC.Base"
           , mkHsName1 "UHC.Agda.Builtins" ]
-          ++ map (moduleNameToCoreName . amiModule) curModImps
+          ++ map moduleNameToCoreName curModImps
           ++ map mkHsName1 (Set.toList additionalImports)
 
         crModNm = moduleNameToCoreName modNm
@@ -95,8 +94,6 @@ fromAgdaModule modNm curModImps iface = do
     mkModule crModNm
       <$> getExports <*> pure imps <*> getDeclMetas <*> pure funs
     )
-
-  return (mod', modInfo')
 
 
 -- | Translate an Agda definition to an UHC Core function where applicable
@@ -369,6 +366,6 @@ compilePrim C.PEq  = mkVar $ primFunNm "primIntegerEquality"
 compilePrim C.PSeq = mkVar $ primFunNm "primSeq"
 
 
-createMainModule :: AModuleInfo -> HsName -> CModule
+createMainModule :: ModuleName -> HsName -> CModule
 createMainModule mainMod main = mkModule (mkHsName [] "Main") [] [mkImport $ mkHsName1 "UHC.Run", mkImport mainModAux] [] (mkMain main)
-  where mainModAux = moduleNameToCoreName (amiModule mainMod)
+  where mainModAux = moduleNameToCoreName mainMod

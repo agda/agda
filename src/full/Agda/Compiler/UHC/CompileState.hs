@@ -43,7 +43,6 @@ import Control.Applicative
 import Data.Monoid
 #endif
 
-import Agda.Compiler.UHC.ModuleInfo
 import Agda.Compiler.UHC.MagicTypes
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
@@ -93,22 +92,12 @@ type Compile = CompileT TCM
 -- During this transformation,
 runCompileT :: MonadIO m =>
        ModuleName   -- ^ The module to compile.
-    -> [AModuleInfo] -- ^ Imported module info, non-transitive.
     -> CompileT m a
-    -> m (a, AModuleInfo)
-runCompileT amod curImpMods comp = do
+    -> m a
+runCompileT amod comp = do
   (result, state') <- runStateT (unCompileT comp) initial
 
-  version <- liftIO getTime
-
-  let modInfo = AModuleInfo
-        { amiFileVersion = currentModInfoVersion
-        , amiModule = amod
-        , amiVersion = version
-        , amiDepsVersion = [ (amiModule m, amiVersion m) |  m <- curImpMods]
-        }
-
-  return (result, modInfo)
+  return result
   where initial = CompileState
             { coreMeta = mempty
             , nameSupply = 0

@@ -47,27 +47,11 @@ import Agda.Utils.Lens
 
 import Agda.Compiler.UHC.CompileState
 import Agda.Compiler.UHC.Bridge as UB
-import Agda.Compiler.UHC.ModuleInfo
 import qualified Agda.Compiler.UHC.FromAgda     as FAgda
 import Agda.Compiler.Common
 
 #include "undefined.h"
 import Agda.Utils.Impossible
-
--- we should use a proper build system to ensure that things get only built once,
--- but better than nothing
-type CompModT = StateT CompModState
-
-data CompModState = CompModState
-  { compileInfo :: M.Map ModuleName (AModuleInfo)
-  }
-
-putCompModule :: Monad m => AModuleInfo -> CompModT m ()
-putCompModule amod = modify (\s -> s
-    { compileInfo = M.insert (amiModule amod) amod (compileInfo s) })
-
-emptyCompModState :: CompModState
-emptyCompModState = CompModState M.empty
 
 -- for the time being, we just copy the base library into the generated code.
 -- We don't install it into the user db anymore, as that gets complicated when
@@ -83,92 +67,72 @@ copyUHCAgdaBase outDir = do
 
 
 -- | Compile an interface into an executable using UHC
-compilerMain :: [Interface] -- modules to compile. Imported modules will also be compiled,
-                   -- no matter if they are mentioned here or not. The main module
-                   -- should not be in this list.
-    -> Maybe Interface -- The main module.
-    -> TCM ()
-compilerMain inters mainInter = inCompilerEnv mainI $ do
+compilerMain :: Bool
+  -> Interface
+  -> TCM ()
+compilerMain isMain mainI = inCompilerEnv mainI $ do
     when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
     -- TODO we should do a version check here at some point.
     let uhc_exist = ExitSuccess
     case uhc_exist of
         ExitSuccess -> do
-            outDir <- setUHCDir mainI
 
-            -- look for the Agda.Primitive interface in visited modules.
-            -- (It will not be in ImportedModules, if it has not been
-            -- explicitly imported)
-            -- TODO this should be done in a more clean way
-            [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName) . map (miInterface) . M.elems
-                <$> getVisitedModules
+            copyUHCAgdaBase =<< compileDir
 
+            -- Always implicitly import Agda.Primitive now
+            mapM_ compileModule =<< (map miInterface . M.elems <$> getVisitedModules)
 
-            copyUHCAgdaBase outDir
-            (modInfos, mainInfo) <- evalStateT (do
-                -- first compile the Agda.Primitive module
-                agdaPrimModInfo <- compileModule [] agdaPrimInter
-                -- Always implicitly import Agda.Primitive now
-                modInfos <- mapM (compileModule [agdaPrimInter]) inters
-                let modInfos' = agdaPrimModInfo : modInfos
-
-                case mainInter of
-                  Nothing -> return (modInfos', Nothing)
-                  Just mainInter' -> do
-                    mainModInfo <- compileModule [agdaPrimInter] mainInter'
-                    main <- lift $ getMain mainInter'
-                    -- get core name from modInfo
-                    crMain <- lift $ getCoreName1 main
-                    return (modInfos', Just (mainModInfo, crMain))
-                )
-                emptyCompModState
-
-            runUhcMain modInfos mainInfo
-            return ()
+            if isMain
+              then do
+                main <- getMain mainI
+                -- get core name from modInfo
+                crMain <- getCoreName1 main
+                runUHCMain $ Just (iModuleName mainI, crMain)
+              else do runUHCMain Nothing
 
         ExitFailure _ -> internalError $ unlines
            [ "Agda cannot find the UHC compiler."
            ]
-  where mainI = fromMaybe (head inters) mainInter
 
 
 -- | Compiles a module and it's imports. Returns the module info
 -- of this module, and the accumulating module interface.
-compileModule :: [Interface] -- additional modules to import. Used to bring Agda.Primitive in scope.
-    -> Interface
-    -> CompModT TCM AModuleInfo
-compileModule addImps i = do
+compileModule :: Interface -> TCM ()
+compileModule i = do
+    -- look for the Agda.Primitive interface in visited modules.
+    -- (It will not be in ImportedModules, if it has not been
+    -- explicitly imported)
+    -- TODO this should be done in a more clean way
+    [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
+      . map miInterface . M.elems
+        <$> getVisitedModules
     -- we can't use the Core module name to get the name of the aui file,
     -- as we don't know the Core module name before we loaded/compiled the file.
     -- (well, we could just compute the module name and use that, that's
     -- probably better? )
-    compMods <- gets compileInfo
     let modNm = iModuleName i
     let topModuleName = toTopLevelModuleName modNm
     -- check if this module has already been compiled
-    case M.lookup modNm compMods of
-        Just x -> return x
-        Nothing  -> do
-            imports <- (addImps ++) . map miInterface . catMaybes
-                                      <$> lift (mapM (getVisitedModule . toTopLevelModuleName . fst)
-                                                     (iImportedModules i))
-            curModInfos <- mapM (compileModule addImps) imports
+    imports <- map miInterface . catMaybes
+      <$> (mapM (getVisitedModule . toTopLevelModuleName . fst)
+            (iImportedModules i))
 
-            -- check for uhc interface file
-            lift $ reportSLn "" 1 $
-              "Compiling: " ++ show (iModuleName i)
-            opts <- lift commandLineOptions
-            (code, modInfo) <- lift $ compileDefns modNm curModInfos opts i
-            crFile <- lift $ corePath modNm
-            _ <- lift $ writeCoreFile crFile code
+    let imports' = if prettyShow (iModuleName i) == "Agda.Primitive"
+                     then imports
+                     else agdaPrimInter : imports
 
-            putCompModule modInfo
-            return modInfo
+    reportSLn "" 1 $
+      "Compiling: " ++ show (iModuleName i)
+    code <- compileDefns modNm (map iModuleName imports') i
+    crFile <- corePath modNm
+    _ <- writeCoreFile crFile code
+    return ()
+
 
 corePath :: ModuleName -> TCM FilePath
 corePath mName = do
   mdir <- compileDir
-  let fp = mdir </> "UHC" </> replaceExtension fp' "bcr"
+  let fp = mdir </> replaceExtension fp' "bcr"
   liftIO $ createDirectoryIfMissing True (takeDirectory fp)
   return fp
    where
@@ -188,66 +152,50 @@ getMain iface = case concatMap f defs of
 
 -- | Perform the chain of compilation stages, from definitions to UHC Core code
 compileDefns :: ModuleName
-    -> [AModuleInfo] -- ^ top level imports
-    -> CommandLineOptions
-    -> Interface -> TCM (UB.CModule, AModuleInfo)
-compileDefns modNm curModImps opts iface = do
+    -> [ModuleName] -- ^ top level imports
+    -> Interface -> TCM UB.CModule
+compileDefns modNm curModImps iface = do
 
-    (crMod, modInfo) <- FAgda.fromAgdaModule modNm curModImps iface
+    crMod <- FAgda.fromAgdaModule modNm curModImps iface
 
     reportSLn "uhc" 10 $ "Done generating Core for \"" ++ show modNm ++ "\"."
-    return (crMod, modInfo)
+    return crMod
 
-writeCoreFile :: String -> UB.CModule -> TCM FilePath
+writeCoreFile :: String -> UB.CModule -> TCM ()
 writeCoreFile f cmod = do
   useTextual <- optUHCTextualCore <$> commandLineOptions
 
   -- dump textual core, useful for debugging.
   when useTextual (do
-    let f' = f <.> ".dbg.tcr"
+    let f' = replaceExtension f ".dbg.tcr"
     reportSLn "uhc" 10 $ "Writing textual core to \"" ++ show f' ++ "\"."
     liftIO $ putPPFile f' (UB.printModule defaultEHCOpts cmod) 200
     )
 
-  let f' = f <.> ".bcr"
-  reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f' ++ "\"."
-  liftIO $ putSerializeFile f' cmod
-  return f'
-
--- | Change the current directory to UHC folder, create it if it doesn't already
---   exist.
-setUHCDir :: Interface -> TCM FilePath
-setUHCDir mainI = do
-    let tm = toTopLevelModuleName $ iModuleName mainI
-    f <- findFile tm
-    compileDir' <- gets (fromMaybe (filePath $ CN.projectRoot f tm) .
-                                  optCompileDir . stPersistentOptions . stPersistentState)
-    compileDir <- liftIO $ canonicalizePath compileDir'
-    liftIO $ setCurrentDirectory compileDir
-    liftIO $ createDirectoryIfMissing False "UHC"
-    liftIO $ setCurrentDirectory $ compileDir </> "UHC"
-    return $ compileDir </> "UHC"
+  reportSLn "uhc" 10 $ "Writing binary core to \"" ++ show f ++ "\"."
+  liftIO $ putSerializeFile f cmod
 
 -- | Create the UHC Core main file, which calls the Agda main function
-runUhcMain
-    :: [AModuleInfo]    -- other modules to compile
-    -> Maybe (AModuleInfo, HsName)  -- main module
+runUHCMain
+    :: Maybe (ModuleName, HsName)  -- main module
     -> TCM ()
-runUhcMain otherMods mainInfo = do
-    otherFps <- mapM (corePath . amiModule) otherMods
-    allFps <- (otherFps++)
-        <$> case mainInfo of
-            Nothing -> return []
+runUHCMain mainInfo = do
+    otherFps <- mapM (corePath . iModuleName . miInterface) =<< (M.elems <$> getVisitedModules)
+    allFps <-
+      case mainInfo of
+            Nothing -> return otherFps
             Just (mainMod, mainName) -> do
-                let fp = "Main"
+                fp <- (</> "Main.bcr") <$> compileDir
                 let mmod = FAgda.createMainModule mainMod mainName
-                fp' <- writeCoreFile fp mmod
-                return [fp']
+                writeCoreFile fp mmod
+                return ["Main.bcr"]
 
     let extraOpts = maybe
             ["--compile-only"]
-            ((\x -> [x]) . ("--output="++) . prettyShow . last . mnameToList . amiModule . fst)
+            ((\x -> [x]) . ("--output="++) . prettyShow . last . mnameToList . fst)
             mainInfo
+
+    liftIO . setCurrentDirectory =<< compileDir
 
     -- TODO drop the RTS args as soon as we don't need the additional memory anymore
     callUHC1 $  ["--pkg-hide-all", "--pkg-expose=uhcbase", "--pkg-expose=base"
