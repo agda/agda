@@ -13,6 +13,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Char
 
+import Control.Monad
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
 import Agda.Syntax.Common
