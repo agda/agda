@@ -268,7 +268,9 @@ instance Match NLPat Term where
         body <- liftRed $ reduce' body
         match gamma k p' body
       PPi pa pb  -> case ignoreSharing v of
-        Pi a b -> match gamma k pa a >> match gamma k pb b
+        Pi a b -> do
+          (a,b) <- liftRed $ reduce' (a,b)
+          match gamma k pa a >> match gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
