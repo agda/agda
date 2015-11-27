@@ -79,6 +79,10 @@ data Phase
     -- ^ Subphase for 'Typing': free variable computation.
   | OccursCheck
     -- ^ Subphase for 'Typing': occurs check for solving metas.
+  | CheckLHS
+    -- ^ Subphase for 'Typing': checking the LHS
+  | UnifyIndices
+    -- ^ Subphase for 'CheckLHS': unification of the indices
   | InverseScopeLookup
     -- ^ Pretty printing names.
   deriving (Eq, Ord, Show, Enum, Bounded)

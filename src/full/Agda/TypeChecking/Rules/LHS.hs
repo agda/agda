@@ -30,6 +30,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Datatypes
@@ -459,7 +460,7 @@ checkLeftHandSide
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a ret = do
+checkLeftHandSide c f ps a ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ do
   problem0 <- problemFromPats ps a
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity

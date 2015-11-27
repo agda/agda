@@ -41,6 +41,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Conversion -- equalTerm
@@ -516,7 +517,7 @@ unifyIndices_ flex a us vs = liftTCM $ do
     NoUnify  err  -> throwError err
 
 unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> Args -> Args -> tcm UnificationResult
-unifyIndices flex a us vs = liftTCM $ do
+unifyIndices flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     a <- reduce a
     reportSDoc "tc.lhs.unify" 10 $
       sep [ text "unifyIndices"
