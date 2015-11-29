@@ -369,11 +369,6 @@ classifyPattern conf p =
 
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
---   TODO: check the arities of constructors. There is a possible ambiguity with
---   postfix constructors:
---      Assume _ * is a constructor. Then 'true *' can be parsed as either the
---      intended _* applied to true, or as true applied to a variable *. If we
---      check arities this problem won't appear.
 parseLHS :: Name -> Pattern -> ScopeM LHSCore
 parseLHS top p = billToParser $ do
   res <- parseLHS' IsLHS (Just top) p
@@ -382,11 +377,6 @@ parseLHS top p = billToParser $ do
     _ -> typeError $ NoParseForLHS IsLHS p
 
 -- | Parses a pattern.
---   TODO: check the arities of constructors. There is a possible ambiguity with
---   postfix constructors:
---      Assume _ * is a constructor. Then 'true *' can be parsed as either the
---      intended _* applied to true, or as true applied to a variable *. If we
---      check arities this problem won't appear.
 parsePattern :: Pattern -> ScopeM Pattern
 parsePattern = parsePatternOrSyn IsLHS
 
