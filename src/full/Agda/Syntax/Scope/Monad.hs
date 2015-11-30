@@ -366,10 +366,7 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
       lift $ reportSLn "scope.copy" 50 $ show s
       s0 <- lift $ getNamedScope new
       -- Delete private names, then copy names and modules.
-      -- Andreas, 2015-11-10, Issue 1701: Keep private modules, they are needed
-      -- as sections in the type checker later (see @getSecFreeVars@)!
-      s' <- mapScopeM_ copyD copyM $
-        modifyNameSpace PrivateNS (mapNameSpace (const Map.empty) id) s
+      s' <- mapScopeM_ copyD copyM $ setNameSpace PrivateNS emptyNameSpace s
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0

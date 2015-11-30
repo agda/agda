@@ -461,11 +461,7 @@ setScopeAccess a s = (`updateScopeNameSpaces` s) $ AssocList.mapWithKey $ const 
 
 -- | Update a particular name space.
 setNameSpace :: NameSpaceId -> NameSpace -> Scope -> Scope
-setNameSpace nsid ns = modifyNameSpace nsid $ const ns
-
--- | Modify a particular name space.
-modifyNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> Scope -> Scope
-modifyNameSpace nsid f = updateScopeNameSpaces $ AssocList.updateAt nsid f
+setNameSpace nsid ns = updateScopeNameSpaces $ AssocList.update nsid ns
 
 -- | Add names to a scope.
 addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope
