@@ -897,8 +897,11 @@ niceDeclarations ds = do
     -- isFunClauseOf _ _ = False
 
     removeSingletonRawAppP :: Pattern -> Pattern
-    removeSingletonRawAppP (RawAppP _ [p]) = removeSingletonRawAppP p
-    removeSingletonRawAppP p               = p
+    removeSingletonRawAppP p =
+      case p of
+        RawAppP _ [p'] -> removeSingletonRawAppP p'
+        ParenP _ p'    -> removeSingletonRawAppP p'
+        _ -> p
 
     -- Make an old style mutual block from a list of mutual declarations
     mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
