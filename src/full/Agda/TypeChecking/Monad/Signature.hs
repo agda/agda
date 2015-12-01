@@ -141,9 +141,14 @@ unionSignatures ss = foldr unionSignature emptySignature ss
           (HMap.unionWith mappend c c')  -- rewrite rules are accumulated
 
 -- | Add a section to the signature.
+--
+--   The current context will be stored as the cumulative module parameters
+--   for this section.  The passed number @fv@ is the free variables bound
+--   by this section (the last @fv@ entries of the context).
 addSection :: ModuleName -> Nat -> TCM ()
 addSection m fv = do
   tel <- getContextTelescope
+  when (fv > size tel) __IMPOSSIBLE__
   let sec = Section tel fv
   modifySignature $ over sigSections $ Map.insert m sec
 
@@ -261,8 +266,8 @@ applySection' new ptel old ts rd rm = do
     -- produce out-of-scope constructors.
     copyName x = fromMaybe x $ lookup x rd
 
-    argsToUse new = do
-      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
+    argsToUse x = do
+      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList x)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
       getModuleFreeVars' (fmap (^. secFreeVars) <.> getSection) m
 
@@ -371,6 +376,41 @@ applySection' new ptel old ts rd rm = do
                         , clauseType      = Just $ defaultArg t
                         }
 
+    {- Example
+
+    module Top Θ where
+      module A Γ where
+        module M Φ where
+      module B Δ where
+        module N Ψ where
+          module O Ψ' where
+        open A public     -- introduces only M --> A.M into the *scope*
+    module C Ξ = Top.B ts
+
+    new section C
+      tel = Ξ.(Θ.Δ)[ts]
+      fv  = |tel|  (as C lives in the top level)
+
+    calls
+      1. copySec ts (Top.A.M, C.M)
+      2. copySec ts (Top.B.N, C.N)
+      3. copySec ts (Top.B.N.O, C.N.O)
+    with
+      old = Top.B
+
+    For 1.
+      Common prefix is: Top
+      totalArgs = |Θ|   (section Top)
+      tel       = Θ.Γ.Φ (section Top.A.M)
+      ptel      = Θ.Γ   (section Top.A)
+      fv        = |Φ|
+      ts'       = take totalArgs ts
+      Θ₂        = drop totalArgs Θ
+      new section C.M
+        tel =  Θ₂.Γ.Φ[ts']
+        ?? To be continued
+
+    -}
     copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
     copySec ts (x, y) = do
       totalArgs <- argsToUse x
