@@ -1,0 +1,4 @@
+ModuleArityMismatchEmptyTel.agda:6,3-20
+The module M is not parameterized, but is being applied to
+arguments
+when checking the module application module M′ = M Set
