@@ -420,19 +420,20 @@ applySection' new ptel old ts rd rm = do
           childParams  = size tel - parentParams
           argsToChild  = max 0 $ totalArgs - parentParams
       let fv = childParams - argsToChild
+          sectionTel   =  apply tel $ take totalArgs ts
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
-      -- reportSLn "tc.mod.apply" 80 $ "  free variables: " ++ show fv
       reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ intercalate "; " (map prettyShow ts)
-      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
+      reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
       reportSLn "tc.mod.apply" 80 $ "  ptel         = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
+      reportSLn "tc.mod.apply" 80 $ "  parentParams = " ++ show parentParams
+      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
+      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
       -- reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show (map (second unEl . unDom) $ telToList tel)
       -- reportSLn "tc.mod.apply" 80 $ "  ptel= " ++ show (map (second unEl . unDom) $ telToList ptel)
-      reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
-      reportSLn "tc.mod.apply" 80 $ "  parentParams = " ++ show parentParams
       reportSLn "tc.mod.apply" 80 $ "  childParams  = " ++ show childParams
       reportSLn "tc.mod.apply" 80 $ "  argsToChild  = " ++ show argsToChild
       reportSLn "tc.mod.apply" 80 $ "  fv           = " ++ show fv
-      addCtxTel (apply tel $ take totalArgs ts) $ addSection y fv
+      addCtxTel sectionTel $ addSection y fv
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
