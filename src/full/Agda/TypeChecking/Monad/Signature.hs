@@ -183,9 +183,14 @@ unionSignatures ss = foldr unionSignature emptySignature ss
           (HMap.unionWith mappend c c')  -- rewrite rules are accumulated
 
 -- | Add a section to the signature.
+--
+--   The current context will be stored as the cumulative module parameters
+--   for this section.  The passed number @fv@ is the free variables bound
+--   by this section (the last @fv@ entries of the context).
 addSection :: ModuleName -> Nat -> TCM ()
 addSection m fv = do
   tel <- getContextTelescope
+  when (fv > size tel) __IMPOSSIBLE__
   let sec = Section tel fv
   modifySignature $ over sigSections $ Map.insert m sec
 
@@ -331,8 +336,8 @@ applySection' new ptel old ts rd rm = do
     -- produce out-of-scope constructors.
     copyName x = fromMaybe x $ lookup x rd
 
-    argsToUse new = do
-      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList new)
+    argsToUse x = do
+      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList x)
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
       getModuleFreeVars' (fmap (^. secFreeVars) <.> getSection) m
 
@@ -444,28 +449,61 @@ applySection' new ptel old ts rd rm = do
                         , clauseCatchall  = False
                         }
 
+    {- Example
+
+    module Top Θ where
+      module A Γ where
+        module M Φ where
+      module B Δ where
+        module N Ψ where
+          module O Ψ' where
+        open A public     -- introduces only M --> A.M into the *scope*
+    module C Ξ = Top.B ts
+
+    new section C
+      tel = Ξ.(Θ.Δ)[ts]
+      fv  = |tel|  (as C lives in the top level)
+
+    calls
+      1. copySec ts (Top.A.M, C.M)
+      2. copySec ts (Top.B.N, C.N)
+      3. copySec ts (Top.B.N.O, C.N.O)
+    with
+      old = Top.B
+
+    For 1.
+      Common prefix is: Top
+      totalArgs = |Θ|   (section Top)
+      tel       = Θ.Γ.Φ (section Top.A.M)
+      ptel      = Θ.Γ   (section Top.A)
+      fv        = |Φ|
+      ts'       = take totalArgs ts
+      Θ₂        = drop totalArgs Θ
+      new section C.M
+        tel =  Θ₂.Γ.Φ[ts']
+        ?? To be continued
+
+    -}
     copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
     copySec ts (x, y) = do
       totalArgs <- argsToUse x
       tel       <- lookupSection x
       ptel      <- lookupSection $ mnameFromList $ init $ mnameToList x
       let parentParams = size ptel
-          childParams  = size tel - parentParams
-          argsToChild  = max 0 $ totalArgs - parentParams
-      let fv = childParams - argsToChild
+          fv           = size tel - parentParams  -- childParams
+          sectionTel   =  apply tel $ take totalArgs ts
+      when (totalArgs > parentParams) __IMPOSSIBLE__
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
-      -- reportSLn "tc.mod.apply" 80 $ "  free variables: " ++ show fv
       reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ intercalate "; " (map prettyShow ts)
-      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
+      reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
       reportSLn "tc.mod.apply" 80 $ "  ptel         = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
+      reportSLn "tc.mod.apply" 80 $ "  parentParams = " ++ show parentParams
+      reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
+      reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
       -- reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show (map (second unEl . unDom) $ telToList tel)
       -- reportSLn "tc.mod.apply" 80 $ "  ptel= " ++ show (map (second unEl . unDom) $ telToList ptel)
-      reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
-      reportSLn "tc.mod.apply" 80 $ "  parentParams = " ++ show parentParams
-      reportSLn "tc.mod.apply" 80 $ "  childParams  = " ++ show childParams
-      reportSLn "tc.mod.apply" 80 $ "  argsToChild  = " ++ show argsToChild
       reportSLn "tc.mod.apply" 80 $ "  fv           = " ++ show fv
-      addCtxTel (apply tel $ take totalArgs ts) $ addSection y fv
+      addCtxTel sectionTel $ addSection y fv
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
