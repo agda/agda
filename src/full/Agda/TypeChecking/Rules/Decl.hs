@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 
 #if __GLASGOW_HASKELL__ >= 710
@@ -820,7 +821,9 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
       , nest 2 $ text "eta  =" <+> escapeContext (size ptel) (addContext tel'' $ prettyTCM etaTel)
       ]
     -- Now, type check arguments.
-    ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel''
+    ts <- (noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel') >>= \case
+      (ts, etaTel') | (size etaTel == size etaTel') -> return ts
+      _ -> __IMPOSSIBLE__
     -- Perform the application of the module parameters.
     let aTel = tel' `apply` ts
     reportSDoc "tc.mod.apply" 15 $ vcat
