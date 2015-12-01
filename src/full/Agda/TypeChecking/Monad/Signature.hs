@@ -417,10 +417,9 @@ applySection' new ptel old ts rd rm = do
       tel       <- lookupSection x
       ptel      <- lookupSection $ mnameFromList $ init $ mnameToList x
       let parentParams = size ptel
-          childParams  = size tel - parentParams
-          argsToChild  = max 0 $ totalArgs - parentParams
-      let fv = childParams - argsToChild
+          fv           = size tel - parentParams  -- childParams
           sectionTel   =  apply tel $ take totalArgs ts
+      when (totalArgs > parentParams) __IMPOSSIBLE__
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
       reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ intercalate "; " (map prettyShow ts)
       reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
@@ -430,8 +429,6 @@ applySection' new ptel old ts rd rm = do
       reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
       -- reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show (map (second unEl . unDom) $ telToList tel)
       -- reportSLn "tc.mod.apply" 80 $ "  ptel= " ++ show (map (second unEl . unDom) $ telToList ptel)
-      reportSLn "tc.mod.apply" 80 $ "  childParams  = " ++ show childParams
-      reportSLn "tc.mod.apply" 80 $ "  argsToChild  = " ++ show argsToChild
       reportSLn "tc.mod.apply" 80 $ "  fv           = " ++ show fv
       addCtxTel sectionTel $ addSection y fv
 
