@@ -1,5 +1,6 @@
 -- Andreas, 2015-11-24, reported by Wolfram Kahl
--- {-# OPTIONS -v impossible:10 #-}
+{-# OPTIONS -v impossible:60 #-}
+-- {-# OPTIONS -v tc.section:60 #-}
 -- {-# OPTIONS -v scope:10 #-}
 -- -- {-# OPTIONS -v tc.mod.apply:100 #-}
 
