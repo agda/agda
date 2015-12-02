@@ -426,12 +426,12 @@ instance ToConcrete A.Expr C.Expr where
               removeApp p = do
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete removeApp p = " ++ show p
                 return p -- __IMPOSSIBLE__ -- Andreas, this is actually not impossible, my strictification exposed this sleeping bug
-          let decl2clause (C.FunClause lhs rhs wh) = do
+          let decl2clause (C.FunClause lhs rhs wh ca) = do
                 let p = lhsOriginalPattern lhs
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p = " ++ show p
                 p' <- removeApp p
                 lift $ reportSLn "extendedlambda" 50 $ "abstractToConcrete extended lambda pattern p' = " ++ show p'
-                return (lhs{ lhsOriginalPattern = p' }, rhs, wh)
+                return (lhs{ lhsOriginalPattern = p' }, rhs, wh, ca)
               decl2clause _ = __IMPOSSIBLE__
           C.ExtendedLam (getRange i) <$> mapM decl2clause decls
     toConcrete (A.Pi _ [] e) = toConcrete e
@@ -569,13 +569,13 @@ instance ToConcrete LetBinding [C.Declaration] where
         do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e)
            ret [ C.TypeSig info x t
                , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
-                             e C.NoWhere
+                             e C.NoWhere False
                ]
     -- TODO: bind variables
     bindToConcrete (LetPatBind i p e) ret = do
         p <- toConcrete p
         e <- toConcrete e
-        ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere ]
+        ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere False ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
@@ -683,7 +683,7 @@ instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
           C.LHS p wps _ _ -> do
             bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
                 (rhs', eqs, with, wcs) <- toConcreteTop rhs
-                return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
+                return $ FunClause (C.LHS p wps eqs with) rhs' wh' catchall : wcs
           C.Ellipsis {} -> __IMPOSSIBLE__
           -- TODO: Is the case above impossible? Previously there was
           -- no code for it, but GHC 7's completeness checker spotted

@@ -138,7 +138,7 @@ instance Pretty Expr where
             AbsurdLam _ Instance -> lambda <+> text "{{}}"
             AbsurdLam _ Hidden -> lambda <+> text "{}"
             ExtendedLam _ pes ->
-              lambda <+> bracesAndSemicolons (map (\(x,y,z) -> prettyClause x y z) pes)
+              lambda <+> bracesAndSemicolons (map (\(x,y,z,_) -> prettyClause x y z) pes)
                    where prettyClause lhs rhs wh = sep [ pretty lhs
                                                        , nest 2 $ pretty' rhs
                                                        ] $$ nest 2 (pretty wh)
@@ -301,7 +301,7 @@ instance Pretty Declaration where
                     , nest 2 $ prettyRelevance i $ prettyHiding i id $
                         pretty $ TypeSig (i {argInfoRelevance = Relevant}) x e
                     ]
-            FunClause lhs rhs wh ->
+            FunClause lhs rhs wh _ ->
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs
                     ] $$ nest 2 (pretty wh)

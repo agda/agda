@@ -44,6 +44,9 @@ instance ExprLike Name where
 instance ExprLike QName where
   mapExpr f = id
 
+instance ExprLike Bool where
+  mapExpr f = id
+
 -- * Instances for functors.
 
 instance ExprLike a => ExprLike (Named name a) where
@@ -100,6 +103,11 @@ instance (ExprLike a, ExprLike b, ExprLike c) => ExprLike (a, b, c) where
   mapExpr      f (x, y, z) = (mapExpr f x, mapExpr f y, mapExpr f z)
   traverseExpr f (x, y, z) = (,,) <$> traverseExpr f x <*> traverseExpr f y <*> traverseExpr f z
   foldExpr     f (x, y, z) = foldExpr f x `mappend` foldExpr f y `mappend` foldExpr f z
+
+instance (ExprLike a, ExprLike b, ExprLike c, ExprLike d) => ExprLike (a, b, c, d) where
+  mapExpr      f (x, y, z, w) = (mapExpr f x, mapExpr f y, mapExpr f z, mapExpr f w)
+  traverseExpr f (x, y, z, w) = (,,,) <$> traverseExpr f x <*> traverseExpr f y <*> traverseExpr f z <*> traverseExpr f w
+  foldExpr     f (x, y, z, w) = foldExpr f x `mappend` foldExpr f y `mappend` foldExpr f z `mappend` foldExpr f w
 
 -- * Interesting instances
 
@@ -184,7 +192,7 @@ instance ExprLike Declaration where
   mapExpr f e0 = case e0 of
      TypeSig ai x e            -> TypeSig ai x                         $ mapE e
      Field x e                 -> Field x                              $ mapE e
-     FunClause lhs rhs wh      -> FunClause (mapE lhs) (mapE rhs)      $ mapE wh
+     FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
      DataSig r ind x bs e      -> DataSig r ind x (mapE bs)            $ mapE e
      Data r ind n bs e cs      -> Data r ind n (mapE bs) (mapE e)      $ mapE cs
      RecordSig r ind bs e      -> RecordSig r ind (mapE bs)            $ mapE e

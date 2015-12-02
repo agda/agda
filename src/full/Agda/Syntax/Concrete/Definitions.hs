@@ -518,7 +518,7 @@ niceDeclarations ds = do
     declaredNames d = case d of
       TypeSig _ x _        -> [x]
       Field x _            -> [x]
-      FunClause (LHS p [] [] []) _ _
+      FunClause (LHS p [] [] []) _ _ _
         | IdentP (QName x) <- removeSingletonRawAppP p
                            -> [x]
       FunClause{}          -> []
@@ -687,7 +687,7 @@ niceDeclarations ds = do
         Pragma p            -> (NicePragma (getRange p) p :) <$> nice ds
 
     niceFunClause :: TerminationCheck -> Catchall -> Declaration -> [Declaration] -> Nice [NiceDeclaration]
-    niceFunClause termCheck catchall d@(FunClause lhs _ _) ds = do
+    niceFunClause termCheck catchall d@(FunClause lhs _ _ _) ds = do
           xs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
@@ -800,20 +800,20 @@ niceDeclarations ds = do
 
     expandEllipsis :: [Declaration] -> [Declaration]
     expandEllipsis [] = []
-    expandEllipsis (d@(FunClause Ellipsis{} _ _) : ds) =
+    expandEllipsis (d@(FunClause Ellipsis{} _ _ _) : ds) =
       d : expandEllipsis ds
-    expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _) : ds) =
+    expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _ _) : ds) =
       d : expand p ps ds
       where
         expand _ _ [] = []
         expand p ps (d@(Pragma (CatchallPragma r)) : ds) = d : expand p ps ds
-        expand p ps (FunClause (Ellipsis r ps' eqs []) rhs wh : ds) =
-          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs []) rhs wh : expand p ps ds
-        expand p ps (FunClause (Ellipsis r ps' eqs es) rhs wh : ds) =
-          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh : expand p (ps ++ ps') ds
-        expand p ps (d@(FunClause (LHS _ _ _ []) _ _) : ds) =
+        expand p ps (FunClause (Ellipsis r ps' eqs []) rhs wh ca : ds) =
+          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs []) rhs wh ca : expand p ps ds
+        expand p ps (FunClause (Ellipsis r ps' eqs es) rhs wh ca : ds) =
+          FunClause (LHS (setRange r p) ((setRange r ps) ++ ps') eqs es) rhs wh ca : expand p (ps ++ ps') ds
+        expand p ps (d@(FunClause (LHS _ _ _ []) _ _ _) : ds) =
           d : expand p ps ds
-        expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _) : ds) =
+        expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _ _) : ds) =
           d : expand p ps ds
         expand _ _ (_ : ds) = __IMPOSSIBLE__
     expandEllipsis (_ : ds) = __IMPOSSIBLE__
@@ -825,12 +825,12 @@ niceDeclarations ds = do
     mkClauses x (Pragma (CatchallPragma r) : cs) False = do
       when (null cs) $ throwError $ InvalidCatchallPragma r
       mkClauses x cs True
-    mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh : cs) catchall =
-      (Clause x catchall lhs rhs wh [] :) <$> mkClauses x cs False
-    mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh : cs) catchall = do
+    mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh ca : cs) catchall =
+      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False
+    mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh ca : cs) catchall = do
       when (null with) $ throwError $ MissingWithClauses x
       wcs <- mkClauses x with False
-      (Clause x catchall lhs rhs wh wcs :) <$> mkClauses x cs' False
+      (Clause x (ca || catchall) lhs rhs wh wcs :) <$> mkClauses x cs' False
       where
         (with, cs') = subClauses cs
 
@@ -838,25 +838,25 @@ niceDeclarations ds = do
         -- greater or equal to the current number of with-patterns plus the
         -- number of with arguments.
         subClauses :: [Declaration] -> ([Declaration],[Declaration])
-        subClauses (c@(FunClause (LHS _ ps' _ _) _ _) : cs)
+        subClauses (c@(FunClause (LHS _ ps' _ _) _ _ _) : cs)
          | length ps' >= length ps + length es = mapFst (c:) (subClauses cs)
          | otherwise                           = ([], c:cs)
-        subClauses (c@(FunClause (Ellipsis _ ps' _ _) _ _) : cs)
+        subClauses (c@(FunClause (Ellipsis _ ps' _ _) _ _ _) : cs)
          = mapFst (c:) (subClauses cs)
         subClauses (c@(Pragma (CatchallPragma r)) : cs) = case subClauses cs of
           ([], cs') -> ([], c:cs')
           (cs, cs') -> (c:cs, cs')
         subClauses [] = ([],[])
         subClauses _  = __IMPOSSIBLE__
-    mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) catchall =
-      (Clause x catchall lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
+    mkClauses x (FunClause lhs@Ellipsis{} rhs wh ca : cs) catchall =
+      (Clause x (ca || catchall) lhs rhs wh [] :) <$> mkClauses x cs False   -- Will result in an error later.
     mkClauses _ _ _ = __IMPOSSIBLE__
 
     -- for finding clauses for a type sig in mutual blocks
     couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
     couldBeFunClauseOf mFixity x (Pragma (CatchallPragma{})) = True
-    couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _) = True
-    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _) =
+    couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _ _) = True
+    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _ _) =
       let
       pns        = patternNames p
       xStrings   = nameStringParts x
@@ -911,7 +911,7 @@ niceDeclarations ds = do
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
         case filter notAllowedInMutual ds of
           []  -> return ()
-          (NiceFunClause _ _ _ _ s_ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
+          (NiceFunClause _ _ _ _ s_ (FunClause lhs _ _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
         let tcs = map termCheck ds
         tc <- combineTermChecks r tcs

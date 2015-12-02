@@ -137,7 +137,7 @@ data Expr
   | InstanceArg Range (Named_ Expr)            -- ^ ex: @{{e}}@ or @{{x=e}}@
   | Lam Range [LamBinding] Expr                -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
   | AbsurdLam Range Hiding                     -- ^ ex: @\\ ()@
-  | ExtendedLam Range [(LHS,RHS,WhereClause)]  -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
+  | ExtendedLam Range [(LHS,RHS,WhereClause,Bool)]  -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
   | Fun Range Expr Expr                        -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
   | Pi Telescope Expr                          -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
   | Set Range                                  -- ^ ex: @Set@
@@ -360,7 +360,7 @@ data Declaration
   = TypeSig ArgInfo Name Expr
   -- ^ Axioms and functions can be irrelevant. (Hiding should be NotHidden)
   | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
-  | FunClause LHS RHS WhereClause
+  | FunClause LHS RHS WhereClause Bool
   | DataSig     Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
   | Data        Range Induction Name [LamBinding] (Maybe Expr) [TypeSignatureOrInstanceBlock]
   | RecordSig   Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
@@ -596,7 +596,7 @@ instance HasRange ModuleAssignment where
 instance HasRange Declaration where
   getRange (TypeSig _ x t)         = fuseRange x t
   getRange (Field x t)             = fuseRange x t
-  getRange (FunClause lhs rhs wh)  = fuseRange lhs rhs `fuseRange` wh
+  getRange (FunClause lhs rhs wh _) = fuseRange lhs rhs `fuseRange` wh
   getRange (DataSig r _ _ _ _)     = r
   getRange (Data r _ _ _ _ _)      = r
   getRange (RecordSig r _ _ _)     = r
@@ -723,7 +723,7 @@ instance KillRange BoundName where
 instance KillRange Declaration where
   killRange (TypeSig i n e)         = killRange2 (TypeSig i) n e
   killRange (Field n a)             = killRange2 Field n a
-  killRange (FunClause l r w)       = killRange3 FunClause l r w
+  killRange (FunClause l r w ca)    = killRange4 FunClause l r w ca
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
   killRange (Data _ i n l e c)      = killRange4 (Data noRange i) n l e c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
@@ -932,7 +932,7 @@ instance NFData Pattern where
 instance NFData Declaration where
   rnf (TypeSig a b c)         = rnf a `seq` rnf b `seq` rnf c
   rnf (Field a b)             = rnf a `seq` rnf b
-  rnf (FunClause a b c)       = rnf a `seq` rnf b `seq` rnf c
+  rnf (FunClause a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (DataSig _ a b c d)     = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
   rnf (Data _ a b c d e)      = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
   rnf (RecordSig _ a b c)     = rnf a `seq` rnf b `seq` rnf c

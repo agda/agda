@@ -65,7 +65,7 @@ import Agda.Utils.Tuple
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 1   -- shift/reduce for \ x y z -> foo = bar
+%expect 23  -- shift/reduce for \ x y z -> foo = bar
             -- shifting means it'll parse as \ x y z -> (foo = bar) rather than
             -- (\ x y z -> foo) = bar
 
@@ -622,7 +622,7 @@ ExtendedOrAbsurdLam
                                        Right es -> do -- it is of the form @\ { p1 ... () }@
                                                      p <- exprToLHS (RawApp (getRange es) es);
                                                      return $ ExtendedLam (fuseRange $1 es)
-                                                                     [(p [] [], AbsurdRHS, NoWhere)]
+                                                                     [(p [] [], AbsurdRHS, NoWhere, False)]
                                    }
 
 Application3 :: { [Expr] }
@@ -810,31 +810,36 @@ LamBindsAbsurd
   | '{' '}'                     { Left [Left Hidden] }
   | '{{' DoubleCloseBrace       { Left [Left Instance] }
 
+LamCatchall :: { Bool }
+LamCatchall
+  : CatchallPragma { True  }
+  | {- empty -}    { False }
+
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
-NonAbsurdLamClause :: { (LHS,RHS,WhereClause) }
+NonAbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
 NonAbsurdLamClause
-  : Application3 '->' Expr {% do
-      p <- exprToLHS (RawApp (getRange $1) $1) ;
-      return (p [] [], RHS $3, NoWhere)
+  : LamCatchall Application3 '->' Expr {% do
+      p <- exprToLHS (RawApp (getRange $2) $2) ;
+      return (p [] [], RHS $4, NoWhere, $1)
         }
 
-AbsurdLamClause :: { (LHS,RHS,WhereClause) }
+AbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
-  : Application {% do
-      p <- exprToLHS (RawApp (getRange $1) $1);
-      return (p [] [], AbsurdRHS, NoWhere)
+  : LamCatchall Application {% do
+      p <- exprToLHS (RawApp (getRange $2) $2);
+      return (p [] [], AbsurdRHS, NoWhere, $1)
         }
 
-LamClause :: { (LHS,RHS,WhereClause) }
+LamClause :: { (LHS,RHS,WhereClause,Bool) }
 LamClause
   : NonAbsurdLamClause { $1 }
   | AbsurdLamClause { $1 }
 
 -- Parses all extended lambda clauses except for a single absurd clause, which is taken care of
 -- in AbsurdLambda
-LamClauses :: { [(LHS,RHS,WhereClause)] }
+LamClauses :: { [(LHS,RHS,WhereClause,Bool)] }
 LamClauses
    : LamClauses semi LamClause { $3 : $1 }
    | AbsurdLamClause semi LamClause { [$3, $1] }
@@ -1856,7 +1861,7 @@ funClauseOrTypeSigs :: LHS -> RHSOrTypeSigs -> WhereClause -> Parser [Declaratio
 funClauseOrTypeSigs lhs mrhs wh = do
   -- traceShowM lhs
   case mrhs of
-    JustRHS rhs   -> return [FunClause lhs rhs wh]
+    JustRHS rhs   -> return [FunClause lhs rhs wh False]
     TypeSigsRHS e -> case wh of
       NoWhere -> case lhs of
         Ellipsis{}      -> parseError "The ellipsis ... cannot have a type signature"
@@ -1869,7 +1874,7 @@ funClauseOrTypeSigs lhs mrhs wh = do
 parseDisplayPragma :: Range -> Position -> String -> Parser Pragma
 parseDisplayPragma r pos s =
   case parsePosString pos defaultParseFlags [normal] funclauseParser s of
-    ParseOk s [FunClause (LHS lhs [] [] []) (RHS rhs) NoWhere] | null (parseInp s) ->
+    ParseOk s [FunClause (LHS lhs [] [] []) (RHS rhs) NoWhere ca] | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
 
