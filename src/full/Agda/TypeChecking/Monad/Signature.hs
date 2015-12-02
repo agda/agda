@@ -299,7 +299,6 @@ applySection new ptel old ts rd rm = do
                     , p <- parentModules m
                     , let p' = dropM (lenM m - lenM p) m'
                     , p  `isSubModuleOf` old
-                    , p' `isSubModuleOf` new  -- datatype modules get copied weirdly
                     , notElem p (map fst rm)
                     ]
       reportSLn "tc.mod.apply.complete" 30 $

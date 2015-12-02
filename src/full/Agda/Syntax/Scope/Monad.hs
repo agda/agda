@@ -350,16 +350,9 @@ type WSM = StateT Out ScopeM
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
---
---   Data and record types share a common abstract name with their module.
---   This invariant needs to be preserved by @copyScope@, since constructors
---   (fields) can be qualified by their data (record) type name (as an
---   alternative to qualification by their module).
---   (See Issue 836).
 copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, (A.Ren A.ModuleName, A.Ren A.QName))
 copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) ([], [])
   where
-    -- | A memoizing algorithm, the renamings serving as memo structure.
     copy :: A.ModuleName -> Scope -> StateT (A.Ren A.ModuleName, A.Ren A.QName) ScopeM Scope
     copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
@@ -400,10 +393,8 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
         renName x = do
-          -- Check whether we have already seen a module of the same name.
-          -- If yes, use its copy as @y@.
-          y <- ifJustM (findMod $ qnameToMName x) (return . mnameToQName) $ {- else -} do
-            -- First time, generate a fresh name for it.
+          -- Generate a fresh name for the target.
+          y <- do
             i <- lift fresh
             return $ A.qualify new' $ (qnameName x) { nameId = i }
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
@@ -424,9 +415,7 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
           -- If we have already copied this module, return the copy.
           ifJustM (findMod x) return $ {- else -} do
 
-          -- Check whether we have seen it already, yet as  name.
-          -- If yes, use its copy as @y@.
-          y <- ifJustM (findName $ mnameToQName x) (return . qnameToMName) $ {- else -} do
+          y <- do
              -- Andreas, Jesper, 2015-07-02: Issue 1597
              -- Don't blindly drop a prefix of length of the old qualifier.
              -- If things are imported by open public they do not have the old qualifier
