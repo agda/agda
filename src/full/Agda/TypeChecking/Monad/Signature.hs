@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
@@ -150,6 +151,20 @@ addSection m fv = do
   tel <- getContextTelescope
   when (fv > size tel) __IMPOSSIBLE__
   let sec = Section tel fv
+  -- Make sure we do not overwrite an existing section!
+  whenJustM (getSection m) $ \ sec' -> do
+    -- At least not with different content!
+    if (sec == sec') then do
+      -- Andreas, 2015-12-02: test/Succeed/Issue1701II.agda
+      -- reports a "redundantly adding existing section".
+      reportSLn "tc.section" 10 $ "warning: redundantly adding existing section " ++ show m
+      reportSLn "tc.section" 60 $ "with content " ++ show sec
+    else do
+      reportSLn "impossible" 10 $ "overwriting existing section " ++ show m
+      reportSLn "impossible" 60 $ "of content   " ++ show sec'
+      reportSLn "impossible" 60 $ "with content " ++ show sec
+      __IMPOSSIBLE__
+  -- Add the new section.
   modifySignature $ over sigSections $ Map.insert m sec
 
 -- | Lookup a section. If it doesn't exist that just means that the module

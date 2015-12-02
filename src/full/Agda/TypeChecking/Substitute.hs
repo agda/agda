@@ -1079,6 +1079,7 @@ deriving instance (Subst a, Eq a) => Eq (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)
 
 deriving instance Eq Constraint
+deriving instance Eq Section
 
 instance Ord PlusLevel where
   compare ClosedLevel{} Plus{}            = LT
