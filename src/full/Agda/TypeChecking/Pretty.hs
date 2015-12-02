@@ -343,14 +343,14 @@ instance PrettyTCM Pattern where
   prettyTCM = showPat' (text . patVarNameToString)
 
 instance PrettyTCM DeBruijnPattern where
-  prettyTCM = showPat' $ \ (i, x) -> text $ patVarNameToString x ++ "@" ++ show i
+  prettyTCM = showPat' $ \ (i, x) -> prettyTCM $ var i
 
 -- | Show a pattern, given a method how to show pattern variables.
 showPat' :: (a -> TCM Doc) -> Pattern' a -> TCM Doc
 showPat' showVar = showPat
   where
       showPat (VarP x)      = showVar x
-      showPat (DotP t)      = text $ ".(" ++ P.prettyShow t ++ ")"
+      showPat (DotP t)      = text ".(" <> prettyTCM t <> text ")"
       showPat (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (showPat . namedArg) ps)
         where

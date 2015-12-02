@@ -1,4 +1,4 @@
 WithoutK-PatternMatchingLambdas2.agda:11,20-26
-Cannot eliminate reflexive equation x₁ = x₁ of type A because K has
+Cannot eliminate reflexive equation x = x of type A because K has
 been disabled.
 when checking that the pattern refl x has type x ≡ x

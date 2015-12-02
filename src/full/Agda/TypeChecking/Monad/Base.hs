@@ -2070,13 +2070,18 @@ data TypeError
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
         | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageFailure QName [[Arg Pattern]]
+        | CoverageFailure QName [[Arg DeBruijnPattern]]
         | UnreachableClauses QName [[Arg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type
         | CoverageNoExactSplit QName Clause
         | WithoutKError Type Term Term
+        | UnifyConflict ConHead ConHead
+        | UnifyCycle Int Term
+        | UnifyIndicesNotVars Type Term Term Args
+        | UnificationRecursiveEq Type Int Term
+        | UnificationStuck Telescope [Term] [Term]
         | SplitError SplitError
     -- Positivity errors
         | NotStrictlyPositive QName [Occ]
