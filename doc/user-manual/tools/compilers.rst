@@ -29,7 +29,7 @@ UHC Backend
    The Agda Standard Library has been updated to support this new backend.
 
 The Agda UHC backend targets the Core language of the Utrecht Haskell Compiler (UHC).
-This backend is currently experimental, but should work for most Agda code.
+This backend is currently experimental and requires GHC 7.10, but should work for most Agda code.
 
 The backend is disabled by default, as it will pull in some large
 dependencies. To enable the backend, use the "uhc" cabal flag when
@@ -41,14 +41,15 @@ installing Agda:
 
 The backend also requires UHC to be installed. UHC is not available on
 Hackage and needs to be installed manually. This version of Agda has been
-tested with UHC 1.1.9.0, using other UHC versions may cause problems.
+tested with UHC 1.1.9.2, using other UHC versions may cause problems.
 To install UHC, the following commands can be used:
 
 .. code-block:: bash
 
+  cabal install uhc-util-0.1.6.3 uulib-0.9.21
   git clone https://github.com/UU-ComputerScience/uhc.git
   cd uhc
-  git checkout 82149a515aa0cbc492d8aa3f1ff10850a9cbe8d8
+  git checkout 292d259113b98c32154a5be336875751caa5edbc
   cd EHC
   ./configure
   make
