@@ -1,3 +1,26 @@
+# Nix file for Agda.
+#
+# To create a development environment, create a shell.nix file with this content:
+#
+# -----------------------------------
+# with (import <nixpkgs> {}).pkgs;
+# let modifiedHaskellPackages = haskellPackages.override {
+#      overrides = self: super: {
+#        stdlib-ffi = self.callPackage std-lib/ffi {};
+#        Agda = self.callPackage ./. {
+#            sphinx = python34Packages.sphinx;
+#            sphinx_rtd_theme = python34Packages.sphinx;
+#            uhc-backend = true;
+#            texLive = texlive.combine { inherit (texlive) scheme-small ucs preview dvipng; };
+#        };
+#      };
+#     };
+# in modifiedHaskellPackages.Agda.env
+# -----------------------------------
+#
+# To enter the development environment, simply call `nix-shell shell.nix`.
+#
+
 { mkDerivation, alex, array, base, binary, boxes, bytestring
 , containers, cpphs, data-hash, deepseq, directory, edit-distance
 , emacs, equivalence, filepath, geniplate-mirror, happy, hashable
@@ -6,11 +29,13 @@
 , regex-tdfa, regex-tdfa-text, filemanip
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
-, zlib, tasty-quickcheck, sphinx, sphinx_rtd_theme
+, zlib, tasty-quickcheck
 , uhc-backend ? false, uhc ? null, uhc-light ? null
+, user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
 }:
 
 assert uhc-backend -> uhc != null && uhc-light != null;
+assert user-manual -> sphinx != null && sphinx_rtd_theme != null && texLive != null;
 
 mkDerivation {
   pname = "Agda";
@@ -31,7 +56,9 @@ mkDerivation {
     tasty-silver temporary text
   ];
   configureFlags = if uhc-backend then [ "-fuhc" ] else [];
-  buildTools = [ alex cpphs emacs happy uhc sphinx sphinx_rtd_theme ];
+  buildTools = [ alex cpphs emacs happy ]
+    ++ stdenv.lib.optionals uhc-backend [ uhc ]
+    ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
   postInstall = ''
     $out/bin/agda -c --no-main $(find $out/share -name Primitive.agda)
     $out/bin/agda-mode compile
