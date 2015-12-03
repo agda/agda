@@ -451,7 +451,8 @@ variables bound in :math:`ps`), we
 
 - Partition the context :math:`\Delta` into :math:`\Delta_1` and
   :math:`\Delta_2` such that :math:`\Delta_1` is the smallest context where
-  :math:`\Delta_1 \vdash t_i : A_i` for all :math:`i`. Note that the
+  :math:`\Delta_1 \vdash A_i` for all :math:`i`, i.e., where the types of 
+  the scrutinees are well-formed.  Note that the
   partitioning is not required to be a split, :math:`\Delta_1\Delta_2` can be a
   (well-formed) reordering of :math:`\Delta`.
 
@@ -524,25 +525,26 @@ Below are some examples of with-abstractions and their translations.
      _+_   : A → A → A
      T     : A → Set
      mkT   : ∀ x → T x
+     P     : ∀ x → T x → Set
 
-   -- x and y are needed to type the with argument, so the context
-   -- is split after y
+   -- the type A of the with argument has no free variables, so the with
+   -- argument will come first
    f₁ : (x y : A) (t : T (x + y)) → T (x + y)
    f₁ x y t with x + y
    f₁ x y t    | w = {!!}
 
    -- Generated with function
-   f-aux₁ : (x y : A) (w : A) (t : T w) → T w
-   f-aux₁ x y w t = {!!}
+   f-aux₁ : (w : A) (x y : A) (t : T w) → T w
+   f-aux₁ w x y t = {!!}
 
-   -- x is not needed to type the with argument, so the context
+   -- x and p are not needed to type the with argument, so the context
    -- is reordered with only y before the with argument
-   f₂ : (x y : A) (t : T (y + y)) → T (y + y)
-   f₂ x y t with y + y
-   f₂ x y t    | w = {!!}
+   f₂ : (x y : A) (p : P y (mkT y)) → P y (mkT y)
+   f₂ x y p with mkT y
+   f₂ x y p    | w = {!!}
 
-   f-aux₂ : (y : A) (w : A) (x : A) (t : T w) → T w
-   f-aux₂ y w x t = {!!}
+   f-aux₂ : (y : A) (w : T y) (x : A) (p : P y w) → P y w
+   f-aux₂ y w x p = {!!}
 
    postulate
      H : ∀ x y → T (x + y) → Set
