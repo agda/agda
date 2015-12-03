@@ -526,7 +526,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
 
                     -- Andreas, 2013-02-26 separate msgs to see which goes wrong
                     reportSDoc "tc.with.top" 20 $
-                      text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
+                      text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ addContext delta2 $ prettyList (map prettyTCM vs)
                     reportSDoc "tc.with.top" 20 $
                       text "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
                     reportSDoc "tc.with.top" 20 $
@@ -574,7 +574,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
       , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
       , text "t      =" <+> prettyTCM t
       , text "as     =" <+> addCtxTel delta1 (prettyTCM as)
-      , text "vs     =" <+> addCtxTel delta1 (prettyTCM vs)
+      , text "vs     =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM vs
       , text "b      =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM b
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')

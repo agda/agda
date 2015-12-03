@@ -95,12 +95,16 @@ mod-lemma : ∀ x d (r : Fin (suc d)) → (toℕ r + x * suc d) mod suc d ≡ r
 mod-lemma x d r rewrite divMod-lemma x d r = refl
 
 
-mod-suc : ∀ n → n mod 7 ≡ zero → suc n mod 7 ≡ suc zero
-mod-suc n eq with n | n divMod 7
-mod-suc n refl | .(q * suc 6) | result q .zero refl = mod-lemma q 6 (suc zero)
+mod-suc : ∀ n
+  →     n mod 7 ≡     zero
+  → suc n mod 7 ≡ suc zero
+mod-suc n eq with n divMod 7
+mod-suc .(q * 7) refl | result q .zero refl = mod-lemma q 6 (suc zero)
 
 
-mod-pred : ∀ n →  suc n mod 7 ≡ suc zero → n mod 7 ≡ zero
+mod-pred : ∀ n
+  →  suc n mod 7 ≡ suc zero
+  →      n mod 7 ≡     zero
 mod-pred n eq with n divMod 7
 mod-pred .(toℕ r + q * 7) eq | result q r refl with toℕ r ≤? 5
 mod-pred .(toℕ r + q * 7) eq | result q r refl | yes p  = toℕ-injective eq4

@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v tc.with:40 #-}
+
 module RewriteAndWhere where
 
 open import Common.Equality
@@ -22,7 +24,6 @@ mutual
   good₂ : (a b : ℕ) → a ≡ b → b ≡ a
   good₂ a b eq = aux a b a eq
 
-
 bad : (a b : ℕ) → a ≡ b → b ≡ a
 bad a b eq rewrite eq = foo
   where
@@ -36,3 +37,8 @@ bad a b eq rewrite eq = foo
     --   where
     --     bar : a ≡ a
     --     bar = refl
+
+-- Andreas, 2015-11-18 added test during exploration of issue 1692.
+test : (a b : ℕ) → a ≡ b → b ≡ a
+test a b eq with a | eq
+test a b eq | .b | refl = eq

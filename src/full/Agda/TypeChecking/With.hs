@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.With where
 
@@ -100,7 +101,7 @@ splitTelForWith
 splitTelForWith delta t as vs = let
     -- Split the telescope into the part needed to type the with arguments
     -- and all the other stuff
-    fv = allFreeVars (vs, as)
+    fv = allFreeVars as
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ
@@ -115,35 +116,113 @@ splitTelForWith delta t as vs = let
     -- and Δ₁ ⊢ as'
     as' = applySubst rhopi as
     -- and Δ₁ ⊢ vs' : as'
-    vs' = applySubst rhopi vs
+    vs' = applySubst pi vs
 
   in (delta1, delta2, perm, t', as', vs')
 
 
-withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
-withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
-  (vas, b) <- addCtxTel delta1 $ do
-    reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
+-- | Abstract with-expressions @vs@ to generate type for with-helper function.
+
+withFunctionType
+  :: Telescope  -- ^ @Δ₁@                       context for types of with types.
+  -> [Term]     -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with-expressions.
+  -> [Type]     -- ^ @Δ₁ ⊢ as@                  types of with-expressions.
+  -> Telescope  -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
+  -> Type       -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
+  -> TCM Type   -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
+    -- @[vs/wtel]wtel = as@ and
+    -- @[vs/wtel]Δ₂′ = Δ₂@ and
+    -- @[vs/wtel]b′ = b@.
+
+withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
+
+  -- Normalize and η-contract the types @as@ of the with-expressions.
+
+  reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
+  as <- etaContract =<< normalise as
+  reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
+
+  -- Normalize and η-contract the type @b@ of the rhs and the types @delta2@
+  -- of the pattern variables not mentioned in @as@.
+
+  d2b <- return $ telePi_ delta2 b
+  reportSDoc "tc.with.abstract" 30 $ text "normalizing d2b = " <+> prettyTCM d2b
+  d2b  <- normalise d2b
+  reportSDoc "tc.with.abstract" 30 $ text "eta-contracting d2b = " <+> prettyTCM d2b
+  d2b  <- etaContract d2b
+  reportSDoc "tc.with.abstract" 20 $ text "  d2b  = " <+> prettyTCM d2b
+  let n2 = size delta2
+  TelV delta2 b <- telViewUpTo n2 d2b
+
+  addContext delta2 $ do
+
+    -- Normalize and η-contract the with-expressions @vs@.
+
     vs <- etaContract =<< normalise vs
     reportSDoc "tc.with.abstract" 20 $ text "  vs = " <+> prettyTCM vs
-    as <- etaContract =<< normalise as
-    reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
-    b <- return $ telePi_ delta2 b
-    reportSDoc "tc.with.abstract" 30 $ text "normalizing b = " <+> prettyTCM b
-    b  <- normalise b
-    reportSDoc "tc.with.abstract" 30 $ text "eta-contracting b = " <+> prettyTCM b
-    b  <- etaContract b
-    reportSDoc "tc.with.abstract" 20 $ text "  b  = " <+> prettyTCM b
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $
-            [ text "vs = " <+> prettyTCM vs
-            , text "as = " <+> prettyTCM as
-            , text "b  = " <+> prettyTCM b ]
+            [ text "vs     = " <+> prettyTCM vs
+            , text "as     = " <+> escapeContext n2 (prettyTCM as)
+            , text "delta2 = " <+> escapeContext n2 (prettyTCM delta2)
+            , text "b      = " <+> prettyTCM b ]
           ]
     reportSLn "tc.with.abstract" 50 $ "  raw vs = " ++ show vs ++ "\n  raw b  = " ++ show b
-    return (zip vs as, b)
-  return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
+
+    -- Abstract in @b@ and in @as@, generating @wtel@ and @b'@.
+    -----------------------------------------------------------
+
+    -- Δ₁, Δ₂ ⊢ wtel0
+    -- Δ₁, Δ₂, wtel0 ⊢ b0
+    let TelV wtel0 b0 = telView'UpTo (size as) $
+          foldr (uncurry piAbstractTerm) b $ zip vs $ raise n2 as
+
+    -- We know the types in wtel0 (abstracted versions of @as@) do not depend on Δ₂.
+    -- Δ₁ ⊢ wtel
+    let wtel = applySubst (strengthenS __IMPOSSIBLE__ n2) wtel0
+
+    -- Δ₁, Δ₂, wtel ⊢ ρ : Δ₁, wtel, Δ₂
+    let m = n2 + size wtel
+    let rho = (map var $ [n2..m-1] ++ [0..n2-1]) ++# raiseS m
+
+    -- Using ρ, swap the variables of wtel and Δ₂ to get
+    -- Δ₁, wtel, Δ₂ ⊢ b'
+    let b' = applySubst rho b0
+
+    -- Abstract in @Δ₂@ to get @Δ₁, wtel ⊢ Δ₂′@.
+    ------------------------------------------
+
+    -- Δ₁, Δ₂ ⊢ Δ₂flat
+    let delta2flat = flattenTel delta2
+
+    let abstrvs t = foldl (flip abstractTerm) t $ zipWith raise [0..] vs
+    -- Δ₁, Δ₂, wtel ⊢ Δ₂abs
+    let delta2abs = abstrvs delta2flat
+
+    -- Δ₁, wtel, Δ₂ ⊢ Δ₂flat'
+    let delta2flat' = applySubst rho delta2abs
+
+    -- Δ₁, wtel ⊢ Δ₂′
+    let delta2' = unflattenTel (teleNames delta2) delta2flat'
+
+    -- Assemble final type of with-function.
+    ----------------------------------------
+
+    let ty = telePi_ delta1 $ telePi_ wtel $ telePi_ delta2' b'
+    reportSDoc "tc.with.abstract" 20 $ sep $
+      [ text "finished with-abstraction"
+      , text "  wtel0       = " <+> prettyTCM wtel0
+      , text "  wtel        = " <+> do escapeContext n2 $ prettyTCM wtel
+      , text "  b0          = " <+> addContext wtel (prettyTCM b0)
+      , text "  b'          = " <+> do escapeContext n2 $ addContext wtel $ addContext delta2 $ prettyTCM b'
+      , text "  delta2flat  = " <+> prettyTCM delta2flat
+      , text "  delta2flat' = " <+> do addContext wtel $ prettyTCM delta2flat'
+      , text "  delta2'     = " <+> do escapeContext n2 $ addContext wtel $ prettyTCM delta2'
+      , text "  ty          = " <+> do escapeContext n2 $ escapeContext (size delta1) $ prettyTCM delta2'
+      ]
+    return ty
+
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
