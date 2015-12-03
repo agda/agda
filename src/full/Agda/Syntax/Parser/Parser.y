@@ -65,7 +65,7 @@ import Agda.Utils.Tuple
 %monad { Parser }
 %lexer { lexer } { TokEOF }
 
-%expect 23  -- shift/reduce for \ x y z -> foo = bar
+%expect 1   -- shift/reduce for \ x y z -> foo = bar
             -- shifting means it'll parse as \ x y z -> (foo = bar) rather than
             -- (\ x y z -> foo) = bar
 
@@ -810,26 +810,29 @@ LamBindsAbsurd
   | '{' '}'                     { Left [Left Hidden] }
   | '{{' DoubleCloseBrace       { Left [Left Instance] }
 
-LamCatchall :: { Bool }
-LamCatchall
-  : CatchallPragma { True  }
-  | {- empty -}    { False }
-
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
 NonAbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
 NonAbsurdLamClause
-  : LamCatchall Application3 '->' Expr {% do
+  : Application3 '->' Expr {% do
+      p <- exprToLHS (RawApp (getRange $1) $1) ;
+      return (p [] [], RHS $3, NoWhere, False)
+        }
+  | CatchallPragma Application3 '->' Expr {% do
       p <- exprToLHS (RawApp (getRange $2) $2) ;
-      return (p [] [], RHS $4, NoWhere, $1)
+      return (p [] [], RHS $4, NoWhere, True)
         }
 
 AbsurdLamClause :: { (LHS,RHS,WhereClause,Bool) }
 AbsurdLamClause
 -- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
 -- Later stages such as scope checking will complain if we let something through which we should not
-  : LamCatchall Application {% do
+  : Application {% do
+      p <- exprToLHS (RawApp (getRange $1) $1);
+      return (p [] [], AbsurdRHS, NoWhere, False)
+        }
+  | CatchallPragma Application {% do
       p <- exprToLHS (RawApp (getRange $2) $2);
-      return (p [] [], AbsurdRHS, NoWhere, $1)
+      return (p [] [], AbsurdRHS, NoWhere, True)
         }
 
 LamClause :: { (LHS,RHS,WhereClause,Bool) }
