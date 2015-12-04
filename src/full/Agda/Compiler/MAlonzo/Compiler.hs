@@ -80,16 +80,16 @@ import Paths_Agda
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-compilerMain :: Bool -> Interface -> TCM ()
-compilerMain modIsMain mainI =
-  inCompilerEnv mainI $ do
-    mapM_ (compile . miInterface) =<< (Map.elems <$> getVisitedModules)
+compilerMain :: IsMain -> Interface -> TCM ()
+compilerMain isMain i =
+  inCompilerEnv i $ do
+    doCompile isMain i $
+      \_ -> compile
     copyRTEModules
-    callGHC modIsMain mainI
+    callGHC isMain i
 
 compile :: Interface -> TCM ()
 compile i = do
-  setInterface i
   ifM uptodate noComp $ {- else -} do
     yesComp
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
@@ -659,7 +659,7 @@ outFile m = snd <$> outFile' m
 outFile_ :: TCM FilePath
 outFile_ = outFile =<< curHsMod
 
-callGHC :: Bool -> Interface -> TCM ()
+callGHC :: IsMain -> Interface -> TCM ()
 callGHC modIsMain i = do
   setInterface i
   mdir          <- compileDir
@@ -673,11 +673,11 @@ callGHC modIsMain i = do
 
   let overridableArgs =
         [ "-O"] ++
-        (if modIsMain then ["-o", mdir </> show (nameConcrete outputName)] else []) ++
+        (if modIsMain == IsMain then ["-o", mdir </> show (nameConcrete outputName)] else []) ++
         [ "-Werror"]
       otherArgs       =
         [ "-i" ++ mdir] ++
-        (if modIsMain then ["-main-is", hsmod] else []) ++
+        (if modIsMain == IsMain then ["-main-is", hsmod] else []) ++
         [ fp
         , "--make"
         , "-fwarn-incomplete-patterns"

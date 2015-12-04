@@ -34,10 +34,37 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.FileName
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+data IsMain = IsMain | NotMain
+  deriving (Eq)
+
+doCompile :: IsMain -> Interface -> (IsMain -> Interface -> TCM ()) -> TCM ()
+doCompile isMain i f = do
+  -- The Agda.Primitive module is implicitly assumed to be always imported,
+  -- even though it not necesseraly occurs in iImportedModules.
+  -- TODO: there should be a better way to get hold of Agda.Primitive?
+  [agdaPrimInter] <- filter (("Agda.Primitive"==) . prettyShow . iModuleName)
+    . map miInterface . Map.elems
+      <$> getVisitedModules
+  flip evalStateT Set.empty $ comp NotMain agdaPrimInter >> comp isMain i
+  where
+    comp :: IsMain -> Interface -> StateT (Set ModuleName) TCM ()
+    comp isMain i = do
+      alreadyDone <- Set.member (iModuleName i) <$> get
+      when (not alreadyDone) $ do
+        imps <- lift $
+          map miInterface . catMaybes <$>
+            mapM (getVisitedModule . toTopLevelModuleName . fst) (iImportedModules i)
+        mapM_ (comp NotMain) imps
+        lift $ setInterface i
+        lift $ f NotMain i
+        modify (Set.insert $ iModuleName i)
 
 setInterface :: Interface -> TCM ()
 setInterface i = do

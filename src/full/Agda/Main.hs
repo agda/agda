@@ -30,6 +30,7 @@ import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty
 
+import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
@@ -108,13 +109,13 @@ runAgdaWithOptions generateHTML progName opts
           interaction | i             = runIM . interactionLoop
                       | ghci          = (failIfInt mimicGHCi =<<)
                       | compile && compileNoMain
-                                      = (MAlonzo.compilerMain False =<<) . (failIfNoInt =<<)
-                      | compile       = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
+                                      = (MAlonzo.compilerMain NotMain =<<) . (failIfNoInt =<<)
+                      | compile       = (MAlonzo.compilerMain IsMain =<<) . (failIfNoInt =<<)
                       | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
                       | uhc && compileNoMain
-                                      = (UHC.compilerMain False =<<) . (failIfNoInt =<<)
-                      | uhc           = (UHC.compilerMain True =<<)  . (failIfNoInt =<<)
+                                      = (UHC.compilerMain NotMain =<<) . (failIfNoInt =<<)
+                      | uhc           = (UHC.compilerMain IsMain =<<)  . (failIfNoInt =<<)
                       | otherwise     = (() <$)
       interaction $ do
         hasFile <- hasInputFile

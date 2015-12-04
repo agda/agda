@@ -67,10 +67,8 @@ copyUHCAgdaBase outDir = do
 
 
 -- | Compile an interface into an executable using UHC
-compilerMain :: Bool
-  -> Interface
-  -> TCM ()
-compilerMain isMain mainI = inCompilerEnv mainI $ do
+compilerMain :: IsMain -> Interface -> TCM ()
+compilerMain isMain i = inCompilerEnv i $ do
     when (not uhcBackendEnabled) $ typeError $ GenericError "Agda has been built without UHC support. To use the UHC compiler you need to reinstall Agda with 'cabal install Agda -f uhc'."
     -- TODO we should do a version check here at some point.
     let uhc_exist = ExitSuccess
@@ -79,16 +77,15 @@ compilerMain isMain mainI = inCompilerEnv mainI $ do
 
             copyUHCAgdaBase =<< compileDir
 
-            -- Always implicitly import Agda.Primitive now
-            mapM_ compileModule =<< (map miInterface . M.elems <$> getVisitedModules)
+            doCompile isMain i $ \_ -> compileModule
 
-            if isMain
-              then do
-                main <- getMain mainI
+            case isMain of
+              IsMain -> do
+                main <- getMain i
                 -- get core name from modInfo
                 crMain <- getCoreName1 main
-                runUHCMain $ Just (iModuleName mainI, crMain)
-              else do runUHCMain Nothing
+                runUHCMain $ Just (iModuleName i, crMain)
+              NotMain -> runUHCMain Nothing
 
         ExitFailure _ -> internalError $ unlines
            [ "Agda cannot find the UHC compiler."

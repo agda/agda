@@ -22,12 +22,6 @@ out >     case c of
 out >       0 → Common.Bool.Bool.false
 out >       _ | c >= 1 → Common.Bool.Bool.false
 out >       _ → Common.Bool.Bool.true
-out > Common.IO.then =
-out >   λ a b c d e f → Common.IO._>>=_ a b c d e (λ g → f)
-out > Common.IO.putStrLn =
-out >   λ a →
-out >     Common.IO._>>=_
-out >       () () _ _ (Common.IO.putStr a) (λ b → Common.IO.putStr "\n")
 out > CaseOnCase.cmp =
 out >   λ a b →
 out >     let c = CaseOnCase._-_ a b in

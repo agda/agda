@@ -72,6 +72,7 @@ import qualified Agda.Interaction.Imports as Imp
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Highlighting.Range as H
 
+import Agda.Compiler.Common (IsMain (..))
 import qualified Agda.Compiler.Epic.Compiler as Epic
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
@@ -520,8 +521,8 @@ interpret (Cmd_compile b file argv) =
     case mw of
       Imp.NoWarnings -> do
         lift $ case b of
-          MAlonzo -> MAlonzo.compilerMain True i
-          MAlonzoNoMain -> MAlonzo.compilerMain False i
+          MAlonzo -> MAlonzo.compilerMain IsMain i
+          MAlonzoNoMain -> MAlonzo.compilerMain NotMain i
           Epic    -> Epic.compilerMain i
           JS      -> JS.compilerMain i
         display_info $ Info_CompilationOk

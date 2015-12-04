@@ -57,7 +57,9 @@ import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
-import Agda.Compiler.Common ( curDefs, curIF, curMName, setInterface, repl, inCompilerEnv)
+import Agda.Compiler.Common
+  ( curDefs, curIF, curMName, setInterface, repl, inCompilerEnv,
+    IsMain (..), doCompile )
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
@@ -77,11 +79,10 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 compilerMain :: Interface -> TCM ()
 compilerMain mainI = inCompilerEnv mainI $ do
-  mapM_ (compile . miInterface) =<< (elems <$> getVisitedModules)
+  doCompile IsMain mainI $ \_ -> compile
 
 compile :: Interface -> TCM ()
 compile i = do
-  setInterface i
   ifM uptodate noComp $ do
     yesComp
     writeModule =<< curModule
