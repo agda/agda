@@ -8,7 +8,6 @@ import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
 import Data.Maybe
 import System.FilePath
-import qualified System.Process.Text as PT
 import qualified Data.Text as T
 import Data.Text.Encoding
 import System.Exit
@@ -31,9 +30,8 @@ testDir = "test" </> "Fail"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
-  agdaBin <- getAgdaBin
 
-  let tests' = map (mkFailTest agdaBin) inpFiles
+  let tests' = map mkFailTest inpFiles
 
   return $ testGroup "Fail" tests'
 
@@ -43,10 +41,9 @@ data AgdaResult
 
 
 
-mkFailTest :: FilePath -- agda binary
-    -> FilePath -- inp file
+mkFailTest :: FilePath -- inp file
     -> TestTree
-mkFailTest agdaBin inp = do
+mkFailTest inp = do
   goldenTest1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName testDir inp
@@ -59,7 +56,7 @@ mkFailTest agdaBin inp = do
         doRun = (do
           flags <- fromMaybe [] . fmap (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces", "--no-default-libraries"] ++ words flags
-          res@(ret, stdout, _) <- PT.readProcessWithExitCode agdaBin agdaArgs T.empty
+          res@(ret, stdout, _) <- readAgdaProcessWithExitCode agdaArgs T.empty
 
           if ret == ExitSuccess
             then

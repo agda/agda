@@ -210,6 +210,9 @@ Testing and documentation
   can use the following command:
     make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo/simple" compiler-test
 
+  You can use the AGDA_ARGS environment variable to pass additional
+  arguments to Agda when executing the Succeed/Fail/Compiler tests.
+
 * Tests under test/Fail can fail if an error message has changed.
   You will be asked whether to accept the new error message.
   Alternatively, you can touch the corresponding source file, since,

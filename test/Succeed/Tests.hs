@@ -9,7 +9,6 @@ import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTestIO1, GDiff (..), GSh
 import Data.Maybe
 import System.FilePath
 import System.IO.Temp
-import qualified System.Process.Text as PT
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Text.Encoding
@@ -30,9 +29,8 @@ testDir = "test" </> "Succeed"
 tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir Rec testDir
-  agdaBin <- getAgdaBin
 
-  let tests' = map (mkSucceedTest agdaBin) inpFiles
+  let tests' = map mkSucceedTest inpFiles
 
   return $ testGroup "Succeed" tests'
 
@@ -42,11 +40,9 @@ data AgdaResult
   | AgdaWrongDotOutput T.Text
 
 
-
-mkSucceedTest :: FilePath -- agda binary
-    -> FilePath -- inp file
+mkSucceedTest :: FilePath -- inp file
     -> TestTree
-mkSucceedTest agdaBin inp = do
+mkSucceedTest inp = do
   goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName testDir inp
@@ -64,7 +60,7 @@ mkSucceedTest agdaBin inp = do
                          , "--no-default-libraries"
                          ] ++
                          words flags
-          let run = \extraArgs -> PT.readProcessWithExitCode agdaBin (agdaArgs ++ extraArgs) T.empty
+          let run = \extraArgs -> readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
 
           res@(ret, _, _) <-
             if "--compile" `isInfixOf` flags
