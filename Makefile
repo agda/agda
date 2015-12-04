@@ -76,6 +76,10 @@ doc:
 	$(CABAL_CMD) configure $(CABAL_OPTS)
 	$(CABAL_CMD) haddock $(CABAL_OPTS)
 
+.PHONY : manual-html
+manual-html:
+	$(MAKE) -C doc/user-manual html
+
 ## Making the full language ###############################################
 
 $(AGDA_BIN):
