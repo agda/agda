@@ -598,7 +598,7 @@ toAbstractLam r bs e ctx = do
     mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
 -- | Scope check extended lambda expression.
-scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause)] -> ScopeM A.Expr
+scopeCheckExtendedLam :: Range -> [(C.LHS, C.RHS, WhereClause, Bool)] -> ScopeM A.Expr
 scopeCheckExtendedLam r cs = do
   whenM isInsideDotPattern $
     genericError "Extended lambdas are not allowed in dot patterns"
@@ -618,8 +618,8 @@ scopeCheckExtendedLam r cs = do
       where r = getRange q
     insertApp _ = __IMPOSSIBLE__
     d = C.FunDef r [] noFixity' {-'-} a __IMPOSSIBLE__ cname $
-          for cs $ \ (lhs, rhs, wh) -> -- wh == NoWhere, see parser for more info
-            C.Clause cname False (mapLhsOriginalPattern insertApp lhs) rhs wh []
+          for cs $ \ (lhs, rhs, wh, ca) -> -- wh == NoWhere, see parser for more info
+            C.Clause cname ca (mapLhsOriginalPattern insertApp lhs) rhs wh []
   scdef <- toAbstract d
 
   -- Create the abstract syntax for the extended lambda.
@@ -1066,7 +1066,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                            ]
 
             -- irrefutable let binding, like  (x , y) = rhs
-            NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
+            NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere ca) -> do
               mp  <- setCurrentRange p $
                        (Right <$> parsePattern p)
                          `catchError`
@@ -1085,7 +1085,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
                       [ C.FunSig r noFixity' PublicAccess NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                       , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
-                        [C.Clause x catchall lhs (C.RHS rhs) NoWhere []]
+                        [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                       ]
                   where
                     definedName (C.IdentP (C.QName x)) = Just x
@@ -1251,7 +1251,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
 
   -- Uncategorized function clauses
-    C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls) ->
+    C.NiceFunClause r acc abs termCheck catchall (C.FunClause lhs rhs wcls ca) ->
       genericError $
         "Missing type signature for left hand side " ++ show lhs
     C.NiceFunClause{} -> __IMPOSSIBLE__
