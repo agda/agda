@@ -17,6 +17,7 @@ import Data.List
 import System.FilePath
 import System.Directory
 
+import qualified System.Process.Text as PT
 import Data.Array
 import Text.Regex.TDFA.Text ()
 import qualified Text.Regex.TDFA as R
@@ -24,6 +25,13 @@ import qualified Text.Regex.TDFA as R
 type ProgramResult = (ExitCode, T.Text, T.Text)
 
 type AgdaArgs = [String]
+
+
+readAgdaProcessWithExitCode :: AgdaArgs -> T.Text -> IO (ExitCode, T.Text, T.Text)
+readAgdaProcessWithExitCode args inp = do
+  agdaBin <- getAgdaBin
+  envArgs <- getEnvAgdaArgs
+  PT.readProcessWithExitCode agdaBin (envArgs ++ args) inp
 
 getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"

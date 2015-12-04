@@ -192,8 +192,8 @@ Testing and documentation
   When you fix a bug, drop a note in CHANGELOG.
 
 * In both cases, you need to add regression tests
-  under test/succeed and test/fail, and maybe also
-  test/interaction. When adding test cases under test/fail, remember
+  under test/Succeed and test/Fail, and maybe also
+  test/interaction. When adding test cases under test/Fail, remember
   to record the error messages (.err files) after running make test.
 
 * Run the test-suite, using make test (which does not work properly
@@ -209,7 +209,10 @@ Testing and documentation
   can use the following command:
     make AGDA_TESTS_OPTIONS="-i -j8 -p MAlonzo/simple" compiler-test
 
-* Tests under test/fail can fail if an error message has changed.
+  You can use the AGDA_ARGS environment variable to pass additional
+  arguments to Agda when executing the Succeed/Fail/Compiler tests.
+
+* Tests under test/Fail can fail if an error message has changed.
   You will be asked whether to accept the new error message.
   Alternatively, you can touch the corresponding source file, since,
   when the test case changes, it is assumed that the error message

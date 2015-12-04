@@ -92,22 +92,20 @@ tests = do
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
-  agdaBin <- getAgdaBin
   let testDir = "test" </> "Compiler" </> "simple"
   inps <- getAgdaFilesInDir NonRec testDir
 
-  withSetup setup agdaBin inps testDir ["-i" ++ testDir, "-itest/"] comp "simple"
+  withSetup setup inps testDir ["-i" ++ testDir, "-itest/"] comp "simple"
   where setup :: Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree
         setup UHC tree = tree >>= \t -> return $ t $ return []
         setup MAlonzo tree = withGhcLibs ["test/"] <$> tree
 
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
-  agdaBin <- getAgdaBin
   let testDir = "test" </> "Compiler" </> "with-stdlib"
   inps <- getAgdaFilesInDir NonRec testDir
 
-  withSetup setup agdaBin inps testDir ["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] comp "with-stdlib"
+  withSetup setup inps testDir ["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] comp "with-stdlib"
   where setup :: Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree
         setup UHC tree = tree >>= \t -> return $ t $ return []
         setup MAlonzo tree = withGhcLibs ["std-lib/ffi/"] <$> tree
@@ -115,9 +113,8 @@ stdlibTests comp = do
 
 specialTests :: Compiler -> IO (Maybe TestTree)
 specialTests MAlonzo = do
-  agdaBin <- getAgdaBin
   let t = withGhcLibs ["test/"] $ (\args -> fromJust $
-            agdaRunProgGoldenTest1 agdaBin testDir MAlonzo ((extraArgs ++) . ghcArgsAsAgdaArgs <$> args)
+            agdaRunProgGoldenTest1 testDir MAlonzo ((extraArgs ++) . ghcArgsAsAgdaArgs <$> args)
                         (testDir </> "ExportTestAgda.agda") defaultOptions (cont args)
             )
 
@@ -136,14 +133,13 @@ specialTests MAlonzo = do
 specialTests UHC = return Nothing
 
 withSetup :: (Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree) -- setup function
-    -> FilePath -- Agda executable
     -> [FilePath] -- inputs
     -> FilePath -- test directory
     -> AgdaArgs -- extra agda arguments
     -> Compiler
     -> TestName -- test group name
     -> IO TestTree
-withSetup setup agdaBin inps testDir extraArgs comp  testGrpNm = do
+withSetup setup inps testDir extraArgs comp  testGrpNm = do
   setup comp (do
     mkTests' <- mapM mkTest inps
     return (\args ->
@@ -154,7 +150,7 @@ withSetup setup agdaBin inps testDir extraArgs comp  testGrpNm = do
         mkTest = (\inp -> do
           opts <- readOptions inp
           return (\args ->
-            agdaRunProgGoldenTest agdaBin testDir comp ((extraArgs  ++) . ghcArgsAsAgdaArgs <$> args) inp opts
+            agdaRunProgGoldenTest testDir comp ((extraArgs  ++) . ghcArgsAsAgdaArgs <$> args) inp opts
             )
           )
 
@@ -206,15 +202,14 @@ ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
 ghcArgsAsAgdaArgs = map f
   where f = ("--ghc-flag=" ++)
 
-agdaRunProgGoldenTest :: FilePath -- ^ path to the agda executable.
-    -> FilePath     -- ^ directory where to run the tests.
+agdaRunProgGoldenTest :: FilePath     -- ^ directory where to run the tests.
     -> Compiler
     -> IO AgdaArgs     -- ^ extra Agda arguments
     -> FilePath -- ^ relative path to agda input file.
     -> TestOptions
     -> Maybe TestTree
-agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts =
-      agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts (\compDir -> do
+agdaRunProgGoldenTest dir comp extraArgs inp opts =
+      agdaRunProgGoldenTest1 dir comp extraArgs inp opts (\compDir -> do
         if executeProg opts then do
           -- read input file, if it exists
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
@@ -227,15 +222,14 @@ agdaRunProgGoldenTest agdaBin dir comp extraArgs inp opts =
         )
   where inpFile = (dropExtension inp) <.> ".inp"
 
-agdaRunProgGoldenTest1 :: FilePath -- ^ path to the agda executable.
-    -> FilePath     -- ^ directory where to run the tests.
+agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
     -> Compiler
     -> IO AgdaArgs     -- ^ extra Agda arguments
     -> FilePath -- ^ relative path to agda input file.
     -> TestOptions
     -> (FilePath -> IO ExecResult) -- continuation if compile succeeds, gets the compilation dir
     -> Maybe TestTree
-agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts cont
+agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
       Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
@@ -245,11 +239,10 @@ agdaRunProgGoldenTest1 agdaBin dir comp extraArgs inp opts cont
         doRun cOpts = withTempDirectory dir testName (\compDir -> do
           -- get extra arguments
           extraArgs' <- extraArgs
-          envArgs <- getEnvAgdaArgs
           -- compile file
-          let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ extraArgs' ++ envArgs ++ (extraAgdaArgs cOpts) ++ [inp]
+          let defArgs = ["--ignore-interfaces", "--compile-dir", compDir] ++ extraArgs' ++ (extraAgdaArgs cOpts) ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
-          res@(ret, _, _) <- PT.readProcessWithExitCode agdaBin args T.empty
+          res@(ret, _, _) <- readAgdaProcessWithExitCode args T.empty
 
           case ret of
             ExitSuccess -> cont compDir
