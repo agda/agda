@@ -21,11 +21,13 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty (prettyTCM, nest, sep, text)
 
 import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.List
+import Agda.Utils.Pretty (Pretty(..), prettyShow)
+import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -68,6 +70,9 @@ data Cl = Cl
   { clPats :: [I.Arg Pattern]
   , clBody :: ClauseBody
   } deriving (Show)
+
+instance Pretty Cl where
+  pretty (Cl ps b) = P.prettyList ps P.<+> P.text "->" P.<+> pretty b
 
 type Cls = [Cl]
 
