@@ -55,11 +55,13 @@ import Agda.Utils.Except ( Error(noMsg) )
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
+import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
 import Agda.Utils.Size
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty as P
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -1188,3 +1190,23 @@ instance Pretty Elim where
   prettyPrec p (Apply v) = prettyPrec p v
   prettyPrec _ (Proj x)  = text ("." ++ show x)
 
+instance Pretty a => Pretty (Pattern' a) where
+  prettyPrec n (VarP x)      = prettyPrec n x
+  prettyPrec _ (DotP t)      = text "." P.<> prettyPrec 10 t
+  prettyPrec n (ConP c i ps) = mparens (n > 0) $
+    text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
+  -- -- Version with printing record type:
+  -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
+  --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
+  --   where
+  --     b = maybe False (== ConPImplicit) $ conPRecord i
+  --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
+  prettyPrec _ (LitP l)      = text (show l)
+  prettyPrec _ (ProjP q)     = text (show q)
+
+instance Pretty a => Pretty (ClauseBodyF a) where
+  pretty b = case b of
+    Bind (NoAbs _ b) -> pretty b
+    Bind (Abs   x b) -> text (show x ++ ".") <+> pretty b
+    Body t           -> pretty t
+    NoBody           -> text "()"

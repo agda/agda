@@ -33,6 +33,11 @@ class Pretty a where
 prettyShow :: Pretty a => a -> String
 prettyShow = render . pretty
 
+-- | Space separated list of pretty things.
+
+prettyList :: Pretty a => [a] -> Doc
+prettyList = sep . map (prettyPrec 10000)
+
 -- * Pretty instances
 
 instance Pretty Bool    where pretty = text . show

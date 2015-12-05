@@ -133,7 +133,7 @@ prettyMap m = [ sep [ text (show x ++ " ->")
               | (x, v) <- Map.toList m ]
 
 instance Pretty CompiledClauses where
-  pretty (Done hs t) = text ("done" ++ show hs) <+> text (show t)
+  pretty (Done hs t) = text ("done" ++ show hs) <+> pretty t
   pretty Fail        = text "fail"
   pretty (Case n bs) | projPatterns bs =
     sep [ text "record"
