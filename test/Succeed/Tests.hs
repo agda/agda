@@ -57,6 +57,7 @@ mkSucceedTest inp = do
           flags <- fromMaybe [] . fmap (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = [ "-v0", "-i" ++ testDir, "-itest/" , inp
                          , "--ignore-interfaces", "--vim"
+                         , "-v impossible:10"
                          ] ++
                          words flags
           let run = \extraArgs -> readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
