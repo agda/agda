@@ -58,6 +58,7 @@ mkSucceedTest inp = do
           let agdaArgs = [ "-v0", "-i" ++ testDir, "-itest/" , inp
                          , "--ignore-interfaces", "--vim"
                          , "--no-default-libraries"
+                         , "-v impossible:10"
                          ] ++
                          words flags
           let run = \extraArgs -> readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
