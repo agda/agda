@@ -24,6 +24,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty (prettyTCM, nest, sep, text)
 
 import Agda.Utils.Functor
+import Agda.Utils.Maybe
 import Agda.Utils.Null
 import Agda.Utils.List
 import Agda.Utils.Pretty (Pretty(..), prettyShow)
@@ -90,14 +91,17 @@ compileWithSplitTree t cs = case t of
     compiles ts br@Branches{ projPatterns = cop
                            , conBranches = cons
                            , litBranches = lits
-                           , catchAllBranch = Nothing }
-      | Map.null lits = empty { projPatterns = cop, conBranches = updCons cons }
+                           , catchAllBranch = catchAll }
+      = Branches
+          { projPatterns   = cop
+          , conBranches    = updCons cons
+          , litBranches    = compile <$> lits
+          , catchAllBranch = compile <$> catchAll
+          }
       where
         updCons = Map.mapWithKey $ \ c cl ->
-                    let t = fromMaybe __IMPOSSIBLE__ $ lookup c ts
-                    in  compileWithSplitTree t <$> cl
-    compiles ts br    = compile <$> br
-
+         caseMaybe (lookup c ts) compile compileWithSplitTree <$> cl
+         -- When the split tree is finished, we continue with @compile@.
 
 compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
@@ -145,7 +149,7 @@ isVar ProjP{} = False
 --   if @single@.
 splitOn :: Bool -> Int -> Cls -> Case Cls
 splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
-  -- (\ cs -> trace ("splitting on " ++ show n ++ " after expandCatchAlls " ++ show single ++ ": " ++ show cs) cs) $
+  -- (\ cs -> trace ("splitting on " ++ show n ++ " after expandCatchAlls " ++ show single ++ ": " ++ prettyShow (P.prettyList cs)) cs) $
     expandCatchAlls single n cs
 
 splitC :: Int -> Cl -> Case Cl
