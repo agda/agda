@@ -67,11 +67,7 @@ type Cls = [Cl]
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of
-  SplitAt i ts ->
-    -- the coverage checker does not count dot patterns as variables
-    -- in case trees however, they count as variable patterns
-    let n = i -- countInDotPatterns i cs
-    in  Case n $ compiles ts $ splitOn (length ts == 1) n cs
+  SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) i cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
@@ -90,15 +86,6 @@ compileWithSplitTree t cs = case t of
                     let t = fromMaybe __IMPOSSIBLE__ $ lookup c ts
                     in  compileWithSplitTree t <$> cl
     compiles ts br    = compile <$> br
-
-    -- increase split index by number of dot patterns we have skipped
-    countInDotPatterns :: Int -> [Cl] -> Int
-    countInDotPatterns i [] = __IMPOSSIBLE__
-    countInDotPatterns i ((ps, _) : _) = i + loop i (map unArg ps) where
-      loop 0 ps            = 0
-      loop i []            = __IMPOSSIBLE__
-      loop i (DotP{} : ps) = 1 + loop i ps
-      loop i (_      : ps) = loop (i - 1) ps
 
 
 compile :: Cls -> CompiledClauses
