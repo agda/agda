@@ -41,7 +41,7 @@ compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
   -> [Clause] -> TCM CompiledClauses
 compileClauses mt cs = do
-  let cls = [(clausePats c, clauseBody c) | c <- cs]
+  let cls = [ Cl (clausePats c) (clauseBody c) | c <- cs ]
   case mt of
     Nothing -> return $ compile cls
     Just (q, t)  -> do
@@ -49,7 +49,7 @@ compileClauses mt cs = do
 
       reportSDoc "tc.cc" 30 $ sep $ do
         (text "clauses patterns  before compilation") : do
-          map (prettyTCM . map unArg . fst) cls
+          map (prettyTCM . map unArg . clPats) cls
       reportSDoc "tc.cc" 50 $ do
         sep [ text "clauses before compilation"
             , (nest 2 . text . show) cs
@@ -62,7 +62,13 @@ compileClauses mt cs = do
       cc <- translateCompiledClauses cc
       return cc
 
-type Cl  = ([I.Arg Pattern], ClauseBody)
+-- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
+--   used in clause compiler.
+data Cl = Cl
+  { clPats :: [I.Arg Pattern]
+  , clBody :: ClauseBody
+  } deriving (Show)
+
 type Cls = [Cl]
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
@@ -91,10 +97,10 @@ compileWithSplitTree t cs = case t of
 compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
   Just (isRecP, n)-> Case n $ fmap compile $ splitOn isRecP n cs
-  Nothing -> case map (getBody . snd) cs of
+  Nothing -> case map (getBody . clBody) cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just t : _  -> Done (map (fmap name) $ fst $ head cs) (shared t)
+    Just t : _  -> Done (map (fmap name) $ clPats $ head cs) (shared t)
     Nothing : _ -> Fail
     []          -> __IMPOSSIBLE__
   where
@@ -107,8 +113,8 @@ compile cs = case nextSplit cs of
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a match in the first clause.
 nextSplit :: Cls -> Maybe (Bool, Int)
-nextSplit []          = __IMPOSSIBLE__
-nextSplit ((ps, _):_) = headMaybe $ catMaybes $
+nextSplit []            = __IMPOSSIBLE__
+nextSplit (Cl ps _ : _) = headMaybe $ catMaybes $
   zipWith (\ p n -> (,n) <$> properSplit (unArg p)) ps [0..]
 
 -- | Is is not a variable pattern?
@@ -138,12 +144,13 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
     expandCatchAlls single n cs
 
 splitC :: Int -> Cl -> Case Cl
-splitC n (ps, b) = case unArg p of
-  ProjP d     -> projCase d (ps0 ++ ps1, b)
-  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) (ps0 ++ map (fmap namedThing) qs ++ ps1, b)
-  LitP l      -> litCase l (ps0 ++ ps1, b)
-  VarP{}      -> catchAll (ps, b)
-  DotP{}      -> catchAll (ps, b)
+splitC n (Cl ps b) = case unArg p of
+  ProjP d     -> projCase d $ Cl (ps0 ++ ps1) b
+  ConP c _ qs -> conCase (conName c) $ WithArity (length qs) $
+                   Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b
+  LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
+  VarP{}      -> catchAll $ Cl ps b
+  DotP{}      -> catchAll $ Cl ps b
   where
     (ps0, p, ps1) = extractNthElement' n ps
 
@@ -191,16 +198,16 @@ expandCatchAlls single n cs =
   -- we force expansion
   if single then doExpand =<< cs else
   case cs of
-  _            | all (isCatchAllNth . fst) cs -> cs
-  (ps, b) : cs | not (isCatchAllNth ps) -> (ps, b) : expandCatchAlls False n cs
-               | otherwise -> map (expand ps b) expansions ++ (ps, b) : expandCatchAlls False n cs
+  _            | all (isCatchAllNth . clPats) cs -> cs
+  Cl ps b : cs | not (isCatchAllNth ps) -> Cl ps b : expandCatchAlls False n cs
+               | otherwise -> map (expand ps b) expansions ++ Cl ps b : expandCatchAlls False n cs
   _ -> __IMPOSSIBLE__
   where
     -- In case there is only one branch in the split tree, we expand all
     -- catch-alls for this position
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
-    doExpand c@(ps, b)
+    doExpand c@(Cl ps b)
       | isVar $ unArg $ nth ps = map (expand ps b) expansions ++ [c]
       | otherwise              = [c]
 
@@ -217,19 +224,19 @@ expandCatchAlls single n cs =
     -- These are the cases the wildcard needs to be expanded into.
     expansions = nubBy ((==) `on` (classify . unArg))
                . filter (not . isVar . unArg)
-               . map (nth . fst)
+               . map (nth . clPats)
                $ cs
 
     expand ps b q =
       case unArg q of
-        ConP c mt qs' -> (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1,
-                         substBody n' m (Con c conArgs) b)
+        ConP c mt qs' -> Cl (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
+                            (substBody n' m (Con c conArgs) b)
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
             conPArgs = map (fmap ($> VarP underscore)) qs'
             conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
-        LitP l -> (ps0 ++ [q $> LitP l] ++ ps1, substBody n' 0 (Lit l) b)
+        LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
         (ps0, rest) = splitAt n ps
