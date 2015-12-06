@@ -25,7 +25,7 @@ UHC Backend
 ~~~~~~~~~~~
 
 .. note::
-   This backend is available from Agda 2.4.4 on.
+   This backend is available from Agda 2.5.1 on.
    The Agda Standard Library has been updated to support this new backend.
    This backend is currently experimental.
 

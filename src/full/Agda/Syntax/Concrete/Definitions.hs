@@ -182,7 +182,7 @@ data KindOfBlock
   | PrimitiveBlock  -- ^ @primitive@.  Ensured by parser.
   | InstanceBlock   -- ^ @instance@.  Actually, here all kinds of sub-declarations are allowed a priori.
   | FieldBlock      -- ^ @field@.  Ensured by parser.
-  | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.4.3 (Issue 1698).
+  | DataBlock       -- ^ @data ... where@.  Here we got a bad error message for Agda-2.5 (Issue 1698).
   deriving (Typeable, Eq, Ord, Show)
 
 

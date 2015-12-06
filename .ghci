@@ -1,12 +1,12 @@
 :set -hide-package Agda
 :set -isrc/full
-:set -idist-2.4.3/build/autogen
-:set -idist-2.4.3/build
-:set -Idist-2.4.3/build/autogen
-:set -Idist-2.4.3/build
+:set -idist-2.5/build/autogen
+:set -idist-2.5/build
+:set -Idist-2.5/build/autogen
+:set -Idist-2.5/build
 :set -Isrc/full
 :set -optP-include
-:set -optPdist-2.4.3/build/autogen/cabal_macros.h
+:set -optPdist-2.5/build/autogen/cabal_macros.h
 :set -pgmPcpphs
 :set -optP--cpp
 

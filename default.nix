@@ -39,7 +39,7 @@ assert user-manual -> sphinx != null && sphinx_rtd_theme != null && texLive != n
 
 mkDerivation {
   pname = "Agda";
-  version = "2.4.3";
+  version = "2.5";
   src = ./.;
   isLibrary = true;
   isExecutable = true;

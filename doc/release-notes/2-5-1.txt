@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Release notes for Agda version 2.4.4
+-- Release notes for Agda version 2.5.1
 ------------------------------------------------------------------------
 
 TODO: replace X by a suitable number.
