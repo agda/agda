@@ -261,11 +261,11 @@ matrix:
     # - ghc: A.B.C
 
 ##############################################################################
-# Every master and maintenance branches >= 2.5 or >= maint-2.4.2 must
+# Every master and maintenance branches >= 2.5 or >= maint-2.4 must
 # be here. You can also add your private branches if you want travis to
 # test them.
 
 branches:
   only:
     - master
-    - maint-2.4.2
+    - maint-2.4
