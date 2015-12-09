@@ -144,13 +144,11 @@ unionSignatures ss = foldr unionSignature emptySignature ss
 -- | Add a section to the signature.
 --
 --   The current context will be stored as the cumulative module parameters
---   for this section.  The passed number @fv@ is the free variables bound
---   by this section (the last @fv@ entries of the context).
-addSection :: ModuleName -> Nat -> TCM ()
-addSection m fv = do
+--   for this section.
+addSection :: ModuleName -> TCM ()
+addSection m = do
   tel <- getContextTelescope
-  when (fv > size tel) __IMPOSSIBLE__
-  let sec = Section tel fv
+  let sec = Section tel
   -- Make sure we do not overwrite an existing section!
   whenJustM (getSection m) $ \ sec' -> do
     -- At least not with different content!
@@ -429,22 +427,13 @@ applySection' new ptel old ts rd rm = do
     copySec ts (x, y) = do
       totalArgs <- argsToUse x
       tel       <- lookupSection x
-      ptel      <- lookupSection $ mnameFromList $ init $ mnameToList x
-      let parentParams = size ptel
-          fv           = size tel - parentParams  -- childParams
-          sectionTel   =  apply tel $ take totalArgs ts
-      when (totalArgs > parentParams) __IMPOSSIBLE__
+      let sectionTel =  apply tel $ take totalArgs ts
       reportSLn "tc.mod.apply" 80 $ "Copying section " ++ show x ++ " to " ++ show y
       reportSLn "tc.mod.apply" 80 $ "  ts           = " ++ intercalate "; " (map prettyShow ts)
       reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
-      reportSLn "tc.mod.apply" 80 $ "  ptel         = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
-      reportSLn "tc.mod.apply" 80 $ "  parentParams = " ++ show parentParams
       reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
       reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
-      -- reportSLn "tc.mod.apply" 80 $ "  tel = " ++ show (map (second unEl . unDom) $ telToList tel)
-      -- reportSLn "tc.mod.apply" 80 $ "  ptel= " ++ show (map (second unEl . unDom) $ telToList ptel)
-      reportSLn "tc.mod.apply" 80 $ "  fv           = " ++ show fv
-      addCtxTel sectionTel $ addSection y fv
+      addCtxTel sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()

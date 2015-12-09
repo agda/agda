@@ -234,7 +234,7 @@ checkRecDef i name ind con ps contel fields =
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
           [ text "field tel =" <+> escapeContext 1 (prettyTCM ftel)
           ]
-        addSection m (size tel')
+        addSection m
 
       -- Check the types of the fields
       -- Andreas, 2013-09-13 all module telescopes count as parameters to the record projections
