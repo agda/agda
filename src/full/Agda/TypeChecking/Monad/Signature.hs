@@ -254,7 +254,6 @@ applySection new ptel old ts rd rm = do
         lenM          = length . mnameToList
         parentModules = map mnameFromList . init . tail . inits . mnameToList
 
-
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> Ren QName -> Ren ModuleName -> TCM ()
 applySection' new ptel old ts rd rm = do
   reportSLn "tc.mod.apply" 10 $ render $ vcat
@@ -282,7 +281,7 @@ applySection' new ptel old ts rd rm = do
     copyName x = fromMaybe x $ lookup x rd
 
     argsToUse x = do
-      let m = mnameFromList $ commonPrefix (mnameToList old) (mnameToList x)
+      let m = commonParentModule old x
       reportSLn "tc.mod.apply" 80 $ "Common prefix: " ++ show m
       getModuleFreeVars' (fmap (^. secFreeVars) <.> getSection) m
 
