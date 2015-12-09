@@ -661,6 +661,9 @@ getModuleFreeVars' getSecFreeVars m = do
 getModuleFreeVars :: ModuleName -> TCM Nat
 getModuleFreeVars m = (+) <$> getAnonymousVariables m <*> getModuleFreeVars' getSecFreeVars m
 
+getCurrentModuleFreeVars :: TCM Nat
+getCurrentModuleFreeVars = getModuleFreeVars =<< currentModule
+
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   the free variables of the sections it's contained in.
 getDefFreeVars :: QName -> TCM Nat

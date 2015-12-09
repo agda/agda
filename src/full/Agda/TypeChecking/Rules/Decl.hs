@@ -643,7 +643,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
-    mfv <- getModuleFreeVars =<< currentModule
+    mfv <- getCurrentModuleFreeVars
     fv  <- size <$> getContextTelescope
     return (fv - mfv)
   when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams

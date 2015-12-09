@@ -459,8 +459,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                     reportSDoc "tc.with.top" 30 $
                       prettyA c
                     reportSDoc "tc.with.top" 20 $ do
-                      m  <- currentModule
-                      nfv <- getModuleFreeVars m
+                      nfv <- getCurrentModuleFreeVars
+                      m   <- currentModule
                       sep [ text "with function module:" <+>
                             prettyList (map prettyTCM $ mnameToList m)
                           ,  text $ "free variables: " ++ show nfv
