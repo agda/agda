@@ -720,7 +720,7 @@ checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
 checkSection i x tel ds =
   checkTelescope tel $ \ tel' -> do
-    addSection x (size tel')
+    addSection x
     verboseS "tc.mod.check" 10 $ do
       dx   <- prettyTCM x
       dtel <- mapM prettyAs tel
@@ -793,7 +793,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
-    mfv <- getModuleFreeVars =<< currentModule
+    mfv <- getCurrentModuleFreeVars
     fv  <- size <$> getContextTelescope
     return (fv - mfv)
   when (extraParams > 0) $ reportSLn "tc.mod.apply" 30 $ "Extra parameters to " ++ show m1 ++ ": " ++ show extraParams
@@ -831,7 +831,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
       ]
     -- Andreas, 2014-04-06, Issue 1094:
     -- Add the section with well-formed telescope.
-    addCtxTel aTel $ addSection m1 (size ptel + size aTel + extraParams)
+    addCtxTel aTel $ addSection m1
 
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]

@@ -31,11 +31,11 @@ instance EmbPrj Signature where
     valu _         = malformed
 
 instance EmbPrj Section where
-  icod_ (Section a b) = icode2' a b
+  icod_ (Section a) = icode1' a
 
   value = vcase valu where
-    valu [a, b] = valu2 Section a b
-    valu _      = malformed
+    valu [a] = valu1 Section a
+    valu _   = malformed
 
 instance EmbPrj a => EmbPrj (Tele a) where
   icod_ EmptyTel        = icode0'

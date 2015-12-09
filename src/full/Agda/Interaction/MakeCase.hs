@@ -111,7 +111,7 @@ parseVariables ii rng ss = do
       (,i) . P.render <$> prettyTCM (var i)
 
     -- Get number of module parameters.  These cannot be split on.
-    fv <- getModuleFreeVars =<< currentModule
+    fv <- getCurrentModuleFreeVars
     let numSplittableVars = n - fv
 
     -- Resolve each string to a variable.

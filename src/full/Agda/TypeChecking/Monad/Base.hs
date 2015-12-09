@@ -993,25 +993,13 @@ type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
 type DisplayForms = HashMap QName [Open DisplayForm]
 
-data Section = Section
-      { _secTelescope :: Telescope
-      , _secFreeVars  :: Nat
-        -- ^ This is the number of parameters when we're inside the section and
-        --   0 outside. It's used to know how much of the context to apply
-        --   function from the section to when translating from abstract to
-        --   internal syntax.
-      }
+data Section = Section { _secTelescope :: Telescope }
   deriving (Typeable, Show)
 
 secTelescope :: Lens' Telescope Section
 secTelescope f s =
   f (_secTelescope s) <&>
   \x -> s {_secTelescope = x}
-
-secFreeVars :: Lens' Nat Section
-secFreeVars f s =
-  f (_secFreeVars s) <&>
-  \x -> s {_secFreeVars = x}
 
 emptySignature :: Signature
 emptySignature = Sig Map.empty HMap.empty HMap.empty
@@ -2530,7 +2518,7 @@ instance KillRange RewriteRuleMap where
   killRange = fmap killRange
 
 instance KillRange Section where
-  killRange (Section tel freeVars) = killRange2 Section tel freeVars
+  killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
   killRange (Defn ai name t pols occs displ mut compiled inst def) =

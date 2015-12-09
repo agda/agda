@@ -466,8 +466,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                     reportSDoc "tc.with.top" 30 $
                       prettyA c
                     reportSDoc "tc.with.top" 20 $ do
-                      m  <- currentModule
-                      nfv <- getModuleFreeVars m
+                      nfv <- getCurrentModuleFreeVars
+                      m   <- currentModule
                       sep [ text "with function module:" <+>
                             prettyList (map prettyTCM $ mnameToList m)
                           ,  text $ "free variables: " ++ show nfv
@@ -671,8 +671,7 @@ checkWhere n [A.Section _ m tel ds]  ret = do
   checkTelescope tel $ \ tel' -> do
     reportSDoc "tc.def.where" 10 $
       text "adding section:" <+> prettyTCM m <+> text (show (size tel')) <+> text (show n)
-    addSection m (size tel' + n)  -- the variables bound in the lhs
-                                  -- are also parameters
+    addSection m
     verboseS "tc.def.where" 10 $ do
       dx   <- prettyTCM m
       dtel <- mapM prettyAs tel

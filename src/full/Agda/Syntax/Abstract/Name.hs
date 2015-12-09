@@ -32,6 +32,7 @@ import {-# SOURCE #-} Agda.Syntax.Fixity
 import Agda.Syntax.Concrete.Name (IsNoName(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -122,6 +123,10 @@ mnameFromList = MName
 
 noModuleName :: ModuleName
 noModuleName = mnameFromList []
+
+commonParentModule :: ModuleName -> ModuleName -> ModuleName
+commonParentModule m1 m2 =
+  mnameFromList $ commonPrefix (mnameToList m1) (mnameToList m2)
 
 -- | Make a 'Name' from some kind of string.
 class MkName a where

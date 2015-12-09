@@ -61,7 +61,7 @@ checkDataDef i name ps cs =
             npars = sum $ map countPars ps
 
         -- Add the datatype module
-        addSection (qnameToMName name) 0
+        addSection (qnameToMName name)
 
         -- Look up the type of the datatype.
         t <- instantiateFull =<< typeOfConst name

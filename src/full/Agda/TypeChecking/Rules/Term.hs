@@ -503,9 +503,7 @@ checkExtendedLambda i di qname cs e t = do
        text "extended lambda's implementation \"" <> prettyTCM qname <>
        text "\" has type: " $$ prettyTCM t -- <+> text " where clauses: " <+> text (show cs)
      args     <- getContextArgs
-     top      <- currentModule
-     freevars <- getModuleFreeVars top
-     -- freevars <- getSecFreeVars top --Andreas, 2013-02-26 this could be wrong in the presence of module parameters and a where block
+     freevars <- getCurrentModuleFreeVars
      let argsNoParam = genericDrop freevars args -- don't count module parameters
      let (hid, notHid) = partition isHidden argsNoParam
      reportSDoc "tc.term.exlam" 30 $ vcat $
@@ -1626,7 +1624,7 @@ inferOrCheck e mt = case e of
 -- | Check whether a de Bruijn index is bound by a module telescope.
 isModuleFreeVar :: Int -> TCM Bool
 isModuleFreeVar i = do
-  nfv <- getModuleFreeVars =<< currentModule
+  nfv <- getCurrentModuleFreeVars
   n   <- getContextSize
   -- The first de Bruijn index that points to a module
   -- free variable.
@@ -1739,7 +1737,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
 checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
-  fv   <- getModuleFreeVars =<< currentModule
+  fv   <- getCurrentModuleFreeVars
   n    <- getContextSize
   let new = n - fv
   reportSLn "tc.term.let.apply" 10 $ "Applying " ++ show modapp ++ " with " ++ show new ++ " free variables"

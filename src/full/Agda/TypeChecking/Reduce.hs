@@ -1107,7 +1107,7 @@ instance InstantiateFull Signature where
   instantiateFull' (Sig a b c) = uncurry3 Sig <$> instantiateFull' (a, b, c)
 
 instance InstantiateFull Section where
-  instantiateFull' (Section tel n) = flip Section n <$> instantiateFull' tel
+  instantiateFull' (Section tel) = Section <$> instantiateFull' tel
 
 instance (Subst t a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull' EmptyTel = return EmptyTel
