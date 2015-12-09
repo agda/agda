@@ -333,8 +333,8 @@ applySection' new ptel old ts rd rm = do
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
-                         , recConType = apply t ts
-                         , recTel     = apply tel ts
+                         , recConType = apply t ts'
+                         , recTel     = apply tel ts'
                          }
                 _ -> do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
