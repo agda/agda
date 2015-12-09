@@ -424,11 +424,8 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
 
                        ifM isReflexive recurse $ {- else -} do
 
-                       -- Transform 'rewrite' clause into a 'with' clause,
+                         -- Transform 'rewrite' clause into a 'with' clause,
                          -- going back to abstract syntax.
-
-                         let cinfo      = ConPatInfo ConPCon patNoRange
-                             underscore = A.Underscore Info.emptyMetaInfo
 
                          -- Andreas, 2015-02-09 Issue 1421: kill ranges
                          -- as reify puts in ranges that may point to other files.
@@ -446,8 +443,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                                         -- is defined by induction on eqs.
                                         (A.RewriteRHS qes (insertPatterns pats rhs) inner)
                                         outer False]
-                             pats = [ A.DotP patNoRange underscore
-                                    , A.ConP cinfo (AmbQ [conName reflCon]) []]
+                             cinfo  = ConPatInfo ConPCon patNoRange
+                             pats   = [ A.WildP patNoRange
+                                      , A.ConP cinfo (AmbQ [conName reflCon]) []]
                          reportSDoc "tc.rewrite.top" 25 $ vcat
                            [ text "rewrite"
                            , text "  from  = " <+> prettyTCM rewriteFromExpr
