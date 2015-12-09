@@ -420,9 +420,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                          -- Transform 'rewrite' clause into a 'with' clause,
                          -- going back to abstract syntax.
 
-                         let cinfo      = ConPatInfo ConPCon patNoRange
-                             underscore = A.Underscore Info.emptyMetaInfo
-
                          -- Andreas, 2015-02-09 Issue 1421: kill ranges
                          -- as reify puts in ranges that may point to other files.
                          (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <- killRange <$> do
@@ -439,8 +436,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                                         -- is defined by induction on eqs.
                                         (A.RewriteRHS qes (insertPatterns pats rhs) inner)
                                         outer]
-                             pats = [ A.DotP patNoRange underscore
-                                    , A.ConP cinfo (AmbQ [conName reflCon]) []]
+                             cinfo  = ConPatInfo ConPCon patNoRange
+                             pats   = [ A.WildP patNoRange
+                                      , A.ConP cinfo (AmbQ [conName reflCon]) []]
                          reportSDoc "tc.rewrite.top" 25 $ vcat
                            [ text "rewrite"
                            , text "  from  = " <+> prettyTCM rewriteFromExpr
