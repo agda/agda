@@ -273,7 +273,6 @@ applySection
   -> TCM ()
 applySection new ptel old ts rd rm = do
   rd <- closeConstructors rd
-  rm <- closeParentModules rm
   applySection' new ptel old ts rd rm
   where
     -- If a datatype is being copied, all its constructors need to be copied,
@@ -303,24 +302,6 @@ applySection new ptel old ts rd rm = do
             Datatype{ dataCons = cs } -> cs
             Record{ recConHead = h }      -> [conName h]
             _                         -> []
-
-    -- If a module is copied, all its parents (up to the copied module) need to
-    -- be copied (#1701).
-    closeParentModules rm = do
-      let parents = [ (p, p')
-                    | (m, m') <- rm
-                    , p <- parentModules m
-                    , let p' = dropM (lenM m - lenM p) m'
-                    , p  `isSubModuleOf` old
-                    , notElem p (map fst rm)
-                    ]
-      reportSLn "tc.mod.apply.complete" 30 $
-        "also copying modules: " ++ show parents
-      return $ rm ++ parents
-      where
-        dropM n       = mnameFromList . reverse . drop n . reverse . mnameToList
-        lenM          = length . mnameToList
-        parentModules = map mnameFromList . init . tail . inits . mnameToList
 
 applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> Ren QName -> Ren ModuleName -> TCM ()
 applySection' new ptel old ts rd rm = do
@@ -423,8 +404,8 @@ applySection' new ptel old ts rd rm = do
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
-                         , recConType = apply t ts
-                         , recTel     = apply tel ts
+                         , recConType = apply t ts'
+                         , recTel     = apply tel ts'
                          }
                 _ -> do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
@@ -474,7 +455,6 @@ applySection' new ptel old ts rd rm = do
 
     new section C
       tel = Ξ.(Θ.Δ)[ts]
-      fv  = |tel|  (as C lives in the top level)
 
     calls
       1. copySec ts (Top.A.M, C.M)
@@ -487,14 +467,10 @@ applySection' new ptel old ts rd rm = do
       Common prefix is: Top
       totalArgs = |Θ|   (section Top)
       tel       = Θ.Γ.Φ (section Top.A.M)
-      ptel      = Θ.Γ   (section Top.A)
-      fv        = |Φ|
       ts'       = take totalArgs ts
       Θ₂        = drop totalArgs Θ
       new section C.M
         tel =  Θ₂.Γ.Φ[ts']
-        ?? To be continued
-
     -}
     copySec :: Args -> (ModuleName, ModuleName) -> TCM ()
     copySec ts (x, y) = do
