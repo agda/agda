@@ -9,7 +9,6 @@ module Agda.TypeChecking.Pretty where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
-import Control.Monad ((<=<))
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -191,7 +190,7 @@ instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
   prettyTCM = prettyTCM . ignoreReduced
 
 instance PrettyTCM EqualityView where
-  prettyTCM = prettyTCM <=< equalityUnview
+  prettyTCM v = prettyTCM $ equalityUnview v
 
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA

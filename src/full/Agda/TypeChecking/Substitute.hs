@@ -836,6 +836,17 @@ instance Subst Clause where
   -- no interesting dot patterns and we don't care about the type.
   applySubst rho c = c { clauseBody = applySubst rho $ clauseBody c }
 
+instance Subst EqualityView where
+  applySubst rho (OtherType t) = OtherType
+    (applySubst rho t)
+  applySubst rho (EqualityType s eq l t a b) = EqualityType
+    (applySubst rho s)
+    eq
+    (applySubst rho l)
+    (applySubst rho t)
+    (applySubst rho a)
+    (applySubst rho b)
+
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------

@@ -434,7 +434,7 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
 
         t' <- reduce =<< instantiateFull t
         (rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
-          EqualityType s _level dom a b -> return (El s (unArg dom), unArg a, unArg b)
+          EqualityType s _eq _level dom a b -> return (El s (unArg dom), unArg a, unArg b)
           OtherType{} -> typeError . GenericDocError =<< do
             text "Cannot rewrite by equation of type" <+> prettyTCM t'
 

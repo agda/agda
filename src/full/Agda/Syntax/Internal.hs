@@ -586,7 +586,8 @@ infixr 4 :#
 
 data EqualityView
   = EqualityType
-    { eqtSort  :: Sort
+    { eqtSort  :: Sort     -- ^ Sort of this type.
+    , eqtName  :: QName    -- ^ Builtin EQUALITY.
     , eqtLevel :: Arg Term -- ^ Hidden
     , eqtType  :: Arg Term -- ^ Hidden
     , eqtLhs   :: Arg Term -- ^ NotHidden

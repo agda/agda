@@ -381,7 +381,7 @@ instance Free' Clause c where
 
 instance Free' EqualityView c where
   freeVars' (OtherType t) = freeVars' t
-  freeVars' (EqualityType s l t a b) = freeVars' s `mappend` freeVars' [l, t, a, b]
+  freeVars' (EqualityType s _eq l t a b) = freeVars' s `mappend` freeVars' [l, t, a, b]
 
 -- Generators
 

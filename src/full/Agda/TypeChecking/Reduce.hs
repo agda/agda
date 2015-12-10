@@ -197,8 +197,9 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 instance Instantiate EqualityView where
   instantiate' (OtherType t)            = OtherType
     <$> instantiate' t
-  instantiate' (EqualityType s l t a b) = EqualityType
+  instantiate' (EqualityType s eq l t a b) = EqualityType
     <$> instantiate' s
+    <*> return eq
     <*> instantiate' l
     <*> instantiate' t
     <*> instantiate' a
@@ -635,8 +636,9 @@ instance (Ord k, Reduce e) => Reduce (Map k e) where
 instance Reduce EqualityView where
   reduce' (OtherType t)            = OtherType
     <$> reduce' t
-  reduce' (EqualityType s l t a b) = EqualityType
+  reduce' (EqualityType s eq l t a b) = EqualityType
     <$> reduce' s
+    <*> return eq
     <*> reduce' l
     <*> reduce' t
     <*> reduce' a
@@ -797,8 +799,9 @@ instance Simplify DisplayForm where
 instance Simplify EqualityView where
   simplify' (OtherType t)            = OtherType
     <$> simplify' t
-  simplify' (EqualityType s l t a b) = EqualityType
+  simplify' (EqualityType s eq l t a b) = EqualityType
     <$> simplify' s
+    <*> return eq
     <*> simplify' l
     <*> simplify' t
     <*> simplify' a
@@ -945,8 +948,9 @@ instance Normalise a => Normalise (Maybe a) where
 instance Normalise EqualityView where
   normalise' (OtherType t)            = OtherType
     <$> normalise' t
-  normalise' (EqualityType s l t a b) = EqualityType
+  normalise' (EqualityType s eq l t a b) = EqualityType
     <$> normalise' s
+    <*> return eq
     <*> normalise' l
     <*> normalise' t
     <*> normalise' a
@@ -1233,8 +1237,9 @@ instance InstantiateFull a => InstantiateFull (Maybe a) where
 instance InstantiateFull EqualityView where
   instantiateFull' (OtherType t)            = OtherType
     <$> instantiateFull' t
-  instantiateFull' (EqualityType s l t a b) = EqualityType
+  instantiateFull' (EqualityType s eq l t a b) = EqualityType
     <$> instantiateFull' s
+    <*> return eq
     <*> instantiateFull' l
     <*> instantiateFull' t
     <*> instantiateFull' a

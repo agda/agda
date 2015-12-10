@@ -425,15 +425,14 @@ equalityView t0@(El s t) = do
   equality <- primEqualityName
   case ignoreSharing t of
     Def equality' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | equality' == equality -> return $ EqualityType s level typ lhs rhs
+      | equality' == equality -> return $ EqualityType s equality level typ lhs rhs
     _ -> return $ OtherType t0
 
 -- | Revert the 'EqualityView'.
 --
 --   Postcondition: type is reduced.
 
-equalityUnview :: EqualityView -> TCM Type
-equalityUnview (OtherType t) = return t
-equalityUnview (EqualityType s l t lhs rhs) = do
-  equality <- primEqualityName
-  return $ El s $ Def equality $ map Apply [l, t, lhs, rhs]
+equalityUnview :: EqualityView -> Type
+equalityUnview (OtherType t) = t
+equalityUnview (EqualityType s equality l t lhs rhs) =
+  El s $ Def equality $ map Apply [l, t, lhs, rhs]
