@@ -326,6 +326,17 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
+-- | Create a clause body from a term.
+--
+--   As we have type checked the term in the clause telescope, but the final
+--   body should have bindings in the order of the pattern variables,
+--   we need to apply the permutation to the checked term.
+mkBody :: Permutation -> Term -> ClauseBody
+mkBody perm v = foldr (\ x t -> Bind $ Abs x t) b xs
+  where
+    b  = Body $ applySubst (renamingR perm) v
+    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
+
 -- | Type check a function clause.
 checkClause :: Type -> A.SpineClause -> TCM Clause
 checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
@@ -336,21 +347,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
       checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult delta ps trhs perm) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-
-        -- As we will be type-checking the @rhs@ in @delta@, but the final
-        -- body should have bindings in the order of the pattern variables,
-        -- we need to apply the permutation to the checked rhs @v@.
-        let mkBody v  = foldr (\ x t -> Bind $ Abs x t) b xs
-             where b  = Body $ applySubst (renamingR perm) v
-                   xs = [ stringToArgName $ "h" ++ show n
-                          | n <- [0..permRange perm - 1] ]
-
-        -- introduce trailing implicits for checking the where decls
-        TelV htel t0 <- telViewUpTo' (-1) (not . visible) $ unArg trhs
-        let n = size htel
-            checkWhere' wh = addCtxTel htel . checkWhere (size delta + n) wh . escapeContext (size htel)
-        (body, with) <- checkWhere' wh $ let
-            -- for the body, we remove the implicits again
+        (body, with) <- checkWhere (unArg trhs) wh $ let
             handleRHS rhs =
                 case rhs of
                   A.RHS e
@@ -358,7 +355,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                       typeError $ AbsurdPatternRequiresNoRHS aps
                     | otherwise -> do
                       v <- checkExpr e $ unArg trhs
-                      return (mkBody v, NoWithFunction)
+                      return (mkBody perm v, NoWithFunction)
                   A.AbsurdRHS
                     | any (containsAbsurdPattern . namedArg) aps
                                 -> return (NoBody, NoWithFunction)
@@ -367,7 +364,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                   -- Andreas, 2014-01-17, Issue 1402:
                   -- If the rewrites are discarded since lhs=rhs, then
                   -- we can actually have where clauses.
-                  A.RewriteRHS [] rhs wh -> checkWhere' wh $ handleRHS rhs
+                  A.RewriteRHS [] rhs wh -> checkWhere (unArg trhs) wh $ handleRHS rhs
                   A.RewriteRHS ((qname,eq):qes) rhs wh -> do
 
                        -- Action for skipping this rewrite.
@@ -517,7 +514,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                         (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
                         -- Now stuff the with arguments in between and finish with the remaining variables
                         v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
-
+                        body = mkBody perm v
                     -- Andreas, 2013-02-26 add with-name to signature for printing purposes
                     addConstant aux =<< do
                       useTerPragma $ Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep Nothing emptyFunction
@@ -534,9 +531,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
                     reportSDoc "tc.with.top" 20 $
                       text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
                     reportSDoc "tc.with.top" 20 $
-                      text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
+                      text "              body" <+> (addCtxTel delta $ prettyTCM body)
 
-                    return (mkBody v, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
+                    return (body, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
             in handleRHS rhs0
         escapeContext (size delta) $ checkWithFunction with
 
@@ -660,24 +657,36 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
   where
     info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess ConcreteDef (getRange cs)
 
--- | Type check a where clause. The first argument is the number of variables
---   bound in the left hand side.
-checkWhere :: Nat -> [A.Declaration] -> TCM a -> TCM a
-checkWhere _ []                      ret = ret
-checkWhere n [A.ScopedDecl scope ds] ret = withScope_ scope $ checkWhere n ds ret
-checkWhere n [A.Section _ m tel ds]  ret = do
-  checkTelescope tel $ \ tel' -> do
-    reportSDoc "tc.def.where" 10 $
-      text "adding section:" <+> prettyTCM m <+> text (show (size tel')) <+> text (show n)
-    addSection m
-    verboseS "tc.def.where" 10 $ do
-      dx   <- prettyTCM m
-      dtel <- mapM prettyAs tel
-      dtel' <- prettyTCM =<< lookupSection m
-      reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
-      reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
-    withCurrentModule m $ checkDecls ds >> ret
-checkWhere _ _ _ = __IMPOSSIBLE__
+-- | Type check a where clause.
+checkWhere
+  :: Type            -- ^ Type of rhs.
+  -> [A.Declaration] -- ^ Where-declarations to check.
+  -> TCM a           -- ^ Continutation.
+  -> TCM a
+checkWhere trhs ds ret0 = do
+  -- Temporarily add trailing hidden arguments to check where-declarartions.
+  TelV htel _ <- telViewUpTo' (-1) (not . visible) trhs
+  let
+    -- Remove htel after checking ds.
+    ret = escapeContext (size htel) $ ret0
+    loop ds = case ds of
+      [] -> ret
+      [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
+      [A.Section _ m tel ds]  -> do
+        checkTelescope tel $ \ tel' -> do
+          reportSDoc "tc.def.where" 10 $
+            text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
+          addSection m
+          verboseS "tc.def.where" 10 $ do
+            dx   <- prettyTCM m
+            dtel <- mapM prettyAs tel
+            dtel' <- prettyTCM =<< lookupSection m
+            reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
+            reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
+          withCurrentModule m $ checkDecls ds >> ret
+      _ -> __IMPOSSIBLE__
+  -- Add htel to check ds.
+  addCtxTel htel $ loop ds
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool
