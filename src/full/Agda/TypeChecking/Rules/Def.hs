@@ -318,6 +318,17 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
+-- | Create a clause body from a term.
+--
+--   As we have type checked the term in the clause telescope, but the final
+--   body should have bindings in the order of the pattern variables,
+--   we need to apply the permutation to the checked term.
+mkBody :: Permutation -> Term -> ClauseBody
+mkBody perm v = foldr (\ x t -> Bind $ Abs x t) b xs
+  where
+    b  = Body $ applySubst (renamingR perm) v
+    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
+
 -- | Type check a function clause.
 checkClause :: Type -> A.SpineClause -> TCM Clause
 checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
@@ -325,19 +336,10 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
+      let aps' = convColor aps
       checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult delta ps trhs perm) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-
-        -- As we will be type-checking the @rhs@ in @delta@, but the final
-        -- body should have bindings in the order of the pattern variables,
-        -- we need to apply the permutation to the checked rhs @v@.
-        let mkBody v  = foldr (\ x t -> Bind $ Abs x t) b xs
-             where b  = Body $ applySubst (renamingR perm) v
-                   xs = [ stringToArgName $ "h" ++ show n
-                          | n <- [0..permRange perm - 1] ]
-            aps' = convColor aps
-
         (body, with) <- checkWhere (unArg trhs) wh $ let
             handleRHS rhs =
                 case rhs of
@@ -346,7 +348,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                       typeError $ AbsurdPatternRequiresNoRHS aps'
                     | otherwise -> do
                       v <- checkExpr e $ unArg trhs
-                      return (mkBody v, NoWithFunction)
+                      return (mkBody perm v, NoWithFunction)
                   A.AbsurdRHS
                     | any (containsAbsurdPattern . namedArg) aps
                                 -> return (NoBody, NoWithFunction)
@@ -505,7 +507,7 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                         (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
                         -- Now stuff the with arguments in between and finish with the remaining variables
                         v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
-
+                        body = mkBody perm v
                     -- Andreas, 2013-02-26 add with-name to signature for printing purposes
                     addConstant aux =<< do
                       useTerPragma $ Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep Nothing emptyFunction
@@ -522,9 +524,9 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                     reportSDoc "tc.with.top" 20 $
                       text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
                     reportSDoc "tc.with.top" 20 $
-                      text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
+                      text "              body" <+> (addCtxTel delta $ prettyTCM body)
 
-                    return (mkBody v, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
+                    return (body, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
             in handleRHS rhs0
         escapeContext (size delta) $ checkWithFunction with
 
