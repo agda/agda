@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Rules.Def where
@@ -24,7 +25,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primRefl, primEqualityName)
+import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -428,27 +429,18 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
 
         (proof,t) <- inferExpr eq
 
-        -- Get the names of builtins EQUALITY and REFL.
-
-        equality <- primEqualityName
-        Con reflCon [] <- ignoreSharing <$> primRefl
-
         -- Check that the type is actually an equality (lhs ≡ rhs)
         -- and extract lhs, rhs, and their type.
 
         t' <- reduce =<< instantiateFull t
-        (rewriteType,rewriteFrom,rewriteTo) <- do
-          case ignoreSharing $ unEl t' of
-            Def equality'
-              [ _level
-              , Apply (Arg (ArgInfo Hidden    Relevant _) rewriteType)
-              , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteFrom)
-              , Apply (Arg (ArgInfo NotHidden Relevant _) rewriteTo)
-              ] | equality' == equality ->
-                  return (El (getSort t') rewriteType, rewriteFrom, rewriteTo)
-            _ -> do
-             err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
-             typeError $ GenericDocError err
+        (rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
+          EqualityType s _level dom a b -> return (El s (unArg dom), unArg a, unArg b)
+          OtherType{} -> typeError . GenericDocError =<< do
+            text "Cannot rewrite by equation of type" <+> prettyTCM t'
+
+        -- Get the name of builtin REFL.
+
+        Con reflCon [] <- ignoreSharing <$> primRefl
 
         -- Andreas, 2014-05-17  Issue 1110:
         -- Rewriting with a reflexive equation has no effect, but gives an

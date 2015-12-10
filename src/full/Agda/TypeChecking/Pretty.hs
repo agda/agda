@@ -9,6 +9,7 @@ module Agda.TypeChecking.Pretty where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Monad ((<=<))
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -25,6 +26,7 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Graph.AdjacencyMap.Unidirectional (Graph)
@@ -187,6 +189,9 @@ instance PrettyTCM Elim where
 
 instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
   prettyTCM = prettyTCM . ignoreReduced
+
+instance PrettyTCM EqualityView where
+  prettyTCM = prettyTCM <=< equalityUnview
 
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA

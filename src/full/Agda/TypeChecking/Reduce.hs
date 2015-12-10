@@ -194,6 +194,15 @@ instance Instantiate Constraint where
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
 
+instance Instantiate EqualityView where
+  instantiate' (OtherType t)            = OtherType
+    <$> instantiate' t
+  instantiate' (EqualityType s l t a b) = EqualityType
+    <$> instantiate' s
+    <*> instantiate' l
+    <*> instantiate' t
+    <*> instantiate' a
+    <*> instantiate' b
 
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
@@ -623,6 +632,16 @@ instance Reduce Constraint where
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce' = traverse reduce'
 
+instance Reduce EqualityView where
+  reduce' (OtherType t)            = OtherType
+    <$> reduce' t
+  reduce' (EqualityType s l t a b) = EqualityType
+    <$> reduce' s
+    <*> reduce' l
+    <*> reduce' t
+    <*> reduce' a
+    <*> reduce' b
+
 ---------------------------------------------------------------------------
 -- * Simplification
 ---------------------------------------------------------------------------
@@ -775,6 +794,15 @@ instance Simplify ClauseBody where
 instance Simplify DisplayForm where
   simplify' (Display n ps v) = Display n <$> simplify' ps <*> return v
 
+instance Simplify EqualityView where
+  simplify' (OtherType t)            = OtherType
+    <$> simplify' t
+  simplify' (EqualityType s l t a b) = EqualityType
+    <$> simplify' s
+    <*> simplify' l
+    <*> simplify' t
+    <*> simplify' a
+    <*> simplify' b
 
 ---------------------------------------------------------------------------
 -- * Normalisation
@@ -913,6 +941,16 @@ instance (Ord k, Normalise e) => Normalise (Map k e) where
 
 instance Normalise a => Normalise (Maybe a) where
     normalise' = traverse normalise'
+
+instance Normalise EqualityView where
+  normalise' (OtherType t)            = OtherType
+    <$> normalise' t
+  normalise' (EqualityType s l t a b) = EqualityType
+    <$> normalise' s
+    <*> normalise' l
+    <*> normalise' t
+    <*> normalise' a
+    <*> normalise' b
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
@@ -1191,3 +1229,13 @@ instance InstantiateFull QName where
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull' = mapM instantiateFull'
+
+instance InstantiateFull EqualityView where
+  instantiateFull' (OtherType t)            = OtherType
+    <$> instantiateFull' t
+  instantiateFull' (EqualityType s l t a b) = EqualityType
+    <$> instantiateFull' s
+    <*> instantiateFull' l
+    <*> instantiateFull' t
+    <*> instantiateFull' a
+    <*> instantiateFull' b

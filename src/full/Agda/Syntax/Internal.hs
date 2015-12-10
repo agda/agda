@@ -273,6 +273,10 @@ data LevelAtom
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Typeable)
 
+---------------------------------------------------------------------------
+-- * Blocked Terms
+---------------------------------------------------------------------------
+
 -- | Even if we are not stuck on a meta during reduction
 --   we can fail to reduce a definition by pattern matching
 --   for another reason.
@@ -572,6 +576,24 @@ data Substitution
   deriving (Show)
 
 infixr 4 :#
+
+
+---------------------------------------------------------------------------
+-- * Views
+---------------------------------------------------------------------------
+
+-- | View type as equality type.
+
+data EqualityView
+  = EqualityType
+    { eqtSort  :: Sort
+    , eqtLevel :: Arg Term -- ^ Hidden
+    , eqtType  :: Arg Term -- ^ Hidden
+    , eqtLhs   :: Arg Term -- ^ NotHidden
+    , eqtRhs   :: Arg Term -- ^ NotHidden
+    }
+  | OtherType Type -- ^ reduced
+
 
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
