@@ -384,21 +384,22 @@ checkRHS
 checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
   where
   aps' = convColor aps
+  absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
     case rhs of
 
-      A.RHS e
-        | any (containsAbsurdPattern . namedArg) aps ->
-          typeError $ AbsurdPatternRequiresNoRHS aps'
-        | otherwise -> do
-          v <- checkExpr e $ unArg trhs
-          return (mkBody perm v, NoWithFunction)
+      -- Case: ordinary RHS
+      A.RHS e -> do
+        when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps'
+        v <- checkExpr e $ unArg trhs
+        return (mkBody perm v, NoWithFunction)
 
-      A.AbsurdRHS
-        | any (containsAbsurdPattern . namedArg) aps
-                    -> return (NoBody, NoWithFunction)
-        | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps'
+      -- Case: no RHS
+      A.AbsurdRHS -> do
+        unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps'
+        return (NoBody, NoWithFunction)
 
+      -- Case: @rewrite@
       A.RewriteRHS [] rhs [] -> handleRHS rhs
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
@@ -492,6 +493,7 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
             ]
           handleRHS newRhs
 
+      -- Case: @with@
       A.WithRHS aux es cs -> do
         reportSDoc "tc.with.top" 15 $ vcat
           [ text "TC.Rules.Def.checkclause reached A.WithRHS"
