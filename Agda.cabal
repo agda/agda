@@ -129,14 +129,18 @@ library
     , transformers-compat >= 0.3.3.3 && < 0.5
     , unordered-containers >= 0.2.5.0 && < 0.3
     , xhtml >= 3000.2.1 && < 3000.3
-    -- zlib >= 0.6.1 is broken. See Issue 1518.
-    , zlib >= 0.4.0.1 && < 0.6.1
 
   if impl(ghc < 7.8)
     build-depends: base-orphans >= 0.3.1 && < 0.5
 
   if impl(ghc < 7.10)
     build-depends: void >= 0.5.4 && < 0.9
+
+  -- zlib >= 0.6.1 is broken with GHC < 7.10.3. See Issue 1518.
+  if impl(ghc < 7.10.3)
+    build-depends: zlib >= 0.4.0.1 && < 0.6.1
+  else
+    build-depends: zlib >= 0.4.0.1 && < 0.7
 
   build-tools:
     alex >= 3.1.0 && < 3.2
