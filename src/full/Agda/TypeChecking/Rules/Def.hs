@@ -656,21 +656,24 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 -- | Type check a where clause. The first argument is the number of variables
 --   bound in the left hand side.
 checkWhere :: Nat -> [A.Declaration] -> TCM a -> TCM a
-checkWhere _ []                      ret = ret
-checkWhere n [A.ScopedDecl scope ds] ret = withScope_ scope $ checkWhere n ds ret
-checkWhere n [A.Section _ m tel ds]  ret = do
-  checkTelescope tel $ \ tel' -> do
-    reportSDoc "tc.def.where" 10 $
-      text "adding section:" <+> prettyTCM m <+> text (show (size tel')) <+> text (show n)
-    addSection m
-    verboseS "tc.def.where" 10 $ do
-      dx   <- prettyTCM m
-      dtel <- mapM prettyAs tel
-      dtel' <- prettyTCM =<< lookupSection m
-      reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
-      reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
-    withCurrentModule m $ checkDecls ds >> ret
-checkWhere _ _ _ = __IMPOSSIBLE__
+checkWhere n ds ret = loop ds
+  where
+    loop ds = case ds of
+      [] -> ret
+      [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
+      [A.Section _ m tel ds]  -> do
+        checkTelescope tel $ \ tel' -> do
+          reportSDoc "tc.def.where" 10 $
+            text "adding section:" <+> prettyTCM m <+> text (show (size tel')) <+> text (show n)
+          addSection m
+          verboseS "tc.def.where" 10 $ do
+            dx   <- prettyTCM m
+            dtel <- mapM prettyAs tel
+            dtel' <- prettyTCM =<< lookupSection m
+            reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
+            reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
+          withCurrentModule m $ checkDecls ds >> ret
+      _ -> __IMPOSSIBLE__
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool
