@@ -19,11 +19,9 @@ import Agda.Utils.Impossible
 
 #include "undefined.h"
 
+-- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
 piAbstractTerm :: Term -> Type -> Type -> Type
-piAbstractTerm v a b = fun a (abstractTerm v b)
-  where
-    fun a b = El s $ Pi (defaultDom a) $ mkAbs "w" b
-      where s = (sLub `on` getSort) a b
+piAbstractTerm v a b = mkPi (defaultDom ("w", a)) $ abstractTerm v b
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where
