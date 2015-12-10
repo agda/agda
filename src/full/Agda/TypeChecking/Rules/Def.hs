@@ -323,25 +323,68 @@ data WithFunctionProblem
 --   As we have type checked the term in the clause telescope, but the final
 --   body should have bindings in the order of the pattern variables,
 --   we need to apply the permutation to the checked term.
+
 mkBody :: Permutation -> Term -> ClauseBody
 mkBody perm v = foldr (\ x t -> Bind $ Abs x t) b xs
   where
     b  = Body $ applySubst (renamingR perm) v
     xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
 
+
 -- | Type check a function clause.
-checkClause :: Type -> A.SpineClause -> TCM Clause
+
+checkClause
+  :: Type          -- ^ Type of function defined by this clause.
+  -> A.SpineClause -- ^ Clause.
+  -> TCM Clause    -- ^ Type-checked clause.
+
 checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
+    reportSDoc "tc.with.top" 30 $ text "Checking clause" $$ prettyA c
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
       aps <- expandPatternSynonyms aps
-      let aps' = convColor aps
-      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ (LHSResult delta ps trhs perm) -> do
+      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t $ \ lhsResult@(LHSResult delta ps trhs perm) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-        (body, with) <- checkWhere (unArg trhs) wh $ let
-            handleRHS rhs =
+        (body, with) <- checkWhere (unArg trhs) wh $ checkRHS i x aps t lhsResult rhs0
+        escapeContext (size delta) $ checkWithFunction with
+
+        reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
+          [ text "Clause before translation:"
+          , nest 2 $ vcat
+            [ text "delta =" <+> prettyTCM delta
+            , text "perm  =" <+> text (show perm)
+            , text "ps    =" <+> text (show ps)
+            , text "body  =" <+> text (show body)
+            , text "body  =" <+> prettyTCM body
+            ]
+          ]
+
+        return $
+          Clause { clauseRange     = getRange i
+                 , clauseTel       = killRange delta
+                 , clausePerm      = perm
+                 , namedClausePats = ps
+                 , clauseBody      = body
+                 , clauseType      = Just trhs
+                 }
+
+-- | Type check the @with@ and @rewrite@ lhss and/or the rhs.
+
+checkRHS
+  :: LHSInfo                 -- ^ Range of lhs.
+  -> QName                   -- ^ Name of function.
+  -> [A.NamedArg A.Pattern]  -- ^ Patterns in lhs.
+  -> Type                    -- ^ Type of function.
+  -> LHSResult               -- ^ Result of type-checking patterns
+  -> A.RHS                   -- ^ Rhs to check.
+  -> TCM (ClauseBody, WithFunctionProblem)
+
+checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
+  where
+    aps' = convColor aps
+    handleRHS rhs =
                 case rhs of
                   A.RHS e
                     | any (containsAbsurdPattern . namedArg) aps ->
@@ -451,8 +494,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                       [ text "TC.Rules.Def.checkclause reached A.WithRHS"
                       , sep $ prettyA aux : map (parens . prettyA) es
                       ]
-                    reportSDoc "tc.with.top" 30 $
-                      prettyA c
                     reportSDoc "tc.with.top" 20 $ do
                       nfv <- getCurrentModuleFreeVars
                       m   <- currentModule
@@ -527,29 +568,6 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
                       text "              body" <+> (addCtxTel delta $ prettyTCM body)
 
                     return (body, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
-            in handleRHS rhs0
-        escapeContext (size delta) $ checkWithFunction with
-
-        reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
-          [ text "Clause before translation:"
-          , nest 2 $ vcat
-            [ text "delta =" <+> prettyTCM delta
-            , text "perm  =" <+> text (show perm)
-            , text "ps    =" <+> text (show ps)
-            , text "body  =" <+> text (show body)
-            , text "body  =" <+> prettyTCM body
-            ]
-          ]
-
-        return $
-          Clause { clauseRange     = getRange i
-                 , clauseTel       = killRange delta
-                 , clausePerm      = perm
-                 , namedClausePats = ps
-                 , clauseBody      = body
-                 , clauseType      = Just trhs
-                 }
-
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
