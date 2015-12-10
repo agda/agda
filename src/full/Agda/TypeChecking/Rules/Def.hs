@@ -669,7 +669,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 checkWhere
   :: Type            -- ^ Type of rhs.
   -> [A.Declaration] -- ^ Where-declarations to check.
-  -> TCM a           -- ^ Continutation.
+  -> TCM a           -- ^ Continuation.
   -> TCM a
 checkWhere trhs ds ret0 = do
   -- Temporarily add trailing hidden arguments to check where-declarartions.
