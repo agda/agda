@@ -1,4 +1,4 @@
-2015-09-13, adapted from agda-releases
+2015-12-10, adapted from agda-releases
 
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
@@ -14,16 +14,10 @@ followed:
     cd agda.release
     git checkout maint-$MAJORVERSION
 
-* Clone the standard library branch related to the Agda bugfix
-  version.
+* Obtain and install the standard library branch related to the Agda
+  bugfix version:
 
-    make std-lib
-
-* Create Everything.agda in the standard library
-
-    cd std-lib
-    make Everything.agda
-    cd ..
+    make up-to-date-std-lib
 
 * Finish the CHANGELOG.
 
@@ -55,14 +49,7 @@ followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal test-suite:
-
-  ** Remove the agda-tests test suite in Agda.cabal.
-
-  ** Remove --enable-tests from the install-bin rule in Makefile.
-
-  ** Remove compiler-test and latex-tex from the tests rule in
-     Makefile.
+* Remove the Cabal test-suite from Agda.cabal.
 
 * Build source distributions:
 
@@ -93,13 +80,7 @@ followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
-* Restore the Cabal test-suite:
-
-  ** Restore the agda-tests test suite in Agda.cabal.
-
-  ** Add --enable-tests to the install-bin rule in Makefile.
-
-  ** Add compiler-test and latex-test to the tests rule in Makefile.
+* Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
@@ -109,17 +90,17 @@ followed:
 
 * Add a new header to CHANGELOG.
 
-* Update the version numbers in
+* Update the version number to the new version
+
+    NEWVERSION=<VERSION + 1>
+
+  in the following files:
 
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
     mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
-
-  to the new version
-
-    NEWVERSION=<VERSION + 1>
 
 * Create a new branch in the standard library repository from the
   VERSION branch called NEWVERSION.

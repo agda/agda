@@ -1,4 +1,4 @@
-2015-09-13, adapted from agda-maintenance-releases
+2015-12-10, adapted from agda-maintenance-releases
 
 When releasing a release candidate (RC) bugfix version of Agda, the
 following procedure can be followed:
@@ -25,28 +25,18 @@ following procedure can be followed:
 
     RC_VERSION=<current-released-version-current-date-eg-2.4.2.3.20150913
 
-* Change the version numbers in
+* Change VERSION to RC_VERSION in:
 
     Agda.cabal (twice)
-    src/data/emacs-mode/agda2-mode.el
     mk/version.mk
+    src/data/emacs-mode/agda2-mode.el
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
-  to the RC version
+* Obtain and install the standard library branch related to the Agda
+  bugfix version:
 
-    $RC_VERSION
-
-* Clone the standard library branch related to the Agda bugfix
-  version.
-
-    make std-lib
-
-* Create Everything.agda in the standard library
-
-    cd std-lib
-    make Everything.agda
-    cd ..
+    make up-to-date-std-lib
 
 * Finish the CHANGELOG.
 
@@ -71,14 +61,7 @@ following procedure can be followed:
   ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
-* Remove the Cabal test-suite:
-
-  ** Remove the agda-tests test suite in Agda.cabal.
-
-  ** Remove --enable-tests from the install-bin rule in Makefile.
-
-  ** Remove compiler-test and latex-test from the tests rule in
-     Makefile.
+* Remove the Cabal test-suite from Agda.cabal.
 
 * Build source distributions:
 
@@ -105,27 +88,17 @@ following procedure can be followed:
     cd $BASE
     git tag -a $RC_VERSION -m "Agda $VERSION release candidate"
 
-* Restore the Cabal test-suite:
-
-  ** Restore the agda-tests test suite in Agda.cabal.
-
-  ** Add --enable-tests to the install-bin rule in Makefile.
-
-  ** Add compiler-test and latex-test to the tests rule in Makefile.
+* Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
-* Restore the version numbers in
+* Restore the version number VERSION in:
 
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
     mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
-
-  to the version
-
-    $VERSION
 
 * Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
 
