@@ -613,28 +613,6 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
   reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]
 
-{- OLD, going through abstract syntax
-
-  absAuxType <- withShowAllArguments
-                $ disableDisplayForms
-                $ dontReifyInteractionPoints
-                $ reify candidateType
-  reportSDoc "tc.with.type" 15 $
-    vcat [ text "type of with function:"
-         , nest 2 $ prettyTCM absAuxType
-         ]
-  reportSDoc "tc.with.type" 50 $
-    vcat [ text "type of with function:"
-         , nest 2 $ text $ show absAuxType
-         ]
-  -- The ranges in the generated type are completely bogus, so we kill them.
-  auxType <- setCurrentRange cs
-               (traceCall NoHighlighting $  -- To avoid flicker.
-                  isType_ $ killRange absAuxType)
-    `catchError` \err -> case err of
-      TypeError s e -> put s >> enterClosure e (traceCall (CheckWithFunctionType absAuxType) . typeError)
-      _             -> throwError err
--}
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
   absAuxType <- reify candidateType
