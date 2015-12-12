@@ -309,8 +309,8 @@ data WithFunctionProblem
     , wfParentType :: Type                 -- ^ Type of the parent function.
     , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
     , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
-    , wfExprs      :: [Term]               -- ^ With expressions.
-    , wfExprTypes  :: [Type]               -- ^ Types of the with expressions.
+    , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
+    , wfExprTypes  :: [EqualityView]       -- ^ Types of the with and rewrite expressions.
     , wfRHSType    :: Type                 -- ^ Type of the right hand side.
     , wfParentPats :: [I.NamedArg Pattern] -- ^ Parent patterns.
     , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
@@ -382,7 +382,7 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (ClauseBody, WithFunctionProblem)
 
-checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
   where
   aps' = convColor aps
   absurdPat = any (containsAbsurdPattern . namedArg) aps
@@ -427,14 +427,14 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
 
         -- Get value and type of rewrite-expression.
 
-        (proof,t) <- inferExpr eq
+        (proof, eqt) <- inferExpr eq
 
         -- Check that the type is actually an equality (lhs ≡ rhs)
         -- and extract lhs, rhs, and their type.
 
-        t' <- reduce =<< instantiateFull t
-        (rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
-          EqualityType s _eq _level dom a b -> return (El s (unArg dom), unArg a, unArg b)
+        t' <- reduce =<< instantiateFull eqt
+        (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
+          eqt@(EqualityType s _eq _level dom a b) -> return (eqt, El s (unArg dom), unArg a, unArg b)
           OtherType{} -> typeError . GenericDocError =<< do
             text "Cannot rewrite by equation of type" <+> prettyTCM t'
 
@@ -466,8 +466,8 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
                 | otherwise = (wh, [])
               -- Andreas, 2014-03-05 kill range of copied patterns
               -- since they really do not have a source location.
-              newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr]
-                       [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
+              newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] cs
+              cs     = [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
                          -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
                          -- is defined by induction on eqs.
                          (A.RewriteRHS qes (insertPatterns pats rhs) inner)
@@ -483,7 +483,8 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
             , text "  proof = " <+> prettyTCM proofExpr
             , text "  equ   = " <+> prettyTCM t'
             ]
-          handleRHS newRhs
+
+          checkWithRHS x qname t lhsResult [proof] [eqt] cs
 
       -- Case: @with@
       A.WithRHS aux es cs -> do
@@ -501,6 +502,21 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
 
         -- Infer the types of the with expressions
         (vs0, as) <- unzip <$> mapM inferExprForWith es
+
+        checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
+
+checkWithRHS
+  :: QName                   -- ^ Name of function.
+  -> QName                   -- ^ Name of the with-function.
+  -> Type                    -- ^ Type of function.
+  -> LHSResult               -- ^ Result of type-checking patterns
+  -> [Term]                  -- ^ With-expressions.
+  -> [EqualityView]          -- ^ Types of with-expressions.
+  -> [A.Clause]              -- ^ With-clauses to check.
+  -> TCM (ClauseBody, WithFunctionProblem)
+
+checkWithRHS x aux t (LHSResult delta ps trhs perm) vs0 as cs = do
+        let withArgs = withArguments vs0 as
         (vs, as)  <- normalise (vs0, as)
 
         -- Andreas, 2012-09-17: for printing delta,
@@ -544,7 +560,7 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
             -- Then permute the rest and grab those needed to for the with arguments
             (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
+            v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
             body = mkBody perm v
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
@@ -588,17 +604,12 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- Add the type of the auxiliary function to the signature
 
-  -- With display forms are closed
-  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm' perm
-
-  reportSLn "tc.with.top" 20 "created with display form"
-
   -- Generate the type of the with function
   delta1 <- normalise delta1 -- Issue 1332: checkInternal is picky about argInfo
                              -- but module application is sloppy.
                              -- We normalise to get rid of Def's coming
                              -- from module applications.
-  candidateType <- withFunctionType delta1 vs as delta2 b
+  (candidateType, vsAll) <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
   reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]
 
@@ -638,6 +649,14 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
           traceCall (CheckWithFunctionType absAuxType) . typeError
       err           -> throwError err
 
+
+  -- With display forms are closed
+
+  let n        = size vsAll
+  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 n qs perm' perm
+
+  reportSLn "tc.with.top" 20 "created with display form"
+
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
       [ text (show n)
@@ -656,7 +675,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction f aux t qs finalPerm (size delta1) (size as) cs
+  cs <- buildWithFunction f aux t qs finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function

@@ -12,8 +12,10 @@ import Agda.Syntax.Common hiding (Arg, Dom, NamedArg)
 import qualified Agda.Syntax.Common as Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
 import Agda.Utils.Impossible
 
@@ -22,6 +24,23 @@ import Agda.Utils.Impossible
 -- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = mkPi (defaultDom ("w", a)) $ abstractTerm v b
+
+-- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
+--
+--   For @rewrite@, it does something special:
+--
+--   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
+
+piAbstract :: (Term, EqualityView) -> Type -> Type
+piAbstract (v, OtherType a) b = piAbstractTerm v a b
+piAbstract (prf, eqt@(EqualityType s _ _ a v _)) b =
+  funType (El s $ unArg a) $ funType eqt' $
+    swap01 $ abstractTerm (unArg $ raise 1 v) $ abstractTerm prf b
+  where
+    funType a = mkPi $ defaultDom ("w", a)
+    -- Abstract the lhs (@a@) of the equality only.
+    eqt1 = raise 1 eqt
+    eqt' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where

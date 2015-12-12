@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v tc.rewrite:25 -v tc.with:60  #-}
+
 module Rewrite where
 
 open import Common.Equality
