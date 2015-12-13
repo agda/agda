@@ -58,6 +58,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
+import Agda.Packaging.Base
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
@@ -188,7 +189,8 @@ data PostScopeState = PostScopeState
 -- | A part of the state which is not reverted when an error is thrown
 -- or the state is reset.
 data PersistentTCState = PersistentTCSt
-  { stDecodedModules    :: DecodedModules
+  { stPackageDBs        :: PkgDBStack
+  , stDecodedModules    :: DecodedModules
   , stPersistentOptions :: CommandLineOptions
   , stInteractionOutputCallback  :: InteractionOutputCallback
     -- ^ Callback function to call when there is a response
@@ -239,7 +241,8 @@ data TypeCheckAction
 
 initPersistentState :: PersistentTCState
 initPersistentState = PersistentTCSt
-  { stPersistentOptions         = defaultOptions
+  { stPackageDBs                = emptyPackageDBs
+  , stPersistentOptions         = defaultOptions
   , stDecodedModules            = Map.empty
   , stInteractionOutputCallback = defaultInteractionOutputCallback
   , stBenchmark                 = empty
@@ -576,12 +579,12 @@ instance FreshName () where
 -- | Maps top-level module names to the corresponding source file
 -- names.
 
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
+type ModuleToSource = Map TopLevelModuleName ModulePath
 
 -- | Maps source file names to the corresponding top-level module
 -- names.
 
-type SourceToModule = Map AbsolutePath TopLevelModuleName
+type SourceToModule = Map ModulePath TopLevelModuleName
 
 -- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
 
@@ -2156,7 +2159,7 @@ data TypeError
         | CyclicModuleDependency [C.TopLevelModuleName]
         | FileNotFound C.TopLevelModuleName [AbsolutePath]
         | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
-        | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
+        | AmbiguousTopLevelModuleName C.TopLevelModuleName [ModulePath]
         | ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
         | ClashingFileNamesFor ModuleName [AbsolutePath]
         | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath

@@ -29,8 +29,8 @@ import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
 
-import System.Directory (doesFileExist, getModificationTime, removeFile)
-import System.FilePath ((</>))
+import System.Directory (doesFileExist, getModificationTime, removeFile, createDirectoryIfMissing)
+import System.FilePath ((</>), takeDirectory)
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -64,6 +64,9 @@ import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
+
+import Agda.Packaging.Base
+import Agda.Packaging.Database
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
@@ -180,6 +183,24 @@ alreadyVisited x getIface = do
             }
           return r
 
+importPrimitiveModules :: TCM ()
+importPrimitiveModules = do
+  reportSLn "import.main" 10 $ "Importing the primitive modules."
+  primPkg <- getPrimitivesPackage
+  case primPkg of
+    Nothing -> reportSLn "import.main" 10 $ "Skip importing hidden Agda-Primitives package."
+    Just primPkg -> do
+      -- Turn off import-chasing messages.
+      -- We have to modify the persistent verbosity setting, since
+      -- getInterface resets the current verbosity settings to the persistent ones.
+      _ <- bracket_ (gets $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
+        Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
+        -- We don't want to generate highlighting information for Agda.Primitive.
+        withHighlightingLevel None $
+          getInterface_ =<<
+            moduleName =<< asAbsolutePath (InPackage (pkgId primPkg) ("Agda" </> "Primitive.agda"))
+      reportSLn "import.main" 10 $ "Done importing the primitive modules."
+
 -- | Type checks the main file of the interaction.
 --   This could be the file loaded in the interacting editor (emacs),
 --   or the file passed on the command line.
@@ -189,26 +210,7 @@ alreadyVisited x getIface = do
 
 typeCheckMain :: AbsolutePath -> TCM (Interface, MaybeWarnings)
 typeCheckMain f = do
-  -- liftIO $ putStrLn $ "This is typeCheckMain " ++ prettyShow f
-  -- liftIO . putStrLn . show =<< getVerbosity
-  reportSLn "import.main" 10 $ "Importing the primitive modules."
-  libdir <- liftIO defaultLibDir
-  reportSLn "import.main" 20 $ "Library dir = " ++ show libdir
-  -- To allow posulating the built-ins, check the primitive module
-  -- in unsafe mode
-  _ <- bracket_ (gets $ Lens.getSafeMode) Lens.putSafeMode $ do
-    Lens.putSafeMode False
-    -- Turn off import-chasing messages.
-    -- We have to modify the persistent verbosity setting, since
-    -- getInterface resets the current verbosity settings to the persistent ones.
-    bracket_ (gets $ Lens.getPersistentVerbosity) Lens.putPersistentVerbosity $ do
-      Lens.modifyPersistentVerbosity (Trie.delete [])  -- set root verbosity to 0
-      -- We don't want to generate highlighting information for Agda.Primitive.
-      withHighlightingLevel None $
-        getInterface_ =<< do
-          moduleName $ mkAbsolute $
-            libdir </> "prim" </> "Agda" </> "Primitive.agda"
-  reportSLn "import.main" 10 $ "Done importing the primitive modules."
+  importPrimitiveModules
 
   -- Now do the type checking via getInterface.
   m <- moduleName f
@@ -251,68 +253,84 @@ getInterface' x isMain = do
              (unless includeStateChanges . setPragmaOptions) $ do
      -- Forget the pragma options (locally).
      setCommandLineOptions . stPersistentOptions . stPersistentState =<< get
-
      alreadyVisited x $ addImportCycleCheck x $ do
       file <- findFile x  -- requires source to exist
 
-      reportSLn "import.iface" 10 $ "  Check for cycle"
-      checkForImportCycle
+      case file of
+        InPackage pkgKey p -> do
+          reportSLn "import.iface" 5 $ "  Loading module " ++ prettyShow x ++ " from a package"
+          -- ifaces in packages should always be valid, so skip checks
+          i <- fromMaybe __IMPOSSIBLE__
+            <$> (readInterface . filePath =<< asAbsolutePath =<< toIFile' x file)
+          -- load all imported files
+          pkg <- getPackage pkgKey
+          let deps = Set.insert (pkgId pkg) (pkgDependencies pkg)
+          -- TODO drop include directories when resolving modules inside packages
+          withExposedPackages (\pkg' -> pkgId pkg' `Set.member` deps) $ do
+            reportSLn "import.iface" 20 $ "  Setting exposed packages: " ++ show deps
+            mapM_ (\(x, _) -> getInterface' (toTopLevelModuleName x) NotMainInterface) (iImportedModules i)
+          -- we don't care about warnings from packages
+          mergeInterface i
+          return (i, NoWarnings)
+        PlainPath file -> do
+          reportSLn "import.iface" 10 $ "  Check for cycle"
+          checkForImportCycle
 
-      uptodate <- Bench.billTo [Bench.Import] $ do
-        ignore <- ignoreInterfaces
-        cached <- isCached file -- if it's cached ignoreInterfaces has no effect
+          uptodate <- Bench.billTo [Bench.Import] $ do
+            ignore <- ignoreInterfaces
+            ifile <- toIFile x file
+            cached <- isCached ifile -- if it's cached ignoreInterfaces has no effect
                                 -- to avoid typechecking a file more than once
-        sourceH <- liftIO $ hashFile file
-        ifaceH  <-
-          case cached of
-            Nothing -> fmap fst <$> getInterfaceFileHashes (filePath $ toIFile file)
-            Just i  -> return $ Just $ iSourceHash i
-        let unchanged = Just sourceH == ifaceH
-        return $ unchanged && (not ignore || isJust cached)
+            sourceH <- liftIO $ hashFile file
+            ifaceH  <-
+              case cached of
+                Nothing -> fmap fst <$> getInterfaceFileHashes (filePath ifile)
+                Just i  -> return $ Just $ iSourceHash i
+            let unchanged = Just sourceH == ifaceH
+            return $ unchanged && (not ignore || isJust cached)
 
-      reportSLn "import.iface" 5 $
-        "  " ++ prettyShow x ++ " is " ++
-        (if uptodate then "" else "not ") ++ "up-to-date."
+          reportSLn "import.iface" 5 $
+            "  " ++ prettyShow x ++ " is " ++
+            (if uptodate then "" else "not ") ++ "up-to-date."
 
-      (stateChangesIncluded, (i, wt)) <- do
-        -- -- Andreas, 2014-10-20 AIM XX:
-        -- -- Always retype-check the main file to get the iInsideScope
-        -- -- which is no longer serialized.
-        -- let maySkip = isMain == NotMainInterface
-        -- Andreas, 2015-07-13: Serialize iInsideScope again.
-        let maySkip = True
-        if uptodate && maySkip then skip file else typeCheckThe file
+          (stateChangesIncluded, (i, wt)) <- do
+            -- -- Andreas, 2014-10-20 AIM XX:
+            -- -- Always retype-check the main file to get the iInsideScope
+            -- -- which is no longer serialized.
+            -- let maySkip = isMain == NotMainInterface
+            -- Andreas, 2015-07-13: Serialize iInsideScope again.
+            let maySkip = True
+            if uptodate && maySkip then skip x file else typeCheckThe file
 
-      -- Ensure that the given module name matches the one in the file.
-      let topLevelName = toTopLevelModuleName $ iModuleName i
-      unless (topLevelName == x) $ do
-        -- Andreas, 2014-03-27 This check is now done in the scope checker.
-        -- checkModuleName topLevelName file
-        typeError $ OverlappingProjects file topLevelName x
+          -- Ensure that the given module name matches the one in the file.
+          let topLevelName = toTopLevelModuleName $ iModuleName i
+          unless (topLevelName == x) $ do
+            -- Andreas, 2014-03-27 This check is now done in the scope checker.
+            -- checkModuleName topLevelName file
+            typeError $ OverlappingProjects file topLevelName x
 
-      visited <- isVisited x
-      reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
+          visited <- isVisited x
+          reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                    else "  New module. Let's check it out."
-      unless (visited || stateChangesIncluded) $ do
-        mergeInterface i
-        Bench.billTo [Bench.Highlighting] $
-          ifTopLevelAndHighlightingLevelIs NonInteractive $
-            highlightFromInterface i file
+          unless (visited || stateChangesIncluded) $ do
+            mergeInterface i
+            Bench.billTo [Bench.Highlighting] $
+              ifTopLevelAndHighlightingLevelIs NonInteractive $
+                highlightFromInterface i file
 
-      stCurrentModule .= Just (iModuleName i)
+          stCurrentModule .= Just (iModuleName i)
 
-      -- Interfaces are only stored if no warnings were encountered.
-      case wt of
-        SomeWarnings w -> return ()
-        NoWarnings     -> storeDecodedModule i
+          -- Interfaces are only stored if no warnings were encountered.
+          case wt of
+            SomeWarnings w -> return ()
+            NoWarnings     -> storeDecodedModule i
 
-      return (i, wt)
-
+          return (i, wt)
     where
       includeStateChanges = isMain == MainInterface
 
-      isCached file = do
-        let ifile = filePath $ toIFile file
+      isCached ifile' = do
+        let ifile = filePath ifile'
         exist <- liftIO $ doesFileExistCaseSensitive ifile
         if not exist
           then return Nothing
@@ -333,11 +351,11 @@ getInterface' x isMain = do
                   Just f  -> " (" ++ f ++ ")."
         reportSLn "import.chase" 1 s
 
-      skip file = do
+      skip x file = do
         -- Examine the hash of the interface file. If it is different from the
         -- stored version (in stDecodedModules), or if there is no stored version,
         -- read and decode it. Otherwise use the stored version.
-        let ifile = filePath $ toIFile file
+        ifile <- filePath <$> toIFile x file
         h <- fmap snd <$> getInterfaceFileHashes ifile
         mm <- getDecodedModule x
         (cached, mi) <- Bench.billTo [Bench.Deserialization] $ case mm of
@@ -411,6 +429,7 @@ getInterface' x isMain = do
             ibuiltin <- use stImportedBuiltins
             ipatsyns <- getPatternSynImports
             ho       <- getInteractionOutputCallback
+            dbs      <- getPackageDBs
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
@@ -433,6 +452,7 @@ getInterface' x isMain = do
                      stModuleToSource .= mf
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns
+                     setPackageDBs dbs
 
                      r  <- withMsgs $ createInterface file x
                      mf <- use stModuleToSource
@@ -456,7 +476,7 @@ getInterface' x isMain = do
                       -- checking the module.
                       -- Note that this doesn't actually read the interface
                       -- file, only the cached interface.
-                      skip file
+                      skip x file
                     _ -> return (False, r)
 
 -- | Print the highlighting information contained in the given
@@ -517,6 +537,7 @@ writeInterface file i = do
     -- i <- return $
     --   i { iInsideScope  = removePrivates $ iInsideScope i
     --     }
+    liftIO $ createDirectoryIfMissing True (takeDirectory file)
     encodeFile file i
     reportSLn "import.iface.write" 5 $ "Wrote interface file."
     reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i) ++ ""
@@ -674,7 +695,7 @@ createInterface file mname =
      then Bench.billTo [Bench.Serialization] $ do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
-      let ifile = filePath $ toIFile file
+      ifile <- filePath <$> toIFile mname file
       writeInterface ifile i
       return (i, NoWarnings)
      else do

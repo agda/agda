@@ -24,6 +24,7 @@ import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
+import Agda.Packaging.Database
 
 import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -118,6 +119,7 @@ runAgdaWithOptions generateHTML progName opts
                       | otherwise     = (() <$)
       interaction $ do
         setCommandLineOptions opts
+        loadPkgDBs
         hasFile <- hasInputFile
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).

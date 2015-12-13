@@ -87,11 +87,16 @@ data CommandLineOptions = Options
   -- ^ Use this (if Just) instead of .agda/libraries
   , optDefaultLibs      :: Bool
   -- ^ Use ~/.agda/defaults or look for .agda-lib file.
+  , optPkgDBs           :: [FilePath]
+  , optHidePrimPkg      :: Bool
+  , optExposeAll        :: Bool
+  , optExposePkgKeys    :: [String]
   , optShowVersion      :: Bool
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
   , optRunTests         :: Bool
   , optGHCiInteraction  :: Bool
+  , optInterfaceDir     :: Maybe FilePath
   , optCompileNoMain    :: Bool
   , optGhcCompile       :: Bool
   , optGhcCallGhc       :: Bool
@@ -180,11 +185,16 @@ defaultOptions = Options
   , optLibraries        = []
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs      = True
+  , optPkgDBs           = []
+  , optHidePrimPkg      = False
+  , optExposeAll        = True
+  , optExposePkgKeys    = []
   , optShowVersion      = False
   , optShowHelp         = False
   , optInteractive      = False
   , optRunTests         = False
   , optGHCiInteraction  = False
+  , optInterfaceDir     = Nothing
   , optCompileNoMain    = False
   , optGhcCompile       = False
   , optGhcCallGhc       = True
@@ -458,6 +468,9 @@ interactiveFlag  o = return $ o { optInteractive    = True
                                                       { optAllowUnsolved = True }
                                 }
 
+interfaceDirFlag :: FilePath -> Flag CommandLineOptions
+interfaceDirFlag f o = return $ o { optInterfaceDir = Just f }
+
 compileFlagNoMain :: Flag CommandLineOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
 
@@ -534,6 +547,12 @@ overrideLibrariesFileFlag s o = return $ o { optOverrideLibrariesFile = Just s }
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }
 
+packageDBFlag :: String -> Flag CommandLineOptions
+packageDBFlag s o = return $ o { optPkgDBs = optPkgDBs o ++ [s] }
+
+hidePrimPkgFlag :: Flag CommandLineOptions
+hidePrimPkgFlag o = return $ o { optHidePrimPkg = True }
+
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
@@ -566,6 +585,8 @@ standardOptions =
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
+    , Option []     ["interface-dir"] (ReqArg interfaceDirFlag "DIR")
+                    "directory for interface files"
     , Option ['c']  ["compile", "ghc"] (NoArg compileGhcFlag)
                     "compile program using the GHC backend (experimental)"
     , Option []     ["ghc-dont-call-ghc"] (NoArg ghcDontCallGhcFlag) "Don't call ghc, just write the GHC Haskell files."
@@ -624,6 +645,10 @@ standardOptions =
                     "use FILE instead of the standard libraries file"
     , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
+    , Option []     ["package-db"] (ReqArg packageDBFlag "PKGDB")
+                    "add a package DB (disables default package DBs)"
+    , Option []     ["hide-prim-package"] (NoArg hidePrimPkgFlag)
+                    "don't load the Agda primitive package"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
     , Option []     ["safe"] (NoArg safeFlag)

@@ -28,6 +28,8 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Imports
 
+import Agda.Packaging.Database
+
 import Agda.Syntax.Common (Delayed(..))
 import qualified Agda.Syntax.Concrete.Name as CN
 import Agda.Syntax.Internal hiding (Term(..))
@@ -120,7 +122,7 @@ compileModule i = do
             (ifaces, limps) <- mapAndUnzipM compileModule imports
             let imps = Set.unions limps
             modify $ \s -> s { importedModules = importedModules s `mappend` mconcat ifaces }
-            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (findInterfaceFile moduleName)
+            ifile <- maybe __IMPOSSIBLE__ filePath <$> lift (traverse asAbsolutePath =<< findInterfaceFile moduleName)
             let eifFile = file <.> "aei"
             uptodate <- liftIO $ isNewerThan eifFile ifile
             (eif, imps') <- case uptodate of
@@ -211,7 +213,7 @@ compileDefns defs = do
 setEpicDir :: Interface -> Compile (TCMT IO) ()
 setEpicDir mainI = do
     let tm = toTopLevelModuleName $ iModuleName mainI
-    f <- lift $ findFile tm
+    f <- lift $ asAbsolutePath =<< findFile tm
     compileDir' <- lift $ gets (fromMaybe (filePath $ CN.projectRoot f tm) .
                                   optCompileDir . stPersistentOptions . stPersistentState)
     compileDir <- liftIO $ canonicalizePath compileDir'

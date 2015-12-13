@@ -5,6 +5,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Data.IORef (IORef)
 import Data.Map (Map)
 
+import Agda.Packaging.Base
 import Agda.Syntax.Concrete.Name (TopLevelModuleName)
 import Agda.Utils.FileName (AbsolutePath)
 
@@ -19,4 +20,4 @@ instance MonadIO m => MonadIO (TCMT m)
 
 type TCM = TCMT IO
 
-type ModuleToSource = Map TopLevelModuleName AbsolutePath
+type ModuleToSource = Map TopLevelModuleName ModulePath

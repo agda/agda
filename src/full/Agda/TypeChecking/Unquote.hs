@@ -18,6 +18,8 @@ import Data.Traversable (traverse)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import Agda.Packaging.Base
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
@@ -334,7 +336,7 @@ instance Unquote MetaId where
       Lit (LitMeta r f x) -> do
         live <- (== f) <$> liftU getCurrentPath
         unless live $ liftU $ do
-            m <- fromMaybe __IMPOSSIBLE__ . Map.lookup f <$> sourceToModule
+            m <- fromMaybe __IMPOSSIBLE__ . Map.lookup (PlainPath f) <$> sourceToModule
             typeError . GenericDocError =<<
               sep [ text "Can't unquote stale metavariable"
                   , pretty m <> text "." <> pretty x ]

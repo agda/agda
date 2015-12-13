@@ -17,6 +17,7 @@ import System.FilePath ( splitFileName, (</>) )
 import Agda.Interaction.FindFile ( findFile, findInterfaceFile )
 import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
+import Agda.Packaging.Database (asAbsolutePath)
 import Agda.Syntax.Common ( Nat, unArg, namedArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
@@ -89,7 +90,7 @@ compile i = do
   where
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
-               (findInterfaceFile . toTopLevelModuleName =<< curMName)
+               (traverse asAbsolutePath =<< findInterfaceFile . toTopLevelModuleName =<< curMName)
   noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . prettyShow =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [prettyShow <$> curMName, ifile, outFile_] :: TCM ()

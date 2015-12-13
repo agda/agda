@@ -1,0 +1,7 @@
+name: Agda-Builtins
+version: "1.0"
+library:
+  source-dirs: [ src ]
+  agda-dependencies: []
+  hs-dependencies: []
+  agda-options: []

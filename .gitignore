@@ -25,7 +25,8 @@ dist-*/
 Epic
 examples/compiler/main
 hlint-report.html
-MAlonzo
+**/MAlonzo/*
+!src/data/MAlonzo-RTE/**/*.hs
 mk/config.mk
 mk/parallel-tests.mk
 notes/style/haskell-style.tex

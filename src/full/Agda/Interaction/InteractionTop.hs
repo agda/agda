@@ -39,6 +39,8 @@ import qualified Data.Traversable as Trav
 import System.Directory
 import System.FilePath
 
+import Agda.Packaging.Base
+
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
 import qualified Agda.TypeChecking.Monad as TM
@@ -1143,7 +1145,7 @@ status = do
       case t == t' of
         False -> return False
         True  -> do
-          mm <- Map.lookup f <$> sourceToModule
+          mm <- Map.lookup (PlainPath f) <$> sourceToModule
           case mm of
             Nothing -> return False -- work-around for Issue1007
             Just m  -> not . miWarnings . fromMaybe __IMPOSSIBLE__ <$> getVisitedModule m

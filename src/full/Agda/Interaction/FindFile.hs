@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 ------------------------------------------------------------------------
 -- | Functions which map between module names and file names.
 --
@@ -7,7 +8,7 @@
 ------------------------------------------------------------------------
 
 module Agda.Interaction.FindFile
-  ( toIFile
+  ( toIFile, toIFile'
   , FindError(..), findErrorToTypeError
   , findFile, findFile', findFile''
   , findInterfaceFile
@@ -22,32 +23,36 @@ import Control.Monad.Trans
 import Data.List
 import qualified Data.Map as Map
 import System.FilePath
+import Data.Maybe
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Imports
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
-import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs, commandLineOptions)
+import Agda.Interaction.Options (optInterfaceDir)
 import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Packaging.Base as PKGS
+import Agda.Packaging.Database
 
--- | Converts an Agda file name to the corresponding interface file
--- name.
+#include "undefined.h"
+import Agda.Utils.Impossible
 
-toIFile :: AbsolutePath -> AbsolutePath
-toIFile f = mkAbsolute (replaceExtension (filePath f) ".agdai")
 
 -- | Errors which can arise when trying to find a source file.
 --
 -- Invariant: All paths are absolute.
 
+
 data FindError
   = NotFound [AbsolutePath]
     -- ^ The file was not found. It should have had one of the given
     -- file names.
-  | Ambiguous [AbsolutePath]
+  | Ambiguous [ModulePath]
     -- ^ Several matching files were found.
     --
     -- Invariant: The list of matching files has at least two
@@ -61,12 +66,26 @@ findErrorToTypeError m (NotFound  files) = FileNotFound m files
 findErrorToTypeError m (Ambiguous files) =
   AmbiguousTopLevelModuleName m files
 
+-- | Converts an Agda file name to the corresponding interface file
+-- name.
+toIFile :: TopLevelModuleName -> AbsolutePath -> TCM AbsolutePath
+toIFile m f = asAbsolutePath =<< toIFile' m (PlainPath f)
+
+toIFile' :: TopLevelModuleName -> ModulePath -> TCM ModulePath
+toIFile' _ (InPackage p f) = return $ InPackage p $ replaceExtension f ".agdai"
+toIFile' m (PlainPath f) = do
+  idir <- optInterfaceDir <$> commandLineOptions
+  PlainPath <$>
+    case idir of
+      Just d -> liftIO $ absolute $ d </> moduleNameToFileName m ".agdai"
+      Nothing -> return $ mkAbsolute (replaceExtension (filePath f) ".agdai")
+
 -- | Finds the source file corresponding to a given top-level module
 -- name. The returned paths are absolute.
 --
 -- Raises an error if the file cannot be found.
 
-findFile :: TopLevelModuleName -> TCM AbsolutePath
+findFile :: TopLevelModuleName -> TCM ModulePath
 findFile m = do
   mf <- findFile' m
   case mf of
@@ -77,35 +96,38 @@ findFile m = do
 --   module name. The returned paths are absolute.
 --
 --   SIDE EFFECT:  Updates 'stModuleToSource'.
-findFile' :: TopLevelModuleName -> TCM (Either FindError AbsolutePath)
+findFile' :: TopLevelModuleName -> TCM (Either FindError ModulePath)
 findFile' m = do
     dirs         <- getIncludeDirs
+    dbs          <- getPackageDBs
     modFile      <- use stModuleToSource
-    (r, modFile) <- liftIO $ findFile'' dirs m modFile
+    (r, modFile) <- liftIO $ findFile'' dbs dirs m modFile
     stModuleToSource .= modFile
     return r
 
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
 findFile''
-  :: [AbsolutePath]
+  :: PkgDBStack
+  -> [AbsolutePath]
   -- ^ Include paths.
   -> TopLevelModuleName
   -> ModuleToSource
   -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
-  -> IO (Either FindError AbsolutePath, ModuleToSource)
-findFile'' dirs m modFile =
+  -> IO (Either FindError ModulePath, ModuleToSource)
+findFile'' dbs dirs m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right f, modFile)
     Nothing -> do
-      files <- mapM absolute
+      files <- mapM (liftIO . absolute)
                     [ filePath dir </> file
                     | dir  <- dirs
                     , file <- map (moduleNameToFileName m)
                                   [".agda", ".lagda"]
                     ]
-      existingFiles <-
-        liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
+      existingFiles <- (++)
+        <$> (map PlainPath <$> (liftIO $ filterM (doesFileExistCaseSensitive . filePath) files))
+        <*> PKGS.findSrc' dbs m
       return $ case nub existingFiles of
         []     -> (Left (NotFound files), modFile)
         [file] -> (Right file, Map.insert m file modFile)
@@ -118,11 +140,14 @@ findFile'' dirs m modFile =
 -- 'Nothing' if the source file can be found but not the interface
 -- file.
 
-findInterfaceFile :: TopLevelModuleName -> TCM (Maybe AbsolutePath)
+findInterfaceFile :: TopLevelModuleName -> TCM (Maybe ModulePath)
 findInterfaceFile m = do
-  f  <- toIFile <$> findFile m
-  ex <- liftIO $ doesFileExistCaseSensitive $ filePath f
-  return $ if ex then Just f else Nothing
+  f  <- toIFile' m =<< findFile m
+  case f of
+    PlainPath f -> do
+      ex <- liftIO $ doesFileExistCaseSensitive $ filePath f
+      return $ if ex then Just (PlainPath f) else Nothing
+    InPackage _ _ -> return $ Just f
 
 -- | Ensures that the module name matches the file name. The file
 -- corresponding to the module name (according to the include path)
@@ -140,12 +165,13 @@ checkModuleName name file = do
                                 ModuleNameDoesntMatchFileName name files
     Left (Ambiguous files) -> typeError $
                                 AmbiguousTopLevelModuleName name files
-    Right file' -> do
+    Right (PlainPath file') -> do
       file <- liftIO $ absolute (filePath file)
       if file === file' then
         return ()
        else
         typeError $ ModuleDefinedInOtherFile name file file'
+    Right (InPackage _ _) -> return () -- Has already been checked at package build time.
 
 -- | Computes the module name of the top-level module in the given file.
 --

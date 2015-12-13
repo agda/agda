@@ -17,6 +17,8 @@ import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 import Agda.Utils.TestHelpers
+import Agda.Packaging.Base
+import Agda.Packaging.Database
 
 import Control.Applicative
 import qualified Control.Exception as E
@@ -59,21 +61,23 @@ toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
 showAspects
   :: ModuleToSource
      -- ^ Must contain a mapping for the definition site's module, if any.
-  -> (Range, Aspects) -> Lisp String
-showAspects modFile (r, m) =
-    L $ ((map (A . show) [from r, to r])
+  -> (Range, Aspects) -> TCM (Lisp String)
+showAspects modFile (r, m) = do
+  defSite <- case definitionSite m of
+    Nothing     -> return []
+    Just (m, p) -> case Map.lookup m modFile of
+      Nothing -> __IMPOSSIBLE__
+      Just f  -> do
+        f <- asAbsolutePath f
+        return [Cons (A $ quote $ filePath f) (A $ show p)]
+
+  return $ L $ ((map (A . show) [from r, to r])
            ++
          [L $ map A $ toAtoms m]
            ++
          (A $ maybe "nil" quote $ note m)
          :
           defSite)
-  where
-  defSite = case definitionSite m of
-    Nothing     -> []
-    Just (m, p) -> case Map.lookup m modFile of
-      Nothing -> __IMPOSSIBLE__
-      Just f  -> [Cons (A $ quote $ filePath f) (A $ show p)]
 
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
@@ -84,19 +88,21 @@ lispifyHighlightingInfo
      -- ^ Must contain a mapping for every definition site's module.
   -> TCM (Lisp String)
 lispifyHighlightingInfo h modFile = do
+  info <- mapM (showAspects modFile) (ranges h)
+
+
   method <- envHighlightingMethod <$> ask
   liftIO $ case ranges h of
-    _             | method == Direct                   -> direct
+    _             | method == Direct                   -> direct info
     ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
-                    mi == mempty                       -> direct
-    _                                                  -> indirect
+                    mi == mempty                       -> direct info
+    _                                                  -> indirect info
   where
-  info     = map (showAspects modFile) (ranges h)
 
-  direct   = return $ L (A "agda2-highlight-add-annotations" :
+  direct info = return $ L (A "agda2-highlight-add-annotations" :
                          map Q info)
 
-  indirect = do
+  indirect info = do
     dir <- D.getTemporaryDirectory
     f   <- E.bracket (IO.openTempFile dir "agda2-mode")
                      (IO.hClose . snd) $ \ (f, h) -> do

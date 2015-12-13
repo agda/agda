@@ -19,6 +19,7 @@ import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 
+import Agda.Packaging.Base
 import Agda.Syntax.Common (NameId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
 import Agda.TypeChecking.Monad.Base (TypeError(GenericError), ModuleToSource)
@@ -148,6 +149,7 @@ data St = St
   , includes  :: [AbsolutePath]
     -- ^ The include directories.
   , mkShared  :: Term -> Term
+  , packageDBStack :: PkgDBStack
   }
 
 -- | Monad used by the encoder.

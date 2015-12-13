@@ -10,6 +10,7 @@ module Agda.Utils.Pretty
 
 import Data.Int ( Int32 )
 
+import qualified Data.Text as T
 import Text.PrettyPrint hiding (TextDetails(Str), empty)
 
 -- * Pretty class
@@ -53,6 +54,9 @@ instance Pretty Doc where
 
 instance Pretty String where
   pretty = text
+
+instance Pretty T.Text where
+  pretty = text . T.unpack
 
 -- * 'Doc' utilities
 

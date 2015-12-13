@@ -46,6 +46,8 @@ import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
 
+import Agda.Packaging.Base
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
 import qualified Agda.Syntax.Common as Common
@@ -318,7 +320,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
                   fmap (Strict.toLazy . P.srcFile) .
                   P.rStart .
                   A.nameBindingSite) xs of
-          f : _ -> Map.lookup f modMap ==
+          f : _ -> Map.lookup (PlainPath f) modMap ==
                    Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
           []    -> False
 
@@ -635,7 +637,7 @@ nameToFile modMap file xs x m mR =
   mFilePos   = do
     r <- mR
     P.Pn { P.srcFile = Strict.Just f, P.posPos = p } <- P.rStart r
-    mod <- Map.lookup f modMap
+    mod <- Map.lookup (PlainPath f) modMap
     return (mod, fromIntegral p)
 
 -- | A variant of 'nameToFile' for qualified abstract names.
