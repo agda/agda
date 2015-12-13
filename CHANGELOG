@@ -4,6 +4,19 @@
 
 Important changes since 2.4.2.4:
 
+Installation and infrastructure
+===============================
+
+* Added support for GHC 7.10.3.
+
+* Added `cpphs` Cabal flag
+
+  Turn on/off this flag to choose cpphs/cpp as the C preprocessor.
+
+  This flag is turn on by default.
+
+  (This flag was added in Agda 2.4.2.1 but it was not documented)
+
 Pragmas and options
 ===================
 
