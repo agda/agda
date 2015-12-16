@@ -71,6 +71,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
+import Agda.Utils.Except
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -469,14 +470,15 @@ checkAxiom funSig i info0 x e = do
 
   -- check macro type if necessary
   when (Info.defMacro i == MacroDef) $ do
-    (Def nTerm _) <- primAgdaTerm
     t' <- normalise t
-    TelV tel _ <- telView t'
-    tn <- getOutputTypeName t'
+    TelV tel tr <- telView t'
 
-    case tn of
-      OutputTypeName n | n == nTerm -> return ()
-      _ -> typeError $ GenericError $ "Result type of a macro must be Term."
+    let telList = telToList tel
+        resType = abstract (telFromList (drop (length telList - 1) telList)) tr
+    expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+    equalType resType expectedType
+      `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
+                                                              , nest 2 $ prettyTCM expectedType ]
     unless (all (visible) (telToList tel)) $ do
       typeError $ GenericError $ "Hidden / instance arguments are not allowed in macros."
 

@@ -1005,7 +1005,7 @@ checkApplication hd args e t = do
       tTerm <- primAgdaTerm
       tName <- primQName
 
-      let tel' = map (snd . unDom) $ telToList tel
+      let tel' = init $ map (snd . unDom) $ telToList tel -- last argument is the hole term
           (macroArgs, otherArgs) = splitAt (length tel') args
           -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
           mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
