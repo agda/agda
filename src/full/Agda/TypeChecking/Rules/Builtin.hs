@@ -62,6 +62,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinUnit               |-> BuiltinData tset [builtinUnitUnit])  -- actually record, but they are treated the same
   , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
                                                      builtinAgdaLitQName])
@@ -357,6 +358,7 @@ inductiveCheck b n t = do
                           [ "The builtin", b
                           , "must be a datatype with", show n
                           , "constructors" ]
+          Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> return ()
           _ -> err
       _ -> err
 
@@ -420,6 +422,16 @@ bindBuiltinNat t = do
                       (A.Con $ AmbQ [rerange suc])
     _ -> __IMPOSSIBLE__
 
+bindBuiltinUnit :: Term -> TCM ()
+bindBuiltinUnit t = do
+  unit <- getDef t
+  def <- theDef <$> getConstInfo unit
+  case def of
+    Record { recFields = [], recConHead = con } -> do
+      bindBuiltinName builtinUnit t
+      bindBuiltinName builtinUnitUnit (Con con [])
+    _ -> genericError "Builtin UNIT must be a singleton record type"
+
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
 bindBuiltinInfo (BuiltinInfo s d) e = do
@@ -432,6 +444,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           _ | s == builtinBool    -> bindBuiltinBool e'
             | s == builtinNat     -> bindBuiltinNat e'
             | s == builtinInteger -> bindBuiltinInt e'
+            | s == builtinUnit    -> bindBuiltinUnit e'
             | otherwise           -> bindBuiltinName s e'
 
       BuiltinDataCons t -> do

@@ -99,7 +99,7 @@ constructorForm' pZero pSuc v =
 ---------------------------------------------------------------------------
 
 primInteger, primIntegerPos, primIntegerNegSuc,
-    primFloat, primChar, primString, primBool, primTrue, primFalse,
+    primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -135,6 +135,8 @@ primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar
 primString       = getBuiltin builtinString
 primBool         = getBuiltin builtinBool
+primUnit         = getBuiltin builtinUnit
+primUnitUnit     = getBuiltin builtinUnitUnit
 primTrue         = getBuiltin builtinTrue
 primFalse        = getBuiltin builtinFalse
 primList         = getBuiltin builtinList
@@ -237,7 +239,7 @@ primAgdaMeta                      = getBuiltin builtinAgdaMeta
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
-  builtinFloat, builtinChar, builtinString,
+  builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinSizeUniv, builtinSize, builtinSizeLt,
@@ -285,6 +287,8 @@ builtinIntegerNegSuc                 = "INTEGERNEGSUC"
 builtinFloat                         = "FLOAT"
 builtinChar                          = "CHAR"
 builtinString                        = "STRING"
+builtinUnit                          = "UNIT"
+builtinUnitUnit                      = "UNITUNIT"
 builtinBool                          = "BOOL"
 builtinTrue                          = "TRUE"
 builtinFalse                         = "FALSE"
