@@ -36,6 +36,7 @@ litType l = case l of
   LitChar _ _   -> el <$> primChar
   LitString _ _ -> el <$> primString
   LitQName _ _  -> el <$> primQName
+  LitMeta _ _   -> typeError $ NotImplemented "Reflected meta type" -- TODO
   where
     el t = El (mkType 0) t
 

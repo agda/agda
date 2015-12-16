@@ -755,6 +755,9 @@ instance Show MetaId where
   showsPrec p (MetaId n) = showParen (p > 0) $
     showString "MetaId " . shows n
 
+instance NFData MetaId where
+  rnf (MetaId x) = rnf x
+
 newtype Constr a = Constr a
 
 data Placeholder

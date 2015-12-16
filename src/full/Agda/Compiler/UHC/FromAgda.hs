@@ -344,6 +344,7 @@ litToCore (LitFloat _ f) = mkApp (mkVar $ primFunNm "primMkFloat") [mkString opt
 litToCore (LitQName _ q) = mkApp (mkVar $ primFunNm "primMkQName")
                              [mkInteger opts n, mkInteger opts m, mkString opts $ P.prettyShow q]
   where NameId n m = nameId $ qnameName q
+litToCore LitMeta{} = __IMPOSSIBLE__
 
 getCTagArity :: CTag -> Int
 -- for records/datatypes, we can always extract the arity. If there is no arity,

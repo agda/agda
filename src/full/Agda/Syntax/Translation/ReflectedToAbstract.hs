@@ -81,11 +81,7 @@ instance ToAbstract r a => ToAbstract (R.Abs r) (a, Name) where
     where s' = if (isNoName s) then "z" else s -- TODO: only do this when var is free
 
 instance ToAbstract Literal Expr where
-  toAbstract l@(LitNat    {}) = return (A.Lit l)
-  toAbstract l@(LitFloat  {}) = return (A.Lit l)
-  toAbstract l@(LitString {}) = return (A.Lit l)
-  toAbstract l@(LitChar   {}) = return (A.Lit l)
-  toAbstract l@(LitQName  {}) = return (A.Lit l)
+  toAbstract l = return (A.Lit l)
 
 instance ToAbstract Term Expr where
   toAbstract t = case t of

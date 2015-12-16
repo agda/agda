@@ -125,6 +125,8 @@ quotingKit = do
       quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
       quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
       quoteLit l@LitQName{}  = lit !@ (litQName  !@! Lit l)
+      quoteLit l@LitMeta {}  = __IMPOSSIBLE__ -- lit !@ (litMeta   !@! Lit l)
+                               -- not impossible, just TODO
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.

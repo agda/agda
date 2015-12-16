@@ -434,6 +434,7 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icod_ (LitString a b) = icode2 2 a b
   icod_ (LitChar   a b) = icode2 3 a b
   icod_ (LitQName  a b) = icode2 5 a b
+  icod_ (LitMeta   a b) = __IMPOSSIBLE__    -- Literal metas cannot leak into interfaces
 
   value = vcase valu where
     valu [a, b]    = valu2 LitNat    a b
