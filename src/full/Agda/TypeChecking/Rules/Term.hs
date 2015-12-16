@@ -1031,12 +1031,24 @@ checkApplication hd args e t = do
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
-          unquoteTerm (namedArg arg) $ \e ->
-            checkExpr e t
+          hole <- newValueMeta RunMetaOccursCheck t
+          unquoteM (namedArg arg) hole
+          return hole
+          -- unquoteTerm (namedArg arg) $ \e ->
+          --   checkExpr e t
       | arg : args <- args -> do
           unquoteTerm (namedArg arg) $ \e ->
             checkHeadApplication e t e args
       where
+        unquoteM :: A.Expr -> Term -> TCM ()
+        unquoteM tac hole = do
+          tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+          ok <- runUnquoteM $ unquoteTCM tac hole
+          case ok of
+            Left (BlockedOnMeta x) -> typeError $ NotImplemented $ "Stuck unquoteTCM" -- TODO
+            Left err -> typeError $ UnquoteFailed err
+            Right _ -> return ()
+
         unquoteTerm :: A.Expr -> (A.Expr -> TCM Term) -> TCM Term
         unquoteTerm qv cont = do
           qv <- checkExpr qv =<< el primAgdaTerm

@@ -19,6 +19,7 @@ import qualified Agda.Syntax.Reflected as R
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
+import Agda.Syntax.Translation.ReflectedToAbstract
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Datatypes ( getConHead )
@@ -30,9 +31,13 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Reduce.Monad
+import Agda.TypeChecking.Reduce.Monad hiding (reportSDoc)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Quote
+import Agda.TypeChecking.Conversion
+
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 
 import Agda.Utils.Except
 import Agda.Utils.Impossible
@@ -63,6 +68,13 @@ isCon con tm = do t <- lift tm
                   case ignoreSharing t of
                     Con con' _ -> return (con == con')
                     _ -> return False
+
+isDef :: QName -> TCM Term -> UnquoteM Bool
+isDef f tm = do
+  t <- lift tm
+  case ignoreSharing t of
+    Def g _ -> return (f == g)
+    _       -> return False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
 reduceQuotedTerm t = ifBlocked t
@@ -379,3 +391,43 @@ instance Unquote R.Definition where
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Pattern" t
+
+-- Unquoting TCM computations ---------------------------------------------
+
+-- | Argument should be a term of type @Term → TCM A@ for some A. Returns the
+--   resulting term of type @A@. The second argument is the term for the hole,
+--   which will typically be a metavariable. This is passed to the computation
+--   (quoted).
+unquoteTCM :: I.Term -> I.Term -> UnquoteM I.Term
+unquoteTCM m hole = do
+  qhole <- lift $ quoteTerm hole
+  evalTCM (m `apply` [defaultArg qhole])
+
+evalTCM :: I.Term -> UnquoteM I.Term
+evalTCM v = do
+  v <- reduceQuotedTerm v
+  case ignoreSharing v of
+    I.Def f [_, _, arg] ->
+      choice [ (f `isDef` primAgdaTCMReturn, return (unElim arg)) ]
+        __IMPOSSIBLE__
+    I.Def f [_, _, _, _, m, k] ->
+      choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
+        __IMPOSSIBLE__
+    I.Def f [u, v] ->
+      choice [ (f `isDef` primAgdaTCMUnify, tcUnify (unElim u) (unElim v)) ]
+        __IMPOSSIBLE__
+    _ -> throwException $ NotAConstructor "TCM" v -- TODO: not the right error
+  where
+    unElim = unArg . argFromElim
+    tcBind m k = do v <- evalTCM m
+                    evalTCM (k `apply` [defaultArg v])
+
+    tcUnify :: I.Term -> I.Term -> UnquoteM I.Term
+    tcUnify u v = do
+      u <- unquote u
+      v <- unquote v
+      (u, a) <- lift $ inferExpr        =<< toAbstract_ (u :: R.Term)
+      v      <- lift $ flip checkExpr a =<< toAbstract_ (v :: R.Term)
+      lift $ equalTerm a u v
+      lift $ primUnitUnit
+

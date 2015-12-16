@@ -11,6 +11,7 @@ import Agda.Utils.Except ( ExceptT )
 isType_ :: A.Expr -> TCM Type
 
 checkExpr :: A.Expr -> Type -> TCM Term
+inferExpr :: A.Expr -> TCM (Term, Type)
 
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
