@@ -20,6 +20,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
+import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
@@ -138,6 +140,7 @@ instance (PrettyTCM a, PrettyTCM b, PrettyTCM c) => PrettyTCM (a,b,c) where
     prettyTCM a <> comma <> prettyTCM b <> comma <> prettyTCM c
 
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
+instance PrettyTCM R.Term where prettyTCM x = prettyA =<< R.toAbstract_ x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
