@@ -125,7 +125,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
     primAgdaDataDef, primAgdaRecordDef, primAgdaPatLit, primAgdaPatProj,
     primAgdaPatAbsurd,
-    primAgdaMeta
+    primAgdaMeta,
+    primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -235,6 +236,10 @@ primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 primAgdaMeta                      = getBuiltin builtinAgdaMeta
+primAgdaTCM       = getBuiltin builtinAgdaTCM
+primAgdaTCMReturn = getBuiltin builtinAgdaTCMReturn
+primAgdaTCMBind   = getBuiltin builtinAgdaTCMBind
+primAgdaTCMUnify  = getBuiltin builtinAgdaTCMUnify
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -268,7 +273,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
   builtinAgdaDefinitionPrimitive, builtinAgdaDefinition,
-  builtinAgdaMeta
+  builtinAgdaMeta,
+  builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify
   :: String
 
 builtinNat                           = "NATURAL"
@@ -378,6 +384,10 @@ builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
 builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
 builtinAgdaDefinition                = "AGDADEFINITION"
 builtinAgdaMeta                      = "AGDAMETA"
+builtinAgdaTCM       = "AGDATCM"
+builtinAgdaTCMReturn = "AGDATCMRETURN"
+builtinAgdaTCMBind   = "AGDATCMBIND"
+builtinAgdaTCMUnify  = "AGDATCMUNIFY"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

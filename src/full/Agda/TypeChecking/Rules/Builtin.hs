@@ -182,26 +182,43 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaDefinitionRecordDef       |-> BuiltinDataCons (trec --> tdefn))
   , (builtinAgdaDefinitionPostulate       |-> BuiltinDataCons tdefn)
   , (builtinAgdaDefinitionPrimitive       |-> BuiltinDataCons tdefn)
+  , builtinAgdaTCM       |-> builtinPostulate (hPi "a" tlevel $ tsetL 0 --> tsetL 0)
+  , builtinAgdaTCMReturn |-> builtinPostulate (hPi "a" tlevel  $
+                                               hPi "A" (tsetL 0) $
+                                               elV 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMBind   |-> builtinPostulate (hPi "a" tlevel  $ hPi "b" tlevel $
+                                               hPi "A" (tsetL 1) $ hPi "B" (tsetL 1) $
+                                               tTCM 3 (varM 1) --> (elV 3 (varM 1) --> tTCM 2 (varM 0)) --> tTCM 2 (varM 0))
+  , builtinAgdaTCMUnify  |-> builtinPostulate (tterm --> tterm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   ]
   where
         (|->) = (,)
 
         v0 = varM 0
         v1 = varM 1
+        v2 = varM 2
+        v3 = varM 3
 
         tv0,tv1 :: TCM Type
         tv0 = el v0
         tv1 = el v1
+        tv2 = el v2
+        tv3 = el v3
 
         arg :: TCM Term -> TCM Term
         arg t = primArg <@> t
 
+        elV x a = El (varSort x) <$> a
+
+        tsetL l    = return $ sort (varSort l)
+        tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
         targ x     = el (arg (fmap unEl x))
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
         tnat       = el primNat
+        tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
         tchar      = el primChar
@@ -223,6 +240,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tliteral   = el primAgdaLiteral
         tpat       = el primAgdaPattern
         tclause    = el primAgdaClause
+        tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
