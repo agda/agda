@@ -22,6 +22,7 @@ data Abs a = Abs String a
 data Term = Var Int Elims
           | Con QName Elims
           | Def QName Elims
+          | Meta MetaId Elims
           | Lam Hiding (Abs Term)
           | ExtLam [Clause] Elims
           | Pi (Dom Type) (Abs Type)

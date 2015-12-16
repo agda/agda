@@ -238,6 +238,13 @@ instance Unquote a => Unquote (R.Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
+instance Unquote MetaId where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case ignoreSharing t of
+      Lit (LitMeta _ x) -> return x
+      _                 -> throwException $ NotALiteral "MetaId" t
+
 instance Unquote a => Unquote (Dom a) where
   unquote t = domFromArg <$> unquote t
 
@@ -306,6 +313,7 @@ instance Unquote R.Term where
           [ (c `isCon` primAgdaTermVar,     R.Var     <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermCon,     R.Con     <$> (ensureCon =<< unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermDef,     R.Def     <$> (ensureDef =<< unquoteN x) <*> unquoteN y)
+          , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermUnquote, R.Unquote <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)

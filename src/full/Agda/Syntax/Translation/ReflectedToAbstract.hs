@@ -115,6 +115,8 @@ instance ToAbstract Term Expr where
     R.QuoteTerm t  -> toAbstract (A.QuoteTerm exprNoRange, Apply $ defaultArg t)
     R.QuoteContext -> return $ A.QuoteContext exprNoRange
     R.Unquote t es -> toAbstract (A.Unquote exprNoRange, Apply (defaultArg t) : es)
+    R.Meta x es    -> toAbstract (A.Underscore info, es)
+      where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
 
 instance ToAbstract Type Expr where

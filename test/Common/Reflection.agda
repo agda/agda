@@ -122,6 +122,7 @@ data Clause where
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
+{-# BUILTIN AGDATERMMETA        meta    #-}
 {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
 {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
 {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}

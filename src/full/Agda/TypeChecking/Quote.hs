@@ -69,6 +69,7 @@ quotingKit = do
   con             <- primAgdaTermCon
   pi              <- primAgdaTermPi
   sort            <- primAgdaTermSort
+  meta            <- primAgdaTermMeta
   lit             <- primAgdaTermLit
   litNat          <- primAgdaLitNat
   litFloat        <- primAgdaLitFloat
@@ -216,7 +217,8 @@ quotingKit = do
           Lit lit    -> quoteLit lit
           Sort s     -> sort !@ quoteSort s
           Shared p   -> quoteTerm $ derefPtr p
-          MetaV{}    -> pure unsupported
+          MetaV x es -> meta !@! quoteMeta x @@ quoteArgs vs
+            where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType)
 
@@ -228,6 +230,9 @@ quoteName x = Lit (LitQName noRange x)
 
 quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
+
+quoteMeta :: MetaId -> Term
+quoteMeta = Lit . LitMeta noRange
 
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do
