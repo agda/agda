@@ -676,7 +676,7 @@ instance ToAbstract C.Expr A.Expr where
         let info = MetaInfo
              { metaRange  = r
              , metaScope  = scope
-             , metaNumber = n
+             , metaNumber = Nothing
              , metaNameSuggestion = ""
              }
         return $ A.QuestionMark info ii

@@ -372,7 +372,7 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
-        prettyShow . NamedMeta (metaNameSuggestion i) . MetaId <$> metaNumber i
+        prettyShow . NamedMeta (metaNameSuggestion i) . MetaId . metaId <$> metaNumber i
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e

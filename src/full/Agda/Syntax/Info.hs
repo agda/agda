@@ -33,7 +33,7 @@ import Agda.Utils.Null
 data MetaInfo = MetaInfo
   { metaRange          :: Range
   , metaScope          :: ScopeInfo
-  , metaNumber         :: Maybe Nat  -- ^ The 'MetaId', not the 'InteractionId'.
+  , metaNumber         :: Maybe MetaId
   , metaNameSuggestion :: String
   }
   deriving (Typeable, Show, Eq)

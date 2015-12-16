@@ -1106,9 +1106,9 @@ checkOrInferMeta newMeta mt i = do
       setValueMetaName v (A.metaNameSuggestion i)
       return (v, t)
     -- Rechecking an existing metavariable
-    Just n -> do
-      let v = MetaV (MetaId n) []
-      t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
+    Just x -> do
+      let v = MetaV x []
+      t' <- jMetaType . mvJudgement <$> lookupMeta x
       case mt of
         Nothing -> return (v, t')
         Just t  -> (,t) <$> coerce v t' t
