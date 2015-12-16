@@ -1,5 +1,6 @@
 open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Reflection
+open import Common.TC
 
 module StrangeRecursiveUnquote where
 
@@ -9,4 +10,4 @@ module StrangeRecursiveUnquote where
 -- the term f n is stuck and so we cannot unquote (as expected)
 f : ℕ → Term
 f zero    = `ℕ
-f (suc n) = unquote (f n)
+f (suc n) = unquote (give (f n))

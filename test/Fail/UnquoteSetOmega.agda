@@ -2,6 +2,7 @@
 open import Common.Prelude
 open import Common.Level
 open import Common.Reflection
+open import Common.TC
 
 module UnquoteSetOmega where
 
@@ -16,4 +17,4 @@ module UnquoteSetOmega where
 `∀ℓ→Setℓ = pi (arg (argInfo visible relevant) ``Level) (abs "_" (el (lit 0) (sort (set (var 0 [])))))
 
 -- unquoting it is harmfull
-∀ℓ→Setℓ = unquote `∀ℓ→Setℓ
+∀ℓ→Setℓ = unquote (give `∀ℓ→Setℓ)
