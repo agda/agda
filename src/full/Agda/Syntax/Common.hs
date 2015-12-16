@@ -720,6 +720,19 @@ instance Arbitrary NameId where
 
 instance CoArbitrary NameId
 
+-- | A meta variable identifier is just a natural number.
+--
+newtype MetaId = MetaId { metaId :: Nat }
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
+
+instance Pretty MetaId where
+  pretty (MetaId n) = text $ "_" ++ show n
+
+-- | Show non-record version of this newtype.
+instance Show MetaId where
+  showsPrec p (MetaId n) = showParen (p > 0) $
+    showString "MetaId " . shows n
+
 newtype Constr a = Constr a
 
 ---------------------------------------------------------------------------
