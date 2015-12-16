@@ -98,6 +98,7 @@ instance PrimTerm Str     where primTerm _ = primString
 instance PrimTerm Nat     where primTerm _ = primNat
 instance PrimTerm Lvl     where primTerm _ = primLevel
 instance PrimTerm QName   where primTerm _ = primQName
+instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
 instance PrimTerm Type    where primTerm _ = primAgdaType
 
 instance PrimTerm a => PrimTerm [a] where
@@ -120,6 +121,7 @@ instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
+instance ToTerm MetaId  where toTerm = return $ Lit . LitMeta noRange
 
 instance ToTerm Integer where
   toTerm = do
@@ -241,6 +243,11 @@ instance FromTerm QName where
   fromTerm = fromLiteral $ \l -> case l of
     LitQName _ x -> Just x
     _             -> Nothing
+
+instance FromTerm MetaId where
+  fromTerm = fromLiteral $ \l -> case l of
+    LitMeta _ x -> Just x
+    _           -> Nothing
 
 instance FromTerm Bool where
     fromTerm = do
@@ -763,6 +770,8 @@ primitiveFunctions = Map.fromList
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
   , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
+  , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
+  , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   ]
   where
     (|->) = (,)

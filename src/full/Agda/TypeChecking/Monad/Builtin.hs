@@ -112,7 +112,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
-    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported,
+    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
     primAgdaTermQuoteGoal, primAgdaTermQuoteTerm, primAgdaTermQuoteContext, primAgdaTermUnquote,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
@@ -124,7 +124,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
     primAgdaDataDef, primAgdaRecordDef, primAgdaPatLit, primAgdaPatProj,
-    primAgdaPatAbsurd
+    primAgdaPatAbsurd,
+    primAgdaMeta
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -203,6 +204,7 @@ primAgdaTermQuoteTerm = getBuiltin builtinAgdaTermQuoteTerm
 primAgdaTermQuoteContext = getBuiltin builtinAgdaTermQuoteContext
 primAgdaTermUnquote   = getBuiltin builtinAgdaTermUnquote
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
+primAgdaTermMeta  = getBuiltin builtinAgdaTermMeta
 primAgdaLiteral   = getBuiltin builtinAgdaLiteral
 primAgdaLitNat    = getBuiltin builtinAgdaLitNat
 primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
@@ -230,6 +232,7 @@ primAgdaDefinitionDataConstructor = getBuiltin builtinAgdaDefinitionDataConstruc
 primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
+primAgdaMeta                      = getBuiltin builtinAgdaMeta
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -251,7 +254,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAbs, builtinAbsAbs, builtinAgdaTerm,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
-  builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported,
+  builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
   builtinAgdaTermQuoteGoal, builtinAgdaTermQuoteContext, builtinAgdaTermQuoteTerm, builtinAgdaTermUnquote,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
@@ -262,7 +265,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaRecordDef, builtinAgdaDefinitionFunDef,
   builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
-  builtinAgdaDefinitionPrimitive, builtinAgdaDefinition
+  builtinAgdaDefinitionPrimitive, builtinAgdaDefinition,
+  builtinAgdaMeta
   :: String
 
 builtinNat                           = "NATURAL"
@@ -341,6 +345,7 @@ builtinAgdaTermQuoteContext          = "AGDATERMQUOTECONTEXT"
 builtinAgdaTermQuoteTerm             = "AGDATERMQUOTETERM"
 builtinAgdaTermUnquote               = "AGDATERMUNQUOTE"
 builtinAgdaTermUnsupported           = "AGDATERMUNSUPPORTED"
+builtinAgdaTermMeta                  = "AGDATERMMETA"
 builtinAgdaLiteral                   = "AGDALITERAL"
 builtinAgdaLitNat                    = "AGDALITNAT"
 builtinAgdaLitFloat                  = "AGDALITFLOAT"
@@ -368,6 +373,7 @@ builtinAgdaDefinitionDataConstructor = "AGDADEFINITIONDATACONSTRUCTOR"
 builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
 builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
 builtinAgdaDefinition                = "AGDADEFINITION"
+builtinAgdaMeta                      = "AGDAMETA"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

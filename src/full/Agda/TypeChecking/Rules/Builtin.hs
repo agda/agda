@@ -81,6 +81,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinChar               |-> builtinPostulate tset)
   , (builtinString             |-> builtinPostulate tset)
   , (builtinQName              |-> builtinPostulate tset)
+  , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
@@ -89,7 +90,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                      , builtinAgdaTermDef, builtinAgdaTermCon
                                      , builtinAgdaTermPi, builtinAgdaTermSort
                                      , builtinAgdaTermLit, builtinAgdaTermQuoteTerm, builtinAgdaTermQuoteGoal
-                                     , builtinAgdaTermQuoteContext, builtinAgdaTermUnquote
+                                     , builtinAgdaTermQuoteContext, builtinAgdaTermUnquote, builtinAgdaTermMeta
                                      , builtinAgdaTermUnsupported])
   , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
@@ -126,6 +127,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaTermQuoteTerm    |-> BuiltinDataCons (tterm --> tterm))
   , (builtinAgdaTermQuoteContext |-> BuiltinDataCons tterm)
   , (builtinAgdaTermUnquote      |-> BuiltinDataCons (tterm --> targs --> tterm))
+  , (builtinAgdaTermMeta         |-> BuiltinDataCons (tmeta --> targs --> tterm))
   , (builtinAgdaTermUnsupported|-> BuiltinDataCons tterm)
   , (builtinAgdaLitNat    |-> BuiltinDataCons (tnat --> tliteral))
   , (builtinAgdaLitFloat  |-> BuiltinDataCons (tfloat --> tliteral))
@@ -204,6 +206,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tchar      = el primChar
         tstring    = el primString
         tqname     = el primQName
+        tmeta      = el primAgdaMeta
         tsize      = El SizeUniv <$> primSize
         tbool      = el primBool
         thiding    = el primHiding

@@ -9,6 +9,11 @@ postulate QName : Set
 primitive primQNameEquality : QName → QName → Bool
 primitive primQNameLess : QName → QName → Bool
 
+postulate Meta : Set
+{-# BUILTIN AGDAMETA Meta #-}
+primitive primMetaEquality : Meta → Meta → Bool
+primitive primMetaLess : Meta → Meta → Bool
+
 data Hiding : Set where
   hidden visible inst : Hiding
 
@@ -78,6 +83,7 @@ data Term : Set where
   quote-goal    : Abs Term → Term
   quote-context : Term
   unquote-term  : Term → Args → Term
+  meta          : Meta → Args → Term
   unknown       : Term
 
 Args = List (Arg Term)
