@@ -1,6 +1,7 @@
 open import Common.Prelude
 open import Common.Level
 open import Common.Reflection
+open import Common.TC
 open import Common.Equality
 
 test₁ : quoteTerm lzero ≡ def (quote lzero) []
@@ -13,5 +14,5 @@ foo _ true = false
 test₂ : quoteTerm (foo lzero) ≡ def (quote foo) (arg (argInfo visible relevant) (def (quote lzero) []) ∷ [])
 test₂ = refl
 
-test₃ : unquote (quoteTerm lzero) ≡ lzero
+test₃ : unquote (give (quoteTerm lzero)) ≡ lzero
 test₃ = refl

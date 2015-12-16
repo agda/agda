@@ -2,6 +2,7 @@
 open import Common.Reflection
 open import Common.Prelude
 open import Common.Equality
+open import Common.TC
 
 pattern vArg x = arg (argInfo visible relevant) x
 pattern hArg x = arg (argInfo hidden  relevant) x
@@ -38,7 +39,7 @@ checkMagic = magic
 unquoteDecl pr = prDef
 
 magic′ : {A : Set} → ⊥ → A
-magic′ = unquote (extLam (absurdClause (vArg absurd ∷ []) ∷ []) [])
+magic′ = unquote (give (extLam (absurdClause (vArg absurd ∷ []) ∷ []) []))
 
 module Pred (A : Set) where
   unquoteDecl pr′ = prDef

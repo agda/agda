@@ -1,12 +1,13 @@
 {-# OPTIONS -v tc.unquote:30 #-}
 open import Common.Prelude
 open import Common.Reflection
+open import Common.TC
 
 data Box : Bool → Set where
   box : (b : Bool) → Box b
 
 works : (b : Bool) → Box b → Bool
-works b (box .b) = unquote (var 0 [])
+works b (box .b) = unquote (give (var 0 []))
 
 works₂ : (b : Bool) → Box b → Bool
 unquoteDef works₂ = clause

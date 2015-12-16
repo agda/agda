@@ -4,6 +4,7 @@ open import Common.Prelude
    using (zero; suc; _+_; _∸_; List; []; _∷_; Bool; true; false)
 open import Common.Level
 open import Common.Reflection
+open import Common.TC
 
 module TermSplicing where
 
@@ -189,20 +190,20 @@ open ReflectLibrary
 `ℕ : Term
 `ℕ = def (quote ℕ) []
 
-`ℕOk : (unquote `ℕ) ≡ ℕ
+`ℕOk : (unquote (give `ℕ)) ≡ ℕ
 `ℕOk = refl
 
 ``ℕ : Type
 ``ℕ = el₀ `ℕ
 
 idℕ : ℕ → ℕ
-idℕ = unquote (lamᵛ (var 0 []))
+idℕ = unquote (give (lamᵛ (var 0 [])))
 
 id : (A : Set) → A → A
-id = unquote (lamᵛ (lamᵛ (var 0 [])))
+id = unquote (give (lamᵛ (lamᵛ (var 0 []))))
 
 idBox : Box ({A : Set} → A → A)
-idBox = box (unquote (lamᵛ (var 0 [])))
+idBox = box (unquote (give (lamᵛ (var 0 []))))
 
 -- builds a pair
 _`,_ : Term → Term → Term
@@ -254,42 +255,42 @@ quotedTwice : Term
 quotedTwice = `lam `visible (`abs (lit (string "_")) (`var `zero `[]))
 
 unquoteTwice₂ : ℕ → ℕ
-unquoteTwice₂ = unquote (unquote quotedTwice)
+unquoteTwice₂ = unquote (give (unquote (give quotedTwice)))
 
 unquoteTwice : ℕ → ℕ
-unquoteTwice x = unquote (unquote (`var `zero `[]))
+unquoteTwice x = unquote (give (unquote (give (`var `zero `[]))))
 
 id₂ : {A : Set} → A → A
-id₂ = unquote (lamᵛ (var 0 []))
+id₂ = unquote (give (lamᵛ (var 0 [])))
 
 id₃ : {A : Set} → A → A
-id₃ x = unquote (var 0 [])
+id₃ x = unquote (give (var 0 []))
 
 module Id {A : Set} (x : A) where
   x′ : A
-  x′ = unquote (var 0 [])
+  x′ = unquote (give (var 0 []))
 
 k`ℕ : ℕ → Term
 k`ℕ zero    = `ℕ
-k`ℕ (suc n) = unquote (def (quote k`ℕ) [ argᵛʳ (var 0 []) ]) -- k`ℕ n
+k`ℕ (suc n) = unquote (give (def (quote k`ℕ) [ argᵛʳ (var 0 []) ])) -- k`ℕ n
 
 test : id ≡ (λ A (x : A) → x)
-     × unquote `Set₀                      ≡ Set
-     × unquote `ℕ                         ≡ ℕ
-     × unquote (lamᵛ (var 0 []))          ≡ (λ (x : Set) → x)
-     × id                                 ≡ (λ A (x : A) → x)
-     × unquote `tt                        ≡ tt
+     × unquote (give `Set₀)                      ≡ Set
+     × unquote (give `ℕ)                        ≡ ℕ
+     × unquote (give (lamᵛ (var 0 [])))          ≡ (λ (x : Set) → x)
+     × id                                        ≡ (λ A (x : A) → x)
+     × unquote (give `tt)                        ≡ tt
      × (λ {A} → Id.x′ {A})                ≡ (λ {A : Set} (x : A) → x)
-     × unquote (pi (argᵛʳ ``Set₀) (abs "_" ``Set₀))  ≡ (Set → Set)
+     × unquote (give (pi (argᵛʳ ``Set₀) (abs "_" ``Set₀)))  ≡ (Set → Set)
      × unquoteTwice                        ≡ (λ (x : ℕ) → x)
-     × unquote (k`ℕ 42)                    ≡ ℕ
-     × unquote (lit (nat 15))              ≡ 15
-     × unquote (lit (float 3.1415))        ≡ 3.1415
-     × unquote (lit (string "foo"))        ≡ "foo"
-     × unquote (lit (char 'X'))            ≡ 'X'
-     × unquote (lit (qname (quote ℕ)))      ≡ quote ℕ
+     × unquote (give (k`ℕ 42))                    ≡ ℕ
+     × unquote (give (lit (nat 15)))              ≡ 15
+     × unquote (give (lit (float 3.1415)))        ≡ 3.1415
+     × unquote (give (lit (string "foo")))        ≡ "foo"
+     × unquote (give (lit (char 'X')))            ≡ 'X'
+     × unquote (give (lit (qname (quote ℕ))))      ≡ quote ℕ
      × ⊤
-test = unquote (tuple (replicate n `refl)) where n = 15
+test = unquote (give (tuple (replicate n `refl))) where n = 15
 
 Πⁿ : ℕ → Type → Type
 Πⁿ zero    t = t
@@ -318,7 +319,7 @@ projFull : (i n : ℕ) → Term
 projFull i n = ƛⁿ hidden n (proj i n)
 
 ℕ→ℕ : Set
-ℕ→ℕ = unquote (unEl (Π (argᵛʳ ``ℕ) ``ℕ))
+ℕ→ℕ = unquote (give (unEl (Π (argᵛʳ ``ℕ) ``ℕ)))
 
 ℕ→ℕOk : ℕ→ℕ ≡ (ℕ → ℕ)
 ℕ→ℕOk = refl
@@ -327,41 +328,41 @@ projFull i n = ƛⁿ hidden n (proj i n)
 ``∀A→A = Π (argᵛʳ ``Set₀) (``var₀ 0 [])
 
 ∀A→A : Set₁
-∀A→A = unquote (unEl ``∀A→A)
+∀A→A = unquote (give (unEl ``∀A→A))
 
 Proj₁¹ : Set₁
-Proj₁¹ = unquote (Proj 1 1)
+Proj₁¹ = unquote (give (Proj 1 1))
 
 Proj₁² : Set₁
-Proj₁² = unquote (Proj 1 2)
+Proj₁² = unquote (give (Proj 1 2))
 
 Proj₂² : Set₁
-Proj₂² = unquote (Proj 2 2)
+Proj₂² = unquote (give (Proj 2 2))
 
-proj₃⁵ : unquote (Proj 3 5)
+proj₃⁵ : unquote (give (Proj 3 5))
 proj₃⁵ _ _ x _ _ = x
 
-proj₃⁵′ : Box (unquote (Proj 3 5))
-proj₃⁵′ = box (unquote (proj 3 5))
+proj₃⁵′ : Box (unquote (give (Proj 3 5)))
+proj₃⁵′ = box (unquote (give (proj 3 5)))
 
-proj₂⁷ : unquote (Proj 2 7)
-proj₂⁷ = unquote (proj 2 7)
+proj₂⁷ : unquote (give (Proj 2 7))
+proj₂⁷ = unquote (give (proj 2 7))
 
 test-proj : proj₃⁵′                ≡ box (λ _ _ x _ _ → x)
           × Proj₁¹                 ≡ ({A : Set} → A → A)
           × Proj₁²                 ≡ ({A₁ A₂ : Set} → A₁ → A₂ → A₁)
           × Proj₂²                 ≡ ({A₁ A₂ : Set} → A₁ → A₂ → A₂)
-          × unquote (Proj 3 5)     ≡ ({A₁ A₂ A₃ A₄ A₅ : Set} → A₁ → A₂ → A₃ → A₄ → A₅ → A₃)
-          × unquote (projFull 1 1) ≡ (λ {A : Set} (x : A) → x)
-          × unquote (projFull 1 2) ≡ (λ {A₁ A₂ : Set} (x₁ : A₁) (x₂ : A₂) → x₁)
-          × unquote (projFull 2 2) ≡ (λ {A₁ A₂ : Set} (x₁ : A₁) (x₂ : A₂) → x₂)
+          × unquote (give (Proj 3 5))     ≡ ({A₁ A₂ A₃ A₄ A₅ : Set} → A₁ → A₂ → A₃ → A₄ → A₅ → A₃)
+          × unquote (give (projFull 1 1)) ≡ (λ {A : Set} (x : A) → x)
+          × unquote (give (projFull 1 2)) ≡ (λ {A₁ A₂ : Set} (x₁ : A₁) (x₂ : A₂) → x₁)
+          × unquote (give (projFull 2 2)) ≡ (λ {A₁ A₂ : Set} (x₁ : A₁) (x₂ : A₂) → x₂)
           × ∀A→A                   ≡ (∀ (A : Set) → A)
           × ⊤
-test-proj = unquote (tuple (replicate n `refl)) where n = 9
+test-proj = unquote (give (tuple (replicate n `refl))) where n = 9
 
 module Test where
   data Squash (A : Set) : Set where
-    squash : unquote (unEl (Π (arg (argInfo visible irrelevant) (``var₀ 0 [])) (el₀ (def (quote Squash) (argᵛʳ (var 1 []) ∷ [])))))
+    squash : unquote (give (unEl (Π (arg (argInfo visible irrelevant) (``var₀ 0 [])) (el₀ (def (quote Squash) (argᵛʳ (var 1 []) ∷ []))))))
 
 data Squash (A : Set) : Set where
   squash : .A → Squash A
@@ -372,7 +373,7 @@ data Squash (A : Set) : Set where
 squash-type : Type
 squash-type = Π (arg (argInfo visible irrelevant) (``var₀ 0 [])) (el₀ (`Squash (var 1 [])))
 
-test-squash : ∀ {A} → (.A → Squash A) ≡ unquote (unEl squash-type)
+test-squash : ∀ {A} → (.A → Squash A) ≡ unquote (give (unEl squash-type))
 test-squash = refl
 
 `∀ℓ→Setℓ : Type

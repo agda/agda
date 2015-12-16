@@ -2,6 +2,7 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Common.TC
 
 data Dec {a} (A : Set a) : Set a where
   yes : A → Dec A
@@ -48,14 +49,14 @@ _==′_ : ∀ {a} {A : Set a} {{EqA : Eq A}} (x y : A) → Dec (x ≡ y)
 _==′_ = _==_
 
 ok₁ : Dec (0 ≡ 1)
-ok₁ = unquote (tm (quote _==′_))
+ok₁ = unquote (give (tm (quote _==′_)))
 
 ok₂ : Dec (0 ≡ 1)
-ok₂ = unquote (tm₂ (quote _==_))
+ok₂ = unquote (give (tm₂ (quote _==_)))
 
 ok₃ : Dec (0 ≡ 1)
-ok₃ = unquote (tm (quote M._==_))
+ok₃ = unquote (give (tm (quote M._==_)))
 
 -- Was bad.
 bad : Dec (0 ≡ 1)
-bad = unquote (tm (quote _==_))
+bad = unquote (give (tm (quote _==_)))

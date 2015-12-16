@@ -14,3 +14,8 @@ postulate
 {-# BUILTIN AGDATCMRETURN returnTC #-}
 {-# BUILTIN AGDATCMBIND   bindTC #-}
 {-# BUILTIN AGDATCMUNIFY  unifyTC #-}
+
+Tactic = Term → TC ⊤
+
+give : Term → Tactic
+give v = λ hole → unifyTC hole v

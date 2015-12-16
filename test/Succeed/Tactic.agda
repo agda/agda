@@ -2,12 +2,13 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Common.TC
 
 postulate
   trustme : ∀ {a} {A : Set a} {x y : A} → x ≡ y
 
-magic : List (Arg Type) → Term → Term
-magic _ _ = def (quote trustme) []
+magic : List (Arg Type) → Term → Tactic
+magic _ _ = give (def (quote trustme) [])
 
 id : ∀ {a} {A : Set a} → A → A
 id x = x

@@ -5,6 +5,7 @@ open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
 open import Common.Product
+open import Common.TC
 
 q-zero : Term
 q-zero = quoteTerm zero
@@ -18,19 +19,23 @@ qqq-zero = quoteTerm qq-zero
 qqq-zero′ : Term
 qqq-zero′ = quote-term qq-zero
 
-double-unquote : unquote (unquote-term qq-zero []) ≡ 0
+`give : Term → Term
+`give v = unquote-term (def (quote give) (arg (argInfo visible relevant) v ∷ [])) []
+
+double-unquote : unquote (give (`give qq-zero)) ≡ 0
 double-unquote = refl
 
-triple-unquote : unquote (unquote-term (unquote-term qqq-zero []) []) ≡ 0
+triple-unquote : unquote (give (`give (`give qqq-zero))) ≡ 0
 triple-unquote = refl
 
-triple-unquote′ : unquote (unquote-term (unquote-term qqq-zero′ []) []) ≡ 0
+triple-unquote′ : unquote (give (`give (`give qqq-zero′))) ≡ 0
 triple-unquote′ = refl
 
 pattern vArg x = arg (argInfo visible relevant) x
 
 -- We can now define a version of the tactic keyword
-
+-- Not right now. TODO: do this in the new TC style.
+{-
 `tactic : QName → Term
 `tactic x = quote-goal (abs "g" (unquote-term (def x (vArg (var 0 []) ∷ [])) []))
 
@@ -50,3 +55,4 @@ defnat = unquote default
 
 ok : (defbool ≡ false) × (defnat ≡ 42)
 ok = refl , refl
+-}
