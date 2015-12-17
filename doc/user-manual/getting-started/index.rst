@@ -4,5 +4,7 @@
 Getting Started
 ***************
 
-.. note::
-   This is a stub.
+.. toctree::
+   :maxdepth: 2
+
+   installation

@@ -10,7 +10,7 @@ Welcome to Agda's documentation!
    :maxdepth: 2
 
    overview
-   getting-started
+   getting-started/index
    language/index
    tools/index
    license
