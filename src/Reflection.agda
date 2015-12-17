@@ -60,6 +60,35 @@ showName : Name → String
 showName = primShowQName
 
 ------------------------------------------------------------------------
+-- Metavariables
+
+-- Metavariables.
+
+postulate Meta : Set
+
+{-# BUILTIN AGDAMETA Meta #-}
+
+private
+  primitive
+    primMetaEquality : Meta → Meta → Bool
+
+-- Equality of metavariables is decidable.
+
+infix 4 _==-Meta_ _≟-Meta_
+
+private
+
+  _==-Meta_ : Meta → Meta → Bool
+  _==-Meta_ = primMetaEquality
+
+_≟-Meta_ : Decidable {A = Meta} _≡_
+s₁ ≟-Meta s₂ with s₁ ==-Meta s₂
+... | true  = yes trustMe
+... | false = no whatever
+  where postulate whatever : _
+
+
+------------------------------------------------------------------------
 -- Terms
 
 -- Is the argument visible (explicit), hidden (implicit), or an
@@ -161,6 +190,8 @@ mutual
     sort    : (s : Sort) → Term
     -- A literal.
     lit     : (l : Literal) → Term
+    -- A metavariable
+    meta    : (x : Meta) (args : List (Arg Term)) → Term
     -- Reflection constructions.
     quote-goal : (t : Abs Term) → Term
     quote-term : (t : Term) → Term
@@ -197,6 +228,7 @@ mutual
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
+{-# BUILTIN AGDATERMMETA        meta    #-}
 {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
 {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
 {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
@@ -333,6 +365,12 @@ private
 
   def₂ : ∀ {f f′ args args′} → def f args ≡ def f′ args′ → args ≡ args′
   def₂ refl = refl
+
+  meta₁ : ∀ {x x′ args args′} → meta x args ≡ meta x′ args′ → x ≡ x′
+  meta₁ refl = refl
+
+  meta₂ : ∀ {x x′ args args′} → meta x args ≡ meta x′ args′ → args ≡ args′
+  meta₂ refl = refl
 
   lam₁ : ∀ {v v′ t t′} → lam v t ≡ lam v′ t′ → v ≡ v′
   lam₁ refl = refl
@@ -573,6 +611,7 @@ mutual
   var x args ≟ var x′ args′ = Dec.map′ (cong₂′ var) < var₁ , var₂ > (x ≟-ℕ x′          ×-dec args ≟-Args args′)
   con c args ≟ con c′ args′ = Dec.map′ (cong₂′ con) < con₁ , con₂ > (c ≟-Name c′       ×-dec args ≟-Args args′)
   def f args ≟ def f′ args′ = Dec.map′ (cong₂′ def) < def₁ , def₂ > (f ≟-Name f′       ×-dec args ≟-Args args′)
+  meta x args ≟ meta x′ args′ = Dec.map′ (cong₂′ meta) < meta₁ , meta₂ > (x ≟-Meta x′   ×-dec args ≟-Args args′)
   lam v t    ≟ lam v′ t′    = Dec.map′ (cong₂′ lam) < lam₁ , lam₂ > (v ≟-Visibility v′ ×-dec t ≟-AbsTerm t′)
   pat-lam cs args ≟ pat-lam cs′ args′ =
                               Dec.map′ (cong₂′ pat-lam) < pat-lam₁ , pat-lam₂ > (cs ≟-Clauses cs′ ×-dec args ≟-Args args′)
@@ -591,6 +630,7 @@ mutual
   var x args ≟ pi t₁ t₂    = no λ()
   var x args ≟ sort _      = no λ()
   var x args ≟ lit _      = no λ()
+  var x args ≟ meta _ _    = no λ()
   var x args ≟ unknown     = no λ()
   con c args ≟ var x args′ = no λ()
   con c args ≟ def f args′ = no λ()
@@ -598,6 +638,7 @@ mutual
   con c args ≟ pi t₁ t₂    = no λ()
   con c args ≟ sort _      = no λ()
   con c args ≟ lit _      = no λ()
+  con c args ≟ meta _ _    = no λ()
   con c args ≟ unknown     = no λ()
   def f args ≟ var x args′ = no λ()
   def f args ≟ con c args′ = no λ()
@@ -605,6 +646,7 @@ mutual
   def f args ≟ pi t₁ t₂    = no λ()
   def f args ≟ sort _      = no λ()
   def f args ≟ lit _      = no λ()
+  def f args ≟ meta _ _    = no λ()
   def f args ≟ unknown     = no λ()
   lam v t    ≟ var x args  = no λ()
   lam v t    ≟ con c args  = no λ()
@@ -612,6 +654,7 @@ mutual
   lam v t    ≟ pi t₁ t₂    = no λ()
   lam v t    ≟ sort _      = no λ()
   lam v t    ≟ lit _      = no λ()
+  lam v t    ≟ meta _ _    = no λ()
   lam v t    ≟ unknown     = no λ()
   pi t₁ t₂   ≟ var x args  = no λ()
   pi t₁ t₂   ≟ con c args  = no λ()
@@ -619,6 +662,7 @@ mutual
   pi t₁ t₂   ≟ lam v t     = no λ()
   pi t₁ t₂   ≟ sort _      = no λ()
   pi t₁ t₂   ≟ lit _      = no λ()
+  pi t₁ t₂   ≟ meta _ _    = no λ()
   pi t₁ t₂   ≟ unknown     = no λ()
   sort _     ≟ var x args  = no λ()
   sort _     ≟ con c args  = no λ()
@@ -626,6 +670,7 @@ mutual
   sort _     ≟ lam v t     = no λ()
   sort _     ≟ pi t₁ t₂    = no λ()
   sort _     ≟ lit _       = no λ()
+  sort _     ≟ meta _ _    = no λ()
   sort _     ≟ unknown     = no λ()
   lit _     ≟ var x args  = no λ()
   lit _     ≟ con c args  = no λ()
@@ -633,7 +678,16 @@ mutual
   lit _     ≟ lam v t     = no λ()
   lit _     ≟ pi t₁ t₂    = no λ()
   lit _     ≟ sort _      = no λ()
+  lit _     ≟ meta _ _    = no λ()
   lit _     ≟ unknown     = no λ()
+  meta _ _   ≟ var x args  = no λ()
+  meta _ _   ≟ con c args  = no λ()
+  meta _ _   ≟ def f args  = no λ()
+  meta _ _   ≟ lam v t     = no λ()
+  meta _ _   ≟ pi t₁ t₂    = no λ()
+  meta _ _   ≟ sort _      = no λ()
+  meta _ _   ≟ lit _       = no λ()
+  meta _ _   ≟ unknown     = no λ()
   unknown    ≟ var x args  = no λ()
   unknown    ≟ con c args  = no λ()
   unknown    ≟ def f args  = no λ()
@@ -641,6 +695,7 @@ mutual
   unknown    ≟ pi t₁ t₂    = no λ()
   unknown    ≟ sort _      = no λ()
   unknown    ≟ lit _       = no λ()
+  unknown    ≟ meta _ _    = no λ()
   pat-lam _ _ ≟ var x args  = no λ()
   pat-lam _ _ ≟ con c args  = no λ()
   pat-lam _ _ ≟ def f args  = no λ()
@@ -648,6 +703,7 @@ mutual
   pat-lam _ _ ≟ pi t₁ t₂    = no λ()
   pat-lam _ _ ≟ sort _      = no λ()
   pat-lam _ _ ≟ lit _       = no λ()
+  pat-lam _ _ ≟ meta _ _    = no λ()
   pat-lam _ _ ≟ unknown     = no λ()
   var x args  ≟ pat-lam _ _ = no λ()
   con c args  ≟ pat-lam _ _ = no λ()
@@ -656,6 +712,7 @@ mutual
   pi t₁ t₂    ≟ pat-lam _ _ = no λ()
   sort _      ≟ pat-lam _ _ = no λ()
   lit _       ≟ pat-lam _ _ = no λ()
+  meta _ _    ≟ pat-lam _ _ = no λ()
   unknown     ≟ pat-lam _ _ = no λ()
 
   var _ _        ≟ quote-goal _   = no λ()
@@ -701,6 +758,7 @@ mutual
   quote-goal _   ≟ quote-term _   = no λ()
   quote-goal _   ≟ quote-context  = no λ()
   quote-goal _   ≟ unquote-term _ _ = no λ()
+  quote-goal _   ≟ meta _ _       = no λ()
   quote-goal _   ≟ unknown        = no λ()
   quote-term _   ≟ var _ _        = no λ()
   quote-term _   ≟ con _ _        = no λ()
@@ -713,6 +771,7 @@ mutual
   quote-term _   ≟ quote-goal _   = no λ()
   quote-term _   ≟ quote-context  = no λ()
   quote-term _   ≟ unquote-term _ _ = no λ()
+  quote-term _   ≟ meta _ _       = no λ()
   quote-term _   ≟ unknown        = no λ()
   quote-context  ≟ var _ _        = no λ()
   quote-context  ≟ con _ _        = no λ()
@@ -725,6 +784,7 @@ mutual
   quote-context  ≟ quote-goal _   = no λ()
   quote-context  ≟ quote-term _   = no λ()
   quote-context  ≟ unquote-term _ _ = no λ()
+  quote-context  ≟ meta _ _       = no λ()
   quote-context  ≟ unknown        = no λ()
   unquote-term _ _ ≟ var _ _        = no λ()
   unquote-term _ _ ≟ con _ _        = no λ()
@@ -737,7 +797,12 @@ mutual
   unquote-term _ _ ≟ quote-goal _   = no λ()
   unquote-term _ _ ≟ quote-term _   = no λ()
   unquote-term _ _ ≟ quote-context  = no λ()
+  unquote-term _ _ ≟ meta _ _       = no λ()
   unquote-term _ _ ≟ unknown        = no λ()
+  meta _ _       ≟ quote-goal _   = no λ()
+  meta _ _       ≟ quote-term _   = no λ()
+  meta _ _       ≟ quote-context  = no λ()
+  meta _ _       ≟ unquote-term _ _ = no λ()
   unknown        ≟ quote-goal _   = no λ()
   unknown        ≟ quote-term _   = no λ()
   unknown        ≟ quote-context  = no λ()
