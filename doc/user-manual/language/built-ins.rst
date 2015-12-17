@@ -284,7 +284,7 @@ String literals can be :ref:`overloaded <overloaded-strings>`.
 Equality
 --------
 
-The identity typed can be bound to the built-in ``EQUALITY`` as follows::
+The identity type can be bound to the built-in ``EQUALITY`` as follows::
 
   data _≡_ {a} {A : Set a} (x : A) : A → Set a where
     refl : x ≡ x
