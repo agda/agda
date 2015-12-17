@@ -13,8 +13,8 @@ magic _ _ = give (def (quote trustme) [])
 id : ∀ {a} {A : Set a} → A → A
 id x = x
 
-science : List (Arg Type) → Term → Term
-science _ _ = def (quote id) []
+science : List (Arg Type) → Term → Tactic
+science _ _ = give (def (quote id) [])
 
 by-magic : ∀ n → n + 4 ≡ 3
 by-magic n = tactic magic

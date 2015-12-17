@@ -1,6 +1,7 @@
 
 open import Common.Prelude
 open import Common.Reflection
+open import Common.TC
 
 id : Nat → Nat
 id x = x
@@ -9,4 +10,4 @@ id x = x
 -- unquote must be applied to a term
 -- when checking that the expression unquote has type _3 x
 i : Nat → Nat
-i x = unquote (def (quote id) []) x
+i x = unquote (give (def (quote id) [])) x

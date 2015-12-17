@@ -1034,12 +1034,30 @@ checkApplication hd args e t = do
           hole <- newValueMeta RunMetaOccursCheck t
           unquoteM (namedArg arg) hole
           return hole
-          -- unquoteTerm (namedArg arg) $ \e ->
-          --   checkExpr e t
       | arg : args <- args -> do
-          unquoteTerm (namedArg arg) $ \e ->
-            checkHeadApplication e t e args
+          -- Example: unquote v a b : A
+          --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
+          --  Check a : X, b : Y a
+          --  Unify Z a b == A
+          --  Run the tactic on H
+          tel    <- metaTel args                    -- (x : X) (y : Y x)
+          target <- addCtxTel tel newTypeMeta_      -- Z x y
+          let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
+          (vs, EmptyTel) <- checkArguments_ ExpandLast (getRange args) args tel
+                                                    -- a b : (x : X) (y : Y x)
+          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          equalType (applySubst rho target) t       -- Z a b == A
+          hole <- newValueMeta RunMetaOccursCheck holeType
+          unquoteM (namedArg arg) hole
+          return $ apply hole vs
       where
+        metaTel :: [Arg a] -> TCM Telescope
+        metaTel []           = pure EmptyTel
+        metaTel (arg : args) = do
+          a <- newTypeMeta_
+          let dom = a <$ domFromArg arg
+          ExtendTel dom . Abs "x" <$> addCtxString "x" dom (metaTel args)
+
         unquoteM :: A.Expr -> Term -> TCM ()
         unquoteM tac hole = do
           tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
@@ -1048,23 +1066,6 @@ checkApplication hd args e t = do
             Left (BlockedOnMeta x) -> typeError $ NotImplemented $ "Stuck unquoteTCM" -- TODO
             Left err -> typeError $ UnquoteFailed err
             Right _ -> return ()
-
-        unquoteTerm :: A.Expr -> (A.Expr -> TCM Term) -> TCM Term
-        unquoteTerm qv cont = do
-          qv <- checkExpr qv =<< el primAgdaTerm
-          mv <- runUnquoteM $ unquote qv
-          case mv of
-            Left (BlockedOnMeta m) -> do
-              r <- getRange <$> lookupMeta m
-              setCurrentRange r $
-                postponeTypeCheckingProblem (CheckExpr e t) (isInstantiatedMeta m)
-            Left err -> typeError $ UnquoteFailed err
-            Right v  -> do
-              e <- toAbstract_ (v :: R.Term)
-              reportSDoc "tc.unquote.term" 10 $
-                vcat [ text "unquote" <+> prettyTCM qv
-                     , nest 2 $ text "-->" <+> prettyA e ]
-              cont e
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
