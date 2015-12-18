@@ -482,8 +482,8 @@ evalTCM v = do
     tcCheckType v a = do
       a <- isType_ =<< toAbstract_ a
       e <- toAbstract_ v
-      _ <- checkExpr e a
-      primUnitUnit
+      v <- checkExpr e a
+      quoteTerm =<< normalise v
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do

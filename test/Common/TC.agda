@@ -12,7 +12,7 @@ postulate
   newMeta    : Type → TC Term
   typeError  : ∀ {a} {A : Set a} → String → TC A
   inferType  : Term → TC Type
-  checkType  : Term → Type → TC ⊤
+  checkType  : Term → Type → TC Term
   normalise  : Term → TC Term
   catchTC    : ∀ {a} {A : Set a} → TC A → TC A → TC A
   getContext : TC (List (Arg Type))
