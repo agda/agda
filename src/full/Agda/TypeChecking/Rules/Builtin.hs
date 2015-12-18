@@ -197,6 +197,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMNormalise  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCatchError |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   , builtinAgdaTCMGetContext |-> builtinPostulate (tTCM_ (unEl <$> tlist (targ ttype)))
+  , builtinAgdaTCMExtendContext |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMInContext     |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist (targ ttype) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
   ]
   where
         (|->) = (,)

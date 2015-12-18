@@ -128,7 +128,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMNewMeta, primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
-    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext
+    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -249,6 +249,8 @@ primAgdaTCMCheckType  = getBuiltin builtinAgdaTCMCheckType
 primAgdaTCMNormalise  = getBuiltin builtinAgdaTCMNormalise
 primAgdaTCMCatchError = getBuiltin builtinAgdaTCMCatchError
 primAgdaTCMGetContext = getBuiltin builtinAgdaTCMGetContext
+primAgdaTCMExtendContext = getBuiltin builtinAgdaTCMExtendContext
+primAgdaTCMInContext     = getBuiltin builtinAgdaTCMInContext
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -286,7 +288,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
   builtinAgdaTCMNewMeta, builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
-  builtinAgdaTCMGetContext
+  builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext
   :: String
 
 builtinNat                           = "NATURAL"
@@ -407,6 +409,8 @@ builtinAgdaTCMCheckType  = "AGDATCMCHECKTYPE"
 builtinAgdaTCMNormalise  = "AGDATCMNORMALISE"
 builtinAgdaTCMCatchError = "AGDATCMCATCHERROR"
 builtinAgdaTCMGetContext = "AGDATCMGETCONTEXT"
+builtinAgdaTCMExtendContext = "AGDATCMEXTENDCONTEXT"
+builtinAgdaTCMInContext     = "AGDATCMINCONTEXT"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

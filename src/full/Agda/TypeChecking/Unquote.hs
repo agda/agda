@@ -8,6 +8,7 @@ import Control.Applicative
 import Control.Monad.State (runState, get, put)
 import Control.Monad.Writer (execWriterT, tell)
 import Control.Monad.Trans (lift)
+import Control.Monad
 
 import Data.Char
 import Data.Maybe (fromMaybe)
@@ -427,7 +428,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMTypeError, tcFun1 tcTypeError u) ]
              __IMPOSSIBLE__
     I.Def f [_, _, u, v] ->
-      choice [ (f `isDef` primAgdaTCMCatchError, tcCatchError (unElim u) (unElim v)) ]
+      choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
+             , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v)) ]
              __IMPOSSIBLE__
     I.Def f [_, _, _, _, m, k] ->
       choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
@@ -492,4 +495,23 @@ evalTCM v = do
       as <- map (fmap snd) <$> getContext
       as <- etaContract =<< normalise as
       buildList <*> mapM quoteDom as
+
+    extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
+    extendCxt a m = do
+      a <- lift $ traverse (isType_ <=< toAbstract_) a
+      addContext (domFromArg a :: Dom Type) m
+
+    tcExtendContext :: Term -> Term -> UnquoteM Term
+    tcExtendContext a m = do
+      a <- unquote a
+      extendCxt a (evalTCM m)
+
+    tcInContext :: Term -> Term -> UnquoteM Term
+    tcInContext c m = do
+      c <- unquote c
+      inTopContext $ go c m
+      where
+        go :: [Arg R.Type] -> Term -> UnquoteM Term
+        go []       m = evalTCM m
+        go (a : as) m = extendCxt a $ go as m
 
