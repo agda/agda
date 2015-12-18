@@ -1,6 +1,6 @@
 -- Fixed on AIM XIV 2011-09-09 AA, UN
 -- {-# OPTIONS -v tc.lhs.unify:50 #-}
-module Issue292 where
+module Issue292e where
 
 data ⊥ : Set where
 
@@ -36,7 +36,12 @@ pbool = tt , refl
 
 ¬pbool2 : ¬ P (D false)
 ¬pbool2 ( ff , () )
--- Andreas, 2011-09-13 fix of fix: should work again
+-- Jesper, 2015-12-18 fix of fix of fix: shouldn't work, as there is no way to
+-- unify the types [D true] and [D false] unless injective type constructors
+-- are enabled.
+
+-- WAS: Andreas, 2011-09-13 fix of fix: should work again
+
 {- WAS: expected error
 ff ≅ tt should be empty, but that's not obvious to me
 when checking that the clause ¬pbool2 (ff , ()) has type

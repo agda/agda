@@ -1,0 +1,4 @@
+Issue1427a.agda:25,32-36
+n₁ != n of type Nat
+when checking that the pattern refl has type
+HEq (Fin (suc n₁)) zero (Fin (suc n)) zero

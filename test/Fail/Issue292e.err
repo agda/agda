@@ -1,0 +1,3 @@
+Failed to solve the following constraints:
+  [0] Is empty: ff ≅ tt
+      [ at Issue292e.agda:38,16-18 ]
