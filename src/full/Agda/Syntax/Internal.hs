@@ -18,6 +18,7 @@ module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
     , module Agda.Syntax.Abstract.Name
     , module Agda.Utils.Pointer
+    , MetaId(..)
     ) where
 
 import Prelude hiding (foldr, mapM, null)
@@ -265,11 +266,6 @@ data LevelAtom
   | UnreducedLevel Term
     -- ^ Introduced by 'instantiate', removed by 'reduce'.
   deriving (Show, Typeable)
-
--- | A meta variable identifier is just a natural number.
---
-newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
 
 -- | Even if we are not stuck on a meta during reduction
 --   we can fail to reduce a definition by pattern matching
@@ -912,11 +908,6 @@ instance Show a => Show (Abs a) where
   showsPrec p (NoAbs x a) = showParen (p > 0) $
     showString "NoAbs " . shows x . showString " " . showsPrec 10 a
 
--- | Show non-record version of this newtype.
-instance Show MetaId where
-  showsPrec p (MetaId n) = showParen (p > 0) $
-    showString "MetaId " . shows n
-
 -- instance Show t => Show (Blocked t) where
 --   showsPrec p (Blocked m x) = showParen (p > 0) $
 --     showString "Blocked " . shows m . showString " " . showsPrec 10 x
@@ -1098,9 +1089,6 @@ instanceUniverseBiT' [] [t| ([Term], Term)                |]
 -----------------------------------------------------------------------------
 -- * Simple pretty printing
 -----------------------------------------------------------------------------
-
-instance Pretty MetaId where
-  pretty (MetaId n) = text $ "_" ++ show n
 
 instance Pretty Substitution where
   prettyPrec p rho = brackets $ pr rho

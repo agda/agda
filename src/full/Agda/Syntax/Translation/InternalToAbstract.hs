@@ -144,13 +144,13 @@ instance Reify MetaId Expr where
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = M.clScope $ miClosRange mi
-                 , metaNumber         = Just n
+                 , metaNumber         = Just x
                  , metaNameSuggestion = miNameSuggestion mi
                  }
           underscore = return $ A.Underscore mi'
       ifNotM shouldReifyInteractionPoints underscore $ {- else -}
         caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
-          return $ A.QuestionMark (mi' {metaNumber = Just n}) ii
+          return $ A.QuestionMark mi' ii
 
 -- Does not print with-applications correctly:
 -- instance Reify DisplayTerm Expr where

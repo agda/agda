@@ -9,15 +9,14 @@ followed:
     git clone git@github.com:agda/agda Agda.release
     cd Agda.release
 
-* Clone the standard library branch related to the Agda new version.
+* Obtain and install the standard library branch related to the Agda
+  new version.
+
+    make up-to-date-std-lib
+
+* Clone the standard library branch related to the Agda new version:
 
     make std-lib
-
-* Create Everything.agda in the standard library
-
-    cd std-lib
-    make Everything.agda
-    cd ..
 
 * Finish the release notes in
   doc/release-notes/<version-written-with-dashes>.txt.
@@ -28,9 +27,16 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-* Update the version numbers in Agda.cabal (twice),
-  src/data/emacs-mode/agda2-mode.el, mk/version.mk, and
-  doc/user-manual/conf.py.
+* Update the version number in:
+
+    .ghci
+    Agda.cabal (twice)
+    default.nix
+    doc/user-manual/conf.py
+    mk/version.mk
+    src/data/emacs-mode/agda2-mode.el
+    test/interaction/Issue1244a.out
+    test/interaction/Issue1244b.out
 
 * Add a second source-repository section to Agda.cabal:
 
@@ -42,14 +48,7 @@ followed:
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
-* Remove the Cabal test-suite:
-
-  ** Remove the agda-tests test suite in Agda.cabal.
-
-  ** Remove --enable-tests from the install-bin rule in Makefile.
-
-  ** Remove compiler-test and latex-tex from the tests rule in
-     Makefile.
+* Remove the Cabal test-suite from Agda.cabal.
 
 * Ensure that cabal haddock works (requires at least cabal-install
   version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
@@ -107,13 +106,7 @@ followed:
   git push
   git push --tags
 
-* Restore the Cabal test-suite:
-
-  ** Restore the agda-tests test suite in Agda.cabal.
-
-  ** Add --enable-tests to the install-bin rule in Makefile.
-
-  ** Add compiler-test and latex-tex to the tests rule in Makefile.
+* Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
@@ -125,15 +118,20 @@ followed:
 
     git checkout -b maint-$VERSION
 
-* Update the version numbers in the maintenance branch to $VERSION.1.
+* Update the version number in the maintenance branch to $VERSION.1
+  in:
 
+    .ghci
     Agda.cabal (twice)
-    src/data/emacs-mode/agda2-mode.el
+    default.nix
+    doc/user-manual/conf.py
     mk/version.mk
+    src/data/emacs-mode/agda2-mode.el
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
-* Add program suffix option to Makefile on maintenance branch
+* Add program suffix option to Makefile on maintenance branch:
+
     CABAL_OPTS+=--program-suffix=-$(VERSION)
 
 * Update the branches whitelist in .travis.yml.
