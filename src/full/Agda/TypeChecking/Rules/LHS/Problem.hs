@@ -11,6 +11,7 @@ import Prelude hiding (null)
 
 import Data.Foldable ( Foldable )
 import Data.Maybe ( fromMaybe )
+import Data.Monoid (Monoid, mempty, mappend, mconcat)
 import Data.Traversable
 
 import Agda.Syntax.Common

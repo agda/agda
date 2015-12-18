@@ -12,8 +12,8 @@ import Data.Maybe
 
 import Control.Applicative
 import Control.Arrow (first, second, (***))
-import Control.Monad hiding (mapM, sequence)
-import Control.Monad.State hiding (mapM, sequence)
+import Control.Monad hiding (mapM, forM, sequence)
+import Control.Monad.State hiding (mapM, forM, sequence)
 import Control.Monad.Trans.Maybe
 
 import Data.Function (on)
