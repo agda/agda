@@ -192,11 +192,6 @@ mutual
     lit     : (l : Literal) → Term
     -- A metavariable
     meta    : (x : Meta) (args : List (Arg Term)) → Term
-    -- Reflection constructions.
-    quote-goal : (t : Abs Term) → Term
-    quote-term : (t : Term) → Term
-    quote-context : Term
-    unquote-term : (t : Term) (args : List (Arg Term)) → Term
     -- Anything else.
     unknown : Term
 
@@ -229,10 +224,6 @@ mutual
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
 {-# BUILTIN AGDATERMMETA        meta    #-}
-{-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
-{-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
-{-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
-{-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
 {-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}
@@ -395,18 +386,6 @@ private
 
   lit₁ : ∀ {x y} → Term.lit x ≡ lit y → x ≡ y
   lit₁ refl = refl
-
-  quote-goal₁ : ∀ {x y} → quote-goal x ≡ quote-goal y → x ≡ y
-  quote-goal₁ refl = refl
-
-  quote-term₁ : ∀ {x y} → quote-term x ≡ quote-term y → x ≡ y
-  quote-term₁ refl = refl
-
-  unquote-term₁ : ∀ {x y args args′} → unquote-term x args ≡ unquote-term y args′ → x ≡ y
-  unquote-term₁ refl = refl
-
-  unquote-term₂ : ∀ {x y args args′} → unquote-term x args ≡ unquote-term y args′ → args ≡ args′
-  unquote-term₂ refl = refl
 
   pcon₁ : ∀ {c c′ args args′} → Pattern.con c args ≡ con c′ args′ → c ≡ c′
   pcon₁ refl = refl
@@ -618,10 +597,6 @@ mutual
   pi t₁ t₂   ≟ pi t₁′ t₂′   = Dec.map′ (cong₂′ pi)  < pi₁  , pi₂  > (t₁ ≟-ArgType t₁′  ×-dec t₂ ≟-AbsType t₂′)
   sort s     ≟ sort s′      = Dec.map′ (cong sort)  sort₁           (s ≟-Sort s′)
   lit l      ≟ lit l′       = Dec.map′ (cong lit)   lit₁           (l ≟-Lit l′)
-  quote-goal t   ≟ quote-goal t′   = Dec.map′ (cong quote-goal) quote-goal₁ (t ≟-AbsTerm t′)
-  quote-term t   ≟ quote-term t′   = Dec.map′ (cong quote-term) quote-term₁ (t ≟ t′)
-  unquote-term t args ≟ unquote-term t′ args′ = Dec.map′ (cong₂′ unquote-term) < unquote-term₁ , unquote-term₂ > (t ≟ t′ ×-dec args ≟-Args args′)
-  quote-context  ≟ quote-context = yes refl
   unknown    ≟ unknown      = yes refl
 
   var x args ≟ con c args′ = no λ()
@@ -714,99 +689,6 @@ mutual
   lit _       ≟ pat-lam _ _ = no λ()
   meta _ _    ≟ pat-lam _ _ = no λ()
   unknown     ≟ pat-lam _ _ = no λ()
-
-  var _ _        ≟ quote-goal _   = no λ()
-  var _ _        ≟ quote-term _   = no λ()
-  var _ _        ≟ quote-context  = no λ()
-  var _ _        ≟ unquote-term _ _ = no λ()
-  con _ _        ≟ quote-goal _   = no λ()
-  con _ _        ≟ quote-term _   = no λ()
-  con _ _        ≟ quote-context  = no λ()
-  con _ _        ≟ unquote-term _ _ = no λ()
-  def _ _        ≟ quote-goal _   = no λ()
-  def _ _        ≟ quote-term _   = no λ()
-  def _ _        ≟ quote-context  = no λ()
-  def _ _        ≟ unquote-term _ _ = no λ()
-  lam _ _        ≟ quote-goal _   = no λ()
-  lam _ _        ≟ quote-term _   = no λ()
-  lam _ _        ≟ quote-context  = no λ()
-  lam _ _        ≟ unquote-term _ _ = no λ()
-  pat-lam _ _    ≟ quote-goal _   = no λ()
-  pat-lam _ _    ≟ quote-term _   = no λ()
-  pat-lam _ _    ≟ quote-context  = no λ()
-  pat-lam _ _    ≟ unquote-term _ _ = no λ()
-  pi _ _         ≟ quote-goal _   = no λ()
-  pi _ _         ≟ quote-term _   = no λ()
-  pi _ _         ≟ quote-context  = no λ()
-  pi _ _         ≟ unquote-term _ _ = no λ()
-  sort _         ≟ quote-goal _   = no λ()
-  sort _         ≟ quote-term _   = no λ()
-  sort _         ≟ quote-context  = no λ()
-  sort _         ≟ unquote-term _ _ = no λ()
-  lit _          ≟ quote-goal _   = no λ()
-  lit _          ≟ quote-term _   = no λ()
-  lit _          ≟ quote-context  = no λ()
-  lit _          ≟ unquote-term _ _ = no λ()
-  quote-goal _   ≟ var _ _        = no λ()
-  quote-goal _   ≟ con _ _        = no λ()
-  quote-goal _   ≟ def _ _        = no λ()
-  quote-goal _   ≟ lam _ _        = no λ()
-  quote-goal _   ≟ pat-lam _ _    = no λ()
-  quote-goal _   ≟ pi _ _         = no λ()
-  quote-goal _   ≟ sort _         = no λ()
-  quote-goal _   ≟ lit _          = no λ()
-  quote-goal _   ≟ quote-term _   = no λ()
-  quote-goal _   ≟ quote-context  = no λ()
-  quote-goal _   ≟ unquote-term _ _ = no λ()
-  quote-goal _   ≟ meta _ _       = no λ()
-  quote-goal _   ≟ unknown        = no λ()
-  quote-term _   ≟ var _ _        = no λ()
-  quote-term _   ≟ con _ _        = no λ()
-  quote-term _   ≟ def _ _        = no λ()
-  quote-term _   ≟ lam _ _        = no λ()
-  quote-term _   ≟ pat-lam _ _    = no λ()
-  quote-term _   ≟ pi _ _         = no λ()
-  quote-term _   ≟ sort _         = no λ()
-  quote-term _   ≟ lit _          = no λ()
-  quote-term _   ≟ quote-goal _   = no λ()
-  quote-term _   ≟ quote-context  = no λ()
-  quote-term _   ≟ unquote-term _ _ = no λ()
-  quote-term _   ≟ meta _ _       = no λ()
-  quote-term _   ≟ unknown        = no λ()
-  quote-context  ≟ var _ _        = no λ()
-  quote-context  ≟ con _ _        = no λ()
-  quote-context  ≟ def _ _        = no λ()
-  quote-context  ≟ lam _ _        = no λ()
-  quote-context  ≟ pat-lam _ _    = no λ()
-  quote-context  ≟ pi _ _         = no λ()
-  quote-context  ≟ sort _         = no λ()
-  quote-context  ≟ lit _          = no λ()
-  quote-context  ≟ quote-goal _   = no λ()
-  quote-context  ≟ quote-term _   = no λ()
-  quote-context  ≟ unquote-term _ _ = no λ()
-  quote-context  ≟ meta _ _       = no λ()
-  quote-context  ≟ unknown        = no λ()
-  unquote-term _ _ ≟ var _ _        = no λ()
-  unquote-term _ _ ≟ con _ _        = no λ()
-  unquote-term _ _ ≟ def _ _        = no λ()
-  unquote-term _ _ ≟ lam _ _        = no λ()
-  unquote-term _ _ ≟ pat-lam _ _    = no λ()
-  unquote-term _ _ ≟ pi _ _         = no λ()
-  unquote-term _ _ ≟ sort _         = no λ()
-  unquote-term _ _ ≟ lit _          = no λ()
-  unquote-term _ _ ≟ quote-goal _   = no λ()
-  unquote-term _ _ ≟ quote-term _   = no λ()
-  unquote-term _ _ ≟ quote-context  = no λ()
-  unquote-term _ _ ≟ meta _ _       = no λ()
-  unquote-term _ _ ≟ unknown        = no λ()
-  meta _ _       ≟ quote-goal _   = no λ()
-  meta _ _       ≟ quote-term _   = no λ()
-  meta _ _       ≟ quote-context  = no λ()
-  meta _ _       ≟ unquote-term _ _ = no λ()
-  unknown        ≟ quote-goal _   = no λ()
-  unknown        ≟ quote-term _   = no λ()
-  unknown        ≟ quote-context  = no λ()
-  unknown        ≟ unquote-term _ _ = no λ()
 
   _≟-Type_ : Decidable (_≡_ {A = Type})
   el s t ≟-Type el s′ t′ = Dec.map′ (cong₂′ el) < el₁ , el₂ > (s ≟-Sort s′ ×-dec t ≟ t′)
