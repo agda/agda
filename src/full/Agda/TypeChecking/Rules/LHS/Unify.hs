@@ -551,10 +551,16 @@ dataStrategy k s = do
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (u, v) of
-        (Con c us, Con c' vs) | c == c' -> return $ Injectivity k a d hpars ixs c us vs
-        (Con c _ , Con c' _ ) -> return $ Conflict k d hpars c c'
-        (Var i [], v        ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
-        (u       , Var j [] ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
+        (MetaV m es, Con c vs  ) -> do
+          us <- mcatMaybes $ liftTCM $ instMetaCon m es d hpars c
+          return $ Injectivity k a d hpars ixs c us vs
+        (Con c us  , MetaV m es) -> do
+          vs <- mcatMaybes $ liftTCM $ instMetaCon m es d hpars c
+          return $ Injectivity k a d hpars ixs c us vs
+        (Con c us  , Con c' vs ) | c == c' -> return $ Injectivity k a d hpars ixs c us vs
+        (Con c _   , Con c' _  ) -> return $ Conflict k d hpars c c'
+        (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
+        (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
         _ -> mzero
     _ -> mzero
   where
@@ -566,6 +572,28 @@ dataStrategy k s = do
         case occurrence i u of
           StronglyRigid -> ret
           _ -> mzero
+
+    -- Instantiate the meta with a constructor applied to fresh metas
+    -- Returns the fresh metas if successful
+    instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> TCM (Maybe Args)
+    instMetaCon m es d pars c = case allApplyElims es of
+      Just us -> do
+          margs <- do
+            -- The new metas should have the same dependencies as the original meta
+            mv <- lookupMeta m
+
+            ctype <- (`apply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
+            TelV tel _ <- telView ctype
+            let b'  = telePi tel (sort Prop)
+
+            withMetaInfo' mv $ do
+              tel <- getContextTelescope
+              -- important: create the meta in the same environment as the original meta
+              newArgsMetaCtx b' tel us
+          noConstraints $ assignV DirEq m us (Con c margs)
+          return $ Just margs
+        `catchError` \_ -> return Nothing
+      Nothing -> return Nothing
 
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
@@ -712,7 +740,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } =
   liftTCM $ do
-    addCtxTel (varTel s) $ noConstraints $ dontAssignMetas $ equalTerm a u v
+    addCtxTel (varTel s) $ noConstraints $ equalTerm a u v
     ifM ((optWithoutK <$> pragmaOptions) `and2M` (not <$> isSet (unEl a)))
     {-then-} (DontKnow <$> withoutKErr)
     {-else-} (Unifies  <$> reduceEqTel (solveEq k u s))
