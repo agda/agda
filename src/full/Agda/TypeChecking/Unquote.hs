@@ -312,16 +312,13 @@ instance Unquote R.Term where
     case ignoreSharing t of
       Con c [] ->
         choice
-          [ (c `isCon` primAgdaTermUnsupported, return R.Unknown)
-          , (c `isCon` primAgdaTermQuoteContext, return R.QuoteContext) ]
+          [ (c `isCon` primAgdaTermUnsupported, return R.Unknown) ]
           __IMPOSSIBLE__
 
       Con c [x] -> do
         choice
           [ (c `isCon` primAgdaTermSort,      R.Sort      <$> unquoteN x)
-          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x)
-          , (c `isCon` primAgdaTermQuoteGoal, R.QuoteGoal <$> unquoteN x)
-          , (c `isCon` primAgdaTermQuoteTerm, R.QuoteTerm <$> unquoteN x) ]
+          , (c `isCon` primAgdaTermLit,       R.Lit       <$> unquoteN x) ]
           __IMPOSSIBLE__
 
       Con c [x, y] ->
@@ -330,7 +327,6 @@ instance Unquote R.Term where
           , (c `isCon` primAgdaTermCon,     R.Con     <$> (ensureCon =<< unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermDef,     R.Def     <$> (ensureDef =<< unquoteN x) <*> unquoteN y)
           , (c `isCon` primAgdaTermMeta,    R.Meta    <$> unquoteN x <*> unquoteN y)
-          , (c `isCon` primAgdaTermUnquote, R.Unquote <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermLam,     R.Lam     <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermPi,      mkPi      <$> unquoteN x <*> unquoteN y)
           , (c `isCon` primAgdaTermExtLam,  R.ExtLam  <$> unquoteN x <*> unquoteN y) ]

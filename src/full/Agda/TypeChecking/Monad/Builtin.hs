@@ -113,7 +113,6 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
-    primAgdaTermQuoteGoal, primAgdaTermQuoteTerm, primAgdaTermQuoteContext, primAgdaTermUnquote,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
@@ -204,10 +203,6 @@ primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
 primAgdaTermSort     = getBuiltin builtinAgdaTermSort
 primAgdaTermLit      = getBuiltin builtinAgdaTermLit
-primAgdaTermQuoteGoal = getBuiltin builtinAgdaTermQuoteGoal
-primAgdaTermQuoteTerm = getBuiltin builtinAgdaTermQuoteTerm
-primAgdaTermQuoteContext = getBuiltin builtinAgdaTermQuoteContext
-primAgdaTermUnquote   = getBuiltin builtinAgdaTermUnquote
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
 primAgdaTermMeta  = getBuiltin builtinAgdaTermMeta
 primAgdaLiteral   = getBuiltin builtinAgdaLiteral
@@ -273,7 +268,6 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
-  builtinAgdaTermQuoteGoal, builtinAgdaTermQuoteContext, builtinAgdaTermQuoteTerm, builtinAgdaTermUnquote,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
   builtinAgdaFunDef, builtinAgdaFunDefCon, builtinAgdaClause,
@@ -364,10 +358,6 @@ builtinAgdaTermCon                   = "AGDATERMCON"
 builtinAgdaTermPi                    = "AGDATERMPI"
 builtinAgdaTermSort                  = "AGDATERMSORT"
 builtinAgdaTermLit                   = "AGDATERMLIT"
-builtinAgdaTermQuoteGoal             = "AGDATERMQUOTEGOAL"
-builtinAgdaTermQuoteContext          = "AGDATERMQUOTECONTEXT"
-builtinAgdaTermQuoteTerm             = "AGDATERMQUOTETERM"
-builtinAgdaTermUnquote               = "AGDATERMUNQUOTE"
 builtinAgdaTermUnsupported           = "AGDATERMUNSUPPORTED"
 builtinAgdaTermMeta                  = "AGDATERMMETA"
 builtinAgdaLiteral                   = "AGDALITERAL"

@@ -80,10 +80,6 @@ data Term : Set where
   pi            : Arg Type → Abs Type → Term
   sort          : Sort → Term
   lit           : Literal → Term
-  quote-term    : Term → Term
-  quote-goal    : Abs Term → Term
-  quote-context : Term
-  unquote-term  : Term → Args → Term
   meta          : Meta → Args → Term
   unknown       : Term
 
@@ -124,10 +120,6 @@ data Clause where
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
 {-# BUILTIN AGDATERMMETA        meta    #-}
-{-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
-{-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
-{-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
-{-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
 {-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}

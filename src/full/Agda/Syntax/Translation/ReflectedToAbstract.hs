@@ -109,12 +109,6 @@ instance ToAbstract Term Expr where
       return $ A.Pi exprNoRange [a] b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
-    R.QuoteGoal t -> do
-      (e, name) <- toAbstract t
-      return $ A.QuoteGoal exprNoRange name e
-    R.QuoteTerm t  -> toAbstract (A.QuoteTerm exprNoRange, Apply $ defaultArg t)
-    R.QuoteContext -> return $ A.QuoteContext exprNoRange
-    R.Unquote t es -> toAbstract (A.Unquote exprNoRange, Apply (defaultArg t) : es)
     R.Meta x es    -> toAbstract (A.Underscore info, es)
       where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
