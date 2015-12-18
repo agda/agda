@@ -19,6 +19,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Trans
+import Control.Monad.State (get, put)
 import Control.Monad.Reader
 
 import Data.Maybe
@@ -1032,8 +1033,7 @@ checkApplication hd args e t = do
     A.Unquote _
       | [arg] <- args -> do
           hole <- newValueMeta RunMetaOccursCheck t
-          unquoteM (namedArg arg) hole
-          return hole
+          unquoteM (namedArg arg) hole $ return hole
       | arg : args <- args -> do
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
@@ -1048,8 +1048,7 @@ checkApplication hd args e t = do
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
           hole <- newValueMeta RunMetaOccursCheck holeType
-          unquoteM (namedArg arg) hole
-          return $ apply hole vs
+          unquoteM (namedArg arg) hole $ return $ apply hole vs
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
@@ -1058,17 +1057,27 @@ checkApplication hd args e t = do
           let dom = a <$ domFromArg arg
           ExtendTel dom . Abs "x" <$> addCtxString "x" dom (metaTel args)
 
-        unquoteM :: A.Expr -> Term -> TCM ()
-        unquoteM tac hole = do
-          tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-          ok <- runUnquoteM $ unquoteTCM tac hole
-          case ok of
-            Left (BlockedOnMeta x) -> typeError $ NotImplemented $ "Stuck unquoteTCM" -- TODO
-            Left err -> typeError $ UnquoteFailed err
-            Right _ -> return ()
-
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
+
+-- | Unquote a TCM computation in a given hole.
+unquoteM :: A.Expr -> Term -> TCM Term -> TCM Term
+unquoteM tac hole k = do
+  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  unquoteTactic tac hole k
+
+unquoteTactic :: Term -> Term -> TCM Term -> TCM Term
+unquoteTactic tac hole k = do
+  oldState <- get
+  ok  <- runUnquoteM $ unquoteTCM tac hole
+  case ok of
+    Left (BlockedOnMeta x) -> do
+      put oldState
+      r <- maybe __IMPOSSIBLE__ getRange . Map.lookup x <$> getMetaStore
+      setCurrentRange r $
+        postponeTypeCheckingProblem (UnquoteTactic tac hole) (isInstantiatedMeta x)
+    Left err -> typeError $ UnquoteFailed err
+    Right _ -> k
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.

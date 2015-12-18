@@ -861,6 +861,7 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
+  | UnquoteTactic Term Term   -- ^ First argument is computation and second is hole
   deriving (Typeable)
 
 instance Show MetaInstantiation where

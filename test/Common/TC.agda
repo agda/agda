@@ -16,6 +16,8 @@ postulate
   normalise  : Term → TC Term
   catchTC    : ∀ {a} {A : Set a} → TC A → TC A → TC A
   getContext : TC (List (Arg Type))
+  extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
+  inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
@@ -28,6 +30,8 @@ postulate
 {-# BUILTIN AGDATCMNORMALISE  normalise  #-}
 {-# BUILTIN AGDATCMCATCHERROR catchTC    #-}
 {-# BUILTIN AGDATCMGETCONTEXT getContext #-}
+{-# BUILTIN AGDATCMEXTENDCONTEXT extendContext #-}
+{-# BUILTIN AGDATCMINCONTEXT inContext #-}
 
 Tactic = Term → TC ⊤
 

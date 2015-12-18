@@ -27,6 +27,7 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
+import qualified Agda.Syntax.Info as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (equalityUnview)
@@ -308,6 +309,10 @@ instance PrettyTCM TypeCheckingProblem where
           text ":?"
         , prettyTCM t
         ]
+  prettyTCM (UnquoteTactic v _) = do
+    e <- reify v
+    let noInfo = A.exprNoRange
+    prettyTCM (A.App noInfo (A.Unquote noInfo) (defaultNamedArg e))
 
 instance PrettyTCM a => PrettyTCM (WithHiding a) where
   prettyTCM (WithHiding h a) = CP.prettyHiding h id <$> prettyTCM a

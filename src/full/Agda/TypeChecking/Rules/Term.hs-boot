@@ -20,3 +20,5 @@ checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                    (Args -> Type -> TCM Term) -> TCM Term
 
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
+
+unquoteTactic :: Term -> Term -> TCM Term -> TCM Term
