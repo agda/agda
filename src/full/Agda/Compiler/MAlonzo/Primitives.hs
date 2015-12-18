@@ -182,6 +182,8 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , "primQNameType"       |-> return "MAlonzo.RTE.qnameType"
   , "primQNameDefinition" |-> return "MAlonzo.RTE.qnameDefinition"
+  , "primMetaEquality"    |-> rel "(==)" "Integer"
+  , "primMetaLess"        |-> rel "(<)" "Integer"
 
   , "primDataConstructors" |-> return "(error \"primDataConstructors: not implemented\")"
   , "primDataNumberOfParameters" |-> return "(error \"primDataNumberOfParameters: not implemented\")"
