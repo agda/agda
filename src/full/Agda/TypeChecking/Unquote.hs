@@ -36,6 +36,9 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Primitive
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
 
@@ -407,27 +410,86 @@ evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
   case ignoreSharing v of
-    I.Def f [_, _, arg] ->
-      choice [ (f `isDef` primAgdaTCMReturn, return (unElim arg)) ]
-        __IMPOSSIBLE__
+    I.Def f [] ->
+      choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext) ]
+             __IMPOSSIBLE__
+    I.Def f [u] ->
+      choice [ (f `isDef` primAgdaTCMNewMeta,   tcFun1 tcNewMeta   u)
+             , (f `isDef` primAgdaTCMInferType, tcFun1 tcInferType u)
+             , (f `isDef` primAgdaTCMNormalise, tcFun1 tcNormalise u) ]
+             __IMPOSSIBLE__
+    I.Def f [u, v] ->
+      choice [ (f `isDef` primAgdaTCMUnify,     tcFun2 tcUnify     u v)
+             , (f `isDef` primAgdaTCMCheckType, tcFun2 tcCheckType u v) ]
+             __IMPOSSIBLE__
+    I.Def f [_, _, u] ->
+      choice [ (f `isDef` primAgdaTCMReturn,    return (unElim u))
+             , (f `isDef` primAgdaTCMTypeError, tcFun1 tcTypeError u) ]
+             __IMPOSSIBLE__
+    I.Def f [_, _, u, v] ->
+      choice [ (f `isDef` primAgdaTCMCatchError, tcCatchError (unElim u) (unElim v)) ]
+             __IMPOSSIBLE__
     I.Def f [_, _, _, _, m, k] ->
       choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
-        __IMPOSSIBLE__
-    I.Def f [u, v] ->
-      choice [ (f `isDef` primAgdaTCMUnify, tcUnify (unElim u) (unElim v)) ]
-        __IMPOSSIBLE__
-    _ -> throwException $ NotAConstructor "TCM" v -- TODO: not the right error
+             __IMPOSSIBLE__
+    _ -> lift $ typeError . GenericDocError =<<
+                sep [ text "Cannot evaluate type checking computation"
+                    , nest 2 $ prettyTCM v ]
   where
     unElim = unArg . argFromElim
     tcBind m k = do v <- evalTCM m
                     evalTCM (k `apply` [defaultArg v])
 
-    tcUnify :: I.Term -> I.Term -> UnquoteM I.Term
+    tcCatchError :: Term -> Term -> UnquoteM Term
+    tcCatchError m h = evalTCM m `catchError` \ _ -> evalTCM h
+
+    tcFun1 :: Unquote a => (a -> TCM b) -> Elim -> UnquoteM b
+    tcFun1 fun a = do
+      a <- unquote (unElim a)
+      lift (fun a)
+
+    tcFun2 :: (Unquote a, Unquote b) => (a -> b -> TCM c) -> Elim -> Elim -> UnquoteM c
+    tcFun2 fun a b = do
+      a <- unquote (unElim a)
+      b <- unquote (unElim b)
+      lift (fun a b)
+
+    tcUnify :: R.Term -> R.Term -> TCM Term
     tcUnify u v = do
-      u <- unquote u
-      v <- unquote v
-      (u, a) <- lift $ inferExpr        =<< toAbstract_ (u :: R.Term)
-      v      <- lift $ flip checkExpr a =<< toAbstract_ (v :: R.Term)
-      lift $ equalTerm a u v
-      lift $ primUnitUnit
+      (u, a) <- inferExpr        =<< toAbstract_ u
+      v      <- flip checkExpr a =<< toAbstract_ v
+      equalTerm a u v
+      primUnitUnit
+
+    tcNewMeta :: R.Type -> TCM Term
+    tcNewMeta a = do
+      a <- isType_ =<< toAbstract_ a
+      v <- newValueMeta RunMetaOccursCheck a
+      quoteTerm v
+
+    tcTypeError :: Str -> TCM a
+    tcTypeError s = typeError . GenericDocError =<< text (unStr s)
+
+    tcInferType :: R.Term -> TCM Term
+    tcInferType v = do
+      (_, a) <- inferExpr =<< toAbstract_ v
+      quoteType =<< normalise a
+
+    tcCheckType :: R.Term -> R.Type -> TCM Term
+    tcCheckType v a = do
+      a <- isType_ =<< toAbstract_ a
+      e <- toAbstract_ v
+      _ <- checkExpr e a
+      primUnitUnit
+
+    tcNormalise :: R.Term -> TCM Term
+    tcNormalise v = do
+      (v, _) <- inferExpr =<< toAbstract_ v
+      quoteTerm =<< normalise v
+
+    tcGetContext :: UnquoteM Term
+    tcGetContext = lift $ do
+      as <- map (fmap snd) <$> getContext
+      as <- etaContract =<< normalise as
+      buildList <*> mapM quoteDom as
 

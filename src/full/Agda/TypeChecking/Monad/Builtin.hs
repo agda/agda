@@ -126,7 +126,9 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaDataDef, primAgdaRecordDef, primAgdaPatLit, primAgdaPatProj,
     primAgdaPatAbsurd,
     primAgdaMeta,
-    primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify
+    primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
+    primAgdaTCMNewMeta, primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
+    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -236,10 +238,17 @@ primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 primAgdaMeta                      = getBuiltin builtinAgdaMeta
-primAgdaTCM       = getBuiltin builtinAgdaTCM
-primAgdaTCMReturn = getBuiltin builtinAgdaTCMReturn
-primAgdaTCMBind   = getBuiltin builtinAgdaTCMBind
-primAgdaTCMUnify  = getBuiltin builtinAgdaTCMUnify
+primAgdaTCM           = getBuiltin builtinAgdaTCM
+primAgdaTCMReturn     = getBuiltin builtinAgdaTCMReturn
+primAgdaTCMBind       = getBuiltin builtinAgdaTCMBind
+primAgdaTCMUnify      = getBuiltin builtinAgdaTCMUnify
+primAgdaTCMNewMeta    = getBuiltin builtinAgdaTCMNewMeta
+primAgdaTCMTypeError  = getBuiltin builtinAgdaTCMTypeError
+primAgdaTCMInferType  = getBuiltin builtinAgdaTCMInferType
+primAgdaTCMCheckType  = getBuiltin builtinAgdaTCMCheckType
+primAgdaTCMNormalise  = getBuiltin builtinAgdaTCMNormalise
+primAgdaTCMCatchError = getBuiltin builtinAgdaTCMCatchError
+primAgdaTCMGetContext = getBuiltin builtinAgdaTCMGetContext
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -274,7 +283,10 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
   builtinAgdaDefinitionPrimitive, builtinAgdaDefinition,
   builtinAgdaMeta,
-  builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify
+  builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
+  builtinAgdaTCMNewMeta, builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
+  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
+  builtinAgdaTCMGetContext
   :: String
 
 builtinNat                           = "NATURAL"
@@ -384,10 +396,17 @@ builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
 builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
 builtinAgdaDefinition                = "AGDADEFINITION"
 builtinAgdaMeta                      = "AGDAMETA"
-builtinAgdaTCM       = "AGDATCM"
-builtinAgdaTCMReturn = "AGDATCMRETURN"
-builtinAgdaTCMBind   = "AGDATCMBIND"
-builtinAgdaTCMUnify  = "AGDATCMUNIFY"
+builtinAgdaTCM           = "AGDATCM"
+builtinAgdaTCMReturn     = "AGDATCMRETURN"
+builtinAgdaTCMBind       = "AGDATCMBIND"
+builtinAgdaTCMUnify      = "AGDATCMUNIFY"
+builtinAgdaTCMNewMeta    = "AGDATCMNEWMETA"
+builtinAgdaTCMTypeError  = "AGDATCMTYPEERROR"
+builtinAgdaTCMInferType  = "AGDATCMINFERTYPE"
+builtinAgdaTCMCheckType  = "AGDATCMCHECKTYPE"
+builtinAgdaTCMNormalise  = "AGDATCMNORMALISE"
+builtinAgdaTCMCatchError = "AGDATCMCATCHERROR"
+builtinAgdaTCMGetContext = "AGDATCMGETCONTEXT"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

@@ -5,17 +5,31 @@ open import Common.Reflection
 open import Common.Prelude
 
 postulate
-  TC       : ∀ {a} → Set a → Set a
-  returnTC : ∀ {a} {A : Set a} → A → TC A
-  bindTC   : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
-  unifyTC  : Term → Term → TC ⊤
+  TC         : ∀ {a} → Set a → Set a
+  returnTC   : ∀ {a} {A : Set a} → A → TC A
+  bindTC     : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+  unify      : Term → Term → TC ⊤
+  newMeta    : Type → TC Term
+  typeError  : ∀ {a} {A : Set a} → String → TC A
+  inferType  : Term → TC Type
+  checkType  : Term → Type → TC ⊤
+  normalise  : Term → TC Term
+  catchTC    : ∀ {a} {A : Set a} → TC A → TC A → TC A
+  getContext : TC (List (Arg Type))
 
-{-# BUILTIN AGDATCM       TC #-}
-{-# BUILTIN AGDATCMRETURN returnTC #-}
-{-# BUILTIN AGDATCMBIND   bindTC #-}
-{-# BUILTIN AGDATCMUNIFY  unifyTC #-}
+{-# BUILTIN AGDATCM           TC         #-}
+{-# BUILTIN AGDATCMRETURN     returnTC   #-}
+{-# BUILTIN AGDATCMBIND       bindTC     #-}
+{-# BUILTIN AGDATCMUNIFY      unify      #-}
+{-# BUILTIN AGDATCMNEWMETA    newMeta    #-}
+{-# BUILTIN AGDATCMTYPEERROR  typeError  #-}
+{-# BUILTIN AGDATCMINFERTYPE  inferType  #-}
+{-# BUILTIN AGDATCMCHECKTYPE  checkType  #-}
+{-# BUILTIN AGDATCMNORMALISE  normalise  #-}
+{-# BUILTIN AGDATCMCATCHERROR catchTC    #-}
+{-# BUILTIN AGDATCMGETCONTEXT getContext #-}
 
 Tactic = Term → TC ⊤
 
 give : Term → Tactic
-give v = λ hole → unifyTC hole v
+give v = λ hole → unify hole v

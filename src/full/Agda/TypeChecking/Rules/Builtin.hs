@@ -189,7 +189,14 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMBind   |-> builtinPostulate (hPi "a" tlevel  $ hPi "b" tlevel $
                                                hPi "A" (tsetL 1) $ hPi "B" (tsetL 1) $
                                                tTCM 3 (varM 1) --> (elV 3 (varM 1) --> tTCM 2 (varM 0)) --> tTCM 2 (varM 0))
-  , builtinAgdaTCMUnify  |-> builtinPostulate (tterm --> tterm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  , builtinAgdaTCMUnify      |-> builtinPostulate (tterm --> tterm --> tTCM_ primUnit)
+  , builtinAgdaTCMNewMeta    |-> builtinPostulate (ttype --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMTypeError  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tstring --> tTCM 1 (varM 0))
+  , builtinAgdaTCMInferType  |-> builtinPostulate (tterm --> tTCM_ primAgdaType)
+  , builtinAgdaTCMCheckType  |-> builtinPostulate (tterm --> ttype --> tTCM_ primUnit)
+  , builtinAgdaTCMNormalise  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMCatchError |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMGetContext |-> builtinPostulate (tTCM_ (unEl <$> tlist (targ ttype)))
   ]
   where
         (|->) = (,)
@@ -241,6 +248,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tpat       = el primAgdaPattern
         tclause    = el primAgdaClause
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
+        tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do

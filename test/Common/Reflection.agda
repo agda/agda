@@ -8,6 +8,7 @@ postulate QName : Set
 {-# BUILTIN QNAME QName #-}
 primitive primQNameEquality : QName → QName → Bool
 primitive primQNameLess : QName → QName → Bool
+primitive primShowQName : QName → String
 
 postulate Meta : Set
 {-# BUILTIN AGDAMETA Meta #-}
