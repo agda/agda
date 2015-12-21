@@ -4,6 +4,55 @@
 
 Important changes since 2.4.2.5:
 
+* New NO_POSITIVITY_CHECK pragma to switch off the positivity checker
+  for data definitions and mutual blocks.
+
+  The pragma must precede a data definition or a mutual block.
+
+  Examples (see test/Succeed/Issue1614*.agda):
+
+  1. Skipping a single data definition.
+
+       {-# NO_POSITIVITY_CHECK #-}
+       data D : Set where
+         lam : (D → D) → D
+
+  2. Skipping an old-style mutual block: Somewhere within a `mutual`
+     block before a data definition.
+
+       mutual
+         data D : Set where
+           lam : (D → D) → D
+
+         {-# NO_POSITIVITY_CHECK #-}
+         data NSPos (A : Set) : Set where
+           c : ((NSPos A → A) → NSPos A) → NSPos A
+
+  3. Skipping an old-style mutual block: Before the `mutual` keyword.
+
+       {-# NO_POSITIVITY_CHECK #-}
+       mutual
+         data D : Set where
+           lam : (D → D) → D
+
+         data NSPos (A : Set) : Set where
+           c : ((NSPos A → A) → NSPos A) → NSPos A
+
+  4. Skipping a new-style mutual block: Anywhere before the declaration
+     and the definition of a data type in the block.
+
+       data Tree (A : Set) : Set
+       {-# NO_POSITIVITY_CHECK #-}
+       data Bad : Set
+
+       data Tree A where
+         leaf : Tree A
+         node : (A → Tree A) → Tree A
+
+       {-# NO_POSITIVITY_CHECK #-}
+       data Bad where
+         bad : Tree Bad → Bad
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5
 ------------------------------------------------------------------------

@@ -768,3 +768,10 @@ data TerminationCheck m
 instance KillRange m => KillRange (TerminationCheck m) where
   killRange (TerminationMeasure _ m) = TerminationMeasure noRange (killRange m)
   killRange t                        = t
+
+-----------------------------------------------------------------------------
+-- * Positivity
+-----------------------------------------------------------------------------
+
+-- | Positivity check? (Default = True).
+type PositivityCheck = Bool

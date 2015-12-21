@@ -448,6 +448,7 @@ instance Pretty Pragma where
         NonTerminating         -> text "NON_TERMINATING"
         Terminating            -> text "TERMINATING"
         TerminationMeasure _ x -> hsep $ [text "MEASURE", pretty x]
+    pretty (NoPositivityCheckPragma _) = text "NO_POSITIVITY_CHECK"
 
 instance Pretty Fixity where
     pretty (Fixity _ n ass) = text s <+> text (show n)

@@ -377,21 +377,22 @@ data OpenShortHand = DoOpen | DontOpen
 -- Pragmas ----------------------------------------------------------------
 
 data Pragma
-  = OptionsPragma          !Range [String]
-  | BuiltinPragma          !Range String Expr
-  | RewritePragma          !Range QName
-  | CompiledDataPragma     !Range QName String [String]
-  | CompiledTypePragma     !Range QName String
-  | CompiledPragma         !Range QName String
-  | CompiledExportPragma   !Range QName String
-  | CompiledEpicPragma     !Range QName String
-  | CompiledJSPragma       !Range QName String
-  | StaticPragma           !Range QName
-  | ImportPragma           !Range String
+  = OptionsPragma           !Range [String]
+  | BuiltinPragma           !Range String Expr
+  | RewritePragma           !Range QName
+  | CompiledDataPragma      !Range QName String [String]
+  | CompiledTypePragma      !Range QName String
+  | CompiledPragma          !Range QName String
+  | CompiledExportPragma    !Range QName String
+  | CompiledEpicPragma      !Range QName String
+  | CompiledJSPragma        !Range QName String
+  | StaticPragma            !Range QName
+  | ImportPragma            !Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
-  | ImpossiblePragma       !Range
-  | EtaPragma              !Range QName
-  | TerminationCheckPragma !Range (TerminationCheck Name)
+  | ImpossiblePragma        !Range
+  | EtaPragma               !Range QName
+  | TerminationCheckPragma  !Range (TerminationCheck Name)
+  | NoPositivityCheckPragma !Range
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -608,6 +609,7 @@ instance HasRange Pragma where
   getRange (ImpossiblePragma r)         = r
   getRange (EtaPragma r _)              = r
   getRange (TerminationCheckPragma r _) = r
+  getRange (NoPositivityCheckPragma r)  = r
 
 instance HasRange UsingOrHiding where
   getRange (Using xs)  = getRange xs
@@ -785,6 +787,7 @@ instance KillRange Pragma where
   killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
   killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
+  killRange (NoPositivityCheckPragma _)   = NoPositivityCheckPragma noRange
 
 instance KillRange Renaming where
   killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
