@@ -1,8 +1,9 @@
-{-# LANGUAGE CPP                #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE PatternGuards      #-}
-{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE PatternGuards       #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -698,6 +699,16 @@ niceDeclarations ds = do
                 | sameKind k k' -> throwError $ WrongParameters x
                 | otherwise     -> throwError $ WrongDefinition x k' k
 
+    dataOrRec :: forall a .
+                 (Range -> Fixity' -> IsAbstract -> Name -> [LamBinding] -> [NiceConstructor] -> NiceDeclaration) ->
+                 (Range -> Fixity' -> Access -> Name -> [LamBinding] -> Expr -> NiceDeclaration) ->
+                 ([a] -> Nice [NiceDeclaration]) ->
+                 Range ->
+                 Name ->
+                 [LamBinding] ->
+                 Maybe Expr ->
+                 Maybe [a] ->
+                 Nice [NiceDeclaration]
     dataOrRec mkDef mkSig niceD r x tel mt mcs = do
       mds <- traverse niceD mcs
       f   <- getFixity x
