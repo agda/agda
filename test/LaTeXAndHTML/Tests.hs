@@ -1,6 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE DoAndIfThenElse   #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module LaTeXAndHTML.Tests where
 
 import Test.Tasty

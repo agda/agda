@@ -1445,128 +1445,128 @@ instance ToAbstract ConstrDecl A.Declaration where
         P.nest 2 (pretty (notSoNiceDeclaration d))
 
 instance ToAbstract C.Pragma [A.Pragma] where
-    toAbstract (C.ImpossiblePragma _) = impossibleTest
-    toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-    toAbstract (C.RewritePragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x          -> return [ A.RewritePragma x ]
-        A.Proj x         -> return [ A.RewritePragma x ]
-        A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
-        A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
-        A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
-        _       -> __IMPOSSIBLE__
-    toAbstract (C.CompiledTypePragma _ x hs) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.CompiledTypePragma x hs ]
-        _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
-    toAbstract (C.CompiledDataPragma _ x hs hcs) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
-        _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
-    toAbstract (C.CompiledPragma _ x hs) = do
+  toAbstract (C.ImpossiblePragma _) = impossibleTest
+  toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+  toAbstract (C.RewritePragma _ x) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x          -> return [ A.RewritePragma x ]
+      A.Proj x         -> return [ A.RewritePragma x ]
+      A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
+      A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
+      A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
+      _       -> __IMPOSSIBLE__
+  toAbstract (C.CompiledTypePragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.CompiledTypePragma x hs ]
+      _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
+  toAbstract (C.CompiledDataPragma _ x hs hcs) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
+      _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
+  toAbstract (C.CompiledPragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
+          A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledPragma y hs ]
+  toAbstract (C.CompiledExportPragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledExportPragma y hs ]
+  toAbstract (C.CompiledEpicPragma _ x ep) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledEpicPragma y ep ]
+  toAbstract (C.CompiledJSPragma _ x ep) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          A.Proj x -> return x
+          A.Con (AmbQ [x]) -> return x
+          A.Con x -> genericError $
+            "COMPILED_JS used on ambiguous name " ++ prettyShow x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledJSPragma y ep ]
+  toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
-            A.Def x -> return x
-            A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
-            A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledPragma y hs ]
-    toAbstract (C.CompiledExportPragma _ x hs) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledExportPragma y hs ]
-    toAbstract (C.CompiledEpicPragma _ x ep) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledEpicPragma y ep ]
-    toAbstract (C.CompiledJSPragma _ x ep) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-            A.Def x -> return x
-            A.Proj x -> return x
-            A.Con (AmbQ [x]) -> return x
-            A.Con x -> genericError $
-              "COMPILED_JS used on ambiguous name " ++ prettyShow x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledJSPragma y ep ]
-    toAbstract (C.StaticPragma _ x) = do
-        e <- toAbstract $ OldQName x Nothing
-        y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
-        return [ A.StaticPragma y ]
-    toAbstract (C.BuiltinPragma _ b e) = do
-      -- Andreas, 2015-02-14
-      -- Some builtins cannot be given a valid Agda type,
-      -- thus, they do not come with accompanying postulate or definition.
-      if b `elem` builtinsNoDef then do
-        case e of
-          C.Ident q@(C.QName x) -> do
-            unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
-              "BUILTIN " ++ b ++ " declares an identifier " ++
-              "(no longer expects an already defined identifier)"
-            y <- freshAbstractQName defaultFixity' x
-            bindName PublicAccess DefName x y
-            return [ A.BuiltinNoDefPragma b y ]
-          _ -> genericError $
-            "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
-            "but found expression " ++ prettyShow e
-      else do
-        e <- toAbstract e
-        return [ A.BuiltinPragma b e ]
-    toAbstract (C.ImportPragma _ i) = do
-      addHaskellImport i
-      return []
-    toAbstract (C.EtaPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
+          A.Def x -> return x
+          _       -> __IMPOSSIBLE__
+      return [ A.StaticPragma y ]
+  toAbstract (C.BuiltinPragma _ b e) = do
+    -- Andreas, 2015-02-14
+    -- Some builtins cannot be given a valid Agda type,
+    -- thus, they do not come with accompanying postulate or definition.
+    if b `elem` builtinsNoDef then do
       case e of
-        A.Def x -> return [ A.EtaPragma x ]
-        _       -> do
-         e <- showA e
-         genericError $ "Pragma ETA: expected identifier, " ++
-           "but found expression " ++ e
-    -- Termination checking pragmes are handled by the nicifier
-    toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
+        C.Ident q@(C.QName x) -> do
+          unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
+            "BUILTIN " ++ b ++ " declares an identifier " ++
+            "(no longer expects an already defined identifier)"
+          y <- freshAbstractQName defaultFixity' x
+          bindName PublicAccess DefName x y
+          return [ A.BuiltinNoDefPragma b y ]
+        _ -> genericError $
+          "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+          "but found expression " ++ prettyShow e
+    else do
+      e <- toAbstract e
+      return [ A.BuiltinPragma b e ]
+  toAbstract (C.ImportPragma _ i) = do
+    addHaskellImport i
+    return []
+  toAbstract (C.EtaPragma _ x) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.EtaPragma x ]
+      _       -> do
+       e <- showA e
+       genericError $ "Pragma ETA: expected identifier, " ++
+         "but found expression " ++ e
+  -- Termination checking pragmas are handled by the nicifier
+  toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message
-    toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
-      -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
-      vars <- getLocalVars
-      let wcs' = for wcs $ \ c -> setLocalVars vars $> c
-      lhs' <- toAbstract $ LeftHandSide top p wps
-      printLocals 10 "after lhs:"
-      let (whname, whds) = case wh of
-            NoWhere        -> (Nothing, [])
-            AnyWhere ds    -> (Nothing, ds)
-            SomeWhere m ds -> (Just m, ds)
+  toAbstract (C.Clause top C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message
+  toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
+    -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
+    vars <- getLocalVars
+    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
+    lhs' <- toAbstract $ LeftHandSide top p wps
+    printLocals 10 "after lhs:"
+    let (whname, whds) = case wh of
+          NoWhere        -> (Nothing, [])
+          AnyWhere ds    -> (Nothing, ds)
+          SomeWhere m ds -> (Just m, ds)
 
-      let isTerminationPragma :: C.Declaration -> Bool
-          isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
-          isTerminationPragma _                                       = False
+    let isTerminationPragma :: C.Declaration -> Bool
+        isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
+        isTerminationPragma _                                       = False
 
-      if not (null eqs)
-        then do
-          rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
-          return $ A.Clause lhs' rhs []
-        else do
-          -- ASR (16 November 2015) Issue 1137: We ban termination
-          -- pragmas inside `where` clause.
-          when (any isTerminationPragma whds) $
-               genericError "Termination pragmas are not allowed inside where clauses"
+    if not (null eqs)
+      then do
+        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
+        return $ A.Clause lhs' rhs []
+      else do
+        -- ASR (16 November 2015) Issue 1137: We ban termination
+        -- pragmas inside `where` clause.
+        when (any isTerminationPragma whds) $
+             genericError "Termination pragmas are not allowed inside where clauses"
 
-          -- the right hand side is checked inside the module of the local definitions
-          (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
-                        toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
-          rhs <- toAbstract rhs
-          return $ A.Clause lhs' rhs ds
+        -- the right hand side is checked inside the module of the local definitions
+        (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
+                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
+        rhs <- toAbstract rhs
+        return $ A.Clause lhs' rhs ds
 
 whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
 whereToAbstract _ _      []   inner = (,[]) <$> inner

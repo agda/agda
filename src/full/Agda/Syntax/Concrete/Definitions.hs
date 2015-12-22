@@ -181,46 +181,46 @@ data KindOfBlock
 
 
 instance HasRange DeclarationException where
-    getRange (MultipleFixityDecls xs)      = getRange (fst $ head xs)
-    getRange (InvalidName x)               = getRange x
-    getRange (DuplicateDefinition x)       = getRange x
-    getRange (MissingDefinition x)         = getRange x
-    getRange (MissingWithClauses x)        = getRange x
-    getRange (MissingTypeSignature x)      = getRange x
-    getRange (MissingDataSignature x)      = getRange x
-    getRange (WrongDefinition x k k')      = getRange x
-    getRange (WrongParameters x)           = getRange x
-    getRange (AmbiguousFunClauses lhs xs)  = getRange lhs
-    getRange (NotAllowedInMutual x)        = getRange x
-    getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
-    getRange (Codata r)                    = r
-    getRange (DeclarationPanic _)          = noRange
-    getRange (UselessPrivate r)            = r
-    getRange (UselessAbstract r)           = r
-    getRange (UselessInstance r)           = r
-    getRange (WrongContentBlock _ r)       = r
-    getRange (InvalidTerminationCheckPragma r) = r
-    getRange (InvalidMeasureMutual r)      = r
-    getRange (PragmaNoTerminationCheck r)  = r
+  getRange (MultipleFixityDecls xs)          = getRange (fst $ head xs)
+  getRange (InvalidName x)                   = getRange x
+  getRange (DuplicateDefinition x)           = getRange x
+  getRange (MissingDefinition x)             = getRange x
+  getRange (MissingWithClauses x)            = getRange x
+  getRange (MissingTypeSignature x)          = getRange x
+  getRange (MissingDataSignature x)          = getRange x
+  getRange (WrongDefinition x k k')          = getRange x
+  getRange (WrongParameters x)               = getRange x
+  getRange (AmbiguousFunClauses lhs xs)      = getRange lhs
+  getRange (NotAllowedInMutual x)            = getRange x
+  getRange (UnknownNamesInFixityDecl xs)     = getRange . head $ xs
+  getRange (Codata r)                        = r
+  getRange (DeclarationPanic _)              = noRange
+  getRange (UselessPrivate r)                = r
+  getRange (UselessAbstract r)               = r
+  getRange (UselessInstance r)               = r
+  getRange (WrongContentBlock _ r)           = r
+  getRange (InvalidTerminationCheckPragma r) = r
+  getRange (InvalidMeasureMutual r)          = r
+  getRange (PragmaNoTerminationCheck r)      = r
 
 instance HasRange NiceDeclaration where
-  getRange (Axiom r _ _ _ _ _ _)           = r
-  getRange (NiceField r _ _ _ _ _)         = r
-  getRange (NiceMutual r _ _)              = r
-  getRange (NiceModule r _ _ _ _ _)        = r
-  getRange (NiceModuleMacro r _ _ _ _ _)   = r
-  getRange (NiceOpen r _ _)                = r
-  getRange (NiceImport r _ _ _ _)          = r
-  getRange (NicePragma r _)                = r
-  getRange (PrimitiveFunction r _ _ _ _ _) = r
-  getRange (FunSig r _ _ _ _ _ _ _)        = r
-  getRange (FunDef r _ _ _ _ _ _)          = r
-  getRange (DataDef r _ _ _ _ _)           = r
-  getRange (RecDef r _ _ _ _ _ _ _)        = r
-  getRange (NiceRecSig r _ _ _ _ _)        = r
-  getRange (NiceDataSig r _ _ _ _ _)       = r
-  getRange (NicePatternSyn r _ _ _ _)      = r
-  getRange (NiceFunClause r _ _ _ _)       = r
+  getRange (Axiom r _ _ _ _ _ _)             = r
+  getRange (NiceField r _ _ _ _ _)           = r
+  getRange (NiceMutual r _ _)                = r
+  getRange (NiceModule r _ _ _ _ _)          = r
+  getRange (NiceModuleMacro r _ _ _ _ _)     = r
+  getRange (NiceOpen r _ _)                  = r
+  getRange (NiceImport r _ _ _ _)            = r
+  getRange (NicePragma r _)                  = r
+  getRange (PrimitiveFunction r _ _ _ _ _)   = r
+  getRange (FunSig r _ _ _ _ _ _ _)          = r
+  getRange (FunDef r _ _ _ _ _ _)            = r
+  getRange (DataDef r _ _ _ _ _)             = r
+  getRange (RecDef r _ _ _ _ _ _ _)          = r
+  getRange (NiceRecSig r _ _ _ _ _)          = r
+  getRange (NiceDataSig r _ _ _ _ _)         = r
+  getRange (NicePatternSyn r _ _ _ _)        = r
+  getRange (NiceFunClause r _ _ _ _)         = r
   getRange (NiceUnquoteDecl r _ _ _ _ _ _ _) = r
 
 instance Error DeclarationException where
@@ -905,8 +905,8 @@ niceDeclarations ds = do
     mkAbstract d =
       case d of
         NiceMutual r termCheck ds        -> NiceMutual r termCheck <$> mapM mkAbstract ds
-        FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x)  <$> setAbstract a <*> mapM mkAbstractClause cs
-        DataDef r f a x ps cs            -> (\ a -> DataDef r f a x ps)    <$> setAbstract a <*> mapM mkAbstract cs
+        FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x) <$> setAbstract a <*> mapM mkAbstractClause cs
+        DataDef r f a x ps cs            -> (\ a -> DataDef r f a x ps) <$> setAbstract a <*> mapM mkAbstract cs
         RecDef r f a x i c ps cs         -> (\ a -> RecDef r f a x i c ps) <$> setAbstract a <*> mapM mkAbstract cs
         NiceFunClause r p a termCheck d  -> (\ a -> NiceFunClause r p a termCheck d) <$> setAbstract a
         -- no effect on fields or primitives, the InAbstract field there is unused
@@ -1100,27 +1100,27 @@ fixities = foldMap $ \ d -> case d of
 -- | (Approximately) convert a 'NiceDeclaration' back to a 'Declaration'.
 notSoNiceDeclaration :: NiceDeclaration -> Declaration
 notSoNiceDeclaration d =
-    case d of
-      Axiom _ _ _ _ rel x e            -> TypeSig rel x e
-      NiceField _ _ _ _ x argt         -> Field x argt
-      PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig defaultArgInfo x e]
-      NiceMutual r _ ds                -> Mutual r $ map notSoNiceDeclaration ds
-      NiceModule r _ _ x tel ds        -> Module r x tel ds
-      NiceModuleMacro r _ x ma o dir   -> ModuleMacro r x ma o dir
-      NiceOpen r x dir                 -> Open r x dir
-      NiceImport r x as o dir          -> Import r x as o dir
-      NicePragma _ p                   -> Pragma p
-      NiceRecSig r _ _ x bs e          -> RecordSig r x bs e
-      NiceDataSig r _ _ x bs e         -> DataSig r Inductive x bs e
-      NiceFunClause _ _ _ _ d          -> d
-      FunSig _ _ _ _ rel tc x e        -> TypeSig rel x e
-      FunDef r [d] _ _ _ _ _           -> d
-      FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
-      DataDef r _ _ x bs cs            -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs
-      RecDef r _ _ x i c bs ds         -> Record r x i (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
-        where unThing (ThingWithFixity c _) = c
-      NicePatternSyn r _ n as p        -> PatternSyn r n as p
-      NiceUnquoteDecl r _ _ _ _ _ x e  -> UnquoteDecl r x e
+  case d of
+    Axiom _ _ _ _ rel x e            -> TypeSig rel x e
+    NiceField _ _ _ _ x argt         -> Field x argt
+    PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig defaultArgInfo x e]
+    NiceMutual r _ ds                -> Mutual r $ map notSoNiceDeclaration ds
+    NiceModule r _ _ x tel ds        -> Module r x tel ds
+    NiceModuleMacro r _ x ma o dir   -> ModuleMacro r x ma o dir
+    NiceOpen r x dir                 -> Open r x dir
+    NiceImport r x as o dir          -> Import r x as o dir
+    NicePragma _ p                   -> Pragma p
+    NiceRecSig r _ _ x bs e          -> RecordSig r x bs e
+    NiceDataSig r _ _ x bs e         -> DataSig r Inductive x bs e
+    NiceFunClause _ _ _ _ d          -> d
+    FunSig _ _ _ _ rel tc x e        -> TypeSig rel x e
+    FunDef r [d] _ _ _ _ _           -> d
+    FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
+    DataDef r _ _ x bs cs            -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs
+    RecDef r _ _ x i c bs ds         -> Record r x i (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
+      where unThing (ThingWithFixity c _) = c
+    NicePatternSyn r _ n as p        -> PatternSyn r n as p
+    NiceUnquoteDecl r _ _ _ _ _ x e  -> UnquoteDecl r x e
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
