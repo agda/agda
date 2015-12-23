@@ -110,7 +110,10 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
       whenJustM (isDatatype q) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
 
-        let loop      = Graph.lookup (DefNode q) (DefNode q) gstar
+        let loop :: Maybe Occurrence
+            loop = Graph.lookup (DefNode q) (DefNode q) gstar
+
+            how :: String -> (Occurrence -> Bool) -> TCM Doc
             how msg p =
               fsep $ [prettyTCM q] ++ pwords "is" ++
                 case filter (p . occ) $
@@ -159,6 +162,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
                   where p = (== GuardPos)
                 _ -> return ()
 
+    checkInduction :: QName -> TCM ()
     checkInduction q = whenM positivityCheckEnabled $ do
       -- Check whether the recursive record has been declared as
       -- 'Inductive' or 'Coinductive'.  Otherwise, error.
@@ -170,6 +174,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
 
     occ (Edge o _) = o
 
+    isDatatype :: QName -> TCM (Maybe DataOrRecord)
     isDatatype q = do
       def <- theDef <$> getConstInfo q
       return $ case def of
@@ -178,6 +183,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
         _ -> Nothing
 
     -- Set the mutually recursive identifiers for a SCC.
+    setMut :: [QName] -> TCM ()
     setMut []  = return ()  -- nothing to do
     setMut [q] = return ()  -- no mutual recursion
     setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)
