@@ -444,23 +444,35 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
         Con reflCon [] <- ignoreSharing <$> primRefl
 
         -- Andreas, 2014-05-17  Issue 1110:
-        -- Rewriting with a reflexive equation has no effect, but gives an
+        -- Rewriting with @refl@ has no effect, but gives an
         -- incomprehensible error message about the generated
         -- with clause. Thus, we rather do simply nothing if
-        -- rewriting with @a ≡ a@ is attempted.
+        -- rewriting with @refl@ is attempted.
 
+        let isReflProof = do
+             v <- reduce proof
+             case ignoreSharing v of
+               Con c [] | c == reflCon -> return True
+               _ -> return False
+
+        ifM isReflProof recurse $ {- else -} do
+
+        -- Process 'rewrite' clause like a suitable 'with' clause.
+
+        let reflPat  = A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [conName reflCon]) []
+
+        -- Andreas, 2015-12-25  Issue #1740:
+        -- After the fix of #520, rewriting with a reflexive equation
+        -- has to be desugared as matching against refl.
         let isReflexive = tryConversion $ dontAssignMetas $
              equalTerm rewriteType rewriteFrom rewriteTo
 
-        ifM isReflexive recurse $ {- else -} do
+        (pats, withExpr, withType) <- do
+          ifM isReflexive
+            {-then-} (return ([ reflPat ], proof, OtherType t'))
+            {-else-} (return ([ A.WildP patNoRange, reflPat ], proof, eqt))
 
-        -- Transform 'rewrite' clause into a 'with' clause.
-
-        let reflPat  = A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [conName reflCon]) []
-            pats     = [ A.WildP patNoRange, reflPat ]
-            withExpr = proof
-            withType = eqt
-            rhs'     = insertPatterns pats rhs
+        let rhs'     = insertPatterns pats rhs
             (rhs'', outerWhere) -- the where clauses should go on the inner-most with
               | null qes  = (rhs', wh)
               | otherwise = (A.RewriteRHS qes rhs' wh, [])

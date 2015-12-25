@@ -65,7 +65,7 @@ Type checking
   maintenance.
 
 * When using `rewrite` on a term `eq` of type `lhs ≡ rhs`, the `lhs`
-  is no longer abstracte in `rhs` [Issue 520].  This means that
+  is no longer abstracted in `rhs` [Issue 520].  This means that
 
     f pats rewrite eq = body
 
@@ -115,6 +115,7 @@ See https://github.com/agda/agda/issues
 * 1701
 * 1710
 * 1718
+* 1740
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.4
