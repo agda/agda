@@ -456,33 +456,17 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
           -- Transform 'rewrite' clause into a 'with' clause,
           -- going back to abstract syntax.
 
-          -- Andreas, 2015-02-09 Issue 1421: kill ranges
-          -- as reify puts in ranges that may point to other files.
-          (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <- killRange <$> do
-           disableDisplayForms $ withShowAllArguments $ reify
-             (rewriteFrom,   rewriteTo,    rewriteType    , proof)
           let (inner, outer) -- the where clauses should go on the inner-most with
                 | null qes  = ([], wh)
                 | otherwise = (wh, [])
               -- Andreas, 2014-03-05 kill range of copied patterns
               -- since they really do not have a source location.
-              newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] cs
               cs     = [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
-                         -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
-                         -- is defined by induction on eqs.
                          (A.RewriteRHS qes (insertPatterns pats rhs) inner)
                          outer]
               cinfo  = ConPatInfo ConPCon patNoRange
               pats   = [ A.WildP patNoRange
                        , A.ConP cinfo (AmbQ [conName reflCon]) []]
-          reportSDoc "tc.rewrite.top" 25 $ vcat
-            [ text "rewrite"
-            , text "  from  = " <+> prettyTCM rewriteFromExpr
-            , text "  to    = " <+> prettyTCM rewriteToExpr
-            , text "  typ   = " <+> prettyTCM rewriteType
-            , text "  proof = " <+> prettyTCM proofExpr
-            , text "  equ   = " <+> prettyTCM t'
-            ]
 
           checkWithRHS x qname t lhsResult [proof] [eqt] cs
 
