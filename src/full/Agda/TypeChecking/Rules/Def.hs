@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where
 
@@ -453,22 +454,21 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
 
         ifM isReflexive recurse $ {- else -} do
 
-          -- Transform 'rewrite' clause into a 'with' clause,
-          -- going back to abstract syntax.
+        -- Transform 'rewrite' clause into a 'with' clause.
 
-          let (inner, outer) -- the where clauses should go on the inner-most with
-                | null qes  = ([], wh)
-                | otherwise = (wh, [])
-              -- Andreas, 2014-03-05 kill range of copied patterns
-              -- since they really do not have a source location.
-              cs     = [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
-                         (A.RewriteRHS qes (insertPatterns pats rhs) inner)
-                         outer]
-              cinfo  = ConPatInfo ConPCon patNoRange
-              pats   = [ A.WildP patNoRange
-                       , A.ConP cinfo (AmbQ [conName reflCon]) []]
+        let reflPat  = A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [conName reflCon]) []
+            pats     = [ A.WildP patNoRange, reflPat ]
+            withExpr = proof
+            withType = eqt
+            rhs'     = insertPatterns pats rhs
+            (rhs'', outerWhere) -- the where clauses should go on the inner-most with
+              | null qes  = (rhs', wh)
+              | otherwise = (A.RewriteRHS qes rhs' wh, [])
+            -- Andreas, 2014-03-05 kill range of copied patterns
+            -- since they really do not have a source location.
+            cs       = [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats) rhs'' outerWhere]
 
-          checkWithRHS x qname t lhsResult [proof] [eqt] cs
+        checkWithRHS x qname t lhsResult [withExpr] [withType] cs
 
       -- Case: @with@
       A.WithRHS aux es cs -> do
