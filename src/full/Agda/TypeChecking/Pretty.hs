@@ -24,6 +24,7 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
@@ -196,6 +197,9 @@ instance PrettyTCM Elim where
 
 instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
   prettyTCM = prettyTCM . ignoreReduced
+
+instance PrettyTCM EqualityView where
+  prettyTCM v = prettyTCM $ equalityUnview v
 
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA

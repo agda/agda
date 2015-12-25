@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -75,15 +76,15 @@ splitTelForWith
   -- Input:
   :: Telescope      -- ^ __@Δ@__        context of types and with-arguments.
   -> Type           -- ^ __@Δ ⊢ t@__    type of rhs.
-  -> [Type]         -- ^ __@Δ ⊢ as@__   types of with arguments.
+  -> [EqualityView] -- ^ __@Δ ⊢ as@__   types of with arguments.
   -> [Term]         -- ^ __@Δ ⊢ vs@__   with arguments.
   -- Output:
   -> ( Telescope    -- @Δ₁@       part of context not needed for with arguments and their types.
      , Telescope    -- @Δ₂@       part of context needed for with arguments and their types.
      , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
      , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [Type]       -- @Δ₁ ⊢ as'@ types with with-arguments depending only on @Δ₁@.
-     , [Term]       -- @Δ₁ ⊢ vs'@ with-arguments under @π@.
+     , [EqualityView] -- @Δ₁ ⊢ as'@ types with with- and rewrite-arguments depending only on @Δ₁@.
+     , [Term]       -- @Δ₁ ⊢ vs'@ with- and rewrite-arguments under @π@.
      )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@as'@__,__@vs'@__) where
 --
 --   [@Δ₁@]        part of context not needed for with arguments and their types.
@@ -122,30 +123,29 @@ splitTelForWith delta t as vs = let
 
 
 -- | Abstract with-expressions @vs@ to generate type for with-helper function.
+--
+-- Each @EqualityType@, coming from a @rewrite@, will turn into 2 abstractions.
 
 withFunctionType
   :: Telescope  -- ^ @Δ₁@                       context for types of with types.
-  -> [Term]     -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with-expressions.
-  -> [Type]     -- ^ @Δ₁ ⊢ as@                  types of with-expressions.
+  -> [Term]     -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions.
+  -> [EqualityView] -- ^ @Δ₁ ⊢ as@                  types of with and rewrite-expressions.
   -> Telescope  -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
   -> Type       -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
-  -> TCM Type   -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
-    -- @[vs/wtel]wtel = as@ and
-    -- @[vs/wtel]Δ₂′ = Δ₂@ and
-    -- @[vs/wtel]b′ = b@.
-
+  -> TCM (Type, [Term])
+    -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
+    --     @[vs/wtel]wtel = as@ and
+    --     @[vs/wtel]Δ₂′ = Δ₂@ and
+    --     @[vs/wtel]b′ = b@.
+    -- Plus @Δ₁ ⊢ vsAll@ final with-arguments under @π@.
 withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
-  -- Normalize and η-contract the types @as@ of the with-expressions.
-
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
-  as <- etaContract =<< normalise as
-  reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
 
   -- Normalize and η-contract the type @b@ of the rhs and the types @delta2@
   -- of the pattern variables not mentioned in @as@.
 
-  d2b <- return $ telePi_ delta2 b
+  let d2b = telePi_ delta2 b
   reportSDoc "tc.with.abstract" 30 $ text "normalizing d2b = " <+> prettyTCM d2b
   d2b  <- normalise d2b
   reportSDoc "tc.with.abstract" 30 $ text "eta-contracting d2b = " <+> prettyTCM d2b
@@ -156,15 +156,21 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
   addContext delta2 $ do
 
+    -- Normalize and η-contract the types @as@ of the with-expressions.
+
+    as <- etaContract =<< normalise (raise n2 as)
+    reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
+
     -- Normalize and η-contract the with-expressions @vs@.
 
     vs <- etaContract =<< normalise vs
+    let vsAll = withArguments vs as
     reportSDoc "tc.with.abstract" 20 $ text "  vs = " <+> prettyTCM vs
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $
             [ text "vs     = " <+> prettyTCM vs
-            , text "as     = " <+> escapeContext n2 (prettyTCM as)
+            , text "as     = " <+> prettyTCM as
             , text "delta2 = " <+> escapeContext n2 (prettyTCM delta2)
             , text "b      = " <+> prettyTCM b ]
           ]
@@ -175,8 +181,8 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
     -- Δ₁, Δ₂ ⊢ wtel0
     -- Δ₁, Δ₂, wtel0 ⊢ b0
-    let TelV wtel0 b0 = telView'UpTo (size as) $
-          foldr (uncurry piAbstractTerm) b $ zip vs $ raise n2 as
+    let TelV wtel0 b0 = telView'UpTo (size vsAll) $
+          foldr piAbstract b $ zip vs as
 
     -- We know the types in wtel0 (abstracted versions of @as@) do not depend on Δ₂.
     -- Δ₁ ⊢ wtel
@@ -196,7 +202,7 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
     -- Δ₁, Δ₂ ⊢ Δ₂flat
     let delta2flat = flattenTel delta2
 
-    let abstrvs t = foldl (flip abstractTerm) t $ zipWith raise [0..] vs
+    let abstrvs t = foldl (flip abstractTerm) t $ zipWith raise [0..] vsAll
     -- Δ₁, Δ₂, wtel ⊢ Δ₂abs
     let delta2abs = abstrvs delta2flat
 
@@ -221,7 +227,14 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
       , text "  delta2'     = " <+> do escapeContext n2 $ addContext wtel $ prettyTCM delta2'
       , text "  ty          = " <+> do escapeContext n2 $ escapeContext (size delta1) $ prettyTCM delta2'
       ]
-    return ty
+    return (ty, vsAll)
+
+-- | From a list of @with@ and @rewrite@ expressions and their types,
+--   compute the list of final @with@ expressions (after expanding the @rewrite@s).
+withArguments :: [Term] -> [EqualityView] -> [Term]
+withArguments vs as = concat $ for (zip vs as) $ \case
+  (v, OtherType{}) -> [v]
+  (prf, EqualityType _s _eq _l _t v _v') -> [unArg v, prf]
 
 
 -- | Compute the clauses for the with-function given the original patterns.

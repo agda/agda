@@ -196,6 +196,17 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 instance Instantiate Candidate where
   instantiate' (Candidate u t eti) = Candidate <$> instantiate' u <*> instantiate' t <*> return eti
 
+instance Instantiate EqualityView where
+  instantiate' (OtherType t)            = OtherType
+    <$> instantiate' t
+  instantiate' (EqualityType s eq l t a b) = EqualityType
+    <$> instantiate' s
+    <*> return eq
+    <*> instantiate' l
+    <*> instantiate' t
+    <*> instantiate' a
+    <*> instantiate' b
+
 ---------------------------------------------------------------------------
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
@@ -638,6 +649,17 @@ instance (Ord k, Reduce e) => Reduce (Map k e) where
 instance Reduce Candidate where
   reduce' (Candidate u t eti) = Candidate <$> reduce' u <*> reduce' t <*> return eti
 
+instance Reduce EqualityView where
+  reduce' (OtherType t)            = OtherType
+    <$> reduce' t
+  reduce' (EqualityType s eq l t a b) = EqualityType
+    <$> reduce' s
+    <*> return eq
+    <*> reduce' l
+    <*> reduce' t
+    <*> reduce' a
+    <*> reduce' b
+
 ---------------------------------------------------------------------------
 -- * Simplification
 ---------------------------------------------------------------------------
@@ -792,6 +814,17 @@ instance Simplify DisplayForm where
 instance Simplify Candidate where
   simplify' (Candidate u t eti) = Candidate <$> simplify' u <*> simplify' t <*> return eti
 
+instance Simplify EqualityView where
+  simplify' (OtherType t)            = OtherType
+    <$> simplify' t
+  simplify' (EqualityType s eq l t a b) = EqualityType
+    <$> simplify' s
+    <*> return eq
+    <*> simplify' l
+    <*> simplify' t
+    <*> simplify' a
+    <*> simplify' b
+
 ---------------------------------------------------------------------------
 -- * Normalisation
 ---------------------------------------------------------------------------
@@ -938,6 +971,17 @@ instance Normalise a => Normalise (Maybe a) where
 
 instance Normalise Candidate where
   normalise' (Candidate u t eti) = Candidate <$> normalise' u <*> normalise' t <*> return eti
+
+instance Normalise EqualityView where
+  normalise' (OtherType t)            = OtherType
+    <$> normalise' t
+  normalise' (EqualityType s eq l t a b) = EqualityType
+    <$> normalise' s
+    <*> return eq
+    <*> normalise' l
+    <*> normalise' t
+    <*> normalise' a
+    <*> normalise' b
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
@@ -1222,3 +1266,14 @@ instance InstantiateFull a => InstantiateFull (Maybe a) where
 
 instance InstantiateFull Candidate where
   instantiateFull' (Candidate u t eti) = Candidate <$> instantiateFull' u <*> instantiateFull' t <*> return eti
+
+instance InstantiateFull EqualityView where
+  instantiateFull' (OtherType t)            = OtherType
+    <$> instantiateFull' t
+  instantiateFull' (EqualityType s eq l t a b) = EqualityType
+    <$> instantiateFull' s
+    <*> return eq
+    <*> instantiateFull' l
+    <*> instantiateFull' t
+    <*> instantiateFull' a
+    <*> instantiateFull' b

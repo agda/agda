@@ -12,15 +12,32 @@ import Data.Function
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
 
+-- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
 piAbstractTerm :: Term -> Type -> Type -> Type
-piAbstractTerm v a b = fun a (abstractTerm v b)
+piAbstractTerm v a b = mkPi (defaultDom ("w", a)) $ abstractTerm v b
+
+-- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
+--
+--   For @rewrite@, it does something special:
+--
+--   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
+
+piAbstract :: (Term, EqualityView) -> Type -> Type
+piAbstract (v, OtherType a) b = piAbstractTerm v a b
+piAbstract (prf, eqt@(EqualityType s _ _ a v _)) b =
+  funType (El s $ unArg a) $ funType eqt' $
+    swap01 $ abstractTerm (unArg $ raise 1 v) $ abstractTerm prf b
   where
-    fun a b = El s $ Pi (defaultDom a) $ mkAbs "w" b
-      where s = (sLub `on` getSort) a b
+    funType a = mkPi $ defaultDom ("w", a)
+    -- Abstract the lhs (@a@) of the equality only.
+    eqt1 = raise 1 eqt
+    eqt' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where
@@ -117,10 +134,11 @@ instance AbstractTerm a => AbstractTerm (Maybe a) where
 
 instance (Subst Term a, AbstractTerm a) => AbstractTerm (Abs a) where
   abstractTerm u (NoAbs x v) = NoAbs x $ abstractTerm u v
-  abstractTerm u (Abs   x v) = Abs x $ applySubst swap $ abstractTerm (raise 1 u) v
-    where
-      -- This swaps var 0 and var 1 (we hope)
-      swap = var 1 :# liftS 1 (raiseS 1)
+  abstractTerm u (Abs   x v) = Abs x $ swap01 $ abstractTerm (raise 1 u) v
 
 instance (AbstractTerm a, AbstractTerm b) => AbstractTerm (a, b) where
   abstractTerm u (x, y) = (abstractTerm u x, abstractTerm u y)
+
+-- | This swaps @var 0@ and @var 1@.
+swap01 :: (Subst Term a) => a -> a
+swap01 = applySubst $ var 1 :# liftS 1 (raiseS 1)
