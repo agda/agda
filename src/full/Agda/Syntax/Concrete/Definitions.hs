@@ -883,11 +883,11 @@ niceDeclarations ds = do
         -- Andreas, 2013-02-28 (issue 804):
         -- do not termination check a mutual block if any of its
         -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
-        termCheck (FunSig _ _ _ _ _ tc _ _) = tc
-        termCheck (FunDef _ _ _ _ tc _ _)   = tc
-        termCheck (NiceMutual _ tc _)       = tc
+        termCheck (FunSig _ _ _ _ _ tc _ _)          = tc
+        termCheck (FunDef _ _ _ _ tc _ _)            = tc
+        termCheck (NiceMutual _ tc _)                = tc
         termCheck (NiceUnquoteDecl _ _ _ _ _ tc _ _) = tc
-        termCheck _                       = TerminationCheck
+        termCheck _                                  = TerminationCheck
 
         -- A mutual block cannot have a measure,
         -- but it can skip termination check.

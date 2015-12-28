@@ -81,28 +81,28 @@ tokens :-
 <pragma_> $white_notab ;
 
 -- Pragmas
-<0,code>    "{-#"                  { begin pragma }
-<pragma_>   "{-#"                  { symbol SymOpenPragma }
-<pragma_>   "#-}"                  { endWith $ symbol SymClosePragma }
-<pragma_>   "OPTIONS"              { keyword KwOPTIONS }
-<pragma_>   "BUILTIN"              { keyword KwBUILTIN }
-<pragma_>   "REWRITE"              { keyword KwREWRITE }
-<pragma_>   "COMPILED_DATA"        { keyword KwCOMPILED_DATA }
-<pragma_>   "COMPILED_TYPE"        { keyword KwCOMPILED_TYPE }
-<pragma_>   "COMPILED"             { keyword KwCOMPILED }
-<pragma_>   "COMPILED_EXPORT"      { keyword KwCOMPILED_EXPORT }
-<pragma_>   "COMPILED_EPIC"        { keyword KwCOMPILED_EPIC }
-<pragma_>   "COMPILED_JS"          { keyword KwCOMPILED_JS }
-<pragma_>   "STATIC"               { keyword KwSTATIC }
-<pragma_>   "IMPORT"               { keyword KwIMPORT }
-<pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }
-<pragma_>   "ETA"                  { keyword KwETA }
-<pragma_>   "NO_TERMINATION_CHECK" { keyword KwNO_TERMINATION_CHECK }
-<pragma_>   "NON_TERMINATING"      { keyword KwNON_TERMINATING }
-<pragma_>   "TERMINATING"          { keyword KwTERMINATING }
-<pragma_>   "MEASURE"              { keyword KwMEASURE }
-<pragma_>   "LINE"                 { keyword KwLINE }
-<pragma_>   . # [ $white ] +       { withInterval $ TokString }
+<0,code>    "{-#"                     { begin pragma }
+<pragma_>   "{-#"                     { symbol SymOpenPragma }
+<pragma_>   "#-}"                     { endWith $ symbol SymClosePragma }
+<pragma_>   "BUILTIN"                 { keyword KwBUILTIN }
+<pragma_>   "COMPILED"                { keyword KwCOMPILED }
+<pragma_>   "COMPILED_DATA"           { keyword KwCOMPILED_DATA }
+<pragma_>   "COMPILED_EPIC"           { keyword KwCOMPILED_EPIC }
+<pragma_>   "COMPILED_EXPORT"         { keyword KwCOMPILED_EXPORT }
+<pragma_>   "COMPILED_JS"             { keyword KwCOMPILED_JS }
+<pragma_>   "COMPILED_TYPE"           { keyword KwCOMPILED_TYPE }
+<pragma_>   "ETA"                     { keyword KwETA }
+<pragma_>   "IMPORT"                  { keyword KwIMPORT }
+<pragma_>   "IMPOSSIBLE"              { keyword KwIMPOSSIBLE }
+<pragma_>   "LINE"                    { keyword KwLINE }
+<pragma_>   "MEASURE"                 { keyword KwMEASURE }
+<pragma_>   "NO_TERMINATION_CHECK"    { keyword KwNO_TERMINATION_CHECK }
+<pragma_>   "NON_TERMINATING"         { keyword KwNON_TERMINATING }
+<pragma_>   "OPTIONS"                 { keyword KwOPTIONS }
+<pragma_>   "REWRITE"                 { keyword KwREWRITE }
+<pragma_>   "STATIC"                  { keyword KwSTATIC }
+<pragma_>   "TERMINATING"             { keyword KwTERMINATING }
+<pragma_>   . # [ $white ] +          { withInterval $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take

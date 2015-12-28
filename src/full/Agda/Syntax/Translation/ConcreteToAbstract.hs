@@ -1005,114 +1005,114 @@ instance ToAbstract LetDefs [A.LetBinding] where
     concat <$> (toAbstract =<< map LetDef <$> niceDecls ds)
 
 instance ToAbstract LetDef [A.LetBinding] where
-    toAbstract (LetDef d) =
-        case d of
-            NiceMutual _ _ d@[C.FunSig _ fx _ instanc info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
-                do  when (abstract == AbstractDef) $ do
-                      genericError $ "abstract not allowed in let expressions"
-                    when (instanc == InstanceDef) $ do
-                      genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
-                    (x', e) <- letToAbstract cl
-                    t <- toAbstract t
-                    -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
-                    -- The situation is
-                    -- @
-                    --    let y : t
-                    --        y = e
-                    -- @
-                    -- and we need to store the ranges of both occurences of y in order
-                    -- for the highlighter to do the right thing.
-                    x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
-                    info <- toAbstract info
-                    return [ A.LetBind (LetRange $ getRange d) info x t e ]
+  toAbstract (LetDef d) =
+    case d of
+      NiceMutual _ _ d@[C.FunSig _ fx _ instanc info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+          do  when (abstract == AbstractDef) $ do
+                genericError $ "abstract not allowed in let expressions"
+              when (instanc == InstanceDef) $ do
+                genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
+              (x', e) <- letToAbstract cl
+              t <- toAbstract t
+              -- Andreas, 2015-08-27 keeping both the range of x and x' solves Issue 1618.
+              -- The situation is
+              -- @
+              --    let y : t
+              --        y = e
+              -- @
+              -- and we need to store the ranges of both occurences of y in order
+              -- for the highlighter to do the right thing.
+              x <- setRange (fuseRange x x') <$> toAbstract (NewName $ mkBoundName x fx)
+              info <- toAbstract info
+              return [ A.LetBind (LetRange $ getRange d) info x t e ]
 
-            -- irrefutable let binding, like  (x , y) = rhs
-            NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
-              mp  <- setCurrentRange p $
-                       (Right <$> parsePattern p)
-                         `catchError`
-                       (return . Left)
-              case mp of
-                Right p -> do
-                  rhs <- toAbstract rhs
-                  p   <- toAbstract p
-                  checkPatternLinearity [p]
-                  p   <- toAbstract p
-                  return [ A.LetPatBind (LetRange r) p rhs ]
-                -- It's not a record pattern, so it should be a prefix left-hand side
-                Left err ->
-                  case definedName p of
-                    Nothing -> throwError err
-                    Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
-                      [ C.FunSig r defaultFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
-                      , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
-                        [C.Clause x lhs (C.RHS rhs) NoWhere []]
-                      ]
-                  where
-                    definedName (C.IdentP (C.QName x)) = Just x
-                    definedName C.IdentP{}             = Nothing
-                    definedName (C.RawAppP _ (p : _))  = definedName p
-                    definedName (C.ParenP _ p)         = definedName p
-                    definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
-                    definedName C.AbsurdP{}            = Nothing
-                    definedName C.AsP{}                = Nothing
-                    definedName C.DotP{}               = Nothing
-                    definedName C.LitP{}               = Nothing
-                    definedName C.QuoteP{}             = Nothing
-                    definedName C.HiddenP{}            = __IMPOSSIBLE__
-                    definedName C.InstanceP{}          = __IMPOSSIBLE__
-                    definedName C.RawAppP{}            = __IMPOSSIBLE__
-                    definedName C.AppP{}               = __IMPOSSIBLE__
-                    definedName C.OpAppP{}             = __IMPOSSIBLE__
+      -- irrefutable let binding, like  (x , y) = rhs
+      NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
+        mp  <- setCurrentRange p $
+                 (Right <$> parsePattern p)
+                   `catchError`
+                 (return . Left)
+        case mp of
+          Right p -> do
+            rhs <- toAbstract rhs
+            p   <- toAbstract p
+            checkPatternLinearity [p]
+            p   <- toAbstract p
+            return [ A.LetPatBind (LetRange r) p rhs ]
+          -- It's not a record pattern, so it should be a prefix left-hand side
+          Left err ->
+            case definedName p of
+              Nothing -> throwError err
+              Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
+                [ C.FunSig r defaultFixity' PublicAccess NotInstanceDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
+                  [C.Clause x lhs (C.RHS rhs) NoWhere []]
+                ]
+            where
+              definedName (C.IdentP (C.QName x)) = Just x
+              definedName C.IdentP{}             = Nothing
+              definedName (C.RawAppP _ (p : _))  = definedName p
+              definedName (C.ParenP _ p)         = definedName p
+              definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
+              definedName C.AbsurdP{}            = Nothing
+              definedName C.AsP{}                = Nothing
+              definedName C.DotP{}               = Nothing
+              definedName C.LitP{}               = Nothing
+              definedName C.QuoteP{}             = Nothing
+              definedName C.HiddenP{}            = __IMPOSSIBLE__
+              definedName C.InstanceP{}          = __IMPOSSIBLE__
+              definedName C.RawAppP{}            = __IMPOSSIBLE__
+              definedName C.AppP{}               = __IMPOSSIBLE__
+              definedName C.OpAppP{}             = __IMPOSSIBLE__
 
-            -- You can't open public in a let
-            NiceOpen r x dirs | not (C.publicOpen dirs) -> do
-              m       <- toAbstract (OldModuleName x)
-              openModule_ x dirs
-              let minfo = ModuleInfo
-                    { minfoRange  = r
-                    , minfoAsName = Nothing
-                    , minfoAsTo   = renamingRange dirs
-                    , minfoOpenShort = Nothing
-                    , minfoDirective = Just dirs
-                    }
-              return [A.LetOpen minfo m]
+      -- You can't open public in a let
+      NiceOpen r x dirs | not (C.publicOpen dirs) -> do
+        m       <- toAbstract (OldModuleName x)
+        openModule_ x dirs
+        let minfo = ModuleInfo
+              { minfoRange  = r
+              , minfoAsName = Nothing
+              , minfoAsTo   = renamingRange dirs
+              , minfoOpenShort = Nothing
+              , minfoDirective = Just dirs
+              }
+        return [A.LetOpen minfo m]
 
-            NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
-              -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
-              -- to be private
-              checkModuleMacro LetApply r PrivateAccess x modapp open dir
+      NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
+        -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
+        -- to be private
+        checkModuleMacro LetApply r PrivateAccess x modapp open dir
 
-            _   -> notAValidLetBinding d
-        where
-            letToAbstract (C.Clause top clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
+      _   -> notAValidLetBinding d
+    where
+        letToAbstract (C.Clause top clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
 {-
-                p    <- parseLHS top p
-                localToAbstract (snd $ lhsArgs p) $ \args ->
+            p    <- parseLHS top p
+            localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
-                (x, args) <- do
-                  res <- setCurrentRange p $ parseLHS top p
-                  case res of
-                    C.LHSHead x args -> return (x, args)
-                    C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
+            (x, args) <- do
+              res <- setCurrentRange p $ parseLHS top p
+              case res of
+                C.LHSHead x args -> return (x, args)
+                C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
 
-                e <- localToAbstract args $ \args ->
-                    do  rhs <- toAbstract rhs
-                        foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
-                return (x, e)
-            letToAbstract _ = notAValidLetBinding d
+            e <- localToAbstract args $ \args ->
+                do  rhs <- toAbstract rhs
+                    foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+            return (x, e)
+        letToAbstract _ = notAValidLetBinding d
 
-            -- Named patterns not allowed in let definitions
-            lambda e (Common.Arg info (Named Nothing (A.VarP x))) =
-                    return $ A.Lam i (A.DomainFree info x) e
-                where
-                    i = ExprRange (fuseRange x e)
-            lambda e (Common.Arg info (Named Nothing (A.WildP i))) =
-                do  x <- freshNoName (getRange i)
-                    return $ A.Lam i' (A.DomainFree info x) e
-                where
-                    i' = ExprRange (fuseRange i e)
-            lambda _ _ = notAValidLetBinding d
+        -- Named patterns not allowed in let definitions
+        lambda e (Common.Arg info (Named Nothing (A.VarP x))) =
+                return $ A.Lam i (A.DomainFree info x) e
+            where
+                i = ExprRange (fuseRange x e)
+        lambda e (Common.Arg info (Named Nothing (A.WildP i))) =
+            do  x <- freshNoName (getRange i)
+                return $ A.Lam i' (A.DomainFree info x) e
+            where
+                i' = ExprRange (fuseRange i e)
+        lambda _ _ = notAValidLetBinding d
 
 newtype Blind a = Blind { unBlind :: a }
 

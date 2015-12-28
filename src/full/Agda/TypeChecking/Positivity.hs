@@ -26,9 +26,9 @@ import Debug.Trace
 
 import Test.QuickCheck
 
-import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Position
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
 import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
