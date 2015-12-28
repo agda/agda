@@ -947,7 +947,8 @@ niceDeclarations ds = do
         -- inner declarations comes with a {-# NO_TERMINATION_CHECK #-}
         termCheck (FunSig _ _ _ _ _ _ tc _ _)        = tc
         termCheck (FunDef _ _ _ _ tc _ _)            = tc
-        termCheck (NiceMutual _ tc _)                = tc
+        -- ASR (28 December 2015): Is this equation necessary?
+        termCheck (NiceMutual _ tc _)                = __IMPOSSIBLE__
         termCheck (NiceUnquoteDecl _ _ _ _ _ tc _ _) = tc
         termCheck (NiceUnquoteDef _ _ _ _ tc _ _)    = tc
         termCheck Axiom{}                            = TerminationCheck
