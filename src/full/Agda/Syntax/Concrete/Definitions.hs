@@ -50,16 +50,9 @@ import Control.Arrow ((***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 
-import Data.Foldable hiding
-  ( all
-  , concatMap
-  , elem
-  , mapM_
-  , notElem
-#if MIN_VERSION_base(4,8,0)
-  , null
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Foldable ( foldMap )
 #endif
-  )
 
 import qualified Data.Map as Map
 import Data.Map (Map)
