@@ -28,6 +28,7 @@ data Keyword
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax
         | KwPatternSyn | KwTactic | KwCATCHALL
+        | KwNO_POSITIVITY_CHECK
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

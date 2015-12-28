@@ -824,3 +824,10 @@ instance NFData a => NFData (TerminationCheck a) where
   rnf NonTerminating           = ()
   rnf Terminating              = ()
   rnf (TerminationMeasure _ a) = rnf a
+
+-----------------------------------------------------------------------------
+-- * Positivity
+-----------------------------------------------------------------------------
+
+-- | Positivity check? (Default = True).
+type PositivityCheck = Bool

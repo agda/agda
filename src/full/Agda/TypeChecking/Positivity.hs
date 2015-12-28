@@ -26,6 +26,7 @@ import Debug.Trace
 import Test.QuickCheck
 
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
@@ -58,8 +59,8 @@ type Graph n e = Graph.Graph n n e
 --
 --   Also add information about positivity and recursivity of records
 --   to the signature.
-checkStrictlyPositive :: Set QName -> TCM ()
-checkStrictlyPositive qset = disableDestructiveUpdate $ do
+checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
+checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
@@ -137,12 +138,18 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
 
         -- if we have a negative loop, raise error
         whenM positivityCheckEnabled $
-          case loop of
-            Just o | p o -> do
-              err <- how "not strictly positive" p
-              setCurrentRange q $ typeError $ GenericDocError err
-              where p = (<= JustPos)
-            _ -> return ()
+          -- ASR (23 December 2015). We don't raise a strictly
+          -- positive error if the NO_POSITIVITY_CHECK pragma was set
+          -- on in the mutual block. See Issue 1614.
+          if Info.mutualPositivityCheck mi == True
+            then
+              case loop of
+              Just o | p o -> do
+                err <- how "not strictly positive" p
+                setCurrentRange q $ typeError $ GenericDocError err
+                where p = (<= JustPos)
+              _ -> return ()
+            else return ()
 
         -- if we find an unguarded record, mark it as such
         when (dr == IsRecord) $

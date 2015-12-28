@@ -398,29 +398,30 @@ data OpenShortHand = DoOpen | DontOpen
 -- Pragmas ----------------------------------------------------------------
 
 data Pragma
-  = OptionsPragma          Range [String]
-  | BuiltinPragma          Range String Expr
-  | RewritePragma          Range QName
-  | CompiledDataPragma     Range QName String [String]
+  = OptionsPragma             Range [String]
+  | BuiltinPragma             Range String Expr
+  | RewritePragma             Range QName
+  | CompiledDataPragma        Range QName String [String]
   | CompiledDeclareDataPragma Range QName String
-  | CompiledTypePragma     Range QName String
-  | CompiledPragma         Range QName String
-  | CompiledExportPragma   Range QName String
-  | CompiledEpicPragma     Range QName String
-  | CompiledJSPragma       Range QName String
-  | CompiledUHCPragma Range QName String
-  | CompiledDataUHCPragma  Range QName String [String]
-  | NoSmashingPragma        Range QName
-  | StaticPragma           Range QName
-  | InlinePragma           Range QName
-  | ImportPragma           Range String
+  | CompiledTypePragma        Range QName String
+  | CompiledPragma            Range QName String
+  | CompiledExportPragma      Range QName String
+  | CompiledEpicPragma        Range QName String
+  | CompiledJSPragma          Range QName String
+  | CompiledUHCPragma         Range QName String
+  | CompiledDataUHCPragma     Range QName String [String]
+  | NoSmashingPragma          Range QName
+  | StaticPragma              Range QName
+  | InlinePragma              Range QName
+  | ImportPragma              Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
-  | ImportUHCPragma        Range String
+  | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
-  | ImpossiblePragma       Range
-  | TerminationCheckPragma Range (TerminationCheck Name)
-  | CatchallPragma         Range
-  | DisplayPragma          Range Pattern Expr
+  | ImpossiblePragma          Range
+  | TerminationCheckPragma    Range (TerminationCheck Name)
+  | CatchallPragma            Range
+  | DisplayPragma             Range Pattern Expr
+  | NoPositivityCheckPragma   Range
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -653,6 +654,8 @@ instance HasRange Pragma where
   getRange (TerminationCheckPragma r _) = r
   getRange (CatchallPragma r)           = r
   getRange (DisplayPragma r _ _)        = r
+  getRange (NoPositivityCheckPragma r)  = r
+
 
 instance HasRange ImportDirective where
   getRange = importDirRange
@@ -848,6 +851,7 @@ instance KillRange Pragma where
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
   killRange (CatchallPragma _)            = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)     = killRange2 (DisplayPragma noRange) lhs rhs
+  killRange (NoPositivityCheckPragma _)   = NoPositivityCheckPragma noRange
 
 instance KillRange Renaming where
   killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
@@ -979,6 +983,7 @@ instance NFData Pragma where
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
+  rnf (NoPositivityCheckPragma _)       = ()
 
 -- | Ranges are not forced.
 
