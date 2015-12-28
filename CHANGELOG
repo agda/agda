@@ -2206,7 +2206,7 @@ LaTeX-backend
 
 * The LaTeX-backend has been made more tool agnostic, in particular
   XeLaTeX and LuaLaTeX should now work. Here is a small example
-  (test/latex-backend/succeed/UnicodeInput.lagda):
+  (test/LaTeXAndHTML/succeed/UnicodeInput.lagda):
 
     \documentclass{article}
     \usepackage{agda}
@@ -2245,7 +2245,7 @@ LaTeX-backend
   provides a function called \AgdaTarget. Identifiers which have been
   declared targets, by the user, will become clickable hyperlinks in the
   rest of the document. Here is a small example
-  (test/latex-backend/succeed/Links.lagda):
+  (test/LaTeXAndHTML/succeed/Links.lagda):
 
     \documentclass{article}
     \usepackage{hyperref}
@@ -2402,7 +2402,7 @@ Pragmas and options
   for individual function definitions and mutual blocks.
 
   The pragma must precede a function definition or a mutual block.
-  Examples (see test/succeed/NoTerminationCheck.agda):
+  Examples (see test/Succeed/NoTerminationCheck.agda):
 
   1. Skipping a single definition: before type signature.
 
@@ -2674,7 +2674,7 @@ Type checking
       f pattern2 = rhs2
 
   This might no longer work from now on.
-  See examples test/fail/Issue585*.agda
+  See examples test/Fail/Issue585*.agda
 
 * Less eager introduction of implicit parameters.  [Issue 679]
 
@@ -2791,7 +2791,7 @@ Type checking
     test : (b : Bool) → (x y : True b) → fun b x ≡ fun b y
     test b x y = refl
 
-  More examples in test/succeed/NonvariantPolarity.agda.
+  More examples in test/Succeed/NonvariantPolarity.agda.
 
   Phantom arguments:  Parameters of record and data types are considered
   `used' even if they are not actually used.  Consider:
@@ -2829,7 +2829,7 @@ Type checking
   Unfortunately, polarity analysis of `bla' happens only after type
   checking, thus, the information that `bla' is non-variant in `p' is
   not available yet when meta-variables are solved.
-  (See test/fail/BrokenInferenceDueToNonvariantPolarity.agda)
+  (See test/Fail/BrokenInferenceDueToNonvariantPolarity.agda)
 
 * Agda now expands simple definitions (one clause, terminating)
   to check whether a function is constructor headed. [Issue 747]
@@ -4458,7 +4458,7 @@ Language
     Agda with excluded middle is inconsistent
     http://thread.gmane.org/gmane.comp.lang.agda/1367
 
-  See test/succeed/InjectiveTypeConstructors.agda for an example.
+  See test/Succeed/InjectiveTypeConstructors.agda for an example.
 
 * Termination checker can count.
 
@@ -4974,7 +4974,7 @@ Language
   rewrite and then do pattern matching you can use a with after the
   rewrite.
 
-  See test/succeed/Rewrite.agda for some examples.
+  See test/Succeed/Rewrite.agda for some examples.
 
 * A new primitive, primTrustMe, has been added:
 
