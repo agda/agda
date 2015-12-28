@@ -986,8 +986,11 @@ leqLevel a b = liftTCM $ do
     text "compareLevel" <+>
       sep [ prettyTCM a <+> text "=<"
           , prettyTCM b ]
-  a <- reduce a
-  b <- reduce b
+  -- Andreas, 2015-12-28 Issue 1757
+  -- We normalize both sides to make the syntactic equality check (==) stronger.
+  -- See case for `same term` below.
+  a <- normalise a
+  b <- normalise b
   catchConstraint (LevelCmp CmpLeq a b) $ leqView a b
   where
     leqView a@(Max as) b@(Max bs) = do
