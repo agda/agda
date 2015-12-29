@@ -584,6 +584,12 @@ niceDeclarations ds = do
       NiceUnquoteDecl r f p a i _ x e : ds <- nice ds
       return $ NiceUnquoteDecl r f p a i tc x e : ds
 
+    nice (Pragma (TerminationCheckPragma r tc) : d@(Pragma (NoPositivityCheckPragma _)) : ds@(Mutual{} : _)) | notMeasure tc = do
+      ds <- nice (d : ds)
+      case ds of
+        NiceMutual r _ pc ds' : ds -> return $ NiceMutual r tc pc ds' : ds
+        _                          -> __IMPOSSIBLE__
+
     nice (d@TypeSig{} : Pragma (TerminationCheckPragma r (TerminationMeasure _ x)) : ds) =
       niceTypeSig (TerminationMeasure r x) d ds
 
@@ -601,6 +607,12 @@ niceDeclarations ds = do
 
     nice (Pragma (NoPositivityCheckPragma _) : d@(DataSig _ Inductive _ _ _) : ds) =
       niceDataSig False d ds
+
+    nice (Pragma (NoPositivityCheckPragma _) : d@(Pragma (TerminationCheckPragma _ _)) : ds@(Mutual{} : _)) = do
+      ds <- nice (d : ds)
+      case ds of
+        NiceMutual r tc _ ds' : ds -> return $ NiceMutual r tc False ds' : ds
+        _                          -> __IMPOSSIBLE__
 
     nice (d:ds) = do
       case d of
