@@ -235,21 +235,11 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               let c = killRange $ conName $ recConHead def
               let -- Field names with ArgInfo.
                   axs = recordFieldNames def
-              let arg x p =
-                    case [ a | a <- axs, unArg a == x ] of
-                      [a] -> unnamed p <$ a
-                      _   -> defaultNamedArg p -- we only end up here if the field names are bad
-                  givenFields = [ (x, Just $ arg x p) | FieldAssignment x p <- fs ]
-              let missingExplicits = [ (x, Just $ unnamed (A.WildP A.patNoRange) <$ a)
-                                     | a <- filter notHidden axs
-                                     , let x = unArg a
-                                     , x `notElem` map (view nameFieldA) fs ]
+
               -- In es omitted explicit fields are replaced by underscores
               -- (from missingExplicits). Omitted implicit or instance fields
               -- are still left out and inserted later by computeNeighborhood.
-              args <- lift $ catMaybes <$> do
-                -- Default value @Nothing@ will only be used for missing hidden fields.
-                orderFields d Nothing (map unArg axs) $ givenFields ++ missingExplicits
+              args <- lift $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
               (return Split
                 { splitLPats   = empty
                 , splitAsNames = xs

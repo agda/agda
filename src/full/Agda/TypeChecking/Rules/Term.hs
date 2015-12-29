@@ -578,27 +578,19 @@ checkRecordExpression mfs e t = do
         , text   "  ftel= " <> prettyTCM (recTel def)
         , text $ "  con = " ++ show con
         ]
+
       -- Compute the list of given fields, decorated with the ArgInfo from the record def.
       fs <- expandModuleAssigns mfs (map unArg exs)
-      let arg x e =
-            case [ a | a <- axs, unArg a == x ] of
-              [a] -> unnamed e <$ a
-              _   -> defaultNamedArg e -- we only end up here if the field names are bad
-          givenFields = [ (x, Just $ arg x e) | FieldAssignment x e <- fs ]
+
       -- Compute a list of metas for the missing visible fields.
       scope <- getScope
       let re = getRange e
           meta x = A.Underscore $ A.MetaInfo re scope Nothing (show x)
-          missingExplicits = [ (unArg a, Just $ unnamed . meta <$> a)
-                             | a <- exs
-                             , unArg a `notElem` map (view nameFieldA) fs ]
-      -- In es omitted explicit fields are replaced by underscores
-      -- (from missingExplicits). Omitted implicit or instance fields
+      -- In @es@ omitted explicit fields are replaced by underscores.
+      -- Omitted implicit or instance fields
       -- are still left out and inserted later by checkArguments_.
-      es   <- catMaybes <$> do
-        -- Default value @Nothing@ will only be used for missing hidden fields.
-        -- These can be ignored as they will be inserted by @checkArguments_@.
-        orderFields r Nothing xs $ givenFields ++ missingExplicits
+      es <- insertMissingFields r meta fs axs
+
       args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
         (args, remainingTel) | null remainingTel -> return args
         _ -> __IMPOSSIBLE__
