@@ -4,10 +4,15 @@
 
 Important changes since 2.4.2.5:
 
+Pragmas and options
+===================
+
 * New NO_POSITIVITY_CHECK pragma to switch off the positivity checker
   for data definitions and mutual blocks.
 
   The pragma must precede a data definition or a mutual block.
+
+  The pragma cannot be used in --safe mode.
 
   Examples (see test/Succeed/Issue1614*.agda):
 
