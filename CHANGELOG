@@ -4,6 +4,9 @@
 
 Important changes since 2.4.2.5:
 
+Pragmas and options
+===================
+
 * New NO_POSITIVITY_CHECK pragma to switch off the positivity checker
   for data definitions and mutual blocks.
 
