@@ -26,37 +26,36 @@ Pragmas and options
      block before a data definition.
 
        mutual
-         data D : Set where
-           lam : (D → D) → D
+         data Cheat : Set where
+           cheat : Oops → Cheat
 
          {-# NO_POSITIVITY_CHECK #-}
-         data NSPos (A : Set) : Set where
-           c : ((NSPos A → A) → NSPos A) → NSPos A
+         data Oops : Set where
+           oops : (Cheat → Cheat) → Oops
 
   3. Skipping an old-style mutual block: Before the `mutual` keyword.
 
        {-# NO_POSITIVITY_CHECK #-}
        mutual
-         data D : Set where
-           lam : (D → D) → D
+         data Cheat : Set where
+           cheat : Oops → Cheat
 
-         data NSPos (A : Set) : Set where
-           c : ((NSPos A → A) → NSPos A) → NSPos A
+         data Oops : Set where
+           oops : (Cheat → Cheat) → Oops
 
   4. Skipping a new-style mutual block: Anywhere before the declaration
      and the definition of a data type in the block.
 
-       data Tree (A : Set) : Set
+       data Cheat : Set
        {-# NO_POSITIVITY_CHECK #-}
-       data Bad : Set
+       data Oops  : Set
 
-       data Tree A where
-         leaf : Tree A
-         node : (A → Tree A) → Tree A
+       data Cheat where
+         cheat : Oops → Cheat
 
        {-# NO_POSITIVITY_CHECK #-}
-       data Bad where
-         bad : Tree Bad → Bad
+       data Oops where
+         oops : (Cheat → Cheat) → Oops
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5

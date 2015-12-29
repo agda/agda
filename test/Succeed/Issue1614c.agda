@@ -4,8 +4,8 @@
 -- Skipping an old-style mutual block: Before the `mutual` keyword.
 {-# NO_POSITIVITY_CHECK #-}
 mutual
-  data D : Set where
-    lam : (D → D) → D
+  data Cheat : Set where
+    cheat : Oops → Cheat
 
-  data NSPos (A : Set) : Set where
-    c : ((NSPos A → A) → NSPos A) → NSPos A
+  data Oops : Set where
+    oops : (Cheat → Cheat) → Oops

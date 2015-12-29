@@ -1,5 +1,5 @@
--- Issue 1614: New NO_POSITIVITY_CHECK pragma for data definitions and
--- mutual blocks
+-- New NO_POSITIVITY_CHECK pragma for data definitions and mutual
+-- blocks
 
 -- Skipping a single data definition in an abstract block.
 abstract
