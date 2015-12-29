@@ -169,14 +169,21 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
                 _ -> return ()
 
     checkInduction :: QName -> TCM ()
-    checkInduction q = whenM positivityCheckEnabled $ do
-      -- Check whether the recursive record has been declared as
-      -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-      unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-        setCurrentRange (nameBindingSite $ qnameName q) $
-          typeError . GenericDocError =<<
-            text "Recursive record" <+> prettyTCM q <+>
-            text "needs to be declared as either inductive or coinductive"
+    checkInduction q =
+      -- ASR (01 January 2016). We don't raise this error if the
+      -- NO_POSITIVITY_CHECK pragma was set on in the record. See
+      -- Issue 1760.
+      if Info.mutualPositivityCheck mi
+        then
+          whenM positivityCheckEnabled $ do
+          -- Check whether the recursive record has been declared as
+          -- 'Inductive' or 'Coinductive'.  Otherwise, error.
+          unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
+            setCurrentRange (nameBindingSite $ qnameName q) $
+              typeError . GenericDocError =<<
+                text "Recursive record" <+> prettyTCM q <+>
+                text "needs to be declared as either inductive or coinductive"
+        else return ()
 
     occ (Edge o _) = o
 
