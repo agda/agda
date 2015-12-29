@@ -551,36 +551,42 @@ niceDeclarations ds = do
                   removeLoneSig x >> cons d (untilAllDefined ((terminationCheck k : tc), (positivityCheck k : pc)) ds)
                 OtherDecl   -> cons d (untilAllDefined (tc, pc) ds)
           where
-            -- ASR (26 December 2015): Type annotated version of the `cons` function.
+            -- ASR (26 December 2015): Type annotated version of the @cons@ function.
             -- cons d = fmap $
             --            (id :: (([TerminationCheck], [PositivityCheck]) -> ([TerminationCheck], [PositivityCheck])))
             --            *** (d :)
             --            *** (id :: [NiceDeclaration] -> [NiceDeclaration])
-            cons d = fmap (id *** (d : ) *** id)
+            cons d = fmap (id *** (d :) *** id)
 
     notMeasure TerminationMeasure{} = False
     notMeasure _ = True
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
     nice [] = return []
+
     -- Andreas, AIM XX: do not forbid NO_TERMINATION_CHECK in maintenance version.
     -- nice (Pragma (TerminationCheckPragma r NoTerminationCheck) : _) =
     --   throwError $ PragmaNoTerminationCheck r
+
     nice (Pragma (TerminationCheckPragma r tc) : ds@(Mutual{} : _)) | notMeasure tc = do
       ds <- nice ds
       case ds of
         NiceMutual r _ pc ds' : ds -> return $ NiceMutual r tc pc ds' : ds
-        _ -> __IMPOSSIBLE__
+        _                          -> __IMPOSSIBLE__
+
     nice (Pragma (TerminationCheckPragma r tc) : d@TypeSig{} : ds) =
       niceTypeSig tc d ds
+
     nice (Pragma (TerminationCheckPragma r tc) : d@FunClause{} : ds) | notMeasure tc =
       niceFunClause tc d ds
+
     nice (Pragma (TerminationCheckPragma r tc) : ds@(UnquoteDecl{} : _)) | notMeasure tc = do
       NiceUnquoteDecl r f p a i _ x e : ds <- nice ds
       return $ NiceUnquoteDecl r f p a i tc x e : ds
 
     nice (d@TypeSig{} : Pragma (TerminationCheckPragma r (TerminationMeasure _ x)) : ds) =
       niceTypeSig (TerminationMeasure r x) d ds
+
     -- nice (Pragma (MeasurePragma r x) : d@FunClause{} : ds) =
     --   niceFunClause (TerminationMeasure r x) d ds
 
