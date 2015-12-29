@@ -64,6 +64,7 @@ import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
   , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
   , envAbstractMode , AbstractMode(..)
+  , TCM
   )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
@@ -985,10 +986,14 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
 instance ToAbstract [C.Declaration] [A.Declaration] where
 #endif
   toAbstract ds = do
-    -- don't allow to switch off termination checker in --safe mode
-    ds <- ifM (optSafe <$> commandLineOptions) (mapM noNoTermCheck ds) (return ds)
+    -- Don't allow to switch off termination checker (Issue 586) or
+    -- positivity checker (Issue 1614) in --safe mode.
+    ds <- ifM (optSafe <$> commandLineOptions)
+              (mapM (noNoTermCheck >=> noNoPositivityCheck) ds)
+              (return ds)
     toAbstract =<< niceDecls ds
    where
+    noNoTermCheck :: C.Declaration -> TCM C.Declaration
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NoTerminationCheck)) =
       typeError $ SafeFlagNoTerminationCheck
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
@@ -996,6 +1001,11 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r Terminating)) =
       typeError $ SafeFlagTerminating
     noNoTermCheck d = return d
+
+    noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
+    noNoPositivityCheck (C.Pragma (C.NoPositivityCheckPragma _)) =
+      typeError $ SafeFlagNoPositivityCheck
+    noNoPositivityCheck d = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration

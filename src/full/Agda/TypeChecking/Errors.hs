@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -214,6 +214,7 @@ errorString err = case err of
   SafeFlagNonTerminating{}                 -> "SafeFlagNonTerminating"
   SafeFlagTerminating{}                    -> "SafeFlagTerminating"
   SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
+  SafeFlagNoPositivityCheck{}              -> "SafeNoPositivityCheck"
   ShadowedModule{}                         -> "ShadowedModule"
   ShouldBeASort{}                          -> "ShouldBeASort"
   ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
@@ -1002,6 +1003,9 @@ instance PrettyTCM TypeError where
       pwords "Cannot use TERMINATING pragma with safe flag."
 
     SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
+
+    SafeFlagNoPositivityCheck -> fsep $
+      pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
