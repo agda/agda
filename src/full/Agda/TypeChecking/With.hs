@@ -5,7 +5,7 @@
 
 module Agda.TypeChecking.With where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad
 
 import Data.List
@@ -36,7 +36,9 @@ import Agda.TypeChecking.Rules.LHS (isFlexiblePattern)
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
@@ -494,6 +496,10 @@ stripWithClausePatterns parent f t qs perm ps = do
             cs' <- mapM getConForm cs'
             unless (elem c cs') mismatch
             -- Strip the subpatterns ps' and then continue.
+            stripConP d us b c qs' ps'
+
+          A.RecP _ fs -> caseMaybeM (isRecord d) mismatch $ \ def -> do
+            ps' <- insertMissingFields d (const $ A.WildP empty) fs (recordFieldNames def)
             stripConP d us b c qs' ps'
 
           p@(A.PatternSynP pi' c' ps') -> do
