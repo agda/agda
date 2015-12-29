@@ -463,6 +463,12 @@ stripWithClausePatterns parent f t qs perm ps = do
          reportSDoc "tc.with.strip" 60 $
            text "parent pattern is constructor " <+> prettyTCM c
          (a, b) <- mustBePi t
+         -- The type of the current pattern is a datatype.
+         Def d es <- ignoreSharing <$> normalise (unEl $ unDom a)
+         let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+         -- Get the original constructor and field names.
+         c <- (`withRangeOf` c) <$> do getConForm $ conName c
+
          case namedArg p of
 
           -- Andreas, 2015-07-07 Issue 1606.
@@ -483,45 +489,12 @@ stripWithClausePatterns parent f t qs perm ps = do
               expandImplicitPattern' (unDom a) p
 
           A.ConP _ (A.AmbQ cs') ps' -> do
-            c <- (`withRangeOf` c) <$> do getConForm $ conName c
+            -- Check whether the with-clause constructor can be (possibly trivially)
+            -- disambiguated to be equal to the parent-clause constructor.
             cs' <- mapM getConForm cs'
             unless (elem c cs') mismatch
-
-            -- The type is a datatype
-            Def d es <- ignoreSharing <$> normalise (unEl $ unDom a)
-            let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-
-            -- Compute the argument telescope for the constructor
-            Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
-            let ct' = ct `apply` genericTake np us
-            TelV tel' _ <- telView ct'
-
-            reportSDoc "tc.with.strip" 20 $
-              vcat [ text "ct  = " <+> prettyTCM ct
-                   , text "ct' = " <+> prettyTCM ct'
-                   , text "np  = " <+> text (show np)
-                   , text "us  = " <+> prettyList (map prettyTCM us)
-                   , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
-                   ]
-
-            -- Compute the new type
-            let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
-                t' = tel' `abstract` absApp (raise (size tel') b) v
-                self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
-
-            reportSDoc "tc.with.strip" 15 $ sep
-              [ text "inserting implicit"
-              , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
-              , nest 2 $ text ":" <+> prettyTCM t'
-              ]
-
-            -- Insert implicit patterns (just for the constructor arguments)
-            psi' <- insertImplicitPatterns ExpandLast ps' tel'
-            unless (size psi' == size tel') $ typeError $
-              WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
-
-            -- Keep going
-            strip self' t' (psi' ++ ps) (qs' ++ qs)
+            -- Strip the subpatterns ps' and then continue.
+            stripConP d us b c qs' ps'
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $
@@ -551,6 +524,57 @@ stripWithClausePatterns parent f t qs perm ps = do
         -- | Make an ImplicitP, keeping arg. info.
         makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
+
+        -- case I.ConP / A.ConP
+        stripConP
+          :: QName
+             -- ^ Data type name of this constructor pattern.
+          -> [Arg Term]
+             -- ^ Data type arguments of this constructor pattern.
+          -> Abs Type
+             -- ^ Type the remaining patterns eliminate.
+          -> ConHead
+             -- ^ Constructor of this pattern.
+          -> [NamedArg DeBruijnPattern]
+             -- ^ Argument patterns (parent clause).
+          -> [NamedArg A.Pattern]
+             -- ^ Argument patterns (with clause).
+          -> TCM [NamedArg A.Pattern]
+             -- ^ Stripped patterns.
+        stripConP d us b c qs' ps' = do
+
+          -- Get the type and number of parameters of the constructor.
+          Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
+          -- Compute the argument telescope for the constructor
+          let ct' = ct `apply` genericTake np us
+          TelV tel' _ <- telView ct'
+
+          reportSDoc "tc.with.strip" 20 $
+            vcat [ text "ct  = " <+> prettyTCM ct
+                 , text "ct' = " <+> prettyTCM ct'
+                 , text "np  = " <+> text (show np)
+                 , text "us  = " <+> prettyList (map prettyTCM us)
+                 , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
+                 ]
+
+          -- Compute the new type
+          let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
+              t' = tel' `abstract` absApp (raise (size tel') b) v
+              self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
+
+          reportSDoc "tc.with.strip" 15 $ sep
+            [ text "inserting implicit"
+            , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
+            , nest 2 $ text ":" <+> prettyTCM t'
+            ]
+
+          -- Insert implicit patterns (just for the constructor arguments)
+          psi' <- insertImplicitPatterns ExpandLast ps' tel'
+          unless (size psi' == size tel') $ typeError $
+            WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
+
+          -- Keep going
+          strip self' t' (psi' ++ ps) (qs' ++ qs)
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.
