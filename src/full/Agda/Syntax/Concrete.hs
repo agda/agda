@@ -398,29 +398,30 @@ data OpenShortHand = DoOpen | DontOpen
 -- Pragmas ----------------------------------------------------------------
 
 data Pragma
-  = OptionsPragma          Range [String]
-  | BuiltinPragma          Range String Expr
-  | RewritePragma          Range QName
-  | CompiledDataPragma     Range QName String [String]
+  = OptionsPragma             Range [String]
+  | BuiltinPragma             Range String Expr
+  | RewritePragma             Range QName
+  | CompiledDataPragma        Range QName String [String]
   | CompiledDeclareDataPragma Range QName String
-  | CompiledTypePragma     Range QName String
-  | CompiledPragma         Range QName String
-  | CompiledExportPragma   Range QName String
-  | CompiledEpicPragma     Range QName String
-  | CompiledJSPragma       Range QName String
-  | CompiledUHCPragma Range QName String
-  | CompiledDataUHCPragma  Range QName String [String]
-  | NoSmashingPragma        Range QName
-  | StaticPragma           Range QName
-  | InlinePragma           Range QName
-  | ImportPragma           Range String
+  | CompiledTypePragma        Range QName String
+  | CompiledPragma            Range QName String
+  | CompiledExportPragma      Range QName String
+  | CompiledEpicPragma        Range QName String
+  | CompiledJSPragma          Range QName String
+  | CompiledUHCPragma         Range QName String
+  | CompiledDataUHCPragma     Range QName String [String]
+  | NoSmashingPragma          Range QName
+  | StaticPragma              Range QName
+  | InlinePragma              Range QName
+  | ImportPragma              Range String
     -- ^ Invariant: The string must be a valid Haskell module name.
-  | ImportUHCPragma        Range String
+  | ImportUHCPragma           Range String
     -- ^ same as above, but for the UHC backend
-  | ImpossiblePragma       Range
-  | TerminationCheckPragma Range (TerminationCheck Name)
-  | CatchallPragma         Range
-  | DisplayPragma          Range Pattern Expr
+  | ImpossiblePragma          Range
+  | TerminationCheckPragma    Range (TerminationCheck Name)
+  | CatchallPragma            Range
+  | DisplayPragma             Range Pattern Expr
+  | NoPositivityCheckPragma   Range
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -632,27 +633,28 @@ instance HasRange RHS where
   getRange (RHS e)   = getRange e
 
 instance HasRange Pragma where
-  getRange (OptionsPragma r _)          = r
-  getRange (BuiltinPragma r _ _)        = r
-  getRange (RewritePragma r _)          = r
-  getRange (CompiledDataPragma r _ _ _) = r
+  getRange (OptionsPragma r _)               = r
+  getRange (BuiltinPragma r _ _)             = r
+  getRange (RewritePragma r _)               = r
+  getRange (CompiledDataPragma r _ _ _)      = r
   getRange (CompiledDeclareDataPragma r _ _) = r
-  getRange (CompiledTypePragma r _ _)   = r
-  getRange (CompiledPragma r _ _)       = r
-  getRange (CompiledExportPragma r _ _) = r
-  getRange (CompiledEpicPragma r _ _)   = r
-  getRange (CompiledJSPragma r _ _)     = r
-  getRange (CompiledUHCPragma r _ _)    = r
-  getRange (CompiledDataUHCPragma r _ _ _) = r
-  getRange (NoSmashingPragma r _)        = r
-  getRange (StaticPragma r _)           = r
-  getRange (InlinePragma r _)           = r
-  getRange (ImportPragma r _)           = r
-  getRange (ImportUHCPragma r _)        = r
-  getRange (ImpossiblePragma r)         = r
-  getRange (TerminationCheckPragma r _) = r
-  getRange (CatchallPragma r)           = r
-  getRange (DisplayPragma r _ _)        = r
+  getRange (CompiledTypePragma r _ _)        = r
+  getRange (CompiledPragma r _ _)            = r
+  getRange (CompiledExportPragma r _ _)      = r
+  getRange (CompiledEpicPragma r _ _)        = r
+  getRange (CompiledJSPragma r _ _)          = r
+  getRange (CompiledUHCPragma r _ _)         = r
+  getRange (CompiledDataUHCPragma r _ _ _)   = r
+  getRange (NoSmashingPragma r _)            = r
+  getRange (StaticPragma r _)                = r
+  getRange (InlinePragma r _)                = r
+  getRange (ImportPragma r _)                = r
+  getRange (ImportUHCPragma r _)             = r
+  getRange (ImpossiblePragma r)              = r
+  getRange (TerminationCheckPragma r _)      = r
+  getRange (CatchallPragma r)                = r
+  getRange (DisplayPragma r _ _)             = r
+  getRange (NoPositivityCheckPragma r)       = r
 
 instance HasRange ImportDirective where
   getRange = importDirRange
@@ -827,27 +829,28 @@ instance KillRange Pattern where
   killRange (RecP _ fs)       = killRange1 (RecP noRange) fs
 
 instance KillRange Pragma where
-  killRange (OptionsPragma _ s)           = OptionsPragma noRange s
-  killRange (BuiltinPragma _ s e)         = killRange1 (BuiltinPragma noRange s) e
-  killRange (RewritePragma _ q)           = killRange1 (RewritePragma noRange) q
-  killRange (CompiledDataPragma _ q s ss) = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
+  killRange (OptionsPragma _ s)               = OptionsPragma noRange s
+  killRange (BuiltinPragma _ s e)             = killRange1 (BuiltinPragma noRange s) e
+  killRange (RewritePragma _ q)               = killRange1 (RewritePragma noRange) q
+  killRange (CompiledDataPragma _ q s ss)     = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
   killRange (CompiledDeclareDataPragma _ q s) = killRange1 (\q -> CompiledDeclareDataPragma noRange q s) q
-  killRange (CompiledTypePragma _ q s)    = killRange1 (\q -> CompiledTypePragma noRange q s) q
-  killRange (CompiledPragma _ q s)        = killRange1 (\q -> CompiledPragma noRange q s) q
-  killRange (CompiledExportPragma _ q s)  = killRange1 (\q -> CompiledExportPragma noRange q s) q
-  killRange (CompiledEpicPragma _ q s)    = killRange1 (\q -> CompiledEpicPragma noRange q s) q
-  killRange (CompiledJSPragma _ q s)      = killRange1 (\q -> CompiledJSPragma noRange q s) q
-  killRange (CompiledUHCPragma _ q s)     = killRange1 (\q -> CompiledUHCPragma noRange q s) q
-  killRange (CompiledDataUHCPragma _ q s ss) = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
-  killRange (NoSmashingPragma _ q)        = killRange1 (NoSmashingPragma noRange) q
-  killRange (StaticPragma _ q)            = killRange1 (StaticPragma noRange) q
-  killRange (InlinePragma _ q)            = killRange1 (InlinePragma noRange) q
-  killRange (ImportPragma _ s)            = ImportPragma noRange s
-  killRange (ImportUHCPragma _ s)         = ImportUHCPragma noRange s
-  killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
-  killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
-  killRange (CatchallPragma _)            = CatchallPragma noRange
-  killRange (DisplayPragma _ lhs rhs)     = killRange2 (DisplayPragma noRange) lhs rhs
+  killRange (CompiledTypePragma _ q s)        = killRange1 (\q -> CompiledTypePragma noRange q s) q
+  killRange (CompiledPragma _ q s)            = killRange1 (\q -> CompiledPragma noRange q s) q
+  killRange (CompiledExportPragma _ q s)      = killRange1 (\q -> CompiledExportPragma noRange q s) q
+  killRange (CompiledEpicPragma _ q s)        = killRange1 (\q -> CompiledEpicPragma noRange q s) q
+  killRange (CompiledJSPragma _ q s)          = killRange1 (\q -> CompiledJSPragma noRange q s) q
+  killRange (CompiledUHCPragma _ q s)         = killRange1 (\q -> CompiledUHCPragma noRange q s) q
+  killRange (CompiledDataUHCPragma _ q s ss)  = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
+  killRange (NoSmashingPragma _ q)            = killRange1 (NoSmashingPragma noRange) q
+  killRange (StaticPragma _ q)                = killRange1 (StaticPragma noRange) q
+  killRange (InlinePragma _ q)                = killRange1 (InlinePragma noRange) q
+  killRange (ImportPragma _ s)                = ImportPragma noRange s
+  killRange (ImportUHCPragma _ s)             = ImportUHCPragma noRange s
+  killRange (ImpossiblePragma _)              = ImpossiblePragma noRange
+  killRange (TerminationCheckPragma _ t)      = TerminationCheckPragma noRange (killRange t)
+  killRange (CatchallPragma _)                = CatchallPragma noRange
+  killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
+  killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
 
 instance KillRange Renaming where
   killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
@@ -979,6 +982,7 @@ instance NFData Pragma where
   rnf (TerminationCheckPragma _ a)      = rnf a
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
+  rnf (NoPositivityCheckPragma _)       = ()
 
 -- | Ranges are not forced.
 

@@ -65,6 +65,7 @@ import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
   , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
   , envAbstractMode , AbstractMode(..)
+  , TCM
   )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
@@ -1024,10 +1025,14 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
 instance ToAbstract [C.Declaration] [A.Declaration] where
 #endif
   toAbstract ds = do
-    -- don't allow to switch off termination checker in --safe mode
-    ds <- ifM (optSafe <$> commandLineOptions) (mapM noNoTermCheck ds) (return ds)
+    -- Don't allow to switch off termination checker (Issue 586) or
+    -- positivity checker (Issue 1614) in --safe mode.
+    ds <- ifM (optSafe <$> commandLineOptions)
+              (mapM (noNoTermCheck >=> noNoPositivityCheck) ds)
+              (return ds)
     toAbstract =<< niceDecls ds
    where
+    noNoTermCheck :: C.Declaration -> TCM C.Declaration
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NoTerminationCheck)) =
       typeError $ SafeFlagNoTerminationCheck
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
@@ -1035,6 +1040,11 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r Terminating)) =
       typeError $ SafeFlagTerminating
     noNoTermCheck d = return d
+
+    noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
+    noNoPositivityCheck (C.Pragma (C.NoPositivityCheckPragma _)) =
+      typeError $ SafeFlagNoPositivityCheck
+    noNoPositivityCheck d = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
@@ -1046,7 +1056,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ d@[C.FunSig _ fx _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+      NiceMutual _ _ _ d@[C.FunSig _ fx _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "abstract not allowed in let expressions"
               when (instanc == InstanceDef) $ do
@@ -1082,7 +1092,7 @@ instance ToAbstract LetDef [A.LetBinding] where
           Left err ->
             case definedName p of
               Nothing -> throwError err
-              Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
+              Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck True
                 [ C.FunSig r noFixity' PublicAccess NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                 , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
@@ -1216,12 +1226,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
-    NiceMutual r termCheck ds -> do
+    NiceMutual r termCheck pc ds -> do
       ds' <- toAbstract ds
       -- We only termination check blocks that do not have a measure.
-      return [ A.Mutual (MutualInfo termCheck r) ds' ]
+      return [ A.Mutual (MutualInfo termCheck pc r) ds' ]
 
-    C.NiceRecSig r f a x ls t -> do
+    C.NiceRecSig r f a x ls t _ -> do
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1230,7 +1240,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
 
-    C.NiceDataSig r f a x ls t -> withLocalVars $ do
+    C.NiceDataSig r f a x ls t _ -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1257,7 +1267,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r f a x pars cons -> withLocalVars $ do
+    C.DataDef r f a x pars _ cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
         ensureNoLetStms pars
         -- Check for duplicate constructors
@@ -1286,7 +1296,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind eta cm pars fields -> do
+    C.RecDef r f a x ind eta cm pars _ fields -> do
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
@@ -1417,7 +1427,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       bindName p QuotableName x y
       e <- toAbstract e
       rebindName p DefName x y
-      let mi = MutualInfo tc r
+      let mi = MutualInfo tc True r
       return [A.UnquoteDecl mi (mkDefInfoInstance x fx p a i NotMacroDef r) y e]
 
     NiceUnquoteDef r fx p a tc x e -> do
@@ -1644,7 +1654,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
   -- Termination checking pragmes are handled by the nicifier
   toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
+
   toAbstract C.CatchallPragma{}         = __IMPOSSIBLE__
+
+  -- No positivity checking pragmas are handled by the nicifier.
+  toAbstract C.NoPositivityCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
   toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message

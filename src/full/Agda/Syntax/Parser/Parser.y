@@ -141,6 +141,7 @@ import Agda.Utils.Tuple
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
     'NO_SMASHING'             { TokKeyword KwNO_SMASHING $$ }
     'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $$ }
+    'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
@@ -266,6 +267,7 @@ Token
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
     | 'NO_SMASHING'             { TokKeyword KwNO_SMASHING $1 }
     | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
+    | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
@@ -1352,6 +1354,7 @@ DeclarationPragma
   | MeasurePragma            { $1 }
   | CatchallPragma           { $1 }
   | DisplayPragma            { $1 }
+  | NoPositivityCheckPragma  { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1487,6 +1490,11 @@ ImportUHCPragma
 
 ImpossiblePragma :: { Pragma }
   : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (getRange ($1,$2,$3)) }
+
+NoPositivityCheckPragma :: { Pragma }
+NoPositivityCheckPragma
+  : '{-#' 'NO_POSITIVITY_CHECK' '#-}'
+    { NoPositivityCheckPragma (getRange ($1,$2,$3)) }
 
 {--------------------------------------------------------------------------
     Sequences of declarations
