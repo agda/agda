@@ -1,1 +1,4 @@
-Cannot use NO_TERMINATION_CHECK pragma with safe flag.
+Issue586.agda:6,1-29
+Pragma {-# NO_TERMINATION_CHECK #-} has been removed. To skip the
+termination check, label your definitions either as {-# TERMINATING
+#-} or {-# NON_TERMINATING #-}.

@@ -1032,9 +1032,10 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
               (return ds)
     toAbstract =<< niceDecls ds
    where
+    -- ASR (31 December 2015). We don't pattern-match on
+    -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
+    -- was removed. See Issue 1763.
     noNoTermCheck :: C.Declaration -> TCM C.Declaration
-    noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NoTerminationCheck)) =
-      typeError $ SafeFlagNoTerminationCheck
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
       typeError $ SafeFlagNonTerminating
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r Terminating)) =
