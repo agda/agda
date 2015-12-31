@@ -141,7 +141,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
           -- ASR (23 December 2015). We don't raise a strictly
           -- positive error if the NO_POSITIVITY_CHECK pragma was set
           -- on in the mutual block. See Issue 1614.
-          if Info.mutualPositivityCheck mi == True
+          if Info.mutualPositivityCheck mi
             then
               case loop of
               Just o | p o -> do
