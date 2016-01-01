@@ -296,7 +296,7 @@ instance Pretty DeclarationException where
     "Use the INFINITY builtin instead."
   pretty (DeclarationPanic s) = text s
   pretty (InvalidNoPositivityCheckPragma _) = fsep $
-    pwords "No positivity checking pragmas can only precede a mutual block or a data definition."
+    pwords "No positivity checking pragmas can only precede a mutual block or a data/record definition."
 
 declName :: NiceDeclaration -> String
 declName Axiom{}             = "Postulates"
@@ -330,12 +330,9 @@ data InMutual
 
 -- | The kind of the forward declaration, remembering the parameters.
 
--- ASR (28 December 2015). We didn't add @PositivityCheck@ to
--- @RecName@ because the NO_POSITIVITY_CHECK pragma is not implemented
--- on records.
 data DataRecOrFun
   = DataName PositivityCheck Params  -- ^ name of a data with parameters
-  | RecName  Params                  -- ^ name of a record with parameters
+  | RecName  PositivityCheck Params  -- ^ name of a record with parameters
   | FunName  TerminationCheck        -- ^ name of a function
   deriving (Eq)
 
@@ -343,7 +340,7 @@ type Params = [Hiding]
 
 instance Show DataRecOrFun where
   show (DataName _ n) = "data type" --  "with " ++ show n ++ " visible parameters"
-  show (RecName n)    = "record type" -- "with " ++ show n ++ " visible parameters"
+  show (RecName _ n)  = "record type" -- "with " ++ show n ++ " visible parameters"
   show (FunName{})    = "function"
 
 isFunName :: DataRecOrFun -> Bool
@@ -362,9 +359,7 @@ terminationCheck _            = TerminationCheck
 
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
--- ASR (28 December 2015). The NO_POSITIVITY_CHECK pragma is not
--- implemented on records.
-positivityCheck (RecName _)     = __IMPOSSIBLE__
+positivityCheck (RecName pc _)  = pc
 positivityCheck _               = False
 
 -- | Check that declarations in a mutual block are consistently
@@ -475,25 +470,25 @@ data DeclKind
   deriving (Eq, Show)
 
 declKind :: NiceDeclaration -> DeclKind
-declKind (FunSig _ _ _ _ _ _ tc x _)     = LoneSig (FunName tc) x
-declKind (NiceRecSig _ _ _ x pars _ _)   = LoneSig (RecName $ parameters pars) x
-declKind (NiceDataSig _ _ _ x pars _ pc) = LoneSig (DataName pc $ parameters pars) x
-declKind (FunDef _ _ _ _ tc x _)         = LoneDef (FunName tc) x
-declKind (DataDef _ _ _ x pars pc _)     = LoneDef (DataName pc $ parameters pars) x
-declKind (RecDef _ _ _ x _ _ _ pars _ _) = LoneDef (RecName $ parameters pars) x
-declKind (NiceUnquoteDef _ _ _ _ tc x _) = LoneDef (FunName tc) x
-declKind Axiom{}                         = OtherDecl
-declKind NiceField{}                     = OtherDecl
-declKind PrimitiveFunction{}             = OtherDecl
-declKind NiceMutual{}                    = OtherDecl
-declKind NiceModule{}                    = OtherDecl
-declKind NiceModuleMacro{}               = OtherDecl
-declKind NiceOpen{}                      = OtherDecl
-declKind NiceImport{}                    = OtherDecl
-declKind NicePragma{}                    = OtherDecl
-declKind NiceFunClause{}                 = OtherDecl
-declKind NicePatternSyn{}                = OtherDecl
-declKind NiceUnquoteDecl{}               = OtherDecl
+declKind (FunSig _ _ _ _ _ _ tc x _)      = LoneSig (FunName tc) x
+declKind (NiceRecSig _ _ _ x pars _ pc)   = LoneSig (RecName pc $ parameters pars) x
+declKind (NiceDataSig _ _ _ x pars _ pc)  = LoneSig (DataName pc $ parameters pars) x
+declKind (FunDef _ _ _ _ tc x _)          = LoneDef (FunName tc) x
+declKind (DataDef _ _ _ x pars pc _)      = LoneDef (DataName pc $ parameters pars) x
+declKind (RecDef _ _ _ x _ _ _ pars pc _) = LoneDef (RecName pc $ parameters pars) x
+declKind (NiceUnquoteDef _ _ _ _ tc x _)  = LoneDef (FunName tc) x
+declKind Axiom{}                          = OtherDecl
+declKind NiceField{}                      = OtherDecl
+declKind PrimitiveFunction{}              = OtherDecl
+declKind NiceMutual{}                     = OtherDecl
+declKind NiceModule{}                     = OtherDecl
+declKind NiceModuleMacro{}                = OtherDecl
+declKind NiceOpen{}                       = OtherDecl
+declKind NiceImport{}                     = OtherDecl
+declKind NicePragma{}                     = OtherDecl
+declKind NiceFunClause{}                  = OtherDecl
+declKind NicePatternSyn{}                 = OtherDecl
+declKind NiceUnquoteDecl{}                = OtherDecl
 
 -- | Compute visible parameters of a data or record signature or definition.
 parameters :: [LamBinding] -> Params
@@ -566,10 +561,14 @@ niceDeclarations ds = do
 
           -- Record modules are, for performance reasons, not always
           -- placed in mutual blocks.
+
+          -- ASR (01 January 2016): If the record module has a
+          -- NO_POSITIVITY_CHECK pragma, it is placed in a mutual
+          -- block. See Issue 1760.
           let prefix :: [NiceDeclaration] -> [NiceDeclaration]
               prefix = case (d, ds0) of
-                (NiceRecSig{}, [r@RecDef{}]) -> ([d, r] ++)
-                _                            ->
+                (NiceRecSig{}, [r@(RecDef _ _ _ _ _ _ _ _ True _)]) -> ([d, r] ++)
+                _                                                   ->
                   (NiceMutual (getRange (d : ds0)) tc (and pcs) (d : ds0) :)
 
           prefix <$> inferMutualBlocks ds1
@@ -647,6 +646,12 @@ niceDeclarations ds = do
 
     nice (Pragma (NoPositivityCheckPragma _) : d@(DataSig _ Inductive _ _ _) : ds) =
       niceDataSig False d ds
+
+    nice (Pragma (NoPositivityCheckPragma _) : d@Record{} : ds) =
+      niceRecord False d ds
+
+    nice (Pragma (NoPositivityCheckPragma _) : d@RecordSig{} : ds) =
+      niceRecordSig False d ds
 
     nice (Pragma (NoPositivityCheckPragma _) : d@(Pragma (TerminationCheckPragma _ _)) : ds@(Mutual{} : _)) = do
       ds <- nice (d : ds)
@@ -796,7 +801,7 @@ niceDeclarations ds = do
     niceRecord :: PositivityCheck -> Declaration -> [Declaration] ->
                   Nice [NiceDeclaration]
     niceRecord pc (Record r x i e c tel t cs) ds = do
-      t <- defaultTypeSig (RecName $ parameters tel) x t
+      t <- defaultTypeSig (RecName pc $ parameters tel) x t
       c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
       (++) <$> dataOrRec pc (\x1 x2 x3 x4 -> RecDef x1 x2 x3 x4 i e c) NiceRecSig
                  niceDeclarations r x tel t (Just cs)
@@ -806,7 +811,7 @@ niceDeclarations ds = do
     niceRecordSig :: PositivityCheck -> Declaration -> [Declaration] ->
                      Nice [NiceDeclaration]
     niceRecordSig pc (RecordSig r x tel t) ds = do
-      addLoneSig x (RecName $ parameters tel)
+      addLoneSig x (RecName pc $ parameters tel)
       fx <- getFixity x
       (NiceRecSig r fx PublicAccess x tel t pc :) <$> nice ds
     niceRecordSig _ _ _ = __IMPOSSIBLE__
@@ -1047,17 +1052,16 @@ niceDeclarations ds = do
         termCheck RecDef{}                           = TerminationCheck
         termCheck NicePatternSyn{}                   = TerminationCheck
 
-        -- ASR Issue 1614 (26 December 2015):
-        -- Do not positivity check a mutual block if any of its inner
-        -- declarations comes with a NO_POSITIVITY_CHECK pragma.
+        -- ASR (26 December 2015): Do not positivity check a mutual
+        -- block if any of its inner declarations comes with a
+        -- NO_POSITIVITY_CHECK pragma. See Issue 1614.
         positivityCheckOldMutual :: NiceDeclaration -> PositivityCheck
-        positivityCheckOldMutual (DataDef _ _ _ _ _ pc _)     = pc
-        positivityCheckOldMutual (NiceDataSig _ _ _ _ _ _ pc) = pc
-        positivityCheckOldMutual (NiceMutual _ _ pc _)        = __IMPOSSIBLE__
-        -- The pragma is not implemented on records.
-        -- positivityCheckOldMutual (NiceRecSig _ _ _ _ _ _ pc)  = pc
-        -- positivityCheckOldMutual (RecDef _ _ _ _ _ _ _ pc _)  = pc
-        positivityCheckOldMutual _                            = True
+        positivityCheckOldMutual (DataDef _ _ _ _ _ pc _)      = pc
+        positivityCheckOldMutual (NiceDataSig _ _ _ _ _ _ pc)  = pc
+        positivityCheckOldMutual (NiceMutual _ _ pc _)         = __IMPOSSIBLE__
+        positivityCheckOldMutual (NiceRecSig _ _ _ _ _ _ pc)   = pc
+        positivityCheckOldMutual (RecDef _ _ _ _ _ _ _ _ pc _) = pc
+        positivityCheckOldMutual _                             = True
 
         -- A mutual block cannot have a measure,
         -- but it can skip termination check.
