@@ -1,8 +1,8 @@
 -- New NO_POSITIVITY_CHECK pragma for data definitions and mutual
 -- blocks
 
--- Skipping a new-style mutual block: Before the declaration and the
--- definition of the first data type.
+-- Skipping a new-style mutual block: Anywhere before the declaration and
+-- the definition of a data type in the block (case: first data type).
 
 {-# NO_POSITIVITY_CHECK #-}
 data Cheat₁ : Set
@@ -15,8 +15,8 @@ data Cheat₁ where
 data Oops₁ where
   oops₁ : (Cheat₁ → Cheat₁) → Oops₁
 
--- Skipping a new-style mutual block: Before the declaration and
--- the definition of the second data type.
+-- Skipping a new-style mutual block: Anywhere before the declaration and
+-- the definition of a data type in the block (case: second data type).
 
 data Cheat₂ : Set
 {-# NO_POSITIVITY_CHECK #-}
