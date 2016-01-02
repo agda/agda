@@ -92,8 +92,10 @@ data CommandLineOptions = Options
   , optInteractive      :: Bool
   , optRunTests         :: Bool
   , optGHCiInteraction  :: Bool
-  , optCompile          :: Bool
   , optCompileNoMain    :: Bool
+  , optGhcCompile       :: Bool
+  , optGhcCallGhc       :: Bool
+  , optGhcFlags         :: [String]
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
   , optUHCCompile       :: Bool
@@ -113,7 +115,6 @@ data CommandLineOptions = Options
   , optCSSFile          :: Maybe FilePath
   , optIgnoreInterfaces :: Bool
   , optForcing          :: Bool
-  , optGhcFlags         :: [String]
   , optPragmaOptions    :: PragmaOptions
   , optEpicFlags        :: [String]
   , optSafe             :: Bool
@@ -183,8 +184,10 @@ defaultOptions = Options
   , optInteractive      = False
   , optRunTests         = False
   , optGHCiInteraction  = False
-  , optCompile          = False
   , optCompileNoMain    = False
+  , optGhcCompile       = False
+  , optGhcCallGhc       = True
+  , optGhcFlags         = []
   , optEpicCompile      = False
   , optJSCompile        = False
   , optUHCCompile       = False
@@ -203,7 +206,6 @@ defaultOptions = Options
   , optCSSFile          = Nothing
   , optIgnoreInterfaces = False
   , optForcing          = True
-  , optGhcFlags         = []
   , optPragmaOptions    = defaultPragmaOptions
   , optEpicFlags        = []
   , optSafe             = False
@@ -271,13 +273,13 @@ type Flag opts = opts -> OptM opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne [optAllowUnsolved . p, \x -> optCompile x]) = throwError
+  | not (atMostOne [optAllowUnsolved . p, \x -> optGhcCompile x]) = throwError
       "Unsolved meta variables are not allowed when compiling.\n"
-  | optCompileNoMain opts && (not (optCompile opts || optUHCCompile opts)) = throwError
+  | optCompileNoMain opts && (not (optGhcCompile opts || optUHCCompile opts)) = throwError
       "--no-main only allowed in combination with --compile.\n"
   | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
       throwError "Choose at most one: input file or --interaction.\n"
-  | not (atMostOne $ interactive ++ [\x -> optCompile x, optEpicCompile, optJSCompile]) =
+  | not (atMostOne $ interactive ++ [\x -> optGhcCompile x, optEpicCompile, optJSCompile]) =
       throwError "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       throwError "Choose at most one: --html/--interactive/--interaction.\n"
@@ -459,11 +461,18 @@ interactiveFlag  o = return $ o { optInteractive    = True
                                                       { optAllowUnsolved = True }
                                 }
 
-compileFlag :: Flag CommandLineOptions
-compileFlag o = return $ o { optCompile = True }
-
 compileFlagNoMain :: Flag CommandLineOptions
 compileFlagNoMain o = return $ o { optCompileNoMain = True }
+
+compileGhcFlag :: Flag CommandLineOptions
+compileGhcFlag o = return $ o { optGhcCompile = True }
+
+ghcDontCallGhcFlag :: Flag CommandLineOptions
+ghcDontCallGhcFlag o = return $ o { optGhcCallGhc = False }
+
+-- NOTE: Quadratic in number of flags.
+ghcFlag :: String -> Flag CommandLineOptions
+ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
 
 -- The Epic backend has been removed. See Issue 1481.
 compileEpicFlag :: Flag CommandLineOptions
@@ -480,10 +489,6 @@ compileDirFlag :: FilePath -> Flag CommandLineOptions
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 
 -- NOTE: Quadratic in number of flags.
-ghcFlag :: String -> Flag CommandLineOptions
-ghcFlag f o = return $ o { optGhcFlags = optGhcFlags o ++ [f] }
-
--- NOTE: Quadratic in number of flags.
 -- The Epic backend has been removed. See Issue 1481.
 epicFlagsFlag :: String -> Flag CommandLineOptions
 -- epicFlagsFlag s o = return $ o { optEpicFlags = optEpicFlags o ++ [s] }
@@ -495,8 +500,8 @@ uhcBinFlag s o = return $ o { optUHCBin  = Just s }
 uhcTextualCoreFlag :: Flag CommandLineOptions
 uhcTextualCoreFlag o = return $ o { optUHCTextualCore = True }
 
-uhcCallUHCFlag :: Flag CommandLineOptions
-uhcCallUHCFlag o = return $ o { optUHCCallUHC = False }
+uhcDontCallUHCFlag :: Flag CommandLineOptions
+uhcDontCallUHCFlag o = return $ o { optUHCCallUHC = False }
 
 uhcTraceLevelFlag :: String -> Flag CommandLineOptions
 -- TODO proper parsing and error handling
@@ -561,8 +566,11 @@ standardOptions =
                     "start in interactive mode"
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
-    , Option ['c']  ["compile"] (NoArg compileFlag)
+    , Option ['c']  ["compile", "ghc"] (NoArg compileGhcFlag)
                     "compile program using the MAlonzo backend (experimental)"
+    , Option []     ["ghc-dont-call-ghc"] (NoArg ghcDontCallGhcFlag) "Don't call ghc, just write the GHC Haskell files."
+    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
+                    "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
                     "when compiling using the MAlonzo or UHC backend (experimental), do not treat the requested module as the main module of a program"
 
@@ -575,13 +583,11 @@ standardOptions =
     , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
     , Option []     ["uhc-bin"] (ReqArg uhcBinFlag "UHC") "The uhc binary to use when compiling with the UHC backend."
     , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."
-    , Option []     ["uhc-dont-call-uhc"] (NoArg uhcCallUHCFlag) "Don't call uhc, just write the UHC Core files."
+    , Option []     ["uhc-dont-call-uhc"] (NoArg uhcDontCallUHCFlag) "Don't call uhc, just write the UHC Core files."
     , Option []     ["uhc-gen-trace"] (ReqArg uhcTraceLevelFlag "TRACE") "Add tracing code to generated executable."
     , Option []     ["no-smashing"] (NoArg optimNoSmashing) "Don't apply the smashing optimization."
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
                     ("directory for compiler output (default: the project root)")
-    , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
-                    "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
 
     -- The Epic backend has been removed. See Issue 1481.
     , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")

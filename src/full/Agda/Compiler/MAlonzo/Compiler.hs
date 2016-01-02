@@ -689,4 +689,5 @@ callGHC modIsMain i = do
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
-  callCompiler compiler args
+  doCall <- optGhcCallGhc <$> commandLineOptions
+  callCompiler doCall compiler args
