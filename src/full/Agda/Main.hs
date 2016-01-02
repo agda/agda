@@ -89,7 +89,7 @@ runAgdaWithOptions generateHTML progName opts
     checkFile = do
       i             <- optInteractive     <$> liftTCM commandLineOptions
       ghci          <- optGHCiInteraction <$> liftTCM commandLineOptions
-      compile       <- optCompile         <$> liftTCM commandLineOptions
+      ghc           <- optGhcCompile      <$> liftTCM commandLineOptions
       compileNoMain <- optCompileNoMain   <$> liftTCM commandLineOptions
       epic          <- optEpicCompile     <$> liftTCM commandLineOptions
       js            <- optJSCompile       <$> liftTCM commandLineOptions
@@ -105,9 +105,9 @@ runAgdaWithOptions generateHTML progName opts
           interaction :: TCM (Maybe Interface) -> TCM ()
           interaction | i             = runIM . interactionLoop
                       | ghci          = (failIfInt mimicGHCi =<<)
-                      | compile && compileNoMain
+                      | ghc && compileNoMain
                                       = (MAlonzo.compilerMain False =<<) . (failIfNoInt =<<)
-                      | compile       = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
+                      | ghc           = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
                       | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
                       | otherwise     = (() <$)

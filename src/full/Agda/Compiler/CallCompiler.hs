@@ -28,16 +28,21 @@ import Agda.Utils.Impossible
 --   information the compiler prints to stdout.
 
 callCompiler
-  :: FilePath
+  :: Bool
+     -- ^ Should we actually call the compiler
+  -> FilePath
      -- ^ The path to the compiler
   -> [String]
      -- ^ Command-line arguments.
   -> TCM ()
-callCompiler cmd args = do
-  merrors <- callCompiler' cmd args
-  case merrors of
-    Nothing     -> return ()
-    Just errors -> typeError (CompilationError errors)
+callCompiler doCall cmd args =
+  if doCall then do
+    merrors <- callCompiler' cmd args
+    case merrors of
+      Nothing     -> return ()
+      Just errors -> typeError (CompilationError errors)
+  else
+    reportSLn "" 1 $ "NOT calling: " ++ intercalate " " (cmd : args)
 
 -- | Generalisation of @callCompiler@ where the raised exception is
 -- returned.

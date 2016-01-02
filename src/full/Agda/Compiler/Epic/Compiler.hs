@@ -274,4 +274,4 @@ callEpic' flags = do
           , "-i", dataDir </> "stdagda" <.> "c"
           ] ++ flags epicFlags
 
-    lift $ callCompiler epic epicCommand
+    lift $ callCompiler True epic epicCommand
