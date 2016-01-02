@@ -26,6 +26,7 @@ Language Reference
    module-system
    mutual-recursion
    pattern-synonyms
+   positivity-checking
    postulates
    pragmas
    record-types
