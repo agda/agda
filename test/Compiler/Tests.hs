@@ -26,6 +26,8 @@ import System.Process (callProcess, proc, createProcess, waitForProcess, CreateP
 #endif
 
 
+import Control.Monad ( void )
+
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative ((<$>))
 #endif
@@ -69,7 +71,6 @@ defaultOptions = TestOptions
   }
   where co = CompilerOptions []
 
-
 disabledTests :: [RegexFilter]
 disabledTests =
 -- The Compiler tests using the standard library are horribly
@@ -84,8 +85,6 @@ disabledTests =
 #endif
   ]
 
-
-
 tests :: IO TestTree
 tests = do
   ts <- mapM forComp enabledCompilers
@@ -96,15 +95,14 @@ tests = do
                 , Just <$> stdlibTests comp
                 , specialTests comp]
 
-
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
   let testDir = "test" </> "Compiler" </> "simple"
   inps <- getAgdaFilesInDir NonRec testDir
 
   withSetup setup inps testDir ["-i" ++ testDir, "-itest/"] comp "simple"
-  where setup :: Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree
-        setup UHC tree = tree >>= \t -> return $ t $ return []
+  where setup :: Compiler -> IO (IO AgdaArgs -> TestTree) -> IO TestTree
+        setup UHC     tree = tree >>= \t -> return $ t $ return []
         setup MAlonzo tree = withGhcLibs ["test/"] <$> tree
 
 stdlibTests :: Compiler -> IO TestTree
@@ -113,10 +111,9 @@ stdlibTests comp = do
   inps <- getAgdaFilesInDir NonRec testDir
 
   withSetup setup inps testDir ["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] comp "with-stdlib"
-  where setup :: Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree
-        setup UHC tree = tree >>= \t -> return $ t $ return []
+  where setup :: Compiler -> IO (IO AgdaArgs -> TestTree) -> IO TestTree
+        setup UHC     tree = tree >>= \t -> return $ t $ return []
         setup MAlonzo tree = withGhcLibs ["std-lib/ffi/"] <$> tree
-
 
 specialTests :: Compiler -> IO (Maybe TestTree)
 specialTests MAlonzo = do
@@ -139,7 +136,7 @@ specialTests MAlonzo = do
             return $ ExecutedProg (ret, out <> sout, err)
 specialTests UHC = return Nothing
 
-withSetup :: (Compiler -> (IO (IO AgdaArgs -> TestTree)) -> IO TestTree) -- setup function
+withSetup :: (Compiler -> IO (IO AgdaArgs -> TestTree) -> IO TestTree) -- setup function
     -> [FilePath] -- inputs
     -> FilePath -- test directory
     -> AgdaArgs -- extra agda arguments
@@ -154,45 +151,44 @@ withSetup setup inps testDir extraArgs comp  testGrpNm = do
       )
     )
   where mkTest :: FilePath -> IO (IO AgdaArgs -> Maybe TestTree)
-        mkTest = (\inp -> do
+        mkTest = \inp -> do
           opts <- readOptions inp
           return (\args ->
             agdaRunProgGoldenTest testDir comp ((extraArgs  ++) . ghcArgsAsAgdaArgs <$> args) inp opts
             )
-          )
-
-
 
 -- Sets up a temporary package db and installs the given packages there.
 withGhcLibs :: [String] -- ^ path to the package directories to install.
-    -> (IO (GHCArgs) -> TestTree)
+    -> (IO GHCArgs -> TestTree)
     -> TestTree
 withGhcLibs pkgDirs mkTree =
   withResource createPkgDb rmPkgDb (\si -> mkTree (mkArgs <$> si))
-  where rmPkgDb = removeDirectoryRecursive . fst
-        createPkgDb = (do
+  where rmPkgDb :: (FilePath, String) -> IO ()
+        rmPkgDb = removeDirectoryRecursive . fst
+
+        createPkgDb = do
           pwd <- getCurrentDirectory
           tempDir <- createTempDirectory pwd "exec-test-pkgs"
           let pkgDb = tempDir </> "pkgdb"
           callProcess "ghc-pkg" ["init", pkgDb]
           mapM_ (installPkg tempDir pkgDb) pkgDirs
           return (tempDir, pkgDb)
-          )
+
         installPkg :: FilePath -> FilePath -> FilePath -> IO ()
         installPkg tempDir _pkgDb pkgDir = do
           pwd <- getCurrentDirectory
-          withTempDirectory pwd "pkg-build" $ \builddir -> (do
+          withTempDirectory pwd "pkg-build" $ \builddir -> do
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "configure", "--builddir=" ++ builddir
                                              , "--prefix=" ++ tempDir, "--user"] -- , "--package-db=" ++ pkgDb]
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "build", "--builddir=" ++ builddir]
             callProcess1 pkgDir "runhaskell" ["Setup.hs", "install", "--builddir=" ++ builddir]
-            )
+
         mkArgs :: (FilePath, FilePath) -> AgdaArgs
         mkArgs (_, _pkgDb) = [] -- ["-no-user-package-db", "-package-db=" ++ pkgDb]
 
         callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
 #if MIN_VERSION_process(1,2,3)
-        callProcess1 wd cmd args = readCreateProcess ((proc cmd args) {cwd = Just wd}) "" >> return ()
+        callProcess1 wd cmd args = void $ readCreateProcess ((proc cmd args) {cwd = Just wd}) ""
 #else
         -- trying to use process 1.2.3.0 with GHC 7.4 leads to cabal hell,
         -- so we really want to support older versions of process for the time being.
@@ -225,9 +221,9 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
           return $ ExecutedProg (ret, out <> out', err <> err')
         else
-          return $ CompileSucceeded
+          return CompileSucceeded
         )
-  where inpFile = (dropExtension inp) <.> ".inp"
+  where inpFile = dropExtension inp <.> ".inp"
 
 agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
     -> Compiler
@@ -240,8 +236,8 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
       Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
-  where goldenFile = (dropExtension inp) <.> ".out"
-        testName = asTestName dir inp
+  where goldenFile = dropExtension inp <.> ".out"
+        testName   = asTestName dir inp
 
         doRun cOpts = withTempDirectory dir testName (\compDir -> do
           -- get extra arguments
@@ -275,5 +271,5 @@ getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropExtension inp
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r
-printExecResult (CompileSucceeded) = "COMPILE_SUCCEEDED"
+printExecResult CompileSucceeded  = "COMPILE_SUCCEEDED"
 printExecResult (ExecutedProg r)  = "EXECUTED_PROGRAM\n\n" `T.append` printProcResult r

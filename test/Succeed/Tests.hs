@@ -7,7 +7,6 @@ module Succeed.Tests where
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTestIO1, GDiff (..), GShow (..))
-import Data.Maybe
 import System.FilePath
 import System.IO.Temp
 import qualified Data.Text as T
@@ -40,22 +39,21 @@ data AgdaResult
   | AgdaUnexpectedFail ProgramResult
   | AgdaWrongDotOutput T.Text
 
-
 mkSucceedTest :: FilePath -- inp file
     -> TestTree
-mkSucceedTest inp = do
+mkSucceedTest inp =
   goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName testDir inp
-        flagFile = (dropExtension inp) <.> ".flags"
+        flagFile = dropExtension inp <.> ".flags"
 
         -- we don't really have a golden file. Just use
         -- a dummy update function.
         -- TODO extend tasty-silver to handle this use case properly
         readGolden = return $ Just $ printAgdaResult AgdaSuccess
 
-        doRun = (do
-          flags <- fromMaybe [] . fmap (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
+        doRun = do
+          flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = [ "-v0", "-i" ++ testDir, "-itest/" , inp
                          , "--ignore-interfaces", "--vim"
                          , "--no-default-libraries"
@@ -66,8 +64,8 @@ mkSucceedTest inp = do
 
           res@(ret, _, _) <-
             if "--compile" `isInfixOf` flags
-              then do
-                withTempDirectory testDir ("MAZ_compile_" ++ testName) (\compDir -> do
+              then
+                withTempDirectory testDir ("MAZ_compile_" ++ testName) (\compDir ->
                   run ["--compile-dir=" ++ compDir]
                   )
               else
@@ -85,7 +83,6 @@ mkSucceedTest inp = do
                   return $ AgdaWrongDotOutput dot
             ExitSuccess -> return AgdaSuccess
             _ -> return $ AgdaUnexpectedFail res
-          )
 
 resDiff :: T.Text -> T.Text -> IO GDiff
 resDiff t1 t2 =
@@ -99,6 +96,6 @@ resShow :: T.Text -> IO GShow
 resShow = return . ShowText
 
 printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult (AgdaSuccess) = "AGDA_SUCCESS"
+printAgdaResult AgdaSuccess            = "AGDA_SUCCESS"
 printAgdaResult (AgdaUnexpectedFail p) = "AGDA_UNEXPECTED_FAIL\n\n" `T.append` printProcResult p
 printAgdaResult (AgdaWrongDotOutput t) = "AGDA_WRONG_DOT_OUTPUT\n\n" `T.append` t

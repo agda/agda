@@ -576,4 +576,8 @@ test-suite agda-tests
   if flag(uhc)
     cpp-options:    -DUHC_BACKEND
 
-  ghc-options:      -threaded -Wall -Werror
+  ghc-options:      -threaded
+                    -Wall
+                    -fwarn-identities
+                    -fwarn-missing-local-sigs
+                    -Werror

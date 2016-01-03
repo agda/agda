@@ -41,7 +41,7 @@ tests = do
   return $ testGroup "LaTeXAndHTML"
     [ mkLaTeXOrHTMLTest k agdaBin f
     | f <- inpFiles
-    , k <- HTML : if takeExtension f == ".lagda" then [LaTeX] else []
+    , k <- HTML : [ LaTeX | takeExtension f == ".lagda" ]
     ]
 
 data LaTeXResult
@@ -57,7 +57,7 @@ mkLaTeXOrHTMLTest
   -> FilePath -- ^ Agda binary.
   -> FilePath -- ^ Input file.
   -> TestTree
-mkLaTeXOrHTMLTest k agdaBin inp = do
+mkLaTeXOrHTMLTest k agdaBin inp =
   goldenVsAction testName goldenFile doRun printLaTeXResult
   where
   extension = case k of
@@ -68,9 +68,9 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
     LaTeX -> "latex"
     HTML  -> "html"
 
-  testName    = (asTestName testDir inp) ++ "_" ++ show k
-  goldenFile  = (dropExtension inp) <.> extension
-  compFile    = (dropExtension inp) <.> ".compile"
+  testName    = asTestName testDir inp ++ "_" ++ show k
+  goldenFile  = dropExtension inp <.> extension
+  compFile    = dropExtension inp <.> ".compile"
   outFileName = takeFileName goldenFile
 
   doRun = withTempDirectory "." testName $ \outDir -> do
@@ -108,7 +108,7 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
 
   runLaTeX :: FilePath -- tex file
       -> FilePath -- working dir
-      -> (IO LaTeXResult) -- continuation
+      -> IO LaTeXResult -- continuation
       -> LaTeXProg
       -> IO LaTeXResult
   runLaTeX texFile wd cont prog = do
@@ -122,8 +122,8 @@ mkLaTeXOrHTMLTest k agdaBin inp = do
         return $ LaTeXFailed prog res
 
 printLaTeXResult :: LaTeXResult -> T.Text
-printLaTeXResult (Success t) = t
-printLaTeXResult (AgdaFailed p)= "AGDA_COMPILE_FAILED\n\n" `T.append` printProcResult p
+printLaTeXResult (Success t)          = t
+printLaTeXResult (AgdaFailed p)       = "AGDA_COMPILE_FAILED\n\n" `T.append` printProcResult p
 printLaTeXResult (LaTeXFailed prog p) = "LATEX_COMPILE_FAILED with "
     `T.append` (T.pack prog)
     `T.append` "\n\n"

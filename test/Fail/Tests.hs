@@ -7,7 +7,6 @@ module Fail.Tests where
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
-import Data.Maybe
 import System.FilePath
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -40,22 +39,20 @@ data AgdaResult
   = AgdaResult T.Text -- the cleaned stdout
   | AgdaUnexpectedSuccess ProgramResult
 
-
-
 mkFailTest :: FilePath -- inp file
     -> TestTree
-mkFailTest inp = do
+mkFailTest inp =
   goldenTest1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
 --  goldenVsAction testName goldenFile doRun printAgdaResult
-  where testName = asTestName testDir inp
-        goldenFile = (dropExtension inp) <.> ".err"
-        flagFile = (dropExtension inp) <.> ".flags"
+  where testName   = asTestName testDir inp
+        goldenFile = dropExtension inp <.> ".err"
+        flagFile   = dropExtension inp <.> ".flags"
 
         readGolden = fmap decodeUtf8 <$> readFileMaybe goldenFile
-        updGolden = BS.writeFile goldenFile . encodeUtf8
+        updGolden  = BS.writeFile goldenFile . encodeUtf8
 
-        doRun = (do
-          flags <- fromMaybe [] . fmap (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
+        doRun = do
+          flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces", "--no-default-libraries"] ++ words flags
           res@(ret, stdout, _) <- readAgdaProcessWithExitCode agdaArgs T.empty
 
@@ -64,7 +61,6 @@ mkFailTest inp = do
               return $ AgdaUnexpectedSuccess res
             else
               AgdaResult <$> clean stdout
-          )
 
 mkRegex :: T.Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
@@ -89,8 +85,8 @@ resShow :: T.Text -> GShow
 resShow = ShowText
 
 printAgdaResult :: AgdaResult -> T.Text
-printAgdaResult (AgdaResult t) = t
-printAgdaResult (AgdaUnexpectedSuccess p)= "AGDA_UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
+printAgdaResult (AgdaResult t)            = t
+printAgdaResult (AgdaUnexpectedSuccess p) = "AGDA_UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
 
 clean :: T.Text -> IO T.Text
 clean inp = do
