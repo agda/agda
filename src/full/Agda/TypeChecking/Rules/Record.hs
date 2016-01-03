@@ -212,7 +212,6 @@ checkRecDef i name ind con ps contel fields =
           htel = map hideAndRelParams $ telToList tel
           info = setRelevance recordRelevance defaultArgInfo
           tel' = telFromList $ htel ++ [Dom info ("r", rect)]
-          ext (Dom info (x, t)) = addCtx x (Dom info t)
 
       -- Add the record section
       -- make record parameters hidden
@@ -221,7 +220,7 @@ checkRecDef i name ind con ps contel fields =
         [ text "visibility-modified record telescope"
         , nest 2 $ text "ctx =" <+> prettyTCM ctx
         ]
-      escapeContext (size tel) $ flip (foldr ext) ctx $
+      escapeContext (size tel) $ addContext ctx $
        -- the record variable has the empty name by intention, see issue 208
        underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
         reportSDoc "tc.rec.def" 10 $ sep
