@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Utils where
 
 import qualified Data.Text as T
@@ -36,7 +37,6 @@ readAgdaProcessWithExitCode args inp = do
 getEnvAgdaArgs :: IO AgdaArgs
 getEnvAgdaArgs = maybe [] words <$> getEnvVar "AGDA_ARGS"
 
-
 getAgdaBin :: IO FilePath
 getAgdaBin = do
   agda <- getEnvVar "AGDA_BIN"
@@ -62,7 +62,7 @@ data SearchMode = Rec | NonRec
 
 getAgdaFilesInDir :: SearchMode -> FilePath -> IO [FilePath]
 getAgdaFilesInDir rec dir =
-  sort <$> do
+  sort <$>
     case rec of
       Rec -> findByExtension (S.toList agdaExts) dir
       NonRec -> map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$>
