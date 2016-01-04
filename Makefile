@@ -190,7 +190,7 @@ lib-succeed :
 	@echo "======================================================================"
 	@echo "========== Successfull tests using the standard library =============="
 	@echo "======================================================================"
-	@$(MAKE) -C test/$@
+	@$(MAKE) -C test/LibSucceed
 
 .PHONY : lib-interaction
 lib-interaction :
