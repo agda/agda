@@ -507,11 +507,6 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-10-05 print irrelevant things as ordinary things
     toConcrete (A.DontCare e) = C.Dot r . C.Paren r  <$> toConcrete e
        where r = getRange e
---    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteTop e
-{-
-    -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
-    toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
--}
     toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete n
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
@@ -653,19 +648,6 @@ instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
   toConcrete (Just x) = do
     x' <- toConcrete (qnameName x)
     return $ Just x'
-
-{- UNUSED
--- | Helper function used in instance @ToConcrete Definition@.
-telToTypedBindingss :: [C.LamBinding] -> [C.TypedBindings]
-telToTypedBindingss = map lamBindingToTypedBindings where
-
-  lamBindingToTypedBindings :: C.LamBinding -> C.TypedBindings
-  lamBindingToTypedBindings b =
-    case b of
-      C.DomainFull t     -> t
-      C.DomainFree info n -> C.TypedBindings noRange $
-        Arg info $ C.TBind noRange [n] $ C.Underscore noRange Nothing
--}
 
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =

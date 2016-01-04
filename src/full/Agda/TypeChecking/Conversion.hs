@@ -520,6 +520,8 @@ compareAtom cmp t m n =
                             (_, Apply arg : _) -> arg
                             _ -> __IMPOSSIBLE__
                   -- Infer its type.
+                  reportSDoc "tc.conv.infer" 30 $
+                    text "inferring type of internal arg: " <+> prettyTCM arg
                   targ <- infer $ unArg arg
                   -- getDefType wants the argument type reduced.
                   fromMaybeM __IMPOSSIBLE__ $ getDefType f =<< reduce targ

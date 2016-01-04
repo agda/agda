@@ -30,7 +30,6 @@ import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
-import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
@@ -1201,14 +1200,14 @@ instance PrettyTCM Call where
   prettyTCM c = case c of
     CheckClause t cl -> fsep $
       pwords "when checking that the clause"
-      ++ [AP.prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
+      ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
 
     CheckPattern p tel t -> addCtxTel tel $ fsep $
       pwords "when checking that the pattern"
       ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 
     CheckLetBinding b -> fsep $
-      pwords "when checking the let binding" ++ [AP.prettyA b]
+      pwords "when checking the let binding" ++ [prettyA b]
 
     InferExpr e -> fsep $ pwords "when inferring the type of" ++ [prettyA e]
 
@@ -1263,7 +1262,7 @@ instance PrettyTCM Call where
       pwords "matches the inferred value" ++ [prettyTCM v]
 
     CheckPatternShadowing c -> fsep $
-      pwords "when checking the clause" ++ [AP.prettyA c]
+      pwords "when checking the clause" ++ [prettyA c]
 
     InferVar x ->
       fsep $ pwords "when inferring the type of" ++ [prettyTCM x]

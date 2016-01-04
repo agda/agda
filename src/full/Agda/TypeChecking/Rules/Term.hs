@@ -1502,7 +1502,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
         -- 2. We have a function type left, but it is the wrong one.
         --    Our argument must be implicit, case a) is impossible.
         --    (Otherwise we would have ran out of function types instead.)
-        let wrongPi info'
+        let wrongPi
               -- b) We have not inserted any implicits.
               | null xs   = lift $ typeError $ WrongHidingInApplication t0'
               -- c) We inserted implicits, but did not find his one.
@@ -1527,7 +1527,14 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Arg info' u) $
                   checkArguments exh (fuseRange r e) args (absApp b u) t1
-            | otherwise -> wrongPi info'
+            | otherwise -> do
+                reportSDoc "error" 10 $ nest 2 $ vcat
+                  [ text $ "info      = " ++ show info
+                  , text $ "info'     = " ++ show info'
+                  , text $ "absName b = " ++ show (absName b)
+                  , text $ "nameOf e  = " ++ show (nameOf e)
+                  ]
+                wrongPi
           _ -> shouldBePi
   where
     addCheckedArgs us u rec =
