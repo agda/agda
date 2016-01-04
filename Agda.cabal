@@ -487,6 +487,7 @@ test-suite agda-tests
   other-modules:    Compiler.Tests
                     , Fail.Tests
                     , LaTeXAndHTML.Tests
+                    , LibSucceed.Tests
                     , Succeed.Tests
                     , Utils
   build-depends:      array >= 0.4.0.1 && < 0.6

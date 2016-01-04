@@ -1,3 +1,4 @@
+# ASR (04 January 2016): Not used after fixing #1753.
 
 # Agda 2
 # Makefile for successful tests depending on the standard library
