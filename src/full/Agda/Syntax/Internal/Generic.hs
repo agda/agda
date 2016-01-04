@@ -172,6 +172,30 @@ instance TermLike Type where
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
 
+instance TermLike EqualityView where
+
+  traverseTerm f v = case v of
+    OtherType t -> OtherType
+      (traverseTerm f t)
+    EqualityType s eq l t a b -> EqualityType s eq
+      (traverseTerm f l)
+      (traverseTerm f t)
+      (traverseTerm f a)
+      (traverseTerm f b)
+
+  traverseTermM f v = case v of
+    OtherType t -> OtherType
+      <$> traverseTermM f t
+    EqualityType s eq l t a b -> EqualityType s eq
+      <$> traverseTermM f l
+      <*> traverseTermM f t
+      <*> traverseTermM f a
+      <*> traverseTermM f b
+
+  foldTerm f v = case v of
+    OtherType t -> foldTerm f t
+    EqualityType s eq l t a b -> foldTerm f [l, t, a, b]
+
 -- | Put it in a monad to make it possible to do strictly.
 copyTerm :: (TermLike a, Applicative m, Monad m) => a -> m a
 copyTerm = traverseTermM return

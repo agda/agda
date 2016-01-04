@@ -510,9 +510,9 @@ metaHelperType norm ii rng s = case words s of
       -- Remember the arity of a
       TelV atel _ <- telView a
       let arity = size atel
-          (delta1, delta2, _, a', as', vs') = splitTelForWith tel a as vs
+          (delta1, delta2, _, a', as', vs') = splitTelForWith tel a (map OtherType as) vs
       a <- local (\e -> e { envPrintDomainFreePi = True }) $ do
-        reify =<< cleanupType arity args =<< normalForm norm =<< withFunctionType delta1 vs' as' delta2 a'
+        reify =<< cleanupType arity args =<< normalForm norm =<< fst <$> withFunctionType delta1 vs' as' delta2 a'
       return (OfType' h a)
   where
     cleanupType arity args t = do

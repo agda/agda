@@ -2150,10 +2150,10 @@ data TypeError
     -- Safe flag errors
         | SafeFlagPostulate C.Name
         | SafeFlagPragma [String]
-        | SafeFlagNoTerminationCheck
         | SafeFlagNonTerminating
         | SafeFlagTerminating
         | SafeFlagPrimTrustMe
+        | SafeFlagNoPositivityCheck
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting

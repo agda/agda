@@ -371,6 +371,10 @@ instance Free' Clause c where
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
   freeVars' = freeVars' . clauseBody
 
+instance Free' EqualityView c where
+  freeVars' (OtherType t) = freeVars' t
+  freeVars' (EqualityType s _eq l t a b) = freeVars' s `mappend` freeVars' [l, t, a, b]
+
 -- Generators
 
 instance Arbitrary FlexRig where

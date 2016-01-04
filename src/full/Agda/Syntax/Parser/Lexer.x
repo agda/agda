@@ -82,35 +82,36 @@ tokens :-
 <pragma_> $white_notab ;
 
 -- Pragmas
-<0,code>    "{-#"                  { begin pragma }
-<pragma_>   "{-#"                  { symbol SymOpenPragma }
-<pragma_>   "#-}"                  { endWith $ symbol SymClosePragma }
-<pragma_>   "OPTIONS"              { keyword KwOPTIONS }
-<pragma_>   "BUILTIN"              { keyword KwBUILTIN }
-<pragma_>   "REWRITE"              { keyword KwREWRITE }
-<pragma_>   "COMPILED_DECLARE_DATA"     { keyword KwCOMPILED_DECLARE_DATA }
-<pragma_>   "COMPILED_DATA"        { keyword KwCOMPILED_DATA }
-<pragma_>   "COMPILED_TYPE"        { keyword KwCOMPILED_TYPE }
-<pragma_>   "COMPILED"             { keyword KwCOMPILED }
-<pragma_>   "COMPILED_EXPORT"      { keyword KwCOMPILED_EXPORT }
-<pragma_>   "COMPILED_EPIC"        { keyword KwCOMPILED_EPIC }
-<pragma_>   "COMPILED_JS"          { keyword KwCOMPILED_JS }
-<pragma_>   "COMPILED_UHC"         { keyword KwCOMPILED_UHC }
-<pragma_>   "COMPILED_DATA_UHC"    { keyword KwCOMPILED_DATA_UHC }
-<pragma_>   "DISPLAY"              { keyword KwDISPLAY }
-<pragma_>   "NO_SMASHING"          { keyword KwNO_SMASHING }
-<pragma_>   "STATIC"               { keyword KwSTATIC }
-<pragma_>   "INLINE"               { keyword KwINLINE }
-<pragma_>   "IMPORT"               { keyword KwIMPORT }
-<pragma_>   "IMPORT_UHC"           { keyword KwIMPORT_UHC }
-<pragma_>   "IMPOSSIBLE"           { keyword KwIMPOSSIBLE }
-<pragma_>   "NO_TERMINATION_CHECK" { keyword KwNO_TERMINATION_CHECK }
-<pragma_>   "NON_TERMINATING"      { keyword KwNON_TERMINATING }
-<pragma_>   "TERMINATING"          { keyword KwTERMINATING }
-<pragma_>   "MEASURE"              { keyword KwMEASURE }
-<pragma_>   "CATCHALL"             { keyword KwCATCHALL }
-<pragma_>   "LINE"                 { keyword KwLINE }
-<pragma_>   . # [ $white ] +       { withInterval $ TokString }
+<0,code>    "{-#"                      { begin pragma }
+<pragma_>   "{-#"                      { symbol SymOpenPragma }
+<pragma_>   "#-}"                      { endWith $ symbol SymClosePragma }
+<pragma_>   "BUILTIN"                  { keyword KwBUILTIN }
+<pragma_>   "CATCHALL"                 { keyword KwCATCHALL }
+<pragma_>   "COMPILED"                 { keyword KwCOMPILED }
+<pragma_>   "COMPILED_DATA"            { keyword KwCOMPILED_DATA }
+<pragma_>   "COMPILED_DATA_UHC"        { keyword KwCOMPILED_DATA_UHC }
+<pragma_>   "COMPILED_DECLARE_DATA"    { keyword KwCOMPILED_DECLARE_DATA }
+<pragma_>   "COMPILED_EPIC"            { keyword KwCOMPILED_EPIC }
+<pragma_>   "COMPILED_EXPORT"          { keyword KwCOMPILED_EXPORT }
+<pragma_>   "COMPILED_JS"              { keyword KwCOMPILED_JS }
+<pragma_>   "COMPILED_TYPE"            { keyword KwCOMPILED_TYPE }
+<pragma_>   "COMPILED_UHC"             { keyword KwCOMPILED_UHC }
+<pragma_>   "DISPLAY"                  { keyword KwDISPLAY }
+<pragma_>   "IMPORT"                   { keyword KwIMPORT }
+<pragma_>   "IMPORT_UHC"               { keyword KwIMPORT_UHC }
+<pragma_>   "IMPOSSIBLE"               { keyword KwIMPOSSIBLE }
+<pragma_>   "INLINE"                   { keyword KwINLINE }
+<pragma_>   "LINE"                     { keyword KwLINE }
+<pragma_>   "MEASURE"                  { keyword KwMEASURE }
+<pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
+<pragma_>   "NO_SMASHING"              { keyword KwNO_SMASHING }
+<pragma_>   "NO_TERMINATION_CHECK"     { keyword KwNO_TERMINATION_CHECK }
+<pragma_>   "NON_TERMINATING"          { keyword KwNON_TERMINATING }
+<pragma_>   "OPTIONS"                  { keyword KwOPTIONS }
+<pragma_>   "REWRITE"                  { keyword KwREWRITE }
+<pragma_>   "STATIC"                   { keyword KwSTATIC }
+<pragma_>   "TERMINATING"              { keyword KwTERMINATING }
+<pragma_>   . # [ $white ] +           { withInterval $ TokString }
 
 -- Comments
     -- We need to rule out pragmas here. Usually longest match would take

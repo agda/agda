@@ -163,8 +163,9 @@ instance KillRange DeclInfo where
  --------------------------------------------------------------------------}
 
 data MutualInfo = MutualInfo
-  { mutualTermCheck :: TerminationCheck Name
-  , mutualRange     :: Range
+  { mutualTermCheck       :: TerminationCheck Name
+  , mutualPositivityCheck :: PositivityCheck
+  , mutualRange           :: Range
   }
   deriving (Typeable, Show, Eq)
 

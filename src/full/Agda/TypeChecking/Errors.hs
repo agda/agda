@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -215,10 +215,10 @@ errorString err = case err of
   RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
   SafeFlagPostulate{}                      -> "SafeFlagPostulate"
   SafeFlagPragma{}                         -> "SafeFlagPragma"
-  SafeFlagNoTerminationCheck{}             -> "SafeFlagNoTerminationCheck"
   SafeFlagNonTerminating{}                 -> "SafeFlagNonTerminating"
   SafeFlagTerminating{}                    -> "SafeFlagTerminating"
   SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
+  SafeFlagNoPositivityCheck{}              -> "SafeNoPositivityCheck"
   ShadowedModule{}                         -> "ShadowedModule"
   ShouldBeASort{}                          -> "ShouldBeASort"
   ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
@@ -1123,9 +1123,6 @@ instance PrettyTCM TypeError where
       in fsep $ [fwords ("Cannot set OPTION pragma" ++ plural)]
                 ++ map text xs ++ [fwords "with safe flag."]
 
-    SafeFlagNoTerminationCheck -> fsep $
-      pwords "Cannot use NO_TERMINATION_CHECK pragma with safe flag."
-
     SafeFlagNonTerminating -> fsep $
       pwords "Cannot use NON_TERMINATING pragma with safe flag."
 
@@ -1133,6 +1130,9 @@ instance PrettyTCM TypeError where
       pwords "Cannot use TERMINATING pragma with safe flag."
 
     SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
+
+    SafeFlagNoPositivityCheck -> fsep $
+      pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"

@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
-import Agda.Syntax.Internal
+import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 
@@ -439,3 +439,25 @@ primEqualityName = do
     ([Hidden],         Def equality _) -> equality
     ([],               Def equality _) -> equality
     _                                  -> __IMPOSSIBLE__
+
+-- | Check whether the type is actually an equality (lhs ≡ rhs)
+--   and extract lhs, rhs, and their type.
+--
+--   Precondition: type is reduced.
+
+equalityView :: Type -> TCM EqualityView
+equalityView t0@(El s t) = do
+  equality <- primEqualityName
+  case ignoreSharing t of
+    Def equality' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
+      | equality' == equality -> return $ EqualityType s equality level typ lhs rhs
+    _ -> return $ OtherType t0
+
+-- | Revert the 'EqualityView'.
+--
+--   Postcondition: type is reduced.
+
+equalityUnview :: EqualityView -> Type
+equalityUnview (OtherType t) = t
+equalityUnview (EqualityType s equality l t lhs rhs) =
+  El s $ Def equality $ map Apply [l, t, lhs, rhs]

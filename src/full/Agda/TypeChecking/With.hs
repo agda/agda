@@ -1,10 +1,11 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.With where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad
 
 import Data.List
@@ -35,7 +36,9 @@ import Agda.TypeChecking.Rules.LHS (isFlexiblePattern)
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null (empty)
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
@@ -75,15 +78,15 @@ splitTelForWith
   -- Input:
   :: Telescope      -- ^ __@Δ@__        context of types and with-arguments.
   -> Type           -- ^ __@Δ ⊢ t@__    type of rhs.
-  -> [Type]         -- ^ __@Δ ⊢ as@__   types of with arguments.
+  -> [EqualityView] -- ^ __@Δ ⊢ as@__   types of with arguments.
   -> [Term]         -- ^ __@Δ ⊢ vs@__   with arguments.
   -- Output:
   -> ( Telescope    -- @Δ₁@       part of context not needed for with arguments and their types.
      , Telescope    -- @Δ₂@       part of context needed for with arguments and their types.
      , Permutation  -- @π@        permutation from Δ to Δ₁Δ₂ as returned by 'splitTelescope'.
      , Type         -- @Δ₁Δ₂ ⊢ t'@ type of rhs under @π@
-     , [Type]       -- @Δ₁ ⊢ as'@ types with with-arguments depending only on @Δ₁@.
-     , [Term]       -- @Δ₁ ⊢ vs'@ with-arguments under @π@.
+     , [EqualityView] -- @Δ₁ ⊢ as'@ types with with- and rewrite-arguments depending only on @Δ₁@.
+     , [Term]       -- @Δ₁ ⊢ vs'@ with- and rewrite-arguments under @π@.
      )              -- ^ (__@Δ₁@__,__@Δ₂@__,__@π@__,__@t'@__,__@as'@__,__@vs'@__) where
 --
 --   [@Δ₁@]        part of context not needed for with arguments and their types.
@@ -122,30 +125,29 @@ splitTelForWith delta t as vs = let
 
 
 -- | Abstract with-expressions @vs@ to generate type for with-helper function.
+--
+-- Each @EqualityType@, coming from a @rewrite@, will turn into 2 abstractions.
 
 withFunctionType
   :: Telescope  -- ^ @Δ₁@                       context for types of with types.
-  -> [Term]     -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with-expressions.
-  -> [Type]     -- ^ @Δ₁ ⊢ as@                  types of with-expressions.
+  -> [Term]     -- ^ @Δ₁,Δ₂ ⊢ vs : raise Δ₂ as@  with and rewrite-expressions.
+  -> [EqualityView] -- ^ @Δ₁ ⊢ as@                  types of with and rewrite-expressions.
   -> Telescope  -- ^ @Δ₁ ⊢ Δ₂@                  context extension to type with-expressions.
   -> Type       -- ^ @Δ₁,Δ₂ ⊢ b@                type of rhs.
-  -> TCM Type   -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
-    -- @[vs/wtel]wtel = as@ and
-    -- @[vs/wtel]Δ₂′ = Δ₂@ and
-    -- @[vs/wtel]b′ = b@.
-
+  -> TCM (Type, [Term])
+    -- ^ @Δ₁ → wtel → Δ₂′ → b′@ such that
+    --     @[vs/wtel]wtel = as@ and
+    --     @[vs/wtel]Δ₂′ = Δ₂@ and
+    --     @[vs/wtel]b′ = b@.
+    -- Plus @Δ₁ ⊢ vsAll@ final with-arguments under @π@.
 withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
-  -- Normalize and η-contract the types @as@ of the with-expressions.
-
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
-  as <- etaContract =<< normalise as
-  reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
 
   -- Normalize and η-contract the type @b@ of the rhs and the types @delta2@
   -- of the pattern variables not mentioned in @as@.
 
-  d2b <- return $ telePi_ delta2 b
+  let d2b = telePi_ delta2 b
   reportSDoc "tc.with.abstract" 30 $ text "normalizing d2b = " <+> prettyTCM d2b
   d2b  <- normalise d2b
   reportSDoc "tc.with.abstract" 30 $ text "eta-contracting d2b = " <+> prettyTCM d2b
@@ -156,15 +158,21 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
   addContext delta2 $ do
 
+    -- Normalize and η-contract the types @as@ of the with-expressions.
+
+    as <- etaContract =<< normalise (raise n2 as)
+    reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
+
     -- Normalize and η-contract the with-expressions @vs@.
 
     vs <- etaContract =<< normalise vs
+    let vsAll = withArguments vs as
     reportSDoc "tc.with.abstract" 20 $ text "  vs = " <+> prettyTCM vs
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $
             [ text "vs     = " <+> prettyTCM vs
-            , text "as     = " <+> escapeContext n2 (prettyTCM as)
+            , text "as     = " <+> prettyTCM as
             , text "delta2 = " <+> escapeContext n2 (prettyTCM delta2)
             , text "b      = " <+> prettyTCM b ]
           ]
@@ -175,8 +183,8 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
     -- Δ₁, Δ₂ ⊢ wtel0
     -- Δ₁, Δ₂, wtel0 ⊢ b0
-    let TelV wtel0 b0 = telView'UpTo (size as) $
-          foldr (uncurry piAbstractTerm) b $ zip vs $ raise n2 as
+    let TelV wtel0 b0 = telView'UpTo (size vsAll) $
+          foldr piAbstract b $ zip vs as
 
     -- We know the types in wtel0 (abstracted versions of @as@) do not depend on Δ₂.
     -- Δ₁ ⊢ wtel
@@ -196,7 +204,7 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
     -- Δ₁, Δ₂ ⊢ Δ₂flat
     let delta2flat = flattenTel delta2
 
-    let abstrvs t = foldl (flip abstractTerm) t $ zipWith raise [0..] vs
+    let abstrvs t = foldl (flip abstractTerm) t $ zipWith raise [0..] vsAll
     -- Δ₁, Δ₂, wtel ⊢ Δ₂abs
     let delta2abs = abstrvs delta2flat
 
@@ -221,7 +229,14 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
       , text "  delta2'     = " <+> do escapeContext n2 $ addContext wtel $ prettyTCM delta2'
       , text "  ty          = " <+> do escapeContext n2 $ escapeContext (size delta1) $ prettyTCM delta2'
       ]
-    return ty
+    return (ty, vsAll)
+
+-- | From a list of @with@ and @rewrite@ expressions and their types,
+--   compute the list of final @with@ expressions (after expanding the @rewrite@s).
+withArguments :: [Term] -> [EqualityView] -> [Term]
+withArguments vs as = concat $ for (zip vs as) $ \case
+  (v, OtherType{}) -> [v]
+  (prf, EqualityType _s _eq _l _t v _v') -> [unArg v, prf]
 
 
 -- | Compute the clauses for the with-function given the original patterns.
@@ -450,6 +465,12 @@ stripWithClausePatterns parent f t qs perm ps = do
          reportSDoc "tc.with.strip" 60 $
            text "parent pattern is constructor " <+> prettyTCM c
          (a, b) <- mustBePi t
+         -- The type of the current pattern is a datatype.
+         Def d es <- ignoreSharing <$> normalise (unEl $ unDom a)
+         let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+         -- Get the original constructor and field names.
+         c <- (`withRangeOf` c) <$> do getConForm $ conName c
+
          case namedArg p of
 
           -- Andreas, 2015-07-07 Issue 1606.
@@ -470,45 +491,16 @@ stripWithClausePatterns parent f t qs perm ps = do
               expandImplicitPattern' (unDom a) p
 
           A.ConP _ (A.AmbQ cs') ps' -> do
-            c <- (`withRangeOf` c) <$> do getConForm $ conName c
+            -- Check whether the with-clause constructor can be (possibly trivially)
+            -- disambiguated to be equal to the parent-clause constructor.
             cs' <- mapM getConForm cs'
             unless (elem c cs') mismatch
+            -- Strip the subpatterns ps' and then continue.
+            stripConP d us b c qs' ps'
 
-            -- The type is a datatype
-            Def d es <- ignoreSharing <$> normalise (unEl $ unDom a)
-            let us = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-
-            -- Compute the argument telescope for the constructor
-            Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
-            let ct' = ct `apply` genericTake np us
-            TelV tel' _ <- telView ct'
-
-            reportSDoc "tc.with.strip" 20 $
-              vcat [ text "ct  = " <+> prettyTCM ct
-                   , text "ct' = " <+> prettyTCM ct'
-                   , text "np  = " <+> text (show np)
-                   , text "us  = " <+> prettyList (map prettyTCM us)
-                   , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
-                   ]
-
-            -- Compute the new type
-            let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
-                t' = tel' `abstract` absApp (raise (size tel') b) v
-                self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
-
-            reportSDoc "tc.with.strip" 15 $ sep
-              [ text "inserting implicit"
-              , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
-              , nest 2 $ text ":" <+> prettyTCM t'
-              ]
-
-            -- Insert implicit patterns (just for the constructor arguments)
-            psi' <- insertImplicitPatterns ExpandLast ps' tel'
-            unless (size psi' == size tel') $ typeError $
-              WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
-
-            -- Keep going
-            strip self' t' (psi' ++ ps) (qs' ++ qs)
+          A.RecP _ fs -> caseMaybeM (isRecord d) mismatch $ \ def -> do
+            ps' <- insertMissingFields d (const $ A.WildP empty) fs (recordFieldNames def)
+            stripConP d us b c qs' ps'
 
           p@(A.PatternSynP pi' c' ps') -> do
              reportSDoc "impossible" 10 $
@@ -538,6 +530,57 @@ stripWithClausePatterns parent f t qs perm ps = do
         -- | Make an ImplicitP, keeping arg. info.
         makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
+
+        -- case I.ConP / A.ConP
+        stripConP
+          :: QName
+             -- ^ Data type name of this constructor pattern.
+          -> [Arg Term]
+             -- ^ Data type arguments of this constructor pattern.
+          -> Abs Type
+             -- ^ Type the remaining patterns eliminate.
+          -> ConHead
+             -- ^ Constructor of this pattern.
+          -> [NamedArg DeBruijnPattern]
+             -- ^ Argument patterns (parent clause).
+          -> [NamedArg A.Pattern]
+             -- ^ Argument patterns (with clause).
+          -> TCM [NamedArg A.Pattern]
+             -- ^ Stripped patterns.
+        stripConP d us b c qs' ps' = do
+
+          -- Get the type and number of parameters of the constructor.
+          Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
+          -- Compute the argument telescope for the constructor
+          let ct' = ct `apply` genericTake np us
+          TelV tel' _ <- telView ct'
+
+          reportSDoc "tc.with.strip" 20 $
+            vcat [ text "ct  = " <+> prettyTCM ct
+                 , text "ct' = " <+> prettyTCM ct'
+                 , text "np  = " <+> text (show np)
+                 , text "us  = " <+> prettyList (map prettyTCM us)
+                 , text "us' = " <+> prettyList (map prettyTCM $ genericTake np us)
+                 ]
+
+          -- Compute the new type
+          let v     = Con c [ Arg info (var i) | (i, Arg info _) <- zip (downFrom $ size qs') qs' ]
+              t' = tel' `abstract` absApp (raise (size tel') b) v
+              self' = tel' `abstract` apply1 (raise (size tel') self) v  -- Issue 1546
+
+          reportSDoc "tc.with.strip" 15 $ sep
+            [ text "inserting implicit"
+            , nest 2 $ prettyList $ map prettyA (ps' ++ ps)
+            , nest 2 $ text ":" <+> prettyTCM t'
+            ]
+
+          -- Insert implicit patterns (just for the constructor arguments)
+          psi' <- insertImplicitPatterns ExpandLast ps' tel'
+          unless (size psi' == size tel') $ typeError $
+            WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
+
+          -- Keep going
+          strip self' t' (psi' ++ ps) (qs' ++ qs)
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.

@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where
 
@@ -26,7 +28,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Info
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primRefl, primEqualityName)
+import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
 import Agda.TypeChecking.Constraints
@@ -316,8 +318,8 @@ data WithFunctionProblem
     , wfParentType :: Type                 -- ^ Type of the parent function.
     , wfBeforeTel  :: Telescope            -- ^ Types of arguments to the with function before the with expressions (needed vars).
     , wfAfterTel   :: Telescope            -- ^ Types of arguments to the with function after the with expressions (unneeded vars).
-    , wfExprs      :: [Term]               -- ^ With expressions.
-    , wfExprTypes  :: [Type]               -- ^ Types of the with expressions.
+    , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
+    , wfExprTypes  :: [EqualityView]       -- ^ Types of the with and rewrite expressions.
     , wfRHSType    :: Type                 -- ^ Type of the right hand side.
     , wfParentPats :: [NamedArg Pattern]   -- ^ Parent patterns.
     , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
@@ -389,7 +391,7 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (ClauseBody, WithFunctionProblem)
 
-checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
   where
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
@@ -433,72 +435,59 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
 
         -- Get value and type of rewrite-expression.
 
-        (proof,t) <- inferExpr eq
-
-        -- Get the names of builtins EQUALITY and REFL.
-
-        equality <- primEqualityName
-        Con reflCon [] <- ignoreSharing <$> primRefl
+        (proof, eqt) <- inferExpr eq
 
         -- Check that the type is actually an equality (lhs ≡ rhs)
         -- and extract lhs, rhs, and their type.
 
-        t' <- reduce =<< instantiateFull t
-        (rewriteType,rewriteFrom,rewriteTo) <- do
-          case ignoreSharing $ unEl t' of
-            Def equality'
-              [ _level
-              , Apply (Arg (ArgInfo Hidden    Relevant) rewriteType)
-              , Apply (Arg (ArgInfo NotHidden Relevant) rewriteFrom)
-              , Apply (Arg (ArgInfo NotHidden Relevant) rewriteTo)
-              ] | equality' == equality ->
-                  return (El (getSort t') rewriteType, rewriteFrom, rewriteTo)
-            _ -> do
-             err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
-             typeError $ GenericDocError err
+        t' <- reduce =<< instantiateFull eqt
+        (eqt,rewriteType,rewriteFrom,rewriteTo) <- equalityView t' >>= \case
+          eqt@(EqualityType s _eq _level dom a b) -> return (eqt, El s (unArg dom), unArg a, unArg b)
+          OtherType{} -> typeError . GenericDocError =<< do
+            text "Cannot rewrite by equation of type" <+> prettyTCM t'
+
+        -- Get the name of builtin REFL.
+
+        Con reflCon [] <- ignoreSharing <$> primRefl
 
         -- Andreas, 2014-05-17  Issue 1110:
-        -- Rewriting with a reflexive equation has no effect, but gives an
+        -- Rewriting with @refl@ has no effect, but gives an
         -- incomprehensible error message about the generated
         -- with clause. Thus, we rather do simply nothing if
-        -- rewriting with @a ≡ a@ is attempted.
+        -- rewriting with @refl@ is attempted.
 
+        let isReflProof = do
+             v <- reduce proof
+             case ignoreSharing v of
+               Con c [] | c == reflCon -> return True
+               _ -> return False
+
+        ifM isReflProof recurse $ {- else -} do
+
+        -- Process 'rewrite' clause like a suitable 'with' clause.
+
+        let reflPat  = A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [conName reflCon]) []
+
+        -- Andreas, 2015-12-25  Issue #1740:
+        -- After the fix of #520, rewriting with a reflexive equation
+        -- has to be desugared as matching against refl.
         let isReflexive = tryConversion $ dontAssignMetas $
              equalTerm rewriteType rewriteFrom rewriteTo
 
-        ifM isReflexive recurse $ {- else -} do
+        (pats, withExpr, withType) <- do
+          ifM isReflexive
+            {-then-} (return ([ reflPat ], proof, OtherType t'))
+            {-else-} (return ([ A.WildP patNoRange, reflPat ], proof, eqt))
 
-          -- Transform 'rewrite' clause into a 'with' clause,
-          -- going back to abstract syntax.
+        let rhs'     = insertPatterns pats rhs
+            (rhs'', outerWhere) -- the where clauses should go on the inner-most with
+              | null qes  = (rhs', wh)
+              | otherwise = (A.RewriteRHS qes rhs' wh, [])
+            -- Andreas, 2014-03-05 kill range of copied patterns
+            -- since they really do not have a source location.
+            cs       = [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats) rhs'' outerWhere False]
 
-          -- Andreas, 2015-02-09 Issue 1421: kill ranges
-          -- as reify puts in ranges that may point to other files.
-          (rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr) <- killRange <$> do
-           disableDisplayForms $ withShowAllArguments $ reify
-             (rewriteFrom,   rewriteTo,    rewriteType    , proof)
-          let (inner, outer) -- the where clauses should go on the inner-most with
-                | null qes  = ([], wh)
-                | otherwise = (wh, [])
-              -- Andreas, 2014-03-05 kill range of copied patterns
-              -- since they really do not have a source location.
-              newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr]
-                       [A.Clause (A.LHS i (A.LHSHead x (killRange aps)) pats)
-                         -- Note: handleRHS (A.RewriteRHS _ eqs _ _)
-                         -- is defined by induction on eqs.
-                         (A.RewriteRHS qes (insertPatterns pats rhs) inner)
-                         outer False]
-              cinfo  = ConPatInfo ConPCon patNoRange
-              pats   = [ A.WildP patNoRange
-                       , A.ConP cinfo (AmbQ [conName reflCon]) []]
-          reportSDoc "tc.rewrite.top" 25 $ vcat
-            [ text "rewrite"
-            , text "  from  = " <+> prettyTCM rewriteFromExpr
-            , text "  to    = " <+> prettyTCM rewriteToExpr
-            , text "  typ   = " <+> prettyTCM rewriteType
-            , text "  proof = " <+> prettyTCM proofExpr
-            , text "  equ   = " <+> prettyTCM t'
-            ]
-          handleRHS newRhs
+        checkWithRHS x qname t lhsResult [withExpr] [withType] cs
 
       -- Case: @with@
       A.WithRHS aux es cs -> do
@@ -516,6 +505,21 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
 
         -- Infer the types of the with expressions
         (vs0, as) <- unzip <$> mapM inferExprForWith es
+
+        checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
+
+checkWithRHS
+  :: QName                   -- ^ Name of function.
+  -> QName                   -- ^ Name of the with-function.
+  -> Type                    -- ^ Type of function.
+  -> LHSResult               -- ^ Result of type-checking patterns
+  -> [Term]                  -- ^ With-expressions.
+  -> [EqualityView]          -- ^ Types of with-expressions.
+  -> [A.Clause]              -- ^ With-clauses to check.
+  -> TCM (ClauseBody, WithFunctionProblem)
+
+checkWithRHS x aux t (LHSResult delta ps trhs perm) vs0 as cs = do
+        let withArgs = withArguments vs0 as
         (vs, as)  <- normalise (vs0, as)
 
         -- Andreas, 2012-09-17: for printing delta,
@@ -559,7 +563,7 @@ checkRHS i x aps t (LHSResult delta ps trhs perm) rhs0 = handleRHS rhs0
             -- Then permute the rest and grab those needed to for the with arguments
             (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
-            v    = Def aux $ map Apply $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
+            v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
             body = mkBody perm v
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
@@ -603,42 +607,15 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- Add the type of the auxiliary function to the signature
 
-  -- With display forms are closed
-  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm' perm
-
-  reportSLn "tc.with.top" 20 "created with display form"
-
   -- Generate the type of the with function
   delta1 <- normalise delta1 -- Issue 1332: checkInternal is picky about argInfo
                              -- but module application is sloppy.
                              -- We normalise to get rid of Def's coming
                              -- from module applications.
-  candidateType <- withFunctionType delta1 vs as delta2 b
+  (candidateType, vsAll) <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
   reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]
 
-{- OLD, going through abstract syntax
-
-  absAuxType <- withShowAllArguments
-                $ disableDisplayForms
-                $ dontReifyInteractionPoints
-                $ reify candidateType
-  reportSDoc "tc.with.type" 15 $
-    vcat [ text "type of with function:"
-         , nest 2 $ prettyTCM absAuxType
-         ]
-  reportSDoc "tc.with.type" 50 $
-    vcat [ text "type of with function:"
-         , nest 2 $ text $ show absAuxType
-         ]
-  -- The ranges in the generated type are completely bogus, so we kill them.
-  auxType <- setCurrentRange cs
-               (traceCall NoHighlighting $  -- To avoid flicker.
-                  isType_ $ killRange absAuxType)
-    `catchError` \err -> case err of
-      TypeError s e -> put s >> enterClosure e (traceCall (CheckWithFunctionType absAuxType) . typeError)
-      _             -> throwError err
--}
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
   absAuxType <- reify candidateType
@@ -652,6 +629,14 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
         enterClosure e $ do
           traceCall (CheckWithFunctionType absAuxType) . typeError
       err           -> throwError err
+
+
+  -- With display forms are closed
+
+  let n        = size vsAll
+  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 n qs perm' perm
+
+  reportSLn "tc.with.top" 20 "created with display form"
 
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
@@ -671,7 +656,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction f aux t qs finalPerm (size delta1) (size as) cs
+  cs <- buildWithFunction f aux t qs finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
@@ -684,7 +669,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 checkWhere
   :: Type            -- ^ Type of rhs.
   -> [A.Declaration] -- ^ Where-declarations to check.
-  -> TCM a           -- ^ Continutation.
+  -> TCM a           -- ^ Continuation.
   -> TCM a
 checkWhere trhs ds ret0 = do
   -- Temporarily add trailing hidden arguments to check where-declarartions.

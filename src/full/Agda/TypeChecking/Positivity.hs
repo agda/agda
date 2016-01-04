@@ -26,6 +26,7 @@ import Debug.Trace
 import Test.QuickCheck
 
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
@@ -58,8 +59,8 @@ type Graph n e = Graph.Graph n n e
 --
 --   Also add information about positivity and recursivity of records
 --   to the signature.
-checkStrictlyPositive :: Set QName -> TCM ()
-checkStrictlyPositive qset = disableDestructiveUpdate $ do
+checkStrictlyPositive :: Info.MutualInfo -> Set QName -> TCM ()
+checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   let qs = Set.toList qset
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
@@ -110,7 +111,10 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
       whenJustM (isDatatype q) $ \ dr -> do
         reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
 
-        let loop      = Graph.lookup (DefNode q) (DefNode q) gstar
+        let loop :: Maybe Occurrence
+            loop = Graph.lookup (DefNode q) (DefNode q) gstar
+
+            how :: String -> (Occurrence -> Bool) -> TCM Doc
             how msg p =
               fsep $ [prettyTCM q] ++ pwords "is" ++
                 case filter (p . occ) $
@@ -134,12 +138,18 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
 
         -- if we have a negative loop, raise error
         whenM positivityCheckEnabled $
-          case loop of
-            Just o | p o -> do
-              err <- how "not strictly positive" p
-              setCurrentRange q $ typeError $ GenericDocError err
-              where p = (<= JustPos)
-            _ -> return ()
+          -- ASR (23 December 2015). We don't raise a strictly
+          -- positive error if the NO_POSITIVITY_CHECK pragma was set
+          -- on in the mutual block. See Issue 1614.
+          if Info.mutualPositivityCheck mi
+            then
+              case loop of
+              Just o | p o -> do
+                err <- how "not strictly positive" p
+                setCurrentRange q $ typeError $ GenericDocError err
+                where p = (<= JustPos)
+              _ -> return ()
+            else return ()
 
         -- if we find an unguarded record, mark it as such
         when (dr == IsRecord) $
@@ -159,17 +169,26 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
                   where p = (== GuardPos)
                 _ -> return ()
 
-    checkInduction q = whenM positivityCheckEnabled $ do
-      -- Check whether the recursive record has been declared as
-      -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-      unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-        setCurrentRange (nameBindingSite $ qnameName q) $
-          typeError . GenericDocError =<<
-            text "Recursive record" <+> prettyTCM q <+>
-            text "needs to be declared as either inductive or coinductive"
+    checkInduction :: QName -> TCM ()
+    checkInduction q =
+      -- ASR (01 January 2016). We don't raise this error if the
+      -- NO_POSITIVITY_CHECK pragma was set on in the record. See
+      -- Issue 1760.
+      if Info.mutualPositivityCheck mi
+        then
+          whenM positivityCheckEnabled $ do
+          -- Check whether the recursive record has been declared as
+          -- 'Inductive' or 'Coinductive'.  Otherwise, error.
+          unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
+            setCurrentRange (nameBindingSite $ qnameName q) $
+              typeError . GenericDocError =<<
+                text "Recursive record" <+> prettyTCM q <+>
+                text "needs to be declared as either inductive or coinductive"
+        else return ()
 
     occ (Edge o _) = o
 
+    isDatatype :: QName -> TCM (Maybe DataOrRecord)
     isDatatype q = do
       def <- theDef <$> getConstInfo q
       return $ case def of
@@ -178,6 +197,7 @@ checkStrictlyPositive qset = disableDestructiveUpdate $ do
         _ -> Nothing
 
     -- Set the mutually recursive identifiers for a SCC.
+    setMut :: [QName] -> TCM ()
     setMut []  = return ()  -- nothing to do
     setMut [q] = return ()  -- no mutual recursion
     setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)

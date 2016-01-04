@@ -1,0 +1,7 @@
+WithClausePatternMismatch.agda:9,1-10,17
+With clause pattern x is not an instance of its parent pattern
+record {}
+when checking that the clause
+test c with Set
+test x y | z = ⊤
+has type (x : ⊤) → P x → Set

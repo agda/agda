@@ -65,6 +65,7 @@ import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
   , fresh , freshName , freshName_ , freshNoName , extendedLambdaName
   , envAbstractMode , AbstractMode(..)
+  , TCM
   )
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Monad.Builtin
@@ -1024,17 +1025,27 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
 instance ToAbstract [C.Declaration] [A.Declaration] where
 #endif
   toAbstract ds = do
-    -- don't allow to switch off termination checker in --safe mode
-    ds <- ifM (optSafe <$> commandLineOptions) (mapM noNoTermCheck ds) (return ds)
+    -- Don't allow to switch off termination checker (Issue 586) or
+    -- positivity checker (Issue 1614) in --safe mode.
+    ds <- ifM (optSafe <$> commandLineOptions)
+              (mapM (noNoTermCheck >=> noNoPositivityCheck) ds)
+              (return ds)
     toAbstract =<< niceDecls ds
    where
-    noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NoTerminationCheck)) =
-      typeError $ SafeFlagNoTerminationCheck
+    -- ASR (31 December 2015). We don't pattern-match on
+    -- @NoTerminationCheck@ because the @NO_TERMINATION_CHECK@ pragma
+    -- was removed. See Issue 1763.
+    noNoTermCheck :: C.Declaration -> TCM C.Declaration
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r NonTerminating)) =
       typeError $ SafeFlagNonTerminating
     noNoTermCheck (C.Pragma (C.TerminationCheckPragma r Terminating)) =
       typeError $ SafeFlagTerminating
     noNoTermCheck d = return d
+
+    noNoPositivityCheck :: C.Declaration -> TCM C.Declaration
+    noNoPositivityCheck (C.Pragma (C.NoPositivityCheckPragma _)) =
+      typeError $ SafeFlagNoPositivityCheck
+    noNoPositivityCheck d = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
@@ -1044,115 +1055,115 @@ instance ToAbstract LetDefs [A.LetBinding] where
     concat <$> (toAbstract =<< map LetDef <$> niceDecls ds)
 
 instance ToAbstract LetDef [A.LetBinding] where
-    toAbstract (LetDef d) =
-        case d of
-            NiceMutual _ _ d@[C.FunSig _ fx _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
-                do  when (abstract == AbstractDef) $ do
-                      genericError $ "abstract not allowed in let expressions"
-                    when (instanc == InstanceDef) $ do
-                      genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
-                    when (macro == MacroDef) $ do
-                      genericError $ "Macros cannot be defined in a let expression."
-                    (x', e) <- letToAbstract cl
-                    t <- toAbstract t
-                    x <- toAbstract (NewName $ mkBoundName x fx)
-                    -- There are sometimes two instances of the
-                    -- let-bound variable, one declaration and one
-                    -- definition. The first list element below is
-                    -- used to highlight the declared instance in the
-                    -- right way (see Issue 1618).
-                    return [ A.LetDeclaredVariable (setRange (getRange x') x)
-                           , A.LetBind (LetRange $ getRange d) info x t e
-                           ]
+  toAbstract (LetDef d) =
+    case d of
+      NiceMutual _ _ _ d@[C.FunSig _ fx _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+          do  when (abstract == AbstractDef) $ do
+                genericError $ "abstract not allowed in let expressions"
+              when (instanc == InstanceDef) $ do
+                genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
+              when (macro == MacroDef) $ do
+                genericError $ "Macros cannot be defined in a let expression."
+              (x', e) <- letToAbstract cl
+              t <- toAbstract t
+              x <- toAbstract (NewName $ mkBoundName x fx)
+              -- There are sometimes two instances of the
+              -- let-bound variable, one declaration and one
+              -- definition. The first list element below is
+              -- used to highlight the declared instance in the
+              -- right way (see Issue 1618).
+              return [ A.LetDeclaredVariable (setRange (getRange x') x)
+                     , A.LetBind (LetRange $ getRange d) info x t e
+                     ]
 
-            -- irrefutable let binding, like  (x , y) = rhs
-            NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere ca) -> do
-              mp  <- setCurrentRange p $
-                       (Right <$> parsePattern p)
-                         `catchError`
-                       (return . Left)
-              case mp of
-                Right p -> do
-                  rhs <- toAbstract rhs
-                  p   <- toAbstract p
-                  checkPatternLinearity [p]
-                  p   <- toAbstract p
-                  return [ A.LetPatBind (LetRange r) p rhs ]
-                -- It's not a record pattern, so it should be a prefix left-hand side
-                Left err ->
-                  case definedName p of
-                    Nothing -> throwError err
-                    Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck
-                      [ C.FunSig r noFixity' PublicAccess NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
-                      , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
-                        [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
-                      ]
-                  where
-                    definedName (C.IdentP (C.QName x)) = Just x
-                    definedName C.IdentP{}             = Nothing
-                    definedName (C.RawAppP _ (p : _))  = definedName p
-                    definedName (C.ParenP _ p)         = definedName p
-                    definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
-                    definedName C.AbsurdP{}            = Nothing
-                    definedName C.AsP{}                = Nothing
-                    definedName C.DotP{}               = Nothing
-                    definedName C.LitP{}               = Nothing
-                    definedName C.RecP{}               = Nothing
-                    definedName C.QuoteP{}             = Nothing
-                    definedName C.HiddenP{}            = __IMPOSSIBLE__
-                    definedName C.InstanceP{}          = __IMPOSSIBLE__
-                    definedName C.RawAppP{}            = __IMPOSSIBLE__
-                    definedName C.AppP{}               = __IMPOSSIBLE__
-                    definedName C.OpAppP{}             = __IMPOSSIBLE__
+      -- irrefutable let binding, like  (x , y) = rhs
+      NiceFunClause r PublicAccess ConcreteDef termCheck catchall d@(C.FunClause lhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere ca) -> do
+        mp  <- setCurrentRange p $
+                 (Right <$> parsePattern p)
+                   `catchError`
+                 (return . Left)
+        case mp of
+          Right p -> do
+            rhs <- toAbstract rhs
+            p   <- toAbstract p
+            checkPatternLinearity [p]
+            p   <- toAbstract p
+            return [ A.LetPatBind (LetRange r) p rhs ]
+          -- It's not a record pattern, so it should be a prefix left-hand side
+          Left err ->
+            case definedName p of
+              Nothing -> throwError err
+              Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck True
+                [ C.FunSig r noFixity' PublicAccess NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
+                  [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
+                ]
+            where
+              definedName (C.IdentP (C.QName x)) = Just x
+              definedName C.IdentP{}             = Nothing
+              definedName (C.RawAppP _ (p : _))  = definedName p
+              definedName (C.ParenP _ p)         = definedName p
+              definedName C.WildP{}              = Nothing   -- for instance let _ + x = x in ... (not allowed)
+              definedName C.AbsurdP{}            = Nothing
+              definedName C.AsP{}                = Nothing
+              definedName C.DotP{}               = Nothing
+              definedName C.LitP{}               = Nothing
+              definedName C.RecP{}               = Nothing
+              definedName C.QuoteP{}             = Nothing
+              definedName C.HiddenP{}            = __IMPOSSIBLE__
+              definedName C.InstanceP{}          = __IMPOSSIBLE__
+              definedName C.RawAppP{}            = __IMPOSSIBLE__
+              definedName C.AppP{}               = __IMPOSSIBLE__
+              definedName C.OpAppP{}             = __IMPOSSIBLE__
 
-            -- You can't open public in a let
-            NiceOpen r x dirs | not (C.publicOpen dirs) -> do
-              m       <- toAbstract (OldModuleName x)
-              openModule_ x dirs
-              let minfo = ModuleInfo
-                    { minfoRange  = r
-                    , minfoAsName = Nothing
-                    , minfoAsTo   = renamingRange dirs
-                    , minfoOpenShort = Nothing
-                    , minfoDirective = Just dirs
-                    }
-              return [A.LetOpen minfo m]
+      -- You can't open public in a let
+      NiceOpen r x dirs | not (C.publicOpen dirs) -> do
+        m       <- toAbstract (OldModuleName x)
+        openModule_ x dirs
+        let minfo = ModuleInfo
+              { minfoRange  = r
+              , minfoAsName = Nothing
+              , minfoAsTo   = renamingRange dirs
+              , minfoOpenShort = Nothing
+              , minfoDirective = Just dirs
+              }
+        return [A.LetOpen minfo m]
 
-            NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
-              -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
-              -- to be private
-              checkModuleMacro LetApply r PrivateAccess x modapp open dir
+      NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
+        -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
+        -- to be private
+        checkModuleMacro LetApply r PrivateAccess x modapp open dir
 
-            _   -> notAValidLetBinding d
-        where
-            letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
+      _   -> notAValidLetBinding d
+    where
+        letToAbstract (C.Clause top catchall clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
 {-
-                p    <- parseLHS top p
-                localToAbstract (snd $ lhsArgs p) $ \args ->
+            p    <- parseLHS top p
+            localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
-                (x, args) <- do
-                  res <- setCurrentRange p $ parseLHS top p
-                  case res of
-                    C.LHSHead x args -> return (x, args)
-                    C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
+            (x, args) <- do
+              res <- setCurrentRange p $ parseLHS top p
+              case res of
+                C.LHSHead x args -> return (x, args)
+                C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
 
-                e <- localToAbstract args $ \args ->
-                    do  rhs <- toAbstract rhs
-                        foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
-                return (x, e)
-            letToAbstract _ = notAValidLetBinding d
+            e <- localToAbstract args $ \args ->
+                do  rhs <- toAbstract rhs
+                    foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
+            return (x, e)
+        letToAbstract _ = notAValidLetBinding d
 
-            -- Named patterns not allowed in let definitions
-            lambda e (Arg info (Named Nothing (A.VarP x))) =
-                    return $ A.Lam i (A.DomainFree info x) e
-                where
-                    i = ExprRange (fuseRange x e)
-            lambda e (Arg info (Named Nothing (A.WildP i))) =
-                do  x <- freshNoName (getRange i)
-                    return $ A.Lam i' (A.DomainFree info x) e
-                where
-                    i' = ExprRange (fuseRange i e)
-            lambda _ _ = notAValidLetBinding d
+        -- Named patterns not allowed in let definitions
+        lambda e (Arg info (Named Nothing (A.VarP x))) =
+                return $ A.Lam i (A.DomainFree info x) e
+            where
+                i = ExprRange (fuseRange x e)
+        lambda e (Arg info (Named Nothing (A.WildP i))) =
+            do  x <- freshNoName (getRange i)
+                return $ A.Lam i' (A.DomainFree info x) e
+            where
+                i' = ExprRange (fuseRange i e)
+        lambda _ _ = notAValidLetBinding d
 
 newtype Blind a = Blind { unBlind :: a }
 
@@ -1216,12 +1227,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
-    NiceMutual r termCheck ds -> do
+    NiceMutual r termCheck pc ds -> do
       ds' <- toAbstract ds
       -- We only termination check blocks that do not have a measure.
-      return [ A.Mutual (MutualInfo termCheck r) ds' ]
+      return [ A.Mutual (MutualInfo termCheck pc r) ds' ]
 
-    C.NiceRecSig r f a x ls t -> do
+    C.NiceRecSig r f a x ls t _ -> do
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1230,7 +1241,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
 
-    C.NiceDataSig r f a x ls t -> withLocalVars $ do
+    C.NiceDataSig r f a x ls t _ -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1257,7 +1268,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r f a x pars cons -> withLocalVars $ do
+    C.DataDef r f a x pars _ cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
         ensureNoLetStms pars
         -- Check for duplicate constructors
@@ -1286,7 +1297,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind eta cm pars fields -> do
+    C.RecDef r f a x ind eta cm pars _ fields -> do
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
@@ -1417,7 +1428,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       bindName p QuotableName x y
       e <- toAbstract e
       rebindName p DefName x y
-      let mi = MutualInfo tc r
+      let mi = MutualInfo tc True r
       return [A.UnquoteDecl mi (mkDefInfoInstance x fx p a i NotMacroDef r) y e]
 
     NiceUnquoteDef r fx p a tc x e -> do
@@ -1493,191 +1504,195 @@ instance ToAbstract ConstrDecl A.Declaration where
         P.nest 2 (pretty (notSoNiceDeclaration d))
 
 instance ToAbstract C.Pragma [A.Pragma] where
-    toAbstract (C.ImpossiblePragma _) = impossibleTest
-    toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-    toAbstract (C.RewritePragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x          -> return [ A.RewritePragma x ]
-        A.Proj x         -> return [ A.RewritePragma x ]
-        A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
-        A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
-        A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
-        _       -> __IMPOSSIBLE__
-    toAbstract (C.CompiledDeclareDataPragma _ x hs) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.CompiledDeclareDataPragma x hs ]
-        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
-    toAbstract (C.CompiledTypePragma _ x hs) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.CompiledTypePragma x hs ]
-        _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
-    toAbstract (C.CompiledDataPragma _ x hs hcs) = do
-      e <- toAbstract $ OldQName x Nothing
-      case e of
-        A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
-        _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
-    toAbstract (C.CompiledPragma _ x hs) = do
+  toAbstract (C.ImpossiblePragma _) = impossibleTest
+  toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+  toAbstract (C.RewritePragma _ x) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x          -> return [ A.RewritePragma x ]
+      A.Proj x         -> return [ A.RewritePragma x ]
+      A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
+      A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
+      A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
+      _       -> __IMPOSSIBLE__
+  toAbstract (C.CompiledDeclareDataPragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.CompiledDeclareDataPragma x hs ]
+      _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+  toAbstract (C.CompiledTypePragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.CompiledTypePragma x hs ]
+      _       -> genericError $ "Bad compiled type: " ++ prettyShow x  -- TODO: error message
+  toAbstract (C.CompiledDataPragma _ x hs hcs) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
+      _       -> genericError $ "Not a datatype: " ++ prettyShow x  -- TODO: error message
+  toAbstract (C.CompiledPragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
+          A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledPragma y hs ]
+  toAbstract (C.CompiledExportPragma _ x hs) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledExportPragma y hs ]
+  toAbstract (C.CompiledEpicPragma _ x ep) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledEpicPragma y ep ]
+  toAbstract (C.CompiledJSPragma _ x ep) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          A.Proj x -> return x
+          A.Con (AmbQ [x]) -> return x
+          A.Con x -> genericError $
+            "COMPILED_JS used on ambiguous name " ++ prettyShow x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledJSPragma y ep ]
+  toAbstract (C.CompiledUHCPragma _ x cr) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledUHCPragma y cr ]
+  toAbstract (C.CompiledDataUHCPragma _ x crd crcs) = do
+    e <- toAbstract $ OldQName x Nothing
+    case e of
+      A.Def x -> return [ A.CompiledDataUHCPragma x crd crcs ]
+      _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+  toAbstract (C.NoSmashingPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
-            A.Def x -> return x
-            A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
-            A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledPragma y hs ]
-    toAbstract (C.CompiledExportPragma _ x hs) = do
+          A.Def  x -> return x
+          A.Proj x -> return x
+          _        -> genericError "Target of NO_SMASHING pragma should be a function"
+      return [ A.NoSmashingPragma y ]
+  toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledExportPragma y hs ]
-    toAbstract (C.CompiledEpicPragma _ x ep) = do
+          A.Def  x -> return x
+          A.Proj x -> return x
+          _        -> genericError "Target of STATIC pragma should be a function"
+      return [ A.StaticPragma y ]
+  toAbstract (C.InlinePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledEpicPragma y ep ]
-    toAbstract (C.CompiledJSPragma _ x ep) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-            A.Def x -> return x
-            A.Proj x -> return x
-            A.Con (AmbQ [x]) -> return x
-            A.Con x -> genericError $
-              "COMPILED_JS used on ambiguous name " ++ prettyShow x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledJSPragma y ep ]
-    toAbstract (C.CompiledUHCPragma _ x cr) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-            A.Def x -> return x
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledUHCPragma y cr ]
-    toAbstract (C.CompiledDataUHCPragma _ x crd crcs) = do
-      e <- toAbstract $ OldQName x Nothing
+          A.Def  x -> return x
+          A.Proj x -> return x
+          _        -> genericError "Target of INLINE pragma should be a function"
+      return [ A.InlinePragma y ]
+  toAbstract (C.BuiltinPragma _ b e) | isUntypedBuiltin b = do
+    bindUntypedBuiltin b =<< toAbstract e
+    return []
+  toAbstract (C.BuiltinPragma _ b e) = do
+    -- Andreas, 2015-02-14
+    -- Some builtins cannot be given a valid Agda type,
+    -- thus, they do not come with accompanying postulate or definition.
+    if b `elem` builtinsNoDef then do
       case e of
-        A.Def x -> return [ A.CompiledDataUHCPragma x crd crcs ]
-        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
-    toAbstract (C.NoSmashingPragma _ x) = do
-        e <- toAbstract $ OldQName x Nothing
-        y <- case e of
-            A.Def  x -> return x
-            A.Proj x -> return x
-            _        -> genericError "Target of NO_SMASHING pragma should be a function"
-        return [ A.NoSmashingPragma y ]
-    toAbstract (C.StaticPragma _ x) = do
-        e <- toAbstract $ OldQName x Nothing
-        y <- case e of
-            A.Def  x -> return x
-            A.Proj x -> return x
-            _        -> genericError "Target of STATIC pragma should be a function"
-        return [ A.StaticPragma y ]
-    toAbstract (C.InlinePragma _ x) = do
-        e <- toAbstract $ OldQName x Nothing
-        y <- case e of
-            A.Def  x -> return x
-            A.Proj x -> return x
-            _        -> genericError "Target of INLINE pragma should be a function"
-        return [ A.InlinePragma y ]
-    toAbstract (C.BuiltinPragma _ b e) | isUntypedBuiltin b = do
-      bindUntypedBuiltin b =<< toAbstract e
-      return []
-    toAbstract (C.BuiltinPragma _ b e) = do
-      -- Andreas, 2015-02-14
-      -- Some builtins cannot be given a valid Agda type,
-      -- thus, they do not come with accompanying postulate or definition.
-      if b `elem` builtinsNoDef then do
-        case e of
-          C.Ident q@(C.QName x) -> do
-            unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
-              "BUILTIN " ++ b ++ " declares an identifier " ++
-              "(no longer expects an already defined identifier)"
-            y <- freshAbstractQName noFixity' x
-            bindName PublicAccess DefName x y
-            return [ A.BuiltinNoDefPragma b y ]
-          _ -> genericError $
-            "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
-            "but found expression " ++ prettyShow e
-      else do
-        e <- toAbstract e
-        return [ A.BuiltinPragma b e ]
-    toAbstract (C.ImportPragma _ i) = do
-      addHaskellImport i
-      return []
-    toAbstract (C.ImportUHCPragma _ i) = do
-      addHaskellImportUHC i
-      return []
-    toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
-      let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
-          getHead (C.IdentP x)          = return x
-          getHead (C.RawAppP _ (p : _)) = getHead p
-          getHead _                     = err
+        C.Ident q@(C.QName x) -> do
+          unlessM ((UnknownName ==) <$> resolveName q) $ genericError $
+            "BUILTIN " ++ b ++ " declares an identifier " ++
+            "(no longer expects an already defined identifier)"
+          y <- freshAbstractQName noFixity' x
+          bindName PublicAccess DefName x y
+          return [ A.BuiltinNoDefPragma b y ]
+        _ -> genericError $
+          "Pragma BUILTIN " ++ b ++ ": expected unqualified identifier, " ++
+          "but found expression " ++ prettyShow e
+    else do
+      e <- toAbstract e
+      return [ A.BuiltinPragma b e ]
+  toAbstract (C.ImportPragma _ i) = do
+    addHaskellImport i
+    return []
+  toAbstract (C.ImportUHCPragma _ i) = do
+    addHaskellImportUHC i
+    return []
+  toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
+    let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
+        getHead (C.IdentP x)          = return x
+        getHead (C.RawAppP _ (p : _)) = getHead p
+        getHead _                     = err
 
-          setHead x (C.IdentP _) = C.IdentP (C.QName x)
-          setHead x (C.RawAppP r (p : ps)) = C.RawAppP r (setHead x p : ps)
-          setHead x _ = __IMPOSSIBLE__
+        setHead x (C.IdentP _) = C.IdentP (C.QName x)
+        setHead x (C.RawAppP r (p : ps)) = C.RawAppP r (setHead x p : ps)
+        setHead x _ = __IMPOSSIBLE__
 
-      hd <- getHead lhs
-      let top  = C.unqualify hd
-          lhs' = setHead top lhs
+    hd <- getHead lhs
+    let top  = C.unqualify hd
+        lhs' = setHead top lhs
 
-      hd <- do
-        qx <- resolveName' allKindsOfNames Nothing hd
-        case qx of
-          VarName x'          -> return $ A.qnameFromList [x']
-          DefinedName _ d     -> return $ anameName d
-          FieldName     d     -> return $ anameName d
-          ConstructorName [d] -> return $ anameName d
-          ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show hd ++ ": " ++ show (map anameName ds)
-          UnknownName         -> notInScope hd
-          PatternSynResName d -> return $ anameName d
+    hd <- do
+      qx <- resolveName' allKindsOfNames Nothing hd
+      case qx of
+        VarName x'          -> return $ A.qnameFromList [x']
+        DefinedName _ d     -> return $ anameName d
+        FieldName     d     -> return $ anameName d
+        ConstructorName [d] -> return $ anameName d
+        ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show hd ++ ": " ++ show (map anameName ds)
+        UnknownName         -> notInScope hd
+        PatternSynResName d -> return $ anameName d
 
-      lhs <- toAbstract $ LeftHandSide top lhs' []
-      (f, ps) <-
-        case lhs of
-          A.LHS _ (A.LHSHead _ ps) [] -> return (hd, ps)
-          _ -> err
-      rhs <- toAbstract rhs
-      return [A.DisplayPragma f ps rhs]
+    lhs <- toAbstract $ LeftHandSide top lhs' []
+    (f, ps) <-
+      case lhs of
+        A.LHS _ (A.LHSHead _ ps) [] -> return (hd, ps)
+        _ -> err
+    rhs <- toAbstract rhs
+    return [A.DisplayPragma f ps rhs]
 
-    -- Termination checking pragmes are handled by the nicifier
-    toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
-    toAbstract C.CatchallPragma{}         = __IMPOSSIBLE__
+  -- Termination checking pragmes are handled by the nicifier
+  toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
+
+  toAbstract C.CatchallPragma{}         = __IMPOSSIBLE__
+
+  -- No positivity checking pragmas are handled by the nicifier.
+  toAbstract C.NoPositivityCheckPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message
-    toAbstract (C.Clause top catchall lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
-      -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
-      vars <- getLocalVars
-      let wcs' = for wcs $ \ c -> setLocalVars vars $> c
-      lhs' <- toAbstract $ LeftHandSide top p wps
-      printLocals 10 "after lhs:"
-      let (whname, whds) = case wh of
-            NoWhere        -> (Nothing, [])
-            AnyWhere ds    -> (Nothing, ds)
-            SomeWhere m ds -> (Just m, ds)
+  toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message
+  toAbstract (C.Clause top catchall lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
+    -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
+    vars <- getLocalVars
+    let wcs' = for wcs $ \ c -> setLocalVars vars $> c
+    lhs' <- toAbstract $ LeftHandSide top p wps
+    printLocals 10 "after lhs:"
+    let (whname, whds) = case wh of
+          NoWhere        -> (Nothing, [])
+          AnyWhere ds    -> (Nothing, ds)
+          SomeWhere m ds -> (Just m, ds)
 
-      let isTerminationPragma :: C.Declaration -> Bool
-          isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
-          isTerminationPragma _                                       = False
+    let isTerminationPragma :: C.Declaration -> Bool
+        isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
+        isTerminationPragma _                                       = False
 
-      if not (null eqs)
-        then do
-          rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
-          return $ A.Clause lhs' rhs [] catchall
-        else do
-          -- ASR (16 November 2015) Issue 1137: We ban termination
-          -- pragmas inside `where` clause.
-          when (any isTerminationPragma whds) $
-               genericError "Termination pragmas are not allowed inside where clauses"
+    if not (null eqs)
+      then do
+        rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
+        return $ A.Clause lhs' rhs [] catchall
+      else do
+        -- ASR (16 November 2015) Issue 1137: We ban termination
+        -- pragmas inside `where` clause.
+        when (any isTerminationPragma whds) $
+             genericError "Termination pragmas are not allowed inside where clauses"
 
-          -- the right hand side is checked inside the module of the local definitions
-          (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
-                        toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
-          rhs <- toAbstract rhs
-          return $ A.Clause lhs' rhs ds catchall
+        -- the right hand side is checked inside the module of the local definitions
+        (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
+                      toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
+        rhs <- toAbstract rhs
+        return $ A.Clause lhs' rhs ds catchall
 
 whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
 whereToAbstract _ _      []   inner = (,[]) <$> inner

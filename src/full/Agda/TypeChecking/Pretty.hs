@@ -9,6 +9,8 @@ module Agda.TypeChecking.Pretty where
 import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
+import Control.Monad
+
 import qualified Data.Map as Map
 import Data.Maybe
 
@@ -21,9 +23,11 @@ import Agda.Syntax.Translation.AbstractToConcrete
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as AP
+import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
 
@@ -197,6 +201,9 @@ instance PrettyTCM Elim where
 instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
   prettyTCM = prettyTCM . ignoreReduced
 
+instance PrettyTCM EqualityView where
+  prettyTCM v = prettyTCM $ equalityUnview v
+
 instance PrettyTCM A.Expr where
   prettyTCM = prettyA
 
@@ -354,8 +361,16 @@ showPat' showVar = showPat
       showPat (ConP c i ps) = (if b then braces else parens) $ prTy $
         prettyTCM c <+> fsep (map (showPat . namedArg) ps)
         where
-        b = maybe False (== ConPImplicit) $ conPRecord i
-        prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t
+        b = maybe False (/= ConPCon) $ conPRecord i
+        showRec :: TCM Doc
+        showRec = sep
+          [ text "record"
+          , bracesAndSemicolons <$> zipWithM showField (conFields c) ps
+          ]
+        showField x p =
+          sep [ prettyTCM (A.qnameName x) <+> text "=" , nest 2 $ showPat $ namedArg p ]
+        showCon = parens $ prTy $ prettyTCM c <+> fsep (map (showPat . namedArg) ps)
+        prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t
       showPat (LitP l)      = text (show l)
       showPat (ProjP q)     = text (show q)
 

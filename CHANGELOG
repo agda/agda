@@ -1,4 +1,69 @@
 ------------------------------------------------------------------------
+-- Release notes for Agda version 2.4.2.6
+------------------------------------------------------------------------
+
+Important changes since 2.4.2.5:
+
+Pragmas and options
+===================
+
+* New NO_POSITIVITY_CHECK pragma to switch off the positivity checker
+  for data/record definitions and mutual blocks.
+
+  The pragma must precede a data/record definition or a mutual block.
+
+  The pragma cannot be used in --safe mode.
+
+  Examples (see Issue1614*.agda and Issue1760*.agda in test/Succeed/):
+
+  1. Skipping a single data definition.
+
+       {-# NO_POSITIVITY_CHECK #-}
+       data D : Set where
+         lam : (D → D) → D
+
+  2. Skipping a single record definition.
+
+       {-# NO_POSITIVITY_CHECK #-}
+       record U : Set where
+         field ap : U → U
+
+  3. Skipping an old-style mutual block: Somewhere within a `mutual`
+     block before a data/record definition.
+
+       mutual
+         data D : Set where
+           lam : (D → D) → D
+
+         {-# NO_POSITIVITY_CHECK #-}
+         record U : Set where
+           field ap : U → U
+
+  4. Skipping an old-style mutual block: Before the `mutual` keyword.
+
+       {-# NO_POSITIVITY_CHECK #-}
+       mutual
+         data D : Set where
+           lam : (D → D) → D
+
+         record U : Set where
+             field ap : U → U
+
+  5. Skipping a new-style mutual block: Anywhere before the declaration
+     and the definition of a data/record in the block.
+
+     record U : Set
+     {-# NO_POSITIVITY_CHECK #-}
+     data D   : Set
+
+     record U where
+       field ap : U → U
+
+     {-# NO_POSITIVITY_CHECK #-}
+     data D where
+       lam : (D → D) → D
+
+------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5
 ------------------------------------------------------------------------
 
@@ -58,10 +123,49 @@ Type checking
   your Agda developments using `with` or `rewrite` might need
   maintenance.
 
+* When using `rewrite` on a term `eq` of type `lhs ≡ rhs`, the `lhs`
+  is no longer abstracted in `rhs` [Issue 520].  This means that
+
+    f pats rewrite eq = body
+
+  is more than syntactic sugar for
+
+    f pats with lhs | eq
+    f pats | _ | refl = body
+
+  In particular, the following application of `rewrite` is now
+  possible
+
+    id : Bool → Bool
+    id true  = true
+    id false = false
+
+    is-id : ∀ x → x ≡ id x
+    is-id true  = refl
+    is-id false = refl
+
+    postulate
+      P : Bool → Set
+      b : Bool
+      p : P (id b)
+
+    proof : P b
+    proof rewrite is-id b = p
+
+  Previously, this was desugared to
+
+    proof with b | is-id b
+    proof | _ | refl = p
+
+  which did not type check as `refl` does not have type `b ≡ id b`.
+  Now, Agda gets the task of checking `refl : _ ≡ id b` leading to
+  instantiation of `_` to `id b`.
+
 Fixed issues
 ============
 
 See https://github.com/agda/agda/issues
+* 520
 * 1407
 * 1518
 * 1670
@@ -70,6 +174,7 @@ See https://github.com/agda/agda/issues
 * 1701
 * 1710
 * 1718
+* 1740
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.4
@@ -2160,7 +2265,7 @@ LaTeX-backend
 
 * The LaTeX-backend has been made more tool agnostic, in particular
   XeLaTeX and LuaLaTeX should now work. Here is a small example
-  (test/latex-backend/succeed/UnicodeInput.lagda):
+  (test/LaTeXAndHTML/succeed/UnicodeInput.lagda):
 
     \documentclass{article}
     \usepackage{agda}
@@ -2199,7 +2304,7 @@ LaTeX-backend
   provides a function called \AgdaTarget. Identifiers which have been
   declared targets, by the user, will become clickable hyperlinks in the
   rest of the document. Here is a small example
-  (test/latex-backend/succeed/Links.lagda):
+  (test/LaTeXAndHTML/succeed/Links.lagda):
 
     \documentclass{article}
     \usepackage{hyperref}
@@ -2356,7 +2461,7 @@ Pragmas and options
   for individual function definitions and mutual blocks.
 
   The pragma must precede a function definition or a mutual block.
-  Examples (see test/succeed/NoTerminationCheck.agda):
+  Examples (see test/Succeed/NoTerminationCheck.agda):
 
   1. Skipping a single definition: before type signature.
 
@@ -2628,7 +2733,7 @@ Type checking
       f pattern2 = rhs2
 
   This might no longer work from now on.
-  See examples test/fail/Issue585*.agda
+  See examples test/Fail/Issue585*.agda
 
 * Less eager introduction of implicit parameters.  [Issue 679]
 
@@ -2745,7 +2850,7 @@ Type checking
     test : (b : Bool) → (x y : True b) → fun b x ≡ fun b y
     test b x y = refl
 
-  More examples in test/succeed/NonvariantPolarity.agda.
+  More examples in test/Succeed/NonvariantPolarity.agda.
 
   Phantom arguments:  Parameters of record and data types are considered
   `used' even if they are not actually used.  Consider:
@@ -2783,7 +2888,7 @@ Type checking
   Unfortunately, polarity analysis of `bla' happens only after type
   checking, thus, the information that `bla' is non-variant in `p' is
   not available yet when meta-variables are solved.
-  (See test/fail/BrokenInferenceDueToNonvariantPolarity.agda)
+  (See test/Fail/BrokenInferenceDueToNonvariantPolarity.agda)
 
 * Agda now expands simple definitions (one clause, terminating)
   to check whether a function is constructor headed. [Issue 747]
@@ -4412,7 +4517,7 @@ Language
     Agda with excluded middle is inconsistent
     http://thread.gmane.org/gmane.comp.lang.agda/1367
 
-  See test/succeed/InjectiveTypeConstructors.agda for an example.
+  See test/Succeed/InjectiveTypeConstructors.agda for an example.
 
 * Termination checker can count.
 
@@ -4928,7 +5033,7 @@ Language
   rewrite and then do pattern matching you can use a with after the
   rewrite.
 
-  See test/succeed/Rewrite.agda for some examples.
+  See test/Succeed/Rewrite.agda for some examples.
 
 * A new primitive, primTrustMe, has been added:
 

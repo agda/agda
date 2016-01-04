@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE LambdaCase    #-}
 {-# LANGUAGE TupleSections #-}
 
 #if __GLASGOW_HASKELL__ >= 710
@@ -153,7 +153,7 @@ checkDecl d = setCurrentRange d $ do
         impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
-    let mi = Info.MutualInfo TerminationCheck noRange
+    let mi = Info.MutualInfo TerminationCheck True noRange
 
     finalChecks <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
@@ -224,13 +224,13 @@ checkDecl d = setCurrentRange d $ do
 -- block (or non-mutual record declaration). The set names
 -- contains the names defined in the mutual block.
 mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> Set QName -> TCM ()
-mutualChecks i d ds names = do
+mutualChecks mi d ds names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
   mapM_ instantiateDefinitionType $ Set.toList names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
   checkTermination_        d
-  checkPositivity_         names
+  checkPositivity_         mi names
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
   -- actual problem, and prevents interesting sound applications
@@ -371,11 +371,11 @@ checkTermination_ d = Bench.billTo [Bench.Termination] $ do
           typeError $ TerminationCheckFailed termErrs
 
 -- | Check a set of mutual names for positivity.
-checkPositivity_ :: Set QName -> TCM ()
-checkPositivity_ names = Bench.billTo [Bench.Positivity] $ do
+checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()
+checkPositivity_ mi names = Bench.billTo [Bench.Positivity] $ do
   -- Positivity checking.
   reportSLn "tc.decl" 20 $ "checkDecl: checking positivity..."
-  checkStrictlyPositive names
+  checkStrictlyPositive mi names
 
   -- Andreas, 2012-02-13: Polarity computation uses info from
   -- positivity check, so it needs happen after positivity

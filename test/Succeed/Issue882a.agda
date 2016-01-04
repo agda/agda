@@ -38,8 +38,8 @@ postulate
   n : B
 
 iso1 : inn ≡ inn
-iso1 rewrite refl {x = n} = {!!}
--- iso1 rewrite (refl {a = lzero}{A = B}{x = n}) = {!!}
+iso1 rewrite refl {x = n} = refl
+-- iso1 rewrite (refl {a = lzero}{A = B}{x = n}) = refl
 
 {- Error
 
@@ -61,8 +61,9 @@ B →
 unfold (λ m → _.mko m (m b) w) ≡ unfold (λ m → _.mko m (m b) w)
 of the generated with function is well-formed
 
-NOW (2014-05-17):
+NEVER (2014-05-17):
 Rewriting with refl is a no-op, so no error is triggered any more.
 Just an unresolved meta now.
--}
 
+NOW (2015-12-25): filled rhs, so now should succeed.
+-}
