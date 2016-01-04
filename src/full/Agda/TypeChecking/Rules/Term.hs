@@ -1434,6 +1434,12 @@ checkArguments exh expandIFS r args0@(arg@(Arg info e) : args) t0 t1 =
                 addCheckedArgs us (Arg info' u) $
                   checkArguments exh expandIFS (fuseRange r e) args (absApp b u) t1
             | otherwise -> do
+                reportSDoc "error" 10 $ nest 2 $ vcat
+                  [ text $ "info      = " ++ show info
+                  , text $ "info'     = " ++ show info'
+                  , text $ "absName b = " ++ show (absName b)
+                  , text $ "nameOf e  = " ++ show (nameOf e)
+                  ]
                 wrongPi
           _ -> shouldBePi
   where
