@@ -41,7 +41,7 @@ open import Issue854.RunCompat
 ⟦ m ⟧^con p k = sup (sh m p) (k ∘ ar m p)
 
 ⟦_⟧^op : ∀ {Σ P A} → (P , A) ∈ Σ → (⟦ P ⟧^VType → Σ ⋆^S ⟦ A ⟧^VType)
-⟦ m ⟧^op s = do (sh m s , M.return ∘ ar m s)
+⟦ m ⟧^op s = do (sh m s , (M.return ∘ ar m s))
   where
   module M = RawMonad rawMonad
 

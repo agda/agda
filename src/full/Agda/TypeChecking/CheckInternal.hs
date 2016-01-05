@@ -252,7 +252,13 @@ inferDef' f a es = do
 --   (target of elimination).
 inferSpine :: Type -> Term -> Elims -> TCM Type
 inferSpine t self [] = return t
-inferSpine t self (e : es) =
+inferSpine t self (e : es) = do
+  reportSDoc "tc.infer.internal" 30 $ sep
+    [ text "inferSpine: "
+    , text "type t = " <+> prettyTCM t
+    , text "self = " <+> prettyTCM self
+    , text "eliminated by e = " <+> prettyTCM e
+    ]
   case e of
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t

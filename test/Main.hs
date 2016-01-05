@@ -10,6 +10,7 @@ import qualified Compiler.Tests as COMP
 import qualified Succeed.Tests as SUCCEED
 import qualified Fail.Tests as FAIL
 import qualified LaTeXAndHTML.Tests as LATEXHTML
+import qualified LibSucceed.Tests as LIBSUCCEED
 
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
@@ -44,7 +45,12 @@ main = do
 tests :: IO TestTree
 tests =
   testGroup "all" <$>
-    sequence [COMP.tests, LATEXHTML.tests, FAIL.tests, SUCCEED.tests]
+    sequence [ COMP.tests
+             , LATEXHTML.tests
+             , FAIL.tests
+             , SUCCEED.tests
+             , LIBSUCCEED.tests
+             ]
 
 disabledTests :: [RegexFilter]
 disabledTests = COMP.disabledTests
