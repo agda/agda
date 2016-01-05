@@ -24,6 +24,10 @@ import System.Process (callProcess, proc, readCreateProcess, CreateProcess (..))
 import System.Process (callProcess, proc, createProcess, waitForProcess, CreateProcess (..))
 #endif
 
+#if __GLASGOW_HASKELL__ <= 706
+import Control.Monad ( void )
+#endif
+
 import Data.Functor
 import Data.Maybe
 import System.Directory
