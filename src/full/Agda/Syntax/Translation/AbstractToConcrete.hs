@@ -806,23 +806,13 @@ instance ToConcrete RangeAndPragma C.Pragma where
 
 -- Left hand sides --------------------------------------------------------
 
-noImplicitArgs :: A.Patterns -> A.Patterns
-noImplicitArgs = filter (noImplicit . namedArg)
-
-noImplicitPats :: [A.Pattern] -> [A.Pattern]
-noImplicitPats = filter noImplicit
-
-noImplicit :: A.Pattern -> Bool
-noImplicit (A.WildP _) = False
-noImplicit _           = True
-
 instance ToConcrete A.SpineLHS C.LHS where
   bindToConcrete lhs = bindToConcrete (A.spineToLhs lhs :: A.LHS)
 
 instance ToConcrete A.LHS C.LHS where
     bindToConcrete (A.LHS i lhscore wps) ret = do
       bindToConcreteCtx TopCtx lhscore $ \lhs ->
-        bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
+        bindToConcreteCtx TopCtx wps $ \wps ->
           ret $ C.LHS lhs wps [] []
 
 instance ToConcrete A.LHSCore C.Pattern where
@@ -842,13 +832,13 @@ instance ToConcrete A.Pattern C.Pattern where
       tryToRecoverOpAppP p $
         bracketP_ (appBrackets' args) $ do
             x <- toConcrete x
-            args <- toConcreteCtx ArgumentCtx (noImplicitArgs args)
+            args <- toConcreteCtx ArgumentCtx args
             return $ foldl AppP (C.IdentP x) args
     toConcrete p@(DefP i x args) =
       tryToRecoverOpAppP p $
         bracketP_ (appBrackets' args) $ do
             x <- toConcrete x
-            args <- toConcreteCtx ArgumentCtx (noImplicitArgs args)
+            args <- toConcreteCtx ArgumentCtx args
             return $ foldl AppP (C.IdentP x) args
     toConcrete (A.AsP i x p)   = do
       (x, p) <- toConcreteCtx ArgumentCtx (x,p)
