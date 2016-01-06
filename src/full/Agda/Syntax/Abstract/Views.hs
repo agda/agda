@@ -57,7 +57,10 @@ unScope (ScopedExpr scope e) = unScope e
 unScope e                    = e
 
 -- | Remove 'ScopedExpr' wrappers everywhere.
-deepUnScope :: Expr -> Expr
+--
+--   NB: Unless the implementation of 'ExprLike' for clauses
+--   has been finished, this does not work for clauses yet.
+deepUnScope :: ExprLike a => a -> a
 deepUnScope = mapExpr unScope
 
 -- * Traversal

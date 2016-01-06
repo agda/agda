@@ -6,8 +6,8 @@ data P : ⊤ → Set where
   c : P record{}
 
 test : (x : ⊤) (p : P x) → Set
-test _ c with Set
-test x y | z = ⊤
+test _ c with ⊤
+test _ y | z = ⊤
 
 -- Expected error: with-clause pattern mismatch.
 -- The error should be printed nicely, like:
