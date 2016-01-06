@@ -1,4 +1,4 @@
 Issue1025.agda:15,10-14
-Cannot eliminate reflexive equation myPoint = myPoint of type
-mySpace because K has been disabled.
+Cannot apply injectivity to the equation foo = foo of type Foo refl
+because I cannot generalize over the indices [refl]
 when checking that the pattern refl has type foo ≡ foo

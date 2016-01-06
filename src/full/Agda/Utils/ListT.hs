@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}  -- Due to limitations of funct.dep.
 
@@ -99,6 +100,11 @@ mapMListT_alt :: ( Monad m
                  ) => (a -> m b) -> ListT m a -> ListT m b
 mapMListT_alt f = runMListT . foldListT cons (return nilListT)
   where cons a ml = consMListT (f a) <$> ml
+
+-- | Change from one monad to another
+liftListT :: (Monad m, Monad m') => (forall a. m a -> m' a) -> ListT m a -> ListT m' a
+liftListT lift xs = runMListT $ caseMaybeM (lift $ runListT xs) (return nilListT) $
+    \(x,xs) -> return $ consListT x $ liftListT lift xs
 
 -- Instances
 

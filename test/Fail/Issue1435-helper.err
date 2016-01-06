@@ -1,0 +1,3 @@
+Issue1435-helper.agda:28,29-33
+A != B of type Set
+when checking that the pattern refl has type c₁ A ≅ c₁ B

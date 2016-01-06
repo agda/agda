@@ -1,0 +1,4 @@
+NewUnifierTooRestrictive.agda:18,6-10
+Cannot apply injectivity to the equation foo = foo of type Foo bar
+because I cannot generalize over the indices [bar]
+when checking that the pattern refl has type foo ≡ foo

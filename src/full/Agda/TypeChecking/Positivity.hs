@@ -137,19 +137,18 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
                   -- uninformative clause.
 
         -- if we have a negative loop, raise error
-        whenM positivityCheckEnabled $
-          -- ASR (23 December 2015). We don't raise a strictly
-          -- positive error if the NO_POSITIVITY_CHECK pragma was set
-          -- on in the mutual block. See Issue 1614.
-          if Info.mutualPositivityCheck mi
-            then
-              case loop of
-              Just o | p o -> do
-                err <- how "not strictly positive" p
-                setCurrentRange q $ typeError $ GenericDocError err
-                where p = (<= JustPos)
-              _ -> return ()
-            else return ()
+
+        -- ASR (23 December 2015). We don't raise a strictly positive
+        -- error if the NO_POSITIVITY_CHECK pragma was set on in the
+        -- mutual block. See Issue 1614.
+        when (Info.mutualPositivityCheck mi) $
+          whenM positivityCheckEnabled $
+            case loop of
+            Just o | p o -> do
+              err <- how "not strictly positive" p
+              setCurrentRange q $ typeError $ GenericDocError err
+              where p = (<= JustPos)
+            _ -> return ()
 
         -- if we find an unguarded record, mark it as such
         when (dr == IsRecord) $
@@ -174,17 +173,15 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
       -- ASR (01 January 2016). We don't raise this error if the
       -- NO_POSITIVITY_CHECK pragma was set on in the record. See
       -- Issue 1760.
-      if Info.mutualPositivityCheck mi
-        then
-          whenM positivityCheckEnabled $ do
-          -- Check whether the recursive record has been declared as
-          -- 'Inductive' or 'Coinductive'.  Otherwise, error.
-          unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
-            setCurrentRange (nameBindingSite $ qnameName q) $
-              typeError . GenericDocError =<<
-                text "Recursive record" <+> prettyTCM q <+>
-                text "needs to be declared as either inductive or coinductive"
-        else return ()
+      when (Info.mutualPositivityCheck mi) $
+        whenM positivityCheckEnabled $ do
+        -- Check whether the recursive record has been declared as
+        -- 'Inductive' or 'Coinductive'.  Otherwise, error.
+        unlessM (isJust . recInduction . theDef <$> getConstInfo q) $
+          setCurrentRange (nameBindingSite $ qnameName q) $
+            typeError . GenericDocError =<<
+              text "Recursive record" <+> prettyTCM q <+>
+              text "needs to be declared as either inductive or coinductive"
 
     occ (Edge o _) = o
 

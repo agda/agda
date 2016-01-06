@@ -1,3 +1,5 @@
 Issue280.agda:8,19-26
-Recursive telescope in left hand side: (M : M c → Set) (c : M c)
+Cannot solve variable C of type Set with solution M c because the
+variable occurs in the solution, or in the type one of the
+variables in the solution
 when checking that the pattern model c has type PreModel C M C

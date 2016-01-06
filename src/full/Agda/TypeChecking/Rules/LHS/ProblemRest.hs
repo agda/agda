@@ -11,6 +11,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute.Pattern
 
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
@@ -59,7 +60,7 @@ noProblemRest (Problem _ _ _ (ProblemRest ps _)) = null ps
 --   with patterns @just a, just b@ would be:
 --   @
 --      problemInPat  = ["_", "just a"]
---      problemOutPat = [identity-permutation, ["A", "m"]]
+--      problemOutPat = ["A", "m"]
 --      problemTel    = [A : Set, m : Maybe A]
 --      problemRest   =
 --        restPats    = ["just b"]
@@ -86,10 +87,10 @@ problemFromPats ps a = do
       pr        = ProblemRest ps2 $ defaultArg b
 
       -- internal patterns start as all variables
-  let ips = map (argFromDom . fmap (namedVarP . fst)) as
+  let ips = teleNamedArgs gamma
 
       -- the initial problem for starting the splitting
-  let problem  = Problem ps1 (idP $ size ps1, ips) gamma pr :: Problem
+      problem  = Problem ps1 ips gamma pr :: Problem
   reportSDoc "tc.lhs.problem" 10 $
     vcat [ text "checking lhs -- generated an initial split problem:"
          , nest 2 $ vcat
@@ -108,7 +109,7 @@ problemFromPats ps a = do
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
-updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps a)) = do
+updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       ps <- insertImplicitPatternsT DontExpandLast ps $ unArg a
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpTo (length ps) $ unArg a
@@ -117,9 +118,8 @@ updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest p
           (ps1,ps2) = splitAt (size as) ps
           tel1      = telFromList $ telToList tel0 ++ as
           pr        = ProblemRest ps2 (a $> b)
-          qs1       = map (argFromDom . fmap (namedVarP . fst)) as
+          qs1       = teleNamedArgs gamma
           n         = size as
-          perm1     = liftP n perm0 -- IS: Perm (n0 + n) $ is0 ++ [n0..n0+n-1]
       reportSDoc "tc.lhs.problem" 10 $ addCtxTel tel0 $ vcat
         [ text "checking lhs -- updated split problem:"
         , nest 2 $ vcat
@@ -132,7 +132,7 @@ updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest p
           , text "b     =" <+> addCtxTel gamma (prettyTCM b)
           ]
         ]
-      return $ (n,) $ Problem (ps0 ++ ps1) (perm1, raise n qs0 ++ qs1) tel1 pr
+      return $ (n,) $ Problem (ps0 ++ ps1) (applySubst (raiseS n) qs0 ++ qs1) tel1 pr
 
 updateProblemRest :: LHSState -> TCM LHSState
 updateProblemRest st@LHSState { lhsProblem = p } = do
@@ -142,6 +142,6 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
     return $ LHSState
       { lhsProblem = p'
       , lhsSubst   = applySubst tau (lhsSubst st)
-      , lhsDPI     = applySubst tau (lhsDPI st)
-      , lhsAsB     = applySubst tau (lhsAsB st)
+      , lhsDPI     = applyPatSubst tau (lhsDPI st)
+      , lhsAsB     = applyPatSubst tau (lhsAsB st)
       }

@@ -1,0 +1,3 @@
+Failed to solve the following constraints:
+  [0] Is empty: c₂ A ≅ c₁ .B
+      [ at Issue1435-helper-absurd.agda:26,29-31 ]

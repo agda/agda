@@ -10,6 +10,8 @@ module Agda.TypeChecking.Rules.LHS.Problem where
 import Prelude hiding (null)
 
 import Data.Foldable ( Foldable )
+import Data.Maybe ( fromMaybe )
+import Data.Monoid (Monoid, mempty, mappend, mconcat)
 import Data.Traversable
 
 import Agda.Syntax.Common
@@ -19,7 +21,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Substitute as S
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Null
@@ -37,7 +40,7 @@ data FlexibleVarKind
       --   Saves the 'FlexibleVarKind' of its subpatterns.
   | ImplicitFlex -- ^ From a hidden formal argument or underscore ('WildP').
   | DotFlex      -- ^ From a dot pattern ('DotP').
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 -- | Flexible variables are equipped with information where they come from,
 --   in order to make a choice which one to assign when two flexibles are unified.
@@ -57,15 +60,60 @@ defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex a
 flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
 flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
 
-instance Ord (FlexibleVar Nat) where
-  (FlexibleVar h2 f2 i2) <= (FlexibleVar h1 f1 i1) =
-    f1 > f2 || (f1 == f2 && (hgt h1 h2 || (h1 == h2 && i1 <= i2)))
-    where
-      hgt x y | x == y = False
-      hgt Hidden _ = True
-      hgt _ Hidden = False
-      hgt Instance _ = True
-      hgt _ _ = False
+data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
+  deriving (Eq, Show)
+
+instance Monoid FlexChoice where
+  mempty = ChooseEither
+
+  ExpandBoth   `mappend` _            = ExpandBoth
+  _            `mappend` ExpandBoth   = ExpandBoth
+  ChooseEither `mappend` y            = y
+  x            `mappend` ChooseEither = x
+  ChooseLeft   `mappend` ChooseRight  = ExpandBoth -- If there's dot patterns on both sides,
+  ChooseRight  `mappend` ChooseLeft   = ExpandBoth -- we need to eta-expand
+  ChooseLeft   `mappend` ChooseLeft   = ChooseLeft
+  ChooseRight  `mappend` ChooseRight  = ChooseRight
+
+class ChooseFlex a where
+  chooseFlex :: a -> a -> FlexChoice
+
+instance ChooseFlex FlexibleVarKind where
+  chooseFlex DotFlex         DotFlex         = ChooseEither
+  chooseFlex DotFlex         _               = ChooseLeft
+  chooseFlex _               DotFlex         = ChooseRight
+  chooseFlex (RecordFlex xs) (RecordFlex ys) = chooseFlex xs ys
+  chooseFlex (RecordFlex xs) y               = chooseFlex xs (repeat y)
+  chooseFlex x               (RecordFlex ys) = chooseFlex (repeat x) ys
+  chooseFlex ImplicitFlex    ImplicitFlex    = ChooseEither
+
+instance ChooseFlex a => ChooseFlex [a] where
+  chooseFlex xs ys = mconcat $ zipWith chooseFlex xs ys
+
+instance ChooseFlex Hiding where
+  chooseFlex Hidden   Hidden   = ChooseEither
+  chooseFlex Hidden   _        = ChooseLeft
+  chooseFlex _        Hidden   = ChooseRight
+  chooseFlex Instance Instance = ChooseEither
+  chooseFlex Instance _        = ChooseLeft
+  chooseFlex _        Instance = ChooseRight
+  chooseFlex _        _        = ChooseEither
+
+instance ChooseFlex Int where
+  chooseFlex x y = case compare x y of
+    LT -> ChooseLeft
+    EQ -> ChooseEither
+    GT -> ChooseRight
+
+instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
+  chooseFlex (FlexibleVar h1 f1 i1) (FlexibleVar h2 f2 i2) =
+    firstChoice [chooseFlex f1 f2, chooseFlex h1 h2, chooseFlex i1 i2]
+      where
+        firstChoice :: [FlexChoice] -> FlexChoice
+        firstChoice []                  = ChooseEither
+        firstChoice (ChooseEither : xs) = firstChoice xs
+        firstChoice (x            : _ ) = x
+
 
 -- | State of typechecking a LHS; input to 'split'.
 --   [Ulf Norell's PhD, page. 35]
@@ -76,14 +124,15 @@ instance Ord (FlexibleVar Nat) where
 data Problem' p = Problem
   { problemInPat  :: [NamedArg A.Pattern]  -- ^ User patterns.
   , problemOutPat :: p                       -- ^ Patterns after splitting.
-  , problemTel    :: Telescope               -- ^ Type of patterns.
+  , problemTel    :: Telescope               -- ^ Type of in patterns.
   , problemRest   :: ProblemRest             -- ^ Patterns that cannot be typed yet.
   }
   deriving Show
 
--- | The permutation should permute @allHoles@ of the patterns to correspond to
---   the abstract patterns in the problem.
-type Problem     = Problem' (Permutation, [NamedArg Pattern])
+-- | The de Bruijn indices in the pattern refer to positions
+--   in the list of abstract patterns in the problem, counted
+--   from the back.
+type Problem     = Problem' [NamedArg DeBruijnPattern]
 type ProblemPart = Problem' ()
 
 -- | User patterns that could not be given a type yet.
@@ -122,14 +171,13 @@ data Focus
     , focusPatOrigin:: ConPOrigin -- ^ Do we come from an implicit or record pattern?
     , focusConArgs  :: [NamedArg A.Pattern]
     , focusRange    :: Range
-    , focusOutPat   :: OneHolePatterns
-    , focusHoleIx   :: Int  -- ^ Index of focused variable in the out patterns.
+    , focusOutPat   :: [NamedArg DeBruijnPattern]
     , focusDatatype :: QName
     , focusParams   :: [Arg Term]
     , focusIndices  :: [Arg Term]
     , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
     }
-  | LitFocus Literal OneHolePatterns Int Type
+  | LitFocus Literal [NamedArg DeBruijnPattern] Type
 
 -- | Result of 'splitProblem':  Determines position for the next split.
 data SplitProblem
@@ -167,13 +215,20 @@ consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProble
   consProblem' (Problem ps () tel pr) =
     Problem (p:ps) () (ExtendTel dom $ Abs x tel) pr
 
-data DotPatternInst = DPI A.Expr Term (Dom Type)
+-- | Instantiations of a dot pattern with a term.
+--   `Maybe e` if the user wrote a dot pattern .e
+--   `Nothing` if this is an instantiation of an implicit argument or an underscore _
+data DotPatternInst = DPI
+  { dotPatternUserExpr :: Maybe A.Expr
+  , dotPatternInst     :: Term
+  , dotPatternType     :: Dom Type
+  }
 data AsBinding      = AsB Name Term Type
 
 -- | State worked on during the main loop of checking a lhs.
 data LHSState = LHSState
   { lhsProblem :: Problem
-  , lhsSubst   :: S.Substitution
+  , lhsSubst   :: PatternSubstitution
   , lhsDPI     :: [DotPatternInst]
   , lhsAsB     :: [AsBinding]
   }
@@ -192,11 +247,12 @@ instance Subst Term AsBinding where
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
 instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI e v a) = sep
+  prettyTCM (DPI me v a) = sep
     [ prettyA e <+> text "="
     , nest 2 $ prettyTCM v <+> text ":"
     , nest 2 $ prettyTCM a
     ]
+    where e = fromMaybe underscore me
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =

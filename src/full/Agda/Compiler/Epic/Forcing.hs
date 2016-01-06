@@ -145,7 +145,7 @@ mkCon c n = I.Con (I.ConHead c Inductive [])
                   [ defaultArg $ I.Var i [] | i <- [n - 1, n - 2 .. 0] ]
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
-unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
+unifyI tele flex typ a1 a2 = lift $ typeError $ NotImplemented "using the new unification algorithm for forcing"
 
 takeTele :: Int -> Telescope -> Telescope
 takeTele 0 _ = EmptyTel

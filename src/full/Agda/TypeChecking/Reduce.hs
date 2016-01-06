@@ -173,6 +173,7 @@ instance Instantiate a => Instantiate (Closure a) where
 instance Instantiate Telescope where
   instantiate' EmptyTel = return EmptyTel
   instantiate' (ExtendTel a tel) = ExtendTel <$> instantiate' a <*> instantiate' tel
+--instantiate' tel = return tel
 
 instance Instantiate Constraint where
   instantiate' (ValueCmp cmp t u v) = do

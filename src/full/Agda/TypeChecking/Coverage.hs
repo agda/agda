@@ -41,8 +41,6 @@ import Agda.TypeChecking.Monad.Exception
 
 import Agda.TypeChecking.Rules.LHS.Problem (flexibleVarFromHiding)
 import Agda.TypeChecking.Rules.LHS.Unify
-import Agda.TypeChecking.Rules.LHS.Instantiate (instantiateTel)
-import Agda.TypeChecking.Rules.LHS (instantiatePattern)
 
 import Agda.TypeChecking.Coverage.Match
 import Agda.TypeChecking.Coverage.SplitTree
@@ -50,6 +48,7 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes (getConForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records (isRecordType)
 import Agda.TypeChecking.Telescope
@@ -72,12 +71,10 @@ import Agda.Utils.Impossible
 data SplitClause = SClause
   { scTel    :: Telescope
     -- ^ Type of variables in @scPats@.
-  , scPerm   :: Permutation
-    -- ^ How to get from the variables in the patterns to the telescope.
-  , scPats   :: [NamedArg Pattern]
+  , scPats   :: [NamedArg DeBruijnPattern]
     -- ^ The patterns leading to the currently considered branch of
     --   the split tree.
-  , scSubst  :: Substitution
+  , scSubst  :: PatternSubstitution
     -- ^ Substitution from 'scTel' to old context.
     --   Only needed directly after split on variable:
     --   * To update 'scTarget'
@@ -100,7 +97,7 @@ data SplitClause = SClause
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering
-  { covSplitArg     :: Nat  -- ^ De Bruijn level of argument we split on.
+  { covSplitArg     :: Nat  -- ^ De Bruijn level (counting dot patterns) of argument we split on.
   , covSplitClauses :: [(QName, SplitClause)]
       -- ^ Covering clauses, indexed by constructor these clauses share.
   }
@@ -113,8 +110,7 @@ splitClauses (Covering _ qcs) = map snd qcs
 clauseToSplitClause :: Clause -> SplitClause
 clauseToSplitClause cl = SClause
   { scTel    = clauseTel  cl
-  , scPerm   = clausePerm cl
-  , scPats   = unnumberPatVars $ namedClausePats cl
+  , scPats   = namedClausePats cl
   , scSubst  = idS  -- Andreas, 2014-07-15  TODO: Is this ok?
   , scTarget = clauseType cl
   }
@@ -126,13 +122,11 @@ coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
   TelV gamma a <- telView t
   let -- n             = arity
-      -- lgamma/gamma' = telescope of non-dropped arguments
       -- xs            = variable patterns fitting lgamma
       n            = size gamma
-      lgamma       = telToList gamma
-      xs           = map (argFromDom . fmap (namedVarP . fst)) $ lgamma
+      xs           = teleNamedArgs gamma
       -- construct the initial split clause
-      sc           = SClause gamma (idP n) xs idS $ Just $ defaultArg a
+      sc           = SClause gamma xs idS $ Just $ defaultArg a
   reportSDoc "tc.cover.top" 10 $ vcat
     [ text $ "Coverage checking " ++ show f
     , nest 2 $ vcat $ map (text . show . clausePats) cs
@@ -148,7 +142,7 @@ coverageCheck f t cs = do
     -- report an error if there are uncovered cases
     unless (null pss) $
         setCurrentRange cs $
-          typeError $ CoverageFailure f (map (map $ fmap namedThing) pss)
+          typeError $ CoverageFailure f (map (map (fmap namedThing)) pss)
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses
@@ -163,23 +157,22 @@ coverageCheck f t cs = do
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
 cover :: QName -> [Clause] -> SplitClause ->
-         TCM (SplitTree, Set Nat, [[NamedArg Pattern]])
-cover f cs sc@(SClause tel perm ps _ target) = do
+         TCM (SplitTree, Set Nat, [[NamedArg DeBruijnPattern]])
+cover f cs sc@(SClause tel ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
-    , nest 2 $ text "perm =" <+> text (show perm)
     , nest 2 $ text "ps   =" <+> text (show ps)
     ]
   let ups = map (fmap namedThing) ps
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
-  case match cs ups perm of
+  case match cs ups of
     Yes (i,mps)
      | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialMPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups perm ]
+      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
 
@@ -290,11 +283,10 @@ isDatatype ind at = do
 --   if target becomes a function type.
 --   Returns the domains of the function type (if any).
 fixTarget :: SplitClause -> TCM (Telescope, SplitClause)
-fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma, scTarget = target } =
+fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = target } =
   caseMaybe target (return (empty, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
-      , text "old permutation       : " <+> prettyTCM perm
       , text "old patterns          : " <+> sep (map (prettyTCM . namedArg) ps)
       , text "substitution          : " <+> text (show sigma)
       ]
@@ -302,7 +294,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       [ text "target type before substitution (variables may be wrong): " <+> do
           addContext sctel $ prettyTCM a
       ]
-    TelV tel b <- telView $ applySubst sigma $ unArg a
+    TelV tel b <- telView $ applyPatSubst sigma $ unArg a
     reportSDoc "tc.cover.target" 10 $ sep
       [ text "target type telescope (after substitution): " <+> do
           addContext sctel $ prettyTCM tel
@@ -310,17 +302,14 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
           addContext sctel $ addContext tel $ prettyTCM b
       ]
     let n         = size tel
-        lgamma    = telToList tel
-        xs        = for lgamma $ \ (Dom ai (x, _)) -> Arg ai $ namedVarP "_"
+        xs        = teleNamedArgs tel
         -- Compute new split clause
-        sctel'    = telFromList $ telToList (raise n sctel) ++ lgamma
-        perm'     = liftP n $ scPerm sc
+        sctel'    = telFromList $ telToList (raise n sctel) ++ telToList tel
         -- Dot patterns in @ps@ need to be raised!  (Issue 1298)
-        ps'       = raise n ps ++ xs
+        ps'       = applySubst (raiseS n) ps ++ xs
         newTarget = Just $ a $> b
         sc'       = SClause
           { scTel    = sctel'
-          , scPerm   = perm'
           , scPats   = ps'
           , scSubst  = liftS n $ sigma
           , scTarget = newTarget
@@ -328,9 +317,6 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
     -- Separate debug printing to find cause of crash (Issue 1374)
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "new split clause telescope   : " <+> prettyTCM sctel'
-      ]
-    reportSDoc "tc.cover.target" 30 $ sep
-      [ text "new split clause permutation : " <+> prettyTCM perm'
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "new split clause patterns    : " <+> sep (map (prettyTCM . namedArg) ps')
@@ -348,7 +334,7 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
       ]
     return $ if n == 0 then (empty, sc { scTarget = newTarget }) else (tel, sc')
 
--- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
+-- | @computeNeighbourhood delta1 delta2 d pars ixs hix hps con@
 --
 --   @
 --      delta1   Telescope before split point
@@ -358,23 +344,22 @@ fixTarget sc@SClause{ scTel = sctel, scPerm = perm, scPats = ps, scSubst = sigma
 --      pars     Data type parameters
 --      ixs      Data type indices
 --      hix      Index of split variable
---      hps      Patterns with hole at split point
+--      ps       Patterns before doing the split
 --      con      Constructor to fit into hole
 --   @
 --   @dtype == d pars ixs@
 computeNeighbourhood
-  :: Telescope                  -- ^ Telescope before split point.
-  -> PatVarName                 -- ^ Name of pattern variable at split point.
-  -> Telescope                  -- ^ Telescope after split point.
-  -> Permutation                -- ^
-  -> QName                      -- ^ Name of datatype to split at.
-  -> Args                       -- ^ Data type parameters.
-  -> Args                       -- ^ Data type indices.
-  -> Nat                        -- ^ Index of split variable.
-  -> OneHolePatterns            -- ^ Patterns with hole at split point.
-  -> QName                      -- ^ Constructor to fit into hole.
-  -> CoverM (Maybe SplitClause) -- ^ New split clause if successful.
-computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
+  :: Telescope                    -- ^ Telescope before split point.
+  -> PatVarName                   -- ^ Name of pattern variable at split point.
+  -> Telescope                    -- ^ Telescope after split point.
+  -> QName                        -- ^ Name of datatype to split at.
+  -> Args                         -- ^ Data type parameters.
+  -> Args                         -- ^ Data type indices.
+  -> Nat                          -- ^ Index of split variable.
+  -> [NamedArg DeBruijnPattern] -- ^ Patterns before doing the split.
+  -> QName                        -- ^ Constructor to fit into hole.
+  -> CoverM (Maybe SplitClause)   -- ^ New split clause if successful.
+computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
 
   -- Get the type of the datatype
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
@@ -407,7 +392,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal
 
-  debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix
+  debugInit con ctype d pars ixs cixs delta1 delta2 gamma ps hix
 
   -- All variables are flexible
   -- let flex = [0..size delta1 + size gamma - 1]
@@ -419,8 +404,12 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
-  r <- addCtxTel (delta1 `abstract` gamma) $
-       unifyIndices flex (raise (size gamma) dtype) conIxs givenIxs
+  r <- unifyIndices
+         (delta1 `abstract` gamma)
+         flex
+         (raise (size gamma) dtype)
+         conIxs
+         givenIxs
 
   case r of
     NoUnify {} -> debugNoUnify $> Nothing
@@ -428,66 +417,31 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
     DontKnow{} -> do
       debugCantSplit
       throwException $ CantSplit (conName con) (delta1 `abstract` gamma) conIxs givenIxs
-    Unifies sub -> do
-      debugSubst "sub" sub
+    Unifies (delta1',rho0) -> do
+      debugSubst "rho0" rho0
 
-      -- Substitute the constructor for x in Δ₂: Δ₂' = Δ₂[conv/x]
-      let conv    = Con con  $ teleArgs gamma   -- Θ Γ ⊢ conv (for any Θ)
-          rho0    = consS conv $ raiseS (size gamma)
-          -- Andreas, 2015-06-13 share substitution rho0
-          delta2' = applySubst rho0 delta2
-          -- delta2' = subst 0 conv $ raiseFrom 1 (size gamma) delta2
-      debugTel "delta2'" delta2'
+      -- We have Δ₁' ⊢ ρ₀ : Δ₁Γ, so split it into the part for Δ₁ and the part for Γ
+      let (rho1,rho2) = splitS (size gamma) rho0
 
-      -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂'
-      let rho = liftS (size delta2') $ rho0
-             --    [ Var i [] | i <- [0..size delta2' - 1] ]
-             -- ++ [ raise (size delta2') conv ]
-             -- ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
-
-      -- Plug the hole with the constructor and apply ρ
       -- Andreas, 2015-05-01  I guess it is fine to use @noConPatternInfo@
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
-      let conp = ConP con noConPatternInfo $ map (fmap namedVarP) $ teleArgNames gamma
-          ps   = plugHole conp hps
-          ps'  = applySubst rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
+      let conp    = ConP con noConPatternInfo $ applySubst rho2 $ teleNamedArgs gamma
+
+      -- Compute final context and substitution
+      let rho3    = consS conp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
+          delta2' = applyPatSubst rho3 delta2  -- Δ₂' = Δ₂ρ₃
+          delta'  = delta1' `abstract` delta2' -- Δ'  = Δ₁'Δ₂'
+          rho     = liftS (size delta2) rho3   -- Δ' ⊢ ρ : Δ₁(x:D)Δ₂
+
+      debugTel "delta'" delta'
+      debugSubst "rho" rho
+
+      -- Apply the substitution
+      let ps' = applySubst rho ps
       debugPlugged ps ps'
 
-      -- Δ₁Γ ⊢ sub, we need something in Δ₁ΓΔ₂'
-      -- Also needs to be padded with Nothing's to have the right length.
-      let pad n xs x = xs ++ replicate (max 0 $ n - size xs) x
-          sub'       = replicate (size delta2') Nothing ++
-                       pad (size delta1 + size gamma) (raise (size delta2') sub) Nothing
-      debugSubst "sub'" sub'
-
-      -- Θ = Δ₁ΓΔ₂'
-      let theta = delta1 `abstract` gamma `abstract` delta2'
-      debugTel "theta" theta
-
-      -- Apply the unifying substitution to Θ
-      -- We get ρ' : Θ' -> Θ
-      --        π  : Θ' -> Θ
-      (theta', iperm, rho', _) <- liftTCM $ instantiateTel sub' theta
-      debugTel "theta'" theta'
-      debugShow "iperm" iperm
-
-      -- Compute final permutation
-      let perm' = expandP hix (size gamma) perm -- perm' : Θ -> Δ₁(x : D)Δ₂
-          rperm = iperm `composeP` perm'
-      debugShow "perm'" perm'
-      debugShow "rperm" rperm
-
-      -- Compute the final patterns
-      let ps'' = instantiatePattern sub' perm' ps'
-          rps  = applySubst rho' ps''
-
-      -- Compute the final substitution
-      let rsub  = applySubst rho' rho
-
-      debugFinal theta' rperm rps
-
-      return $ Just $ SClause theta' rperm rps rsub Nothing -- target fixed later
+      return $ Just $ SClause delta' ps' rho Nothing -- target fixed later
 
   where
     debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix =
@@ -516,7 +470,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
 
     debugSubst s sub =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text (s ++ " =") <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
+        [ text (s ++ " =") <+> prettyTCM sub
         ]
 
     debugTel s tel =
@@ -535,10 +489,9 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
         , text "ps'    =" <+> text (show ps')
         ]
 
-    debugFinal tel perm ps =
+    debugFinal tel ps =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text "rtel   =" <+> prettyTCM tel
-        , text "rperm  =" <+> text (show perm)
         , text "rps    =" <+> text (show ps)
         ]
 
@@ -549,9 +502,9 @@ splitClauseWithAbsurd c x = split' Inductive c (BlockingVar x Nothing)
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
 
-splitLast :: Induction -> Telescope -> [NamedArg Pattern] -> TCM (Either SplitError Covering)
+splitLast :: Induction -> Telescope -> [NamedArg DeBruijnPattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind sc (BlockingVar 0 Nothing)
-  where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
+  where sc = SClause tel ps __IMPOSSIBLE__ Nothing
 
 -- | @split ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
@@ -571,24 +524,21 @@ split :: Induction
       -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
-    split' ind sc x
+split ind sc x = fmap blendInAbsurdClause <$> split' ind sc x
   where
-    blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
-    blendInAbsurdClause n = fromRight (const $ Covering n [])
+    n = lookupPatternVar sc $ blockingVarNo x
+    blendInAbsurdClause :: Either SplitClause Covering -> Covering
+    blendInAbsurdClause = fromRight (const $ Covering n [])
 
-    splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
-    splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
-      dbIndexToLevel tel perm $ blockingVarNo x
-
--- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
---   The result should be the argument (counted from left, starting with 0)
---   to split at (dot patterns included!).
-dbIndexToLevel :: Telescope -> Permutation -> Int -> Nat
-dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
+-- | Convert a de Bruijn index relative to the clause telescope to a de Bruijn
+--   level. The result should be the argument position (counted from left,
+--   starting with 0) to split at (dot patterns included!).
+lookupPatternVar :: SplitClause -> Int -> Nat
+lookupPatternVar SClause{ scTel = tel, scPats = pats } x =
+    if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
-            else case permute perm [0..] !!! k of
+            else case permPicks (dbPatPerm pats) !!! k of
                    Nothing -> __IMPOSSIBLE__
                    Just n  -> n
         k = size tel - x - 1
@@ -613,29 +563,15 @@ split' :: Induction
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
+split' ind sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
 
-  debugInit tel perm x ps
+  debugInit tel x ps
 
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
     let (tel1, Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
     return (n, Dom info t, telFromList tel1, telFromList tel2)
-
-  -- Compute the one hole context of the patterns at the variable
-  (hps, hix) <- do
-    let holes = reverse $ permute perm $ zip [0..] $ allHolesWithContents ps
-    unless (length holes == length (telToList tel)) $
-      fail "split: bad holes or tel"
-
-    -- There is always a variable at the given hole.
-    let (hix, (VarP s, hps)) = case holes !!! x of
-                                 Nothing -> __IMPOSSIBLE__
-                                 Just p  -> p
-    debugHoleAndType delta1 delta2 s hps t
-
-    return (hps, hix)
 
   -- Check that t is a datatype or a record
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
@@ -646,18 +582,17 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
   ns <- catMaybes <$> do
     forM cons $ \ con ->
       fmap (con,) <$> do
-        msc <- computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
+        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x ps con
         Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
 
   case ns of
     []  -> do
-      let absurd = VarP "()"
+      let ps' = (fmap . fmap . fmap . fmap) (\(y,name) -> if (x==y) then (y,"()") else (y,name)) ps
       return $ Left $ SClause
                { scTel  = telFromList $ telToList delta1 ++
                                         [fmap ((,) "()") t] ++ -- add name "()"
                                         telToList delta2
-               , scPerm = perm
-               , scPats = plugHole absurd hps
+               , scPats = ps
                , scSubst = idS -- not used anyway
                , scTarget = Nothing -- not used
                }
@@ -682,12 +617,9 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
             ]
           throwException (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-    _  -> return $ Right $ Covering xDBLevel ns
+    _  -> return $ Right $ Covering (lookupPatternVar sc x) ns
 
   where
-    xDBLevel :: Nat
-    xDBLevel = dbIndexToLevel tel perm x
-
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)
 
@@ -695,21 +627,20 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
     inContextOfDelta2 = addCtxTel tel . escapeContext x
 
     -- Debug printing
-    debugInit tel perm x ps =
+    debugInit tel x ps =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ vcat
         [ text "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel     =" <+> prettyTCM tel
-          , text "perm    =" <+> text (show perm)
           , text "x       =" <+> text (show x)
           , text "ps      =" <+> text (show ps)
           ]
         ]
 
-    debugHoleAndType delta1 delta2 s hps t =
+    debugHoleAndType delta1 delta2 s ps t =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
         [ text "p      =" <+> text (patVarNameToString s)
-        , text "hps    =" <+> text (show hps)
+        , text "ps    =" <+> text (show ps)
         , text "delta1 =" <+> prettyTCM delta1
         , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , text "t      =" <+> inContextOfT (prettyTCM t)
@@ -722,7 +653,7 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
 --   otherwise @res == Nothing@.
 --   Note that the empty set of split clauses is returned if the record has no fields.
 splitResult :: QName -> SplitClause -> TCM (Maybe Covering)
-splitResult f sc@(SClause tel perm ps _ target) = do
+splitResult f sc@(SClause tel ps _ target) = do
   reportSDoc "tc.cover.split" 10 $ vcat
     [ text "splitting result:"
     , nest 2 $ text "f      =" <+> text (show f)
@@ -740,17 +671,17 @@ splitResult f sc@(SClause tel perm ps _ target) = do
           , text $ "and have fields       fs = " ++ show fs
           ]
         fvs <- freeVarsToApply f
-        let es = patternsToElims $ numberPatVars perm ps
+        let es = patternsToElims ps
         let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
             pargs = vs ++ [self]
         reportSDoc "tc.cover" 20 $ sep
           [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
           ]
-        let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
-            -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
-            n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+        let n    = permRange (dbPatPerm ps)
+            -- Andreas & James, 2013-11-19 includes the dot patterns!
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.
+
         Just . Covering n <$> do
           forM fs $ \ proj -> do
             -- compute the new target
@@ -768,11 +699,10 @@ splitResult f sc@(SClause tel perm ps _ target) = do
 
 -- | For debugging only.
 instance PrettyTCM SplitClause where
-  prettyTCM (SClause tel perm pats sigma target) = sep
+  prettyTCM (SClause tel pats sigma target) = sep
     [ text "SplitClause"
     , nest 2 $ vcat
       [ text "tel          = " <+> prettyTCM tel
-      , text "perm         = " <+> prettyTCM perm
       , text "pats         = " <+> sep (map (prettyTCM . namedArg) pats)
       , text "subst        = " <+> (text . show) sigma
       , text "target       = " <+> do

@@ -28,7 +28,7 @@ import Agda.Utils.Impossible
 {-| Given
 
     1. the function clauses @cs@
-    2. the patterns @ps@ and permutation @perm@ of a split clause
+    2. the patterns @ps@
 
 we want to compute a variable index of the split clause to split on next.
 
@@ -40,10 +40,10 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [Arg Pattern] -> Permutation -> Match (Nat,[MPat])
-match cs ps perm = foldr choice No $ zipWith matchIt [0..] cs
+match :: [Clause] -> [Arg DeBruijnPattern] -> Match (Nat,[MPat])
+match cs ps = foldr choice No $ zipWith matchIt [0..] cs
   where
-    mps = buildMPatterns perm ps
+    mps = buildMPatterns ps
 
     -- If liberal matching on literals fails or blocks we go with that.
     -- If it succeeds we use the result from conservative literal matching.
@@ -66,33 +66,31 @@ match cs ps perm = foldr choice No $ zipWith matchIt [0..] cs
 --   are blocking a match.
 data MPat
   = VarMP Nat    -- ^ De Bruijn index (usually, rightmost variable in patterns is 0).
-  | ConMP ConHead [Arg MPat]
+  | ConMP ConHead (Maybe ConPOrigin) [Arg MPat]
   | LitMP Literal
   | DotMP MPat   -- ^ For keeping track of the original dot positions.
   | WildMP       -- ^ For dot patterns that cannot be turned into patterns.
   | ProjMP QName -- ^ Projection copattern.
   deriving (Show)
 
-buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
-buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
+buildMPatterns :: [Arg DeBruijnPattern] -> [Arg MPat]
+buildMPatterns ps = map (fmap build) ps
   where
-    xs   = permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
-    tick = do x : xs <- get; put xs; return x
+    build (VarP (i,_))    = VarMP i
+    build (ConP con i ps) = ConMP con (conPRecord i) $ buildMPatterns $ map (fmap namedThing) $ ps
+    build (DotP t)        = DotMP $ buildT t
+    build (LitP l)        = LitMP l
+    build (ProjP dest)    = ProjMP dest
 
-    build (VarP _)        = VarMP <$> tick
-    build (ConP con _ ps) = ConMP con <$> mapM (traverse build . fmap namedThing) ps
-    build (DotP t)        = DotMP <$> (tick *> buildT t)
-    build (LitP l)        = return $ LitMP l
-    build (ProjP dest)    = return $ ProjMP dest
-
-    buildT (Con c args)   = ConMP c <$> mapM (traverse buildT) args
-    buildT (Var i [])     = return (VarMP i)
+    buildT (Con c args)   = ConMP c Nothing $ map (fmap buildT) args
+    buildT (Var i [])     = VarMP i
     buildT (Shared p)     = buildT (derefPtr p)
-    buildT _              = return WildMP
+    buildT _              = WildMP
 
 isTrivialMPattern :: MPat -> Bool
 isTrivialMPattern VarMP{} = True
-isTrivialMPattern ConMP{} = False
+isTrivialMPattern (ConMP c (Just _) ps) = all isTrivialMPattern $ map unArg ps
+isTrivialMPattern (ConMP c Nothing ps) = False
 isTrivialMPattern LitMP{} = False
 isTrivialMPattern DotMP{} = True
 isTrivialMPattern WildMP{} = True
@@ -164,9 +162,9 @@ yesMatchLit _ q@WildMP{} = Yes [q]
 yesMatchLit _ _        = No
 
 -- | Check if a clause could match given generously chosen literals
-matchLits :: Clause -> [Arg Pattern] -> Permutation -> Bool
-matchLits c ps perm =
-  case matchClause yesMatchLit (buildMPatterns perm ps) 0 c of
+matchLits :: Clause -> [Arg DeBruijnPattern] -> Bool
+matchLits c ps =
+  case matchClause yesMatchLit (buildMPatterns ps) 0 c of
     Yes _ -> True
     _     -> False
 
@@ -254,7 +252,7 @@ matchPat _    (ProjP d) _ = __IMPOSSIBLE__
 matchPat mlit (ConP c _ ps) q = case q of
   VarMP x -> Block [BlockingVar x (Just [c])]
   WildMP{} -> No -- Andreas, 2013-05-15 this was "Yes()" triggering issue 849
-  ConMP c' qs
+  ConMP c' i qs
     | c == c'   -> matchPats mlit (map (fmap namedThing) ps) qs
     | otherwise -> No
   LitMP _  -> __IMPOSSIBLE__
