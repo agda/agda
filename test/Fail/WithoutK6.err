@@ -1,5 +1,5 @@
 WithoutK6.agda:11,45-59
-Cannot eliminate reflexive equation a = a of type A because K has
-been disabled.
+Cannot apply injectivity to the equation refl a = refl a of type
+_≡_ {A} a a because I cannot generalize over the indices [a, a]
 when checking that the pattern refl .(refl a) has type
 _≡_ {_≡_ {A} a a} (refl a) (refl a)

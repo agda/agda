@@ -120,7 +120,7 @@ insertImplicitPatternsT exh            ps a = do
         , nest 2 $ text "ps  = " <+> do
             brackets $ fsep $ punctuate comma $ map prettyA ps
         , nest 2 $ text "tel = " <+> prettyTCM tel
-        , nest 2 $ text "b   = " <+> prettyTCM b
+        , nest 2 $ text "b   = " <+> addCtxTel tel (prettyTCM b)
         ]
   case ps of
     [] -> insImp dummy tel
@@ -135,7 +135,6 @@ insertImplicitPatternsT exh            ps a = do
           a <- reduce a
           case ignoreSharing $ unEl a of
             Pi arg b -> do
-              p <- expandImplicitPattern (unDom arg) p
               (p :) <$> insertImplicitPatternsT exh ps (absBody b)
             _ -> return (p : ps)
         hs -> insertImplicitPatternsT exh (hs ++ p : ps) (telePi tel b)

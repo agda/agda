@@ -28,6 +28,7 @@ import Data.Functor
 import Data.List hiding (sort, drop)
 import qualified Data.List as List
 import Data.Map (Map)
+import Data.Maybe
 import Data.Monoid
 import Data.Typeable (Typeable)
 
@@ -35,6 +36,8 @@ import Debug.Trace (trace)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free as Free

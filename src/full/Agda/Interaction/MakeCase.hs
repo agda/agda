@@ -27,6 +27,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TheTypeChecker
@@ -190,7 +191,12 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     vars <- parseVariables hole rng vars
-    (casectxt,) <$> do split f vars $ clauseToSplitClause clause
+    cs <- split f vars $ clauseToSplitClause clause
+    reportSDoc "interaction.case" 65 $ vcat
+      [ text "split result:"
+      , nest 2 $ vcat $ map (text . show) cs
+      ]
+    return (casectxt,cs)
   where
 
   failNoCop = typeError $ GenericError $
@@ -211,26 +217,27 @@ makeCase hole rng s = withInteractionId hole $ do
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
-  newVar c x = case ignoreSharing $ applySubst (scSubst c) (var x) of
+  newVar c x = case ignoreSharing $ applyPatSubst (scSubst c) (var x) of
     Var y [] -> Just y
     _        -> Nothing
 
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
-makeAbsurdClause f (SClause tel perm ps _ t) = do
+makeAbsurdClause f (SClause tel ps _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeCase: split clause:"
     , nest 2 $ vcat
       [ text "context =" <+> (prettyTCM =<< getContextTelescope)
       , text "tel =" <+> prettyTCM tel
-      , text "perm =" <+> text (show perm)
       , text "ps =" <+> text (show ps)
       ]
     ]
   withCurrentModule (qnameModule f) $ do
     -- Andreas, 2015-05-29 Issue 635
     -- Contract implicit record patterns before printing.
-    c <- translateRecordPatterns $ Clause noRange tel (numberPatVars perm ps) NoBody t False
+    -- c <- translateRecordPatterns $ Clause noRange tel perm ps NoBody t False
+    -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
+    let c = Clause noRange tel ps NoBody t False
     -- Normalise the dot patterns
     ps <- addCtxTel tel $ normalise $ namedClausePats c
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }

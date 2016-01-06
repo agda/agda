@@ -1,6 +1,6 @@
 WithClausePatternMismatch.agda:9,1-10,17
-With clause pattern x is not an instance of its parent pattern
-record {}
+Inaccessible (dotted) patterns from the parent clause must also be
+inaccessible in the with clause, when checking the pattern x,
 when checking that the clause
 test c with Set
 test x y | z = ⊤

@@ -74,17 +74,16 @@ splitProblem ::
   Maybe QName -- ^ The definition we are checking at the moment.
   -> Problem  -- ^ The current state of the lhs patterns.
   -> ListT TCM SplitProblem
-splitProblem mf (Problem ps (perm, qs) tel pr) = do
+splitProblem mf (Problem ps qs tel pr) = do
   lift $ do
     reportSLn "tc.lhs.split" 20 $ "initiating splitting"
       ++ maybe "" ((" for definition " ++) . show) mf
     reportSDoc "tc.lhs.split" 30 $ sep
       [ nest 2 $ text "ps   =" <+> sep (map (P.parens <.> prettyA) ps)
       , nest 2 $ text "qs   =" <+> sep (map (P.parens <.> prettyTCM . namedArg) qs)
-      , nest 2 $ text "perm =" <+> prettyTCM perm
       , nest 2 $ text "tel  =" <+> prettyTCM tel
       ]
-  splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
+  splitP ps tel
   where
     -- Result splitting
     splitRest :: ProblemRest -> ListT TCM SplitProblem
@@ -127,7 +126,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                 -- Get the field decoration.
                 -- If the projection pattern @d@ is not a field name, that's an error.
                 argd <- maybe failure return $ find ((d ==) . unArg) fs
-                let es = patternsToElims $ numberPatVars perm qs
+                let es = patternsToElims qs
                 -- the record "self" is the definition f applied to the patterns
                 fvs <- lift $ freeVarsToApply f
                 let self = defaultArg $ Def f (map Apply fvs) `applyE` es
@@ -149,22 +148,18 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
     --   in one-to-one correspondence with the pattern variables
     --   recorded in @tel@.
     splitP :: [NamedArg A.Pattern]
-           -> [(Int, OneHolePatterns)]
            -> Telescope
            -> ListT TCM SplitProblem
 
-    -- the next two cases violate the one-to-one correspondence of qs and tel
-    splitP _        []           (ExtendTel _ _)         = __IMPOSSIBLE__
-    splitP _        (_:_)         EmptyTel               = __IMPOSSIBLE__
     -- no more patterns?  pull them from the rest
-    splitP []        _            _                      = splitRest pr
-    -- patterns but no types for them?  Impossible.
-    splitP ps       []            EmptyTel               = __IMPOSSIBLE__
+    splitP []           _                      = splitRest pr
+    -- patterns but no more types? that's an error
+    splitP (_:_)        EmptyTel               = __IMPOSSIBLE__
     -- (we can never have an ExtendTel without Abs)
-    splitP _        _            (ExtendTel _ NoAbs{})   = __IMPOSSIBLE__
+    splitP _            (ExtendTel _ NoAbs{})  = __IMPOSSIBLE__
 
     -- pattern with type?  Let's get to work:
-    splitP ps0@(p : ps) qs0@((i, q) : qs) tel0@(ExtendTel dom@(Dom ai a) xtel@(Abs x tel)) = do
+    splitP ps0@(p : ps) tel0@(ExtendTel dom@(Dom ai a) xtel@(Abs x tel)) = do
 
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
         [ text "splitP looking at pattern"
@@ -174,10 +169,10 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
 
       -- Possible reinvokations:
       let -- 1. Redo this argument (after meta instantiation).
-          tryAgain = splitP ps0 qs0 tel0
+          tryAgain = splitP ps0 tel0
           -- 2. Try to split on next argument.
           keepGoing = consSplitProblem p x dom <$> do
-            underAbstraction dom xtel $ \ tel -> splitP ps qs tel
+            underAbstraction dom xtel $ \ tel -> splitP ps tel
 
       p <- lift $ expandLitPattern p
       case asView $ namedArg p of
@@ -204,7 +199,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
             {- else -} return Split
               { splitLPats   = empty
               , splitAsNames = xs
-              , splitFocus   = Arg ai $ LitFocus lit q i a
+              , splitFocus   = Arg ai $ LitFocus lit qs a
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
               `mplus` keepGoing
@@ -243,7 +238,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
               (return Split
                 { splitLPats   = empty
                 , splitAsNames = xs
-                , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) q i d pars ixs a
+                , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) qs d pars ixs a
                 , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
@@ -331,7 +326,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                       (return Split
                         { splitLPats   = empty
                         , splitAsNames = xs
-                        , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) q i d pars ixs a
+                        , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
                         , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                         }) `mplus` keepGoing
               -- Subcase: split type is not a Def.

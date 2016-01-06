@@ -39,14 +39,15 @@ module Doesn't-work where
   -- The following trick also fails (but for some reason the absurd
   -- case is accepted):
 
-  D-elim-c₁-helper :
-    (P : {A B : Set} {c : C A} →
-         D c → A ≡ Box B → c ≅ c₁ B → Set₂) →
-    ((A : Set) → P (d₁ A) refl refl) →
-    {A B : Set} {c : C A}
-    (x : D c) (eq₂ : c ≅ c₁ B) (eq₁ : A ≡ Box B) → P x eq₁ eq₂
-  D-elim-c₁-helper P p (d₂ A) ()   _
-  D-elim-c₁-helper P p (d₁ A) refl refl = p A
+  -- Jesper 2015-12-18 update: this is no longer accepted by the new unifier.
+  --D-elim-c₁-helper :
+  --  (P : {A B : Set} {c : C A} →
+  --       D c → A ≡ Box B → c ≅ c₁ B → Set₂) →
+  --  ((A : Set) → P (d₁ A) refl refl) →
+  --  {A B : Set} {c : C A}
+  --  (x : D c) (eq₂ : c ≅ c₁ B) (eq₁ : A ≡ Box B) → P x eq₁ eq₂
+  --D-elim-c₁-helper P p (d₂ A) ()   _
+  --D-elim-c₁-helper P p (d₁ A) refl refl = p A
 
 module Works where
 

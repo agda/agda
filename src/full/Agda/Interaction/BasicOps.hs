@@ -715,7 +715,7 @@ introTactic pmLambda ii = do
 
     introData t = do
       let tel  = telFromList [domFromArg $ defaultArg ("_", t)]
-          pat  = [defaultArg $ unnamed $ I.VarP "c"]
+          pat  = [defaultArg $ unnamed $ I.VarP (0,"c")]
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []

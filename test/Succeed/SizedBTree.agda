@@ -26,10 +26,14 @@ module Old where
 
   -- nesting
 
+  -- Jesper 2015-12-18: The new unifier requires the size argument of the first
+  -- deep2 to be given explicitly. This is because otherwise the unifier gets
+  -- stuck on an equation [↑ i₁ =?= _i_46 {i} {A} l r t]. It's not clear whether
+  -- it is safe to instantiate the meta to [↑ _] here.
   deep2 : ∀ {i A} → BTree A {i} → BTree A {i}
   deep2 (leaf a) = leaf a
   deep2 (node (leaf _) r) = r
-  deep2 (node (node l r) t) with deep2 (deep2 (node l r))
+  deep2 (node (node {i} l r) t) with deep2 {↑ i} (deep2 (node l r))
   ... | leaf a = leaf a
   ... | node l2 r2 = deep2 (node l2 r2)
 

@@ -16,7 +16,7 @@ import Prelude hiding (null)
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy)
+import Data.List (nub, sortBy, intersperse)
 import Data.Maybe
 import qualified Data.Set as Set
 import qualified Text.PrettyPrint.Boxes as Boxes
@@ -243,6 +243,11 @@ errorString err = case err of
   UnequalSorts{}                           -> "UnequalSorts"
   UnequalTerms{}                           -> "UnequalTerms"
   UnequalTypes{}                           -> "UnequalTypes"
+  UnifyConflict{}                          -> "UnifyConflict"
+  UnifyCycle{}                             -> "UnifyCycle"
+  UnifyIndicesNotVars{}                    -> "UnifyIndicesNotVars"
+  UnificationRecursiveEq{}                 -> "UnificationRecursiveEq"
+  UnificationStuck{}                       -> "UnificationStuck"
 --  UnequalTelescopes{}                      -> "UnequalTelescopes" -- UNUSED
   HeterogeneousEquality{}                  -> "HeterogeneousEquality"
   WithOnFreeVariable{}                     -> "WithOnFreeVariable"
@@ -1022,6 +1027,32 @@ instance PrettyTCM TypeError where
       pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++
       pwords "because K has been disabled."
 
+    UnifyConflict c c' -> fsep $
+      pwords "There was a conflict between the constructors " ++
+      [prettyTCM c] ++ pwords " and " ++ [prettyTCM c']
+
+    UnifyCycle i u -> fsep $
+      pwords "The variable " ++ [prettyTCM (var i)] ++
+      pwords "occurs strongly rigid in" ++ [prettyTCM u]
+
+    UnifyIndicesNotVars a u v ixs -> fsep $
+      pwords "Cannot apply injectivity to the equation" ++ [prettyTCM u] ++
+      pwords "=" ++ [prettyTCM v] ++ pwords "of type" ++ [prettyTCM a] ++
+      pwords "because I cannot generalize over the indices" ++
+      [prettyList $ map prettyTCM ixs]
+
+    UnificationRecursiveEq a i u -> fsep $
+      pwords "Cannot solve variable " ++ [prettyTCM (var i)] ++
+      pwords " of type " ++ [prettyTCM a] ++
+      pwords " with solution " ++ [prettyTCM u] ++
+      pwords " because the variable occurs in the solution," ++
+      pwords " or in the type one of the variables in the solution"
+
+    UnificationStuck tel us vs -> fsep $
+      pwords "I got stuck on unifying" ++ [prettyList (map prettyTCM us)] ++
+      pwords "with" ++ [prettyList (map prettyTCM vs)] ++
+      pwords "in the telescope" ++ [prettyTCM tel]
+
     NotStrictlyPositive d ocs -> fsep $
       pwords "The datatype" ++ [prettyTCM d] ++
       pwords "is not strictly positive, because"
@@ -1112,13 +1143,13 @@ instance PrettyTCM TypeError where
       | n > 0 && not (null args) = parens
       | otherwise                = id
 
-    prettyArg :: Arg I.Pattern -> TCM Doc
+    prettyArg :: Arg (I.Pattern' a) -> TCM Doc
     prettyArg (Arg info x) = case getHiding info of
       Hidden    -> braces $ prettyPat 0 x
       Instance  -> dbraces $ prettyPat 0 x
       NotHidden -> prettyPat 1 x
 
-    prettyPat :: Integer -> I.Pattern -> TCM Doc
+    prettyPat :: Integer -> (I.Pattern' a) -> TCM Doc
     prettyPat _ (I.VarP _) = text "_"
     prettyPat _ (I.DotP _) = text "._"
     prettyPat n (I.ConP c _ args) =

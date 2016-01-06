@@ -23,7 +23,7 @@
 
 module Agda.TypeChecking.Free
     ( FreeVars(..)
-    , Free, FreeV, FreeVS
+    , Free, Free', FreeV, FreeVS
     , IgnoreSorts(..)
     , runFree , rigidVars, relevantVars, allVars
     , allFreeVars, allRelevantVars, allRelevantVarsIgnoring

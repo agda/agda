@@ -169,9 +169,8 @@ nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
     splitError (_:_)    EmptyTel    = __IMPOSSIBLE__
     splitError []       ExtendTel{} = __IMPOSSIBLE__
     splitError (p : ps) (ExtendTel a tel)
-      | isBad p   = traceCall (CheckPattern (strip p) EmptyTel (unDom a)) $ case strip p of
-          A.DotP _ e -> typeError $ UninstantiatedDotPattern e
-          p          -> typeError $ IlltypedPattern p (unDom a)
+      | isBad p   = traceCall (CheckPattern (strip p) EmptyTel (unDom a)) $
+                      typeError $ IlltypedPattern (strip p) (unDom a)
       | otherwise = underAbstraction a tel $ \tel -> splitError ps tel
       where
         strip = snd . asView . namedArg
