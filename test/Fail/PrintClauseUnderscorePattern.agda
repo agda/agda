@@ -1,4 +1,4 @@
--- Andreas 2015-01-06
+-- Andreas 2016-01-06
 
 -- {-# OPTIONS -v error.checkclause:60 #-}
 
