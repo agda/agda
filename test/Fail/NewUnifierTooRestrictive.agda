@@ -2,7 +2,7 @@
 -- when --without-K is enabled because it doesn't do generalization of datatype
 -- indices. This should be fixed in the future.
 
-{-# OPTIONS --without-K -v tc.lhs.unify:50 #-}
+{-# OPTIONS --without-K #-}
 
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
