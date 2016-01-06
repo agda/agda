@@ -246,8 +246,7 @@ makeAbsurdClause f (SClause tel ps _ t) = do
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
   A.Clause lhs _ _ _ <- makeAbsurdClause f cl
-  --let ii = __IMPOSSIBLE__  -- No interaction point since we never type check this
-  ii <- registerInteractionPoint noRange Nothing -- for debug printing
+  let ii = __IMPOSSIBLE__  -- No interaction point since we never type check this
   let info = A.emptyMetaInfo -- metaNumber = Nothing in order to print as ?, not ?n
   return $ A.Clause lhs (A.RHS $ A.QuestionMark info ii) [] False
 
