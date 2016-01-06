@@ -797,6 +797,37 @@ Type checking
   For example, the types [Nat], [List Nat], and [x ≡ x] (where x : Nat) are
   all recognized by Agda as satisfying K.
 
+* New unifier for case splitting
+
+  The unifier used by Agda for case splitting has been completely rewritten.
+  The new unifier takes a much more type-directed approach in order to avoid
+  the problems in issues #1406, #1408, #1427, and #1435.
+
+  The new unifier also has eta-equality for record types built-in. This should
+  avoid unnecessary case splitting on record constructors and improve the
+  performance of Agda on code that contains deeply nested record patterns (see
+  issues #473, #635, #1575, #1603, #1613, and #1645).
+
+  In some cases, the locations of the dot patterns computed by the unifier did
+  not correspond to the locations given by the user (see issue #1608). This has
+  now been fixed by adding an extra step after case splitting that checks
+  whether the user-written patterns are compatible with the computed ones.
+
+  In some rare cases, the new unifier is still too restrictive when --without-K
+  is enabled because it cannot generalize over the datatype indices (yet). For
+  example, the following code is rejected:
+
+    data Bar : Set₁ where
+      bar : Bar
+      baz : (A : Set) → Bar
+
+    data Foo : Bar → Set where
+      foo : Foo bar
+
+    test : foo ≡ foo → Set₁
+    test refl = Set
+
+
 Compiler backends
 =================
 
