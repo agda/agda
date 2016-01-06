@@ -341,10 +341,10 @@ instance Monoid Blocked_ where
   _              `mappend` b@Blocked{}    = b
   NotBlocked x _ `mappend` NotBlocked y _ = NotBlocked (x `mappend` y) ()
 
--- See Issue 1573.
+-- See issues 1573 and 1674.
 #if !MIN_VERSION_transformers(0,4,1)
 instance Error Blocked_ where
-  noMsg = __IMPOSSIBLE__
+  noMsg = mempty
 #endif
 
 -- | When trying to reduce @f es@, on match failed on one
