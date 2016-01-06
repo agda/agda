@@ -206,23 +206,30 @@ checkRecDef i name ind con ps contel fields =
         ]
 -}
 
-      let -- name of record module
-          m    = qnameToMName name
-          -- make record parameters hidden and non-stricts irrelevant
-          htel = map hideAndRelParams $ telToList tel
-          info = setRelevance recordRelevance defaultArgInfo
-          tel' = telFromList $ htel ++ [Dom info ("r", rect)]
+      let info = setRelevance recordRelevance defaultArgInfo
+          addRecordVar = addCtxString "" $ Dom info rect
+          -- the record variable has the empty name by intention, see issue 208
 
-      -- Add the record section
-      -- make record parameters hidden
-      ctx <- (reverse . map (setHiding Hidden) . take (size tel)) <$> getContext
+      -- Andreas, 2013-09-13, 2016-01-06.
+      -- Argument telescope for the projections: all parameters are hidden.
+      -- This means parameters of the parent modules and of the current
+      -- record type.
+      -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
+      tel' <- modifyContext (modifyContextEntries (setHiding Hidden)) $
+        addRecordVar $ getContextTelescope
+
+      -- For checking the record declarations, make record parameters hidden.
+      let np = size tel -- Number of record parameters.
+      ctx <- (reverse . map (setHiding Hidden) . take np) <$> getContext
       reportSDoc "tc.rec" 80 $ sep
         [ text "visibility-modified record telescope"
         , nest 2 $ text "ctx =" <+> prettyTCM ctx
         ]
-      escapeContext (size tel) $ addContext ctx $
-       -- the record variable has the empty name by intention, see issue 208
-       underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
+      escapeContext np $ addContext ctx $ addRecordVar $ do
+
+        -- Add the record section.
+
+        let m = qnameToMName name  -- Name of record module.
         reportSDoc "tc.rec.def" 10 $ sep
           [ text "record section:"
           , nest 2 $ sep
@@ -235,16 +242,10 @@ checkRecDef i name ind con ps contel fields =
           ]
         addSection m
 
-      -- Check the types of the fields
-      -- Andreas, 2013-09-13 all module telescopes count as parameters to the record projections
-      -- thus, we set all context entries to @Hidden@
-      modifyContext (modifyContextEntries (setHiding Hidden)) $ do
-       underAbstraction (Dom info rect) (Abs "" ()) $ \_ -> do
-        withCurrentModule m $ do
-          tel' <- getContextTelescope
-          checkRecordProjections m name con tel' (raise 1 ftel) fields
+        -- Check the types of the fields and the other record declarations.
 
-      -- Andreas, 2011-05-19 here was the code "Add record constr..."
+        withCurrentModule m $ do
+          checkRecordProjections m name con tel' (raise 1 ftel) fields
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
         -- computePolarity name
