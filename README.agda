@@ -275,6 +275,11 @@ import README.Record
 
 import README.Case
 
+-- An example showing how the free monad construction on containers can be
+-- used
+
+import README.Container.FreeMonad
+
 ------------------------------------------------------------------------
 -- Core modules
 ------------------------------------------------------------------------
