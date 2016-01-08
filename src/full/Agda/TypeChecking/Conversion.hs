@@ -238,6 +238,11 @@ compareTerm' cmp a m n =
     isSize   <- isJust <$> isSizeType a'
     s        <- reduce $ getSort a'
     mlvl     <- mlevel
+    reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
+      [ text $ "a'   = " ++ show a'
+      , text $ "mlvl = " ++ show mlvl
+      , text $ "(Just (ignoreSharing $ unEl a') == mlvl) = " ++ show (Just (ignoreSharing $ unEl a') == mlvl)
+      ]
     case s of
       Prop | proofIrr -> return ()
       _    | isSize   -> compareSizes cmp m n
@@ -958,7 +963,7 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       (SizeUniv, _       ) -> equalSort s1 s2
       (_       , SizeUniv) -> equalSort s1 s2
 
-      (Type a  , Type b  ) -> unlessM typeInType $ leqLevel a b
+      (Type a  , Type b  ) -> leqLevel a b
 
       (Prop    , Prop    ) -> yes
       (Prop    , Type _  ) -> yes
@@ -968,9 +973,9 @@ leqSort s1 s2 = catchConstraint (SortCmp CmpLeq s1 s2) $ do
       -- (SizeUniv, _       ) -> no
       -- (_       , SizeUniv) -> no
 
-      (Inf     , _       ) -> unlessM typeInType $ equalSort s1 s2
-      (DLub{}  , _       ) -> unlessM typeInType $ postpone
-      (_       , DLub{}  ) -> unlessM typeInType $ postpone
+      (Inf     , _       ) -> equalSort s1 s2
+      (DLub{}  , _       ) -> postpone
+      (_       , DLub{}  ) -> postpone
 
 leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
@@ -1055,7 +1060,7 @@ leqLevel a b = liftTCM $ do
         _ -> postpone
       where
         ok       = return ()
-        notok    = typeError $ NotLeqSort (Type a) (Type b)
+        notok    = unlessM typeInType $ typeError $ NotLeqSort (Type a) (Type b)
         postpone = patternViolation
 
         wrap m = catchError m $ \e ->
@@ -1185,13 +1190,14 @@ equalLevel' a b = do
         _ -> postpone
 
       where
-        a === b   = do
+        a === b   = unlessM typeInType $ do
             lvl <- levelType
             equalAtom lvl a b
         as =!= bs = levelTm (Max as) === levelTm (Max bs)
 
         ok       = return ()
-        notok    = typeError $ UnequalSorts (Type a) (Type b)
+        notok    = unlessM typeInType notOk
+        notOk    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = do
           reportSLn "tc.conv.level" 30 $ "postponing: " ++ show a ++ " == " ++ show b
           patternViolation
@@ -1214,7 +1220,7 @@ equalLevel' a b = do
 
         subtr n (ClosedLevel m)
           | m >= n    = return $ ClosedLevel (m - n)
-          | otherwise = notok
+          | otherwise = ifM typeInType (return $ ClosedLevel 0) $ notOk
         subtr n (Plus m a)
           | m >= n    = return $ Plus (m - n) a
         subtr _ (Plus _ BlockedLevel{}) = postpone
@@ -1254,12 +1260,11 @@ equalLevel' a b = do
 -- | Check that the first sort equal to the second.
 equalSort :: Sort -> Sort -> TCM ()
 equalSort s1 s2 = do
-  ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
         let postpone = addConstraint (SortCmp CmpEq s1 s2)
             yes      = return ()
-            no       = typeError $ UnequalSorts s1 s2
+            no       = unlessM typeInType $ typeError $ UnequalSorts s1 s2
 
             -- Test whether a level is infinity.
             isInf ClosedLevel{}   = no
