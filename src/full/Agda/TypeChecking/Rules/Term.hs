@@ -135,7 +135,6 @@ isType_ e =
       noFunctionsIntoSize t0 t'
       return t'
     A.Set _ n    -> do
-      n <- ifM typeInType (return 0) (return n)
       return $ sort (mkType n)
     A.App i s (Arg (ArgInfo NotHidden r) l)
       | A.Set _ 0 <- unScope s ->
@@ -859,7 +858,6 @@ checkExpr e t0 =
             noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
         A.Set _ n    -> do
-          n <- ifM typeInType (return 0) (return n)
           coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
         A.Prop _     -> do
           typeError $ GenericError "Prop is no longer supported"

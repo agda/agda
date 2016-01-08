@@ -57,12 +57,12 @@ binAppView t = case t of
 -- | Contracts all eta-redexes it sees without reducing.
 {-# SPECIALIZE etaContract :: TermLike a => a -> TCM a #-}
 {-# SPECIALIZE etaContract :: TermLike a => a -> ReduceM a #-}
-etaContract :: (MonadReader TCEnv m, HasConstInfo m, TermLike a) => a -> m a
+etaContract :: (MonadReader TCEnv m, HasConstInfo m, HasOptions m, TermLike a) => a -> m a
 etaContract = traverseTermM etaOnce
 
 {-# SPECIALIZE etaOnce :: Term -> TCM Term #-}
 {-# SPECIALIZE etaOnce :: Term -> ReduceM Term #-}
-etaOnce :: (MonadReader TCEnv m, HasConstInfo m) => Term -> m Term
+etaOnce :: (MonadReader TCEnv m, HasConstInfo m, HasOptions m) => Term -> m Term
 etaOnce v = case v of
   -- Andreas, 2012-11-18: this call to reportSDoc seems to cost me 2%
   -- performance on the std-lib
@@ -70,22 +70,25 @@ etaOnce v = case v of
   Shared{} -> updateSharedTerm etaOnce v
   Lam i (Abs _ b) -> do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
+      tyty <- typeInType
       case binAppView b of
         App u (Arg info v)
-          | (isIrrelevant info || isVar0 v)
+          | (isIrrelevant info || isVar0 tyty v)
                     && allowed imp info
                     && not (freeIn 0 u) ->
             return $ strengthen __IMPOSSIBLE__ u
         _ -> return v
     where
-      isVar0 (Shared p)               = isVar0 (derefPtr p)
-      isVar0 (Var 0 [])               = True
-      isVar0 (Level (Max [Plus 0 l])) = case l of
-        NeutralLevel _ v -> isVar0 v
-        UnreducedLevel v -> isVar0 v
+      isVar0 tyty (Shared p)            = isVar0 tyty (derefPtr p)
+      isVar0 _ (Var 0 [])               = True
+      -- Andreas, 2016-01-08 If --type-in-type, all levels are equal.
+      isVar0 True Level{}               = True
+      isVar0 tyty (Level (Max [Plus 0 l])) = case l of
+        NeutralLevel _ v -> isVar0 tyty v
+        UnreducedLevel v -> isVar0 tyty v
         BlockedLevel{}   -> False
         MetaLevel{}      -> False
-      isVar0 _ = False
+      isVar0 _ _ = False
       allowed imp i' = getHiding i == getHiding i' && (imp || notHidden i)
 
   -- Andreas, 2012-12-18:  Abstract definitions could contain
@@ -99,4 +102,3 @@ etaOnce v = case v of
               etaContractRecord r c args)
           (return v)
   v -> return v
-

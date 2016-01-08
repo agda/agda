@@ -7,6 +7,22 @@ Important changes since 2.4.2.5:
 Pragmas and options
 ===================
 
+* Option --type-in-type no longer implies --no-universe-polymorphism,
+  thus, it can be used with explicit universe levels. [Issue 1764]
+  It simply turns off error reporting for any level mismatch now.
+  Examples:
+
+    {-# OPTIONS --type-in-type #-}
+
+    Type : Set
+    Type = Set
+
+    data D {α} (A : Set α) : Set where
+      d : A → D A
+
+    data E α β : Set β where
+      e : Set α → E α β
+
 * New NO_POSITIVITY_CHECK pragma to switch off the positivity checker
   for data/record definitions and mutual blocks.
 
@@ -85,7 +101,7 @@ Installation and infrastructure
 Pragmas and options
 ===================
 
-* Termination pragmas are not allowed inside `where` clauses
+* Termination pragmas are no longer allowed inside `where` clauses
   [Issue 1137].
 
 Type checking

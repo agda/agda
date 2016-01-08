@@ -329,7 +329,8 @@ ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 positivityCheckEnabled :: TCM Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 
-typeInType :: TCM Bool
+{-# SPECIALIZE typeInType :: TCM Bool #-}
+typeInType :: HasOptions m => m Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
 etaEnabled :: TCM Bool

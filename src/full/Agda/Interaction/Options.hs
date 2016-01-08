@@ -285,10 +285,6 @@ checkOpts opts
       throwError "Choose at most one: --html/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
       throwError "Choose at most one: --dependency-graph/--interactive/--interaction.\n"
-  | not (atMostOne [ optUniversePolymorphism . p
-                   , not . optUniverseCheck . p
-                   ]) =
-      throwError "Cannot have both universe polymorphism and type in type.\n"
   | not (atMostOne $ interactive ++ [optGenerateLaTeX]) =
       throwError "Choose at most one: --latex/--interactive/--interaction.\n"
   | (not . null . optEpicFlags $ opts)
@@ -402,7 +398,6 @@ dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
 
 dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
-                                     , optUniversePolymorphism = False
                                      }
 etaFlag :: Flag PragmaOptions
 etaFlag o = return $ o { optEta = True }
