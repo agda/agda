@@ -999,7 +999,7 @@ leqLevel a b = liftTCM $ do
         ([], _) -> ok
 
         -- as ≤ 0
-        (as, [])  -> sequence_ [ equalLevel (Max [a]) (Max []) | a <- as ]
+        (as, [])  -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
 
         -- as ≤ [b]
         (as@(_:_:_), [b]) -> sequence_ [ leqView (Max [a]) (Max [b]) | a <- as ]
@@ -1047,7 +1047,7 @@ leqLevel a b = liftTCM $ do
 
         -- [a] ≤ [neutral]
         ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
-          | m == n -> equalLevel (Max [a]) (Max [b])
+          | m == n -> equalLevel' (Max [a]) (Max [b])
           -- Andreas, 2014-04-07: This call to equalLevel is ok even if we removed
           -- subsumed terms from the lhs.
 
@@ -1091,6 +1091,11 @@ equalLevel :: Level -> Level -> TCM ()
 equalLevel a b = do
   -- Andreas, 2013-10-31 Use normalization to make syntactic equality stronger
   (a, b) <- normalise (a, b)
+  equalLevel' a b
+
+-- | Precondition: levels are 'normalise'd.
+equalLevel' :: Level -> Level -> TCM ()
+equalLevel' a b = do
   reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
   liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
     check a b
@@ -1144,8 +1149,8 @@ equalLevel a b = do
         (_, [ClosedLevel{}]) | any isNeutral as -> notok
 
         -- 0 == any
-        ([ClosedLevel 0], bs@(_:_:_)) -> sequence_ [ equalLevel (Max []) (Max [b]) | b <- bs ]
-        (as@(_:_:_), [ClosedLevel 0]) -> sequence_ [ equalLevel (Max [a]) (Max []) | a <- as ]
+        ([ClosedLevel 0], bs@(_:_:_)) -> sequence_ [ equalLevel' (Max []) (Max [b]) | b <- bs ]
+        (as@(_:_:_), [ClosedLevel 0]) -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
         -- Andreas, 2014-04-07 Why should the following be ok?
         --   X (suc a)  could be different from  X (suc (suc a))
         -- -- Same meta
