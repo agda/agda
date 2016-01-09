@@ -1,0 +1,5 @@
+Issue1614b.agda:10,6-7
+D is not strictly positive, because it occurs
+to the left of an arrow
+in the type of the constructor lam
+in the definition of D.
