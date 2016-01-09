@@ -338,7 +338,7 @@ terminationCheck _            = TerminationCheck
 positivityCheck :: DataRecOrFun -> PositivityCheck
 positivityCheck (DataName pc _) = pc
 positivityCheck (RecName pc _)  = pc
-positivityCheck _               = True
+positivityCheck _               = False
 
 -- | Check that declarations in a mutual block are consistently
 --   equipped with MEASURE pragmas, or whether there is a
