@@ -131,8 +131,8 @@ updateInPatterns
  -> [NamedArg A.Pattern]    -- ^ old in patterns
  -> [Arg DeBruijnPattern] -- ^ patterns to be substituted, living in the
                               --   new telescope
- -> TCM ([NamedArg A.Pattern]   -- ^ new in patterns
-        ,[DotPatternInst])        -- ^ new dot pattern instantiations
+ -> TCM ([NamedArg A.Pattern]   -- new in patterns
+        ,[DotPatternInst])        -- new dot pattern instantiations
 updateInPatterns as ps qs = do
   reportSDoc "tc.lhs.top" 20 $ text "updateInPatterns" <+> nest 2 (vcat
     [ text "as      =" <+> prettyList (map prettyTCM as)
