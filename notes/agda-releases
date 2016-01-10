@@ -4,6 +4,8 @@ followed:
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
+* Verify that the Travis builds have no errors.
+
 * Get a clean Agda repository.
 
     git clone git@github.com:agda/agda Agda.release
@@ -49,11 +51,6 @@ followed:
   `cabal --check`).
 
 * Remove the Cabal test-suite from Agda.cabal.
-
-* Ensure that cabal haddock works (requires at least cabal-install
-  version 1.20.0.3 using version 1.20.0.2 of the Cabal library):
-
-    cabal configure && cabal haddock
 
 * Disable sharing by default. Note that this change induces some
   changes in the test suite.
