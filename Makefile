@@ -71,8 +71,8 @@ setup-emacs-mode : install-bin
 
 .PHONY : doc
 doc:
-	$(CABAL_CMD) configure --builddir=$(BUILD_DIR)
-	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
+	$(CABAL_CMD) configure --builddir=$(BUILD_DIR) --enable-tests
+	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR) --tests
 
 ## Making the full language ###############################################
 
