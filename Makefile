@@ -78,8 +78,8 @@ setup-emacs-mode : install-bin
 
 .PHONY : doc
 doc:
-	$(CABAL_CMD) configure $(CABAL_OPTS)
-	$(CABAL_CMD) haddock $(CABAL_OPTS)
+	$(CABAL_CMD) configure --builddir=$(BUILD_DIR) --enable-tests
+	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR) --tests
 
 .PHONY : manual-html
 manual-html:
