@@ -1,0 +1,24 @@
+
+* Where to commit changes:
+
+  AGDA_MAINT = last released Agda maintenance version, e.g. 2.4.2.5
+  AGDA_MAINT_NEXT = not yet released next Agda maintenance version, e.g. 2.4.2.6
+
+  A. Your change is independent of Agda
+
+    1. Push your commit in the AGDA_MAINT branch
+    2. Merge the AGDA_MAINT branch into the AGDA_MAINT_NEXT branch
+    3. Merge the AGDA_MAINT_NEXT branch into the master branch
+
+  B. Your change is due to a change in the AGDA_MAINT_NEXT version of Agda
+
+    1. Push your commit in the AGDA_MAINT_NEXT branch
+    2. Merge the AGDA_MAINT_NEXT branch into the master branch
+
+  C. Your change is due to a change in the master version of Agda
+
+    1. Push your commit in the master branch
+
+  This scheme should guarantee that the stdlib master branch always builds
+  with the Agda master branch, and the stdlib AGDA_MAINT_NEXT branch
+  should always build with the active Agda maint branch.
