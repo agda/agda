@@ -86,8 +86,8 @@ library
 
   build-depends:
     array >= 0.4.0.1 && < 0.6
-    , base >= 4.6.0.1 && < 4.9
-    , binary >= 0.7.2.1 && < 0.8
+    , base >= 4.6.0.1 && < 4.10
+    , binary >= 0.7.2.1 && < 0.9
     , boxes >= 0.1.3 && < 0.2
     , bytestring >= 0.10.0.2 && < 0.11
     , containers >= 0.5.0.0 && < 0.6
@@ -121,13 +121,13 @@ library
     -- pretty 1.1.1.2 and 1.1.1.3 do not follow the package versioning
     -- policy.
     , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
-    , process >= 1.1.0.2 && < 1.3
+    , process >= 1.1.0.2 && < 1.5
     , strict >= 0.3.2 && < 0.4
-    , template-haskell >= 2.8.0.0 && < 2.11
+    , template-haskell >= 2.8.0.0 && < 2.12
     , text >= 0.11.3.1 && < 1.3
-    , time >= 1.4.0.1 && < 1.6
+    , time >= 1.4.0.1 && < 1.7
     -- transformers 0.4.0.0 was deprecated.
-    , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.5
+    , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
     , transformers-compat >= 0.3.3.3 && < 0.5
     , unordered-containers >= 0.2.5.0 && < 0.3
     , xhtml >= 3000.2.1 && < 3000.3
@@ -517,10 +517,10 @@ executable agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
   build-depends:
-    base >= 4.6.0.1 && < 4.9
+    base >= 4.6.0.1 && < 4.10
     , directory >= 1.2.0.1 && < 1.3
     , filepath >= 1.3.0.1 && < 1.5
-    , process >= 1.1.0.2 && < 1.3
+    , process >= 1.1.0.2 && < 1.5
 
 executable agda-ghc-names
   hs-source-dirs:   src/agda-ghc-names
@@ -530,8 +530,8 @@ executable agda-ghc-names
                     , FixProf
                     , ResolveHsNames
   build-depends:
-    base >= 4.6.0.1 && < 4.9
-    , binary >= 0.7.2.1 && < 0.8
+    base >= 4.6.0.1 && < 4.10
+    , binary >= 0.7.2.1 && < 0.9
     , containers >= 0.5.0.0 && < 0.6
     , filemanip >= 0.3.6.3 && < 0.4
     , haskell-src-exts >= 1.16.0.1 && < 1.18
@@ -561,12 +561,12 @@ test-suite agda-tests
                     , Succeed.Tests
                     , Utils
   build-depends:      array >= 0.4.0.1 && < 0.6
-                    , base >= 4.6.0.1 && < 4.9
+                    , base >= 4.6.0.1 && < 4.10
                     , bytestring >= 0.10.0.2 && < 0.11
-                    , directory >= 1.2.0.1 && < 1.3
                     , containers >= 0.5.0.0 && < 0.6
+                    , directory >= 1.2.0.1 && < 1.3
                     , filepath >= 1.3.0.1 && < 1.5
-                    , process >= 1.1.0.2 && < 1.3
+                    , process >= 1.1.0.2 && < 1.5
                     , process-extras >= 0.3.0 && < 0.4
                     , regex-tdfa >= 1.2.0 && < 1.3
                     , regex-tdfa-text >= 1.0.0.3 && < 1.1
