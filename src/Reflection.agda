@@ -279,27 +279,6 @@ showLiteral (char x)   = showChar x
 showLiteral (string x) = showString x
 showLiteral (name x)   = showName x
 
-private
-  primitive
-    primQNameType        : Name → Type
-    primQNameDefinition  : Name → Definition
-    primDataConstructors : Data-type → List Name
-
--- The type of the thing with the given name.
-
-type : Name → Type
-type = primQNameType
-
--- The definition of the thing with the given name.
-
-definition : Name → Definition
-definition = primQNameDefinition
-
--- The constructors of the given data type.
-
-constructors : Data-type → List Name
-constructors = primDataConstructors
-
 ------------------------------------------------------------------------
 -- Term equality is decidable
 
