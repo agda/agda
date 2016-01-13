@@ -20,7 +20,7 @@ postulate
   inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
   freshName  : String → TC QName
   declareDef : QName → Type → TC ⊤
-  defineFun  : QName → FunDef → TC ⊤
+  defineFun  : QName → List Clause → TC ⊤
   getType    : QName → TC Type
   getDefinition : QName → TC Definition
   numberOfParameters : DataDef → TC Nat

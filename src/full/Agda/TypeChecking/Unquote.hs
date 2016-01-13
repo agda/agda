@@ -6,7 +6,7 @@ module Agda.TypeChecking.Unquote where
 
 import Control.Applicative
 import Control.Monad.State (runState, get, put)
-import Control.Monad.Writer (execWriterT, tell)
+import Control.Monad.Writer (WriterT, execWriterT, runWriterT, tell)
 import Control.Monad.Trans (lift)
 import Control.Monad
 
@@ -19,6 +19,8 @@ import Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Reflected as R
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
+import Agda.Syntax.Fixity
+import Agda.Syntax.Info
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 
@@ -42,6 +44,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Primitive
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 
 import Agda.Utils.Except
 import Agda.Utils.Impossible
@@ -62,20 +65,33 @@ agdaTypeType = El (mkType 0) <$> primAgdaType
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
 
-type UnquoteM = ExceptionT UnquoteError TCM
+type UnquoteM = WriterT [QName] (ExceptionT UnquoteError TCM)
 
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError a)
-runUnquoteM = runExceptionT
+runUnquoteM m = do
+  z <- runExceptionT (runWriterT m)
+  case z of
+    Left err         -> return $ Left err
+    Right (x, decls) -> Right x <$ mapM_ isDefined decls
+  where
+    isDefined x = do
+      def <- theDef <$> getConstInfo x
+      case def of
+        Axiom{} -> typeError $ GenericError $ "Missing definition for " ++ show x
+        _       -> return ()
+
+liftU :: TCM a -> UnquoteM a
+liftU = lift . lift
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
-isCon con tm = do t <- lift tm
+isCon con tm = do t <- liftU tm
                   case ignoreSharing t of
                     Con con' _ -> return (con == con')
                     _ -> return False
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
 isDef f tm = do
-  t <- lift tm
+  t <- liftU tm
   case ignoreSharing t of
     Def g _ -> return (f == g)
     _       -> return False
@@ -105,22 +121,22 @@ choice ((mb, mx) : mxs) dflt = ifM mb mx $ choice mxs dflt
 
 ensureDef :: QName -> UnquoteM QName
 ensureDef x = do
-  i <- (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
+  i <- liftU $ (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
   case i of
     Constructor{} -> do
-      def <- lift $ prettyTCM =<< primAgdaTermDef
-      con <- lift $ prettyTCM =<< primAgdaTermCon
+      def <- liftU $ prettyTCM =<< primAgdaTermDef
+      con <- liftU $ prettyTCM =<< primAgdaTermCon
       throwException $ ConInsteadOfDef x (show def) (show con)
     _ -> return x
 
 ensureCon :: QName -> UnquoteM QName
 ensureCon x = do
-  i <- (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
+  i <- liftU $ (theDef <$> getConstInfo x) `catchError` \_ -> return Axiom  -- for recursive unquoteDecl
   case i of
     Constructor{} -> return x
     _ -> do
-      def <- lift $ prettyTCM =<< primAgdaTermDef
-      con <- lift $ prettyTCM =<< primAgdaTermCon
+      def <- liftU $ prettyTCM =<< primAgdaTermDef
+      con <- liftU $ prettyTCM =<< primAgdaTermCon
       throwException $ DefInsteadOfCon x (show def) (show con)
 
 pickName :: R.Type -> String
@@ -400,7 +416,7 @@ instance Unquote R.Definition where
 --   (quoted).
 unquoteTCM :: I.Term -> I.Term -> UnquoteM I.Term
 unquoteTCM m hole = do
-  qhole <- lift $ quoteTerm hole
+  qhole <- liftU $ quoteTerm hole
   evalTCM (m `apply` [defaultArg qhole])
 
 evalTCM :: I.Term -> UnquoteM I.Term
@@ -423,7 +439,7 @@ evalTCM v = do
     I.Def f [u, v] ->
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
-             , (f `isDef` primAgdaTCMDeclareDef, tcFun2 tcDeclareDef u v)
+             , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDefineFun,  tcFun2 tcDefineFun  u v) ]
              __IMPOSSIBLE__
     I.Def f [_, _, u] ->
@@ -438,7 +454,7 @@ evalTCM v = do
     I.Def f [_, _, _, _, m, k] ->
       choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
              __IMPOSSIBLE__
-    _ -> lift $ typeError . GenericDocError =<<
+    _ -> liftU $ typeError . GenericDocError =<<
                 sep [ text "Cannot evaluate type checking computation"
                     , nest 2 $ prettyTCM v ]
   where
@@ -452,13 +468,16 @@ evalTCM v = do
     tcFun1 :: Unquote a => (a -> TCM b) -> Elim -> UnquoteM b
     tcFun1 fun a = do
       a <- unquote (unElim a)
-      lift (fun a)
+      liftU (fun a)
 
-    tcFun2 :: (Unquote a, Unquote b) => (a -> b -> TCM c) -> Elim -> Elim -> UnquoteM c
-    tcFun2 fun a b = do
+    uqFun2 :: (Unquote a, Unquote b) => (a -> b -> UnquoteM c) -> Elim -> Elim -> UnquoteM c
+    uqFun2 fun a b = do
       a <- unquote (unElim a)
       b <- unquote (unElim b)
-      lift (fun a b)
+      fun a b
+
+    tcFun2 :: (Unquote a, Unquote b) => (a -> b -> TCM c) -> Elim -> Elim -> UnquoteM c
+    tcFun2 fun = uqFun2 (\ x y -> liftU (fun x y))
 
     tcFreshName :: Str -> TCM Term
     tcFreshName s = do
@@ -499,14 +518,14 @@ evalTCM v = do
       quoteTerm =<< normalise v
 
     tcGetContext :: UnquoteM Term
-    tcGetContext = lift $ do
+    tcGetContext = liftU $ do
       as <- map (fmap snd) <$> getContext
       as <- etaContract =<< normalise as
       buildList <*> mapM quoteDom as
 
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
-      a <- lift $ traverse (isType_ <=< toAbstract_) a
+      a <- liftU $ traverse (isType_ <=< toAbstract_) a
       addContext (domFromArg a :: Dom Type) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
@@ -547,9 +566,20 @@ evalTCM v = do
         Datatype{dataPars = n} -> pure $ quoteNat (fromIntegral n)
         _ -> __IMPOSSIBLE__
 
-    tcDeclareDef :: QName -> R.Type -> TCM Term
-    tcDeclareDef _ _ = typeError $ NotImplemented "tcDeclareDef"
+    tcDeclareDef :: QName -> R.Type -> UnquoteM Term
+    tcDeclareDef x a = do
+      tell [x]
+      liftU $ do
+        a <- isType_ =<< toAbstract_ a
+        alreadyDefined <- (True <$ getConstInfo x) `catchError` \ _ -> return False
+        when alreadyDefined $ typeError $ GenericError $ "Multiple declarations of " ++ show x
+        addConstant x $ defaultDefn defaultArgInfo x a Axiom
+        primUnitUnit
 
-    tcDefineFun :: QName -> R.Definition -> TCM Term
-    tcDefineFun _ _ = typeError $ NotImplemented "tcDefineFun"
-
+    tcDefineFun :: QName -> [R.Clause] -> TCM Term
+    tcDefineFun x cs = do
+      cs <- mapM (toAbstract_ . QNamed x) cs
+      reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
+      let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ConcreteDef noRange
+      checkFunDef NotDelayed i x cs
+      primUnitUnit
