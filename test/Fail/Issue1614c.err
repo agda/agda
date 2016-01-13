@@ -1,0 +1,3 @@
+Issue1614c.agda:6,1-28
+No positivity checking pragmas can only precede a mutual block or a
+data/record definition.
