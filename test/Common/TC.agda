@@ -18,6 +18,9 @@ postulate
   getContext : TC (List (Arg Type))
   extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
   inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+  freshName  : String → TC QName
+  declareDef : QName → Type → TC ⊤
+  defineFun  : QName → FunDef → TC ⊤
 
 {-# BUILTIN AGDATCM           TC         #-}
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
@@ -31,7 +34,10 @@ postulate
 {-# BUILTIN AGDATCMCATCHERROR catchTC    #-}
 {-# BUILTIN AGDATCMGETCONTEXT getContext #-}
 {-# BUILTIN AGDATCMEXTENDCONTEXT extendContext #-}
-{-# BUILTIN AGDATCMINCONTEXT inContext #-}
+{-# BUILTIN AGDATCMINCONTEXT  inContext #-}
+{-# BUILTIN AGDATCMFRESHNAME  freshName #-}
+{-# BUILTIN AGDATCMDECLAREDEF declareDef #-}
+{-# BUILTIN AGDATCMDEFINEFUN  defineFun #-}
 
 Tactic = Term → TC ⊤
 

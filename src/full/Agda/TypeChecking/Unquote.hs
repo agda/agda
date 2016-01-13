@@ -413,11 +413,14 @@ evalTCM v = do
     I.Def f [u] ->
       choice [ (f `isDef` primAgdaTCMNewMeta,   tcFun1 tcNewMeta   u)
              , (f `isDef` primAgdaTCMInferType, tcFun1 tcInferType u)
-             , (f `isDef` primAgdaTCMNormalise, tcFun1 tcNormalise u) ]
+             , (f `isDef` primAgdaTCMNormalise, tcFun1 tcNormalise u)
+             , (f `isDef` primAgdaTCMFreshName, tcFun1 tcFreshName u) ]
              __IMPOSSIBLE__
     I.Def f [u, v] ->
-      choice [ (f `isDef` primAgdaTCMUnify,     tcFun2 tcUnify     u v)
-             , (f `isDef` primAgdaTCMCheckType, tcFun2 tcCheckType u v) ]
+      choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
+             , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
+             , (f `isDef` primAgdaTCMDeclareDef, tcFun2 tcDeclareDef u v)
+             , (f `isDef` primAgdaTCMDefineFun,  tcFun2 tcDefineFun  u v) ]
              __IMPOSSIBLE__
     I.Def f [_, _, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,    return (unElim u))
@@ -452,6 +455,11 @@ evalTCM v = do
       a <- unquote (unElim a)
       b <- unquote (unElim b)
       lift (fun a b)
+
+    tcFreshName :: Str -> TCM Term
+    tcFreshName s = do
+      m <- currentModule
+      quoteName . qualify m <$> freshName_ (unStr s)
 
     tcUnify :: R.Term -> R.Term -> TCM Term
     tcUnify u v = do
@@ -510,4 +518,10 @@ evalTCM v = do
         go :: [Arg R.Type] -> Term -> UnquoteM Term
         go []       m = evalTCM m
         go (a : as) m = extendCxt a $ go as m
+
+    tcDeclareDef :: QName -> R.Type -> TCM Term
+    tcDeclareDef _ _ = typeError $ NotImplemented "tcDeclareDef"
+
+    tcDefineFun :: QName -> R.Definition -> TCM Term
+    tcDefineFun _ _ = typeError $ NotImplemented "tcDefineFun"
 

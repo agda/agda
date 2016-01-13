@@ -127,7 +127,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMNewMeta, primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
-    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext
+    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -246,6 +247,9 @@ primAgdaTCMCatchError = getBuiltin builtinAgdaTCMCatchError
 primAgdaTCMGetContext = getBuiltin builtinAgdaTCMGetContext
 primAgdaTCMExtendContext = getBuiltin builtinAgdaTCMExtendContext
 primAgdaTCMInContext     = getBuiltin builtinAgdaTCMInContext
+primAgdaTCMFreshName     = getBuiltin builtinAgdaTCMFreshName
+primAgdaTCMDeclareDef    = getBuiltin builtinAgdaTCMDeclareDef
+primAgdaTCMDefineFun     = getBuiltin builtinAgdaTCMDefineFun
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -282,7 +286,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
   builtinAgdaTCMNewMeta, builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
-  builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext
+  builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
+  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun
   :: String
 
 builtinNat                           = "NATURAL"
@@ -401,6 +406,9 @@ builtinAgdaTCMCatchError = "AGDATCMCATCHERROR"
 builtinAgdaTCMGetContext = "AGDATCMGETCONTEXT"
 builtinAgdaTCMExtendContext = "AGDATCMEXTENDCONTEXT"
 builtinAgdaTCMInContext     = "AGDATCMINCONTEXT"
+builtinAgdaTCMFreshName     = "AGDATCMFRESHNAME"
+builtinAgdaTCMDeclareDef    = "AGDATCMDECLAREDEF"
+builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
