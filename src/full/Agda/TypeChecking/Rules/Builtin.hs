@@ -197,6 +197,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMFreshName     |-> builtinPostulate (tstring --> tTCM_ primQName)
   , builtinAgdaTCMDeclareDef    |-> builtinPostulate (tqname --> ttype --> tTCM_ primUnit)
   , builtinAgdaTCMDefineFun     |-> builtinPostulate (tqname --> tfun --> tTCM_ primUnit)
+  , builtinAgdaTCMGetType            |-> builtinPostulate (tqname --> tTCM_ primAgdaType)
+  , builtinAgdaTCMGetDefinition      |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
+  , builtinAgdaTCMNumberOfParameters |-> builtinPostulate (tdtype --> tTCM_ primNat)
+  , builtinAgdaTCMGetConstructors    |-> builtinPostulate (tdtype --> tTCM_ (list primQName))
   ]
   where
         (|->) = (,)

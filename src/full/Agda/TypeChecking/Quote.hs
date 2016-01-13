@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -47,7 +48,9 @@ data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term
   , quoteTypeWithKit   :: Type       -> ReduceM Term
   , quoteClauseWithKit :: Clause     -> ReduceM Term
-  , quoteDomWithKit    :: Dom Type -> ReduceM Term
+  , quoteDomWithKit    :: Dom Type   -> ReduceM Term
+  , quoteDefnWithKit   :: Definition -> ReduceM Term
+  , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
   }
 
 quotingKit :: TCM QuotingKit
@@ -94,6 +97,15 @@ quotingKit = do
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
+
+  agdaFunDef                    <- primAgdaFunDef
+  agdaFunDefCon                 <- primAgdaFunDefCon
+  agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
+  agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
+  agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
+  agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
+  agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
+  agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
 
   let (@@) :: Apply a => ReduceM a -> ReduceM Term -> ReduceM a
       t @@ u = apply <$> t <*> ((:[]) . defaultArg <$> u)
@@ -175,6 +187,9 @@ quotingKit = do
       list []       = pure nil
       list (a : as) = cons !@ a @@ list as
 
+      quoteList :: (a -> ReduceM Term) -> [a] -> ReduceM Term
+      quoteList q xs = list (map q xs)
+
       quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
       quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
 
@@ -220,13 +235,34 @@ quotingKit = do
           MetaV x es -> meta !@! quoteMeta x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
-  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType)
+
+      quoteFunDef t cs = agdaFunDefCon !@ quoteType t @@ (quoteList quoteClause cs)
+
+      quoteDefn :: Definition -> ReduceM Term
+      quoteDefn def =
+        case theDef def of
+          Function{funClauses = cs}
+                        -> agdaDefinitionFunDef    !@  quoteFunDef (defType def) cs
+          Datatype{}    -> agdaDefinitionDataDef   !@! quoteName (defName def)
+          Record{}      -> agdaDefinitionRecordDef !@! quoteName (defName def)
+          Axiom{}       -> pure agdaDefinitionPostulate
+          Primitive{primClauses = cs} | not $ null cs
+                        -> agdaDefinitionFunDef    !@  quoteFunDef (defType def) cs
+          Primitive{}   -> pure agdaDefinitionPrimitive
+          Constructor{} -> pure agdaDefinitionDataConstructor
+
+  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString noRange
 
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
+
+quoteNat :: Integer -> Term
+quoteNat n
+  | n >= 0    = Lit (LitNat noRange n)
+  | otherwise = __IMPOSSIBLE__
 
 quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
@@ -248,3 +284,14 @@ quoteDom :: Dom Type -> TCM Term
 quoteDom v = do
   kit <- quotingKit
   runReduceM (quoteDomWithKit kit v)
+
+quoteDefn :: Definition -> TCM Term
+quoteDefn def = do
+  kit <- quotingKit
+  runReduceM (quoteDefnWithKit kit def)
+
+quoteList :: [Term] -> TCM Term
+quoteList xs = do
+  kit <- quotingKit
+  runReduceM (quoteListWithKit kit pure xs)
+

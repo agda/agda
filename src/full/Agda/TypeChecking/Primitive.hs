@@ -423,63 +423,6 @@ primForceLemma = do
                                        <@> (varM 0 <@> varM 1)
                ) $ \ _ _ -> refl
 
-primQNameType :: TCM PrimitiveImpl
-primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType)
-                              (\q -> normalise' . defType =<< getConstInfo q)
-  -- Note: gets the top-level type! All bounds variables have been lifted.
-
-primQNameDefinition :: TCM PrimitiveImpl
-primQNameDefinition = do
-  kit                           <- quotingKit
-  agdaFunDef                    <- primAgdaFunDef
-  agdaFunDefCon                 <- primAgdaFunDefCon
-  agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
-  agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
-  agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
-  agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
-  agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
-  agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
-  list        <- buildList
-
-  let qType        = quoteTypeWithKit kit
-      qClause      = quoteClauseWithKit kit
-      defapp f xs  = apply f . map defaultArg <$> sequence xs
-      qFunDef t cs = defapp agdaFunDefCon [qType t, list <$> mapM qClause cs]
-      qQName       = Lit . LitQName noRange
-      con qn = do
-        def <- getConstInfo qn
-        case theDef def of
-          Function{funClauses = cs}
-                        -> defapp agdaDefinitionFunDef    [qFunDef (defType def) cs]
-          Datatype{}    -> defapp agdaDefinitionDataDef   [pure $ qQName qn]
-          Record{}      -> defapp agdaDefinitionRecordDef [pure $ qQName qn]
-          Axiom{}       -> defapp agdaDefinitionPostulate []
-          Primitive{primClauses = cs} | not $ null cs
-                        -> defapp agdaDefinitionFunDef    [qFunDef (defType def) cs]
-          Primitive{}   -> defapp agdaDefinitionPrimitive []
-          Constructor{} -> defapp agdaDefinitionDataConstructor []
-
-  unquoteQName <- fromTerm
-  t <- el primQName --> el primAgdaDefinition
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
-    case ts of
-      [v] ->
-        redBind (unquoteQName v)
-            (\v' -> [v']) $ \x ->
-        redReturn =<< con x
-      _ -> __IMPOSSIBLE__
-
-primDataNumberOfParameters :: TCM PrimitiveImpl
-primDataNumberOfParameters =
-  mkPrimFun1TCM (el primAgdaDataDef --> el primNat)
-                (fmap (toNat . dataPars . theDef) . getConstInfo)
-  where toNat = fromIntegral :: Int -> Nat
-
-primDataConstructors :: TCM PrimitiveImpl
-primDataConstructors =
-  mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
-                (fmap (dataCons . theDef) . getConstInfo)
-
 mkPrimLevelZero :: TCM PrimitiveImpl
 mkPrimLevelZero = do
   t <- primType (undefined :: Lvl)
@@ -755,12 +698,6 @@ primitiveFunctions = Map.fromList
   , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
   , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
   , "primShowString"      |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
-
-  -- Reflection
-  , "primQNameType"              |-> primQNameType
-  , "primQNameDefinition"        |-> primQNameDefinition
-  , "primDataNumberOfParameters" |-> primDataNumberOfParameters
-  , "primDataConstructors"       |-> primDataConstructors
 
   -- Other stuff
   , "primTrustMe"         |-> primTrustMe

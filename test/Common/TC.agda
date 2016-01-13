@@ -21,6 +21,10 @@ postulate
   freshName  : String → TC QName
   declareDef : QName → Type → TC ⊤
   defineFun  : QName → FunDef → TC ⊤
+  getType    : QName → TC Type
+  getDefinition : QName → TC Definition
+  numberOfParameters : DataDef → TC Nat
+  getConstructors    : DataDef   → TC (List QName)
 
 {-# BUILTIN AGDATCM           TC         #-}
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
@@ -38,6 +42,10 @@ postulate
 {-# BUILTIN AGDATCMFRESHNAME  freshName #-}
 {-# BUILTIN AGDATCMDECLAREDEF declareDef #-}
 {-# BUILTIN AGDATCMDEFINEFUN  defineFun #-}
+{-# BUILTIN AGDATCMGETTYPE getType #-}
+{-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
+{-# BUILTIN AGDATCMNUMBEROFPARAMETERS numberOfParameters #-}
+{-# BUILTIN AGDATCMGETCONSTRUCTORS getConstructors #-}
 
 Tactic = Term → TC ⊤
 

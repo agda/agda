@@ -128,7 +128,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMNewMeta, primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
-    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
+    primAgdaTCMGetType, primAgdaTCMGetDefinition, primAgdaTCMNumberOfParameters, primAgdaTCMGetConstructors
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -250,6 +251,10 @@ primAgdaTCMInContext     = getBuiltin builtinAgdaTCMInContext
 primAgdaTCMFreshName     = getBuiltin builtinAgdaTCMFreshName
 primAgdaTCMDeclareDef    = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDefineFun     = getBuiltin builtinAgdaTCMDefineFun
+primAgdaTCMGetType            = getBuiltin builtinAgdaTCMGetType
+primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
+primAgdaTCMNumberOfParameters = getBuiltin builtinAgdaTCMNumberOfParameters
+primAgdaTCMGetConstructors    = getBuiltin builtinAgdaTCMGetConstructors
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -287,7 +292,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMNewMeta, builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
-  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun
+  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
+  builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
+  builtinAgdaTCMNumberOfParameters, builtinAgdaTCMGetConstructors
   :: String
 
 builtinNat                           = "NATURAL"
@@ -409,6 +416,10 @@ builtinAgdaTCMInContext     = "AGDATCMINCONTEXT"
 builtinAgdaTCMFreshName     = "AGDATCMFRESHNAME"
 builtinAgdaTCMDeclareDef    = "AGDATCMDECLAREDEF"
 builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
+builtinAgdaTCMGetType            = "AGDATCMGETTYPE"
+builtinAgdaTCMGetDefinition      = "AGDATCMGETDEFINITION"
+builtinAgdaTCMNumberOfParameters = "AGDATCMNUMBEROFPARAMETERS"
+builtinAgdaTCMGetConstructors    = "AGDATCMGETCONSTRUCTORS"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

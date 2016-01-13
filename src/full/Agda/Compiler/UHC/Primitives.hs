@@ -77,10 +77,6 @@ primFunctions = M.fromList $
         , "primQNameEquality"
         , "primQNameLess"
         , "primShowQName"
-        , "primQNameType"
-        , "primQNameDefinition"
-        , "primDataConstructors"
-        , "primDataNumberOfParameters"
         ]
     ] ++ [
         ("primTrustMe", mkTrustMe)

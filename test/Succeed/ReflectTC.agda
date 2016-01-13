@@ -28,8 +28,8 @@ mapTC!r : ∀ {A} → (A → TC ⊤) → List A → TC ⊤
 mapTC!r f [] = returnTC _
 mapTC!r f (x ∷ xs) = mapTC! f xs >>= λ _ → f x
 
-visibleArity : QName → Nat
-visibleArity q = typeArity (type q)
+visibleArity : QName → TC Nat
+visibleArity q = getType q >>= λ t → returnTC (typeArity t)
   where
     typeArity : Type → Nat
     typeArity (el _ (pi (arg (argInfo visible _) _) (abs _ b))) = suc (typeArity b)
@@ -67,15 +67,17 @@ tryConstructors : Nat → List QName → Tactic
 constructors-tac : Nat → Type → Tactic
 constructors-tac zero _ _ = typeError "Search depth exhausted"
 constructors-tac (suc n) (el _ (def d vs)) hole =
-  case primQNameDefinition d of λ
-  { (dataDef df) → tryConstructors n (primDataConstructors df) hole
+  getDefinition d >>= λ def →
+  case def of λ
+  { (dataDef df) → getConstructors df >>= λ cs → tryConstructors n cs hole
   ; _            → returnTC _ }
 constructors-tac _ (el _ (pi a b)) hole = give absurdLam hole
 constructors-tac _ (el _ _) hole = returnTC _
 
 tryConstructors n []       hole = typeError "No matching constructor term"
 tryConstructors n (c ∷ cs) hole =
-  catchTC (replicateTC (visibleArity c) newMeta! >>= λ vs →
+  visibleArity c >>= λ ar →
+  catchTC (replicateTC ar newMeta! >>= λ vs →
            unify hole (con c (map (arg (argInfo visible relevant)) vs)) >>= λ _ →
            mapTC!r (quotegoal (constructors-tac n)) vs)
           (tryConstructors n cs hole)

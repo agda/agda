@@ -411,10 +411,14 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext) ]
              __IMPOSSIBLE__
     I.Def f [u] ->
-      choice [ (f `isDef` primAgdaTCMNewMeta,   tcFun1 tcNewMeta   u)
-             , (f `isDef` primAgdaTCMInferType, tcFun1 tcInferType u)
-             , (f `isDef` primAgdaTCMNormalise, tcFun1 tcNormalise u)
-             , (f `isDef` primAgdaTCMFreshName, tcFun1 tcFreshName u) ]
+      choice [ (f `isDef` primAgdaTCMNewMeta,            tcFun1 tcNewMeta            u)
+             , (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
+             , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
+             , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
+             , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
+             , (f `isDef` primAgdaTCMNumberOfParameters, tcFun1 tcNumberOfParameters u)
+             , (f `isDef` primAgdaTCMGetConstructors,    tcFun1 tcGetConstructors    u)
+             , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u) ]
              __IMPOSSIBLE__
     I.Def f [u, v] ->
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
@@ -518,6 +522,30 @@ evalTCM v = do
         go :: [Arg R.Type] -> Term -> UnquoteM Term
         go []       m = evalTCM m
         go (a : as) m = extendCxt a $ go as m
+
+    constInfo :: QName -> TCM Definition
+    constInfo x = getConstInfo x `catchError` \ _ ->
+                  typeError $ GenericError $ "Unbound name: " ++ show x
+
+    tcGetType :: QName -> TCM Term
+    tcGetType x = quoteType . defType =<< constInfo x
+
+    tcGetDefinition :: QName -> TCM Term
+    tcGetDefinition x = quoteDefn =<< constInfo x
+
+    tcGetConstructors :: QName -> TCM Term
+    tcGetConstructors d = do
+      def <- constInfo d
+      case theDef def of
+        Datatype{dataCons = cs} -> quoteList $ map quoteName cs
+        _ -> __IMPOSSIBLE__
+
+    tcNumberOfParameters :: QName -> TCM Term
+    tcNumberOfParameters d = do
+      def <- constInfo d
+      case theDef def of
+        Datatype{dataPars = n} -> pure $ quoteNat (fromIntegral n)
+        _ -> __IMPOSSIBLE__
 
     tcDeclareDef :: QName -> R.Type -> TCM Term
     tcDeclareDef _ _ = typeError $ NotImplemented "tcDeclareDef"

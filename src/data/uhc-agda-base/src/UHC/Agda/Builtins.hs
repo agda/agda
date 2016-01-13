@@ -66,10 +66,6 @@ module UHC.Agda.Builtins
   , primQNameEquality
   , primQNameLess
   , primShowQName
-  , primQNameType
-  , primQNameDefinition
-  , primDataConstructors
-  , primDataNumberOfParameters
 
     -- Debugging
   , primTrace
@@ -322,18 +318,6 @@ primQNameLess = (<)
 
 primShowQName :: QName -> String
 primShowQName = qnameString
-
-primQNameType :: a
-primQNameType = notImplError "primQNameType"
-
-primQNameDefinition :: a
-primQNameDefinition = notImplError "primQNameDefinition"
-
-primDataConstructors :: a
-primDataConstructors = notImplError "primDataConstructors"
-
-primDataNumberOfParameters :: a
-primDataNumberOfParameters = notImplError "primDataNumberOfParameters"
 
 -- ====================
 -- Debugging

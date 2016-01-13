@@ -81,46 +81,8 @@ test₄ : Check (List ℕ)
 test₄ = quoteGoal t in
         t is `List `ℕ of course
 
-test₅ : primQNameType (quote Term) ≡ set₀
-test₅ = refl
-
--- TODO => test₆ : primQNameType (quote set₀) ≡ el unknown `Type ≢ el₀ `Type
-test₆ : unEl (primQNameType (quote set₀)) ≡ `Type
-test₆ = refl
-
-test₇ : primQNameType (quote Sort.lit) ≡ el₀ (pi (argᵛʳ (el₀ `ℕ)) (abs "_" (el₀ `Sort)))
-test₇ = refl
-
-mutual
-  ℕdef : DataDef
-  ℕdef = _
-
-  test₈ : dataDef ℕdef ≡ primQNameDefinition (quote ℕ)
-  test₈ = refl
-
-test₉ : primDataConstructors ℕdef ≡ (quote ℕ.zero ∷ quote ℕ.suc ∷ [])
-test₉ = refl
-
-test₁₀ : primQNameDefinition (quote ℕ.zero) ≡ dataConstructor
-test₁₀ = refl
-
 postulate
   a : ℕ
-
-test₁₁ : primQNameDefinition (quote a) ≡ axiom
-test₁₁ = refl
-
-test₁₂ : primQNameDefinition (quote primQNameDefinition) ≡ prim
-test₁₂ = refl
-
-record Unit : Set where
-
-mutual
-  UnitDef : RecordDef
-  UnitDef = _
-
-  test₁₃ : recordDef UnitDef ≡ primQNameDefinition (quote Unit)
-  test₁₃ = refl
 
 test₁₄ : Check 1
 test₁₄ = quoteGoal t in t is lit (nat 1) of course

@@ -514,8 +514,6 @@ litqname x =
   HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
   hsTypedInt n `HS.App`
   hsTypedInt m `HS.App`
-  (rtmError "primQNameType: not implemented") `HS.App`
-  (rtmError "primQNameDefinition: not implemented") `HS.App`
   HS.Lit (HS.String $ show x )
   where
     NameId n m = nameId $ qnameName x
@@ -525,8 +523,6 @@ litqnamepat x =
   HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
           [ HS.PLit HS.Signless (HS.Int n)
           , HS.PLit HS.Signless (HS.Int m)
-          , HS.PWildCard
-          , HS.PWildCard
           , HS.PWildCard]
   where
     NameId n m = nameId $ qnameName x

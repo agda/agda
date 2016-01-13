@@ -164,14 +164,3 @@ data Definition : Set where
 {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
 {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
 {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
-
-primitive
-  primQNameType              : QName → Type
-  primQNameDefinition        : QName → Definition
-  primDataNumberOfParameters : DataDef → ℕ
-  primDataConstructors       : DataDef   → List QName
---primRecordConstructor      : RecordDef → QName
---primRecordFields           : RecordDef → List QName
-
-type : QName → Type
-type = primQNameType
