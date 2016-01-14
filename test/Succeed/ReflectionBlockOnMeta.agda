@@ -21,7 +21,7 @@ macro
     unEl <$> inferType hole >>= λ
     { (def (quote Nat) []) → unify hole (lit (nat 42))
     ; (def (quote Bool) []) → unify hole (con (quote false) [])
-    ; (meta x _) → blockOnMeta x
+    ; (meta x _) → catchTC (blockOnMeta x) (typeError "impossible") -- check that the block isn't caught
     ; _ → typeError "No default"
     }
 
@@ -32,6 +32,8 @@ aBool : Bool
 aBool = default
 
 alsoNat : Nat
+
 soonNat : _
 soonNat = default
+
 alsoNat = soonNat

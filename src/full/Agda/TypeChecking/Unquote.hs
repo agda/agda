@@ -6,7 +6,7 @@ module Agda.TypeChecking.Unquote where
 
 import Control.Applicative
 import Control.Monad.State (runState, get, put)
-import Control.Monad.Writer (WriterT, execWriterT, runWriterT, tell)
+import Control.Monad.Writer (WriterT(..), execWriterT, runWriterT, tell)
 import Control.Monad.Trans (lift)
 import Control.Monad
 
@@ -67,9 +67,15 @@ qNameType = El (mkType 0) <$> primQName
 
 type UnquoteM = WriterT [QName] (ExceptionT UnquoteError TCM)
 
+unpackUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
+unpackUnquoteM = runExceptionT . runWriterT
+
+packUnquoteM :: TCM (Either UnquoteError (a, [QName])) -> UnquoteM a
+packUnquoteM = WriterT . ExceptionT
+
 runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError a)
 runUnquoteM m = do
-  z <- runExceptionT (runWriterT m)
+  z <- unpackUnquoteM m
   case z of
     Left err         -> return $ Left err
     Right (x, decls) -> Right x <$ mapM_ isDefined decls
@@ -463,8 +469,10 @@ evalTCM v = do
     tcBind m k = do v <- evalTCM m
                     evalTCM (k `apply` [defaultArg v])
 
+    -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
-    tcCatchError m h = evalTCM m `catchError` \ _ -> evalTCM h
+    tcCatchError m h = packUnquoteM $ unpackUnquoteM (evalTCM m) `catchError` \ _ ->
+                                      unpackUnquoteM (evalTCM h)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
