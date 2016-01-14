@@ -201,6 +201,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMGetDefinition      |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
   , builtinAgdaTCMNumberOfParameters |-> builtinPostulate (tdtype --> tTCM_ primNat)
   , builtinAgdaTCMGetConstructors    |-> builtinPostulate (tdtype --> tTCM_ (list primQName))
+  , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   ]
   where
         (|->) = (,)

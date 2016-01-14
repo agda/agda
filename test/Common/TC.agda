@@ -25,6 +25,7 @@ postulate
   getDefinition : QName → TC Definition
   numberOfParameters : DataDef → TC Nat
   getConstructors    : DataDef   → TC (List QName)
+  blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
@@ -46,6 +47,7 @@ postulate
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
 {-# BUILTIN AGDATCMNUMBEROFPARAMETERS numberOfParameters #-}
 {-# BUILTIN AGDATCMGETCONSTRUCTORS getConstructors #-}
+{-# BUILTIN AGDATCMBLOCKONMETA blockOnMeta #-}
 
 Tactic = Term → TC ⊤
 

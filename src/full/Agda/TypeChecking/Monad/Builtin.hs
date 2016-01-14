@@ -129,7 +129,8 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMNewMeta, primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
-    primAgdaTCMGetType, primAgdaTCMGetDefinition, primAgdaTCMNumberOfParameters, primAgdaTCMGetConstructors
+    primAgdaTCMGetType, primAgdaTCMGetDefinition, primAgdaTCMNumberOfParameters, primAgdaTCMGetConstructors,
+    primAgdaTCMBlockOnMeta
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -255,6 +256,7 @@ primAgdaTCMGetType            = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
 primAgdaTCMNumberOfParameters = getBuiltin builtinAgdaTCMNumberOfParameters
 primAgdaTCMGetConstructors    = getBuiltin builtinAgdaTCMGetConstructors
+primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -294,7 +296,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
-  builtinAgdaTCMNumberOfParameters, builtinAgdaTCMGetConstructors
+  builtinAgdaTCMNumberOfParameters, builtinAgdaTCMGetConstructors, builtinAgdaTCMBlockOnMeta
   :: String
 
 builtinNat                           = "NATURAL"
@@ -420,6 +422,7 @@ builtinAgdaTCMGetType            = "AGDATCMGETTYPE"
 builtinAgdaTCMGetDefinition      = "AGDATCMGETDEFINITION"
 builtinAgdaTCMNumberOfParameters = "AGDATCMNUMBEROFPARAMETERS"
 builtinAgdaTCMGetConstructors    = "AGDATCMGETCONSTRUCTORS"
+builtinAgdaTCMBlockOnMeta        = "AGDATCMBLOCKONMETA"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

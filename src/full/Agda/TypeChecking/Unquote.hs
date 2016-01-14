@@ -443,8 +443,9 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDefineFun,  tcFun2 tcDefineFun  u v) ]
              __IMPOSSIBLE__
     I.Def f [_, _, u] ->
-      choice [ (f `isDef` primAgdaTCMReturn,    return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError, tcFun1 tcTypeError u) ]
+      choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
+             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError u)
+             , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u) ]
              __IMPOSSIBLE__
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
@@ -465,10 +466,13 @@ evalTCM v = do
     tcCatchError :: Term -> Term -> UnquoteM Term
     tcCatchError m h = evalTCM m `catchError` \ _ -> evalTCM h
 
-    tcFun1 :: Unquote a => (a -> TCM b) -> Elim -> UnquoteM b
-    tcFun1 fun a = do
+    uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
+    uqFun1 fun a = do
       a <- unquote (unElim a)
-      liftU (fun a)
+      fun a
+
+    tcFun1 :: Unquote a => (a -> TCM b) -> Elim -> UnquoteM b
+    tcFun1 fun = uqFun1 (liftU . fun)
 
     uqFun2 :: (Unquote a, Unquote b) => (a -> b -> UnquoteM c) -> Elim -> Elim -> UnquoteM c
     uqFun2 fun a b = do
@@ -496,6 +500,9 @@ evalTCM v = do
       a <- isType_ =<< toAbstract_ a
       v <- newValueMeta RunMetaOccursCheck a
       quoteTerm v
+
+    tcBlockOnMeta :: MetaId -> UnquoteM Term
+    tcBlockOnMeta x = throwException (BlockedOnMeta x)
 
     tcTypeError :: Str -> TCM a
     tcTypeError s = typeError . GenericDocError =<< text (unStr s)
