@@ -843,14 +843,14 @@ lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange) (DomainFree defaultArgInfo n) 
 
 substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
 substPattern s p = case p of
-  VarP z      -> fromMaybe p (lookup z s)
-  ConP i q ps -> ConP i q (fmap (fmap (fmap (substPattern s))) ps)
-  WildP i     -> p
-  DotP i e    -> DotP i (substExpr (map (fmap patternToExpr) s) e)
-  AbsurdP i   -> p
-  LitP l      -> p
   _           -> __IMPOSSIBLE__ -- pattern synonyms (already gone) and
                                 -- @-patterns (not supported anyways).
+  VarP z        -> fromMaybe p (lookup z s)
+  ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern s))) ps)
+  WildP i       -> p
+  DotP i e      -> DotP i (substExpr (map (fmap patternToExpr) s) e)
+  AbsurdP i     -> p
+  LitP l        -> p
 
 class SubstExpr a where
   substExpr :: [(Name, Expr)] -> a -> a
