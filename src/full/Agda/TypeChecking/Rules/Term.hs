@@ -1331,7 +1331,11 @@ checkHeadApplication e t hd args = do
     checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t $ \vs t1 -> do
       coerce (f vs) t1 t
 
-traceCallE :: Call -> ExceptT e TCM r -> ExceptT e TCM r
+traceCallE ::
+#if !MIN_VERSION_transformers(0,4,1)
+  Error e =>
+#endif
+  Call -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
   z <- lift $ traceCall call $ runExceptT m
   case z of
