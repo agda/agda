@@ -440,8 +440,8 @@ nameKinds hlLevel decl = do
   declToKind (A.Open {})            = id
   declToKind (A.PatternSynDef q _ _) = insert q (Constructor Common.Inductive)
   declToKind (A.FunDef  _ q _ _)     = insert q Function
-  declToKind (A.UnquoteDecl _ _ q _) = insert q Function
-  declToKind (A.UnquoteDef _ q _)    = insert q Function
+  declToKind (A.UnquoteDecl _ _ qs _) = foldr (\ q f -> insert q Function . f) id qs
+  declToKind (A.UnquoteDef _ qs _)    = foldr (\ q f -> insert q Function . f) id qs
   declToKind (A.DataSig _ q _ _)    = insert q Datatype
   declToKind (A.DataDef _ q _ cs)   = \m ->
                                       insert q Datatype $

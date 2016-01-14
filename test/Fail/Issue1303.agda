@@ -2,6 +2,7 @@
 
 open import Common.Reflection
 open import Common.Prelude
+open import Common.TC
 
 data Box : Set → Set₁ where
   box : (A : Set) → Box A
@@ -10,7 +11,7 @@ arg₀ : {A : Set} → A → Arg A
 arg₀ = arg (argInfo visible relevant)
 
 
-unquoteDecl test = funDef
+unquoteDecl test = define test (funDef
  (el unknown (pi
    (arg₀ (el (lit 1) (sort (lit 0))))
    (abs "A" (el unknown (pi
@@ -20,4 +21,4 @@ unquoteDecl test = funDef
    (arg₀ dot ∷
     arg₀ (con (quote box) (arg₀ (var "dot") ∷ [])) ∷ [])
    (var 1 [])
- ∷ [])
+ ∷ []))

@@ -51,3 +51,9 @@ Tactic = Term → TC ⊤
 
 give : Term → Tactic
 give v = λ hole → unify hole v
+
+define : QName → FunDef → TC ⊤
+define f (funDef a cs) =
+  bindTC (declareDef f a) λ _ →
+  defineFun f cs
+

@@ -2,6 +2,7 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Common.TC
 
 tt : ⊤
 tt = record{}
@@ -37,4 +38,4 @@ noConf = funDef
            (con (quote refl) [])
   ∷ [])
 
-unquoteDecl test = noConf
+unquoteDecl test = define test noConf

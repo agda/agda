@@ -380,8 +380,8 @@ data Declaration
   | Import      Range QName (Maybe AsName) !OpenShortHand ImportDirective
   | ModuleMacro Range  Name ModuleApplication !OpenShortHand ImportDirective
   | Module      Range QName [TypedBindings] [Declaration]
-  | UnquoteDecl Range Name Expr
-  | UnquoteDef  Range Name Expr
+  | UnquoteDecl Range [Name] Expr
+  | UnquoteDef  Range [Name] Expr
   | Pragma      Pragma
   deriving (Typeable)
 

@@ -3,6 +3,7 @@ module UnquoteDef where
 
 open import Common.Reflection
 open import Common.Prelude
+open import Common.TC
 
 module Target where
   mutual
@@ -51,6 +52,10 @@ pattern `Bool = def (quote Bool) []
   ∷ clause (vArg (`suc (var "n")) ∷ []) (def step (vArg (var 0 []) ∷ []))
   ∷ []
 
+_>>_ : TC ⊤ → TC ⊤ → TC ⊤
+m >> m₁ = bindTC m λ _ → m₁
+
 even odd : Nat → Bool
-unquoteDef even = `evenOdd `true  (quote odd)
-unquoteDef odd  = `evenOdd `false (quote even)
+unquoteDef even odd =
+  defineFun even (`evenOdd `true  odd) >>
+  defineFun odd  (`evenOdd `false even)

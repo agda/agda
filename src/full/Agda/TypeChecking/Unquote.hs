@@ -77,7 +77,7 @@ runUnquoteM m = do
     isDefined x = do
       def <- theDef <$> getConstInfo x
       case def of
-        Axiom{} -> typeError $ GenericError $ "Missing definition for " ++ show x
+        Axiom{} -> genericError $ "Missing definition for " ++ show x
         _       -> return ()
 
 liftU :: TCM a -> UnquoteM a
@@ -544,7 +544,7 @@ evalTCM v = do
 
     constInfo :: QName -> TCM Definition
     constInfo x = getConstInfo x `catchError` \ _ ->
-                  typeError $ GenericError $ "Unbound name: " ++ show x
+                  genericError $ "Unbound name: " ++ show x
 
     tcGetType :: QName -> TCM Term
     tcGetType x = quoteType . defType =<< constInfo x
@@ -572,12 +572,14 @@ evalTCM v = do
       liftU $ do
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- (True <$ getConstInfo x) `catchError` \ _ -> return False
-        when alreadyDefined $ typeError $ GenericError $ "Multiple declarations of " ++ show x
-        addConstant x $ defaultDefn defaultArgInfo x a Axiom
+        when alreadyDefined $ genericError $ "Multiple declarations of " ++ show x
+        addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
         primUnitUnit
 
     tcDefineFun :: QName -> [R.Clause] -> TCM Term
     tcDefineFun x cs = do
+      _ <- getConstInfo x `catchError` \ _ ->
+        genericError $ "Missing declaration for " ++ show x
       cs <- mapM (toAbstract_ . QNamed x) cs
       reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
       let i = mkDefInfo (nameConcrete $ qnameName x) noFixity' PublicAccess ConcreteDef noRange

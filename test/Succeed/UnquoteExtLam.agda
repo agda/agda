@@ -31,18 +31,18 @@ magicDef =
                            ∷ []) [])
        ∷ [] )
 
-unquoteDecl magic = magicDef
+unquoteDecl magic = define magic magicDef
 
 checkMagic : {A : Set} → ⊥ → A
 checkMagic = magic
 
-unquoteDecl pr = prDef
+unquoteDecl pr = define pr prDef
 
 magic′ : {A : Set} → ⊥ → A
 magic′ = unquote (give (extLam (absurdClause (vArg absurd ∷ []) ∷ []) []))
 
 module Pred (A : Set) where
-  unquoteDecl pr′ = prDef
+  unquoteDecl pr′ = define pr′ prDef
 
 check : pr 10 ≡ 9
 check = refl

@@ -116,8 +116,8 @@ data NiceDeclaration
   | DataDef Range Fixity' IsAbstract Name [LamBinding] PositivityCheck [NiceConstructor]
   | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] PositivityCheck [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
-  | NiceUnquoteDecl Range Fixity' Access IsInstance IsAbstract TerminationCheck Name Expr
-  | NiceUnquoteDef Range Fixity' Access IsAbstract TerminationCheck Name Expr
+  | NiceUnquoteDecl Range [Fixity'] Access IsInstance IsAbstract TerminationCheck [Name] Expr
+  | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
   deriving (Typeable, Show)
 
 type TerminationCheck = Common.TerminationCheck Measure
@@ -166,7 +166,7 @@ data DeclarationException
           -- ^ Pragma @{-# NO_TERMINATION_CHECK #-}@ has been replaced
           --   by {-# TERMINATING #-} and {-# NON_TERMINATING #-}.
         | InvalidCatchallPragma Range
-        | UnquoteDefRequiresSignature Name
+        | UnquoteDefRequiresSignature [Name]
         | BadMacroDef NiceDeclaration
         | InvalidNoPositivityCheckPragma Range
     deriving (Typeable)
@@ -285,8 +285,8 @@ instance Pretty DeclarationException where
     pwords "In a mutual block, either all functions must have the same (or no) termination checking pragma."
   pretty (InvalidCatchallPragma _) = fsep $
     pwords "The CATCHALL pragma can only preceed a function clause."
-  pretty (UnquoteDefRequiresSignature x) = fsep $
-    pwords "Missing type signature for unquoteDef" ++ [pretty x]
+  pretty (UnquoteDefRequiresSignature xs) = fsep $
+    pwords "Missing type signatures for unquoteDef" ++ map pretty xs
   pretty (BadMacroDef nd) = fsep $
     [text $ declName nd] ++ pwords "are not allowed in macro blocks"
   pretty (NotAllowedInMutual nd) = fsep $
@@ -465,7 +465,7 @@ runNice nice = nice `evalStateT` initNiceEnv
 
 data DeclKind
     = LoneSig DataRecOrFun Name
-    | LoneDef DataRecOrFun Name
+    | LoneDefs DataRecOrFun [Name]
     | OtherDecl
   deriving (Eq, Show)
 
@@ -473,10 +473,10 @@ declKind :: NiceDeclaration -> DeclKind
 declKind (FunSig _ _ _ _ _ _ tc x _)      = LoneSig (FunName tc) x
 declKind (NiceRecSig _ _ _ x pars _ pc)   = LoneSig (RecName pc $ parameters pars) x
 declKind (NiceDataSig _ _ _ x pars _ pc)  = LoneSig (DataName pc $ parameters pars) x
-declKind (FunDef _ _ _ _ tc x _)          = LoneDef (FunName tc) x
-declKind (DataDef _ _ _ x pars pc _)      = LoneDef (DataName pc $ parameters pars) x
-declKind (RecDef _ _ _ x _ _ _ pars pc _) = LoneDef (RecName pc $ parameters pars) x
-declKind (NiceUnquoteDef _ _ _ _ tc x _)  = LoneDef (FunName tc) x
+declKind (FunDef _ _ _ _ tc x _)          = LoneDefs (FunName tc) [x]
+declKind (DataDef _ _ _ x pars pc _)      = LoneDefs (DataName pc $ parameters pars) [x]
+declKind (RecDef _ _ _ x _ _ _ pars pc _) = LoneDefs (RecName pc $ parameters pars) [x]
+declKind (NiceUnquoteDef _ _ _ _ tc xs _) = LoneDefs (FunName tc) xs
 declKind Axiom{}                          = OtherDecl
 declKind NiceField{}                      = OtherDecl
 declKind PrimitiveFunction{}              = OtherDecl
@@ -544,7 +544,7 @@ niceDeclarations ds = do
       Import{}             -> []
       ModuleMacro{}        -> []
       Module{}             -> []
-      UnquoteDecl _ x _    -> [x]
+      UnquoteDecl _ xs _   -> xs
       UnquoteDef{}         -> []
       Pragma{}             -> []
 
@@ -552,9 +552,9 @@ niceDeclarations ds = do
     inferMutualBlocks [] = return []
     inferMutualBlocks (d : ds) =
       case declKind d of
-        OtherDecl   -> (d :) <$> inferMutualBlocks ds
-        LoneDef _ x -> __IMPOSSIBLE__
-        LoneSig k x -> do
+        OtherDecl    -> (d :) <$> inferMutualBlocks ds
+        LoneDefs _ xs -> __IMPOSSIBLE__
+        LoneSig k x  -> do
           addLoneSig x k
           ((tcs, pcs), (ds0, ds1)) <- untilAllDefined ([terminationCheck k], [positivityCheck k]) ds
           tc <- combineTermChecks (getRange d) tcs
@@ -584,8 +584,9 @@ niceDeclarations ds = do
               d : ds -> case declKind d of
                 LoneSig k x ->
                   addLoneSig x k >> cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
-                LoneDef k x ->
-                  removeLoneSig x >> cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
+                LoneDefs k xs -> do
+                  mapM_ removeLoneSig xs
+                  cons d (untilAllDefined (terminationCheck k : tc, positivityCheck k : pc) ds)
                 OtherDecl   -> cons d (untilAllDefined (tc, pc) ds)
           where
             -- ASR (26 December 2015): Type annotated version of the @cons@ function.
@@ -707,17 +708,19 @@ niceDeclarations ds = do
         Open r x is         -> (NiceOpen r x is :) <$> nice ds
         Import r x as op is -> (NiceImport r x as op is :) <$> nice ds
 
-        UnquoteDecl r x e -> do
-          fx <- getFixity x
-          (NiceUnquoteDecl r fx PublicAccess NotInstanceDef ConcreteDef TerminationCheck x e :) <$> nice ds
+        UnquoteDecl r xs e -> do
+          fxs <- mapM getFixity xs
+          (NiceUnquoteDecl r fxs PublicAccess NotInstanceDef ConcreteDef TerminationCheck xs e :) <$> nice ds
 
-        UnquoteDef r x e -> do
-          fx <- getFixity x
-          ifM (elem x <$> map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs)
-          {- then -} (do
-            removeLoneSig x
-            (NiceUnquoteDef r fx PublicAccess ConcreteDef TerminationCheck x e :) <$> nice ds)
-          {- else -} (throwError $ UnquoteDefRequiresSignature x)
+        UnquoteDef r xs e -> do
+          fxs  <- mapM getFixity xs
+          sigs <- map fst . filter (isFunName . snd) . Map.toList <$> use loneSigs
+          let missing = filter (`notElem` sigs) xs
+          if null missing
+            then do
+              mapM_ removeLoneSig xs
+              (NiceUnquoteDef r fxs PublicAccess ConcreteDef TerminationCheck xs e :) <$> nice ds
+            else throwError $ UnquoteDefRequiresSignature missing
 
         Pragma (TerminationCheckPragma r NoTerminationCheck) ->
           throwError $ PragmaNoTerminationCheck r
@@ -1024,7 +1027,7 @@ niceDeclarations ds = do
         isTypeSig _                           = False
 
         sigNames  = [ (x, k) | LoneSig k x <- map declKind ds ]
-        defNames  = [ (x, k) | LoneDef k x <- map declKind ds ]
+        defNames  = [ (x, k) | LoneDefs k xs <- map declKind ds, x <- xs ]
         -- compute the set difference with equality just on names
         loneNames = [ (x, k) | (x, k) <- sigNames, List.all ((x /=) . fst) defNames ]
 

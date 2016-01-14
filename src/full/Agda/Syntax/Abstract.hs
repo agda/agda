@@ -128,8 +128,8 @@ data Declaration
       --   and the optional name is the constructor's name.
   | PatternSynDef QName [Arg Name] (Pattern' Void)
       -- ^ Only for highlighting purposes
-  | UnquoteDecl MutualInfo DefInfo QName Expr
-  | UnquoteDef  DefInfo QName Expr
+  | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
+  | UnquoteDef  [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
   deriving (Typeable, Show, Eq)
 
@@ -696,8 +696,8 @@ instance AllNames Declaration where
   allNames (RecSig _ q _ _)           = Seq.singleton q
   allNames (RecDef _ q _ _ c _ _ decls) = q <| allNames c >< allNames decls
   allNames (PatternSynDef q _ _)      = Seq.singleton q
-  allNames (UnquoteDecl _ _ q _)      = Seq.singleton q
-  allNames (UnquoteDef _ q _)         = Seq.singleton q
+  allNames (UnquoteDecl _ _ qs _)     = Seq.fromList qs
+  allNames (UnquoteDef _ qs _)        = Seq.fromList qs
   allNames (FunDef _ q _ cls)         = q <| allNames cls
   allNames (Section _ _ _ decls)      = allNames decls
   allNames Apply{}                    = Seq.empty

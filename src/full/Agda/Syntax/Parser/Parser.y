@@ -1157,8 +1157,9 @@ Primitive : 'primitive' TypeSignatures  { Primitive (fuseRange $1 $2) $2 }
 -- Unquoting declarations.
 UnquoteDecl :: { Declaration }
 UnquoteDecl
-  : 'unquoteDecl' Id '=' Expr { UnquoteDecl (fuseRange $1 $4) $2 $4 }
-  | 'unquoteDef'  Id '=' Expr { UnquoteDef (fuseRange $1 $4) $2 $4 }
+  : 'unquoteDecl' '=' Expr { UnquoteDecl (fuseRange $1 $3) [] $3 }
+  | 'unquoteDecl' SpaceIds '=' Expr { UnquoteDecl (fuseRange $1 $4) $2 $4 }
+  | 'unquoteDef'  SpaceIds '=' Expr { UnquoteDef (fuseRange $1 $4) $2 $4 }
 
 -- Syntax declaration (To declare eg. mixfix binders)
 Syntax :: { Declaration }

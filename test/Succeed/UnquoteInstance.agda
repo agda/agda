@@ -20,7 +20,7 @@ module M {a} {A : Set a} {{EqA : Eq A}} where
 open Eq {{...}}
 
 private
-  eqNat : ∀ x y → Dec (x ≡ y)
+  eqNat : (x y : Nat) → Dec (x ≡ y)
   eqNat zero zero = yes refl
   eqNat zero (suc y) = no
   eqNat (suc x) zero = no
@@ -28,13 +28,23 @@ private
   eqNat (suc x) (suc .x) | yes refl = yes refl
   ... | no     = no
 
+  eqBool : (x y : Bool) → Dec (x ≡ y)
+  eqBool true true = yes refl
+  eqBool true false = no
+  eqBool false true = no
+  eqBool false false = yes refl
+
 pattern vArg a = arg (argInfo visible relevant) a
 pattern iArg a = arg (argInfo inst relevant) a
 
 instance
-  unquoteDecl EqNat =
-    funDef (el unknown (def (quote Eq) (vArg (def (quote Nat) []) ∷ [])))
-           (clause [] (con (quote eqDict) (vArg (def (quote eqNat) []) ∷ [])) ∷ [])
+  unquoteDecl EqNat = define EqNat
+    (funDef (el unknown (def (quote Eq) (vArg (def (quote Nat) []) ∷ [])))
+            (clause [] (con (quote eqDict) (vArg (def (quote eqNat) []) ∷ [])) ∷ []))
+
+  EqBool : Eq Bool
+  unquoteDef EqBool =
+    defineFun EqBool (clause [] (con (quote eqDict) (vArg (def (quote eqBool) []) ∷ [])) ∷ [])
 
 id : {A : Set} → A → A
 id x = x
@@ -56,6 +66,12 @@ ok₂ = unquote (give (tm₂ (quote _==_)))
 
 ok₃ : Dec (0 ≡ 1)
 ok₃ = unquote (give (tm (quote M._==_)))
+
+ok₄ : Dec (true ≡ false)
+ok₄ = true == false
+
+ok₅ : Dec (2 ≡ 2)
+ok₅ = 2 == 2
 
 -- Was bad.
 bad : Dec (0 ≡ 1)

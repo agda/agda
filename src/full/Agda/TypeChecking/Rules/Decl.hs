@@ -11,6 +11,7 @@ module Agda.TypeChecking.Rules.Decl where
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State (modify, gets)
+import Control.Monad.Writer (tell)
 
 import qualified Data.Foldable as Fold
 import Data.Maybe
@@ -250,56 +251,41 @@ mutualChecks mi d ds names = do
 
 type FinalChecks = Maybe (TCM ())
 
-checkUnquoteDecl :: Info.MutualInfo -> Info.DefInfo -> QName -> A.Expr -> TCM FinalChecks
-checkUnquoteDecl mi i x e = do
-  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
-  fundef <- primAgdaFunDef
-  v      <- checkExpr e $ El (mkType 0) fundef
-  reportSDoc "tc.unquote.decl" 20 $ text "unquoteDecl: Checked term"
-  uv <- runUnquoteM $ unquote v
-  case uv of
-    Left err -> typeError $ UnquoteFailed err
-    Right (R.FunDef a cs) -> do
-      reportSDoc "tc.unquote.decl" 20 $
-        vcat $ text "unquoteDecl: Unquoted term"
-             : [ nest 2 $ text (show c) | c <- cs ]
-      a <- toAbstract_ a
-      reportSDoc "tc.unquote.decl" 10 $
-        vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
-             , prettyTCM x <+> text ":" <+> prettyA a ]
-      cs <- mapM (toAbstract_ . (QNamed x)) cs
-      reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
-      let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
-               , A.FunDef i x NotDelayed cs ]
-      xs <- checkMutual mi ds
-      return $ Just $ mutualChecks mi (A.Mutual mi ds) ds xs
-    Right R.DataDef         -> __IMPOSSIBLE__
-    Right R.RecordDef       -> __IMPOSSIBLE__
-    Right R.DataConstructor -> __IMPOSSIBLE__
-    Right R.Axiom           -> __IMPOSSIBLE__
-    Right R.Primitive       -> __IMPOSSIBLE__
+checkUnquoteDecl :: Info.MutualInfo -> [Info.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
+checkUnquoteDecl mi is xs e = do
+  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> sep (map prettyTCM xs)
+  unquoteTop xs e
+  let setInfo i x = do
+        a <- defType <$> getConstInfo x
+        when (Info.defInstance i == InstanceDef) $ addTypedInstance x a
+  zipWithM_ setInfo is xs
+  return Nothing
 
-checkUnquoteDef :: Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkUnquoteDef i x e = do
-  reportSDoc "tc.unquote.def" 20 $ text "Checking unquoteDef" <+> prettyTCM x
-  list   <- primList
-  clause <- primAgdaClause
-  v      <- checkExpr e $ El (mkType 0) $ list `apply` [defaultArg clause]
-  reportSDoc "tc.unquote.def" 20 $ text "unquoteDef: Checked term"
-  uv <- runUnquoteM $ unquote v :: TCM (Either UnquoteError [R.Clause])
-  case uv of
-    Left err -> typeError $ UnquoteFailed err
-    Right cs -> do
-      reportSDoc "tc.unquote.def" 20 $
-        vcat $ text "unquoteDef: Unquoted term"
-             : [ nest 2 $ text (show c) | c <- cs ]
-      cs <- mapM (toAbstract_ . (QNamed x)) cs
-      reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
-      checkFunDef NotDelayed i x cs
+checkUnquoteDef :: [Info.DefInfo] -> [QName] -> A.Expr -> TCM ()
+checkUnquoteDef _ xs e = do
+  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDef" <+> sep (map prettyTCM xs)
+  unquoteTop xs e
 
--- | Instantiate all metas in 'Definition' associated to 'QName'. --   Makes sense after freezing metas.
---   Some checks, like free variable analysis, are not in 'TCM', --   so they will be more precise (see issue 1099) after meta instantiation.
--- --   Precondition: name has been added to signature already.
+-- | Run a reflected TCM computatation expected to define a given list of
+--   names.
+unquoteTop :: [QName] -> A.Expr -> TCM ()
+unquoteTop xs e = do
+  tcm   <- primAgdaTCM
+  unit  <- primUnit
+  lzero <- primLevelZero
+  let vArg = defaultArg
+      hArg = setHiding Hidden . vArg
+  m    <- checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
+  res  <- runUnquoteM $ tell xs >> evalTCM m
+  case res of
+    Left err -> typeError $ UnquoteFailed err
+    Right _  -> return ()
+
+-- | Instantiate all metas in 'Definition' associated to 'QName'.
+--   Makes sense after freezing metas. Some checks, like free variable
+--   analysis, are not in 'TCM', so they will be more precise (see issue 1099)
+--   after meta instantiation.
+--   Precondition: name has been added to signature already.
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
   reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q
