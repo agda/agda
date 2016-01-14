@@ -847,6 +847,7 @@ substPattern s p = case p of
                                 -- @-patterns (not supported anyways).
   VarP z        -> fromMaybe p (lookup z s)
   ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern s))) ps)
+  RecP i ps     -> RecP i (map (fmap (substPattern s)) ps)
   WildP i       -> p
   DotP i e      -> DotP i (substExpr (map (fmap patternToExpr) s) e)
   AbsurdP i     -> p
