@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 -- | A simple overlay over Data.Map to manage unordered sets with duplicates.
 
@@ -122,7 +122,7 @@ toAscList = toList
 -- * Traversal
 ------------------------------------------------------------------------
 
-map :: (Ord a, Ord b) => (a -> b) -> Bag a -> Bag b
+map :: Ord b => (a -> b) -> Bag a -> Bag b
 map f = Bag . Map.fromListWith (++) . List.map ff . Map.elems . bag
   where
     ff (a : as) = (b, b : List.map f as) where b = f a
@@ -191,7 +191,7 @@ prop_nonempty_groups b = all (not . List.null) $ groups b
 prop_map_id :: Ord a => Bag a -> Bool
 prop_map_id b = map id b == b
 
-prop_map_compose :: (Ord a, Ord b, Ord c) =>
+prop_map_compose :: (Ord b, Ord c) =>
                     (b -> c) -> (a -> b) -> Bag a -> Bool
 prop_map_compose f g b = map f (map g b) == map (f . g) b
 

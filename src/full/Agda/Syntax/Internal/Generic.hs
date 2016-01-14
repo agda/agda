@@ -13,9 +13,15 @@ import Agda.Utils.Impossible
 #include "undefined.h"
 
 class TermLike a where
-  traverseTerm  :: (Term -> Term) -> a -> a
-  traverseTermM :: (Monad m, Applicative m) => (Term -> m Term) -> a -> m a
-  foldTerm      :: Monoid m => (Term -> m) -> a -> m
+  traverseTerm :: (Term -> Term) -> a -> a
+  traverseTermM
+#if __GLASGOW_HASKELL__ <= 708
+    :: (Applicative m, Monad m)
+#else
+    :: Monad m
+#endif
+    => (Term -> m Term) -> a -> m a
+  foldTerm :: Monoid m => (Term -> m) -> a -> m
 
 -- * Constants
 
@@ -203,5 +209,11 @@ instance TermLike EqualityView where
     EqualityType s eq l t a b -> foldTerm f [l, t, a, b]
 
 -- | Put it in a monad to make it possible to do strictly.
-copyTerm :: (TermLike a, Applicative m, Monad m) => a -> m a
+copyTerm
+#if __GLASGOW_HASKELL__ <= 708
+  :: (TermLike a, Applicative m, Monad m)
+#else
+  :: (TermLike a, Monad m)
+#endif
+  => a -> m a
 copyTerm = traverseTermM return

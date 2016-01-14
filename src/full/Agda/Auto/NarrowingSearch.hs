@@ -1,10 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE FunctionalDependencies    #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE Rank2Types                #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Agda.Auto.NarrowingSearch where
 
@@ -218,7 +218,7 @@ mmcase x f = case x of
    Just x -> f x
    Nothing -> return $ Blocked m (mmcase x f)
 
-mmmcase :: Refinable a blk => MM a blk -> MetaEnv (MB b blk) -> (a -> MetaEnv (MB b blk)) -> MetaEnv (MB b blk)
+mmmcase :: MM a blk -> MetaEnv (MB b blk) -> (a -> MetaEnv (MB b blk)) -> MetaEnv (MB b blk)
 mmmcase x fm f = case x of
  NotM x -> f x
  Meta m -> do

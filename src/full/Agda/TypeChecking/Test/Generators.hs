@@ -196,10 +196,10 @@ instance GenC Hiding where
       HiddenFreqs {hiddenFreq = hideF, notHiddenFreq = nohideF } =
         hiddenFreqs $ tcFrequencies conf
 
-instance (GenC c, GenC a) => GenC (Common.Arg c a) where
+instance GenC a => GenC (Common.Arg c a) where
   genC conf = (\ (h, a) -> Arg (setHiding h defaultArgInfo) a) <$> genC conf
 
-instance (GenC c, GenC a) => GenC (Common.Dom c a) where
+instance GenC a => GenC (Common.Dom c a) where
   genC conf = (\ (h, a) -> Dom (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where

@@ -139,7 +139,7 @@ transposeEdge (Edge s t e) = Edge t s e
 
 -- | Turn a graph into a list of edges.  @O(n + e)@
 
-edges :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+edges :: Graph s t e -> [Edge s t e]
 edges (Graph g) =
   [ Edge s t e
   | (s, tes) <- Map.assocs g
@@ -151,7 +151,7 @@ edges (Graph g) =
 --
 --   Roughly linear in the length of the result list @O(result)@.
 
-edgesFrom :: (Ord s, Ord t) => Graph s t e -> [s] -> [Edge s t e]
+edgesFrom :: Ord s => Graph s t e -> [s] -> [Edge s t e]
 edgesFrom (Graph g) ss =
   [ Edge s t e
   | s <- ss
@@ -165,7 +165,7 @@ edgesFrom (Graph g) ss =
 --
 --   Expensive: @O(n * |ts| * log n)@.
 
-edgesTo :: (Ord s, Ord t) => Graph s t e -> [t] -> [Edge s t e]
+edgesTo :: Ord t => Graph s t e -> [t] -> [Edge s t e]
 edgesTo (Graph g) ts =
   [ Edge s t e
   | (s, m) <- Map.assocs g
@@ -189,24 +189,24 @@ lookup s t (Graph g) = Map.lookup t =<< Map.lookup s g
 
 -- | Get a list of outgoing edges with target.
 
-neighbours :: (Ord s, Ord t) => s -> Graph s t e -> [(t, e)]
+neighbours :: Ord s => s -> Graph s t e -> [(t, e)]
 neighbours s (Graph g) = maybe [] Map.assocs $ Map.lookup s g
 
 -- | Get a list of outgoing edges with target.
 
-neighboursMap :: (Ord s, Ord t) => s -> Graph s t e -> Map t e
+neighboursMap :: Ord s => s -> Graph s t e -> Map t e
 neighboursMap s (Graph g) = fromMaybe Map.empty $ Map.lookup s g
 
 -- * Node queries
 
 -- | Returns all the nodes with outgoing edges.  @O(n)@.
 
-sourceNodes :: (Ord s, Ord t) => Graph s t e -> Set s
+sourceNodes :: Graph s t e -> Set s
 sourceNodes = Map.keysSet . graph
 
 -- | Returns all the nodes with incoming edges.  Expensive! @O(e)@.
 
-targetNodes :: (Ord s, Ord t) => Graph s t e -> Set t
+targetNodes :: Ord t => Graph s t e -> Set t
 targetNodes = Set.fromList . map target . edges
 
 -- | For homogeneous graphs, @(s = t)@ we can compute a set
@@ -257,7 +257,7 @@ fromListWith f = List.foldl' (flip (insertEdgeWith f)) empty
 
 -- | Convert a graph into a list of edges. O(e)
 
-toList :: (Ord s, Ord t) => Graph s t e -> [Edge s t e]
+toList :: Graph s t e -> [Edge s t e]
 toList (Graph g) = [ Edge s t a | (s,m) <- Map.assocs g, (t,a) <- Map.assocs m ]
 
 -- | Check whether the graph is discrete (no edges).
@@ -281,7 +281,7 @@ empty = Graph Map.empty
 
 -- | A graph with two nodes and a single connecting edge.
 
-singleton :: (Ord s, Ord t) => s -> t -> e -> Graph s t e
+singleton :: s -> t -> e -> Graph s t e
 singleton s t e = Graph $ Map.singleton s (Map.singleton t e)
 
 -- | Insert an edge into the graph.
@@ -344,7 +344,7 @@ removeSourceNode s (Graph g) = Graph $ Map.delete s g
 --
 --   Expensive!  @O(n log n)@.
 
-removeTargetNode :: (Ord s, Ord t) => t -> Graph s t e -> Graph s t e
+removeTargetNode :: Ord t => t -> Graph s t e -> Graph s t e
 removeTargetNode t (Graph g) = Graph $ Map.mapMaybe rem g
   where rem = discardEmpty . Map.delete t
 
@@ -365,7 +365,7 @@ removeEdge s t (Graph g) = Graph $ Map.adjust (Map.delete t) s g
 
 -- | Keep only the edges that satisfy the predicate.  @O(e).@
 
-filterEdges :: (Ord s, Ord t) => (e -> Bool) -> Graph s t e -> Graph s t e
+filterEdges :: (e -> Bool) -> Graph s t e -> Graph s t e
 filterEdges f (Graph g) = Graph $ Map.mapMaybe (discardEmpty . Map.filter f) g
 
 -- | Unzipping a graph (naive implementation using fmap).
@@ -376,7 +376,7 @@ unzip g = (fst <$> g, snd <$> g)
 -- | Maps over a graph under availability of positional information,
 --   like 'Map.mapWithKey'.
 
-mapWithEdge :: (Ord s, Ord t) => (Edge s t e -> e') -> Graph s t e -> Graph s t e'
+mapWithEdge :: (Edge s t e -> e') -> Graph s t e -> Graph s t e'
 mapWithEdge f (Graph g) = Graph $ flip Map.mapWithKey g $ \ s m ->
   flip Map.mapWithKey m $ \ t e -> f (Edge s t e)
 
@@ -537,7 +537,7 @@ acyclic = all isAcyclic . sccs'
 --   Complexity:  for each edge @s --> t@ in @g@ we lookup up
 --   all edges starting in with @t@ in @g'@.
 --
-composeWith :: (Ord s, Ord t, Ord u) => (c -> d -> e) -> (e -> e -> e) ->
+composeWith :: (Ord t, Ord u) => (c -> d -> e) -> (e -> e -> e) ->
   Graph s t c -> Graph t u d -> Graph s u e
 composeWith times plus (Graph g) (Graph g') = Graph $
   Map.mapMaybe (discardEmpty . comp) g where
@@ -844,7 +844,7 @@ instance (Arbitrary s, Arbitrary t, Arbitrary e) => Arbitrary (Edge s t e) where
 instance (CoArbitrary s, CoArbitrary t, CoArbitrary e) => CoArbitrary (Edge s t e) where
   coarbitrary (Edge s t e) = coarbitrary s . coarbitrary t . coarbitrary e
 
-instance (Ord n, SemiRing e, Arbitrary n, Arbitrary e) =>
+instance (Ord n, Arbitrary n, Arbitrary e) =>
          Arbitrary (Graph n n e) where
   arbitrary = do
     nodes <- sized $ \ n -> resize (2 * isqrt n) arbitrary

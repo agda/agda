@@ -1,12 +1,12 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE FlexibleInstances        #-}
+{-# LANGUAGE LambdaCase               #-}
+{-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards         #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE MultiParamTypeClasses    #-}
+{-# LANGUAGE PatternGuards            #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
+{-# LANGUAGE TupleSections            #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -1331,7 +1331,7 @@ checkHeadApplication e t hd args = do
     checkArguments' expandLast ExpandInstanceArguments (getRange hd) args t0 t $ \vs t1 -> do
       coerce (f vs) t1 t
 
-traceCallE :: Error e => Call -> ExceptT e TCM r -> ExceptT e TCM r
+traceCallE :: Call -> ExceptT e TCM r -> ExceptT e TCM r
 traceCallE call m = do
   z <- lift $ traceCall call $ runExceptT m
   case z of

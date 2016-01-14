@@ -1,12 +1,12 @@
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FunctionalDependencies     #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 -- | Syntax of size expressions and constraints.
 
@@ -299,7 +299,7 @@ class Flexs flex a | a -> flex where
 instance (Ord flex, Flexs flex a) => Flexs flex [a] where
   flexs as = Set.unions (map flexs as)
 
-instance (Ord flex) => Flexs flex (SizeExpr' rigid flex) where
+instance Flexs flex (SizeExpr' rigid flex) where
   flexs (Flex x _) = Set.singleton x
   flexs _          = Set.empty
 

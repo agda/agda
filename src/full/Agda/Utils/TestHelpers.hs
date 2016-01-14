@@ -34,7 +34,7 @@ import Test.QuickCheck
 
 -- | Is the operator associative?
 
-associative :: (Arbitrary a, Eq a, Show a)
+associative :: Eq a
             => (a -> a -> a)
             -> a -> a -> a -> Bool
 associative (+) = \x y z ->
@@ -42,7 +42,7 @@ associative (+) = \x y z ->
 
 -- | Is the operator commutative?
 
-commutative :: (Arbitrary a, Eq a, Show a)
+commutative :: Eq a
             => (a -> a -> a)
             -> a -> a -> Bool
 commutative (+) = \x y ->
@@ -50,7 +50,7 @@ commutative (+) = \x y ->
 
 -- | Is the operator idempotent?
 
-idempotent :: (Arbitrary a, Eq a, Show a)
+idempotent :: Eq a
             => (a -> a -> a)
             -> a -> Bool
 idempotent (/\) = \ x ->
@@ -58,9 +58,9 @@ idempotent (/\) = \ x ->
 
 -- | Is the element a zero for the operator?
 
-isZero :: (Arbitrary a, Eq a, Show a)
-     => a -> (a -> a -> a)
-     -> a -> Bool
+isZero :: Eq a
+       => a -> (a -> a -> a)
+       -> a -> Bool
 isZero zer (*) = \x ->
   (zer * x == zer)
   &&
@@ -68,7 +68,7 @@ isZero zer (*) = \x ->
 
 -- | Is the element a unit for the operator?
 
-identity :: (Arbitrary a, Eq a, Show a)
+identity :: Eq a
          => a -> (a -> a -> a)
          -> a -> Bool
 identity one (*) = \x ->
@@ -80,7 +80,7 @@ identity one (*) = \x ->
 -- second one?
 
 leftDistributive
-  :: (Arbitrary a, Eq a, Show a)
+  :: Eq a
   => (a -> a -> a) -> (a -> a -> a)
   -> a -> a -> a -> Bool
 leftDistributive (*) (+) = \x y z ->
@@ -90,7 +90,7 @@ leftDistributive (*) (+) = \x y z ->
 -- second one?
 
 rightDistributive
-  :: (Arbitrary a, Eq a, Show a)
+  :: Eq a
   => (a -> a -> a) -> (a -> a -> a)
   -> a -> a -> a -> Bool
 rightDistributive (*) (+) = \x y z ->
@@ -99,7 +99,7 @@ rightDistributive (*) (+) = \x y z ->
 -- | Does the first operator distribute over the second one?
 
 distributive
-  :: (Arbitrary a, Eq a, Show a)
+  :: Eq a
   => (a -> a -> a) -> (a -> a -> a)
   -> a -> a -> a -> Bool
 distributive (*) (+) = \ x y z ->

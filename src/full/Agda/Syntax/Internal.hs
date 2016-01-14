@@ -639,7 +639,13 @@ sharedType :: Type -> Type
 sharedType v = v
 
 -- | Typically m would be TCM and f would be Blocked.
-updateSharedFM :: (Monad m, Applicative m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
+updateSharedFM
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Applicative m, Monad m, Traversable f)
+#else
+  :: (Monad m, Traversable f)
+#endif
+  => (Term -> m (f Term)) -> Term -> m (f Term)
 updateSharedFM f v0@(Shared p) = do
   fv <- f (derefPtr p)
   flip traverse fv $ \v ->
