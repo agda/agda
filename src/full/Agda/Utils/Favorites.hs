@@ -89,11 +89,11 @@ compareFavorites new old = mapFst Favorites $ loop (toList new) old where
     -- Not better:  Discard @a@
     IsDominated{}   -> loop new old
 
-unionCompared :: PartialOrd a => (Favorites a, Favorites a) -> Favorites a
+unionCompared :: (Favorites a, Favorites a) -> Favorites a
 unionCompared (Favorites new, Favorites old) = Favorites $ new ++ old
 
 -- | After comparing, do the actual insertion.
-insertCompared :: PartialOrd a => a -> Favorites a -> CompareResult a -> Favorites a
+insertCompared :: a -> Favorites a -> CompareResult a -> Favorites a
 insertCompared a _ (Dominates _ as) = Favorites (a : as)
 insertCompared _ l IsDominated{}    = l
 

@@ -1,9 +1,9 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE TupleSections       #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
@@ -360,7 +360,7 @@ mapScope' i fd fm = mapScope (\ j -> if i == j then fd else id)
                              (\ j -> if i == j then fm else id)
 
 -- | Map monadic functions over the names and modules in a scope.
-mapScopeM :: (Functor m, Applicative m) =>
+mapScopeM :: Applicative m =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
   (NameSpaceId -> ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
@@ -370,7 +370,7 @@ mapScopeM fd fm = updateScopeNameSpacesM $ AssocList.mapWithKeyM mapNS
 
 -- | Same as 'mapScopeM' but applies the same function to both the public and
 --   private name spaces.
-mapScopeM_ :: (Functor m, Applicative m) =>
+mapScopeM_ :: Applicative m =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope

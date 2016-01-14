@@ -209,7 +209,7 @@ instance Match a b => Match (Dom a) (Dom b) where
 instance Match a b => Match (Type' a) (Type' b) where
   match gamma k p v = match gamma k (unEl p) (unEl v)
 
-instance (Match a b, Subst t1 a, Subst t2 b, PrettyTCM a, PrettyTCM b) => Match (Abs a) (Abs b) where
+instance (Match a b, Subst t1 a, Subst t2 b) => Match (Abs a) (Abs b) where
   match gamma k (Abs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p v
   match gamma k (Abs n p) (NoAbs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p (raise 1 v)
   match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raise 1 p) v

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DefaultSignatures         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE PatternGuards             #-}
@@ -70,14 +71,20 @@ deepUnScope = mapExpr unScope
 class ExprLike a where
   -- | The first expression is pre-traversal, the second one post-traversal.
   recurseExpr :: (Applicative m) => (Expr -> m Expr -> m Expr) -> a -> m a
-  default recurseExpr :: (ExprLike a, Traversable f, Applicative m)
-                                 => (Expr -> m Expr -> m Expr) -> f a -> m (f a)
+  default recurseExpr :: (Traversable f, Applicative m)
+                      => (Expr -> m Expr -> m Expr) -> f a -> m (f a)
   recurseExpr = traverse . recurseExpr
 
   foldExpr :: Monoid m => (Expr -> m) -> a -> m
   foldExpr f = getConst . recurseExpr (\ pre post -> Const $ f pre)
 
-  traverseExpr :: (Monad m, Applicative m) => (Expr -> m Expr) -> a -> m a
+  traverseExpr
+#if __GLASGOW_HASKELL__ <= 708
+    :: (Applicative m, Monad m)
+#else
+    :: Monad m
+#endif
+    => (Expr -> m Expr) -> a -> m a
   traverseExpr f = recurseExpr (\ pre post -> f =<< post)
 
   mapExpr :: (Expr -> Expr) -> (a -> a)

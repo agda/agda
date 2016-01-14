@@ -305,7 +305,7 @@ icodeN key = do
 
 -- | @icode@ only if thing has not seen before.
 icodeMemo
-  :: (Eq a, Ord a, Hashable a)
+  :: (Ord a, Hashable a)
   => (Dict -> HashTable a Int32)    -- ^ Memo structure for thing of key @a@.
   -> (Dict -> IORef FreshAndReuse)  -- ^ Statistics.
   -> a        -- ^ Key to the thing.

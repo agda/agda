@@ -18,7 +18,7 @@ module Agda.TypeChecking.Monad.Base where
 import Prelude hiding (null)
 
 import qualified Control.Concurrent as C
-import Control.Exception as E
+import qualified Control.Exception as E
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -2196,7 +2196,7 @@ instance HasRange TCErr where
     getRange PatternErr{}      = noRange
     {- getRange (AbortAssign s)   = noRange -- UNUSED -}
 
-instance Exception TCErr
+instance E.Exception TCErr
 
 -----------------------------------------------------------------------------
 -- * The reduce monad
@@ -2273,7 +2273,7 @@ class ( Applicative tcm, MonadIO tcm
     liftTCM :: TCM a -> tcm a
 
 instance MonadError TCErr (TCMT IO) where
-  throwError = liftIO . throwIO
+  throwError = liftIO . E.throwIO
   catchError m h = TCM $ \r e -> do
     oldState <- liftIO (readIORef r)
     unTCM m r e `E.catch` \err -> do
@@ -2295,7 +2295,7 @@ runIM :: IM a -> TCM a
 runIM = mapTCMT (Haskeline.runInputT Haskeline.defaultSettings)
 
 instance MonadError TCErr IM where
-  throwError = liftIO . throwIO
+  throwError = liftIO . E.throwIO
   catchError m h = mapTCMT liftIO $ runIM m `catchError` (runIM . h)
 
 -- | Preserve the state of the failing computation.
@@ -2333,7 +2333,7 @@ instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
 instance MonadTCM tcm => MonadTCM (ListT tcm) where
   liftTCM = lift . liftTCM
 
-instance (Error err, MonadTCM tcm) => MonadTCM (ExceptT err tcm) where
+instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
   liftTCM = lift . liftTCM
 
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
@@ -2406,8 +2406,8 @@ instance MonadIO m => MonadIO (TCMT m) where
       wrap r m = failOnException handleException
                $ E.catch m (handleIOException r)
 
-      handleIOException r e = throwIO $ IOException r e
-      handleException   r s = throwIO $ Exception r s
+      handleIOException r e = E.throwIO $ IOException r e
+      handleException   r s = E.throwIO $ Exception r s
 
 -- | We store benchmark statistics in an IORef.
 --   This enables benchmarking pure computation, see

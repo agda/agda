@@ -67,7 +67,7 @@ endos cs = [ m | c <- cs, source c == target c
                , m <- CMSet.toList $ callMatrixSet c
            ]
 
-checkIdems :: (Monoid cinfo, ?cutoff :: CutOff) => [CallMatrixAug cinfo] -> Either cinfo ()
+checkIdems :: (?cutoff :: CutOff) => [CallMatrixAug cinfo] -> Either cinfo ()
 checkIdems calls = caseMaybe (headMaybe offending) (Right ()) $ Left . augCallInfo
   where
     -- Every idempotent call must have decrease, otherwise it offends us.
@@ -85,7 +85,7 @@ checkIdem c = if idempotent c then hasDecrease c else True
 idempotent  :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
 idempotent (CallMatrixAug m _) = (m >*< m) `notWorse` m
 
-hasDecrease :: (?cutoff :: CutOff) => CallMatrixAug cinfo -> Bool
+hasDecrease :: CallMatrixAug cinfo -> Bool
 hasDecrease = any isDecr . diagonal
 
 ------------------------------------------------------------------------

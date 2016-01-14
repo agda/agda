@@ -35,11 +35,10 @@ instance Arbitrary ComposablePermutations where
 type A = Int
 
 -- | Extend a list by indefinitely many elements.
-withStream :: Testable b
-  => ([a] -> b)  -- ^ Stream function.
-  -> [a]         -- ^ Initial segment.
-  -> a           -- ^ Default element, appended ad infinitum.
-  -> b
+withStream :: ([a] -> b)  -- ^ Stream function.
+           -> [a]         -- ^ Initial segment.
+           -> a           -- ^ Default element, appended ad infinitum.
+           -> b
 withStream k as a = k $ as ++ repeat a
 
 -- | Apply a permutation to a list which might be too short.

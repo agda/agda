@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
 -- | Additional functions for association lists.
@@ -63,7 +63,7 @@ mapWithKey f = map $ \ (k,v) -> (k, f k v)
 -- | O(n).
 --   If called with a effect-producing function, violation of the invariant
 --   could matter here (duplicating effects).
-mapWithKeyM :: (Functor m, Applicative m) => (k -> v -> m v) -> AssocList k v -> m (AssocList k v)
+mapWithKeyM :: Applicative m => (k -> v -> m v) -> AssocList k v -> m (AssocList k v)
 mapWithKeyM f = mapM $ \ (k,v) -> (k,) <$> f k v
   where
     -- mapM is applicative!

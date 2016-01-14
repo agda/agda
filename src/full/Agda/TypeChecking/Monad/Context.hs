@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
@@ -249,7 +249,7 @@ getContextNames = map (fst . unDom) <$> getContext
 -- | get type of bound variable (i.e. deBruijn index)
 --
 {-# SPECIALIZE lookupBV :: Nat -> TCM (Dom (Name, Type)) #-}
-lookupBV :: (Applicative m, MonadReader TCEnv m) => Nat -> m (Dom (Name, Type))
+lookupBV :: MonadReader TCEnv m => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   ctx <- getContext
   let failure = fail $ "deBruijn index out of scope: " ++ show n ++
@@ -272,8 +272,13 @@ nameOfBV n = fst . unDom <$> lookupBV n
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
 {-# SPECIALIZE getVarInfo :: Name -> TCM (Term, Dom Type) #-}
-getVarInfo :: (Applicative m, MonadReader TCEnv m, MonadError TCErr m)
-           => Name -> m (Term, Dom Type)
+getVarInfo
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Applicative m, MonadReader TCEnv m)
+#else
+  :: MonadReader TCEnv m
+#endif
+  => Name -> m (Term, Dom Type)
 getVarInfo x =
     do  ctx <- getContext
         def <- asks envLetBindings

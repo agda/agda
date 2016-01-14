@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 {-| Primitive functions, such as addition on builtin integers.
 -}
@@ -177,7 +177,7 @@ buildList = do
         cons x xs = cons' `apply` [defaultArg x, defaultArg xs]
     return $ foldr cons nil
 
-instance (PrimTerm a, ToTerm a) => ToTerm [a] where
+instance ToTerm a => ToTerm [a] where
   toTerm = do
     mkList <- buildList
     fromA  <- toTerm

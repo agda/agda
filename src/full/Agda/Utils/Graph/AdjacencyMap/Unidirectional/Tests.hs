@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DoAndIfThenElse            #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE TemplateHaskell            #-}
 
 -- | Properties for graph library.
 
@@ -52,7 +52,7 @@ nodeIn g = elementsUnlessEmpty (Set.toList $ nodes g)
 -- | Generates an edge from the graph. (Unless the graph contains no
 -- edges.)
 
-edgeIn :: (Ord n, Arbitrary n, Arbitrary e) =>
+edgeIn :: (Arbitrary n, Arbitrary e) =>
           Graph n n e -> Gen (Edge n n e)
 edgeIn g = elementsUnlessEmpty (edges g)
 

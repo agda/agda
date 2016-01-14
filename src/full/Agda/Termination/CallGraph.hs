@@ -1,7 +1,8 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ImplicitParams             #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TupleSections              #-}
 
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by
@@ -106,7 +107,7 @@ toList = Graph.edges . theCallGraph
 -- | Converts a list of calls with associated meta information to a
 --   call graph.
 
-fromList :: Monoid cinfo => [Call cinfo] -> CallGraph cinfo
+fromList :: [Call cinfo] -> CallGraph cinfo
 fromList = CallGraph . Graph.fromListWith CMSet.union
 
 -- | 'null' checks whether the call graph is completely disconnected.
@@ -116,21 +117,19 @@ instance Null (CallGraph cinfo) where
 
 -- | Takes the union of two call graphs.
 
-union :: Monoid cinfo
-      => CallGraph cinfo -> CallGraph cinfo -> CallGraph cinfo
+union :: CallGraph cinfo -> CallGraph cinfo -> CallGraph cinfo
 union (CallGraph cs1) (CallGraph cs2) = CallGraph $
   Graph.unionWith CMSet.union cs1 cs2
 
 -- | 'CallGraph' is a monoid under 'union'.
 
-instance Monoid cinfo => Monoid (CallGraph cinfo) where
+instance Monoid (CallGraph cinfo) where
   mempty  = empty
   mappend = union
 
 -- | Inserts a call into a call graph.
 
-insert :: Monoid cinfo
-       => Node -> Node -> CallMatrix -> cinfo
+insert :: Node -> Node -> CallMatrix -> cinfo
        -> CallGraph cinfo -> CallGraph cinfo
 insert s t cm cinfo = CallGraph . Graph.insertEdgeWith CMSet.union e . theCallGraph
   where e = mkCall s t cm cinfo
@@ -247,7 +246,7 @@ instance Pretty cinfo => Pretty (CallGraph cinfo) where
 
 -- | Generates a call graph.
 
-callGraph :: (Monoid cinfo, Arbitrary cinfo) => Gen (CallGraph cinfo)
+callGraph :: Arbitrary cinfo => Gen (CallGraph cinfo)
 callGraph = do
   indices <- fmap List.nub arbitrary
   n <- natural

@@ -1,10 +1,10 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE CPP                       #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TupleSections             #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -54,7 +54,7 @@ dest = Graph.target
 lookupEdge :: (Ord s, Ord t) => Graph.Graph s t e -> s -> t -> Maybe e
 lookupEdge g s t = Graph.lookup s t g
 
-graphToList :: (Ord s, Ord t) => Graph.Graph s t e -> [Edge s t e]
+graphToList :: Graph.Graph s t e -> [Edge s t e]
 graphToList = Graph.toList
 
 graphFromList :: (Ord s, Ord t) => [Edge s t e] -> Graph.Graph s t e
@@ -291,7 +291,7 @@ instance Negative a => Negative (Edge' r f a) where
 -- instance Show a => Show (Edge' a) where
 --   show (Edge u v l) = show u ++ " -(" ++ show l ++ ")-> " ++ show v
 
-instance (Show r, Show f, Show a, Ord r, Ord f, MeetSemiLattice a) => MeetSemiLattice (Edge' r f a) where
+instance (Ord r, Ord f, MeetSemiLattice a) => MeetSemiLattice (Edge' r f a) where
   e@(Edge u v l) `meet` e'@(Edge u' v' l')
     | u == u' && v == v' = Edge u v $ l `meet` l'
     | otherwise          = __IMPOSSIBLE__
@@ -301,7 +301,7 @@ instance (Ord r, Ord f, Top a) => Top (Edge' r f a) where
   top = __IMPOSSIBLE__
   isTop e = isTop (label e)
 
-instance (Show r, Show f, Show a, Ord r, Ord f, Dioid a) => Dioid (Edge' r f a) where
+instance (Ord r, Ord f, Dioid a) => Dioid (Edge' r f a) where
   e@(Edge u v l) `compose` e'@(Edge v' w l')
    | v == v'    = Edge u w $ l `compose` l'
    | otherwise = __IMPOSSIBLE__
@@ -336,7 +336,7 @@ addEdge e@(Edge src dest l) gs =
   in insertEdge e (Graph.unionsWith meet $ gsSrc ++ gsDest) : gsNotDest
 
 -- | Reflexive closure.  Add edges @0 -> n -> n -> oo@ for all nodes @n@.
-reflClos :: (Ord r, Ord f, Show a, Dioid a) => Set (Node r f) -> Graph r f a -> Graph r f a
+reflClos :: (Ord r, Ord f, Dioid a) => Set (Node r f) -> Graph r f a -> Graph r f a
 reflClos ns g = setFoldl step g ns' where
     -- have at least the nodes in @ns@
     ns'      = nodes g `Set.union` ns
@@ -577,7 +577,7 @@ data Bounds r f = Bounds
   }
 
 -- | Compute a lower bound for a flexible from an edge.
-edgeToLowerBound :: (Ord r, Ord f) => LabelledEdge r f -> Maybe (f, SizeExpr' r f)
+edgeToLowerBound :: LabelledEdge r f -> Maybe (f, SizeExpr' r f)
 edgeToLowerBound e =
   case e of
     (Edge n1 n2 LInf) -> __IMPOSSIBLE__
@@ -587,7 +587,7 @@ edgeToLowerBound e =
     _ -> Nothing
 
 -- | Compute an upper bound for a flexible from an edge.
-edgeToUpperBound :: (Ord r, Ord f) => LabelledEdge r f -> Maybe (f, Cmp, SizeExpr' r f)
+edgeToUpperBound :: LabelledEdge r f -> Maybe (f, Cmp, SizeExpr' r f)
 edgeToUpperBound e =
   case e of
     (Edge n1 n2 LInf) -> __IMPOSSIBLE__
@@ -657,7 +657,7 @@ largest hg ns
      Return these edges as a map from target notes to a list of edges.
      We assume the graph is reflexive-transitive.
  -}
-commonSuccs :: (Ord r, Ord f, Dioid a) =>
+commonSuccs :: (Ord r, Ord f) =>
                Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
 commonSuccs hg srcs = intersectAll $ map (buildmap . outgoing hg) srcs
   where
@@ -670,7 +670,7 @@ commonSuccs hg srcs = intersectAll $ map (buildmap . outgoing hg) srcs
      Return these edges as a map from target notes to a list of edges.
      We assume the graph is reflexive-transitive.
  -}
-commonPreds :: (Ord r, Ord f, Dioid a) => Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
+commonPreds :: (Ord r, Ord f) => Graph r f a -> [Node r f] -> Map (Node r f) [Edge' r f a]
 commonPreds hg tgts = intersectAll $  map (buildmap . incoming hg) tgts
   where
    buildmap = Map.fromList . map (\ e -> (src e, [e]))
@@ -809,7 +809,7 @@ glb hg a1 a2 =
       Nothing -- TODO!
 -}
 
-findRigidBelow :: (Ord r, Ord f, Show r, Show f) => HypGraph r f -> (SizeExpr' r f) -> Maybe (SizeExpr' r f)
+findRigidBelow :: (Ord r, Ord f) => HypGraph r f -> (SizeExpr' r f) -> Maybe (SizeExpr' r f)
 findRigidBelow hg (Rigid i m) | m < 0 = do
   let v     = NodeRigid i
       preds = incoming hg v

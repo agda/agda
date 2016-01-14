@@ -32,7 +32,7 @@ makeClosed = OpenThing []
 
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
-getOpen :: (Subst t a, MonadReader TCEnv m, MonadError TCErr m) => Open a -> m a
+getOpen :: (Subst t a, MonadReader TCEnv m) => Open a -> m a
 getOpen (OpenThing []  x) = return x
 getOpen (OpenThing ctx x) = do
   ctx' <- getContextId

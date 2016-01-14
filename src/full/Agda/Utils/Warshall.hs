@@ -451,7 +451,7 @@ genGraph_ n =
 lookupEdge :: Ord n => n -> n -> AdjList n e -> Maybe e
 lookupEdge i j g = lookup j =<< Map.lookup i g
 
-edges :: Ord n => AdjList n e -> [(n,n,e)]
+edges :: AdjList n e -> [(n,n,e)]
 edges g = do
   (i, ns) <- Map.toList g
   (j, e)  <- ns
@@ -502,7 +502,7 @@ prop_path n' =
   where
     n = abs (div n' 2) + 1
 
-mapNodes :: (Ord node, Ord node') => (node -> node') -> AdjList node edge -> AdjList node' edge
+mapNodes :: Ord node' => (node -> node') -> AdjList node edge -> AdjList node' edge
 mapNodes f = Map.map f' . Map.mapKeys f
   where
     f' es = [ (f n, e) | (n,e) <- es ]

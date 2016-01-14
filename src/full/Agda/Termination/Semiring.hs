@@ -45,7 +45,7 @@ data Semiring a
 -- I think it's OK to use the same x, y, z triple for all the
 -- properties below.
 
-semiringInvariant :: (Arbitrary a, Eq a, Show a)
+semiringInvariant :: Eq a
                   => Semiring a
                   -> a -> a -> a -> Bool
 semiringInvariant (Semiring { add = (+), mul = (*)

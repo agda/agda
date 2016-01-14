@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP             #-}
+{-# LANGUAGE PatternGuards   #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-| Utitlity functions on lists.
@@ -366,7 +366,7 @@ zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
 -- Specification:
 --
 -- > nubOn f xs == 'nubBy' ((==) `'on'` f) xs.
-nubOn :: (Ord a, Ord b) => (a -> b) -> [a] -> [a]
+nubOn :: Ord b => (a -> b) -> [a] -> [a]
 nubOn tag =
   map snd
   . sortBy (compare `on` fst)

@@ -1,13 +1,13 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE DeriveFoldable         #-}
+{-# LANGUAGE DeriveFunctor          #-}
+{-# LANGUAGE DeriveTraversable      #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE NamedFieldPuns         #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TupleSections          #-}
 
 {- | Sparse matrices.
 
@@ -214,7 +214,7 @@ blowUpSparseVec zero n l = aux 1 l
           | otherwise      = zero : aux (i + 1) l
 
 -- Older implementation without replicate.
-blowUpSparseVec' :: (Show i, Ord i, Num i, Enum i) => b -> i -> [(i,b)] -> [b]
+blowUpSparseVec' :: (Ord i, Num i, Enum i) => b -> i -> [(i,b)] -> [b]
 blowUpSparseVec' zero n l = aux 1 l
   where aux i [] | i > n = []
                  | otherwise = zero : aux (i+1) []
@@ -373,7 +373,7 @@ interAssocWith f l@((i,a):l') m@((j,b):m')
     | i > j = interAssocWith f l m'
     | otherwise = (i, f a b) : interAssocWith f l' m'
 
-interAssocWith2 :: (Ord i, HasZero a) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
+interAssocWith2 :: Ord i => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
 interAssocWith2 f = zipAssocWith (const []) (const []) (const Nothing) (const Nothing) (\ a -> Just . f a)
 
 prop_interAssocWith_correct2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
@@ -400,7 +400,7 @@ prop_interAssocWith_correct2 xs ys =
 --   patched with zeros to match up for multiplication.
 --   For sparse matrices, this patching is a no-op.
 
-mul :: (Enum i, Num i, Ix i, Eq a)
+mul :: (Ix i, Eq a)
     => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a
 mul semiring m1 m2 = Matrix (Size { rows = rows (size m1), cols = cols (size m2) }) $
   [ (MIx i j, b)
@@ -507,7 +507,7 @@ instance (Integral i, HasZero b, Pretty b) =>
 -- ** Size
 ------------------------------------------------------------------------
 
-instance (Arbitrary i, Integral i) => Arbitrary (Size i) where
+instance Integral i => Arbitrary (Size i) where
   arbitrary = do
     r <- natural
     c <- natural
@@ -530,7 +530,7 @@ prop_size m = sizeInvariant (size m)
 -- ** Matrix indices
 ------------------------------------------------------------------------
 
-instance (Arbitrary i, Integral i) => Arbitrary (MIx i) where
+instance Integral i => Arbitrary (MIx i) where
   arbitrary = MIx <$> positive <*> positive
 
 instance CoArbitrary i => CoArbitrary (MIx i) where
@@ -570,7 +570,7 @@ strictlySorted i ((i', _) : l) = i < i' && strictlySorted i' l
 -- | Generates a matrix of the given size, using the given generator
 -- to generate the rows.
 
-matrixUsingRowGen :: (Arbitrary i, Integral i, Arbitrary b, HasZero b)
+matrixUsingRowGen :: (Integral i, HasZero b)
   => Size i
   -> (i -> Gen [b])
      -- ^ The generator is parameterised on the size of the row.
@@ -581,8 +581,8 @@ matrixUsingRowGen sz rowGen = do
 
 -- | Generates a matrix of the given size.
 
-matrix :: (Arbitrary i, Integral i, Arbitrary b, HasZero b)
-  => Size i -> Gen (Matrix i b)
+matrix :: (Integral i, Arbitrary b, HasZero b)
+       => Size i -> Gen (Matrix i b)
 matrix sz = matrixUsingRowGen sz (\n -> vectorOf (fromIntegral n) arbitrary)
 
 prop_matrix :: Size Int -> Property
@@ -590,11 +590,11 @@ prop_matrix sz = forAll (matrix sz :: Gen TM) $ \ m -> size m == sz
 
 -- | Generate a matrix of arbitrary size.
 
-instance (Arbitrary i, Num i, Integral i, Arbitrary b, HasZero b)
+instance (Integral i, Arbitrary b, HasZero b)
          => Arbitrary (Matrix i b) where
   arbitrary     = matrix =<< arbitrary
 
-instance (Show i, Ord i, Integral i, Enum i, Ix i, CoArbitrary b, HasZero b) => CoArbitrary (Matrix i b) where
+instance (Integral i, CoArbitrary b, HasZero b) => CoArbitrary (Matrix i b) where
   coarbitrary m = coarbitrary (toLists m)
 
 -- | This matrix type is used for tests.

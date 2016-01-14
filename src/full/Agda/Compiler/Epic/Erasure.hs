@@ -148,7 +148,13 @@ ignoreForced Common.Relevant = False
 ignoreForced _           = True
 
 -- | Calculate if a variable is relevant in an expression
-relevant :: (Functor m, Monad m) => Var -> Expr -> Erasure m Relevance
+relevant
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Functor m, Monad m)
+#else
+  :: Monad m
+#endif
+  => Var -> Expr -> Erasure m Relevance
 relevant var expr = case expr of
     Var v  | v == var  -> return Rel
            | otherwise -> return Irr
@@ -181,7 +187,13 @@ relevant var expr = case expr of
     UNIT        -> return Irr
     IMPOSSIBLE  -> return Irr
   where
-    relevants :: (Functor m, Monad m) => Var -> [Expr] -> Erasure m Relevance
+    relevants
+#if __GLASGOW_HASKELL__ <= 708
+      :: (Functor m, Monad m)
+#else
+      :: Monad m
+#endif
+      => Var -> [Expr] -> Erasure m Relevance
     relevants v [] = return Irr
     relevants v (e : es) = do
       r <- relevant v e
@@ -211,5 +223,5 @@ step nrOfLoops = do
          put s {relevancies = relsm}
          step (nrOfLoops + 1)
 
-diff :: (Ord k, Eq a) => Map k a -> Map k a -> [(k,(a,a))]
+diff :: Eq a => Map k a -> Map k a -> [(k,(a,a))]
 diff m1 m2 = catMaybes $ zipWith (\(k, x) (_, y) -> if x == y then Nothing else Just (k, (x, y))) (Map.toList m1) (Map.toList m2)

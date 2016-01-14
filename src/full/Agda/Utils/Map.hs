@@ -18,7 +18,13 @@ import Agda.Utils.Impossible
 data EitherOrBoth a b = L a | B a b | R b
 
 -- | Not very efficient (goes via a list), but it'll do.
-unionWithM :: (Ord k, Functor m, Monad m) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
+unionWithM
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Ord k, Functor m, Monad m)
+#else
+  :: (Ord k, Monad m)
+#endif
+  => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
 unionWithM f m1 m2 = fromList <$> mapM combine (toList m)
     where
         m = unionWith both (map L m1) (map R m2)
@@ -46,7 +52,7 @@ allWithKey :: (k -> a -> Bool) -> Map k a -> Bool
 allWithKey f = Map.foldrWithKey (\ k a b -> f k a && b) True
 
 -- | Filter a map based on the keys.
-filterKeys :: Ord k => (k -> Bool) -> Map k a -> Map k a
+filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p = filterWithKey (const . p)
 
 -- | Unzip a map.

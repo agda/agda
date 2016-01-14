@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP        #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- | A cut-down implementation of lenses, with names taken from
@@ -61,12 +62,24 @@ l %= f = modify $ over l f
 
 infix 4 %==
 -- | Modify a part of the state monadically.
-(%==) :: (MonadState o m, Functor m) => Lens' i o -> (i -> m i) -> m ()
+(%==)
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Functor m, MonadState o m)
+#else
+  :: MonadState o m
+#endif
+  => Lens' i o -> (i -> m i) -> m ()
 l %== f = put =<< l f =<< get
 
 infix 4 %%=
 -- | Modify a part of the state monadically, and return some result.
-(%%=) :: (MonadState o m, Functor m) => Lens' i o -> (i -> m (i, r)) -> m r
+(%%=)
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Functor m, MonadState o m)
+#else
+  :: MonadState o m
+#endif
+  => Lens' i o -> (i -> m (i, r)) -> m r
 l %%= f = do
   o <- get
   (o', r) <- runWriterT $ l (WriterT . f) o

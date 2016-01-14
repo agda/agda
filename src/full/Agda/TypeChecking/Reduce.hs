@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 #if __GLASGOW_HASKELL__ >= 710
@@ -191,7 +191,7 @@ instance Instantiate Constraint where
   instantiate' (IsEmpty r t)        = IsEmpty r <$> instantiate' t
   instantiate' (CheckSizeLtSat t)   = CheckSizeLtSat <$> instantiate' t
 
-instance (Ord k, Instantiate e) => Instantiate (Map k e) where
+instance Instantiate e => Instantiate (Map k e) where
     instantiate' = traverse instantiate'
 
 instance Instantiate Candidate where
@@ -644,7 +644,7 @@ instance Reduce Constraint where
   reduce' (IsEmpty r t)         = IsEmpty r <$> reduce' t
   reduce' (CheckSizeLtSat t)    = CheckSizeLtSat <$> reduce' t
 
-instance (Ord k, Reduce e) => Reduce (Map k e) where
+instance Reduce e => Reduce (Map k e) where
     reduce' = traverse reduce'
 
 instance Reduce Candidate where
@@ -746,7 +746,7 @@ instance Simplify t => Simplify (Dom t) where
 instance Simplify t => Simplify [t] where
     simplify' = traverse simplify'
 
-instance (Ord k, Simplify e) => Simplify (Map k e) where
+instance Simplify e => Simplify (Map k e) where
     simplify' = traverse simplify'
 
 instance Simplify a => Simplify (Maybe a) where
@@ -964,7 +964,7 @@ instance Normalise a => Normalise (Pattern' a) where
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
 
-instance (Ord k, Normalise e) => Normalise (Map k e) where
+instance Normalise e => Normalise (Map k e) where
     normalise' = traverse normalise'
 
 instance Normalise a => Normalise (Maybe a) where
@@ -1136,10 +1136,10 @@ instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
   instantiateFull' (Proj f)  = pure $ Proj f
 
-instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
+instance InstantiateFull e => InstantiateFull (Map k e) where
     instantiateFull' = traverse instantiateFull'
 
-instance (Eq k, Hashable k, InstantiateFull e) => InstantiateFull (HashMap k e) where
+instance InstantiateFull e => InstantiateFull (HashMap k e) where
     instantiateFull' = traverse instantiateFull'
 
 instance InstantiateFull ModuleName where

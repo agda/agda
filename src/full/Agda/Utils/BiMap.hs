@@ -1,9 +1,9 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TupleSections              #-}
 
 -- | Finite bijections (implemented as a pair of maps).
 
@@ -31,19 +31,19 @@ data BiMap a b = BiMap
   deriving (Typeable)
 
 -- | Lookup. O(log n).
-lookup :: (Ord a, Ord b) => a -> BiMap a b -> Maybe b
+lookup :: Ord a => a -> BiMap a b -> Maybe b
 lookup a = Map.lookup a . biMapThere
 
 -- | Inverse lookup.  O(log n).
-invLookup :: (Ord a, Ord b) => b -> BiMap a b -> Maybe a
+invLookup :: Ord b => b -> BiMap a b -> Maybe a
 invLookup b = Map.lookup b . biMapBack
 
 -- | Empty bimap. O(1).
-empty :: (Ord a, Ord b) => BiMap a b
+empty :: BiMap a b
 empty = BiMap Map.empty Map.empty
 
 -- | Singleton bimap. O(1).
-singleton :: (Ord a, Ord b) => a -> b -> BiMap a b
+singleton :: a -> b -> BiMap a b
 singleton a b = BiMap (Map.singleton a b) (Map.singleton b a)
 
 -- | Insert.  Overwrites existing value if present.
@@ -61,7 +61,7 @@ fromList :: (Ord a, Ord b) => [(a,b)] -> BiMap a b
 fromList = List.foldl' (flip (uncurry insert)) empty
 
 -- | Turn into list, sorted ascendingly by first value.
-toList :: (Ord a, Ord b) => BiMap a b -> [(a,b)]
+toList :: BiMap a b -> [(a,b)]
 toList = Map.toAscList . biMapThere
 
 ------------------------------------------------------------------------
@@ -74,7 +74,7 @@ instance (Ord a, Ord b) => Eq (BiMap a b) where
 instance (Ord a, Ord b) => Ord (BiMap a b) where
   compare = compare `on` biMapThere
 
-instance (Show a, Show b, Ord a, Ord b) => Show (BiMap a b) where
+instance (Show a, Show b) => Show (BiMap a b) where
   show bimap = "Agda.Utils.BiMap.fromList " ++ show (toList bimap)
 
 instance (Ord a, Ord b, Arbitrary a, Arbitrary b) => Arbitrary (BiMap a b) where

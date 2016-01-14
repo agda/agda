@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Sharing where
@@ -23,7 +23,13 @@ updateSharedTerm f v =
       (updateSharedM f v)
       (f $ ignoreSharing v)
 
-updateSharedTermF :: (Applicative m, MonadReader TCEnv m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
+updateSharedTermF
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Applicative m, MonadReader TCEnv m, Traversable f)
+#else
+  :: (MonadReader TCEnv m, Traversable f)
+#endif
+  => (Term -> m (f Term)) -> Term -> m (f Term)
 updateSharedTermF f v =
   ifM (asks envAllowDestructiveUpdate)
       (updateSharedFM f v)

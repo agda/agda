@@ -1,7 +1,8 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE EmptyDataDecls     #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+
 -- | Exports the UHC API, and provides dummy
 -- definitions if the backend is disabled.
 module Agda.Compiler.UHC.Bridge
@@ -116,13 +117,13 @@ disp s _ = (s ++)
 -- UHC.Util.Serialize
 class Serialize a where
 
-putSerializeFile :: Serialize a => FilePath -> a -> IO ()
+putSerializeFile :: FilePath -> a -> IO ()
 putSerializeFile = __IMPOSSIBLE__
 
-serialize :: Serialize x => x -> Put
+serialize :: x -> Put
 serialize = __IMPOSSIBLE__
 
-unserialize :: Serialize x => Get x
+unserialize :: Get x
 unserialize = __IMPOSSIBLE__
 
 -- UHC.Light.Compiler.Base.API

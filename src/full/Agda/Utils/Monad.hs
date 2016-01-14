@@ -125,11 +125,23 @@ zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
 zipWithM' f xs ys = sequence (zipWith' f xs ys)
 
 -- | A monadic version of @'mapMaybe' :: (a -> Maybe b) -> [a] -> [b]@.
-mapMaybeM :: (Monad m, Functor m) => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Functor m, Monad m)
+#else
+  :: Monad m
+#endif
+  => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
 -- | The @for@ version of 'mapMaybeM'.
-forMaybeM :: (Monad m, Functor m) => [a] -> (a -> m (Maybe b)) -> m [b]
+forMaybeM
+#if __GLASGOW_HASKELL__ <= 708
+  :: (Functor m, Monad m)
+#else
+  :: Monad m
+#endif
+  => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
 
 -- | A monadic version of @'dropWhile' :: (a -> Bool) -> [a] -> [a]@.
@@ -142,7 +154,7 @@ dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.
 
-finally :: (Error e, MonadError e m) => m a -> m b -> m a
+finally :: MonadError e m => m a -> m b -> m a
 first `finally` after = do
   r <- catchError (liftM Right first) (return . Left)
   _ <- after
