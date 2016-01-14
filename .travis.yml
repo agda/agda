@@ -89,19 +89,14 @@ install:
 ##############################################################################
 # Installing dependencies
 
-# We use the `--avoid-reinstalls` flag with GHC 7.6.3/7.8.4 for
-# avoiding to break previously installed packages [Issue 1520].
-
-# Note: `cabal install` doesn't set up the number of jobs by default
+# N.B. that `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
+
+# N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
   - case $TEST in
       "non-require-stdlib" | "require-stdlib")
-        if [ $GHC_VERSION_TRAVIS = 7.6.3 -o $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-           cabal install --enable-tests --avoid-reinstalls --only-dependencies;
-        else
-           cabal install --enable-tests --only-dependencies;
-        fi
+        cabal install --enable-tests --only-dependencies --force-reinstalls
         ;;
     esac
 
@@ -203,8 +198,7 @@ script:
 
 # N.B. that this test is not include in the Makefile tests.
 
-# We use the `--avoid-reinstalls` flag with GHC 7.8.4 for avoiding to
-# break previously installed packages [Issue 1520].
+# N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
   - if [ $TEST = "cpp" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install &&
@@ -212,7 +206,7 @@ script:
        cat $HOME/.cabal/config &&
        cabal install alex &&
        cabal install happy &&
-       cabal install --enable-tests --avoid-reinstalls --only-dependencies &&
+       cabal install --enable-tests --only-dependencies --force-reinstalls &&
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
        cabal build -v2 --builddir=$BUILD_DIR;
     fi
@@ -223,8 +217,7 @@ script:
 # N.B. We will run this test only with the higher GHC version
 # available in Travis.
 
-# We use the `--avoid-reinstalls` flag with GHC 7.8.4 for avoiding to
-# break previously installed packages [Issue 1520].
+# N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
   - if [ $TEST = "haddock" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install &&
@@ -232,7 +225,7 @@ script:
        cat $HOME/.cabal/config &&
        cabal install alex &&
        cabal install happy &&
-       cabal install --enable-tests --avoid-reinstalls --only-dependencies &&
+       cabal install --enable-tests --only-dependencies --force-reinstalls &&
        make BUILD_DIR=$BUILD_DIR doc;
     fi
 
