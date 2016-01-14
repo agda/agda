@@ -176,8 +176,7 @@ script:
 
 # N.B. that this test is not include in the Makefile tests.
 
-# We use the `--avoid-reinstalls` flag with GHC 7.8.4 for avoiding to
-# break previously installed packages [Issue 1520].
+# N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
   - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install --constraint=transformers==0.3.0.0 &&
@@ -185,7 +184,7 @@ script:
        cat $HOME/.cabal/config &&
        cabal install alex --constraint=transformers==0.3.0.0 &&
        cabal install happy --constraint=transformers==0.3.0.0 &&
-       cabal install --enable-tests --avoid-reinstalls --only-dependencies --constraint=transformers==0.3.0.0 &&
+       cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0 &&
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
        cabal build -v2 --builddir=$BUILD_DIR;
     fi
