@@ -6,6 +6,6 @@ description:     Auxiliary Haskell code used by Agda's standard library.
 tested-with:     GHC == 7.8.4
 
 library
-  build-depends:    base >= 4.6.0.1 && < 4.9
+  build-depends:    base >= 4.6.0.1 && < 4.10
   exposed-modules:  Data.FFI
                     IO.FFI
