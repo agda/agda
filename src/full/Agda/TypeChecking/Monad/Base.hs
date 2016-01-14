@@ -2333,7 +2333,13 @@ instance MonadTCM tcm => MonadTCM (MaybeT tcm) where
 instance MonadTCM tcm => MonadTCM (ListT tcm) where
   liftTCM = lift . liftTCM
 
-instance MonadTCM tcm => MonadTCM (ExceptT err tcm) where
+instance
+#if !MIN_VERSION_transformers(0,4,1)
+  (Error err, MonadTCM tcm)
+#else
+  MonadTCM tcm
+#endif
+  => MonadTCM (ExceptT err tcm) where
   liftTCM = lift . liftTCM
 
 instance (Monoid w, MonadTCM tcm) => MonadTCM (WriterT w tcm) where
