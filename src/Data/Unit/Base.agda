@@ -12,5 +12,6 @@ module Data.Unit.Base where
 
 record ⊤ : Set where
   constructor tt
+{-# BUILTIN UNIT ⊤ #-}
 
 record _≤_ (x y : ⊤) : Set where
