@@ -1,6 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RelaxedPolyRec #-}
+{-# LANGUAGE RelaxedPolyRec   #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 -- | Generates data used for precise syntax highlighting.
 

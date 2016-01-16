@@ -1,4 +1,8 @@
--- {-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 {-| This module contains the building blocks used to construct the lexer.
 -}

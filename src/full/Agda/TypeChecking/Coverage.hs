@@ -1,9 +1,13 @@
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards    #-}
+{-# LANGUAGE TupleSections    #-}
+
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
