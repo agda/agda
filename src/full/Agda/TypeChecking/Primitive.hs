@@ -4,6 +4,10 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 {-| Primitive functions, such as addition on builtin integers.
 -}
 module Agda.TypeChecking.Primitive where

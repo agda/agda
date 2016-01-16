@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ >= 8
+#if __GLASGOW_HASKELL__ >= 800
 {-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
 #endif
 
