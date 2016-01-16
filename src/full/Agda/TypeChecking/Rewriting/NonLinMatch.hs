@@ -3,6 +3,10 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
+#if __GLASGOW_HASKELL__ >= 8
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.
 

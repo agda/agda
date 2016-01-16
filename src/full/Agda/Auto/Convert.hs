@@ -4,6 +4,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
+#if __GLASGOW_HASKELL__ >= 8
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 module Agda.Auto.Convert where
 
 import Control.Applicative hiding (getConst, Const(..))

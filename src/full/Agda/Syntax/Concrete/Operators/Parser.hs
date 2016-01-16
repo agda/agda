@@ -1,5 +1,9 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+#if __GLASGOW_HASKELL__ >= 8
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 module Agda.Syntax.Concrete.Operators.Parser where
 

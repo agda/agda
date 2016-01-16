@@ -1,8 +1,12 @@
+{-# LANGUAGE CPP             #-}
+{-# LANGUAGE PatternGuards   #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TemplateHaskell #-}
+#if __GLASGOW_HASKELL__ >= 8
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 {-| Utitlity functions on lists.
 -}

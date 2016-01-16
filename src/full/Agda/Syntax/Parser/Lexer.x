@@ -1,8 +1,9 @@
 {
-{-# OPTIONS_GHC -fno-warn-deprecated-flags   #-}
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-{-# OPTIONS_GHC -fno-warn-tabs               #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports     #-}
+{-# OPTIONS_GHC -fno-warn-deprecated-flags         #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures       #-}
+{-# OPTIONS_GHC -fno-warn-monomorphism-restriction #-}
+{-# OPTIONS_GHC -fno-warn-tabs                     #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports           #-}
 
 {-# LANGUAGE BangPatterns #-}
 
