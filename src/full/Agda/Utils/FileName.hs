@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Operations on file names. -}
@@ -79,18 +79,10 @@ mkAbsolute f
       AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
 
-#if mingw32_HOST_OS
 prop_mkAbsolute :: FilePath -> Property
-#else
-prop_mkAbsolute :: FilePath -> Bool
-#endif
 prop_mkAbsolute f =
   let path = rootPath ++ f
-  in
-#if mingw32_HOST_OS
-      isValid path ==>
-#endif
-      absolutePathInvariant $ mkAbsolute $ path
+  in  isValid path ==> absolutePathInvariant $ mkAbsolute $ path
 
 rootPath :: FilePath
 #if mingw32_HOST_OS
