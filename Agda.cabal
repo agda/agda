@@ -111,7 +111,7 @@ library
     , time >= 1.4.0.1 && < 1.7
     -- transformers 0.4.0.0 was deprecated.
     , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
-    , transformers-compat >= 0.3.3.3 && < 0.5
+    , transformers-compat >= 0.3.3.3 && < 0.6
     , unordered-containers >= 0.2.5.0 && < 0.2.6
     , xhtml >= 3000.2.1 && < 3000.3
 
