@@ -298,7 +298,6 @@ sizePolarity d pol0 = do
             let check c = do
                   t <- defType <$> getConstInfo c
                   addCtxTel (telFromList parTel) $ do
-  --OLD:                  let pars = reverse [ defaultArg $ var i | i <- [0..np - 1] ]
                     let pars = map (defaultArg . var) $ downFrom np
                     TelV conTel target <- telView =<< (t `piApplyM` pars)
                     case conTel of

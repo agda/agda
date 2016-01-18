@@ -329,16 +329,15 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
             nat  <- El (mkType 0) <$> pNat
             zero <- pZero
             s    <- pSuc
-            let x @@ y  = x `apply` [defaultArg y]
-                x == y  = noConstraints $ equalTerm nat x y
+            let x == y  = noConstraints $ equalTerm nat x y
                 -- Andreas: 2013-10-21 I put primBool here on the inside
                 -- since some Nat-builtins do not require Bool-builtins
                 x === y = do bool <- El (mkType 0) <$> primBool
                              noConstraints $ equalTerm bool x y
-                suc n  = s @@ n
+                suc n  = s `apply1` n
                 choice = foldr1 (\x y -> x `catchError` \_ -> y)
             xs <- mapM freshName_ xs
-            addCtxs xs (domFromArg $ defaultArg nat) $ f (@@) zero suc (==) (===) choice
+            addCtxs xs (domFromArg $ defaultArg nat) $ f apply1 zero suc (==) (===) choice
 
 
 inductiveCheck :: String -> Int -> Term -> TCM ()

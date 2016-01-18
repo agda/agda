@@ -17,6 +17,8 @@ import Data.Tree
 import Test.QuickCheck
 
 import Agda.Syntax.Abstract.Name
+import Agda.Syntax.Common
+import Agda.Syntax.Internal as I
 
 import Agda.Utils.Monad
 
@@ -35,10 +37,9 @@ data SplitTree' a
     }
   | -- | A split is necessary.
     SplitAt
-    { splitArg   :: Int           -- ^ Arg. no to split at.
+    { splitArg   :: Arg Int       -- ^ Arg. no to split at.
     , splitTrees :: SplitTrees' a -- ^ Sub split trees.
     }
-    deriving (Eq)
 
 -- | Split tree branching.  A finite map from constructor names to splittrees
 --   A list representation seems appropriate, since we are expecting not
@@ -50,7 +51,7 @@ type SplitTrees' a = [(a, SplitTree' a)]
 
 data SplitTreeLabel a = SplitTreeLabel
   { lblConstructorName :: Maybe a   -- ^ 'Nothing' for root of split tree
-  , lblSplitArg        :: Maybe Int
+  , lblSplitArg        :: Maybe (Arg Int)
   , lblBindings        :: Maybe Int
   }
 instance Show a => Show (SplitTreeLabel a) where
@@ -80,7 +81,7 @@ instance Show a => Show (SplitTree' a) where
 instance Arbitrary a => Arbitrary (SplitTree' a) where
   arbitrary = frequency
     [ (5, return $ SplittingDone 0)
-    , (3, SplitAt <$> choose (1,5) <*> (take 3 <$> listOf1 arbitrary))
+    , (3, (SplitAt . defaultArg) <$> choose (1,5) <*> (take 3 <$> listOf1 arbitrary))
     ]
 
 -- * Testing the printer

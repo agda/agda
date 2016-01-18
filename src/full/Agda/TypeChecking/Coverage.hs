@@ -101,7 +101,8 @@ data SplitClause = SClause
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering
-  { covSplitArg     :: Nat  -- ^ De Bruijn level (counting dot patterns) of argument we split on.
+  { covSplitArg     :: Arg Nat
+     -- ^ De Bruijn level (counting dot patterns) of argument we split on.
   , covSplitClauses :: [(QName, SplitClause)]
       -- ^ Covering clauses, indexed by constructor these clauses share.
   }
@@ -537,15 +538,14 @@ split ind sc x = fmap blendInAbsurdClause <$> split' ind sc x
 -- | Convert a de Bruijn index relative to the clause telescope to a de Bruijn
 --   level. The result should be the argument position (counted from left,
 --   starting with 0) to split at (dot patterns included!).
-lookupPatternVar :: SplitClause -> Int -> Nat
-lookupPatternVar SClause{ scTel = tel, scPats = pats } x =
+lookupPatternVar :: SplitClause -> Int -> Arg Nat
+lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
     if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
-            else case permPicks (dbPatPerm pats) !!! k of
-                   Nothing -> __IMPOSSIBLE__
-                   Just n  -> n
+            else fromMaybe __IMPOSSIBLE__ $ permPicks (dbPatPerm pats) !!! k
         k = size tel - x - 1
+        arg = telVars (size tel) tel !! k
 
 -- | @split' ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
@@ -681,7 +681,7 @@ splitResult f sc@(SClause tel ps _ target) = do
         reportSDoc "tc.cover" 20 $ sep
           [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
           ]
-        let n    = permRange (dbPatPerm ps)
+        let n = defaultArg $ permRange (dbPatPerm ps)
             -- Andreas & James, 2013-11-19 includes the dot patterns!
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.

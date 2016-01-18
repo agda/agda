@@ -173,10 +173,7 @@ isInjectiveHere nam idx clause = do
 -- | Turn NATURAL literal n into suc^n zero.
 litToCon :: Literal -> TCM Term
 litToCon l = case l of
-    LitNat   r n | n > 0     -> do
-        inner <- litToCon (LitNat r (n - 1))
-        suc   <- primSuc
-        return $ suc `apply` [defaultArg inner]
+    LitNat   r n | n > 0     -> apply1 <$> primSuc <*> litToCon (LitNat r (n - 1))
                  | otherwise -> primZero
 --    LitLevel _ n -> -- Does not really matter
     lit          -> return $ Lit lit

@@ -157,9 +157,9 @@ casetree cc = do
     CC.Done xs v -> lambdasUpTo (length xs) $ do
         v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v
         substTerm v
-    CC.Case n (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
+    CC.Case (Arg _ n) (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
-    CC.Case n (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
+    CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
         fromMaybe C.tUnreachable
@@ -191,7 +191,7 @@ commonArity cc =
     [] -> 0
     as -> minimum as
   where
-    arities cxt (Case x (Branches False cons lits def)) =
+    arities cxt (Case (Arg _ x) (Branches False cons lits def)) =
       concatMap (wArities cxt') (Map.elems cons) ++
       concatMap (wArities cxt' . WithArity 0) (Map.elems lits) ++
       concat [ arities cxt' c | Just c <- [def] ] -- ??
@@ -346,4 +346,3 @@ substArgs = traverse substArg
 substArg :: Arg I.Term -> CC C.TTerm
 substArg x | isIrrelevant x = return C.TErased
            | otherwise      = substTerm (unArg x)
-

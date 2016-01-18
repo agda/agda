@@ -1388,7 +1388,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- First scope check the imported module and return its name and
       -- interface. This is done with that module as the top-level module.
       -- This is quite subtle. We rely on the fact that when setting the
-      -- top-level module and generating a fresh module name the generated
+      -- top-level module and generating a fresh module name, the generated
       -- name will be exactly the same as the name generated when checking
       -- the imported module.
       (m, i) <- withCurrentModule noModuleName $ withTopLevelModule x $ do

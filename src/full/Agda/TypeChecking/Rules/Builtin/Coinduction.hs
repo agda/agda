@@ -135,7 +135,7 @@ bindBuiltinFlat e =
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False
           }
-        cc = Case 0 $ Branches False
+        cc = Case (defaultArg 0) $ Branches False
                                (Map.singleton sharp
                                  $ WithArity 1 $ Done [defaultArg "x"] $ var 0)
                                Map.empty

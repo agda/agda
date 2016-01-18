@@ -737,30 +737,6 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
               ]
             patternViolation
 
-{-
-        res <- getDefType f a -- get type of projection (like) function
-        case res of
-          Just ft -> do
-            let arg = defaultArg v  -- we could get the proper Arg deco from ft
-                c   = ft `piApply` [arg]
-            u <- applyDef f arg     -- correct both for proj.s and non proj.s
-            (cmp, els1, els2) <- return $
-              case fst $ nextPolarity pols0 of
-                Invariant     -> (CmpEq , els1, els2)
-                Covariant     -> (CmpLeq, els1, els2)
-                Contravariant -> (CmpLeq, els2, els1)
-                Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
-            pols' <- getPolarity' cmp f
-            compareElims pols' c u els1 els2
-          _ -> do
-            reportSDoc "impossible" 10 $ sep
-              [ text $ "projection " ++ show f
-              , text   "applied to value " <+> prettyTCM v
-              , text   "of unexpected type " <+> prettyTCM a
-              ]
-            patternViolation
-            -- __IMPOSSIBLE__
--}
 
 -- | "Compare" two terms in irrelevant position.  This always succeeds.
 --   However, we can dig for solutions of irrelevant metas in the
