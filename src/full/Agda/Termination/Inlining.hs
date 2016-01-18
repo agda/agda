@@ -72,6 +72,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.List (downFrom)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -268,7 +269,7 @@ expandWithFunctionCall f es = do
     -- information right.
     [a] | null es' -> do
       let pad = a - length vs
-          vs' = raise pad vs ++ [defaultArg (Var i []) | i <- reverse [0..pad - 1]]
+          vs' = raise pad vs ++ map (defaultArg . var) (downFrom pad)
       Just disp <- displayForm f vs'
       return $ foldr (\_ -> Lam defaultArgInfo . Abs "") (dtermToTerm disp) (replicate pad ())
     _ -> __IMPOSSIBLE__

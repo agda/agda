@@ -140,8 +140,7 @@ insertTele er n ins term (ExtendTel x xs) = do
 
 -- TODO: restore fields in ConHead
 mkCon :: QName -> Int -> Term
-mkCon c n = I.Con (I.ConHead c Inductive [])
-                  [ defaultArg $ I.Var i [] | i <- [n - 1, n - 2 .. 0] ]
+mkCon c n = I.Con (I.ConHead c Inductive []) $ map (defaultArg . I.var) $ downFrom n
 
 unifyI :: Telescope -> FlexibleVars -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
