@@ -580,9 +580,7 @@ dbIndexToLevel :: Telescope -> Permutation -> Int -> Nat
 dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
-            else case permute perm [0..] !!! k of
-                   Nothing -> __IMPOSSIBLE__
-                   Just n  -> n
+            else fromMaybe __IMPOSSIBLE__ $ permute perm [0..] !!! k
         k = size tel - x - 1
 
 -- | @split' ind splitClause x = return res@
