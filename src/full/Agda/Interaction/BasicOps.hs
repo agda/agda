@@ -719,7 +719,7 @@ introTactic pmLambda ii = do
         makeName (x, t)   = (x, t)
 
     introData t = do
-      let tel  = telFromList [domFromArg $ defaultArg ("_", t)]
+      let tel  = telFromList [defaultDom ("_", t)]
           pat  = [defaultArg $ unnamed $ I.VarP "c"]
       r <- splitLast CoInductive tel pat
       case r of
