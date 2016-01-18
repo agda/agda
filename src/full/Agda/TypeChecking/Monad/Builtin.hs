@@ -90,7 +90,7 @@ constructorForm' pZero pSuc v =
   case ignoreSharing v of
     Lit (LitInt r n)
       | n == 0    -> pZero
-      | n > 0     -> (`apply` [defaultArg $ Lit $ LitInt r $ n - 1]) <$> pSuc
+      | n > 0     -> (`apply1` Lit (LitInt r $ n - 1)) <$> pSuc
       | otherwise -> pure v
     _ -> pure v
 
