@@ -241,7 +241,7 @@ replaceByProjections (Arg ai i) projs cc =
           let (xs0,xs1,xs2)     = cutSublist i n xs
               names | null xs1  = ["r"]
                     | otherwise = map unArg xs1
-              x                 = defaultArg $ foldr1 appendArgNames names
+              x                 = Arg ai $ foldr1 appendArgNames names
               xs'               = xs0 ++ x : xs2
               us                = map (\ p -> Var 0 [Proj p]) (reverse projs)
               -- go from level (i + n - 1) to index (subtract from |xs|-1)
