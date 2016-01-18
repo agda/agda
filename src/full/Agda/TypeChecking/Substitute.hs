@@ -69,9 +69,13 @@ class Apply t where
   applyE t es  = apply  t $ map argFromElim es
     -- precondition: all @es@ are @Apply@s
 
--- | Apply to a single argument.
+-- | Apply to some default arguments.
+applys :: Apply t => t -> [Term] -> t
+applys t vs = apply t $ map defaultArg vs
+
+-- | Apply to a single default argument.
 apply1 :: Apply t => t -> Term -> t
-apply1 t u = apply t [ defaultArg u ]
+apply1 t u = applys t [ u ]
 
 instance Apply Term where
   applyE m [] = m

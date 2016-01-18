@@ -23,6 +23,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.List (downFrom)
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HM
 
@@ -59,7 +60,7 @@ etaExpand def@(Def n ts) = do
         len = length . clausePats . head .  funClauses $ f
         toEta :: Num a => a
         toEta = fromIntegral $ len - length ts
-        term  = raise toEta def `apply` [ defaultArg $ Var i [] | i <- [toEta - 1, toEta - 2 .. 0]]
+        term  = raise toEta def `applys` map var (downFrom toEta)
     return $ foldr (\ v t -> Lam defaultArgInfo (Abs v t)) term $ replicate toEta "staticVar"
 etaExpand x = return x
 

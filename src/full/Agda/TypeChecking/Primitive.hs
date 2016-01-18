@@ -140,8 +140,7 @@ instance ToTerm I.ArgInfo where
     ins  <- primInstance
     rel  <- primRelevant
     irr  <- primIrrelevant
-    return $ \(ArgInfo h r _) ->
-      apply info $ map defaultArg
+    return $ \ (ArgInfo h r _) -> info `applys`
       [ case h of
           NotHidden -> vis
           Hidden    -> hid
@@ -161,7 +160,7 @@ buildList = do
     nil'  <- primNil
     cons' <- primCons
     let nil       = nil'
-        cons x xs = cons' `apply` [defaultArg x, defaultArg xs]
+        cons x xs = cons' `applys` [x, xs]
     return $ foldr cons nil
 
 instance ToTerm a => ToTerm [a] where
@@ -346,7 +345,7 @@ primQNameDefinition = do
 
   let qType        = quoteTypeWithKit kit
       qClause      = quoteClauseWithKit kit
-      defapp f xs  = apply f . map defaultArg <$> sequence xs
+      defapp f xs  = applys f <$> sequence xs
       qFunDef t cs = defapp agdaFunDefCon [qType t, list <$> mapM qClause cs]
       qQName       = Lit . LitQName noRange
       con qn = do

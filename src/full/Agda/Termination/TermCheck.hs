@@ -563,7 +563,7 @@ openClause perm ps body = do
   -- invariant: xs has enough variables for the body
   unless (permRange perm == genericLength xs) __IMPOSSIBLE__
   dbps <- evalStateT (mapM build ps) xs
-  return . (dbps,) $ case body `apply` map (defaultArg . var) xs of
+  return . (dbps,) $ case body `applys` map var xs of
     NoBody -> Nothing
     Body v -> Just v
     _      -> __IMPOSSIBLE__

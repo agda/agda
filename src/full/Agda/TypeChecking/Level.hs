@@ -46,11 +46,10 @@ builtinLevelKit = liftTCM $ do
     zero@(Def z [])  <- ignoreSharing <$> primLevelZero
     suc@(Def s [])   <- ignoreSharing <$> primLevelSuc
     max@(Def m [])   <- ignoreSharing <$> primLevelMax
-    let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
       { lvlType  = level
-      , lvlSuc   = \a -> suc @@ a
-      , lvlMax   = \a b -> max @@ a @@ b
+      , lvlSuc   = \ a -> suc `apply1` a
+      , lvlMax   = \ a b -> max `applys` [a, b]
       , lvlZero  = zero
       , typeName = l
       , sucName  = s
