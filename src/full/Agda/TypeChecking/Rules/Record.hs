@@ -322,7 +322,6 @@ checkRecordProjections m r con tel ftel fs = do
       let finalt   = telePi (replaceEmptyName "r" tel) t
           projname = qualify m $ qnameName x
           projcall = Var 0 [Proj projname]
---          projcall = Def projname [defaultArg $ var 0]
           rel      = getRelevance ai
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom ai t)

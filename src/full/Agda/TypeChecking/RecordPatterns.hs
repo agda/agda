@@ -79,7 +79,6 @@ recordPatternToProjections p =
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
     proj p = (`applyE` [Proj $ unArg p])
---    proj p = \ x -> Def (unArg p) [defaultArg x]
     comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
@@ -244,7 +243,6 @@ replaceByProjections i projs cc =
               x                 = defaultArg $ foldr1 appendArgNames names
               xs'               = xs0 ++ x : xs2
               us                = map (\ p -> Var 0 [Proj p]) (reverse projs)
---              us                = map (\ p -> Def p [defaultArg $ var 0]) (reverse projs)
               -- go from level (i + n - 1) to index (subtract from |xs|-1)
               index             = length xs - (i + n)
           in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
