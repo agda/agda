@@ -43,6 +43,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Either
+import Agda.Utils.Functor
 import Agda.Utils.List
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Maybe
@@ -129,8 +130,8 @@ translateCompiledClauses cc = snd <$> loop cc
       Done xs t -> return (map (const True) xs, cc)
       Case i cs -> loops i cs
 
-    loops :: Int                  -- split variable
-          -> Case CompiledClauses -- original split tree
+    loops :: I.Arg Int            -- ^ split variable
+          -> Case CompiledClauses -- ^ original split tree
           -> TCM ([Bool], CompiledClauses)
     loops i cs@Branches{ projPatterns   = cop
                        , conBranches    = conMap
@@ -143,7 +144,7 @@ translateCompiledClauses cc = snd <$> loop cc
 
       -- recurse on compute variable status of literal clauses
       (xssl, litMap)   <- Map.unzip <$> Trav.mapM loop litMap
-      let xsl = conjColumns (xsa : insertColumn i False (Map.elems xssl))
+      let xsl = conjColumns (xsa : insertColumn (unArg i) False (Map.elems xssl))
 
       -- recurse on constructor clauses
       (ccs, xssc, conMap)    <- Map.unzip3 <$> do
@@ -156,7 +157,7 @@ translateCompiledClauses cc = snd <$> loop cc
                Nothing -> getConstructorArity c
                Just{}  -> return $ Left 0
           let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
-              (xs0, rest) = genericSplitAt i xs
+              (xs0, rest) = genericSplitAt (unArg i) xs
               (xs1, xs2 ) = genericSplitAt n rest
               -- if all dropped variables (xs1) are virgins and we are record cons.
               -- then new variable x is also virgin
@@ -219,8 +220,8 @@ mergeCatchAll cc ca = maybe cc (mappend cc) ca
 --   positions greater or equal to @i@ by one.
 --   Otherwise, we have to lower
 --
-replaceByProjections :: Int -> [QName] -> CompiledClauses -> CompiledClauses
-replaceByProjections i projs cc =
+replaceByProjections :: I.Arg Int -> [QName] -> CompiledClauses -> CompiledClauses
+replaceByProjections (Arg ai i) projs cc =
   let n = length projs
 
       loop :: Int -> CompiledClauses -> CompiledClauses
@@ -229,10 +230,10 @@ replaceByProjections i projs cc =
 
         -- if j < i, we leave j untouched, but we increase i by the number
         -- of variables replacing j in the branches
-          | j < i     -> Case j $ loops i cs
+          | unArg j < i -> Case j $ loops i cs
 
         -- if j >= i then we shrink j by (n-1)
-          | otherwise -> Case (j - (n-1)) $ fmap (loop i) cs
+          | otherwise   -> Case (j <&> \ k -> k - (n-1)) $ fmap (loop i) cs
 
         Done xs v ->
         -- we have to delete (n-1) variables from xs
@@ -304,7 +305,7 @@ recordSplitTree t = snd <$> loop t
     loop t = case t of
       SplittingDone n -> return (replicate n True, SplittingDone n)
       SplitAt i ts    -> do
-        (xs, ts) <- loops i ts
+        (xs, ts) <- loops (unArg i) ts
         return (xs, SplitAt i ts)
 
     loops :: Int -> SplitTrees -> TCM ([Bool], RecordSplitTrees)
@@ -335,7 +336,7 @@ translateSplitTree t = snd <$> loop t
         -- start with n virgin variables
         return (replicate n True, SplittingDone n)
       SplitAt i ts    -> do
-        (x, xs, ts) <- loops i ts
+        (x, xs, ts) <- loops (unArg i) ts
         -- if we case on record constructor, drop case
         let t' = if x then
                    case ts of
@@ -383,9 +384,9 @@ class DropFrom a where
 instance DropFrom (SplitTree' c) where
   dropFrom i n t = case t of
     SplittingDone m -> SplittingDone (m - n)
-    SplitAt j ts
-      | j >= i + n -> SplitAt (j - n) $ dropFrom i n ts
-      | j < i      -> SplitAt j $ dropFrom i n ts
+    SplitAt x@(Arg ai j) ts
+      | j >= i + n -> SplitAt (Arg ai $ j - n) $ dropFrom i n ts
+      | j < i      -> SplitAt x $ dropFrom i n ts
       | otherwise  -> __IMPOSSIBLE__
 
 instance DropFrom (c, SplitTree' c) where

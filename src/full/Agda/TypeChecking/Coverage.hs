@@ -105,7 +105,8 @@ data SplitClause = SClause
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering
-  { covSplitArg     :: Nat  -- ^ De Bruijn level of argument we split on.
+  { covSplitArg     :: I.Arg Nat
+      -- ^ De Bruijn level of argument we split on.
   , covSplitClauses :: [(QName, SplitClause)]
       -- ^ Covering clauses, indexed by constructor these clauses share.
   }
@@ -566,22 +567,23 @@ split :: Induction
 split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
     split' ind sc x
   where
-    blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
+    blendInAbsurdClause :: I.Arg Nat -> Either SplitClause Covering -> Covering
     blendInAbsurdClause n = fromRight (const $ Covering n [])
 
-    splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
+    splitDbIndexToLevel :: SplitClause -> BlockingVar -> I.Arg Nat
     splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
       dbIndexToLevel tel perm $ blockingVarNo x
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
 --   to split at (dot patterns included!).
-dbIndexToLevel :: Telescope -> Permutation -> Int -> Nat
-dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
+dbIndexToLevel :: Telescope -> Permutation -> Int -> I.Arg Nat
+dbIndexToLevel tel perm x = arg $> if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
             else fromMaybe __IMPOSSIBLE__ $ permute perm [0..] !!! k
         k = size tel - x - 1
+        arg = telVars tel !! k
 
 -- | @split' ind splitClause x = return res@
 --   splits @splitClause@ at pattern var @x@ (de Bruijn index).
@@ -675,7 +677,7 @@ split' ind sc@(SClause tel perm ps _ target) (BlockingVar x mcons) = liftTCM $ r
     _  -> return $ Right $ Covering xDBLevel ns
 
   where
-    xDBLevel :: Nat
+    xDBLevel :: I.Arg Nat
     xDBLevel = dbIndexToLevel tel perm x
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
@@ -738,7 +740,7 @@ splitResult f sc@(SClause tel perm ps _ target) = do
           ]
         let -- WRONG: -- n = length ps -- past the last argument, is pos. of proj pat.
             -- n = size tel -- past the last variable, is pos. of proj pat. DURING SPLITTING
-            n = permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
+            n = defaultArg $ permRange perm -- Andreas & James, 2013-11-19 includes the dot patterns!
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.
         Just . Covering n <$> do

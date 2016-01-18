@@ -83,7 +83,7 @@ type Cls = [Cl]
 
 compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
 compileWithSplitTree t cs = case t of
-  SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) i cs
+  SplitAt i ts -> Case i $ compiles ts $ splitOn (length ts == 1) (unArg i) cs
         -- if there is just one case, we force expansion of catch-alls
         -- this is needed to generate a sound tree on which we can
         -- collapse record pattern splits
@@ -109,7 +109,7 @@ compileWithSplitTree t cs = case t of
 
 compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
-  Just (isRecP, n)-> Case n $ fmap compile $ splitOn isRecP n cs
+  Just (isRecP, n)-> Case n $ fmap compile $ splitOn isRecP (unArg n) cs
   Nothing -> case map (getBody . clBody) cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
@@ -125,10 +125,10 @@ compile cs = case nextSplit cs of
 
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a match in the first clause.
-nextSplit :: Cls -> Maybe (Bool, Int)
+nextSplit :: Cls -> Maybe (Bool, I.Arg Int)
 nextSplit []            = __IMPOSSIBLE__
 nextSplit (Cl ps _ : _) = headMaybe $ catMaybes $
-  zipWith (\ p n -> (,n) <$> properSplit (unArg p)) ps [0..]
+  zipWith (\ (Arg ai p) n -> (, Arg ai n) <$> properSplit p) ps [0..]
 
 -- | Is is not a variable pattern?
 --   And if yes, is it a record pattern?

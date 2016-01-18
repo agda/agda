@@ -128,7 +128,7 @@ translateDefn msharp (n, defini) =
 
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody c cc = case cc of
-    CC.Case n (CC.Branches cop cbr lbr cabr) -> CC.Case (c+n)
+    CC.Case n (CC.Branches cop cbr lbr cabr) -> CC.Case (fmap (c+) n)
         $ CC.Branches cop (Map.map (fmap $ reverseCCBody c) cbr)
           (Map.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
@@ -179,7 +179,7 @@ compileClauses name nargs c = do
   where
     compileClauses' :: [Var] -> Maybe Var -> CC.CompiledClauses -> Compile TCM Expr
     compileClauses' env omniDefault cc = case cc of
-        CC.Case n nc -> case length env <= n of
+        CC.Case (Arg _ n) nc -> case length env <= n of
            True -> __IMPOSSIBLE__
            False -> case CC.catchAllBranch nc of
             Nothing -> Case (Var (fromMaybe __IMPOSSIBLE__ $ env !!! n)) <$>

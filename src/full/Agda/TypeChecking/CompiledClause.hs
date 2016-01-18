@@ -54,7 +54,7 @@ data Case c = Branches
 -- | Case tree with bodies.
 
 data CompiledClauses
-  = Case Int (Case CompiledClauses)
+  = Case (Arg Int) (Case CompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
     -- If the @n@-th argument is a projection, we have only 'conBranches'

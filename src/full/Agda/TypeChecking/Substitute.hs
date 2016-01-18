@@ -288,7 +288,7 @@ instance Apply CompiledClauses where
                                     t)
       | otherwise -> __IMPOSSIBLE__
     Case n bs
-      | n >= len  -> Case (n - len) (apply bs args)
+      | unArg n >= len -> Case (n <&> \ m -> m - len) (apply bs args)
       | otherwise -> __IMPOSSIBLE__
     where
       len = length args
@@ -491,7 +491,7 @@ instance Abstract CompiledClauses where
   abstract tel Fail = Fail
   abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
   abstract tel (Case n bs) =
-    Case (n + fromIntegral (size tel)) (abstract tel bs)
+    Case (n <&> \ i -> i + fromIntegral (size tel)) (abstract tel bs)
 
 instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a

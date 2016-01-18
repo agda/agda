@@ -115,7 +115,7 @@ match' ((c, es, patch) : stack) = do
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
       -- splitting on the @n@th elimination
-      Case n bs -> do
+      Case (Arg _ n) bs -> do
         case genericSplitAt n es of
           -- if the @n@th elimination is not supplied, no match
           (_, []) -> no (NotBlocked Underapplied) es

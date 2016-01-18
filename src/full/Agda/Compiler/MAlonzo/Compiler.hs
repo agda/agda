@@ -353,9 +353,9 @@ casetree cc = do
   case cc of
     Fail -> return $ rtmError $ "Impossible Clause Body"
     Done xs v -> lambdasUpTo (length xs) $ hsCast <$> term v
-    Case n (Branches True conBrs _ _) -> lambdasUpTo n $ do
+    Case (Arg _ n) (Branches True conBrs _ _) -> lambdasUpTo n $ do
       mkRecord =<< mapM casetree (content <$> conBrs)
-    Case n (Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
+    Case (Arg _ n) (Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       x <- lookupLevel n <$> asks ccCxt
       HS.Case (hsCast $ hsVarUQ x) <$> do
         updateCatchAll catchAll $ do
