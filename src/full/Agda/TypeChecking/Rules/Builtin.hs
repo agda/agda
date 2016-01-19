@@ -206,8 +206,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMDefineFun     |-> builtinPostulate (tqname --> tlist tclause --> tTCM_ primUnit)
   , builtinAgdaTCMGetType            |-> builtinPostulate (tqname --> tTCM_ primAgdaType)
   , builtinAgdaTCMGetDefinition      |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
-  , builtinAgdaTCMNumberOfParameters |-> builtinPostulate (tdtype --> tTCM_ primNat)
-  , builtinAgdaTCMGetConstructors    |-> builtinPostulate (tdtype --> tTCM_ (list primQName))
+  , builtinAgdaTCMNumberOfParameters |-> builtinPostulate (tqname --> tTCM_ primNat)
+  , builtinAgdaTCMGetConstructors    |-> builtinPostulate (tqname --> tTCM_ (list primQName))
   , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   ]
   where

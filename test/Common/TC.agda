@@ -32,8 +32,8 @@ postulate
   defineFun  : QName → List Clause → TC ⊤
   getType    : QName → TC Type
   getDefinition : QName → TC Definition
-  numberOfParameters : DataDef → TC Nat
-  getConstructors    : DataDef   → TC (List QName)
+  numberOfParameters : QName → TC Nat
+  getConstructors    : QName → TC (List QName)
   blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}

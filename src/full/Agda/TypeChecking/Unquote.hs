@@ -587,14 +587,15 @@ evalTCM v = do
       def <- constInfo d
       case theDef def of
         Datatype{dataCons = cs} -> quoteList $ map quoteName cs
-        _ -> __IMPOSSIBLE__
+        Record{recConHead = c}  -> quoteList [quoteName $ conName c]
+        _                       -> typeError . GenericDocError =<< fsep (pwords "Cannot get constructors from non-data or record type " ++ [prettyTCM d])
 
     tcNumberOfParameters :: QName -> TCM Term
     tcNumberOfParameters d = do
       def <- constInfo d
       case theDef def of
         Datatype{dataPars = n} -> pure $ quoteNat (fromIntegral n)
-        _ -> __IMPOSSIBLE__
+        _ -> typeError . GenericDocError =<< fsep (pwords "Cannot get number of parameters from non-data type " ++ [prettyTCM d])
 
     tcDeclareDef :: QName -> R.Type -> UnquoteM Term
     tcDeclareDef x a = do
