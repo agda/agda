@@ -99,7 +99,7 @@ giveExpr mi e = do
       -- Here, we must be in the same context where the meta was created.
       -- Thus, we can safely apply its type to the context variables.
       ctx <- getContextArgs
-      let t' = t `piApply` permute (takeP (length ctx) $ mvPermutation mv) ctx
+      t' <- t `piApplyM` permute (takeP (length ctx) $ mvPermutation mv) ctx
       traceCall (CheckExprCall e t') $ do
         reportSDoc "interaction.give" 20 $
           TP.text "give: instantiated meta type =" TP.<+> prettyTCM t'
@@ -468,7 +468,8 @@ typeOfMetaMI norm mi =
           ]
         ]
       reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
-      OfType x <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
+      -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
+      OfType x <$> do reify =<< t `piApplyM` permute (takeP (size vs) $ mvPermutation mv) vs
     rewriteJudg mv (IsSort i t) = do
       ms <- getMetaNameSuggestion i
       return $ JustSort $ NamedMeta ms i
@@ -659,7 +660,7 @@ introTactic pmLambda ii = do
   mv <- lookupMeta mi
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
     HasType _ t -> do
-        t <- reduce =<< piApply t <$> getContextArgs
+        t <- reduce =<< piApplyM t =<< getContextArgs
         -- Andreas, 2013-03-05 Issue 810: skip hidden domains in introduction
         -- of constructor.
         TelV tel' t <- telViewUpTo' (-1) notVisible t

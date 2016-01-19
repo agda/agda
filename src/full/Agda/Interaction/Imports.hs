@@ -663,6 +663,7 @@ createInterface file mname =
 
     openMetas           <- getOpenMetas
     unless (null openMetas) $ do
+      reportSLn "import.metas" 10 "We have unsolved metas."
       reportSLn "import.metas" 10 . unlines =<< showOpenMetas
     unsolvedMetas       <- List.nub <$> mapM getMetaRange openMetas
     unsolvedConstraints <- getAllConstraints
