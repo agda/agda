@@ -309,7 +309,7 @@ postulate
   extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
   inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
   freshName  : String → TC Name
-  declareDef : Name → Type → TC ⊤
+  declareDef : Arg Name → Type → TC ⊤
   defineFun  : Name → List Clause → TC ⊤
   getType    : Name → TC Type
   getDefinition : Name → TC Definition
