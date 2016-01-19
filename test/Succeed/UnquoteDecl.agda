@@ -12,7 +12,7 @@ pattern _`⇒_ a b = `el (pi (vArg a) (abs "_" b))
 pattern `Nat = `el (def (quote Nat) [])
 
 unquoteDecl x =
-  define x (funDef `Nat (clause [] (quoteTerm 15) ∷ []))
+  define (vArg x) (funDef `Nat (clause [] (quoteTerm 15) ∷ []))
 
 y = x + 4
 
@@ -23,7 +23,7 @@ pattern `suc n = con (quote suc) (vArg n ∷ [])
 
 -- Note that in the body of the unquote, 'plus' really means 'quote plus'.
 unquoteDecl plus =
-  define plus (
+  define (vArg plus) (
   funDef (`Nat `⇒ `Nat `⇒ `Nat)
          ( clause (vArg (con (quote zero) []) ∷ vArg (var "y") ∷ []) (var 0 [])
          ∷ clause (vArg (con (quote suc) (vArg (var "x") ∷ [])) ∷ vArg (var "y") ∷ [])
@@ -38,4 +38,4 @@ magicDef =
   funDef (`el (def (quote ⊥) []) `⇒ `Nat)
          (absurdClause (vArg absurd ∷ []) ∷ [])
 
-unquoteDecl magic = define magic magicDef
+unquoteDecl magic = define (vArg magic) magicDef

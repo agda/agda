@@ -11,7 +11,7 @@ arg₀ : {A : Set} → A → Arg A
 arg₀ = arg (argInfo visible relevant)
 
 
-unquoteDecl test = define test (funDef
+unquoteDecl test = define (vArg test) (funDef
  (el unknown (pi
    (arg₀ (el (lit 1) (sort (lit 0))))
    (abs "A" (el unknown (pi

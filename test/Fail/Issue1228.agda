@@ -38,4 +38,4 @@ noConf = funDef
            (con (quote refl) [])
   ∷ [])
 
-unquoteDecl test = define test noConf
+unquoteDecl test = define (vArg test) noConf

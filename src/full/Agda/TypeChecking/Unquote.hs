@@ -597,14 +597,18 @@ evalTCM v = do
         Datatype{dataPars = n} -> pure $ quoteNat (fromIntegral n)
         _ -> typeError . GenericDocError =<< fsep (pwords "Cannot get number of parameters from non-data type " ++ [prettyTCM d])
 
-    tcDeclareDef :: QName -> R.Type -> UnquoteM Term
-    tcDeclareDef x a = do
+    tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
+    tcDeclareDef (Arg i x) a = do
+      let h = getHiding i
+          r = getRelevance i
+      when (h == Hidden) $ liftU $ typeError . GenericDocError =<< text "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftU $ do
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- (True <$ getConstInfo x) `catchError` \ _ -> return False
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ show x
-        addConstant x $ defaultDefn defaultArgInfo x a emptyFunction
+        addConstant x $ defaultDefn i x a emptyFunction
+        when (h == Instance) $ addTypedInstance x a
         primUnitUnit
 
     tcDefineFun :: QName -> [R.Clause] -> TCM Term

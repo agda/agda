@@ -259,10 +259,6 @@ checkUnquoteDecl :: Info.MutualInfo -> [Info.DefInfo] -> [QName] -> A.Expr -> TC
 checkUnquoteDecl mi is xs e = do
   reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> sep (map prettyTCM xs)
   unquoteTop xs e
-  let setInfo i x = do
-        a <- defType <$> getConstInfo x
-        when (Info.defInstance i == InstanceDef) $ addTypedInstance x a
-  zipWithM_ setInfo is xs
   return Nothing
 
 checkUnquoteDef :: [Info.DefInfo] -> [QName] -> A.Expr -> TCM ()

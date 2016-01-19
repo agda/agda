@@ -32,8 +32,8 @@ f-def =
          (clause (vArg dot ∷ vArg (con (quote is-zero) []) ∷ [])
                  (con (quote zero) []) ∷ [])
 
-unquoteDecl pred' = define pred' pred-def
-unquoteDecl f'    = define f'    f-def
+unquoteDecl pred' = define (vArg pred') pred-def
+unquoteDecl f'    = define (vArg f')    f-def
 
 check-pred : pred' 4 (is-suc _) ≡ 3
 check-pred = refl

@@ -28,7 +28,7 @@ postulate
   extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
   inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
   freshName  : String → TC QName
-  declareDef : QName → Type → TC ⊤
+  declareDef : Arg QName → Type → TC ⊤
   defineFun  : QName → List Clause → TC ⊤
   getType    : QName → TC Type
   getDefinition : QName → TC Definition
@@ -62,9 +62,9 @@ Tactic = Term → TC ⊤
 give : Term → Tactic
 give v = λ hole → unify hole v
 
-define : QName → FunDef → TC ⊤
-define f (funDef a cs) =
-  bindTC (declareDef f a) λ _ →
+define : Arg QName → FunDef → TC ⊤
+define (arg i f) (funDef a cs) =
+  bindTC (declareDef (arg i f) a) λ _ →
   defineFun f cs
 
 newMeta : Type → TC Term
