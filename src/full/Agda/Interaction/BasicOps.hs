@@ -468,7 +468,8 @@ typeOfMetaMI norm mi =
           ]
         ]
       reportSDoc "interactive.meta.scope" 20 $ TP.text $ show $ getMetaScope mv
-      OfType x <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
+      -- Andreas, 2016-01-19, issue #1783: need piApplyM instead of just piApply
+      OfType x <$> do reify =<< t `piApplyM` permute (takeP (size vs) $ mvPermutation mv) vs
     rewriteJudg mv (IsSort i t) = do
       ms <- getMetaNameSuggestion i
       return $ JustSort $ NamedMeta ms i
