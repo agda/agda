@@ -298,7 +298,7 @@ applySection' new ptel old ts rd rm = do
             addDisplayForms y
           where
             ts' = take np ts
-            t   = defType d `apply` ts'
+            t   = defType d `piApply` ts'
             pol = defPolarity d `apply` ts'
             occ = defArgOccurrences d `apply` ts'
             inst = defInstance d
@@ -337,7 +337,7 @@ applySection' new ptel old ts rd rm = do
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
-                         , recConType = apply t ts'
+                         , recConType = piApply t ts'
                          , recTel     = apply tel ts'
                          }
                 _ -> do

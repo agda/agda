@@ -255,7 +255,7 @@ instance Apply Defn where
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel
           {-, recArgOccurrences = occ-} } ->
-      d { recPars = np - size args, recConType = apply t args
+      d { recPars = np - size args, recConType = piApply t args
         , recClause = apply cl args, recTel = apply tel args
 --        , recArgOccurrences = List.drop (length args) occ
         }

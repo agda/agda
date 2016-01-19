@@ -441,7 +441,7 @@ instance ApplyHH Term where
   applyHH t = fmap (apply t)
 
 instance ApplyHH Type where
-  applyHH t = fmap (apply t)
+  applyHH t = fmap (piApply t)
 
 substHH :: SubstHH t tHH => TermHH -> t -> tHH
 substHH = substUnderHH 0
@@ -947,7 +947,7 @@ dataOrRecordType
   :: ConHead -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
   -> TCM (Maybe Type) -- ^ Type of constructor, applied to pars.
-dataOrRecordType c a = fmap (\ (d, b, pars, _) -> b `apply` pars) <$> dataOrRecordType' c a
+dataOrRecordType c a = fmap (\ (d, b, pars, _) -> b `piApply` pars) <$> dataOrRecordType' c a
 
 dataOrRecordType' ::
      ConHead -- ^ Constructor name.
@@ -991,7 +991,7 @@ dataOrRecordTypeHH c (Het a1 a2) = do
         if null pars1 && null pars2 then Hom b1
          -- if parameters, go heterogeneous
          -- TODO: make this smarter, because parameters could be equal!
-         else Het (b1 `apply` pars1) (b2 `apply` pars2)
+         else Het (b1 `piApply` pars1) (b2 `piApply` pars2)
     _ -> Nothing
 
 dataOrRecordTypeHH' ::

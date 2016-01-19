@@ -98,7 +98,7 @@ inferable visited dat args = do
         defs <- lift $ use $ stImports . sigDefinitions
         let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup c defs
         forc <- getForcedArgs c
-        TelV tel _ <- lift $ telView (defType def `apply` genericTake pars args)
+        TelV tel _ <- lift $ telView (defType def `piApply` genericTake pars args)
         tag <- getConstrTag c
         lift $ reportSDoc "epic.smashing" 10 $ nest 2 $ vcat
           [ text "inferableArgs!"

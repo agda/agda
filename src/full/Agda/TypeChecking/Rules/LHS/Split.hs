@@ -221,7 +221,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                     Constructor{ conData = d } <- theDef <$> getConstInfo c
                     dt     <- defType <$> getConstInfo d
                     vs     <- newArgsMeta dt
-                    Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
+                    Sort s <- ignoreSharing . unEl <$> reduce (piApply dt vs)
                     tryConversion $ equalType a' (El s $ Def d $ map Apply vs)
                   if ok then tryAgain else keepGoing
                 | otherwise = keepGoing

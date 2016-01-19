@@ -552,7 +552,7 @@ stripWithClausePatterns parent f t qs perm ps = do
           -- Get the type and number of parameters of the constructor.
           Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
           -- Compute the argument telescope for the constructor
-          let ct' = ct `apply` genericTake np us
+          let ct' = ct `piApply` genericTake np us
           TelV tel' _ <- telView ct'
 
           reportSDoc "tc.with.strip" 20 $
