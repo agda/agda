@@ -1,5 +1,9 @@
 {-# LANGUAGE CPP #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.
 

@@ -1,6 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 module Agda.TypeChecking.Records where
 
@@ -429,11 +433,9 @@ etaExpandRecord_ r pars def u = do
       return (tel', con, args)
     -- Not yet expanded.
     _             -> do
+      -- Andreas, < 2016-01-18: Note: recFields are always the original projections,
+      -- thus, we can use them in Proj directly.
       let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj x]
-{- recFields are always the original projections
-      -- Andreas, 2013-10-22 call applyDef to make sure we get the original proj.
-      -- xs' <- mapM (traverse (`applyDef` defaultArg u)) xs
--}
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat

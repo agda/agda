@@ -4,6 +4,10 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 {-| Primitive functions, such as addition on builtin integers.
 -}
 module Agda.TypeChecking.Primitive where
@@ -155,8 +159,7 @@ instance ToTerm ArgInfo where
     ins  <- primInstance
     rel  <- primRelevant
     irr  <- primIrrelevant
-    return $ \(ArgInfo h r) ->
-      apply info $ map defaultArg
+    return $ \ (ArgInfo h r) -> info `applys`
       [ case h of
           NotHidden -> vis
           Hidden    -> hid
@@ -176,7 +179,7 @@ buildList = do
     nil'  <- primNil
     cons' <- primCons
     let nil       = nil'
-        cons x xs = cons' `apply` [defaultArg x, defaultArg xs]
+        cons x xs = cons' `applys` [x, xs]
     return $ foldr cons nil
 
 instance ToTerm a => ToTerm [a] where
@@ -754,4 +757,3 @@ getBuiltinName b = do
 
 isBuiltin :: QName -> String -> TCM Bool
 isBuiltin q b = (Just q ==) <$> getBuiltinName b
-

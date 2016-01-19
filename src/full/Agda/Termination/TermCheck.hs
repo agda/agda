@@ -1,11 +1,15 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ImplicitParams             #-}
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TupleSections              #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -555,7 +559,7 @@ openClause perm ps body = do
   -- invariant: xs has enough variables for the body
   unless (permRange perm == genericLength xs) __IMPOSSIBLE__
   dbps <- evalStateT (mapM build ps) xs
-  return . (dbps,) $ case body `apply` map (defaultArg . var) xs of
+  return . (dbps,) $ case body `applys` map var xs of
     NoBody -> Nothing
     Body v -> Just v
     _      -> __IMPOSSIBLE__

@@ -16,6 +16,10 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 module Agda.TypeChecking.Substitute
   ( module Agda.TypeChecking.Substitute
   , Substitution'(..), Substitution
@@ -68,9 +72,13 @@ class Apply t where
   applyE t es  = apply  t $ map argFromElim es
     -- precondition: all @es@ are @Apply@s
 
--- | Apply to a single argument.
+-- | Apply to some default arguments.
+applys :: Apply t => t -> [Term] -> t
+applys t vs = apply t $ map defaultArg vs
+
+-- | Apply to a single default argument.
 apply1 :: Apply t => t -> Term -> t
-apply1 t u = apply t [ defaultArg u ]
+apply1 t u = applys t [ u ]
 
 instance Apply Term where
   applyE m [] = m
@@ -282,7 +290,7 @@ instance Apply CompiledClauses where
                                     t)
       | otherwise -> __IMPOSSIBLE__
     Case n bs
-      | n >= len  -> Case (n - len) (apply bs args)
+      | unArg n >= len -> Case (n <&> \ m -> m - len) (apply bs args)
       | otherwise -> __IMPOSSIBLE__
     where
       len = length args
@@ -487,7 +495,7 @@ instance Abstract CompiledClauses where
   abstract tel Fail = Fail
   abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
   abstract tel (Case n bs) =
-    Case (n + fromIntegral (size tel)) (abstract tel bs)
+    Case (n <&> \ i -> i + fromIntegral (size tel)) (abstract tel bs)
 
 instance Abstract a => Abstract (WithArity a) where
   abstract tel (WithArity n a) = WithArity n $ abstract tel a

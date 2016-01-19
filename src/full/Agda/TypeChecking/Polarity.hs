@@ -1,6 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards     #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 module Agda.TypeChecking.Polarity where
 
@@ -294,7 +298,6 @@ sizePolarity d pol0 = do
             let check c = do
                   t <- defType <$> getConstInfo c
                   addCtxTel (telFromList parTel) $ do
-  --OLD:                  let pars = reverse [ defaultArg $ var i | i <- [0..np - 1] ]
                     let pars = map (defaultArg . var) $ downFrom np
                     TelV conTel target <- telView =<< (t `piApplyM` pars)
                     case conTel of

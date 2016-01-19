@@ -13,6 +13,10 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult
   , UnificationResult'(..)

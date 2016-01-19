@@ -1,5 +1,10 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE Rank2Types                 #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 {-| When lexing by hands (for instance string literals) we need to do some
     looking ahead. The 'LookAhead' monad keeps track of the position we are

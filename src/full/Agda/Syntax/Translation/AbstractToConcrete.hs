@@ -1,12 +1,16 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE PatternGuards          #-}
+{-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to

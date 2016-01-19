@@ -1,5 +1,9 @@
 {-# LANGUAGE CPP #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 -- | Detect if a datatype could be represented as a primitive integer.
 --   If it has one constructor with no arguments and one with a recursive
 --   argument this is true. This is done using IrrFilters which filter out

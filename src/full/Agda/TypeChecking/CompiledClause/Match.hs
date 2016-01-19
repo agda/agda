@@ -1,8 +1,12 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
+#endif
+
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
 #endif
 
 module Agda.TypeChecking.CompiledClause.Match where
@@ -110,7 +114,7 @@ match' ((c, es, patch) : stack) = do
           lam x t        = Lam (argInfo x) (Abs (unArg x) t)
 
       -- splitting on the @n@th elimination
-      Case n bs -> do
+      Case (Arg _ n) bs -> do
         case genericSplitAt n es of
           -- if the @n@th elimination is not supplied, no match
           (_, []) -> no (NotBlocked Underapplied) es

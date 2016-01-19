@@ -3,6 +3,7 @@
 
 module Agda.TypeChecking.DropArgs where
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
@@ -11,6 +12,7 @@ import Agda.TypeChecking.Substitute.Pattern
 
 import Agda.TypeChecking.CompiledClause
 
+import Agda.Utils.Functor
 import Agda.Utils.Permutation
 
 #include "undefined.h"
@@ -73,8 +75,8 @@ instance DropArgs Term where
 --   are not dropping arguments to recursive calls in bodies.
 instance DropArgs CompiledClauses where
   dropArgs n cc = case cc of
-    Case i br | i < n         -> __IMPOSSIBLE__
-              | otherwise     -> Case (i - n) $ fmap (dropArgs n) br
+    Case i br | unArg i < n   -> __IMPOSSIBLE__
+              | otherwise     -> Case (i <&> \ j -> j - n) $ fmap (dropArgs n) br
     Done xs t | length xs < n -> __IMPOSSIBLE__
               | otherwise     -> Done (drop n xs) t
     Fail                      -> Fail

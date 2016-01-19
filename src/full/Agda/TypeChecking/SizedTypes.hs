@@ -2,6 +2,10 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE PatternGuards            #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
+#endif
+
 module Agda.TypeChecking.SizedTypes where
 
 import Prelude hiding (null)
@@ -610,11 +614,10 @@ oldSolver metas cs = do
     Nothing  -> cannotSolve
     Just sol -> do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
-      s     <- primSizeSuc
+      suc   <- primSizeSuc
       infty <- primSizeInf
-      let suc v = s `apply` [defaultArg v]
-          plus v 0 = v
-          plus v n = suc $ plus v (n - 1)
+      let plus v 0 = v
+          plus v n = suc `apply1` plus v (n - 1)
 
           inst (i, e) = do
 

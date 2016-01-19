@@ -38,9 +38,7 @@ levelType :: TCM Type
 levelType = El (mkType 0) <$> primLevel
 
 levelSucFunction :: TCM (Term -> Term)
-levelSucFunction = do
-  suc <- primLevelSuc
-  return $ \a -> suc `apply` [defaultArg a]
+levelSucFunction = apply1 <$> primLevelSuc
 
 builtinLevelKit :: TCM (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
@@ -48,11 +46,10 @@ builtinLevelKit = liftTCM $ do
     zero@(Def z [])  <- ignoreSharing <$> primLevelZero
     suc@(Def s [])   <- ignoreSharing <$> primLevelSuc
     max@(Def m [])   <- ignoreSharing <$> primLevelMax
-    let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
       { lvlType  = level
-      , lvlSuc   = \a -> suc @@ a
-      , lvlMax   = \a b -> max @@ a @@ b
+      , lvlSuc   = \ a -> suc `apply1` a
+      , lvlMax   = \ a b -> max `applys` [a, b]
       , lvlZero  = zero
       , typeName = l
       , sucName  = s
@@ -84,7 +81,7 @@ reallyUnLevelView nv = liftTCM $ do
     Max [a]             -> do
       zer <- primLevelZero
       suc <- primLevelSuc
-      return $ unPlusV zer (\n -> suc `apply` [defaultArg n]) a
+      return $ unPlusV zer (apply1 suc) a
     _ -> (`unlevelWithKit` nv) <$> requireLevels
 
 unlevelWithKit :: LevelKit -> Level -> Term
