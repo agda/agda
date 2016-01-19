@@ -219,6 +219,24 @@ unquoteString x = unStr <$> unquote x
 unquoteNString :: Arg Term -> UnquoteM String
 unquoteNString x = unStr <$> unquoteN x
 
+data ErrorPart = StrPart String | TermPart R.Term | NamePart QName
+
+instance PrettyTCM ErrorPart where
+  prettyTCM (StrPart s) = text s
+  prettyTCM (TermPart t) = prettyTCM t
+  prettyTCM (NamePart x) = prettyTCM x
+
+instance Unquote ErrorPart where
+  unquote t = do
+    t <- reduceQuotedTerm t
+    case ignoreSharing t of
+      Con c [x] ->
+        choice [ (c `isCon` primAgdaErrorPartString, StrPart  <$> unquoteNString x)
+               , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
+               , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
+               __IMPOSSIBLE__
+      _ -> throwException $ NotAConstructor "ErrorPart" t
+
 instance Unquote a => Unquote [a] where
   unquote t = do
     t <- reduceQuotedTerm t
@@ -509,8 +527,8 @@ evalTCM v = do
     tcBlockOnMeta :: MetaId -> UnquoteM Term
     tcBlockOnMeta x = throwException (BlockedOnMeta x)
 
-    tcTypeError :: Str -> TCM a
-    tcTypeError s = typeError . GenericDocError =<< text (unStr s)
+    tcTypeError :: [ErrorPart] -> TCM a
+    tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
 
     tcInferType :: R.Term -> TCM Term
     tcInferType v = do

@@ -56,8 +56,12 @@ class ToAbstract r a | r -> a where
   toAbstract :: r -> WithNames a
 
 -- | Translate reflected syntax to abstract, using the names from the current typechecking context.
-toAbstract_ :: (ToAbstract r a) => r -> TCM a
-toAbstract_ x = runReaderT (toAbstract x) =<< getContextNames
+toAbstract_ :: ToAbstract r a => r -> TCM a
+toAbstract_ = withShowAllArguments . toAbstractWithoutImplicit
+
+-- | Drop implicit arguments unless --show-implicit is on.
+toAbstractWithoutImplicit :: ToAbstract r a => r -> TCM a
+toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
 
 instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
   toAbstract = traverse toAbstract
@@ -75,8 +79,11 @@ instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBindings) where
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
-    arg <- toAbstract arg
-    return $ App (ExprRange noRange) f arg
+    arg     <- toAbstract arg
+    showImp <- lift showImplicitArguments
+    return $ if showImp || getHiding arg == NotHidden
+             then App (ExprRange noRange) f arg
+             else f
 
 instance ToAbstract (Expr, Elims) Expr where
   toAbstract (f, elims) = foldM (curry toAbstract) f elims

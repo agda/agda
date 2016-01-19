@@ -45,7 +45,7 @@ absurdLam = extLam (absurdClause (arg (argInfo visible relevant) absurd ∷ []) 
 -- Simple assumption tactic --
 
 assumption-tac : Nat → Nat → Tactic
-assumption-tac x 0 _ = typeError "No assumption matched"
+assumption-tac x 0 _ = typeError (strErr "No assumption matched" ∷ [])
 assumption-tac x (suc n) hole =
   catchTC (unify hole (var x []))
           (assumption-tac (suc x) n hole)
@@ -65,7 +65,7 @@ test-assumption₂ x y = assumption  -- will pick y
 tryConstructors : Nat → List QName → Tactic
 
 constructors-tac : Nat → Type → Tactic
-constructors-tac zero _ _ = typeError "Search depth exhausted"
+constructors-tac zero _ _ = typeError (strErr "Search depth exhausted" ∷ [])
 constructors-tac (suc n) (el _ (def d vs)) hole =
   getDefinition d >>= λ def →
   case def of λ
@@ -74,7 +74,7 @@ constructors-tac (suc n) (el _ (def d vs)) hole =
 constructors-tac _ (el _ (pi a b)) hole = give absurdLam hole
 constructors-tac _ (el _ _) hole = returnTC _
 
-tryConstructors n []       hole = typeError "No matching constructor term"
+tryConstructors n []       hole = typeError (strErr "No matching constructor term" ∷ [])
 tryConstructors n (c ∷ cs) hole =
   visibleArity c >>= λ ar →
   catchTC (replicateTC ar newMeta! >>= λ vs →

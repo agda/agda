@@ -4,12 +4,22 @@ module Common.TC where
 open import Common.Reflection
 open import Common.Prelude
 
+data ErrorPart : Set where
+  strErr  : String → ErrorPart
+  termErr : Term → ErrorPart
+  nameErr : QName → ErrorPart
+
+{-# BUILTIN AGDAERRORPART       ErrorPart #-}
+{-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
+{-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+{-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
+
 postulate
   TC         : ∀ {a} → Set a → Set a
   returnTC   : ∀ {a} {A : Set a} → A → TC A
   bindTC     : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
   unify      : Term → Term → TC ⊤
-  typeError  : ∀ {a} {A : Set a} → String → TC A
+  typeError  : ∀ {a} {A : Set a} → List ErrorPart → TC A
   inferType  : Term → TC Type
   checkType  : Term → Type → TC Term
   normalise  : Term → TC Term

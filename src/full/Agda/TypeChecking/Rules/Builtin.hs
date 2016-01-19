@@ -96,6 +96,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                      , builtinAgdaTermPi, builtinAgdaTermSort
                                      , builtinAgdaTermLit, builtinAgdaTermMeta
                                      , builtinAgdaTermUnsupported])
+  , builtinAgdaErrorPart       |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
+  , builtinAgdaErrorPartString |-> BuiltinDataCons (tstring --> terrorpart)
+  , builtinAgdaErrorPartTerm   |-> BuiltinDataCons (tterm --> terrorpart)
+  , builtinAgdaErrorPartName   |-> BuiltinDataCons (tqname --> terrorpart)
   , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
@@ -189,7 +193,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                hPi "A" (tsetL 1) $ hPi "B" (tsetL 1) $
                                                tTCM 3 (varM 1) --> (elV 3 (varM 1) --> tTCM 2 (varM 0)) --> tTCM 2 (varM 0))
   , builtinAgdaTCMUnify      |-> builtinPostulate (tterm --> tterm --> tTCM_ primUnit)
-  , builtinAgdaTCMTypeError  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tstring --> tTCM 1 (varM 0))
+  , builtinAgdaTCMTypeError  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist terrorpart --> tTCM 1 (varM 0))
   , builtinAgdaTCMInferType  |-> builtinPostulate (tterm --> tTCM_ primAgdaType)
   , builtinAgdaTCMCheckType  |-> builtinPostulate (tterm --> ttype --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMNormalise  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
@@ -232,6 +236,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
+        terrorpart = el primAgdaErrorPart
         tnat       = el primNat
         tunit      = el primUnit
         tinteger   = el primInteger

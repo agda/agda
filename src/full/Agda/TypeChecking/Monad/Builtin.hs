@@ -113,6 +113,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
+    primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
@@ -208,6 +209,10 @@ primAgdaTermSort     = getBuiltin builtinAgdaTermSort
 primAgdaTermLit      = getBuiltin builtinAgdaTermLit
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
 primAgdaTermMeta  = getBuiltin builtinAgdaTermMeta
+primAgdaErrorPart       = getBuiltin builtinAgdaErrorPart
+primAgdaErrorPartString = getBuiltin builtinAgdaErrorPartString
+primAgdaErrorPartTerm   = getBuiltin builtinAgdaErrorPartTerm
+primAgdaErrorPartName   = getBuiltin builtinAgdaErrorPartName
 primAgdaLiteral   = getBuiltin builtinAgdaLiteral
 primAgdaLitNat    = getBuiltin builtinAgdaLitNat
 primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
@@ -278,6 +283,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
+  builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
   builtinAgdaFunDef, builtinAgdaFunDefCon, builtinAgdaClause,
@@ -373,6 +379,10 @@ builtinAgdaTermSort                  = "AGDATERMSORT"
 builtinAgdaTermLit                   = "AGDATERMLIT"
 builtinAgdaTermUnsupported           = "AGDATERMUNSUPPORTED"
 builtinAgdaTermMeta                  = "AGDATERMMETA"
+builtinAgdaErrorPart                 = "AGDAERRORPART"
+builtinAgdaErrorPartString           = "AGDAERRORPARTSTRING"
+builtinAgdaErrorPartTerm             = "AGDAERRORPARTTERM"
+builtinAgdaErrorPartName             = "AGDAERRORPARTNAME"
 builtinAgdaLiteral                   = "AGDALITERAL"
 builtinAgdaLitNat                    = "AGDALITNAT"
 builtinAgdaLitFloat                  = "AGDALITFLOAT"
