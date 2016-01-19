@@ -313,8 +313,8 @@ postulate
   defineFun  : Name → List Clause → TC ⊤
   getType    : Name → TC Type
   getDefinition : Name → TC Definition
-  numberOfParameters : Data-type → TC ℕ
-  getConstructors    : Data-type   → TC (List Name)
+  numberOfParameters : Name → TC ℕ
+  getConstructors    : Name → TC (List Name)
   blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}
