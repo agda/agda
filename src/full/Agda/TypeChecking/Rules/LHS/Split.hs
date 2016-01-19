@@ -47,6 +47,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
@@ -140,7 +141,7 @@ splitProblem mf (Problem ps (perm, qs) tel pr) = do
                   [ text "we are              self = " <+> prettyTCM (unArg self)
                   , text "being projected by dType = " <+> prettyTCM dType
                   ]
-                return $ SplitRest argd $ dType `apply` (vs ++ [self])
+                lift $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
               _ -> __IMPOSSIBLE__
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero

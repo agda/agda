@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
+import {-# SOURCE #-} Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
@@ -804,5 +805,5 @@ getDefType f t = do
           ifNotM (eligibleForProjectionLike d) (return Nothing) $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
-            return $ Just $ a `apply` pars
+            Just <$> a `piApplyM` pars
         _ -> return Nothing

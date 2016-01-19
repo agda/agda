@@ -810,7 +810,7 @@ unifyIndices flex a us vs = liftTCM $ do
                           ixsHH   = snd <$> parsIxsHH
                           dtypeHH = defType def `applyHH` parsHH
                       unifyConstructorArgs dtypeHH (leftHH ixsHH) (rightHH ixsHH)
-                  let a'HH = (b `apply`) . fst <$> parsIxsHH
+                  a'HH <- liftTCM $ traverse ((b `piApplyM`) . fst) parsIxsHH
                   unifyConstructorArgs a'HH us vs
                 Nothing -> checkEqualityHH aHH u v
           | otherwise -> constructorMismatchHH aHH u v

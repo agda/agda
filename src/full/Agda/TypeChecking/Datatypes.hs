@@ -76,7 +76,7 @@ getConType c t = do
       where
         cont n = do
           let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take n es
-          Just . (`apply` pars) . defType <$> getConInfo c
+          Just <$> do (`piApplyM` pars) . defType =<< getConInfo c
     _ -> return Nothing
 
 -- | Return the number of non-parameter arguments to a data constructor,
