@@ -14,8 +14,6 @@ data Is-suc : Nat → Set where
 pred : (n : Nat) → Is-suc n → Nat
 pred ._ (is-suc n) = n
 
-pattern vArg x = arg (argInfo visible relevant) x
-
 pred-def : FunDef
 pred-def =
   funDef (el unknown (quoteTerm ((n : Nat) → Is-suc n → Nat)))

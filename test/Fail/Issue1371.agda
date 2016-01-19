@@ -3,8 +3,6 @@ open import Common.Reflection
 open import Common.Equality
 open import Common.TC
 
-pattern vArg x = arg (argInfo visible relevant) x
-
 ` : Term → Term
 ` (def f []) = con (quote def) (vArg (lit (qname f)) ∷ vArg (con (quote []) []) ∷ [])
 ` _ = lit (string "other")

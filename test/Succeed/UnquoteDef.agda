@@ -15,8 +15,6 @@ module Target where
     odd zero    = false
     odd (suc n) = even n
 
-pattern vArg x = arg (argInfo visible relevant) x
-
 pattern `false = con (quote false) []
 pattern `true  = con (quote true) []
 pattern `zero  = con (quote zero) []

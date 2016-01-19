@@ -38,6 +38,10 @@ data ArgInfo : Set where
 data Arg A : Set where
   arg : ArgInfo → A → Arg A
 
+pattern vArg x = arg (argInfo visible relevant) x
+pattern hArg x = arg (argInfo hidden  relevant) x
+pattern iArg x = arg (argInfo inst    relevant) x
+
 {-# BUILTIN ARGINFO    ArgInfo #-}
 {-# BUILTIN ARG        Arg     #-}
 {-# BUILTIN ARGARG     arg     #-}

@@ -4,9 +4,6 @@ open import Common.Prelude
 open import Common.Equality
 open import Common.TC
 
-pattern vArg x = arg (argInfo visible relevant) x
-pattern hArg x = arg (argInfo hidden  relevant) x
-
 pattern `el x = el (lit 0) x
 pattern `Nat = `el (def (quote Nat) [])
 pattern _`→_ a b = `el (pi (vArg a) (abs "_" b))

@@ -6,9 +6,6 @@ open import Common.TC
 data D (A : Set) : Nat → Set where
   d : ∀ {n} → A → D A n
 
-pattern hArg a = arg (argInfo hidden relevant) a
-pattern vArg a = arg (argInfo visible relevant) a
-
 term : Term
 term = con (quote d) (hArg (def (quote Nat) []) ∷ vArg (con (quote zero) []) ∷ [])
 

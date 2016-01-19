@@ -33,7 +33,6 @@ macro
 
 pattern `el x = el (lit 0) x
 pattern `Nat  = `el (def (quote Nat) [])
-pattern vArg x = arg (argInfo visible relevant) x
 pattern _`→_ a b = `el (pi (vArg a) (abs "_" b))
 pattern `Wrap a = `el (def (quote Wrap) (vArg a ∷ []))
 pattern `⊥ = def (quote ⊥) []

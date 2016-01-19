@@ -4,7 +4,6 @@ open import Common.Equality
 open import Common.Reflection
 open import Common.TC
 
-pattern vArg a = arg (argInfo visible relevant) a
 pattern _`+_ a b = def (quote _+_) (vArg a ∷ vArg b ∷ [])
 
 `_ : Term → Term

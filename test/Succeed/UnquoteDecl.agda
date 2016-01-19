@@ -7,7 +7,6 @@ open import Common.Equality
 open import Common.TC
 
 infixr 3 _`⇒_
-pattern vArg x = arg (argInfo visible relevant) x
 pattern `el a = el (lit 0) a
 pattern _`⇒_ a b = `el (pi (vArg a) (abs "_" b))
 pattern `Nat = `el (def (quote Nat) [])

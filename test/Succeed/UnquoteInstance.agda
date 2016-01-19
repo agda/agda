@@ -34,8 +34,6 @@ private
   eqBool false true = no
   eqBool false false = yes refl
 
-pattern vArg a = arg (argInfo visible relevant) a
-pattern iArg a = arg (argInfo inst relevant) a
 
 instance
   unquoteDecl EqNat = define EqNat
