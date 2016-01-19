@@ -280,12 +280,9 @@ instance Apply CompiledClauses where
   apply cc args = case cc of
     Fail     -> Fail
     Done hs t
-      | length hs >= len -> Done (List.drop len hs)
-                                 (applySubst
-                                    (parallelS $
-                                       [ var i | i <- [0..length hs - len - 1]] ++
-                                       map unArg args)
-                                    t)
+      | length hs >= len ->
+         let sub = parallelS $ map var [0..length hs - len - 1] ++ map unArg args
+         in  Done (List.drop len hs) $ applySubst sub t
       | otherwise -> __IMPOSSIBLE__
     Case n bs
       | unArg n >= len -> Case (n <&> \ m -> m - len) (apply bs args)

@@ -801,9 +801,8 @@ getDefType f t = do
           -- If it is stuck due to disabled reductions
           -- (because of failed termination check),
           -- we will produce garbage parameters.
-          flip (ifM $ eligibleForProjectionLike d) (return Nothing) $ do
+          ifNotM (eligibleForProjectionLike d) (return Nothing) $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
-            -- pars <- maybe (return Nothing) return $ allApplyElims $ take npars es
             return $ Just $ a `apply` pars
         _ -> return Nothing
