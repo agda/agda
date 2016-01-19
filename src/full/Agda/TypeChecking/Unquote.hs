@@ -437,8 +437,7 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext) ]
              __IMPOSSIBLE__
     I.Def f [u] ->
-      choice [ (f `isDef` primAgdaTCMNewMeta,            tcFun1 tcNewMeta            u)
-             , (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
+      choice [ (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
              , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
              , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
              , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
@@ -506,12 +505,6 @@ evalTCM v = do
       v      <- flip checkExpr a =<< toAbstract_ v
       equalTerm a u v
       primUnitUnit
-
-    tcNewMeta :: R.Type -> TCM Term
-    tcNewMeta a = do
-      a <- isType_ =<< toAbstract_ a
-      v <- newValueMeta RunMetaOccursCheck a
-      quoteTerm v
 
     tcBlockOnMeta :: MetaId -> UnquoteM Term
     tcBlockOnMeta x = throwException (BlockedOnMeta x)

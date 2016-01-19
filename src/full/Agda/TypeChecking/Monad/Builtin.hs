@@ -126,7 +126,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaPatAbsurd,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
-    primAgdaTCMNewMeta, primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
+    primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition, primAgdaTCMNumberOfParameters, primAgdaTCMGetConstructors,
@@ -240,7 +240,6 @@ primAgdaTCM           = getBuiltin builtinAgdaTCM
 primAgdaTCMReturn     = getBuiltin builtinAgdaTCMReturn
 primAgdaTCMBind       = getBuiltin builtinAgdaTCMBind
 primAgdaTCMUnify      = getBuiltin builtinAgdaTCMUnify
-primAgdaTCMNewMeta    = getBuiltin builtinAgdaTCMNewMeta
 primAgdaTCMTypeError  = getBuiltin builtinAgdaTCMTypeError
 primAgdaTCMInferType  = getBuiltin builtinAgdaTCMInferType
 primAgdaTCMCheckType  = getBuiltin builtinAgdaTCMCheckType
@@ -291,7 +290,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaDefinitionPrimitive, builtinAgdaDefinition,
   builtinAgdaMeta,
   builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
-  builtinAgdaTCMNewMeta, builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
+  builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
   builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
@@ -406,7 +405,6 @@ builtinAgdaTCM           = "AGDATCM"
 builtinAgdaTCMReturn     = "AGDATCMRETURN"
 builtinAgdaTCMBind       = "AGDATCMBIND"
 builtinAgdaTCMUnify      = "AGDATCMUNIFY"
-builtinAgdaTCMNewMeta    = "AGDATCMNEWMETA"
 builtinAgdaTCMTypeError  = "AGDATCMTYPEERROR"
 builtinAgdaTCMInferType  = "AGDATCMINFERTYPE"
 builtinAgdaTCMCheckType  = "AGDATCMCHECKTYPE"

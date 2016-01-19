@@ -9,7 +9,6 @@ postulate
   returnTC   : ∀ {a} {A : Set a} → A → TC A
   bindTC     : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
   unify      : Term → Term → TC ⊤
-  newMeta    : Type → TC Term
   typeError  : ∀ {a} {A : Set a} → String → TC A
   inferType  : Term → TC Type
   checkType  : Term → Type → TC Term
@@ -31,7 +30,6 @@ postulate
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
 {-# BUILTIN AGDATCMBIND       bindTC     #-}
 {-# BUILTIN AGDATCMUNIFY      unify      #-}
-{-# BUILTIN AGDATCMNEWMETA    newMeta    #-}
 {-# BUILTIN AGDATCMTYPEERROR  typeError  #-}
 {-# BUILTIN AGDATCMINFERTYPE  inferType  #-}
 {-# BUILTIN AGDATCMCHECKTYPE  checkType  #-}
@@ -58,4 +56,7 @@ define : QName → FunDef → TC ⊤
 define f (funDef a cs) =
   bindTC (declareDef f a) λ _ →
   defineFun f cs
+
+newMeta : Type → TC Term
+newMeta a = checkType unknown a
 
