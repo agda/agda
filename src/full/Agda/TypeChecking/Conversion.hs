@@ -668,7 +668,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                    then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
                    else return arg1
             -- continue, possibly with blocked instantiation
-            compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
+            compareElims pols (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associatd to the comparison
             stealConstraints pid
 

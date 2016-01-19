@@ -643,7 +643,7 @@ unifyIndices flex a us vs = liftTCM $ do
         ]
       a <- ureduce a  -- Q: reduce sufficient?
       case ignoreSharing $ unEl a of
-        Pi b _  -> do
+        Pi b codom  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
           -- in case of dependent function type, we cannot postpone
           -- unification of u and v, otherwise us or vs might be ill-typed
@@ -652,8 +652,8 @@ unifyIndices flex a us vs = liftTCM $ do
           unless (isIrrelevant b) $
             (if dep then noPostponing else id) $
               unify (unDom b) u v
-          arg <- traverse ureduce arg
-          unifyArgs (a `piApply` [arg]) us vs
+          u <- ureduce u
+          unifyArgs (codom `absApp` u) us vs
         _         -> __IMPOSSIBLE__
       where dependent (Pi _ NoAbs{}) = False
             dependent (Pi b c)       = 0 `relevantIn` absBody c

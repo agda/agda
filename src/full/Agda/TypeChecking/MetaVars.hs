@@ -280,16 +280,15 @@ newArgsMetaCtx' condition (El s tm) tel ctx = do
   tm <- reduce tm
   case ignoreSharing tm of
     Pi dom@(Dom info a) codom | condition dom codom -> do
-      arg  <- Arg info <$> do
-              applyRelevanceToContext (getRelevance info) $
+      u <- applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
                 if r == Irrelevant then return DontCare else
                 -}
                  newValueMetaCtx RunMetaOccursCheck (telePi_ tel a) ctx
-      args <- newArgsMetaCtx' condition (El s tm `piApply` [arg]) tel ctx
-      return $ arg : args
+      args <- newArgsMetaCtx' condition (codom `absApp` u) tel ctx
+      return $ Arg info u : args
     _  -> return []
 
 -- | Create a metavariable of record type. This is actually one metavariable
