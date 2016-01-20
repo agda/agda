@@ -135,10 +135,9 @@ termDecl' d = case d of
     A.RecSig{}            -> return mempty
     A.RecDef _ r _ _ _ _ _ ds -> termDecls ds
     -- These should all be wrapped in mutual blocks
-    A.FunDef{}  -> __IMPOSSIBLE__
-    A.DataSig{} -> __IMPOSSIBLE__
-    A.DataDef{} -> __IMPOSSIBLE__
-    -- These should have been expanded to a proper declaration before termination checking
+    A.FunDef{}      -> __IMPOSSIBLE__
+    A.DataSig{}     -> __IMPOSSIBLE__
+    A.DataDef{}     -> __IMPOSSIBLE__
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
@@ -219,6 +218,8 @@ termMutual i ds = if names == [] then return mempty else
     getName (A.Mutual _ ds)       = concatMap getName ds
     getName (A.Section _ _ _ ds)  = concatMap getName ds
     getName (A.ScopedDecl _ ds)   = concatMap getName ds
+    getName (A.UnquoteDecl _ _ xs _) = xs
+    getName (A.UnquoteDef _ xs _)    = xs
     getName _                     = []
 
     -- the mutual names mentioned in the abstract syntax

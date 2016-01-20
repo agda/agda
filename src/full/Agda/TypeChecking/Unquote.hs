@@ -77,12 +77,12 @@ unpackUnquoteM = runExceptionT . runWriterT
 packUnquoteM :: TCM (Either UnquoteError (a, [QName])) -> UnquoteM a
 packUnquoteM = WriterT . ExceptionT
 
-runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError a)
+runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
   z <- unpackUnquoteM m
   case z of
     Left err         -> return $ Left err
-    Right (x, decls) -> Right x <$ mapM_ isDefined decls
+    Right (_, decls) -> z <$ mapM_ isDefined decls
   where
     isDefined x = do
       def <- theDef <$> getConstInfo x

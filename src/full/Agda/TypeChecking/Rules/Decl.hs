@@ -258,17 +258,16 @@ type FinalChecks = Maybe (TCM ())
 checkUnquoteDecl :: Info.MutualInfo -> [Info.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
 checkUnquoteDecl mi is xs e = do
   reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> sep (map prettyTCM xs)
-  unquoteTop xs e
-  return Nothing
+  Nothing <$ unquoteTop xs e
 
 checkUnquoteDef :: [Info.DefInfo] -> [QName] -> A.Expr -> TCM ()
 checkUnquoteDef _ xs e = do
   reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDef" <+> sep (map prettyTCM xs)
-  unquoteTop xs e
+  () <$ unquoteTop xs e
 
 -- | Run a reflected TCM computatation expected to define a given list of
 --   names.
-unquoteTop :: [QName] -> A.Expr -> TCM ()
+unquoteTop :: [QName] -> A.Expr -> TCM [QName]
 unquoteTop xs e = do
   tcm   <- primAgdaTCM
   unit  <- primUnit
@@ -278,8 +277,8 @@ unquoteTop xs e = do
   m    <- checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
   res  <- runUnquoteM $ tell xs >> evalTCM m
   case res of
-    Left err -> typeError $ UnquoteFailed err
-    Right _  -> return ()
+    Left err      -> typeError $ UnquoteFailed err
+    Right (_, xs) -> return xs
 
 -- | Instantiate all metas in 'Definition' associated to 'QName'.
 --   Makes sense after freezing metas. Some checks, like free variable

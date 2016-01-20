@@ -1433,7 +1433,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       e <- toAbstract e
       zipWithM_ (rebindName p DefName) xs ys
       let mi = MutualInfo tc True r
-      return [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e]
+      return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
 
     NiceUnquoteDef r fxs p a tc xs e -> do
       ys <- mapM (toAbstract . OldName) xs
