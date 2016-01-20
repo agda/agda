@@ -196,8 +196,8 @@ mutual
     -- Anything else.
     unknown : Term
 
-  data Type : Set where
-    el : (s : Sort) (t : Term) → Type
+  Type : Set
+  Type = Term
 
   data Sort : Set where
     -- A Set of a given (possibly neutral) level.
@@ -212,7 +212,6 @@ mutual
     absurd-clause : (pats : List (Arg Pattern)) → Clause
 
 {-# BUILTIN AGDASORT    Sort    #-}
-{-# BUILTIN AGDATYPE    Type    #-}
 {-# BUILTIN AGDATERM    Term    #-}
 {-# BUILTIN AGDACLAUSE  Clause  #-}
 
@@ -226,7 +225,6 @@ mutual
 {-# BUILTIN AGDATERMLIT         lit     #-}
 {-# BUILTIN AGDATERMMETA        meta    #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-{-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
@@ -449,12 +447,6 @@ private
   slit₁ : ∀ {x y} → Sort.lit x ≡ lit y → x ≡ y
   slit₁ refl = refl
 
-  el₁ : ∀ {s s′ t t′} → el s t ≡ el s′ t′ → s ≡ s′
-  el₁ refl = refl
-
-  el₂ : ∀ {s s′ t t′} → el s t ≡ el s′ t′ → t ≡ t′
-  el₂ refl = refl
-
   nat₁ : ∀ {x y} → nat x ≡ nat y → x ≡ y
   nat₁ refl = refl
 
@@ -481,7 +473,7 @@ private
 
 infix 4 _≟-Visibility_ _≟-Relevance_ _≟-Arg-info_ _≟-Lit_ _≟-AbsTerm_
         _≟-AbsType_ _≟-ArgTerm_ _≟-ArgType_ _≟-ArgPattern_ _≟-Args_
-        _≟-Clause_ _≟-Clauses_ _≟-Pattern_ _≟-ArgPatterns_ _≟_ _≟-Type_
+        _≟-Clause_ _≟-Clauses_ _≟-Pattern_ _≟-ArgPatterns_ _≟_
         _≟-Sort_
 
 _≟-Visibility_ : Decidable (_≡_ {A = Visibility})
@@ -545,7 +537,7 @@ mutual
   abs s a ≟-AbsType abs s′ a′ =
     Dec.map′ (cong₂′ abs)
              < abs₁ , abs₂ >
-             (s ≟s s′ ×-dec a ≟-Type a′)
+             (s ≟s s′ ×-dec a ≟ a′)
 
   _≟-ArgTerm_ : Decidable (_≡_ {A = Arg Term})
   arg i a ≟-ArgTerm arg i′ a′ =
@@ -557,7 +549,7 @@ mutual
   arg i a ≟-ArgType arg i′ a′ =
     Dec.map′ (cong₂′ arg)
              < arg₁ , arg₂ >
-             (i ≟-Arg-info i′ ×-dec a ≟-Type a′)
+             (i ≟-Arg-info i′ ×-dec a ≟ a′)
 
   _≟-ArgPattern_ : Decidable (_≡_ {A = Arg Pattern})
   arg i a ≟-ArgPattern arg i′ a′ =
@@ -730,9 +722,6 @@ mutual
   lit _       ≟ pat-lam _ _ = no λ()
   meta _ _    ≟ pat-lam _ _ = no λ()
   unknown     ≟ pat-lam _ _ = no λ()
-
-  _≟-Type_ : Decidable (_≡_ {A = Type})
-  el s t ≟-Type el s′ t′ = Dec.map′ (cong₂′ el) < el₁ , el₂ > (s ≟-Sort s′ ×-dec t ≟ t′)
 
   _≟-Sort_ : Decidable (_≡_ {A = Sort})
   set t   ≟-Sort set t′  = Dec.map′ (cong set) set₁ (t ≟ t′)
