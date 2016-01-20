@@ -8,12 +8,13 @@ Usage: agda [OPTIONS...] [FILE]
   -?      --help                                      show this help
   -I      --interactive                               start in interactive mode
           --interaction                               for use with the Emacs mode
-  -c      --compile                                   compile program using the MAlonzo backend (experimental)
+  -c      --compile, --ghc                            compile program using the MAlonzo backend (experimental)
+          --ghc-dont-call-ghc                         Don't call ghc, just write the GHC Haskell files.
+          --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
           --no-main                                   when compiling using the MAlonzo backend (experimental), do not treat the requested module as the main module of a program
           --epic                                      the Epic backend has been removed
           --js                                        compile program using the JS backend
           --compile-dir=DIR                           directory for compiler output (default: the project root)
-          --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
           --epic-flag=EPIC-FLAG                       the Epic backend has been removed
           --test                                      run internal test suite
           --vim                                       generate Vim highlighting files
