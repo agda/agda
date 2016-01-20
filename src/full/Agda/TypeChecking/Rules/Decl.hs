@@ -155,7 +155,7 @@ checkDecl d = setCurrentRange d $ do
         -- if we're not inside a mutual block?
         none        m = m >> return Nothing
         meta        m = m >> return (Just (return ()))
-        mutual i ds m = m >>= return . Just . mutualChecks i d ds
+        mutual i ds m = m >>= return . Just . uncurry (mutualChecks i d ds)
         impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
@@ -175,7 +175,8 @@ checkDecl d = setCurrentRange d $ do
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
                                     checkRecDef i x ind eta c ps tel cs
-                                    return (Set.singleton x)
+                                    blockId <- mutualBlockOf x
+                                    return (blockId, Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
                                   -- A record signature is always followed by a
@@ -229,13 +230,13 @@ checkDecl d = setCurrentRange d $ do
 -- Some checks that should be run at the end of a mutual
 -- block (or non-mutual record declaration). The set names
 -- contains the names defined in the mutual block.
-mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> Set QName -> TCM ()
-mutualChecks mi d ds names = do
+mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
+mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
   mapM_ instantiateDefinitionType $ Set.toList names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
-  checkTermination_        d
+  checkTermination_        mid d
   checkPositivity_         mi names
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
@@ -344,15 +345,15 @@ highlight_ d = do
       fields []                         = []
 
 -- | Termination check a declaration.
-checkTermination_ :: A.Declaration -> TCM ()
-checkTermination_ d = Bench.billTo [Bench.Termination] $ do
+checkTermination_ :: MutualId -> A.Declaration -> TCM ()
+checkTermination_ mid d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
   whenM (optTerminationCheck <$> pragmaOptions) $ do
     case d of
       -- Record module definitions should not be termination-checked twice.
       A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
-        termErrs <- termDecl d
+        termErrs <- termDecl mid d
         unless (null termErrs) $
           typeError $ TerminationCheckFailed termErrs
 
@@ -677,11 +678,11 @@ checkPragma r p =
 --
 -- All definitions which have so far been assigned to the given mutual
 -- block are returned.
-checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (Set QName)
+checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
 checkMutual i ds = inMutualBlock $ do
 
+  blockId <- currentOrFreshMutualBlock
   verboseS "tc.decl.mutual" 20 $ do
-    blockId <- currentOrFreshMutualBlock
     reportSDoc "tc.decl.mutual" 20 $ vcat $
       (text "Checking mutual block" <+> text (show blockId) <> text ":") :
       map (nest 2 . prettyA) ds
@@ -689,7 +690,7 @@ checkMutual i ds = inMutualBlock $ do
   local (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
     mapM_ checkDecl ds
 
-  lookupMutualBlock =<< currentOrFreshMutualBlock
+  (blockId, ) <$> lookupMutualBlock blockId
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()

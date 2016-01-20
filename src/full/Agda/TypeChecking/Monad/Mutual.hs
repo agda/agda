@@ -50,6 +50,13 @@ lookupMutualBlock mi = do
     Just qs -> return qs
     Nothing -> return Set.empty -- can end up here if we ask for the current mutual block and there is none
 
+mutualBlockOf :: QName -> TCM MutualId
+mutualBlockOf x = do
+  mb <- Map.toList <$> use stMutualBlocks
+  case filter (Set.member x . snd) mb of
+    (i, _) : _ -> return i
+    _          -> fail $ "No mutual block for " ++ show x
+
 findMutualBlock :: QName -> TCM (Set QName)
 findMutualBlock f = do
   bs <- getMutualBlocks
