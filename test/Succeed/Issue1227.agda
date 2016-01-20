@@ -6,7 +6,7 @@ open import Common.TC
 
 un-function : Definition → FunDef
 un-function (funDef x) = x
-un-function _          = funDef (el unknown unknown) []
+un-function _          = funDef unknown []
 
 data Is-suc : Nat → Set where
   is-suc : ∀ n → Is-suc (suc n)
@@ -16,7 +16,7 @@ pred ._ (is-suc n) = n
 
 pred-def : FunDef
 pred-def =
-  funDef (el unknown (quoteTerm ((n : Nat) → Is-suc n → Nat)))
+  funDef (quoteTerm ((n : Nat) → Is-suc n → Nat))
          (clause (vArg dot ∷ vArg (con (quote is-suc) (vArg (var "n") ∷ [])) ∷ [])
                  (var 0 []) ∷ [])
 
@@ -28,7 +28,7 @@ f ._ is-zero = zero
 
 f-def : FunDef
 f-def =
-  funDef (el unknown (quoteTerm ((n : Nat) → Is-zero n → Nat)))
+  funDef (quoteTerm ((n : Nat) → Is-zero n → Nat))
          (clause (vArg dot ∷ vArg (con (quote is-zero) []) ∷ [])
                  (con (quote zero) []) ∷ [])
 

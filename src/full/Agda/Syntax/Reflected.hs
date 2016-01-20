@@ -31,8 +31,7 @@ data Term = Var Int Elims
           | Unknown
   deriving (Show)
 
-data Type = El { getSort :: Sort, unEl :: Term }
-  deriving (Show)
+type Type = Term
 
 data Sort = SetS Term
           | LitS Integer

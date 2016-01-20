@@ -10,9 +10,9 @@ open import Common.TC
 macro
   primQNameType : QName → Tactic
   primQNameType f hole =
-    bindTC (getType f) λ { (el _ a) →
+    bindTC (getType f) λ a →
     bindTC (normalise a) λ a →
-    give (` a) hole }
+    give (` a) hole
 
 A : Set
 a : A

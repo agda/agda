@@ -7,9 +7,8 @@ open import Common.Equality
 open import Common.TC
 
 infixr 3 _`⇒_
-pattern `el a = el (lit 0) a
-pattern _`⇒_ a b = `el (pi (vArg a) (abs "_" b))
-pattern `Nat = `el (def (quote Nat) [])
+pattern _`⇒_ a b = pi (vArg a) (abs "_" b)
+pattern `Nat = def (quote Nat) []
 
 unquoteDecl x =
   define (vArg x) (funDef `Nat (clause [] (quoteTerm 15) ∷ []))
@@ -35,7 +34,7 @@ prf = refl
 
 magicDef : FunDef
 magicDef =
-  funDef (`el (def (quote ⊥) []) `⇒ `Nat)
+  funDef (def (quote ⊥) [] `⇒ `Nat)
          (absurdClause (vArg absurd ∷ []) ∷ [])
 
 unquoteDecl magic = define (vArg magic) magicDef

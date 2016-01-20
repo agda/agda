@@ -155,7 +155,6 @@ instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
 instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show
 instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
-instance PrettyTCM R.Type       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
 instance (Show a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = text "idS"

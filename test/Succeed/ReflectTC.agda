@@ -32,12 +32,12 @@ visibleArity : QName → TC Nat
 visibleArity q = getType q >>= λ t → returnTC (typeArity t)
   where
     typeArity : Type → Nat
-    typeArity (el _ (pi (arg (argInfo visible _) _) (abs _ b))) = suc (typeArity b)
-    typeArity (el _ (pi _ (abs _ b))) = typeArity b
+    typeArity (pi (arg (argInfo visible _) _) (abs _ b)) = suc (typeArity b)
+    typeArity (pi _ (abs _ b)) = typeArity b
     typeArity _ = 0
 
 newMeta! : TC Term
-newMeta! = newMeta (el unknown unknown)
+newMeta! = newMeta unknown
 
 absurdLam : Term
 absurdLam = extLam (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
@@ -66,13 +66,13 @@ tryConstructors : Nat → List QName → Tactic
 
 constructors-tac : Nat → Type → Tactic
 constructors-tac zero _ _ = typeError (strErr "Search depth exhausted" ∷ [])
-constructors-tac (suc n) (el _ (def d vs)) hole =
+constructors-tac (suc n) (def d vs) hole =
   getDefinition d >>= λ def →
   case def of λ
   { (dataDef df) → getConstructors d >>= λ cs → tryConstructors n cs hole
   ; _            → returnTC _ }
-constructors-tac _ (el _ (pi a b)) hole = give absurdLam hole
-constructors-tac _ (el _ _) hole = returnTC _
+constructors-tac _ (pi a b) hole = give absurdLam hole
+constructors-tac _ _ hole = returnTC _
 
 tryConstructors n []       hole = typeError (strErr "No matching constructor term" ∷ [])
 tryConstructors n (c ∷ cs) hole =

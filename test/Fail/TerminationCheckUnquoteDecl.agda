@@ -9,7 +9,7 @@ infixr 1 _>>=_
 _>>=_ = bindTC
 
 `⊥ : Type
-`⊥ = el unknown (def (quote ⊥) [])
+`⊥ = def (quote ⊥) []
 
 {-
 Generate

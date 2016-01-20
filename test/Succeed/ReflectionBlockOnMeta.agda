@@ -12,13 +12,10 @@ infixl 8 _<$>_
 _<$>_ : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → TC A → TC B
 f <$> m = m >>= λ x → returnTC (f x)
 
-unEl : Type → Term
-unEl (el _ v) = v
-
 macro
   default : Tactic
   default hole =
-    unEl <$> inferType hole >>= λ
+    inferType hole >>= λ
     { (def (quote Nat) []) → unify hole (lit (nat 42))
     ; (def (quote Bool) []) → unify hole (con (quote false) [])
     ; (meta x _) → catchTC (blockOnMeta x) (typeError (strErr "impossible" ∷ []))

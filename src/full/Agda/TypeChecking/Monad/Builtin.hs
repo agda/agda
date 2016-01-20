@@ -114,7 +114,6 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
-    primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
     primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName,
@@ -184,8 +183,6 @@ primArgArg       = getBuiltin builtinArgArg
 primAbs          = getBuiltin builtinAbs
 primAbsAbs       = getBuiltin builtinAbsAbs
 primAgdaSort     = getBuiltin builtinAgdaSort
-primAgdaType     = getBuiltin builtinAgdaType
-primAgdaTypeEl   = getBuiltin builtinAgdaTypeEl
 primHiding       = getBuiltin builtinHiding
 primHidden       = getBuiltin builtinHidden
 primInstance     = getBuiltin builtinInstance
@@ -275,7 +272,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
-  builtinAgdaSortUnsupported, builtinAgdaType, builtinAgdaTypeEl,
+  builtinAgdaSortUnsupported,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
   builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
   builtinArgInfo, builtinArgArgInfo, builtinArgArg,
@@ -353,8 +350,6 @@ builtinAgdaSort                      = "AGDASORT"
 builtinAgdaSortSet                   = "AGDASORTSET"
 builtinAgdaSortLit                   = "AGDASORTLIT"
 builtinAgdaSortUnsupported           = "AGDASORTUNSUPPORTED"
-builtinAgdaType                      = "AGDATYPE"
-builtinAgdaTypeEl                    = "AGDATYPEEL"
 builtinHiding                        = "HIDING"
 builtinHidden                        = "HIDDEN"
 builtinInstance                      = "INSTANCE"

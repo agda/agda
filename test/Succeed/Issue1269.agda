@@ -32,8 +32,8 @@ isExpected _        = false
 macro
   checkExpectedType : QName → Tactic
   checkExpectedType i hole =
-    bindTC (getType i) λ { (el _ t) →
-    bindTC (normalise t) λ t → give (` isExpected t) hole }
+    bindTC (getType i)   λ t →
+    bindTC (normalise t) λ t → give (` isExpected t) hole
 
 input0 : ∃ Even
 input0 = 0 , isEven0

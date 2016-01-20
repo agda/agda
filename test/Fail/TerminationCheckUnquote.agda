@@ -10,7 +10,7 @@ infixr 1 _>>=_
 _>>=_ = bindTC
 
 `⊥ : Type
-`⊥ = el unknown (def (quote ⊥) [])
+`⊥ = def (quote ⊥) []
 
 ⊥-elim : ∀ {a} {A : Set a} → ⊥ → A
 ⊥-elim ()

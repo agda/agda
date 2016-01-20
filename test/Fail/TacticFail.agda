@@ -9,14 +9,11 @@ open import Common.TC
 infixr 1 _>>=_
 _>>=_ = bindTC
 
-unEl : Type → Term
-unEl (el _ v) = v
-
 failTactic : Term → TC ⊤
 failTactic hole =
   inferType hole >>= λ goal →
   typeError (strErr "Surprisingly the" ∷ nameErr (quote failTactic) ∷
-             strErr "failed to prove" ∷ termErr (unEl goal) ∷ [])
+             strErr "failed to prove" ∷ termErr goal ∷ [])
 
 macro
   proveIt = failTactic

@@ -70,8 +70,8 @@ data Literal : Set where
 {-# BUILTIN AGDALITQNAME  qname   #-}
 
 Args : Set
+Type : Set
 
-data Type : Set
 data Sort : Set
 data Clause : Set
 
@@ -88,9 +88,7 @@ data Term : Set where
   unknown       : Term
 
 Args = List (Arg Term)
-
-data Type where
-  el : Sort → Term → Type
+Type = Term
 
 data Sort where
   set     : Term → Sort
@@ -111,7 +109,6 @@ data Clause where
 
 {-# BUILTIN AGDASORT            Sort    #-}
 {-# BUILTIN AGDATERM            Term    #-}
-{-# BUILTIN AGDATYPE            Type    #-}
 {-# BUILTIN AGDAPATTERN         Pattern #-}
 {-# BUILTIN AGDACLAUSE          Clause  #-}
 
@@ -125,7 +122,6 @@ data Clause where
 {-# BUILTIN AGDATERMLIT         lit     #-}
 {-# BUILTIN AGDATERMMETA        meta    #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-{-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}

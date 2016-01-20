@@ -64,7 +64,7 @@ agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
 
 agdaTypeType :: TCM Type
-agdaTypeType = El (mkType 0) <$> primAgdaType
+agdaTypeType = agdaTermType
 
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
@@ -151,7 +151,7 @@ ensureCon x = do
 
 pickName :: R.Type -> String
 pickName a =
-  case R.unEl a of
+  case a of
     R.Pi{}   -> "f"
     R.Sort{} -> "A"
     R.Def d _ | c:_ <- show (qnameName d),
@@ -323,17 +323,6 @@ instance Unquote R.Sort where
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Sort" t
-
-instance Unquote R.Type where
-  unquote t = do
-    t <- reduceQuotedTerm t
-    case ignoreSharing t of
-      Con c [s, u] -> do
-        choice
-          [(c `isCon` primAgdaTypeEl, R.El <$> unquoteN s <*> unquoteN u)]
-          __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Type" t
 
 instance Unquote Literal where
   unquote t = do

@@ -35,7 +35,7 @@ private
   eqBool false false = yes refl
 
 unquoteDecl EqNat = define (iArg EqNat)
-  (funDef (el unknown (def (quote Eq) (vArg (def (quote Nat) []) ∷ [])))
+  (funDef (def (quote Eq) (vArg (def (quote Nat) []) ∷ []))
           (clause [] (con (quote eqDict) (vArg (def (quote eqNat) []) ∷ [])) ∷ []))
 
 instance

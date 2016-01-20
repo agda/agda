@@ -89,7 +89,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
-  , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
   , (builtinAgdaTerm           |-> BuiltinData tset
                                      [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
                                      , builtinAgdaTermDef, builtinAgdaTermCon
@@ -122,7 +121,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (targinfo --> tv0 --> targ tv0)))
   , (builtinAbsAbs             |-> BuiltinDataCons (hPi "A" tset (tstring  --> tv0 --> tabs tv0)))
   , (builtinArgArgInfo         |-> BuiltinDataCons (thiding --> trelevance --> targinfo))
-  , (builtinAgdaTypeEl         |-> BuiltinDataCons (tsort --> tterm --> ttype))
   , (builtinAgdaTermVar        |-> BuiltinDataCons (tnat --> targs --> tterm))
   , (builtinAgdaTermLam        |-> BuiltinDataCons (thiding --> tabs tterm --> tterm))
   , (builtinAgdaTermExtLam     |-> BuiltinDataCons (tlist tclause --> targs --> tterm))
@@ -194,7 +192,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                tTCM 3 (varM 1) --> (elV 3 (varM 1) --> tTCM 2 (varM 0)) --> tTCM 2 (varM 0))
   , builtinAgdaTCMUnify      |-> builtinPostulate (tterm --> tterm --> tTCM_ primUnit)
   , builtinAgdaTCMTypeError  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist terrorpart --> tTCM 1 (varM 0))
-  , builtinAgdaTCMInferType  |-> builtinPostulate (tterm --> tTCM_ primAgdaType)
+  , builtinAgdaTCMInferType  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCheckType  |-> builtinPostulate (tterm --> ttype --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMNormalise  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMCatchError |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
@@ -204,7 +202,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMFreshName     |-> builtinPostulate (tstring --> tTCM_ primQName)
   , builtinAgdaTCMDeclareDef    |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
   , builtinAgdaTCMDefineFun     |-> builtinPostulate (tqname --> tlist tclause --> tTCM_ primUnit)
-  , builtinAgdaTCMGetType            |-> builtinPostulate (tqname --> tTCM_ primAgdaType)
+  , builtinAgdaTCMGetType            |-> builtinPostulate (tqname --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMGetDefinition      |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
   , builtinAgdaTCMNumberOfParameters |-> builtinPostulate (tqname --> tTCM_ primNat)
   , builtinAgdaTCMGetConstructors    |-> builtinPostulate (tqname --> tTCM_ (list primQName))
@@ -251,7 +249,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         trelevance = el primRelevance
 --        tcolors    = el (list primAgdaTerm) -- TODO guilhem
         targinfo   = el primArgInfo
-        ttype      = el primAgdaType
+        ttype      = el primAgdaTerm
         tsort      = el primAgdaSort
         tdefn      = el primAgdaDefinition
         tfun       = el primAgdaFunDef

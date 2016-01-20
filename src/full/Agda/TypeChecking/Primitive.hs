@@ -103,7 +103,7 @@ instance PrimTerm Nat     where primTerm _ = primNat
 instance PrimTerm Lvl     where primTerm _ = primLevel
 instance PrimTerm QName   where primTerm _ = primQName
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
-instance PrimTerm Type    where primTerm _ = primAgdaType
+instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))

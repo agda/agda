@@ -7,5 +7,5 @@ open import Common.TC
 -- Note that in the body of the unquote, 'loop' really means 'quote loop'.
 unquoteDecl loop =
   define (vArg loop)
-         (funDef (el (lit 0) (def (quote Nat) []))
+         (funDef (def (quote Nat) [])
                  (clause [] (def loop []) ∷ []))

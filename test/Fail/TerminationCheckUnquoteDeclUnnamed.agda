@@ -9,7 +9,7 @@ infixr 1 _>>=_
 _>>=_ = bindTC
 
 `⊥ : Type
-`⊥ = el unknown (def (quote ⊥) [])
+`⊥ = def (quote ⊥) []
 
 data Box : Set where
   box : ⊥ → Box
@@ -18,7 +18,7 @@ unbox : Box → ⊥
 unbox (box x) = x
 
 `Box : Type
-`Box = el unknown (def (quote Box) [])
+`Box = def (quote Box) []
 
 {-
 Generate

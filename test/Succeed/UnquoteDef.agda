@@ -20,19 +20,18 @@ pattern `true  = con (quote true) []
 pattern `zero  = con (quote zero) []
 pattern `suc n = con (quote suc) (vArg n ∷ [])
 
-pattern el- a = el unknown a
-pattern _`→_ a b = pi (vArg (el- a)) (abs "A" (el- b))
+pattern _`→_ a b = pi (vArg a) (abs "A" b)
 pattern `Nat = def (quote Nat) []
 pattern `Bool = def (quote Bool) []
 
+`idType = `Nat `→ `Nat
+
 -- Simple non-mutual case
 `id : QName → FunDef
-`id f = funDef (el- (`Nat `→ `Nat))
+`id f = funDef `idType
         ( clause (vArg `zero            ∷ []) `zero
         ∷ clause (vArg (`suc (var "n")) ∷ []) (`suc (def f (vArg (var 0 []) ∷ [])))
         ∷ [])
-
-`idType = el- (`Nat `→ `Nat)
 
 `idDef : QName → List Clause
 `idDef f =

@@ -125,9 +125,6 @@ instance ToAbstract Term Expr where
       where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
 
-instance ToAbstract Type Expr where
-  toAbstract (El _ x) = toAbstract x
-
 mkSet :: Expr -> Expr
 mkSet e = App exprNoRange (A.Set exprNoRange 0) $ defaultNamedArg e
 

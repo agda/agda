@@ -31,10 +31,9 @@ macro
     bindTC (getDefinition f) λ def →
     give (if isOk def then quoteTerm ok else quoteTerm bad) hole
 
-pattern `el x = el (lit 0) x
-pattern `Nat  = `el (def (quote Nat) [])
-pattern _`→_ a b = `el (pi (vArg a) (abs "_" b))
-pattern `Wrap a = `el (def (quote Wrap) (vArg a ∷ []))
+pattern `Nat  = def (quote Nat) []
+pattern _`→_ a b = pi (vArg a) (abs "_" b)
+pattern `Wrap a = def (quote Wrap) (vArg a ∷ [])
 pattern `⊥ = def (quote ⊥) []
 
 pattern expected₄ = funDef (funDef
@@ -55,9 +54,9 @@ check₂ = refl
 
 pattern expectedDef =
   funDef (funDef
-    (el (lit 0) (pi (arg (argInfo visible relevant) (el (lit 0) (def (quote ⊥) [])))
-                    (abs "_" (el (lit 0) (def (quote Nat) [])))))
-    (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []))
+    (pi (vArg (def (quote ⊥) []))
+        (abs "_" (def (quote Nat) [])))
+    (absurdClause (vArg absurd ∷ []) ∷ []))
 
 check₃ : OK
 check₃ = checkDefinition (λ { expectedDef → true; _ → false }) magic₃

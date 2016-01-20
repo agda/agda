@@ -93,7 +93,6 @@ quotingKit = do
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
   lkit            <- requireLevels
-  el              <- primAgdaTypeEl
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
@@ -156,7 +155,7 @@ quotingKit = do
       quoteSort DLub{}   = pure unsupportedSort
 
       quoteType :: Type -> ReduceM Term
-      quoteType (El s t) = el !@ quoteSort s @@ quoteTerm t
+      quoteType (El _ t) = quoteTerm t
 
       quoteQName :: QName -> ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
