@@ -84,7 +84,7 @@ tests = do
   where forComp comp = testGroup (show comp) . catMaybes
             <$> sequence
                 [ Just <$> simpleTests comp
-                , Just <$> stdlibTests comp
+--                , Just <$> stdlibTests comp
                 , specialTests comp]
 
 simpleTests :: Compiler -> IO TestTree
