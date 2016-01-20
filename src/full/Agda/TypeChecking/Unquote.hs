@@ -450,6 +450,7 @@ unquoteTCM m hole = do
 evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
+  reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
   case ignoreSharing v of
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext) ]
@@ -604,6 +605,8 @@ evalTCM v = do
       when (h == Hidden) $ liftU $ typeError . GenericDocError =<< text "Cannot declare hidden function" <+> prettyTCM x
       tell [x]
       liftU $ do
+        reportSDoc "tc.unquote.decl" 10 $ sep [ text "declare" <+> prettyTCM x <+> text ":"
+                                              , nest 2 $ prettyTCM a ]
         a <- isType_ =<< toAbstract_ a
         alreadyDefined <- (True <$ getConstInfo x) `catchError` \ _ -> return False
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ show x
