@@ -392,6 +392,12 @@ stripWithClausePatterns parent f t qs perm ps = do
 
     -- Case: out of with-clause patterns.
     strip self t [] qs@(_ : _) = do
+      reportSDoc "tc.with.strip" 15 $ vcat
+        [ text "strip (out of A.Patterns)"
+        , nest 2 $ text "qs  =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
+        , nest 2 $ text "self=" <+> prettyTCM self
+        , nest 2 $ text "t   =" <+> prettyTCM t
+        ]
       -- Andreas, 2015-06-11, issue 1551:
       -- As the type t develops, we need to insert more implicit patterns,
       -- due to copatterns / flexible arity.
@@ -436,6 +442,10 @@ stripWithClausePatterns parent f t qs perm ps = do
             if d /= d' then mismatch else do
               t <- reduce t
               (self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
+              -- Andreas, 2016-01-21, issue #1791
+              -- The type of a field might start with hidden quantifiers.
+              -- So we may have to insert more implicit patterns here.
+              ps <- insertImplicitPatternsT ExpandLast ps t1
               strip self1 t1 ps qs
           Nothing -> mismatch
 
