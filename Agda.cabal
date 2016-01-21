@@ -469,7 +469,6 @@ library
                  -fwarn-missing-fields
                  -fwarn-missing-methods
                  -fwarn-missing-signatures
-                 -fwarn-monomorphism-restriction
                  -fwarn-orphans
                  -fwarn-tabs
                  -fwarn-overlapping-patterns
@@ -504,7 +503,8 @@ library
     ghc-options: -fwarn-context-quantification
 
   if impl(ghc >= 8.0)
-    ghc-options: -Wredundant-constraints
+    ghc-options: -Wmonomorphism-restriction
+                 -Wredundant-constraints
 
   ghc-prof-options: -fprof-auto
 
