@@ -7,3 +7,11 @@ record Σ A (B : A → Set) : Set where
   field
     fst : A
     snd : B fst  -- fst should be highlighted as projection here
+
+-- Should also work under 'mutual'.
+
+mutual
+  record IOInterface : Set₁ where
+    constructor ioInterface
+    field  Command   :  Set
+           Response  :  (m : Command) → Set

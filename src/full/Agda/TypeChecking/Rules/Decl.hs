@@ -205,8 +205,6 @@ checkDecl d = setCurrentRange d $ do
         theMutualChecks
 
     where
-    unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
-    unScope d = return d
 
     -- check record or data type signature
     checkSig i x ps t = checkTypeSignature $
@@ -336,14 +334,14 @@ highlight_ d = do
     A.Axiom{}                -> highlight d
     A.Field{}                -> __IMPOSSIBLE__
     A.Primitive{}            -> highlight d
-    A.Mutual{}               -> highlight d
+    A.Mutual i ds            -> mapM_ highlight_ $ deepUnScope =<< ds
     A.Apply{}                -> highlight d
     A.Import{}               -> highlight d
     A.Pragma{}               -> highlight d
     A.ScopedDecl{}           -> return ()
-    A.FunDef{}               -> __IMPOSSIBLE__
-    A.DataDef{}              -> __IMPOSSIBLE__
-    A.DataSig{}              -> __IMPOSSIBLE__
+    A.FunDef{}               -> highlight d
+    A.DataDef{}              -> highlight d
+    A.DataSig{}              -> highlight d
     A.Open{}                 -> highlight d
     A.PatternSynDef{}        -> highlight d
     A.UnquoteDecl{}          -> highlight d
@@ -372,6 +370,9 @@ highlight_ d = do
       -- We do not need that crap.
       dummy = A.Lit $ LitString noRange $
         "do not highlight construct(ed/or) type"
+  where
+  deepUnScope (A.ScopedDecl _ ds) = deepUnScope =<< ds
+  deepUnScope d = [d]
 
 -- | Termination check a declaration.
 checkTermination_ :: A.Declaration -> TCM ()
