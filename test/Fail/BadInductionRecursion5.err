@@ -1,2 +1,13 @@
 BadInductionRecursion5.agda:5,8-9
-D is not strictly positive.
+D is not strictly positive, because it occurs
+in the first clause
+in the definition of T₂, which occurs
+in the first clause
+in the definition of T₁, which occurs
+to the left of an arrow
+in the first clause
+in the definition of T₂, which occurs
+in the first clause
+in the definition of T₁, which occurs
+in the type of the constructor c
+in the definition of D.

@@ -1,2 +1,13 @@
 Issue1544.agda:95,10-18
-Command₁ is not strictly positive.
+Command₁ is not strictly positive, because it occurs
+in the type of the constructor command₁
+in the definition of Modifier, which occurs
+in the second argument to tabulate
+in the second argument to Record
+in the definition of Command₃, which occurs
+in the type of the constructor command₃
+in the definition of Modifier, which occurs
+in the second argument to [tabulate]
+in the second argument to Record
+in the type of the constructor mkCommand
+in the definition of Command₁.
