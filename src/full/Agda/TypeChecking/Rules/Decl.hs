@@ -150,8 +150,6 @@ checkDecl d = setCurrentRange d $ do
         theMutualChecks
 
     where
-    unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
-    unScope d = return d
 
     -- check record or data type signature
     checkSig i x ps t = checkTypeSignature $
