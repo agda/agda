@@ -34,6 +34,7 @@ import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.ReflectedToAbstract
 
@@ -352,7 +353,7 @@ highlight_ d = do
       -- all that remains is the module declaration.
     A.RecSig{}               -> highlight d
     A.RecDef i x ind eta c ps tel cs ->
-      highlight (A.RecDef i x ind eta c [] tel (fields cs))
+      highlight (A.RecDef i x ind eta c [] dummy (fields cs))
       -- The telescope and all record module declarations except
       -- for the fields have already been highlighted.
       where
@@ -360,6 +361,17 @@ highlight_ d = do
       fields (d@A.Field{}        : ds)  = d : fields ds
       fields (_                  : ds)  = fields ds
       fields []                         = []
+      -- Andreas, 2016-01-22, issue 1791
+      -- The expression denoting the record constructor type
+      -- is replace by a dummy expression in order to /not/
+      -- generate highlighting from it.
+      -- Simply because all the highlighting info is wrong
+      -- in the record constructor type:
+      -- * fields become bound variables,
+      -- * declarations become let-bound variables.
+      -- We do not need that crap.
+      dummy = A.Lit $ LitString noRange $
+        "do not highlight construct(ed/or) type"
 
 -- | Termination check a declaration.
 checkTermination_ :: A.Declaration -> TCM ()
