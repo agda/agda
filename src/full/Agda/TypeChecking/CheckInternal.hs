@@ -196,8 +196,7 @@ checkSpine a self es t = do
     , prettyTCM t
     ]
   (v, t') <- inferSpine a self es
-  subtype t' t
-  -- void $ coerceSize subtype v t' t
+  void $ coerceSize subtype v t' t
 
 checkArgs :: Type -> Term -> Args -> Type -> TCM ()
 checkArgs a self vs t = checkSpine a self (map Apply vs) t
