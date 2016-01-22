@@ -345,7 +345,7 @@ checkClause
   -> TCM Clause    -- ^ Type-checked clause.
 
 checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
-    reportSDoc "tc.with.top" 30 $ text "Checking clause" $$ prettyA c
+    reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
