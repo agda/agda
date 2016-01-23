@@ -7,10 +7,6 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Directed graphs (can of course simulate undirected graphs).
 --
 --   Represented as adjacency maps in direction from source to target.

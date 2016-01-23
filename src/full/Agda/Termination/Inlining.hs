@@ -4,10 +4,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- Author:  Ulf Norell
 -- Created: 2013-11-09
 

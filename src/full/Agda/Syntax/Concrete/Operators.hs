@@ -1,10 +1,6 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
     operators properly. For a stand-alone implementation of this see

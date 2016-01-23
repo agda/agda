@@ -2,10 +2,6 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Tools to manipulate patterns in abstract syntax
 --   in the TCM (type checking monad).
 

@@ -7,10 +7,6 @@
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 module Agda.Utils.Permutation.Tests (tests) where
 
 import Data.Functor

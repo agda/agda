@@ -8,10 +8,6 @@
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {-| The translation of abstract syntax to concrete syntax has two purposes.
     First it allows us to pretty print abstract syntax values without having to
     write a dedicated pretty printer, and second it serves as a sanity check

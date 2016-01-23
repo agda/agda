@@ -10,10 +10,6 @@
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE TupleSections              #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 module Agda.TypeChecking.Rules.LHS.Unify where
 
 import Prelude hiding (null)

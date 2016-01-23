@@ -2,10 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards     #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 module Agda.Compiler.Epic.Injection where
 
 import Control.Monad.State

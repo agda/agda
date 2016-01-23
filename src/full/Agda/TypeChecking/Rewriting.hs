@@ -2,10 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards     #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Rewriting with arbitrary rules.
 --
 --   The user specifies a relation symbol by the pragma

@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Smash functions which return something that can be inferred
 --   (something of a type with only one element)
 
