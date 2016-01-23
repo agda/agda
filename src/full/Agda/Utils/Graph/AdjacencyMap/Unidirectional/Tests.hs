@@ -298,6 +298,84 @@ prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
 
+-- Andreas, 2015-07-21 Issue 1612:
+-- May take forever due to exponential time of allTrails.
+--
+-- prop_allTrails_existence :: Property
+-- prop_allTrails_existence =
+--   forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
+--   forAll (nodeIn g) $ \i ->
+--   forAll (nodeIn g) $ \j ->
+--     null (allTrails i j g)
+--       ==
+--     not (connected (connectivityGraph g) i j)
+
+-- | The 'Integer's should be non-negative.
+
+data ExtendedNatural = Finite Integer | Infinite
+  deriving (Eq, Ord, Show)
+
+instance SemiRing ExtendedNatural where
+  ozero = Finite 0
+  oone  = Finite 1
+
+  oplus (Finite m) (Finite n) = Finite (m + n)
+  oplus Infinite   _          = Infinite
+  oplus _          Infinite   = Infinite
+
+  otimes (Finite m) (Finite n) = Finite (m * n)
+  otimes (Finite 0) _          = Finite 0
+  otimes _          (Finite 0) = Finite 0
+  otimes Infinite   _          = Infinite
+  otimes _          Infinite   = Infinite
+
+instance StarSemiRing ExtendedNatural where
+  ostar (Finite 0) = Finite 1
+  ostar _          = Infinite
+
+
+-- Andreas, 2015-07-21 Issue 1612:
+-- May take forever due to exponential time of allTrails.
+--
+-- prop_allTrails_number :: Property
+-- prop_allTrails_number =
+--   forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
+--   forAll (nodeIn g) $ \i ->
+--   forAll (nodeIn g) $ \j ->
+--     Finite (List.genericLength (allTrails i j g))
+--       <=
+--     case Graph.lookup i j
+--            (gaussJordanFloydWarshallMcNaughtonYamada
+--               (fmap (const oone) g)) of
+--       Just n  -> n
+--       Nothing -> Finite 0
+
+-- Node 10 is unreachable, so @allTrails _ 10 g1612@ takes forever
+g1612 :: Graph N N E
+g1612 = Graph $ Map.fromList
+  [ (n  1,Map.fromList [(n 1,Unused   ),(n  9,StrictPos),(n 12,JustPos),(n 15,JustPos)])
+  , (n  3,Map.fromList [(n 3,Unused   ),(n  8,StrictPos)])
+  , (n  8,Map.fromList [(n 1,GuardPos ),(n  3,Mixed    ),(n 8,Unused),(n 9,JustPos),(n 11,StrictPos),(n 12,GuardPos),(n 15,JustPos)])
+  , (n  9,Map.fromList [(n 1,JustNeg  ),(n  8,Mixed    ),(n 9,JustNeg),(n 11,StrictPos),(n 12,StrictPos)])
+  , (n 10,Map.fromList [(n 1,JustPos  ),(n  8,StrictPos)])
+  , (n 11,Map.fromList [(n 1,StrictPos),(n  8,JustNeg  ),(n 9,JustNeg),(n 11,JustNeg)])
+  , (n 12,Map.fromList [(n 1,JustPos  ),(n 15,StrictPos)])
+  , (n 15,Map.fromList [(n 1,JustPos  ),(n  8,GuardPos ),(n 11,Mixed),(n 12,Mixed)])
+  ]
+
+-- t1612t = allTrails (n 9) (n 10) g1612 -- FOREVER
+
+g1612a = Graph $ Map.fromList
+  [(n  1,Map.fromList [(n 2,JustNeg),(n 11,Mixed)])
+  ,(n  2,Map.fromList [(n 1,JustNeg),(n 2,GuardPos),(n 4,GuardPos),(n 8,Unused),(n 11,Unused)])
+  ,(n  4,Map.fromList [(n 2,GuardPos),(n 8,JustPos),(n 12,GuardPos)])
+  ,(n  6,Map.fromList [(n 1,StrictPos),(n 11,Unused),(n 12,JustNeg)])
+  ,(n  8,Map.fromList [(n 1,GuardPos),(n 4,JustPos),(n 8,JustPos)])
+  ,(n 11,Map.fromList [(n 4,GuardPos),(n 12,StrictPos)])
+  ,(n 12,Map.fromList [(n 1,Mixed),(n 4,Mixed),(n 11,Mixed)])
+  ]
+
+
 ------------------------------------------------------------------------
 -- * All tests
 ------------------------------------------------------------------------
