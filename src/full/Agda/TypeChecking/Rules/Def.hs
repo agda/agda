@@ -510,6 +510,11 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
         -- Infer the types of the with expressions
         (vs0, as) <- unzip <$> mapM inferExprForWith es
 
+        -- Andreas, 2016-01-23, Issue #1796
+        -- Run the size constraint solver to improve with-abstraction
+        -- in case the with-expression contains size metas.
+        solveSizeConstraints
+
         checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
 
 checkWithRHS
