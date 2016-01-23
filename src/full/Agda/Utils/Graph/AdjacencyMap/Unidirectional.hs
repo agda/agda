@@ -729,11 +729,15 @@ gaussJordanFloydWarshallMcNaughtonYamadaReference g =
 --
 -- * Strongly connected components are used to avoid computing some
 --   zero edges.
+--
+-- The graph's strongly connected components (in reverse topological
+-- order) are returned along with the transitive closure.
 
 gaussJordanFloydWarshallMcNaughtonYamada ::
   forall n e. (Ord n, Eq e, StarSemiRing e) =>
-  Graph n n e -> Graph n n e
-gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
+  Graph n n e -> (Graph n n e, [Graph.SCC n])
+gaussJordanFloydWarshallMcNaughtonYamada g =
+  (loop components g, components)
   where
   components = sccs' g
   forwardDAG = sccDAG' g components

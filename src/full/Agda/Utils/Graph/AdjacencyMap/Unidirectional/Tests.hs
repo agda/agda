@@ -97,7 +97,7 @@ instance StarSemiRing Connected where
 
 connectivityGraph :: Ord n => Graph n n e -> Graph n n Connected
 connectivityGraph =
-  gaussJordanFloydWarshallMcNaughtonYamada .
+  fst . gaussJordanFloydWarshallMcNaughtonYamada .
   fmap (const oone)
 
 connected :: Ord n => Graph n n Connected -> n -> n -> Bool
@@ -286,7 +286,8 @@ prop_gaussJordanFloydWarshallMcNaughtonYamadaReference g =
 prop_gaussJordanFloydWarshallMcNaughtonYamada :: G -> Property
 prop_gaussJordanFloydWarshallMcNaughtonYamada g =
   QuickCheck.label sccInfo $
-    gaussJordanFloydWarshallMcNaughtonYamada g ~~ transitiveClosure1 g
+    fst (gaussJordanFloydWarshallMcNaughtonYamada g) ~~
+    transitiveClosure1 g
   where
   sccInfo =
     (if noSCCs <= 3 then "   " ++ show noSCCs

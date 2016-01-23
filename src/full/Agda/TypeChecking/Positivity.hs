@@ -66,7 +66,8 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
   -- remove @Unused@ edges
   g <- Graph.clean <$> buildOccurrenceGraph qset
-  let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+  let (gstar, sccs') =
+        Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -87,8 +88,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
-  let sccs' = Graph.sccs' gstar
-      sccs  = map flattenSCC sccs'
+  let sccs = map flattenSCC sccs'
   reportSDoc "tc.pos.graph.sccs" 10 $ do
     let (triv, others) = partitionEithers $ for sccs' $ \ scc -> case scc of
           AcyclicSCC v -> Left v
