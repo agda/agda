@@ -7,10 +7,6 @@
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {-|
     Translating from internal syntax to abstract syntax. Enables nice
     pretty printing of internal syntax.

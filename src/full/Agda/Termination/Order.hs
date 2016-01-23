@@ -2,10 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ImplicitParams    #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | An Abstract domain of relative sizes, i.e., differences
 --   between size of formal function parameter and function argument
 --   in recursive call; used in the termination checker.

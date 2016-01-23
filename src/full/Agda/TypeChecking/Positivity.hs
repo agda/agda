@@ -4,10 +4,6 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
 

@@ -5,10 +5,6 @@
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.
 

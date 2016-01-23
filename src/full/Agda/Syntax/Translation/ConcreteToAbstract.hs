@@ -12,10 +12,6 @@
 {-# LANGUAGE OverlappingInstances #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
     figuring out infix operator precedences and tidying up definitions.
 -}

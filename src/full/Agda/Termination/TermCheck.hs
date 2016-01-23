@@ -7,10 +7,6 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TupleSections              #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
               Karl Mehltretter and others
