@@ -275,12 +275,12 @@ data WhereClause' decls
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-type ImportDirective = ImportDirective' Name
-type UsingOrHiding   = UsingOrHiding'   Name
-type Renaming        = Renaming'        Name
+type ImportDirective = ImportDirective' Name Name
+type UsingOrHiding   = UsingOrHiding'   Name Name
+type Renaming        = Renaming'        Name Name
 
 -- | An imported name can be a module or a defined name.
-type ImportedName = ImportedName' Name
+type ImportedName = ImportedName' Name Name
 
 data AsName = AsName
   { asName  :: Name

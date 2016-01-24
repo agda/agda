@@ -761,38 +761,42 @@ instance KillRange InteractionId where killRange = id
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-data ImportDirective' a = ImportDirective
+data ImportDirective' a b = ImportDirective
   { importDirRange :: !Range
-  , usingOrHiding  :: UsingOrHiding' a
-  , impRenaming    :: [Renaming' a]
+  , usingOrHiding  :: UsingOrHiding' a b
+  , impRenaming    :: [Renaming' a b]
   , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
   }
   deriving (Typeable)
 
 -- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective' a
+defaultImportDir :: ImportDirective' a b
 defaultImportDir = ImportDirective noRange (Hiding []) [] False
 
-data UsingOrHiding' a
-  = Hiding [ImportedName' a]
-  | Using  [ImportedName' a]
+data UsingOrHiding' a b
+  = Hiding [ImportedName' a b]
+  | Using  [ImportedName' a b]
   deriving (Typeable)
 
 -- | An imported name can be a module or a defined name
-data ImportedName' a
-  = ImportedModule  { importedName :: a }
-  | ImportedName    { importedName :: a }
+data ImportedName' a b
+  = ImportedModule  b
+  | ImportedName    a
   deriving (Typeable, Eq, Ord)
 
-instance Show a => Show (ImportedName' a) where
+setImportedName :: ImportedName' a a -> a -> ImportedName' a a
+setImportedName (ImportedName   x) y = ImportedName   y
+setImportedName (ImportedModule x) y = ImportedModule y
+
+instance (Show a, Show b) => Show (ImportedName' a b) where
   show (ImportedModule x) = "module " ++ show x
   show (ImportedName   x) = show x
 
-data Renaming' a = Renaming
-  { renFrom    :: ImportedName' a
+data Renaming' a b = Renaming
+  { renFrom    :: ImportedName' a b
     -- ^ Rename from this name.
-  , renTo      :: a
-    -- ^ To this one.
+  , renTo      :: ImportedName' a b
+    -- ^ To this one.  Must be same kind as 'renFrom'.
   , renToRange :: Range
     -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
   }
@@ -800,34 +804,34 @@ data Renaming' a = Renaming
 
 -- ** HasRange instances
 
-instance HasRange a => HasRange (ImportDirective' a) where
+instance (HasRange a, HasRange b) => HasRange (ImportDirective' a b) where
   getRange = importDirRange
 
-instance HasRange a => HasRange (UsingOrHiding' a) where
+instance (HasRange a, HasRange b) => HasRange (UsingOrHiding' a b) where
   getRange (Using  xs) = getRange xs
   getRange (Hiding xs) = getRange xs
 
-instance HasRange a => HasRange (Renaming' a) where
+instance (HasRange a, HasRange b) => HasRange (Renaming' a b) where
   getRange r = getRange (renFrom r, renTo r)
 
-instance HasRange a => HasRange (ImportedName' a) where
+instance (HasRange a, HasRange b) => HasRange (ImportedName' a b) where
   getRange (ImportedName   x) = getRange x
   getRange (ImportedModule x) = getRange x
 
 -- ** KillRange instances
 
-instance KillRange a => KillRange (ImportDirective' a) where
+instance (KillRange a, KillRange b) => KillRange (ImportDirective' a b) where
   killRange (ImportDirective _ u r p) =
     killRange2 (\u r -> ImportDirective noRange u r p) u r
 
-instance KillRange a => KillRange (UsingOrHiding' a) where
+instance (KillRange a, KillRange b) => KillRange (UsingOrHiding' a b) where
   killRange (Hiding i) = killRange1 Hiding i
   killRange (Using  i) = killRange1 Using  i
 
-instance KillRange a => KillRange (Renaming' a) where
+instance (KillRange a, KillRange b) => KillRange (Renaming' a b) where
   killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
 
-instance KillRange a => KillRange (ImportedName' a) where
+instance (KillRange a, KillRange b) => KillRange (ImportedName' a b) where
   killRange (ImportedModule n) = killRange1 ImportedModule n
   killRange (ImportedName   n) = killRange1 ImportedName   n
 

@@ -510,8 +510,10 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
                            (Map.mapKeys $ ren mrho)
       where
-        mrho = [ (x, y) | Renaming { renFrom = ImportedModule x, renTo = y } <- rho ]
-        drho = [ (x, y) | Renaming { renFrom = ImportedName   x, renTo = y } <- rho ]
+        mrho = [ (x, y) | Renaming { renFrom = ImportedModule x
+                                   , renTo   = ImportedModule y } <- rho ]
+        drho = [ (x, y) | Renaming { renFrom = ImportedName   x
+                                   , renTo   = ImportedName   y } <- rho ]
 
         ren r x = fromMaybe x $ lookup x r
 

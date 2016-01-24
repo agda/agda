@@ -465,11 +465,9 @@ applyImportDirectiveM m dir scope = do
       Hiding xs -> xs
 
     targetNames :: [ImportedName]
-    targetNames = map renName (impRenaming dir) ++ case usingOrHiding dir of
+    targetNames = map renTo (impRenaming dir) ++ case usingOrHiding dir of
       Using xs -> xs
       Hiding{} -> []
-      where
-        renName r = (renFrom r) { importedName = renTo r }
 
     doesntExist (ImportedName   x) = isNothing $
       Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName)

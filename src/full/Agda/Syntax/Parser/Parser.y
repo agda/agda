@@ -900,7 +900,7 @@ Renamings
 
 Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { Renaming $1 $3 (getRange $2) }
+    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
