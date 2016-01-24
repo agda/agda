@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE MagicHash     #-}
+{-# LANGUAGE Rank2Types    #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -98,11 +98,11 @@ data P t a
 -- Monad, MonadPlus
 
 instance Applicative (P t) where
-  pure  = return
-  (<*>) = ap
+  pure x = Result x Fail
+  (<*>)  = ap
 
 instance Monad (P t) where
-  return x = Result x Fail
+  return = pure
 
   (Get f)      >>= k = Get (\c -> f c >>= k)
   (Look f)     >>= k = Look (\s -> f s >>= k)
@@ -156,11 +156,11 @@ instance Functor (ReadP t) where
   fmap h (R f) = R (\k -> f (k . h))
 
 instance Applicative (ReadP t) where
-  pure  = return
-  (<*>) = ap
+  pure x = R (\k -> k x)
+  (<*>)  = ap
 
 instance Monad (ReadP t) where
-  return x  = R (\k -> k x)
+  return    = pure
   fail _    = R (\_ -> Fail)
   R m >>= f = R (\k -> m (\a -> let R m' = f a in m' k))
 
