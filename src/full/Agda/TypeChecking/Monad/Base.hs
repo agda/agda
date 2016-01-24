@@ -2229,7 +2229,7 @@ instance Applicative ReduceM where
   ReduceM f <*> ReduceM x = ReduceM $ \ e -> f e $! x e
 
 instance Monad ReduceM where
-  return x = ReduceM (const x)
+  return = pure
   ReduceM m >>= f = ReduceM $ \ e -> unReduceM (f $! m e) e
 
 runReduceM :: ReduceM a -> TCM a
