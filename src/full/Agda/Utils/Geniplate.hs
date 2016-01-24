@@ -28,6 +28,8 @@ dontDescendInto =
   , [t| S.ScopeInfo |]
   , [t| Map A.QName A.QName |]
   , [t| Map A.ModuleName A.ModuleName |]
+  , [t| [(A.QName, A.QName)] |]
+  , [t| [(A.ModuleName, A.ModuleName)] |]
   , [t| A.AmbiguousQName |]
   ]
 
