@@ -328,7 +328,7 @@ notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ typeError $
 -- directive.
 
 renamingRange :: ImportDirective -> Range
-renamingRange = getRange . map renToRange . renaming
+renamingRange = getRange . map renToRange . impRenaming
 
 {--------------------------------------------------------------------------
     Translation
@@ -1076,7 +1076,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               definedName C.OpAppP{}             = __IMPOSSIBLE__
 
       -- You can't open public in a let
-      NiceOpen r x dirs | not (C.publicOpen dirs) -> do
+      NiceOpen r x dirs | not (publicOpen dirs) -> do
         m       <- toAbstract (OldModuleName x)
         openModule_ x dirs
         let minfo = ModuleInfo
@@ -1088,7 +1088,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               }
         return [A.LetOpen minfo m]
 
-      NiceModuleMacro r p x modapp open dir | not (C.publicOpen dir) ->
+      NiceModuleMacro r p x modapp open dir | not (publicOpen dir) ->
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
         checkModuleMacro LetApply r PrivateAccess x modapp open dir

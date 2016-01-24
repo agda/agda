@@ -460,12 +460,12 @@ applyImportDirectiveM m dir scope = do
 
   where
     names :: [ImportedName]
-    names = map renFrom (renaming dir) ++ case usingOrHiding dir of
+    names = map renFrom (impRenaming dir) ++ case usingOrHiding dir of
       Using  xs -> xs
       Hiding xs -> xs
 
     targetNames :: [ImportedName]
-    targetNames = map renName (renaming dir) ++ case usingOrHiding dir of
+    targetNames = map renName (impRenaming dir) ++ case usingOrHiding dir of
       Using xs -> xs
       Hiding{} -> []
       where

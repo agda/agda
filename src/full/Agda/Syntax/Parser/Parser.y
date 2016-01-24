@@ -878,7 +878,7 @@ ImportDirectives
 ImportDirective1 :: { ImportDirective }
   : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = True } }
   | UsingOrHiding { defaultImportDir { importDirRange = snd $1, usingOrHiding = fst $1 } }
-  | RenamingDir   { defaultImportDir { importDirRange = snd $1, renaming = fst $1 } }
+  | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
 
 UsingOrHiding :: { (UsingOrHiding , Range) }
 UsingOrHiding
@@ -1579,7 +1579,7 @@ mergeImportDirectives is = do
       return $ ImportDirective
         { importDirRange = fuseRange i1 i2
         , usingOrHiding  = uh
-        , renaming       = renaming i1 ++ renaming i2
+        , impRenaming    = impRenaming i1 ++ impRenaming i2
         , publicOpen     = publicOpen i1 || publicOpen i2 }
 
 -- | Check that an import directive doesn't contain repeated names
@@ -1599,7 +1599,7 @@ verifyImportDirective i =
                         [_] -> ""
                         _   -> "s"
     where
-        xs = names (usingOrHiding i) ++ map renFrom (renaming i)
+        xs = names (usingOrHiding i) ++ map renFrom (impRenaming i)
         names (Using xs)    = xs
         names (Hiding xs)   = xs
 

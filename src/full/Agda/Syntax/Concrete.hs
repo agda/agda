@@ -33,9 +33,9 @@ module Agda.Syntax.Concrete
   , TypeSignature
   , TypeSignatureOrInstanceBlock
   , Constructor
-  , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
-  , Renaming(..), AsName(..)
-  , defaultImportDir
+  , ImportDirective, UsingOrHiding, ImportedName
+  , Renaming
+  , AsName(..)
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..)
@@ -275,42 +275,12 @@ data WhereClause' decls
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-data ImportDirective = ImportDirective
-  { importDirRange :: !Range
-  , usingOrHiding  :: UsingOrHiding
-  , renaming       :: [Renaming]
-  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
-  }
-  deriving (Typeable)
+type ImportDirective = ImportDirective' Name
+type UsingOrHiding   = UsingOrHiding'   Name
+type Renaming        = Renaming'        Name
 
--- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective
-defaultImportDir = ImportDirective noRange (Hiding []) [] False
-
-data UsingOrHiding
-  = Hiding [ImportedName]
-  | Using  [ImportedName]
-  deriving (Typeable)
-
--- | An imported name can be a module or a defined name
-data ImportedName
-  = ImportedModule  { importedName :: Name }
-  | ImportedName    { importedName :: Name }
-  deriving (Typeable, Eq, Ord)
-
-instance Show ImportedName where
-  show (ImportedModule x) = "module " ++ show x
-  show (ImportedName   x) = show x
-
-data Renaming = Renaming
-  { renFrom    :: ImportedName
-    -- ^ Rename from this name.
-  , renTo      :: Name
-    -- ^ To this one.
-  , renToRange :: Range
-    -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
-  }
-  deriving (Typeable)
+-- | An imported name can be a module or a defined name.
+type ImportedName = ImportedName' Name
 
 data AsName = AsName
   { asName  :: Name
@@ -611,20 +581,6 @@ instance HasRange Pragma where
   getRange (TerminationCheckPragma r _) = r
   getRange (NoPositivityCheckPragma r)  = r
 
-instance HasRange UsingOrHiding where
-  getRange (Using xs)  = getRange xs
-  getRange (Hiding xs) = getRange xs
-
-instance HasRange ImportDirective where
-  getRange = importDirRange
-
-instance HasRange ImportedName where
-  getRange (ImportedName x)   = getRange x
-  getRange (ImportedModule x) = getRange x
-
-instance HasRange Renaming where
-  getRange r = getRange (renFrom r, renTo r)
-
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
 
@@ -733,14 +689,6 @@ instance KillRange Expr where
   killRange (DontCare e)         = killRange1 DontCare e
   killRange (Equal _ x y)        = Equal noRange x y
 
-instance KillRange ImportDirective where
-  killRange (ImportDirective _ u r p) =
-    killRange2 (\u r -> ImportDirective noRange u r p) u r
-
-instance KillRange ImportedName where
-  killRange (ImportedModule n) = killRange1 ImportedModule n
-  killRange (ImportedName   n) = killRange1 ImportedName   n
-
 instance KillRange LamBinding where
   killRange (DomainFree i b) = killRange2 DomainFree i b
   killRange (DomainFull t)   = killRange1 DomainFull t
@@ -789,9 +737,6 @@ instance KillRange Pragma where
   killRange (TerminationCheckPragma _ t)  = TerminationCheckPragma noRange (killRange t)
   killRange (NoPositivityCheckPragma _)   = NoPositivityCheckPragma noRange
 
-instance KillRange Renaming where
-  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
-
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
   killRange (RHS e)   = killRange1 RHS e
@@ -802,10 +747,6 @@ instance KillRange TypedBinding where
 
 instance KillRange TypedBindings where
   killRange (TypedBindings _ t) = killRange1 (TypedBindings noRange) t
-
-instance KillRange UsingOrHiding where
-  killRange (Hiding i) = killRange1 Hiding i
-  killRange (Using  i) = killRange1 Using  i
 
 instance KillRange WhereClause where
   killRange NoWhere         = NoWhere

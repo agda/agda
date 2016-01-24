@@ -519,7 +519,7 @@ instance Pretty ImportDirective where
     pretty i =
         sep [ public (publicOpen i)
             , pretty $ usingOrHiding i
-            , rename $ renaming i
+            , rename $ impRenaming i
             ]
         where
             public True  = text "public"

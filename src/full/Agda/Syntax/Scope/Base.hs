@@ -29,8 +29,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete
-  (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
+import qualified Agda.Syntax.Concrete as C
 
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
@@ -481,24 +480,24 @@ addModuleToScope acc x m s = mergeScope s s1
     ns = emptyNameSpace { nsModules = Map.singleton x [m] }
 
 -- | Apply an 'ImportDirective' to a scope.
-applyImportDirective :: ImportDirective -> Scope -> Scope
+applyImportDirective :: C.ImportDirective -> Scope -> Scope
 applyImportDirective dir s = mergeScope usedOrHidden renamed
   where
-    usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
-    renamed      = rename (renaming dir) $ useOrHide useRenamedThings s
+    usedOrHidden = useOrHide (hideLHS (impRenaming dir) $ usingOrHiding dir) s
+    renamed      = rename (impRenaming dir) $ useOrHide useRenamedThings s
 
-    useRenamedThings = Using $ map renFrom $ renaming dir
+    useRenamedThings = Using $ map renFrom $ impRenaming dir
 
-    hideLHS :: [Renaming] -> UsingOrHiding -> UsingOrHiding
+    hideLHS :: [C.Renaming] -> C.UsingOrHiding -> C.UsingOrHiding
     hideLHS _   i@(Using _) = i
     hideLHS ren (Hiding xs) = Hiding $ xs ++ map renFrom ren
 
-    useOrHide :: UsingOrHiding -> Scope -> Scope
+    useOrHide :: C.UsingOrHiding -> Scope -> Scope
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s
     useOrHide (Using  xs) s = filterNames elem    elem    xs s
 
     filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
-                   [ImportedName] -> Scope -> Scope
+                   [C.ImportedName] -> Scope -> Scope
     filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
       where
         ds = [ x | ImportedName   x <- xs ]
@@ -507,7 +506,7 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     filterScope' pd pm = filterScope pd pm
 
     -- Renaming
-    rename :: [Renaming] -> Scope -> Scope
+    rename :: [C.Renaming] -> Scope -> Scope
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
                            (Map.mapKeys $ ren mrho)
       where

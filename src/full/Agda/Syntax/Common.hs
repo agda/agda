@@ -694,6 +694,10 @@ data IsInstance = InstanceDef | NotInstanceDef
 type Nat    = Int
 type Arity  = Nat
 
+---------------------------------------------------------------------------
+-- * NameId
+---------------------------------------------------------------------------
+
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId Integer Integer
@@ -719,6 +723,10 @@ instance Arbitrary NameId where
   arbitrary = elements [ NameId x y | x <- [-1, 1], y <- [-1, 1] ]
 
 instance CoArbitrary NameId
+
+---------------------------------------------------------------------------
+-- * Meta variables
+---------------------------------------------------------------------------
 
 -- | A meta variable identifier is just a natural number.
 --
@@ -746,6 +754,82 @@ instance Show InteractionId where
     show (InteractionId x) = "?" ++ show x
 
 instance KillRange InteractionId where killRange = id
+
+-----------------------------------------------------------------------------
+-- * Import directive
+-----------------------------------------------------------------------------
+
+-- | The things you are allowed to say when you shuffle names between name
+--   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
+data ImportDirective' a = ImportDirective
+  { importDirRange :: !Range
+  , usingOrHiding  :: UsingOrHiding' a
+  , impRenaming    :: [Renaming' a]
+  , publicOpen     :: Bool -- ^ Only for @open@. Exports the opened names from the current module.
+  }
+  deriving (Typeable)
+
+-- | Default is directive is @private@ (use everything, but do not export).
+defaultImportDir :: ImportDirective' a
+defaultImportDir = ImportDirective noRange (Hiding []) [] False
+
+data UsingOrHiding' a
+  = Hiding [ImportedName' a]
+  | Using  [ImportedName' a]
+  deriving (Typeable)
+
+-- | An imported name can be a module or a defined name
+data ImportedName' a
+  = ImportedModule  { importedName :: a }
+  | ImportedName    { importedName :: a }
+  deriving (Typeable, Eq, Ord)
+
+instance Show a => Show (ImportedName' a) where
+  show (ImportedModule x) = "module " ++ show x
+  show (ImportedName   x) = show x
+
+data Renaming' a = Renaming
+  { renFrom    :: ImportedName' a
+    -- ^ Rename from this name.
+  , renTo      :: a
+    -- ^ To this one.
+  , renToRange :: Range
+    -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
+  }
+  deriving (Typeable)
+
+-- ** HasRange instances
+
+instance HasRange a => HasRange (ImportDirective' a) where
+  getRange = importDirRange
+
+instance HasRange a => HasRange (UsingOrHiding' a) where
+  getRange (Using  xs) = getRange xs
+  getRange (Hiding xs) = getRange xs
+
+instance HasRange a => HasRange (Renaming' a) where
+  getRange r = getRange (renFrom r, renTo r)
+
+instance HasRange a => HasRange (ImportedName' a) where
+  getRange (ImportedName   x) = getRange x
+  getRange (ImportedModule x) = getRange x
+
+-- ** KillRange instances
+
+instance KillRange a => KillRange (ImportDirective' a) where
+  killRange (ImportDirective _ u r p) =
+    killRange2 (\u r -> ImportDirective noRange u r p) u r
+
+instance KillRange a => KillRange (UsingOrHiding' a) where
+  killRange (Hiding i) = killRange1 Hiding i
+  killRange (Using  i) = killRange1 Using  i
+
+instance KillRange a => KillRange (Renaming' a) where
+  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
+
+instance KillRange a => KillRange (ImportedName' a) where
+  killRange (ImportedModule n) = killRange1 ImportedModule n
+  killRange (ImportedName   n) = killRange1 ImportedName   n
 
 -----------------------------------------------------------------------------
 -- * Termination
