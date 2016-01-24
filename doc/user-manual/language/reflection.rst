@@ -4,8 +4,8 @@
 Reflection
 **********
 
-.. note::
-   This section is incomplete.
+.. warning::
+   The reflection API has signifcantly changed and this section is outdated.
 
 Builtin types
 -------------
