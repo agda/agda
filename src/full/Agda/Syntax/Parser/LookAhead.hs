@@ -47,7 +47,7 @@ newtype ErrorFunction =
  --------------------------------------------------------------------------}
 
 instance Monad LookAhead where
-    return  = LookAhead . return
+    return  = pure
     m >>= k = LookAhead $ unLookAhead m >>= unLookAhead . k
     fail s  =
         do  err <- LookAhead ask

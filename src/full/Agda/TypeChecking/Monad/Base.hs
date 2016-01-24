@@ -2245,9 +2245,9 @@ instance MonadTrans TCMT where
 
 -- We want a special monad implementation of fail.
 instance MonadIO m => Monad (TCMT m) where
-    return = returnTCMT
+    return = pure
     (>>=)  = bindTCMT
-    (>>)   = thenTCMT
+    (>>)   = (*>)
     fail   = internalError
 
 -- One goal of the definitions and pragmas below is to inline the

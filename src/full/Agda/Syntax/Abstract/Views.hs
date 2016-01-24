@@ -4,6 +4,10 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE TupleSections             #-}
 
+#if __GLASGOW_HASKELL__ <= 706
+{-# LANGUAGE FlexibleContexts #-}
+#endif
+
 module Agda.Syntax.Abstract.Views where
 
 import Control.Applicative
@@ -199,7 +203,13 @@ instance ExprLike a => ExprLike [a] where
   foldExpr     = foldMap . foldExpr
   traverseExpr = traverse . traverseExpr
 
-instance ExprLike a => ExprLike (x, a) where
+instance
+#if __GLASGOW_HASKELL__ <= 706
+  (ExprLike a, Traversable ((,) x))
+#else
+  ExprLike a
+#endif
+  => ExprLike (x, a) where
   foldExpr     f (x, e) = foldExpr f e
   traverseExpr f (x, e) = (x,) <$> traverseExpr f e
 

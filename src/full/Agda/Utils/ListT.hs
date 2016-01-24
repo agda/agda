@@ -120,7 +120,7 @@ instance (Functor m, Applicative m, Monad m) => MonadPlus (ListT m) where
   mplus = mappend
 
 instance (Functor m, Applicative m, Monad m) => Applicative (ListT m) where
-  pure  = return
+  pure  = sgListT
   (<*>) = ap
 
   -- Another Applicative, but not the canonical one.
@@ -130,7 +130,7 @@ instance (Functor m, Applicative m, Monad m) => Applicative (ListT m) where
   --   loop _ _ = Nothing
 
 instance (Functor m, Applicative m, Monad m) => Monad (ListT m) where
-  return  = sgListT
+  return  = pure
   l >>= k = concatListT $ k <$> l
 
 instance MonadTrans ListT where
