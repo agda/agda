@@ -159,13 +159,15 @@ This is somewhat similar to doing a dictionary-translation of the Haskell class 
 
 The COMPILED_EXPORT pragma
 --------------------------
+.. versionadded:: 2.3.4
+
 ::
 
   {-# COMPILED_EXPORT f hsNameForF #-}
 
 The ``COMPILED_EXPORT`` pragma tells the compiler that the Agda function ``f`` should be compiled to a Haskell function called ``hsNameForF``. Without this pragma, functions are compiled to Haskell functions with unpredictable names and, as a result, cannot be invoked from Haskell. The type of ``hsNameForF`` will be the translated type of ``f`` (see :ref:`translating-agda-types-to-haskell`). If f is defined in file A/B.agda, then ``hsNameForF`` should be imported from module ``MAlonzo.Code.A.B``.
 
-Note: the COMPILED_EXPORT pragma is only supported in Agda 2.3.4 onward. Example:
+Example:
 ::
 
   — file IdAgda.agda
