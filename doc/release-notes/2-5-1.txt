@@ -390,8 +390,8 @@ Reflection
 
     - primQNameType              --> AGDATCMGETTYPE
     - primQNameDefinition        --> AGDATCMGETDEFINITION
-    - primDataConstructors       --> AGDATCMGETCONSTRUCTORS
-    - primDataNumberOfParameters --> AGDATCMNUMBEROFPARAMETERS
+    - primDataConstructors       --> subsumed by AGDATCMGETDEFINITION
+    - primDataNumberOfParameters --> subsumed by AGDATCMGETDEFINITION
 
   See below for details.
 
@@ -399,6 +399,21 @@ Reflection
 
   The AGDATYPE and AGDATYPEEL built-ins have been removed. Reflected types are
   now simply terms.
+
+* Reflected definitions have more information.
+
+  The type for reflected definitions has changed to
+
+    data Definition : Set where
+      fun-def     : List Clause  → Definition
+      data-type   : Nat → List Name → Definition -- parameters and constructors
+      record-type : Name → Definition            -- name of the constructor
+      data-con    : Name → Definition            -- name of the data/record type
+      axiom       : Definition
+      prim-fun    : Definition
+
+  Correspondingly the built-ins for function, data and record definitions
+  (AGDAFUNDEF, AGDAFUNDEFCON, AGDADATADEF, AGDARECORDDEF) have been removed.
 
 * Reflected type checking computations.
 
@@ -475,16 +490,6 @@ Reflection
       -- Get the definition of a defined name. Replaces 'primQNameDefinition'.
       getDefinition : QName → TC Definition
 
-      -- Get the number of parameters of a data type. Replaces
-      -- 'primDataNumberOfParameters'. Fails if the name does not refer to a
-      -- data type.
-      numberOfParameters : QName → TC Nat
-
-      -- Get the constructors of a data or record type. Replaces
-      -- 'primDataConstructors'. Fails if the name does not refer to a data or
-      -- record type.
-      getConstructors    : QName → TC (List QName)
-
     {-# BUILTIN AGDATCM                   TC                 #-}
     {-# BUILTIN AGDATCMRETURN             returnTC           #-}
     {-# BUILTIN AGDATCMBIND               bindTC             #-}
@@ -504,8 +509,6 @@ Reflection
     {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
     {-# BUILTIN AGDATCMGETTYPE            getType            #-}
     {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
-    {-# BUILTIN AGDATCMNUMBEROFPARAMETERS numberOfParameters #-}
-    {-# BUILTIN AGDATCMGETCONSTRUCTORS    getConstructors    #-}
 
 * Builtin type for metavariables
 

@@ -164,27 +164,13 @@ this type is returned by the ``AGDATCMGETDEFINITION`` built-in :ref:`described
 below <reflection-tc-monad>`.
 
 ::
-
-  data FunDef : Set where
-    funDef : Type → List Clause → FunDef
-
-  {-# BUILTIN AGDAFUNDEF    FunDef #-}
-  {-# BUILTIN AGDAFUNDEFCON funDef #-}
-
-  postulate
-    DataDef   : Set
-    RecordDef : Set
-
-  {-# BUILTIN AGDADATADEF   DataDef   #-}
-  {-# BUILTIN AGDARECORDDEF RecordDef #-}
-
   data Definition : Set where
-    funDef          : FunDef    → Definition
-    dataDef         : DataDef   → Definition
-    recordDef       : RecordDef → Definition
-    dataConstructor : Definition
+    funDef          : List Clause → Definition
+    dataDef         : Nat → List Name → Definition -- parameters and constructors
+    recordDef       : Name → Definition -- name of constructor
+    dataConstructor : Name → Definition -- name of data/record type
     axiom           : Definition
-    prim            : Definition
+    primFun         : Definition
 
   {-# BUILTIN AGDADEFINITION                Definition      #-}
   {-# BUILTIN AGDADEFINITIONFUNDEF          funDef          #-}
@@ -192,7 +178,7 @@ below <reflection-tc-monad>`.
   {-# BUILTIN AGDADEFINITIONRECORDDEF       recordDef       #-}
   {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
   {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
-  {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
+  {-# BUILTIN AGDADEFINITIONPRIMITIVE       primFun         #-}
 
 Type errors
 ~~~~~~~~~~~
@@ -290,14 +276,6 @@ following primitive operations::
     -- Get the definition of a defined name. Replaces 'primNameDefinition'.
     getDefinition : Name → TC Definition
 
-    -- Get the number of parameters of a data type. Fails if the name does
-    -- not refer to a data type.
-    numberOfParameters : Name → TC Nat
-
-    -- Get the constructors of a data or record type. Fails if the name does
-    -- not refer to a data or record type.
-    getConstructors : Name → TC (List Name)
-
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMNEWMETA            newMeta            #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
@@ -314,8 +292,6 @@ following primitive operations::
   {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
   {-# BUILTIN AGDATCMGETTYPE            getType            #-}
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
-  {-# BUILTIN AGDATCMNUMBEROFPARAMETERS numberOfParameters #-}
-  {-# BUILTIN AGDATCMGETCONSTRUCTORS    getConstructors    #-}
 
 Metaprogramming
 ---------------
