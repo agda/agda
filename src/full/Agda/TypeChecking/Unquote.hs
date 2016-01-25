@@ -87,7 +87,7 @@ runUnquoteM m = do
     isDefined x = do
       def <- theDef <$> getConstInfo x
       case def of
-        Axiom{} -> genericError $ "Missing definition for " ++ show x
+        Function{funClauses = []} -> genericError $ "Missing definition for " ++ show x
         _       -> return ()
 
 liftU :: TCM a -> UnquoteM a
