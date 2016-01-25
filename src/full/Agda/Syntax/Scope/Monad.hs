@@ -126,14 +126,17 @@ setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
 setNamedScope m s = modifyNamedScope m $ const s
 
 -- | Apply a monadic function to the top scope.
-modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM Scope) -> ScopeM ()
-modifyNamedScopeM m f = setNamedScope m =<< f =<< getNamedScope m
+modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM (a, Scope)) -> ScopeM a
+modifyNamedScopeM m f = do
+  (a, s) <- f =<< getNamedScope m
+  setNamedScope m s
+  return a
 
 -- | Apply a function to the current scope.
 modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
 modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
 
-modifyCurrentScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
+modifyCurrentScopeM :: (Scope -> ScopeM (a, Scope)) -> ScopeM a
 modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
 
 -- | Apply a function to the public or private name space.
@@ -448,7 +451,7 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
-applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
+applyImportDirectiveM :: C.QName -> C.ImportDirective -> Scope -> ScopeM (A.ImportDirective, Scope)
 applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, usingOrHiding = uh } scope = do
 
     -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
@@ -460,7 +463,9 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, usingOrHiding = 
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
 
-    return $ applyImportDirective dir scope
+    let s    = applyImportDirective dir scope
+    let adir = defaultImportDir -- TODO Issue 1714
+    return (adir, s)
 
   where
     -- | All names from the imported module mentioned in the import directive.
@@ -480,19 +485,22 @@ applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, usingOrHiding = 
     doesntExist (ImportedModule x) = isNothing $ Map.lookup x modulesInScope
 
 -- | Open a module.
-openModule_ :: C.QName -> ImportDirective -> ScopeM ()
+openModule_ :: C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
   let acc | not (publicOpen dir)      = PrivateNS
           | m `isSubModuleOf` current = PublicNS
           | otherwise                 = ImportedNS
+
   -- Get the scope exported by module to be opened.
-  s <- setScopeAccess acc <$>
-        (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
+  (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m
+  let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
+
+  -- Importing names might shadow existing locals.
   verboseS "scope.locals" 10 $ do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
@@ -503,6 +511,9 @@ openModule_ cm dir = do
     case Map.lookup c $ nsNames ns of
       Nothing -> x
       Just ys -> shadowLocal ys x
+
+  return adir
+
   where
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.

@@ -194,8 +194,8 @@ checkModuleApplication
   :: C.ModuleApplication
   -> ModuleName
   -> C.Name
-  -> ImportDirective
-  -> ScopeM (A.ModuleApplication, Ren A.QName, Ren ModuleName)
+  -> C.ImportDirective
+  -> ScopeM (A.ModuleApplication, Ren A.QName, Ren ModuleName, A.ImportDirective)
 
 checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
   reportSDoc "scope.decl" 70 $ vcat $
@@ -216,7 +216,7 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
                     | otherwise = removeOnlyQualified
     -- Copy the scope associated with m and take the parts actually imported.
     (s', (renM, renD)) <- copyScope m m0 . noRecConstr =<< getNamedScope m1
-    s' <- applyImportDirectiveM (C.QName x) dir' s'
+    (adir, s') <- applyImportDirectiveM (C.QName x) dir' s'
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
@@ -228,18 +228,18 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ nest 2 $ prettyA amodapp
       ]
-    return (amodapp, renD, renM)
+    return (amodapp, renD, renM, adir)
 
 checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (s', (renM, renD)) <- copyScope recN m0 s
-    s' <- applyImportDirectiveM recN dir' s'
+    (adir, s') <- applyImportDirectiveM recN dir' s'
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
-    return ((A.RecordModuleIFS m1), renD, renM)
+    return (A.RecordModuleIFS m1, renD, renM, adir)
 
 -- | @checkModuleMacro mkApply range access concreteName modapp open dir@
 --
@@ -247,13 +247,19 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
 
 checkModuleMacro
   :: (Pretty c, ToConcrete a c)
-  => (ModuleInfo -> ModuleName -> A.ModuleApplication -> Ren A.QName -> Ren ModuleName -> a)
+  => (ModuleInfo
+      -> ModuleName
+      -> A.ModuleApplication
+      -> Ren A.QName
+      -> Ren ModuleName
+      -> A.ImportDirective
+      -> a)
   -> Range
   -> Access
   -> C.Name
   -> C.ModuleApplication
   -> OpenShortHand
-  -> ImportDirective
+  -> C.ImportDirective
   -> ScopeM [a]
 checkModuleMacro apply r p x modapp open dir = do
     reportSDoc "scope.decl" 70 $ vcat $
@@ -273,7 +279,7 @@ checkModuleMacro apply r p x modapp open dir = do
                 DoOpen    -> defaultImportDir
 
     -- Restore the locals after module application has been checked.
-    (modapp', renD, renM) <- withLocalVars $ checkModuleApplication modapp m0 x dir'
+    (modapp', renD, renM, adir') <- withLocalVars $ checkModuleApplication modapp m0 x dir'
     printScope "mod.inst.app" 20 "checkModuleMacro, after checkModuleApplication"
 
     reportSDoc "scope.decl" 90 $ text "after mod app: trying to print m0 ..."
@@ -283,9 +289,12 @@ checkModuleMacro apply r p x modapp open dir = do
     reportSDoc "scope.decl" 90 $ text "after bindMod: m0 =" <+> prettyA m0
 
     printScope "mod.inst.copy.after" 20 "after copying"
+
+    -- Open the module if DoOpen.
     -- Andreas, 2014-09-02 openModule_ might shadow some locals!
-    when (open == DoOpen) $
-      openModule_ (C.QName x) dir
+    adir <- case open of
+      DontOpen -> return adir'
+      DoOpen   -> openModule_ (C.QName x) dir
     printScope "mod.inst" 20 $ show open
     reportSDoc "scope.decl" 90 $ text "after open   : m0 =" <+> prettyA m0
 
@@ -294,7 +303,7 @@ checkModuleMacro apply r p x modapp open dir = do
     reportSDoc "scope.decl" 90 $ text "after stripNo: m0 =" <+> prettyA m0
 
     let m      = m0 `withRangesOf` [x]
-        adecls = [ apply info m modapp' renD renM ]
+        adecls = [ apply info m modapp' renD renM adir ]
 
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleMacro " ++ prettyShow x
@@ -318,7 +327,7 @@ checkModuleMacro apply r p x modapp open dir = do
 
 -- | The @public@ keyword must only be used together with @open@.
 
-notPublicWithoutOpen :: OpenShortHand -> ImportDirective -> ScopeM ()
+notPublicWithoutOpen :: OpenShortHand -> C.ImportDirective -> ScopeM ()
 notPublicWithoutOpen DoOpen   dir = return ()
 notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ typeError $
   GenericError
@@ -327,8 +336,34 @@ notPublicWithoutOpen DontOpen dir = when (publicOpen dir) $ typeError $
 -- | Computes the range of all the \"to\" keywords used in a renaming
 -- directive.
 
-renamingRange :: ImportDirective -> Range
+renamingRange :: C.ImportDirective -> Range
 renamingRange = getRange . map renToRange . impRenaming
+
+-- | Scope check a 'NiceOpen'.
+checkOpen
+  :: Range -> C.QName -> C.ImportDirective                -- ^ Arguments of 'NiceOpen'
+  -> ScopeM (ModuleInfo, A.ModuleName, A.ImportDirective) -- ^ Arguments of 'A.Open'
+checkOpen r x dir = do
+  reportSDoc "scope.decl" 70 $ vcat $
+    [ text $ "scope checking NiceOpen " ++ prettyShow x
+    ]
+
+  m <- toAbstract (OldModuleName x)
+  printScope "open" 20 $ "opening " ++ show x
+  adir <- openModule_ x dir
+  printScope "open" 20 $ "result:"
+  let minfo = ModuleInfo
+        { minfoRange     = r
+        , minfoAsName    = Nothing
+        , minfoAsTo      = renamingRange dir
+        , minfoOpenShort = Nothing
+        , minfoDirective = Just dir
+        }
+  let adecls = [A.Open minfo m adir]
+  reportSDoc "scope.decl" 70 $ vcat $
+    [ text $ "scope checked NiceOpen " ++ prettyShow x
+    ] ++ map (nest 2 . prettyA) adecls
+  return (minfo, m, adir)
 
 {--------------------------------------------------------------------------
     Translation
@@ -832,6 +867,7 @@ scopeCheckNiceModule r p name tel checkDs
 
       -- If the module was anonymous open it public.
       when open $
+       void $ -- We can discard the returned default A.ImportDirective.
         openModule_ (C.QName name) $
           defaultImportDir { publicOpen = True }
       return ds
@@ -1077,8 +1113,8 @@ instance ToAbstract LetDef [A.LetBinding] where
 
       -- You can't open public in a let
       NiceOpen r x dirs | not (publicOpen dirs) -> do
-        m       <- toAbstract (OldModuleName x)
-        openModule_ x dirs
+        m    <- toAbstract (OldModuleName x)
+        adir <- openModule_ x dirs
         let minfo = ModuleInfo
               { minfoRange  = r
               , minfoAsName = Nothing
@@ -1086,7 +1122,7 @@ instance ToAbstract LetDef [A.LetBinding] where
               , minfoOpenShort = Nothing
               , minfoDirective = Just dirs
               }
-        return [A.LetOpen minfo m]
+        return [A.LetOpen minfo m adir]
 
       NiceModuleMacro r p x modapp open dir | not (publicOpen dir) ->
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
@@ -1311,26 +1347,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return adecls
 
     NiceOpen r x dir -> do
-      reportSDoc "scope.decl" 70 $ vcat $
-        [ text $ "scope checking NiceOpen " ++ prettyShow x
-        ]
-
-      m <- toAbstract (OldModuleName x)
-      printScope "open" 20 $ "opening " ++ show x
-      openModule_ x dir
-      printScope "open" 20 $ "result:"
-      let minfo = ModuleInfo
-            { minfoRange     = r
-            , minfoAsName    = Nothing
-            , minfoAsTo      = renamingRange dir
-            , minfoOpenShort = Nothing
-            , minfoDirective = Just dir
-            }
-      let adecls = [A.Open minfo m]
-      reportSDoc "scope.decl" 70 $ vcat $
-        [ text $ "scope checked NiceOpen " ++ prettyShow x
-        ] ++ map (nest 2 . prettyA) adecls
-      return adecls
+      (minfo, m, adir) <- checkOpen r x dir
+      return [A.Open minfo m adir]
 
     NicePragma r p -> do
       ps <- toAbstract p
@@ -1368,8 +1386,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
       let (name, theAsSymbol, theAsName) = case as of
             Nothing -> (x,                  noRange,   Nothing)
             Just a  -> (C.QName (asName a), asRange a, Just (asName a))
-      case open of
-        DoOpen   -> void $ toAbstract [ C.Open r name dir ]
+      adir <- case open of
+        DoOpen   -> do
+          (_minfo, _m, adir) <- checkOpen r name dir
+          return adir
         -- If not opening, import directives are applied to the original scope.
         DontOpen -> modifyNamedScopeM m $ applyImportDirectiveM x dir
       let minfo = ModuleInfo
@@ -1379,7 +1399,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
             , minfoOpenShort = Just open
             , minfoDirective = Just dir
             }
-      return [ A.Import minfo m ]
+      return [ A.Import minfo m adir ]
 
     NiceUnquoteDecl r fx p i a tc x e -> do
       y <- freshAbstractQName fx x
@@ -1599,6 +1619,7 @@ whereToAbstract r whname whds inner = do
   -- Issue 848: if the module was anonymous (module _ where) open it public
   let anonymous = maybe False isNoName whname
   when anonymous $
+   void $ -- We can ignore the returned default A.ImportDirective.
     openModule_ (C.QName m) $
       defaultImportDir { publicOpen = True }
   return (x, ds)

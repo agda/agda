@@ -569,7 +569,7 @@ instance ToConcrete LetBinding [C.Declaration] where
         p <- toConcrete p
         e <- toConcrete e
         ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere ]
-    bindToConcrete (LetApply i x modapp _ _) ret = do
+    bindToConcrete (LetApply i x modapp _ _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
@@ -578,7 +578,7 @@ instance ToConcrete LetBinding [C.Declaration] where
       -- This is no use since toAbstract LetDefs is in localToAbstract.
       local (openModule' x dir id) $
         ret [ C.ModuleMacro (getRange i) x' modapp open dir ]
-    bindToConcrete (LetOpen i x) ret = do
+    bindToConcrete (LetOpen i x _) ret = do
       x' <- toConcrete x
       let dir = maybe defaultImportDir id $ minfoDirective i
       local (openModule' x dir restrictPrivate) $
@@ -604,7 +604,7 @@ mergeSigAndDef (C.DataSig _ _ x bs e : C.Data r i y _ Nothing cs : ds)
 mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
 mergeSigAndDef [] = []
 
-openModule' :: A.ModuleName -> ImportDirective -> (Scope -> Scope) -> Env -> Env
+openModule' :: A.ModuleName -> C.ImportDirective -> (Scope -> Scope) -> Env -> Env
 openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
   where sInfo = currentScope env
         amod  = scopeCurrent sInfo
@@ -743,7 +743,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       ds <- declsToConcrete ds
       return [ C.Module (getRange i) x (concat tel) ds ]
 
-  toConcrete (A.Apply i x modapp _ _) = do
+  toConcrete (A.Apply i x modapp _ _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp
@@ -751,7 +751,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
         dir  = fromMaybe defaultImportDir{ importDirRange = r } $ minfoDirective i
     return [ C.ModuleMacro (getRange i) x modapp open dir ]
 
-  toConcrete (A.Import i x) = do
+  toConcrete (A.Import i x _) = do
     x <- toConcrete x
     let open = maybe DontOpen id $ minfoOpenShort i
         dir  = maybe defaultImportDir id $ minfoDirective i
@@ -761,7 +761,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     p <- toConcrete $ RangeAndPragma (getRange i) p
     return [C.Pragma p]
 
-  toConcrete (A.Open i x) = do
+  toConcrete (A.Open i x _) = do
     x <- toConcrete x
     return [C.Open (getRange i) x defaultImportDir]
 

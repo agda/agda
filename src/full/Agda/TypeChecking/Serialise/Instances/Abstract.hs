@@ -220,8 +220,8 @@ instance EmbPrj A.LamBinding where
 instance EmbPrj A.LetBinding where
   icod_ (A.LetBind _ a b c d)  = icode4 0 a b c d
   icod_ (A.LetPatBind _ a b )  = icode2 1 a b
-  icod_ (A.LetApply _ _ _ _ _) = icode0 2
-  icod_ (A.LetOpen _ _)        = icode0 2
+  icod_ A.LetApply{}           = icode0 2
+  icod_ A.LetOpen{}            = icode0 2
 
   value = vcase valu where
     valu [0, a, b, c, d] = valu4 (A.LetBind (LetRange noRange)) a b c d

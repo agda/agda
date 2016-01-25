@@ -124,10 +124,12 @@ data Declaration
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
   | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-  | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
-  | Import     ModuleInfo ModuleName
+  | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName) ImportDirective
+    -- ^ The @ImportDirective@ is for highlighting purposes.
+  | Import     ModuleInfo ModuleName ImportDirective
+    -- ^ The @ImportDirective@ is for highlighting purposes.
   | Pragma     Range      Pragma
-  | Open       ModuleInfo ModuleName
+  | Open       ModuleInfo ModuleName ImportDirective
     -- ^ only retained for highlighting purposes
   | FunDef     DefInfo QName Delayed [Clause] -- ^ sequence of function clauses
   | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
@@ -159,6 +161,11 @@ instance GetDefInfo Declaration where
   getDefInfo (RecDef i _ _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
+type ImportDirective = ImportDirective' QName ModuleName
+type UsingOrHiding   = UsingOrHiding'   QName ModuleName
+type Renaming        = Renaming'        QName ModuleName
+type ImportedName    = ImportedName'    QName ModuleName
+
 data ModuleApplication
     = SectionApp Telescope ModuleName [NamedArg Expr]
       -- ^ @tel. M args@:  applies @M@ to @args@ and abstracts @tel@.
@@ -189,9 +196,10 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
-  | LetApply ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName)
-    -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming@.
-  | LetOpen ModuleInfo ModuleName
+  | LetApply ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName) ImportDirective
+    -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming dir@.
+    -- The @ImportDirective@ is for highlighting purposes.
+  | LetOpen ModuleInfo ModuleName ImportDirective
     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Show)
 
@@ -486,11 +494,11 @@ instance HasRange Declaration where
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
-    getRange (Apply      i _ _ _ _  ) = getRange i
-    getRange (Import     i _        ) = getRange i
+    getRange (Apply      i _ _ _ _ _) = getRange i
+    getRange (Import     i _ _      ) = getRange i
     getRange (Primitive  i _ _      ) = getRange i
     getRange (Pragma     i _        ) = getRange i
-    getRange (Open       i _        ) = getRange i
+    getRange (Open       i _ _      ) = getRange i
     getRange (ScopedDecl _ d        ) = getRange d
     getRange (FunDef     i _ _ _    ) = getRange i
     getRange (DataSig    i _ _ _    ) = getRange i
@@ -533,8 +541,8 @@ instance HasRange RHS where
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
     getRange (LetPatBind  i _ _      ) = getRange i
-    getRange (LetApply i _ _ _ _     ) = getRange i
-    getRange (LetOpen  i _           ) = getRange i
+    getRange (LetApply i _ _ _ _ _   ) = getRange i
+    getRange (LetOpen  i _ _         ) = getRange i
 
 -- setRange for patterns applies the range to the outermost pattern constructor
 instance SetRange (Pattern' a) where
@@ -594,12 +602,13 @@ instance KillRange Declaration where
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
-  killRange (Apply      i a b c d     ) = killRange3 Apply      i a b c d
-   -- the last two arguments of Apply are name maps, so nothing to kill
-  killRange (Import     i a           ) = killRange2 Import     i a
+  killRange (Apply      i a b c d e   ) = killRange3 Apply      i a b c d (killRange e)
+   -- the arguments c and d of Apply are name maps, so nothing to kill
+   -- Andreas, 2016-01-24 really?
+  killRange (Import     i a b         ) = killRange3 Import     i a b
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
-  killRange (Open       i x           ) = killRange2 Open       i x
+  killRange (Open       i x dir       ) = killRange3 Open       i x dir
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
   killRange (FunDef  i a b c          ) = killRange4 FunDef  i a b c
   killRange (DataSig i a b c          ) = killRange4 DataSig i a b c
@@ -646,8 +655,11 @@ instance KillRange RHS where
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
-  killRange (LetApply   i a b c d   ) = killRange3 LetApply i a b c d
-  killRange (LetOpen    i x         ) = killRange2 LetOpen  i x
+  killRange (LetApply   i a b c d e ) = killRange3 LetApply i a b c d (killRange e)
+  killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
+
+-- See Agda.Utils.GeniPlate:
+-- Does not descend into ScopeInfo and renaming maps, for instance.
 
 instanceUniverseBiT' [] [t| (Declaration, QName)          |]
 instanceUniverseBiT' [] [t| (Declaration, AmbiguousQName) |]
@@ -764,7 +776,7 @@ instance AllNames TypedBinding where
 instance AllNames LetBinding where
   allNames (LetBind _ _ _ e1 e2)  = allNames e1 >< allNames e2
   allNames (LetPatBind _ _ e)     = allNames e
-  allNames (LetApply _ _ app _ _) = allNames app
+  allNames (LetApply _ _ app _ _ _) = allNames app
   allNames LetOpen{}              = Seq.empty
 
 instance AllNames ModuleApplication where

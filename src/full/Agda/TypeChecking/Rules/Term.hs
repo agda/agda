@@ -1641,7 +1641,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- We add all the bindings to the context.
         foldr (uncurry4 addLetBinding) ret $ zip4 infos xs sigma ts
 
-checkLetBinding (A.LetApply i x modapp rd rm) ret = do
+checkLetBinding (A.LetApply i x modapp rd rm _adir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
   fv   <- getCurrentModuleFreeVars
