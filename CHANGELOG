@@ -79,6 +79,13 @@ Pragmas and options
      data D where
        lam : (D → D) → D
 
+Highlighting and textual backends
+=================================
+
+* Names in import directives are now highlighted and are clickable.
+  [Issue 1714]
+  This leads also to nicer printing in the LaTeX and html backends.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5
 ------------------------------------------------------------------------

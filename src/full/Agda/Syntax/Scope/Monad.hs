@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP                      #-}
+{-# LANGUAGE LambdaCase               #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TupleSections            #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -13,9 +15,9 @@ module Agda.Syntax.Scope.Monad where
 import Prelude hiding (mapM)
 import Control.Arrow ((***), first, second)
 import Control.Applicative
-import Control.Monad hiding (mapM)
-import Control.Monad.Writer hiding (mapM)
-import Control.Monad.State hiding (mapM)
+import Control.Monad hiding (mapM, forM)
+import Control.Monad.Writer hiding (mapM, forM)
+import Control.Monad.State hiding (mapM, forM)
 
 import Data.List as List
 import Data.Map (Map)
@@ -23,7 +25,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable
+import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -39,6 +41,7 @@ import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null (unlessNull)
@@ -453,36 +456,111 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
 --   exist.
 applyImportDirectiveM :: C.QName -> C.ImportDirective -> Scope -> ScopeM (A.ImportDirective, Scope)
 applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, usingOrHiding = uh } scope = do
+    -- Translate exported names to abstract syntax.
+    -- Raise error if unsuccessful.
+    caseMaybe mNamesA doesntExport $ \ namesA -> do
 
-    -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
-    let xs = filter doesntExist names
-    reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
-    unless (null xs)  $ typeError $ ModuleDoesntExport m xs
-
-    -- To be imported names @dup@ that are mentioned more than once.
+    -- Check for duplicate imports in a single import directive.
+    -- @dup@ : To be imported names that are mentioned more than once.
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
 
-    let s    = applyImportDirective dir scope
-    let adir = defaultImportDir -- TODO Issue 1714
-    return (adir, s)
+    -- Apply the import directive.
+    let scope' = applyImportDirective dir scope
+
+    -- Look up the defined names in the new scope.
+    let namesInScope'   = (allNamesInScope scope' :: ThingsInScope AbstractName)
+    let modulesInScope' = (allNamesInScope scope' :: ThingsInScope AbstractModule)
+    let look x = head . Map.findWithDefault __IMPOSSIBLE__ x
+    -- We set the ranges to the ranges of the concrete names in order to get
+    -- highlighting for the names in the import directive.
+    let definedA = for definedNames $ \case
+          ImportedName   x -> ImportedName   . (x,) . setRange (getRange x) . anameName $ look x namesInScope'
+          ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  $ look x modulesInScope'
+
+    let adir = mapImportDir namesA definedA dir
+    return (adir, scope') -- TODO Issue 1714: adir
 
   where
     -- | All names from the imported module mentioned in the import directive.
     names :: [ImportedName]
     names = map renFrom ren ++ usingHidingNames uh
 
+    -- | Names defined by the import (targets of renaming).
+    definedNames :: [ImportedName]
+    definedNames = map renTo ren
+
     -- | Names to be in scope after import.
     targetNames :: [ImportedName]
-    targetNames = map renTo ren ++ case uh of
+    targetNames = definedNames ++ case uh of
       Using xs -> xs
       Hiding{} -> []
 
+    -- | Names and modules (abstract) in scope before the import.
     namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
     modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
 
+    -- | AST versions of the concrete names from the imported module.
+    --   @Nothing@ is one of the names is not exported.
+    mNamesA = forM names $ \case
+      ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName . head <$> Map.lookup x namesInScope
+      ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  . head <$> Map.lookup x modulesInScope
+
+    head = headWithDefault __IMPOSSIBLE__
+
+    -- For the sake of the error message, we (re)compute the list of unresolved names.
+    doesntExport = do
+      -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
+      let xs = filter doesntExist names
+      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
+      typeError $ ModuleDoesntExport m xs
+
     doesntExist (ImportedName   x) = isNothing $ Map.lookup x namesInScope
     doesntExist (ImportedModule x) = isNothing $ Map.lookup x modulesInScope
+
+-- | A finite map for @ImportedName@s.
+lookupImportedName
+  :: (Eq a, Eq b)
+  => ImportedName' a b
+  -> [ImportedName' (a,c) (b,d)]
+  -> ImportedName' c d
+lookupImportedName (ImportedName x) = loop where
+  loop [] = __IMPOSSIBLE__
+  loop (ImportedName (y,z) : _) | x == y = ImportedName z
+  loop (_ : ns) = loop ns
+lookupImportedName (ImportedModule x) = loop where
+  loop [] = __IMPOSSIBLE__
+  loop (ImportedModule (y,z) : _) | x == y = ImportedModule z
+  loop (_ : ns) = loop ns
+
+-- | Translation of @ImportDirective@.
+mapImportDir
+  :: (Eq a, Eq b)
+  => [ImportedName' (a,c) (b,d)]  -- ^ Translation of imported names.
+  -> [ImportedName' (a,c) (b,d)]  -- ^ Translation of names defined by this import.
+  -> ImportDirective' a b
+  -> ImportDirective' c d
+mapImportDir src tgt (ImportDirective r uh ren open) =
+  ImportDirective r (mapUsingHiding src uh) (map (mapRenaming src tgt) ren) open
+
+-- | Translation of @Using or Hiding@.
+mapUsingHiding
+  :: (Eq a, Eq b)
+  => [ImportedName' (a,c) (b,d)] -- ^ Translation of names in @using@ or @hiding@ list.
+  -> UsingOrHiding' a b
+  -> UsingOrHiding' c d
+mapUsingHiding src (Hiding xs) = Hiding $ map (`lookupImportedName` src) xs
+mapUsingHiding src (Using  xs) = Using  $ map (`lookupImportedName` src) xs
+
+-- | Translation of @Renaming@.
+mapRenaming
+  ::  (Eq a, Eq b)
+  => [ImportedName' (a,c) (b,d)]  -- ^ Translation of 'renFrom' names.
+  -> [ImportedName' (a,c) (b,d)]  -- ^ Translation of 'rento' names.
+  -> Renaming' a b
+  -> Renaming' c d
+mapRenaming src tgt (Renaming from to r) =
+  Renaming (lookupImportedName from src) (lookupImportedName to tgt) r
 
 -- | Open a module.
 openModule_ :: C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
