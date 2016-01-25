@@ -237,29 +237,11 @@ Clauses = List Clause
 ------------------------------------------------------------------------
 -- Definitions
 
--- Function definition.
-data FunctionDef : Set where
-  fun-def : Type → Clauses → FunctionDef
-
-{-# BUILTIN AGDAFUNDEF    FunctionDef #-}
-{-# BUILTIN AGDAFUNDEFCON fun-def     #-}
-
-postulate
-  -- Data type definition.
-  Data-type : Set
-  -- Record type definition.
-  Record    : Set
-
-{-# BUILTIN AGDADATADEF   Data-type #-}
-{-# BUILTIN AGDARECORDDEF Record    #-}
-
--- Definitions.
-
 data Definition : Set where
-  function     : FunctionDef  → Definition
-  data-type    : Data-type → Definition
-  record′      : Record    → Definition
-  constructor′ : Definition
+  function     : List Clause  → Definition
+  data-type    : ℕ → List Name → Definition
+  record′      : Name → Definition  -- name of the constructor
+  constructor′ : Name → Definition  -- name of the data/record type
   axiom        : Definition
   primitive′   : Definition
 
@@ -332,8 +314,6 @@ postulate
 {-# BUILTIN AGDATCMDEFINEFUN  defineFun #-}
 {-# BUILTIN AGDATCMGETTYPE getType #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
-{-# BUILTIN AGDATCMNUMBEROFPARAMETERS numberOfParameters #-}
-{-# BUILTIN AGDATCMGETCONSTRUCTORS getConstructors #-}
 {-# BUILTIN AGDATCMBLOCKONMETA blockOnMeta #-}
 
 newMeta : Type → TC Term
