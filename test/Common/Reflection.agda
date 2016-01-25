@@ -2,7 +2,7 @@
 module Common.Reflection where
 
 open import Common.Level
-open import Common.Prelude renaming (Nat to ℕ)
+open import Common.Prelude
 
 postulate QName : Set
 {-# BUILTIN QNAME QName #-}
@@ -56,7 +56,7 @@ data Abs (A : Set) : Set where
 {-# BUILTIN ABSABS abs #-}
 
 data Literal : Set where
-  nat    : ℕ → Literal
+  nat    : Nat → Literal
   float  : Float → Literal
   char   : Char → Literal
   string : String → Literal
@@ -76,7 +76,7 @@ data Sort : Set
 data Clause : Set
 
 data Term : Set where
-  var           : ℕ → Args → Term
+  var           : Nat → Args → Term
   con           : QName → Args → Term
   def           : QName → Args → Term
   lam           : Hiding → Abs Term → Term
@@ -92,7 +92,7 @@ Type = Term
 
 data Sort where
   set     : Term → Sort
-  lit     : ℕ → Sort
+  lit     : Nat → Sort
   unknown : Sort
 
 data Pattern : Set where
@@ -139,21 +139,11 @@ data Clause where
 data FunDef : Set where
   funDef : Type → List Clause → FunDef
 
-{-# BUILTIN AGDAFUNDEF    FunDef #-}
-{-# BUILTIN AGDAFUNDEFCON funDef #-}
-
-postulate
-  DataDef   : Set
-  RecordDef : Set
-
-{-# BUILTIN AGDADATADEF   DataDef   #-}
-{-# BUILTIN AGDARECORDDEF RecordDef #-}
-
 data Definition : Set where
-  funDef          : FunDef    → Definition
-  dataDef         : DataDef   → Definition
-  recordDef       : RecordDef → Definition
-  dataConstructor : Definition
+  funDef          : List Clause → Definition
+  dataDef         : Nat → List QName → Definition
+  recordDef       : QName → Definition
+  dataConstructor : QName → Definition
   axiom           : Definition
   prim            : Definition
 

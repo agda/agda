@@ -5,8 +5,8 @@ open import Common.Equality
 open import Common.TC
 
 un-function : Definition → FunDef
-un-function (funDef x) = x
-un-function _          = funDef unknown []
+un-function (funDef cs) = funDef unknown cs
+un-function _           = funDef unknown []
 
 data Is-suc : Nat → Set where
   is-suc : ∀ n → Is-suc (suc n)

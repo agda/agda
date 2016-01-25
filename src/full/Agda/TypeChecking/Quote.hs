@@ -97,8 +97,6 @@ quotingKit = do
   Con s _         <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
 
-  agdaFunDef                    <- primAgdaFunDef
-  agdaFunDefCon                 <- primAgdaFunDefCon
   agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
   agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
   agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
@@ -235,20 +233,21 @@ quotingKit = do
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
 
-      quoteFunDef t cs = agdaFunDefCon !@ quoteType t @@ (quoteList quoteClause cs)
-
       quoteDefn :: Definition -> ReduceM Term
       quoteDefn def =
         case theDef def of
-          Function{funClauses = cs}
-                        -> agdaDefinitionFunDef    !@  quoteFunDef (defType def) cs
-          Datatype{}    -> agdaDefinitionDataDef   !@! quoteName (defName def)
-          Record{}      -> agdaDefinitionRecordDef !@! quoteName (defName def)
+          Function{funClauses = cs} ->
+            agdaDefinitionFunDef !@ quoteList quoteClause cs
+          Datatype{dataPars = np, dataCons = cs} ->
+            agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs
+          Record{recConHead = c} ->
+            agdaDefinitionRecordDef !@! quoteName (conName c)
           Axiom{}       -> pure agdaDefinitionPostulate
-          Primitive{primClauses = cs} | not $ null cs
-                        -> agdaDefinitionFunDef    !@  quoteFunDef (defType def) cs
+          Primitive{primClauses = cs} | not $ null cs ->
+            agdaDefinitionFunDef !@ quoteList quoteClause cs
           Primitive{}   -> pure agdaDefinitionPrimitive
-          Constructor{} -> pure agdaDefinitionDataConstructor
+          Constructor{conData = d} ->
+            agdaDefinitionDataConstructor !@! quoteName d
 
   return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
 

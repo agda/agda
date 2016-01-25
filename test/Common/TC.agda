@@ -32,8 +32,6 @@ postulate
   defineFun  : QName → List Clause → TC ⊤
   getType    : QName → TC Type
   getDefinition : QName → TC Definition
-  numberOfParameters : QName → TC Nat
-  getConstructors    : QName → TC (List QName)
   blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}
@@ -53,8 +51,6 @@ postulate
 {-# BUILTIN AGDATCMDEFINEFUN  defineFun #-}
 {-# BUILTIN AGDATCMGETTYPE getType #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
-{-# BUILTIN AGDATCMNUMBEROFPARAMETERS numberOfParameters #-}
-{-# BUILTIN AGDATCMGETCONSTRUCTORS getConstructors #-}
 {-# BUILTIN AGDATCMBLOCKONMETA blockOnMeta #-}
 
 Tactic = Term → TC ⊤
@@ -70,3 +66,17 @@ define (arg i f) (funDef a cs) =
 newMeta : Type → TC Term
 newMeta a = checkType unknown a
 
+numberOfParameters : QName → TC Nat
+numberOfParameters d =
+  bindTC (getDefinition d) λ
+  { (dataDef n _) → returnTC n
+  ; _ → typeError (strErr "Cannot get parameters of non-data type" ∷ nameErr d ∷ [])
+  }
+
+getConstructors : QName → TC (List QName)
+getConstructors d =
+  bindTC (getDefinition d) λ
+  { (dataDef _ cs) → returnTC cs
+  ; (recordDef c) → returnTC (c ∷ [])
+  ; _ → typeError (strErr "Cannot get constructors of non-data or record type" ∷ nameErr d ∷ [])
+  }

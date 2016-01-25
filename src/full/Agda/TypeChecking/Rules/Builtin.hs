@@ -164,23 +164,19 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinLevelZero          |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc           |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinAgdaFunDef         |-> BuiltinData tset [builtinAgdaFunDefCon])
-  , (builtinAgdaFunDefCon      |-> BuiltinDataCons (ttype --> tlist tclause --> tfun))
   , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause   |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd   |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
-  , (builtinAgdaDataDef               |-> builtinPostulate tset) -- internally this is QName
-  , (builtinAgdaRecordDef             |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef
                                                            ,builtinAgdaDefinitionDataDef
                                                            ,builtinAgdaDefinitionDataConstructor
                                                            ,builtinAgdaDefinitionRecordDef
                                                            ,builtinAgdaDefinitionPostulate
                                                            ,builtinAgdaDefinitionPrimitive])
-  , (builtinAgdaDefinitionFunDef          |-> BuiltinDataCons (tfun --> tdefn))
-  , (builtinAgdaDefinitionDataDef         |-> BuiltinDataCons (tdtype --> tdefn))
-  , (builtinAgdaDefinitionDataConstructor |-> BuiltinDataCons tdefn)
-  , (builtinAgdaDefinitionRecordDef       |-> BuiltinDataCons (trec --> tdefn))
+  , (builtinAgdaDefinitionFunDef          |-> BuiltinDataCons (tlist tclause --> tdefn))
+  , (builtinAgdaDefinitionDataDef         |-> BuiltinDataCons (tnat --> tlist tqname --> tdefn))
+  , (builtinAgdaDefinitionDataConstructor |-> BuiltinDataCons (tqname --> tdefn))
+  , (builtinAgdaDefinitionRecordDef       |-> BuiltinDataCons (tqname --> tdefn))
   , (builtinAgdaDefinitionPostulate       |-> BuiltinDataCons tdefn)
   , (builtinAgdaDefinitionPrimitive       |-> BuiltinDataCons tdefn)
   , builtinAgdaTCM       |-> builtinPostulate (hPi "a" tlevel $ tsetL 0 --> tsetL 0)
@@ -204,8 +200,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , builtinAgdaTCMDefineFun     |-> builtinPostulate (tqname --> tlist tclause --> tTCM_ primUnit)
   , builtinAgdaTCMGetType            |-> builtinPostulate (tqname --> tTCM_ primAgdaTerm)
   , builtinAgdaTCMGetDefinition      |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
-  , builtinAgdaTCMNumberOfParameters |-> builtinPostulate (tqname --> tTCM_ primNat)
-  , builtinAgdaTCMGetConstructors    |-> builtinPostulate (tqname --> tTCM_ (list primQName))
   , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   ]
   where
@@ -252,9 +246,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         ttype      = el primAgdaTerm
         tsort      = el primAgdaSort
         tdefn      = el primAgdaDefinition
-        tfun       = el primAgdaFunDef
-        tdtype     = el primAgdaDataDef
-        trec       = el primAgdaRecordDef
         tliteral   = el primAgdaLiteral
         tpat       = el primAgdaPattern
         tclause    = el primAgdaClause

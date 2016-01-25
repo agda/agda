@@ -414,17 +414,6 @@ instance Unquote R.Clause where
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NotAConstructor "Clause" t
 
-instance Unquote R.Definition where
-  unquote t = do
-    t <- reduceQuotedTerm t
-    case ignoreSharing t of
-      Con c [x, y] -> do
-        choice
-          [ (c `isCon` primAgdaFunDefCon, R.FunDef <$> unquoteN x <*> unquoteN y) ]
-          __IMPOSSIBLE__
-      Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Pattern" t
-
 -- Unquoting TCM computations ---------------------------------------------
 
 -- | Argument should be a term of type @Term → TCM A@ for some A. Returns the
@@ -449,8 +438,6 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
              , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
              , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
-             , (f `isDef` primAgdaTCMNumberOfParameters, tcFun1 tcNumberOfParameters u)
-             , (f `isDef` primAgdaTCMGetConstructors,    tcFun1 tcGetConstructors    u)
              , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u) ]
              __IMPOSSIBLE__
     I.Def f [u, v] ->
@@ -571,21 +558,6 @@ evalTCM v = do
 
     tcGetDefinition :: QName -> TCM Term
     tcGetDefinition x = quoteDefn =<< constInfo x
-
-    tcGetConstructors :: QName -> TCM Term
-    tcGetConstructors d = do
-      def <- constInfo d
-      case theDef def of
-        Datatype{dataCons = cs} -> quoteList $ map quoteName cs
-        Record{recConHead = c}  -> quoteList [quoteName $ conName c]
-        _                       -> typeError . GenericDocError =<< fsep (pwords "Cannot get constructors from non-data or record type " ++ [prettyTCM d])
-
-    tcNumberOfParameters :: QName -> TCM Term
-    tcNumberOfParameters d = do
-      def <- constInfo d
-      case theDef def of
-        Datatype{dataPars = n} -> pure $ quoteNat (fromIntegral n)
-        _ -> typeError . GenericDocError =<< fsep (pwords "Cannot get number of parameters from non-data type " ++ [prettyTCM d])
 
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclareDef (Arg i x) a = do

@@ -120,16 +120,16 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
-    primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
+    primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
-    primAgdaDataDef, primAgdaRecordDef, primAgdaPatLit, primAgdaPatProj,
+    primAgdaPatLit, primAgdaPatProj,
     primAgdaPatAbsurd,
     primAgdaMeta,
     primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
     primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
     primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
-    primAgdaTCMGetType, primAgdaTCMGetDefinition, primAgdaTCMNumberOfParameters, primAgdaTCMGetConstructors,
+    primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMBlockOnMeta
     :: TCM Term
 
@@ -216,10 +216,6 @@ primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
 primAgdaLitChar   = getBuiltin builtinAgdaLitChar
 primAgdaLitString = getBuiltin builtinAgdaLitString
 primAgdaLitQName  = getBuiltin builtinAgdaLitQName
-primAgdaFunDef    = getBuiltin builtinAgdaFunDef
-primAgdaFunDefCon = getBuiltin builtinAgdaFunDefCon
-primAgdaDataDef   = getBuiltin builtinAgdaDataDef
-primAgdaRecordDef = getBuiltin builtinAgdaRecordDef
 primAgdaPattern   = getBuiltin builtinAgdaPattern
 primAgdaPatCon    = getBuiltin builtinAgdaPatCon
 primAgdaPatVar    = getBuiltin builtinAgdaPatVar
@@ -255,8 +251,6 @@ primAgdaTCMDeclareDef    = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDefineFun     = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType            = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
-primAgdaTCMNumberOfParameters = getBuiltin builtinAgdaTCMNumberOfParameters
-primAgdaTCMGetConstructors    = getBuiltin builtinAgdaTCMGetConstructors
 primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
@@ -283,11 +277,10 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
   builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
-  builtinAgdaFunDef, builtinAgdaFunDefCon, builtinAgdaClause,
-  builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
+  builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
-  builtinAgdaPatProj, builtinAgdaPatAbsurd, builtinAgdaDataDef,
-  builtinAgdaRecordDef, builtinAgdaDefinitionFunDef,
+  builtinAgdaPatProj, builtinAgdaPatAbsurd,
+  builtinAgdaDefinitionFunDef,
   builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
   builtinAgdaDefinitionPrimitive, builtinAgdaDefinition,
@@ -298,7 +291,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
-  builtinAgdaTCMNumberOfParameters, builtinAgdaTCMGetConstructors, builtinAgdaTCMBlockOnMeta
+  builtinAgdaTCMBlockOnMeta
   :: String
 
 builtinNat                           = "NATURAL"
@@ -384,8 +377,6 @@ builtinAgdaLitFloat                  = "AGDALITFLOAT"
 builtinAgdaLitChar                   = "AGDALITCHAR"
 builtinAgdaLitString                 = "AGDALITSTRING"
 builtinAgdaLitQName                  = "AGDALITQNAME"
-builtinAgdaFunDef                    = "AGDAFUNDEF"
-builtinAgdaFunDefCon                 = "AGDAFUNDEFCON"
 builtinAgdaClause                    = "AGDACLAUSE"
 builtinAgdaClauseClause              = "AGDACLAUSECLAUSE"
 builtinAgdaClauseAbsurd              = "AGDACLAUSEABSURD"
@@ -396,8 +387,6 @@ builtinAgdaPatDot                    = "AGDAPATDOT"
 builtinAgdaPatLit                    = "AGDAPATLIT"
 builtinAgdaPatProj                   = "AGDAPATPROJ"
 builtinAgdaPatAbsurd                 = "AGDAPATABSURD"
-builtinAgdaDataDef                   = "AGDADATADEF"
-builtinAgdaRecordDef                 = "AGDARECORDDEF"
 builtinAgdaDefinitionFunDef          = "AGDADEFINITIONFUNDEF"
 builtinAgdaDefinitionDataDef         = "AGDADEFINITIONDATADEF"
 builtinAgdaDefinitionRecordDef       = "AGDADEFINITIONRECORDDEF"
@@ -423,8 +412,6 @@ builtinAgdaTCMDeclareDef    = "AGDATCMDECLAREDEF"
 builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
 builtinAgdaTCMGetType            = "AGDATCMGETTYPE"
 builtinAgdaTCMGetDefinition      = "AGDATCMGETDEFINITION"
-builtinAgdaTCMNumberOfParameters = "AGDATCMNUMBEROFPARAMETERS"
-builtinAgdaTCMGetConstructors    = "AGDATCMGETCONSTRUCTORS"
 builtinAgdaTCMBlockOnMeta        = "AGDATCMBLOCKONMETA"
 
 -- | Builtins that come without a definition in Agda syntax.

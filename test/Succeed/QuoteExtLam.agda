@@ -36,10 +36,9 @@ pattern _`→_ a b = pi (vArg a) (abs "_" b)
 pattern `Wrap a = def (quote Wrap) (vArg a ∷ [])
 pattern `⊥ = def (quote ⊥) []
 
-pattern expected₄ = funDef (funDef
-  (`Wrap `⊥ `→ `Nat)
+pattern expected₄ = funDef
   (absurdClause (vArg (con (quote wrap) (vArg absurd ∷ [])) ∷ [])
-    ∷ []))
+    ∷ [])
 
 check₄ : OK
 check₄ = checkDefinition (λ { expected₄ → true; _ → false }) magic₄
@@ -53,10 +52,7 @@ check₂ : quoteTerm magic₂ ≡ expected
 check₂ = refl
 
 pattern expectedDef =
-  funDef (funDef
-    (pi (vArg (def (quote ⊥) []))
-        (abs "_" (def (quote Nat) [])))
-    (absurdClause (vArg absurd ∷ []) ∷ []))
+  funDef (absurdClause (vArg absurd ∷ []) ∷ [])
 
 check₃ : OK
 check₃ = checkDefinition (λ { expectedDef → true; _ → false }) magic₃

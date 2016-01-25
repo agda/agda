@@ -69,8 +69,8 @@ constructors-tac zero _ _ = typeError (strErr "Search depth exhausted" ∷ [])
 constructors-tac (suc n) (def d vs) hole =
   getDefinition d >>= λ def →
   case def of λ
-  { (dataDef df) → getConstructors d >>= λ cs → tryConstructors n cs hole
-  ; _            → returnTC _ }
+  { (dataDef _ cs) → tryConstructors n cs hole
+  ; _              → returnTC _ }
 constructors-tac _ (pi a b) hole = give absurdLam hole
 constructors-tac _ _ hole = returnTC _
 
