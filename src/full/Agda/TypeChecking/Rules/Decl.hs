@@ -478,8 +478,6 @@ checkAxiom funSig i info0 x e = do
     equalType resType expectedType
       `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
                                                               , nest 2 $ prettyTCM expectedType ]
-    unless (all (visible) (telToList tel)) $ do
-      typeError $ GenericError $ "Hidden / instance arguments are not allowed in macros."
 
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!

@@ -1010,8 +1010,8 @@ checkApplication hd args e t = do
       tTerm <- primAgdaTerm
       tName <- primQName
 
-      let tel' = init $ map (snd . unDom) $ telToList tel -- last argument is the hole term
-          (macroArgs, otherArgs) = splitAt (length tel') args
+      let argTel   = init $ telToList tel -- last argument is the hole term
+
           -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
           mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
           mkArg t a | unEl t == tTerm =
@@ -1021,16 +1021,22 @@ checkApplication hd args e t = do
             (fmap . fmap)
               (A.App (A.ExprRange (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a
           mkArg t a | otherwise = a
+
+          makeArgs :: [Dom (String, Type)] -> [NamedArg A.Expr] -> ([NamedArg A.Expr], [NamedArg A.Expr])
+          makeArgs [] args = ([], args)
+          makeArgs _  []   = ([], [])
+          makeArgs tel@(d : _) (arg : args) =
+            case insertImplicit arg (map (fmap fst . argFromDom) tel) of
+              ImpInsert is   -> makeArgs (drop (length is) tel) (arg : args)
+              BadImplicits   -> (arg : args, [])  -- fail later in checkHeadApplication
+              NoSuchName{}   -> (arg : args, [])  -- ditto
+              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
+
+          (macroArgs, otherArgs) = makeArgs argTel args
           unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
 
-      when (length args < length tel') $ do
-        err <- fsep $ pwords "The macro" ++ [prettyTCM x] ++
-                      pwords ("expects " ++ show (length tel') ++
-                              " arguments, but has been given only " ++ show (length args))
-        typeError $ GenericError $ show err
+          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs) otherArgs
 
-      let macroArgs' = zipWith mkArg tel' macroArgs
-          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs') otherArgs
       checkExpr desugared t
 
     -- Subcase: unquote
