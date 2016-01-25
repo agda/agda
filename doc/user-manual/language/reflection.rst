@@ -258,6 +258,12 @@ following primitive operations::
     -- Set the current context.
     inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
+    -- Quote a value, returning the corresponding Term.
+    quoteTC : ∀ {a} {A : Set a} → A → TC Term
+
+    -- Unquote a Term, returning the corresponding value.
+    unquoteTC : ∀ {a} {A : Set a} → Term → TC A
+
     -- Create a fresh name.
     freshName : String → TC Name
 
@@ -287,6 +293,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
   {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
   {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
+  {-# BUILTIN AGDATCMQUOTETERM          quoteTC            #-}
+  {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
   {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
   {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
   {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}

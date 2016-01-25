@@ -446,9 +446,11 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDefineFun,  tcFun2 tcDefineFun  u v) ]
              __IMPOSSIBLE__
-    I.Def f [_, _, u] ->
+    I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
-             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError u)
+             , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
+             , (f `isDef` primAgdaTCMQuoteTerm,   tcFun1 tcQuoteTerm   u)
+             , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u) ]
              __IMPOSSIBLE__
     I.Def f [_, _, u, v] ->
@@ -466,6 +468,9 @@ evalTCM v = do
     unElim = unArg . argFromElim
     tcBind m k = do v <- evalTCM m
                     evalTCM (k `apply` [defaultArg v])
+
+    mkT l a = El s a
+      where s = Type $ Max [Plus 0 $ UnreducedLevel l]
 
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
@@ -518,6 +523,18 @@ evalTCM v = do
       e <- toAbstract_ v
       v <- checkExpr e a
       quoteTerm =<< normalise v
+
+    tcQuoteTerm :: R.Term -> TCM Term
+    tcQuoteTerm v = do
+      e      <- toAbstract_ v
+      (v, _) <- inferExpr e
+      quoteTerm =<< quoteTerm =<< normalise v
+
+    tcUnquoteTerm :: Type -> R.Term -> TCM Term
+    tcUnquoteTerm a v = do
+      e <- toAbstract_ v
+      v <- checkExpr e a
+      return v
 
     tcNormalise :: R.Term -> TCM Term
     tcNormalise v = do

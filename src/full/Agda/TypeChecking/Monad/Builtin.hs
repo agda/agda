@@ -130,6 +130,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
+    primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
     primAgdaTCMBlockOnMeta
     :: TCM Term
 
@@ -251,6 +252,8 @@ primAgdaTCMDeclareDef    = getBuiltin builtinAgdaTCMDeclareDef
 primAgdaTCMDefineFun     = getBuiltin builtinAgdaTCMDefineFun
 primAgdaTCMGetType            = getBuiltin builtinAgdaTCMGetType
 primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
+primAgdaTCMQuoteTerm          = getBuiltin builtinAgdaTCMQuoteTerm
+primAgdaTCMUnquoteTerm        = getBuiltin builtinAgdaTCMUnquoteTerm
 primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
@@ -291,6 +294,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
+  builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
   builtinAgdaTCMBlockOnMeta
   :: String
 
@@ -410,9 +414,11 @@ builtinAgdaTCMInContext     = "AGDATCMINCONTEXT"
 builtinAgdaTCMFreshName     = "AGDATCMFRESHNAME"
 builtinAgdaTCMDeclareDef    = "AGDATCMDECLAREDEF"
 builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
-builtinAgdaTCMGetType            = "AGDATCMGETTYPE"
-builtinAgdaTCMGetDefinition      = "AGDATCMGETDEFINITION"
-builtinAgdaTCMBlockOnMeta        = "AGDATCMBLOCKONMETA"
+builtinAgdaTCMGetType       = "AGDATCMGETTYPE"
+builtinAgdaTCMGetDefinition = "AGDATCMGETDEFINITION"
+builtinAgdaTCMBlockOnMeta   = "AGDATCMBLOCKONMETA"
+builtinAgdaTCMQuoteTerm     = "AGDATCMQUOTETERM"
+builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

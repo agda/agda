@@ -33,6 +33,8 @@ postulate
   getType    : QName → TC Type
   getDefinition : QName → TC Definition
   blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
+  quoteTC   : ∀ {a} {A : Set a} → A → TC Term
+  unquoteTC : ∀ {a} {A : Set a} → Term → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
@@ -52,6 +54,8 @@ postulate
 {-# BUILTIN AGDATCMGETTYPE getType #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
 {-# BUILTIN AGDATCMBLOCKONMETA blockOnMeta #-}
+{-# BUILTIN AGDATCMQUOTETERM   quoteTC #-}
+{-# BUILTIN AGDATCMUNQUOTETERM unquoteTC #-}
 
 Tactic = Term → TC ⊤
 
