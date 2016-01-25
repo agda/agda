@@ -157,6 +157,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
             Partial {} -> "(first approximation)"
         ++ "."
 
+  reportSLn "highlighting.names" 60 $ "highlighting names = " ++ show names
+
   M.ignoreAbstractMode $ do
     modMap <- sourceToModule
     kinds  <- nameKinds hlLevel decl
