@@ -296,6 +296,8 @@ postulate
   numberOfParameters : Name → TC ℕ
   getConstructors    : Name → TC (List Name)
   blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
+  quoteTC : ∀ {a} {A : Set a} → A → TC Term
+  unquoteTC : ∀ {a} {A : Set a} → Term → TC A
 
 {-# BUILTIN AGDATCM           TC         #-}
 {-# BUILTIN AGDATCMRETURN     returnTC   #-}
@@ -315,6 +317,8 @@ postulate
 {-# BUILTIN AGDATCMGETTYPE getType #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
 {-# BUILTIN AGDATCMBLOCKONMETA blockOnMeta #-}
+{-# BUILTIN AGDATCMQUOTETERM quoteTC #-}
+{-# BUILTIN AGDATCMUNQUOTETERM unquoteTC #-}
 
 newMeta : Type → TC Term
 newMeta = checkType unknown
