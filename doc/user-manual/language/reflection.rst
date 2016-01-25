@@ -74,55 +74,67 @@ has the following shape:
     {-# BUILTIN AGDALITSTRING string  #-}
     {-# BUILTIN AGDALITQNAME  name    #-}
 
-Terms
-~~~~~
+Patterns
+~~~~~~~~
 
-Terms, types and sorts are mapped to the ``AGDATERM``, ``AGDATYPE`` and ``AGDASORT``
-respectively. Terms use de Bruijn indices to represent variables.
+Reflected patterns are bound to the ``AGDAPATTERN`` built-in using the
+following data type.
 
 ::
 
-  mutual
-    data Term : Set where
-      -- Variable (de Bruijn index) applied to arguments.
-      var     : (x : Nat) (args : List (Arg Term)) → Term
-      -- Constructor applied to arguments.
-      con     : (c : Name) (args : List (Arg Term)) → Term
-      -- Identifier applied to arguments.
-      def     : (f : Name) (args : List (Arg Term)) → Term
-      -- Metavariable applied to arguments
-      meta    : (x : Name) (args : List (Arg Term)) → Term
-      -- Different kinds of λ-abstraction.
-      lam     : (v : Visibility) (t : Abs Term) → Term
-      -- Pattern matching λ-abstraction.
-      pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
-      -- Pi-type.
-      pi      : (t₁ : Arg Type) (t₂ : Abs Type) → Term
-      -- A sort.
-      sort    : (s : Sort) → Term
-      -- A literal.
-      lit     : (l : Literal) → Term
-      -- Anything else. Treated as a fresh metavariable when unquoting.
-      unknown : Term
+  data Pattern : Set where
+    con    : Name → List (Arg Pattern) → Pattern
+    dot    : Pattern
+    var    : String → Pattern
+    lit    : Literal → Pattern
+    absurd : Pattern
+    projP  : Name → Pattern
 
-    data Type : Set where
-      el : (s : Sort) (t : Term) → Type
+  {-# BUILTIN AGDAPATTERN   Pattern #-}
+  {-# BUILTIN AGDAPATCON    con     #-}
+  {-# BUILTIN AGDAPATDOT    dot     #-}
+  {-# BUILTIN AGDAPATVAR    var     #-}
+  {-# BUILTIN AGDAPATLIT    lit     #-}
+  {-# BUILTIN AGDAPATABSURD absurd  #-}
+  {-# BUILTIN AGDAPATPROJ   projP   #-}
 
-    data Sort : Set where
-      -- A Set of a given (possibly neutral) level.
-      set     : (t : Term) → Sort
-      -- A Set of a given concrete level.
-      lit     : (n : Nat) → Sort
-      -- Anything else.
-      unknown : Sort
+Terms
+~~~~~
 
-    data Clause : Set where
-      clause        : (pats : List (Arg Pattern))(body : Term) → Clause
-      absurd-clause : (pats : List (Arg Pattern)) → Clause
+Terms, sorts and clauses are mutually recursive and mapped to the ``AGDATERM``,
+``AGDASORT`` and ``AGDACLAUSE`` built-ins respectively. Types are simply
+terms. Terms use de Bruijn indices to represent variables.
+
+::
+
+  data Term : Set
+  data Sort : Set
+  Type = Term
+
+  data Term where
+    var     : (x : Nat)  (args : List (Arg Term)) → Term
+    con     : (c : Name) (args : List (Arg Term)) → Term
+    def     : (f : Name) (args : List (Arg Term)) → Term
+    meta    : (x : Name) (args : List (Arg Term)) → Term
+    lam     : (v : Visibility) (t : Abs Term) → Term
+    pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
+    pi      : (t₁ : Arg Type) (t₂ : Abs Type) → Term
+    sort    : (s : Sort) → Term
+    lit     : (l : Literal) → Term
+    unknown : Term    -- Treated as '_' when unquoting.
+
+  data Sort where
+    set     : (t : Term) → Sort -- A Set of a given (possibly neutral) level.
+    lit     : (n : Nat) → Sort  -- A Set of a given concrete level.
+    unknown : Sort
+
+  data Clause where
+    clause        : (pats : List (Arg Pattern)) (body : Term) → Clause
+    absurd-clause : (pats : List (Arg Pattern)) → Clause
 
   {-# BUILTIN AGDASORT    Sort    #-}
-  {-# BUILTIN AGDATYPE    Type    #-}
   {-# BUILTIN AGDATERM    Term    #-}
+  {-# BUILTIN AGDACLAUSE  Clause  #-}
 
   {-# BUILTIN AGDATERMVAR         var     #-}
   {-# BUILTIN AGDATERMCON         con     #-}
@@ -134,16 +146,15 @@ respectively. Terms use de Bruijn indices to represent variables.
   {-# BUILTIN AGDATERMSORT        sort    #-}
   {-# BUILTIN AGDATERMLIT         lit     #-}
   {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-  {-# BUILTIN AGDATYPEEL          el      #-}
+
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 Absurd lambdas ``λ ()`` are quoted to extended lambdas with an absurd clause.
 
-The built-in constructors AGDATERMUNSUPPORTED and AGDASORTUNSUPPORTED are
-translated to meta variables when unquoting. The sort ``Setω`` is translated
-to ``AGDASORTUNSUPPORTED``.
+The built-in constructors ``AGDATERMUNSUPPORTED`` and ``AGDASORTUNSUPPORTED``
+are translated to meta variables when unquoting.
 
 Declarations
 ~~~~~~~~~~~~
@@ -183,9 +194,26 @@ below <reflection-tc-monad>`.
   {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
   {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
 
-The built-in ``AGDADATADEF`` type can be used to get the constructors and number
-of parameters to a datatype using the appropriate operations in the :ref:`TC
-monad <reflection-tc-monad>`.
+Type errors
+~~~~~~~~~~~
+
+Type checking computations (see `below <Type checking computations_>`_) can
+fail with an error, which is a list of ``ErrorPart``\s. This allows
+metaprograms to generate nice errors without having to implement pretty
+printing for reflected terms.
+
+::
+
+  -- Error messages can contain embedded names and terms.
+  data ErrorPart : Set where
+    strErr  : String → ErrorPart
+    termErr : Term → ErrorPart
+    nameErr : Name → ErrorPart
+
+  {-# BUILTIN AGDAERRORPART       ErrorPart #-}
+  {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
+  {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+  {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
 .. _reflection-tc-monad:
 
@@ -204,16 +232,13 @@ checking monad ``TC``::
   {-# BUILTIN AGDATCMRETURN returnTC #-}
   {-# BUILTIN AGDATCMBIND   bindTC   #-}
 
+
 The ``TC`` monad provides an interface to the Agda type checker using the
 following primitive operations::
 
   postulate
     -- Unify two terms, potentially solving metavariables in the process.
     unify : Term → Term → TC ⊤
-
-    -- Create a fresh metavariable of the given type. The metavariable can
-    -- depend on variables in the current context.
-    newMeta : Type → TC Term
 
     -- Throw a type error. Can be caught by catchTC.
     typeError : ∀ {a} {A : Set a} → String → TC A
@@ -231,7 +256,8 @@ following primitive operations::
     inferType : Term → TC Type
 
     -- Check a term against a given type. This may resolve implicit arguments
-    -- in the term, so a new refined term is returned.
+    -- in the term, so a new refined term is returned. Can be used to create
+    -- new metavariables: newMeta t = checkType unknown t
     checkType : Term → Type → TC Term
 
     -- Compute the normal form of a term.
@@ -247,27 +273,30 @@ following primitive operations::
     inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
     -- Create a fresh name.
-    freshName : String → TC QName
+    freshName : String → TC Name
 
     -- Declare a new function of the given type. The function must be defined
-    -- later using 'defineFun'.
-    declareDef : QName → Type → TC ⊤
+    -- later using 'defineFun'. Takes an Arg Name to allow declaring instances
+    -- and irrelevant functions. The Visibility of the Arg must not be hidden.
+    declareDef : Arg Name → Type → TC ⊤
 
     -- Define a declared function. The function may have been declared using
     -- 'declareDef' or with an explicit type signature in the program.
-    defineFun : QName → List Clause → TC ⊤
+    defineFun : Name → List Clause → TC ⊤
 
-    -- Get the type of a defined name. Replaces 'primQNameType'.
-    getType : QName → TC Type
+    -- Get the type of a defined name. Replaces 'primNameType'.
+    getType : Name → TC Type
 
-    -- Get the definition of a defined name. Replaces 'primQNameDefinition'.
-    getDefinition : QName → TC Definition
+    -- Get the definition of a defined name. Replaces 'primNameDefinition'.
+    getDefinition : Name → TC Definition
 
-    -- Get the number of parameters of a data type. Replaces 'primDataNumberOfParameters'.
-    numberOfParameters : DataDef → TC Nat
+    -- Get the number of parameters of a data type. Fails if the name does
+    -- not refer to a data type.
+    numberOfParameters : Name → TC Nat
 
-    -- Get the constructors of a datatype. Replaces 'primDataConstructors'.
-    getConstructors : DataDef   → TC (List QName)
+    -- Get the constructors of a data or record type. Fails if the name does
+    -- not refer to a data or record type.
+    getConstructors : Name → TC (List Name)
 
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMNEWMETA            newMeta            #-}

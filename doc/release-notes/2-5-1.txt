@@ -395,11 +395,27 @@ Reflection
 
   See below for details.
 
+* Types are no longer packaged with a sort.
+
+  The AGDATYPE and AGDATYPEEL built-ins have been removed. Reflected types are
+  now simply terms.
+
 * Reflected type checking computations.
 
   There is a primitive TC monad representing type checking computations. The
   unquote, unquoteDecl, and the new unquoteDef all expect computations in this
   monad (see below). The interface to the monad is the following
+
+    -- Error messages can contain embedded names and terms.
+    data ErrorPart : Set where
+      strErr  : String → ErrorPart
+      termErr : Term → ErrorPart
+      nameErr : Name → ErrorPart
+
+    {-# BUILTIN AGDAERRORPART       ErrorPart #-}
+    {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
+    {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+    {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
     postulate
       TC         : ∀ {a} → Set a → Set a
@@ -409,12 +425,8 @@ Reflection
       -- Unify two terms, potentially solving metavariables in the process.
       unify      : Term → Term → TC ⊤
 
-      -- Create a fresh metavariable of the given type. The metavariable can
-      -- depend on variables in the current context.
-      newMeta    : Type → TC Term
-
       -- Throw a type error. Can be caught by catchTC.
-      typeError  : ∀ {a} {A : Set a} → String → TC A
+      typeError  : ∀ {a} {A : Set a} → List ErrorPart → TC A
 
       -- Block a type checking computation on a metavariable. This will abort
       -- the computation and restart it (from the beginning) when the
@@ -429,7 +441,8 @@ Reflection
       inferType  : Term → TC Type
 
       -- Check a term against a given type. This may resolve implicit arguments
-      -- in the term, so a new refined term is returned.
+      -- in the term, so a new refined term is returned. Can be used to create
+      -- new metavariables: newMeta t = checkType unknown t
       checkType  : Term → Type → TC Term
 
       -- Compute the normal form of a term.
@@ -448,8 +461,9 @@ Reflection
       freshName  : String → TC QName
 
       -- Declare a new function of the given type. The function must be defined
-      -- later using 'defineFun'.
-      declareDef : QName → Type → TC ⊤
+      -- later using 'defineFun'. Takes an Arg Name to allow declaring instances
+      -- and irrelevant functions. The Visibility of the Arg must not be hidden.
+      declareDef : Arg QName → Type → TC ⊤
 
       -- Define a declared function. The function may have been declared using
       -- 'declareDef' or with an explicit type signature in the program.
@@ -461,11 +475,15 @@ Reflection
       -- Get the definition of a defined name. Replaces 'primQNameDefinition'.
       getDefinition : QName → TC Definition
 
-      -- Get the number of parameters of a data type. Replaces 'primDataNumberOfParameters'.
-      numberOfParameters : DataDef → TC Nat
+      -- Get the number of parameters of a data type. Replaces
+      -- 'primDataNumberOfParameters'. Fails if the name does not refer to a
+      -- data type.
+      numberOfParameters : QName → TC Nat
 
-      -- Get the constructors of a datatype. Replaces 'primDataConstructors'.
-      getConstructors    : DataDef   → TC (List QName)
+      -- Get the constructors of a data or record type. Replaces
+      -- 'primDataConstructors'. Fails if the name does not refer to a data or
+      -- record type.
+      getConstructors    : QName → TC (List QName)
 
     {-# BUILTIN AGDATCM                   TC                 #-}
     {-# BUILTIN AGDATCMRETURN             returnTC           #-}
