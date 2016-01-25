@@ -774,8 +774,8 @@ defaultImportDir :: ImportDirective' a b
 defaultImportDir = ImportDirective noRange (Hiding []) [] False
 
 data UsingOrHiding' a b
-  = Hiding [ImportedName' a b]
-  | Using  [ImportedName' a b]
+  = Hiding { usingHidingNames :: [ImportedName' a b] }
+  | Using  { usingHidingNames :: [ImportedName' a b] }
   deriving (Typeable)
 
 -- | An imported name can be a module or a defined name

@@ -449,30 +449,35 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
 applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
-applyImportDirectiveM m dir scope = do
+applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, usingOrHiding = uh } scope = do
+
+    -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
     let xs = filter doesntExist names
     reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
     unless (null xs)  $ typeError $ ModuleDoesntExport m xs
 
+    -- To be imported names @dup@ that are mentioned more than once.
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
+
     return $ applyImportDirective dir scope
 
   where
+    -- | All names from the imported module mentioned in the import directive.
     names :: [ImportedName]
-    names = map renFrom (impRenaming dir) ++ case usingOrHiding dir of
-      Using  xs -> xs
-      Hiding xs -> xs
+    names = map renFrom ren ++ usingHidingNames uh
 
+    -- | Names to be in scope after import.
     targetNames :: [ImportedName]
-    targetNames = map renTo (impRenaming dir) ++ case usingOrHiding dir of
+    targetNames = map renTo ren ++ case uh of
       Using xs -> xs
       Hiding{} -> []
 
-    doesntExist (ImportedName   x) = isNothing $
-      Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName)
-    doesntExist (ImportedModule x) = isNothing $
-      Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractModule)
+    namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
+    modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
+
+    doesntExist (ImportedName   x) = isNothing $ Map.lookup x namesInScope
+    doesntExist (ImportedModule x) = isNothing $ Map.lookup x modulesInScope
 
 -- | Open a module.
 openModule_ :: C.QName -> ImportDirective -> ScopeM ()
