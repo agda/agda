@@ -43,6 +43,7 @@ import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
+import {-# SOURCE #-} Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
@@ -369,7 +370,7 @@ applySection' new ptel old ts rd rm = do
             addDisplayForms y
           where
             ts' = take np ts
-            t   = defType d `apply` ts'
+            t   = defType d `piApply` ts'
             pol = defPolarity d `apply` ts'
             occ = defArgOccurrences d `apply` ts'
             inst = defInstance d
@@ -408,7 +409,7 @@ applySection' new ptel old ts rd rm = do
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
-                         , recConType = apply t ts'
+                         , recConType = piApply t ts'
                          , recTel     = apply tel ts'
                          }
                 _ -> do
@@ -916,9 +917,8 @@ getDefType f t = do
           -- If it is stuck due to disabled reductions
           -- (because of failed termination check),
           -- we will produce garbage parameters.
-          flip (ifM $ eligibleForProjectionLike d) (return Nothing) $ do
+          ifNotM (eligibleForProjectionLike d) (return Nothing) $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
-            -- pars <- maybe (return Nothing) return $ allApplyElims $ take npars es
-            return $ Just $ a `apply` pars
+            Just <$> a `piApplyM` pars
         _ -> return Nothing

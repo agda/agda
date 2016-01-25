@@ -678,7 +678,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
                    then (arg1 $>) <$> blockTermOnProblem b (unArg arg1) pid
                    else return arg1
             -- continue, possibly with blocked instantiation
-            compareElims pols (piApply a [arg]) (apply v [arg]) els1 els2
+            compareElims pols (codom `lazyAbsApp` unArg arg) (apply v [arg]) els1 els2
             -- any left over constraints of arg are associatd to the comparison
             stealConstraints pid
 
@@ -874,9 +874,9 @@ coerce v t1 t2 = blockTerm t2 $ do
   if n <= 0 then fallback else do
     ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
       (args, t1') <- implicitArgs n (NotHidden /=) t1
-      coerceSize (v `apply` args) t1' t2
+      coerceSize leqType (v `apply` args) t1' t2
   where
-    fallback = coerceSize v t1 t2
+    fallback = coerceSize leqType v t1 t2
 
 -- | Account for situations like @k : (Size< j) <= (Size< k + 1)@
 --
@@ -886,8 +886,8 @@ coerce v t1 t2 = blockTerm t2 $ do
 --   TODO.
 --
 --   For now, we do a cheap heuristics.
-coerceSize :: Term -> Type -> Type -> TCM Term
-coerceSize v t1 t2 = workOnTypes $ do
+coerceSize :: (Type -> Type -> TCM ()) -> Term -> Type -> Type -> TCM Term
+coerceSize leqType v t1 t2 = workOnTypes $ do
     let fallback = v <$ leqType t1 t2
         done = caseMaybeM (isSizeType t1) fallback $ \ b1 -> return v
     -- Andreas, 2015-07-22, Issue 1615:

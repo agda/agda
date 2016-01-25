@@ -94,7 +94,7 @@ checkType' t = do
     Shared{}   -> __IMPOSSIBLE__
 
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
-checkTypeSpine a self es = shouldBeSort =<< inferSpine a self es
+checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
 
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
@@ -195,7 +195,8 @@ checkSpine a self es t = do
     , text " : "
     , prettyTCM t
     ]
-  inferSpine a self es >>= (`subtype` t)
+  (v, t') <- inferSpine a self es
+  void $ coerceSize subtype v t' t
 
 checkArgs :: Type -> Term -> Args -> Type -> TCM ()
 checkArgs a self vs t = checkSpine a self (map Apply vs) t
@@ -224,12 +225,12 @@ infer v = do
   case ignoreSharing v of
     Var i es   -> do
       a <- typeOfBV i
-      inferSpine a (Var i   []) es
+      snd <$> inferSpine a (Var i   []) es
     Def f (Apply a : es) -> inferDef' f a es -- possibly proj.like
     Def f es             -> inferDef  f   es -- not a projection-like fun
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
-      inferSpine a (MetaV x []) es
+      snd <$> inferSpine a (MetaV x []) es
     Shared{} -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
@@ -237,7 +238,7 @@ infer v = do
 inferDef :: QName -> Elims -> TCM Type
 inferDef f es = do
   a <- defType <$> getConstInfo f
-  inferSpine a (Def f []) es
+  snd <$> inferSpine a (Def f []) es
 
 -- | Infer possibly projection-like function application
 inferDef' :: QName -> Arg Term -> Elims -> TCM Type
@@ -247,15 +248,15 @@ inferDef' f a es = do
     Just Projection{ projIndex = n } | n > 0 -> do
       let self = unArg a
       b <- infer self
-      inferSpine b self (Proj f : es)
+      snd <$> inferSpine b self (Proj f : es)
     _ -> inferDef f (Apply a : es)
 
 
 -- | @inferSpine t self es@ checks that spine @es@ eliminates
 --   value @self@ of type @t@ and returns the remaining type
---   (target of elimination).
-inferSpine :: Type -> Term -> Elims -> TCM Type
-inferSpine t self [] = return t
+--   (target of elimination) and the final self (has that type).
+inferSpine :: Type -> Term -> Elims -> TCM (Term, Type)
+inferSpine t self [] = return (self, t)
 inferSpine t self (e : es) = do
   reportSDoc "tc.infer.internal" 30 $ sep
     [ text "inferSpine: "

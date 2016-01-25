@@ -152,9 +152,11 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
   -- of the pattern variables not mentioned in @as@.
 
   let d2b = telePi_ delta2 b
-  reportSDoc "tc.with.abstract" 30 $ text "normalizing d2b = " <+> prettyTCM d2b
+  reportSDoc "tc.with.abstract" 30 $ text "  d2b  = " <+> prettyTCM d2b
+  reportSDoc "tc.with.abstract" 30 $ text "normalizing d2b ..."
   d2b  <- normalise d2b
-  reportSDoc "tc.with.abstract" 30 $ text "eta-contracting d2b = " <+> prettyTCM d2b
+  reportSDoc "tc.with.abstract" 30 $ text "  d2b  = " <+> prettyTCM d2b
+  reportSDoc "tc.with.abstract" 30 $ text "eta-contracting d2b ..."
   d2b  <- etaContract d2b
   reportSDoc "tc.with.abstract" 20 $ text "  d2b  = " <+> prettyTCM d2b
   let n2 = size delta2
@@ -165,13 +167,13 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
     -- Normalize and η-contract the types @as@ of the with-expressions.
 
     as <- etaContract =<< normalise (raise n2 as)
-    reportSDoc "tc.with.abstract" 20 $ text "  as = " <+> prettyTCM as
+    reportSDoc "tc.with.abstract" 20 $ text "  as    = " <+> prettyTCM as
 
     -- Normalize and η-contract the with-expressions @vs@.
 
     vs <- etaContract =<< normalise vs
     let vsAll = withArguments vs as
-    reportSDoc "tc.with.abstract" 20 $ text "  vs = " <+> prettyTCM vs
+    reportSDoc "tc.with.abstract" 20 $ text "  vs    = " <+> prettyTCM vs
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $
@@ -228,8 +230,11 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
       , text "  wtel        = " <+> do escapeContext n2 $ prettyTCM wtel
       , text "  b0          = " <+> addContext wtel (prettyTCM b0)
       , text "  b'          = " <+> do escapeContext n2 $ addContext wtel $ addContext delta2 $ prettyTCM b'
-      , text "  delta2flat  = " <+> prettyTCM delta2flat
-      , text "  delta2flat' = " <+> do addContext wtel $ prettyTCM delta2flat'
+      -- Andreas, 2016-01-22
+      -- The variable names in the flattened environments are printed wrongly
+      -- which is confusing.
+      -- , text "  delta2flat  = " <+> prettyTCM delta2flat
+      -- , text "  delta2flat' = " <+> do addContext wtel $ prettyTCM delta2flat'
       , text "  delta2'     = " <+> do escapeContext n2 $ addContext wtel $ prettyTCM delta2'
       , text "  ty          = " <+> do escapeContext n2 $ escapeContext (size delta1) $ prettyTCM delta2'
       ]
@@ -392,6 +397,12 @@ stripWithClausePatterns parent f t qs perm ps = do
 
     -- Case: out of with-clause patterns.
     strip self t [] qs@(_ : _) = do
+      reportSDoc "tc.with.strip" 15 $ vcat
+        [ text "strip (out of A.Patterns)"
+        , nest 2 $ text "qs  =" <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
+        , nest 2 $ text "self=" <+> prettyTCM self
+        , nest 2 $ text "t   =" <+> prettyTCM t
+        ]
       -- Andreas, 2015-06-11, issue 1551:
       -- As the type t develops, we need to insert more implicit patterns,
       -- due to copatterns / flexible arity.
@@ -436,6 +447,10 @@ stripWithClausePatterns parent f t qs perm ps = do
             if d /= d' then mismatch else do
               t <- reduce t
               (self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
+              -- Andreas, 2016-01-21, issue #1791
+              -- The type of a field might start with hidden quantifiers.
+              -- So we may have to insert more implicit patterns here.
+              ps <- insertImplicitPatternsT ExpandLast ps t1
               strip self1 t1 ps qs
           Nothing -> mismatch
 
@@ -556,7 +571,7 @@ stripWithClausePatterns parent f t qs perm ps = do
           -- Get the type and number of parameters of the constructor.
           Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConInfo c
           -- Compute the argument telescope for the constructor
-          let ct' = ct `apply` genericTake np us
+          let ct' = ct `piApply` genericTake np us
           TelV tel' _ <- telView ct'
 
           reportSDoc "tc.with.strip" 20 $

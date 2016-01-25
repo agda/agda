@@ -586,7 +586,7 @@ dataStrategy k s = do
             -- The new metas should have the same dependencies as the original meta
             mv <- lookupMeta m
 
-            ctype <- (`apply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
+            ctype <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
             TelV tel _ <- telView ctype
             let b'  = telePi tel (sort Prop)
 
@@ -768,7 +768,7 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
 
 unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
-  ctype    <- (`apply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
+  ctype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
   reportSDoc "tc.lhs.unify" 40 $ text "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
   (lhs, rhs) <- liftTCM $ reduce (lhs,rhs)
@@ -965,12 +965,12 @@ isSet a = do
       case def of
         Datatype{ dataPars = npars, dataCons = cs, dataMutual = [], dataAbstr = ConcreteDef } -> do
            let pars       = take npars args
-               TelV tel _ = telView' $ dtype `apply` pars
+               TelV tel _ = telView' $ dtype `piApply` pars
                ixtypes    = map (unEl . unDom) $ flattenTel tel
            ifNotM (allM ixtypes isSet) (return False) $ allM cs $ \c -> do
              ctype <- defType <$> getConstInfo c
-             checkConstructorType d $ ctype `apply` pars
-        Record{ recConType = ctype } -> checkConstructorType d $ ctype `apply` args
+             checkConstructorType d $ ctype `piApply` pars
+        Record{ recConType = ctype } -> checkConstructorType d $ ctype `piApply` args
         _ -> return False
     _ -> return False
   where

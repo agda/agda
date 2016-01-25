@@ -353,7 +353,7 @@ checkClause
   -> TCM Clause    -- ^ Type-checked clause.
 
 checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh catchall) = do
-    reportSDoc "tc.with.top" 30 $ text "Checking clause" $$ prettyA c
+    reportSDoc "tc.lhs.top" 30 $ text "Checking clause" $$ prettyA c
     unless (null withPats) $
       typeError $ UnexpectedWithPatterns withPats
     traceCall (CheckClause t c) $ do
@@ -510,6 +510,11 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
         -- Infer the types of the with expressions
         (vs0, as) <- unzip <$> mapM inferExprForWith es
 
+        -- Andreas, 2016-01-23, Issue #1796
+        -- Run the size constraint solver to improve with-abstraction
+        -- in case the with-expression contains size metas.
+        solveSizeConstraints
+
         checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
 
 checkWithRHS
@@ -616,22 +621,21 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
                              -- but module application is sloppy.
                              -- We normalise to get rid of Def's coming
                              -- from module applications.
-  (candidateType, vsAll) <- withFunctionType delta1 vs as delta2 b
-  reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
-  reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]
+  (withFunType, vsAll) <- withFunctionType delta1 vs as delta2 b
+  reportSDoc "tc.with.type" 10 $ sep [ text "with-function type:", nest 2 $ prettyTCM withFunType ]
+  reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ text $ show withFunType ]
 
   -- Andreas, 2013-10-21
   -- Check generated type directly in internal syntax.
-  absAuxType <- reify candidateType
-  let auxType = candidateType
   setCurrentRange cs
     (traceCall NoHighlighting $   -- To avoid flicker.
-      checkType auxType)
+      checkType withFunType)
     `catchError` \err -> case err of
       TypeError s e -> do
         put s
+        wt <- reify withFunType
         enterClosure e $ do
-          traceCall (CheckWithFunctionType absAuxType) . typeError
+          traceCall (CheckWithFunctionType wt) . typeError
       err           -> throwError err
 
 
@@ -649,12 +653,12 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
       , prettyTCM dt
       ]
   addConstant aux =<< do
-    useTerPragma $ Defn defaultArgInfo aux auxType [] [] [df] 0 noCompiledRep Nothing emptyFunction
+    useTerPragma $ Defn defaultArgInfo aux withFunType [] [] [df] 0 noCompiledRep Nothing emptyFunction
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep
     [ text "added with function" <+> (prettyTCM aux) <+> text "of type"
-    , nest 2 $ prettyTCM auxType
+    , nest 2 $ prettyTCM withFunType
     , nest 2 $ text "-|" <+> (prettyTCM =<< getContextTelescope)
     ]
 
@@ -664,7 +668,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
-  checkFunDef' auxType defaultArgInfo NotDelayed Nothing (Just f) info aux cs
+  checkFunDef' withFunType defaultArgInfo NotDelayed Nothing (Just f) info aux cs
 
   where
     info = Info.mkDefInfo (nameConcrete $ qnameName aux) noFixity' PublicAccess ConcreteDef (getRange cs)

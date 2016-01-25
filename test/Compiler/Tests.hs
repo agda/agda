@@ -29,6 +29,7 @@ import System.Process (callProcess, proc, createProcess, waitForProcess, CreateP
 import Control.Monad ( void )
 #endif
 
+import Control.Monad (forM)
 import Data.Functor
 import Data.Maybe
 import System.Directory
@@ -90,7 +91,7 @@ tests = do
   where forComp comp = testGroup (show comp) . catMaybes
             <$> sequence
                 [ Just <$> simpleTests comp
-                , Just <$> stdlibTests comp
+--                , Just <$> stdlibTests comp
                 , specialTests comp]
 
 simpleTests :: Compiler -> IO TestTree
@@ -98,10 +99,16 @@ simpleTests comp = do
   let testDir = "test" </> "Compiler" </> "simple"
   inps <- getAgdaFilesInDir NonRec testDir
 
-  withSetup setup inps testDir ["-i" ++ testDir, "-itest/"] comp "simple"
-  where setup :: Compiler -> IO (IO AgdaArgs -> TestTree) -> IO TestTree
-        setup UHC     tree = tree >>= \t -> return $ t $ return []
-        setup MAlonzo tree = withGhcLibs ["test/"] <$> tree
+  tests' <- forM inps $ \inp -> do
+    opts <- readOptions inp
+    return $
+      agdaRunProgGoldenTest testDir comp
+        (return $ ["-i" ++ testDir, "-itest/"] ++ compArgs comp) inp opts
+  return $ testGroup "simple" $ catMaybes tests'
+
+  where compArgs :: Compiler -> AgdaArgs
+        compArgs UHC = []
+        compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/"]
 
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
@@ -115,26 +122,25 @@ stdlibTests comp = do
 
 specialTests :: Compiler -> IO (Maybe TestTree)
 specialTests MAlonzo = do
-  let t = withGhcLibs ["test/"] $ (\args -> fromJust $
-            agdaRunProgGoldenTest1 testDir MAlonzo ((extraArgs ++) . ghcArgsAsAgdaArgs <$> args)
-                        (testDir </> "ExportTestAgda.agda") defaultOptions (cont args)
-            )
+  let t = fromJust $
+            agdaRunProgGoldenTest1 testDir MAlonzo (return extraArgs)
+              (testDir </> "ExportTestAgda.agda") defaultOptions cont
 
   return $ Just $ testGroup "special" [t]
-  where extraArgs = ["-i" ++ testDir, "-itest/", "--no-main"]
+  where extraArgs = ["-i" ++ testDir, "-itest/", "--no-main", "--ghc-dont-call-ghc"]
         testDir = "test" </> "Compiler" </> "special"
-        cont args compDir out err = do
-            args' <- args
-            (ret, sout, _serr) <- PT.readProcessWithExitCode "runghc"
-                    (args' ++ [ "-i" ++ compDir
-                     , testDir </> "ExportTest.hs"
-                     ])
+        cont compDir out err = do
+            (ret, sout, _) <- PT.readProcessWithExitCode "runghc"
+                    [ "-itest/"
+                    ,"-i" ++ compDir
+                    , testDir </> "ExportTest.hs"
+                    ]
                     T.empty
             -- ignore stderr, as there may be some GHC warnings in it
             return $ ExecutedProg (ret, out <> sout, err)
 specialTests UHC = return Nothing
 
-withSetup :: (Compiler -> IO (IO AgdaArgs -> TestTree) -> IO TestTree) -- setup function
+withSetup :: (Compiler -> IO (IO GHCArgs -> TestTree) -> IO TestTree) -- setup function
     -> [FilePath] -- inputs
     -> FilePath -- test directory
     -> AgdaArgs -- extra agda arguments
