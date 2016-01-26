@@ -301,4 +301,13 @@ agda-loc :
 loc :
 	make -C src/full loc
 
+##############################################################################
+# HLint
+
+hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
+	hlint --cpp-file=$< \
+              --cpp-include=$(FULL_SRC_DIR) \
+	      --report=hlint-report.html \
+	      $(FULL_SRC_DIR)/Agda
+
 # EOF

@@ -6,10 +6,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
@@ -168,8 +164,8 @@ checkDecl d = setCurrentRange d $ do
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
       A.Section i x tel ds     -> meta $ checkSection i x tel ds
-      A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
-      A.Import i x             -> none $ checkImport i x
+      A.Apply i x modapp rd rm _adir -> meta $ checkSectionApplication i x modapp rd rm
+      A.Import i x _adir       -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs

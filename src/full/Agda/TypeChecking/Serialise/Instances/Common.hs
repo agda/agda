@@ -13,10 +13,6 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 module Agda.TypeChecking.Serialise.Instances.Common where
 
 import Control.Applicative

@@ -1,4 +1,4 @@
 ClashingModuleImport.agda:7,13-27
 The modules Imports.Module.M and M clash.
 when scope checking the declaration
-  open Imports.Module public
+  open import Imports.Module public

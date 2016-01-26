@@ -5,10 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {-| This module deals with finding imported modules and loading their
     interface files.
 -}

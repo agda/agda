@@ -35,10 +35,9 @@ module Agda.Syntax.Concrete
   , ModuleApplication(..)
   , TypeSignature
   , TypeSignatureOrInstanceBlock
-  , ImportDirective(..), Using(..), ImportedName(..)
-  , Renaming(..), AsName(..)
-  , defaultImportDir
-  , isDefaultImportDir
+  , ImportDirective, Using, ImportedName
+  , Renaming
+  , AsName(..)
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
   , RHS, RHS'(..), WhereClause, WhereClause'(..)
@@ -288,51 +287,12 @@ data WhereClause' decls
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
-data ImportDirective = ImportDirective
-  { importDirRange :: Range
-  , using          :: Using
-  , hiding         :: [ImportedName]
-  , renaming       :: [Renaming]
-  , publicOpen     :: !Bool -- ^ Only for @open@. Exports the opened names from the current module.
-  }
-  deriving (Typeable, Eq)
+type ImportDirective = ImportDirective' Name Name
+type Using           = Using'           Name Name
+type Renaming        = Renaming'        Name Name
 
-data Using = UseEverything | Using [ImportedName]
-  deriving (Typeable, Eq)
-
-instance Monoid Using where
-  mempty = UseEverything
-  mappend UseEverything u = u
-  mappend u UseEverything = u
-  mappend (Using xs) (Using ys) = Using (xs ++ ys)
-
--- | Default is directive is @private@ (use everything, but do not export).
-defaultImportDir :: ImportDirective
-defaultImportDir = ImportDirective noRange UseEverything [] [] False
-
-isDefaultImportDir :: ImportDirective -> Bool
-isDefaultImportDir (ImportDirective _ UseEverything [] [] False) = True
-isDefaultImportDir _                                             = False
-
--- | An imported name can be a module or a defined name
-data ImportedName
-  = ImportedModule  { importedName :: Name }
-  | ImportedName    { importedName :: Name }
-  deriving (Typeable, Eq, Ord)
-
-instance Show ImportedName where
-  show (ImportedModule x) = "module " ++ show x
-  show (ImportedName   x) = show x
-
-data Renaming = Renaming
-  { renFrom    :: ImportedName
-    -- ^ Rename from this name.
-  , renTo      :: Name
-    -- ^ To this one.
-  , renToRange :: Range
-    -- ^ The range of the \"to\" keyword.  Retained for highlighting purposes.
-  }
-  deriving (Typeable, Eq)
+-- | An imported name can be a module or a defined name.
+type ImportedName = ImportedName' Name Name
 
 data AsName = AsName
   { asName  :: Name
@@ -656,16 +616,6 @@ instance HasRange Pragma where
   getRange (DisplayPragma r _ _)             = r
   getRange (NoPositivityCheckPragma r)       = r
 
-instance HasRange ImportDirective where
-  getRange = importDirRange
-
-instance HasRange ImportedName where
-  getRange (ImportedName x)   = getRange x
-  getRange (ImportedModule x) = getRange x
-
-instance HasRange Renaming where
-  getRange r = getRange (renFrom r, renTo r)
-
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
 
@@ -784,18 +734,6 @@ instance KillRange Expr where
   killRange (DontCare e)         = killRange1 DontCare e
   killRange (Equal _ x y)        = Equal noRange x y
 
-instance KillRange ImportDirective where
-  killRange (ImportDirective _ u h r p) =
-    killRange3 (\u h r -> ImportDirective noRange u h r p) u h r
-
-instance KillRange Using where
-  killRange (Using xs) = killRange1 Using xs
-  killRange UseEverything = UseEverything
-
-instance KillRange ImportedName where
-  killRange (ImportedModule n) = killRange1 ImportedModule n
-  killRange (ImportedName   n) = killRange1 ImportedName   n
-
 instance KillRange LamBinding where
   killRange (DomainFree i b) = killRange2 DomainFree i b
   killRange (DomainFull t)   = killRange1 DomainFull t
@@ -851,9 +789,6 @@ instance KillRange Pragma where
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
-
-instance KillRange Renaming where
-  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -991,11 +926,6 @@ instance NFData a => NFData (TypedBindings' a) where
 
 -- | Ranges are not forced.
 
-instance NFData Renaming where
-  rnf (Renaming a b _) = rnf a `seq` rnf b
-
--- | Ranges are not forced.
-
 instance NFData AsName where
   rnf (AsName a _) = rnf a
 
@@ -1010,11 +940,6 @@ instance NFData a => NFData (TypedBinding' a) where
 instance NFData ModuleApplication where
   rnf (SectionApp _ a b)    = rnf a `seq` rnf b
   rnf (RecordModuleIFS _ a) = rnf a
-
--- | Ranges are not forced.
-
-instance NFData ImportDirective where
-  rnf (ImportDirective _ a b c _) = rnf a `seq` rnf b `seq` rnf c
 
 -- | Ranges are not forced.
 
@@ -1038,14 +963,6 @@ instance NFData a => NFData (WhereClause' a) where
   rnf NoWhere         = ()
   rnf (AnyWhere a)    = rnf a
   rnf (SomeWhere a b) = rnf a `seq` rnf b
-
-instance NFData Using where
-  rnf UseEverything = ()
-  rnf (Using a)     = rnf a
-
-instance NFData ImportedName where
-  rnf (ImportedModule a) = rnf a
-  rnf (ImportedName a)   = rnf a
 
 instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFree a b) = rnf a `seq` rnf b

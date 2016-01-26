@@ -2,10 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RelaxedPolyRec   #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Generates data used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Generate
@@ -156,6 +152,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
             Full    {} -> "(final)"
             Partial {} -> "(first approximation)"
         ++ "."
+
+  reportSLn "highlighting.names" 60 $ "highlighting names = " ++ show names
 
   M.ignoreAbstractMode $ do
     modMap <- sourceToModule

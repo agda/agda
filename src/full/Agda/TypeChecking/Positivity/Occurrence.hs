@@ -6,7 +6,6 @@
 module Agda.TypeChecking.Positivity.Occurrence where
 
 import Control.DeepSeq
-import Data.Maybe
 import Data.Typeable (Typeable)
 import Test.QuickCheck
 
@@ -66,10 +65,6 @@ instance SemiRing Occurrence where
   oplus StrictPos o       = o         -- third-rank neutral
   oplus o StrictPos       = o
   oplus JustPos JustPos   = JustPos
-
-  -- If the definition of otimes is changed, then
-  -- Agda.TypeChecking.Positivity.checkStrictlyPositive may have to be
-  -- updated. See the properties below.
 
   otimes Unused _            = Unused     -- dominant
   otimes _ Unused            = Unused
@@ -140,113 +135,6 @@ prop_Occurrence_ostar x =
   ostar x == oplus oone (otimes x (ostar x))
     &&
   ostar x == oplus oone (otimes (ostar x) x)
-
-------------------------------------------------------------------------
--- The implementation of
--- Agda.TypeChecking.Positivity.checkStrictlyPositive is based on the
--- assumption that the properties in this section hold
-
--- | A helper function used to construct properties.
-
-otimesPropertyHelper
-  :: (Occurrence -> Bool)        -- ^ Must not be constant.
-  -> Maybe (Occurrence -> Bool)  -- ^ 'Nothing' represents
-                                 -- @'const' 'True'@. If a function is
-                                 -- given, then it must not be constant.
-  -> Occurrence
-  -> Property
-otimesPropertyHelper every some' bound =
-  (forAll (listOf (arbitrary `suchThat` every)) $ \os1 ->
-   forAll (listOf (arbitrary `suchThat` every)) $ \os2 ->
-   forAll (arbitrary `suchThat` (\o -> every o && some o)) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     foldr1 otimes os <= bound)
-    .&&.
-  (forAll (listOf (arbitrary `suchThat` every)) $ \os1 ->
-   forAll (listOf (arbitrary `suchThat` every)) $ \os2 ->
-   forAll (arbitrary `suchThat` (not . every)) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     not (foldr1 otimes os <= bound))
-    .&&.
-  (forAll arbitrary $ \os1 ->
-   forAll arbitrary $ \os2 ->
-   forAll (arbitrary `suchThat` (not . every)) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     not (foldr1 otimes os <= bound))
-    .&&.
-  case some' of
-    Nothing   -> property True
-    Just some ->
-      forAll (listOf1 (arbitrary `suchThat` (not . some))) $ \os ->
-        not (foldr1 otimes os <= bound)
-  where
-  some = fromMaybe (const True) some'
-
--- ∀ nonempty list os.
--- ⨂ os ≤ JustPos
---   iff
--- no element in os is Unused, and some element in os is Mixed,
--- JustNeg, or JustPos.
-
-prop_lessThanOrEqualToJustPos :: Property
-prop_lessThanOrEqualToJustPos =
-  otimesPropertyHelper
-    (/= Unused) (Just (`elem` [Mixed, JustNeg, JustPos])) JustPos
-
--- ∀ nonempty list os.
--- ⨂ os ≤ GuardPos
---   iff
--- no element in os is Unused.
-
-prop_lessThanOrEqualToGuardPos :: Property
-prop_lessThanOrEqualToGuardPos =
-  otimesPropertyHelper (/= Unused) Nothing GuardPos
-
--- ∀ nonempty list os.
--- ⨂ os ≤ StrictPos
---   iff
--- (no element in os is Unused, and some element in os is Mixed,
---  JustNeg, or JustPos,
---    or
---  no element in os is Unused or GuardPos).
-
-prop_lessThanOrEqualToStrictPos :: Property
-prop_lessThanOrEqualToStrictPos =
-  (forAll (listOf (arbitrary `suchThat` every1)) $ \os1 ->
-   forAll (listOf (arbitrary `suchThat` every1)) $ \os2 ->
-   forAll (arbitrary `suchThat` (\o -> every1 o && some1 o)) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     foldr1 otimes os <= bound)
-    .&&.
-  (forAll (listOf1 (arbitrary `suchThat` every2)) $ \os ->
-     foldr1 otimes os <= bound)
-    .&&.
-  (forAll (listOf (arbitrary `suchThat` every2)) $ \os1 ->
-   forAll (listOf (arbitrary `suchThat` every2)) $ \os2 ->
-   forAll (arbitrary `suchThat` (not . every1)) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     not (foldr1 otimes os <= bound))
-    .&&.
-  (forAll arbitrary $ \os1 ->
-   forAll arbitrary $ \os2 ->
-   forAll (arbitrary `suchThat` (not . every1)) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     not (foldr1 otimes os <= bound))
-    .&&.
-  (forAll (listOf (arbitrary `suchThat` (not . some1))) $ \os1 ->
-   forAll (listOf (arbitrary `suchThat` (not . some1))) $ \os2 ->
-   forAll (arbitrary `suchThat` (\o ->
-             not (some1 o) && not (every2 o))) $ \o ->
-     let os = os1 ++ [o] ++ os2 in
-     not (foldr1 otimes os <= bound))
-  where
-  -- Note that every2 o implies every1 o.
-  every1 = (/= Unused)
-  every2 = (not . (`elem` [Unused, GuardPos]))
-  some1  = (`elem` [Mixed, JustNeg, JustPos])
-  bound  = StrictPos
-
-------------------------------------------------------------------------
 
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under GHC 7.8.

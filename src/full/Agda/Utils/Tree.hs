@@ -1,3 +1,5 @@
+-- ASR (25 January 2016): Not used.
+
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}

@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE CPP                    #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE UndecidableInstances   #-}
 
 -- | Basically a copy of the ErrorT monad transformer. It's handy to slap
 --   onto TCM and still be a MonadTCM (which isn't possible with ErrorT).
@@ -26,8 +27,14 @@ class Error err => MonadException err m | m -> err where
   throwException :: err -> m a
   catchException :: m a -> (err -> m a) -> m a
 
-instance (Monad m, Error err) => Monad (ExceptionT err m) where
-  return = ExceptionT . return . Right
+instance
+#if __GLASGOW_HASKELL__ <= 708
+  (Applicative m, Monad m, Error err)
+#else
+  (Monad m, Error err)
+#endif
+  => Monad (ExceptionT err m) where
+  return = pure
   ExceptionT m >>= k = ExceptionT $ do
     r <- m
     case r of
@@ -60,22 +67,46 @@ instance Functor f => Functor (ExceptionT err f) where
   fmap f = ExceptionT . fmap (fmap f) . runExceptionT
 
 instance (Error err, Applicative m, Monad m) => Applicative (ExceptionT err m) where
-  pure  = return
+  pure  = ExceptionT . return . Right
   (<*>) = ap
 
-instance (Error err, MonadState s m) => MonadState s (ExceptionT err m) where
+instance
+#if __GLASGOW_HASKELL__ <= 708
+  (Error err, Applicative m, MonadState s m)
+#else
+  (Error err, MonadState s m)
+#endif
+  => MonadState s (ExceptionT err m) where
   get   = ExceptionT $ Right `liftM` get
   put x = ExceptionT $ Right `liftM` put x
 
-instance (Error err, MonadReader r m) => MonadReader r (ExceptionT err m) where
+instance
+#if __GLASGOW_HASKELL__ <= 708
+  (Error err, Applicative m, MonadReader r m)
+#else
+  (Error err, MonadReader r m)
+#endif
+  => MonadReader r (ExceptionT err m) where
   ask     = ExceptionT $ Right `liftM` ask
   local f = ExceptionT . local f . runExceptionT
 
-instance (Error err, MonadError err' m) => MonadError err' (ExceptionT err m) where
+instance
+#if __GLASGOW_HASKELL__ <= 708
+  (Error err, Applicative m, MonadError err' m)
+#else
+  (Error err, MonadError err' m)
+#endif
+  => MonadError err' (ExceptionT err m) where
   throwError err = ExceptionT $ Right `liftM` throwError err
   catchError m h = ExceptionT $ runExceptionT m `catchError` (runExceptionT . h)
 
-instance (Error err, MonadIO m) => MonadIO (ExceptionT err m) where
+instance
+#if __GLASGOW_HASKELL__ <= 708
+  (Error err, Applicative m, MonadIO m)
+#else
+  (Error err, MonadIO m)
+#endif
+  => MonadIO (ExceptionT err m) where
   liftIO m = ExceptionT $ Right `liftM` liftIO m
 
 instance (Error err, MonadTCM tcm) => MonadTCM (ExceptionT err tcm) where

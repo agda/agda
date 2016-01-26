@@ -29,10 +29,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 module Agda.Utils.Parser.MemoisedCPS
   ( Parser
   , parse
@@ -99,7 +95,7 @@ newtype Parser k r tok a =
     }
 
 instance Monad (Parser k r tok) where
-  return x  = P $ \_ i k -> k i x
+  return    = pure
   P p >>= f = P $ \input i k ->
     p input i $ \j x -> unP (f x) input j k
 
@@ -107,8 +103,8 @@ instance Functor (Parser k r tok) where
   fmap f p = p >>= return . f
 
 instance Applicative (Parser k r tok) where
-  pure  = return
-  (<*>) = ap
+  pure x = P $ \_ i k -> k i x
+  (<*>)  = ap
 
 instance Alternative (Parser k r tok) where
   empty         = P $ \_ _ _ -> return []

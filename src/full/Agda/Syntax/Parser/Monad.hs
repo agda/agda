@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Agda.Syntax.Parser.Monad
@@ -110,7 +110,7 @@ data ParseResult a  = ParseOk ParseState a
  --------------------------------------------------------------------------}
 
 instance Monad Parser where
-  return x = P $ \s -> ParseOk s x
+  return = pure
 
   P m >>= f = P $ \s -> case m s of
                           ParseFailed e -> ParseFailed e
@@ -127,8 +127,8 @@ instance Functor Parser where
   fmap = liftM
 
 instance Applicative Parser where
-  pure  = return
-  (<*>) = ap
+  pure x = P $ \s -> ParseOk s x
+  (<*>)  = ap
 
 instance MonadError ParseError Parser where
   throwError e = P $ \_ -> ParseFailed e

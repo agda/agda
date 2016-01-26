@@ -1,9 +1,4 @@
-{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
-
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
 
 module Agda.Interaction.Library
   ( getDefaultLibraries

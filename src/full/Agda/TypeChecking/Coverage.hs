@@ -5,10 +5,6 @@
 
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 {-| Coverage checking, case splitting, and splitting for refine tactics.
 
  -}

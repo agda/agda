@@ -4,9 +4,6 @@
 Reflection
 **********
 
-.. note::
-   This section is incomplete.
-
 Builtin types
 -------------
 
@@ -408,7 +405,3 @@ One advantage of unquoteDef over unquoteDecl is that unquoteDef is allowed in
 mutual blocks, allowing mutually recursion between generated definitions and
 hand-written definitions.
 
-Examples
---------
-
-Coming soon.

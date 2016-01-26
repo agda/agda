@@ -1,8 +1,9 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
@@ -14,6 +15,7 @@ import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
 
+import Data.Either (partitionEithers)
 import Data.Function
 import Data.List as List
 import Data.Map (Map)
@@ -32,8 +34,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete.Name as C
-import Agda.Syntax.Concrete
-  (ImportDirective(..), Using(..), ImportedName(..), Renaming(..))
+import qualified Agda.Syntax.Concrete as C
 
 import Agda.Utils.AssocList (AssocList)
 import qualified Agda.Utils.AssocList as AssocList
@@ -493,9 +494,9 @@ addModuleToScope acc x m s = mergeScope s s1
     ns = emptyNameSpace { nsModules = Map.singleton x [m] }
 
 -- When we get here we cannot have both using and hiding
-type UsingOrHiding = Either Using [ImportedName]
+type UsingOrHiding = Either C.Using [C.ImportedName]
 
-usingOrHiding :: ImportDirective -> UsingOrHiding
+usingOrHiding :: C.ImportDirective -> UsingOrHiding
 usingOrHiding i =
   case (using i, hiding i) of
     (UseEverything, xs) -> Right xs
@@ -503,15 +504,15 @@ usingOrHiding i =
     _                   -> __IMPOSSIBLE__
 
 -- | Apply an 'ImportDirective' to a scope.
-applyImportDirective :: ImportDirective -> Scope -> Scope
+applyImportDirective :: C.ImportDirective -> Scope -> Scope
 applyImportDirective dir s = mergeScope usedOrHidden renamed
   where
-    usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
-    renamed      = rename (renaming dir) $ useOrHide useRenamedThings s
+    usedOrHidden = useOrHide (hideLHS (impRenaming dir) $ usingOrHiding dir) s
+    renamed      = rename (impRenaming dir) $ useOrHide useRenamedThings s
 
-    useRenamedThings = Left $ Using $ map renFrom $ renaming dir
+    useRenamedThings = Left $ Using $ map renFrom $ impRenaming dir
 
-    hideLHS :: [Renaming] -> UsingOrHiding -> UsingOrHiding
+    hideLHS :: [C.Renaming] -> UsingOrHiding -> UsingOrHiding
     hideLHS _   i@(Left _) = i
     hideLHS ren (Right xs) = Right $ xs ++ map renFrom ren
 
@@ -520,22 +521,23 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     useOrHide (Left (Using xs)) s = filterNames elem    elem    xs s
     useOrHide _                 _ = __IMPOSSIBLE__
 
-    filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
-                   [ImportedName] -> Scope -> Scope
-    filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
+    filterNames :: (C.Name -> [C.Name] -> Bool) ->
+                   (C.Name -> [C.Name] -> Bool) ->
+                   [C.ImportedName] -> Scope -> Scope
+    filterNames pd pm xs = filterScope (`pd` ds) (`pm` ms)
       where
         ds = [ x | ImportedName   x <- xs ]
         ms = [ m | ImportedModule m <- xs ]
 
-    filterScope' pd pm = filterScope pd pm
-
     -- Renaming
-    rename :: [Renaming] -> Scope -> Scope
+    rename :: [C.Renaming] -> Scope -> Scope
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
                            (Map.mapKeys $ ren mrho)
       where
-        mrho = [ (x, y) | Renaming { renFrom = ImportedModule x, renTo = y } <- rho ]
-        drho = [ (x, y) | Renaming { renFrom = ImportedName   x, renTo = y } <- rho ]
+        (drho, mrho) = partitionEithers $ for rho $ \case
+          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
+          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          _ -> __IMPOSSIBLE__
 
         ren r x = fromMaybe x $ lookup x r
 

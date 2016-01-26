@@ -2,10 +2,6 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE PatternGuards   #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-{-# OPTIONS_GHC -Wno-monomorphism-restriction #-}
-#endif
-
 -- | Convert from Agda's internal representation to UHC Core via Treeless.
 --
 --
