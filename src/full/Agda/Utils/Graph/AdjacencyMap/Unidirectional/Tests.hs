@@ -245,6 +245,23 @@ prop_walkSatisfying g every some =
                    all every es' && any some es'
         where es' = map Graph.label es
 
+-- | A property for
+-- 'Agda.TypeChecking.Positivity.Occurrence.productOfEdgesInBoundedWalk'.
+
+prop_productOfEdgesInBoundedWalk :: G -> Property
+prop_productOfEdgesInBoundedWalk g =
+  forAll (nodeIn g) $ \u ->
+  forAll (nodeIn g) $ \v ->
+  forAll (elements (Map.keys boundToEverySome)) $ \bound ->
+    case productOfEdgesInBoundedWalk id g u v bound of
+      Nothing -> Nothing
+      Just o  -> Just (o <= bound)
+      ==
+    case Graph.lookup u v
+           (fst (gaussJordanFloydWarshallMcNaughtonYamada g)) of
+      Just o | o <= bound -> Just True
+      _                   -> Nothing
+
 -- | Computes the transitive closure of the graph.
 --
 -- Note that this algorithm is not guaranteed to be correct (or
