@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DoAndIfThenElse            #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -58,6 +59,8 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , sccDAG'
   , sccDAG
   , acyclic
+  , reachableFrom
+  , walkSatisfying
   , composeWith
   , complete
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
@@ -74,6 +77,8 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 
 import qualified Data.Array.IArray as Array
+import qualified Data.Edison.Seq.BankersQueue as BQ
+import qualified Data.Edison.Seq.SimpleQueue as SQ
 import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
@@ -528,6 +533,67 @@ acyclic = all isAcyclic . sccs'
   isAcyclic Graph.AcyclicSCC{} = True
   isAcyclic Graph.CyclicSCC{}  = False
 
+-- | @reachableFrom g n@ is a map containing all nodes reachable from
+-- @n@ in @g@. For each node a simple path to the node is given, along
+-- with its length (the number of edges). The paths are as short as
+-- possible (in terms of the number of edges).
+--
+-- Precondition: @n@ must be a node in @g@. The number of nodes in the
+-- graph must not be larger than @'maxBound' :: 'Int'@.
+--
+-- Amortised time complexity (assuming that comparisons take constant
+-- time): /O(e log n)/, if the lists are not inspected. Inspection of
+-- a prefix of a list is linear in the length of the prefix.
+
+reachableFrom :: Ord n => Graph n n e -> n -> Map n (Int, [Edge n n e])
+reachableFrom g n = bfs (SQ.singleton (n, BQ.empty)) Map.empty
+  where
+  bfs !q !map = case SQ.lview q of
+    Nothing          -> map
+    Just ((u, p), q) ->
+      if u `Map.member` map
+      then bfs q map
+      else bfs (foldr SQ.rcons q
+                      [ (v, BQ.rcons (Edge u v e) p)
+                      | (v, e) <- neighbours u g
+                      ])
+               (let n = BQ.size p in
+                n `seq` Map.insert u (n, BQ.toList p) map)
+
+-- | @walkSatisfying every some g from to@ determines if there is a
+-- walk from @from@ to @to@ in @g@, in which every edge satisfies the
+-- predicate @every@, and some edge satisfies the predicate @some@. If
+-- there are several such walks, then a shortest one (in terms of the
+-- number of edges) is returned.
+--
+-- Precondition: @from@ and @to@ must be nodes in @g@. The number of
+-- nodes in the graph must not be larger than @'maxBound' :: 'Int'@.
+--
+-- Amortised time complexity (assuming that comparisons and the
+-- predicates take constant time to compute): /O(e log n)/.
+
+walkSatisfying ::
+  Ord n =>
+  (e -> Bool) -> (e -> Bool) ->
+  Graph n n e -> n -> n -> Maybe [Edge n n e]
+walkSatisfying every some g from to =
+  case
+    [ (l1 + l2, p1 ++ [e] ++ map transposeEdge (reverse p2))
+    | e <- everyEdges
+    , some (label e)
+    , (l1, p1) <- maybeToList (Map.lookup (source e) fromReaches)
+    , (l2, p2) <- maybeToList (Map.lookup (target e) reachesTo)
+    ] of
+    []  -> Nothing
+    ess -> Just $ snd $ List.minimumBy (compare `on` fst) ess
+  where
+  everyEdges = [ e | e <- toList g, every (label e) ]
+
+  fromReaches = reachableFrom (fromList everyEdges) from
+
+  reachesTo =
+    reachableFrom (fromList (map transposeEdge everyEdges)) to
+
 -- * Graph composition
 
 -- | @composeWith times plus g g'@ finds all edges
@@ -813,8 +879,8 @@ allPaths classify s t g = paths Set.empty s
 --     collapse (Trail tr _) = foldr1 otimes $ map label tr
 
 -- | @allTrails a b g@ returns all trails (walks where all edges are
--- distinct) from node @a@ to node @b@ in @g@. The trails are returned
--- in the form of accumulated edge weights.
+-- distinct) with at least one edge from node @a@ to node @b@ in @g@.
+-- The trails are returned in the form of accumulated edge weights.
 --
 -- This definition can perhaps be optimised through the use of
 -- memoisation.

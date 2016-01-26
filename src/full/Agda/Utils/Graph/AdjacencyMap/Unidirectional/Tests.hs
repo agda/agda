@@ -16,6 +16,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 
+import qualified Data.Foldable as Fold
 import Data.Function
 import qualified Data.Graph as Graph
 import qualified Data.List as List
@@ -193,6 +194,56 @@ prop_sccDAG g =
 prop_oppositeDAG :: G -> Bool
 prop_oppositeDAG g =
   dagInvariant (oppositeDAG (sccDAG g))
+
+-- | @isWalk g from to es@ is 'True' iff @es@ is a walk from @from@ to
+-- @to@ in @g@.
+
+isWalk :: G -> N -> N -> [Edge N N E] -> Bool
+isWalk g from to [] =
+  from == to
+    &&
+  from `Set.member` nodes g
+isWalk g from to es =
+  map source es ++ [to] == [from] ++ map target es
+    &&
+  all validEdge es
+  where
+  validEdge e = e `elem` edgesFrom g [source e]
+
+prop_reachableFrom :: G -> Property
+prop_reachableFrom g =
+  not (Set.null (nodes g)) ==>
+  forAll (nodeIn g) $ \u ->
+    let reachableFromU = reachableFrom g u in
+    -- Every list is a walk of the given length.
+    all (\(v, (n, es)) -> isWalk g u v es && length es == n)
+        (Map.toList reachableFromU)
+      &&
+    -- Every walk is a simple path.
+    Fold.all (distinct . map source . snd) reachableFromU
+      &&
+    -- A path is found from u to v iff u = v or there is a non-empty
+    -- path from u to v (according to 'connectivityGraph' and
+    -- 'connected').
+    Fold.all (\v -> Map.member v reachableFromU
+                      ==
+                    (u == v || connected cg u v))
+             (nodes g)
+  where
+  cg = connectivityGraph g
+
+prop_walkSatisfying ::
+  G -> (Occurrence -> Bool) -> (Occurrence -> Bool) -> Property
+prop_walkSatisfying g every some =
+  forAll (nodeIn g) $ \from ->
+  forAll (nodeIn g) $ \to ->
+    case walkSatisfying every some g from to of
+      Nothing -> QuickCheck.label "no walk" True
+      Just es -> QuickCheck.label (show (length es) ++ " steps") $
+                   isWalk g from to es
+                     &&
+                   all every es' && any some es'
+        where es' = map Graph.label es
 
 -- | Computes the transitive closure of the graph.
 --
