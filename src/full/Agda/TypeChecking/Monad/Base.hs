@@ -1940,8 +1940,7 @@ data UnquoteError
   = BadVisibility String (Arg I.Term)
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
-  | NotAConstructor String I.Term       -- ^ @NotAConstructor kind term@
-  | NotALiteral String I.Term
+  | NonCanonical String I.Term
   | BlockedOnMeta MetaId
   | UnquotePanic String
   deriving (Show)

@@ -163,7 +163,7 @@ instance Unquote ArgInfo where
           [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "ArgInfo" t
+      _ -> throwException $ NonCanonical "arg info" t
 
 instance Unquote a => Unquote (Arg a) where
   unquote t = do
@@ -174,7 +174,7 @@ instance Unquote a => Unquote (Arg a) where
           [(c `isCon` primArgArg, Arg <$> unquoteN info <*> unquoteN x)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Arg" t
+      _ -> throwException $ NonCanonical "arg" t
 
 -- Andreas, 2013-10-20: currently, post-fix projections are not part of the
 -- quoted syntax.
@@ -186,28 +186,28 @@ instance Unquote Integer where
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitNat _ n) -> return n
-      _ -> throwException $ NotALiteral "Integer" t
+      _ -> throwException $ NonCanonical "integer" t
 
 instance Unquote Double where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitFloat _ x) -> return x
-      _ -> throwException $ NotALiteral "Float" t
+      _ -> throwException $ NonCanonical "float" t
 
 instance Unquote Char where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitChar _ x) -> return x
-      _ -> throwException $ NotALiteral "Char" t
+      _ -> throwException $ NonCanonical "char" t
 
 instance Unquote Str where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitString _ x) -> return (Str x)
-      _ -> throwException $ NotALiteral "String" t
+      _ -> throwException $ NonCanonical "string" t
 
 unquoteString :: Term -> UnquoteM String
 unquoteString x = unStr <$> unquote x
@@ -231,7 +231,7 @@ instance Unquote ErrorPart where
                , (c `isCon` primAgdaErrorPartTerm,   TermPart <$> unquoteN x)
                , (c `isCon` primAgdaErrorPartName,   NamePart <$> unquoteN x) ]
                __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "ErrorPart" t
+      _ -> throwException $ NonCanonical "error part" t
 
 instance Unquote a => Unquote [a] where
   unquote t = do
@@ -246,7 +246,7 @@ instance Unquote a => Unquote [a] where
           [(c `isCon` primNil, return [])]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "List" t
+      _ -> throwException $ NonCanonical "list" t
 
 instance Unquote Hiding where
   unquote t = do
@@ -259,7 +259,7 @@ instance Unquote Hiding where
           ,(c `isCon` primVisible, return NotHidden)]
           __IMPOSSIBLE__
       Con c vs -> __IMPOSSIBLE__
-      _        -> throwException $ NotAConstructor "Hiding" t
+      _        -> throwException $ NonCanonical "visibility" t
 
 instance Unquote Relevance where
   unquote t = do
@@ -271,14 +271,14 @@ instance Unquote Relevance where
           ,(c `isCon` primIrrelevant, return Irrelevant)]
           __IMPOSSIBLE__
       Con c vs -> __IMPOSSIBLE__
-      _        -> throwException $ NotAConstructor "Relevance" t
+      _        -> throwException $ NonCanonical "relevance" t
 
 instance Unquote QName where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitQName _ x) -> return x
-      _                  -> throwException $ NotALiteral "QName" t
+      _                  -> throwException $ NonCanonical "name" t
 
 instance Unquote a => Unquote (R.Abs a) where
   unquote t = do
@@ -289,7 +289,7 @@ instance Unquote a => Unquote (R.Abs a) where
           [(c `isCon` primAbsAbs, R.Abs <$> (hint <$> unquoteNString x) <*> unquoteN y)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Abs" t
+      _ -> throwException $ NonCanonical "abstraction" t
 
     where hint x | not (null x) = x
                  | otherwise    = "_"
@@ -299,7 +299,7 @@ instance Unquote MetaId where
     t <- reduceQuotedTerm t
     case ignoreSharing t of
       Lit (LitMeta _ x) -> return x
-      _                 -> throwException $ NotALiteral "MetaId" t
+      _                 -> throwException $ NonCanonical "meta variable" t
 
 instance Unquote a => Unquote (Dom a) where
   unquote t = domFromArg <$> unquote t
@@ -318,7 +318,7 @@ instance Unquote R.Sort where
           ,(c `isCon` primAgdaSortLit, R.LitS <$> unquoteN u)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Sort" t
+      _ -> throwException $ NonCanonical "sort" t
 
 instance Unquote Literal where
   unquote t = do
@@ -333,7 +333,7 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Literal" t
+      _ -> throwException $ NonCanonical "literal" t
 
 instance Unquote R.Term where
   unquote t = do
@@ -371,7 +371,7 @@ instance Unquote R.Term where
 
       Con{} -> __IMPOSSIBLE__
       Lit{} -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Term" t
+      _ -> throwException $ NonCanonical "term" t
 
 instance Unquote R.Pattern where
   unquote t = do
@@ -393,7 +393,7 @@ instance Unquote R.Pattern where
           [ (c `isCon` primAgdaPatCon, R.ConP <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Pattern" t
+      _ -> throwException $ NonCanonical "pattern" t
 
 instance Unquote R.Clause where
   unquote t = do
@@ -408,7 +408,7 @@ instance Unquote R.Clause where
           [ (c `isCon` primAgdaClauseClause, R.Clause <$> unquoteN x <*> unquoteN y) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
-      _ -> throwException $ NotAConstructor "Clause" t
+      _ -> throwException $ NonCanonical "clause" t
 
 -- Unquoting TCM computations ---------------------------------------------
 
@@ -425,41 +425,41 @@ evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
   reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
+  let failEval = throwException $ NonCanonical "type checking computation" v
+
   case ignoreSharing v of
     I.Def f [] ->
       choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext) ]
-             __IMPOSSIBLE__
+             failEval
     I.Def f [u] ->
       choice [ (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
              , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
              , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
              , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
              , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u) ]
-             __IMPOSSIBLE__
+             failEval
     I.Def f [u, v] ->
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
              , (f `isDef` primAgdaTCMDefineFun,  tcFun2 tcDefineFun  u v) ]
-             __IMPOSSIBLE__
+             failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
              , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u) ]
-             __IMPOSSIBLE__
+             failEval
     I.Def f [_, _, u, v] ->
       choice [ (f `isDef` primAgdaTCMCatchError,    tcCatchError    (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMExtendContext, tcExtendContext (unElim u) (unElim v))
              , (f `isDef` primAgdaTCMInContext,     tcInContext     (unElim u) (unElim v)) ]
-             __IMPOSSIBLE__
+             failEval
     I.Def f [_, _, _, _, m, k] ->
       choice [ (f `isDef` primAgdaTCMBind, tcBind (unElim m) (unElim k)) ]
-             __IMPOSSIBLE__
-    _ -> liftU $ typeError . GenericDocError =<<
-                sep [ text "Cannot evaluate type checking computation"
-                    , nest 2 $ prettyTCM v ]
+             failEval
+    _ -> failEval
   where
     unElim = unArg . argFromElim
     tcBind m k = do v <- evalTCM m
