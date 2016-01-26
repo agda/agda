@@ -449,7 +449,7 @@ evalTCM v = do
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
              , (f `isDef` primAgdaTCMTypeError,   tcFun1 tcTypeError   u)
-             , (f `isDef` primAgdaTCMQuoteTerm,   tcFun1 tcQuoteTerm   u)
+             , (f `isDef` primAgdaTCMQuoteTerm,   tcQuoteTerm (unElim u))
              , (f `isDef` primAgdaTCMUnquoteTerm, tcFun1 (tcUnquoteTerm (mkT (unElim l) (unElim a))) u)
              , (f `isDef` primAgdaTCMBlockOnMeta, uqFun1 tcBlockOnMeta u) ]
              __IMPOSSIBLE__
@@ -524,11 +524,8 @@ evalTCM v = do
       v <- checkExpr e a
       quoteTerm =<< normalise v
 
-    tcQuoteTerm :: R.Term -> TCM Term
-    tcQuoteTerm v = do
-      e      <- toAbstract_ v
-      (v, _) <- inferExpr e
-      quoteTerm =<< quoteTerm =<< normalise v
+    tcQuoteTerm :: Term -> UnquoteM Term
+    tcQuoteTerm v = liftU $ quoteTerm =<< normalise v
 
     tcUnquoteTerm :: Type -> R.Term -> TCM Term
     tcUnquoteTerm a v = do
