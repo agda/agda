@@ -1,8 +1,9 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
@@ -14,6 +15,7 @@ import Control.Applicative
 import Control.DeepSeq
 import Control.Monad
 
+import Data.Either (partitionEithers)
 import Data.Function
 import Data.List as List
 import Data.Map (Map)
@@ -519,24 +521,23 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     useOrHide (Left (Using xs)) s = filterNames elem    elem    xs s
     useOrHide _                 _ = __IMPOSSIBLE__
 
-    filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
+    filterNames :: (C.Name -> [C.Name] -> Bool) ->
+                   (C.Name -> [C.Name] -> Bool) ->
                    [C.ImportedName] -> Scope -> Scope
-    filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
+    filterNames pd pm xs = filterScope (`pd` ds) (`pm` ms)
       where
         ds = [ x | ImportedName   x <- xs ]
         ms = [ m | ImportedModule m <- xs ]
-
-    filterScope' pd pm = filterScope pd pm
 
     -- Renaming
     rename :: [C.Renaming] -> Scope -> Scope
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
                            (Map.mapKeys $ ren mrho)
       where
-        mrho = [ (x, y) | Renaming { renFrom = ImportedModule x
-                                   , renTo   = ImportedModule y } <- rho ]
-        drho = [ (x, y) | Renaming { renFrom = ImportedName   x
-                                   , renTo   = ImportedName   y } <- rho ]
+        (drho, mrho) = partitionEithers $ for rho $ \case
+          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
+          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          _ -> __IMPOSSIBLE__
 
         ren r x = fromMaybe x $ lookup x r
 
