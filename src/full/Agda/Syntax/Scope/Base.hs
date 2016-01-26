@@ -1,8 +1,9 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
@@ -13,6 +14,7 @@ import Control.Arrow ((***), first, second)
 import Control.Applicative
 import Control.DeepSeq
 
+import Data.Either (partitionEithers)
 import Data.Function
 import Data.List as List
 import Data.Map (Map)
@@ -509,10 +511,10 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     rename rho = mapScope_ (Map.mapKeys $ ren drho)
                            (Map.mapKeys $ ren mrho)
       where
-        mrho = [ (x, y) | Renaming { renFrom = ImportedModule x
-                                   , renTo   = ImportedModule y } <- rho ]
-        drho = [ (x, y) | Renaming { renFrom = ImportedName   x
-                                   , renTo   = ImportedName   y } <- rho ]
+        (drho, mrho) = partitionEithers $ for rho $ \case
+          Renaming (ImportedName   x) (ImportedName   y) _ -> Left  (x,y)
+          Renaming (ImportedModule x) (ImportedModule y) _ -> Right (x,y)
+          _ -> __IMPOSSIBLE__
 
         ren r x = fromMaybe x $ lookup x r
 
