@@ -452,7 +452,6 @@ library
 
   if impl(ghc >= 8.0)
     ghc-options: -Wnoncanonical-monad-instances
-                 -Wredundant-constraints
 
   ghc-prof-options: -fprof-auto
 
