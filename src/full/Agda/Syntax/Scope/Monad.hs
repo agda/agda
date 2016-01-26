@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP                      #-}
+{-# LANGUAGE LambdaCase               #-}
 {-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE TupleSections            #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -13,9 +15,9 @@ module Agda.Syntax.Scope.Monad where
 import Prelude hiding (mapM)
 import Control.Arrow (first, second)
 import Control.Applicative
-import Control.Monad hiding (mapM)
-import Control.Monad.Writer hiding (mapM)
-import Control.Monad.State hiding (mapM)
+import Control.Monad hiding (mapM, forM)
+import Control.Monad.Writer hiding (mapM, forM)
+import Control.Monad.State hiding (mapM, forM)
 
 import Data.List as List
 import Data.Map (Map)
@@ -23,7 +25,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable
+import Data.Traversable hiding (for)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -38,6 +40,8 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
+import Agda.Utils.Function
+import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Null (unlessNull)
@@ -125,14 +129,17 @@ setNamedScope :: A.ModuleName -> Scope -> ScopeM ()
 setNamedScope m s = modifyNamedScope m $ const s
 
 -- | Apply a monadic function to the top scope.
-modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM Scope) -> ScopeM ()
-modifyNamedScopeM m f = setNamedScope m =<< f =<< getNamedScope m
+modifyNamedScopeM :: A.ModuleName -> (Scope -> ScopeM (a, Scope)) -> ScopeM a
+modifyNamedScopeM m f = do
+  (a, s) <- f =<< getNamedScope m
+  setNamedScope m s
+  return a
 
 -- | Apply a function to the current scope.
 modifyCurrentScope :: (Scope -> Scope) -> ScopeM ()
 modifyCurrentScope f = getCurrentModule >>= (`modifyNamedScope` f)
 
-modifyCurrentScopeM :: (Scope -> ScopeM Scope) -> ScopeM ()
+modifyCurrentScopeM :: (Scope -> ScopeM (a, Scope)) -> ScopeM a
 modifyCurrentScopeM f = getCurrentModule >>= (`modifyNamedScopeM` f)
 
 -- | Apply a function to the public or private name space.
@@ -436,11 +443,11 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
 
 -- | Apply an import directive and check that all the names mentioned actually
 --   exist.
-applyImportDirectiveM :: C.QName -> ImportDirective -> Scope -> ScopeM Scope
-applyImportDirectiveM m dir scope = do
-    let xs = filter doesntExist names
-    reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
-    unless (null xs)  $ typeError $ ModuleDoesntExport m xs
+applyImportDirectiveM :: C.QName -> C.ImportDirective -> Scope -> ScopeM (A.ImportDirective, Scope)
+applyImportDirectiveM m dir@ImportDirective{ impRenaming = ren, using = u, hiding = h } scope = do
+    -- Translate exported names to abstract syntax.
+    -- Raise error if unsuccessful.
+    caseMaybe mNamesA doesntExport $ \ namesA -> do
 
     let extraModules =
           [ x | ImportedName x <- names,
@@ -451,22 +458,45 @@ applyImportDirectiveM m dir scope = do
 
     dir' <- sanityCheck dir'
 
+    -- Check for duplicate imports in a single import directive.
+    -- @dup@ : To be imported names that are mentioned more than once.
     let dup = targetNames \\ nub targetNames
     unless (null dup) $ typeError $ DuplicateImports m dup
-    return $ applyImportDirective dir' scope
+
+    -- Apply the import directive.
+    let scope' = applyImportDirective dir' scope
+
+    -- Look up the defined names in the new scope.
+    let namesInScope'   = (allNamesInScope scope' :: ThingsInScope AbstractName)
+    let modulesInScope' = (allNamesInScope scope' :: ThingsInScope AbstractModule)
+    let look x = head . Map.findWithDefault __IMPOSSIBLE__ x
+    -- We set the ranges to the ranges of the concrete names in order to get
+    -- highlighting for the names in the import directive.
+    let definedA = for definedNames $ \case
+          ImportedName   x -> ImportedName   . (x,) . setRange (getRange x) . anameName $ look x namesInScope'
+          ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  $ look x modulesInScope'
+
+    let adir = mapImportDir namesA definedA dir
+    return (adir, scope') -- TODO Issue 1714: adir
 
   where
-    names :: [ImportedName]
-    names = map renFrom (renaming dir) ++ hiding dir ++ case using dir of
+    -- | Names in the @using@ directive.
+    usingNames :: [ImportedName]
+    usingNames = case u of
       Using  xs     -> xs
       UseEverything -> []
 
+    -- | All names from the imported module mentioned in the import directive.
+    names :: [ImportedName]
+    names = map renFrom ren ++ h ++ usingNames
+
+    -- | Names defined by the import (targets of renaming).
+    definedNames :: [ImportedName]
+    definedNames = map renTo ren
+
+    -- | Names to be in scope after import.
     targetNames :: [ImportedName]
-    targetNames = map renName (renaming dir) ++ case using dir of
-      Using xs      -> xs
-      UseEverything -> []
-      where
-        renName r = (renFrom r) { importedName = renTo r }
+    targetNames = definedNames ++ usingNames
 
     sanityCheck dir =
       case (using dir, hiding dir) of
@@ -478,43 +508,111 @@ applyImportDirectiveM m dir scope = do
           return dir{ hiding = [] }
         _ -> return dir
 
-    addExtraModules :: [C.Name] -> ImportDirective -> ImportDirective
+    addExtraModules :: [C.Name] -> C.ImportDirective -> C.ImportDirective
     addExtraModules extra dir =
       dir{ using =
               case using dir of
                 Using xs      -> Using $ concatMap addExtra xs
                 UseEverything -> UseEverything
-         , hiding   = concatMap addExtra      (hiding dir)
-         , renaming = concatMap extraRenaming (renaming dir)
+         , hiding      = concatMap addExtra      (hiding dir)
+         , impRenaming = concatMap extraRenaming (impRenaming dir)
          }
       where
         addExtra f@(ImportedName y) | elem y extra = [f, ImportedModule y]
         addExtra m = [m]
 
-        extraRenaming r =
-          case renFrom r of
-            ImportedName y | elem y extra -> [r, r{ renFrom = ImportedModule y }]
+        extraRenaming r@(Renaming from to rng) =
+          case (from, to) of
+            (ImportedName y, ImportedName z) | elem y extra ->
+              [r, Renaming (ImportedModule y) (ImportedModule z) rng]
             _ -> [r]
 
-    doesntExist (ImportedName   x) = isNothing $
-      Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName)
-    doesntExist (ImportedModule x) = isNothing $
-      Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractModule)
+    -- | Names and modules (abstract) in scope before the import.
+    namesInScope   = (allNamesInScope scope :: ThingsInScope AbstractName)
+    modulesInScope = (allNamesInScope scope :: ThingsInScope AbstractModule)
+
+    -- | AST versions of the concrete names from the imported module.
+    --   @Nothing@ is one of the names is not exported.
+    mNamesA = forM names $ \case
+      ImportedName x   -> ImportedName   . (x,) . setRange (getRange x) . anameName . head <$> Map.lookup x namesInScope
+      ImportedModule x -> ImportedModule . (x,) . setRange (getRange x) . amodName  . head <$> Map.lookup x modulesInScope
+
+    head = headWithDefault __IMPOSSIBLE__
+
+    -- For the sake of the error message, we (re)compute the list of unresolved names.
+    doesntExport = do
+      -- Names @xs@ mentioned in the import directive @dir@ but not in the @scope@.
+      let xs = filter doesntExist names
+      reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
+      typeError $ ModuleDoesntExport m xs
+
+    doesntExist (ImportedName   x) = isNothing $ Map.lookup x namesInScope
+    doesntExist (ImportedModule x) = isNothing $ Map.lookup x modulesInScope
+
+-- | A finite map for @ImportedName@s.
+lookupImportedName
+  :: (Eq a, Eq b)
+  => ImportedName' a b
+  -> [ImportedName' (a,c) (b,d)]
+  -> ImportedName' c d
+lookupImportedName (ImportedName x) = loop where
+  loop [] = __IMPOSSIBLE__
+  loop (ImportedName (y,z) : _) | x == y = ImportedName z
+  loop (_ : ns) = loop ns
+lookupImportedName (ImportedModule x) = loop where
+  loop [] = __IMPOSSIBLE__
+  loop (ImportedModule (y,z) : _) | x == y = ImportedModule z
+  loop (_ : ns) = loop ns
+
+-- | Translation of @ImportDirective@.
+mapImportDir
+  :: (Eq a, Eq b)
+  => [ImportedName' (a,c) (b,d)]  -- ^ Translation of imported names.
+  -> [ImportedName' (a,c) (b,d)]  -- ^ Translation of names defined by this import.
+  -> ImportDirective' a b
+  -> ImportDirective' c d
+mapImportDir src tgt (ImportDirective r u h ren open) =
+  ImportDirective r
+    (mapUsing src u)
+    (map (`lookupImportedName` src) h)
+    (map (mapRenaming src tgt) ren) open
+
+-- | Translation of @Using or Hiding@.
+mapUsing
+  :: (Eq a, Eq b)
+  => [ImportedName' (a,c) (b,d)] -- ^ Translation of names in @using@ or @hiding@ list.
+  -> Using' a b
+  -> Using' c d
+mapUsing src UseEverything = UseEverything
+mapUsing src (Using  xs) = Using $ map (`lookupImportedName` src) xs
+
+-- | Translation of @Renaming@.
+mapRenaming
+  ::  (Eq a, Eq b)
+  => [ImportedName' (a,c) (b,d)]  -- ^ Translation of 'renFrom' names.
+  -> [ImportedName' (a,c) (b,d)]  -- ^ Translation of 'rento' names.
+  -> Renaming' a b
+  -> Renaming' c d
+mapRenaming src tgt (Renaming from to r) =
+  Renaming (lookupImportedName from src) (lookupImportedName to tgt) r
 
 -- | Open a module.
-openModule_ :: C.QName -> ImportDirective -> ScopeM ()
+openModule_ :: C.QName -> C.ImportDirective -> ScopeM A.ImportDirective
 openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
   let acc | not (publicOpen dir)      = PrivateNS
           | m `isSubModuleOf` current = PublicNS
           | otherwise                 = ImportedNS
+
   -- Get the scope exported by module to be opened.
-  s <- setScopeAccess acc <$>
-        (applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
+  (adir, s') <- applyImportDirectiveM cm dir . inScopeBecause (Opened cm) . removeOnlyQualified . restrictPrivate =<< getNamedScope m
+  let s  = setScopeAccess acc s'
   let ns = scopeNameSpace acc s
   checkForClashes ns
   modifyCurrentScope (`mergeScope` s)
+
+  -- Importing names might shadow existing locals.
   verboseS "scope.locals" 10 $ do
     locals <- mapMaybe (\ (c,x) -> c <$ notShadowedLocal x) <$> getLocalVars
     let newdefs = Map.keys $ nsNames ns
@@ -525,6 +623,9 @@ openModule_ cm dir = do
     case Map.lookup c $ nsNames ns of
       Nothing -> x
       Just ys -> shadowLocal ys x
+
+  return adir
+
   where
     -- Only checks for clashes that would lead to the same
     -- name being exported twice from the module.

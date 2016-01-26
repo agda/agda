@@ -142,7 +142,7 @@ instance EmbPrj a => EmbPrj (A.Pattern' a) where
     valu [10, a]      = valu1 (A.RecP i) a
     valu _            = malformed
 
-    i  = patNoRange
+    i = patNoRange
 
 instance EmbPrj Precedence where
   icod_ TopCtx                 = icode0'

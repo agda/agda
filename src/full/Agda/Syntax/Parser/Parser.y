@@ -923,7 +923,7 @@ ImportDirective1 :: { ImportDirective }
   : 'public'      { defaultImportDir { importDirRange = getRange $1, publicOpen = True } }
   | Using         { defaultImportDir { importDirRange = snd $1, using    = fst $1 } }
   | Hiding        { defaultImportDir { importDirRange = snd $1, hiding   = fst $1 } }
-  | RenamingDir   { defaultImportDir { importDirRange = snd $1, renaming = fst $1 } }
+  | RenamingDir   { defaultImportDir { importDirRange = snd $1, impRenaming = fst $1 } }
 
 Using :: { (Using, Range) }
 Using
@@ -948,7 +948,7 @@ Renamings
 
 Renaming :: { Renaming }
 Renaming
-    : ImportName_ 'to' Id { Renaming $1 $3 (getRange $2) }
+    : ImportName_ 'to' Id { Renaming $1 (setImportedName $1 $3) (getRange $2) }
 
 -- We need a special imported name here, since we have to trigger
 -- the imp_dir state exactly one token before the 'to'
@@ -1688,7 +1688,7 @@ mergeImportDirectives is = do
         { importDirRange = fuseRange i1 i2
         , using          = mappend (using i1) (using i2)
         , hiding         = hiding i1 ++ hiding i2
-        , renaming       = renaming i1 ++ renaming i2
+        , impRenaming    = impRenaming i1 ++ impRenaming i2
         , publicOpen     = publicOpen i1 || publicOpen i2 }
 
 -- | Check that an import directive doesn't contain repeated names
@@ -1708,7 +1708,7 @@ verifyImportDirective i =
                         [_] -> ""
                         _   -> "s"
     where
-        xs = names (using i) ++ hiding i ++ map renFrom (renaming i)
+        xs = names (using i) ++ hiding i ++ map renFrom (impRenaming i)
         names (Using xs)    = xs
         names UseEverything = []
 

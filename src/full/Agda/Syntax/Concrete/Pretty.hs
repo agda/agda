@@ -33,7 +33,8 @@ instance Show Pattern         where show = show . pretty
 instance Show TypedBinding    where show = show . pretty
 instance Show TypedBindings   where show = show . pretty
 instance Show LamBinding      where show = show . pretty
-instance Show ImportDirective where show = show . pretty
+instance (Pretty a, Pretty b) => Show (ImportDirective' a b)
+                              where show = show . pretty
 instance Show Pragma          where show = show . pretty
 instance Show RHS             where show = show . pretty
 
@@ -557,12 +558,12 @@ prettyOpApp q es = merge [] $ prOp ms xs es
       []     -> (d,      [])
       b : bs -> (b <> d, bs)
 
-instance Pretty ImportDirective where
+instance (Pretty a, Pretty b) => Pretty (ImportDirective' a b) where
     pretty i =
         sep [ public (publicOpen i)
             , pretty $ using i
             , prettyHiding $ hiding i
-            , rename $ renaming i
+            , rename $ impRenaming i
             ]
         where
             public True  = text "public"
@@ -578,11 +579,11 @@ instance Pretty ImportDirective where
 
             pr r = hsep [ pretty (renFrom r), text "to", pretty (renTo r) ]
 
-instance Pretty Using where
+instance (Pretty a, Pretty b) => Pretty (Using' a b) where
     pretty UseEverything = empty
     pretty (Using xs)    =
         text "using" <+> parens (fsep $ punctuate (text ";") $ map pretty xs)
 
-instance Pretty ImportedName where
+instance (Pretty a, Pretty b) => Pretty (ImportedName' a b) where
     pretty (ImportedName x)     = pretty x
     pretty (ImportedModule x)   = text "module" <+> pretty x
