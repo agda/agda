@@ -496,14 +496,13 @@ applyImportDirective dir s = mergeScope usedOrHidden renamed
     useOrHide (Hiding xs) s = filterNames notElem notElem xs s
     useOrHide (Using  xs) s = filterNames elem    elem    xs s
 
-    filterNames :: (C.Name -> [C.Name] -> Bool) -> (C.Name -> [C.Name] -> Bool) ->
+    filterNames :: (C.Name -> [C.Name] -> Bool) ->
+                   (C.Name -> [C.Name] -> Bool) ->
                    [C.ImportedName] -> Scope -> Scope
-    filterNames pd pm xs = filterScope' (flip pd ds) (flip pm ms)
+    filterNames pd pm xs = filterScope (`pd` ds) (`pm` ms)
       where
         ds = [ x | ImportedName   x <- xs ]
         ms = [ m | ImportedModule m <- xs ]
-
-    filterScope' pd pm = filterScope pd pm
 
     -- Renaming
     rename :: [C.Renaming] -> Scope -> Scope
