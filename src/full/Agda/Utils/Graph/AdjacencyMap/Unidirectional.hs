@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DoAndIfThenElse            #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -58,13 +59,12 @@ module Agda.Utils.Graph.AdjacencyMap.Unidirectional
   , sccDAG'
   , sccDAG
   , acyclic
+  , reachableFrom
+  , walkSatisfying
   , composeWith
   , complete
   , gaussJordanFloydWarshallMcNaughtonYamadaReference
   , gaussJordanFloydWarshallMcNaughtonYamada
-  , findPath
-  , allPaths
-  -- , allTrails  -- Exponential, don't use!  See issue 1612.
   )
   where
 
@@ -74,6 +74,8 @@ import Control.Applicative hiding (empty)
 import Control.Monad
 
 import qualified Data.Array.IArray as Array
+import qualified Data.Edison.Seq.BankersQueue as BQ
+import qualified Data.Edison.Seq.SimpleQueue as SQ
 import Data.Function
 import qualified Data.Graph as Graph
 import Data.IntMap.Strict (IntMap)
@@ -528,6 +530,67 @@ acyclic = all isAcyclic . sccs'
   isAcyclic Graph.AcyclicSCC{} = True
   isAcyclic Graph.CyclicSCC{}  = False
 
+-- | @reachableFrom g n@ is a map containing all nodes reachable from
+-- @n@ in @g@. For each node a simple path to the node is given, along
+-- with its length (the number of edges). The paths are as short as
+-- possible (in terms of the number of edges).
+--
+-- Precondition: @n@ must be a node in @g@. The number of nodes in the
+-- graph must not be larger than @'maxBound' :: 'Int'@.
+--
+-- Amortised time complexity (assuming that comparisons take constant
+-- time): /O(e log n)/, if the lists are not inspected. Inspection of
+-- a prefix of a list is linear in the length of the prefix.
+
+reachableFrom :: Ord n => Graph n n e -> n -> Map n (Int, [Edge n n e])
+reachableFrom g n = bfs (SQ.singleton (n, BQ.empty)) Map.empty
+  where
+  bfs !q !map = case SQ.lview q of
+    Nothing          -> map
+    Just ((u, p), q) ->
+      if u `Map.member` map
+      then bfs q map
+      else bfs (foldr SQ.rcons q
+                      [ (v, BQ.rcons (Edge u v e) p)
+                      | (v, e) <- neighbours u g
+                      ])
+               (let n = BQ.size p in
+                n `seq` Map.insert u (n, BQ.toList p) map)
+
+-- | @walkSatisfying every some g from to@ determines if there is a
+-- walk from @from@ to @to@ in @g@, in which every edge satisfies the
+-- predicate @every@, and some edge satisfies the predicate @some@. If
+-- there are several such walks, then a shortest one (in terms of the
+-- number of edges) is returned.
+--
+-- Precondition: @from@ and @to@ must be nodes in @g@. The number of
+-- nodes in the graph must not be larger than @'maxBound' :: 'Int'@.
+--
+-- Amortised time complexity (assuming that comparisons and the
+-- predicates take constant time to compute): /O(e log n)/.
+
+walkSatisfying ::
+  Ord n =>
+  (e -> Bool) -> (e -> Bool) ->
+  Graph n n e -> n -> n -> Maybe [Edge n n e]
+walkSatisfying every some g from to =
+  case
+    [ (l1 + l2, p1 ++ [e] ++ map transposeEdge (reverse p2))
+    | e <- everyEdges
+    , some (label e)
+    , (l1, p1) <- maybeToList (Map.lookup (source e) fromReaches)
+    , (l2, p2) <- maybeToList (Map.lookup (target e) reachesTo)
+    ] of
+    []  -> Nothing
+    ess -> Just $ snd $ List.minimumBy (compare `on` fst) ess
+  where
+  everyEdges = [ e | e <- toList g, every (label e) ]
+
+  fromReaches = reachableFrom (fromList everyEdges) from
+
+  reachesTo =
+    reachableFrom (fromList (map transposeEdge everyEdges)) to
+
 -- * Graph composition
 
 -- | @composeWith times plus g g'@ finds all edges
@@ -663,11 +726,15 @@ gaussJordanFloydWarshallMcNaughtonYamadaReference g =
 --
 -- * Strongly connected components are used to avoid computing some
 --   zero edges.
+--
+-- The graph's strongly connected components (in reverse topological
+-- order) are returned along with the transitive closure.
 
 gaussJordanFloydWarshallMcNaughtonYamada ::
   forall n e. (Ord n, Eq e, StarSemiRing e) =>
-  Graph n n e -> Graph n n e
-gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
+  Graph n n e -> (Graph n n e, [Graph.SCC n])
+gaussJordanFloydWarshallMcNaughtonYamada g =
+  (loop components g, components)
   where
   components = sccs' g
   forwardDAG = sccDAG' g components
@@ -698,142 +765,6 @@ gaussJordanFloydWarshallMcNaughtonYamada g = loop components g
       lookup' s t = case lookup s t g of
         Nothing -> ozero
         Just e  -> e
-
--- | Find a path from a source node to a target node.
---
---   The path must satisfy the given predicate @good :: e -> Bool@.
-findPath :: (SemiRing e, Ord n) => (e -> Bool) -> n -> n -> Graph n n e -> Maybe e
-findPath good a b g = headMaybe $ filter good $ allPaths good a b g
-
--- | @allPaths classify a b g@ returns a list of pathes (accumulated edge weights)
---   from node @a@ to node @b@ in @g@.
---   Alternative intermediate pathes are only considered if they
---   are distinguished by the @classify@ function.
-allPaths :: (SemiRing e, Ord n, Ord c) => (e -> c) -> n -> n -> Graph n n e -> [e]
-allPaths classify s t g = paths Set.empty s
-  where
-    paths visited s = do
-      (s', e) <- neighbours s g
-      let tag     = (s', classify e)
-          recurse = map (e `otimes`) (paths (Set.insert tag visited) s')
-      if tag `Set.member` visited then []
-      else if s' == t then e : recurse
-      else recurse
-
--- THE FOLLOWING IMPLEMENTATION OF allTrails is in practice worse
--- then the naive depth-first search with backtracking.
-
--- -- | A trail is a non-empty list of consecutive edges with no duplicate.
--- --   We store a set of edges for more efficient trail composition.
--- --
--- --   Invariants for @Trail tr s@:
--- --
--- --   1. nonempty
--- --   @not $ null tr@.
--- --
--- --   2. consecutive
--- --   @List.and $ zipWith (\ (Edge _ t1 _) (Edge s2 _ _) -> t1 == s2) tr (tail tr)@.
--- --
--- --   3. coherence
--- --   @Set.toAscList s == sort $ map (\ (Edges s t _) -> (s,t)) tr@.
-
--- data Trail n e = Trail { trail :: [Edge n n e], trailEdgeSet :: Set (n, n) }
---   deriving (Show)
-
--- instance (Eq n, Eq e) => Eq (Trail n e) where
---   (==) = (==) `on` trail
-
--- instance (Ord n, Ord e) => Ord (Trail n e) where
---   compare = compare `on` trail
-
--- singletonTrail :: Edge n n e -> Trail n e
--- singletonTrail e@(Edge s t _) = Trail [e] $ Set.singleton (s,t)
-
--- trailSource :: Trail n e -> n
--- trailSource (Trail (Edge s _ _ : _) _) = s
--- trailSource _ = __IMPOSSIBLE__
-
--- trailTarget :: Trail n e -> n
--- trailTarget (Trail (Edge _ t _ : _) _) = t
--- trailTarget _ = __IMPOSSIBLE__
-
--- -- | Precondition for @composeTrails t1 t2@:
--- --   @trailTarget t1 == trailSource t2@.
--- composeTrails :: (Ord n) => Trail n e -> Trail n e -> Maybe (Trail n e)
--- composeTrails (Trail t1 s1) (Trail t2 s2) =
---   if null (Set.intersection s1 s2) then Just $ Trail (t1 ++ t2) $ Set.union s1 s2
---   else Nothing
-
--- composeTrails_alt :: (Ord n) => Trail n e -> Trail n e -> Maybe (Trail n e)
--- composeTrails_alt t (Trail [] _) = Just t
--- composeTrails_alt (Trail [] _) t = Just t
--- composeTrails_alt (Trail t1 s1) (Trail t2 s2) =
---   foldr cons (return t2) t1 <&> \ t12 -> Trail t12 $ Set.union s1 s2
---   where
---     cons e@(Edge s t _) mt12 = do
---       t12 <- mt12
---       guard $ (s,t) `Set.notMember` s2
---       return $ e : t12
-
--- -- | A possibly empty set of trails with same source and same target.
--- --
--- --   Invariants for @Tails ts@:
--- --   Same source: @length (group (map trailSource ts)) == 1@.
--- --   Same target: @length (group (map trailTarget ts)) == 1@.
-
--- newtype Trails n e = Trails { trails :: Set (Trail n e) }
---   deriving (Eq, Ord, Show, Null, Singleton (Trail n e))
-
--- instance (Ord n, Ord e) => SemiRing (Trails n e) where
---   ozero = Null.empty
---   oone  = __IMPOSSIBLE__
---   oplus  (Trails t1s) (Trails t2s) = Trails $ Set.union t1s t2s
---   otimes (Trails t1s) (Trails t2s) = Trails $ Set.fromList $
---     catMaybes [ composeTrails t1 t2 | t1 <- Set.toList t1s, t2 <- Set.toList t2s ]
-
--- -- | We compute @allTrails@ by a transitive closure algorithm.
--- --   In practice, we are only interested in the first trail
--- --   with a specific property, so it is important
--- --   to compute @allTrails@ lazily.
--- --
--- --   We use a graph with edges labelled by 'Trails'.
--- allTrails :: forall e n. (Eq e, Ord e, SemiRing e, Ord n) =>
---   n -> n -> Graph n n e -> [e]
--- allTrails s t g = map collapse st
---   where
---     -- Construct a graph of singleton trails
---     init :: Graph n n (Trails n e)
---     init = mapWithEdge (Singleton.singleton . singletonTrail) g
---     -- Compute transitive closure iteratively and keep the diffs.
---     diffs = init : map fst (completeIter init)
---     -- Extract a sequence of trails from s to t from the diff sequence.
---     -- Each diff may contain several or no trails from s to t.
---     st    = concat $ map (maybe [] (Set.toList . trails) . lookup s t) diffs
---     -- Multiply the edge weights a long a trail.
---     collapse (Trail tr _) = foldr1 otimes $ map label tr
-
--- | @allTrails a b g@ returns all trails (walks where all edges are
--- distinct) from node @a@ to node @b@ in @g@. The trails are returned
--- in the form of accumulated edge weights.
---
--- This definition can perhaps be optimised through the use of
--- memoisation.
---
--- Andreas, 2015-07-21 Issue 1612: This function is worst-case exponential
--- as the @k@-complete graph has @k!@ many trails.  DON'T USE!
-
-allTrails :: forall e n. (SemiRing e, Ord n) =>
-             n -> n -> Graph n n e -> [e]
-allTrails s t g = paths Set.empty s
-  where
-    paths :: Set (n, n) -> n -> [e]
-    paths traversed s = do
-      (s', e) <- neighbours s g
-      let edge    = (s, s')
-          recurse = (e `otimes`) <$> paths (Set.insert edge traversed) s'
-      if edge `Set.member` traversed then []
-      else if s' == t then e : recurse
-      else recurse
 
 ------------------------------------------------------------------------
 -- Generators

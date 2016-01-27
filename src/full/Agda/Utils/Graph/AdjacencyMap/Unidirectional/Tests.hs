@@ -16,6 +16,7 @@ import Prelude hiding (null)
 
 import Control.Monad
 
+import qualified Data.Foldable as Fold
 import Data.Function
 import qualified Data.Graph as Graph
 import qualified Data.List as List
@@ -96,7 +97,7 @@ instance StarSemiRing Connected where
 
 connectivityGraph :: Ord n => Graph n n e -> Graph n n Connected
 connectivityGraph =
-  gaussJordanFloydWarshallMcNaughtonYamada .
+  fst . gaussJordanFloydWarshallMcNaughtonYamada .
   fmap (const oone)
 
 connected :: Ord n => Graph n n Connected -> n -> n -> Bool
@@ -194,6 +195,73 @@ prop_oppositeDAG :: G -> Bool
 prop_oppositeDAG g =
   dagInvariant (oppositeDAG (sccDAG g))
 
+-- | @isWalk g from to es@ is 'True' iff @es@ is a walk from @from@ to
+-- @to@ in @g@.
+
+isWalk :: G -> N -> N -> [Edge N N E] -> Bool
+isWalk g from to [] =
+  from == to
+    &&
+  from `Set.member` nodes g
+isWalk g from to es =
+  map source es ++ [to] == [from] ++ map target es
+    &&
+  all validEdge es
+  where
+  validEdge e = e `elem` edgesFrom g [source e]
+
+prop_reachableFrom :: G -> Property
+prop_reachableFrom g =
+  not (Set.null (nodes g)) ==>
+  forAll (nodeIn g) $ \u ->
+    let reachableFromU = reachableFrom g u in
+    -- Every list is a walk of the given length.
+    all (\(v, (n, es)) -> isWalk g u v es && length es == n)
+        (Map.toList reachableFromU)
+      &&
+    -- Every walk is a simple path.
+    Fold.all (distinct . map source . snd) reachableFromU
+      &&
+    -- A path is found from u to v iff u = v or there is a non-empty
+    -- path from u to v (according to 'connectivityGraph' and
+    -- 'connected').
+    Fold.all (\v -> Map.member v reachableFromU
+                      ==
+                    (u == v || connected cg u v))
+             (nodes g)
+  where
+  cg = connectivityGraph g
+
+prop_walkSatisfying ::
+  G -> (Occurrence -> Bool) -> (Occurrence -> Bool) -> Property
+prop_walkSatisfying g every some =
+  forAll (nodeIn g) $ \from ->
+  forAll (nodeIn g) $ \to ->
+    case walkSatisfying every some g from to of
+      Nothing -> QuickCheck.label "no walk" True
+      Just es -> QuickCheck.label (show (length es) ++ " steps") $
+                   isWalk g from to es
+                     &&
+                   all every es' && any some es'
+        where es' = map Graph.label es
+
+-- | A property for
+-- 'Agda.TypeChecking.Positivity.Occurrence.productOfEdgesInBoundedWalk'.
+
+prop_productOfEdgesInBoundedWalk :: G -> Property
+prop_productOfEdgesInBoundedWalk g =
+  forAll (nodeIn g) $ \u ->
+  forAll (nodeIn g) $ \v ->
+  forAll (elements (Map.keys boundToEverySome)) $ \bound ->
+    case productOfEdgesInBoundedWalk id g u v bound of
+      Nothing -> Nothing
+      Just o  -> Just (o <= bound)
+      ==
+    case Graph.lookup u v
+           (fst (gaussJordanFloydWarshallMcNaughtonYamada g)) of
+      Just o | o <= bound -> Just True
+      _                   -> Nothing
+
 -- | Computes the transitive closure of the graph.
 --
 -- Note that this algorithm is not guaranteed to be correct (or
@@ -235,7 +303,8 @@ prop_gaussJordanFloydWarshallMcNaughtonYamadaReference g =
 prop_gaussJordanFloydWarshallMcNaughtonYamada :: G -> Property
 prop_gaussJordanFloydWarshallMcNaughtonYamada g =
   QuickCheck.label sccInfo $
-    gaussJordanFloydWarshallMcNaughtonYamada g ~~ transitiveClosure1 g
+    fst (gaussJordanFloydWarshallMcNaughtonYamada g) ~~
+    transitiveClosure1 g
   where
   sccInfo =
     (if noSCCs <= 3 then "   " ++ show noSCCs
@@ -246,84 +315,6 @@ prop_gaussJordanFloydWarshallMcNaughtonYamada g =
 prop_complete :: G -> Bool
 prop_complete g =
   complete g ~~ transitiveClosure1 g
-
--- Andreas, 2015-07-21 Issue 1612:
--- May take forever due to exponential time of allTrails.
---
--- prop_allTrails_existence :: Property
--- prop_allTrails_existence =
---   forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
---   forAll (nodeIn g) $ \i ->
---   forAll (nodeIn g) $ \j ->
---     null (allTrails i j g)
---       ==
---     not (connected (connectivityGraph g) i j)
-
--- | The 'Integer's should be non-negative.
-
-data ExtendedNatural = Finite Integer | Infinite
-  deriving (Eq, Ord, Show)
-
-instance SemiRing ExtendedNatural where
-  ozero = Finite 0
-  oone  = Finite 1
-
-  oplus (Finite m) (Finite n) = Finite (m + n)
-  oplus Infinite   _          = Infinite
-  oplus _          Infinite   = Infinite
-
-  otimes (Finite m) (Finite n) = Finite (m * n)
-  otimes (Finite 0) _          = Finite 0
-  otimes _          (Finite 0) = Finite 0
-  otimes Infinite   _          = Infinite
-  otimes _          Infinite   = Infinite
-
-instance StarSemiRing ExtendedNatural where
-  ostar (Finite 0) = Finite 1
-  ostar _          = Infinite
-
-
--- Andreas, 2015-07-21 Issue 1612:
--- May take forever due to exponential time of allTrails.
---
--- prop_allTrails_number :: Property
--- prop_allTrails_number =
---   forAll (scale (`div` 2) arbitrary :: Gen G) $ \g ->
---   forAll (nodeIn g) $ \i ->
---   forAll (nodeIn g) $ \j ->
---     Finite (List.genericLength (allTrails i j g))
---       <=
---     case Graph.lookup i j
---            (gaussJordanFloydWarshallMcNaughtonYamada
---               (fmap (const oone) g)) of
---       Just n  -> n
---       Nothing -> Finite 0
-
--- Node 10 is unreachable, so @allTrails _ 10 g1612@ takes forever
-g1612 :: Graph N N E
-g1612 = Graph $ Map.fromList
-  [ (n  1,Map.fromList [(n 1,Unused   ),(n  9,StrictPos),(n 12,JustPos),(n 15,JustPos)])
-  , (n  3,Map.fromList [(n 3,Unused   ),(n  8,StrictPos)])
-  , (n  8,Map.fromList [(n 1,GuardPos ),(n  3,Mixed    ),(n 8,Unused),(n 9,JustPos),(n 11,StrictPos),(n 12,GuardPos),(n 15,JustPos)])
-  , (n  9,Map.fromList [(n 1,JustNeg  ),(n  8,Mixed    ),(n 9,JustNeg),(n 11,StrictPos),(n 12,StrictPos)])
-  , (n 10,Map.fromList [(n 1,JustPos  ),(n  8,StrictPos)])
-  , (n 11,Map.fromList [(n 1,StrictPos),(n  8,JustNeg  ),(n 9,JustNeg),(n 11,JustNeg)])
-  , (n 12,Map.fromList [(n 1,JustPos  ),(n 15,StrictPos)])
-  , (n 15,Map.fromList [(n 1,JustPos  ),(n  8,GuardPos ),(n 11,Mixed),(n 12,Mixed)])
-  ]
-
--- t1612t = allTrails (n 9) (n 10) g1612 -- FOREVER
-
-g1612a = Graph $ Map.fromList
-  [(n  1,Map.fromList [(n 2,JustNeg),(n 11,Mixed)])
-  ,(n  2,Map.fromList [(n 1,JustNeg),(n 2,GuardPos),(n 4,GuardPos),(n 8,Unused),(n 11,Unused)])
-  ,(n  4,Map.fromList [(n 2,GuardPos),(n 8,JustPos),(n 12,GuardPos)])
-  ,(n  6,Map.fromList [(n 1,StrictPos),(n 11,Unused),(n 12,JustNeg)])
-  ,(n  8,Map.fromList [(n 1,GuardPos),(n 4,JustPos),(n 8,JustPos)])
-  ,(n 11,Map.fromList [(n 4,GuardPos),(n 12,StrictPos)])
-  ,(n 12,Map.fromList [(n 1,Mixed),(n 4,Mixed),(n 11,Mixed)])
-  ]
-
 
 ------------------------------------------------------------------------
 -- * All tests

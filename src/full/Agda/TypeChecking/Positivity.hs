@@ -66,7 +66,8 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM qs
   -- remove @Unused@ edges
   g <- Graph.clean <$> buildOccurrenceGraph qset
-  let gstar = Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
+  let (gstar, sccs') =
+        Graph.gaussJordanFloydWarshallMcNaughtonYamada $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -87,8 +88,7 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
   reportSDoc "tc.pos.tick" 100 $ text "set args"
 
   -- check positivity for all strongly connected components of the graph for qs
-  let sccs' = Graph.sccs' gstar
-      sccs  = map flattenSCC sccs'
+  let sccs = map flattenSCC sccs'
   reportSDoc "tc.pos.graph.sccs" 10 $ do
     let (triv, others) = partitionEithers $ for sccs' $ \ scc -> case scc of
           AcyclicSCC v -> Left v
@@ -114,27 +114,20 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
         let loop :: Maybe Occurrence
             loop = Graph.lookup (DefNode q) (DefNode q) gstar
 
-            how :: String -> (Occurrence -> Bool) -> TCM Doc
-            how msg p =
-              fsep $ [prettyTCM q] ++ pwords "is" ++
-                case filter (p . occ) $
-                     -- Graph.allTrails (DefNode q) (DefNode q) g of -- exponential, see Issue 1612
-                     Graph.allPaths (p . occ) (DefNode q) (DefNode q) g of
-                  Edge _ how : _ -> pwords (msg ++ ", because it occurs") ++
-                                    [prettyTCM how]
-                  _              -> pwords $ msg ++ "."
+            -- Note the property
+            -- Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests.prop_productOfEdgesInBoundedWalk,
+            -- which relates productOfEdgesInBoundedWalk to
+            -- gaussJordanFloydWarshallMcNaughtonYamada.
 
-                  -- For an example of code that exercises the latter,
-                  -- uninformative clause above, see
-                  -- test/fail/BadInductionRecursion5.agda. Note that
-                  -- for this example the counterexample is not a
-                  -- trail.
-
-                  -- If a suitable StarSemiRing instance can be
-                  -- defined for Edge, then
-                  -- gaussJordanFloydWarshallMcNaughtonYamada can be
-                  -- used instead of allTrails, thus avoiding the
-                  -- uninformative clause.
+            how :: String -> Occurrence -> TCM Doc
+            how msg bound =
+              case productOfEdgesInBoundedWalk
+                     occ g (DefNode q) (DefNode q) bound of
+                Just (Edge _ how) -> fsep $
+                  [prettyTCM q] ++ pwords "is" ++
+                  pwords (msg ++ ", because it occurs") ++
+                  [prettyTCM how]
+                Nothing -> __IMPOSSIBLE__
 
         -- if we have a negative loop, raise error
 
@@ -144,29 +137,24 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
         when (Info.mutualPositivityCheck mi) $
           whenM positivityCheckEnabled $
             case loop of
-            Just o | p o -> do
-              err <- how "not strictly positive" p
+            Just o | o <= JustPos -> do
+              err <- how "not strictly positive" JustPos
               setCurrentRange q $ typeError $ GenericDocError err
-              where p = (<= JustPos)
             _ -> return ()
 
         -- if we find an unguarded record, mark it as such
         when (dr == IsRecord) $
           case loop of
-            Just o | p o -> do
-              reportSDoc "tc.pos.record" 5 $ how "not guarded" p
+            Just o | o <= StrictPos -> do
+              reportSDoc "tc.pos.record" 5 $ how "not guarded" StrictPos
               unguardedRecord q
               checkInduction q
-              where p = (<= StrictPos)
-            _ ->
-              -- otherwise, if the record is recursive, mark it as well
-              case loop of
-                Just o | p o -> do
-                  reportSDoc "tc.pos.record" 5 $ how "recursive" p
-                  recursiveRecord q
-                  checkInduction q
-                  where p = (== GuardPos)
-                _ -> return ()
+            -- otherwise, if the record is recursive, mark it as well
+            Just o | o <= GuardPos -> do
+              reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
+              recursiveRecord q
+              checkInduction q
+            _ -> return ()
 
     checkInduction :: QName -> TCM ()
     checkInduction q =
