@@ -65,7 +65,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinUnit               |-> BuiltinData tset [builtinUnitUnit])  -- actually record, but they are treated the same
   , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
-                                                     builtinAgdaLitQName])
+                                                     builtinAgdaLitQName, builtinAgdaLitMeta])
   , (builtinAgdaPattern        |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
                                                      builtinAgdaPatLit, builtinAgdaPatProj, builtinAgdaPatAbsurd])
   , (builtinAgdaPatVar         |-> BuiltinDataCons (tstring --> tpat))
@@ -132,6 +132,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaLitChar   |-> BuiltinDataCons (tchar --> tliteral))
   , (builtinAgdaLitString |-> BuiltinDataCons (tstring --> tliteral))
   , (builtinAgdaLitQName  |-> BuiltinDataCons (tqname --> tliteral))
+  , (builtinAgdaLitMeta   |-> BuiltinDataCons (tmeta --> tliteral))
   , (builtinHidden             |-> BuiltinDataCons thiding)
   , (builtinInstance           |-> BuiltinDataCons thiding)
   , (builtinVisible            |-> BuiltinDataCons thiding)

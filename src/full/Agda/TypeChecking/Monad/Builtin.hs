@@ -36,7 +36,7 @@ litType l = case l of
   LitChar _ _   -> el <$> primChar
   LitString _ _ -> el <$> primString
   LitQName _ _  -> el <$> primQName
-  LitMeta _ _   -> typeError $ NotImplemented "Reflected meta type" -- TODO
+  LitMeta _ _ _ -> el <$> primAgdaMeta
   where
     el t = El (mkType 0) t
 
@@ -116,7 +116,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
-    primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName,
+    primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -217,6 +217,7 @@ primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
 primAgdaLitChar   = getBuiltin builtinAgdaLitChar
 primAgdaLitString = getBuiltin builtinAgdaLitString
 primAgdaLitQName  = getBuiltin builtinAgdaLitQName
+primAgdaLitMeta   = getBuiltin builtinAgdaLitMeta
 primAgdaPattern   = getBuiltin builtinAgdaPattern
 primAgdaPatCon    = getBuiltin builtinAgdaPatCon
 primAgdaPatVar    = getBuiltin builtinAgdaPatVar
@@ -279,7 +280,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
   builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
-  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
+  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
   builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
   builtinAgdaPatProj, builtinAgdaPatAbsurd,
@@ -381,6 +382,7 @@ builtinAgdaLitFloat                  = "AGDALITFLOAT"
 builtinAgdaLitChar                   = "AGDALITCHAR"
 builtinAgdaLitString                 = "AGDALITSTRING"
 builtinAgdaLitQName                  = "AGDALITQNAME"
+builtinAgdaLitMeta                   = "AGDALITMETA"
 builtinAgdaClause                    = "AGDACLAUSE"
 builtinAgdaClauseClause              = "AGDACLAUSECLAUSE"
 builtinAgdaClauseAbsurd              = "AGDACLAUSEABSURD"

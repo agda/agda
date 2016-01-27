@@ -7,6 +7,7 @@ module Agda.TypeChecking.Quote where
 
 import Control.Applicative
 import Control.Monad.State (runState, get, put)
+import Control.Monad.Reader (asks)
 import Control.Monad.Writer (execWriterT, tell)
 import Control.Monad.Trans (lift)
 
@@ -41,6 +42,7 @@ import Agda.Utils.Permutation ( Permutation(Perm), compactP )
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.FileName
 
 #include "undefined.h"
 
@@ -55,6 +57,7 @@ data QuotingKit = QuotingKit
 
 quotingKit :: TCM QuotingKit
 quotingKit = do
+  currentFile     <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
   hidden          <- primHidden
   instanceH       <- primInstance
   visible         <- primVisible
@@ -79,6 +82,7 @@ quotingKit = do
   litChar         <- primAgdaLitChar
   litString       <- primAgdaLitString
   litQName        <- primAgdaLitQName
+  litMeta         <- primAgdaLitMeta
   normalClause    <- primAgdaClauseClause
   absurdClause    <- primAgdaClauseAbsurd
   varP            <- primAgdaPatVar
@@ -135,8 +139,7 @@ quotingKit = do
       quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
       quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
       quoteLit l@LitQName{}  = lit !@ (litQName  !@! Lit l)
-      quoteLit l@LitMeta {}  = __IMPOSSIBLE__ -- lit !@ (litMeta   !@! Lit l)
-                               -- not impossible, just TODO
+      quoteLit l@LitMeta {}  = lit !@ (litMeta   !@! Lit l)
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
@@ -229,7 +232,7 @@ quotingKit = do
           Lit lit    -> quoteLit lit
           Sort s     -> sort !@ quoteSort s
           Shared p   -> quoteTerm $ derefPtr p
-          MetaV x es -> meta !@! quoteMeta x @@ quoteArgs vs
+          MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
             where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
 
@@ -265,8 +268,8 @@ quoteNat n
 quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
 
-quoteMeta :: MetaId -> Term
-quoteMeta = Lit . LitMeta noRange
+quoteMeta :: AbsolutePath -> MetaId -> Term
+quoteMeta file = Lit . LitMeta noRange file
 
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do

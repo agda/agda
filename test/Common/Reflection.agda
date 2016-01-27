@@ -61,6 +61,7 @@ data Literal : Set where
   char   : Char → Literal
   string : String → Literal
   qname  : QName → Literal
+  meta   : Meta → Literal
 
 {-# BUILTIN AGDALITERAL   Literal #-}
 {-# BUILTIN AGDALITNAT    nat     #-}
@@ -68,6 +69,7 @@ data Literal : Set where
 {-# BUILTIN AGDALITCHAR   char    #-}
 {-# BUILTIN AGDALITSTRING string  #-}
 {-# BUILTIN AGDALITQNAME  qname   #-}
+{-# BUILTIN AGDALITMETA   meta    #-}
 
 Args : Set
 Type : Set

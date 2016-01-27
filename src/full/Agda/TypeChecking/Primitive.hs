@@ -10,6 +10,7 @@ module Agda.TypeChecking.Primitive where
 
 import Control.Monad
 import Control.Applicative
+import Control.Monad.Reader (asks)
 
 import Data.Char
 import Data.Map (Map)
@@ -121,7 +122,10 @@ instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char    where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str     where toTerm = return $ Lit . LitString noRange . unStr
 instance ToTerm QName   where toTerm = return $ Lit . LitQName noRange
-instance ToTerm MetaId  where toTerm = return $ Lit . LitMeta noRange
+instance ToTerm MetaId  where
+  toTerm = do
+    file <- fromMaybe __IMPOSSIBLE__ <$> asks TCM.envCurrentPath
+    return $ Lit . LitMeta noRange file
 
 instance ToTerm Integer where
   toTerm = do
@@ -245,8 +249,8 @@ instance FromTerm QName where
 
 instance FromTerm MetaId where
   fromTerm = fromLiteral $ \l -> case l of
-    LitMeta _ x -> Just x
-    _           -> Nothing
+    LitMeta _ _ x -> Just x
+    _             -> Nothing
 
 instance FromTerm Bool where
     fromTerm = do

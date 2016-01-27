@@ -6,6 +6,7 @@ module Agda.TypeChecking.Unquote where
 
 import Control.Applicative
 import Control.Monad.State (runState, get, put)
+import Control.Monad.Reader (ask, asks)
 import Control.Monad.Writer (WriterT(..), execWriterT, runWriterT, tell)
 import Control.Monad.Trans (lift)
 import Control.Monad
@@ -13,6 +14,8 @@ import Control.Monad
 import Data.Char
 import Data.Maybe (fromMaybe)
 import Data.Traversable (traverse)
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
@@ -53,6 +56,8 @@ import Agda.Utils.Permutation ( Permutation(Perm), compactP )
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.Maybe.Strict (toLazy)
+import Agda.Utils.FileName
 
 #include "undefined.h"
 
@@ -294,12 +299,22 @@ instance Unquote a => Unquote (R.Abs a) where
     where hint x | not (null x) = x
                  | otherwise    = "_"
 
+getCurrentPath :: TCM AbsolutePath
+getCurrentPath = fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
+
 instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Lit (LitMeta _ x) -> return x
-      _                 -> throwException $ NonCanonical "meta variable" t
+      Lit (LitMeta r f x) -> do
+        live <- (== f) <$> liftU getCurrentPath
+        unless live $ liftU $ do
+            m <- fromMaybe __IMPOSSIBLE__ . Map.lookup f <$> sourceToModule
+            typeError . GenericDocError =<<
+              sep [ text "Can't unquote stale metavariable"
+                  , pretty m <> text "." <> pretty x ]
+        return x
+      _ -> throwException $ NonCanonical "meta variable" t
 
 instance Unquote a => Unquote (Dom a) where
   unquote t = domFromArg <$> unquote t
@@ -323,6 +338,9 @@ instance Unquote R.Sort where
 instance Unquote Literal where
   unquote t = do
     t <- reduceQuotedTerm t
+    let litMeta r x = do
+          file <- liftU getCurrentPath
+          return $ LitMeta r file x
     case ignoreSharing t of
       Con c [x] ->
         choice
@@ -330,7 +348,8 @@ instance Unquote Literal where
           , (c `isCon` primAgdaLitFloat,  LitFloat  noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitChar,   LitChar   noRange <$> unquoteN x)
           , (c `isCon` primAgdaLitString, LitString noRange <$> unquoteNString x)
-          , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x) ]
+          , (c `isCon` primAgdaLitQName,  LitQName  noRange <$> unquoteN x)
+          , (c `isCon` primAgdaLitMeta,   litMeta   noRange =<< unquoteN x) ]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "literal" t

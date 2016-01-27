@@ -1,0 +1,4 @@
+StaleMetaLiteral.agda:15,7-28
+Can't unquote stale metavariable Imports.StaleMetaLiteral._16
+when checking that the expression unquote (unquoteMeta staleMeta)
+has type _A_4
