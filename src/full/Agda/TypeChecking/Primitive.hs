@@ -712,6 +712,7 @@ primitiveFunctions = Map.fromList
   , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
+  , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
   ]
   where
     (|->) = (,)

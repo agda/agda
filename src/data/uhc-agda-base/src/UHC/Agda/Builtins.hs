@@ -66,6 +66,9 @@ module UHC.Agda.Builtins
   , primQNameEquality
   , primQNameLess
   , primShowQName
+  , primMetaEquality
+  , primMetaLess
+  , primShowMeta
 
     -- Debugging
   , primTrace
@@ -318,6 +321,17 @@ primQNameLess = (<)
 
 primShowQName :: QName -> String
 primShowQName = qnameString
+
+type Meta = Integer
+
+primMetaEquality :: Meta -> Meta -> Bool
+primMetaEquality = (==)
+
+primMetaLess :: Meta -> Meta -> Bool
+primMetaLess = (<)
+
+primShowMeta :: Meta -> String
+primShowMeta x = "_" ++ show x
 
 -- ====================
 -- Debugging

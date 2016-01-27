@@ -182,6 +182,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
   , "primMetaEquality"    |-> rel "(==)" "Integer"
   , "primMetaLess"        |-> rel "(<)" "Integer"
+  , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
 
   -- Seq
   , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"

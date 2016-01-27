@@ -14,6 +14,7 @@ postulate Meta : Set
 {-# BUILTIN AGDAMETA Meta #-}
 primitive primMetaEquality : Meta → Meta → Bool
 primitive primMetaLess : Meta → Meta → Bool
+primitive primShowMeta : Meta → String
 
 data Hiding : Set where
   hidden visible inst : Hiding
