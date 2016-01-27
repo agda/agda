@@ -595,6 +595,9 @@ data EqualityView
     }
   | OtherType Type -- ^ reduced
 
+isEqualityType :: EqualityView -> Bool
+isEqualityType EqualityType{} = True
+isEqualityType OtherType{}    = False
 
 ---------------------------------------------------------------------------
 -- * Absurd Lambda

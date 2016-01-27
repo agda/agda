@@ -1,0 +1,7 @@
+Issue1692.agda:30,24-29
+v₁ != v₂ of type (Value k₂)
+when checking that the expression t₂→t₁ has type
+(_k_49 k₂ v₂ v₁ t₁→t₂ k₁ t₂→t₁ ∼ _v_50 k₂ v₂ v₁ t₁→t₂ k₁ t₂→t₁ ∈
+ node k₂ v₁ →
+ _k_49 k₂ v₂ v₁ t₁→t₂ k₁ t₂→t₁ ∼ _v_50 k₂ v₂ v₁ t₁→t₂ k₁ t₂→t₁ ∈
+ node k₂ v₂)

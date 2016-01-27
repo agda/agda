@@ -67,6 +67,7 @@ parse st p = Lexer.unP p st
 
 goFile :: FilePath -> Ghc [Tag]
 goFile file = do
+  liftIO $ hPutStrLn stderr $ "Processing " ++ file
   env <- getSession
   (dflags, srcFile) <- liftIO $
       preprocess env (file, Just $ Cpp HsSrcFile)
