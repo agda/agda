@@ -311,7 +311,7 @@ instance PrettyTCM TypeCheckingProblem where
           text ":?"
         , prettyTCM t
         ]
-  prettyTCM (UnquoteTactic v _) = do
+  prettyTCM (UnquoteTactic v _ _) = do
     e <- reify v
     let noInfo = A.exprNoRange
     prettyTCM (A.App noInfo (A.Unquote noInfo) (defaultNamedArg e))

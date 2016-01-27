@@ -1039,7 +1039,7 @@ checkApplication hd args e t = do
     A.Unquote _
       | [arg] <- args -> do
           hole <- newValueMeta RunMetaOccursCheck t
-          unquoteM (namedArg arg) hole $ return hole
+          unquoteM (namedArg arg) hole t $ return hole
       | arg : args <- args -> do
           -- Example: unquote v a b : A
           --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
@@ -1054,7 +1054,7 @@ checkApplication hd args e t = do
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
           hole <- newValueMeta RunMetaOccursCheck holeType
-          unquoteM (namedArg arg) hole $ return $ apply hole vs
+          unquoteM (namedArg arg) hole holeType $ return $ apply hole vs
       where
         metaTel :: [Arg a] -> TCM Telescope
         metaTel []           = pure EmptyTel
@@ -1067,13 +1067,13 @@ checkApplication hd args e t = do
     _ -> checkHeadApplication e t hd args
 
 -- | Unquote a TCM computation in a given hole.
-unquoteM :: A.Expr -> Term -> TCM Term -> TCM Term
-unquoteM tac hole k = do
+unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
+unquoteM tac hole holeType k = do
   tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  unquoteTactic tac hole k
+  unquoteTactic tac hole holeType k
 
-unquoteTactic :: Term -> Term -> TCM Term -> TCM Term
-unquoteTactic tac hole k = do
+unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
+unquoteTactic tac hole goal k = do
   oldState <- get
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
@@ -1081,7 +1081,7 @@ unquoteTactic tac hole k = do
       put oldState
       r <- maybe __IMPOSSIBLE__ getRange . Map.lookup x <$> getMetaStore
       setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole) (isInstantiatedMeta x)
+        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) (isInstantiatedMeta x)
     Left err -> typeError $ UnquoteFailed err
     Right _ -> k
 

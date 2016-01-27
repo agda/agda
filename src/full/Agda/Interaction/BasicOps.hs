@@ -303,9 +303,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
-            UnquoteTactic tac hole -> do
+            UnquoteTactic tac _ goal -> do
               tac <- A.App exprNoRange (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
-              OfType tac <$> (reify =<< infer hole)
+              OfType tac <$> reify goal
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
