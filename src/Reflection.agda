@@ -147,6 +147,7 @@ data Literal : Set where
   char   : Char → Literal
   string : String → Literal
   name   : Name → Literal
+  meta   : Meta → Literal
 
 {-# BUILTIN AGDALITERAL   Literal #-}
 {-# BUILTIN AGDALITNAT    nat     #-}
@@ -154,6 +155,7 @@ data Literal : Set where
 {-# BUILTIN AGDALITCHAR   char    #-}
 {-# BUILTIN AGDALITSTRING string  #-}
 {-# BUILTIN AGDALITQNAME  name    #-}
+{-# BUILTIN AGDALITMETA   meta    #-}
 
 data Pattern : Set where
   con  : (c : Name)(pats : List (Arg Pattern)) → Pattern
@@ -259,6 +261,7 @@ showLiteral (float x)  = showFloat x
 showLiteral (char x)   = showChar x
 showLiteral (string x) = showString x
 showLiteral (name x)   = showName x
+showLiteral (meta x)   = "_"
 
 ------------------------------------------------------------------------
 -- Type checking monad
@@ -380,10 +383,10 @@ private
   def₂ : ∀ {f f′ args args′} → def f args ≡ def f′ args′ → args ≡ args′
   def₂ refl = refl
 
-  meta₁ : ∀ {x x′ args args′} → meta x args ≡ meta x′ args′ → x ≡ x′
+  meta₁ : ∀ {x x′ args args′} → Term.meta x args ≡ meta x′ args′ → x ≡ x′
   meta₁ refl = refl
 
-  meta₂ : ∀ {x x′ args args′} → meta x args ≡ meta x′ args′ → args ≡ args′
+  meta₂ : ∀ {x x′ args args′} → Term.meta x args ≡ meta x′ args′ → args ≡ args′
   meta₂ refl = refl
 
   lam₁ : ∀ {v v′ t t′} → lam v t ≡ lam v′ t′ → v ≡ v′
@@ -446,6 +449,9 @@ private
   name₁ : ∀ {x y} → name x ≡ name y → x ≡ y
   name₁ refl = refl
 
+  lmeta₁ : ∀ {x y} → Literal.meta x ≡ meta y → x ≡ y
+  lmeta₁ refl = refl
+
   clause₁ : ∀ {ps ps′ b b′} → clause ps b ≡ clause ps′ b′ → ps ≡ ps′
   clause₁ refl = refl
 
@@ -489,26 +495,37 @@ nat x ≟-Lit float x₁ = no (λ ())
 nat x ≟-Lit char x₁ = no (λ ())
 nat x ≟-Lit string x₁ = no (λ ())
 nat x ≟-Lit name x₁ = no (λ ())
+nat x ≟-Lit meta x₁ = no (λ ())
 float x ≟-Lit nat x₁ = no (λ ())
 float x ≟-Lit float x₁ = Dec.map′ (cong float) float₁ (x ≟f x₁)
 float x ≟-Lit char x₁ = no (λ ())
 float x ≟-Lit string x₁ = no (λ ())
 float x ≟-Lit name x₁ = no (λ ())
+float x ≟-Lit meta x₁ = no (λ ())
 char x ≟-Lit nat x₁ = no (λ ())
 char x ≟-Lit float x₁ = no (λ ())
 char x ≟-Lit char x₁ = Dec.map′ (cong char) char₁ (x ≟c x₁)
 char x ≟-Lit string x₁ = no (λ ())
 char x ≟-Lit name x₁ = no (λ ())
+char x ≟-Lit meta x₁ = no (λ ())
 string x ≟-Lit nat x₁ = no (λ ())
 string x ≟-Lit float x₁ = no (λ ())
 string x ≟-Lit char x₁ = no (λ ())
 string x ≟-Lit string x₁ = Dec.map′ (cong string) string₁ (x ≟s x₁)
 string x ≟-Lit name x₁ = no (λ ())
+string x ≟-Lit meta x₁ = no (λ ())
 name x ≟-Lit nat x₁ = no (λ ())
 name x ≟-Lit float x₁ = no (λ ())
 name x ≟-Lit char x₁ = no (λ ())
 name x ≟-Lit string x₁ = no (λ ())
 name x ≟-Lit name x₁ = Dec.map′ (cong name) name₁ (x ≟-Name x₁)
+name x ≟-Lit meta x₁ = no (λ ())
+meta x ≟-Lit nat x₁ = no (λ ())
+meta x ≟-Lit float x₁ = no (λ ())
+meta x ≟-Lit char x₁ = no (λ ())
+meta x ≟-Lit string x₁ = no (λ ())
+meta x ≟-Lit name x₁ = no (λ ())
+meta x ≟-Lit meta x₁ = Dec.map′ (cong meta) lmeta₁ (x ≟-Meta x₁)
 
 mutual
   _≟-AbsTerm_ : Decidable (_≡_ {A = Abs Term})
