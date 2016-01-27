@@ -88,6 +88,14 @@ s₁ ≟-Meta s₂ with s₁ ==-Meta s₂
 ... | false = no whatever
   where postulate whatever : _
 
+-- Metas can be shown.
+
+private
+  primitive
+    primShowMeta : Meta → String
+
+showMeta : Meta → String
+showMeta = primShowMeta
 
 ------------------------------------------------------------------------
 -- Terms
@@ -261,7 +269,7 @@ showLiteral (float x)  = showFloat x
 showLiteral (char x)   = showChar x
 showLiteral (string x) = showString x
 showLiteral (name x)   = showName x
-showLiteral (meta x)   = "_"
+showLiteral (meta x)   = showMeta x
 
 ------------------------------------------------------------------------
 -- Type checking monad
