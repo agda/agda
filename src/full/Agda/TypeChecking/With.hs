@@ -11,6 +11,7 @@ import Control.Monad.State
 
 import Data.List
 import Data.Maybe
+import Data.Monoid
 import qualified Data.Traversable as Trav (traverse)
 
 import Agda.Syntax.Common as Common
@@ -102,9 +103,17 @@ splitTelForWith
 --   [@Δ₁ ⊢ vs'@]  with-arguments under @π@.
 
 splitTelForWith delta t as vs = let
+    -- Andreas, 2016-01-27, unfixing issue 1692
+    -- Due to public protests, we do not rewrite in the types of rewrite
+    -- expressions.
+    -- Otherwise, we cannot rewrite twice after another with the same equation
+    -- as it turns into a reflexive equation in the first rewrite.
+    -- Thus we include the fvs of the rewrite terms in Δ₁.
+    rewriteTerms = map snd $ filter (isEqualityType . fst) $ zip as vs
+
     -- Split the telescope into the part needed to type the with arguments
-    -- and all the other stuff
-    fv = allFreeVars as
+    -- and all the other stuff.
+    fv = allFreeVars as `mappend` allFreeVars rewriteTerms
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ

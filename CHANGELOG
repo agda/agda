@@ -79,6 +79,54 @@ Pragmas and options
      data D where
        lam : (D → D) → D
 
+Type checking
+=============
+
+* A property of `rewrite` that held until 2.4.2.4 has been restored
+  [Issue 1692].  Rewrite does not rewrite in the types of rewrite
+  expressions.  This means that the following works again:
+
+  ```agda
+    test : ∀{A : Set}{a : A}{f : A → A} (p : f a ≡ a) → f (f a) ≡ a
+    test p rewrite p = p
+  ```
+
+  After `rewrite p` the goal has changed to `f a ≡ a`, but the type
+  of `p` has not been rewritten, thus, the final `p` solves the goal.
+
+  The following, which worked in 2.4.2.5, no longer works:
+
+  ```agda
+    fails : (f : (x : A) → a ≡ x) (b : A) → b ≡ a
+    fails f b rewrite f b = f b
+  ```
+
+  The rewrite with `f b : a ≡ b` is not applied to `f` as
+  the latter is part of the rewrite expression `f b`.  Thus,
+  the type of `f` remains untouched, and the changed goal
+  `b ≡ b` is not solved by `f b`.
+
+  The more agressive `with` of 2.4.2.5 has not been affected by this
+  change to `rewrite`.  To prevent abstraction in types of variables,
+  it is still not sufficient that these variables occur in the
+  with-expressions; they must occur in the types of some
+  with-expression.  This can be forced with the "Protect Pattern"; for
+  instance, to get the effect of the `rewrite` of `test` with `with`,
+  one can write as follows:
+
+  ```agda
+    data Protect {a} {A : Set a} : A → Set where
+      protect : ∀ x → Protect x
+
+    test-with : ∀ {A : Set} (f : A → A) (a : A) (p : f a ≡ a) → f (f a) ≡ a
+    test-with f a p with protect p | f a | p
+    ... | _ | _ | refl = p
+  ```
+
+  As `protect p : Protect p`, variable `p` occurs in the type of
+  with-expression `protect p`, thus, its type is not touched by the
+  `with`.
+
 Highlighting and textual backends
 =================================
 
