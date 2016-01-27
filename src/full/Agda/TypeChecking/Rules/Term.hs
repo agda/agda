@@ -1079,9 +1079,16 @@ unquoteTactic tac hole goal k = do
   case ok of
     Left (BlockedOnMeta x) -> do
       put oldState
-      r <- maybe __IMPOSSIBLE__ getRange . Map.lookup x <$> getMetaStore
+      mi <- Map.lookup x <$> getMetaStore
+      (r, unblock) <- case mi of
+        Nothing -> do -- fresh meta: need to block on something else!
+          otherMetas <- allMetas <$> instantiateFull goal
+          case otherMetas of
+            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
+            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
+        Just mi -> return (getRange mi, isInstantiatedMeta x)
       setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) (isInstantiatedMeta x)
+        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
     Left err -> typeError $ UnquoteFailed err
     Right _ -> k
 
