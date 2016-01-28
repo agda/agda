@@ -521,21 +521,28 @@ Reflection
 * Builtin type for metavariables
 
   There is a new builtin type for metavariables used by the new reflection
-  framework. It is declared as follows and comes with primitive equality and
-  ordering.
+  framework. It is declared as follows and comes with primitive equality,
+  ordering and show.
 
     postulate Meta : Set
     {-# BUILTIN AGDAMETA Meta #-}
     primitive primMetaEquality : Meta → Meta → Bool
     primitive primMetaLess : Meta → Meta → Bool
+    primitive primShowMeta : Meta → String
 
-  There is a corresponding new constructor in the Term data type:
+  There are corresponding new constructors in the Term and Literal data types:
 
     data Term : Set where
       ...
       meta : Meta → List (Arg Term) → Term
 
     {-# BUILTIN AGDATERMMETA meta #-}
+
+    data Literal : Set where
+      ...
+      meta : Meta → Literal
+
+    {-# BUILTIN AGDALITMETA meta #-}
 
 * Builtin unit type
 

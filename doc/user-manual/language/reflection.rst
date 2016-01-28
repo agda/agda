@@ -17,9 +17,10 @@ equality, ordering and a show function.
 
   postulate Name : Set
   {-# BUILTIN QNAME Name #-}
-  primitive primQNameEquality : Name → Name → Bool
-  primitive primQNameLess     : Name → Name → Bool
-  primitive primShowQName     : Name → String
+  primitive
+    primQNameEquality : Name → Name → Bool
+    primQNameLess     : Name → Name → Bool
+    primShowQName     : Name → String
 
 Name literals are created using the ``quote`` keyword and can appear both in
 terms and in patterns
@@ -39,12 +40,14 @@ Metavariables
 ~~~~~~~~~~~~~
 
 Metavariables are represented by the built-in ``AGDAMETA`` type. They have
-primitive equality and ordering::
+primitive equality, ordering and show::
 
   postulate Meta : Set
   {-# BUILTIN AGDAMETA Meta #-}
-  primitive primMetaEquality : Meta → Meta → Bool
-  primitive primMetaLess     : Meta → Meta → Bool
+  primitive
+    primMetaEquality : Meta → Meta → Bool
+    primMetaLess     : Meta → Meta → Bool
+    primShowMeta     : Meta → String
 
 Builtin metavariables show up in reflected terms.
 
@@ -63,6 +66,7 @@ has the following shape:
       char   : Char   → Literal
       string : String → Literal
       name   : Name   → Literal
+      meta   : Meta   → Literal
 
     {-# BUILTIN AGDALITERAL   Literal #-}
     {-# BUILTIN AGDALITNAT    nat     #-}
@@ -70,6 +74,7 @@ has the following shape:
     {-# BUILTIN AGDALITCHAR   char    #-}
     {-# BUILTIN AGDALITSTRING string  #-}
     {-# BUILTIN AGDALITQNAME  name    #-}
+    {-# BUILTIN AGDALITMETA   meta    #-}
 
 Patterns
 ~~~~~~~~
