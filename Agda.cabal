@@ -386,7 +386,6 @@ library
                     Agda.TypeChecking.Serialise.Instances.Highlighting
                     Agda.TypeChecking.Serialise.Instances.Internal
                     Agda.TypeChecking.SizedTypes
-                    Agda.TypeChecking.SizedTypes.Main
                     Agda.TypeChecking.SizedTypes.Parser
                     Agda.TypeChecking.SizedTypes.Solve
                     Agda.TypeChecking.SizedTypes.Syntax
