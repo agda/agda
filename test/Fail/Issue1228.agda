@@ -2,15 +2,10 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Common.TC
 
 tt : ⊤
 tt = record{}
-
-arg₀ : {A : Set} → A → Arg A
-arg₀ = arg (argInfo visible relevant)
-
-el₀ : Term → Type
-el₀ = el (lit 0)
 
 NoConf : Nat → Nat → Set
 NoConf zero zero = ⊤
@@ -22,19 +17,22 @@ NoConf (suc m) (suc n) = m ≡ n
 -- noConf zero .zero refl = tt
 -- noConf (suc m) .(suc m) refl = refl
 
+pattern `Nat = def (quote Nat) []
+
+infixr 0 Π
+syntax Π x a b = [ x ∈ a ]→ b
+Π : String → Type → Type → Type
+Π x a b = pi (vArg a) (abs x b)
+
 noConf : FunDef
 noConf = funDef
-  (el₀ (pi (arg₀ (el₀ (def (quote Nat) [])))
-   (abs "A"
-    (el₀ (pi (arg₀ (el₀ (def (quote Nat) [])))
-     (abs "B"
-      (el₀ (pi (arg₀ (el₀ (def (quote _≡_) (arg₀ (var 1 []) ∷ arg₀ (var 0 []) ∷ []))))
-       (abs "C"
-        (el₀ (def (quote NoConf) (arg₀ (var 2 []) ∷ arg₀ (var 1 []) ∷ []))))))))))))
-  ( clause (arg₀ (con (quote zero) []) ∷ arg₀ dot ∷ arg₀ (con (quote refl) []) ∷ [])
+  ([ "A" ∈ `Nat ]→ [ "B" ∈ `Nat ]→
+   [ "C" ∈ def (quote _≡_) (vArg (var 1 []) ∷ vArg (var 0 []) ∷ []) ]→
+   def (quote NoConf) (vArg (var 2 []) ∷ vArg (var 1 []) ∷ []))
+  ( clause (vArg (con (quote zero) []) ∷ vArg dot ∷ vArg (con (quote refl) []) ∷ [])
            (con (quote tt) [])
-  ∷ clause (arg₀ (con (quote suc) (arg₀ (var "m") ∷ [])) ∷ arg₀ dot ∷ arg₀ (con (quote refl) []) ∷ [])
+  ∷ clause (vArg (con (quote suc) (vArg (var "m") ∷ [])) ∷ vArg dot ∷ vArg (con (quote refl) []) ∷ [])
            (con (quote refl) [])
   ∷ [])
 
-unquoteDecl test = noConf
+unquoteDecl test = define (vArg test) noConf

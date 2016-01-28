@@ -18,21 +18,8 @@ primitive
 
 open import Common.Level
 
-unEl : Type → Term
-unEl (el _ t) = t
-
-pattern argᵛʳ x = arg (argInfo visible relevant) x
-
-pattern argʰʳ x = arg (argInfo hidden relevant) x
-
-el₀ : Term → Type
-el₀ = el (lit 0)
-
-el₁ : Term → Type
-el₁ = el (lit 1)
-
 set₀ : Type
-set₀ = el₁ (sort (lit 0))
+set₀ = sort (lit 0)
 
 unCheck : Term → Term
 unCheck (def x (_ ∷ _ ∷ arg _ t ∷ [])) = t
@@ -48,7 +35,7 @@ data Check {a}{A : Set a}(x : A) : Set where
 
 test₁ : Check ({A : Set} → A → A)
 test₁ = quoteGoal t in
-        t is pi (argʰʳ set₀) (abs "A" (el₀ (pi (argᵛʳ (el₀ (var 0 []))) (abs "_" (el₀ (var 1 []))))))
+        t is pi (hArg set₀) (abs "A" (pi (vArg (var 0 [])) (abs "_" (var 1 []))))
         of course
 
 test₂ : (X : Set) → Check (λ (x : X) → x)
@@ -57,8 +44,8 @@ test₂ X = quoteGoal t in
 
 infixr 40 _`∷_
 
-pattern _`∷_ x xs = con (quote _∷_) (argʰʳ unknown ∷ argᵛʳ x ∷ argᵛʳ xs ∷ [])
-pattern `[]    = con (quote []) (argʰʳ unknown ∷ [])
+pattern _`∷_ x xs = con (quote _∷_) (hArg unknown ∷ vArg x ∷ vArg xs ∷ [])
+pattern `[]    = con (quote []) (hArg unknown ∷ [])
 pattern `true  = con (quote true) []
 pattern `false = con (quote false) []
 
@@ -67,7 +54,7 @@ test₃ = quoteGoal t in
         t is `true `∷ `false `∷ `[] of course
 
 `List : Term → Term
-`List A = def (quote List) (argᵛʳ A ∷ [])
+`List A = def (quote List) (vArg A ∷ [])
 `ℕ      = def (quote ℕ) []
 
 `Term : Term
@@ -81,46 +68,8 @@ test₄ : Check (List ℕ)
 test₄ = quoteGoal t in
         t is `List `ℕ of course
 
-test₅ : primQNameType (quote Term) ≡ set₀
-test₅ = refl
-
--- TODO => test₆ : primQNameType (quote set₀) ≡ el unknown `Type ≢ el₀ `Type
-test₆ : unEl (primQNameType (quote set₀)) ≡ `Type
-test₆ = refl
-
-test₇ : primQNameType (quote Sort.lit) ≡ el₀ (pi (argᵛʳ (el₀ `ℕ)) (abs "_" (el₀ `Sort)))
-test₇ = refl
-
-mutual
-  ℕdef : DataDef
-  ℕdef = _
-
-  test₈ : dataDef ℕdef ≡ primQNameDefinition (quote ℕ)
-  test₈ = refl
-
-test₉ : primDataConstructors ℕdef ≡ (quote ℕ.zero ∷ quote ℕ.suc ∷ [])
-test₉ = refl
-
-test₁₀ : primQNameDefinition (quote ℕ.zero) ≡ dataConstructor
-test₁₀ = refl
-
 postulate
   a : ℕ
-
-test₁₁ : primQNameDefinition (quote a) ≡ axiom
-test₁₁ = refl
-
-test₁₂ : primQNameDefinition (quote primQNameDefinition) ≡ prim
-test₁₂ = refl
-
-record Unit : Set where
-
-mutual
-  UnitDef : RecordDef
-  UnitDef = _
-
-  test₁₃ : recordDef UnitDef ≡ primQNameDefinition (quote Unit)
-  test₁₃ = refl
 
 test₁₄ : Check 1
 test₁₄ = quoteGoal t in t is lit (nat 1) of course

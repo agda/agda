@@ -1,6 +1,7 @@
 
 open import Common.Prelude
 open import Common.Reflection
+open import Common.TC
 
 id : {A : Set} → A → A
 id x = x
@@ -13,4 +14,4 @@ idTerm = lam visible (abs "x" (def (quote id) (arg₁ ∷ arg₂ ∷ [])))
 
 -- Should fail since idTerm "λ z → id {Nat} z"
 id₂ : {A : Set} → A → A
-id₂ = unquote idTerm
+id₂ = unquote (give idTerm)

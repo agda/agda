@@ -11,6 +11,7 @@ import Agda.Utils.Except ( ExceptT )
 isType_ :: A.Expr -> TCM Type
 
 checkExpr :: A.Expr -> Type -> TCM Term
+inferExpr :: A.Expr -> TCM (Term, Type)
 
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
@@ -19,3 +20,5 @@ checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                    (Args -> Type -> TCM Term) -> TCM Term
 
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
+
+unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term

@@ -51,8 +51,12 @@ class ToAbstract r a | r -> a where
   toAbstract :: r -> WithNames a
 
 -- | Translate reflected syntax to abstract, using the names from the current typechecking context.
-toAbstract_ :: (ToAbstract r a) => r -> TCM a
-toAbstract_ x = runReaderT (toAbstract x) =<< getContextNames
+toAbstract_ :: ToAbstract r a => r -> TCM a
+toAbstract_ = withShowAllArguments . toAbstractWithoutImplicit
+
+-- | Drop implicit arguments unless --show-implicit is on.
+toAbstractWithoutImplicit :: ToAbstract r a => r -> TCM a
+toAbstractWithoutImplicit x = runReaderT (toAbstract x) =<< getContextNames
 
 instance ToAbstract r a => ToAbstract (Named name r) (Named name a) where
   toAbstract = traverse toAbstract
@@ -70,8 +74,11 @@ instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBindings) where
 
 instance ToAbstract (Expr, Elim) Expr where
   toAbstract (f, Apply arg) = do
-    arg <- toAbstract arg
-    return $ App (ExprRange noRange) f arg
+    arg     <- toAbstract arg
+    showImp <- lift showImplicitArguments
+    return $ if showImp || getHiding arg == NotHidden
+             then App (ExprRange noRange) f arg
+             else f
 
 instance ToAbstract (Expr, Elims) Expr where
   toAbstract (f, elims) = foldM (curry toAbstract) f elims
@@ -81,11 +88,7 @@ instance ToAbstract r a => ToAbstract (R.Abs r) (a, Name) where
     where s' = if (isNoName s) then "z" else s -- TODO: only do this when var is free
 
 instance ToAbstract Literal Expr where
-  toAbstract l@(LitNat    {}) = return (A.Lit l)
-  toAbstract l@(LitFloat  {}) = return (A.Lit l)
-  toAbstract l@(LitString {}) = return (A.Lit l)
-  toAbstract l@(LitChar   {}) = return (A.Lit l)
-  toAbstract l@(LitQName  {}) = return (A.Lit l)
+  toAbstract l = return (A.Lit l)
 
 instance ToAbstract Term Expr where
   toAbstract t = case t of
@@ -113,16 +116,9 @@ instance ToAbstract Term Expr where
       return $ A.Pi exprNoRange [a] b
     R.Sort s   -> toAbstract s
     R.Lit l    -> toAbstract l
-    R.QuoteGoal t -> do
-      (e, name) <- toAbstract t
-      return $ A.QuoteGoal exprNoRange name e
-    R.QuoteTerm t  -> toAbstract (A.QuoteTerm exprNoRange, Apply $ defaultArg t)
-    R.QuoteContext -> return $ A.QuoteContext exprNoRange
-    R.Unquote t es -> toAbstract (A.Unquote exprNoRange, Apply (defaultArg t) : es)
+    R.Meta x es    -> toAbstract (A.Underscore info, es)
+      where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
-
-instance ToAbstract Type Expr where
-  toAbstract (El _ x) = toAbstract x
 
 mkSet :: Expr -> Expr
 mkSet e = App exprNoRange (A.Set exprNoRange 0) $ defaultNamedArg e

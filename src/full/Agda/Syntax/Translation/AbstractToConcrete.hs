@@ -772,13 +772,17 @@ instance ToConcrete A.Declaration [C.Declaration] where
     C.QName x <- toConcrete x
     bindToConcrete xs $ \xs -> (:[]) . C.PatternSyn (getRange x) x xs <$> toConcrete (vacuous p :: A.Pattern)
 
-  toConcrete (A.UnquoteDecl _ i x e) = do
-    C.QName x <- toConcrete x
-    (:[]) . C.UnquoteDecl (getRange i) x <$> toConcrete e
+  toConcrete (A.UnquoteDecl _ i xs e) = do
+    let unqual (C.QName x) = return x
+        unqual _           = __IMPOSSIBLE__
+    xs <- mapM (unqual <=< toConcrete) xs
+    (:[]) . C.UnquoteDecl (getRange i) xs <$> toConcrete e
 
-  toConcrete (A.UnquoteDef i x e) = do
-    C.QName x <- toConcrete x
-    (:[]) . C.UnquoteDef (getRange i) x <$> toConcrete e
+  toConcrete (A.UnquoteDef i xs e) = do
+    let unqual (C.QName x) = return x
+        unqual _           = __IMPOSSIBLE__
+    xs <- mapM (unqual <=< toConcrete) xs
+    (:[]) . C.UnquoteDef (getRange i) xs <$> toConcrete e
 
 
 data RangeAndPragma = RangeAndPragma Range A.Pragma

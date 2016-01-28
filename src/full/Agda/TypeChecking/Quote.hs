@@ -1,11 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Agda.TypeChecking.Quote where
 
 import Control.Applicative
 import Control.Monad.State (runState, get, put)
+import Control.Monad.Reader (asks)
 import Control.Monad.Writer (execWriterT, tell)
 import Control.Monad.Trans (lift)
 
@@ -40,6 +42,7 @@ import Agda.Utils.Permutation ( Permutation(Perm), compactP )
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.FileName
 
 #include "undefined.h"
 
@@ -47,11 +50,14 @@ data QuotingKit = QuotingKit
   { quoteTermWithKit   :: Term       -> ReduceM Term
   , quoteTypeWithKit   :: Type       -> ReduceM Term
   , quoteClauseWithKit :: Clause     -> ReduceM Term
-  , quoteDomWithKit    :: Dom Type -> ReduceM Term
+  , quoteDomWithKit    :: Dom Type   -> ReduceM Term
+  , quoteDefnWithKit   :: Definition -> ReduceM Term
+  , quoteListWithKit   :: forall a. (a -> ReduceM Term) -> [a] -> ReduceM Term
   }
 
 quotingKit :: TCM QuotingKit
 quotingKit = do
+  currentFile     <- fromMaybe __IMPOSSIBLE__ <$> asks envCurrentPath
   hidden          <- primHidden
   instanceH       <- primInstance
   visible         <- primVisible
@@ -69,12 +75,14 @@ quotingKit = do
   con             <- primAgdaTermCon
   pi              <- primAgdaTermPi
   sort            <- primAgdaTermSort
+  meta            <- primAgdaTermMeta
   lit             <- primAgdaTermLit
   litNat          <- primAgdaLitNat
   litFloat        <- primAgdaLitFloat
   litChar         <- primAgdaLitChar
   litString       <- primAgdaLitString
   litQName        <- primAgdaLitQName
+  litMeta         <- primAgdaLitMeta
   normalClause    <- primAgdaClauseClause
   absurdClause    <- primAgdaClauseAbsurd
   varP            <- primAgdaPatVar
@@ -89,10 +97,16 @@ quotingKit = do
   sucLevel        <- primLevelSuc
   lub             <- primLevelMax
   lkit            <- requireLevels
-  el              <- primAgdaTypeEl
   Con z _         <- ignoreSharing <$> primZero
   Con s _         <- ignoreSharing <$> primSuc
   unsupported     <- primAgdaTermUnsupported
+
+  agdaDefinitionFunDef          <- primAgdaDefinitionFunDef
+  agdaDefinitionDataDef         <- primAgdaDefinitionDataDef
+  agdaDefinitionRecordDef       <- primAgdaDefinitionRecordDef
+  agdaDefinitionPostulate       <- primAgdaDefinitionPostulate
+  agdaDefinitionPrimitive       <- primAgdaDefinitionPrimitive
+  agdaDefinitionDataConstructor <- primAgdaDefinitionDataConstructor
 
   let (@@) :: Apply a => ReduceM a -> ReduceM Term -> ReduceM a
       t @@ u = apply <$> t <*> ((:[]) . defaultArg <$> u)
@@ -125,6 +139,7 @@ quotingKit = do
       quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
       quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
       quoteLit l@LitQName{}  = lit !@ (litQName  !@! Lit l)
+      quoteLit l@LitMeta {}  = lit !@ (litMeta   !@! Lit l)
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
@@ -141,7 +156,7 @@ quotingKit = do
       quoteSort DLub{}   = pure unsupportedSort
 
       quoteType :: Type -> ReduceM Term
-      quoteType (El s t) = el !@ quoteSort s @@ quoteTerm t
+      quoteType (El _ t) = quoteTerm t
 
       quoteQName :: QName -> ReduceM Term
       quoteQName x = pure $ Lit $ LitQName noRange x
@@ -171,6 +186,9 @@ quotingKit = do
       list :: [ReduceM Term] -> ReduceM Term
       list []       = pure nil
       list (a : as) = cons !@ a @@ list as
+
+      quoteList :: (a -> ReduceM Term) -> [a] -> ReduceM Term
+      quoteList q xs = list (map q xs)
 
       quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
       quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
@@ -214,9 +232,27 @@ quotingKit = do
           Lit lit    -> quoteLit lit
           Sort s     -> sort !@ quoteSort s
           Shared p   -> quoteTerm $ derefPtr p
-          MetaV{}    -> pure unsupported
+          MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs
+            where vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           DontCare{} -> pure unsupported -- could be exposed at some point but we have to take care
-  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType)
+
+      quoteDefn :: Definition -> ReduceM Term
+      quoteDefn def =
+        case theDef def of
+          Function{funClauses = cs} ->
+            agdaDefinitionFunDef !@ quoteList quoteClause cs
+          Datatype{dataPars = np, dataCons = cs} ->
+            agdaDefinitionDataDef !@! quoteNat (fromIntegral np) @@ quoteList (pure . quoteName) cs
+          Record{recConHead = c} ->
+            agdaDefinitionRecordDef !@! quoteName (conName c)
+          Axiom{}       -> pure agdaDefinitionPostulate
+          Primitive{primClauses = cs} | not $ null cs ->
+            agdaDefinitionFunDef !@ quoteList quoteClause cs
+          Primitive{}   -> pure agdaDefinitionPrimitive
+          Constructor{conData = d} ->
+            agdaDefinitionDataConstructor !@! quoteName d
+
+  return $ QuotingKit quoteTerm quoteType quoteClause (quoteDom quoteType) quoteDefn quoteList
 
 quoteString :: String -> Term
 quoteString = Lit . LitString noRange
@@ -224,8 +260,16 @@ quoteString = Lit . LitString noRange
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
 
+quoteNat :: Integer -> Term
+quoteNat n
+  | n >= 0    = Lit (LitNat noRange n)
+  | otherwise = __IMPOSSIBLE__
+
 quoteConName :: ConHead -> Term
 quoteConName = quoteName . conName
+
+quoteMeta :: AbsolutePath -> MetaId -> Term
+quoteMeta file = Lit . LitMeta noRange file
 
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do
@@ -241,3 +285,14 @@ quoteDom :: Dom Type -> TCM Term
 quoteDom v = do
   kit <- quotingKit
   runReduceM (quoteDomWithKit kit v)
+
+quoteDefn :: Definition -> TCM Term
+quoteDefn def = do
+  kit <- quotingKit
+  runReduceM (quoteDefnWithKit kit def)
+
+quoteList :: [Term] -> TCM Term
+quoteList xs = do
+  kit <- quotingKit
+  runReduceM (quoteListWithKit kit pure xs)
+

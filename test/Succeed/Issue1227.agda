@@ -2,10 +2,11 @@
 open import Common.Prelude hiding (pred)
 open import Common.Reflection
 open import Common.Equality
+open import Common.TC
 
 un-function : Definition → FunDef
-un-function (funDef x) = x
-un-function _          = funDef (el unknown unknown) []
+un-function (funDef cs) = funDef unknown cs
+un-function _           = funDef unknown []
 
 data Is-suc : Nat → Set where
   is-suc : ∀ n → Is-suc (suc n)
@@ -13,7 +14,11 @@ data Is-suc : Nat → Set where
 pred : (n : Nat) → Is-suc n → Nat
 pred ._ (is-suc n) = n
 
-pred-def = un-function (primQNameDefinition (quote pred))
+pred-def : FunDef
+pred-def =
+  funDef (quoteTerm ((n : Nat) → Is-suc n → Nat))
+         (clause (vArg dot ∷ vArg (con (quote is-suc) (vArg (var "n") ∷ [])) ∷ [])
+                 (var 0 []) ∷ [])
 
 data Is-zero : Nat → Set where
   is-zero : Is-zero zero
@@ -21,10 +26,14 @@ data Is-zero : Nat → Set where
 f : (n : Nat) → Is-zero n → Nat
 f ._ is-zero = zero
 
-f-def = un-function (primQNameDefinition (quote f))
+f-def : FunDef
+f-def =
+  funDef (quoteTerm ((n : Nat) → Is-zero n → Nat))
+         (clause (vArg dot ∷ vArg (con (quote is-zero) []) ∷ [])
+                 (con (quote zero) []) ∷ [])
 
-unquoteDecl pred' = pred-def
-unquoteDecl f'    = f-def
+unquoteDecl pred' = define (vArg pred') pred-def
+unquoteDecl f'    = define (vArg f')    f-def
 
 check-pred : pred' 4 (is-suc _) ≡ 3
 check-pred = refl

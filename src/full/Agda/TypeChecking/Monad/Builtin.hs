@@ -36,6 +36,7 @@ litType l = case l of
   LitChar _ _   -> el <$> primChar
   LitString _ _ -> el <$> primString
   LitQName _ _  -> el <$> primQName
+  LitMeta _ _ _ -> el <$> primAgdaMeta
   where
     el t = El (mkType 0) t
 
@@ -98,7 +99,7 @@ constructorForm' pZero pSuc v =
 ---------------------------------------------------------------------------
 
 primInteger, primIntegerPos, primIntegerNegSuc,
-    primFloat, primChar, primString, primBool, primTrue, primFalse,
+    primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -111,19 +112,26 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     -- builtins for reflection:
     primQName, primArgInfo, primArgArgInfo, primArg, primArgArg, primAbs, primAbsAbs, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermExtLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
-    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported,
-    primAgdaTermQuoteGoal, primAgdaTermQuoteTerm, primAgdaTermQuoteContext, primAgdaTermUnquote,
-    primAgdaType, primAgdaTypeEl,
+    primAgdaTermSort, primAgdaTermLit, primAgdaTermUnsupported, primAgdaTermMeta,
+    primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
-    primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName,
+    primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
-    primAgdaFunDef, primAgdaFunDefCon, primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
+    primAgdaClause, primAgdaClauseClause, primAgdaClauseAbsurd,
     primAgdaPattern, primAgdaPatCon, primAgdaPatVar, primAgdaPatDot,
-    primAgdaDataDef, primAgdaRecordDef, primAgdaPatLit, primAgdaPatProj,
-    primAgdaPatAbsurd
+    primAgdaPatLit, primAgdaPatProj,
+    primAgdaPatAbsurd,
+    primAgdaMeta,
+    primAgdaTCM, primAgdaTCMReturn, primAgdaTCMBind, primAgdaTCMUnify,
+    primAgdaTCMTypeError, primAgdaTCMInferType, primAgdaTCMCheckType,
+    primAgdaTCMNormalise, primAgdaTCMCatchError, primAgdaTCMGetContext, primAgdaTCMExtendContext, primAgdaTCMInContext,
+    primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
+    primAgdaTCMGetType, primAgdaTCMGetDefinition,
+    primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
+    primAgdaTCMBlockOnMeta
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -133,6 +141,8 @@ primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar
 primString       = getBuiltin builtinString
 primBool         = getBuiltin builtinBool
+primUnit         = getBuiltin builtinUnit
+primUnitUnit     = getBuiltin builtinUnitUnit
 primTrue         = getBuiltin builtinTrue
 primFalse        = getBuiltin builtinFalse
 primList         = getBuiltin builtinList
@@ -174,8 +184,6 @@ primArgArg       = getBuiltin builtinArgArg
 primAbs          = getBuiltin builtinAbs
 primAbsAbs       = getBuiltin builtinAbsAbs
 primAgdaSort     = getBuiltin builtinAgdaSort
-primAgdaType     = getBuiltin builtinAgdaType
-primAgdaTypeEl   = getBuiltin builtinAgdaTypeEl
 primHiding       = getBuiltin builtinHiding
 primHidden       = getBuiltin builtinHidden
 primInstance     = getBuiltin builtinInstance
@@ -197,21 +205,19 @@ primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
 primAgdaTermSort     = getBuiltin builtinAgdaTermSort
 primAgdaTermLit      = getBuiltin builtinAgdaTermLit
-primAgdaTermQuoteGoal = getBuiltin builtinAgdaTermQuoteGoal
-primAgdaTermQuoteTerm = getBuiltin builtinAgdaTermQuoteTerm
-primAgdaTermQuoteContext = getBuiltin builtinAgdaTermQuoteContext
-primAgdaTermUnquote   = getBuiltin builtinAgdaTermUnquote
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
+primAgdaTermMeta  = getBuiltin builtinAgdaTermMeta
+primAgdaErrorPart       = getBuiltin builtinAgdaErrorPart
+primAgdaErrorPartString = getBuiltin builtinAgdaErrorPartString
+primAgdaErrorPartTerm   = getBuiltin builtinAgdaErrorPartTerm
+primAgdaErrorPartName   = getBuiltin builtinAgdaErrorPartName
 primAgdaLiteral   = getBuiltin builtinAgdaLiteral
 primAgdaLitNat    = getBuiltin builtinAgdaLitNat
 primAgdaLitFloat  = getBuiltin builtinAgdaLitFloat
 primAgdaLitChar   = getBuiltin builtinAgdaLitChar
 primAgdaLitString = getBuiltin builtinAgdaLitString
 primAgdaLitQName  = getBuiltin builtinAgdaLitQName
-primAgdaFunDef    = getBuiltin builtinAgdaFunDef
-primAgdaFunDefCon = getBuiltin builtinAgdaFunDefCon
-primAgdaDataDef   = getBuiltin builtinAgdaDataDef
-primAgdaRecordDef = getBuiltin builtinAgdaRecordDef
+primAgdaLitMeta   = getBuiltin builtinAgdaLitMeta
 primAgdaPattern   = getBuiltin builtinAgdaPattern
 primAgdaPatCon    = getBuiltin builtinAgdaPatCon
 primAgdaPatVar    = getBuiltin builtinAgdaPatVar
@@ -229,11 +235,32 @@ primAgdaDefinitionDataConstructor = getBuiltin builtinAgdaDefinitionDataConstruc
 primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
 primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
 primAgdaDefinition                = getBuiltin builtinAgdaDefinition
+primAgdaMeta                      = getBuiltin builtinAgdaMeta
+primAgdaTCM           = getBuiltin builtinAgdaTCM
+primAgdaTCMReturn     = getBuiltin builtinAgdaTCMReturn
+primAgdaTCMBind       = getBuiltin builtinAgdaTCMBind
+primAgdaTCMUnify      = getBuiltin builtinAgdaTCMUnify
+primAgdaTCMTypeError  = getBuiltin builtinAgdaTCMTypeError
+primAgdaTCMInferType  = getBuiltin builtinAgdaTCMInferType
+primAgdaTCMCheckType  = getBuiltin builtinAgdaTCMCheckType
+primAgdaTCMNormalise  = getBuiltin builtinAgdaTCMNormalise
+primAgdaTCMCatchError = getBuiltin builtinAgdaTCMCatchError
+primAgdaTCMGetContext = getBuiltin builtinAgdaTCMGetContext
+primAgdaTCMExtendContext = getBuiltin builtinAgdaTCMExtendContext
+primAgdaTCMInContext     = getBuiltin builtinAgdaTCMInContext
+primAgdaTCMFreshName     = getBuiltin builtinAgdaTCMFreshName
+primAgdaTCMDeclareDef    = getBuiltin builtinAgdaTCMDeclareDef
+primAgdaTCMDefineFun     = getBuiltin builtinAgdaTCMDefineFun
+primAgdaTCMGetType            = getBuiltin builtinAgdaTCMGetType
+primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
+primAgdaTCMQuoteTerm          = getBuiltin builtinAgdaTCMQuoteTerm
+primAgdaTCMUnquoteTerm        = getBuiltin builtinAgdaTCMUnquoteTerm
+primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
   builtinNatLess, builtinInteger, builtinIntegerPos, builtinIntegerNegSuc,
-  builtinFloat, builtinChar, builtinString,
+  builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinSizeUniv, builtinSize, builtinSizeLt,
@@ -243,25 +270,33 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinLevel, builtinLevelZero, builtinLevelSuc,
   builtinFromNat, builtinFromNeg, builtinFromString,
   builtinQName, builtinAgdaSort, builtinAgdaSortSet, builtinAgdaSortLit,
-  builtinAgdaSortUnsupported, builtinAgdaType, builtinAgdaTypeEl,
+  builtinAgdaSortUnsupported,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
   builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
   builtinArgInfo, builtinArgArgInfo, builtinArgArg,
   builtinAbs, builtinAbsAbs, builtinAgdaTerm,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
   builtinAgdaTermDef, builtinAgdaTermCon, builtinAgdaTermPi,
-  builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported,
-  builtinAgdaTermQuoteGoal, builtinAgdaTermQuoteContext, builtinAgdaTermQuoteTerm, builtinAgdaTermUnquote,
+  builtinAgdaTermSort, builtinAgdaTermLit, builtinAgdaTermUnsupported, builtinAgdaTermMeta,
+  builtinAgdaErrorPart, builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName,
   builtinAgdaLiteral, builtinAgdaLitNat, builtinAgdaLitFloat,
-  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName,
-  builtinAgdaFunDef, builtinAgdaFunDefCon, builtinAgdaClause,
-  builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
+  builtinAgdaLitChar, builtinAgdaLitString, builtinAgdaLitQName, builtinAgdaLitMeta,
+  builtinAgdaClause, builtinAgdaClauseClause, builtinAgdaClauseAbsurd, builtinAgdaPattern,
   builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot, builtinAgdaPatLit,
-  builtinAgdaPatProj, builtinAgdaPatAbsurd, builtinAgdaDataDef,
-  builtinAgdaRecordDef, builtinAgdaDefinitionFunDef,
+  builtinAgdaPatProj, builtinAgdaPatAbsurd,
+  builtinAgdaDefinitionFunDef,
   builtinAgdaDefinitionDataDef, builtinAgdaDefinitionRecordDef,
   builtinAgdaDefinitionDataConstructor, builtinAgdaDefinitionPostulate,
-  builtinAgdaDefinitionPrimitive, builtinAgdaDefinition
+  builtinAgdaDefinitionPrimitive, builtinAgdaDefinition,
+  builtinAgdaMeta,
+  builtinAgdaTCM, builtinAgdaTCMReturn, builtinAgdaTCMBind, builtinAgdaTCMUnify,
+  builtinAgdaTCMTypeError, builtinAgdaTCMInferType,
+  builtinAgdaTCMCheckType, builtinAgdaTCMNormalise, builtinAgdaTCMCatchError,
+  builtinAgdaTCMGetContext, builtinAgdaTCMExtendContext, builtinAgdaTCMInContext,
+  builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
+  builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
+  builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
+  builtinAgdaTCMBlockOnMeta
   :: String
 
 builtinNat                           = "NATURAL"
@@ -280,6 +315,8 @@ builtinIntegerNegSuc                 = "INTEGERNEGSUC"
 builtinFloat                         = "FLOAT"
 builtinChar                          = "CHAR"
 builtinString                        = "STRING"
+builtinUnit                          = "UNIT"
+builtinUnitUnit                      = "UNITUNIT"
 builtinBool                          = "BOOL"
 builtinTrue                          = "TRUE"
 builtinFalse                         = "FALSE"
@@ -311,8 +348,6 @@ builtinAgdaSort                      = "AGDASORT"
 builtinAgdaSortSet                   = "AGDASORTSET"
 builtinAgdaSortLit                   = "AGDASORTLIT"
 builtinAgdaSortUnsupported           = "AGDASORTUNSUPPORTED"
-builtinAgdaType                      = "AGDATYPE"
-builtinAgdaTypeEl                    = "AGDATYPEEL"
 builtinHiding                        = "HIDING"
 builtinHidden                        = "HIDDEN"
 builtinInstance                      = "INSTANCE"
@@ -335,19 +370,19 @@ builtinAgdaTermCon                   = "AGDATERMCON"
 builtinAgdaTermPi                    = "AGDATERMPI"
 builtinAgdaTermSort                  = "AGDATERMSORT"
 builtinAgdaTermLit                   = "AGDATERMLIT"
-builtinAgdaTermQuoteGoal             = "AGDATERMQUOTEGOAL"
-builtinAgdaTermQuoteContext          = "AGDATERMQUOTECONTEXT"
-builtinAgdaTermQuoteTerm             = "AGDATERMQUOTETERM"
-builtinAgdaTermUnquote               = "AGDATERMUNQUOTE"
 builtinAgdaTermUnsupported           = "AGDATERMUNSUPPORTED"
+builtinAgdaTermMeta                  = "AGDATERMMETA"
+builtinAgdaErrorPart                 = "AGDAERRORPART"
+builtinAgdaErrorPartString           = "AGDAERRORPARTSTRING"
+builtinAgdaErrorPartTerm             = "AGDAERRORPARTTERM"
+builtinAgdaErrorPartName             = "AGDAERRORPARTNAME"
 builtinAgdaLiteral                   = "AGDALITERAL"
 builtinAgdaLitNat                    = "AGDALITNAT"
 builtinAgdaLitFloat                  = "AGDALITFLOAT"
 builtinAgdaLitChar                   = "AGDALITCHAR"
 builtinAgdaLitString                 = "AGDALITSTRING"
 builtinAgdaLitQName                  = "AGDALITQNAME"
-builtinAgdaFunDef                    = "AGDAFUNDEF"
-builtinAgdaFunDefCon                 = "AGDAFUNDEFCON"
+builtinAgdaLitMeta                   = "AGDALITMETA"
 builtinAgdaClause                    = "AGDACLAUSE"
 builtinAgdaClauseClause              = "AGDACLAUSECLAUSE"
 builtinAgdaClauseAbsurd              = "AGDACLAUSEABSURD"
@@ -358,8 +393,6 @@ builtinAgdaPatDot                    = "AGDAPATDOT"
 builtinAgdaPatLit                    = "AGDAPATLIT"
 builtinAgdaPatProj                   = "AGDAPATPROJ"
 builtinAgdaPatAbsurd                 = "AGDAPATABSURD"
-builtinAgdaDataDef                   = "AGDADATADEF"
-builtinAgdaRecordDef                 = "AGDARECORDDEF"
 builtinAgdaDefinitionFunDef          = "AGDADEFINITIONFUNDEF"
 builtinAgdaDefinitionDataDef         = "AGDADEFINITIONDATADEF"
 builtinAgdaDefinitionRecordDef       = "AGDADEFINITIONRECORDDEF"
@@ -367,6 +400,27 @@ builtinAgdaDefinitionDataConstructor = "AGDADEFINITIONDATACONSTRUCTOR"
 builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
 builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
 builtinAgdaDefinition                = "AGDADEFINITION"
+builtinAgdaMeta                      = "AGDAMETA"
+builtinAgdaTCM           = "AGDATCM"
+builtinAgdaTCMReturn     = "AGDATCMRETURN"
+builtinAgdaTCMBind       = "AGDATCMBIND"
+builtinAgdaTCMUnify      = "AGDATCMUNIFY"
+builtinAgdaTCMTypeError  = "AGDATCMTYPEERROR"
+builtinAgdaTCMInferType  = "AGDATCMINFERTYPE"
+builtinAgdaTCMCheckType  = "AGDATCMCHECKTYPE"
+builtinAgdaTCMNormalise  = "AGDATCMNORMALISE"
+builtinAgdaTCMCatchError = "AGDATCMCATCHERROR"
+builtinAgdaTCMGetContext = "AGDATCMGETCONTEXT"
+builtinAgdaTCMExtendContext = "AGDATCMEXTENDCONTEXT"
+builtinAgdaTCMInContext     = "AGDATCMINCONTEXT"
+builtinAgdaTCMFreshName     = "AGDATCMFRESHNAME"
+builtinAgdaTCMDeclareDef    = "AGDATCMDECLAREDEF"
+builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
+builtinAgdaTCMGetType       = "AGDATCMGETTYPE"
+builtinAgdaTCMGetDefinition = "AGDATCMGETDEFINITION"
+builtinAgdaTCMBlockOnMeta   = "AGDATCMBLOCKONMETA"
+builtinAgdaTCMQuoteTerm     = "AGDATCMQUOTETERM"
+builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which

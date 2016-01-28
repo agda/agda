@@ -1,0 +1,4 @@
+TerminationCheckUnquote.agda:40,1-41,12
+Termination checking failed for the following functions:
+Problematic calls:
+  .TerminationCheckUnquote.cheat

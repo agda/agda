@@ -1448,18 +1448,20 @@ instance ToAbstract NiceDeclaration A.Declaration where
             }
       return [ A.Import minfo m adir ]
 
-    NiceUnquoteDecl r fx p i a tc x e -> do
-      y <- freshAbstractQName fx x
-      bindName p QuotableName x y
+    NiceUnquoteDecl r fxs p i a tc xs e -> do
+      ys <- zipWithM freshAbstractQName fxs xs
+      zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
-      rebindName p DefName x y
+      zipWithM_ (rebindName p DefName) xs ys
       let mi = MutualInfo tc True r
-      return [A.UnquoteDecl mi (mkDefInfoInstance x fx p a i NotMacroDef r) y e]
+      return [ A.Mutual mi [A.UnquoteDecl mi [ mkDefInfoInstance x fx p a i NotMacroDef r | (fx, x) <- zip fxs xs ] ys e] ]
 
-    NiceUnquoteDef r fx p a tc x e -> do
-      y <- toAbstract (OldName x)
+    NiceUnquoteDef r fxs p a tc xs e -> do
+      ys <- mapM (toAbstract . OldName) xs
+      zipWithM_ (rebindName p QuotableName) xs ys
       e <- toAbstract e
-      return [ A.UnquoteDef (mkDefInfo x fx PublicAccess a r) y e ]
+      zipWithM_ (rebindName p DefName) xs ys
+      return [ A.UnquoteDef [ mkDefInfo x fx PublicAccess a r | (fx, x) <- zip fxs xs ] ys e ]
 
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r

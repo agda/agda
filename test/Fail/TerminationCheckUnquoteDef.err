@@ -1,0 +1,4 @@
+TerminationCheckUnquoteDef.agda:29,1-30,32
+Termination checking failed for the following functions:
+Problematic calls:
+  .TerminationCheckUnquoteDef.aux

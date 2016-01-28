@@ -2,19 +2,24 @@
 open import Common.Prelude
 open import Common.Equality
 open import Common.Reflection
+open import Common.TC
 
-pattern vArg a = arg (argInfo visible relevant) a
 pattern _`+_ a b = def (quote _+_) (vArg a ∷ vArg b ∷ [])
 
--- quoteTerm ∘ unquote is normalisation for Term
+`_ : Term → Term
+` con c [] = con (quote Term.con) (vArg (lit (qname c)) ∷ vArg (con (quote []) []) ∷ [])
+` _        = unknown
+
+-- Prevent quotation
+data WrapTerm : Set where
+  wrap : Term → WrapTerm
 
 macro
-  -- The unquoted type is also Term → Term.
-  eval : Term → Term
-  eval u = quote-term (unquote-term u [])
+  eval : WrapTerm → Tactic
+  eval (wrap u) hole = bindTC (normalise u) λ u → unify hole (` u)
 
 t : Term
 t = lam visible (abs "n" (lit (nat 1) `+ var 0 []))
 
-lem : eval t ≡ con (quote suc) []
+lem : eval (wrap t) ≡ Term.con (quote suc) []
 lem = refl

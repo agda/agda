@@ -1,5 +1,5 @@
-StrangeRecursiveUnquote.agda:12,13-26
-Unable to unquote the term
+StrangeRecursiveUnquote.agda:13,13-33
+Cannot unquote non-canonical term
   f n
-of type Term. Reason: not a constructor.
-when checking that the expression unquote (f n) has type Term
+when checking that the expression unquote (give (f n)) has type
+Term

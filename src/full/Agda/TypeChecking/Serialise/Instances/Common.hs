@@ -302,6 +302,10 @@ instance EmbPrj GenPart where
     valu [a]    = valu1 IdPart a
     valu _      = malformed
 
+instance EmbPrj MetaId where
+  icod_ (MetaId n) = icod_ n
+  value i = MetaId <$> value i
+
 instance EmbPrj A.QName where
   icod_ n@(A.QName a b) = icodeMemo qnameD qnameC (qnameId n) $ icode2' a b
 
@@ -430,19 +434,21 @@ instance EmbPrj ConPOrigin where
   value _ = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icod_ (LitNat    a b) = icode2' a b
-  icod_ (LitFloat  a b) = icode2 1 a b
-  icod_ (LitString a b) = icode2 2 a b
-  icod_ (LitChar   a b) = icode2 3 a b
-  icod_ (LitQName  a b) = icode2 5 a b
+  icod_ (LitNat    a b)   = icode2' a b
+  icod_ (LitFloat  a b)   = icode2 1 a b
+  icod_ (LitString a b)   = icode2 2 a b
+  icod_ (LitChar   a b)   = icode2 3 a b
+  icod_ (LitQName  a b)   = icode2 5 a b
+  icod_ (LitMeta   a b c) = icode3 6 a b c
 
   value = vcase valu where
-    valu [a, b]    = valu2 LitNat    a b
-    valu [1, a, b] = valu2 LitFloat  a b
-    valu [2, a, b] = valu2 LitString a b
-    valu [3, a, b] = valu2 LitChar   a b
-    valu [5, a, b] = valu2 LitQName  a b
-    valu _         = malformed
+    valu [a, b]       = valu2 LitNat    a b
+    valu [1, a, b]    = valu2 LitFloat  a b
+    valu [2, a, b]    = valu2 LitString a b
+    valu [3, a, b]    = valu2 LitChar   a b
+    valu [5, a, b]    = valu2 LitQName  a b
+    valu [6, a, b, c] = valu3 LitMeta   a b c
+    valu _            = malformed
 
 instance EmbPrj IsAbstract where
   icod_ AbstractDef = icode0 0

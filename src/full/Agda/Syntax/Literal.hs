@@ -6,14 +6,17 @@ import Control.DeepSeq
 import Data.Char
 import Data.Typeable (Typeable)
 import Agda.Syntax.Position
+import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
 import Agda.Utils.Pretty
+import Agda.Utils.FileName
 
 data Literal = LitNat    Range !Integer
              | LitFloat  Range !Double
              | LitString Range String
              | LitChar   Range !Char
              | LitQName  Range QName
+             | LitMeta   Range AbsolutePath MetaId
   deriving (Typeable)
 
 instance Show Literal where
@@ -23,6 +26,7 @@ instance Show Literal where
     LitString _ s -> sh "LitString" s
     LitChar _ c   -> sh "LitChar" c
     LitQName _ q  -> sh "LitQName" q
+    LitMeta _ _ x -> sh "LitMeta" x
     where
       sh :: Show a => String -> a -> ShowS
       sh c x = showString (c ++ " ") . shows x
@@ -33,6 +37,7 @@ instance Pretty Literal where
     pretty (LitString _ s)  = text $ showString' s ""
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
     pretty (LitQName _ x)   = text $ show x
+    pretty (LitMeta _ _ x)  = pretty x
 
 showString' :: String -> ShowS
 showString' s =
@@ -52,6 +57,7 @@ instance Eq Literal where
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
   LitQName _ x  == LitQName _ y  = x == y
+  LitMeta _ f x == LitMeta _ g y = (f, x) == (f, y)
   _             == _             = False
 
 instance Ord Literal where
@@ -60,14 +66,19 @@ instance Ord Literal where
   LitString _ s `compare` LitString _ t = s `compare` t
   LitChar _ c   `compare` LitChar _ d   = c `compare` d
   LitQName _ x  `compare` LitQName _ y  = x `compare` y
+  LitMeta _ f x `compare` LitMeta _ g y = (f, x) `compare` (g, y)
   compare LitNat{}    _ = LT
-  compare _ LitNat{} = GT
+  compare _ LitNat{}    = GT
   compare LitFloat{}  _ = LT
-  compare _ LitFloat{} = GT
+  compare _ LitFloat{}  = GT
   compare LitString{} _ = LT
   compare _ LitString{} = GT
+  compare LitChar{} _   = LT
+  compare _ LitChar{}   = GT
   compare LitQName{} _  = LT
   compare _ LitQName{}  = GT
+  -- compare LitMeta{} _   = LT
+  -- compare _ LitMeta{}   = GT
 
 instance HasRange Literal where
   getRange (LitNat    r _) = r
@@ -75,6 +86,7 @@ instance HasRange Literal where
   getRange (LitString r _) = r
   getRange (LitChar   r _) = r
   getRange (LitQName  r _) = r
+  getRange (LitMeta r _ _) = r
 
 instance SetRange Literal where
   setRange r (LitNat    _ x) = LitNat    r x
@@ -82,6 +94,7 @@ instance SetRange Literal where
   setRange r (LitString _ x) = LitString r x
   setRange r (LitChar   _ x) = LitChar   r x
   setRange r (LitQName  _ x) = LitQName  r x
+  setRange r (LitMeta _ f x) = LitMeta   r f x
 
 instance KillRange Literal where
   killRange (LitNat    r x) = LitNat    (killRange r) x
@@ -89,6 +102,7 @@ instance KillRange Literal where
   killRange (LitString r x) = LitString (killRange r) x
   killRange (LitChar   r x) = LitChar   (killRange r) x
   killRange (LitQName  r x) = killRange2 LitQName r x
+  killRange (LitMeta r f x) = LitMeta   (killRange r) f x
 
 -- | Ranges are not forced.
 
@@ -98,3 +112,4 @@ instance NFData Literal where
   rnf (LitString _ a) = rnf a
   rnf (LitChar _ _)   = ()
   rnf (LitQName _ a)  = rnf a
+  rnf (LitMeta _ _ x) = rnf x

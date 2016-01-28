@@ -34,7 +34,7 @@ import Agda.Syntax.Internal
     toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
 import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
 import Agda.TypeChecking.Substitute ( absBody )
-import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName) )
+import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
   ( TCM, Definition(Defn), Interface,
@@ -444,6 +444,7 @@ literal (LitFloat  _ x) = Double  x
 literal (LitString _ x) = String  x
 literal (LitChar   _ x) = Char    x
 literal (LitQName  _ x) = String  (show x)
+literal LitMeta{}       = __IMPOSSIBLE__
 
 dummyLambda :: Int -> Exp -> Exp
 dummyLambda n = iterate' n (Lambda 0)

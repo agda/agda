@@ -17,3 +17,4 @@ open import Common.IO public
 data   ⊥ : Set where
 record ⊤ : Set where
 
+{-# BUILTIN UNIT ⊤ #-}
