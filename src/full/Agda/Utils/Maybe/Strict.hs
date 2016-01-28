@@ -78,11 +78,13 @@ instance Null (Maybe a) where
   empty = Nothing
   null = isNothing
 
+-- The monoid instance was fixed in strict-base-types 0.5.0. See
+-- Issue 1805.
 instance Monoid a => Monoid (Maybe a) where
   mempty = Nothing
 
-  Nothing `mappend` _       = Nothing
-  _       `mappend` Nothing = Nothing
+  Nothing `mappend` m       = m
+  m       `mappend` Nothing = m
   Just x1 `mappend` Just x2 = Just (x1 `mappend` x2)
 
 instance Foldable Maybe where
