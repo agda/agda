@@ -11,7 +11,7 @@ executable fix-agda-whitespace
   hs-source-dirs:   .
   main-is:          FixWhitespace.hs
   build-depends:
-    base >= 4.6.0.1 && < 4.9
+    base >= 4.6.0.1 && < 4.10
     , directory >= 1.2.0.1 && < 1.3
     , filemanip >= 0.3.6.2 && < 0.4
     , filepath >= 1.3.0.1 && < 1.5
