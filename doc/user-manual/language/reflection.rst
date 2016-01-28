@@ -166,6 +166,7 @@ this type is returned by the ``AGDATCMGETDEFINITION`` built-in :ref:`described
 below <reflection-tc-monad>`.
 
 ::
+
   data Definition : Set where
     funDef          : List Clause → Definition
     dataDef         : Nat → List Name → Definition -- parameters and constructors
