@@ -29,7 +29,7 @@
 , regex-tdfa, regex-tdfa-text, filemanip
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
-, zlib, tasty-quickcheck, monadplus
+, zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
 }:
@@ -49,7 +49,7 @@ mkDerivation {
     hashable hashtables haskeline haskell-src-exts mtl parallel pretty
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib uhc-light tasty-quickcheck
-    monadplus
+    monadplus EdisonCore EdisonAPI
   ];
   testDepends = [
     base containers directory filepath process-extras tasty
