@@ -3,11 +3,7 @@ open import Common.Reflection
 open import Common.Prelude hiding (_<$>_)
 open import Common.Equality
 
-data Maybe A : Set where
-  nothing : Maybe A
-  just : A → Maybe A
-
-_<$>_ : ∀ {A B} → (A → B) → Maybe A → Maybe B
+_<$>_ : ∀ {A B : Set} → (A → B) → Maybe A → Maybe B
 f <$> just x  = just (f x)
 f <$> nothing = nothing
 

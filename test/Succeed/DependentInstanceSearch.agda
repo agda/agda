@@ -2,10 +2,6 @@
 open import Common.Prelude
 open import Common.Equality
 
-data Maybe (A : Set) : Set where
-  nothing : Maybe A
-  just    : A → Maybe A
-
 data Vec (A : Set) : Nat → Set where
   [] : Vec A zero
   _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
