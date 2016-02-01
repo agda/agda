@@ -19,6 +19,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Trans
+import Control.Monad.State (get, put)
 import Control.Monad.Reader
 
 import Data.Maybe
@@ -77,7 +78,6 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
-import Agda.TypeChecking.Unquote
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
@@ -1006,8 +1006,8 @@ checkApplication hd args e t = do
       tTerm <- primAgdaTerm
       tName <- primQName
 
-      let tel' = map (snd . unDom) $ telToList tel
-          (macroArgs, otherArgs) = splitAt (length tel') args
+      let argTel   = init $ telToList tel -- last argument is the hole term
+
           -- inspect macro type to figure out if arguments need to be wrapped in quote/quoteTerm
           mkArg :: Type -> NamedArg A.Expr -> NamedArg A.Expr
           mkArg t a | unEl t == tTerm =
@@ -1017,46 +1017,80 @@ checkApplication hd args e t = do
             (fmap . fmap)
               (A.App (A.ExprRange (getRange a)) (A.Quote A.exprNoRange) . defaultNamedArg) a
           mkArg t a | otherwise = a
+
+          makeArgs :: [Dom (String, Type)] -> [NamedArg A.Expr] -> ([NamedArg A.Expr], [NamedArg A.Expr])
+          makeArgs [] args = ([], args)
+          makeArgs _  []   = ([], [])
+          makeArgs tel@(d : _) (arg : args) =
+            case insertImplicit arg (map (fmap fst . argFromDom) tel) of
+              ImpInsert is   -> makeArgs (drop (length is) tel) (arg : args)
+              BadImplicits   -> (arg : args, [])  -- fail later in checkHeadApplication
+              NoSuchName{}   -> (arg : args, [])  -- ditto
+              NoInsertNeeded -> first (mkArg (snd $ unDom d) arg :) $ makeArgs (tail tel) args
+
+          (macroArgs, otherArgs) = makeArgs argTel args
           unq = A.App (A.ExprRange $ fuseRange x args) (A.Unquote A.exprNoRange) . defaultNamedArg
 
-      when (length args < length tel') $ do
-        err <- fsep $ pwords "The macro" ++ [prettyTCM x] ++
-                      pwords ("expects " ++ show (length tel') ++
-                              " arguments, but has been given only " ++ show (length args))
-        typeError $ GenericError $ show err
+          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs) otherArgs
 
-      let macroArgs' = zipWith mkArg tel' macroArgs
-          desugared = A.app (unq $ unAppView $ Application (A.Def x) $ macroArgs') otherArgs
       checkExpr desugared t
 
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
-          unquoteTerm (namedArg arg) $ \e ->
-            checkExpr e t
+          hole <- newValueMeta RunMetaOccursCheck t
+          unquoteM (namedArg arg) hole t $ return hole
       | arg : args <- args -> do
-          unquoteTerm (namedArg arg) $ \e ->
-            checkHeadApplication e t e args
+          -- Example: unquote v a b : A
+          --  Create meta H : (x : X) (y : Y x) → Z x y for the hole
+          --  Check a : X, b : Y a
+          --  Unify Z a b == A
+          --  Run the tactic on H
+          tel    <- metaTel args                    -- (x : X) (y : Y x)
+          target <- addCtxTel tel newTypeMeta_      -- Z x y
+          let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
+          (vs, EmptyTel) <- checkArguments_ ExpandLast (getRange args) args tel
+                                                    -- a b : (x : X) (y : Y x)
+          let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
+          equalType (applySubst rho target) t       -- Z a b == A
+          hole <- newValueMeta RunMetaOccursCheck holeType
+          unquoteM (namedArg arg) hole holeType $ return $ apply hole vs
       where
-        unquoteTerm :: A.Expr -> (A.Expr -> TCM Term) -> TCM Term
-        unquoteTerm qv cont = do
-          qv <- checkExpr qv =<< el primAgdaTerm
-          mv <- runUnquoteM $ unquote qv
-          case mv of
-            Left (BlockedOnMeta m) -> do
-              r <- getRange <$> lookupMeta m
-              setCurrentRange r $
-                postponeTypeCheckingProblem (CheckExpr e t) (isInstantiatedMeta m)
-            Left err -> typeError $ UnquoteFailed err
-            Right v  -> do
-              e <- toAbstract_ (v :: R.Term)
-              reportSDoc "tc.unquote.term" 10 $
-                vcat [ text "unquote" <+> prettyTCM qv
-                     , nest 2 $ text "-->" <+> prettyA e ]
-              cont e
+        metaTel :: [Arg a] -> TCM Telescope
+        metaTel []           = pure EmptyTel
+        metaTel (arg : args) = do
+          a <- newTypeMeta_
+          let dom = a <$ domFromArg arg
+          ExtendTel dom . Abs "x" <$> addCtxString "x" dom (metaTel args)
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
+
+-- | Unquote a TCM computation in a given hole.
+unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
+unquoteM tac hole holeType k = do
+  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  unquoteTactic tac hole holeType k
+
+unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
+unquoteTactic tac hole goal k = do
+  oldState <- get
+  ok  <- runUnquoteM $ unquoteTCM tac hole
+  case ok of
+    Left (BlockedOnMeta x) -> do
+      put oldState
+      mi <- Map.lookup x <$> getMetaStore
+      (r, unblock) <- case mi of
+        Nothing -> do -- fresh meta: need to block on something else!
+          otherMetas <- allMetas <$> instantiateFull goal
+          case otherMetas of
+            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
+            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
+        Just mi -> return (getRange mi, isInstantiatedMeta x)
+      setCurrentRange r $
+        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
+    Left err -> typeError $ UnquoteFailed err
+    Right _ -> k
 
 -- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
 --   by inserting an underscore for the missing type.

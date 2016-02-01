@@ -19,12 +19,17 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
+import Agda.Syntax.Translation.ReflectedToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import qualified Agda.Syntax.Translation.ReflectedToAbstract as R
+import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
+import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
+import qualified Agda.Syntax.Info as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (equalityUnview)
@@ -137,14 +142,15 @@ instance (PrettyTCM a, PrettyTCM b, PrettyTCM c) => PrettyTCM (a,b,c) where
   prettyTCM (a, b, c) = parens $
     prettyTCM a <> comma <> prettyTCM b <> comma <> prettyTCM c
 
-instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
-instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
-instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
-instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
-instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
-instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
-instance PrettyTCM Permutation where prettyTCM = text . show
-instance PrettyTCM Polarity where prettyTCM = text . show
+instance PrettyTCM Term         where prettyTCM = prettyA <=< reify
+instance PrettyTCM Type         where prettyTCM = prettyA <=< reify
+instance PrettyTCM Sort         where prettyTCM = prettyA <=< reify
+instance PrettyTCM DisplayTerm  where prettyTCM = prettyA <=< reify
+instance PrettyTCM NamedClause  where prettyTCM = prettyA <=< reify
+instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
+instance PrettyTCM Permutation  where prettyTCM = text . show
+instance PrettyTCM Polarity     where prettyTCM = text . show
+instance PrettyTCM R.Term       where prettyTCM = prettyA <=< toAbstractWithoutImplicit
 
 instance (Show a, PrettyTCM a, Subst a a) => PrettyTCM (Substitution' a) where
   prettyTCM IdS        = text "idS"
@@ -305,6 +311,10 @@ instance PrettyTCM TypeCheckingProblem where
           text ":?"
         , prettyTCM t
         ]
+  prettyTCM (UnquoteTactic v _ _) = do
+    e <- reify v
+    let noInfo = A.exprNoRange
+    prettyTCM (A.App noInfo (A.Unquote noInfo) (defaultNamedArg e))
 
 instance PrettyTCM a => PrettyTCM (WithHiding a) where
   prettyTCM (WithHiding h a) = CP.prettyHiding h id <$> prettyTCM a

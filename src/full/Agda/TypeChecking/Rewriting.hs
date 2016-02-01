@@ -157,7 +157,9 @@ addRewriteRule q = do
       , text " cannot be added before the function definition"
       ]
   -- We know that the type of rel is that of a relation.
-  Just (RelView _tel delta a _a' _core) <- relView =<< do defType <$> getConstInfo rel
+  relV <- relView =<< do defType <$> getConstInfo rel
+  let RelView _tel delta a _a' _core = -- line break for CPP
+        fromMaybe __IMPOSSIBLE__ relV
   reportSDoc "rewriting" 30 $ do
     text "rewrite relation at type " <+> do
       inTopContext $ prettyTCM (telFromList delta) <+> text " |- " <+> do

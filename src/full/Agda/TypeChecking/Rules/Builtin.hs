@@ -62,9 +62,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinArgInfo            |-> BuiltinData tset [builtinArgArgInfo])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
+  , (builtinUnit               |-> BuiltinData tset [builtinUnitUnit])  -- actually record, but they are treated the same
   , (builtinAgdaLiteral        |-> BuiltinData tset [builtinAgdaLitNat, builtinAgdaLitFloat,
                                                      builtinAgdaLitChar, builtinAgdaLitString,
-                                                     builtinAgdaLitQName])
+                                                     builtinAgdaLitQName, builtinAgdaLitMeta])
   , (builtinAgdaPattern        |-> BuiltinData tset [builtinAgdaPatVar, builtinAgdaPatCon, builtinAgdaPatDot,
                                                      builtinAgdaPatLit, builtinAgdaPatProj, builtinAgdaPatAbsurd])
   , (builtinAgdaPatVar         |-> BuiltinDataCons (tstring --> tpat))
@@ -81,16 +82,19 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinChar               |-> builtinPostulate tset)
   , (builtinString             |-> builtinPostulate tset)
   , (builtinQName              |-> builtinPostulate tset)
+  , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
-  , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
   , (builtinAgdaTerm           |-> BuiltinData tset
                                      [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
                                      , builtinAgdaTermDef, builtinAgdaTermCon
                                      , builtinAgdaTermPi, builtinAgdaTermSort
-                                     , builtinAgdaTermLit, builtinAgdaTermQuoteTerm, builtinAgdaTermQuoteGoal
-                                     , builtinAgdaTermQuoteContext, builtinAgdaTermUnquote
+                                     , builtinAgdaTermLit, builtinAgdaTermMeta
                                      , builtinAgdaTermUnsupported])
+  , builtinAgdaErrorPart       |-> BuiltinData tset [ builtinAgdaErrorPartString, builtinAgdaErrorPartTerm, builtinAgdaErrorPartName ]
+  , builtinAgdaErrorPartString |-> BuiltinDataCons (tstring --> terrorpart)
+  , builtinAgdaErrorPartTerm   |-> BuiltinDataCons (tterm --> terrorpart)
+  , builtinAgdaErrorPartName   |-> BuiltinDataCons (tqname --> terrorpart)
   , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
@@ -113,7 +117,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (targinfo --> tv0 --> targ tv0)))
   , (builtinAbsAbs             |-> BuiltinDataCons (hPi "A" tset (tstring  --> tv0 --> tabs tv0)))
   , (builtinArgArgInfo         |-> BuiltinDataCons (thiding --> trelevance --> targinfo))
-  , (builtinAgdaTypeEl         |-> BuiltinDataCons (tsort --> tterm --> ttype))
   , (builtinAgdaTermVar        |-> BuiltinDataCons (tnat --> targs --> tterm))
   , (builtinAgdaTermLam        |-> BuiltinDataCons (thiding --> tabs tterm --> tterm))
   , (builtinAgdaTermExtLam     |-> BuiltinDataCons (tlist tclause --> targs --> tterm))
@@ -122,16 +125,14 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinAgdaTermPi         |-> BuiltinDataCons (targ ttype --> tabs ttype --> tterm))
   , (builtinAgdaTermSort       |-> BuiltinDataCons (tsort --> tterm))
   , (builtinAgdaTermLit        |-> BuiltinDataCons (tliteral --> tterm))
-  , (builtinAgdaTermQuoteGoal    |-> BuiltinDataCons (tabs tterm --> tterm))
-  , (builtinAgdaTermQuoteTerm    |-> BuiltinDataCons (tterm --> tterm))
-  , (builtinAgdaTermQuoteContext |-> BuiltinDataCons tterm)
-  , (builtinAgdaTermUnquote      |-> BuiltinDataCons (tterm --> targs --> tterm))
+  , (builtinAgdaTermMeta         |-> BuiltinDataCons (tmeta --> targs --> tterm))
   , (builtinAgdaTermUnsupported|-> BuiltinDataCons tterm)
   , (builtinAgdaLitNat    |-> BuiltinDataCons (tnat --> tliteral))
   , (builtinAgdaLitFloat  |-> BuiltinDataCons (tfloat --> tliteral))
   , (builtinAgdaLitChar   |-> BuiltinDataCons (tchar --> tliteral))
   , (builtinAgdaLitString |-> BuiltinDataCons (tstring --> tliteral))
   , (builtinAgdaLitQName  |-> BuiltinDataCons (tqname --> tliteral))
+  , (builtinAgdaLitMeta   |-> BuiltinDataCons (tmeta --> tliteral))
   , (builtinHidden             |-> BuiltinDataCons thiding)
   , (builtinInstance           |-> BuiltinDataCons thiding)
   , (builtinVisible            |-> BuiltinDataCons thiding)
@@ -160,65 +161,95 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinLevelZero          |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc           |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinAgdaFunDef         |-> BuiltinData tset [builtinAgdaFunDefCon])
-  , (builtinAgdaFunDefCon      |-> BuiltinDataCons (ttype --> tlist tclause --> tfun))
   , (builtinAgdaClause         |-> BuiltinData tset [builtinAgdaClauseClause, builtinAgdaClauseAbsurd])
   , (builtinAgdaClauseClause   |-> BuiltinDataCons (tlist (targ tpat) --> tterm --> tclause))
   , (builtinAgdaClauseAbsurd   |-> BuiltinDataCons (tlist (targ tpat) --> tclause))
-  , (builtinAgdaDataDef               |-> builtinPostulate tset) -- internally this is QName
-  , (builtinAgdaRecordDef             |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef
                                                            ,builtinAgdaDefinitionDataDef
                                                            ,builtinAgdaDefinitionDataConstructor
                                                            ,builtinAgdaDefinitionRecordDef
                                                            ,builtinAgdaDefinitionPostulate
                                                            ,builtinAgdaDefinitionPrimitive])
-  , (builtinAgdaDefinitionFunDef          |-> BuiltinDataCons (tfun --> tdefn))
-  , (builtinAgdaDefinitionDataDef         |-> BuiltinDataCons (tdtype --> tdefn))
-  , (builtinAgdaDefinitionDataConstructor |-> BuiltinDataCons tdefn)
-  , (builtinAgdaDefinitionRecordDef       |-> BuiltinDataCons (trec --> tdefn))
+  , (builtinAgdaDefinitionFunDef          |-> BuiltinDataCons (tlist tclause --> tdefn))
+  , (builtinAgdaDefinitionDataDef         |-> BuiltinDataCons (tnat --> tlist tqname --> tdefn))
+  , (builtinAgdaDefinitionDataConstructor |-> BuiltinDataCons (tqname --> tdefn))
+  , (builtinAgdaDefinitionRecordDef       |-> BuiltinDataCons (tqname --> tdefn))
   , (builtinAgdaDefinitionPostulate       |-> BuiltinDataCons tdefn)
   , (builtinAgdaDefinitionPrimitive       |-> BuiltinDataCons tdefn)
+  , builtinAgdaTCM       |-> builtinPostulate (hPi "a" tlevel $ tsetL 0 --> tsetL 0)
+  , builtinAgdaTCMReturn |-> builtinPostulate (hPi "a" tlevel  $
+                                               hPi "A" (tsetL 0) $
+                                               elV 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMBind   |-> builtinPostulate (hPi "a" tlevel  $ hPi "b" tlevel $
+                                               hPi "A" (tsetL 1) $ hPi "B" (tsetL 1) $
+                                               tTCM 3 (varM 1) --> (elV 3 (varM 1) --> tTCM 2 (varM 0)) --> tTCM 2 (varM 0))
+  , builtinAgdaTCMUnify      |-> builtinPostulate (tterm --> tterm --> tTCM_ primUnit)
+  , builtinAgdaTCMTypeError  |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist terrorpart --> tTCM 1 (varM 0))
+  , builtinAgdaTCMInferType  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMCheckType  |-> builtinPostulate (tterm --> ttype --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMNormalise  |-> builtinPostulate (tterm --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMCatchError |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tTCM 1 (varM 0) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMGetContext |-> builtinPostulate (tTCM_ (unEl <$> tlist (targ ttype)))
+  , builtinAgdaTCMExtendContext |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ targ ttype --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMInContext     |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tlist (targ ttype) --> tTCM 1 (varM 0) --> tTCM 1 (varM 0))
+  , builtinAgdaTCMFreshName     |-> builtinPostulate (tstring --> tTCM_ primQName)
+  , builtinAgdaTCMDeclareDef    |-> builtinPostulate (targ tqname --> ttype --> tTCM_ primUnit)
+  , builtinAgdaTCMDefineFun     |-> builtinPostulate (tqname --> tlist tclause --> tTCM_ primUnit)
+  , builtinAgdaTCMGetType            |-> builtinPostulate (tqname --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMGetDefinition      |-> builtinPostulate (tqname --> tTCM_ primAgdaDefinition)
+  , builtinAgdaTCMQuoteTerm          |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ elV 1 (varM 0) --> tTCM_ primAgdaTerm)
+  , builtinAgdaTCMUnquoteTerm        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tterm --> tTCM 1 (varM 0))
+  , builtinAgdaTCMBlockOnMeta        |-> builtinPostulate (hPi "a" tlevel $ hPi "A" (tsetL 0) $ tmeta --> tTCM 1 (varM 0))
   ]
   where
         (|->) = (,)
 
         v0 = varM 0
         v1 = varM 1
+        v2 = varM 2
+        v3 = varM 3
 
         tv0,tv1 :: TCM Type
         tv0 = el v0
         tv1 = el v1
+        tv2 = el v2
+        tv3 = el v3
 
         arg :: TCM Term -> TCM Term
         arg t = primArg <@> t
 
+        elV x a = El (varSort x) <$> a
+
+        tsetL l    = return $ sort (varSort l)
+        tlevel     = el primLevel
         tlist x    = el $ list (fmap unEl x)
         targ x     = el (arg (fmap unEl x))
         tabs x     = el (primAbs <@> fmap unEl x)
         targs      = el (list (arg primAgdaTerm))
         tterm      = el primAgdaTerm
+        terrorpart = el primAgdaErrorPart
         tnat       = el primNat
+        tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
         tchar      = el primChar
         tstring    = el primString
         tqname     = el primQName
+        tmeta      = el primAgdaMeta
         tsize      = El SizeUniv <$> primSize
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
 --        tcolors    = el (list primAgdaTerm) -- TODO guilhem
         targinfo   = el primArgInfo
-        ttype      = el primAgdaType
+        ttype      = el primAgdaTerm
         tsort      = el primAgdaSort
         tdefn      = el primAgdaDefinition
-        tfun       = el primAgdaFunDef
-        tdtype     = el primAgdaDataDef
-        trec       = el primAgdaRecordDef
         tliteral   = el primAgdaLiteral
         tpat       = el primAgdaPattern
         tclause    = el primAgdaClause
+        tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
+        tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
@@ -353,6 +384,7 @@ inductiveCheck b n t = do
                           [ "The builtin", b
                           , "must be a datatype with", show n
                           , "constructors" ]
+          Record { recInduction = ind } | n == 1 && ind /= Just CoInductive -> return ()
           _ -> err
       _ -> err
 
@@ -416,6 +448,16 @@ bindBuiltinNat t = do
                       (A.Con $ AmbQ [rerange suc])
     _ -> __IMPOSSIBLE__
 
+bindBuiltinUnit :: Term -> TCM ()
+bindBuiltinUnit t = do
+  unit <- getDef t
+  def <- theDef <$> getConstInfo unit
+  case def of
+    Record { recFields = [], recConHead = con } -> do
+      bindBuiltinName builtinUnit t
+      bindBuiltinName builtinUnitUnit (Con con [])
+    _ -> genericError "Builtin UNIT must be a singleton record type"
+
 bindBuiltinInfo :: BuiltinInfo -> A.Expr -> TCM ()
 bindBuiltinInfo i (A.ScopedExpr scope e) = setScope scope >> bindBuiltinInfo i e
 bindBuiltinInfo (BuiltinInfo s d) e = do
@@ -428,6 +470,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           _ | s == builtinBool    -> bindBuiltinBool e'
             | s == builtinNat     -> bindBuiltinNat e'
             | s == builtinInteger -> bindBuiltinInt e'
+            | s == builtinUnit    -> bindBuiltinUnit e'
             | otherwise           -> bindBuiltinName s e'
 
       BuiltinDataCons t -> do

@@ -451,9 +451,15 @@ isHom n x = do
   --guard $ null $ allFreeVars x `IntSet.intersection` IntSet.fromAscList [0..k-1]
   return $ raise (-n) x
 
+-- | Checks whether the given term (of the given type) is beta-eta-equivalent
+--   to a variable. Returns just the de Bruijn-index of the variable if it is,
+--   or nothing otherwise.
 isEtaVar :: Term -> Type -> TCM (Maybe Int)
 isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
   where
+    -- Checks whether the term u (of type a) is beta-eta-equivalent to
+    -- `Var i es`, and returns i if it is. If the argument mi is `Just i'`,
+    -- then i and i' are also required to be equal (else Nothing is returned).
     isEtaVarG :: Term -> Type -> Maybe Int -> [Elim' Int] -> MaybeT TCM Int
     isEtaVarG u a mi es = do
       (u, a) <- liftTCM $ reduce (u, a)
@@ -487,6 +493,9 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
           (-1+) <$> isEtaVarG u' a' mi' es'
         _ -> mzero
 
+    -- `areEtaVarElims u a es es'` checks whether the given elims es (as applied
+    -- to the term u of type a) are beta-eta-equal to either projections or
+    -- variables with de Bruijn indices given by es'.
     areEtaVarElims :: Term -> Type -> Elims -> [Elim' Int] -> MaybeT TCM ()
     areEtaVarElims u a []    []    = return ()
     areEtaVarElims u a []    (_:_) = mzero
@@ -496,8 +505,12 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
       a       <- liftTCM $ reduce a
       (_, fa) <- MaybeT $ projectTyped u a f
       areEtaVarElims (u `applyE` [Proj f]) fa es es'
-    areEtaVarElims u a (Proj  _ : _ ) (Apply _ : _  ) = __IMPOSSIBLE__
-    areEtaVarElims u a (Apply _ : _ ) (Proj  _ : _  ) = __IMPOSSIBLE__
+    -- These two cases can occur only when we're looking at two different
+    -- variables (i.e. one of function type and the other of record type) so
+    -- it's definitely not the variable we're looking for (or someone is playing
+    -- Jedi mind tricks on us)
+    areEtaVarElims u a (Proj  _ : _ ) (Apply _ : _  ) = mzero
+    areEtaVarElims u a (Apply _ : _ ) (Proj  _ : _  ) = mzero
     areEtaVarElims u a (Apply v : es) (Apply i : es') = do
       ifNotPiType a (const mzero) $ \dom cod -> do
       _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []

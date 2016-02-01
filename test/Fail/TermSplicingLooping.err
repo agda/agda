@@ -1,4 +1,4 @@
-TermSplicingLooping.agda:6,1-8,33
+TermSplicingLooping.agda:7,1-9,40
 Termination checking failed for the following functions:
   f
 Problematic calls:

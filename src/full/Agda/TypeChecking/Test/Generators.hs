@@ -406,6 +406,7 @@ instance ShrinkC Literal Literal where
       LitChar   r c -> LitChar   r <$> shrinkC conf c
       LitFloat  r x -> LitFloat  r <$> shrink x
       LitQName  r x -> []
+      LitMeta{}     -> []
   noShrink = id
 
 instance ShrinkC Char Char where

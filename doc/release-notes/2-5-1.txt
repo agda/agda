@@ -380,26 +380,215 @@ Operator syntax
 Reflection
 ----------
 
-* Unquoting function definitions.
+* The reflection framework has received a massive overhaul.
+
+  A new type of reflected type checking computations supplants most of the old
+  reflection primitives. The quoteGoal, quoteContext and tactic primitives are
+  deprecated and will be removed in the future, and the unquoteDecl and unquote
+  primitives have changed behaviour. Furthermore the following primitive
+  functions have been replaced by builtin type checking computations:
+
+    - primQNameType              --> AGDATCMGETTYPE
+    - primQNameDefinition        --> AGDATCMGETDEFINITION
+    - primDataConstructors       --> subsumed by AGDATCMGETDEFINITION
+    - primDataNumberOfParameters --> subsumed by AGDATCMGETDEFINITION
+
+  See below for details.
+
+* Types are no longer packaged with a sort.
+
+  The AGDATYPE and AGDATYPEEL built-ins have been removed. Reflected types are
+  now simply terms.
+
+* Reflected definitions have more information.
+
+  The type for reflected definitions has changed to
+
+    data Definition : Set where
+      fun-def     : List Clause  → Definition
+      data-type   : Nat → List Name → Definition -- parameters and constructors
+      record-type : Name → Definition            -- name of the constructor
+      data-con    : Name → Definition            -- name of the data/record type
+      axiom       : Definition
+      prim-fun    : Definition
+
+  Correspondingly the built-ins for function, data and record definitions
+  (AGDAFUNDEF, AGDAFUNDEFCON, AGDADATADEF, AGDARECORDDEF) have been removed.
+
+* Reflected type checking computations.
+
+  There is a primitive TC monad representing type checking computations. The
+  unquote, unquoteDecl, and the new unquoteDef all expect computations in this
+  monad (see below). The interface to the monad is the following
+
+    -- Error messages can contain embedded names and terms.
+    data ErrorPart : Set where
+      strErr  : String → ErrorPart
+      termErr : Term → ErrorPart
+      nameErr : Name → ErrorPart
+
+    {-# BUILTIN AGDAERRORPART       ErrorPart #-}
+    {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
+    {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+    {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
+
+    postulate
+      TC         : ∀ {a} → Set a → Set a
+      returnTC   : ∀ {a} {A : Set a} → A → TC A
+      bindTC     : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+
+      -- Unify two terms, potentially solving metavariables in the process.
+      unify      : Term → Term → TC ⊤
+
+      -- Throw a type error. Can be caught by catchTC.
+      typeError  : ∀ {a} {A : Set a} → List ErrorPart → TC A
+
+      -- Block a type checking computation on a metavariable. This will abort
+      -- the computation and restart it (from the beginning) when the
+      -- metavariable is solved.
+      blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
+
+      -- Backtrack and try the second argument if the first argument throws a
+      -- type error.
+      catchTC    : ∀ {a} {A : Set a} → TC A → TC A → TC A
+
+      -- Infer the type of a given term
+      inferType  : Term → TC Type
+
+      -- Check a term against a given type. This may resolve implicit arguments
+      -- in the term, so a new refined term is returned. Can be used to create
+      -- new metavariables: newMeta t = checkType unknown t
+      checkType  : Term → Type → TC Term
+
+      -- Compute the normal form of a term.
+      normalise  : Term → TC Term
+
+      -- Get the current context.
+      getContext : TC (List (Arg Type))
+
+      -- Extend the current context with a variable of the given type.
+      extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
+
+      -- Set the current context.
+      inContext     : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
+
+      -- Quote a value, returning the corresponding Term.
+      quoteTC : ∀ {a} {A : Set a} → A → TC Term
+
+      -- Unquote a Term, returning the corresponding value.
+      unquoteTC : ∀ {a} {A : Set a} → Term → TC A
+
+      -- Create a fresh name.
+      freshName  : String → TC QName
+
+      -- Declare a new function of the given type. The function must be defined
+      -- later using 'defineFun'. Takes an Arg Name to allow declaring instances
+      -- and irrelevant functions. The Visibility of the Arg must not be hidden.
+      declareDef : Arg QName → Type → TC ⊤
+
+      -- Define a declared function. The function may have been declared using
+      -- 'declareDef' or with an explicit type signature in the program.
+      defineFun  : QName → List Clause → TC ⊤
+
+      -- Get the type of a defined name. Replaces 'primQNameType'.
+      getType    : QName → TC Type
+
+      -- Get the definition of a defined name. Replaces 'primQNameDefinition'.
+      getDefinition : QName → TC Definition
+
+    {-# BUILTIN AGDATCM                   TC                 #-}
+    {-# BUILTIN AGDATCMRETURN             returnTC           #-}
+    {-# BUILTIN AGDATCMBIND               bindTC             #-}
+    {-# BUILTIN AGDATCMUNIFY              unify              #-}
+    {-# BUILTIN AGDATCMNEWMETA            newMeta            #-}
+    {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
+    {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
+    {-# BUILTIN AGDATCMCATCHERROR         catchTC            #-}
+    {-# BUILTIN AGDATCMINFERTYPE          inferType          #-}
+    {-# BUILTIN AGDATCMCHECKTYPE          checkType          #-}
+    {-# BUILTIN AGDATCMNORMALISE          normalise          #-}
+    {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
+    {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
+    {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
+    {-# BUILTIN AGDATCMQUOTETERM          quoteTC            #-}
+    {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
+    {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
+    {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
+    {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
+    {-# BUILTIN AGDATCMGETTYPE            getType            #-}
+    {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
+
+* Builtin type for metavariables
+
+  There is a new builtin type for metavariables used by the new reflection
+  framework. It is declared as follows and comes with primitive equality,
+  ordering and show.
+
+    postulate Meta : Set
+    {-# BUILTIN AGDAMETA Meta #-}
+    primitive primMetaEquality : Meta → Meta → Bool
+    primitive primMetaLess : Meta → Meta → Bool
+    primitive primShowMeta : Meta → String
+
+  There are corresponding new constructors in the Term and Literal data types:
+
+    data Term : Set where
+      ...
+      meta : Meta → List (Arg Term) → Term
+
+    {-# BUILTIN AGDATERMMETA meta #-}
+
+    data Literal : Set where
+      ...
+      meta : Meta → Literal
+
+    {-# BUILTIN AGDALITMETA meta #-}
+
+* Builtin unit type
+
+    The type checker needs to know about the unit type, which you can allow by
+
+      record ⊤ : Set where
+      {-# BUILTIN UNIT ⊤ #-}
+
+* Changed behaviour of unquote
+
+  The unquote primitive now expects a type checking computation instead of a
+  pure term. In particular 'unquote e' requires
+
+    e : Term → TC ⊤
+
+  where the argument is the representation of the hole in which the result
+  should go. The old unquote behaviour (where unquote expected a Term argument)
+  can be recovered by
+
+    OLD: unquote v
+    NEW: unquote λ hole → unify hole v
+
+* Changed behaviour of unquoteDecl
+
+  The unquoteDecl primitive now expects a type checking computation instead of
+  a pure function definition. It is possible to define multiple (mutually
+  recursive) functions at the same time. More specifically
+
+    unquoteDecl x₁ .. xₙ = m
+
+  requires m : TC ⊤ and that x₁ .. xₙ are defined (using declareDef and
+  defineFun) after executing m. As before x₁ .. xₙ : QName in m, but have their
+  declared types outside the unquoteDecl.
+
+* New primitive unquoteDef.
 
   There is a new declaration
 
-    unquoteDef x = e
+    unquoteDef x₁ .. xₙ = m
 
-  Here e should have type LIST AGDACLAUSE and evaluate to a closed value. Since
-  unquoteDef only contains the function clauses you need a separate type
-  signature. For instance, given that you have a 'derivingEq' function that
-  builds decidable equality functions, you would say
-
-    eqNat : (x y : Nat) → Dec (x ≡ y)
-    unquoteDef eqNat = derivingEq (quote Nat) (quote eqNat)
-
-  Note that, in contrast to unquoteDecl, you have to quote the name of the
-  defined function to get a QNAME.
+  This works exactly as unquoteDecl (see above) with the exception that x₁ ..
+  xₙ are required to already be declared.
 
   The main advantage of unquoteDef over unquoteDecl is that unquoteDef is
-  allowed in mutual blocks, allowing you to create mutually recursive
-  definitions by unquoting.
+  allowed in mutual blocks, allowing mutually recursion between generated
+  definitions and hand-written definitions.
 
 * The reflection interface now exposes the name hint (as a string)
   for variables. As before, the actual binding structure is with
@@ -419,54 +608,16 @@ Reflection
     Term.pi     : Arg Type → Abs Type → Term
     Pattern.var : String   → Pattern
 
-* QuoteContext.
-
-  The `quoteContext' keyword now returns a reflected representation of the current context as
-  a term of type `List (Arg Type)'. For example:
-
-    test : (n : Nat) (x y : Fin n) → quoteContext ≡
-      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 1 []) ∷ []))) ∷
-      arg₀ (el (lit 0) (def (quote Fin) (arg₀ (var 0 []) ∷ []))) ∷
-      arg₀ (el (lit 0) (def (quote Nat) [])) ∷ []
-    test n x y = refl
-
-  In addition, tactics now take an additional argument for the current context, i.e. instead
-  of type `Term → Term', they should now have type `List (Arg Type) → Term → Term'.
-
-* New constructors have been added to the reflected term data type:
-
-  data Term : Set where
-    ...
-    quote-term    : Term → Term
-    quote-goal    : Abs Term → Term
-    quote-context : Term
-    unquote-term  : Term → Term
-
-  {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
-  {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
-  {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
-  {-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
-
-  These constructors will never be present in a term returned by quoteTerm,
-  quoteGoal or quoteContext, but they can appear in argument to unquote. This
-  makes it possible to write tactics that compute terms containing calls to
-  other tactics.
-
-  Example: Implementing (a version of) the tactic keyword using reflection
-
-    -- unquote (`tactic (quote x)) == tactic (λ _ → x)
-    `tactic : QName → Term
-    `tactic x = quote-goal (abs "g" (unquote-term (def x (vArg (var 0 []) ∷ []))))
-
 * Reflection-based macros
 
-  Macros are functions of type t1 → t2 → .. → Term that are defined in a 'macro'
-  block. Macro application is guided by the type of the macro, where Term
-  arguments desugar into the 'quoteTerm' syntax and Name arguments into the
-  'quote' syntax. Arguments of any other type are preserved as-is.
+  Macros are functions of type t1 → t2 → .. → Term → TC ⊤ that are defined in a
+  'macro' block. Macro application is guided by the type of the macro, where
+  Term arguments desugar into the 'quoteTerm' syntax and Name arguments into
+  the 'quote' syntax. Arguments of any other type are preserved as-is. The last
+  Term argument is the hole term given to 'unquote' computation (see above).
 
   For example, the macro application 'f u v w' where the macro
-  f has the type 'Term → Name → Bool → Term' desugars into
+  f has the type 'Term → Name → Bool → Term → TC ⊤' desugars into
     'unquote (f (quoteTerm u) (quote v) w)'
 
   Limitations:
@@ -478,9 +629,9 @@ Reflection
   Silly example:
 
     macro
-      plus-to-times : Term -> Term
-      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) = def (quote _*_) (a ∷ b ∷ [])
-      plus-to-times v = v
+      plus-to-times : Term → Term → TC ⊤
+      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
+      plus-to-times v hole = unify hole v
 
     thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
     thm a b = refl
@@ -488,14 +639,16 @@ Reflection
   Macros are most useful when writing tactics, since they let you hide the
   reflection machinery. For instance, suppose you have a solver
 
-    magic : Term → Term
+    magic : Type → Term
 
   that takes a reflected goal and outputs a proof (when successful). You can
-  then use the `tactic function from above to define
+  then define the following macro
 
     macro
-      by-magic : Term
-      by-magic = `tactic (quote magic)
+      by-magic : Term → TC ⊤
+      by-magic hole =
+        bindTC (inferType hole) λ goal →
+        unify hole (magic goal)
 
   This lets you apply the magic tactic without any syntactic noise at all:
 

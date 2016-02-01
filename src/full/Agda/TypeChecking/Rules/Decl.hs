@@ -11,6 +11,7 @@ module Agda.TypeChecking.Rules.Decl where
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State (modify, gets)
+import Control.Monad.Writer (tell)
 
 import qualified Data.Foldable as Fold
 import Data.Maybe
@@ -72,6 +73,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
+import Agda.Utils.Except
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -150,7 +152,7 @@ checkDecl d = setCurrentRange d $ do
         -- if we're not inside a mutual block?
         none        m = m >> return Nothing
         meta        m = m >> return (Just (return ()))
-        mutual i ds m = m >>= return . Just . mutualChecks i d ds
+        mutual i ds m = m >>= return . Just . uncurry (mutualChecks i d ds)
         impossible  m = m >> return __IMPOSSIBLE__
                        -- We're definitely inside a mutual block.
 
@@ -170,7 +172,8 @@ checkDecl d = setCurrentRange d $ do
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x ind eta c ps tel cs -> mutual mi [d] $ check x i $ do
                                     checkRecDef i x ind eta c ps tel cs
-                                    return (Set.singleton x)
+                                    blockId <- mutualBlockOf x
+                                    return (blockId, Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
                                   -- A record signature is always followed by a
@@ -222,13 +225,13 @@ checkDecl d = setCurrentRange d $ do
 -- Some checks that should be run at the end of a mutual
 -- block (or non-mutual record declaration). The set names
 -- contains the names defined in the mutual block.
-mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> Set QName -> TCM ()
-mutualChecks mi d ds names = do
+mutualChecks :: Info.MutualInfo -> A.Declaration -> [A.Declaration] -> MutualId -> Set QName -> TCM ()
+mutualChecks mi d ds mid names = do
   -- Andreas, 2014-04-11: instantiate metas in definition types
   mapM_ instantiateDefinitionType $ Set.toList names
   -- Andreas, 2013-02-27: check termination before injectivity,
   -- to avoid making the injectivity checker loop.
-  checkTermination_        d
+  checkTermination_        mid d
   checkPositivity_         mi names
   -- Andreas, 2015-03-26 Issue 1470:
   -- Restricting coinduction to recursive does not solve the
@@ -248,56 +251,36 @@ mutualChecks mi d ds names = do
 
 type FinalChecks = Maybe (TCM ())
 
-checkUnquoteDecl :: Info.MutualInfo -> Info.DefInfo -> QName -> A.Expr -> TCM FinalChecks
-checkUnquoteDecl mi i x e = do
-  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> prettyTCM x
-  fundef <- primAgdaFunDef
-  v      <- checkExpr e $ El (mkType 0) fundef
-  reportSDoc "tc.unquote.decl" 20 $ text "unquoteDecl: Checked term"
-  uv <- runUnquoteM $ unquote v
-  case uv of
-    Left err -> typeError $ UnquoteFailed err
-    Right (R.FunDef a cs) -> do
-      reportSDoc "tc.unquote.decl" 20 $
-        vcat $ text "unquoteDecl: Unquoted term"
-             : [ nest 2 $ text (show c) | c <- cs ]
-      a <- toAbstract_ a
-      reportSDoc "tc.unquote.decl" 10 $
-        vcat [ text "unquoteDecl" <+> prettyTCM x <+> text "-->"
-             , prettyTCM x <+> text ":" <+> prettyA a ]
-      cs <- mapM (toAbstract_ . (QNamed x)) cs
-      reportSDoc "tc.unquote.decl" 10 $ vcat $ map prettyA cs
-      let ds = [ A.Axiom A.FunSig i defaultArgInfo x a   -- TODO other than defaultArg
-               , A.FunDef i x NotDelayed cs ]
-      xs <- checkMutual mi ds
-      return $ Just $ mutualChecks mi (A.Mutual mi ds) ds xs
-    Right R.DataDef         -> __IMPOSSIBLE__
-    Right R.RecordDef       -> __IMPOSSIBLE__
-    Right R.DataConstructor -> __IMPOSSIBLE__
-    Right R.Axiom           -> __IMPOSSIBLE__
-    Right R.Primitive       -> __IMPOSSIBLE__
+checkUnquoteDecl :: Info.MutualInfo -> [Info.DefInfo] -> [QName] -> A.Expr -> TCM FinalChecks
+checkUnquoteDecl mi is xs e = do
+  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDecl" <+> sep (map prettyTCM xs)
+  Nothing <$ unquoteTop xs e
 
-checkUnquoteDef :: Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkUnquoteDef i x e = do
-  reportSDoc "tc.unquote.def" 20 $ text "Checking unquoteDef" <+> prettyTCM x
-  list   <- primList
-  clause <- primAgdaClause
-  v      <- checkExpr e $ El (mkType 0) $ list `apply` [defaultArg clause]
-  reportSDoc "tc.unquote.def" 20 $ text "unquoteDef: Checked term"
-  uv <- runUnquoteM $ unquote v :: TCM (Either UnquoteError [R.Clause])
-  case uv of
-    Left err -> typeError $ UnquoteFailed err
-    Right cs -> do
-      reportSDoc "tc.unquote.def" 20 $
-        vcat $ text "unquoteDef: Unquoted term"
-             : [ nest 2 $ text (show c) | c <- cs ]
-      cs <- mapM (toAbstract_ . (QNamed x)) cs
-      reportSDoc "tc.unquote.def" 10 $ vcat $ map prettyA cs
-      checkFunDef NotDelayed i x cs
+checkUnquoteDef :: [Info.DefInfo] -> [QName] -> A.Expr -> TCM ()
+checkUnquoteDef _ xs e = do
+  reportSDoc "tc.unquote.decl" 20 $ text "Checking unquoteDef" <+> sep (map prettyTCM xs)
+  () <$ unquoteTop xs e
 
--- | Instantiate all metas in 'Definition' associated to 'QName'. --   Makes sense after freezing metas.
---   Some checks, like free variable analysis, are not in 'TCM', --   so they will be more precise (see issue 1099) after meta instantiation.
--- --   Precondition: name has been added to signature already.
+-- | Run a reflected TCM computatation expected to define a given list of
+--   names.
+unquoteTop :: [QName] -> A.Expr -> TCM [QName]
+unquoteTop xs e = do
+  tcm   <- primAgdaTCM
+  unit  <- primUnit
+  lzero <- primLevelZero
+  let vArg = defaultArg
+      hArg = setHiding Hidden . vArg
+  m    <- checkExpr e $ El (mkType 0) $ apply tcm [hArg lzero, vArg unit]
+  res  <- runUnquoteM $ tell xs >> evalTCM m
+  case res of
+    Left err      -> typeError $ UnquoteFailed err
+    Right (_, xs) -> return xs
+
+-- | Instantiate all metas in 'Definition' associated to 'QName'.
+--   Makes sense after freezing metas. Some checks, like free variable
+--   analysis, are not in 'TCM', so they will be more precise (see issue 1099)
+--   after meta instantiation.
+--   Precondition: name has been added to signature already.
 instantiateDefinitionType :: QName -> TCM ()
 instantiateDefinitionType q = do
   reportSLn "tc.decl.inst" 20 $ "instantiating type of " ++ show q
@@ -371,15 +354,15 @@ highlight_ d = do
   deepUnScope d = [d]
 
 -- | Termination check a declaration.
-checkTermination_ :: A.Declaration -> TCM ()
-checkTermination_ d = Bench.billTo [Bench.Termination] $ do
+checkTermination_ :: MutualId -> A.Declaration -> TCM ()
+checkTermination_ mid d = Bench.billTo [Bench.Termination] $ do
   reportSLn "tc.decl" 20 $ "checkDecl: checking termination..."
   whenM (optTerminationCheck <$> pragmaOptions) $ do
     case d of
       -- Record module definitions should not be termination-checked twice.
       A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
-        termErrs <- termDecl d
+        termErrs <- termDecl mid d
         unless (null termErrs) $
           typeError $ TerminationCheckFailed termErrs
 
@@ -482,16 +465,15 @@ checkAxiom funSig i info0 x e = do
 
   -- check macro type if necessary
   when (Info.defMacro i == MacroDef) $ do
-    (Def nTerm _) <- primAgdaTerm
     t' <- normalise t
-    TelV tel _ <- telView t'
-    tn <- getOutputTypeName t'
+    TelV tel tr <- telView t'
 
-    case tn of
-      OutputTypeName n | n == nTerm -> return ()
-      _ -> typeError $ GenericError $ "Result type of a macro must be Term."
-    unless (all (visible) (telToList tel)) $ do
-      typeError $ GenericError $ "Hidden / instance arguments are not allowed in macros."
+    let telList = telToList tel
+        resType = abstract (telFromList (drop (length telList - 1) telList)) tr
+    expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+    equalType resType expectedType
+      `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
+                                                              , nest 2 $ prettyTCM expectedType ]
 
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
@@ -703,11 +685,11 @@ checkPragma r p =
 --
 -- All definitions which have so far been assigned to the given mutual
 -- block are returned.
-checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (Set QName)
+checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (MutualId, Set QName)
 checkMutual i ds = inMutualBlock $ do
 
+  blockId <- currentOrFreshMutualBlock
   verboseS "tc.decl.mutual" 20 $ do
-    blockId <- currentOrFreshMutualBlock
     reportSDoc "tc.decl.mutual" 20 $ vcat $
       (text "Checking mutual block" <+> text (show blockId) <> text ":") :
       map (nest 2 . prettyA) ds
@@ -715,7 +697,7 @@ checkMutual i ds = inMutualBlock $ do
   local (\e -> e { envTerminationCheck = () <$ Info.mutualTermCheck i }) $
     mapM_ checkDecl ds
 
-  lookupMutualBlock =<< currentOrFreshMutualBlock
+  (blockId, ) <$> lookupMutualBlock blockId
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()

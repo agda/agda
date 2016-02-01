@@ -1,4 +1,6 @@
-Issue1371.agda:20,15-19
-quote Nat != quote Float of type QName
-when checking that the expression refl has type
-primQNameType aName ≡ primQNameType bName
+Issue1371.agda:33,1-9
+"other" ≡ "other" should be empty, but the following constructor
+patterns are valid:
+  refl
+when checking that the clause .Issue1371.with-28 () has type
+(w : "other" ≡ "other") → ⊥

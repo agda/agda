@@ -25,7 +25,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open, Apply, Assign)
 import Agda.Syntax.Abstract.Views as A
 import Agda.Syntax.Common
-import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo)
+import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
@@ -49,6 +49,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.CheckInternal
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
@@ -302,6 +303,9 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               t0 <- reify t0
               t1 <- reify t1
               return $ PostponedCheckArgs m' (map (namedThing . unArg) args) t0 t1
+            UnquoteTactic tac _ goal -> do
+              tac <- A.App exprNoRange (A.Unquote exprNoRange) . defaultNamedArg <$> reify tac
+              OfType tac <$> reify goal
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__

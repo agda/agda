@@ -861,6 +861,7 @@ data TypeCheckingProblem
     --     @(λ (x y : Fin _) → e) : (x : Fin n) → ?@
     --   we want to postpone @(λ (y : Fin n) → e) : ?@ where @Fin n@
     --   is a 'Type' rather than an 'A.Expr'.
+  | UnquoteTactic Term Term Type   -- ^ First argument is computation and the others are hole and goal type
   deriving (Typeable)
 
 instance Show MetaInstantiation where
@@ -1939,8 +1940,7 @@ data UnquoteError
   = BadVisibility String (Arg I.Term)
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
-  | NotAConstructor String I.Term       -- ^ @NotAConstructor kind term@
-  | NotALiteral String I.Term
+  | NonCanonical String I.Term
   | BlockedOnMeta MetaId
   | UnquotePanic String
   deriving (Show)

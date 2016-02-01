@@ -177,14 +177,12 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primShowString"     |-> return "Data.Text.unpack"
 
   -- Reflection
-  , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName () ()"
-  , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName () ()"
+  , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
+  , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName"
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
-  , "primQNameType"       |-> return "MAlonzo.RTE.qnameType"
-  , "primQNameDefinition" |-> return "MAlonzo.RTE.qnameDefinition"
-
-  , "primDataConstructors" |-> return "(error \"primDataConstructors: not implemented\")"
-  , "primDataNumberOfParameters" |-> return "(error \"primDataNumberOfParameters: not implemented\")"
+  , "primMetaEquality"    |-> rel "(==)" "Integer"
+  , "primMetaLess"        |-> rel "(<)" "Integer"
+  , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"
 
   -- Seq
   , "primForce"      |-> return "\\ _ _ _ _ x f -> f $! x"

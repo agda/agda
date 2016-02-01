@@ -4,17 +4,58 @@
 Reflection
 **********
 
-.. warning::
-   The reflection API has signifcantly changed and this section is outdated.
-
 Builtin types
 -------------
+
+Names
+~~~~~
+
+The built-in ``QNAME`` type represents quoted names and comes equipped with
+equality, ordering and a show function.
+
+::
+
+  postulate Name : Set
+  {-# BUILTIN QNAME Name #-}
+  primitive
+    primQNameEquality : Name → Name → Bool
+    primQNameLess     : Name → Name → Bool
+    primShowQName     : Name → String
+
+Name literals are created using the ``quote`` keyword and can appear both in
+terms and in patterns
+
+::
+
+  nameOfNat : Name
+  nameOfNat = quote Nat
+
+  isNat : Name → Bool
+  isNat (quote Nat) = true
+  isNat _ = false
+
+Note that the name being quoted must be in scope.
+
+Metavariables
+~~~~~~~~~~~~~
+
+Metavariables are represented by the built-in ``AGDAMETA`` type. They have
+primitive equality, ordering and show::
+
+  postulate Meta : Set
+  {-# BUILTIN AGDAMETA Meta #-}
+  primitive
+    primMetaEquality : Meta → Meta → Bool
+    primMetaLess     : Meta → Meta → Bool
+    primShowMeta     : Meta → String
+
+Builtin metavariables show up in reflected terms.
 
 Literals
 ~~~~~~~~
 
-Literals are mapped to the builtin ``AGDALITERAL`` datatype. Given the appropriate
-builtin binding for the types ``Nat``, ``Float``, etc, the ``AGDALITERAL`` datatype
+Literals are mapped to the built-in ``AGDALITERAL`` datatype. Given the appropriate
+built-in binding for the types ``Nat``, ``Float``, etc, the ``AGDALITERAL`` datatype
 has the following shape:
 
 ::
@@ -24,255 +65,286 @@ has the following shape:
       float  : Float  → Literal
       char   : Char   → Literal
       string : String → Literal
-      qname  : QName  → Literal
+      name   : Name   → Literal
+      meta   : Meta   → Literal
 
     {-# BUILTIN AGDALITERAL   Literal #-}
     {-# BUILTIN AGDALITNAT    nat     #-}
     {-# BUILTIN AGDALITFLOAT  float   #-}
     {-# BUILTIN AGDALITCHAR   char    #-}
     {-# BUILTIN AGDALITSTRING string  #-}
-    {-# BUILTIN AGDALITQNAME  qname   #-}
+    {-# BUILTIN AGDALITQNAME  name    #-}
+    {-# BUILTIN AGDALITMETA   meta    #-}
+
+Patterns
+~~~~~~~~
+
+Reflected patterns are bound to the ``AGDAPATTERN`` built-in using the
+following data type.
+
+::
+
+  data Pattern : Set where
+    con    : Name → List (Arg Pattern) → Pattern
+    dot    : Pattern
+    var    : String → Pattern
+    lit    : Literal → Pattern
+    absurd : Pattern
+    projP  : Name → Pattern
+
+  {-# BUILTIN AGDAPATTERN   Pattern #-}
+  {-# BUILTIN AGDAPATCON    con     #-}
+  {-# BUILTIN AGDAPATDOT    dot     #-}
+  {-# BUILTIN AGDAPATVAR    var     #-}
+  {-# BUILTIN AGDAPATLIT    lit     #-}
+  {-# BUILTIN AGDAPATABSURD absurd  #-}
+  {-# BUILTIN AGDAPATPROJ   projP   #-}
 
 Terms
 ~~~~~
 
-Terms, types and sorts are mapped to the ``AGDATERM``, ``AGDATYPE`` and ``AGDASORT``
-respectively. Terms use a locally-nameless representation using de Bruijn indices.
-
+Terms, sorts and clauses are mutually recursive and mapped to the ``AGDATERM``,
+``AGDASORT`` and ``AGDACLAUSE`` built-ins respectively. Types are simply
+terms. Terms use de Bruijn indices to represent variables.
 
 ::
 
-  mutual
-    data Term : Set where
-      -- Variable applied to arguments.
-      var     : (x : ℕ) (args : List (Arg Term)) → Term
-      -- Constructor applied to arguments.
-      con     : (c : Name) (args : List (Arg Term)) → Term
-      -- Identifier applied to arguments.
-      def     : (f : Name) (args : List (Arg Term)) → Term
-      -- Different kinds of λ-abstraction.
-      lam     : (v : Visibility) (t : Abs Term) → Term
-      -- Pattern matching λ-abstraction.
-      pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
-      -- Pi-type.
-      pi      : (t₁ : Arg Type) (t₂ : Abs Type) → Term
-      -- A sort.
-      sort    : (s : Sort) → Term
-      -- A literal.
-      lit     : (l : Literal) → Term
-      -- Reflection constructions.
-      quote-goal : (t : Abs Term) → Term
-      quote-term : (t : Term) → Term
-      quote-context : Term
-      unquote-term : (t : Term) (args : List (Arg Term)) → Term
-      -- Anything else.
-      unknown : Term
+  data Term : Set
+  data Sort : Set
+  Type = Term
 
-    data Type : Set where
-      el : (s : Sort) (t : Term) → Type
+  data Term where
+    var     : (x : Nat)  (args : List (Arg Term)) → Term
+    con     : (c : Name) (args : List (Arg Term)) → Term
+    def     : (f : Name) (args : List (Arg Term)) → Term
+    meta    : (x : Name) (args : List (Arg Term)) → Term
+    lam     : (v : Visibility) (t : Abs Term) → Term
+    pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
+    pi      : (t₁ : Arg Type) (t₂ : Abs Type) → Term
+    sort    : (s : Sort) → Term
+    lit     : (l : Literal) → Term
+    unknown : Term    -- Treated as '_' when unquoting.
 
-    data Sort : Set where
-      -- A Set of a given (possibly neutral) level.
-      set     : (t : Term) → Sort
-      -- A Set of a given concrete level.
-      lit     : (n : ℕ) → Sort
-      -- Anything else.
-      unknown : Sort
+  data Sort where
+    set     : (t : Term) → Sort -- A Set of a given (possibly neutral) level.
+    lit     : (n : Nat) → Sort  -- A Set of a given concrete level.
+    unknown : Sort
 
-    data Clause : Set where
-      clause        : (pats : List (Arg Pattern))(body : Term) → Clause
-      absurd-clause : (pats : List (Arg Pattern)) → Clause
+  data Clause where
+    clause        : (pats : List (Arg Pattern)) (body : Term) → Clause
+    absurd-clause : (pats : List (Arg Pattern)) → Clause
 
   {-# BUILTIN AGDASORT    Sort    #-}
-  {-# BUILTIN AGDATYPE    Type    #-}
   {-# BUILTIN AGDATERM    Term    #-}
+  {-# BUILTIN AGDACLAUSE  Clause  #-}
 
   {-# BUILTIN AGDATERMVAR         var     #-}
   {-# BUILTIN AGDATERMCON         con     #-}
   {-# BUILTIN AGDATERMDEF         def     #-}
+  {-# BUILTIN AGDATERMMETA        meta    #-}
   {-# BUILTIN AGDATERMLAM         lam     #-}
   {-# BUILTIN AGDATERMEXTLAM      pat-lam #-}
   {-# BUILTIN AGDATERMPI          pi      #-}
   {-# BUILTIN AGDATERMSORT        sort    #-}
   {-# BUILTIN AGDATERMLIT         lit     #-}
-  {-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
-  {-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
-  {-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
-  {-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
   {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-  {-# BUILTIN AGDATYPEEL          el      #-}
+
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
+Absurd lambdas ``λ ()`` are quoted to extended lambdas with an absurd clause.
 
-Absurd lambdas ``(λ ())`` are quoted to extended lambdas with an absurd clause.
+The built-in constructors ``AGDATERMUNSUPPORTED`` and ``AGDASORTUNSUPPORTED``
+are translated to meta variables when unquoting.
 
-The builtin constructors AGDATERMUNSUPPORTED and AGDASORTUNSUPPORTED are
-translated to meta variables when unquoting. The sort Setω is translated
-to ``AGDASORTUNSUPPORTED``.
+Declarations
+~~~~~~~~~~~~
 
-Function Definitions
-~~~~~~~~~~~~~~~~~~~~
-
-Functions definitions are mapped to the ``AGDAFUNDEF`` builtin:
-
-::
-
-  -- Function definition.
-  data FunctionDef : Set where
-    fun-def : Type → Clauses → FunctionDef
-
-  {-# BUILTIN AGDAFUNDEF    FunctionDef #-}
-  {-# BUILTIN AGDAFUNDEFCON fun-def     #-}
-
-
-Quoting and Unquoting
----------------------
-
-Unquoting Terms
-~~~~~~~~~~~~~~~
-
-The construction "unquote t" converts a representation of an Agda term
-to actual Agda code in the following way:
-
-1. The argument t must have type Term (see the reflection API above).
-
-2. The argument is normalised.
-
-3. The entire construction is replaced by the normal form, which is
-   treated as syntax written by the user and type-checked in the
-   usual way.
-
-Examples:
+There is a built-in type ``AGDADEFINITION`` representing definitions. Values of
+this type is returned by the ``AGDATCMGETDEFINITION`` built-in :ref:`described
+below <reflection-tc-monad>`.
 
 ::
 
-    test : unquote (def (quote ℕ) []) ≡ ℕ
-    test = refl
+  data Definition : Set where
+    funDef          : List Clause → Definition
+    dataDef         : Nat → List Name → Definition -- parameters and constructors
+    recordDef       : Name → Definition -- name of constructor
+    dataConstructor : Name → Definition -- name of data/record type
+    axiom           : Definition
+    primFun         : Definition
 
-    id : (A : Set) → A → A
-    id = unquote (lam visible (lam visible (var 0 [])))
+  {-# BUILTIN AGDADEFINITION                Definition      #-}
+  {-# BUILTIN AGDADEFINITIONFUNDEF          funDef          #-}
+  {-# BUILTIN AGDADEFINITIONDATADEF         dataDef         #-}
+  {-# BUILTIN AGDADEFINITIONRECORDDEF       recordDef       #-}
+  {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
+  {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
+  {-# BUILTIN AGDADEFINITIONPRIMITIVE       primFun         #-}
 
-    id-ok : id ≡ (λ A (x : A) → x)
-    id-ok = refl
+Type errors
+~~~~~~~~~~~
 
-
-Unquoting Declarations
-~~~~~~~~~~~~~~~~~~~~~~
-
-You can define (recursive) functions by reflection using the new
-unquoteDecl declaration:
-
-::
-
-    unquoteDecl x = e
-
-Here e should have type AGDAFUNDEF and evaluate to a closed value. This value
-is then spliced in as the definition of x. In the body e, x has type QNAME
-which lets you splice in recursive definitions.
-
-Standard modifiers, such as fixity declarations, can be applied to x as
-expected.
-
-Quoting Terms
-~~~~~~~~~~~~~
-
-The construction "quoteTerm t" evaluates to the ``AGDATERM``
-representation of the term t. This is done in the following way:
-
-1. The type of t is inferred. The term t must be type-correct.
-
-2. The term t is normalised.
-
-3. The construction is replaced by the Term representation (see the
-   reflection API above) of the normal form. Any unsolved metavariables
-   in the term are represented by the "unknown" term constructor.
-
-Examples:
+Type checking computations (see `below <Type checking computations_>`_) can
+fail with an error, which is a list of ``ErrorPart``\s. This allows
+metaprograms to generate nice errors without having to implement pretty
+printing for reflected terms.
 
 ::
 
-    test₁ : quoteTerm (λ {A : Set} (x : A) → x) ≡
-            lam hidden (lam visible (var 0 []))
-    test₁ = refl
+  -- Error messages can contain embedded names and terms.
+  data ErrorPart : Set where
+    strErr  : String → ErrorPart
+    termErr : Term → ErrorPart
+    nameErr : Name → ErrorPart
 
-    -- Local variables are represented as de Bruijn indices.
-    test₂ : (λ {A : Set} (x : A) → quoteTerm x) ≡ (λ x → var 0 [])
-    test₂ = refl
+  {-# BUILTIN AGDAERRORPART       ErrorPart #-}
+  {-# BUILTIN AGDAERRORPARTSTRING strErr    #-}
+  {-# BUILTIN AGDAERRORPARTTERM   termErr   #-}
+  {-# BUILTIN AGDAERRORPARTNAME   nameErr   #-}
 
-    -- Terms are normalised before being quoted.
-    test₃ : quoteTerm (0 + 0) ≡ con (quote zero) []
+.. _reflection-tc-monad:
 
+Type checking computations
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Quoting Names
-~~~~~~~~~~~~~
+Metaprograms, i.e. programs that create other programs, run in a built-in type
+checking monad ``TC``::
 
-The "quote x" expression returns the builtin ``QNAME`` representation
-of the given name.
+  postulate
+    TC         : ∀ {a} → Set a → Set a
+    returnTC   : ∀ {a} {A : Set a} → A → TC A
+    bindTC     : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
 
-::
-
-  test : Name
-  test = quote ℕ
-
-
-Quoting Goals
-~~~~~~~~~~~~~
-
-The "quoteGoal x in e" construct allows inspecting the current goal type
-(the type expected of the whole expression):
-
-::
-
-      example : ℕ
-      example = quoteGoal x in {! at this point x = def (quote ℕ) [] !}
+  {-# BUILTIN AGDATCM       TC       #-}
+  {-# BUILTIN AGDATCMRETURN returnTC #-}
+  {-# BUILTIN AGDATCMBIND   bindTC   #-}
 
 
+The ``TC`` monad provides an interface to the Agda type checker using the
+following primitive operations::
 
+  postulate
+    -- Unify two terms, potentially solving metavariables in the process.
+    unify : Term → Term → TC ⊤
 
+    -- Throw a type error. Can be caught by catchTC.
+    typeError : ∀ {a} {A : Set a} → String → TC A
 
-Quote Patterns
-~~~~~~~~~~~~~~
+    -- Block a type checking computation on a metavariable. This will abort
+    -- the computation and restart it (from the beginning) when the
+    -- metavariable is solved.
+    blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
-Quote patterns allow pattern matching on quoted names.
-For instance, here is a function that unquotes a (closed) natural number
-term:
+    -- Backtrack and try the second argument if the first argument throws a
+    -- type error.
+    catchTC : ∀ {a} {A : Set a} → TC A → TC A → TC A
 
-::
+    -- Infer the type of a given term
+    inferType : Term → TC Type
 
-    unquoteNat : Term → Maybe Nat
-    unquoteNat (con (quote Nat.zero) [])            = just zero
-    unquoteNat (con (quote Nat.suc) (arg _ n ∷ [])) = fmap suc (unquoteNat n)
-    unquoteNat _                                    = nothing
+    -- Check a term against a given type. This may resolve implicit arguments
+    -- in the term, so a new refined term is returned. Can be used to create
+    -- new metavariables: newMeta t = checkType unknown t
+    checkType : Term → Type → TC Term
 
-Tactics
--------
+    -- Compute the normal form of a term.
+    normalise : Term → TC Term
 
-Tactis are syntactic sugar which allow using reflection in a syntactically
-lightweigt manner. It desugars as follows:
+    -- Get the current context.
+    getContext : TC (List (Arg Type))
 
-::
+    -- Extend the current context with a variable of the given type.
+    extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
 
-    tactic e                --> quoteGoal g in unquote (e g)
-    tactic e | e1 | .. | en --> quoteGoal g in unquote (e g) e1 .. en
+    -- Set the current context.
+    inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
-Note that in the second form the tactic function should generate a function
-from a number of new subgoals to the original goal. The type of e should be
-Term -> Term in both cases.
+    -- Quote a value, returning the corresponding Term.
+    quoteTC : ∀ {a} {A : Set a} → A → TC Term
 
+    -- Unquote a Term, returning the corresponding value.
+    unquoteTC : ∀ {a} {A : Set a} → Term → TC A
+
+    -- Create a fresh name.
+    freshName : String → TC Name
+
+    -- Declare a new function of the given type. The function must be defined
+    -- later using 'defineFun'. Takes an Arg Name to allow declaring instances
+    -- and irrelevant functions. The Visibility of the Arg must not be hidden.
+    declareDef : Arg Name → Type → TC ⊤
+
+    -- Define a declared function. The function may have been declared using
+    -- 'declareDef' or with an explicit type signature in the program.
+    defineFun : Name → List Clause → TC ⊤
+
+    -- Get the type of a defined name. Replaces 'primNameType'.
+    getType : Name → TC Type
+
+    -- Get the definition of a defined name. Replaces 'primNameDefinition'.
+    getDefinition : Name → TC Definition
+
+  {-# BUILTIN AGDATCMUNIFY              unify              #-}
+  {-# BUILTIN AGDATCMNEWMETA            newMeta            #-}
+  {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
+  {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
+  {-# BUILTIN AGDATCMCATCHERROR         catchTC            #-}
+  {-# BUILTIN AGDATCMINFERTYPE          inferType          #-}
+  {-# BUILTIN AGDATCMCHECKTYPE          checkType          #-}
+  {-# BUILTIN AGDATCMNORMALISE          normalise          #-}
+  {-# BUILTIN AGDATCMGETCONTEXT         getContext         #-}
+  {-# BUILTIN AGDATCMEXTENDCONTEXT      extendContext      #-}
+  {-# BUILTIN AGDATCMINCONTEXT          inContext          #-}
+  {-# BUILTIN AGDATCMQUOTETERM          quoteTC            #-}
+  {-# BUILTIN AGDATCMUNQUOTETERM        unquoteTC          #-}
+  {-# BUILTIN AGDATCMFRESHNAME          freshName          #-}
+  {-# BUILTIN AGDATCMDECLAREDEF         declareDef         #-}
+  {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
+  {-# BUILTIN AGDATCMGETTYPE            getType            #-}
+  {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
+
+Metaprogramming
+---------------
+
+There are three ways to run a metaprogram (``TC`` computation). To run a
+metaprogram in a term position you use a `macro <macros_>`_. To run
+metaprograms to create top-level definitions you can use the ``unquoteDecl``
+and ``unquoteDef`` primitives (see `Unquoting Declarations`_).
+
+.. _macros:
 
 Macros
-------
+~~~~~~
 
-Macros are functions of type t1 → t2 → .. → Term that are defined in a 'macro'
-block. Macro application is guided by the type of the macro, where Term
-arguments desugar into the 'quoteTerm' syntax and Name arguments into the
-'quote' syntax. Arguments of any other type are preserved as-is.
+Macros are functions of type ``t₁ → t₂ → .. → Term → TC ⊤`` that are defined in
+a ``macro`` block. The last argument is supplied by the type checker and will
+be the representation of a metavariable that should be instantiated with the
+result of the macro.
 
-For example, the macro application 'f u v w' where the macro
-f has the type 'Term → Name → Bool → Term' desugars into
-'unquote (f (quoteTerm u) (quote v) w)'
+Macro application is guided by the type of the macro, where ``Term`` and
+``Name`` arguments are quoted before passed to the macro.  Arguments of any
+other type are preserved as-is.
+
+For example, the macro application ``f u v w`` where
+``f : Term → Name → Bool → Term → TC ⊤`` desugars into::
+
+  unquote (f (quoteTerm u) (quote v) w)
+
+where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns its
+representation in the ``Term`` data type, and ``unquote m`` runs a computation
+in the ``TC`` monad. Specifically, when checking ``unquote m : A`` for some
+type ``A`` the type checker proceeds as follows:
+
+  - Check ``m : Term → TC ⊤``.
+  - Create a fresh metavariable ``hole : A``.
+  - Let ``qhole : Term`` be the quoted representation of ``hole``.
+  - Execute ``m qhole``.
+  - Return (the now hopefully instantiated) ``hole``.
+
+.. note::
+   The ``quoteTerm`` and ``unquote`` primitives are available in the language,
+   but it is recommended to avoid using them in favour of macros.
 
 Limitations:
 
@@ -285,34 +357,57 @@ Silly example:
 ::
 
     macro
-      plus-to-times : Term -> Term
-      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) = def (quote _*_) (a ∷ b ∷ [])
-      plus-to-times v = v
+      plus-to-times : Term → Term → TC ⊤
+      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
+      plus-to-times v hole = unify hole v
 
     thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
     thm a b = refl
 
+Macros lets you write tactics that can be applied without any syntactic
+overhead. For instance, suppose you have a solver::
 
-Macros are most useful when writing tactics, since they let you hide the
-reflection machinery. For instance, suppose you have a solver
+  magic : Type → Term
 
-::
+that takes a reflected goal and outputs a proof (when successful). You can then
+define the following macro::
 
-    magic : Term → Term
+  macro
+    by-magic : Term → TC ⊤
+    by-magic hole =
+      bindTC (inferType hole) λ goal →
+      unify hole (magic goal)
 
-that takes a reflected goal and outputs a proof (when successful). You can
-then use the tactic function from above to define
+This lets you apply the magic tactic as a normal function::
 
-::
+  thm : ¬ P ≡ NP
+  thm = by-magic
 
-    macro
-      by-magic : Term
-      by-magic = `tactic (quote magic)
+Unquoting Declarations
+~~~~~~~~~~~~~~~~~~~~~~
 
-This lets you apply the magic tactic without any syntactic noise at all:
+While macros let you write metaprograms to create terms, it is also useful to
+be able to create top-level definitions. You can do this from a macro using the
+``declareDef`` and ``defineFun`` primitives, but there is no way to bring such
+definitions into scope. For this purpose there are two top-level primitives
+``unquoteDecl`` and ``unquoteDef`` that runs a ``TC`` computation in a
+declaration position. They both have the same form::
 
-::
+  unquoteDecl x₁ .. xₙ = m
+  unquoteDef  x₁ .. xₙ = m
 
-    thm : ¬ P ≡ NP
-    thm = by-magic
+except that the list of names can be empty for ``unquoteDecl``, but not for
+``unquoteDef``. In both cases ``m`` should have type ``TC ⊤``. The main
+difference between the two is that ``unquoteDecl`` requires ``m`` to both
+declare (with ``declareDef``) and define (with ``defineFun``) the ``xᵢ``
+whereas ``unquoteDef`` expects the ``xᵢ`` to be already declared. In other
+words, ``unquoteDecl`` brings the ``xᵢ`` into scope, but ``unquoteDef``
+requires them to already be in scope.
+
+In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
+``xᵢ : Name``) rather than the actual functions.
+
+One advantage of unquoteDef over unquoteDecl is that unquoteDef is allowed in
+mutual blocks, allowing mutually recursion between generated definitions and
+hand-written definitions.
 

@@ -66,10 +66,9 @@ module UHC.Agda.Builtins
   , primQNameEquality
   , primQNameLess
   , primShowQName
-  , primQNameType
-  , primQNameDefinition
-  , primDataConstructors
-  , primDataNumberOfParameters
+  , primMetaEquality
+  , primMetaLess
+  , primShowMeta
 
     -- Debugging
   , primTrace
@@ -323,17 +322,16 @@ primQNameLess = (<)
 primShowQName :: QName -> String
 primShowQName = qnameString
 
-primQNameType :: a
-primQNameType = notImplError "primQNameType"
+type Meta = Integer
 
-primQNameDefinition :: a
-primQNameDefinition = notImplError "primQNameDefinition"
+primMetaEquality :: Meta -> Meta -> Bool
+primMetaEquality = (==)
 
-primDataConstructors :: a
-primDataConstructors = notImplError "primDataConstructors"
+primMetaLess :: Meta -> Meta -> Bool
+primMetaLess = (<)
 
-primDataNumberOfParameters :: a
-primDataNumberOfParameters = notImplError "primDataNumberOfParameters"
+primShowMeta :: Meta -> String
+primShowMeta x = "_" ++ show x
 
 -- ====================
 -- Debugging

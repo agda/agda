@@ -161,6 +161,7 @@ instance NamesIn Literal where
     LitChar{}     -> Set.empty
     LitFloat{}    -> Set.empty
     LitQName _  x -> namesIn x
+    LitMeta{}     -> Set.empty
 
 instance NamesIn a => NamesIn (Elim' a) where
   namesIn (Apply arg) = namesIn arg

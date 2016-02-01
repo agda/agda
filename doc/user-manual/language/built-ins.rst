@@ -20,6 +20,20 @@ definition. These functions are declared using the ``primitive`` keyword by
 giving their type signature. The primitive functions associated with each
 built-in type are given below.
 
+.. _built-in-unit:
+
+The unit type
+-------------
+
+The unit type is bound to the built-in ``UNIT`` as follows::
+
+  record ⊤ : Set where
+  {-# BUILTIN UNIT ⊤ #-}
+
+Agda needs to know about the unit type since some of the primitive operations
+in the :ref:`reflected type checking monad <reflection-tc-monad>` return values
+in the unit type.
+
 .. _built-in-nat:
 
 Natural numbers

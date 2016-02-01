@@ -2,6 +2,7 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
+open import Common.TC
 
 magic₁ : ⊥ → Nat
 magic₁ = λ ()
@@ -18,23 +19,29 @@ data Wrap (A : Set) : Set where
 magic₄ : Wrap ⊥ → Nat
 magic₄ (wrap ())
 
-def₄ = primQNameDefinition (quote magic₄)
+data OK : Set where
+  ok : OK
 
-pattern `el x = el (lit 0) x
-pattern `Nat  = `el (def (quote Nat) [])
-pattern vArg x = arg (argInfo visible relevant) x
-pattern _`→_ a b = `el (pi (vArg a) (abs "_" b))
-pattern `Wrap a = `el (def (quote Wrap) (vArg a ∷ []))
+bad : String
+bad = "not good"
+
+macro
+  checkDefinition : (Definition → Bool) → QName → Tactic
+  checkDefinition isOk f hole =
+    bindTC (getDefinition f) λ def →
+    give (if isOk def then quoteTerm ok else quoteTerm bad) hole
+
+pattern `Nat  = def (quote Nat) []
+pattern _`→_ a b = pi (vArg a) (abs "_" b)
+pattern `Wrap a = def (quote Wrap) (vArg a ∷ [])
 pattern `⊥ = def (quote ⊥) []
 
-expected₄ : Definition
-expected₄ = funDef (funDef
-  (`Wrap `⊥ `→ `Nat)
+pattern expected₄ = funDef
   (absurdClause (vArg (con (quote wrap) (vArg absurd ∷ [])) ∷ [])
-    ∷ []))
+    ∷ [])
 
-check₄ : def₄ ≡ expected₄
-check₄ = refl
+check₄ : OK
+check₄ = checkDefinition (λ { expected₄ → true; _ → false }) magic₄
 
 expected = extLam (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []) []
 
@@ -44,12 +51,8 @@ check₁ = refl
 check₂ : quoteTerm magic₂ ≡ expected
 check₂ = refl
 
-expectedDef : Definition
-expectedDef =
-  funDef (funDef
-    (el (lit 0) (pi (arg (argInfo visible relevant) (el (lit 0) (def (quote ⊥) [])))
-                    (abs "_" (el (lit 0) (def (quote Nat) [])))))
-    (absurdClause (arg (argInfo visible relevant) absurd ∷ []) ∷ []))
+pattern expectedDef =
+  funDef (absurdClause (vArg absurd ∷ []) ∷ [])
 
-check₃ : primQNameDefinition (quote magic₃) ≡ expectedDef
-check₃ = refl
+check₃ : OK
+check₃ = checkDefinition (λ { expectedDef → true; _ → false }) magic₃

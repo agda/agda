@@ -95,29 +95,29 @@ type Result = [TerminationError]
 
 -- | Entry point: Termination check a single declaration.
 
-termDecl :: A.Declaration -> TCM Result
-termDecl d = inTopContext $ ignoreAbstractMode $ termDecl' d
+termDecl :: MutualId -> A.Declaration -> TCM Result
+termDecl mid d = inTopContext $ ignoreAbstractMode $ termDecl' mid d
 
 
 -- | Termination check a sequence of declarations.
 
-termDecls :: [A.Declaration] -> TCM Result
-termDecls ds = concat <$> mapM termDecl' ds
+termDecls :: MutualId -> [A.Declaration] -> TCM Result
+termDecls mid ds = concat <$> mapM (termDecl' mid) ds
 
 
 -- | Termination check a single declaration
 --   (without necessarily ignoring @abstract@).
 
-termDecl' :: A.Declaration -> TCM Result
-termDecl' d = case d of
+termDecl' :: MutualId -> A.Declaration -> TCM Result
+termDecl' mid d = case d of
     A.Axiom {}            -> return mempty
     A.Field {}            -> return mempty
     A.Primitive {}        -> return mempty
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ _ _ _ _ _ _ rds] <- unscopeDefs ds
-                          -> termDecls rds
-    A.Mutual i ds         -> termMutual i ds
-    A.Section _ _ _ ds    -> termDecls ds
+                          -> termDecls mid rds
+    A.Mutual i ds         -> termMutual mid i ds
+    A.Section _ _ _ ds    -> termDecls mid ds
         -- section structure can be ignored as we are termination checking
         -- definitions lifted to the top-level
     A.Apply {}            -> return mempty
@@ -126,15 +126,14 @@ termDecl' d = case d of
     A.Open {}             -> return mempty
     A.PatternSynDef {}    -> return mempty
         -- open and pattern synonym defs are just artifacts from the concrete syntax
-    A.ScopedDecl _ ds     -> termDecls ds
+    A.ScopedDecl _ ds     -> termDecls mid ds
         -- scope is irrelevant as we are termination checking Syntax.Internal
     A.RecSig{}            -> return mempty
-    A.RecDef _ r _ _ _ _ _ ds -> termDecls ds
+    A.RecDef _ r _ _ _ _ _ ds -> termDecls mid ds
     -- These should all be wrapped in mutual blocks
-    A.FunDef{}  -> __IMPOSSIBLE__
-    A.DataSig{} -> __IMPOSSIBLE__
-    A.DataDef{} -> __IMPOSSIBLE__
-    -- These should have been expanded to a proper declaration before termination checking
+    A.FunDef{}      -> __IMPOSSIBLE__
+    A.DataSig{}     -> __IMPOSSIBLE__
+    A.DataDef{}     -> __IMPOSSIBLE__
     A.UnquoteDecl{} -> __IMPOSSIBLE__
     A.UnquoteDef{}  -> __IMPOSSIBLE__
   where
@@ -146,8 +145,8 @@ termDecl' d = case d of
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 
-termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
-termMutual i ds = if names == [] then return mempty else
+termMutual :: MutualId -> Info.MutualInfo -> [A.Declaration] -> TCM Result
+termMutual mid i ds =
 
   -- We set the range to avoid panics when printing error messages.
   setCurrentRange i $ do
@@ -155,7 +154,7 @@ termMutual i ds = if names == [] then return mempty else
   -- Get set of mutually defined names from the TCM.
   -- This includes local and auxiliary functions introduced
   -- during type-checking.
-  mutualBlock <- findMutualBlock (head names)
+  mutualBlock <- lookupMutualBlock mid
   let allNames = Set.elems mutualBlock
       -- Andreas, 2014-03-26
       -- Keeping recursion check after experiments on the standard lib.
@@ -215,6 +214,8 @@ termMutual i ds = if names == [] then return mempty else
     getName (A.Mutual _ ds)       = concatMap getName ds
     getName (A.Section _ _ _ ds)  = concatMap getName ds
     getName (A.ScopedDecl _ ds)   = concatMap getName ds
+    getName (A.UnquoteDecl _ _ xs _) = xs
+    getName (A.UnquoteDef _ xs _)    = xs
     getName _                     = []
 
     -- the mutual names mentioned in the abstract syntax

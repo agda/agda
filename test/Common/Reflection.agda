@@ -2,12 +2,19 @@
 module Common.Reflection where
 
 open import Common.Level
-open import Common.Prelude renaming (Nat to ℕ)
+open import Common.Prelude
 
 postulate QName : Set
 {-# BUILTIN QNAME QName #-}
 primitive primQNameEquality : QName → QName → Bool
 primitive primQNameLess : QName → QName → Bool
+primitive primShowQName : QName → String
+
+postulate Meta : Set
+{-# BUILTIN AGDAMETA Meta #-}
+primitive primMetaEquality : Meta → Meta → Bool
+primitive primMetaLess : Meta → Meta → Bool
+primitive primShowMeta : Meta → String
 
 data Hiding : Set where
   hidden visible inst : Hiding
@@ -32,6 +39,10 @@ data ArgInfo : Set where
 data Arg A : Set where
   arg : ArgInfo → A → Arg A
 
+pattern vArg x = arg (argInfo visible relevant) x
+pattern hArg x = arg (argInfo hidden  relevant) x
+pattern iArg x = arg (argInfo inst    relevant) x
+
 {-# BUILTIN ARGINFO    ArgInfo #-}
 {-# BUILTIN ARG        Arg     #-}
 {-# BUILTIN ARGARG     arg     #-}
@@ -46,11 +57,12 @@ data Abs (A : Set) : Set where
 {-# BUILTIN ABSABS abs #-}
 
 data Literal : Set where
-  nat    : ℕ → Literal
+  nat    : Nat → Literal
   float  : Float → Literal
   char   : Char → Literal
   string : String → Literal
   qname  : QName → Literal
+  meta   : Meta → Literal
 
 {-# BUILTIN AGDALITERAL   Literal #-}
 {-# BUILTIN AGDALITNAT    nat     #-}
@@ -58,15 +70,16 @@ data Literal : Set where
 {-# BUILTIN AGDALITCHAR   char    #-}
 {-# BUILTIN AGDALITSTRING string  #-}
 {-# BUILTIN AGDALITQNAME  qname   #-}
+{-# BUILTIN AGDALITMETA   meta    #-}
 
 Args : Set
+Type : Set
 
-data Type : Set
 data Sort : Set
 data Clause : Set
 
 data Term : Set where
-  var           : ℕ → Args → Term
+  var           : Nat → Args → Term
   con           : QName → Args → Term
   def           : QName → Args → Term
   lam           : Hiding → Abs Term → Term
@@ -74,20 +87,15 @@ data Term : Set where
   pi            : Arg Type → Abs Type → Term
   sort          : Sort → Term
   lit           : Literal → Term
-  quote-term    : Term → Term
-  quote-goal    : Abs Term → Term
-  quote-context : Term
-  unquote-term  : Term → Args → Term
+  meta          : Meta → Args → Term
   unknown       : Term
 
 Args = List (Arg Term)
-
-data Type where
-  el : Sort → Term → Type
+Type = Term
 
 data Sort where
   set     : Term → Sort
-  lit     : ℕ → Sort
+  lit     : Nat → Sort
   unknown : Sort
 
 data Pattern : Set where
@@ -104,7 +112,6 @@ data Clause where
 
 {-# BUILTIN AGDASORT            Sort    #-}
 {-# BUILTIN AGDATERM            Term    #-}
-{-# BUILTIN AGDATYPE            Type    #-}
 {-# BUILTIN AGDAPATTERN         Pattern #-}
 {-# BUILTIN AGDACLAUSE          Clause  #-}
 
@@ -116,12 +123,8 @@ data Clause where
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMLIT         lit     #-}
-{-# BUILTIN AGDATERMQUOTETERM    quote-term    #-}
-{-# BUILTIN AGDATERMQUOTEGOAL    quote-goal    #-}
-{-# BUILTIN AGDATERMQUOTECONTEXT quote-context #-}
-{-# BUILTIN AGDATERMUNQUOTE      unquote-term  #-}
+{-# BUILTIN AGDATERMMETA        meta    #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-{-# BUILTIN AGDATYPEEL          el      #-}
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
@@ -139,21 +142,11 @@ data Clause where
 data FunDef : Set where
   funDef : Type → List Clause → FunDef
 
-{-# BUILTIN AGDAFUNDEF    FunDef #-}
-{-# BUILTIN AGDAFUNDEFCON funDef #-}
-
-postulate
-  DataDef   : Set
-  RecordDef : Set
-
-{-# BUILTIN AGDADATADEF   DataDef   #-}
-{-# BUILTIN AGDARECORDDEF RecordDef #-}
-
 data Definition : Set where
-  funDef          : FunDef    → Definition
-  dataDef         : DataDef   → Definition
-  recordDef       : RecordDef → Definition
-  dataConstructor : Definition
+  funDef          : List Clause → Definition
+  dataDef         : Nat → List QName → Definition
+  recordDef       : QName → Definition
+  dataConstructor : QName → Definition
   axiom           : Definition
   prim            : Definition
 
@@ -164,14 +157,3 @@ data Definition : Set where
 {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
 {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
 {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
-
-primitive
-  primQNameType              : QName → Type
-  primQNameDefinition        : QName → Definition
-  primDataNumberOfParameters : DataDef → ℕ
-  primDataConstructors       : DataDef   → List QName
---primRecordConstructor      : RecordDef → QName
---primRecordFields           : RecordDef → List QName
-
-type : QName → Type
-type = primQNameType
