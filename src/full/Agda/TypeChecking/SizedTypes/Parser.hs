@@ -12,6 +12,10 @@
 
 module Agda.TypeChecking.SizedTypes.Parser where
 
+-- Andreas, 2016-02-01 because of dependency on parsec, we do not compile this
+-- KEEP commented out code to follow:
+
+{-
 import Control.Applicative hiding (Const)
 
 import Data.Char
@@ -102,3 +106,4 @@ cs = simplify $ map parse
   , "x + 2 < i"
   , "x < i"
   ]
+-}
