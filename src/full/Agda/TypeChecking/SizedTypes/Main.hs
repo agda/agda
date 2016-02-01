@@ -1,8 +1,10 @@
--- ASR (01 June 2014): Not used yet.
+-- Andreas, 2016-02-01 KEEP in compilation loop to prevent bit-rotting.
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+
+-- | Standalone program for testing size constraint solver.
 
 module Agda.TypeChecking.SizedTypes.Main where
 

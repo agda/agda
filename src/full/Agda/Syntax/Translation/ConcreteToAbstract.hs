@@ -1032,8 +1032,15 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
     toAbstract (TopLevel file ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
-      caseMaybe (initLast ds) __IMPOSSIBLE__ $
-        \ (outsideDecls, C.Module r m0 tel insideDecls) -> do
+      case C.spanAllowedBeforeModule ds of
+
+        -- If there are declarations after the top-level module
+        -- we have to report a parse error here.
+        (_, C.Module{} : d : _) -> traceCall (SetRange $ getRange d) $
+          genericError $ "No declarations allowed after top-level module."
+
+        -- Otherwise, proceed.
+        (outsideDecls, [ C.Module r m0 tel insideDecls ]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
                 then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootName file]
@@ -1053,6 +1060,11 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           let scope = mapScopeInfo (restrictLocalPrivate am) insideScope
           setScope scope
           return $ TopLevelInfo (outsideDecls ++ insideDecls) scope
+
+        -- We already inserted the missing top-level module, see
+        -- 'Agda.Syntax.Parser.Parser.figureOutTopLevelModule',
+        -- thus, this case is impossible:
+        _ -> __IMPOSSIBLE__
 
 -- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]

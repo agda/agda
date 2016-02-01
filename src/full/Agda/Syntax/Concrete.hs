@@ -45,6 +45,7 @@ module Agda.Syntax.Concrete
   , Module
   , ThingWithFixity(..)
   , topLevelModuleName
+  , spanAllowedBeforeModule
     -- * Pattern tools
   , patternNames, patternQNames
     -- * Lenses
@@ -393,12 +394,29 @@ type Module = ([Pragma], [Declaration])
 -- | Computes the top-level module name.
 --
 -- Precondition: The 'Module' has to be well-formed.
+-- This means that there are only allowed declarations before the
+-- first module declaration, typically import declarations.
+-- See 'spanAllowedBeforeModule'.
 
 topLevelModuleName :: Module -> TopLevelModuleName
 topLevelModuleName (_, []) = __IMPOSSIBLE__
-topLevelModuleName (_, ds) = case last ds of
-  Module _ n _ _ -> toTopLevelModuleName n
-  _              -> __IMPOSSIBLE__
+topLevelModuleName (_, ds) = case spanAllowedBeforeModule ds of
+  (_, Module _ n _ _ : _) -> toTopLevelModuleName n
+  _ -> __IMPOSSIBLE__
+
+-- | Splits off allowed (= import) declarations before the first
+--   non-allowed declaration.
+--   After successful parsing, the first non-allowed declaration
+--   should be a module declaration.
+spanAllowedBeforeModule :: [Declaration] -> ([Declaration], [Declaration])
+spanAllowedBeforeModule = span isAllowedBeforeModule
+  where
+    isAllowedBeforeModule (Pragma OptionsPragma{}) = True
+    isAllowedBeforeModule (Private _ ds) = all isAllowedBeforeModule ds
+    isAllowedBeforeModule Import{}       = True
+    isAllowedBeforeModule ModuleMacro{}  = True
+    isAllowedBeforeModule Open{}         = True
+    isAllowedBeforeModule _              = False
 
 {--------------------------------------------------------------------------
     Lenses

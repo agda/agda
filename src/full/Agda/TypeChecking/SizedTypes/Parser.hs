@@ -1,6 +1,7 @@
--- ASR (01 June 2014): Not used yet.
+-- Andreas, 2016-02-01 auxiliary module for stand-alone program
+-- Agda.TypeChecking.SizedTypes.Main
 
--- | Parser combinator parser for constraints
+-- | Parser combinator parser for constraints.
 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -22,6 +23,17 @@ import Text.Parsec.Language (haskellDef)
 
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.Utils.Functor (($>))
+
+-- import Text.Read.Lex
+
+-- import Text.Parsec (Parsec)
+-- import qualified Text.Parsec as P
+-- import qualified Text.Parsec.Token as T
+-- import Text.Parsec.Language (haskellDef)
+
+-- import Agda.TypeChecking.SizedTypes.Syntax
+-- import Agda.TypeChecking.SizedTypes.Utils
+-- import Agda.Utils.Functor (($>))
 
 -- | Size meta variable identifiers are upper case or start with x, y, or z.
 isFlexId :: String -> Bool

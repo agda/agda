@@ -1612,18 +1612,27 @@ takeOptionsPragmas = spanJust $ \ d -> case d of
   _                        -> Nothing
 
 -- | Insert a top-level module if there is none.
+--   Also fix-up for the case the declarations in the top-level module
+--   are not indented (this is allowed as a special case).
 figureOutTopLevelModule :: [Declaration] -> [Declaration]
 figureOutTopLevelModule ds =
-  case span isAllowedBeforeModule ds of
-    (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
+  case spanAllowedBeforeModule ds of
+    -- Andreas 2016-02-01, issue #1388.
+    -- We need to distinguish two additional cases.
+    -- Case 1: Regular file layout: imports followed by one module. Nothing to do.
+    (ds0, [ Module{} ]) -> ds
+    -- Case 2: The declarations in the module are not indented.
+    -- This is allowed for the top level module, and thus rectified here.
+    (ds0, Module r m tel [] : ds2) -> ds0 ++ [Module r m tel ds2]
+    -- Case 3: There is a module with indented declarations,
+    -- followed by non-indented declarations.  This should be a
+    -- parse error and be reported later (see @toAbstract TopLevel{}@),
+    -- thus, we do not do anything here.
+    (ds0, Module r m tel ds1 : ds2) -> ds  -- Gives parse error in scope checker.
+    -- OLD code causing issue 1388:
+    -- (ds0, Module r m tel ds1 : ds2) -> ds0 ++ [Module r m tel $ ds1 ++ ds2]
+    -- Case 4: a top-level module declaration is missing.
     (ds0, ds1)                      -> ds0 ++ [Module (getRange ds1) (QName noName_) [] ds1]
-  where
-    isAllowedBeforeModule (Pragma OptionsPragma{}) = True
-    isAllowedBeforeModule (Private _ ds) = all isAllowedBeforeModule ds
-    isAllowedBeforeModule Import{}       = True
-    isAllowedBeforeModule ModuleMacro{}  = True
-    isAllowedBeforeModule Open{}         = True
-    isAllowedBeforeModule _              = False
 
 -- | Create a name from a string.
 
