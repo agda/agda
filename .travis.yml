@@ -43,6 +43,7 @@ ghc:
 # make api-test
 # make tests
 # make TAGS (testing the hTags program)
+# agda-mode compile (testing the Emacs mode)
 #
 # The current tests requiring the standard library are:
 #
@@ -244,7 +245,12 @@ script:
        make BUILD_DIR=$BUILD_DIR examples &&
        make BUILD_DIR=$BUILD_DIR api-test &&
        make BUILD_DIR=$BUILD_DIR tests &&
-       make BUILD_DIR=$BUILD_DIR TAGS;
+       make BUILD_DIR=$BUILD_DIR TAGS &&
+       echo "======================================================================" &&
+       echo "==================== Testing the Emacs mode ==========================" &&
+       echo "======================================================================" &&
+       emacs --version &&
+       agda-mode compile;
     fi
 
 ##############################################################################
