@@ -168,17 +168,15 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       -- constrained, then don’t do anything because it may loop.
       ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
 
-        cands <- checkCandidates m t cands
-        reportSLn "tc.instance" 15 $
-          "findInScope 4: cands left: " ++ show (length cands)
-        case cands of
+        mcands <- checkCandidates m t cands
+        case mcands of
 
-          [] -> do
+          Just [] -> do
             reportSDoc "tc.instance" 15 $
               text "findInScope 5: not a single candidate found..."
             typeError $ IFSNoCandidateInScope t
 
-          [Candidate term t' _] -> do
+          Just [Candidate term t' _] -> do
             reportSDoc "tc.instance" 15 $ vcat
               [ text "findInScope 5: solved by instance search using the only candidate"
               , nest 2 $ prettyTCM term
@@ -188,9 +186,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 
             return Nothing  -- We’re done
 
-          cs -> do
+          _ -> do
+            let cs = fromMaybe cands mcands -- keep the current candidates if Nothing
             reportSDoc "tc.instance" 15 $
-              text ("findInScope 5: more than one candidate found: ") <+>
+              text ("findInScope 5: refined candidates: ") <+>
               prettyTCM (List.map candidateTerm cs)
             return (Just (cs, Nothing))
       where
@@ -329,10 +328,10 @@ dropSameCandidates m cands = do
 
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
-checkCandidates :: MetaId -> Type -> [Candidate] -> TCM [Candidate]
+checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
 checkCandidates m t cands = disableDestructiveUpdate $
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
-  ifM (anyMetaTypes cands) (return cands) $ do
+  ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ text "candidates"
