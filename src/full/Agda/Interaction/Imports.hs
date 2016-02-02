@@ -513,9 +513,10 @@ writeInterface file i = do
     -- i <- return $
     --   i { iInsideScope  = emptyScopeInfo
     --     }
-    i <- return $
-      i { iInsideScope  = removePrivates $ iInsideScope i
-        }
+    -- Andreas, 2016-02-02 this causes issue #1804, so don't do it:
+    -- i <- return $
+    --   i { iInsideScope  = removePrivates $ iInsideScope i
+    --     }
     encodeFile file i
     reportSLn "import.iface.write" 5 $ "Wrote interface file."
     reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i) ++ ""
