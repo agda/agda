@@ -2,12 +2,8 @@ module EqTest where
 
 import Common.Level
 
-data _≡_ {a : Set} (x : a) : a -> Set where
-  refl : x ≡ x
-
-data Maybe (a : Set) : Set where
-  just    : a -> Maybe a
-  nothing : Maybe a
+open import Common.Maybe
+open import Common.Equality
 
 data ℕ : Set where
   zero : ℕ

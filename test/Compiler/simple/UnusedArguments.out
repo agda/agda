@@ -1,6 +1,32 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
+out > -- used args: _ _ _ _ e f g
+out > UnusedArguments.maybe[stripped] =
+out >   λ a b c →
+out >     case c of
+out >       Common.Maybe.Maybe.nothing → a
+out >       Common.Maybe.Maybe.just d → b d
+out >       _ → error "TUnreachable"
+out > UnusedArguments.maybe =
+out >   λ a b c d e f g →
+out >     case g of
+out >       Common.Maybe.Maybe.nothing → e
+out >       Common.Maybe.Maybe.just h → f h
+out >       _ → error "TUnreachable"
+out > -- used args: _ _ _ _ e f
+out > UnusedArguments.mapMaybe[stripped] =
+out >   λ a b →
+out >     UnusedArguments.maybe
+out >       _ _ _ _ Common.Maybe.Maybe.nothing
+out >       (λ c → Common.Maybe.Maybe.just (a c)) b
+out > UnusedArguments.mapMaybe =
+out >   λ a b c d e f →
+out >     UnusedArguments.maybe
+out >       _ _ _ _ Common.Maybe.Maybe.nothing
+out >       (λ g → Common.Maybe.Maybe.just (e g)) f
+out > UnusedArguments.maybeToNat =
+out >   λ a → UnusedArguments.maybe _ _ _ _ 0 (λ b → b) a
 out > -- used args: _ _ c d e
 out > UnusedArguments.foldr[stripped] =
 out >   λ a b c →
@@ -14,43 +40,17 @@ out >     case e of
 out >       Common.List.List.[] → d
 out >       Common.List.List._∷_ f g → c f (UnusedArguments.foldr a b c d g)
 out >       _ → error "TUnreachable"
-out > -- used args: _ _ _ _ e f g
-out > UnusedArguments.maybe[stripped] =
-out >   λ a b c →
-out >     case c of
-out >       UnusedArguments.Maybe.nothing → a
-out >       UnusedArguments.Maybe.just d → b d
-out >       _ → error "TUnreachable"
-out > UnusedArguments.maybe =
-out >   λ a b c d e f g →
-out >     case g of
-out >       UnusedArguments.Maybe.nothing → e
-out >       UnusedArguments.Maybe.just h → f h
-out >       _ → error "TUnreachable"
-out > UnusedArguments.maybeToNat =
-out >   λ a → UnusedArguments.maybe _ _ _ _ 0 (λ b → b) a
-out > -- used args: _ _ _ _ e f
-out > UnusedArguments.mapMaybe[stripped] =
-out >   λ a b →
-out >     UnusedArguments.maybe
-out >       _ _ _ _ UnusedArguments.Maybe.nothing
-out >       (λ c → UnusedArguments.Maybe.just (a c)) b
-out > UnusedArguments.mapMaybe =
-out >   λ a b c d e f →
-out >     UnusedArguments.maybe
-out >       _ _ _ _ UnusedArguments.Maybe.nothing
-out >       (λ g → UnusedArguments.Maybe.just (e g)) f
 out > UnusedArguments.main =
 out >   Common.IO.then
 out >     () () _ _
 out >     (Common.IO.printNat
-out >        (UnusedArguments.maybeToNat (UnusedArguments.Maybe.just 42)))
+out >        (UnusedArguments.maybeToNat (Common.Maybe.Maybe.just 42)))
 out >     (Common.IO.then
 out >        () () _ _
 out >        (Common.IO.printNat
 out >           (UnusedArguments.maybeToNat
 out >              (UnusedArguments.mapMaybe
-out >                 _ _ _ _ (_+_ 10) (UnusedArguments.Maybe.just 42))))
+out >                 _ _ _ _ (_+_ 10) (Common.Maybe.Maybe.just 42))))
 out >        (Common.IO.printNat
 out >           (UnusedArguments.foldr
 out >              _ _ _+_ 0

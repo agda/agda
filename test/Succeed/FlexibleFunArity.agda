@@ -3,12 +3,7 @@
 module FlexibleFunArity where
 
 open import Common.Equality
-
-data Bool : Set where true false : Bool
-
-data Maybe (A : Set) : Set where
-  nothing : Maybe A
-  just : A → Maybe A
+open import Common.Prelude
 
 Case : {A : Set} → Maybe A → Set → Set → Set
 Case nothing  B C = B

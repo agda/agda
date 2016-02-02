@@ -4,10 +4,6 @@ module _ where
 
 open import Common.Prelude
 
-data Maybe {a} (A : Set a) : Set a where
-  nothing : Maybe A
-  just    : A → Maybe A
-
 -- First four arguments are unused.
 maybe : ∀ {a b} {A : Set a} {B : Set b} → B → (A → B) → Maybe A → B
 maybe z f nothing = z

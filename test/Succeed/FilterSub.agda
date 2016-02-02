@@ -4,25 +4,16 @@
 
 module FilterSub where
 
-open import Common.Level
+open import Common.Bool
 open import Common.Equality
+open import Common.Level
+open import Common.Maybe
 
 _∘_ : ∀ {a b c}
         {A : Set a} {B : A → Set b} {C : {x : A} → B x → Set c} →
       (∀ {x} (y : B x) → C y) → (g : (x : A) → B x) →
       ((x : A) → C (g x))
 f ∘ g = λ x → f (g x)
-
-data Bool : Set where
-  true false : Bool
-
-if_then_else_ : ∀ {a}{A : Set a} → Bool → A → A → A
-if true  then t else e = t
-if false then t else e = e
-
-data Maybe {a} (A : Set a) : Set a where
-  nothing : Maybe A
-  just    : A → Maybe A
 
 infixr 5 _∷_
 

@@ -7,10 +7,6 @@ _&&_ : Bool → Bool → Bool
 true && b = b
 false && _ = false
 
-data Maybe (A : Set) : Set where
-  Nothing : Maybe A
-  Just : A → Maybe A
-
 record Eq (A : Set) : Set where
   constructor eq
   field
@@ -38,8 +34,8 @@ instance
   eq-Maybe {A} eqA = eq aux  where
 
     aux : Maybe A → Maybe A → Bool
-    aux Nothing Nothing = true
-    aux (Just y) (Just z) = (y == z)
+    aux nothing nothing = true
+    aux (just y) (just z) = (y == z)
     aux _ _ = false
 
   eq-List : {A : Set} → Eq A → Eq (List A)
@@ -57,13 +53,13 @@ test₂ : Bool
 test₂ = (3 == 4)
 
 test₃ : Bool
-test₃ = ((Just 9) == Nothing)
+test₃ = ((just 9) == nothing)
 
 test₃' : Bool
-test₃' = (Nothing == Just 6)
+test₃' = (nothing == just 6)
 
 test₄ : Bool
 test₄ = (true ∷ []) == (false ∷ [])
 
 test₅ : Bool
-test₅ = (Just ((true ,′ (1 ,′ Just 0)) ∷ []) == Just ((true , (1 , Just 0)) ∷ []))
+test₅ = (just ((true ,′ (1 ,′ just 0)) ∷ []) == just ((true , (1 , just 0)) ∷ []))

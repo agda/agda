@@ -4,15 +4,6 @@ module Issue399 where
 
 open import Common.Prelude
 
-data Maybe (A : Set) : Set where
-  nothing : Maybe A
-  just    : A → Maybe A
-
--- now in Common.Prelude
--- _++_ : {A : Set} → List A → List A → List A
--- []       ++ ys = ys
--- (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
-
 record MyMonadPlus m : Set₁ where
    field mzero : {a : Set} → m a → List a
          mplus : {a : Set} → m a → m a → List a
@@ -39,4 +30,3 @@ mymaybemplus x y = (mymaybemzero x) ++ (mymaybemzero y)
 mymaybeMonadPlus : MyMonadPlus Maybe
 mymaybeMonadPlus = record { mzero = mymaybemzero
                            ; mplus = mymaybemplus }
-

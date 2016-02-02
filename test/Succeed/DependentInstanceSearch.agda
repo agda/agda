@@ -2,10 +2,6 @@
 open import Common.Prelude
 open import Common.Equality
 
-data Maybe (A : Set) : Set where
-  nothing : Maybe A
-  just    : A → Maybe A
-
 infixr 40 _∷_
 
 data Vec (A : Set) : Nat → Set where
