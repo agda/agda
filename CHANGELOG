@@ -138,6 +138,11 @@ Fixed issues
 ============
 
 See https://github.com/agda/agda/issues
+* 480
+* 1159
+* 1388
+* 1674
+* 1740
 * 1757
 * 1759
 * 1763
@@ -148,6 +153,7 @@ See https://github.com/agda/agda/issues
 * 1791
 * 1795
 * 1796
+* 1811
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5
