@@ -125,17 +125,21 @@ nameToRawName = prettyShow
 
 nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps
-nameParts (NoName _ _) = [Hole]
+nameParts (NoName _ _) = [Id "_"] -- To not return an empty list
 
 nameStringParts :: Name -> [RawName]
 nameStringParts n = [ s | Id s <- nameParts n ]
 
 -- | Parse a string to parts of a concrete name.
+--
+--   Note: @stringNameParts "_" == [Id "_"] == nameParts NoName{}@
 
 stringNameParts :: String -> [NamePart]
-stringNameParts ""                              = []
-stringNameParts ('_':s)                         = Hole : stringNameParts s
-stringNameParts s | (x, s') <- break (== '_') s = Id (stringToRawName x) : stringNameParts s'
+stringNameParts "_" = [Id "_"]   -- NoName
+stringNameParts s = loop s where
+  loop ""                              = []
+  loop ('_':s)                         = Hole : loop s
+  loop s | (x, s') <- break (== '_') s = Id (stringToRawName x) : loop s'
 
 -- | Is the name an operator?
 
