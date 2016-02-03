@@ -847,35 +847,46 @@ appBrackets' (_:_) ctx = appBrackets ctx
 
 -- TODO: bind variables properly
 instance ToConcrete A.Pattern C.Pattern where
-    toConcrete (VarP x)    = toConcrete x >>= return . IdentP . C.QName
-    toConcrete (A.WildP i)         =
+  toConcrete p =
+    case p of
+      A.VarP x ->
+        C.IdentP . C.QName <$> toConcrete x
+
+      A.WildP i ->
         return $ C.WildP (getRange i)
-    toConcrete (ConP i (AmbQ []) args) = __IMPOSSIBLE__
-    toConcrete p@(ConP i (AmbQ (x:_)) args) =
+
+      A.ConP i (AmbQ []) args        -> __IMPOSSIBLE__
+      p@(A.ConP i (AmbQ (x:_)) args) -> tryOp p x args
+      p@(A.DefP i x args)            -> tryOp p x args
+
+      A.AsP i x p -> do
+        (x, p) <- toConcreteCtx ArgumentCtx (x,p)
+        return $ C.AsP (getRange i) x p
+
+      A.AbsurdP i ->
+        return $ C.AbsurdP (getRange i)
+
+      A.LitP (LitQName r x) -> do
+        x <- lookupQName NoAmbiguousConstructors x
+        bracketP_ appBrackets $ return $ C.AppP (C.QuoteP r) (defaultNamedArg (C.IdentP x))
+      A.LitP l ->
+        return $ C.LitP l
+
+      A.DotP i e  -> do
+        C.DotP (getRange i) <$> toConcreteCtx DotPatternCtx e
+
+      A.PatternSynP i n _ ->
+        C.IdentP <$> toConcrete n
+
+      A.RecP i as ->
+        C.RecP (getRange i) <$> mapM (traverse toConcrete) as
+    where
+    tryOp p x args = do
       tryToRecoverOpAppP p $
         bracketP_ (appBrackets' args) $ do
-            x <- toConcrete x
-            args <- toConcreteCtx ArgumentCtx args
-            return $ foldl AppP (C.IdentP x) args
-    toConcrete p@(DefP i x args) =
-      tryToRecoverOpAppP p $
-        bracketP_ (appBrackets' args) $ do
-            x <- toConcrete x
-            args <- toConcreteCtx ArgumentCtx args
-            return $ foldl AppP (C.IdentP x) args
-    toConcrete (A.AsP i x p)   = do
-      (x, p) <- toConcreteCtx ArgumentCtx (x,p)
-      return $ C.AsP (getRange i) x p
-    toConcrete (A.AbsurdP i) = return $ C.AbsurdP (getRange i)
-    toConcrete (A.LitP (LitQName r x)) = do
-      x <- lookupQName NoAmbiguousConstructors x
-      bracketP_ appBrackets $ return $ AppP (C.QuoteP r) (defaultNamedArg (C.IdentP x))
-    toConcrete (A.LitP l)    = return $ C.LitP l
-    toConcrete (A.DotP i e)  = do
-        e <- toConcreteCtx DotPatternCtx e
-        return $ C.DotP (getRange i) e
-    toConcrete (A.PatternSynP i n _) = IdentP <$> toConcrete n
-    toConcrete (A.RecP i as) = C.RecP (getRange i) <$> mapM (traverse toConcrete) as
+          x <- toConcrete x
+          args <- toConcreteCtx ArgumentCtx args
+          return $ foldl AppP (C.IdentP x) args
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

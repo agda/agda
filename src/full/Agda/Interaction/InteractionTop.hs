@@ -1164,17 +1164,6 @@ display_info info = do
   displayStatus
   putResponse $ Resp_DisplayInfo info
 
--- UNUSED
--- takenNameStr :: TCM [String]
--- takenNameStr = do
---   xss <- sequence [ List.map (fst . unDom) <$> getContext
---                   , Map.keys <$> asks envLetBindings
---                   , List.map qnameName . HMap.keys . sigDefinitions <$> getSignature
---                ]
---   return $ concat [ parts $ nameConcrete x | x <- concat xss]
---   where
---     parts x = [ s | Id s <- nameParts x ]
-
 refreshStr :: [String] -> String -> ([String], String)
 refreshStr taken s = go nameModifiers where
   go (m:mods) = let s' = s ++ m in
