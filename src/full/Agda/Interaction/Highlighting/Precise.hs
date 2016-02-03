@@ -120,7 +120,10 @@ data Aspects = Aspects
     -- ^ The definition site of the annotated thing, if applicable and
     --   known. File positions are counted from 1.
   }
-  deriving (Eq, Show, Typeable)
+  deriving (Show, Typeable)
+
+instance Eq Aspects where
+  Aspects a o _ d == Aspects a' o' _ d' = (a, nub o, d) == (a', nub o', d')
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
