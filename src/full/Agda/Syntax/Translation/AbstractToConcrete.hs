@@ -7,6 +7,10 @@
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
+#if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE FlexibleContexts #-}
+#endif
+
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
