@@ -12,7 +12,7 @@
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5)))
 ((last . 2) . (agda2-make-case-action '("map f [] = []" "map f (x ∷ x₁) = f x ∷ map f x₁")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5)))
-((last . 2) . (agda2-make-case-action '("lookup {._} {< x >} zero (cons x₁ x₂) = x₁" "lookup {._} {< x >} (succ x₁) (cons x₂ x₃) = lookup x₁ x₃" "lookup {._} {x ⇒ x₁} zero (cons x₂ x₃) = x₂" "lookup {._} {x ⇒ x₁} (succ x₂) (cons x₃ x₄) = lookup x₂ x₄")))
+((last . 2) . (agda2-make-case-action '("lookup {_} {< x >} zero (cons x₁ x₂) = x₁" "lookup {_} {< x >} (succ x₁) (cons x₂ x₃) = lookup x₁ x₃" "lookup {_} {x ⇒ x₁} zero (cons x₂ x₃) = x₂" "lookup {_} {x ⇒ x₁} (succ x₂) (cons x₃ x₄) = lookup x₂ x₄")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5)))
 (agda2-give-action 3 "eval σ e (eval σ e₁)")
 (agda2-status-action "")
