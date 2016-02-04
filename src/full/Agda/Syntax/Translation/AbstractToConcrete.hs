@@ -921,12 +921,9 @@ recoverOpApp bracket opApp view e mDefault = case view e of
       n' = fixityHelper n
 
   -- fall-back (wrong number of arguments or no holes)
-    | length xs == 1        = mDefault
-    | length es /= numHoles = mDefault
-    | null es               = mDefault
-    where
-      numHoles = length (filter (== Hole) xs)
   doQName _ x _ es xs
+    | null es                 = mDefault
+    | length es /= numHoles x = mDefault
 
   -- binary case
   doQName fixity x n as xs

@@ -29,7 +29,7 @@ import Test.QuickCheck
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import {-# SOURCE #-} Agda.Syntax.Fixity
-import Agda.Syntax.Concrete.Name (IsNoName(..))
+import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.List
@@ -255,6 +255,12 @@ instance Hashable QName where
 -- | An abstract name is empty if its concrete name is empty.
 instance IsNoName Name where
   isNoName = isNoName . nameConcrete
+
+instance NumHoles Name where
+  numHoles = numHoles . nameConcrete
+
+instance NumHoles QName where
+  numHoles = numHoles . qnameName
 
 ------------------------------------------------------------------------
 -- * Show instances
