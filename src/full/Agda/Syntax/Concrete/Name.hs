@@ -138,6 +138,21 @@ stringNameParts s = loop s where
   loop ('_':s)                         = Hole : loop s
   loop s | (x, s') <- break (== '_') s = Id (stringToRawName x) : loop s'
 
+-- | Number of holes in a 'Name' (i.e., arity of a mixfix-operator).
+class NumHoles a where
+  numHoles :: a -> Int
+
+instance NumHoles [NamePart] where
+  numHoles = length . filter (== Hole)
+
+instance NumHoles Name where
+  numHoles NoName{}       = 0
+  numHoles (Name _ parts) = numHoles parts
+
+instance NumHoles QName where
+  numHoles (QName x)  = numHoles x
+  numHoles (Qual _ x) = numHoles x
+
 -- | Is the name an operator?
 
 isOperator :: Name -> Bool
