@@ -406,6 +406,16 @@ Special commands:
             agda2-version
             agda2-program-name (or version "unknown"))))
 
+ (if (boundp 'agda2-include-dirs)
+     (display-warning 'agda2 "Note that the variable agda2-include-dirs is
+no longer used. You may want to update your configuration. You
+have at least two choices:
+* Use the library management system.
+* Set the include path using agda2-program-args.
+
+One way to avoid seeing this warning is to make sure that
+agda2-include-dirs is not bound." :warning))
+
  (setq local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
        mode-line-process
