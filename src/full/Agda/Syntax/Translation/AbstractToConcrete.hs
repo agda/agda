@@ -852,7 +852,12 @@ instance ToConcrete A.Pattern C.Pattern where
         return $ C.LitP l
 
       A.DotP i e  -> do
-        C.DotP (getRange i) <$> toConcreteCtx DotPatternCtx e
+        c <- toConcreteCtx DotPatternCtx e
+        case c of
+          -- Andreas, 2016-02-04 print ._ pattern as _ pattern,
+          -- following the fusing of WildP and ImplicitP.
+          C.Underscore{} -> return $ C.WildP $ getRange i
+          _ -> return $ C.DotP (getRange i) c
 
       A.PatternSynP i n _ ->
         C.IdentP <$> toConcrete n
