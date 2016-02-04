@@ -860,10 +860,11 @@ instance ToConcrete A.Pattern C.Pattern where
     tryOp x f args = do
       tryToRecoverOpAppP (f args) >>= \case
         Just c -> return c
-        Nothing -> bracketP_ (appBrackets' args) $ do
-          x <- toConcrete x
-          args <- toConcreteCtx ArgumentCtx args
-          return $ foldl AppP (C.IdentP x) args
+        Nothing -> applyTo args . C.IdentP =<< toConcrete x
+    -- Note: applyTo [] c = return c
+    applyTo args c = bracketP_ (appBrackets' args) $ do
+      foldl C.AppP c <$> toConcreteCtx ArgumentCtx args
+
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 
