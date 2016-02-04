@@ -915,21 +915,21 @@ recoverOpApp bracket opApp view e mDefault = case view e of
   where
 
   doQNameHelper fixityHelper conHelper n as = do
-    x <- toConcrete n
-    doQName (theFixity $ nameFixity n') (conHelper x) n' as
-    where n' = fixityHelper n
+    x <- conHelper <$> toConcrete n
+    doQName (theFixity $ nameFixity n') x n' as (C.nameParts $ C.unqualify x)
+    where
+      n' = fixityHelper n
 
   -- fall-back (wrong number of arguments or no holes)
-  doQName _ x _ es
     | length xs == 1        = mDefault
     | length es /= numHoles = mDefault
     | null es               = mDefault
     where
-      xs       = C.nameParts $ C.unqualify x
       numHoles = length (filter (== Hole) xs)
+  doQName _ x _ es xs
 
   -- binary case
-  doQName fixity x n as
+  doQName fixity x n as xs
     | Hole <- head xs
     , Hole <- last xs = do
         let a1  = head as
@@ -942,11 +942,9 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
           $ return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
-    where
-      xs = C.nameParts $ C.unqualify x
 
   -- prefix
-  doQName fixity x n as
+  doQName fixity x n as xs
     | Hole <- last xs = do
         let an  = last as
             as' = case as of
@@ -956,11 +954,9 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
           $ return $ opApp (getRange (n, en)) x n (es ++ [en])
-    where
-      xs = C.nameParts $ C.unqualify x
 
   -- postfix
-  doQName fixity x n as
+  doQName fixity x n as xs
     | Hole <- head xs = do
         let a1  = head as
             as' = tail as
@@ -968,11 +964,9 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         bracket (opBrackets fixity)
           $ return $ opApp (getRange (e1, n)) x n ([e1] ++ es)
-    where
-      xs = C.nameParts $ C.unqualify x
 
   -- roundfix
-  doQName _ x n as = do
+  doQName _ x n as xs = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     bracket roundFixBrackets
       $ return $ opApp (getRange x) x n es
