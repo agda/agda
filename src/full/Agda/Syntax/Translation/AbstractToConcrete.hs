@@ -59,6 +59,7 @@ import Agda.TypeChecking.Monad.Options
 
 import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Tuple
@@ -833,8 +834,8 @@ instance ToConcrete A.Pattern C.Pattern where
         return $ C.WildP (getRange i)
 
       A.ConP i (AmbQ []) args        -> __IMPOSSIBLE__
-      p@(A.ConP i (AmbQ (x:_)) args) -> tryOp p x args
-      p@(A.DefP i x args)            -> tryOp p x args
+      p@(A.ConP i xs@(AmbQ (x:_)) args) -> tryOp x (A.ConP i xs) args
+      p@(A.DefP i x args)               -> tryOp x (A.DefP i x)  args
 
       A.AsP i x p -> do
         (x, p) <- toConcreteCtx ArgumentCtx (x,p)
@@ -855,8 +856,8 @@ instance ToConcrete A.Pattern C.Pattern where
       A.PatternSynP i n _ ->
         C.IdentP <$> toConcrete n
     where
-    tryOp p x args = do
-      tryToRecoverOpAppP p $
+    tryOp x f args = do
+      tryToRecoverOpAppP (f args) $
         bracketP_ (appBrackets' args) $ do
           x <- toConcrete x
           args <- toConcreteCtx ArgumentCtx args
@@ -871,7 +872,7 @@ cOpApp r x n es =
   C.OpApp r x (Set.singleton n) (map (defaultNamedArg . Ordinary) es)
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
-tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
+tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket cOpApp view e) def return
   where
     view e = do
       let Application hd args = AV.appView e
@@ -883,7 +884,7 @@ tryToRecoverOpApp e def = recoverOpApp bracket cOpApp view e def
         _                -> Nothing
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
-tryToRecoverOpAppP p def = recoverOpApp bracketP_ opApp view p def
+tryToRecoverOpAppP p def = caseMaybeM (recoverOpApp bracketP_ opApp view p) def return
   where
     opApp r x n ps =
       C.OpAppP r x (Set.singleton n) (map defaultNamedArg ps)
@@ -898,9 +899,8 @@ recoverOpApp :: (ToConcrete a c, HasRange c)
   -> (Range -> C.QName -> A.Name -> [c] -> c)
   -> (a -> Maybe (Hd, [A.NamedArg a]))
   -> a
-  -> AbsToCon c
-  -> AbsToCon c
-recoverOpApp bracket opApp view e mDefault = case view e of
+  -> AbsToCon (Maybe c)
+recoverOpApp bracket opApp view e = case view e of
   Nothing -> mDefault
   Just (hd, args)
     | all notHidden args  -> do
@@ -913,6 +913,7 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         HdCon qn          -> doQNameHelper qnameName id      qn args'
     | otherwise           -> mDefault
   where
+  mDefault = return Nothing
 
   doQNameHelper fixityHelper conHelper n as = do
     x <- conHelper <$> toConcrete n
@@ -937,8 +938,9 @@ recoverOpApp bracket opApp view e mDefault = case view e of
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
-        bracket (opBrackets fixity)
-          $ return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
+        Just <$> do
+          bracket (opBrackets fixity) $
+            return $ opApp (getRange (e1, en)) x n ([e1] ++ es ++ [en])
 
   -- prefix
   doQName fixity x n as xs
@@ -949,8 +951,9 @@ recoverOpApp bracket opApp view e mDefault = case view e of
                     _          -> __IMPOSSIBLE__
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
-        bracket (opBrackets fixity)
-          $ return $ opApp (getRange (n, en)) x n (es ++ [en])
+        Just <$> do
+          bracket (opBrackets fixity) $
+            return $ opApp (getRange (n, en)) x n (es ++ [en])
 
   -- postfix
   doQName fixity x n as xs
@@ -959,14 +962,16 @@ recoverOpApp bracket opApp view e mDefault = case view e of
             as' = tail as
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
-        bracket (opBrackets fixity)
-          $ return $ opApp (getRange (e1, n)) x n ([e1] ++ es)
+        Just <$> do
+          bracket (opBrackets fixity) $
+            return $ opApp (getRange (e1, n)) x n ([e1] ++ es)
 
   -- roundfix
   doQName _ x n as xs = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
-    bracket roundFixBrackets
-      $ return $ opApp (getRange x) x n es
+    Just <$> do
+      bracket roundFixBrackets $
+        return $ opApp (getRange x) x n es
 
 -- Some instances that are related to interaction with users -----------
 
