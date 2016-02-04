@@ -858,8 +858,14 @@ instance ToConcrete A.Pattern C.Pattern where
         C.IdentP <$> toConcrete n
     where
     tryOp x f args = do
-      tryToRecoverOpAppP (f args) >>= \case
-        Just c -> return c
+      -- Andreas, 2016-02-04, Issue #1792
+      -- To prevent failing of tryToRecoverOpAppP for overapplied operators,
+      -- we take off the exceeding arguments first
+      -- and apply them pointwise with C.AppP later.
+      let (args1, args2) = splitAt (numHoles x) args
+      let funCtx = if null args2 then id else withPrecedence FunctionCtx
+      funCtx (tryToRecoverOpAppP $ f args1) >>= \case
+        Just c  -> applyTo args2 c
         Nothing -> applyTo args . C.IdentP =<< toConcrete x
     -- Note: applyTo [] c = return c
     applyTo args c = bracketP_ (appBrackets' args) $ do
