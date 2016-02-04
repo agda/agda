@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE TupleSections          #-}
@@ -857,8 +858,9 @@ instance ToConcrete A.Pattern C.Pattern where
         C.IdentP <$> toConcrete n
     where
     tryOp x f args = do
-      tryToRecoverOpAppP (f args) $
-        bracketP_ (appBrackets' args) $ do
+      tryToRecoverOpAppP (f args) >>= \case
+        Just c -> return c
+        Nothing -> bracketP_ (appBrackets' args) $ do
           x <- toConcrete x
           args <- toConcreteCtx ArgumentCtx args
           return $ foldl AppP (C.IdentP x) args
@@ -883,8 +885,8 @@ tryToRecoverOpApp e def = caseMaybeM (recoverOpApp bracket cOpApp view e) def re
         Con (AmbQ [])    -> __IMPOSSIBLE__
         _                -> Nothing
 
-tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
-tryToRecoverOpAppP p def = caseMaybeM (recoverOpApp bracketP_ opApp view p) def return
+tryToRecoverOpAppP :: A.Pattern -> AbsToCon (Maybe C.Pattern)
+tryToRecoverOpAppP = recoverOpApp bracketP_ opApp view
   where
     opApp r x n ps =
       C.OpAppP r x (Set.singleton n) (map defaultNamedArg ps)
