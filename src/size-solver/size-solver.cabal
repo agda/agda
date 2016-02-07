@@ -1,0 +1,39 @@
+name:            size-solver
+version:         0.2016.2.7
+cabal-version:   >= 1.8
+build-type:      Simple
+-- license:         OtherLicense
+-- license-file:    LICENSE
+author:          Andreas Abel and Felix Reihl.
+maintainer:      Andreas Abel <andreas.abel@gu.se>
+-- homepage:        http://wiki.portal.chalmers.se/agda/
+-- bug-reports:     http://code.google.com/p/agda/issues/list
+category:        Sized types
+synopsis:        A solver for size constraints arising in sized types.
+description:
+  See Felix Reihl, 2013, Bachelor thesis, Ludwig-Maximilians-University.
+-- tested-with:        GHC == 7.6.3
+--                     GHC == 7.8.4
+--                     GHC == 7.10.3
+-- extra-source-files: src/full/undefined.h
+--                     README.md
+--                     CHANGELOG
+-- data-dir:           src/data
+-- data-files:         Agda.css
+--                     agda.sty
+--                     postprocess-latex.pl
+--                     lib/prim/Agda/Primitive.agda
+
+source-repository head
+  type:     git
+  location: https://github.com/agda/agda.git
+
+executable size-solver
+  hs-source-dirs: .
+  main-is:        Main.hs
+  build-depends:
+    Agda == 2.4.2.6
+    , base >= 4.6.0.1 && < 6
+    , containers >= 0.5.0.0 && < 0.6
+    , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+    , parsec >= 3.1 && < 3.2
