@@ -1670,32 +1670,25 @@ instance ToAbstract C.Pragma [A.Pragma] where
         getHead (C.RawAppP _ (p : _)) = getHead p
         getHead _                     = err
 
-        setHead x (C.IdentP _) = C.IdentP (C.QName x)
-        setHead x (C.RawAppP r (p : ps)) = C.RawAppP r (setHead x p : ps)
-        setHead x _ = __IMPOSSIBLE__
-
-    hd <- getHead lhs
-    let top  = C.unqualify hd
-        lhs' = setHead top lhs
+    top <- getHead lhs
 
     hd <- do
-      qx <- resolveName' allKindsOfNames Nothing hd
+      qx <- resolveName' allKindsOfNames Nothing top
       case qx of
         VarName x'          -> return $ A.qnameFromList [x']
         DefinedName _ d     -> return $ anameName d
         FieldName     d     -> return $ anameName d
         ConstructorName [d] -> return $ anameName d
-        ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show hd ++ ": " ++ show (map anameName ds)
-        UnknownName         -> notInScope hd
+        ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show top ++ ": " ++ show (map anameName ds)
+        UnknownName         -> notInScope top
         PatternSynResName d -> return $ anameName d
 
-    lhs <- toAbstract $ LeftHandSide top lhs' []
-    (f, ps) <-
-      case lhs of
-        A.LHS _ (A.LHSHead _ ps) [] -> return (hd, ps)
-        _ -> err
+    lhs <- toAbstract $ LeftHandSide top lhs []
+    ps  <- case lhs of
+             A.LHS _ (A.LHSHead _ ps) [] -> return ps
+             _ -> err
     rhs <- toAbstract rhs
-    return [A.DisplayPragma f ps rhs]
+    return [A.DisplayPragma hd ps rhs]
 
   -- Termination checking pragmes are handled by the nicifier
   toAbstract C.TerminationCheckPragma{} = __IMPOSSIBLE__
