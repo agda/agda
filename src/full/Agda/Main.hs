@@ -73,10 +73,9 @@ runAgdaWithOptions generateHTML progName opts
           && not (optGHCiInteraction opts)
                             = liftIO printUsage
       | otherwise           = do
-          setCommandLineOptions opts
           -- Main function.
           -- Bill everything to root of Benchmark trie.
-          Bench.billTo [] $ checkFile
+          Bench.billTo [] $ checkFile opts
 
           -- Print benchmarks.
           Bench.print
@@ -85,26 +84,26 @@ runAgdaWithOptions generateHTML progName opts
           printStatistics 20 Nothing =<< use lensAccumStatistics
 
   where
-    checkFile :: TCM ()
-    checkFile = do
-      i             <- optInteractive     <$> liftTCM commandLineOptions
-      ghci          <- optGHCiInteraction <$> liftTCM commandLineOptions
-      ghc           <- optGhcCompile      <$> liftTCM commandLineOptions
-      compileNoMain <- optCompileNoMain   <$> liftTCM commandLineOptions
-      epic          <- optEpicCompile     <$> liftTCM commandLineOptions
-      js            <- optJSCompile       <$> liftTCM commandLineOptions
+    checkFile :: CommandLineOptions -> TCM ()
+    checkFile opts = do
+      let i             = optInteractive     opts
+          ghci          = optGHCiInteraction opts
+          ghc           = optGhcCompile      opts
+          compileNoMain = optCompileNoMain   opts
+          epic          = optEpicCompile     opts
+          js            = optJSCompile       opts
       when i $ liftIO $ putStr splashScreen
       let failIfNoInt (Just i) = return i
           -- The allowed combinations of command-line
           -- options should rule out Nothing here.
           failIfNoInt Nothing  = __IMPOSSIBLE__
 
-          failIfInt x Nothing  = x
-          failIfInt _ (Just _) = __IMPOSSIBLE__
+          failIfInt Nothing  = return ()
+          failIfInt (Just _) = __IMPOSSIBLE__
 
           interaction :: TCM (Maybe Interface) -> TCM ()
           interaction | i             = runIM . interactionLoop
-                      | ghci          = (failIfInt mimicGHCi =<<)
+                      | ghci          = mimicGHCi . (failIfInt =<<)
                       | ghc && compileNoMain
                                       = (MAlonzo.compilerMain False =<<) . (failIfNoInt =<<)
                       | ghc           = (MAlonzo.compilerMain True =<<) . (failIfNoInt =<<)
@@ -112,6 +111,7 @@ runAgdaWithOptions generateHTML progName opts
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
                       | otherwise     = (() <$)
       interaction $ do
+        setCommandLineOptions opts
         hasFile <- hasInputFile
         -- Andreas, 2013-10-30 The following 'resetState' kills the
         -- verbosity options.  That does not make sense (see fail/Issue641).

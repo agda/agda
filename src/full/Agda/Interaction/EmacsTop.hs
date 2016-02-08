@@ -36,9 +36,8 @@ import Agda.Version
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 
-mimicGHCi :: TCM ()
-mimicGHCi = do
-
+mimicGHCi :: TCM () -> TCM ()
+mimicGHCi setup = do
     liftIO $ do
       hSetBuffering stdout NoBuffering
       hSetEncoding  stdout utf8
@@ -46,6 +45,8 @@ mimicGHCi = do
 
     setInteractionOutputCallback $
         liftIO . mapM_ print <=< lispifyResponse
+
+    handleCommand_ (lift setup) `evalStateT` initCommandState
 
     opts <- commandLineOptions
     _ <- interact' `runStateT` initCommandState { optionsOnReload = opts }
