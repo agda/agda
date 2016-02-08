@@ -2,11 +2,22 @@ NOTE: Put drafts of release notes here that might be included in some
 future release. Don't remove this message please!
 ------------------------------------------------------------------------------
 
-* Reflection API
-
-  Agda (TODO version) reflection interface now exposes the name hint
-  (as a string) for variables (see Agda release notes). In
-  consequence, a new type Abs was added, and the types Clause,
-  Pattern, Term and Type were modified in Reflection.agda.
-
 * Support for the UHC backend has been added.
+
+* Various changes required by changes in Agda (see Agda CHANGELOG):
+
+  ** Hiding some modules in import directives after fixing #836.
+
+  ** Removed COMPILED_DATA for Bool.Base.agda.
+
+  ** Removed the IRRAXIOM built-in from Irrelevance.agda
+
+  ** Added BUILTIN bindings in Data/Integer.agda
+
+  ** IO FFI calls work with the now Data.Text-backed String builtins.
+
+  ** Added parentheses for fixing operators and sections parsing.
+
+  ** Added BUILTIN binding in Data/Unit.agda.
+
+  ** Various changes in Reflection.agda
