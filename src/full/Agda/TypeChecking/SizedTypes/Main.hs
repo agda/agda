@@ -11,7 +11,7 @@ module Agda.TypeChecking.SizedTypes.Main where
 -- Andreas, 2016-02-01 because of dependency on parsec, we do not compile this
 -- KEEP commented out code to follow:
 
-{-
+-- {-
 import Control.Monad
 
 import Data.Functor
@@ -88,4 +88,4 @@ parseFile input = ( map parse hyps
 isSeparator :: String -> Bool
 isSeparator s = length dashes >= 2 && all isSpace rest
   where (dashes, rest) = span (== '-') s
--}
+-- -}
