@@ -252,13 +252,15 @@ following primitive operations::
     -- Compute the normal form of a term.
     normalise : Term → TC Term
 
-    -- Get the current context.
+    -- Get the current context. Returns the context in reverse order, so that
+    -- it is indexable by deBruijn index.
     getContext : TC (List (Arg Type))
 
     -- Extend the current context with a variable of the given type.
     extendContext : ∀ {a} {A : Set a} → Arg Type → TC A → TC A
 
-    -- Set the current context.
+    -- Set the current context. Takes a context telescope with the outer-most
+    -- entry first, in contrast to 'getContext'.
     inContext : ∀ {a} {A : Set a} → List (Arg Type) → TC A → TC A
 
     -- Quote a value, returning the corresponding Term.
