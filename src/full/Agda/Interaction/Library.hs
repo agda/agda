@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Agda.Interaction.Library
   ( getDefaultLibraries
@@ -76,7 +77,7 @@ getDefaultLibraries :: FilePath -> LibM ([LibName], [FilePath])
 getDefaultLibraries root = mkLibM [] $ do
   libs <- findAgdaLibFiles root
   if null libs then first (, []) <$> readDefaultsFile
-    else first libsAndPaths <$> parseLibFiles libs
+    else first libsAndPaths <$> parseLibFiles Nothing (zip (repeat 0) libs)
   where
     libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)
 
@@ -85,7 +86,7 @@ readDefaultsFile = do
     agdaDir <- getAgdaAppDir
     let file = agdaDir </> defaultsFile
     ifM (doesFileExist file) (do
-      ls <- stripCommentLines <$> readFile file
+      ls <- map snd . stripCommentLines <$> readFile file
       return ("." : concatMap splitCommas ls, [])
       ) {- else -} (return (["."], []))
   `catchIO` \e -> return (["."], [OtherError $ "Failed to read defaults file.\n" ++ show e])
@@ -99,22 +100,27 @@ getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
     file <- getLibrariesFile overrideLibFile
     ifM (doesFileExist file) (do
-      files <- mapM expandEnvironmentVariables =<< stripCommentLines <$> readFile file
-      parseLibFiles files
+      ls    <- stripCommentLines <$> readFile file
+      files <- sequence [ (i, ) <$> expandEnvironmentVariables s | (i, s) <- ls ]
+      parseLibFiles (Just file) files
       ) {- else -} (return ([], []))
   `catchIO` \e -> return ([], [OtherError $ "Failed to read installed libraries.\n" ++ show e])
 
-parseLibFiles :: [FilePath] -> IO ([AgdaLibFile], [LibError])
-parseLibFiles files = do
-  rs <- mapM parseLibFile files
-  let errs = [ OtherError $ path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ") ++ err
-             | (path, Left err) <- zip files rs ]
+parseLibFiles :: Maybe FilePath -> [(Int, FilePath)] -> IO ([AgdaLibFile], [LibError])
+parseLibFiles libFile files = do
+  rs <- mapM (parseLibFile . snd) files
+  let loc line | Just f <- libFile = f ++ ":" ++ show line ++ ": "
+               | otherwise         = ""
+      errs = [ if isPrefixOf "Failed to read" err
+                then OtherError $ loc line ++ err
+                else OtherError $ path ++ ":" ++ (if all isDigit (take 1 err) then "" else " ") ++ err
+             | ((line, path), Left err) <- zip files rs ]
   return (rights rs, errs)
 
-stripCommentLines :: String -> [String]
-stripCommentLines = concatMap strip . lines
+stripCommentLines :: String -> [(Int, String)]
+stripCommentLines = concatMap strip . zip [1..] . lines
   where
-    strip s = [ s' | not $ null s' ]
+    strip (i, s) = [ (i, s') | not $ null s' ]
       where s' = stripComments $ dropWhile isSpace s
 
 formatLibError :: [AgdaLibFile] -> LibError -> IO Doc

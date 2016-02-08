@@ -45,7 +45,7 @@ defaultLibFile = AgdaLib { libName = "", libFile = "", libIncludes = [], libDepe
 parseLibFile :: FilePath -> IO (P AgdaLibFile)
 parseLibFile file =
   (fmap setPath . parseLib <$> readFile file) `catchIO` \e ->
-    return (Left $ "Failed to read library file\n" ++ show e)
+    return (Left $ "Failed to read library file " ++ file ++ ".\nReason: " ++ show e)
   where
     setPath lib = unrelativise (takeDirectory file) lib{ libFile = file }
     unrelativise dir lib = lib { libIncludes = map (dir </>) (libIncludes lib) }
