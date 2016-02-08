@@ -141,7 +141,6 @@ checkAlias t' ai delayed i name e = do
                       , funMutual         = []
                       , funProjection     = Nothing
                       , funStatic         = False
-                      , funCopy           = False
                       , funTerminates     = Nothing
                       , funExtLam         = Nothing
                       , funWith           = Nothing
@@ -259,7 +258,6 @@ checkFunDef' t ai delayed extlam with i name cs =
              , funMutual         = []
              , funProjection     = Nothing
              , funStatic         = False
-             , funCopy           = False
              , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with
@@ -565,7 +563,7 @@ checkWithRHS x aux t (LHSResult delta ps trhs perm) vs0 as cs = do
             body = mkBody perm v
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
-          useTerPragma $ Defn defaultArgInfo aux typeDontCare [] [] [] 0 noCompiledRep Nothing emptyFunction
+          useTerPragma $ defaultDefn defaultArgInfo aux typeDontCare emptyFunction
 
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $
@@ -642,7 +640,8 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
       , prettyTCM dt
       ]
   addConstant aux =<< do
-    useTerPragma $ Defn defaultArgInfo aux withFunType [] [] [df] 0 noCompiledRep Nothing emptyFunction
+    useTerPragma $ (defaultDefn defaultArgInfo aux withFunType emptyFunction)
+                   { defDisplay = [df] }
   -- solveSizeConstraints -- Andreas, 2012-10-16 does not seem necessary
 
   reportSDoc "tc.with.top" 10 $ sep

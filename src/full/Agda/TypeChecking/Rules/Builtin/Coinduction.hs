@@ -159,7 +159,6 @@ bindBuiltinFlat e =
                    , funDelayed    = NotDelayed
                    , funProjection = Just projection
                    , funStatic     = False
-                   , funCopy       = False
                    , funTerminates = Just True
                    , funExtLam     = Nothing
                    , funWith       = Nothing

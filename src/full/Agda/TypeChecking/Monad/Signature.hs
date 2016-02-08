@@ -197,6 +197,12 @@ addDisplayForms x = do
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
               add args top y vs
+        [] | Constructor{ conSrcCon = h } <- theDef def -> do
+              let y  = conName h
+                  df = Display 0 [] $ DTerm $ Con (h {conName = top }) []
+              reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
+                                                ++ "\n  " ++ show df
+              addDisplayForm y df
         _ -> do
           let reason = if not isCopy then "not a copy" else
                   case cs of
@@ -291,7 +297,7 @@ applySection' new ptel old ts rd rm = do
           -- -- Andreas, 2015-09-09 Issue 1643:
           -- -- Do not add a display form for a bare module alias.
           -- when (not isCon && size ptel == 0 && not (null ts)) $ do
-          when (not isCon && size ptel == 0) $ do
+          when (size ptel == 0) $ do
             addDisplayForms y
           where
             ts' = take np ts
@@ -302,7 +308,18 @@ applySection' new ptel old ts rd rm = do
             abstr = defAbstract d
             -- the name is set by the addConstant function
             nd :: QName -> TCM Definition
-            nd y = Defn (defArgInfo d) y t pol occ [] (-1) noCompiledRep inst <$> def  -- TODO: mutual block?
+            nd y = for def $ \ df -> Defn
+                    { defArgInfo        = defArgInfo d
+                    , defName           = y
+                    , defType           = t
+                    , defPolarity       = pol
+                    , defArgOccurrences = occ
+                    , defDisplay        = []
+                    , defMutual         = -1   -- TODO: mutual block?
+                    , defCompiledRep    = noCompiledRep
+                    , defInstance       = inst
+                    , defCopy           = True
+                    , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }
             mutual = case oldDef of { Function{funMutual = m} -> m              ; _ -> [] }
@@ -348,7 +365,6 @@ applySection' new ptel old ts rd rm = do
                         , funAbstr          = ConcreteDef -- OR: abstr -- ?!
                         , funProjection     = proj
                         , funStatic         = False
-                        , funCopy           = True
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with
