@@ -19,6 +19,8 @@ backends.
 
 Important changes since 0.11:
 
+* Added support for GHC 8.0.1.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.11
 ------------------------------------------------------------------------
