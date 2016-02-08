@@ -298,9 +298,9 @@ parsePat prs p = case p of
    - the applied patterns
 -}
 
-type ParseLHS = Either Pattern (Name, LHSCore)
+type ParseLHS = Either Pattern (QName, LHSCore)
 
-parseLHS' :: LHSOrPatSyn -> Maybe Name -> Pattern -> ScopeM ParseLHS
+parseLHS' :: LHSOrPatSyn -> Maybe QName -> Pattern -> ScopeM ParseLHS
 parseLHS' lhsOrPatSyn top p = do
     let ms = qualifierModules $ patternQNames p
     flat <- flattenScope ms <$> getScope
@@ -327,7 +327,7 @@ parseLHS' lhsOrPatSyn top p = do
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
-  { topName  :: Maybe Name  -- ^ name of defined symbol
+  { topName  :: Maybe QName -- ^ name of defined symbol
   , conNames :: [QName]     -- ^ valid constructor names
   , fldNames :: [QName]     -- ^ valid field names
   }
@@ -338,9 +338,9 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Common.Arg _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
+    Common.Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
       guard $ all validPat ps
-      return $ Right (f, LHSHead f ps)
+      return $ Right (x, LHSHead x ps)
 
     -- case @d ps@
     Common.Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
@@ -369,7 +369,7 @@ classifyPattern conf p =
 
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
-parseLHS :: Name -> Pattern -> ScopeM LHSCore
+parseLHS :: QName -> Pattern -> ScopeM LHSCore
 parseLHS top p = billToParser $ do
   res <- parseLHS' IsLHS (Just top) p
   case res of
