@@ -445,10 +445,10 @@ checkAbsurdLambda i h e t = do
             [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
             , nest 2 $ text "of type" <+> prettyTCM t'
             ]
-          addConstant aux
-            $ Defn (setRelevance rel info') aux t'
-                   [Nonvariant] [Unused] (defaultDisplayForm aux)
-                   0 noCompiledRep Nothing
+          addConstant aux $
+            (\ d -> (defaultDefn (setRelevance rel info') aux t' d)
+                    { defPolarity       = [Nonvariant]
+                    , defArgOccurrences = [Unused] })
             $ Function
               { funClauses        =
                   [Clause
@@ -470,7 +470,6 @@ checkAbsurdLambda i h e t = do
               , funSmashable      = False -- there is no body anyway, smashing doesn't make sense
               , funStatic         = False
               , funInline         = False
-              , funCopy           = False
               , funTerminates     = Just True
               , funExtLam         = Nothing
               , funWith           = Nothing
@@ -1470,8 +1469,8 @@ checkHeadApplication e t hd args = do
       addConstant c' =<< do
         let ai = setRelevance rel defaultArgInfo
         useTerPragma $
-          Defn ai c' forcedType [] [] (defaultDisplayForm c') i noCompiledRep Nothing $
-          emptyFunction
+          (defaultDefn ai c' forcedType emptyFunction)
+          { defMutual = i }
 
       -- Define and type check the fresh function.
       ctx <- getContext

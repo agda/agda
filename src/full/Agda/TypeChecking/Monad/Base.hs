@@ -1105,6 +1105,9 @@ data Definition = Defn
   , defCompiledRep    :: CompiledRepresentation
   , defInstance       :: Maybe QName
     -- ^ @Just q@ when this definition is an instance of class q
+  , defCopy           :: Bool
+    -- ^ Has this function been created by a module
+                         -- instantiation?
   , theDef            :: Defn
   }
     deriving (Typeable, Show)
@@ -1121,6 +1124,7 @@ defaultDefn info x t def = Defn
   , defMutual         = 0
   , defCompiledRep    = noCompiledRep
   , defInstance       = Nothing
+  , defCopy           = False
   , theDef            = def
   }
 
@@ -1234,9 +1238,6 @@ data Defn = Axiom
               -- ^ Should calls to this function be inlined by the compiler?
             , funSmashable      :: Bool
               -- ^ Are we allowed to smash this function?
-            , funCopy           :: Bool
-              -- ^ Has this function been created by a module
-                                   -- instantiation?
             , funTerminates     :: Maybe Bool
               -- ^ Has this function been termination checked?  Did it pass?
             , funExtLam         :: Maybe ExtLamInfo
@@ -1315,7 +1316,6 @@ emptyFunction = Function
   , funStatic      = False
   , funInline      = False
   , funSmashable   = True
-  , funCopy        = False
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
@@ -1450,11 +1450,6 @@ defDelayed _                                       = NotDelayed
 defNonterminating :: Definition -> Bool
 defNonterminating Defn{theDef = Function{funTerminates = Just False}} = True
 defNonterminating _                                                   = False
-
--- | Is the definition just a copy created by a module instantiation?
-defCopy :: Definition -> Bool
-defCopy Defn{theDef = Function{funCopy = b}} = b
-defCopy _                                    = False
 
 -- | Beware when using this function on a @def@ obtained with @getConstInfo q@!
 --   If the identifier @q@ is abstract, 'getConstInfo' will turn its @def@ into
@@ -2532,8 +2527,8 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled inst def) =
-    killRange10 Defn ai name t pols occs displ mut compiled inst def
+  killRange (Defn ai name t pols occs displ mut compiled inst copy def) =
+    killRange11 Defn ai name t pols occs displ mut compiled inst copy def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange CtxId where
@@ -2566,8 +2561,8 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      Function cls comp tt inv mut isAbs delayed proj static inline smash copy term extlam with cop ->
-        killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash copy term extlam with cop
+      Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop ->
+        killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e          -> killRange5 Constructor a b c d e

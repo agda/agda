@@ -435,7 +435,6 @@ checkRecordProjections m r con tel ftel fs = do
                        , funSmashable      = True
                        , funStatic         = False
                        , funInline         = False
-                       , funCopy           = False
                        , funTerminates     = Just True
                        , funExtLam         = Nothing
                        , funWith           = Nothing
