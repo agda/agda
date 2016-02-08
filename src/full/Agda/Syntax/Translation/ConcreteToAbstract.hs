@@ -470,7 +470,7 @@ newtype NewName a = NewName a
 data OldQName     = OldQName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
-newtype OldName   = OldName C.Name
+newtype OldName a = OldName a
 data PatName      = PatName C.QName (Maybe (Set A.Name))
   -- ^ If a set is given, then the first name must correspond to one
   -- of the names in the set.
@@ -531,11 +531,16 @@ instance ToAbstract PatName APatName where
         reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ show (anameName d)
         return $ PatternSynPatName d
 
+class ToQName a where
+  toQName :: a -> C.QName
+
+instance ToQName C.Name  where toQName = C.QName
+instance ToQName C.QName where toQName = id
 
 -- Should be a defined name.
-instance ToAbstract OldName A.QName where
+instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
   toAbstract (OldName x) = do
-    rx <- resolveName (C.QName x)
+    rx <- resolveName (toQName x)
     case rx of
       DefinedName _ d     -> return $ anameName d
       -- We can get the cases below for DISPLAY pragmas
@@ -1195,7 +1200,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
             (x, args) <- do
-              res <- setCurrentRange p $ parseLHS top p
+              res <- setCurrentRange p $ parseLHS (C.QName top) p
               case res of
                 C.LHSHead x args -> return (x, args)
                 C.LHSProj{} -> genericError $ "copatterns not allowed in let bindings"
@@ -1706,7 +1711,7 @@ instance ToAbstract C.Clause A.Clause where
     -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
     vars <- getLocalVars
     let wcs' = for wcs $ \ c -> setLocalVars vars $> c
-    lhs' <- toAbstract $ LeftHandSide top p wps
+    lhs' <- toAbstract $ LeftHandSide (C.QName top) p wps
     printLocals 10 "after lhs:"
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
@@ -1814,7 +1819,7 @@ instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
     toAbstract (C.RHS e)   = RHS' <$> toAbstract e
 
-data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
+data LeftHandSide = LeftHandSide C.QName C.Pattern [C.Pattern]
 
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =

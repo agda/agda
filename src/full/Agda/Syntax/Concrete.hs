@@ -261,7 +261,7 @@ type WithExpr   = Expr
 -- | Processed (scope-checked) intermediate form of the core @f ps@ of 'LHS'.
 --   Corresponds to 'lhsOriginalPattern'.
 data LHSCore
-  = LHSHead  { lhsDefName  :: Name                -- ^ @f@
+  = LHSHead  { lhsDefName  :: QName               -- ^ @f@
              , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
              }
   | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier

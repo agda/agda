@@ -1528,7 +1528,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckSectionApplication Range ModuleName A.ModuleApplication
           | ScopeCheckExpr C.Expr
           | ScopeCheckDeclaration D.NiceDeclaration
-          | ScopeCheckLHS C.Name C.Pattern
+          | ScopeCheckLHS C.QName C.Pattern
           | NoHighlighting
           | SetRange Range  -- ^ used by 'setCurrentRange'
     deriving (Typeable)

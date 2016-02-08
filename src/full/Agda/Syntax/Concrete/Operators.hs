@@ -570,13 +570,13 @@ parsePat prs p = case p of
    - the applied patterns
 -}
 
-type ParseLHS = Either Pattern (Name, LHSCore)
+type ParseLHS = Either Pattern (QName, LHSCore)
 
 -- | The returned list contains all operators/notations/sections that
 -- were used to generate the grammar.
 
 parseLHS' ::
-  LHSOrPatSyn -> Maybe Name -> Pattern ->
+  LHSOrPatSyn -> Maybe QName -> Pattern ->
   ScopeM (ParseLHS, [NotationSection])
 parseLHS' lhsOrPatSyn top p = do
     let names = patternQNames p
@@ -613,7 +613,7 @@ parseLHS' lhsOrPatSyn top p = do
 
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
-  { topName  :: Maybe Name  -- ^ name of defined symbol
+  { topName  :: Maybe QName -- ^ name of defined symbol
   , conNames :: [QName]     -- ^ valid constructor names
   , fldNames :: [QName]     -- ^ valid field names
   }
@@ -624,9 +624,9 @@ classifyPattern conf p =
   case patternAppView p of
 
     -- case @f ps@
-    Arg _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
+    Arg _ (Named _ (IdentP x)) : ps | Just x == topName conf -> do
       guard $ all validPat ps
-      return $ Right (f, LHSHead f ps)
+      return $ Right (x, LHSHead x ps)
 
     -- case @d ps@
     Arg _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
@@ -655,7 +655,7 @@ classifyPattern conf p =
 
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
-parseLHS :: Name -> Pattern -> ScopeM LHSCore
+parseLHS :: QName -> Pattern -> ScopeM LHSCore
 parseLHS top p = billToParser $ do
   (res, ops) <- parseLHS' IsLHS (Just top) p
   case res of
