@@ -205,54 +205,26 @@ getOldInteractionScope ii = do
     Nothing    -> fail $ "not an old interaction point: " ++ show ii
     Just scope -> return scope
 
--- | Run an 'IOTCM' value, catch the exceptions, emit output
---
---   If an error happens the state of 'CommandM' does not change,
---   but stPersistent may change (which contains successfully
---   loaded interfaces for example).
+-- | Do setup and error handling for a command.
 
-runInteraction :: IOTCM -> CommandM ()
-runInteraction (IOTCM current highlighting highlightingMethod cmd)
-    = handleNastyErrors
-    $ inEmacs
-    $ do
-        current <- liftIO $ absolute current
+handleCommand_ :: CommandM () -> CommandM ()
+handleCommand_ = handleCommand id (return ())
 
-        res <- (`catchErr` (return . Just)) $ do
-
-            -- Raises an error if the given file is not the one currently
-            -- loaded.
-            cf <- gets theCurrentFile
-            when (not (independent cmd) && Just current /= (fst <$> cf)) $
-                lift $ typeError $ GenericError "Error: First load the file."
-
-            withCurrentFile $ interpret cmd
-
-            cf <- gets theCurrentFile
-            when (Just current == (fst <$> cf)) $
-                putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
-            return Nothing
-
-        maybe (return ()) handleErr res
+handleCommand :: (forall a. CommandM a -> CommandM a) -> CommandM () -> CommandM () -> CommandM ()
+handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
+    res <- (`catchErr` (return . Just)) $ Nothing <$ cmd
+    maybe (return ()) (\ e -> onFail >> handleErr e) res
 
   where
     -- Preserves state so we can do unsolved meta highlighting
     catchErr :: CommandM a -> (TCErr -> CommandM a) -> CommandM a
     catchErr m h = do
       s       <- get
-      -- If an independent command fails we should reset theCurrentFile (Issue853).
-      let sErr | independent cmd = s { theCurrentFile = Nothing }
-               | otherwise       = s
       (x, s') <- lift $ do disableDestructiveUpdate (runStateT m s)
          `catchError_` \ e ->
-           runStateT (h e) sErr
+           runStateT (h e) s
       put s'
       return x
-
-    inEmacs = liftCommandMT $ withEnv $ initEnv
-            { envHighlightingLevel  = highlighting
-            , envHighlightingMethod = highlightingMethod
-            }
 
     -- | Handle nasty errors like stack space overflow (issue 637)
     -- We assume that the input action handles other kind of errors.
@@ -282,6 +254,37 @@ runInteraction (IOTCM current highlighting highlightingMethod cmd)
                                    , sShowImplicitArguments = x
                                    } ]
 
+-- | Run an 'IOTCM' value, catch the exceptions, emit output
+--
+--   If an error happens the state of 'CommandM' does not change,
+--   but stPersistent may change (which contains successfully
+--   loaded interfaces for example).
+
+runInteraction :: IOTCM -> CommandM ()
+runInteraction (IOTCM current highlighting highlightingMethod cmd) =
+  handleCommand inEmacs onFail $ do
+    current <- liftIO $ absolute current
+    -- Raises an error if the given file is not the one currently
+    -- loaded.
+    cf <- gets theCurrentFile
+    when (not (independent cmd) && Just current /= (fst <$> cf)) $
+        lift $ typeError $ GenericError "Error: First load the file."
+
+    withCurrentFile $ interpret cmd
+
+    cf <- gets theCurrentFile
+    when (Just current == (fst <$> cf)) $
+        putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
+
+  where
+    inEmacs = liftCommandMT $ withEnv $ initEnv
+            { envHighlightingLevel  = highlighting
+            , envHighlightingMethod = highlightingMethod
+            }
+
+    -- If an independent command fails we should reset theCurrentFile (Issue853).
+    onFail | independent cmd = modify $ \ s -> s { theCurrentFile = Nothing }
+           | otherwise       = return ()
 
 ----------------------------------------------------------------------------
 -- | An interactive computation.
