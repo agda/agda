@@ -528,8 +528,13 @@ compareAtom cmp t m n =
                   reportSDoc "tc.conv.infer" 30 $
                     text "inferring type of internal arg: " <+> prettyTCM arg
                   targ <- infer $ unArg arg
+                  reportSDoc "tc.conv.infer" 30 $
+                    text "inferred type: " <+> prettyTCM targ
                   -- getDefType wants the argument type reduced.
-                  fromMaybeM __IMPOSSIBLE__ $ getDefType f =<< reduce targ
+                  -- Andreas, 2016-02-09, Issue 1825: The type of arg might be
+                  -- a meta-variable, e.g. in interactive development.
+                  -- In this case, we postpone.
+                  fromMaybeM patternViolation $ getDefType f =<< reduce targ
                 -- The polarity vector of projection-like functions
                 -- does not include the parameters.
                 pol <- getPolarity' cmp f

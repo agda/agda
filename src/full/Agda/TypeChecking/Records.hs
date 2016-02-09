@@ -26,6 +26,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Telescope
 
+import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike (eligibleForProjectionLike)
+
 import Agda.Utils.Either
 import Agda.Utils.Functor (for, ($>))
 import Agda.Utils.Lens
@@ -189,6 +191,51 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
     _ -> no
+
+-- | @getDefType f t@ computes the type of (possibly projection-(like))
+--   function @f@ whose first argument has type @t@.
+--   The `parameters' for @f@ are extracted from @t@.
+--   @Nothing@ if @f@ is projection(like) but
+--   @t@ is not a data/record/axiom type.
+--
+--   Precondition: @t@ is reduced.
+--
+--   See also: 'Agda.TypeChecking.Datatypes.getConType'
+getDefType :: QName -> Type -> TCM (Maybe Type)
+getDefType f t = do
+  def <- getConstInfo f
+  let a = defType def
+  -- if @f@ is not a projection (like) function, @a@ is the correct type
+      fallback = return $ Just a
+  caseMaybe (isProjection_ $ theDef def) fallback $
+    \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
+      -- otherwise, we have to instantiate @a@ to the "parameters" of @f@
+      let npars | n == 0    = __IMPOSSIBLE__
+                | otherwise = n - 1
+      -- we get the parameters from type @t@
+      case ignoreSharing $ unEl t of
+        Def d es -> do
+          -- Andreas, 2013-10-22
+          -- we need to check this @Def@ is fully reduced.
+          -- If it is stuck due to disabled reductions
+          -- (because of failed termination check),
+          -- we will produce garbage parameters.
+          ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
+            -- now we know it is reduced, we can safely take the parameters
+            let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+            Just <$> a `piApplyM` pars
+        _ -> failNotDef
+  where
+    failNotElig = failure "is not eligible for projection-likeness"
+    failNotDef  = failure "is not a Def."
+    failure reason = do
+      reportSDoc "tc.deftype" 25 $ sep
+        [ text "Def. " <+> prettyTCM f <+> text " is projection(like)"
+        , text "but the type "
+        , prettyTCM t
+        , text $ "of its argument " ++ reason
+        ]
+      return Nothing
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
 --   with field @f@, then @projectTyped v t f@ returns the type of @f v@.
