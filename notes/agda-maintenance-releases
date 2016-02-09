@@ -93,6 +93,7 @@ followed:
 
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
     mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
@@ -130,6 +131,7 @@ followed:
 
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
     mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
