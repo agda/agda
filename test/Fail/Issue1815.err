@@ -1,0 +1,3 @@
+Issue1815.agda:20,24-25
+Set !=< (R2 (_A_11 A r)) of type Set₁
+when checking that the expression A has type R2 (_A_11 A r)

@@ -2,6 +2,7 @@
 {-# LANGUAGE DoAndIfThenElse   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE PatternGuards     #-}
 
 module Agda.TypeChecking.Monad.Signature where
@@ -721,8 +722,44 @@ getDefFreeVars q = do
   (+) <$> getAnonymousVariables m <*> (size <$> lookupSection m0)
 
 -- | Compute the context variables to apply a definition to.
+--
+--   We have to insert the module telescope of the common prefix
+--   of the current module and the module where the definition comes from.
+--   (Properly raised to the current context.)
+--
+--   Example:
+--   @
+--      module M₁ Γ where
+--        module M₁ Δ where
+--          f = ...
+--        module M₃ Θ where
+--          ... M₁.M₂.f [insert Γ raised by Θ]
+--   @
 freeVarsToApply :: QName -> TCM Args
-freeVarsToApply x = genericTake <$> getDefFreeVars x <*> getContextArgs
+freeVarsToApply x = do
+  -- Get the correct number of free variables (correctly raised) of @x@.
+
+  args <- take <$> getDefFreeVars x <*> getContextArgs
+
+  -- Apply the original ArgInfo, as the hiding information in the current
+  -- context might be different from the hiding information expected by @x@.
+
+  getSection (qnameModule x) >>= \case
+    Nothing -> do
+      -- We have no section for @x@.
+      -- This should only happen for toplevel definitions, and then there
+      -- are no free vars to apply, or?
+      -- unless (null args) __IMPOSSIBLE__
+      -- No, this invariant is violated by private modules, see Issue1701a.
+      return args
+    Just (Section tel) -> do
+      -- The section telescope of the home of @x@ should be as least
+      -- as long as the number of free vars @x@ is applied to.
+      -- We still check here as in no case, we want @zipWith@ to silently
+      -- drop some @args@.
+      -- And there are also anonymous modules, thus, the invariant is not trivial.
+      when (size tel < size args) __IMPOSSIBLE__
+      return $ zipWith (\ (Dom ai _) (Arg _ v) -> Arg ai v) (telToList tel) args
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context.
