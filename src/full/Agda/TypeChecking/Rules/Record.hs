@@ -220,6 +220,10 @@ checkRecDef i name ind con ps contel fields =
         , nest 2 $ text "ctx =" <+> prettyTCM ctx
         ]
       escapeContext np $ addContext ctx $ addRecordVar $ do
+      -- Andreas, 2016-02-09 setting all parameters hidden in the record
+      -- section telescope changes the semantics, see e.g.
+      -- test/Succeed/RecordInParModule.
+      -- modifyContext (modifyContextEntries (setHiding Hidden)) $ addRecordVar $ do
 
         -- Add the record section.
 
