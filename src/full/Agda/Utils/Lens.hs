@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP        #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -48,7 +49,8 @@ over l f o = runIdentity $ l (Identity . f) o
 
 -- | Read a part of the state.
 use :: MonadState o m => Lens' i o -> m i
-use l = gets (^. l)
+use l = do !x <- gets (^. l)
+           return x
 
 infix 4 .=
 -- | Write a part of the state.
@@ -98,4 +100,3 @@ locally l = local . over l
 
 key :: Ord k => k -> Lens' (Maybe v) (Map k v)
 key k f m = f (Map.lookup k m) <&> \ v -> Map.alter (const v) k m
-

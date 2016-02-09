@@ -103,12 +103,13 @@ checkDeclCached d@(A.Section minfo mname tbinds _) = do
 checkDeclCached d = do
     e <- readFromCachedLog
 
-    let b = isJust e in b `seq` reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show b
+    reportSLn "cache.decl" 10 $ "checkDeclCached: " ++ show (isJust e)
+
     case e of
       (Just (Decl d',s)) | compareDecl d d' -> do
         restorePostScopeState s
-        reportSLn "cache.decl" 50 $ "range: " ++ show (getRange d')
-        printSyntaxInfo (getRange d')
+        reportSLn "cache.decl" 50 $ "range: " ++ show (getRange d)
+        printSyntaxInfo (getRange d)
       _ -> do
         cleanCachedLog
         checkDeclWrap d

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 
@@ -38,9 +39,9 @@ cachingStarts = do
 -- | Writes a 'TypeCheckAction' to the current log, using the current
 -- 'PostScopeState'
 writeToCurrentLog :: TypeCheckAction -> TCM ()
-writeToCurrentLog d = do
+writeToCurrentLog !d = do
   reportSLn "cache" 10 $ "cachePostScopeState"
-  l <- gets stPostScopeState
+  !l <- gets stPostScopeState
   modifyCache $ fmap $ \lfc -> lfc{ lfcCurrent = (d, l) : lfcCurrent lfc}
 
 restorePostScopeState :: PostScopeState -> TCM ()
@@ -58,9 +59,9 @@ modifyCache
   :: (Maybe LoadedFileCache -> Maybe LoadedFileCache)
   -> TCM ()
 modifyCache f = do
-  modify $ \s -> s
-    { stPersistentState = let p = stPersistentState s
-                          in p { stLoadedFileCache = f (stLoadedFileCache p)}
+  modify $ \s -> let !p = stPersistentState s in s
+    { stPersistentState =
+                          p { stLoadedFileCache = f (stLoadedFileCache p)}
     }
 
 getCache :: TCM (Maybe LoadedFileCache)
