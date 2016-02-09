@@ -18,7 +18,6 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.Sequence ((|>))
 
 import Agda.Compiler.HaskellTypes
 import Agda.Compiler.UHC.Pragmas.Parse
