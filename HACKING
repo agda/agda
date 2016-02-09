@@ -118,6 +118,18 @@ Working with Git (from 2013-06-15)
                                --no-termination-check \
           Module-that-should-be-rejected.agda && exit 1 || exit 0"
 
+  Here is an example showing how one can track down an internal error:
+
+    ⋮
+    cp <some path>/Module.agda .
+    git bisect run sh -c \
+      "cabal install --force-reinstalls \
+                     --disable-library-profiling \
+                     --disable-documentation || exit 125; \
+       .cabal-sandbox/bin/agda --ignore-interfaces Module.agda | \
+         fgrep 'An internal error has occurred. Please report this as a bug.' \
+         && exit 1 || exit 0"
+
   And here is an example showing how one can modify the source code
   (in this case by removing constraints on the version of cpphs)
   before compilation starts:
