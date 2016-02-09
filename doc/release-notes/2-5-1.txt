@@ -892,6 +892,32 @@ Instance search
     record tt : Set where
       instance constructor tt
 
+* Lambda-bound variables are no longer automatically considered instances.
+
+  Lambda-bound variables need to be bound as instance arguments to be
+  considered for instance search. For example,
+
+    _==_ : {A : Set} {{_ : Eq A}} → A → A → Bool
+
+    fails : {A : Set} → Eq A → A → Bool
+    fails eqA x = x == x
+
+    works : {A : Set} {{_ : Eq A}} → A → Bool
+    works x = x == x
+
+* Let-bound variables are no longer automatically considered instances.
+
+  To make a let-bound variable available as an instance it needs to be declared
+  with the 'instance' keyword, just like top-level instances. For example,
+
+    mkEq : {A : Set} → (A → A → Bool) → Eq A
+
+    fails : {A : Set} → (A → A → Bool) → A → Bool
+    fails eq x = let eqA = mkEq eq in x == x
+
+    works : {A : Set} → (A → A → Bool) → A → Bool
+    works eq x = let instance eqA = mkEq eq in x == x
+
 * Instance search can now find arguments in variable types (but such candidates can
   only be lambda-bound variables, they can’t be declared as instances)
 

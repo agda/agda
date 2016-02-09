@@ -105,7 +105,7 @@ Declaring instances
 ~~~~~~~~~~~~~~~~~~~
 
 A seen above, instance arguments in the context are available when solving
-instance arguments\ [#context-variables]_, but you also need to be able to
+instance arguments, but you also need to be able to
 define top-level instances for concrete types. This is done using the
 ``instance`` keyword, which starts a :ref:`block <lexical-structure-layout>` in
 which each definition is marked as an instance available for instance
@@ -126,6 +126,18 @@ Or equivalently, using :ref:`copatterns <copatterns>`::
 
 Top-level instances must target a named type (``Monoid`` in this case), and
 cannot be declared for types in the context.
+
+You can define local instances in let-expressions in the same way as a
+top-level instance. For example::
+
+  mconcat : ∀ {a} {A : Set a} {{_ : Monoid A}} → List A → A
+
+  sum : List Nat → Nat
+  sum xs =
+    let instance
+          NatMonoid : Monoid Nat
+          NatMonoid = record { mempty = 0; _<>_ = _+_ }
+    in mconcat xs
 
 Instances can have instance arguments themselves, which will be filled in
 recursively during instance resolution. For instance,
@@ -325,11 +337,13 @@ Verify the goal
   search for an instance of ``Eq β``.
 
 Find candidates
-  In the second stage we compute a set of *candidates*. These are the variables
-  in the context (both lambda-bound and :ref:`let-bound <let-expressions>`)\
-  [#context-variables]_ and the names of top-level instances that compute something of
-  type ``C us``, where ``C`` is the target type computed in the previous stage.
-  If ``C`` is a variable from the context there will be no top-level instances.
+  In the second stage we compute a set of *candidates*. :ref:`Let-bound
+  <let-expressions>` variables and top-level definitions are candidates if they
+  are defined in an ``instance`` block. Lambda-bound variables, i.e. variables
+  bound in lambdas, function types, left-hand sides, or module parameters, are
+  candidates if they are bound as instance arguments using ``{{ }}``.
+  Only candidates that compute something of type ``C us``, where ``C`` is the
+  target type computed in the previous stage, are considered.
 
 Check the candidates
   We attempt to use each candidate in turn to build an instance of the goal
@@ -359,10 +373,6 @@ Compute the result
   with their types and source location. The candidates that gave rise to
   potential solutions can be printed with the :ref:`show constraints command
   <emacs-global-commands>` (``C-c C-=``).
-
-.. [#context-variables] At the moment any variable in the context is considered
-   for instance resolution, but this may change in the future. See `issue #1716
-   <https://github.com/agda/agda/issues/1716>`_ for some discussion.
 
 .. [#issue1322] Instance goal verification is buggy at the moment. See `issue
    #1322 <https://github.com/agda/agda/issues/1716>`_.

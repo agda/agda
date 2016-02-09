@@ -11,7 +11,7 @@ record State : Set where
 open State {{...}}
 
 postulate
-  guard : {S : Set} → (S → Bool) → S
+  guard : {S : Set} → ({{_ : S}} → Bool) → S
 
 test : State
-test = guard (λ σ → ⟦ f bool ⟧) -- doesn't work, used to work in agda 2.4
+test = guard ⟦ f bool ⟧ -- doesn't work, used to work in agda 2.4

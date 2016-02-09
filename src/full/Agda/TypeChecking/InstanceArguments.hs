@@ -58,6 +58,7 @@ initialIFSCandidates t = do
       ctx <- getContext
       let vars = [ Candidate (var i) (raise (i + 1) t) ExplicitStayExplicit
                  | (Dom info (x, t), i) <- zip ctx [0..]
+                 , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
       -- get let bindings
@@ -65,6 +66,7 @@ initialIFSCandidates t = do
       env <- mapM (getOpen . snd) $ Map.toList env
       let lets = [ Candidate v t ExplicitStayExplicit
                  | (v, Dom info t) <- env
+                 , getHiding info == Instance
                  , not (unusableRelevance $ argInfoRelevance info)
                  ]
       return $ vars ++ lets

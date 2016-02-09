@@ -21,7 +21,7 @@ open module AddableIFS {t : Set} {{r : Addable t}} = Addable {t} r
 record CommAddable (τ : Set) : Set where
  constructor commAddable
  field
-  foo : Addable τ
+  {{foo}} : Addable τ
   comm : (a b : τ) → (a + b) ≡ (b + a)
 
 instance

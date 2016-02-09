@@ -33,8 +33,8 @@ unit : {Struct : Set₁}{C : Struct → Set}
      → C X
 unit {Struct}{C} ⦃ X ⦄ ⦃ struct ⦄ = IsMonoid.unit (Structure.has-struct struct X)
 
-f : (M : Monoid) → Monoid.carrier M
-f M = unit {{struct = mon-mon-struct}}
+f : {{M : Monoid}} → Monoid.carrier M
+f {{M}} = unit {{struct = mon-mon-struct}}
 
 -- An internal error has occurred. Please report this as a bug.
 -- Location of the error: src/full/Agda/TypeChecking/Eliminators.hs:45

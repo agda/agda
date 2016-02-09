@@ -1118,20 +1118,21 @@ instance ToAbstract LetDef [A.LetBinding] where
       NiceMutual _ _ _ d@[C.FunSig _ fx _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "abstract not allowed in let expressions"
-              when (instanc == InstanceDef) $ do
-                genericError $ "Using instance is useless here, let expressions are always eligible for instance search."
               when (macro == MacroDef) $ do
                 genericError $ "Macros cannot be defined in a let expression."
               (x', e) <- letToAbstract cl
               t <- toAbstract t
               x <- toAbstract (NewName $ mkBoundName x fx)
+              -- If InstanceDef set info to Instance
+              let info' | instanc == InstanceDef = setHiding Instance info
+                        | otherwise              = info
               -- There are sometimes two instances of the
               -- let-bound variable, one declaration and one
               -- definition. The first list element below is
               -- used to highlight the declared instance in the
               -- right way (see Issue 1618).
               return [ A.LetDeclaredVariable (setRange (getRange x') x)
-                     , A.LetBind (LetRange $ getRange d) info x t e
+                     , A.LetBind (LetRange $ getRange d) info' x t e
                      ]
 
       -- irrefutable let binding, like  (x , y) = rhs

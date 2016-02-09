@@ -14,8 +14,8 @@ postulate
 
 test : Box A
 test =
-  let a : A
-      a = f b
+  let instance a : A
+               a = f b
   in [ ⋯ ]
 
 -- should succeed.  Old message:

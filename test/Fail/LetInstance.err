@@ -1,0 +1,3 @@
+LetInstance.agda:12,20-23
+No instance of type C A was found in scope.
+when checking that the expression foo has type A
