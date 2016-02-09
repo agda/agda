@@ -612,6 +612,19 @@ getDefFreeVars q = do
   (+) <$> getAnonymousVariables m <*> (size <$> lookupSection m0)
 
 -- | Compute the context variables to apply a definition to.
+--
+--   We have to insert the module telescope of the common prefix
+--   of the current module and the module where the definition comes from.
+--   (Properly raised to the current context.)
+--
+--   Example:
+--   @
+--      module M₁ Γ where
+--        module M₁ Δ where
+--          f = ...
+--        module M₃ Θ where
+--          ... M₁.M₂.f [insert Γ raised by Θ]
+--   @
 freeVarsToApply :: QName -> TCM Args
 freeVarsToApply x = genericTake <$> getDefFreeVars x <*> getContextArgs
 

@@ -1697,6 +1697,9 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
 checkLetBinding (A.LetApply i x modapp rd rm _adir) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.
+  -- Example: @f x y = let open M t in u@.
+  -- There are 2 @new@ variables, @x@ and @y@, going into the anonynous module
+  -- @module _ (x : _) (y : _) = M t@.
   fv   <- getCurrentModuleFreeVars
   n    <- getContextSize
   let new = n - fv
