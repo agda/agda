@@ -54,6 +54,9 @@ import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
 
+import Agda.Utils.Impossible
+#include "undefined.h"
+
 }
 
 %name tokensParser Tokens
@@ -1055,7 +1058,13 @@ TypeSigs : SpaceIds ':' Expr { map (\ x -> TypeSig defaultArgInfo x $3) $1 }
 -- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
-ArgTypeSigs : ArgIds ':' Expr { map (fmap (\ x -> TypeSig defaultArgInfo x $3)) $1 }
+ArgTypeSigs
+  : ArgIds ':' Expr { map (fmap (\ x -> TypeSig defaultArgInfo x $3)) $1 }
+  | 'instance' ArgTypeSignatures {
+    let
+      setInstance (TypeSig info x t) = TypeSig (setHiding Instance info) x t
+      setInstance _ = __IMPOSSIBLE__ in
+    map (fmap setInstance) $2 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -1118,8 +1127,11 @@ Infix : 'infix'  Int SpaceBIds  { Infix (Fixity (getRange ($1,$3)) (Related $2) 
 -- Field declarations.
 Fields :: { [Declaration] }
 Fields : 'field' ArgTypeSignatures
-            { let toField (Arg info (TypeSig _ x t)) = Field x (Arg info t) in map toField $2 }
---REM            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
+            { let
+                inst i | getHiding i == Instance = InstanceDef
+                       | otherwise               = NotInstanceDef
+                toField (Arg info (TypeSig info' x t)) = Field (inst info') x (Arg info t)
+              in map toField $2 }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }

@@ -94,7 +94,7 @@ import Agda.Utils.Impossible
 data NiceDeclaration
   = Axiom Range Fixity' Access IsInstance ArgInfo Name Expr
       -- ^ Axioms and functions can be declared irrelevant. (Hiding should be NotHidden)
-  | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
+  | NiceField Range IsInstance Fixity' Access IsAbstract Name (Arg Expr)
   | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
   | NiceMutual Range TerminationCheck PositivityCheck [NiceDeclaration]
   | NiceModule Range Access IsAbstract QName Telescope [Declaration]
@@ -210,7 +210,7 @@ instance HasRange DeclarationException where
 
 instance HasRange NiceDeclaration where
   getRange (Axiom r _ _ _ _ _ _)             = r
-  getRange (NiceField r _ _ _ _ _)           = r
+  getRange (NiceField r _ _ _ _ _ _)         = r
   getRange (NiceMutual r _ _ _)              = r
   getRange (NiceModule r _ _ _ _ _ )         = r
   getRange (NiceModuleMacro r _ _ _ _ _)     = r
@@ -521,7 +521,7 @@ niceDeclarations ds = do
     declaredNames :: Declaration -> [Name]
     declaredNames d = case d of
       TypeSig _ x _        -> [x]
-      Field x _            -> [x]
+      Field _ x _          -> [x]
       FunClause (LHS p [] [] []) _ _ _
         | IdentP (QName x) <- removeSingletonRawAppP p
                            -> [x]
@@ -867,9 +867,9 @@ niceDeclarations ds = do
       TypeSig rel x t -> do
         fx <- getFixity x
         return [ Axiom (getRange d) fx PublicAccess NotInstanceDef rel x t ]
-      Field x argt -> do
+      Field i x argt -> do
         fx <- getFixity x
-        return [ NiceField (getRange d) fx PublicAccess ConcreteDef x argt ]
+        return [ NiceField (getRange d) i fx PublicAccess ConcreteDef x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Pragma p@(RewritePragma r _) -> do
@@ -1086,7 +1086,7 @@ niceDeclarations ds = do
         RecDef r f a x i e c ps pc cs    -> (\ a -> RecDef r f a x i e c ps pc) <$> setAbstract a <*> mapM mkAbstract cs
         NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> setAbstract a
         -- no effect on fields or primitives, the InAbstract field there is unused
-        NiceField r f p _ x e            -> return $ NiceField r f p AbstractDef x e
+        NiceField r i f p _ x e          -> return $ NiceField r i f p AbstractDef x e
         PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
         NiceUnquoteDecl r f p i _ t x e  -> return $ NiceUnquoteDecl r f p i AbstractDef t x e
         NiceUnquoteDef r f p _ t x e     -> return $ NiceUnquoteDef r f p AbstractDef t x e
@@ -1131,7 +1131,7 @@ niceDeclarations ds = do
     mkPrivate d =
       case d of
         Axiom r f p i rel x e            -> (\ p -> Axiom r f p i rel x e) <$> setPrivate p
-        NiceField r f p a x e            -> (\ p -> NiceField r f p a x e) <$> setPrivate p
+        NiceField r i f p a x e          -> (\ p -> NiceField r i f p a x e) <$> setPrivate p
         PrimitiveFunction r f p a x e    -> (\ p -> PrimitiveFunction r f p a x e) <$> setPrivate p
         NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mapM mkPrivate ds
         NiceModule r p a x tel ds        -> (\ p -> NiceModule r p a x tel ds) <$> setPrivate p
@@ -1182,7 +1182,7 @@ niceDeclarations ds = do
         NiceMutual{}                     -> return d
         NiceFunClause{}                  -> return d
         FunDef{}                         -> return d
-        NiceField{}                      -> return d
+        NiceField{}                      -> return d  -- Field instance are handled by the parser
         PrimitiveFunction{}              -> return d
         NiceUnquoteDef{}                 -> return d
         NiceRecSig{}                     -> return d
@@ -1291,7 +1291,7 @@ notSoNiceDeclaration :: NiceDeclaration -> Declaration
 notSoNiceDeclaration d =
   case d of
     Axiom _ _ _ _ rel x e            -> TypeSig rel x e
-    NiceField _ _ _ _ x argt         -> Field x argt
+    NiceField _ i _ _ _ x argt       -> Field i x argt
     PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig defaultArgInfo x e]
     NiceMutual r _ _ ds              -> Mutual r $ map notSoNiceDeclaration ds
     NiceModule r _ _ x tel ds        -> Module r x tel ds
@@ -1317,7 +1317,7 @@ niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
 niceHasAbstract d =
   case d of
     Axiom{}                         -> Nothing
-    NiceField _ _ _ a _ _           -> Just a
+    NiceField _ _ _ _ a _ _         -> Just a
     PrimitiveFunction _ _ _ a _ _   -> Just a
     NiceMutual{}                    -> Nothing
     NiceModule _ _ a _ _ _          -> Just a

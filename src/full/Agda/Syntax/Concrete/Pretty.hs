@@ -297,11 +297,15 @@ instance Pretty Declaration where
                 sep [ prettyRelevance i $ pretty x <+> text ":"
                     , nest 2 $ pretty e
                     ]
-            Field x (Arg i e) ->
+            Field inst x (Arg i e) ->
                 sep [ text "field"
-                    , nest 2 $ prettyRelevance i $ prettyHiding i id $
+                    , nest 2 $ mkInst inst $
+                      prettyRelevance i $ prettyHiding i id $
                         pretty $ TypeSig (i {argInfoRelevance = Relevant}) x e
                     ]
+                where
+                  mkInst InstanceDef    d = sep [ text "instance", nest 2 d ]
+                  mkInst NotInstanceDef d = d
             FunClause lhs rhs wh _ ->
                 sep [ pretty lhs
                     , nest 2 $ pretty rhs

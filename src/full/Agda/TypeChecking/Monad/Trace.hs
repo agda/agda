@@ -99,6 +99,7 @@ traceCall mkCall m = do
     ScopeCheckDeclaration{}   -> False
     ScopeCheckLHS{}           -> False
     NoHighlighting{}          -> True
+    CheckProjection{}         -> False
     SetRange{}                -> False
 
   isNoHighlighting NoHighlighting{} = True

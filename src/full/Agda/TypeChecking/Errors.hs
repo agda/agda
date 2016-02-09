@@ -1253,6 +1253,11 @@ instance PrettyTCM Call where
       pwords "when checking that the expression"
       ++ [prettyA e] ++ pwords "is a type"
 
+    CheckProjection _ x t -> fsep $
+      pwords "when checking the projection" ++
+      [ sep [ prettyTCM x <+> text ":"
+            , nest 2 $ prettyTCM t ] ]
+
     CheckArguments r es t0 t1 -> fsep $
       pwords "when checking that" ++
       map hPretty es ++

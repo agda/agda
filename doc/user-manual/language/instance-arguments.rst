@@ -215,9 +215,8 @@ In the first clause of ``mkFin`` we use an :ref:`absurd pattern
 <absurd-patterns>` to discharge the impossible assumption ``suc m ≡ 0``.  See
 the `next section <examples_>`_ for another example of constructor instances.
 
-Currently you cannot declare record fields to be instances, but this will
-likely be possible in the future. See `issue #1273
-<https://github.com/agda/agda/issues/1273>`_.
+Record fields can also be declared instances, with the effect that the
+corresponding projection function is considered a top-level instance.
 
 Examples
 ~~~~~~~~
@@ -375,4 +374,4 @@ Compute the result
   <emacs-global-commands>` (``C-c C-=``).
 
 .. [#issue1322] Instance goal verification is buggy at the moment. See `issue
-   #1322 <https://github.com/agda/agda/issues/1716>`_.
+   #1322 <https://github.com/agda/agda/issues/1322>`_.

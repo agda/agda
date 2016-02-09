@@ -1507,6 +1507,7 @@ data Call = CheckClause Type A.SpineClause
           | CheckExprCall A.Expr Type
           | CheckDotPattern A.Expr Term
           | CheckPatternShadowing A.SpineClause
+          | CheckProjection Range QName Type
           | IsTypeCall A.Expr Sort
           | IsType_ A.Expr
           | InferVar Name
@@ -1534,6 +1535,7 @@ instance Pretty Call where
     pretty InferExpr{}               = text "InferExpr"
     pretty CheckExprCall{}           = text "CheckExprCall"
     pretty CheckLetBinding{}         = text "CheckLetBinding"
+    pretty CheckProjection{}         = text "CheckProjection"
     pretty IsTypeCall{}              = text "IsTypeCall"
     pretty IsType_{}                 = text "IsType_"
     pretty InferVar{}                = text "InferVar"
@@ -1562,6 +1564,7 @@ instance HasRange Call where
     getRange (InferExpr e)                   = getRange e
     getRange (CheckExprCall e _)             = getRange e
     getRange (CheckLetBinding b)             = getRange b
+    getRange (CheckProjection r _ _)         = r
     getRange (IsTypeCall e s)                = getRange e
     getRange (IsType_ e)                     = getRange e
     getRange (InferVar x)                    = getRange x

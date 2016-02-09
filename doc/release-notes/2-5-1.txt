@@ -918,6 +918,18 @@ Instance search
     works : {A : Set} → (A → A → Bool) → A → Bool
     works eq x = let instance eqA = mkEq eq in x == x
 
+* Record fields can be declared instances.
+
+  For example,
+
+    record EqSet : Set₁ where
+      field
+        set : Set
+        instance eq : Eq set
+
+  This causes the projection function 'eq : (E : EqSet) → Eq (set E)' to be
+  considered for instance search.
+
 * Instance search can now find arguments in variable types (but such candidates can
   only be lambda-bound variables, they can’t be declared as instances)
 

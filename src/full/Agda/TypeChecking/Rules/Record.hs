@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Rules.Record where
 
 import Control.Applicative
+import Control.Monad
 import Data.Maybe
 
 import qualified Agda.Syntax.Abstract as A
@@ -284,7 +285,8 @@ checkRecordProjections m r con tel ftel fs = do
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
 
-    checkProjs ftel1 (ExtendTel (Dom ai t) ftel2) (A.Field info x _ : fs) = do
+    checkProjs ftel1 (ExtendTel (Dom ai t) ftel2) (A.Field info x _ : fs) =
+      traceCall (CheckProjection (getRange info) x t) $ do
       -- Andreas, 2012-06-07:
       -- Issue 387: It is wrong to just type check field types again
       -- because then meta variables are created again.
@@ -442,6 +444,8 @@ checkRecordProjections m r con tel ftel fs = do
                        })
               { defArgOccurrences = [StrictPos] }
           computePolarity projname
+          when (Info.defInstance info == InstanceDef) $
+            addTypedInstance projname finalt
 
         recurse
 

@@ -201,7 +201,7 @@ recordConstructorType fields = build fs
     build (NiceModuleMacro r p x modapp open dir@ImportDirective{ publicOpen = True } : fs) =
       build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
 
-    build (NiceField r f _ _ x (Arg info e) : fs) =
+    build (NiceField r _ f _ _ x (Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Arg info (C.TBind r [pure $ mkBoundName x f] e)] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let (getRange d) [notSoNiceDeclaration d] $
@@ -1260,7 +1260,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
   -- Fields
-    C.NiceField r f p a x t -> do
+    C.NiceField r i f p a x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
@@ -1276,7 +1276,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections
         bindName p FldName x y
-      return [ A.Field (mkDefInfo x f p a r) y t' ]
+      return [ A.Field (mkDefInfoInstance x f p a i NotMacroDef r) y t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do

@@ -199,7 +199,7 @@ instance ExprLike ModuleApplication where
 instance ExprLike Declaration where
   mapExpr f e0 = case e0 of
      TypeSig ai x e            -> TypeSig ai x                         $ mapE e
-     Field x e                 -> Field x                              $ mapE e
+     Field i x e               -> Field i x                            $ mapE e
      FunClause lhs rhs wh ca   -> FunClause (mapE lhs) (mapE rhs) (mapE wh) (mapE ca)
      DataSig r ind x bs e      -> DataSig r ind x (mapE bs)            $ mapE e
      Data r ind n bs e cs      -> Data r ind n (mapE bs) (mapE e)      $ mapE cs

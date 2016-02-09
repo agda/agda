@@ -1,0 +1,3 @@
+Issue1273.agda:15,7-16
+Terms marked as eligible for instance search should end with a name
+when checking the projection set : Set
