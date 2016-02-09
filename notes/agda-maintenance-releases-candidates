@@ -32,6 +32,7 @@ following procedure can be followed:
     Agda.cabal (twice)
     mk/version.mk
     src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
@@ -93,6 +94,7 @@ following procedure can be followed:
 
     Agda.cabal (twice)
     src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
     mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out

@@ -37,6 +37,7 @@ followed:
     doc/user-manual/conf.py
     mk/version.mk
     src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
@@ -124,6 +125,7 @@ followed:
     doc/user-manual/conf.py
     mk/version.mk
     src/data/emacs-mode/agda2-mode.el
+    src/size-solver/size-solver.cabal
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
