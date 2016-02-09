@@ -1048,7 +1048,7 @@ prettyInEqual t1 t2 = do
       (v1, v2) <- instantiate (t1, t2)
       case (ignoreSharing v1, ignoreSharing v2) of
         (I.Var i1 _, I.Var i2 _)
-          | i1 == i2  -> __IMPOSSIBLE__   -- if they're actually the same we would get the error on the arguments instead
+          | i1 == i2  -> generic -- possible, see issue 1826
           | otherwise -> varVar i1 i2
         (I.Def{}, I.Con{}) -> __IMPOSSIBLE__  -- ambiguous identifiers
         (I.Con{}, I.Def{}) -> __IMPOSSIBLE__
@@ -1058,10 +1058,11 @@ prettyInEqual t1 t2 = do
         (I.Con{}, I.Var{}) -> varCon
         _                  -> empty
   where
-    varDef, varCon :: TCM Doc
+    varDef, varCon, generic :: TCM Doc
     varDef = parens $ fwords "because one is a variable and one a defined identifier"
     varCon = parens $ fwords "because one is a variable and one a constructor"
-
+    generic = parens $ fwords $ "although these terms are looking the same, " ++
+      "they contain different but identically rendered identifiers somewhere"
     varVar :: Int -> Int -> TCM Doc
     varVar i j = parens $ fwords $
                    "because one has deBruijn index " ++ show i
