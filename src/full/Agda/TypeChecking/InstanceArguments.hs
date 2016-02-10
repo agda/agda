@@ -302,25 +302,35 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 --   all the other cases, the state is reseted.
 filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM Bool) -> TCM [Candidate]
 filterResetingState m cands f = disableDestructiveUpdate $ do
-  result <- mapM (\c -> do bs <- localTCStateSaving (f c); return (c, bs)) cands
-  let result' = [ (c, s) | (c, (True, s)) <- result ]
+  ctxArgs  <- getContextArgs
+  let ctxElims = map Apply ctxArgs
+      tryC c = do
+        ok <- f c
+        v  <- instantiateFull (MetaV m ctxElims)
+        a  <- instantiateFull =<< (`piApply` ctxArgs) <$> getMetaType m
+        return (ok, v, a)
+  result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
+  let result' = [ (c, v, a, s) | (c, ((True, v, a), s)) <- result ]
   result <- dropSameCandidates m result'
   case result of
-    [(c, s)] -> [c] <$ put s
-    _        -> return $ map fst result
+    [(c, _, _, s)] -> [c] <$ put s
+    _              -> return [ c | (c, _, _, _) <- result ]
 
 -- Drop all candidates which are judgmentally equal to the first one.
 -- This is sufficient to reduce the list to a singleton should all be equal.
-dropSameCandidates :: MetaId -> [(Candidate, a)] -> TCM [(Candidate, a)]
+dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
 dropSameCandidates m cands = do
-  reportSDoc "tc.instance" 50 $ text "valid candidates:" $$ nest 2 (vcat $ map (prettyTCM . candidateTerm . fst) cands)
+  reportSDoc "tc.instance" 50 $ vcat
+    [ text "valid candidates:"
+    , nest 2 $ vcat [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
+                          | (_, v, a, _) <- cands ] ]
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
-    (Candidate v a eti, d) : vas -> ((Candidate v a eti, d):) <$> dropWhileM equal vas
+    cvd@(_, v, a, _) : vas -> (cvd :) <$> dropWhileM equal vas
       where
         equal _ | isIrrelevant rel = return True
-        equal (Candidate v' a' eti', _) =
+        equal (_, v', a', _) =
           verboseBracket "tc.instance" 30 "checkEqualCandidates" $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> text "==", nest 2 $ prettyTCM v' ]
           localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
@@ -389,6 +399,10 @@ checkCandidates m t cands = disableDestructiveUpdate $
             -- to prevent loops. We currently also ignore UnBlock constraints
             -- to be on the safe side.
             solveAwakeConstraints' True
+            verboseS "tc.instance" 15 $ do
+              sol <- instantiateFull (MetaV m ctxElims)
+              reportSDoc "" 0 $ sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
+                                    , nest 2 $ prettyTCM sol ]
             return True
         where
           handle :: TCErr -> TCM Bool
