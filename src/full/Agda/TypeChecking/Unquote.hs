@@ -6,7 +6,7 @@ module Agda.TypeChecking.Unquote where
 
 import Control.Applicative
 import Control.Monad.State (runState, get, put)
-import Control.Monad.Reader (ask, asks)
+import Control.Monad.Reader (ReaderT(..), ask, asks)
 import Control.Monad.Writer (WriterT(..), execWriterT, runWriterT, tell)
 import Control.Monad.Trans (lift)
 import Control.Monad
@@ -70,17 +70,22 @@ agdaTypeType = agdaTermType
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
 
-type UnquoteM = WriterT [QName] (ExceptionT UnquoteError TCM)
+-- Keep track of the original context. We need to use that when adding new
+-- definitions.
+type UnquoteM = ReaderT Context (WriterT [QName] (ExceptionT UnquoteError TCM))
 
-unpackUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
-unpackUnquoteM = runExceptionT . runWriterT
+type UnquoteRes a = Either UnquoteError (a, [QName])
 
-packUnquoteM :: TCM (Either UnquoteError (a, [QName])) -> UnquoteM a
-packUnquoteM = WriterT . ExceptionT
+unpackUnquoteM :: UnquoteM a -> Context -> TCM (UnquoteRes a)
+unpackUnquoteM m cxt = runExceptionT $ runWriterT $ runReaderT m cxt
 
-runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
+packUnquoteM :: (Context -> TCM (UnquoteRes a)) -> UnquoteM a
+packUnquoteM f = ReaderT $ \ cxt -> WriterT $ ExceptionT $ f cxt
+
+runUnquoteM :: UnquoteM a -> TCM (UnquoteRes a)
 runUnquoteM m = do
-  z <- unpackUnquoteM m
+  cxt <- asks envContext
+  z   <- unpackUnquoteM m cxt
   case z of
     Left err         -> return $ Left err
     Right (_, decls) -> z <$ mapM_ isDefined decls
@@ -92,7 +97,18 @@ runUnquoteM m = do
         _       -> return ()
 
 liftU :: TCM a -> UnquoteM a
-liftU = lift . lift
+liftU = lift . lift . lift
+
+liftU1 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b)) -> UnquoteM a -> UnquoteM b
+liftU1 f m = packUnquoteM $ \ cxt -> f (unpackUnquoteM m cxt)
+
+liftU2 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b) -> TCM (UnquoteRes c)) -> UnquoteM a -> UnquoteM b -> UnquoteM c
+liftU2 f m1 m2 = packUnquoteM $ \ cxt -> f (unpackUnquoteM m1 cxt) (unpackUnquoteM m2 cxt)
+
+inOriginalContext :: UnquoteM a -> UnquoteM a
+inOriginalContext m =
+  packUnquoteM $ \ cxt ->
+    modifyContext (const cxt) $ unpackUnquoteM m cxt
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftU tm
@@ -108,10 +124,12 @@ isDef f tm = do
     _       -> return False
 
 reduceQuotedTerm :: Term -> UnquoteM Term
-reduceQuotedTerm t = ifBlocked t
-                       (\m _ -> throwException $ BlockedOnMeta m)
-                       (\  t -> return t)
-
+reduceQuotedTerm t = do
+  b <- liftU $ ifBlocked t (\ m _ -> pure $ Left  m)
+                           (\ t   -> pure $ Right t)
+  case b of
+    Left m  -> throwException $ BlockedOnMeta m
+    Right t -> return t
 
 class Unquote a where
   unquote :: I.Term -> UnquoteM a
@@ -443,7 +461,7 @@ unquoteTCM m hole = do
 evalTCM :: I.Term -> UnquoteM I.Term
 evalTCM v = do
   v <- reduceQuotedTerm v
-  reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
+  liftU $ reportSDoc "tc.unquote.eval" 90 $ text "evalTCM" <+> prettyTCM v
   let failEval = throwException $ NonCanonical "type checking computation" v
 
   case ignoreSharing v of
@@ -461,7 +479,7 @@ evalTCM v = do
       choice [ (f `isDef` primAgdaTCMUnify,      tcFun2 tcUnify      u v)
              , (f `isDef` primAgdaTCMCheckType,  tcFun2 tcCheckType  u v)
              , (f `isDef` primAgdaTCMDeclareDef, uqFun2 tcDeclareDef u v)
-             , (f `isDef` primAgdaTCMDefineFun,  tcFun2 tcDefineFun  u v) ]
+             , (f `isDef` primAgdaTCMDefineFun,  uqFun2 tcDefineFun  u v) ]
              failEval
     I.Def f [l, a, u] ->
       choice [ (f `isDef` primAgdaTCMReturn,      return (unElim u))
@@ -489,8 +507,8 @@ evalTCM v = do
 
     -- Don't catch Unquote errors!
     tcCatchError :: Term -> Term -> UnquoteM Term
-    tcCatchError m h = packUnquoteM $ unpackUnquoteM (evalTCM m) `catchError` \ _ ->
-                                      unpackUnquoteM (evalTCM h)
+    tcCatchError m h =
+      liftU2 (\ m1 m2 -> m1 `catchError` \ _ -> m2) (evalTCM m) (evalTCM h)
 
     uqFun1 :: Unquote a => (a -> UnquoteM b) -> Elim -> UnquoteM b
     uqFun1 fun a = do
@@ -562,7 +580,7 @@ evalTCM v = do
     extendCxt :: Arg R.Type -> UnquoteM a -> UnquoteM a
     extendCxt a m = do
       a <- liftU $ traverse (isType_ <=< toAbstract_) a
-      addContext (domFromArg a :: Dom Type) m
+      liftU1 (addContext (domFromArg a :: Dom Type)) m
 
     tcExtendContext :: Term -> Term -> UnquoteM Term
     tcExtendContext a m = do
@@ -572,7 +590,7 @@ evalTCM v = do
     tcInContext :: Term -> Term -> UnquoteM Term
     tcInContext c m = do
       c <- unquote c
-      inTopContext $ go c m
+      liftU1 inTopContext $ go c m
       where
         go :: [Arg R.Type] -> Term -> UnquoteM Term
         go []       m = evalTCM m
@@ -589,7 +607,7 @@ evalTCM v = do
     tcGetDefinition x = quoteDefn =<< constInfo x
 
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
-    tcDeclareDef (Arg i x) a = do
+    tcDeclareDef (Arg i x) a = inOriginalContext $ do
       let h = getHiding i
           r = getRelevance i
       when (h == Hidden) $ liftU $ typeError . GenericDocError =<< text "Cannot declare hidden function" <+> prettyTCM x
@@ -604,8 +622,8 @@ evalTCM v = do
         when (h == Instance) $ addTypedInstance x a
         primUnitUnit
 
-    tcDefineFun :: QName -> [R.Clause] -> TCM Term
-    tcDefineFun x cs = do
+    tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
+    tcDefineFun x cs = inOriginalContext $ liftU $ do
       _ <- getConstInfo x `catchError` \ _ ->
         genericError $ "Missing declaration for " ++ show x
       cs <- mapM (toAbstract_ . QNamed x) cs
