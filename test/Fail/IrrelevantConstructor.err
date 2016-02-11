@@ -1,0 +1,6 @@
+IrrelevantConstructor.agda:4,3-3
+IrrelevantConstructor.agda:4,3: Parse error
+.<ERROR>
+c : D
+
+-- Should fail, e.g., w...

@@ -1,4 +1,4 @@
--- Andreas, 2012-04-18, bug reported by pumpkingod
+-- Andreas, 2012-04-18, bug reported by pumpkingod on 2012-04-16
 module Issue610 where
 
 import Common.Level
@@ -21,6 +21,9 @@ get x = helper x
 ack : A → Set
 ack x = R.helper x x
 
+-- Expected error:
+-- Identifier R.helper is declared irrelevant, so it cannot be used here
+
 hah : set ⊤ ≡ set ⊥
 hah = refl
 
@@ -33,4 +36,3 @@ baa ()
 
 yoink : ⊥
 yoink = baa moo
-
