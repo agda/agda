@@ -209,15 +209,20 @@ checkConstructor
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
-checkConstructor d tel nofIxs s con@(A.Axiom _ i _ c e) =
+checkConstructor d tel nofIxs s con@(A.Axiom _ i ai c e) =
     traceCall (CheckConstructor d tel s con) $ do
 {- WRONG
       -- Andreas, 2011-04-26: the following happens to the right of ':'
       -- we may use irrelevant arguments in a non-strict way in types
       t' <- workOnTypes $ do
 -}
-        -- check that the type of the constructor is well-formed
         debugEnter c e
+        -- check that we are relevant
+        case getRelevance ai of
+          Relevant   -> return ()
+          Irrelevant -> typeError $ GenericError $ "Irrelevant constructors are not supported"
+          _ -> __IMPOSSIBLE__
+        -- check that the type of the constructor is well-formed
         t <- isType_ e
         -- check that the type of the constructor ends in the data type
         n <- getContextSize

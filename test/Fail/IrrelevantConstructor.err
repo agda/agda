@@ -1,6 +1,3 @@
-IrrelevantConstructor.agda:4,3-3
-IrrelevantConstructor.agda:4,3: Parse error
-.<ERROR>
-c : D
-
--- Should fail, e.g., w...
+IrrelevantConstructor.agda:4,4-9
+Irrelevant constructors are not supported
+when checking the constructor c in the declaration of D
