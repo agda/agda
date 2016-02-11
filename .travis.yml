@@ -70,6 +70,9 @@ env:
 
 ##############################################################################
 install:
+  # How much memory we have.
+  - vmstat -s
+
   # Asking for the shell.
   - echo $SHELL
 
