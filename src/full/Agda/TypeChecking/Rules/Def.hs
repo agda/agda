@@ -123,6 +123,11 @@ checkAlias t' ai delayed i name e = do
     -- that cannot be converted to expressions without the level built-ins
     -- (test/succeed/Issue655.agda)
 
+  -- compute body modification for irrelevant definitions, see issue 610
+  let bodyMod = case getRelevance ai of
+        Irrelevant -> dontCare
+        _          -> id
+
   -- Add the definition
   addConstant name $ defaultDefn ai name t
                    $ Function
@@ -131,10 +136,10 @@ checkAlias t' ai delayed i name e = do
                           , clauseTel       = EmptyTel
                           , clausePerm      = idP 0
                           , namedClausePats = []
-                          , clauseBody      = Body v
+                          , clauseBody      = Body $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           } ]
-                      , funCompiled       = Just $ Done [] v
+                      , funCompiled       = Just $ Done [] $ bodyMod v
                       , funDelayed        = delayed
                       , funInv            = NotInjective
                       , funAbstr          = Info.defAbstract i
@@ -361,12 +366,18 @@ checkClause t c@(A.Clause (A.SpineLHS i x aps withPats) rhs0 wh) = do
             ]
           ]
 
+        -- compute body modification for irrelevant definitions, see issue 610
+        rel <- asks envRelevance
+        let bodyMod body = case rel of
+              Irrelevant -> dontCare <$> body
+              _          -> body
+
         return $
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
                  , clausePerm      = perm
                  , namedClausePats = ps
-                 , clauseBody      = body
+                 , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  }
 
