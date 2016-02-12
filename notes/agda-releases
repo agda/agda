@@ -1,6 +1,9 @@
 When releasing a new version of Agda, the following procedure can be
 followed:
 
+* First, release a release candidate (see
+  notes/agda-releases-candidates).
+
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
@@ -8,8 +11,8 @@ followed:
 
 * Get a clean Agda repository.
 
-    git clone git@github.com:agda/agda Agda.release
-    cd Agda.release
+    git clone git@github.com:agda/agda agda.release
+    cd agda.release
 
 * Obtain and install the standard library branch related to the Agda
   new version.
@@ -20,10 +23,7 @@ followed:
 
     make std-lib
 
-* Finish the release notes in
-  doc/release-notes/<version-written-with-dashes>.txt.
-
-  Copy the contents of the release notes to the top of the CHANGELOG file.
+* Finish the CHANGELOG.
 
 * Update README.md, if necessary.
 
@@ -50,6 +50,11 @@ followed:
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
+
+* Ensure that cabal haddock works for the GHC versions don't support
+  by Travis:
+
+    cabal configure && cabal haddock
 
 * Remove the Cabal test-suite from Agda.cabal.
 
@@ -89,7 +94,6 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/dist/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
-    cabal configure
     cabal install
 
   Do not forget to test the Emacs mode.

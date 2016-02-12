@@ -1,10 +1,11 @@
-2015-12-10, adapted from agda-releases
-
 When releasing a bugfix version of Agda, the following procedure can be
 followed:
 
 * First, release a release candidate (see
   notes/agda-maintenance-releases-candidates).
+
+* Update in the bug tracker the milestone field of open issues to the
+  next Agda version.
 
 * Verify that the Travis builds have no errors.
 
@@ -36,6 +37,11 @@ followed:
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
+
+* Ensure that cabal haddock works for the GHC versions don't support
+  by Travis:
+
+    cabal configure && cabal haddock
 
 * Run the test-suite:
 

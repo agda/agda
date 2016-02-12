@@ -1,5 +1,5 @@
-When releasing a release candidate (RC) for a bugfix version of Agda,
-the following procedure can be followed:
+When releasing a release candidate (RC) for a new version of Agda, the
+following procedure can be followed:
 
 * Can we use HACKAGE for realising a release candidate? That is, are
   the issues mentioned in
@@ -12,19 +12,19 @@ the following procedure can be followed:
 
 * Get a clean Agda repository.
 
-    MAJORVERSION=<current-Agda-version-eg-2.4.2>
-    VERSION=<current-maintenance-version-eg-2.4.0.2>
-    git clone git@github.com:agda/agda.git agda.release
+    git clone git@github.com:agda/agda agda.release
     cd agda.release
-    git checkout maint-$MAJORVERSION
 
-* The version of the RC is the current version released + current date
+* The version of the RC is the current version in master + current date
 
-    RC_VERSION=<current-released-version-current-date-eg-2.4.2.3.20150913>
+    RC_VERSION=<current-master-version-current-date-eg-2.5.0.20160212>
 
-* Change VERSION to RC_VERSION in:
+* Update the version number in:
 
+    .ghci
     Agda.cabal (twice)
+    default.nix
+    doc/user-manual/conf.py
     mk/version.mk
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
@@ -32,13 +32,16 @@ the following procedure can be followed:
     test/interaction/Issue1244b.out
 
 * Obtain and install the standard library branch related to the Agda
-  bugfix version:
+  new version.
 
     make up-to-date-std-lib
 
-* Finish the CHANGELOG.
+* Finish the release notes in
+  doc/release-notes/<version-written-with-dashes>.txt.
 
-* Update the README.md, if necessary.
+  Copy the contents of the release notes to the top of the CHANGELOG file.
+
+* Update README.md, if necessary.
 
 * Update the LICENSE file, if necessary.
 
@@ -55,8 +58,8 @@ the following procedure can be followed:
     make compile-emacs-mode
     make test
 
-  Note that "compile-emacs-mode" invokes "agda-mode compile", which should
-  ensure that the Emacs mode can be compiled without errors or
+  Note that "compile-emacs-mode" invokes "agda-mode compile", which
+  should ensure that the Emacs mode can be compiled without errors or
   warnings (except for the "cl package required at runtime" warning).
 
 * Remove the Cabal test-suite from Agda.cabal.
@@ -91,23 +94,19 @@ the following procedure can be followed:
 
 * Restore the version number VERSION in:
 
+    .ghci
     Agda.cabal (twice)
+    default.nix
+    doc/user-manual/conf.py
+    mk/version.mk
     src/data/emacs-mode/agda2-mode.el
     src/size-solver/size-solver.cabal
-    mk/version.mk
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
-* Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
+* Push all changes into the master branch (requires Git >= 1.8.3).
 
     git push --follow-tags
-
-    git checkout master
-    git merge maint-$MAJORVERSION
-
-* Push into master
-
-    git push
 
 * Announce the release candidate on the Agda mailing lists (users and
   developers).
@@ -117,3 +116,18 @@ the following procedure can be followed:
     https://github.com/agda/agda/releases/tag/$RC_VERSION.tar.gz
 
   but $BASE/dist/Agda-$RC_VERSION.tar.gz.
+
+------------------------------------------------------------------------------
+Outdated (2016-02-12)
+
+* Disable sharing by default. Note that this change induces some
+  changes in the test suite.
+
+  N.B. that succeed/Issue1351.agda fails when sharing is disable.
+
+  ** Disable sharing by default in the Agda.Interaction.Options
+     module.
+
+  ** Change the message "(default: ON)" to "(default: OFF)" in the
+     above module.
+
