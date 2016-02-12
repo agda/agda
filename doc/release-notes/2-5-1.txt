@@ -12,6 +12,12 @@ Installation and infrastructure
   Agda is significantly slower if compiled with ghc-7.6.
   [Issue 1347]
 
+Documentation
+=============
+
+* There now exists an official Agda User Manual:
+  http://agda.readthedocs.org/en/stable/
+
 Pragmas and options
 ===================
 
