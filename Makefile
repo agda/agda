@@ -302,4 +302,12 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 	      --report=hlint-report.html \
 	      $(FULL_SRC_DIR)/Agda
 
+########################################################################
+# Debug
+
+debug :
+	@echo "CABAL_CMD  = $(CABAL_CMD)"
+	@echo "CABAL_OPTS = $(CABAL_OPTS)"
+	@echo "AGDA_TESTS_OPTIONS = $(AGDA_TEST_OPTIONS)"
+
 # EOF
