@@ -79,6 +79,9 @@ install:
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
+  # Number of modules compile in parallel.
+  - export JOBS=2
+
 ##############################################################################
 # Installing latest versions of cabal-install, Alex and Happy
 
@@ -143,7 +146,7 @@ install:
 
   - case $TEST in
       "non-require-stdlib" | "require-stdlib")
-        cabal build -v2 --builddir=$BUILD_DIR &&
+        cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR &&
         cabal copy &&
         cabal register
         ;;
@@ -190,7 +193,7 @@ script:
        cabal install happy --constraint=transformers==0.3.0.0 &&
        cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0 &&
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 --builddir=$BUILD_DIR;
+       cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
     fi
 
 ##############################################################################
@@ -211,7 +214,7 @@ script:
        cabal install happy &&
        cabal install --enable-tests --only-dependencies --force-reinstalls &&
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 --builddir=$BUILD_DIR;
+       cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
     fi
 
 ##############################################################################
