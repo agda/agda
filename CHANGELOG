@@ -1302,7 +1302,7 @@ LaTeX-backend
 agda-ghc-names
 --------------
 
-* New tool: THe command
+* New tool: The command
 
     agda-ghc-names fixprof <compile-dir> <ProgName>.prof
 

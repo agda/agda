@@ -1,6 +1,6 @@
 MOTIVATION:
   When compiling Agda source via the current default backend MAlonzo,
-  this generates Haskell code, with autoatically generated Haskell
+  this generates Haskell code, with automatically generated Haskell
   identifiers of the shape ``MAlonzo.Code.MyHaskellisedModuleName.dXYZ''
   for Agda entities that translate to Haskell program-level variables.
   If the MAlonzo-generated Haskell is compiled for profiling,
@@ -33,7 +33,7 @@ agda-ghc-names fixprof {+m} <dir> <progname>.prof
   ``agda-ghc-names extract <dir>''.
   The option ``+m'' includes also the original Haskell module column
   in the output.
-  
+
 agda-ghc-names find <dir> {hsIdents}
   also reads <dir>/MAlonzoHsToAgdaIdentMap.dat if it already exists,
   and otherwise generates it in the same ways as ``MAlonzoExtractIdents <dir>''.
