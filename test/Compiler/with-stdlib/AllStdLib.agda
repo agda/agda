@@ -1,3 +1,6 @@
+-- ASR (2016-02-15). In the Makefile in test/compiler founded in the
+-- 2.4.2.3 tag, this test used the options `+RTS -H1G -M1.5G -RTS`.
+
 module AllStdLib where
 
 -- Ensure that the entire standard library is compiled.
