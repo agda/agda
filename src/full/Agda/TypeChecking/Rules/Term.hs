@@ -1119,7 +1119,7 @@ checkApplication hd args e t = do
 unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
 unquoteM tac hole holeType k = do
   tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  unquoteTactic tac hole holeType k
+  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
 
 unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
 unquoteTactic tac hole goal k = do

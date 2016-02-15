@@ -761,6 +761,19 @@ freeVarsToApply x = do
       when (size tel < size args) __IMPOSSIBLE__
       return $ zipWith (\ (Dom ai _) (Arg _ v) -> Arg ai v) (telToList tel) args
 
+-- | Unless all variables in the context are module parameters, create a fresh
+--   module to capture the non-module parameters. Used when unquoting to make
+--   sure generated definitions work properly.
+inFreshModuleIfFreeParams :: TCM a -> TCM a
+inFreshModuleIfFreeParams k = do
+  a <- getCurrentModuleFreeVars
+  b <- size <$> getContext
+  if a == b then k else do
+    m  <- currentModule
+    m' <- qualifyM m . mnameFromList . (:[]) <$> freshName_ "_"
+    addSection m'
+    withCurrentModule m' k
+
 -- | Instantiate a closed definition with the correct part of the current
 --   context.
 instantiateDef :: Definition -> TCM Definition
