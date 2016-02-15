@@ -15,6 +15,8 @@ import Control.Monad.State
 import Control.Monad.Reader
 
 import Data.List hiding (null)
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -24,6 +26,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract (Ren)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
@@ -511,12 +514,28 @@ addDisplayForm x df = do
   if inCurrentSig
      then modifySignature add
      else stImportsDisplayForms %= HMap.insertWith (++) x [d]
+  whenM (hasLoopingDisplayForm x) $
+    typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
 
 getDisplayForms :: QName -> TCM [Open DisplayForm]
 getDisplayForms q = do
   ds <- defDisplay <$> getConstInfo q
   ds' <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
   return $ ds ++ ds'
+
+-- | Find all names used (recursively) by display forms of a given name.
+chaseDisplayForms :: QName -> TCM (Set QName)
+chaseDisplayForms q = go Set.empty [q]
+  where
+    go used []       = pure used
+    go used (q : qs) = do
+      ds <- (`Set.difference` used) . Set.unions . map (namesIn . openThing)
+            <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
+      go (Set.union ds used) (Set.toList ds ++ qs)
+
+-- | Check if a display form is looping.
+hasLoopingDisplayForm :: QName -> TCM Bool
+hasLoopingDisplayForm q = Set.member q <$> chaseDisplayForms q
 
 canonicalName :: QName -> TCM QName
 canonicalName x = do
