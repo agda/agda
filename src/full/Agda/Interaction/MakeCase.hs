@@ -246,8 +246,9 @@ makeAbsurdClause f (SClause tel ps _ t) = do
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
   A.Clause lhs _ _ _ <- makeAbsurdClause f cl
-  let ii = __IMPOSSIBLE__  -- No interaction point since we never type check this
-  let info = A.emptyMetaInfo -- metaNumber = Nothing in order to print as ?, not ?n
+  let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
+                               -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
+  let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
   return $ A.Clause lhs (A.RHS $ A.QuestionMark info ii) [] False
 
 deBruijnIndex :: A.Expr -> TCM Nat
