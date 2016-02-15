@@ -110,8 +110,9 @@ createModule b m = do
       sm = emptyScope { scopeName           = m
                       , scopeParents        = parents
                       , scopeDatatypeModule = b }
-  -- Andreas, 2015-07-02: internall error if module is not new.
-  modifyScopes $ Map.insertWith __IMPOSSIBLE__ m sm
+  -- Andreas, 2015-07-02: internal error if module is not new.
+  -- Ulf, 2016-02-15: It's not new if multiple imports (#1770).
+  modifyScopes $ Map.insertWith const m sm
 
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
