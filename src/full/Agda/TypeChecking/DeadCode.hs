@@ -41,7 +41,9 @@ eliminateDeadCode sig = Bench.billTo [Bench.DeadCode] $ do
   public <- Set.map anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
   let r     = reachableFrom public patsyn defs
-      defs' = HMap.map ( \ d -> d { defDisplay = filter (wellScoped r) (defDisplay d) } )
+      dead  = Set.fromList (HMap.keys defs) `Set.difference` r
+      valid = Set.null . Set.intersection dead . namesIn
+      defs' = HMap.map ( \ d -> d { defDisplay = filter valid (defDisplay d) } )
             $ HMap.filterWithKey (\ x _ -> Set.member x r) defs
   reportSLn "tc.dead" 10 $ "Removed " ++ show (HMap.size defs - HMap.size defs') ++ " unused definitions."
   return $ set sigDefinitions defs' sig
@@ -56,9 +58,6 @@ reachableFrom names psyns defs = follow names (Set.toList names)
                 case HMap.lookup x defs of
                   Nothing -> namesIn (PSyn <$> Map.lookup x psyns)
                   Just d  -> namesIn d
-
-wellScoped :: NamesIn a => Set QName -> a -> Bool
-wellScoped scope x = Set.null (Set.difference (namesIn x) scope)
 
 class NamesIn a where
   namesIn :: a -> Set QName
