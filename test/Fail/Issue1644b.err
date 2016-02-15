@@ -1,0 +1,3 @@
+Issue1644b.agda:14,1-24
+Cannot add recursive display form for Issue1644b.N.A
+when checking the pragma DISPLAY N.A = A
