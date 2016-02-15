@@ -266,6 +266,10 @@ script:
        make BUILD_DIR=$BUILD_DIR lib-succeed &&
        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction &&
        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
+       echo "======================================================================" &&
+       echo "=========== Testing MAlonzo on the standard library ==================" &&
+       echo "======================================================================" &&
+       cd test/Compiler/with-stdlib && agda -c AllStdLib.agda && cd ../../../ &&
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
 
