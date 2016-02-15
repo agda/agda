@@ -41,7 +41,8 @@ eliminateDeadCode sig = Bench.billTo [Bench.DeadCode] $ do
   public <- Set.map anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
   let r     = reachableFrom public patsyn defs
-      defs' = HMap.filterWithKey (\ x _ -> Set.member x r) defs
+      defs' = HMap.map ( \ d -> d { defDisplay = filter (wellScoped r) (defDisplay d) } )
+            $ HMap.filterWithKey (\ x _ -> Set.member x r) defs
   reportSLn "tc.dead" 10 $ "Removed " ++ show (HMap.size defs - HMap.size defs') ++ " unused definitions."
   return $ set sigDefinitions defs' sig
 
@@ -55,6 +56,9 @@ reachableFrom names psyns defs = follow names (Set.toList names)
                 case HMap.lookup x defs of
                   Nothing -> namesIn (PSyn <$> Map.lookup x psyns)
                   Just d  -> namesIn d
+
+wellScoped :: NamesIn a => Set QName -> a -> Bool
+wellScoped scope x = Set.null (Set.difference (namesIn x) scope)
 
 class NamesIn a where
   namesIn :: a -> Set QName
@@ -169,6 +173,20 @@ instance NamesIn a => NamesIn (Elim' a) where
 
 instance NamesIn QName   where namesIn x = Set.singleton x
 instance NamesIn ConHead where namesIn h = namesIn (conName h)
+
+instance NamesIn a => NamesIn (Open a) where
+  namesIn = namesIn . openThing
+
+instance NamesIn DisplayForm where
+  namesIn (Display _ ps v) = namesIn (ps, v)
+
+instance NamesIn DisplayTerm where
+  namesIn v = case v of
+    DWithApp v us vs -> namesIn (v, us, vs)
+    DCon c vs        -> namesIn (c, vs)
+    DDef f es        -> namesIn (f, es)
+    DDot v           -> namesIn v
+    DTerm v          -> namesIn v
 
 -- Pattern synonym stuff --
 
