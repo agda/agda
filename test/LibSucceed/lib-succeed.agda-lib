@@ -1,0 +1,4 @@
+name: test-lib-succeed
+include:
+  .
+  ../../std-lib/src
