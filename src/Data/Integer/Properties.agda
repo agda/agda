@@ -361,9 +361,9 @@ cancel-*-right i j .(s ◃ suc n) ≢0 eq | s ◂ suc n
 cancel-*-+-right-≤ : ∀ m n o → m * + suc o ≤ n * + suc o → m ≤ n
 cancel-*-+-right-≤ (-[1+ m ]) (-[1+ n ]) o (-≤- n≤m) =
   -≤- (≤-pred (ℕ.cancel-*-right-≤ (suc n) (suc m) o (s≤s n≤m)))
-cancel-*-+-right-≤ ℤ.-[1+ _ ] (+ _)      _ _         = -≤+
-cancel-*-+-right-≤ (+ 0)      ℤ.-[1+ _ ] _ ()
-cancel-*-+-right-≤ (+ suc _)  ℤ.-[1+ _ ] _ ()
+cancel-*-+-right-≤ -[1+ _ ]   (+ _)      _ _         = -≤+
+cancel-*-+-right-≤ (+ 0)      -[1+ _ ]   _ ()
+cancel-*-+-right-≤ (+ suc _)  -[1+ _ ]   _ ()
 cancel-*-+-right-≤ (+ 0)      (+ 0)      _ _         = +≤+ z≤n
 cancel-*-+-right-≤ (+ 0)      (+ suc _)  _ _         = +≤+ z≤n
 cancel-*-+-right-≤ (+ suc _)  (+ 0)      _ (+≤+ ())

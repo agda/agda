@@ -17,10 +17,8 @@ open import Data.Char.Core using (Char) public
 ------------------------------------------------------------------------
 -- Primitive operations
 
-primitive
-  primCharToNat    : Char → ℕ
-  primCharEquality : Char → Char → Bool
-  primShowChar     : Char → String
+open import Agda.Builtin.Char   public using (primCharToNat; primCharEquality)
+open import Agda.Builtin.String public using (primShowChar)
 
 show : Char → String
 show = primShowChar

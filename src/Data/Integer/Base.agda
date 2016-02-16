@@ -15,7 +15,7 @@ open import Relation.Binary
 open import Relation.Binary.Core using (_≡_; refl)
 -- Importing Core here ^^^ to keep a small import list
 
-infix  8 +_ -_
+infix  8 -_
 infixl 7 _*_ _⊓_
 infixl 6 _+_ _-_ _⊖_ _⊔_
 infix  4 _≤_
@@ -25,13 +25,11 @@ infix  4 _≤_
 
 -- Integers.
 
-data ℤ : Set where
-  -[1+_] : (n : ℕ) → ℤ  -- -[1+ n ] stands for - (1 + n).
-  +_     : (n : ℕ) → ℤ  -- + n stands for n.
-
-{-# BUILTIN INTEGER       ℤ      #-}
-{-# BUILTIN INTEGERPOS    +_     #-}
-{-# BUILTIN INTEGERNEGSUC -[1+_] #-}
+open import Agda.Builtin.Int public
+  using ()
+  renaming ( Int to ℤ
+           ; negsuc to -[1+_]  -- -[1+ n ] stands for - (1 + n).
+           ; pos    to +_ )    -- + n stands for n.
 
 ------------------------------------------------------------------------
 -- Conversions

@@ -17,19 +17,7 @@ infix  0 if_then_else_
 ------------------------------------------------------------------------
 -- The boolean type
 
-data Bool : Set where
-  true  : Bool
-  false : Bool
-
-{-# BUILTIN BOOL  Bool  #-}
-{-# BUILTIN TRUE  true  #-}
-{-# BUILTIN FALSE false #-}
-
-{-# COMPILED_JS Bool  function (x,v) { return ((x)? v["true"]() : v["false"]()); } #-}
-{-# COMPILED_JS true  true  #-}
-{-# COMPILED_JS false false #-}
-
-{-# COMPILED_DATA_UHC Bool __BOOL__ __TRUE__ __FALSE__ #-}
+open import Agda.Builtin.Bool public
 
 ------------------------------------------------------------------------
 -- Some operations

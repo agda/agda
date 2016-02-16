@@ -13,12 +13,7 @@ open import Foreign.Haskell
 ------------------------------------------------------------------------
 -- The IO monad
 
-postulate
-  IO : ∀ {ℓ} → Set ℓ → Set ℓ
-
-{-# IMPORT IO.FFI #-}
-{-# COMPILED_TYPE IO IO.FFI.AgdaIO #-}
-{-# BUILTIN IO IO #-}
+open import Agda.Builtin.IO public using (IO)
 
 infixl 1 _>>=_
 

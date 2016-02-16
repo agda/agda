@@ -16,6 +16,8 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_)
 import Relation.Binary.PropositionalEquality.TrustMe as TrustMe
   using (erase)
 
+open import Agda.Builtin.Nat using ( div-helper; mod-helper )
+
 open NatP.SemiringSolver
 open P.≡-Reasoning
 open Nat.≤-Reasoning
@@ -34,15 +36,6 @@ record DivMod (dividend divisor : ℕ) : Set where
 
 -- Integer division.
 
-private
-
-  div-helper : ℕ → ℕ → ℕ → ℕ → ℕ
-  div-helper acc s zero    n       = acc
-  div-helper acc s (suc d) zero    = div-helper (suc acc) s d s
-  div-helper acc s (suc d) (suc n) = div-helper acc       s d n
-
-  {-# BUILTIN NATDIVSUCAUX div-helper #-}
-
 _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → ℕ
 (d div 0) {}
 (d div suc s) = div-helper 0 s d s
@@ -50,14 +43,6 @@ _div_ : (dividend divisor : ℕ) {≢0 : False (divisor ≟ 0)} → ℕ
 -- The remainder after integer division.
 
 private
-
-  mod-helper : ℕ → ℕ → ℕ → ℕ → ℕ
-  mod-helper acc s zero    n       = acc
-  mod-helper acc s (suc d) zero    = mod-helper zero      s d s
-  mod-helper acc s (suc d) (suc n) = mod-helper (suc acc) s d n
-
-  {-# BUILTIN NATMODSUCAUX mod-helper #-}
-
   -- The remainder is not too large.
 
   mod-lemma : (acc d n : ℕ) →

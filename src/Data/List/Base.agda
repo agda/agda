@@ -13,22 +13,12 @@ open import Data.Maybe.Base using (Maybe; nothing; just)
 open import Data.Product as Prod using (_×_; _,_)
 open import Function
 
-infixr 5 _∷_
-
 ------------------------------------------------------------------------
 -- Types
 
-data List {a} (A : Set a) : Set a where
-  []  : List A
-  _∷_ : (x : A) (xs : List A) → List A
+open import Agda.Builtin.List public
+  using (List; []; _∷_)
 
-{-# BUILTIN LIST List #-}
-{-# BUILTIN NIL  []   #-}
-{-# BUILTIN CONS _∷_  #-}
-
-{-# IMPORT Data.FFI #-}
-{-# COMPILED_DATA List Data.FFI.AgdaList [] (:) #-}
-{-# COMPILED_DATA_UHC List __LIST__ __NIL__ __CONS__ #-}
 ------------------------------------------------------------------------
 -- Some operations
 

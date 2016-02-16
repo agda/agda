@@ -13,14 +13,8 @@ open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe
 open import Data.String.Base using (String)
 
-postulate
-  Float : Set
-
-{-# BUILTIN FLOAT Float #-}
-
-primitive
-  primFloatEquality : Float → Float → Bool
-  primShowFloat     : Float → String
+open import Agda.Builtin.Float public
+  using ( Float; primFloatEquality; primShowFloat )
 
 show : Float → String
 show = primShowFloat

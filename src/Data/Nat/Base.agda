@@ -19,37 +19,16 @@ infix 4 _≤_ _<_ _≥_ _>_ _≰_ _≮_ _≱_ _≯_
 ------------------------------------------------------------------------
 -- The types
 
-data ℕ : Set where
-  zero : ℕ
-  suc  : (n : ℕ) → ℕ
+open import Agda.Builtin.Nat public
+  using    ( zero; suc )
+  renaming ( Nat to ℕ
+           ; _+N_ to _+_
+           ; _-N_ to _∸_
+           ; _*N_ to _*_ )
 
 data _≤_ : Rel ℕ Level.zero where
   z≤n : ∀ {n}                 → zero  ≤ n
   s≤s : ∀ {m n} (m≤n : m ≤ n) → suc m ≤ suc n
-
-{-# BUILTIN NATURAL ℕ #-}
-
-infixl 6 _+_ _∸_
-infixl 7 _*_
-
-_+_ : ℕ → ℕ → ℕ
-zero  + n = n
-suc m + n = suc (m + n)
-
-{-# BUILTIN NATPLUS _+_ #-}
-
-_∸_ : ℕ → ℕ → ℕ
-m     ∸ zero  = m
-zero  ∸ suc n = zero
-suc m ∸ suc n = m ∸ n
-
-{-# BUILTIN NATMINUS _∸_ #-}
-
-_*_ : ℕ → ℕ → ℕ
-zero  * n = zero
-suc m * n = n + m * n
-
-{-# BUILTIN NATTIMES _*_ #-}
 
 _<_ : Rel ℕ Level.zero
 m < n = suc m ≤ n

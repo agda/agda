@@ -139,21 +139,11 @@ record NonEmpty {a b ℓ} {A : Set a} {B : Set b}
 -- refl defined in IsEquivalence below. The module is opened publicly
 -- at the end of this file.
 
-private
- module Dummy where
+import Agda.Builtin.Equality as Dummy
 
-  infix 4 _≡_ _≢_
-
-  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
-    refl : x ≡ x
-
-  {-# BUILTIN EQUALITY _≡_ #-}
-  {-# BUILTIN REFL refl #-}
-
-  -- Nonequality.
-
-  _≢_ : ∀ {a} {A : Set a} → A → A → Set a
-  x ≢ y = ¬ x ≡ y
+infix 4 _≢_
+_≢_ : ∀ {a} {A : Set a} → A → A → Set a
+x ≢ y = ¬ x Dummy.≡ y
 
 ------------------------------------------------------------------------
 -- Equivalence relations

@@ -13,22 +13,15 @@ open import Relation.Binary.Core using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe using (trustMe)
 
 ------------------------------------------------------------------------
--- The type
+-- From Agda.Builtin
 
-postulate
-  String : Set
-
-{-# BUILTIN STRING String #-}
-
-------------------------------------------------------------------------
--- Primitive operations
-
-primitive
-  primStringAppend   : String → String → String
-  primStringToList   : String → List Char
-  primStringFromList : List Char → String
-  primStringEquality : String → String → Bool
-  primShowString     : String → String
+open import Agda.Builtin.String public
+  using ( String
+        ; primStringAppend
+        ; primStringToList
+        ; primStringFromList
+        ; primStringEquality
+        ; primShowString )
 
 ------------------------------------------------------------------------
 -- Operations

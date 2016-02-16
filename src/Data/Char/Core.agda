@@ -9,7 +9,4 @@ module Data.Char.Core where
 ------------------------------------------------------------------------
 -- The type
 
-postulate
-  Char : Set
-
-{-# BUILTIN CHAR Char #-}
+open import Agda.Builtin.Char public using (Char)

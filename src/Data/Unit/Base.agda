@@ -10,8 +10,6 @@ module Data.Unit.Base where
 
 -- Note that the name of this type is "\top", not T.
 
-record ⊤ : Set where
-  constructor tt
-{-# BUILTIN UNIT ⊤ #-}
+open import Agda.Builtin.Unit public using (⊤; tt)
 
 record _≤_ (x y : ⊤) : Set where
