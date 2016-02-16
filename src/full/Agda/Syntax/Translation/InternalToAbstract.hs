@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
@@ -48,7 +49,7 @@ import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 
-import Agda.TypeChecking.Monad as M hiding (MetaInfo)
+import Agda.TypeChecking.Monad as M hiding (MetaInfo, tick)
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
@@ -838,15 +839,32 @@ instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
   dotVars (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
+class MonadTick m where
+  tick :: m Nat
+
+newtype TickT m a = TickT { unTickT :: StateT Nat m a }
+  deriving (Functor, Applicative, Monad, MonadReader r, MonadTrans, MonadIO) -- MonadExcept e,
+
+instance Monad m => MonadTick (TickT m) where
+  tick = TickT $ do i <- get; put (i + 1); return i
+
+instance MonadState s m => MonadState s (TickT m) where
+  state f = lift $ state f -- TickT $ StateT $ \ n -> (,n) <$> state f
+
+instance MonadTCM tcm => MonadTCM (TickT tcm) where
+  liftTCM = lift . liftTCM
+
+runTickT :: Monad m => TickT m a -> m a
+runTickT m = evalStateT (unTickT m) 0
 
 -- TODO: implement reifyPatterns on de Bruijn patterns ( numberPatVars )
 reifyPatterns :: I.Telescope -> Permutation -> [NamedArg I.Pattern] -> TCM [NamedArg A.Pattern]
-reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
+reifyPatterns tel perm ps = runTickT (reifyArgs ps)
   where
-    reifyArgs :: [NamedArg I.Pattern] -> StateT Nat TCM [NamedArg A.Pattern]
+    reifyArgs :: [NamedArg I.Pattern] -> TickT TCM [NamedArg A.Pattern]
     reifyArgs is = mapM reifyArg is
 
-    reifyArg :: NamedArg I.Pattern -> StateT Nat TCM (NamedArg A.Pattern)
+    reifyArg :: NamedArg I.Pattern -> TickT TCM (NamedArg A.Pattern)
     reifyArg i = stripNameFromExplicit <$>
                  traverse (traverse reifyPat) i
 
@@ -854,21 +872,21 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
       | getHiding a == NotHidden = fmap (unnamed . namedThing) a
       | otherwise                = a
 
-    tick = do i <- get; put (i + 1); return i
-
     translate n = fromMaybe __IMPOSSIBLE__ $ vars !!! n
       where
         vars = permPicks $ invertP __IMPOSSIBLE__ perm
 
-    reifyPat :: I.Pattern -> StateT Nat TCM A.Pattern
-    reifyPat p = case p of
+    reifyPat :: I.Pattern -> TickT TCM A.Pattern
+    reifyPat p = do
+     liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
+     case p of
       I.VarP "()" -> A.AbsurdP patNoRange <$ tick   -- HACK
       I.VarP s -> do
         i <- tick
         let j = translate i
-        lift $ A.VarP <$> nameOfBV (size tel - 1 - j)
+        liftTCM $ A.VarP <$> nameOfBV (size tel - 1 - j)
       I.DotP v -> do
-        t <- lift $ reify v
+        t <- liftTCM $ reify v
         _ <- tick
         let vars = Set.map show (dotVars t)
             t'   = if Set.member "()" vars then underscore else t
@@ -876,22 +894,31 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
       I.LitP l  -> return $ A.LitP l
       I.ProjP d -> return $ A.DefP patNoRange d []
       I.ConP c cpi ps -> do
-        lift $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
-        caseMaybeM (lift $ isRecordConstructor $ conName c) fallback $ \ (r, def) -> do
+        liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
+        tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
+        where
+          origin = fromMaybe ConPCon $ I.conPRecord cpi
+          ci = ConPatInfo origin patNoRange
+
+-- | If the record constructor is generated or the user wrote a record pattern,
+--   turn constructor pattern into record pattern.
+--   Otherwise, keep constructor pattern.
+tryRecPFromConP :: MonadTCM tcm => A.Pattern -> tcm A.Pattern
+tryRecPFromConP p = do
+  let fallback = return p
+  case p of
+    A.ConP ci (AmbQ [c]) ps -> do
+        caseMaybeM (liftTCM $ isRecordConstructor c) fallback $ \ (r, def) -> do
           -- If the record constructor is generated or the user wrote a record pattern,
           -- print record pattern.
           -- Otherwise, print constructor pattern.
-          if recNamedCon def && origin /= ConPRec then fallback else do
-            fs <- lift $ getRecordFieldNames r
+          if recNamedCon def && patOrigin ci /= ConPRec then fallback else do
+            fs <- liftTCM $ getRecordFieldNames r
             unless (length fs == length ps) __IMPOSSIBLE__
-            A.RecP patNoRange . zipWith mkFA fs <$> reifyArgs ps
+            return $ A.RecP patNoRange $ zipWith mkFA fs ps
         where
-          origin = fromMaybe ConPCon $ I.conPRecord cpi
-          ci = flip ConPatInfo patNoRange origin
-          fallback = A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
           mkFA ax nap = FieldAssignment (unArg ax) (namedArg nap)
-
-
+    _ -> __IMPOSSIBLE__
 
 instance Reify NamedClause A.Clause where
   reify (QNamed f (I.Clause _ tel ps' body _ catchall)) = addCtxTel tel $ do
