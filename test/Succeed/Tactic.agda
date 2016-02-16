@@ -2,7 +2,6 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 postulate
   trustme : ∀ {a} {A : Set a} {x y : A} → x ≡ y

@@ -3,7 +3,6 @@ open import Common.Level
 open import Common.Reflection
 open import Common.Equality
 open import Common.Prelude
-open import Common.TC
 
 postulate
   f : ∀ a → Set a

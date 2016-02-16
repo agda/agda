@@ -2,7 +2,6 @@
 module _ where
 
 open import Common.Prelude
-open import Common.TC
 open import Common.Reflection
 
 const : ∀ {a b} {A : Set a} {B : Set b} → A → B → A

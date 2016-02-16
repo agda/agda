@@ -1,11 +1,7 @@
 
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
-
-infixr 1 _>>=_
-_>>=_ = bindTC
 
 record Functor (F : Set → Set) : Set₁ where
   field

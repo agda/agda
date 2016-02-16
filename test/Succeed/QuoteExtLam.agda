@@ -2,7 +2,6 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 magic₁ : ⊥ → Nat
 magic₁ = λ ()

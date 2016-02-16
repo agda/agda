@@ -2,7 +2,6 @@
 open import Common.Prelude
 open import Common.Level
 open import Common.Reflection
-open import Common.TC
 
 module UnquoteSetOmega where
 

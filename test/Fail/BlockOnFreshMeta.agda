@@ -3,11 +3,7 @@ module _ where
 
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
-
-infixr 1 _>>=_
-_>>=_ = bindTC
 
 infix 0 case_of_
 case_of_ : ∀ {a b} {A : Set a} {B : Set b} → A → (A → B) → B

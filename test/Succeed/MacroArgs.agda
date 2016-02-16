@@ -1,6 +1,5 @@
 
 open import Common.Reflection
-open import Common.TC
 open import Common.Unit
 open import Common.Prelude
 

@@ -7,7 +7,6 @@ open import Common.Level
 open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Product
 open import Common.Reflection
-open import Common.TC
 
 data Even  : ℕ → Set where
   isEven0  : Even 0

@@ -9,7 +9,7 @@ Problematic calls:
   lsubst pfΓ pf N₁ N₂
     (at Issue1075.agda:361,60-66)
   cut⁻ pfΓ pf (x₁ ∷ LA) refl
-  (cut⁺ pfΓ (record {}) (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
+  (cut⁺ pfΓ tt (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
     (at Issue1075.agda:364,3-7)
   cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl (?0 Γ' LA- x₁ pfΓ pf LT pf₁ x Sp)
   (rsubst-v Γ' pfΓ pf LA- LT Sp ∷ [])

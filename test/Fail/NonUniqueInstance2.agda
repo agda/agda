@@ -1,4 +1,4 @@
-open import Common.Prelude
+open import Common.Prelude hiding (tt)
 
 instance
   tt : ⊤

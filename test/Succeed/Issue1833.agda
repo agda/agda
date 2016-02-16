@@ -2,11 +2,7 @@
 module _ where
 
 open import Common.Prelude hiding (_>>=_)
-open import Common.TC
 open import Common.Reflection
-
-infixl 1 _>>=_
-_>>=_ = bindTC
 
 infix -100 This:_ this:_
 data This:_ {a} {A : Set a} : A → Set where

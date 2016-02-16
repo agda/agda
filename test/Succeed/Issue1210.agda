@@ -1,7 +1,6 @@
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 
 id : Nat → Nat
 id x = x

@@ -13,3 +13,4 @@ primitive
   primToUpper primToLower : Char → Char
   primCharToNat : Char → Nat
   primNatToChar : Nat → Char
+  primCharEquality : Char → Char → Bool

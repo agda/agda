@@ -20,10 +20,10 @@ open import Common.Sum
 open import Common.Equality
 
 
-[_] : ∀{A} → A → List A
+[_] : ∀{A : Set} → A → List A
 [ x ] = x ∷ []
 
-map : ∀ {A B} → (A → B) → List A → List B
+map : ∀ {A B : Set} → (A → B) → List A → List B
 map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
@@ -38,7 +38,7 @@ postulate
   _∈_ : {A : Set} → A → List A → Set
   _⊆_ : {A : Set} → List A → List A → Set
 
-infixr 40 _∷_
+infixr 5 _∷_
 
 data All {A : Set}
          (P : A → Set) : List A → Set where

@@ -4,9 +4,9 @@ ret > ExitSuccess
 out > CaseOnCase.isLess =
 out >   λ a →
 out >     case a of
-out >       CaseOnCase.Cmp.less → Common.Bool.Bool.true
-out >       CaseOnCase.Cmp.equal → Common.Bool.Bool.false
-out >       CaseOnCase.Cmp.greater → Common.Bool.Bool.false
+out >       CaseOnCase.Cmp.less → Agda.Builtin.Bool.Bool.true
+out >       CaseOnCase.Cmp.equal → Agda.Builtin.Bool.Bool.false
+out >       CaseOnCase.Cmp.greater → Agda.Builtin.Bool.Bool.false
 out >       _ → error "TUnreachable"
 out > CaseOnCase.compareInt =
 out >   λ a b →
@@ -19,9 +19,9 @@ out > CaseOnCase._<_ =
 out >   λ a b →
 out >     let c = CaseOnCase._-_ a b in
 out >     case c of
-out >       0 → Common.Bool.Bool.false
-out >       _ | c >= 1 → Common.Bool.Bool.false
-out >       _ → Common.Bool.Bool.true
+out >       0 → Agda.Builtin.Bool.Bool.false
+out >       _ | c >= 1 → Agda.Builtin.Bool.Bool.false
+out >       _ → Agda.Builtin.Bool.Bool.true
 out > CaseOnCase.cmp =
 out >   λ a b →
 out >     let c = CaseOnCase._-_ a b in

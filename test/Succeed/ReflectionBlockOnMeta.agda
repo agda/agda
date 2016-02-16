@@ -3,10 +3,6 @@ module _ where
 
 open import Common.Prelude hiding (_>>=_; _<$>_)
 open import Common.Reflection
-open import Common.TC
-
-infixr 1 _>>=_
-_>>=_ = bindTC
 
 infixl 8 _<$>_
 _<$>_ : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → TC A → TC B

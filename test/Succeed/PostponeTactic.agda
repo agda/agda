@@ -4,7 +4,6 @@ module _ where
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 
 data Zero : Set where
   zero : Zero

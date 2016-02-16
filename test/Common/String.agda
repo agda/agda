@@ -1,22 +1,11 @@
 module Common.String where
 
+open import Agda.Builtin.String public
 open import Common.Bool
 open import Common.Char
 open import Common.List
 open import Common.Nat
 open import Common.Integer
-
-postulate
-  String : Set
-
-{-# BUILTIN STRING String #-}
-
-primitive
-  primStringAppend   : String → String → String
-  primStringToList   : String → List Char
-  primStringFromList : List Char → String
-  primStringEquality : String → String → Bool
-
 
 strEq : (x y : String) -> Bool
 strEq = primStringEquality
@@ -34,10 +23,6 @@ stringToList = primStringToList
 
 charToStr : Char → String
 charToStr c = primStringFromList (c ∷ [])
-
-private
-  primitive
-    primShowInteger  : Integer -> String
 
 intToString : Integer → String
 intToString = primShowInteger

@@ -1,7 +1,6 @@
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 
 data D (A : Set) : Nat → Set where
   d : ∀ {n} → A → D A n

@@ -5,7 +5,7 @@ module ProjectionLikeRecursive where
 open import Common.Prelude
 open import Common.Equality
 
-infixr 40 _∷_ _∷′_
+infixr 5 _∷_ _∷′_
 
 data Vec (n : Nat) : Set where
   []  : {p : n ≡ 0} → Vec n

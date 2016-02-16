@@ -31,14 +31,16 @@ out > -- used args: _ _ c d e
 out > UnusedArguments.foldr[stripped] =
 out >   λ a b c →
 out >     case c of
-out >       Common.List.List.[] → b
-out >       Common.List.List._∷_ d e → a d (UnusedArguments.foldr _ _ a b e)
+out >       Agda.Builtin.List.List.[] → b
+out >       Agda.Builtin.List.List._∷_ d e →
+out >         a d (UnusedArguments.foldr _ _ a b e)
 out >       _ → error "TUnreachable"
 out > UnusedArguments.foldr =
 out >   λ a b c d e →
 out >     case e of
-out >       Common.List.List.[] → d
-out >       Common.List.List._∷_ f g → c f (UnusedArguments.foldr a b c d g)
+out >       Agda.Builtin.List.List.[] → d
+out >       Agda.Builtin.List.List._∷_ f g →
+out >         c f (UnusedArguments.foldr a b c d g)
 out >       _ → error "TUnreachable"
 out > UnusedArguments.main =
 out >   Common.IO.then
@@ -54,10 +56,10 @@ out >                 _ _ _ _ (_+_ 10) (Common.Maybe.Maybe.just 42))))
 out >        (Common.IO.printNat
 out >           (UnusedArguments.foldr
 out >              _ _ _+_ 0
-out >              (Common.List.List._∷_
+out >              (Agda.Builtin.List.List._∷_
 out >                 1
-out >                 (Common.List.List._∷_
+out >                 (Agda.Builtin.List.List._∷_
 out >                    2
-out >                    (Common.List.List._∷_
-out >                       3 (Common.List.List._∷_ 4 Common.List.List.[])))))))
+out >                    (Agda.Builtin.List.List._∷_
+out >                       3 (Agda.Builtin.List.List._∷_ 4 Agda.Builtin.List.List.[])))))))
 out > 425210

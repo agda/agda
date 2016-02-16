@@ -2,7 +2,6 @@
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
 
 module Issue1345 (A : Set) where

@@ -5,27 +5,27 @@ out > CompareNat.compare =
 out >   λ a b →
 out >     let c = a < b in
 out >     case c of
-out >       Common.Bool.Bool.true →
-out >         CompareNat.Comparison.less (CompareNat._<_.diff (b - a - 1) _)
-out >       Common.Bool.Bool.false →
+out >       Agda.Builtin.Bool.Bool.false →
 out >         let d = b < a in
 out >         case d of
-out >           Common.Bool.Bool.true →
+out >           Agda.Builtin.Bool.Bool.false → CompareNat.Comparison.equal _
+out >           Agda.Builtin.Bool.Bool.true →
 out >             CompareNat.Comparison.greater (CompareNat._<_.diff (a - b - 1) _)
-out >           Common.Bool.Bool.false → CompareNat.Comparison.equal _
 out >           _ → error "TUnreachable"
+out >       Agda.Builtin.Bool.Bool.true →
+out >         CompareNat.Comparison.less (CompareNat._<_.diff (b - a - 1) _)
 out >       _ → error "TUnreachable"
 out > CompareNat.compare-lots =
 out >   λ a b →
 out >     let c = a < b in
 out >     case c of
-out >       Common.Bool.Bool.true → "less-less"
-out >       Common.Bool.Bool.false →
+out >       Agda.Builtin.Bool.Bool.false →
 out >         let d = b < a in
 out >         case d of
-out >           Common.Bool.Bool.true → "greater-greater"
-out >           Common.Bool.Bool.false → "equal-equal"
+out >           Agda.Builtin.Bool.Bool.false → "equal-equal"
+out >           Agda.Builtin.Bool.Bool.true → "greater-greater"
 out >           _ → error "TUnreachable"
+out >       Agda.Builtin.Bool.Bool.true → "less-less"
 out >       _ → error "TUnreachable"
 out > CompareNat.main =
 out >   Common.IO.then

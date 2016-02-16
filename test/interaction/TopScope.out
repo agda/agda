@@ -3,6 +3,8 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking TopScope (TopScope.agda). " t)
 (agda2-info-action "*Type-checking*" " Checking Common.Bool (Bool.agda). " t)
+(agda2-info-action "*Type-checking*" " Checking Agda.Builtin.Bool (agda-default-include-path/Agda/Builtin/Bool.agda). " t)
+(agda2-info-action "*Type-checking*" " Finished Agda.Builtin.Bool. " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Bool. " t)
 (agda2-info-action "*Type-checking*" "Finished TopScope. " t)
 (agda2-status-action "Checked")

@@ -2,9 +2,8 @@ module Issue1280 where
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 
-infixr 40 _∷_
+infixr 5 _∷_
 
 data Vec (A : Set) : Nat → Set where
   [] : Vec A 0

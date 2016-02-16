@@ -4,7 +4,6 @@ open import Common.Prelude
    using (zero; suc; _+_; _∸_; List; []; _∷_; Bool; true; false)
 open import Common.Level
 open import Common.Reflection
-open import Common.TC
 
 module TermSplicing where
 

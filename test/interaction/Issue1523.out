@@ -3,6 +3,8 @@
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue1523 (Issue1523.agda). " t)
 (agda2-info-action "*Type-checking*" " Checking Common.Size (Size.agda). " t)
+(agda2-info-action "*Type-checking*" " Checking Agda.Builtin.Size (agda-default-include-path/Agda/Builtin/Size.agda). " t)
+(agda2-info-action "*Type-checking*" " Finished Agda.Builtin.Size. " t)
 (agda2-info-action "*Type-checking*" " Finished Common.Size. " t)
 (agda2-info-action "*Type-checking*" "Finished Issue1523. " t)
 (agda2-status-action "")

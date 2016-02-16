@@ -4,7 +4,7 @@ open import Common.Prelude hiding (length; map)
 pattern [_] x = x ∷ []
 pattern tail {x} xs = x ∷ xs
 
-length : ∀ {A} → List A → Nat
+length : ∀ {A : Set} → List A → Nat
 length [] = 0
 length [ _ ] = 1
 length (tail [ _ ]) = 2

@@ -2,7 +2,6 @@
 open import Common.Reflection
 open import Common.Prelude
 open import Common.Equality
-open import Common.TC
 
 pattern `Nat = def (quote Nat) []
 pattern _`→_ a b = pi (vArg a) (abs "_" b)

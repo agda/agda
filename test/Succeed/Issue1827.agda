@@ -1,11 +1,7 @@
 
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
-
-infixr 1 _>>=_
-_>>=_ = bindTC
 
 set₀ = sort (lit 0)
 set! = sort unknown

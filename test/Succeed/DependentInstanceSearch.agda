@@ -2,7 +2,7 @@
 open import Common.Prelude
 open import Common.Equality
 
-infixr 40 _∷_
+infixr 5 _∷_
 
 data Vec (A : Set) : Nat → Set where
   [] : Vec A zero

@@ -4,7 +4,6 @@ module UnquoteDecl where
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 infixr 3 _`⇒_
 pattern _`⇒_ a b = pi (vArg a) (abs "_" b)

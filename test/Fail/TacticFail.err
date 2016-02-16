@@ -1,4 +1,4 @@
-TacticFail.agda:26,7-14
+TacticFail.agda:22,7-14
 Surprisingly the failTactic failed to prove (z : P ≡ NP) → ⊥
 when checking that the expression unquote proveIt has type
 P ≡ NP → ⊥

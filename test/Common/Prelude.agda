@@ -1,10 +1,10 @@
 
 module Common.Prelude where
 
-{-# IMPORT Common.FFI #-}
 
 import Common.Level
 
+open import Agda.Builtin.Unit public
 open import Common.Bool   public
 open import Common.Char   public
 open import Common.Float  public
@@ -16,6 +16,3 @@ open import Common.String public
 open import Common.Unit   public
 
 data   ⊥ : Set where
-record ⊤ : Set where
-
-{-# BUILTIN UNIT ⊤ #-}

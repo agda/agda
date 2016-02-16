@@ -2,7 +2,6 @@
 open import Common.Prelude hiding (pred)
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 un-function : Definition → FunDef
 un-function (funDef cs) = funDef unknown cs

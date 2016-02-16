@@ -1,4 +1,4 @@
-StrangeRecursiveUnquote.agda:13,13-33
+StrangeRecursiveUnquote.agda:12,13-33
 Cannot unquote non-canonical term
   f n
 when checking that the expression unquote (give (f n)) has type

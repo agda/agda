@@ -3,18 +3,10 @@ module Reflection where
 
 open import Common.Prelude hiding (Unit; module Unit) renaming (Nat to ℕ; module Nat to ℕ)
 open import Common.Reflection
-
-data _≡_ {a}{A : Set a}(x : A) : A → Set a where
-  refl : x ≡ x
-
-{-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
+open import Common.Equality
 
 data Id {A : Set}(x : A) : (B : Set) → B → Set where
   course : Id x A x
-
-primitive
-  primTrustMe : ∀{a}{A : Set a}{x y : A} → x ≡ y
 
 open import Common.Level
 
@@ -25,6 +17,7 @@ unCheck : Term → Term
 unCheck (def x (_ ∷ _ ∷ arg _ t ∷ [])) = t
 unCheck t = unknown
 
+infix 1 _is_of_
 data Check {a}{A : Set a}(x : A) : Set where
   _is_of_ : (t t′ : Term) →
             Id (primTrustMe {x = unCheck t} {t′})
@@ -42,19 +35,19 @@ test₂ : (X : Set) → Check (λ (x : X) → x)
 test₂ X = quoteGoal t in
           t is lam visible (abs "x" (var 0 [])) of course
 
-infixr 40 _`∷_
+infixr 5 _`∷_
 
-pattern _`∷_ x xs = con (quote _∷_) (hArg unknown ∷ vArg x ∷ vArg xs ∷ [])
-pattern `[]    = con (quote []) (hArg unknown ∷ [])
+pattern _`∷_ x xs = con (quote _∷_) (hArg unknown ∷ hArg unknown ∷ vArg x ∷ vArg xs ∷ [])
+pattern `[]    = con (quote []) (hArg unknown ∷ hArg unknown ∷ [])
 pattern `true  = con (quote true) []
 pattern `false = con (quote false) []
 
 test₃ : Check (true ∷ false ∷ [])
 test₃ = quoteGoal t in
-        t is `true `∷ `false `∷ `[] of course
+        t is (`true `∷ `false `∷ `[]) of course
 
 `List : Term → Term
-`List A = def (quote List) (vArg A ∷ [])
+`List A = def (quote List) (hArg (def (quote lzero) []) ∷ vArg A ∷ [])
 `ℕ      = def (quote ℕ) []
 
 `Term : Term

@@ -1,8 +1,7 @@
 
-open import Common.Prelude
+open import Common.Prelude hiding (tt)
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 tt : ⊤
 tt = record{}

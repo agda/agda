@@ -1,7 +1,6 @@
 open import Common.Prelude
 open import Common.Level
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
 
 test₁ : quoteTerm lzero ≡ def (quote lzero) []

@@ -1,7 +1,7 @@
 {-# OPTIONS -v treeless.opt:20 #-}
 module _ where
 
-open import Common.Prelude
+open import Common.Prelude renaming (_<N_ to _<_)
 open import Common.Integer
 
 -- Should compile to
@@ -30,12 +30,6 @@ nested-match (pos (suc (suc n))) = "lots"
 nested-match (negsuc 0) = "minus one"
 nested-match (negsuc 1) = "minus two"
 nested-match (negsuc (suc (suc n))) = "minus lots"
-
-_<_ : Nat → Nat → Bool
-_ < zero = false
-zero < suc b = true
-suc a < suc b = a < b
-{-# BUILTIN NATLESS _<_ #-}
 
 data Diff : Set where
   less : Nat → Diff

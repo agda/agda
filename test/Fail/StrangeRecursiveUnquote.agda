@@ -1,6 +1,5 @@
 open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Reflection
-open import Common.TC
 
 module StrangeRecursiveUnquote where
 

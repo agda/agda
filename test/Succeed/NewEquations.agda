@@ -5,9 +5,9 @@ module NewEquations where
 open import Common.Prelude hiding (map; _++_)
 open import Common.Equality
 
-infixr 40 _++_
+infixr 5 _++_
 
-map : ∀ {A B} → (A → B) → List A → List B
+map : ∀ {A B : Set} → (A → B) → List A → List B
 map f [] = []
 map f (x ∷ xs) = (f x) ∷ (map f xs)
 

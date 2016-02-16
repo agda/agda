@@ -2,7 +2,6 @@
 open import Common.Prelude
 open import Common.Equality
 open import Common.Reflection
-open import Common.TC
 
 pattern _`+_ a b = def (quote _+_) (vArg a ∷ vArg b ∷ [])
 

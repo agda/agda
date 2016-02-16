@@ -1,20 +1,12 @@
 module Common.IO where
 
+open import Agda.Builtin.IO public
 open import Common.Bool
 open import Common.Char
 open import Common.Nat
 open import Common.String
 open import Common.Unit
 open import Common.Float
-
-postulate
-  IO : ∀ {l} → Set l → Set l
-
-{-# BUILTIN IO IO #-}
-
--- MAlonzo
-{-# IMPORT Common.FFI #-}
-{-# COMPILED_TYPE IO Common.FFI.AgdaIO #-}
 
 infixl 1 _>>=_
 

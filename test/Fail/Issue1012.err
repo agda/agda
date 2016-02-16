@@ -1,3 +1,3 @@
-Issue1012.agda:17,7-28
+Issue1012.agda:16,7-28
 .A !=< Nat of type Set
 when checking that the expression x has type Nat

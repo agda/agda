@@ -3,7 +3,6 @@ module _ where
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
 
 record Foo (A : Set) : Set where

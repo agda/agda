@@ -2,7 +2,6 @@
 
 open import Common.Reflection
 open import Common.Prelude
-open import Common.TC
 
 data Box : Set → Set₁ where
   box : (A : Set) → Box A

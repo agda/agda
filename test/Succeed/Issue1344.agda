@@ -1,7 +1,6 @@
 {-# OPTIONS -v tc.unquote:30 #-}
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 
 data Box : Bool → Set where
   box : (b : Bool) → Box b

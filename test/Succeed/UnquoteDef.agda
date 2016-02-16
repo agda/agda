@@ -3,7 +3,6 @@ module UnquoteDef where
 
 open import Common.Reflection
 open import Common.Prelude
-open import Common.TC
 
 module Target where
   mutual

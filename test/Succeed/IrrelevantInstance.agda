@@ -1,8 +1,8 @@
 open import Common.Prelude
 
 instance
-  tt : ⊤
-  tt = record{}
+  tti : ⊤
+  tti = record{}
 
 NonZero : Nat → Set
 NonZero zero    = ⊥

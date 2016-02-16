@@ -2,7 +2,6 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 data Dec {a} (A : Set a) : Set a where
   yes : A → Dec A

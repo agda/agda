@@ -3,12 +3,8 @@ module _ where
 
 open import Common.Prelude hiding (_>>=_)
 open import Common.Reflection
-open import Common.TC
 open import Common.Equality
 open import Common.Product
-
-infixr 1 _>>=_
-_>>=_ = bindTC
 
 sum : List Nat → Nat
 sum [] = 0

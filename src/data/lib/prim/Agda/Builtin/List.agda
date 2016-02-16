@@ -10,6 +10,8 @@ data List {a} (A : Set a) : Set a where
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
 
-{-# IMPORT Agda.FFI #-}
-{-# COMPILED_DATA List Agda.FFI.AgdaList [] (:) #-}
+{-# HASKELL type AgdaList a b = [b] #-}
+
+{-# COMPILED_DATA List MAlonzo.Code.Agda.Builtin.List.AgdaList [] (:) #-}
 {-# COMPILED_DATA_UHC List __LIST__ __NIL__ __CONS__ #-}
+

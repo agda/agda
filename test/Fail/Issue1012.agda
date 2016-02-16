@@ -1,7 +1,6 @@
 
 open import Common.Prelude
 open import Common.Reflection
-open import Common.TC
 
 id : {A : Set} → A → A
 id x = x

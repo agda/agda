@@ -9,7 +9,7 @@ open import Common.Unit
 testString : String
 testString = "To boldly go where no man gone before"
 
-printList : forall {A} -> (A -> IO Unit) -> List A -> IO Unit
+printList : {A : Set} -> (A -> IO Unit) -> List A -> IO Unit
 printList p [] = return unit
 printList p (x ∷ xs) =
     p x ,,

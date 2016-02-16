@@ -1,4 +1,4 @@
-Issue1371.agda:33,1-9
+Issue1371.agda:32,1-9
 "other" ≡ "other" should be empty, but the following constructor
 patterns are valid:
   refl

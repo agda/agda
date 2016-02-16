@@ -3,12 +3,9 @@ module _ where
 
 open import Common.Reflection
 open import Common.Prelude hiding (_>>=_)
-open import Common.TC
 open import Common.Equality
 
 -- Some helpers --
-
-_>>=_ = bindTC
 
 quotegoal : (Type → Tactic) → Tactic
 quotegoal tac hole = inferType hole >>= λ goal → tac goal hole
@@ -20,7 +17,7 @@ replicateTC : {A : Set} → Nat → TC A → TC (List A)
 replicateTC zero m = returnTC []
 replicateTC (suc n) m = m >>= λ x → replicateTC n m >>= λ xs → returnTC (x ∷ xs)
 
-mapTC! : ∀ {A} → (A → TC ⊤) → List A → TC ⊤
+mapTC! : ∀ {A : Set} → (A → TC ⊤) → List A → TC ⊤
 mapTC! f [] = returnTC _
 mapTC! f (x ∷ xs) = f x >>= λ _ → mapTC! f xs
 
@@ -90,6 +87,7 @@ data Any {A : Set} (P : A → Set) : List A → Set where
   zero : ∀ {x xs} → P x      → Any P (x ∷ xs)
   suc  : ∀ {x xs} → Any P xs → Any P (x ∷ xs)
 
+infix 1 _∈_
 _∈_ : ∀ {A : Set} → A → List A → Set
 x ∈ xs = Any (x ≡_) xs
 

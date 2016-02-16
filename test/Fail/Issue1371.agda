@@ -1,7 +1,6 @@
 open import Common.Prelude
 open import Common.Reflection
 open import Common.Equality
-open import Common.TC
 
 ` : Term → Term
 ` (def f []) = con (quote def) (vArg (lit (qname f)) ∷ vArg (con (quote []) []) ∷ [])
