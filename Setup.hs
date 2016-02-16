@@ -10,10 +10,11 @@ import System.Exit
 
 main = defaultMainWithHooks hooks
 
-hooks = simpleUserHooks { postInst = checkAgdaPrimitive }
+hooks = simpleUserHooks { regHook = checkAgdaPrimitive }
 
-checkAgdaPrimitive :: Args -> InstallFlags -> PackageDescription -> LocalBuildInfo -> IO ()
-checkAgdaPrimitive args flags pkg info = do
+checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> UserHooks -> RegisterFlags -> IO ()
+checkAgdaPrimitive pkg info hooks flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
+checkAgdaPrimitive pkg info hooks flags = do
   let dirs = absoluteInstallDirs pkg info NoCopyDest
       agda = buildDir info </> "agda" </> "agda" <.> exeExtension
       prim = datadir dirs </> "lib" </> "prim" </> "Agda" </> "Primitive" <.> "agda"
