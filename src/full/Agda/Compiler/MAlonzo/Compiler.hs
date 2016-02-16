@@ -182,6 +182,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
 
       _ | Just (HsDefn hsty hs) <- compiledHaskell compiled -> do
         -- Make sure we have imports for all names mentioned in the type.
+        ty <- normalise ty
         sequence_ [ xqual x (HS.Ident "_") | x <- Set.toList (namesIn ty) ]
         return $ fbWithType hsty (fakeExp hs)
 
