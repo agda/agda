@@ -21,8 +21,8 @@ infixr 5 _∷_
 data Stream (A : Set) : Set where
   _∷_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 
-{-# IMPORT Data.FFI #-}
-{-# COMPILED_DATA Stream Data.FFI.AgdaStream Data.FFI.Cons #-}
+{-# HASKELL data AgdaStream a = Cons a (AgdaStream a) #-}
+{-# COMPILED_DATA Stream MAlonzo.Code.Data.Stream.AgdaStream MAlonzo.Code.Data.Stream.Cons #-}
 
 ------------------------------------------------------------------------
 -- Some operations

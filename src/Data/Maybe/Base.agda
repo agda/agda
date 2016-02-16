@@ -14,8 +14,8 @@ data Maybe {a} (A : Set a) : Set a where
   just    : (x : A) → Maybe A
   nothing : Maybe A
 
-{-# IMPORT Data.FFI #-}
-{-# COMPILED_DATA Maybe Data.FFI.AgdaMaybe Just Nothing #-}
+{-# HASKELL type AgdaMaybe a b = Maybe b #-}
+{-# COMPILED_DATA Maybe MAlonzo.Code.Data.Maybe.Base.AgdaMaybe Just Nothing #-}
 
 ------------------------------------------------------------------------
 -- Some operations

@@ -38,7 +38,9 @@ postulate
 -- the locale. For older versions of the library (going back to at
 -- least version 3) the functions use ISO-8859-1.
 
+{-# IMPORT Data.Text    #-}
 {-# IMPORT Data.Text.IO #-}
+{-# IMPORT System.IO    #-}
 
 postulate
   getContents : IO Costring
@@ -53,13 +55,22 @@ postulate
 
   readFiniteFile : String → IO String
 
+{-# HASKELL
+  readFiniteFile :: Data.Text.Text -> IO Data.Text.Text
+  readFiniteFile f = do
+    h <- System.IO.openFile (Data.Text.unpack f) System.IO.ReadMode
+    System.IO.bracketOnError (return ()) (\_ -> System.IO.hClose h)
+                                         (\_ -> System.IO.hFileSize h)
+    Data.Text.IO.hGetContents h
+#-}
+
 {-# COMPILED getContents    getContents #-}
 {-# COMPILED readFile       (readFile . Data.Text.unpack)           #-}
 {-# COMPILED writeFile      (\x -> writeFile (Data.Text.unpack x))  #-}
 {-# COMPILED appendFile     (\x -> appendFile (Data.Text.unpack x)) #-}
 {-# COMPILED putStr         putStr      #-}
 {-# COMPILED putStrLn       putStrLn    #-}
-{-# COMPILED readFiniteFile IO.FFI.readFiniteFile    #-}
+{-# COMPILED readFiniteFile readFiniteFile    #-}
 {-# COMPILED_UHC getContents    (UHC.Agda.Builtins.primGetContents) #-}
 {-# COMPILED_UHC readFile       (UHC.Agda.Builtins.primReadFile) #-}
 {-# COMPILED_UHC writeFile      (UHC.Agda.Builtins.primWriteFile) #-}

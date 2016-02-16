@@ -43,8 +43,8 @@ data Colist {a} (A : Set a) : Set a where
   []  : Colist A
   _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
 
-{-# IMPORT Data.FFI #-}
-{-# COMPILED_DATA Colist Data.FFI.AgdaList [] (:) #-}
+{-# HASKELL type AgdaColist a b = [b] #-}
+{-# COMPILED_DATA Colist MAlonzo.Code.Data.Colist.AgdaColist [] (:) #-}
 {-# COMPILED_DATA_UHC Colist __LIST__ __NIL__ __CONS__ #-}
 
 data Any {a p} {A : Set a} (P : A → Set p) :
