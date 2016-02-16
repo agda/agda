@@ -264,11 +264,11 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
                                            Nothing -> __IMPOSSIBLE__
                                            Just p  -> p
 
-        termToPat (DCon c vs)          = A.ConP ci (AmbQ [conName c]) <$> do
-          mapM argToPat vs
+        termToPat (DCon c vs)          = tryRecPFromConP =<< do
+           A.ConP ci (AmbQ [conName c]) <$> mapM argToPat vs
 
-        termToPat (DTerm (I.Con c vs)) = A.ConP ci (AmbQ [conName c]) <$> do
-          mapM (argToPat . fmap DTerm) vs
+        termToPat (DTerm (I.Con c vs)) = tryRecPFromConP =<< do
+           A.ConP ci (AmbQ [conName c]) <$> mapM (argToPat . fmap DTerm) vs
 
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP patNoRange
         termToPat (DDef _ [])          = return $ A.WildP patNoRange
