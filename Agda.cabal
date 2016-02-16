@@ -47,6 +47,24 @@ data-files:         Agda.css
                     agda.sty
                     postprocess-latex.pl
                     lib/prim/Agda/Primitive.agda
+                    lib/prim/Agda/Builtin/Bool.agda
+                    lib/prim/Agda/Builtin/Char.agda
+                    lib/prim/Agda/Builtin/Coinduction.agda
+                    lib/prim/Agda/Builtin/Equality.agda
+                    lib/prim/Agda/Builtin/Float.agda
+                    lib/prim/Agda/Builtin/FromNat.agda
+                    lib/prim/Agda/Builtin/FromNeg.agda
+                    lib/prim/Agda/Builtin/FromString.agda
+                    lib/prim/Agda/Builtin/IO.agda
+                    lib/prim/Agda/Builtin/Int.agda
+                    lib/prim/Agda/Builtin/List.agda
+                    lib/prim/Agda/Builtin/Nat.agda
+                    lib/prim/Agda/Builtin/Reflection.agda
+                    lib/prim/Agda/Builtin/Size.agda
+                    lib/prim/Agda/Builtin/Strict.agda
+                    lib/prim/Agda/Builtin/String.agda
+                    lib/prim/Agda/Builtin/TrustMe.agda
+                    lib/prim/Agda/Builtin/Unit.agda
                     uhc-agda-base/LICENSE
                     uhc-agda-base/uhc-agda-base.cabal
                     uhc-agda-base/src/UHC/Agda/*.hs

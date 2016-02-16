@@ -1,4 +1,5 @@
 
+import Data.List
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
@@ -12,15 +13,26 @@ main = defaultMainWithHooks hooks
 
 hooks = simpleUserHooks { regHook = checkAgdaPrimitive }
 
+builtins :: [String]
+builtins =
+  [ "Bool", "Char", "Coinduction", "Equality", "Float"
+  , "FromNat", "FromNeg", "FromString", "IO", "Int", "List"
+  , "Nat", "Reflection", "Size", "Strict", "String"
+  , "TrustMe", "Unit" ]
+
 checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> UserHooks -> RegisterFlags -> IO ()
 checkAgdaPrimitive pkg info hooks flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
 checkAgdaPrimitive pkg info hooks flags = do
   let dirs = absoluteInstallDirs pkg info NoCopyDest
       agda = buildDir info </> "agda" </> "agda" <.> exeExtension
-      prim = datadir dirs </> "lib" </> "prim" </> "Agda" </> "Primitive" <.> "agda"
-  putStrLn "Generating Agda library interface files..."
-  ok <- rawSystem agda [prim, "-v0"]
-  case ok of
-    ExitSuccess   -> return ()
-    ExitFailure _ -> putStrLn "WARNING: Failed to typecheck Agda.Primitive!"
+      primMod ms = (ms, datadir dirs </> "lib" </> "prim" </> "Agda" </> foldr1 (</>) ms <.> "agda")
+      prims      = primMod ["Primitive"] : [ primMod ["Builtin", m] | m <- builtins ]
 
+      checkPrim (ms, file) = do
+        ok <- rawSystem agda [file, "-v0"]
+        case ok of
+          ExitSuccess   -> return ()
+          ExitFailure _ -> putStrLn $ "WARNING: Failed to typecheck " ++ intercalate "." ("Agda" : ms) ++ "!"
+
+  putStrLn "Generating Agda library interface files..."
+  mapM_ checkPrim prims
