@@ -27,7 +27,7 @@ suc n -N suc m = n -N m
 
 _*N_ : Nat → Nat → Nat
 zero  *N m = zero
-suc n *N m = n *N m +N m
+suc n *N m = m +N n *N m
 
 {-# BUILTIN NATTIMES _*N_ #-}
 
@@ -45,16 +45,16 @@ suc n <N suc m = n <N m
 
 {-# BUILTIN NATLESS _<N_ #-}
 
-divAux : Nat → Nat → Nat → Nat → Nat
-divAux k m  zero    j      = k
-divAux k m (suc n)  zero   = divAux (suc k) m n m
-divAux k m (suc n) (suc j) = divAux k m n j
+div-helper : Nat → Nat → Nat → Nat → Nat
+div-helper k m  zero    j      = k
+div-helper k m (suc n)  zero   = div-helper (suc k) m n m
+div-helper k m (suc n) (suc j) = div-helper k m n j
 
-{-# BUILTIN NATDIVSUCAUX divAux #-}
+{-# BUILTIN NATDIVSUCAUX div-helper #-}
 
-modAux : Nat → Nat → Nat → Nat → Nat
-modAux k m  zero    j      = k
-modAux k m (suc n)  zero   = modAux 0 m n m
-modAux k m (suc n) (suc j) = modAux (suc k) m n j
+mod-helper : Nat → Nat → Nat → Nat → Nat
+mod-helper k m  zero    j      = k
+mod-helper k m (suc n)  zero   = mod-helper 0 m n m
+mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
 
-{-# BUILTIN NATMODSUCAUX modAux #-}
+{-# BUILTIN NATMODSUCAUX mod-helper #-}

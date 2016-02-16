@@ -6,7 +6,7 @@ open import Common.Equality
 
 _mod_ : Nat → Nat → Nat
 n mod zero  = 0
-n mod suc m = modAux 0 m n m
+n mod suc m = mod-helper 0 m n m
 
 {-# INLINE _mod_ #-}
 
