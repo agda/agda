@@ -247,7 +247,7 @@ checkRecDef i name ind eta con ps contel fields =
       -- Andreas, 2016-02-09, Issue 1815 (see also issue 1759).
       -- For checking the record declarations, hide the record parameters
       -- and the parameters of the parent modules.
-      modifyContext (modifyContextEntries (setHiding Hidden)) $ addRecordVar $ do
+      modifyContext (modifyContextEntries hideOrKeepInstance) $ addRecordVar $ do
 
         -- Check the types of the fields and the other record declarations.
         withCurrentModule m $ do
