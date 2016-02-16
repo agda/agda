@@ -2574,39 +2574,34 @@ Important changes since 2.3.2.2:
 Installation and infrastructure
 ===============================
 
-* A new module called Agda.Primitive has been introduced. This module
-  is available to all users, even if the standard library is not used.
-  Currently the module contains level primitives and their
-  representation in Haskell when compiling with MAlonzo:
+* Builtins and primitives are now defined in a new set of modules available to
+  all users, independent of any particular library. The modules are
 
-    infixl 6 _⊔_
+    Agda.Primitive
+    Agda.Builtin.Bool
+    Agda.Builtin.Char
+    Agda.Builtin.Coinduction
+    Agda.Builtin.Equality
+    Agda.Builtin.Float
+    Agda.Builtin.FromNat
+    Agda.Builtin.FromNeg
+    Agda.Builtin.FromString
+    Agda.Builtin.IO
+    Agda.Builtin.Int
+    Agda.Builtin.List
+    Agda.Builtin.Nat
+    Agda.Builtin.Reflection
+    Agda.Builtin.Size
+    Agda.Builtin.Strict
+    Agda.Builtin.String
+    Agda.Builtin.TrustMe
+    Agda.Builtin.Unit
 
-    postulate
-      Level : Set
-      lzero : Level
-      lsuc  : (ℓ : Level) → Level
-      _⊔_   : (ℓ₁ ℓ₂ : Level) → Level
+  The standard library reexports the primitives from the new modules.
 
-    {-# COMPILED_TYPE Level ()      #-}
-    {-# COMPILED lzero ()           #-}
-    {-# COMPILED lsuc  (\_ -> ())   #-}
-    {-# COMPILED _⊔_   (\_ _ -> ()) #-}
-
-    {-# BUILTIN LEVEL     Level  #-}
-    {-# BUILTIN LEVELZERO lzero  #-}
-    {-# BUILTIN LEVELSUC  lsuc   #-}
-    {-# BUILTIN LEVELMAX  _⊔_    #-}
-
-  To bring these declarations into scope you can use a declaration
-  like the following one:
-
-    open import Agda.Primitive using (Level; lzero; lsuc; _⊔_)
-
-  The standard library reexports these primitives (using the names
-  zero and suc instead of lzero and lsuc) from the Level module.
-
-  Existing developments using universe polymorphism might now trigger
-  the following error message:
+  The module Agda.Primitive defining the Level type is always loaded (but not
+  opened), so existing developments using universe polymorphism might now
+  trigger the following error message:
 
     Duplicate binding for built-in thing LEVEL, previous binding to
     .Agda.Primitive.Level
@@ -2618,7 +2613,7 @@ Installation and infrastructure
 
   The include path now always contains a directory <DATADIR>/lib/prim,
   and this directory is supposed to contain a subdirectory Agda
-  containing a file Primitive.agda.
+  containing the new modules.
 
   The standard location of <DATADIR> is system- and
   installation-specific.  E.g., in a cabal --user installation of
