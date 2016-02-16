@@ -41,6 +41,7 @@ postulate
 {-# IMPORT Data.Text    #-}
 {-# IMPORT Data.Text.IO #-}
 {-# IMPORT System.IO    #-}
+{-# IMPORT Control.Exception #-}
 
 postulate
   getContents : IO Costring
@@ -59,8 +60,8 @@ postulate
   readFiniteFile :: Data.Text.Text -> IO Data.Text.Text
   readFiniteFile f = do
     h <- System.IO.openFile (Data.Text.unpack f) System.IO.ReadMode
-    System.IO.bracketOnError (return ()) (\_ -> System.IO.hClose h)
-                                         (\_ -> System.IO.hFileSize h)
+    Control.Exception.bracketOnError (return ()) (\_ -> System.IO.hClose h)
+                                                 (\_ -> System.IO.hFileSize h)
     Data.Text.IO.hGetContents h
 #-}
 
