@@ -245,6 +245,9 @@ fakeType = HS.TyVar . HS.Ident
 fakeExp :: String -> HS.Exp
 fakeExp = HS.Var . HS.UnQual . HS.Ident
 
+fakeDecl :: String -> HS.Decl
+fakeDecl s = HS.TypeSig dummy [HS.Ident (s ++ " -- OMG hack")] (HS.TyTuple HS.Boxed [])
+
 dummy :: a
 dummy = error "MAlonzo : this dummy value should not have been eval'ed."
 

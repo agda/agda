@@ -120,6 +120,19 @@ Pragmas and options
 
   This fixes issue 223.
 
+* New pragma HASKELL for adding inline Haskell code (GHC backend only)
+
+  Arbitrary Haskell code can be added to a module using the HASKELL pragma.
+  For instance,
+
+    {-# HASKELL
+      echo :: IO ()
+      echo = getLine >>= putStrLn
+    #-}
+
+    postulate echo : IO ⊤
+    {-# COMPILED echo echo #-}
+
 * New option --exact-split.
 
   The --exact-split flag causes Agda to raise an error whenever a clause in a

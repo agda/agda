@@ -136,6 +136,7 @@ import Agda.Utils.Impossible
     'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
     'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $$ }
+    'HASKELL'                 { TokKeyword KwHASKELL $$ }
     'DISPLAY'                 { TokKeyword KwDISPLAY $$ }
     'IMPORT'                  { TokKeyword KwIMPORT $$ }
     'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $$ }
@@ -262,6 +263,7 @@ Token
     | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
     | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $1 }
+    | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
     | 'DISPLAY'                 { TokKeyword KwDISPLAY $1 }
     | 'IMPORT'                  { TokKeyword KwIMPORT $1 }
     | 'IMPORT_UHC'              { TokKeyword KwIMPORT_UHC $1 }
@@ -550,6 +552,10 @@ PragmaStrings
 PragmaString :: { String }
 PragmaString
     : string { snd $1 }
+
+Strings :: { [(Interval, String)] }
+Strings : {- empty -}    { [] }
+        | string Strings { $1 : $2 }
 
 PragmaName :: { Name }
 PragmaName : string {% mkName $1 }
@@ -1355,6 +1361,7 @@ DeclarationPragma
   | CompiledJSPragma         { $1 }
   | CompiledUHCPragma        { $1 }
   | CompiledDataUHCPragma    { $1 }
+  | HaskellPragma            { $1 }
   | NoSmashingPragma         { $1 }
   | StaticPragma             { $1 }
   | InlinePragma             { $1 }
@@ -1433,6 +1440,10 @@ CompiledDataUHCPragma :: { Pragma }
 CompiledDataUHCPragma
   : '{-#' 'COMPILED_DATA_UHC' PragmaQName string PragmaStrings '#-}'
     { CompiledDataUHCPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
+
+HaskellPragma :: { Pragma }
+HaskellPragma
+  : '{-#' 'HASKELL' Strings '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
 
 NoSmashingPragma :: { Pragma }
 NoSmashingPragma
@@ -1673,6 +1684,19 @@ mkQName :: [(Interval, String)] -> Parser QName
 mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
+
+recoverLayout :: [(Interval, String)] -> String
+recoverLayout [] = ""
+recoverLayout xs@((i, _) : _) = go (iStart i) xs
+  where
+    c0 = posCol (iStart i)
+
+    go cur [] = ""
+    go cur ((i, s) : xs) = padding cur (iStart i) ++ s ++ go (iEnd i) xs
+
+    padding Pn{ posLine = l1, posCol = c1 } Pn{ posLine = l2, posCol = c2 }
+      | l1 < l2  = genericReplicate (l2 - l1) '\n' ++ genericReplicate (max 0 (c2 - c0)) ' '
+      | l1 == l2 = genericReplicate (c2 - c1) ' '
 
 ensureUnqual :: QName -> Parser Name
 ensureUnqual (QName x) = return x

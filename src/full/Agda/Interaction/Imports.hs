@@ -729,6 +729,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
     uhcHsImps <- getHaskellImportsUHC
+    hsCode  <- use stHaskellCode
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
@@ -746,6 +747,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
       , iBuiltin         = builtin'
       , iHaskellImports  = hsImps `Set.difference` previousHsImports
       , iHaskellImportsUHC = uhcHsImps `Set.difference` previousHsImportsUHC
+      , iHaskellCode     = hsCode
       , iHighlighting    = syntaxInfo
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns

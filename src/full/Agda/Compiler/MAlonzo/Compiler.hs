@@ -94,7 +94,7 @@ compile i = do
     yesComp
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
-  decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp ds
+  decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp (map fakeDecl (reverse $ iHaskellCode i) ++ ds)
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)

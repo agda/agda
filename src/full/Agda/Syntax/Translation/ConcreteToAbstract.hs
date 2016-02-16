@@ -1665,6 +1665,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImportUHCPragma _ i) = do
     addHaskellImportUHC i
     return []
+  toAbstract (C.HaskellCodePragma _ s) = do
+    addInlineHaskell s
+    return []
   toAbstract (C.DisplayPragma _ lhs rhs) = withLocalVars $ do
     let err = genericError "DISPLAY pragma left-hand side must have form 'f e1 .. en'"
         getHead (C.IdentP x)          = return x

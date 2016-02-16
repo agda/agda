@@ -280,6 +280,9 @@ addHaskellImportUHC i = stHaskellImportsUHC %= Set.insert i
 getHaskellImportsUHC :: TCM (Set String)
 getHaskellImportsUHC = use stHaskellImportsUHC
 
+addInlineHaskell :: String -> TCM ()
+addInlineHaskell s = stHaskellCode %= (s :)
+
 ---------------------------------------------------------------------------
 -- * Interaction output callback
 ---------------------------------------------------------------------------
