@@ -104,9 +104,22 @@ following procedure can be followed:
     test/interaction/Issue1244a.out
     test/interaction/Issue1244b.out
 
+* Tag and push the standard library used for testing the release
+  candidate (requires Git >= 1.8.3) (untested):
+
+    cd std-lib
+    git tag -a $RC_VERSION -m "Standard library compatible with Agda $VERSION release candidate n"
+    git push --follow-tags
+
 * Push all changes into the master branch (requires Git >= 1.8.3).
 
+    cd $BASE
     git push --follow-tags
+
+* Tag the standard library used for testing the relase candidate:
+
+    cd std
+    git tag -a $RC_VERSION -m "Agda $VERSION release candidate"
 
 * Announce the release candidate on the Agda mailing lists (users and
   developers).
