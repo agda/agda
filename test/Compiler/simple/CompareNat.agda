@@ -1,7 +1,8 @@
 {-# OPTIONS -v treeless.opt:20 #-}
 module _ where
 
-open import Common.Prelude renaming (_<N_ to _<?_)
+open import Agda.Builtin.Nat renaming (_<_ to _<?_)
+open import Common.Prelude
 open import Common.Equality
 
 data _<_ (a b : Nat) : Set where

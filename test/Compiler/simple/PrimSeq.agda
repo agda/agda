@@ -1,6 +1,7 @@
 
 module _ where
 
+open import Agda.Builtin.Nat using (mod-helper)
 open import Common.Prelude
 open import Common.Equality
 
