@@ -963,12 +963,14 @@ instance PrettyTCM TypeError where
               LeftAssoc  -> "infixl"
               RightAssoc -> "infixr"
 
+    OperatorChangeMessage err@(OperatorInformation [] _) ->
+      prettyTCM err
     OperatorChangeMessage err ->
       prettyTCM err
         $+$
       fsep (pwords $
-        "(the treatment of operators has changed, so code that used " ++
-        "to parse may have to be changed)")
+        "(the treatment of operators was changed in Agda 2.5.1, " ++
+        "so code that used to parse may have to be changed)")
 
 {- UNUSED
     AmbiguousParseForPatternSynonym p ps -> fsep (
