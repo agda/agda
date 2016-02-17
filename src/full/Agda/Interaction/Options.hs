@@ -787,7 +787,7 @@ usage options progName = usageInfo (header progName) options
 -- Remove +RTS .. -RTS from arguments
 stripRTS :: [String] -> [String]
 stripRTS [] = []
-stripRTS ("--RTS" : argv) = stripRTS argv
+stripRTS ("--RTS" : argv) = argv
 stripRTS (arg : argv)
   | is "+RTS" arg = stripRTS $ drop 1 $ dropWhile (not . is "-RTS") argv
   | otherwise     = arg : stripRTS argv
