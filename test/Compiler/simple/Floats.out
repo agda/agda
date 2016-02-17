@@ -6,8 +6,6 @@ out > NaN   = NaN
 out > Inf   = Infinity
 out > -Inf  = -Infinity
 out > -0.0  = 0.0
-out > √2    = 1.414213562373095
-out > e     = 2.718281828459045
 out > NaN == NaN = true
 out > Inf == Inf = true
 out > NaN < -Inf = false

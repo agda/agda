@@ -1,7 +1,7 @@
 
 module _ where
 
-open import Common.Prelude
+open import Common.Prelude renaming (_∸_ to _-_) -- work-around for #1855
 
 data Acc {a} {A : Set a} (_<_ : A → A → Set) (x : A) : Set a where
   acc : (∀ y → y < x → Acc _<_ y) → Acc _<_ x
@@ -46,7 +46,7 @@ wk< : ∀ {n m} → n < m → n < suc m
 wk< zero = zero
 wk< (suc lt) = suc (wk< lt)
 
-less-minus : ∀ n m → (suc n ∸ suc m) ≤ n
+less-minus : ∀ n m → (suc n - suc m) ≤ n
 less-minus n zero    = ≤-refl n
 less-minus zero (suc m) = zero
 less-minus (suc n) (suc m) = wk< (less-minus n m)
@@ -58,7 +58,7 @@ NonZero (suc _) = ⊤
 divsuc : ∀ n → Nat → Acc _<_ n → Nat
 divsuc 0 _ _ = 0
 divsuc (suc n) m (acc f) =
-  suc (divsuc (n ∸ m) m (f _ (less-minus n m)))
+  suc (divsuc (n - m) m (f _ (less-minus n m)))
 
 div : Nat → (m : Nat) → {_ : NonZero m} → Nat
 div n zero {}

@@ -37,8 +37,9 @@ main =
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
   putStr "-0.0  = " ,, print -0.0  ,,
-  putStr "√2    = " ,, print (primFloatTimes 2.0 (primSin (primFloatDiv pi 4.0))) ,,
-  putStr "e     = " ,, print (primExp 1.0) ,,
+  -- Disabled due to #1856 and #1857
+  -- putStr "√2    = " ,, print (primFloatTimes 2.0 (primSin (primFloatDiv pi 4.0))) ,,
+  -- putStr "e     = " ,, print (primExp 1.0) ,,
   putStr "NaN == NaN = " ,, printB (NaN == NaN) ,,
   putStr "Inf == Inf = " ,, printB (Inf == Inf) ,,
   putStr "NaN < -Inf = " ,, printB (NaN < -Inf) ,,

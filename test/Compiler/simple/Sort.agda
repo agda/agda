@@ -1,10 +1,10 @@
 
 module _ where
 
-open import Common.Prelude
+open import Common.Prelude renaming (_∸_ to _-_) -- work-around for #1855
 
 _<_ : Nat → Nat → Bool
-a < b with b ∸ a
+a < b with b - a
 ... | zero  = false
 ... | suc _ = true
 
