@@ -47,6 +47,7 @@ primFunctions = M.fromList $
         , "primNatModSuc"
         , "primNatModSucAux"
         , "primNatToInteger"
+        , "primNatEquality"
         , "primNatLess"
         , "primIntegerToNat"
         -- String
@@ -73,6 +74,19 @@ primFunctions = M.fromList $
         -- Float
         , "primShowFloat"
         , "primFloatEquality"
+        , "primFloatLess"
+        , "primNatToFloat"
+        , "primFloatPlus"
+        , "primFloatMinus"
+        , "primFloatTimes"
+        , "primFloatDiv"
+        , "primFloatSqrt"
+        , "primRound"
+        , "primFloor"
+        , "primCeiling"
+        , "primExp"
+        , "primLog"
+        , "primSin"
         -- Reflection
         , "primQNameEquality"
         , "primQNameLess"

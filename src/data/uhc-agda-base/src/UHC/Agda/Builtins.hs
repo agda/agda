@@ -24,6 +24,7 @@ module UHC.Agda.Builtins
   , primNatDivSucAux
   , primNatModSuc
   , primNatModSucAux
+  , primNatEquality
   , primNatLess
     -- IO
   , primReturn
@@ -60,6 +61,19 @@ module UHC.Agda.Builtins
   , primShowFloat
   , primMkFloat
   , primFloatEquality
+  , primFloatLess
+  , primNatToFloat
+  , primFloatPlus
+  , primFloatMinus
+  , primFloatTimes
+  , primFloatDiv
+  , primFloatSqrt
+  , primRound
+  , primFloor
+  , primCeiling
+  , primExp
+  , primLog
+  , primSin
     -- Reflection
   , QName (..)
   , primMkQName
@@ -178,6 +192,9 @@ primNatModSucAux :: Nat -> Nat -> Nat -> Nat -> Nat
 primNatModSucAux (Nat k) (Nat m) (Nat n) (Nat j) =
   Nat $ if n > j then mod (n - j - 1) (m + 1) else k + n
 
+primNatEquality :: Nat -> Nat -> Bool
+primNatEquality x y = unNat x == unNat y
+
 primNatLess :: Nat -> Nat -> Bool
 primNatLess x y = unNat x < unNat y
 
@@ -286,11 +303,18 @@ primToLower     = C.toLower
 -- ====================
 -- Float
 -- ====================
+
 primShowFloat :: Double -> String
--- GHC drops trailing zeroes, UHC doesn't seem to do so. Quick fix for now...
 primShowFloat x
   | isNegativeZero x = "0.0"
-  | otherwise        = reverse . dropWhile (=='0') . reverse $ show x
+  | isNaN x          = "NaN"
+  | isInfinite x     = if x < 0 then "-Infinity" else "Infinity"
+  | otherwise        = reverse . dropZeroes . reverse $ show x
+  where
+    -- GHC drops trailing zeroes, UHC doesn't seem to do so. Quick fix for now...
+    dropZeroes s@(_ : '.' : _) = s  -- don't drop the last one though
+    dropZeroes ('0' : s)       = dropZeroes s
+    dropZeroes s               = s
 
 primMkFloat :: String -> Double
 primMkFloat = read
@@ -299,6 +323,51 @@ primFloatEquality :: Double -> Double -> Bool
 primFloatEquality x y
   | isNaN x && isNaN y = True
   | otherwise          = x == y
+
+primFloatLess :: Double -> Double -> Bool
+primFloatLess x y
+  | isNegInf y = False
+  | isNegInf x = True
+  | isNaN x    = True
+  | otherwise  = x < y
+  where
+    isNegInf z = z < 0 && isInfinite z
+
+primNatToFloat :: Nat -> Double
+primNatToFloat n = fromIntegral (unNat n)
+
+primFloatPlus :: Double -> Double -> Double
+primFloatPlus = (+)
+
+primFloatMinus :: Double -> Double -> Double
+primFloatMinus = (-)
+
+primFloatTimes :: Double -> Double -> Double
+primFloatTimes = (*)
+
+primFloatDiv :: Double -> Double -> Double
+primFloatDiv = (/)
+
+primFloatSqrt :: Double -> Double
+primFloatSqrt = sqrt
+
+primRound :: Double -> Integer
+primRound = round
+
+primFloor :: Double -> Integer
+primFloor = floor
+
+primCeiling :: Double -> Integer
+primCeiling = ceiling
+
+primExp :: Double -> Double
+primExp = exp
+
+primLog :: Double -> Double
+primLog = log
+
+primSin :: Double -> Double
+primSin = sin
 
 -- ====================
 -- Reflection
