@@ -20,11 +20,9 @@ infix 4 _≤_ _<_ _≥_ _>_ _≰_ _≮_ _≱_ _≯_
 -- The types
 
 open import Agda.Builtin.Nat public
-  using    ( zero; suc )
+  using    ( zero; suc; _+_; _*_ )
   renaming ( Nat to ℕ
-           ; _+N_ to _+_
-           ; _-N_ to _∸_
-           ; _*N_ to _*_ )
+           ; _-_ to _∸_ )
 
 data _≤_ : Rel ℕ Level.zero where
   z≤n : ∀ {n}                 → zero  ≤ n
