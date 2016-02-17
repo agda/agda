@@ -5,7 +5,7 @@ Don't know how to parse M * a * a * a *. Could mean any one of:
 Operators used in the grammar:
   *_* (closed operator)          [*_* (Issue1245AmbiguousParse.agda:5,3-6)]
   *   (infix operator, level 20) [_*_ (Issue1245AmbiguousParse.agda:6,3-6)]
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking the declaration
   module N (a : A) = M * a * a * a *

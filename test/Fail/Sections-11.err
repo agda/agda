@@ -2,7 +2,5 @@ Sections-11.agda:4,1-8
 Could not parse the left-hand side _test n
 Operators used in the grammar:
   None
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
 when scope checking the left-hand side _test n in the definition of
 _test_

@@ -8,6 +8,6 @@ Operators used in the grammar:
   ↑ (infixl operator, level 20)      [_↑_ (Issue1436-1.agda:10,9-12)]
   ↓ (infix operator, level -1000000) [_↓_ (Issue1436-1.agda:17,5-8)] 
   ↓ (infixl operator, level 1)       [_↓_ (Issue1436-1.agda:10,5-8)] 
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking ● ↑ ● ↓ ● ↑ ● ↓ ● ↑ ●

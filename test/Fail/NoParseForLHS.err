@@ -2,7 +2,7 @@ NoParseForLHS.agda:12,1-12
 Could not parse the left-hand side wrong (! x)
 Operators used in the grammar:
   ! (postfix operator, level 20) [_! (NoParseForLHS.agda:4,3-5)]
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking the left-hand side wrong (! x) in the
 definition of wrong

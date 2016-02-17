@@ -3,6 +3,6 @@ Could not parse the application x ○ x ● x
 Operators used in the grammar:
   ● (infix operator, level 20) [_●_ (Issue1109-1.agda:5,3-6)]
   ○ (infix notation, level 20) [f (Issue1109-1.agda:4,3-4)]  
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking x ○ x ● x

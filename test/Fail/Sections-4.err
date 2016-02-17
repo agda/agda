@@ -2,6 +2,4 @@ Sections-4.agda:7,10-14
 Could not parse the application _! X
 Operators used in the grammar:
   None
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
 when scope checking _! X

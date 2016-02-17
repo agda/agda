@@ -6,6 +6,6 @@ Operators used in the grammar:
   ↑ (postfix operator, level 2) [_↑ (Issue1436-12.agda:10,5-7)]
   ↓ (infix notation, level 1)   [c (Issue1436-12.agda:11,5-6)] 
   ↓ (infix notation, level 1)   [c (Issue1436-12.agda:20,5-6)] 
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking ● ↑ ↓ ●

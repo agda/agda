@@ -2,7 +2,7 @@ Sections-8.agda:5,1-17
 Could not parse the left-hand side Test ((⟨_⟩ X) _)
 Operators used in the grammar:
   ⟨_⟩ (prefix operator, level 20) [⟨_⟩_ (Sections-8.agda:2,3-7)]
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking the left-hand side Test ((⟨_⟩ X) _) in the
 definition of Test

@@ -12,6 +12,6 @@ Operators used in the grammar:
   + (infixl operator, level 0) [_+_ (Issue1436-24.agda:9,5-8)] 
   + (infixl operator, level 1) [_+_ (Issue1436-24.agda:17,5-8)]
   + (infix operator, level 20) [_+_ (Issue1436-24.agda:23,5-8)]
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking • + • + •

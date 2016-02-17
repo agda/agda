@@ -2,6 +2,4 @@ NotInScope.agda:9,7-26
 Could not parse the application if x thenn x else x
 Operators used in the grammar:
   None
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
 when scope checking if x thenn x else x

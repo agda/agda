@@ -2,7 +2,7 @@ Sections-12.agda:4,1-14
 Could not parse the left-hand side m test_test n
 Operators used in the grammar:
   test_test (infix operator, level 20) [_test_test_ (Sections-12.agda:3,1-12)]
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking the left-hand side m test_test n in the
 definition of _test_test_

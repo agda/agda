@@ -6,6 +6,6 @@ Operators used in the grammar:
   !  (prefix operator, level 1) [!_ (Issue1436-10.agda:4,3-5)]
   _, (prefix notation, level 2) [F (Issue1436-10.agda:2,3-4)] 
   ,  (infix notation, level 20) [H (Issue1436-10.agda:3,3-4)] 
-(the treatment of operators has changed, so code that used to parse
-may have to be changed)
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
 when scope checking ! X , X
