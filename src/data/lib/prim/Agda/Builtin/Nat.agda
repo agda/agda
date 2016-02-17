@@ -9,41 +9,42 @@ data Nat : Set where
 
 {-# BUILTIN NATURAL Nat #-}
 
-infix  4 _==N_
-infixl 6 _+N_ _-N_
-infixl 7 _*N_
+infix  4 _==_ _<_
+infixl 6 _+_ _-_
+infixl 7 _*_
 
-_+N_ : Nat → Nat → Nat
-zero  +N m = m
-suc n +N m = suc (n +N m)
+_+_ : Nat → Nat → Nat
+zero  + m = m
+suc n + m = suc (n + m)
 
-_-N_ : Nat → Nat → Nat
-n     -N zero = n
-zero  -N suc m = zero
-suc n -N suc m = n -N m
+{-# BUILTIN NATPLUS _+_ #-}
 
-{-# BUILTIN NATPLUS _+N_ #-}
-{-# BUILTIN NATMINUS _-N_ #-}
+_-_ : Nat → Nat → Nat
+n     - zero = n
+zero  - suc m = zero
+suc n - suc m = n - m
 
-_*N_ : Nat → Nat → Nat
-zero  *N m = zero
-suc n *N m = m +N n *N m
+{-# BUILTIN NATMINUS _-_ #-}
 
-{-# BUILTIN NATTIMES _*N_ #-}
+_*_ : Nat → Nat → Nat
+zero  * m = zero
+suc n * m = m + n * m
 
-_==N_ : Nat → Nat → Bool
-zero  ==N zero  = true
-suc n ==N suc m = n ==N m
-_     ==N _     = false
+{-# BUILTIN NATTIMES _*_ #-}
 
-{-# BUILTIN NATEQUALS _==N_ #-}
+_==_ : Nat → Nat → Bool
+zero  == zero  = true
+suc n == suc m = n == m
+_     == _     = false
 
-_<N_ : Nat → Nat → Bool
-_     <N zero  = false
-zero  <N suc _ = true
-suc n <N suc m = n <N m
+{-# BUILTIN NATEQUALS _==_ #-}
 
-{-# BUILTIN NATLESS _<N_ #-}
+_<_ : Nat → Nat → Bool
+_     < zero  = false
+zero  < suc _ = true
+suc n < suc m = n < m
+
+{-# BUILTIN NATLESS _<_ #-}
 
 div-helper : Nat → Nat → Nat → Nat → Nat
 div-helper k m  zero    j      = k
