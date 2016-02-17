@@ -11,7 +11,7 @@ import System.Exit
 
 main = defaultMainWithHooks hooks
 
-hooks = simpleUserHooks { regHook = checkAgdaPrimitive }
+hooks = simpleUserHooks { regHook = checkAgdaPrimitiveAndRegister }
 
 builtins :: [String]
 builtins =
@@ -20,9 +20,9 @@ builtins =
   , "Nat", "Reflection", "Size", "Strict", "String"
   , "TrustMe", "Unit" ]
 
-checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> UserHooks -> RegisterFlags -> IO ()
-checkAgdaPrimitive pkg info hooks flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
-checkAgdaPrimitive pkg info hooks flags = do
+checkAgdaPrimitive :: PackageDescription -> LocalBuildInfo -> RegisterFlags -> IO ()
+checkAgdaPrimitive pkg info flags | regGenPkgConf flags /= NoFlag = return ()   -- Gets run twice, only do this the second time
+checkAgdaPrimitive pkg info flags = do
   let dirs = absoluteInstallDirs pkg info NoCopyDest
       agda = buildDir info </> "agda" </> "agda" <.> exeExtension
       primMod ms = (ms, datadir dirs </> "lib" </> "prim" </> "Agda" </> foldr1 (</>) ms <.> "agda")
@@ -36,3 +36,9 @@ checkAgdaPrimitive pkg info hooks flags = do
 
   putStrLn "Generating Agda library interface files..."
   mapM_ checkPrim prims
+
+checkAgdaPrimitiveAndRegister :: PackageDescription -> LocalBuildInfo -> UserHooks -> RegisterFlags -> IO ()
+checkAgdaPrimitiveAndRegister pkg info hooks flags = do
+  checkAgdaPrimitive pkg info flags
+  regHook simpleUserHooks pkg info hooks flags  -- This actually does something useful
+
