@@ -17,13 +17,29 @@ bind that type to the natural number concept using a ``BUILTIN`` pragma.
 
 Some built-in types support primitive functions that have no corresponding Agda
 definition. These functions are declared using the ``primitive`` keyword by
-giving their type signature. The primitive functions associated with each
-built-in type are given below.
+giving their type signature.
+
+Using the built-in types
+------------------------
+
+While it is possible to define your own versions of the built-in types and bind
+them using ``BUILTIN`` pragmas, it is recommended to use the definitions in the
+``Agda.Builtin`` modules. These modules are installed when you install Agda and
+so are always available. For instance, built-in natural numbers are defined in
+``Agda.Builtin.Nat``. The `standard library <std-lib_>`_ and the agda-prelude_
+reexport the definitions from these modules.
+
+.. _agda-prelude: https://github.com/UlfNorell/agda-prelude
+.. _std-lib: https://github.com/agda/agda-stdlib
 
 .. _built-in-unit:
 
 The unit type
 -------------
+
+::
+
+  module Agda.Builtin.Unit
 
 The unit type is bound to the built-in ``UNIT`` as follows::
 
@@ -38,6 +54,10 @@ in the unit type.
 
 Natural numbers
 ---------------
+
+::
+
+  module Agda.Builtin.Nat
 
 Built-in natural numbers are bound using the ``NATURAL`` built-in as follows::
 
@@ -99,17 +119,17 @@ built-in functions are the following::
   suc n < suc m = n < m
   {-# BUILTIN NATLESS _<_ #-}
 
-  divAux : Nat → Nat → Nat → Nat → Nat
-  divAux k m  zero    j      = k
-  divAux k m (suc n)  zero   = divAux (suc k) m n m
-  divAux k m (suc n) (suc j) = divAux k m n j
-  {-# BUILTIN NATDIVSUCAUX divAux #-}
+  div-helper : Nat → Nat → Nat → Nat → Nat
+  div-helper k m  zero    j      = k
+  div-helper k m (suc n)  zero   = div-helper (suc k) m n m
+  div-helper k m (suc n) (suc j) = div-helper k m n j
+  {-# BUILTIN NATDIVSUCAUX div-helper #-}
 
-  modAux : Nat → Nat → Nat → Nat → Nat
-  modAux k m  zero    j      = k
-  modAux k m (suc n)  zero   = modAux 0 m n m
-  modAux k m (suc n) (suc j) = modAux (suc k) m n j
-  {-# BUILTIN NATMODSUCAUX modAux #-}
+  mod-helper : Nat → Nat → Nat → Nat → Nat
+  mod-helper k m  zero    j      = k
+  mod-helper k m (suc n)  zero   = mod-helper 0 m n m
+  mod-helper k m (suc n) (suc j) = mod-helper (suc k) m n j
+  {-# BUILTIN NATMODSUCAUX mod-helper #-}
 
 The Agda definitions are checked to make sure that they really define the
 corresponding built-in function. The definitions are not required to be exactly
@@ -123,11 +143,15 @@ properties
 
 ::
 
-  div n (suc m) ≡ divAux 0 m n m
-  mod n (suc m) ≡ modAux 0 m n m
+  div n (suc m) ≡ div-helper 0 m n m
+  mod n (suc m) ≡ mod-helper 0 m n m
 
 Integers
 --------
+
+::
+
+  module Agda.Builtin.Int
 
 Built-in integers are bound with the ``INTEGER`` built-in to a data type with
 two constructors: one for positive and one for negative numbers. The built-ins
@@ -157,6 +181,10 @@ binding for `String <Strings_>`_)::
 
 Floats
 ------
+
+::
+
+  module Agda.Builtin.Float
 
 Floating point numbers are bound with the ``FLOAT`` built-in::
 
@@ -198,6 +226,10 @@ point numbers.
 Booleans
 --------
 
+::
+
+  module Agda.Builtin.Bool
+
 Built-in booleans are bound using the ``BOOLEAN``, ``TRUE`` and ``FALSE`` built-ins::
 
   data Bool : Set where
@@ -216,6 +248,10 @@ functions returning booleans, such as built-in ``NATEQUALS``.
 
 Lists
 -----
+
+::
+
+  module Agda.Builtin.List
 
 Built-in lists are bound using the ``LIST``, ``NIL`` and ``CONS`` built-ins::
 
@@ -237,6 +273,10 @@ and ``primStringFromList``.
 
 Characters
 ----------
+
+::
+
+  module Agda.Builtin.Char
 
 The character type is bound with the ``CHARACTER`` built-in::
 
@@ -275,6 +315,10 @@ natural number modulo ``0x110000``.
 Strings
 -------
 
+::
+
+  module Agda.Builtin.String
+
 The string type is bound with the ``STRING`` built-in::
 
   postulate String : Set
@@ -298,6 +342,10 @@ String literals can be :ref:`overloaded <overloaded-strings>`.
 Equality
 --------
 
+::
+
+  module Agda.Builtin.Equality
+
 The identity type can be bound to the built-in ``EQUALITY`` as follows::
 
   data _≡_ {a} {A : Set a} (x : A) : A → Set a where
@@ -310,6 +358,10 @@ construction <with-rewrite>`.
 
 primTrustMe
 ~~~~~~~~~~~
+
+::
+
+  module Agda.Builtin.TrustMe
 
 Binding the built-in equality type also enables the ``primTrustMe`` primitive::
 
@@ -338,9 +390,14 @@ replace them by ``primTrustMe``::
 Universe levels
 ---------------
 
- :ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
- pragmas. This is done in the auto-imported ``Agda.Primitive`` module, however,
- so it need never be done by a library. For reference these are the bindings::
+::
+
+  module Agda.Primitive
+
+:ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
+pragmas. In contrast to the ``Agda.Builtin`` modules, the ``Agda.Primitive`` module
+is auto-imported and thus it is not possible to change the level built-ins. For
+reference these are the bindings::
 
   postulate
     Level : Set
@@ -355,6 +412,10 @@ Universe levels
 Sized types
 -----------
 
+::
+
+  module Agda.Builtin.Size
+
 The built-ins for :ref:`sized types <sized-types>` are different from other
 built-ins in that the names are defined by the ``BUILTIN`` pragma. Hence, to
 bind the size primitives it is enough to write::
@@ -368,6 +429,10 @@ bind the size primitives it is enough to write::
 
 Coinduction
 -----------
+
+::
+
+  module Agda.Builtin.Coinduction
 
 The following built-ins are used for coinductive definitions::
 
@@ -384,6 +449,10 @@ See :ref:`coinduction` for more information.
 IO
 --
 
+::
+
+  module Agda.Builtin.IO
+
 The sole purpose of binding the built-in ``IO`` type is to let Agda check that
 the ``main`` function has the right type (see :ref:`compilers`).
 
@@ -392,8 +461,24 @@ the ``main`` function has the right type (see :ref:`compilers`).
   postulate IO : Set → Set
   {-# BUILTIN IO IO #-}
 
+Literal overloading
+-------------------
+
+::
+
+  module Agda.Builtin.FromNat
+  module Agda.Builtin.FromNeg
+  module Agda.Builtin.FromString
+
+The machinery for :ref:`overloading literals <literal-overloading>` uses
+built-ins for the conversion functions.
+
 Reflection
 ----------
+
+::
+
+  module Agda.Builtin.Reflection
 
 The reflection machinery has built-in types for representing Agda programs. See
 :doc:`reflection` for a detailed description.
@@ -408,8 +493,15 @@ to be confused with the :ref:`rewrite construct <with-rewrite>`) has a built-in
   postulate _↦_ : ∀ {a} {A : Set a} → A → A → Set a
   {-# BUILTIN REWRITE _↦_ #-}
 
+There is no ``Agda.Builtin`` module for the rewrite relation since different
+rewriting experiments typically want different relations.
+
 Strictness
 ----------
+
+::
+
+  module Agda.Builtin.Strict
 
 There are two primitives for controlling evaluation order::
 

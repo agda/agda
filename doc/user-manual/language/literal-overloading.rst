@@ -43,7 +43,7 @@ the ``Number`` class with an additional constraint::
 
   {-# BUILTIN FROMNAT fromNat #-}
 
-This is the definition used in the agda-prelude_ library. A ``Number`` instance
+This is the definition used in ``Agda.Builtin.FromNat``. A ``Number`` instance
 for ``Fin n`` can then be defined as follows::
 
   natToFin : ∀ {n} (m : Nat) {{_ : IsTrue (m <? n)}} → Fin n
@@ -63,7 +63,7 @@ Negative numbers
 Negative integer literals have no default mapping and can only be used through
 the ``FROMNEG`` built-in. Binding this to a function ``fromNeg`` causes
 negative integer literals ``-n`` to be desugared to ``fromNeg n``, where ``n``
-is a :ref:`built-in natural number <built-in-nat>`. From the agda-prelude_::
+is a :ref:`built-in natural number <built-in-nat>`. From ``Agda.Builtin.FromNeg``::
 
   record Negative {a} (A : Set a) : Set (lsuc a) where
     field
@@ -80,7 +80,8 @@ Strings
 
 :ref:`String literals <lexical-structure-string-literals>` are overloaded with
 the ``FROMSTRING`` built-in, which works just like ``FROMNAT``. If it is not
-bound string literals map to :ref:`built-in strings <built-in-string>`. From the agda-prelude_::
+bound string literals map to :ref:`built-in strings <built-in-string>`. From
+``Agda.Builtin.FromString``::
 
   record IsString {a} (A : Set a) : Set (lsuc a) where
     field
