@@ -85,7 +85,7 @@ install:
 ##############################################################################
 # Installing latest versions of cabal-install, Alex and Happy
 
-  - if [ $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
+  - if [ $TEST = "non-require-stdlib" ] || [ $TEST = "require-stdlib" ]; then
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
@@ -185,7 +185,7 @@ script:
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
-  - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
+  - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ] && [ $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install --constraint=transformers==0.3.0.0 &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
@@ -206,7 +206,7 @@ script:
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
-  - if [ $TEST = "cpp" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
+  - if [ $TEST = "cpp" ] && [ $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
@@ -225,7 +225,7 @@ script:
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
-  - if [ $TEST = "haddock" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
+  - if [ $TEST = "haddock" ] && [ $GHC_VERSION_TRAVIS = 7.8.4 ]; then
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
