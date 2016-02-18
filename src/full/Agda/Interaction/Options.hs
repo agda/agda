@@ -562,12 +562,12 @@ standardOptions =
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
     , Option ['c']  ["compile", "ghc"] (NoArg compileGhcFlag)
-                    "compile program using the MAlonzo backend (experimental)"
+                    "compile program using the GHC backend (experimental)"
     , Option []     ["ghc-dont-call-ghc"] (NoArg ghcDontCallGhcFlag) "Don't call ghc, just write the GHC Haskell files."
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
-                    "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
+                    "give the flag GHC-FLAG to GHC when compiling using the GHC backend"
     , Option []     ["no-main"] (NoArg compileFlagNoMain)
-                    "when compiling using the MAlonzo or UHC backend (experimental), do not treat the requested module as the main module of a program"
+                    "when compiling using the GHC backend or the UHC backend (experimental), do not treat the requested module as the main module of a program"
 
     -- The Epic backend has been removed. See Issue 1481.
     , Option []     ["epic"] (NoArg compileEpicFlag)
