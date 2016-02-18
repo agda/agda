@@ -924,46 +924,47 @@ buffer, and point placed after this text.
 If APPEND is nil, then any previous text is removed before TEXT
 is inserted, and point is placed before this text."
   (interactive)
-  (with-current-buffer (agda2-info-buffer)
-    ;; In some cases the jump-to-position-mentioned-in-text
-    ;; functionality (see compilation-error-regexp-alist above) didn't
-    ;; work: Emacs jumped to the wrong position. However, it seems to
-    ;; work if compilation-forget-errors is used. This problem may be
-    ;; related to Emacs bug #9679
-    ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
-    ;; to use compilation-forget-errors comes from a comment due to
-    ;; Oleksandr Manzyuk
-    ;; (https://github.com/haskell/haskell-mode/issues/67).
-    (compilation-forget-errors)
-    (unless append (erase-buffer))
-    (save-excursion
-      (goto-char (point-max))
-      (insert text))
-    (put-text-property 0 (length name) 'face '(:weight bold) name)
-    (setq mode-line-buffer-identification name)
-    (save-selected-window
-      (let (;; If there is only one window, then the info window
-            ;; should be created above or below the code window, not
-            ;; to the left or right.
-            (split-width-threshold nil)
-            (buf (current-buffer))
-           )
-        ;; Andreas, 2014-02-23, issue 1061
-        ;; If the buffer is already displayed in some window,
-        ;; do not display it again.  Also, do not raise its frame.
-        ;; This allows undisturbed working on something else while
-        ;; Agda is type-checking.
-        ;; The solution is to query for the window displaying the buffer
-        ;; via get-buffer-window.  Only if it return nil, we pop-to-buffer.
-        ;; Credits go to Iqbal Ansari who anwered my question on
-        ;; http://stackoverflow.com/questions/21955162/emacs-how-to-display-a-buffer-without-switching-window-and-without-raising-fram
-        ;; 2014-03-01 DISABLED FIX
-        ;; (unless (get-buffer-window buf t)
-          (pop-to-buffer buf nil 'norecord)
-          (fit-window-to-buffer nil
+  (let ((buf (agda2-info-buffer)))
+    (with-current-buffer buf
+      ;; In some cases the jump-to-position-mentioned-in-text
+      ;; functionality (see compilation-error-regexp-alist above)
+      ;; didn't work: Emacs jumped to the wrong position. However, it
+      ;; seems to work if compilation-forget-errors is used. This
+      ;; problem may be related to Emacs bug #9679
+      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
+      ;; to use compilation-forget-errors comes from a comment due to
+      ;; Oleksandr Manzyuk
+      ;; (https://github.com/haskell/haskell-mode/issues/67).
+      (compilation-forget-errors)
+      (unless append (erase-buffer))
+      (save-excursion
+        (goto-char (point-max))
+        (insert text))
+      (put-text-property 0 (length name) 'face '(:weight bold) name)
+      (setq mode-line-buffer-identification name)
+      (force-mode-line-update))
+    (let* (;; If there is only one window, then the info window
+           ;; should be created above or below the code window, not to
+           ;; the left or right.
+           (split-width-threshold nil)
+           (window
+            (display-buffer
+             buf
+             ;; Under Emacs 23 the meaning of the following argument
+             ;; is only that the current window should not be used.
+             '(nil
+               .
+               (;; Do not use the same window.
+                (inhibit-same-window . t)
+                ;; Do not raise or select another frame.
+                (inhibit-switch-frame . t))))))
+      (if window
+          (fit-window-to-buffer window
             (truncate
-              (* (frame-height) agda2-information-window-max-height)))
-        ;; )
+             (* (frame-height) agda2-information-window-max-height)))))
+    ;; Move point in every window displaying the information buffer.
+    (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
+      (with-selected-window window
         (if append
             (goto-char (point-max))
           (goto-char (point-min)))))))
