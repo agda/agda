@@ -943,30 +943,34 @@ is inserted, and point is placed before this text."
       (put-text-property 0 (length name) 'face '(:weight bold) name)
       (setq mode-line-buffer-identification name)
       (force-mode-line-update))
-    (let* (;; If there is only one window, then the info window
-           ;; should be created above or below the code window, not to
-           ;; the left or right.
-           (split-width-threshold nil)
-           (window
-            (display-buffer
-             buf
-             ;; Under Emacs 23 the meaning of the following argument
-             ;; is only that the current window should not be used.
-             '(nil
-               .
-               (;; Do not use the same window.
-                (inhibit-same-window . t)
-                ;; Do not raise or select another frame.
-                (inhibit-switch-frame . t)
-                ;; If display-buffer-reuse-window is invoked, then an
-                ;; existing window displaying the buffer, in any frame
-                ;; on the current terminal, will be reused. Note that
-                ;; this frame might not be visible.
-                (reusable-frames . 0))))))
-      (if window
-          (fit-window-to-buffer window
-            (truncate
-             (* (frame-height) agda2-information-window-max-height)))))
+    ;; If the current window displays the information buffer, then the
+    ;; window configuration is left untouched.
+    (unless (equal (window-buffer) buf)
+      (let* (;; If there is only one window, then the info window
+             ;; should be created above or below the code window, not
+             ;; to the left or right.
+             (split-width-threshold nil)
+             (window
+               (display-buffer
+                buf
+                ;; Under Emacs 23 the effect of the following argument
+                ;; is only that the current window should not be used.
+                '(nil
+                  .
+                  (;; Do not use the same window.
+                   (inhibit-same-window . t)
+                   ;; Do not raise or select another frame.
+                   (inhibit-switch-frame . t)
+                   ;; If display-buffer-reuse-window is invoked, then
+                   ;; an existing window displaying the buffer, in any
+                   ;; frame on the current terminal, will be reused.
+                   ;; Note that this frame might not be visible.
+                   (reusable-frames . 0))))))
+        (if window
+            (fit-window-to-buffer window
+              (truncate
+                (* (frame-height)
+                   agda2-information-window-max-height))))))
     ;; Move point in every window displaying the information buffer.
     (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
       (with-selected-window window
