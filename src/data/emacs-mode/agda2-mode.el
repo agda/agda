@@ -957,7 +957,12 @@ is inserted, and point is placed before this text."
                (;; Do not use the same window.
                 (inhibit-same-window . t)
                 ;; Do not raise or select another frame.
-                (inhibit-switch-frame . t))))))
+                (inhibit-switch-frame . t)
+                ;; If display-buffer-reuse-window is invoked, then an
+                ;; existing window displaying the buffer, in any frame
+                ;; on the current terminal, will be reused. Note that
+                ;; this frame might not be visible.
+                (reusable-frames . 0))))))
       (if window
           (fit-window-to-buffer window
             (truncate
