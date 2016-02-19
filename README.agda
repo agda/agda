@@ -21,10 +21,8 @@ module README where
 -- backwards compatibility, the library is still at an experimental
 -- stage.
 
--- To make use of the library, add the path to the library’s root
--- directory (src) to the Agda search path, either using the
--- --include-path flag or by customising the Emacs mode variable
--- agda2-include-dirs (M-x customize-group RET agda2 RET).
+-- The library comes with a .agda-lib file, for use with the library
+-- management system.
 
 -- Currently the library does not support the Epic or JavaScript
 -- compiler backends.
