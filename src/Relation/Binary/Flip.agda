@@ -184,7 +184,6 @@ isStrictTotalOrder {≈ = ≈} {<} sto = record
   { isEquivalence = isEquivalence Sto.isEquivalence
   ; trans         = transitive < Sto.trans
   ; compare       = trichotomous ≈ < Sto.compare
-  ; <-resp-≈      = respects₂ < ≈ Sto.Eq.sym Sto.<-resp-≈
   }
   where module Sto = IsStrictTotalOrder sto
 

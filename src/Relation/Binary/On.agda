@@ -138,7 +138,6 @@ module _ {a b} {A : Set a} {B : Set b} (f : B → A) where
     { isEquivalence = isEquivalence Sto.isEquivalence
     ; trans         = transitive < Sto.trans
     ; compare       = trichotomous ≈ < Sto.compare
-    ; <-resp-≈      = respects₂ < ≈ Sto.<-resp-≈
     }
     where module Sto = IsStrictTotalOrder sto
 

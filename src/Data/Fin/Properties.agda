@@ -50,7 +50,6 @@ strictTotalOrder n = record
     { isEquivalence = P.isEquivalence
     ; trans         = N.<-trans
     ; compare       = cmp
-    ; <-resp-≈      = P.resp₂ _<_
     }
   }
   where

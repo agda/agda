@@ -94,6 +94,26 @@ tri⟶irr {_≈_ = _≈_} {_<_} compare = irr
   ... | tri> x≮y x≉y y<x = x≉y x≈y
   ... | tri≈ x≮y _   y≮x = x≮y x<y
 
+trans∧tri⟶resp≈ :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
+  Symmetric _≈_ → Transitive _≈_ →
+  Transitive _<_ → Trichotomous _≈_ _<_ →
+  _<_ Respects₂ _≈_
+trans∧tri⟶resp≈ {_≈_ = _≈_} {_<_} sym trans <-trans tri =
+  respʳ , respˡ
+  where
+  respʳ : ∀ {x y z} → y ≈ z → x < y → x < z
+  respʳ {x} {z = z} y≈z x<y with tri x z
+  ... | tri< x<z _ _ = x<z
+  ... | tri≈ _ x≈z _ = ⊥-elim (tri⟶irr tri (trans x≈z (sym y≈z)) x<y)
+  ... | tri> _ _ z<x = ⊥-elim (tri⟶irr tri (sym y≈z) (<-trans z<x x<y))
+
+  respˡ : ∀ {z x y} → x ≈ y → x < z → y < z
+  respˡ {z} {y = y} x≈y x<z with tri y z
+  ... | tri< y<z _ _ = y<z
+  ... | tri≈ _ y≈z _ = ⊥-elim (tri⟶irr tri (trans x≈y y≈z) x<z)
+  ... | tri> _ _ z<y = ⊥-elim (tri⟶irr tri x≈y (<-trans x<z z<y))
+
 tri⟶dec≈ :
   ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
   Trichotomous _≈_ _<_ → Decidable _≈_

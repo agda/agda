@@ -97,7 +97,6 @@ isTotalOrder⟶isStrictTotalOrder dec-≈ tot = record
   { isEquivalence = TO.isEquivalence
   ; trans         = trans TO.isPartialOrder
   ; compare       = trichotomous TO.Eq.sym dec-≈ TO.antisym TO.total
-  ; <-resp-≈      = <-resp-≈ TO.isEquivalence TO.≤-resp-≈
   } where module TO = IsTotalOrder tot
 
 isDecTotalOrder⟶isStrictTotalOrder :

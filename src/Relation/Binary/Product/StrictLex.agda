@@ -243,9 +243,6 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
                           {_≤₂_ = _<₂_} (trans spo₂) {x} {y} {z}
       ; compare       = ×-compare (Eq.sym spo₁) (compare spo₁)
                                                 (compare spo₂)
-      ; <-resp-≈      = ×-≈-respects₂ (isEquivalence spo₁)
-                                      (<-resp-≈ spo₁)
-                                      (<-resp-≈ spo₂)
       }
     where open IsStrictTotalOrder
 

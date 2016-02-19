@@ -6,6 +6,11 @@ future release. Don't remove this message please!
 
 * The tri⟶irr function has been made more general.
 
+* The field <-resp-≈ has been removed from the IsStrictTotalOrder
+  record. The property can be derived (see the new lemma
+  Relation.Binary.Consequences.trans∧tri⟶resp≈), and is available from
+  the IsStrictTotalOrder record module.
+
 * Various changes required by changes in Agda (see Agda CHANGELOG):
 
   ** Hiding some modules in import directives after fixing #836.

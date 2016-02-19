@@ -271,7 +271,6 @@ module _ {A : Set} where
     { isEquivalence = Pointwise.isEquivalence isEquivalence
     ; trans         = transitive isEquivalence <-resp-≈ trans
     ; compare       = <-compare Eq.sym compare
-    ; <-resp-≈      = respects₂ isEquivalence <-resp-≈
     } where open IsStrictTotalOrder sto
 
 -- "Packages" (e.g. preorders) can also be handled.

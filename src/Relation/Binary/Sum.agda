@@ -321,7 +321,6 @@ module _ {a₁ a₂} {A₁ : Set a₁} {A₂ : Set a₂} where
                       isEquivalence sto₂
     ; trans         = trans    sto₁ ⊎-transitive     trans    sto₂
     ; compare       = compare  sto₁ ⊎-<-trichotomous compare  sto₂
-    ; <-resp-≈      = <-resp-≈ sto₁ ⊎-≈-respects₂    <-resp-≈ sto₂
     }
     where open IsStrictTotalOrder
 

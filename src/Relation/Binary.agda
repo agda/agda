@@ -358,7 +358,6 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
     isEquivalence : IsEquivalence _≈_
     trans         : Transitive _<_
     compare       : Trichotomous _≈_ _<_
-    <-resp-≈      : _<_ Respects₂ _≈_
 
   infix 4 _≟_ _<?_
 
@@ -375,6 +374,9 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
     }
 
   module Eq = IsDecEquivalence isDecEquivalence
+
+  <-resp-≈ : _<_ Respects₂ _≈_
+  <-resp-≈ = trans∧tri⟶resp≈ Eq.sym Eq.trans trans compare
 
   isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
   isStrictPartialOrder = record
