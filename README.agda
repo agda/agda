@@ -26,12 +26,6 @@ module README where
 -- --include-path flag or by customising the Emacs mode variable
 -- agda2-include-dirs (M-x customize-group RET agda2 RET).
 
--- To compile the library using the MAlonzo compiler you first need to
--- install some supporting Haskell code, for instance as follows:
---
---   cd ffi
---   cabal install
---
 -- Currently the library does not support the Epic or JavaScript
 -- compiler backends.
 
