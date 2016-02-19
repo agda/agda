@@ -4,6 +4,8 @@ future release. Don't remove this message please!
 
 * Support for the UHC backend has been added.
 
+* The tri⟶irr function has been made more general.
+
 * Various changes required by changes in Agda (see Agda CHANGELOG):
 
   ** Hiding some modules in import directives after fixing #836.

@@ -85,9 +85,14 @@ tri⟶asym tri {x} {y} x<y x>y with tri x y
 
 tri⟶irr :
   ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →
-  _<_ Respects₂ _≈_ → Symmetric _≈_ →
   Trichotomous _≈_ _<_ → Irreflexive _≈_ _<_
-tri⟶irr resp sym tri = asym⟶irr resp sym (tri⟶asym tri)
+tri⟶irr {_≈_ = _≈_} {_<_} compare = irr
+  where
+  irr : ∀ {x y} → x ≈ y → ¬ (x < y)
+  irr {x} {y} x≈y x<y with compare x y
+  ... | tri< _   x≉y y≮x = x≉y x≈y
+  ... | tri> x≮y x≉y y<x = x≉y x≈y
+  ... | tri≈ x≮y _   y≮x = x≮y x<y
 
 tri⟶dec≈ :
   ∀ {a ℓ₁ ℓ₂} {A : Set a} {_≈_ : Rel A ℓ₁} {_<_ : Rel A ℓ₂} →

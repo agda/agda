@@ -238,7 +238,7 @@ module _ {A : Set} where
     { isPartialOrder =
         ≤-isPartialOrder (record
           { isEquivalence = isEquivalence
-          ; irrefl        = tri⟶irr <-resp-≈ Eq.sym compare
+          ; irrefl        = tri⟶irr compare
           ; trans         = trans
           ; <-resp-≈      = <-resp-≈
           })

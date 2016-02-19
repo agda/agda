@@ -379,7 +379,7 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
   isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
   isStrictPartialOrder = record
     { isEquivalence = isEquivalence
-    ; irrefl        = tri⟶irr <-resp-≈ Eq.sym compare
+    ; irrefl        = tri⟶irr compare
     ; trans         = trans
     ; <-resp-≈      = <-resp-≈
     }
