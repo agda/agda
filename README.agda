@@ -24,8 +24,8 @@ module README where
 -- The library comes with a .agda-lib file, for use with the library
 -- management system.
 
--- Currently the library does not support the Epic or JavaScript
--- compiler backends.
+-- Currently the library does not support the JavaScript compiler
+-- backend.
 
 -- Contributions to this library are welcome (but to avoid wasted work
 -- it is suggested that you discuss large changes before implementing
