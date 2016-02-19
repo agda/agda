@@ -972,11 +972,15 @@ is inserted, and point is placed before this text."
                 (* (frame-height)
                    agda2-information-window-max-height))))))
     ;; Move point in every window displaying the information buffer.
+    ;; Exception: If we are appending, don't move point in selected
+    ;; windows.
     (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
-      (with-selected-window window
-        (if append
-            (goto-char (point-max))
-          (goto-char (point-min)))))))
+      (unless (and append
+                   (equal window (selected-window)))
+        (with-selected-window window
+          (if append
+              (goto-char (point-max))
+            (goto-char (point-min))))))))
 
 (defun agda2-info-action-and-copy (name text &optional append)
   "Same as agda2-info-action but also puts TEXT in the kill ring."
