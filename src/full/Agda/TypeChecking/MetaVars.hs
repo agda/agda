@@ -219,25 +219,25 @@ newValueMeta :: RunMetaOccursCheck -> Type -> TCM Term
 newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx b (telePi_ tel t) vs
+  newValueMetaCtx b t tel vs
 
-newValueMetaCtx :: RunMetaOccursCheck -> Type -> Args -> TCM Term
-newValueMetaCtx b t ctx =
-  instantiateFull =<< newValueMetaCtx' b t ctx
+newValueMetaCtx :: RunMetaOccursCheck -> Type -> Telescope -> Args -> TCM Term
+newValueMetaCtx b t tel ctx =
+  instantiateFull =<< newValueMetaCtx' b t tel ctx
 
 -- | Create a new value meta without η-expanding.
 newValueMeta' :: RunMetaOccursCheck -> Type -> TCM Term
 newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx' b (telePi_ tel t) vs
+  newValueMetaCtx' b t tel vs
 
 -- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Args -> TCM Term
-newValueMetaCtx' b t vs = do
+newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Telescope -> Args -> TCM Term
+newValueMetaCtx' b a tel vs = do
   i <- createMetaInfo' b
-  TelV tel a <- telView t
-  let perm = idP (size tel)
+  let t    = telePi_ tel a
+      perm = idP (size tel)
   x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new meta:"
@@ -281,7 +281,7 @@ newArgsMetaCtx' condition (El s tm) tel ctx = do
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
                 if r == Irrelevant then return DontCare else
                 -}
-                 newValueMetaCtx RunMetaOccursCheck (telePi_ tel a) ctx
+                 newValueMetaCtx RunMetaOccursCheck a tel ctx
       args <- newArgsMetaCtx' condition (codom `absApp` u) tel ctx
       return $ Arg info u : args
     _  -> return []
