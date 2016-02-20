@@ -42,6 +42,7 @@ import Agda.Syntax.Common
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.GuardsToPrims
+import Agda.Compiler.Treeless.NormalizeNames
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.UHC.Pragmas.Base
 import Agda.Compiler.UHC.Pragmas.Parse (coreExprToCExpr)
@@ -121,7 +122,7 @@ translateDefn (n, defini) = do
         lift $ reportSDoc "uhc.fromagda" 15 $ text "type:" <+> (text . show) ty
 
         caseMaybeM (lift $ toTreeless n) (pure []) $ \ treeless -> do
-          let funBody = convertGuards treeless
+          funBody <- convertGuards <$> lift (normalizeNames treeless)
           lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
           funBody' <- runTT $ compileTerm funBody
           lift $ reportSDoc "uhc.fromagda" 30 $ text " compiled UHC Core fun:" <+> (text . show) funBody'
