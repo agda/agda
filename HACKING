@@ -130,6 +130,20 @@ Working with Git (from 2013-06-15)
          fgrep 'An internal error has occurred. Please report this as a bug.' \
          && exit 1 || exit 0"
 
+  Here is an example showing how one can turn on a flag, but only if
+  Agda recognises this flag:
+
+    ⋮
+    git bisect run sh -c \
+      "cabal install --force-reinstalls \
+                     --disable-library-profiling \
+                     --disable-documentation || exit 125; \
+       .cabal-sandbox/bin/agda \
+         \$(if [ -n \"\$(.cabal-sandbox/bin/agda --help | \
+                         fgrep -- --no-default-libraries)\" ]; \
+            then echo --no-default-libraries; fi) \
+         --ignore-interfaces Module.agda"
+
   And here is an example showing how one can modify the source code
   (in this case by removing constraints on the version of cpphs)
   before compilation starts:
