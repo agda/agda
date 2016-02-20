@@ -14,6 +14,8 @@
 {-# LANGUAGE CPP #-}
 module Agda.Compiler.Treeless.NormalizeNames ( normalizeNames ) where
 
+import Control.Applicative
+
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Treeless
 
