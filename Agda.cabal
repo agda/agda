@@ -213,6 +213,7 @@ library
                     Agda.Compiler.Treeless.Compare
                     Agda.Compiler.Treeless.Erase
                     Agda.Compiler.Treeless.GuardsToPrims
+                    Agda.Compiler.Treeless.NormalizeNames
                     Agda.Compiler.Treeless.Pretty
                     Agda.Compiler.Treeless.Simplify
                     Agda.Compiler.Treeless.Subst

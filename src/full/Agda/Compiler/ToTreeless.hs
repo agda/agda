@@ -52,6 +52,11 @@ prettyPure :: P.Pretty a => a -> TCM Doc
 prettyPure = return . P.pretty
 
 -- | Converts compiled clauses to treeless syntax.
+--
+-- Note: Do not use any of the concrete names in the returned
+-- term for identification purposes! If you wish to do so,
+-- first apply the Agda.Compiler.Treeless.NormalizeNames
+-- transformation.
 toTreeless :: QName -> TCM (Maybe C.TTerm)
 toTreeless q = ifM (alwaysInline q) (pure Nothing) $ Just <$> toTreeless' q
 
