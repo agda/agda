@@ -219,25 +219,24 @@ newValueMeta :: RunMetaOccursCheck -> Type -> TCM Term
 newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx b (telePi_ tel t) vs
+  newValueMetaCtx b t tel (idP $ size tel) vs
 
-newValueMetaCtx :: RunMetaOccursCheck -> Type -> Args -> TCM Term
-newValueMetaCtx b t ctx =
-  instantiateFull =<< newValueMetaCtx' b t ctx
+newValueMetaCtx :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM Term
+newValueMetaCtx b t tel perm ctx =
+  instantiateFull =<< newValueMetaCtx' b t tel perm ctx
 
 -- | Create a new value meta without η-expanding.
 newValueMeta' :: RunMetaOccursCheck -> Type -> TCM Term
 newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx' b (telePi_ tel t) vs
+  newValueMetaCtx' b t tel (idP $ size tel) vs
 
 -- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Args -> TCM Term
-newValueMetaCtx' b t vs = do
+newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM Term
+newValueMetaCtx' b a tel perm vs = do
   i <- createMetaInfo' b
-  TelV tel a <- telView t
-  let perm = idP (size tel)
+  let t     = telePi_ tel a
   x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new meta:"
@@ -265,13 +264,13 @@ newArgsMeta' :: Condition -> Type -> TCM Args
 newArgsMeta' condition t = do
   args <- getContextArgs
   tel  <- getContextTelescope
-  newArgsMetaCtx' condition t tel args
+  newArgsMetaCtx' condition t tel (idP $ size tel) args
 
-newArgsMetaCtx :: Type -> Telescope -> Args -> TCM Args
+newArgsMetaCtx :: Type -> Telescope -> Permutation -> Args -> TCM Args
 newArgsMetaCtx = newArgsMetaCtx' trueCondition
 
-newArgsMetaCtx' :: Condition -> Type -> Telescope -> Args -> TCM Args
-newArgsMetaCtx' condition (El s tm) tel ctx = do
+newArgsMetaCtx' :: Condition -> Type -> Telescope -> Permutation -> Args -> TCM Args
+newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case ignoreSharing tm of
     Pi dom@(Dom info a) codom | condition dom codom -> do
@@ -281,8 +280,8 @@ newArgsMetaCtx' condition (El s tm) tel ctx = do
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
                 if r == Irrelevant then return DontCare else
                 -}
-                 newValueMetaCtx RunMetaOccursCheck (telePi_ tel a) ctx
-      args <- newArgsMetaCtx' condition (codom `absApp` u) tel ctx
+                 newValueMetaCtx RunMetaOccursCheck a tel perm ctx
+      args <- newArgsMetaCtx' condition (codom `absApp` u) tel perm ctx
       return $ Arg info u : args
     _  -> return []
 
@@ -292,12 +291,12 @@ newRecordMeta :: QName -> Args -> TCM Term
 newRecordMeta r pars = do
   args <- getContextArgs
   tel  <- getContextTelescope
-  newRecordMetaCtx r pars tel args
+  newRecordMetaCtx r pars tel (idP $ size tel) args
 
-newRecordMetaCtx :: QName -> Args -> Telescope -> Args -> TCM Term
-newRecordMetaCtx r pars tel ctx = do
+newRecordMetaCtx :: QName -> Args -> Telescope -> Permutation -> Args -> TCM Term
+newRecordMetaCtx r pars tel perm ctx = do
   ftel   <- flip apply pars <$> getRecordFieldTypes r
-  fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel ctx
+  fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel perm ctx
   con    <- getRecordConstructor r
   return $ Con con fields
 
@@ -468,7 +467,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable kinds m) $ do
         ifM (isEtaRecord r) {- then -} (do
           let ps = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
           let expand = do
-                u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
+                u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel (idP $ size tel) $ teleArgs tel
                 inTopContext $ do
                   verboseS "tc.meta.eta" 15 $ do
                     du <- prettyTCM u

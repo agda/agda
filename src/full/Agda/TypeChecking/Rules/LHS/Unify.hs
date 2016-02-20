@@ -591,18 +591,22 @@ dataStrategy k s = do
     instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> TCM (Maybe Args)
     instMetaCon m es d pars c = case allApplyElims es of
       Just us -> do
+          reportSDoc "tc.lhs.unify" 60 $
+            text "Trying to instantiate the meta" <+> prettyTCM (MetaV m es) <+>
+            text "with the constructor" <+> prettyTCM c <+> text "applied to fresh metas"
           margs <- do
             -- The new metas should have the same dependencies as the original meta
             mv <- lookupMeta m
 
             ctype <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
-            TelV tel _ <- telView ctype
-            let b'  = telePi tel (sort Prop)
-
+            reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
             withMetaInfo' mv $ do
-              tel <- getContextTelescope
+              let perm = mvPermutation mv
+              tel <- permuteTel perm <$> getContextTelescope
+              reportSDoc "tc.lhs.unify" 100 $ text "Context tel (for new metas): " <+> prettyTCM tel
               -- important: create the meta in the same environment as the original meta
-              newArgsMetaCtx b' tel us
+              newArgsMetaCtx ctype tel (mvPermutation mv) us
+          reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
           noConstraints $ assignV DirEq m us (Con c margs)
           return $ Just margs
         `catchError` \_ -> return Nothing

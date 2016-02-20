@@ -130,6 +130,15 @@ teleNamedArgs tel =
   | (i, Dom info (name,_)) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
+-- | Permute telescope: permutes or drops the types in the telescope according
+--   to the given permutation. Assumes that the permutation preserves the
+--   dependencies in the telescope.
+permuteTel :: Permutation -> Telescope -> Telescope
+permuteTel perm tel =
+  let names = permute perm $ teleNames tel
+      types = permute perm $ renameP perm $ flattenTel tel
+  in  unflattenTel names types
+
 -- | Recursively computes dependencies of a set of variables in a given
 --   telescope. Any dependencies outside of the telescope are ignored.
 varDependencies :: Telescope -> IntSet -> IntSet
