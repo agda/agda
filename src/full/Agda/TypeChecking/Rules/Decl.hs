@@ -198,7 +198,8 @@ checkDecl d = setCurrentRange d $ do
 
       -- Post-typing checks.
       whenJust finalChecks $ \ theMutualChecks -> do
-        solveSizeConstraints
+        checkingWhere <- asks envCheckingWhere
+        solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
         wakeupConstraints_   -- solve emptiness constraints
         _ <- freezeMetas
         theMutualChecks
@@ -493,7 +494,7 @@ checkAxiom funSig i info0 x e = do
   when (Info.defInstance i == InstanceDef) $ do
     addTypedInstance x t
 
-  traceCall (IsType_ e) $ solveSizeConstraints  -- need Range for error message
+  traceCall (IsType_ e) $ solveSizeConstraints DefaultToInfty -- need Range for error message
 
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when_ (Info.defAbstract i == AbstractDef) $ freezeMetas

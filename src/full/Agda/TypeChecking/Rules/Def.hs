@@ -118,7 +118,7 @@ checkAlias t' ai delayed i name e = do
 
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
 
-  solveSizeConstraints
+  solveSizeConstraints DontDefaultToInfty
 
   v <- instantiateFull v  -- if we omit this, we loop (stdlib: Relation.Binary.Sum)
     -- or the termination checker might stumble over levels in sorts
@@ -198,7 +198,7 @@ checkFunDef' t ai delayed extlam with i name cs =
               -- 2014-04-24: The size solver requires each clause to be
               -- checked individually, since otherwise we get constraints
               -- in typing contexts which are not prefixes of each other.
-              whenNothing extlam solveSizeConstraints
+              whenNothing extlam $ solveSizeConstraints DontDefaultToInfty
               -- Andreas, 2013-10-27 add clause as soon it is type-checked
               -- TODO: instantiateFull?
               addClauses name [c]
@@ -518,7 +518,7 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
         -- Andreas, 2016-01-23, Issue #1796
         -- Run the size constraint solver to improve with-abstraction
         -- in case the with-expression contains size metas.
-        solveSizeConstraints
+        solveSizeConstraints DefaultToInfty
 
         checkWithRHS x aux t lhsResult vs0 (map OtherType as) cs
 
@@ -686,7 +686,7 @@ checkWhere
   -> TCM a           -- ^ Continuation.
   -> TCM a
 checkWhere trhs ds ret0 = do
-  -- Temporarily add trailing hidden arguments to check where-declarartions.
+  -- Temporarily add trailing hidden arguments to check where-declarations.
   TelV htel _ <- telViewUpTo' (-1) (not . visible) trhs
   let
     -- Remove htel after checking ds.
@@ -705,7 +705,9 @@ checkWhere trhs ds ret0 = do
             dtel' <- prettyTCM =<< lookupSection m
             reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
             reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
-          withCurrentModule m $ checkDecls ds >> ret
+          withCurrentModule m $ local (\ e -> e { envCheckingWhere = True }) $ do
+            checkDecls ds
+            ret
       _ -> __IMPOSSIBLE__
   -- Add htel to check ds.
   addCtxTel htel $ loop ds

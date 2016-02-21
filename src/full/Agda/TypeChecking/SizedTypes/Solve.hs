@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards         #-}
@@ -106,9 +107,15 @@ import Agda.Utils.Tuple
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- | Flag to control the behavior of size solver.
+data DefaultToInfty
+  = DefaultToInfty      -- ^ Instantiate all unconstrained size variables to ∞.
+  | DontDefaultToInfty  -- ^ Leave unconstrained size variables unsolved.
+  deriving (Eq, Ord, Show)
+
 -- | Solve size constraints involving hypotheses.
-solveSizeConstraints :: TCM ()
-solveSizeConstraints =  do
+solveSizeConstraints :: DefaultToInfty -> TCM ()
+solveSizeConstraints flag =  do
   -- Get the constraints.
   cs0 <- S.getSizeConstraints
   let -- Error for giving up
@@ -116,6 +123,9 @@ solveSizeConstraints =  do
         vcat (text "Cannot solve size constraints" : map prettyTCM
                    cs0)
   unless (null cs0) $ solveSizeConstraints_ cs0
+
+  -- Andreas, issue 1862: do not default to ∞ always, could be too early.
+  when (flag == DefaultToInfty) $ do
 
   -- Set the unconstrained size metas to ∞.
   ms <- S.getSizeMetas False -- do not get interaction metas
