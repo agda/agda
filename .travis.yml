@@ -83,29 +83,37 @@ install:
   - export JOBS=2
 
 ##############################################################################
-# Installing latest versions of cabal-install, Alex and Happy
+# Installing the dependencies and latest versions of cabal-install,
+# Alex and Happy
 
-  - if [ $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
-       cabal install cabal-install &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex &&
-       cabal install happy;
-    fi
-
-##############################################################################
-# Installing dependencies
+# N.B. that we run the tests `cpp` and `haddock` only with the higher
+# GHC version available.
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
-  - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
-        cabal install --enable-tests --only-dependencies --force-reinstalls
-        ;;
-    esac
+# TODO (2016-02-21): Split the long lines (`\` doesn't work).
+
+  - if [[ ( $TEST = "non-require-stdlib" ) || ( $TEST = "require-stdlib" ) || (( $TEST = "cpp" || $TEST = "haddock" ) && $GHC_VERSION_TRAVIS = 7.8.4 ) ]]; then
+       cabal install cabal-install &&
+       export PATH=$HOME/.cabal/bin:$PATH &&
+       cat $HOME/.cabal/config &&
+       cabal install alex &&
+       cabal install happy &&
+       cabal install --enable-tests --only-dependencies --force-reinstalls;
+    elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+         cabal install cabal-install --constraint=transformers==0.3.0.0 &&
+         export PATH=$HOME/.cabal/bin:$PATH &&
+         cat $HOME/.cabal/config &&
+         cabal install alex --constraint=transformers==0.3.0.0 &&
+         cabal install happy --constraint=transformers==0.3.0.0 &&
+         cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
+    else
+      echo "Error installing the dependencies, cabal-install, Alex and Happy" &&
+      exit 1;
+    fi
 
 ##############################################################################
 # Installing Agda
@@ -183,15 +191,7 @@ script:
 
 # N.B. that this test is not include in the Makefile tests.
 
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-  - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install cabal-install --constraint=transformers==0.3.0.0 &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex --constraint=transformers==0.3.0.0 &&
-       cabal install happy --constraint=transformers==0.3.0.0 &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0 &&
+  - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
        cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
     fi
@@ -199,20 +199,11 @@ script:
 ##############################################################################
 # Testing compilation with cpp instead of cpphs [Issue 1647]
 
-# N.B. We will run this test only with the higher GHC version
-# available in Travis.
+# N.B. that we run this test only with the higher GHC version available.
 
 # N.B. that this test is not include in the Makefile tests.
 
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-  - if [ $TEST = "cpp" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install cabal-install &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex &&
-       cabal install happy &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls &&
+  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
        cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
     fi
@@ -220,18 +211,9 @@ script:
 ##############################################################################
 # Testing Haddock [Issue 1773]
 
-# N.B. We will run this test only with the higher GHC version
-# available in Travis.
+# N.B. that we run this test only with the higher GHC version available.
 
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-  - if [ $TEST = "haddock" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install cabal-install &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex &&
-       cabal install happy &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls &&
+  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
        make BUILD_DIR=$BUILD_DIR doc;
     fi
 
