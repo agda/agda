@@ -96,15 +96,15 @@ installing Agda:
 
 The backend also requires UHC to be installed. UHC is not available on
 Hackage and needs to be installed manually. This version of Agda has been
-tested with UHC 1.1.9.2, using other UHC versions may cause problems.
+tested with UHC 1.1.9.3, using other UHC versions may cause problems.
 To install UHC, the following commands can be used:
 
 .. code-block:: bash
 
-  cabal install uhc-util-0.1.6.3 uulib-0.9.21
-  wget https://github.com/UU-ComputerScience/uhc/archive/v1.1.9.2.tar.gz
-  tar -xf v1.1.9.2.tar.gz
-  cd uhc-1.1.9.2/EHC
+  cabal install uhc-util-0.1.6.5 uulib-0.9.21
+  wget https://github.com/UU-ComputerScience/uhc/archive/v1.1.9.3.tar.gz
+  tar -xf v1.1.9.3.tar.gz
+  cd uhc-1.1.9.3/EHC
   ./configure
   make
   make install
