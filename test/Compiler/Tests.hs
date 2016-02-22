@@ -20,6 +20,9 @@ import System.FilePath
 import System.Exit
 import System.Process.Text as PT
 
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ((<$>))
+#endif
 #if __GLASGOW_HASKELL__ <= 706
 import Control.Monad ( void )
 #endif
