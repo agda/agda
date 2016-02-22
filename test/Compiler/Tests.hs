@@ -72,6 +72,8 @@ disabledTests =
 -- slow at the moment (1min or more per test case).
 -- Disable most of them using a hacky regex...
   [ RFInclude "Compiler/.*/with-stdlib/(DivMod|HelloWorld|ShowNat|TrustMe|Vec|dimensions)"
+-- See Issue 1866
+  , RFInclude "Compiler/UHC/with-stdlib/.*"
 -- See issue 1528
   , RFInclude "Compiler/.*/simple/Sharing"
 -- Disable UHC backend tests if the backend is also disabled.
@@ -115,7 +117,7 @@ stdlibTests comp = do
     opts <- readOptions inp
     return $
       agdaRunProgGoldenTest testDir comp
-        (return ["-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-i" ++ "std-lib" </> "doc"]) inp opts
+        (return ["-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib"]) inp opts
   return $ testGroup "with-stdlib" $ catMaybes tests'
 
 
