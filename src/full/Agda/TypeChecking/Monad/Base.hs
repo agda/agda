@@ -1443,6 +1443,11 @@ defCompiled Defn{theDef = Function {funCompiled  = mcc}} = mcc
 defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
 
+defParameters :: Definition -> Maybe Nat
+defParameters Defn{theDef = Datatype{dataPars = n}} = Just n
+defParameters Defn{theDef = Record  {recPars  = n}} = Just n
+defParameters _                                     = Nothing
+
 defJSDef :: Definition -> Maybe JSCode
 defJSDef = compiledJS . defCompiledRep
 

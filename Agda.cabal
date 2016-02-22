@@ -372,6 +372,7 @@ library
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
+                    Agda.TypeChecking.ReconstructParameters
                     Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
                     Agda.TypeChecking.Reduce

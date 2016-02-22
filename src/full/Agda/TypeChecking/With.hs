@@ -21,6 +21,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
@@ -30,6 +31,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.ReconstructParameters
 
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.Rules.LHS.Implicit
@@ -164,7 +166,8 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
   reportSDoc "tc.with.abstract" 30 $ text "eta-contracting d2b ..."
   d2b  <- etaContract d2b
   reportSDoc "tc.with.abstract" 20 $ text "  d2b  = " <+> prettyTCM d2b
-  let n2 = size delta2
+  let n1 = size delta1
+      n2 = size delta2
   TelV delta2 b <- telViewUpTo n2 d2b
 
   addContext delta2 $ do
@@ -177,8 +180,20 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
     -- Normalize and η-contract the with-expressions @vs@.
 
     vs <- etaContract =<< normalise vs
-    let vsAll = withArguments vs as
     reportSDoc "tc.with.abstract" 20 $ text "  vs    = " <+> prettyTCM vs
+
+    -- Reconstruct constructor parameters to avoid ill-typed abstractions (#745)
+    delta1 <- escapeContext (n1 + n2) $ reconstructParametersInTel delta1
+    delta2 <- escapeContext n2        $ reconstructParametersInTel delta2
+    vs     <- sequence [ reconstructParameters (equalityUnview a) v | (v, a) <- zip vs as ]
+    as     <- traverse reconstructParametersInEqView as
+    b      <- reconstructParametersInType b
+    dropParameters =<< withFunctionType' delta1 vs as delta2 b
+
+withFunctionType' :: Telescope -> [Term] -> [EqualityView] -> Telescope -> Type -> TCM (Type, [Term])
+withFunctionType' delta1 vs as delta2 b = do
+    let n2    = size delta2
+        vsAll = withArguments vs as
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $
