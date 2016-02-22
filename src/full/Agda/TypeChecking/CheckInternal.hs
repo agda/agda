@@ -12,9 +12,12 @@
 module Agda.TypeChecking.CheckInternal
   ( checkType
   , checkInternal
+  , checkInternal'
   , infer
   ) where
 
+import Control.Arrow ((&&&), (***), first, second)
+import Control.Applicative
 import Control.Monad
 
 import Agda.Syntax.Common
@@ -72,7 +75,7 @@ checkType' t = do
           checkType' $ absBody b
       return $ dLub s1 s2
     Sort s -> do
-      checkSort s
+      _ <- checkSort defaultAction s
       return $ sSuc s
     Var i es   -> do
       a <- typeOfBV i
@@ -93,28 +96,34 @@ checkType' t = do
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
 
+type Action = Type -> Term -> TCM Term
+
+defaultAction :: Action
+defaultAction t v = return v
+
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
-checkInternal v t = do
+checkInternal v t = void $ checkInternal' defaultAction v t
+
+checkInternal' :: Action -> Term -> Type -> TCM Term
+checkInternal' action v t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ text "checking internal "
-    , prettyTCM v
-    , text " : "
-    , prettyTCM t
-    ]
+    , nest 2 $ sep [ prettyTCM v <+> text ":"
+                   , nest 2 $ prettyTCM t ] ]
   -- Bring projection-like funs in post-fix form,
   -- even lone ones (True).
   v <- elimView True v
-  case ignoreSharing v of
+  action t =<< case ignoreSharing v of
     Var i es   -> do
       a <- typeOfBV i
-      checkSpine a (Var i []) es t
+      checkSpine action a (Var i []) es t
     Def f es   -> do  -- f is not projection(-like)!
       a <- defType <$> getConstInfo f
-      checkSpine a (Def f []) es t
+      checkSpine action a (Def f []) es t
     MetaV x es -> do -- we assume meta instantiations to be well-typed
       a <- metaType x
-      checkSpine a (MetaV x []) es t
+      checkSpine action a (MetaV x []) es t
     Con c vs   -> do
       -- we need to fully apply the constructor to make getConType work
       TelV tel t <- telView t
@@ -122,81 +131,52 @@ checkInternal v t = do
         let failure = typeError $ DoesNotConstructAnElementOf (conName c) t
             vs'     = raise (size tel) vs ++ teleArgs tel
         a <- maybe failure return =<< getConType c t
-        checkArgs a  (Con c   []) vs' t
-    Lit l      -> litType l >>= (`subtype` t)
+        Con c vs2 <- checkArgs action a (Con c []) vs' t
+                 -- Strip away the extra arguments
+        return $ applySubst (strengthenS __IMPOSSIBLE__ (size tel))
+               $ Con c (take (length vs) vs2)
+    Lit l      -> Lit l <$ ((`subtype` t) =<< litType l)
     Lam ai vb  -> do
       (a, b) <- shouldBePi t
       checkArgInfo ai $ domInfo a
       addContext (suggest vb b, a) $ do
-        checkInternal (absBody vb) (absBody b)
+        Lam ai . Abs (absName vb) <$> checkInternal' action (absBody vb) (absBody b)
     Pi a b     -> do
       s <- shouldBeSort t
       when (s == SizeUniv) $ typeError $ FunctionTypeInSizeUniv v
-      let st = sort s
-      checkInternal (unEl $ unDom a) st  -- This does not work with SizeUniv
-      addContext (absName b, a) $ do
-        checkInternal (unEl $ absBody b) $ raise 1 st
+      let st  = sort s
+          sa  = getSort a
+          sb  = getSort (unAbs b)
+          mkDom v = El sa v <$ a
+          mkRng v = fmap (v <$) b
+          -- Preserve NoAbs
+          goInside = case b of Abs{}   -> addContext (absName b, a)
+                               NoAbs{} -> id
+      a <- mkDom <$> checkInternal' action (unEl $ unDom a) (sort sa)
+      -- TODO: checkPTS sa sb s
+      goInside $ Pi a . mkRng <$> checkInternal' action (unEl $ unAbs b) (sort sb)
     Sort s     -> do
-      checkSort s  -- this ensures @s /= Inf@
-      (sSuc s `leqSort`) =<< shouldBeSort t
+      s <- checkSort action s  -- this ensures @s /= Inf@
+      Sort s <$ ((sSuc s `leqSort`) =<< shouldBeSort t)
     Level l    -> do
-      checkLevel l
-      levelType >>= (`subtype` t)
-    DontCare v -> checkInternal v t
+      l <- checkLevel action l
+      Level l <$ ((`subtype` t) =<< levelType)
+    DontCare v -> DontCare <$> checkInternal' action v t
     Shared{}   -> __IMPOSSIBLE__
 
-{-  RETIRED, works also when elimView has not been called before.
--- | Check function application.
-checkDef :: QName -> Elims -> Type -> TCM ()
-checkDef f es t = do
-  def <- getConstInfo f
-  if isJust $ isProjection_ $ theDef def then do
-     -- we have to reduce away a projection-like function in head position
-     -- because we might not be able to infer the type of its principal
-     -- argument (it could be a Con)
-     -- TODO: a reduce that reduces ONLY projection-like functions
---     (`checkInternal` t) =<< elimView =<< reduceProjectionLike (Def f es)
-     (`checkInternal` t) =<< elimView (Def f es)
-   else checkSpine (defType def) (Def f []) es t
--}
-
-{-
--- | Check ordinary function application.
-checkDef :: QName -> Elims -> Type -> TCM ()
-checkDef f es t = do
-  a <- defType <$> getConstInfo f
-  checkSpine a (Def f []) es t
-
--- | Check possibly projection-like function application
-checkDef' :: QName -> Arg Term -> Elims -> Type -> TCM ()
-checkDef' f a es t = do
-  isProj <- isProjection f
-  case isProj of
-    Just Projection{ projIndex = n} | n > 0 -> do
-      let self = unArg a
-      b <- infer self
-      checkSpine b self (Proj f : es) t
-    _ -> checkDef f (Apply a : es) t
--}
-
-checkSpine :: Type -> Term -> Elims -> Type -> TCM ()
-checkSpine a self es t = do
+checkSpine :: Action -> Type -> Term -> Elims -> Type -> TCM Term
+checkSpine action a self es t = do
   reportSDoc "tc.check.internal" 20 $ sep
     [ text "checking spine "
-    , text "("
-    , prettyTCM self
-    , text " : "
-    , prettyTCM a
-    , text ")"
-    , prettyTCM es
-    , text " : "
-    , prettyTCM t
-    ]
-  (v, t') <- inferSpine a self es
-  void $ coerceSize subtype v t' t
+    , nest 2 $ sep [ parens (sep [ prettyTCM self <+> text ":"
+                                 , nest 2 $ prettyTCM a ])
+                   , nest 4 $ prettyTCM es <+> text ":"
+                   , nest 2 $ prettyTCM t ] ]
+  ((v, v'), t') <- inferSpine' action a self self es
+  v' <$ coerceSize subtype v t' t
 
-checkArgs :: Type -> Term -> Args -> Type -> TCM ()
-checkArgs a self vs t = checkSpine a self (map Apply vs) t
+checkArgs :: Action -> Type -> Term -> Args -> Type -> TCM Term
+checkArgs action a self vs t = checkSpine action a self (map Apply vs) t
 
 -- | @checkArgInfo actual expected@.
 checkArgInfo :: ArgInfo -> ArgInfo -> TCM ()
@@ -253,25 +233,33 @@ inferDef' f a es = do
 --   value @self@ of type @t@ and returns the remaining type
 --   (target of elimination) and the final self (has that type).
 inferSpine :: Type -> Term -> Elims -> TCM (Term, Type)
-inferSpine t self [] = return (self, t)
-inferSpine t self (e : es) = do
+inferSpine a v es = first fst <$> inferSpine' defaultAction a v v es
+
+-- | Returns both the real term (first) and the transformed term (second). The
+--   transformed term is not necessarily a valid term, so it must not be used
+--   in types.
+inferSpine' :: Action -> Type -> Term -> Term -> Elims -> TCM ((Term, Term), Type)
+inferSpine' action t self self' [] = return ((self, self'), t)
+inferSpine' action t self self' (e : es) = do
   reportSDoc "tc.infer.internal" 30 $ sep
-    [ text "inferSpine: "
+    [ text "inferSpine': "
     , text "type t = " <+> prettyTCM t
-    , text "self = " <+> prettyTCM self
+    , text "self  = " <+> prettyTCM self
+    , text "self' = " <+> prettyTCM self'
     , text "eliminated by e = " <+> prettyTCM e
     ]
   case e of
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t
       checkArgInfo ai $ domInfo a
-      checkInternal v $ unDom a
-      inferSpine (b `absApp` v) (self `applyE` [e]) es
+      v' <- checkInternal' action v $ unDom a
+      inferSpine' action (b `absApp` v) (self `applyE` [e]) (self' `applyE` [Apply (Arg ai v')]) es
     -- case: projection or projection-like
     Proj f -> do
       (a, b) <- shouldBePi =<< shouldBeProjectible t f
-      u <- f `applyDef` (argFromDom a $> self)
-      inferSpine (b `absApp` self) u es
+      u  <- f `applyDef` (argFromDom a $> self)
+      u' <- f `applyDef` (argFromDom a $> self')
+      inferSpine' action (b `absApp` self) u u' es
 
 -- | Type should either be a record type of a type eligible for
 --   the principal argument of projection-like functions.
@@ -296,34 +284,34 @@ ifIsSort t yes no = do
     _      -> no
 
 -- | Check if sort is well-formed.
-checkSort :: Sort -> TCM ()
-checkSort s =
+checkSort :: Action -> Sort -> TCM Sort
+checkSort action s =
   case s of
-    Type l   -> checkLevel l
+    Type l   -> Type <$> checkLevel action l
     Prop     -> __IMPOSSIBLE__
       -- the dummy Prop should not be part of a term we check
     Inf      -> typeError $ SetOmegaNotValidType
       -- we cannot have Setω on the lhs of the colon
     SizeUniv -> typeError $ InvalidTypeSort s
     DLub a b -> do
-      checkSort a
+      a <- checkSort action a
       addContext (absName b, defaultDom (sort a) :: Dom Type) $ do
-        checkSort (absBody b)
+        DLub a . Abs (absName b) <$> checkSort action (absBody b)
 
 -- | Check if level is well-formed.
-checkLevel :: Level -> TCM ()
-checkLevel (Max ls) = mapM_ checkPlusLevel ls
+checkLevel :: Action -> Level -> TCM Level
+checkLevel action (Max ls) = Max <$> mapM checkPlusLevel ls
   where
-    checkPlusLevel ClosedLevel{} = return ()
-    checkPlusLevel (Plus _ l)    = checkLevelAtom l
+    checkPlusLevel l@ClosedLevel{} = return l
+    checkPlusLevel (Plus k l)      = Plus k <$> checkLevelAtom l
 
     checkLevelAtom l = do
       lvl <- levelType
-      case l of
-        MetaLevel x es   -> checkInternal (MetaV x es) lvl
-        BlockedLevel _ v -> checkInternal v lvl
-        NeutralLevel _ v -> checkInternal v lvl
-        UnreducedLevel v -> checkInternal v lvl
+      UnreducedLevel <$> case l of
+        MetaLevel x es   -> checkInternal' action (MetaV x es) lvl
+        BlockedLevel _ v -> checkInternal' action v lvl
+        NeutralLevel _ v -> checkInternal' action v lvl
+        UnreducedLevel v -> checkInternal' action v lvl
 
 -- | Type of a term or sort meta.
 metaType :: MetaId -> TCM Type
