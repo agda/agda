@@ -19,20 +19,13 @@ import System.IO.Temp
 import System.FilePath
 import System.Exit
 import System.Process.Text as PT
-#if MIN_VERSION_process(1,2,3)
-import System.Process (callProcess, proc, readCreateProcess, CreateProcess (..))
-#else
-import System.Process (callProcess, proc, createProcess, waitForProcess, CreateProcess (..))
-#endif
 
 #if __GLASGOW_HASKELL__ <= 706
 import Control.Monad ( void )
 #endif
 
 import Control.Monad (forM)
-import Data.Functor
 import Data.Maybe
-import System.Directory
 
 type GHCArgs = [String]
 
@@ -74,8 +67,8 @@ disabledTests :: [RegexFilter]
 disabledTests =
 -- The Compiler tests using the standard library are horribly
 -- slow at the moment (1min or more per test case).
--- Disable them by default for now.
-  [ RFInclude "Compiler/.*/with-stdlib"
+-- Disable most of them using a hacky regex...
+  [ RFInclude "Compiler/.*/with-stdlib/(DivMod|HelloWorld|ShowNat|TrustMe|Vec|dimensions)"
 -- See issue 1528
   , RFInclude "Compiler/.*/simple/Sharing"
 -- Disable UHC backend tests if the backend is also disabled.
@@ -91,7 +84,7 @@ tests = do
   where forComp comp = testGroup (show comp) . catMaybes
             <$> sequence
                 [ Just <$> simpleTests comp
---                , Just <$> stdlibTests comp
+                , Just <$> stdlibTests comp
                 , specialTests comp]
 
 simpleTests :: Compiler -> IO TestTree
@@ -115,10 +108,13 @@ stdlibTests comp = do
   let testDir = "test" </> "Compiler" </> "with-stdlib"
   inps <- getAgdaFilesInDir NonRec testDir
 
-  withSetup setup inps testDir ["-i" ++ testDir, "-i" ++ "std-lib" </> "src"] comp "with-stdlib"
-  where setup :: Compiler -> IO (IO AgdaArgs -> TestTree) -> IO TestTree
-        setup UHC     tree = tree >>= \t -> return $ t $ return []
-        setup MAlonzo tree = withGhcLibs ["std-lib/ffi/"] <$> tree
+  tests' <- forM inps $ \inp -> do
+    opts <- readOptions inp
+    return $
+      agdaRunProgGoldenTest testDir comp
+        (return ["-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-i" ++ "std-lib" </> "doc"]) inp opts
+  return $ testGroup "with-stdlib" $ catMaybes tests'
+
 
 specialTests :: Compiler -> IO (Maybe TestTree)
 specialTests MAlonzo = do
@@ -139,71 +135,6 @@ specialTests MAlonzo = do
             -- ignore stderr, as there may be some GHC warnings in it
             return $ ExecutedProg (ret, out <> sout, err)
 specialTests UHC = return Nothing
-
-withSetup :: (Compiler -> IO (IO GHCArgs -> TestTree) -> IO TestTree) -- setup function
-    -> [FilePath] -- inputs
-    -> FilePath -- test directory
-    -> AgdaArgs -- extra agda arguments
-    -> Compiler
-    -> TestName -- test group name
-    -> IO TestTree
-withSetup setup inps testDir extraArgs comp  testGrpNm = do
-  setup comp (do
-    mkTests' <- mapM mkTest inps
-    return (\args ->
-        testGroup testGrpNm $ catMaybes $ map ($ args) mkTests'
-      )
-    )
-  where mkTest :: FilePath -> IO (IO AgdaArgs -> Maybe TestTree)
-        mkTest = \inp -> do
-          opts <- readOptions inp
-          return (\args ->
-            agdaRunProgGoldenTest testDir comp ((extraArgs  ++) . ghcArgsAsAgdaArgs <$> args) inp opts
-            )
-
--- Sets up a temporary package db and installs the given packages there.
-withGhcLibs :: [String] -- ^ path to the package directories to install.
-    -> (IO GHCArgs -> TestTree)
-    -> TestTree
-withGhcLibs pkgDirs mkTree =
-  withResource createPkgDb rmPkgDb (\si -> mkTree (mkArgs <$> si))
-  where rmPkgDb :: (FilePath, String) -> IO ()
-        rmPkgDb = removeDirectoryRecursive . fst
-
-        createPkgDb = do
-          pwd <- getCurrentDirectory
-          tempDir <- createTempDirectory pwd "exec-test-pkgs"
-          let pkgDb = tempDir </> "pkgdb"
-          callProcess "ghc-pkg" ["init", pkgDb]
-          mapM_ (installPkg tempDir pkgDb) pkgDirs
-          return (tempDir, pkgDb)
-
-        installPkg :: FilePath -> FilePath -> FilePath -> IO ()
-        installPkg tempDir _pkgDb pkgDir = do
-          pwd <- getCurrentDirectory
-          withTempDirectory pwd "pkg-build" $ \builddir -> do
-            callProcess1 pkgDir "runhaskell" ["Setup.hs", "configure", "--builddir=" ++ builddir
-                                             , "--prefix=" ++ tempDir, "--user"] -- , "--package-db=" ++ pkgDb]
-            callProcess1 pkgDir "runhaskell" ["Setup.hs", "build", "--builddir=" ++ builddir]
-            callProcess1 pkgDir "runhaskell" ["Setup.hs", "install", "--builddir=" ++ builddir]
-
-        mkArgs :: (FilePath, FilePath) -> AgdaArgs
-        mkArgs (_, _pkgDb) = [] -- ["-no-user-package-db", "-package-db=" ++ pkgDb]
-
-        callProcess1 :: FilePath -> FilePath -> [String] -> IO ()
-#if MIN_VERSION_process(1,2,3)
-        callProcess1 wd cmd args = void $ readCreateProcess ((proc cmd args) {cwd = Just wd}) ""
-#else
-        -- trying to use process 1.2.3.0 with GHC 7.4 leads to cabal hell,
-        -- so we really want to support older versions of process for the time being.
-        callProcess1 wd cmd args = do
-            -- note: the new process will inherit stdout/stdin/stderr from us,
-            -- and will spam the console a bit. This will make the UI a bit
-            -- ugly, but shouldn't cause any problems.
-            (_, _, _, pHandle) <- createProcess (proc cmd args) {cwd = Just wd}
-            ExitSuccess <- waitForProcess pHandle
-            return ()
-#endif
 
 ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
 ghcArgsAsAgdaArgs = map f
