@@ -14,11 +14,11 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-# check if this is GHC 7.10 or newer
-GHC_GTEQ_710 := $(shell expr `ghc --numeric-version | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 71000)
+# Returns the first four symbols of `ghc --numeric-version`.
+HELPER_UHC := $(shell expr substr `ghc --numeric-version` 1 4)
 
 ifneq ($(shell which uhc),)
-ifeq "$(GHC_GTEQ_710)" "1"
+ifeq "$(HELPER_UHC)" "7.10"
 override CABAL_OPTS+=-fuhc
 endif
 endif
