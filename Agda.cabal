@@ -614,4 +614,5 @@ test-suite agda-tests
                     -Wall
                     -fwarn-identities
                     -fwarn-missing-local-sigs
+                    -fno-warn-unused-imports
                     -Werror
