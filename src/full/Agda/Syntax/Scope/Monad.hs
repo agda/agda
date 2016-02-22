@@ -429,11 +429,15 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
              -- If things are imported by open public they do not have the old qualifier
              -- as prefix.  Those need just to be linked, not copied.
              -- return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
-             caseMaybe (maybePrefixMatch (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
-               return $ A.mnameFromList $ newL ++ suffix
+             -- caseMaybe (maybePrefixMatch (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
+             --   return $ A.mnameFromList $ newL ++ suffix
+             -- Ulf, 2016-02-22: #1726
+             -- We still need to copy modules from 'open public'. Same as in renName.
+             return $ A.mnameFromList $ newL ++ [last $ A.mnameToList x]
           -- Andreas, Jesper, 2015-07-02: Issue 1597
           -- Don't copy a module over itself, it will just be emptied of its contents.
           if (x == y) then return x else do
+          lift $ reportSLn "scope.copy" 50 $ "  Copying module " ++ show x ++ " to " ++ show y
           addMod x y
           -- We need to copy the contents of included modules recursively
           lift $ createModule False y
