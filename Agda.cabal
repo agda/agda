@@ -94,8 +94,8 @@ library
     ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(uhc)
-    build-depends:    uhc-light >= 1.1.9.0 && < 1.2
-                    , uhc-util >= 0.1.5.5
+    build-depends:    uhc-light >= 1.1.9.2 && < 1.2
+                    , uhc-util >= 0.1.6.3 && < 0.1.7
                     , uulib >= 0.9.20
     -- we use the CPP processor to conditionally import the UHC Light modules. If UHC Light is not
     -- present, we instead create dummy definitions, see module Agda.Compiler.UHC.Bridge.
