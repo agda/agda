@@ -18,6 +18,7 @@ import Agda.Syntax.Internal as I
 import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -248,11 +249,13 @@ rigidlyConstrainedMetas = do
         FindInScope{} -> return Nothing
 
 isRigid :: MetaId -> TCM Bool
-isRigid id = do
+isRigid i = do
   rigid <- rigidlyConstrainedMetas
-  return (elem id rigid)
+  return (elem i rigid)
 
--- | Returns True if one of the arguments of @t@ is a meta which isn’t rigidly constrained
+-- | Returns True if one of the arguments of @t@ is a meta which isn’t rigidly
+--   constrained. Note that level metas are never considered rigidly constrained
+--   (#1865).
 areThereNonRigidMetaArguments :: Term -> TCM (Maybe MetaId)
 areThereNonRigidMetaArguments t = case ignoreSharing t of
     Def n args -> do
@@ -290,7 +293,13 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
       case ignoreSharing v of
         Def _ es  -> areThereNonRigidMetaArgs es
         Var _ es  -> areThereNonRigidMetaArgs es
-        MetaV i _ -> ifM (not <$> isRigid i) (return (Just i)) (return Nothing)
+        MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
+                      -- Ignore unconstrained level metas (#1865)
+                      Def lvl [] <- ignoreSharing <$> primLevel
+                      o          <- getOutputTypeName =<< getMetaType i
+                      case o of
+                        OutputTypeName l | l == lvl -> return Nothing
+                        _                           -> return (Just i)
         Lam _ t   -> isNonRigidMeta (unAbs t)
         _         -> return Nothing
 
