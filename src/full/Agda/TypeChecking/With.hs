@@ -11,6 +11,7 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Monoid
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
