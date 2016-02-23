@@ -14,11 +14,13 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-# Returns the first four symbols of `ghc --numeric-version`.
-HELPER_UHC := $(shell expr substr `ghc --numeric-version` 1 4)
+# GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
+# patchlevel number is 3).
+
+GHC_VERSION := $(shell ghc --numeric-version | cut -d. -f1-2)
 
 ifneq ($(shell which uhc),)
-ifeq "$(HELPER_UHC)" "7.10"
+ifeq "$(GHC_VERSION)" "7.10"
 override CABAL_OPTS+=-fuhc
 endif
 endif
@@ -320,5 +322,6 @@ debug :
 	@echo "AGDA_TESTS_OPTIONS = $(AGDA_TESTS_OPTIONS)"
 	@echo "CABAL_CMD          = $(CABAL_CMD)"
 	@echo "CABAL_OPTS         = $(CABAL_OPTS)"
+	@echo "GHC_VERSION        = $(GHC_VERSION)"
 
 # EOF
