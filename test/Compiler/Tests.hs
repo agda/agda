@@ -15,6 +15,7 @@ import Test.Tasty.Silver.Filter
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.Monoid
+import Data.List
 import System.IO.Temp
 import System.FilePath
 import System.Exit
@@ -183,7 +184,9 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           -- get extra arguments
           extraArgs' <- extraArgs
           -- compile file
-          let defArgs = ["--ignore-interfaces", "--compile-dir", compDir, "-v0"] ++ extraArgs' ++ (extraAgdaArgs cOpts) ++ [inp]
+          let cArgs   = extraAgdaArgs cOpts \\ ["--no-ignore-interfaces"]
+              defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
+                        ["--compile-dir", compDir, "-v0"] ++ extraArgs' ++ cArgs ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
 
