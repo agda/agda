@@ -5,10 +5,7 @@ module Utils where
 import qualified Data.Text as T
 import System.Exit
 
-#if __GLASGOW_HASKELL__ <= 708
-import Control.Applicative ((<$>))
-#endif
-
+import Control.Applicative
 import System.Environment
 import Data.Maybe
 import Data.Char
@@ -93,3 +90,9 @@ replace rgx new inp =
       where
         (off, len) = match ! 0
 
+hasGHCJobsFlag :: Bool
+#if __GLASGOW_HASKELL__ >= 708
+hasGHCJobsFlag = True
+#else
+hasGHCJobsFlag = False
+#endif

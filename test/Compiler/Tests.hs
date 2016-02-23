@@ -184,7 +184,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           -- get extra arguments
           extraArgs' <- extraArgs
           -- compile file
-          let cArgs   = extraAgdaArgs cOpts \\ ["--no-ignore-interfaces"]
+          let cArgs   = cleanUpOptions (extraAgdaArgs cOpts)
               defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
                         ["--compile-dir", compDir, "-v0"] ++ extraArgs' ++ cArgs ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
@@ -207,6 +207,14 @@ readOptions :: FilePath -- file name of the agda file
 readOptions inpFile =
   maybe defaultOptions (read . T.unpack . decodeUtf8) <$> readFileMaybe optFile
   where optFile = dropExtension inpFile <.> ".options"
+
+cleanUpOptions :: AgdaArgs -> AgdaArgs
+cleanUpOptions = filter clean
+  where
+    clean :: String -> Bool
+    clean "--no-ignore-interfaces"         = False
+    clean o | isPrefixOf "--ghc-flag=-j" o = hasGHCJobsFlag
+    clean _                                = True
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
