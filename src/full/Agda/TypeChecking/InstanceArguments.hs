@@ -10,6 +10,7 @@ import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.List as List
 
 import Agda.Syntax.Common
@@ -329,17 +330,25 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
 -- This is sufficient to reduce the list to a singleton should all be equal.
 dropSameCandidates :: MetaId -> [(Candidate, Term, Type, a)] -> TCM [(Candidate, Term, Type, a)]
 dropSameCandidates m cands = do
+  metas <- Set.fromList . Map.keys <$> getMetaStore
+  let freshMetas x = not $ Set.null $ Set.difference (Set.fromList $ allMetas x) metas
   reportSDoc "tc.instance" 50 $ vcat
     [ text "valid candidates:"
-    , nest 2 $ vcat [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
-                          | (_, v, a, _) <- cands ] ]
+    , nest 2 $ vcat [ if freshMetas (v, a) then text "(redacted)" else
+                      sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
+                    | (_, v, a, _) <- cands ] ]
   rel <- getMetaRelevance <$> lookupMeta m
   case cands of
     []            -> return cands
-    cvd@(_, v, a, _) : vas -> (cvd :) <$> dropWhileM equal vas
+    cvd@(_, v, a, _) : vas -> do
+        if freshMetas (v, a)
+          then return (cvd : vas)
+          else (cvd :) <$> dropWhileM equal vas
       where
         equal _ | isIrrelevant rel = return True
-        equal (_, v', a', _) =
+        equal (_, v', a', _)
+            | freshMetas (v', a') = return False  -- If there are fresh metas we can't compare
+            | otherwise           =
           verboseBracket "tc.instance" 30 "checkEqualCandidates" $ do
           reportSDoc "tc.instance" 30 $ sep [ prettyTCM v <+> text "==", nest 2 $ prettyTCM v' ]
           localTCState $ dontAssignMetas $ ifNoConstraints_ (equalType a a' >> equalTerm a v v')
