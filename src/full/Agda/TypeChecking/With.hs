@@ -183,13 +183,16 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
     vs <- etaContract =<< normalise vs
     reportSDoc "tc.with.abstract" 20 $ text "  vs    = " <+> prettyTCM vs
 
+    -- Ulf, 2016-02-23: The code below fixes #745 but leads to 40% increased
+    --                  type checking costs for with-heavy examples.
     -- Reconstruct constructor parameters to avoid ill-typed abstractions (#745)
-    delta1 <- escapeContext (n1 + n2) $ reconstructParametersInTel delta1
-    delta2 <- escapeContext n2        $ reconstructParametersInTel delta2
-    vs     <- sequence [ reconstructParameters (equalityUnview a) v | (v, a) <- zip vs as ]
-    as     <- traverse reconstructParametersInEqView as
-    b      <- reconstructParametersInType b
-    dropParameters =<< withFunctionType' delta1 vs as delta2 b
+    -- delta1 <- escapeContext (n1 + n2) $ reconstructParametersInTel delta1
+    -- delta2 <- escapeContext n2        $ reconstructParametersInTel delta2
+    -- vs     <- sequence [ reconstructParameters (equalityUnview a) v | (v, a) <- zip vs as ]
+    -- as     <- traverse reconstructParametersInEqView as
+    -- b      <- reconstructParametersInType b
+    -- dropParameters =<< withFunctionType' delta1 vs as delta2 b
+    withFunctionType' delta1 vs as delta2 b
 
 withFunctionType' :: Telescope -> [Term] -> [EqualityView] -> Telescope -> Type -> TCM (Type, [Term])
 withFunctionType' delta1 vs as delta2 b = do
