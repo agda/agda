@@ -294,6 +294,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
       case ignoreSharing v of
         Def _ es  -> areThereNonRigidMetaArgs es
         Var _ es  -> areThereNonRigidMetaArgs es
+        Con _ vs  -> areThereNonRigidMetaArgs (map Apply vs)
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
                       -- Ignore unconstrained level metas (#1865)
                       Def lvl [] <- ignoreSharing <$> primLevel
