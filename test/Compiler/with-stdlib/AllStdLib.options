@@ -1,0 +1,5 @@
+TestOptions
+  { forCompilers   = [(MAlonzo, CompilerOptions {extraAgdaArgs = ["--no-ignore-interfaces"]}),
+                      (UHC,     CompilerOptions {extraAgdaArgs = ["--no-ignore-interfaces"]})]
+  , runtimeOptions = []
+  , executeProg    = True }
