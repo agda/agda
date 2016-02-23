@@ -1,0 +1,4 @@
+name: bugs
+include:
+  .
+  ..
