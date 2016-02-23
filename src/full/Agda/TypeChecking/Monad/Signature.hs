@@ -529,7 +529,8 @@ chaseDisplayForms q = go Set.empty [q]
   where
     go used []       = pure used
     go used (q : qs) = do
-      ds <- (`Set.difference` used) . Set.unions . map (namesIn . openThing)
+      let rhs (Display _ _ e) = e   -- Only look at names in the right-hand side (#1870)
+      ds <- (`Set.difference` used) . Set.unions . map (namesIn . rhs . openThing)
             <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
       go (Set.union ds used) (Set.toList ds ++ qs)
 
