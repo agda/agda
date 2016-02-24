@@ -5,12 +5,16 @@
 
 module Agda.TypeChecking.DisplayForm where
 
+import Prelude hiding (all)
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Maybe
+import Data.Foldable (all)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Names
 import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad
@@ -57,7 +61,7 @@ displayForm q vs = do
     -- Keep the display forms that match the application @c vs@.
     ms <- do
       ms <- mapM (runMaybeT . (`matchDisplayForm` vs)) dfs
-      return [ m | Just m <- ms, inScope scope m ]
+      return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, vs)
     unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
@@ -76,31 +80,28 @@ displayForm q vs = do
 --  `catchError` \_ -> return Nothing
 
   where
-    -- 'hd' is only used in the commented-out code for 'inScope' above.
-    inScope _ d | isWithDisplay d = True
-    inScope scope d = case hd d of
-      Just h  -> not . null $ inverseScopeLookupName h scope
-      Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
+    -- Look at the original display form, not the instantiated result when
+    -- checking if it's well-scoped. Otherwise we might pick up out of scope
+    -- identifiers coming from the source term.
+    wellScoped scope (Display _ _ d)
+      | isWithDisplay d = True
+      | otherwise       = all (inScope scope) $ namesIn d
+
+    inScope scope x = not $ null $ inverseScopeLookupName x scope
 
     isWithDisplay DWithApp{} = True
     isWithDisplay _          = False
 
-    hd (DTerm (Def x _))    = Just x
-    hd (DTerm (Con x _))    = Just $ conName x
-    hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
-    hd (DWithApp d _ _) = hd d
-    hd _                 = Nothing
-
 -- | Match a 'DisplayForm' @q ps = v@ against @q vs@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
 --   i.e., @vs / ps = Just us@.
-matchDisplayForm :: DisplayForm -> Args -> MaybeT TCM DisplayTerm
-matchDisplayForm (Display _ ps v) vs
+matchDisplayForm :: DisplayForm -> Args -> MaybeT TCM (DisplayForm, DisplayTerm)
+matchDisplayForm d@(Display _ ps v) vs
   | length ps > length vs = mzero
   | otherwise             = do
       let (vs0, vs1) = splitAt (length ps) vs
       us <- match ps $ raise 1 $ map unArg vs0
-      return $ applySubst (parallelS $ reverse us) v `apply` vs1
+      return (d, applySubst (parallelS $ reverse us) v `apply` vs1)
 
 -- | Class @Match@ for matching a term @p@ in the role of a pattern
 --   against a term @v@.
