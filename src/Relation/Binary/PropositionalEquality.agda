@@ -175,23 +175,31 @@ inspect f x = [ refl ]
 ------------------------------------------------------------------------
 -- Convenient syntax for equational reasoning
 
-import Relation.Binary.EqReasoning as EqR
+-- This is special instance of Relation.Binary.EqReasoning.
+-- Rather than instantiating the latter with (setoid A),
+-- we reimplement equation chains from scratch
+-- since then goals are printed much more readably.
 
--- Relation.Binary.EqReasoning is more convenient to use with _≡_ if
--- the combinators take the type argument (a) as a hidden argument,
--- instead of being locked to a fixed type at module instantiation
--- time.
+module ≡-Reasoning {a} {A : Set a} where
 
-module ≡-Reasoning where
-  module _ {a} {A : Set a} where
-    open EqR (setoid A) public
-      hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+  infix  3 _∎
+  infixr 2 _≡⟨⟩_ _≡⟨_⟩_ _≅⟨_⟩_
+  infix  1 begin_
 
-  infixr 2 _≅⟨_⟩_
+  begin_ : ∀{x y : A} → x ≡ y → x ≡ y
+  begin_ x≡y = x≡y
 
-  _≅⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {y z : A} →
-           x ≅ y → y IsRelatedTo z → x IsRelatedTo z
-  _ ≅⟨ x≅y ⟩ y≡z = _ ≡⟨ H.≅-to-≡ x≅y ⟩ y≡z
+  _≡⟨⟩_ : ∀ (x {y} : A) → x ≡ y → x ≡ y
+  _ ≡⟨⟩ x≡y = x≡y
+
+  _≡⟨_⟩_ : ∀ (x {y z} : A) → x ≡ y → y ≡ z → x ≡ z
+  _ ≡⟨ x≡y ⟩ y≡z = trans x≡y y≡z
+
+  _≅⟨_⟩_ : ∀ (x {y z} : A) → x ≅ y → y ≡ z → x ≡ z
+  _ ≅⟨ x≅y ⟩ y≡z = trans (H.≅-to-≡ x≅y) y≡z
+
+  _∎ : ∀ (x : A) → x ≡ x
+  _∎ _ = refl
 
 ------------------------------------------------------------------------
 -- Functional extensionality
