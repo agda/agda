@@ -398,13 +398,16 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
         findName x = lookup x <$> gets snd
         findMod  x = lookup x <$> gets fst
 
+        refresh :: A.Name -> WSM A.Name
+        refresh x = do
+          i <- lift fresh
+          return $ x { nameId = i }
+
         -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
         renName :: A.QName -> WSM A.QName
         renName x = do
           -- Generate a fresh name for the target.
-          y <- do
-            i <- lift fresh
-            return $ A.qualify new' $ (qnameName x) { nameId = i }
+          y <- A.qualify new' <$> refresh (qnameName x)
           lift $ reportSLn "scope.copy" 50 $ "  Copying " ++ show x ++ " to " ++ show y
           -- Andreas, 2015-08-11 Issue 1619:
           -- Names copied by a module macro should get the module macro's
@@ -433,7 +436,8 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
              --   return $ A.mnameFromList $ newL ++ suffix
              -- Ulf, 2016-02-22: #1726
              -- We still need to copy modules from 'open public'. Same as in renName.
-             return $ A.mnameFromList $ newL ++ [last $ A.mnameToList x]
+             y <- refresh (last $ A.mnameToList x)
+             return $ A.mnameFromList $ newL ++ [y]
           -- Andreas, Jesper, 2015-07-02: Issue 1597
           -- Don't copy a module over itself, it will just be emptied of its contents.
           if (x == y) then return x else do
