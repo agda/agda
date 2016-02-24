@@ -182,22 +182,12 @@ withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
 
     vs <- etaContract =<< normalise vs
     reportSDoc "tc.with.abstract" 20 $ text "  vs    = " <+> prettyTCM vs
-
-    -- Ulf, 2016-02-23: The code below fixes #745 but leads to 40% increased
-    --                  type checking costs for with-heavy examples.
-    -- Reconstruct constructor parameters to avoid ill-typed abstractions (#745)
-    -- delta1 <- escapeContext (n1 + n2) $ reconstructParametersInTel delta1
-    -- delta2 <- escapeContext n2        $ reconstructParametersInTel delta2
-    -- vs     <- sequence [ reconstructParameters (equalityUnview a) v | (v, a) <- zip vs as ]
-    -- as     <- traverse reconstructParametersInEqView as
-    -- b      <- reconstructParametersInType b
-    -- dropParameters =<< withFunctionType' delta1 vs as delta2 b
     withFunctionType' delta1 vs as delta2 b
 
 withFunctionType' :: Telescope -> [Term] -> [EqualityView] -> Telescope -> Type -> TCM (Type, [Term])
 withFunctionType' delta1 vs as delta2 b = do
     let n2    = size delta2
-        vsAll = withArguments vs as
+        vsAll = withArguments' vs as
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
           , nest 2 $ vcat $
@@ -213,8 +203,9 @@ withFunctionType' delta1 vs as delta2 b = do
 
     -- Δ₁, Δ₂ ⊢ wtel0
     -- Δ₁, Δ₂, wtel0 ⊢ b0
-    let TelV wtel0 b0 = telView'UpTo (size vsAll) $
-          foldr piAbstract b $ zip vs as
+    let abstrTel b []         = return b
+        abstrTel b (va : vas) = piAbstract va =<< abstrTel b vas
+    TelV wtel0 b0 <- telView'UpTo (size vsAll) <$> abstrTel b (zip vs as)
 
     -- We know the types in wtel0 (abstracted versions of @as@) do not depend on Δ₂.
     -- Δ₁ ⊢ wtel
@@ -234,9 +225,14 @@ withFunctionType' delta1 vs as delta2 b = do
     -- Δ₁, Δ₂ ⊢ Δ₂flat
     let delta2flat = flattenTel delta2
 
-    let abstrvs t = foldl (flip abstractTerm) t $ zipWith raise [0..] vsAll
+    let abstrv []             t = return t
+        abstrv ((a, v) : avs) t = do
+          t <- abstractTerm a v (typeOf $ unDom t) t
+          addContext (defaultDom a) $ abstrv avs t
+        abstrvs ts = traverse (abstrv $ zipWith raise [0..] vsAll) ts
+
     -- Δ₁, Δ₂, wtel ⊢ Δ₂abs
-    let delta2abs = abstrvs delta2flat
+    delta2abs <- abstrvs delta2flat
 
     -- Δ₁, wtel, Δ₂ ⊢ Δ₂flat'
     let delta2flat' = applySubst rho delta2abs
@@ -262,14 +258,17 @@ withFunctionType' delta1 vs as delta2 b = do
       , text "  delta2'     = " <+> do escapeContext n2 $ addContext wtel $ prettyTCM delta2'
       , text "  ty          = " <+> do escapeContext n2 $ escapeContext (size delta1) $ prettyTCM delta2'
       ]
-    return (ty, vsAll)
+    return (ty, map snd vsAll)
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
 withArguments :: [Term] -> [EqualityView] -> [Term]
-withArguments vs as = concat $ for (zip vs as) $ \case
-  (v, OtherType{}) -> [v]
-  (prf, EqualityType _s _eq _l _t v _v') -> [unArg v, prf]
+withArguments vs as = map snd $ withArguments' vs as
+
+withArguments' :: [Term] -> [EqualityView] -> [(Type, Term)]
+withArguments' vs as = concat $ for (zip vs as) $ \case
+  (v, OtherType a) -> [(a, v)]
+  (prf, eqt@(EqualityType s _eq _l t v _v')) -> [(El s (unArg t), unArg v), (equalityUnview eqt, prf)]
 
 
 -- | Compute the clauses for the with-function given the original patterns.

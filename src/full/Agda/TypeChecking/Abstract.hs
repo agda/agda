@@ -1,26 +1,50 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE UndecidableInstances #-}
+#if __GLASGOW_HASKELL__ < 710
+{-# LANGUAGE OverlappingInstances #-}
+#endif
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
 
+import Control.Applicative
 import Control.Monad
+import Control.Monad.State
 import Data.Function
+import Data.Traversable
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (equalityUnview)
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Functor
 import Agda.Utils.List (splitExactlyAt)
+import Agda.Utils.Size
+import Agda.Utils.Except
+import qualified Agda.Utils.HashMap as HMap
+
+typeOf :: Type -> Type
+typeOf = sort . getSort
 
 -- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
-piAbstractTerm :: Term -> Type -> Type -> Type
-piAbstractTerm v a b = mkPi (defaultDom ("w", a)) $ abstractTerm v b
+piAbstractTerm :: Term -> Type -> Type -> TCM Type
+piAbstractTerm v a b = do
+  fun <- mkPi (defaultDom ("w", a)) <$> abstractTerm a v (typeOf b) b
+  reportSDoc "tc.abstract" 30 $
+    sep [ text "abstr" <+> sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
+        , nest 2 $ text "from" <+> prettyTCM b
+        , nest 2 $ text "-->" <+> prettyTCM fun ]
+  return fun
 
 -- | @piAbstract (v, a) b[v] = (w : a) -> b[w]@
 --
@@ -28,16 +52,20 @@ piAbstractTerm v a b = mkPi (defaultDom ("w", a)) $ abstractTerm v b
 --
 --   @piAbstract (prf, Eq a v v') b[v,prf] = (w : a) (w' : Eq a w v') -> b[w,w']@
 
-piAbstract :: (Term, EqualityView) -> Type -> Type
+piAbstract :: (Term, EqualityView) -> Type -> TCM Type
 piAbstract (v, OtherType a) b = piAbstractTerm v a b
-piAbstract (prf, eqt@(EqualityType s _ _ a v _)) b =
-  funType (El s $ unArg a) $ funType eqt' $
-    swap01 $ abstractTerm (unArg $ raise 1 v) $ abstractTerm prf b
+piAbstract (prf, eqt@(EqualityType s _ _ a v _)) b = do
+  let prfTy = equalityUnview eqt
+      vTy   = El s (unArg a)
+      bTy   = typeOf b
+  b <- abstractTerm prfTy prf bTy b
+  b <- addContext (defaultDom prfTy) $ abstractTerm (raise 1 vTy) (unArg $ raise 1 v) (raise 1 bTy) b
+  return . funType vTy . funType eqTy' . swap01 $ b
   where
     funType a = mkPi $ defaultDom ("w", a)
     -- Abstract the lhs (@a@) of the equality only.
-    eqt1 = raise 1 eqt
-    eqt' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
+    eqt1  = raise 1 eqt
+    eqTy' = equalityUnview $ eqt1 { eqtLhs = eqtLhs eqt1 $> var 0 }
 
 -- | @isPrefixOf u v = Just es@ if @v == u `applyE` es@.
 class IsPrefixOf a where
@@ -65,12 +93,67 @@ instance IsPrefixOf Term where
       (u, v) -> guard (u == v) >> return []
 
 class AbstractTerm a where
-  -- | @subst u . abstractTerm u == id@
-  abstractTerm :: Term -> a -> a
+  abstractTerm :: Type -> Term -> Type -> a -> TCM a
 
 instance AbstractTerm Term where
-  abstractTerm u v | Just es <- u `isPrefixOf` v = Var 0 $ absT es
-                   | otherwise                   =
+    -- Type-based abstraction. Needed if u is a constructor application (#745).
+  abstractTerm a u@Con{} b v = do
+    reportSDoc "tc.abstract" 30 $
+      sep [ text "Abstracting"
+          , nest 2 $ sep [ prettyTCM u <+> text ":", nest 2 $ prettyTCM a ]
+          , text "over"
+          , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
+
+    hole <- qualify <$> currentModule <*> freshName_ "hole"
+    noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a Axiom
+
+    args <- map Apply <$> getContextArgs
+    let n = length args
+
+    let abstr b v = do
+          m <- size <$> getContext
+          let (a', u') = raise (m - n) (a, u)
+          reportSDoc "tc.abstract" 90 $
+            sep [ text "attempting abstraction of"
+                , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
+          case isPrefixOf u' v of
+            Nothing -> return v
+            Just es -> do -- Check that the types match.
+              s <- get
+              do  disableDestructiveUpdate (noConstraints $ equalType a' b)
+                  put s
+                  return $ Def hole (raise (m - n) args ++ es)
+                `catchError` \ _ -> do
+                  reportSDoc "tc.abstract.ill-typed" 30 $
+                    sep [ text "Skipping ill-typed abstraction"
+                        , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
+                  return v
+
+    v <- checkInternal' (defaultAction { preAction = abstr }) v b
+    reportSDoc "tc.abstract" 30 $ sep [ text "abstraction:", nest 2 $ prettyTCM v ]
+    modifySignature $ updateDefinitions $ HMap.delete hole
+    return $ absTerm (Def hole args) v
+
+  abstractTerm _ u _ v = return $ absTerm u v -- Non-constructors can use untyped abstraction
+
+instance AbstractTerm Type where
+  -- Don't abstract in the sort
+  abstractTerm a u b (El s v) = El (raise 1 s) <$> abstractTerm a u b v
+
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPABLE #-} (Traversable f, AbstractTerm a) => AbstractTerm (f a) where
+#else
+instance (Traversable f, AbstractTerm a) => AbstractTerm (f a) where
+#endif
+  abstractTerm a u b = traverse (abstractTerm a u b)
+
+class AbsTerm a where
+  -- | @subst u . absTerm u == id@
+  absTerm :: Term -> a -> a
+
+instance AbsTerm Term where
+  absTerm u v | Just es <- u `isPrefixOf` v = Var 0 $ absT es
+              | otherwise                   =
     case v of
 -- Andreas, 2013-10-20: the original impl. works only at base types
 --    v | u == v  -> Var 0 []  -- incomplete see succeed/WithOfFunctionType
@@ -86,58 +169,58 @@ instance AbstractTerm Term where
       DontCare mv -> DontCare $ absT mv
       Shared p    -> Shared $ absT p
       where
-        absT x = abstractTerm u x
+        absT x = absTerm u x
 
-instance AbstractTerm a => AbstractTerm (Ptr a) where
-  abstractTerm u = fmap (abstractTerm u)
+instance AbsTerm a => AbsTerm (Ptr a) where
+  absTerm u = fmap (absTerm u)
 
-instance AbstractTerm Type where
-  abstractTerm u (El s v) = El (abstractTerm u s) (abstractTerm u v)
+instance AbsTerm Type where
+  absTerm u (El s v) = El (absTerm u s) (absTerm u v)
 
-instance AbstractTerm Sort where
-  abstractTerm u s = case s of
+instance AbsTerm Sort where
+  absTerm u s = case s of
     Type n     -> Type $ absS n
     Prop       -> Prop
     Inf        -> Inf
     SizeUniv   -> SizeUniv
     DLub s1 s2 -> DLub (absS s1) (absS s2)
-    where absS x = abstractTerm u x
+    where absS x = absTerm u x
 
-instance AbstractTerm Level where
-  abstractTerm u (Max as) = Max $ abstractTerm u as
+instance AbsTerm Level where
+  absTerm u (Max as) = Max $ absTerm u as
 
-instance AbstractTerm PlusLevel where
-  abstractTerm u l@ClosedLevel{} = l
-  abstractTerm u (Plus n l) = Plus n $ abstractTerm u l
+instance AbsTerm PlusLevel where
+  absTerm u l@ClosedLevel{} = l
+  absTerm u (Plus n l) = Plus n $ absTerm u l
 
-instance AbstractTerm LevelAtom where
-  abstractTerm u l = case l of
-    MetaLevel m vs   -> MetaLevel m    $ abstractTerm u vs
-    NeutralLevel r v -> NeutralLevel r $ abstractTerm u v
-    BlockedLevel _ v -> UnreducedLevel $ abstractTerm u v -- abstracting might remove the blockage
-    UnreducedLevel v -> UnreducedLevel $ abstractTerm u v
+instance AbsTerm LevelAtom where
+  absTerm u l = case l of
+    MetaLevel m vs   -> MetaLevel m    $ absTerm u vs
+    NeutralLevel r v -> NeutralLevel r $ absTerm u v
+    BlockedLevel _ v -> UnreducedLevel $ absTerm u v -- abstracting might remove the blockage
+    UnreducedLevel v -> UnreducedLevel $ absTerm u v
 
-instance AbstractTerm a => AbstractTerm (Elim' a) where
-  abstractTerm = fmap . abstractTerm
+instance AbsTerm a => AbsTerm (Elim' a) where
+  absTerm = fmap . absTerm
 
-instance AbstractTerm a => AbstractTerm (Arg a) where
-  abstractTerm = fmap . abstractTerm
+instance AbsTerm a => AbsTerm (Arg a) where
+  absTerm = fmap . absTerm
 
-instance AbstractTerm a => AbstractTerm (Dom a) where
-  abstractTerm = fmap . abstractTerm
+instance AbsTerm a => AbsTerm (Dom a) where
+  absTerm = fmap . absTerm
 
-instance AbstractTerm a => AbstractTerm [a] where
-  abstractTerm = fmap . abstractTerm
+instance AbsTerm a => AbsTerm [a] where
+  absTerm = fmap . absTerm
 
-instance AbstractTerm a => AbstractTerm (Maybe a) where
-  abstractTerm = fmap . abstractTerm
+instance AbsTerm a => AbsTerm (Maybe a) where
+  absTerm = fmap . absTerm
 
-instance (Subst Term a, AbstractTerm a) => AbstractTerm (Abs a) where
-  abstractTerm u (NoAbs x v) = NoAbs x $ abstractTerm u v
-  abstractTerm u (Abs   x v) = Abs x $ swap01 $ abstractTerm (raise 1 u) v
+instance (Subst Term a, AbsTerm a) => AbsTerm (Abs a) where
+  absTerm u (NoAbs x v) = NoAbs x $ absTerm u v
+  absTerm u (Abs   x v) = Abs x $ swap01 $ absTerm (raise 1 u) v
 
-instance (AbstractTerm a, AbstractTerm b) => AbstractTerm (a, b) where
-  abstractTerm u (x, y) = (abstractTerm u x, abstractTerm u y)
+instance (AbsTerm a, AbsTerm b) => AbsTerm (a, b) where
+  absTerm u (x, y) = (absTerm u x, absTerm u y)
 
 -- | This swaps @var 0@ and @var 1@.
 swap01 :: (Subst Term a) => a -> a
