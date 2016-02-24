@@ -1,11 +1,14 @@
 # Keep this file in alphabetic order please!
 
+*~
 .*.swp
 *.agdai
 *.agda.el
 *.lagda.el
 *.hi
 *.o
+*.tix
+*.vim
 dist
 Everything.agda
 html
