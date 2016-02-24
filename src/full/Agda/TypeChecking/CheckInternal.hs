@@ -13,6 +13,7 @@ module Agda.TypeChecking.CheckInternal
   ( checkType
   , checkInternal
   , checkInternal'
+  , defaultAction, Action(..)
   , infer
   ) where
 
@@ -96,10 +97,11 @@ checkType' t = do
 checkTypeSpine :: Type -> Term -> Elims -> TCM Sort
 checkTypeSpine a self es = shouldBeSort =<< do snd <$> inferSpine a self es
 
-type Action = Type -> Term -> TCM Term
+data Action = Action { preAction  :: Type -> Term -> TCM Term
+                     , postAction :: Type -> Term -> TCM Term }
 
 defaultAction :: Action
-defaultAction t v = return v
+defaultAction = Action (\ _ v -> return v) (\ _ v -> return v)
 
 -- | Entry point for term checking.
 checkInternal :: Term -> Type -> TCM ()
@@ -113,8 +115,8 @@ checkInternal' action v t = do
                    , nest 2 $ prettyTCM t ] ]
   -- Bring projection-like funs in post-fix form,
   -- even lone ones (True).
-  v <- elimView True v
-  action t =<< case ignoreSharing v of
+  v <- elimView True =<< preAction action t v
+  postAction action t =<< case ignoreSharing v of
     Var i es   -> do
       a <- typeOfBV i
       checkSpine action a (Var i []) es t
