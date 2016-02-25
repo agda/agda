@@ -1731,7 +1731,7 @@ isModuleFreeVar i = do
 inferExprForWith :: A.Expr -> TCM (Term, Type)
 inferExprForWith e = do
   reportSDoc "tc.with.infer" 20 $ text "inferExprforWith " <+> prettyTCM e
-  reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show e
+  reportSLn  "tc.with.infer" 80 $ "inferExprforWith " ++ show (deepUnScope e)
   traceCall (InferExpr e) $ do
     -- With wants type and term fully instantiated!
     (v, t) <- instantiateFull =<< inferExpr e

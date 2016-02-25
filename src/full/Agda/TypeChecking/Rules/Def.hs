@@ -585,7 +585,7 @@ checkWithRHS x aux t (LHSResult delta ps trhs perm) vs0 as cs = do
 
         -- Andreas, 2013-02-26 separate msgs to see which goes wrong
         reportSDoc "tc.with.top" 20 $
-          text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ addContext delta2 $ prettyList (map prettyTCM vs)
+          text "    with arguments" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM vs)
         reportSDoc "tc.with.top" 20 $
           text "             types" <+> do escapeContext (size delta) $ addContext delta1 $ prettyList (map prettyTCM as)
         reportSDoc "tc.with.top" 20 $
@@ -610,7 +610,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
       , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
       , text "t      =" <+> prettyTCM t
       , text "as     =" <+> addCtxTel delta1 (prettyTCM as)
-      , text "vs     =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM vs
+      , text "vs     =" <+> do addCtxTel delta1 $ prettyTCM vs
       , text "b      =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM b
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')
@@ -626,7 +626,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
                              -- but module application is sloppy.
                              -- We normalise to get rid of Def's coming
                              -- from module applications.
-  (withFunType, vsAll) <- withFunctionType delta1 vs as delta2 b
+  (withFunType, n) <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "with-function type:", nest 2 $ prettyTCM withFunType ]
   reportSDoc "tc.with.type" 50 $ sep [ text "with-function type:", nest 2 $ text $ show withFunType ]
 
@@ -646,7 +646,6 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- With display forms are closed
 
-  let n        = size vsAll
   df <- makeClosed <$> withDisplayForm f aux delta1 delta2 n qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"

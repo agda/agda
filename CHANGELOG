@@ -1127,9 +1127,23 @@ Type checking
     test : foo ≡ foo → Set₁
     test refl = Set
 
-* A property of `rewrite` that held until 2.4.2.4 has been restored
-  [Issue 1692].  Rewrite does not rewrite in the types of rewrite
-  expressions.  This means that the following works again:
+* The aggressive behaviour of `with` introduced in 2.4.2.5 has been rolled
+  back. With no longer abstracts in the types of variables appearing in the
+  with-expressions. [Issue 1692]
+
+  This means that the following example no longer works:
+
+  ```agda
+    fails : (f : (x : A) → a ≡ x) (b : A) → b ≡ a
+    fails f b with a | f b
+    fails f b | .b | refl = f b
+  ```
+
+  The `with` no longer abstracts the type of `f` over `a`, since `f` appears
+  in the second with-expression `f b`. You can use a nested `with` to make
+  this example work.
+
+  This example does work again:
 
   ```agda
     test : ∀{A : Set}{a : A}{f : A → A} (p : f a ≡ a) → f (f a) ≡ a
@@ -1150,27 +1164,6 @@ Type checking
   the latter is part of the rewrite expression `f b`.  Thus,
   the type of `f` remains untouched, and the changed goal
   `b ≡ b` is not solved by `f b`.
-
-  The more agressive `with` of 2.4.2.5 has not been affected by this
-  change to `rewrite`.  To prevent abstraction in types of variables,
-  it is still not sufficient that these variables occur in the
-  with-expressions; they must occur in the types of some
-  with-expression.  This can be forced with the "Protect Pattern"; for
-  instance, to get the effect of the `rewrite` of `test` with `with`,
-  one can write as follows:
-
-  ```agda
-    data Protect {a} {A : Set a} : A → Set where
-      protect : ∀ x → Protect x
-
-    test-with : ∀ {A : Set} (f : A → A) (a : A) (p : f a ≡ a) → f (f a) ≡ a
-    test-with f a p with protect p | f a | p
-    ... | _ | _ | refl = p
-  ```
-
-  As `protect p : Protect p`, variable `p` occurs in the type of
-  with-expression `protect p`, thus, its type is not touched by the
-  `with`.
 
 * When using `rewrite` on a term `eq` of type `lhs ≡ rhs`, the `lhs`
   is no longer abstracted in `rhs` [Issue 520].  This means that
@@ -1406,7 +1399,7 @@ Pragmas and options
 Type checking
 =============
 
-* `with`-abstraction is more agressive, abstracts also in types of
+* `with`-abstraction is more aggressive, abstracts also in types of
   variables that are used in the `with`-expressions, unless they are
   also used in the types of the `with`-expressions. [Issue 1692]
 

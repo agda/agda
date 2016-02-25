@@ -3,4 +3,4 @@ Issue1371.agda:32,1-9
 patterns are valid:
   refl
 when checking that the clause .Issue1371.with-28 () has type
-(w : "other" ≡ "other") → ⊥
+"other" ≡ "other" → ⊥

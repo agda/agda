@@ -6,39 +6,36 @@ delta  = (trash1 : Trash) (b : A) (trash2 : Trash)
 vs     = [f b]
 as     = [P b]
 perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
-delta1 = (b : A)
-delta2 = (trash1 : Trash) (trash2 : Trash) (f : (x : A) → P x)
-         (trash3 : Trash)
-perm'  = x0,x1,x2,x3,x4 -> x1,x0,x2,x3,x4
-fPerm  = x0,x1,x2,x3,x4 -> x1,x0,x2,x3,x4
+delta1 = (b : A) (f : (x : A) → P x)
+delta2 = (trash1 : Trash) (trash2 : Trash) (trash3 : Trash)
+perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
+fPerm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
     with arguments [f b]
              types [P b]
-with function call .DebugWith.with-34 b (f b) trash1 trash2 f
+with function call .DebugWith.with-34 b f (f b) trash1 trash2
                    trash3
            context (trash1 : Trash) (b : A) (trash2 : Trash)
                    (f : (x : A) → P x) (trash3 : Trash)
              delta (trash1 : Trash) (b : A) (trash2 : Trash)
                    (f : (x : A) → P x) (trash3 : Trash)
               body [h0 h1 h2 h3 h4]
-                   .DebugWith.with-34 h1 (h3 h1) h0 h2 h3 h4
+                   .DebugWith.with-34 h1 h3 (h3 h1) h0 h2 h4
 checkWithFunction
-  delta1 = (b : A)
-  delta2 = (trash1 : Trash) (trash2 : Trash) (f : (x : A) → P x)
-           (trash3 : Trash)
+  delta1 = (b : A) (f : (x : A) → P x)
+  delta2 = (trash1 : Trash) (trash2 : Trash) (trash3 : Trash)
   t      = Trash → A → Trash → ((x : A) → P x) → Trash → Set
   as     = [P b]
   vs     = [f b]
   b      = Set
   qs     = [r(trash1 = VarP "trash1"),r(b = VarP "b"),r(trash2 = VarP "trash2"),r(f = VarP "f"),r(trash3 = VarP "trash3")]
-  perm'  = x0,x1,x2,x3,x4 -> x1,x0,x2,x3,x4
+  perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
   perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
-  fperm  = x0,x1,x2,x3,x4 -> x1,x0,x2,x3,x4
+  fperm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
 created with display form
-Display 6 [@0, @0, @0, @0, @0, @0] test @3 @5 @2 @1 @0 | @4
+Display 6 [@0, @0, @0, @0, @0, @0] test @2 @5 @1 @4 @0 | @3
 added with function .DebugWith.with-34 of type
-  (b : A) (w : P b) (trash1 trash2 : Trash) (f : (x : A) → P x)
-  (trash3 : Trash) →
-  Set
+  (b : A) (f : (x : A) → P x) →
+  P b → (trash1 trash2 trash3 : Trash) → Set
   -|
 DebugWith.agda:15,11-23
 Trash !=< Set of type Set

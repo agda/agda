@@ -3,9 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE UndecidableInstances #-}
-#if __GLASGOW_HASKELL__ < 710
-{-# LANGUAGE OverlappingInstances #-}
-#endif
 
 -- | Functions for abstracting terms over other terms.
 module Agda.TypeChecking.Abstract where
@@ -33,15 +30,22 @@ import Agda.Utils.Size
 import Agda.Utils.Except
 import qualified Agda.Utils.HashMap as HMap
 
+import Agda.Utils.Impossible
+#include "undefined.h"
+
 typeOf :: Type -> Type
 typeOf = sort . getSort
+
+-- Doesn't abstract in the sort.
+abstractType :: Type -> Term -> Type -> TCM Type
+abstractType a v (El s b) = El (raise 1 s) <$> abstractTerm a v (sort s) b
 
 -- | @piAbstractTerm v a b[v] = (w : a) -> b[w]@
 piAbstractTerm :: Term -> Type -> Type -> TCM Type
 piAbstractTerm v a b = do
-  fun <- mkPi (defaultDom ("w", a)) <$> abstractTerm a v (typeOf b) b
-  reportSDoc "tc.abstract" 30 $
-    sep [ text "abstr" <+> sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
+  fun <- mkPi (defaultDom ("w", a)) <$> abstractType a v b
+  reportSDoc "tc.abstract" 50 $
+    sep [ text "piAbstract" <+> sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM a ]
         , nest 2 $ text "from" <+> prettyTCM b
         , nest 2 $ text "-->" <+> prettyTCM fun ]
   return fun
@@ -57,9 +61,8 @@ piAbstract (v, OtherType a) b = piAbstractTerm v a b
 piAbstract (prf, eqt@(EqualityType s _ _ a v _)) b = do
   let prfTy = equalityUnview eqt
       vTy   = El s (unArg a)
-      bTy   = typeOf b
-  b <- abstractTerm prfTy prf bTy b
-  b <- addContext (defaultDom prfTy) $ abstractTerm (raise 1 vTy) (unArg $ raise 1 v) (raise 1 bTy) b
+  b <- abstractType prfTy prf b
+  b <- addContext ("w", defaultDom prfTy) $ abstractType (raise 1 vTy) (unArg $ raise 1 v) b
   return . funType vTy . funType eqTy' . swap01 $ b
   where
     funType a = mkPi $ defaultDom ("w", a)
@@ -92,60 +95,49 @@ instance IsPrefixOf Term where
       (MetaV x us, MetaV y vs) | x == y  -> us `isPrefixOf` vs
       (u, v) -> guard (u == v) >> return []
 
-class AbstractTerm a where
-  abstractTerm :: Type -> Term -> Type -> a -> TCM a
+-- Type-based abstraction. Needed if u is a constructor application (#745).
+abstractTerm :: Type -> Term -> Type -> Term -> TCM Term
+abstractTerm a u@Con{} b v = do
+  reportSDoc "tc.abstract" 50 $
+    sep [ text "Abstracting"
+        , nest 2 $ sep [ prettyTCM u <+> text ":", nest 2 $ prettyTCM a ]
+        , text "over"
+        , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
 
-instance AbstractTerm Term where
-    -- Type-based abstraction. Needed if u is a constructor application (#745).
-  abstractTerm a u@Con{} b v = do
-    reportSDoc "tc.abstract" 30 $
-      sep [ text "Abstracting"
-          , nest 2 $ sep [ prettyTCM u <+> text ":", nest 2 $ prettyTCM a ]
-          , text "over"
-          , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
+  hole <- qualify <$> currentModule <*> freshName_ "hole"
+  noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a Axiom
 
-    hole <- qualify <$> currentModule <*> freshName_ "hole"
-    noMutualBlock $ addConstant hole $ defaultDefn defaultArgInfo hole a Axiom
+  args <- map Apply <$> getContextArgs
+  let n = length args
 
-    args <- map Apply <$> getContextArgs
-    let n = length args
+  let abstr b v = do
+        m <- size <$> getContext
+        let (a', u') = raise (m - n) (a, u)
+        case isPrefixOf u' v of
+          Nothing -> return v
+          Just es -> do -- Check that the types match.
+            s <- get
+            do  disableDestructiveUpdate (noConstraints $ equalType a' b)
+                put s
+                return $ Def hole (raise (m - n) args ++ es)
+              `catchError` \ _ -> do
+                reportSDoc "tc.abstract.ill-typed" 50 $
+                  sep [ text "Skipping ill-typed abstraction"
+                      , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
+                return v
 
-    let abstr b v = do
-          m <- size <$> getContext
-          let (a', u') = raise (m - n) (a, u)
-          reportSDoc "tc.abstract" 90 $
-            sep [ text "attempting abstraction of"
-                , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
-          case isPrefixOf u' v of
-            Nothing -> return v
-            Just es -> do -- Check that the types match.
-              s <- get
-              do  disableDestructiveUpdate (noConstraints $ equalType a' b)
-                  put s
-                  return $ Def hole (raise (m - n) args ++ es)
-                `catchError` \ _ -> do
-                  reportSDoc "tc.abstract.ill-typed" 30 $
-                    sep [ text "Skipping ill-typed abstraction"
-                        , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ] ]
-                  return v
+  v <- catchError_ (checkInternal' (defaultAction { preAction = abstr }) v b) $ \ err -> do
+        reportSDoc "impossible" 10 $
+          vcat [ text "Type error in term to abstract"
+               , nest 2 $ (prettyTCM =<< getContextTelescope) <+> text "⊢"
+               , nest 2 $ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM b ]
+               , nest 2 $ prettyTCM err ]
+        __IMPOSSIBLE__
+  reportSDoc "tc.abstract" 50 $ sep [ text "Resulting abstraction", nest 2 $ prettyTCM v ]
+  modifySignature $ updateDefinitions $ HMap.delete hole
+  return $ absTerm (Def hole args) v
 
-    v <- checkInternal' (defaultAction { preAction = abstr }) v b
-    reportSDoc "tc.abstract" 30 $ sep [ text "abstraction:", nest 2 $ prettyTCM v ]
-    modifySignature $ updateDefinitions $ HMap.delete hole
-    return $ absTerm (Def hole args) v
-
-  abstractTerm _ u _ v = return $ absTerm u v -- Non-constructors can use untyped abstraction
-
-instance AbstractTerm Type where
-  -- Don't abstract in the sort
-  abstractTerm a u b (El s v) = El (raise 1 s) <$> abstractTerm a u b v
-
-#if __GLASGOW_HASKELL__ >= 710
-instance {-# OVERLAPPABLE #-} (Traversable f, AbstractTerm a) => AbstractTerm (f a) where
-#else
-instance (Traversable f, AbstractTerm a) => AbstractTerm (f a) where
-#endif
-  abstractTerm a u b = traverse (abstractTerm a u b)
+abstractTerm _ u _ v = return $ absTerm u v -- Non-constructors can use untyped abstraction
 
 class AbsTerm a where
   -- | @subst u . absTerm u == id@

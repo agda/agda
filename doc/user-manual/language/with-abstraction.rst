@@ -451,10 +451,9 @@ variables bound in :math:`ps`), we
 
 - Partition the context :math:`\Delta` into :math:`\Delta_1` and
   :math:`\Delta_2` such that :math:`\Delta_1` is the smallest context where
-  :math:`\Delta_1 \vdash A_i` for all :math:`i`, i.e., where the types of 
-  the scrutinees are well-formed.  Note that the
-  partitioning is not required to be a split, :math:`\Delta_1\Delta_2` can be a
-  (well-formed) reordering of :math:`\Delta`.
+  :math:`\Delta_1 \vdash t_i : A_i` for all :math:`i`, i.e., where the scrutinees are well-typed.
+  Note that the partitioning is not required to be a split,
+  :math:`\Delta_1\Delta_2` can be a (well-formed) reordering of :math:`\Delta`.
 
 - Generalise over the :math:`t_i` s, by computing
 

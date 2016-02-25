@@ -39,6 +39,7 @@ bad a b eq rewrite eq = foo
     --     bar = refl
 
 -- Andreas, 2015-11-18 added test during exploration of issue 1692.
-test : (a b : ℕ) → a ≡ b → b ≡ a
-test a b eq with a | eq
-test a b eq | .b | refl = eq
+-- Ulf, 2016-02-25 after fix to #745 this no longer works.
+-- test : (a b : ℕ) → a ≡ b → b ≡ a
+-- test a b eq with a | eq
+-- test a b eq | .b | refl = eq
