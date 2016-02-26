@@ -298,7 +298,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
                       -- Ignore unconstrained level metas (#1865)
                       Def lvl [] <- ignoreSharing <$> primLevel
-                      o          <- getOutputTypeName =<< getMetaType i
+                      o          <- getOutputTypeName . jMetaType . mvJudgement =<< lookupMeta i
                       case o of
                         OutputTypeName l | l == lvl -> return Nothing
                         _                           -> return (Just i)
