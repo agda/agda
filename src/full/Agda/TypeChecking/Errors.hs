@@ -1105,7 +1105,7 @@ instance PrettyTCM TypeError where
         fwords ("Cannot unquote non-canonical " ++ kind)
         $$ nest 2 (prettyTCM t)
 
-      BlockedOnMeta m -> fsep $
+      BlockedOnMeta _ m -> fsep $
         pwords $ "Unquote failed because of unsolved meta variables."
 
       UnquotePanic err -> __IMPOSSIBLE__

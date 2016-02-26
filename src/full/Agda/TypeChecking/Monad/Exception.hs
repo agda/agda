@@ -60,6 +60,11 @@ instance (Monad m, MonadException err m, Monoid w) => MonadException err (Writer
   catchException m h = WriterT $
     catchException (runWriterT m) (\ err -> runWriterT $ h err)
 
+instance (Monad m, MonadException err m) => MonadException err (StateT s m) where
+  throwException = lift . throwException
+  catchException m h = StateT $ \ s ->
+    catchException (runStateT m s) (\ err -> runStateT (h err) s)
+
 instance MonadTrans (ExceptionT err) where
   lift = ExceptionT . liftM Right
 

@@ -4,8 +4,9 @@
 
 module Agda.TypeChecking.Unquote where
 
+import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative
-import Control.Monad.State (runState, get, put)
+import Control.Monad.State (StateT(..), evalStateT, get, gets, put, modify)
 import Control.Monad.Reader (ReaderT(..), ask, asks)
 import Control.Monad.Writer (WriterT(..), execWriterT, runWriterT, tell)
 import Control.Monad.Trans (lift)
@@ -70,25 +71,31 @@ agdaTypeType = agdaTermType
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
 
+data Dirty = Dirty | Clean
+  deriving (Eq)
+
 -- Keep track of the original context. We need to use that when adding new
--- definitions.
-type UnquoteM = ReaderT Context (WriterT [QName] (ExceptionT UnquoteError TCM))
+-- definitions. Also state snapshot from last commit and whether the state is
+-- dirty (definitions have been added).
+type UnquoteState = (Dirty, TCState)
+type UnquoteM = ReaderT Context (StateT UnquoteState (WriterT [QName] (ExceptionT UnquoteError TCM)))
 
-type UnquoteRes a = Either UnquoteError (a, [QName])
+type UnquoteRes a = Either UnquoteError ((a, UnquoteState), [QName])
 
-unpackUnquoteM :: UnquoteM a -> Context -> TCM (UnquoteRes a)
-unpackUnquoteM m cxt = runExceptionT $ runWriterT $ runReaderT m cxt
+unpackUnquoteM :: UnquoteM a -> Context -> UnquoteState -> TCM (UnquoteRes a)
+unpackUnquoteM m cxt s = runExceptionT $ runWriterT $ runStateT (runReaderT m cxt) s
 
-packUnquoteM :: (Context -> TCM (UnquoteRes a)) -> UnquoteM a
-packUnquoteM f = ReaderT $ \ cxt -> WriterT $ ExceptionT $ f cxt
+packUnquoteM :: (Context -> UnquoteState -> TCM (UnquoteRes a)) -> UnquoteM a
+packUnquoteM f = ReaderT $ \ cxt -> StateT $ \ s -> WriterT $ ExceptionT $ f cxt s
 
-runUnquoteM :: UnquoteM a -> TCM (UnquoteRes a)
+runUnquoteM :: UnquoteM a -> TCM (Either UnquoteError (a, [QName]))
 runUnquoteM m = do
   cxt <- asks envContext
-  z   <- unpackUnquoteM m cxt
+  s   <- get
+  z   <- unpackUnquoteM m cxt (Clean, s)
   case z of
-    Left err         -> return $ Left err
-    Right (_, decls) -> z <$ mapM_ isDefined decls
+    Left err              -> return $ Left err
+    Right ((x, _), decls) -> Right (x, decls) <$ mapM_ isDefined decls
   where
     isDefined x = do
       def <- theDef <$> getConstInfo x
@@ -97,18 +104,18 @@ runUnquoteM m = do
         _       -> return ()
 
 liftU :: TCM a -> UnquoteM a
-liftU = lift . lift . lift
+liftU = lift . lift . lift . lift
 
 liftU1 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b)) -> UnquoteM a -> UnquoteM b
-liftU1 f m = packUnquoteM $ \ cxt -> f (unpackUnquoteM m cxt)
+liftU1 f m = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m cxt s)
 
 liftU2 :: (TCM (UnquoteRes a) -> TCM (UnquoteRes b) -> TCM (UnquoteRes c)) -> UnquoteM a -> UnquoteM b -> UnquoteM c
-liftU2 f m1 m2 = packUnquoteM $ \ cxt -> f (unpackUnquoteM m1 cxt) (unpackUnquoteM m2 cxt)
+liftU2 f m1 m2 = packUnquoteM $ \ cxt s -> f (unpackUnquoteM m1 cxt s) (unpackUnquoteM m2 cxt s)
 
 inOriginalContext :: UnquoteM a -> UnquoteM a
 inOriginalContext m =
-  packUnquoteM $ \ cxt ->
-    modifyContext (const cxt) $ unpackUnquoteM m cxt
+  packUnquoteM $ \ cxt s ->
+    modifyContext (const cxt) $ unpackUnquoteM m cxt s
 
 isCon :: ConHead -> TCM Term -> UnquoteM Bool
 isCon con tm = do t <- liftU tm
@@ -128,7 +135,7 @@ reduceQuotedTerm t = do
   b <- liftU $ ifBlocked t (\ m _ -> pure $ Left  m)
                            (\ t   -> pure $ Right t)
   case b of
-    Left m  -> throwException $ BlockedOnMeta m
+    Left m  -> do s <- gets snd; throwException $ BlockedOnMeta s m
     Right t -> return t
 
 class Unquote a where
@@ -466,7 +473,8 @@ evalTCM v = do
 
   case ignoreSharing v of
     I.Def f [] ->
-      choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext) ]
+      choice [ (f `isDef` primAgdaTCMGetContext, tcGetContext)
+             , (f `isDef` primAgdaTCMCommit,     tcCommit) ]
              failEval
     I.Def f [u] ->
       choice [ (f `isDef` primAgdaTCMInferType,          tcFun1 tcInferType          u)
@@ -540,7 +548,18 @@ evalTCM v = do
       primUnitUnit
 
     tcBlockOnMeta :: MetaId -> UnquoteM Term
-    tcBlockOnMeta x = throwException (BlockedOnMeta x)
+    tcBlockOnMeta x = do
+      s <- gets snd
+      throwException (BlockedOnMeta s x)
+
+    tcCommit :: UnquoteM Term
+    tcCommit = do
+      dirty <- gets fst
+      when (dirty == Dirty) $
+        liftU $ typeError $ GenericError "Cannot use commitTC after declaring new definitions."
+      s <- liftU get
+      modify (second $ const s)
+      liftU primUnitUnit
 
     tcTypeError :: [ErrorPart] -> TCM a
     tcTypeError err = typeError . GenericDocError =<< fsep (map prettyTCM err)
@@ -606,8 +625,12 @@ evalTCM v = do
     tcGetDefinition :: QName -> TCM Term
     tcGetDefinition x = quoteDefn =<< constInfo x
 
+    setDirty :: UnquoteM ()
+    setDirty = modify (first $ const Dirty)
+
     tcDeclareDef :: Arg QName -> R.Type -> UnquoteM Term
     tcDeclareDef (Arg i x) a = inOriginalContext $ do
+      setDirty
       let h = getHiding i
           r = getRelevance i
       when (h == Hidden) $ liftU $ typeError . GenericDocError =<< text "Cannot declare hidden function" <+> prettyTCM x
@@ -623,7 +646,7 @@ evalTCM v = do
         primUnitUnit
 
     tcDefineFun :: QName -> [R.Clause] -> UnquoteM Term
-    tcDefineFun x cs = inOriginalContext $ liftU $ do
+    tcDefineFun x cs = inOriginalContext $ (setDirty >>) $ liftU $ do
       _ <- getConstInfo x `catchError` \ _ ->
         genericError $ "Missing declaration for " ++ show x
       cs <- mapM (toAbstract_ . QNamed x) cs

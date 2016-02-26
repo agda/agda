@@ -131,7 +131,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
-    primAgdaTCMBlockOnMeta
+    primAgdaTCMBlockOnMeta, primAgdaTCMCommit
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -256,6 +256,7 @@ primAgdaTCMGetDefinition      = getBuiltin builtinAgdaTCMGetDefinition
 primAgdaTCMQuoteTerm          = getBuiltin builtinAgdaTCMQuoteTerm
 primAgdaTCMUnquoteTerm        = getBuiltin builtinAgdaTCMUnquoteTerm
 primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
+primAgdaTCMCommit             = getBuiltin builtinAgdaTCMCommit
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -296,7 +297,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
-  builtinAgdaTCMBlockOnMeta
+  builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit
   :: String
 
 builtinNat                           = "NATURAL"
@@ -419,6 +420,7 @@ builtinAgdaTCMDefineFun     = "AGDATCMDEFINEFUN"
 builtinAgdaTCMGetType       = "AGDATCMGETTYPE"
 builtinAgdaTCMGetDefinition = "AGDATCMGETDEFINITION"
 builtinAgdaTCMBlockOnMeta   = "AGDATCMBLOCKONMETA"
+builtinAgdaTCMCommit        = "AGDATCMCOMMIT"
 builtinAgdaTCMQuoteTerm     = "AGDATCMQUOTETERM"
 builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
 

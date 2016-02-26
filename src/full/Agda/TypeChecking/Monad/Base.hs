@@ -108,6 +108,9 @@ data TCState = TCSt
     -- ^ State which is forever, like a diamond.
   }
 
+instance Show TCState where
+  show _ = "TCSt{}"
+
 data PreScopeState = PreScopeState
   { stPreTokens             :: CompressedFile -- from lexer
     -- ^ Highlighting info for tokens (but not those tokens for
@@ -1959,7 +1962,7 @@ data UnquoteError
   | ConInsteadOfDef QName String String
   | DefInsteadOfCon QName String String
   | NonCanonical String I.Term
-  | BlockedOnMeta MetaId
+  | BlockedOnMeta TCState MetaId
   | UnquotePanic String
   deriving (Show)
 

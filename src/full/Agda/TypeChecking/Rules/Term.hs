@@ -1123,10 +1123,9 @@ unquoteM tac hole holeType k = do
 
 unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
 unquoteTactic tac hole goal k = do
-  oldState <- get
   ok  <- runUnquoteM $ unquoteTCM tac hole
   case ok of
-    Left (BlockedOnMeta x) -> do
+    Left (BlockedOnMeta oldState x) -> do
       put oldState
       mi <- Map.lookup x <$> getMetaStore
       (r, unblock) <- case mi of

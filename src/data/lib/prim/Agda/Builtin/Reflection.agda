@@ -203,6 +203,7 @@ postulate
   getType       : Name → TC Type
   getDefinition : Name → TC Definition
   blockOnMeta   : ∀ {a} {A : Set a} → Meta → TC A
+  commitTC      : TC ⊤
 
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
@@ -224,3 +225,4 @@ postulate
 {-# BUILTIN AGDATCMGETTYPE       getType       #-}
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
 {-# BUILTIN AGDATCMBLOCKONMETA   blockOnMeta   #-}
+{-# BUILTIN AGDATCMCOMMIT        commitTC      #-}
