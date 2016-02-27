@@ -407,11 +407,3 @@ Cabal stuff
   https://code.google.com/p/agda/issues/detail?id=1196):
 
   cabal repl --ghc-options=-Wwarn
-
-TODO: The following information is outdated, referring to darcs.  If
-you know how to port these tips to git, update this file.
-
-* Under darcs 2.5 the --test flag is not enabled by default. This can
-  be changed by adding the following line to _darcs/prefs/defaults:
-
-    ALL test
