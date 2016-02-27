@@ -483,7 +483,8 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps c = do
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
         , nest 2 $ vcat
-          [ text "con    =" <+> prettyTCM con
+          [ text "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
+          , text "con    =" <+> prettyTCM con
           , text "ctype  =" <+> prettyTCM ctype
           , text "hps    =" <+> text (show hps)
           , text "d      =" <+> prettyTCM d
