@@ -289,6 +289,16 @@ Testing and documentation
   in doc/user-manual. E.g., call `make html` to build the
   documentation in html format.
 
+* Running the test-suite using Cabal sandboxes
+
+  If the sandbox uses for example the directory
+  `dist/dist-sandbox-12345` you can run the test-suite using the
+  following commands:
+
+    export AGDA_BIN=dist/dist-sandbox-7a93473/build/agda/agda
+    export AGDA_TESTS_BIN=dist/dist-sandbox-7a93473/build/agda-tests/agda-tests
+    make test
+
 Some Agda Hacking Lore
 ----------------------
 
