@@ -1,13 +1,17 @@
 Working with Git (from 2013-06-15)
 
-* Maintenance branches.
+Maintenance branches
+--------------------
 
   For old releases (starting with 2.4.0) there are maintenance branches
   maint-$VERSION, where e.g. VERSION=2.4.0.
   Bug fixes should be based on the appropriate maintenance branch
   whenever possible. See below.
 
-* Branches should be used generously when fixing bugs and adding features.
+Branches
+---------
+
+  Branches should be used generously when fixing bugs and adding features.
   Whenever possible bug fix branches should be based on the latest maintenance
   branch rather than the master branch.  For instance, fixing issue 1234 would
   work as follows:
@@ -73,7 +77,10 @@ Working with Git (from 2013-06-15)
     maint$  git fetch origin master:master
     maint$  git pull
 
-* If you want to find the commit that introduced a regression that
+Finding the commit that introduced a regression
+-----------------------------------------------
+
+  If you want to find the commit that introduced a regression that
   caused Module-that-should-be-accepted to be rejected, then you can
   try the following recipe:
 
@@ -170,12 +177,13 @@ Working with Git (from 2013-06-15)
     exit $status
 
 Standard library submodule
+--------------------------
 
 * A large part of the test suite involves the standard library.
   Each version of Agda is deemed compatible with a corresponding version of the
   standard library.
 
-* Each commit in the main agda repository has a reference to a branch and a
+* Each commit in the main Agda repository has a reference to a branch and a
   commit in the standard library repository. The tests are run using this
   referenced version of the standard library.
 
@@ -213,6 +221,7 @@ Standard library submodule
   See: https://www.git-scm.com/book/en/v2/Git-Tools-Submodules
 
 Testing and documentation
+-------------------------
 
 * When you implement a new feature it needs to be documented in
   doc/user-manual/ and doc/release-notes/<next-version>.txt.
@@ -281,6 +290,7 @@ Testing and documentation
   documentation in html format.
 
 Some Agda Hacking Lore
+----------------------
 
 * Whenever you change the interface file format you should update
   Agda.TypeChecking.Serialise.currentInterfaceVersion.
@@ -323,7 +333,8 @@ Some Agda Hacking Lore
   Instead, just call `make` after UHC has been installed,
   and the UHC backend will be enabled automically.
 
-Haskell-mode and the agda codebase
+Haskell-mode and the Agda codebase
+-----------------------------------
 
 * If you're using a recent haskell-mode (use `M-x package-install
   haskell-mode' to be sure, what's packaged by debian is not enough),
@@ -345,6 +356,7 @@ Haskell-mode and the agda codebase
   to do that often.
 
 Emacs mode
+----------
 
 * Load times (wall-clock time) can be measured using
   agda2-measure-load-time.
@@ -379,6 +391,7 @@ Emacs mode
               (insert "\n")))))))
 
 Cabal stuff
+-----------
 
 * For running cabal repl use the following command (see
   https://code.google.com/p/agda/issues/detail?id=1196):
