@@ -200,7 +200,7 @@ getCoreName qnm = CompileT $ do
 getCoreName1 :: QName -> TCM HsName
 getCoreName1 qnm = do
 
-  modNm <- topLevelModuleName qnm
+  modNm <- topLevelModuleName (qnameModule qnm)
 
   def <- theDef <$> getConstInfo qnm
 
@@ -219,16 +219,6 @@ getCoreName1 qnm = do
     -- we don't really care about the original name, we just keep it for easier debugging
     capitalize (x:xs) = (toUpper x):xs
     capitalize _      = __IMPOSSIBLE__
-
-topLevelModuleName :: QName -> TCM ModuleName
-topLevelModuleName qnm = go (qnameModule qnm)
-  where
-    go :: ModuleName -> TCM ModuleName
-    go mnm = do
-      topMods <- use stModuleToSource
-      if (toTopLevelModuleName mnm) `Map.member` topMods
-        then return mnm
-        else go (mnameFromList $ init $ mnameToList mnm)
 
 -- | Returns the names inside a QName, with the module prefix stripped away.
 -- If the name is not module-qualified, returns the full name as left. (TODO investigate when this happens)

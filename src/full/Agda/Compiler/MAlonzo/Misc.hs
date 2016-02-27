@@ -59,34 +59,13 @@ unqhname s q = ihname s (idnum $ nameId $ qnameName $ q)
 
 -- the toplevel module containing the given one
 tlmodOf :: ModuleName -> TCM HS.ModuleName
-tlmodOf = fmap mazMod . tlmname
+tlmodOf = fmap mazMod . topLevelModuleName
 
-tlmname :: ModuleName -> TCM ModuleName
-tlmname m = do
-  -- get the names of the visited modules
-  visited <- List.map (iModuleName . miInterface) . Map.elems <$>
-    getVisitedModules
-  -- find the module with the longest matching prefix to m
-  let ms = sortBy (compare `on` (length . mnameToList)) $
-       List.filter (\ m' -> mnameToList m' `isPrefixOf` mnameToList m) visited
-  case ms of
-    (m' : _) -> return m'
-    -- if we did not get anything, it may be because m is a section
-    -- (a module _ )
-    []       -> curMName
-{-  NOT IMPOSSIBLE!
-    _ -> do
-      reportSDoc "impossible" 10 $ sep
-        [ text $ "m = " ++ show m
-        , text $ "should be contained in the visited modules " ++ show visited
-        ]
-      __IMPOSSIBLE__
--}
 
 -- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
 xqual :: QName -> HS.Name -> TCM HS.QName
-xqual q n = do m1 <- tlmname (qnameModule q)
+xqual q n = do m1 <- topLevelModuleName (qnameModule q)
                m2 <- curMName
                if m1 == m2 then return (HS.UnQual n)
                   else addImport m1 >> return (HS.Qual (mazMod m1) n)

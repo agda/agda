@@ -7,11 +7,13 @@ module Agda.Compiler.Common where
 import Prelude hiding (foldl, mapM_, mapM, sequence, concat)
 #endif
 
+import Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Char
+import Data.Function
 
 import Control.Monad
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
@@ -151,3 +153,17 @@ inCompilerEnv mainI cont =
 
     ignoreAbstractMode $ do
       cont
+
+topLevelModuleName :: ModuleName -> TCM ModuleName
+topLevelModuleName m = do
+  -- get the names of the visited modules
+  visited <- List.map (iModuleName . miInterface) . Map.elems <$>
+    getVisitedModules
+  -- find the module with the longest matching prefix to m
+  let ms = sortBy (compare `on` (length . mnameToList)) $
+       List.filter (\ m' -> mnameToList m' `isPrefixOf` mnameToList m) visited
+  case ms of
+    (m' : _) -> return m'
+    -- if we did not get anything, it may be because m is a section
+    -- (a module _ ), see e.g. #1866
+    []       -> curMName
