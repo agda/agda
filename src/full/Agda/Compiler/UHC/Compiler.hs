@@ -202,7 +202,8 @@ callUHC1 :: [String] -> TCM ()
 callUHC1 args = do
     uhcBin <- getUhcBin
     doCall <- optUHCCallUHC <$> commandLineOptions
-    callCompiler doCall uhcBin args
+    extraArgs <- optUHCFlags <$> commandLineOptions
+    callCompiler doCall uhcBin (args ++ extraArgs)
 
 getUhcBin :: TCM FilePath
 getUhcBin = fromMaybe ("uhc") . optUHCBin <$> commandLineOptions
