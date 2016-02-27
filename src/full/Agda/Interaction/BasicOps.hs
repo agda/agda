@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -601,22 +602,20 @@ metaHelperType norm ii rng s = case words s of
 contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' Expr Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
-  let localVars = map ctxEntry . envContext . clEnv $ info
-      letVars = map (\(n, OpenThing _ (tm, (Dom c ty))) -> Dom c (n, ty))
-                    $ Map.toDescList . envLetBindings . clEnv $ info
-  withMetaInfo info $ gfilter visible <$> reifyContext (length letVars)
-                                                       (letVars ++ localVars)
+  withMetaInfo info $ do
+    cxt <- getContext
+    let n         = length cxt
+        localVars = zipWith raise [1..] cxt
+        mkLet (x, lb) = do
+          (tm, Dom c ty) <- getOpen lb
+          return $ Dom c (x, ty)
+    letVars <- mapM mkLet . Map.toDescList =<< asks envLetBindings
+    gfilter visible . reverse <$> mapM out (letVars ++ localVars)
   where gfilter p = catMaybes . map p
         visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
-        reifyContext skip xs =
-          reverse <$> zipWithM out
-                               -- don't escape context for letvars
-                               (replicate skip 0 ++ [1..])
-                               xs
-
-        out i (Dom _ (x, t)) = escapeContext i $ do
+        out (Dom _ (x, t)) = do
           t' <- reify =<< normalForm norm t
           return $ OfType x t'
 
