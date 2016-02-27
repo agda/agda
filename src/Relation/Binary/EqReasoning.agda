@@ -19,10 +19,8 @@
 --     0
 --   ∎
 
--- Note that some modules contain generalised versions of specific
--- instantiations of this module. For instance, the module ≡-Reasoning
--- in Relation.Binary.PropositionalEquality is recommended for
--- equational reasoning when the underlying equality is
+-- Module ≡-Reasoning in Relation.Binary.PropositionalEquality
+-- is recommended for equational reasoning when the underlying equality is
 -- Relation.Binary.PropositionalEquality._≡_.
 
 open import Relation.Binary
