@@ -78,8 +78,9 @@ you can run the HelloWorld program which prints ``Hello, World!``.
 UHC Backend
 ~~~~~~~~~~~
 
+.. versionadded::
+   2.5.1
 .. note::
-   This backend is available from Agda 2.5.1 on.
    The Agda Standard Library has been updated to support this new backend.
    This backend is currently experimental.
 
@@ -116,6 +117,11 @@ flag ``--uhc``:
 
   agda --uhc [--compile-dir=<DIR>]
       [--uhc-bin=<UHC>] [--uhc-dont-call-uhc] <FILE>.agda
+
+Limitations
+^^^^^^^^^^^
+
+The UHC backend currently does not support Unicode strings. See issue `1857 <https://github.com/agda/agda/issues/1857>`_ for details.
 
 JavaScript Backend
 ~~~~~~~~~~~~~~~~~~
