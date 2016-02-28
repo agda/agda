@@ -28,7 +28,22 @@ endif
 override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 
 # Run in interactive and parallel mode by default
-AGDA_TESTS_OPTIONS ?=-i -j $(shell getconf _NPROCESSORS_ONLN)
+
+# You can use the $(PARALLEL_TESTS_FILE) file for setting the number of
+# parallel tests, e.g.
+#   PARALLEL_TESTS = 123
+
+PARALLEL_TESTS_FILE = mk/parallel-tests.mk
+
+ifeq ($(wildcard $(PARALLEL_TESTS_FILE)),)
+# Setting the default value.
+PARALLEL_TESTS = $(shell getconf _NPROCESSORS_ONLN)
+else
+# Getting the value from the $(PARALLEL_TESTS_FILE) file.
+include $(PARALLEL_TESTS_FILE)
+endif
+
+AGDA_TESTS_OPTIONS ?=-i -j$(PARALLEL_TESTS)
 
 ## Default target #########################################################
 
@@ -325,5 +340,6 @@ debug :
 	@echo "CABAL_CMD          = $(CABAL_CMD)"
 	@echo "CABAL_OPTS         = $(CABAL_OPTS)"
 	@echo "GHC_VERSION        = $(GHC_VERSION)"
+	@echo "PARALLEL_TESTS     = $(PARALLEL_TESTS)"
 
 # EOF
