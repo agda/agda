@@ -645,8 +645,8 @@ data Constraint
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
     -- ^ The range is the one of the absurd pattern.
-  | CheckSizeLtSat Type
-    -- ^ Check that the 'Type' is either not a SIZELT or a non-empty SIZELT.
+  | CheckSizeLtSat Term
+    -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
   | FindInScope MetaId (Maybe [(Term, Type)])
   deriving (Typeable, Show)
 
