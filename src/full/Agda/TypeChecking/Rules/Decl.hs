@@ -25,6 +25,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate
 
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Views (deepUnscopeDecl, deepUnscopeDecls)
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Reflected as R
 import qualified Agda.Syntax.Info as Info
@@ -142,7 +143,7 @@ checkDecl :: A.Declaration -> TCM ()
 checkDecl d = setCurrentRange d $ do
     reportSDoc "tc.decl" 10 $ text "checking declaration"
     debugPrintDecl d
-    reportSDoc "tc.decl" 90 $ (text . show) d
+    reportSDoc "tc.decl" 90 $ (text . show) (deepUnscopeDecl d)
     reportSDoc "tc.decl" 10 $ prettyA d  -- Might loop, see e.g. Issue 1597
 
     -- Issue 418 fix: freeze metas before checking an abstract thing
@@ -314,7 +315,7 @@ highlight_ d = do
     A.Axiom{}                -> highlight d
     A.Field{}                -> __IMPOSSIBLE__
     A.Primitive{}            -> highlight d
-    A.Mutual i ds            -> mapM_ highlight_ $ deepUnScope =<< ds
+    A.Mutual i ds            -> mapM_ highlight_ $ deepUnscopeDecls ds
     A.Apply{}                -> highlight d
     A.Import{}               -> highlight d
     A.Pragma{}               -> highlight d
@@ -350,9 +351,6 @@ highlight_ d = do
       -- We do not need that crap.
       dummy = A.Lit $ LitString noRange $
         "do not highlight construct(ed/or) type"
-  where
-  deepUnScope (A.ScopedDecl _ ds) = deepUnScope =<< ds
-  deepUnScope d = [d]
 
 -- | Termination check a declaration.
 checkTermination_ :: MutualId -> A.Declaration -> TCM ()

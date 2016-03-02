@@ -69,6 +69,17 @@ unScope e                    = e
 deepUnscope :: ExprLike a => a -> a
 deepUnscope = mapExpr unScope
 
+deepUnscopeDecls :: [A.Declaration] -> [A.Declaration]
+deepUnscopeDecls = concatMap deepUnscopeDecl
+
+deepUnscopeDecl :: A.Declaration -> [A.Declaration]
+deepUnscopeDecl (A.ScopedDecl _ ds)              = deepUnscopeDecls ds
+deepUnscopeDecl (A.Mutual i ds)                  = [A.Mutual i (deepUnscopeDecls ds)]
+deepUnscopeDecl (A.Section i m tel ds)           = [A.Section i m (deepUnscope tel) (deepUnscopeDecls ds)]
+deepUnscopeDecl (A.RecDef i x ind eta c bs e ds) = [A.RecDef i x ind eta c (deepUnscope bs) (deepUnscope e)
+                                                                           (deepUnscopeDecls ds)]
+deepUnscopeDecl d                                = [deepUnscope d]
+
 -- * Traversal
 
 -- | Apply an expression rewriting to every subexpression, inside-out.
