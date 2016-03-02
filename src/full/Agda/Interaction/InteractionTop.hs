@@ -901,13 +901,14 @@ give_gen ii rng s0 giveRefine = do
     scope     <- lift $ getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
     -- and newly created interaction points
-    (time, (ae, iis)) <- maybeTimed (lift $ do
+    (time, (ae, ae0, iis)) <- maybeTimed $ lift $ do
         mis  <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points before = " ++ show mis
-        ae   <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+        given <- B.parseExprIn ii rng s
+        ae    <- give_ref ii Nothing given
         mis' <- getInteractionPoints
         reportSLn "interaction.give" 30 $ "interaction points after = " ++ show mis'
-        return (ae, mis' \\ mis))
+        return (ae, given, mis' \\ mis)
     -- favonia: backup the old scope for highlighting
     insertOldInteractionScope ii scope
     -- sort the new interaction points and put them into the state
@@ -924,7 +925,7 @@ give_gen ii rng s0 giveRefine = do
     -- we still cannot just `give' the user string (which may be empty).
     -- WRONG: also, if no interaction metas were created by @Refine@
     -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
-    let literally = giveRefine == Give && rng /= noRange
+    let literally = ae == ae0 && rng /= noRange
     -- Ulf, 2014-01-24: This works for give since we're highlighting the string
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.
