@@ -95,7 +95,7 @@ class ExprLike a where
   recurseExpr = traverse . recurseExpr
 
   foldExpr :: Monoid m => (Expr -> m) -> a -> m
-  foldExpr f = getConst . recurseExpr (\ pre post -> Const $ f pre)
+  foldExpr f = getConst . recurseExpr (\ pre post -> Const (f pre) <* post)
 
   traverseExpr
 #if __GLASGOW_HASKELL__ <= 708
