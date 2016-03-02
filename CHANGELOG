@@ -204,8 +204,9 @@ Pragmas and options
 
   {-# DISPLAY f e1 .. en = e #-}
 
-  This causes f e1 .. en to be printed as e, where ei can bind variables used
-  in e. The expressions ei and e are scope checked, but not type checked.
+  This causes f e1 .. en to be printed in the same way as e, where ei can bind
+  variables used in e. The expressions ei and e are scope checked, but not
+  type checked.
 
   For example this can be used to print overloaded (instance) functions with
   the overloaded name:
