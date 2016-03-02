@@ -29,7 +29,7 @@ import qualified Agda.Syntax.Info as A
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Concrete.Definitions as D
 import Agda.Syntax.Abstract as A
-import Agda.Syntax.Abstract.Views (deepUnScope)
+import Agda.Syntax.Abstract.Views (deepUnscope)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
@@ -1228,7 +1228,7 @@ instance PrettyTCM SplitError where
 instance PrettyTCM Call where
   prettyTCM c = case c of
     CheckClause t cl -> do
-      reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnScope cl)
+      reportSLn "error.checkclause" 60 $ "prettyTCM CheckClause: cl = " ++ show (deepUnscope cl)
       clc <- abstractToConcrete_ cl
       reportSLn "error.checkclause" 40 $ "cl (Concrete) = " ++ show clc
       fsep $

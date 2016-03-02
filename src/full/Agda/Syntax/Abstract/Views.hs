@@ -65,8 +65,8 @@ unScope e                    = e
 --
 --   NB: Unless the implementation of 'ExprLike' for clauses
 --   has been finished, this does not work for clauses yet.
-deepUnScope :: ExprLike a => a -> a
-deepUnScope = mapExpr unScope
+deepUnscope :: ExprLike a => a -> a
+deepUnscope = mapExpr unScope
 
 -- * Traversal
 

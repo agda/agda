@@ -138,7 +138,7 @@ give ii mr e = liftTCM $ do
   mi  <- lookupInteractionId ii
   whenJust mr $ updateMetaVarRange mi
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
-  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnScope e
+  reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
   _ <- catchError (giveExpr mi e) $ \ err -> case err of
     -- Turn PatternErr into proper error:
@@ -167,7 +167,7 @@ refine ii mr e = do
   reportSDoc "interaction.refine" 10 $
     TP.text "refining with expression" TP.<+> prettyTCM e
   reportSDoc "interaction.refine" 50 $
-    TP.text $ show $ deepUnScope e
+    TP.text $ show $ deepUnscope e
   -- We try to append up to 10 meta variables
   tryRefine 10 range scope e
   where
@@ -505,7 +505,7 @@ metaHelperType :: Rewrite -> InteractionId -> Range -> String -> TCM (OutputCons
 metaHelperType norm ii rng s = case words s of
   []    -> fail "C-c C-h expects an argument of the form f e1 e2 .. en"
   f : _ -> do
-    A.Application h args <- A.appView . getBody . deepUnScope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
+    A.Application h args <- A.appView . getBody . deepUnscope <$> parseExprIn ii rng ("let " ++ f ++ " = _ in " ++ s)
     withInteractionId ii $ do
       cxtArgs  <- getContextArgs
       -- cleanupType relies on with arguments being named 'w',
