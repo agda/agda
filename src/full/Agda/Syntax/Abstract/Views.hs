@@ -24,6 +24,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment', exprFieldA)
 import Agda.Syntax.Info
+import Agda.Syntax.Scope.Base (emptyScopeInfo)
 
 import Agda.Utils.Either
 import Agda.Utils.Lens
@@ -60,6 +61,8 @@ isSet _                = False
 -- | Remove top 'ScopedExpr' wrappers.
 unScope :: Expr -> Expr
 unScope (ScopedExpr scope e) = unScope e
+unScope (QuestionMark i ii)  = QuestionMark (i {metaScope = emptyScopeInfo}) ii
+unScope (Underscore i)       = Underscore (i {metaScope = emptyScopeInfo})
 unScope e                    = e
 
 -- | Remove 'ScopedExpr' wrappers everywhere.
