@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
 import Data.Traversable hiding (mapM, forM, for)
+import Data.Monoid
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
@@ -176,7 +177,7 @@ refine ii mr e = do
       where
         try :: Int -> Expr -> TCM Expr
         try 0 e = throwError $ strMsg "Cannot refine"
-        try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) =<< appMeta e)
+        try n e = give ii (Just r) e `catchError` (\_ -> try (n - 1) =<< appMeta e)
 
         -- Apply A.Expr to a new meta
         appMeta :: Expr -> TCM Expr
@@ -191,7 +192,25 @@ refine ii mr e = do
                 , metaNameSuggestion = ""
                 }
               metaVar = QuestionMark info ii
-          return $ App (ExprRange r) e $ defaultNamedArg metaVar
+
+              count x e = getSum $ foldExpr isX e
+                where isX (A.Var y) | x == y = Sum 1
+                      isX _                  = mempty
+
+              lamView (A.Lam _ (DomainFree _ x) e) = Just (x, e)
+              lamView (A.Lam i (DomainFull (TypedBindings r (Arg ai (TBind br (x : xs) a)))) e)
+                | null xs   = Just (dget x, e)
+                | otherwise = Just (dget x, A.Lam i (DomainFull $ TypedBindings r $ Arg ai $ TBind br xs a) e)
+              lamView _ = Nothing
+
+              -- reduce beta-redexes where the argument is used at most once
+              smartApp i e arg =
+                case lamView $ unScope e of
+                  Just (x, e) | count x e < 2 -> mapExpr subX e
+                    where subX (A.Var y) | x == y = namedArg arg
+                          subX e = e
+                  _ -> App i e arg
+          return $ smartApp (ExprRange r) e $ defaultNamedArg metaVar
           --ToDo: The position of metaVar is not correct
           --ToDo: The fixity of metavars is not correct -- fixed? MT
 

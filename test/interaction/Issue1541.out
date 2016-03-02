@@ -6,7 +6,7 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Nat " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-give-action 0 "((λ section → m + section) ?)")
+(agda2-give-action 0 "(m + ?)")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?1 : Nat " nil)
 ((last . 1) . (agda2-goals-action '(1)))
