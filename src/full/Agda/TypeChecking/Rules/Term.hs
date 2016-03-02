@@ -1423,12 +1423,6 @@ checkHeadApplication e t hd args = do
           compareTel t t1 CmpLeq eTel fTel)
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
-      -- TODO: Handle coinductive constructors under lets.
-      lets <- envLetBindings <$> ask
-      unless (Map.null lets) $
-        typeError $ NotImplemented
-          "coinductive constructor in the scope of a let-bound variable"
-
       arg <- case args of
                [a] | getHiding a == NotHidden -> return $ namedArg a
                _ -> typeError $ GenericError $ show c ++ " must be applied to exactly one argument."
@@ -1436,17 +1430,10 @@ checkHeadApplication e t hd args = do
       -- The name of the fresh function.
       i <- fresh :: TCM Int
       let name = filter (/= '_') (show $ A.nameConcrete $ A.qnameName c) ++ "-" ++ show i
-      c' <- setRange (getRange c) <$>
-              liftM2 qualify (killRange <$> currentModule)
-                             (freshName_ name)
 
       kit <- coinductionKit'
       let flat = nameOfFlat kit
           inf  = nameOfInf  kit
-
-      -- The application of the fresh function to the relevant
-      -- arguments.
-      e' <- Def c' . map Apply <$> getContextArgs
 
       -- Add the type signature of the fresh function to the
       -- signature.
@@ -1460,48 +1447,57 @@ checkHeadApplication e t hd args = do
         a   <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
         return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
-      i   <- currentOrFreshMutualBlock
-      tel <- getContextTelescope
-      -- If we are in irrelevant position, add definition irrelevantly.
-      -- TODO: is this sufficient?
-      rel <- asks envRelevance
-      addConstant c' =<< do
-        let ai = setRelevance rel defaultArgInfo
-        useTerPragma $
-          (defaultDefn ai c' forcedType emptyFunction)
-          { defMutual = i }
+      wrapper <- inFreshModuleIfFreeParams $ do
+        c' <- setRange (getRange c) <$>
+                liftM2 qualify (killRange <$> currentModule)
+                               (freshName_ name)
 
-      -- Define and type check the fresh function.
-      ctx <- getContext
-      let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
-                               PublicAccess ConcreteDef noRange
-          pats   = map (\ (Dom info (n, _)) -> Arg info $ Named Nothing $ A.VarP n) $
-                       reverse ctx
-          core   = A.LHSProj { A.lhsDestructor = flat
-                             , A.lhsPatsLeft   = []
-                             , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' pats
-                             , A.lhsPatsRight  = [] }
-          clause = A.Clause (A.LHS (A.LHSRange noRange) core [])
-                            (A.RHS arg)
-                            [] False
+        -- Define and type check the fresh function.
+        rel <- asks envRelevance
+        let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
+                                 PublicAccess ConcreteDef noRange
+            core   = A.LHSProj { A.lhsDestructor = flat
+                               , A.lhsPatsLeft   = []
+                               , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
+                               , A.lhsPatsRight  = [] }
+            clause = A.Clause (A.LHS (A.LHSRange noRange) core [])
+                              (A.RHS arg)
+                              [] False
+
+        i <- currentOrFreshMutualBlock
+
+        -- If we are in irrelevant position, add definition irrelevantly.
+        -- TODO: is this sufficient?
+        addConstant c' =<< do
+          let ai = setRelevance rel defaultArgInfo
+          useTerPragma $
+            (defaultDefn ai c' forcedType emptyFunction)
+            { defMutual = i }
+
+        checkFunDef NotDelayed info c' [clause]
+
+        reportSDoc "tc.term.expr.coind" 15 $ do
+          def <- theDef <$> getConstInfo c'
+          vcat $
+            [ text "The coinductive wrapper"
+            , nest 2 $ prettyTCM rel <> prettyTCM c' <+> text ":"
+            , nest 4 $ prettyTCM t
+            , nest 2 $ prettyA clause
+            , text "The definition is" <+> text (show $ funDelayed def) <>
+              text "."
+            ]
+        return c'
+
+      -- The application of the fresh function to the relevant
+      -- arguments.
+      e' <- Def wrapper . map Apply <$> getContextArgs
 
       reportSDoc "tc.term.expr.coind" 15 $ vcat $
           [ text "The coinductive constructor application"
           , nest 2 $ prettyTCM e
           , text "was translated into the application"
           , nest 2 $ prettyTCM e'
-          , text "and the function"
-          , nest 2 $ prettyTCM rel <> prettyTCM c' <+> text ":"
-          , nest 4 $ prettyTCM (telePi tel t)
-          , nest 2 $ prettyA clause <> text "."
           ]
-
-      inTopContext $ checkFunDef NotDelayed info c' [clause]
-
-      reportSDoc "tc.term.expr.coind" 15 $ do
-        def <- theDef <$> getConstInfo c'
-        text "The definition is" <+> text (show $ funDelayed def) <>
-          text "."
 
       blockTerm t $ e' <$ workOnTypes (leqType forcedType t)
     A.Con _  -> __IMPOSSIBLE__

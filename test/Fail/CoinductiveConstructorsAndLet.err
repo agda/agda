@@ -1,4 +1,0 @@
-CoinductiveConstructorsAndLet.agda:8,22-25
-Not implemented: coinductive constructor in the scope of a
-let-bound variable
-when checking that the expression ♯ y has type ∞ D

@@ -2,7 +2,7 @@ Issue1014.agda:18,3-22,83
 Termination checking failed for the following functions:
   NoWith.bar
 Problematic calls:
-  .Issue1014.NoWith.♯-0 A n h An
+  .Issue1014.NoWith._.♯-0
     (at Issue1014.agda:22,28-29)
   bar A (proj₁ (h n An)) h (proj₂ (proj₂ (h n An)))
     (at Issue1014.agda:22,31-34)
