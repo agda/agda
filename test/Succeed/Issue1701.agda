@@ -10,20 +10,11 @@ module _ where
   module ModParamsToLoose (A : Set) where
     open ModParamsRecord
 
-    -- WORKS:
-    -- module M (B : Set) (G : A → B) where
-    --   r : R A B
-    --   r = record { F = G }
-    --
-    --   module r = R A r
-    -- open M public
-
-    -- SHOULD WORK:
     module _ (B : Set) (G : A → B) where
       r : R A B
       r = record { F = G }
 
-      module r = R A r
+      module r = R r
 
   module ModParamsLost (A : Set) where
     open ModParamsRecord

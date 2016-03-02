@@ -804,7 +804,7 @@ instantiateDef d = do
     m   <- currentModule
     reportSLn "tc.sig.inst" 30 $
       "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
-      unwords (map show . take (size vs) . reverse . map (fst . unDom) $ ctx)
+      unwords (map show $ zipWith (<$) (reverse $ map (fst . unDom) ctx) vs)
   return $ d `apply` vs
 
 -- | Give the abstract view of a definition.

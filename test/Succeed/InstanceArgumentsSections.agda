@@ -1,6 +1,6 @@
 module InstanceArgumentsSections where
 
-postulate A : Set
+postulate  A : Set
 
 module Basic where
   record B : Set where
@@ -43,7 +43,7 @@ module RecordFromParameterised' (a : A) where
   open C {{...}}
 
   cA'' : {{_ : C a}} → A
-  cA'' = cA a
+  cA'' = cA {a}
 
 module AppliedRecord (a : A) where
   open Parameterised
@@ -51,8 +51,8 @@ module AppliedRecord (a : A) where
   D : Set
   D = C a
 
-  module D = C a
+  module D = C
   open D {{...}}
 
   dA' : {{_ : D}} → A
-  dA' = cA
+  dA' = cA {a}

@@ -217,18 +217,11 @@ checkRecDef i name ind eta con ps contel fields =
 
       let m = qnameToMName name  -- Name of record module.
 
-     -- In the record section, the record parameters are hidden.
-      let np = size tel -- Number of record parameters.
-      ctx <- (reverse . map hideOrKeepInstance . take np) <$> getContext
-      reportSDoc "tc.rec" 80 $ sep
-        [ text "visibility-modified record telescope"
-        , nest 2 $ text "ctx =" <+> prettyTCM ctx
-        ]
-      escapeContext np $ addContext ctx $ addRecordVar $ do
       -- Andreas, 2016-02-09 setting all parameters hidden in the record
       -- section telescope changes the semantics, see e.g.
       -- test/Succeed/RecordInParModule.
-      -- modifyContext (modifyContextEntries (setHiding Hidden)) $ addRecordVar $ do
+      -- Ulf, 2016-03-02 but it's the right thing to do (#1759)
+      modifyContext (modifyContextEntries hideOrKeepInstance) $ addRecordVar $ do
 
         -- Add the record section.
 
