@@ -3,7 +3,31 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib library divmod highlighting malonzo relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2 # epic
+# Keep the `default` prerequisites in alphabetic order please!
+default : ac \
+          aim4-bag \
+          divmod \
+          effects \
+          hello \
+          highlighting \
+          html1 \
+          html2 \
+          library \
+          malformed-interfaces \
+          malonzo \
+          minmax \
+          path \
+          polydep \
+          real \
+          regexp-talk \
+          relocatable-interfaces \
+          simplelib \
+          term1 \
+          term2 \
+          term3 \
+          view \
+          test \
+          # epic
 
 agda = $(AGDA_BIN)
 
