@@ -33,7 +33,7 @@ module Projections where
   cong : {A : Set}(Cong : Congruence A) -> Congruent (eq Cong)
   cong (congruence _ c) = c
 
-module Congruence {A : Set}(Cong : Congruence A) where
+module CongruenceM {A : Set}(Cong : Congruence A) where
 
   _==_  = Projections.eq    Cong
   refl  = Projections.refl  Cong

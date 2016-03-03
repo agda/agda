@@ -35,7 +35,7 @@ module Projections where
   assoc : {A : Set}{Eq : Equivalence A}(Mon : Monoid A Eq) -> Associative Eq (plus Mon)
   assoc (monoid _ _ _ _ a) = a
 
-module Monoid {A : Set}{Eq : Equivalence A}(Mon : Monoid A Eq) where
+module MonoidM {A : Set}{Eq : Equivalence A}(Mon : Monoid A Eq) where
 
   zero    = Projections.zero Mon
   _+_     = Projections.plus Mon

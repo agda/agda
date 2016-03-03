@@ -20,7 +20,7 @@ open Data.Bool
 
 module Proofs where
 
-  module Ops = Operations.MonoEq Equiv
+  module Ops = Operations.MonoEq {Nat} Equiv
   open Ops
 
   module Chain = Logic.ChainReasoning.Poly.Homogenous _≡_ (\x -> refl) (\x y z -> trans)

@@ -3,7 +3,7 @@ TOP = ..
 
 include $(TOP)/mk/paths.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting malonzo relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2 # epic
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib library divmod highlighting malonzo relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2 # epic
 
 agda = $(AGDA_BIN)
 
@@ -113,7 +113,7 @@ simplelib : simple-lib/TestLib.agda
 	@$(echo) :q | $(run_agda) -isimple-lib $<
 	@$(echo) "ok"
 
-lib : lib/Test.agda
+library : lib/Test.agda
 	@$(echo) "Testing $<... "
 	@$(echo) :q | $(run_agda) -ilib $<
 	@$(echo) "ok"

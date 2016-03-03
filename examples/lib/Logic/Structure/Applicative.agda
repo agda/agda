@@ -7,7 +7,7 @@ data Applicative (f : Set -> Set) : Set1 where
       (_<*>_ : {a b : Set} -> f (a -> b) -> f a -> f b) ->
       Applicative f
 
-module Applicative {f : Set -> Set}(App : Applicative f) where
+module ApplicativeM {f : Set -> Set}(App : Applicative f) where
 
   private
     pure' : Applicative f -> {a : Set} -> a -> f a
