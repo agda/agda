@@ -18,7 +18,6 @@ default : ac \
           minmax \
           path \
           polydep \
-          real \
           regexp-talk \
           relocatable-interfaces \
           simplelib \
@@ -131,12 +130,6 @@ effects : sinatra/Example.agda
 minmax : order/MinMax.agda
 	@$(echo) "Testing $<... "
 	@$(echo) :q | $(run_agda) -ilib -iorder $<
-	@$(echo) "ok"
-
-.PHONY : real
-real : lib/Data/Real/CReal.agda
-	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) -ilib $<
 	@$(echo) "ok"
 
 .PHONY : view
