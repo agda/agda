@@ -145,6 +145,7 @@ malonzo : compiler/main.agda
 	@./compiler/main
 	@$(echo) "ok"
 
+# The Epic backend was removed in Agda 2.4.2.3.
 epic : compiler/main.agda
 	@$(echo) "Testing the Epic backend"
 	@$(agda) --ignore-interfaces --epic --compile-dir=compiler -icompiler $<
