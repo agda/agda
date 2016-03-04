@@ -45,7 +45,7 @@ followed:
 
     source-repository this
       type:     git
-      location: https://github.com/agda/agda
+      location: https://github.com/agda/agda/tree/<version>
       tag:      <version>
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
