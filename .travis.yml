@@ -185,7 +185,7 @@ script:
 
   - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
+       cabal build -v2 -j${JOBS};
     fi
 
 ##############################################################################
@@ -197,7 +197,7 @@ script:
 
   - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
+       cabal build -v2 -j${JOBS};
     fi
 
 ##############################################################################
