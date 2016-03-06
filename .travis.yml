@@ -25,6 +25,9 @@ ghc:
   - 7.8.4
   - 7.6.3
 
+##############################################################################
+# Tests
+
 # We use the word 'test' in a broad sense (e.g. it includes the Agda
 # test suite, the benchmark suite, the compilation with a specific set
 # of dependencies, the testing of other programs like `hTags`, etc.) Almost
@@ -59,7 +62,6 @@ ghc:
 # cpp
 # haddock
 
-##############################################################################
 # Travis runs the builds on this order.
 env:
   - TEST=non-require-stdlib
@@ -81,6 +83,9 @@ install:
 
   # Number of modules compile in parallel.
   - export JOBS=2
+
+  # The Emacs version.
+  - emacs --version
 
 ##############################################################################
 # Installing the dependencies and latest versions of cabal-install,
@@ -131,20 +136,6 @@ install:
 #
 # due to the cabal-install issue https://github.com/haskell/cabal/issues/975.
 
-##############################################################################
-# Running `cabal configure`
-
-  - export BUILD_DIR=$PWD/dist
-
-  - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
-        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
-        ;;
-    esac
-
-##############################################################################
-# Running `cabal build`, `cabal copy` and `cabal register`
-
 # Note: `cabal build` sets up the number of jobs to $ncpus by default.
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
@@ -152,13 +143,14 @@ install:
 # `cabal build` (see Section 'cabal install ≠ Setup install' from
 # http://www.vex.net/~trebla/haskell/cabal-cabal.xhtml).
 
-  - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
-        cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR &&
-        cabal copy &&
-        cabal register
-        ;;
-    esac
+  - export BUILD_DIR=$PWD/dist
+
+  - if [[ $TEST = "non-require-stdlib" || $TEST = "require-stdlib" ]]; then
+       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests &&
+       cabal build -v2 -j${JOBS} &&
+       cabal copy &&
+       cabal register;
+    fi
 
 ##############################################################################
 # Installing Epic
@@ -237,7 +229,6 @@ script:
        echo "======================================================================" &&
        echo "==================== Testing the Emacs mode ==========================" &&
        echo "======================================================================" &&
-       emacs --version &&
        agda-mode compile;
     fi
 
@@ -275,3 +266,4 @@ branches:
   only:
     - master
     - maint-2.4
+    - travis
