@@ -102,17 +102,17 @@ Same definition but with a where-expression
 Even less type informaiton using let
 ::
 
-  0-_ : Nat -> List Nat
-  0- zero = [ zero ]
-  0- (succ n) = let sing = [ succ n ]
-                in sing ++ 0- n
+  f : Nat -> List Nat
+  f zero = [ zero ]
+  f (succ n) = let sing = [ succ n ]
+               in sing ++ f n
 
 Same definition using where
 ::
 
-  0'-_ : Nat -> List Nat
-  0'- zero = [ zero ]
-  0'- (succ n) = sing ++ 0'- n
+  f' : Nat -> List Nat
+  f' zero = [ zero ]
+  f' (succ n) = sing ++ f' n
      where  sing = [ succ n ]
 
 More than one definition in a let

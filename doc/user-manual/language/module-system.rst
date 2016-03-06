@@ -291,8 +291,9 @@ is checked against a record type R, it is expanded to
 
   let r = old in record { new-fields }
 
-where old is required to have type R and new-fields is defined as follows:
-for each field x in R,
+where old is required to have type R and new-fields is defined as
+follows: for each field x in R,
+
   - if x = e is contained in upd-fields then x = e is included in
     new-fields, and otherwise
   - if x is an explicit field then x = R.x r is included in
