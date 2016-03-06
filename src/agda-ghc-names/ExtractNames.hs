@@ -41,6 +41,7 @@ getModule = get >>= h
 infoDeclNamePrefix, hsIdentPrefix :: String
 infoDeclNamePrefix = "name"
 hsIdentPrefix      = "d"
+hsSubIdentPrefix   = "du"
 
 getNames0 :: forall m . MonadState [String] m => String -> m [(String, String)]
 getNames0 modname = get >>= h
@@ -101,20 +102,21 @@ getNames modul = h
     h ((name1, Hs.UnGuardedRhs rhs) : ds) = case stripPrefix infoDeclNamePrefix name1 of
       Nothing -> h ds
       Just unique -> case rhs of
-        Hs.Lit (Hs.String agdaName) -> k ds
+        Hs.Lit (Hs.String agdaName) -> expectDef hsIdentPrefix (expectDef hsSubIdentPrefix h) ds
           where
             hsName = hsIdentPrefix ++ unique
+            hsName2 = hsSubIdentPrefix ++ unique
             -- Some names have no definitions, so we need to check
             -- whether there is a definition on the next line,
             -- and only on the next line.
             -- Names without definition still can be referenced in .prof files.
             -- TODO: Should we flag these in some way?
-            k :: [(String, Hs.Rhs)] -> [(String, String)]
-            k [] = [(hsName, agdaName)]
-            k ((name2, _) : ds') = case stripPrefix hsIdentPrefix name2 of
+            expectDef :: String -> ([(String, Hs.Rhs)] -> [(String, String)]) -> [(String, Hs.Rhs)] -> [(String, String)]
+            expectDef _ _ [] = [(hsName, agdaName)]
+            expectDef prefix cont ((name2, _) : ds') = case stripPrefix prefix name2 of
               Nothing -> (hsName, agdaName) : h ds
               Just unique' -> if unique == unique' -- sanity check
-                then (name2, agdaName) : h ds'
+                then (name2, agdaName) : cont ds'
                 else error $ "infodecl\n  " ++ name1 ++ " = " ++ show rhs ++ "\nsucceeded by definition\n  " ++ name2 ++ " = ..."
         _ -> error $ "Unexpected RHS in infodecl:\n  " ++ modul ++ '.' : name1
     h ((_name, _rhs) : ds) = h ds
