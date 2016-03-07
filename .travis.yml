@@ -91,6 +91,9 @@ install:
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
+  # Higher GHC version available.
+  - GHC_HIGHER_VERSION=7.8.4
+
   # Number of modules compile in parallel.
   - export JOBS=2
 
@@ -111,7 +114,7 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - if [[ ( $TEST = "non-require-stdlib" ) || ( $TEST = "require-stdlib" ) || (( $TEST = "cpp" || $TEST = "haddock" ) && $GHC_VERSION_TRAVIS = 7.8.4 ) ]]; then
+  - if [[ ( $TEST = "non-require-stdlib" ) || ( $TEST = "require-stdlib" ) || (( $TEST = "cpp" || $TEST = "haddock" ) && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ) ]]; then
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
@@ -249,7 +252,7 @@ script:
 
 # N.B. that this test is not include in the Makefile tests.
 
-  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
        cabal build -v2 -j${JOBS};
     fi
@@ -259,7 +262,7 @@ script:
 
 # N.B. that we run this test only with the higher GHC version available.
 
-  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
        make BUILD_DIR=$BUILD_DIR haddock;
     fi
 
@@ -268,7 +271,7 @@ script:
 
 # N.B. that we run this test only with the higher GHC version available.
 
-  - if [[ $TEST = "documentation" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+  - if [[ $TEST = "documentation" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
        make user-manual;
     fi
 
