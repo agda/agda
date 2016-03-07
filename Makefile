@@ -93,13 +93,13 @@ setup-emacs-mode : install-bin
 
 ## Making the documentation ###############################################
 
-.PHONY : doc
-doc:
+.PHONY : haddock
+haddock :
 	$(CABAL_CMD) configure --builddir=$(BUILD_DIR) --enable-tests
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR) --tests
 
-.PHONY : manual-html
-manual-html:
+.PHONY : user-manual
+user-manual :
 	$(MAKE) -C doc/user-manual html
 
 ## Making the full language ###############################################

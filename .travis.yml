@@ -5,16 +5,24 @@ sudo: false
 ##############################################################################
 # Installing the `kpsewhich` program
 
-# This program is required by the LaTeX/HTML test-suite.
+# The LaTeX/HTML test-suite requires:
+# * `kpsewhich` (included in texlive-binaries)
 
-# TODO (21 October 2015). The texlive-binaries package is only
-# required by the LaTeX/HTML test-suite, so we should install this
-# package only when TEST=non-require-stdlib.
+# The `documentation` test requires:
+# * `latex` (included in texlive-latex-base)
+# * `utf8x.def` (included in texlive-latex-extra)
+# * `dvipng` (included in dvipng)
+
+# TODO (2016-03-06): We should install these packages only with the
+# associated tests.
 
 addons:
   apt:
     packages:
+    - texlive-latex-base
     - texlive-binaries
+    - texlive-latex-extra
+    - dvipng
 
 ##############################################################################
 # We build with all the latest GHC versions for each 7.X, so we reduce
@@ -33,7 +41,7 @@ ghc:
 # of dependencies, the testing of other programs like `hTags`, etc.) Almost
 # all the tests are divided according to whether or not require the standard
 # library.
-#
+
 # The current tests non-requiring the standard library are:
 #
 # make check-whitespace
@@ -47,7 +55,7 @@ ghc:
 # make tests
 # make TAGS (testing the hTags program)
 # agda-mode compile (testing the Emacs mode)
-#
+
 # The current tests requiring the standard library are:
 #
 # make library-test
@@ -55,12 +63,13 @@ ghc:
 # make lib-interaction
 # make compiler-test
 # make benchmark-without-logs
-#
+
 # Other tests: These tests use a some how different set up.
 #
 # ghc-7.8.4-transformers-0.3.0.0
 # cpp
 # haddock
+# documentation
 
 # Travis runs the builds on this order.
 env:
@@ -69,6 +78,7 @@ env:
   - TEST=ghc-7.8.4-transformers-0.3.0.0
   - TEST=cpp
   - TEST=haddock
+  - TEST=documentation
 
 ##############################################################################
 install:
@@ -115,9 +125,6 @@ install:
          cabal install alex --constraint=transformers==0.3.0.0 &&
          cabal install happy --constraint=transformers==0.3.0.0 &&
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
-    else
-      echo "Error installing the dependencies, cabal-install, Alex and Happy" &&
-      exit 1;
     fi
 
 ##############################################################################
@@ -175,39 +182,21 @@ install:
     fi
 
 ##############################################################################
+# Installing Sphinx
+
+# TODO (2016-03-06): We are installing a concrete version of Sphinx
+# because we don't know how to the install the latest no-beta version.
+
+# Note that `pip install --user` put the binaries in
+# `$HOME/.local/bin`.
+
+  - if [ $TEST = "documentation" ]; then
+       pip install --user -U Sphinx==1.3.6 &&
+       export PATH=$HOME/.local/bin:$PATH;
+    fi
+
+##############################################################################
 script:
-
-##############################################################################
-# Testing compilation with transformers 0.3.0.0 which is shipped with
-# GHC 7.8.* [Issues 1156 and 1539]
-
-# N.B. that this test is not include in the Makefile tests.
-
-  - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
-       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 -j${JOBS};
-    fi
-
-##############################################################################
-# Testing compilation with cpp instead of cpphs [Issue 1647]
-
-# N.B. that we run this test only with the higher GHC version available.
-
-# N.B. that this test is not include in the Makefile tests.
-
-  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
-       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 -j${JOBS};
-    fi
-
-##############################################################################
-# Testing Haddock [Issue 1773]
-
-# N.B. that we run this test only with the higher GHC version available.
-
-  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
-       make BUILD_DIR=$BUILD_DIR doc;
-    fi
 
 ##############################################################################
 
@@ -243,6 +232,47 @@ script:
     fi
 
 ##############################################################################
+# Testing compilation with transformers 0.3.0.0 which is shipped with
+# GHC 7.8.* [Issues 1156 and 1539]
+
+# N.B. that this test is not include in the Makefile tests.
+
+  - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
+       cabal build -v2 -j${JOBS};
+    fi
+
+##############################################################################
+# Testing compilation with cpp instead of cpphs [Issue 1647]
+
+# N.B. that we run this test only with the higher GHC version available.
+
+# N.B. that this test is not include in the Makefile tests.
+
+  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
+       cabal build -v2 -j${JOBS};
+    fi
+
+##############################################################################
+# Testing Haddock [Issue 1773]
+
+# N.B. that we run this test only with the higher GHC version available.
+
+  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+       make BUILD_DIR=$BUILD_DIR haddock;
+    fi
+
+##############################################################################
+# Testing documentation [Issue 1897]
+
+# N.B. that we run this test only with the higher GHC version available.
+
+  - if [[ $TEST = "documentation" && $GHC_VERSION_TRAVIS = 7.8.4 ]]; then
+       make user-manual;
+    fi
+
+##############################################################################
 matrix:
   exclude:
     - ghc: 7.6.3
@@ -251,6 +281,8 @@ matrix:
       env: TEST=cpp
     - ghc: 7.6.3
       env: TEST=haddock
+    - ghc: 7.6.3
+      env: TEST=documentation
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
