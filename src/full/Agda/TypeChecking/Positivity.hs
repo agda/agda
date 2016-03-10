@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns         #-}
 {-# LANGUAGE CPP                  #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE FlexibleInstances    #-}
@@ -351,23 +352,57 @@ data Item = AnArg Nat
 
 type Occurrences = Map Item [OccursWhere]
 
-(>+<) :: Occurrences -> Occurrences -> Occurrences
-(>+<) = Map.unionWith (++)
+-- | Used to build 'Occurrences'.
+data OccurrencesBuilder
+  = Empty
+  | Concat [OccurrencesBuilder]
+  | OccurrencesBuilder :>+< OccurrencesBuilder
+  | OccursAs (OccursWhere -> OccursWhere) OccurrencesBuilder
+  | OccursHere Item
+  | OnlyVarsUpTo Nat OccurrencesBuilder
+    -- ^ @OnlyVarsUpTo n occs@ discards occurrences of de Bruijn index
+    -- @>= n@.
 
-concatOccurs :: [Occurrences] -> Occurrences
-concatOccurs = Map.unionsWith (++)
+-- | A type used locally in 'flatten'.
+data OccursWheres
+  = OccursWheres :++ OccursWheres
+  | Where OccursWhere
 
-occursAs :: (OccursWhere -> OccursWhere) -> Occurrences -> Occurrences
-occursAs f = Map.map (map f)
+-- | An interpreter for 'OccurrencesBuilder'.
+flatten :: OccurrencesBuilder -> Occurrences
+flatten =
+  fmap (flip flatten'' []) .
+  Map.fromListWith (:++) .
+  flip (flatten' id Nothing) []
+  where
+  flatten' :: (OccursWhere -> OccursWhere)
+              -- ^ Used to transform results.
+           -> Maybe Nat
+              -- ^ Variables larger than or equal to this number, if
+              -- any, are not retained.
+           -> OccurrencesBuilder
+           -> [(Item, OccursWheres)] -> [(Item, OccursWheres)]
+  flatten' f !m Empty                 = id
+  flatten' f  m (Concat occss)        = foldr (\occs g ->
+                                                  flatten' f m occs . g)
+                                              id occss
+  flatten' f  m (occs1 :>+< occs2)    = flatten' f m occs1 .
+                                        flatten' f m occs2
+  flatten' f  m (OccursAs g occs)     = flatten' (f . g) m occs
+  flatten' f  m (OnlyVarsUpTo n occs) = flatten' f
+                                          (Just $! maybe n (min n) m)
+                                          occs
+  flatten' f  m (OccursHere i)
+    | p i                            = ((i, Where (f Here)) :)
+    | otherwise                      = id
+    where
+    p (ADef q)  = True
+    p (AnArg i) = case m of
+                    Nothing -> True
+                    Just m  -> i < m
 
-here :: Item -> Occurrences
-here i = Map.singleton i [Here]
-
--- | @onlyVarsUpTo n occs@ discards occurrences of de Bruijn index @>= n@.
-onlyVarsUpTo :: Nat -> Occurrences -> Occurrences
-onlyVarsUpTo n = Map.filterWithKey p
-  where p (AnArg i) v = i < n
-        p (ADef q)  v = True
+  flatten'' (ws1 :++ ws2) = flatten'' ws1 . flatten'' ws2
+  flatten'' (Where w)     = (w :)
 
 -- | Context for computing occurrences.
 data OccEnv = OccEnv
@@ -391,7 +426,7 @@ withExtendedOccEnv i = local $ \ e -> e { vars = i : vars e }
 -- | Running the monad
 getOccurrences
   :: (Show a, PrettyTCM a, ComputeOccurrences a)
-  => [Maybe Item] -> a -> TCM Occurrences
+  => [Maybe Item] -> a -> TCM OccurrencesBuilder
 getOccurrences vars a = do
   reportSDoc "tc.pos.occ" 70 $ text "computing occurrences in " <+> text (show a)
   reportSDoc "tc.pos.occ" 20 $ text "computing occurrences in " <+> prettyTCM a
@@ -399,19 +434,20 @@ getOccurrences vars a = do
   return $ runReader (occurrences a) $ OccEnv vars $ fmap nameOfInf kit
 
 class ComputeOccurrences a where
-  occurrences :: a -> OccM Occurrences
+  occurrences :: a -> OccM OccurrencesBuilder
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
     let ps = unnumberPatVars $ clausePats cl
-    (concatOccurs (mapMaybe matching (zip [0..] ps)) >+<) <$>
+    (Concat (mapMaybe matching (zip [0..] ps)) :>+<) <$>
       walk (patItems ps) (clauseBody cl)
     where
       matching (i, p)
-        | properlyMatching (unArg p) = Just $ occursAs Matched $ here $ AnArg i
+        | properlyMatching (unArg p) = Just $ OccursAs Matched $
+                                                OccursHere $ AnArg i
         | otherwise                  = Nothing
 
-      walk _         NoBody     = return empty
+      walk _         NoBody     = return Empty
       walk []        (Body v)   = occurrences v
       walk (i : pis) (Bind b)   = withExtendedOccEnv i $ walk pis $ absBody b
       walk []        Bind{}     = __IMPOSSIBLE__
@@ -438,39 +474,39 @@ instance ComputeOccurrences Term where
              | otherwise       = flip trace __IMPOSSIBLE__ $
                  "impossible: occurrence of de Bruijn index " ++ show i ++
                  " in vars " ++ show vars ++ " is unbound"
-      return $ maybe empty here mi >+< occursAs VarArg occs
+      return $ maybe Empty OccursHere mi :>+< OccursAs VarArg occs
 
     Def d args   -> do
       inf <- asks inf
-      let occsAs = if Just d /= inf then occursAs . DefArg d else \ n ->
+      let occsAs = if Just d /= inf then OccursAs . DefArg d else \ n ->
             -- the principal argument of builtin INF (∞) is the second (n==1)
             -- the first is a level argument (n==0, counting from 0!)
-            if n == 1 then occursAs UnderInf else occursAs (DefArg d n)
+            if n == 1 then OccursAs UnderInf else OccursAs (DefArg d n)
       occs <- mapM occurrences args
-      return $ here (ADef d) >+< concatOccurs (zipWith occsAs [0..] occs)
+      return $ OccursHere (ADef d) :>+< Concat (zipWith occsAs [0..] occs)
     Con c args   -> occurrences args
-    MetaV _ args -> occursAs MetaArg <$> occurrences args
+    MetaV _ args -> OccursAs MetaArg <$> occurrences args
     Pi a b       -> do
       oa <- occurrences a
       ob <- occurrences b
-      return $ occursAs LeftOfArrow oa >+< ob
+      return $ OccursAs LeftOfArrow oa :>+< ob
     Lam _ b      -> occurrences b
     Level l      -> occurrences l
-    Lit{}        -> return empty
-    Sort{}       -> return empty
-    DontCare _   -> return empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
+    Lit{}        -> return Empty
+    Sort{}       -> return Empty
+    DontCare _   -> return Empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
     Shared p     -> occurrences $ derefPtr p
 
 instance ComputeOccurrences Level where
   occurrences (Max as) = occurrences as
 
 instance ComputeOccurrences PlusLevel where
-  occurrences ClosedLevel{} = return empty
+  occurrences ClosedLevel{} = return Empty
   occurrences (Plus _ l)    = occurrences l
 
 instance ComputeOccurrences LevelAtom where
   occurrences l = case l of
-    MetaLevel _ vs   -> occursAs MetaArg <$> occurrences vs
+    MetaLevel _ vs   -> OccursAs MetaArg <$> occurrences vs
     BlockedLevel _ v -> occurrences v
     NeutralLevel _ v -> occurrences v
     UnreducedLevel v -> occurrences v
@@ -479,7 +515,7 @@ instance ComputeOccurrences Type where
   occurrences (El _ v) = occurrences v
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
-  occurrences EmptyTel        = return empty
+  occurrences EmptyTel        = return Empty
   occurrences (ExtendTel a b) = occurrences (a, b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
@@ -497,34 +533,34 @@ instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
   occurrences = occurrences . unDom
 
 instance ComputeOccurrences a => ComputeOccurrences [a] where
-  occurrences vs = concatOccurs <$> mapM occurrences vs
+  occurrences vs = Concat <$> mapM occurrences vs
 
 instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, b) where
   occurrences (x, y) = do
     ox <- occurrences x
     oy <- occurrences y
-    return $ ox >+< oy
+    return $ ox :>+< oy
 
 -- | Compute the occurrences in a given definition.
 computeOccurrences :: QName -> TCM Occurrences
-computeOccurrences q = inConcreteOrAbstractMode q $ do
+computeOccurrences q = inConcreteOrAbstractMode q $ flatten <$> do
   reportSDoc "tc.pos" 25 $ do
     a <- defAbstract <$> getConstInfo q
     m <- asks envAbstractMode
     text "computeOccurrences" <+> prettyTCM q <+> text (show a) <+> text (show m)
   def <- getConstInfo q
-  occursAs (InDefOf q) <$> case theDef def of
+  OccursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
       n  <- getDefArity def
       cs <- map (etaExpandClause n) <$> instantiateFull cs
-      concatOccurs . zipWith (occursAs . InClause) [0..] <$>
+      Concat . zipWith (OccursAs . InClause) [0..] <$>
         mapM (getOccurrences []) cs
     Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Datatype{dataPars = np, dataCons = cs}       -> do
       -- Andreas, 2013-02-27: first, each data index occurs as matched on.
       TelV tel t <- telView $ defType def
       let xs  = [np .. size tel - 1] -- argument positions corresponding to indices
-          ioccs = concatOccurs $ map (occursAs Matched . here . AnArg) xs
+          ioccs = Concat $ map (OccursAs Matched . OccursHere . AnArg) xs
       -- Then, we compute the occurrences in the constructor types.
       let conOcc c = do
             a <- defType <$> getConstInfo c
@@ -534,9 +570,9 @@ computeOccurrences q = inConcreteOrAbstractMode q $ do
                             _        -> __IMPOSSIBLE__
             let tel'    = telFromList $ genericDrop np $ telToList tel
                 vars np = map (Just . AnArg) $ downFrom np
-            (>+<) <$> (occursAs (ConArgType c) <$> getOccurrences (vars np) tel')
-                  <*> (occursAs (IndArgType c) . onlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
-      (>+<) ioccs <$> (concatOccurs <$> mapM conOcc cs)
+            (:>+<) <$> (OccursAs (ConArgType c) <$> getOccurrences (vars np) tel')
+                   <*> (OccursAs (IndArgType c) . OnlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
+      (:>+<) ioccs <$> (Concat <$> mapM conOcc cs)
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
@@ -544,9 +580,9 @@ computeOccurrences q = inConcreteOrAbstractMode q $ do
       getOccurrences vars =<< instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
-    Constructor{} -> return empty
-    Axiom{}       -> return empty
-    Primitive{}   -> return empty
+    Constructor{} -> return Empty
+    Axiom{}       -> return Empty
+    Primitive{}   -> return Empty
 
 -- | Eta expand a clause to have the given number of variables.
 --   Warning: doesn't put correct types in telescope!
@@ -632,17 +668,21 @@ instance StarSemiRing Edge where
   ostar (Edge o w) = Edge (ostar o) w
 
 buildOccurrenceGraph :: Set QName -> TCM (Graph Node Edge)
-buildOccurrenceGraph qs = Graph.unionsWith oplus <$> mapM defGraph (Set.toList qs)
+buildOccurrenceGraph qs =
+  Graph.fromListWith oplus . concat . concat <$>
+    mapM defGraph (Set.toList qs)
   where
-    defGraph :: QName -> TCM (Graph Node Edge)
+    defGraph :: QName -> TCM [[Graph.Edge Node Node Edge]]
     defGraph q = do
       occs <- computeOccurrences q
-      Graph.unionsWith oplus <$> do
-        forM (Map.assocs occs) $ \ (item, occs) -> do
-          let src = itemToNode item
-          es <- mapM (computeEdge qs) occs
-          return $ Graph.unionsWith oplus $
-            for es $ \ (tgt, w) -> Graph.singleton src tgt w
+      forM (Map.assocs occs) $ \ (item, occs) -> do
+        let src = itemToNode item
+        es <- mapM (computeEdge qs) occs
+        return $ for es $ \ (tgt, w) ->
+          Graph.Edge { Graph.source = src
+                     , Graph.target = tgt
+                     , Graph.label  = w
+                     }
       where
         itemToNode (AnArg i) = ArgNode q i
         itemToNode (ADef q)  = DefNode q
