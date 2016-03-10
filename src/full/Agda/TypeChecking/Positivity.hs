@@ -371,8 +371,15 @@ onlyVarsUpTo n = Map.filterWithKey p
 
 -- | Context for computing occurrences.
 data OccEnv = OccEnv
-  { vars :: [Maybe Item] -- ^ Items corresponding to the free variables.
-  , inf  :: Maybe QName  -- ^ Name for ∞ builtin.
+  { vars :: [Maybe Item]
+    -- ^ Items corresponding to the free variables.
+    --
+    --   Potential invariant: It seems as if the list has the form
+    --   @'genericReplicate' n 'Nothing' ++ 'map' ('Just' . 'AnArg') is@,
+    --   for some @n@ and @is@, where @is@ is decreasing
+    --   (non-strictly).
+  , inf  :: Maybe QName
+    -- ^ Name for ∞ builtin.
   }
 
 -- | Monad for computing occurrences.
