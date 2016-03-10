@@ -24,7 +24,7 @@ import Agda.Utils.TestHelpers
 
 isModChar :: Char -> Bool
 isModChar c =
-  isLower c || c == '_' || isUpper c || isDigit c || c == '\''
+  isLower c || isUpper c || isDigit c || c == '_' || c == '\''
 
 -- | Haskell module names have to satisfy the Haskell (including the
 -- hierarchical module namespace extension) lexical syntax:
@@ -39,30 +39,47 @@ isModChar c =
 -- @.@s may be adjacent.
 
 encodeModuleName :: HS.ModuleName -> HS.ModuleName
-encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case splitUp s of
-  ps | mazstr' `isPrefixOf` ps ->
-       concat (mazstr' ++ map encNamePart (drop (length mazstr') ps))
-  _                            -> s
+encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case stripPrefix mazstr s of
+  Just s' -> mazstr ++ foldr encNamePart "" (splitUp' s')
+  Nothing -> s
   where
   -- splitUp ".apa.bepa." == [".","apa",".","bepa","."]
-  splitUp = groupBy ((&&) `on` (/= '.'))
+  -- splitUp = groupBy ((&&) `on` (/= '.'))
 
-  mazstr' = splitUp mazstr
+  -- Since comparison against "." is wasteful, and modules name components are nonempty,
+  -- we can use "" as the separator.
+  -- Since modules name components are nonempty,
+  -- this is more efficient than adding a Maybe wrapper:
+  -- We are effectively using ``String = Maybe NEString''.
+  --
+  -- splitUp' ".apa.bepa." == ["","apa","","bepa",""]
+  splitUp' :: String -> [String]
+  splitUp' = h
+    where
+      h [] = []
+      h (c : cs) = case c of
+        '.' -> "" : h cs
+        _ -> g (c :) cs
+      g acc [] = [acc []]
+      g acc (c : cs) = case c of
+        '.' -> acc [] : "" : h cs
+        _ -> g (acc . (c :)) cs
 
-  encNamePart "." = "."
-  encNamePart s   = ensureFirstCharLarge s ++ concatMap enc s
+  encNamePart "" r = '.' : r
+  encNamePart s  r = ensureFirstCharLarge s $ foldr enc r s
 
-  ensureFirstCharLarge s = case s of
-    c : cs | isUpper c && c /= largeChar -> ""
-    _                                    -> [largeChar]
+  ensureFirstCharLarge s r = case s of
+    c : cs | isUpper c && c /= largeChar -> r
+    _                                    -> largeChar : r
 
   largeChar  = 'Q'
   escapeChar = 'Z'
 
   isOK c = c /= escapeChar && isModChar c
 
-  enc c | isOK c    = [c]
-        | otherwise = [escapeChar] ++ show (fromEnum c) ++ [escapeChar]
+  enc c r | isOK c    = c : r
+          | otherwise = escapeChar : shows (fromEnum c) (escapeChar : r)
+
 
 -- Note: This injectivity test is quite weak. A better, dedicated
 -- generator could strengthen it.
