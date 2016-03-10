@@ -90,8 +90,8 @@ eraseTerms q = runE . eraseTop q
           if isErased e
             then case b of
                    TCase 0 _ _ _ -> tLet TErased <$> erase b
-                   _             -> erase $ subst 0 TErased b else do
-            tLet e <$> erase b
+                   _             -> erase $ subst 0 TErased b
+            else tLet e <$> erase b
         TCase x t d bs -> do
           d  <- erase d
           bs <- mapM eraseAlt bs
