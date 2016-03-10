@@ -629,19 +629,23 @@ reloaded from `agda2-highlighting-file', unless
                               (if (and (listp (car result))
                                        (= (cdr result) (length line)))
                                   (car result)))
-                          (error nil))))
+                          (error nil)))
+                   (is-highlighting-command
+                    (and cmd
+                         (symbolp (car cmd))
+                         (let ((case-fold-search nil))
+                           (string-match "^agda2-highlight-"
+                                         (symbol-name (car cmd)))))))
 
+              ;; Do not echo highlighting commands.
+              (unless is-highlighting-command
+                (with-current-buffer agda2-process-buffer
+                  (save-excursion
+                    (goto-char (point-max))
+                    (insert line)
+                    (insert "\n"))))
               (when cmd
-                (unless (and (symbolp (car cmd))
-                             (let ((case-fold-search nil))
-                               (string-match "^agda2-highlight-"
-                                             (symbol-name (car cmd)))))
-                    ;; Do not echo highlighting commands.
-                  (with-current-buffer agda2-process-buffer
-                    (save-excursion
-                      (goto-char (point-max))
-                      (insert line)
-                      (insert "\n")))
+                (unless is-highlighting-command
                   (incf agda2-responses))
                 (if (equal 'last (car-safe (car cmd)))
                     (push (cons (cdr (car cmd)) (cdr cmd))
