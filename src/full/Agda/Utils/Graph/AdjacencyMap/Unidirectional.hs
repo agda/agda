@@ -269,12 +269,12 @@ discrete :: Null e => Graph s t e -> Bool
 discrete = all' (all' null) . graph
   where all' p = List.all p . Map.elems
 
--- | Remove 'Null' edges.
-clean :: (Ord s, Ord t, Null e) => Graph s t e -> Graph s t e
+-- | Removes 'Null' edges (and empty 'Map's).
+clean :: Null e => Graph s t e -> Graph s t e
 clean = Graph . filt . fmap filt . graph
   where
-    filt :: (Ord k, Null a) => Map k a -> Map k a
-    filt = Map.fromAscList . List.filter (not . null . snd) . Map.toAscList
+    filt :: Null a => Map k a -> Map k a
+    filt = Map.filter (not . null)
 
 -- | Empty graph (no nodes, no edges).
 
