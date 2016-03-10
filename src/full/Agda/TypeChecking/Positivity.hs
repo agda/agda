@@ -186,6 +186,12 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
     setMut []  = return ()  -- nothing to do
     setMut [q] = return ()  -- no mutual recursion
     setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)
+      -- TODO: The previous line is at least quadratic in the length
+      -- of qs (assuming that the expression "delete q qs" is always
+      -- forced, for instance due to serialisation). Presumably qs is
+      -- usually short, but in some cases (for instance for generated
+      -- code) it may be long. Wouldn't it be better to assign a
+      -- unique identifier to each SCC, and avoid storing lists?
 
     -- Set the polarity of the arguments to a couple of definitions
     setArgOccs :: Set QName -> [QName] -> Graph Node Occurrence -> TCM ()
@@ -214,6 +220,9 @@ getDefArity :: Definition -> TCM Int
 getDefArity def = case theDef def of
   defn@Function{} -> do
     let dropped = projectionArgs defn
+    -- TODO: instantiateFull followed by arity could perhaps be
+    -- optimised, presumably the instantiation can be performed
+    -- lazily.
     subtract dropped . arity <$> instantiateFull (defType def)
   Datatype{ dataPars = n } -> return n
   Record{ recPars = n }    -> return n

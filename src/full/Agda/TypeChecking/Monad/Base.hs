@@ -1114,6 +1114,44 @@ data Definition = Defn
     -- ^ Positivity information on arguments of the definition.
     --   Does not include info for dropped parameters to
     --   projection(-like) functions and constructors.
+
+    --   Sometimes Agda looks up 'Occurrence's in these lists based on
+    --   their position, so one might consider replacing the list
+    --   with, say, an 'IntMap'. However, presumably these lists tend
+    --   to be short, in which case 'IntMap's could be slower than
+    --   lists. For instance, at one point the longest list
+    --   encountered for the standard library (in serialised
+    --   interfaces) had length 27. Distribution:
+    --
+    --   Length, number of lists
+    --   -----------------------
+    --
+    --    0, 2444
+    --    1,  721
+    --    2,  433
+    --    3,  668
+    --    4,  602
+    --    5,  624
+    --    6,  626
+    --    7,  484
+    --    8,  375
+    --    9,  264
+    --   10,  305
+    --   11,  188
+    --   12,  171
+    --   13,  108
+    --   14,   84
+    --   15,   80
+    --   16,   38
+    --   17,   23
+    --   18,   16
+    --   19,    8
+    --   20,    7
+    --   21,    5
+    --   22,    2
+    --   23,    3
+    --   27,    1
+
   , defDisplay        :: [Open DisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
