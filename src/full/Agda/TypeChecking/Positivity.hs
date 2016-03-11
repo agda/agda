@@ -750,7 +750,7 @@ computeEdge muts o = do
   (to, occ) <- mkEdge __IMPOSSIBLE__ StrictPos o
   return (to, Edge occ o)
   where
-    mkEdge to pol o = case o of
+    mkEdge to !pol o = case o of
       Here           -> return (to, pol)
       Unknown        -> return (to, Mixed)
       VarArg o       -> mixed o

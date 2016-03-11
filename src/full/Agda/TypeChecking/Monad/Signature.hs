@@ -658,7 +658,7 @@ setPolarity q pol = modifySignature $ updateDefinition q $ updateDefPolarity $ c
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- getConstInfo d
-  return $ case theDef def of
+  return $! case theDef def of
     Constructor{} -> StrictPos
     _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
 
