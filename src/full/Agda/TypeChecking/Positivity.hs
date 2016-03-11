@@ -15,6 +15,7 @@ import Control.DeepSeq
 import Control.Monad.Reader
 
 import Data.Either
+import Data.Function
 import Data.Graph (SCC(..), flattenSCC)
 import Data.List as List hiding (null)
 import Data.Map (Map)
@@ -344,12 +345,47 @@ instance PrettyTCM OccursWhere where
             o:os               -> f o : os
             []                 -> __IMPOSSIBLE__
 
+instance Sized OccursWhere where
+  size o = 1 + case o of
+    Here           -> 0
+    Unknown        -> 0
+    LeftOfArrow o  -> size o
+    DefArg _ _ o   -> size o
+    UnderInf o     -> size o
+    VarArg o       -> size o
+    MetaArg o      -> size o
+    ConArgType _ o -> size o
+    IndArgType _ o -> size o
+    InClause _ o   -> size o
+    Matched o      -> size o
+    InDefOf _ o    -> size o
+
 -- Computing occurrences --------------------------------------------------
 
 data Item = AnArg Nat
           | ADef QName
   deriving (Eq, Ord, Show)
 
+-- | Note that, in pathological (?) cases, the size of the list of
+-- 'OccursWhere' elements can be quadratic in its length. For
+-- instance, for @benchmark/misc/SlowOccurrences.agda@ the list for
+-- @X@ contains the following elements:
+--
+-- * @InDefOf "F" (InClause 0 Here)@,
+--
+-- * @InDefOf "F" (InClause 0 (LeftOfArrow Here))@,
+--
+-- * @InDefOf "F" (InClause 0 (LeftOfArrow (LeftOfArrow Here)))@,
+--
+-- * @InDefOf "F" (InClause 0 (LeftOfArrow (LeftOfArrow (LeftOfArrow Here))))@,
+--
+-- * and so on.
+--
+-- The function 'computeEdge' is applied to each of these elements.
+-- Perhaps it is possible to use a more compact representation for the
+-- list of 'OccursWhere' items, and take advantage of this
+-- representation to avoid duplicated work in 'computeEdge' (and maybe
+-- also elsewhere).
 type Occurrences = Map Item [OccursWhere]
 
 -- | Used to build 'Occurrences'.
@@ -675,6 +711,26 @@ buildOccurrenceGraph qs =
     defGraph :: QName -> TCM [[Graph.Edge Node Node Edge]]
     defGraph q = do
       occs <- computeOccurrences q
+
+      reportSDoc "tc.pos.occs" 40 $
+        (text "Occurrences in" <+> prettyTCM q <> text ":")
+          $+$
+        (nest 2 $ vcat $
+           map (\(i, (n, s)) ->
+                   text (show i) <> text ":" <+> text (show n) <+>
+                   text "occurrences, of total size" <+>
+                   text (show s)) $
+           sortBy (compare `on` fst . snd) $
+           map (\(i, os) -> (i, (length os, sum $ map size os))) $
+           Map.toList occs)
+      reportSDoc "tc.pos.occs" 50 $
+        (nest 2 $ vcat $
+           map (\(i, os) ->
+                   (text (show i) <> text ":")
+                     $+$
+                   (nest 2 $ vcat $ map (text . show) os))
+               (Map.toList occs))
+
       forM (Map.assocs occs) $ \ (item, occs) -> do
         let src = itemToNode item
         es <- mapM (computeEdge qs) occs
