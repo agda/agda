@@ -227,8 +227,60 @@ cover f cs sc@(SClause tel ps _ target) = do
           return (SplittingDone (size tel), Set.empty, [])
         Right (Covering n scs) -> do
           (trees, useds, psss) <- unzip3 <$> mapM (cover f cs) (map snd scs)
-          let tree = SplitAt n $ zipWith (\ (q,_) t -> (q,t)) scs trees
+          -- Jesper, 2016-03-10  We need to remember which variables were
+          -- eta-expanded by the unifier in order to generate a correct split
+          -- tree (see Issue 1872).
+          reportSDoc "tc.cover.split.eta" 60 $ vcat
+            [ text "etaRecordSplits"
+            , nest 2 $ vcat
+              [ text "n   = " <+> text (show n)
+              , text "scs = " <+> prettyTCM scs
+              , text "ups = " <+> text (show ups)
+              ]
+            ]
+          let trees' = zipWith (etaRecordSplits (unArg n) ups) scs trees
+              tree   = SplitAt n trees'
           return (tree, Set.unions useds, concat psss)
+
+  where
+    gatherEtaSplits :: Int -> SplitClause
+                    -> [Arg DeBruijnPattern] -> [Arg DeBruijnPattern]
+    gatherEtaSplits n sc []
+       | n >= 0    = __IMPOSSIBLE__ -- we should have encountered the main
+                                    -- split by now already
+       | otherwise = []
+    gatherEtaSplits n sc (p:ps) = case unArg p of
+      VarP  (i,_)
+       | n == 0    -> case lookupS (scSubst sc) i of -- this is the main split
+           VarP  _      -> __IMPOSSIBLE__
+           DotP  _      -> __IMPOSSIBLE__
+           ConP  _ _ qs ->
+             map (fmap namedThing) qs ++ gatherEtaSplits (-1) sc ps
+           LitP  _      -> __IMPOSSIBLE__
+           ProjP _      -> __IMPOSSIBLE__
+       | otherwise ->
+           (p $> lookupS (scSubst sc) i) : gatherEtaSplits (n-1) sc ps
+      DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
+      ConP  _ _ qs -> gatherEtaSplits n sc (map (fmap namedThing) qs ++ ps)
+      LitP  _      -> gatherEtaSplits n sc ps
+      ProjP _      -> gatherEtaSplits n sc ps
+
+    addEtaSplits :: Int -> [Arg DeBruijnPattern] -> SplitTree -> SplitTree
+    addEtaSplits k []     t = t
+    addEtaSplits k (p:ps) t = case unArg p of
+      VarP  _       -> addEtaSplits (k+1) ps t
+      DotP  _       -> addEtaSplits (k+1) ps t
+      ConP c cpi nqs ->
+        let qs = map (fmap namedThing) nqs
+            t' = [(conName c , addEtaSplits k (qs ++ ps) t)]
+        in  SplitAt (p $> k) t'
+      LitP  _       -> __IMPOSSIBLE__
+      ProjP _       -> __IMPOSSIBLE__
+
+    etaRecordSplits :: Int -> [Arg DeBruijnPattern] -> (QName,SplitClause)
+                    -> SplitTree -> (QName,SplitTree)
+    etaRecordSplits n ps (q , sc) t =
+      (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
 splitStrategy bs tel = return $ updateLast clearBlockingVarCons xs
@@ -312,7 +364,8 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
         sc'       = SClause
           { scTel    = sctel'
           , scPats   = ps'
-          , scSubst  = liftS n $ sigma
+          , scSubst  = wkS n $ sigma -- Should be wkS instead of liftS since
+                                     -- variables are only added to new tel.
           , scTarget = newTarget
           }
     -- Separate debug printing to find cause of crash (Issue 1374)
