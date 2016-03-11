@@ -186,6 +186,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
           -- compile file
           let cArgs   = cleanUpOptions (extraAgdaArgs cOpts)
               defArgs = ["--ignore-interfaces" | notElem "--no-ignore-interfaces" (extraAgdaArgs cOpts)] ++
+                        ["--no-default-libraries"] ++
                         ["--compile-dir", compDir, "-v0"] ++ extraArgs' ++ cArgs ++ [inp]
           args <- (++ defArgs) <$> argsForComp comp
           res@(ret, out, err) <- readAgdaProcessWithExitCode args T.empty
