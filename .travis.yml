@@ -8,7 +8,7 @@ sudo: false
 # The LaTeX/HTML test-suite requires:
 # * `kpsewhich` (included in texlive-binaries)
 
-# The `documentation` test requires:
+# The test of the documentation requires:
 # * `latex` (included in texlive-latex-base)
 # * `utf8x.def` (included in texlive-latex-extra)
 # * `dvipng` (included in dvipng)
@@ -55,6 +55,7 @@ ghc:
 # make tests
 # make TAGS (testing the hTags program)
 # agda-mode compile (testing the Emacs mode)
+# make doc
 
 # The current tests requiring the standard library are:
 #
@@ -69,7 +70,6 @@ ghc:
 # ghc-7.8.4-transformers-0.3.0.0
 # cpp
 # haddock
-# documentation
 
 # Travis runs the builds on this order.
 env:
@@ -78,7 +78,6 @@ env:
   - TEST=ghc-7.8.4-transformers-0.3.0.0
   - TEST=cpp
   - TEST=haddock
-  - TEST=documentation
 
 ##############################################################################
 install:
@@ -187,13 +186,18 @@ install:
 ##############################################################################
 # Installing Sphinx
 
+# Required for testing the documentation.
+
+# N.B. that we test the documentation only with the highest GHC
+# version available.
+
 # TODO (2016-03-06): We are installing a concrete version of Sphinx
 # because we don't know how to the install the latest no-beta version.
 
 # Note that `pip install --user` put the binaries in
 # `$HOME/.local/bin`.
 
-  - if [ $TEST = "documentation" ]; then
+  - if [[ $TEST = "non-require-stdlib" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
        pip install --user -U Sphinx==1.3.6 &&
        export PATH=$HOME/.local/bin:$PATH;
     fi
@@ -206,6 +210,9 @@ script:
 # We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues 1022 and
 # 1675), but we still compare the generated tex/html files with the
 # golden files.
+
+# N.B. that we test the documentation only with the highest GHC
+# version available.
 
   - if [ $TEST = "non-require-stdlib" ]; then
        make check-whitespace &&
@@ -221,7 +228,10 @@ script:
        echo "======================================================================" &&
        echo "==================== Testing the Emacs mode ==========================" &&
        echo "======================================================================" &&
-       agda-mode compile;
+       agda-mode compile &&
+       if [ $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]; then
+          make doc;
+       fi
     fi
 
 ##############################################################################
@@ -267,15 +277,6 @@ script:
     fi
 
 ##############################################################################
-# Testing documentation [Issue 1897]
-
-# N.B. that we run this test only with the higher GHC version available.
-
-  - if [[ $TEST = "documentation" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
-       make user-manual;
-    fi
-
-##############################################################################
 matrix:
   exclude:
     - ghc: 7.6.3
@@ -284,8 +285,6 @@ matrix:
       env: TEST=cpp
     - ghc: 7.6.3
       env: TEST=haddock
-    - ghc: 7.6.3
-      env: TEST=documentation
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
@@ -301,3 +300,4 @@ branches:
   only:
     - master
     - maint-2.4
+    - travis

@@ -98,8 +98,11 @@ haddock :
 	$(CABAL_CMD) configure --builddir=$(BUILD_DIR) --enable-tests
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR) --tests
 
-.PHONY : user-manual
-user-manual :
+.PHONY : doc
+doc :
+	@echo "======================================================================"
+	@echo "========================== Documentation ============================="
+	@echo "======================================================================"
 	$(MAKE) -C doc/user-manual html
 
 ## Making the full language ###############################################
