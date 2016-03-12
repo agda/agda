@@ -90,8 +90,8 @@ install:
   # The GHC version.
   - GHC_VERSION_TRAVIS=`ghc --numeric-version`
 
-  # Higher GHC version available.
-  - GHC_HIGHER_VERSION=7.8.4
+  # Highest GHC version available.
+  - GHC_HIGHEST_VERSION=7.8.4
 
   # Number of modules compile in parallel.
   - export JOBS=2
@@ -103,7 +103,7 @@ install:
 # Installing the dependencies and latest versions of cabal-install,
 # Alex and Happy
 
-# N.B. that we run the tests `cpp` and `haddock` only with the higher
+# N.B. that we run the tests `cpp` and `haddock` only with the highest
 # GHC version available.
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
@@ -113,7 +113,7 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - if [[ ( $TEST = "non-require-stdlib" ) || ( $TEST = "require-stdlib" ) || (( $TEST = "cpp" || $TEST = "haddock" ) && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ) ]]; then
+  - if [[ ( $TEST = "non-require-stdlib" ) || ( $TEST = "require-stdlib" ) || (( $TEST = "cpp" || $TEST = "haddock" ) && $GHC_VERSION_TRAVIS = $GHC_HIGHEST_VERSION ) ]]; then
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
        cat $HOME/.cabal/config &&
@@ -197,7 +197,7 @@ install:
 # Note that `pip install --user` put the binaries in
 # `$HOME/.local/bin`.
 
-  - if [[ $TEST = "non-require-stdlib" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
+  - if [[ $TEST = "non-require-stdlib" && $GHC_VERSION_TRAVIS = $GHC_HIGHEST_VERSION ]]; then
        pip install --user -U Sphinx==1.3.6 &&
        export PATH=$HOME/.local/bin:$PATH;
     fi
@@ -229,7 +229,7 @@ script:
        echo "==================== Testing the Emacs mode ==========================" &&
        echo "======================================================================" &&
        agda-mode compile &&
-       if [ $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]; then
+       if [ $GHC_VERSION_TRAVIS = $GHC_HIGHEST_VERSION ]; then
           make doc;
        fi
     fi
@@ -258,11 +258,11 @@ script:
 ##############################################################################
 # Testing compilation with cpp instead of cpphs [Issue 1647]
 
-# N.B. that we run this test only with the higher GHC version available.
+# N.B. that we run this test only with the highest GHC version available.
 
 # N.B. that this test is not include in the Makefile tests.
 
-  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
+  - if [[ $TEST = "cpp" && $GHC_VERSION_TRAVIS = $GHC_HIGHEST_VERSION ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
        cabal build -v2 -j${JOBS};
     fi
@@ -270,9 +270,9 @@ script:
 ##############################################################################
 # Testing Haddock [Issue 1773]
 
-# N.B. that we run this test only with the higher GHC version available.
+# N.B. that we run this test only with the highest GHC version available.
 
-  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = $GHC_HIGHER_VERSION ]]; then
+  - if [[ $TEST = "haddock" && $GHC_VERSION_TRAVIS = $GHC_HIGHEST_VERSION ]]; then
        make BUILD_DIR=$BUILD_DIR haddock;
     fi
 
