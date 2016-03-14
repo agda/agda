@@ -300,4 +300,3 @@ branches:
   only:
     - master
     - maint-2.4
-    - travis
