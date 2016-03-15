@@ -1,7 +1,6 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > EraseRefl.main = Common.IO.putStrLn ""
 out > EraseRefl.decEq₂ =
 out >   λ a b c d e f g h i j k l m n o →
 out >     let p =
@@ -16,5 +15,6 @@ out >           EraseRefl.Dec.no r → EraseRefl.Dec.no (λ s → r (i j l k m s
 out >           _ → p
 out >       EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (h j l k m r))
 out >       _ → p
+out > EraseRefl.main = Common.IO.putStrLn ""
 out >
 out >

@@ -15,6 +15,7 @@ import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
 import Data.Generics.Geniplate
 import Data.Foldable hiding (any, foldr, sequence_)
+import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -145,8 +146,13 @@ imports = (++) <$> hsImps <*> imps where
 definitions :: Definitions -> TCM [HS.Decl]
 definitions defs = do
   kit <- coinductionKit
-  HMap.foldr (liftM2 (++) . (definition kit <=< instantiateFull))
-             (return []) defs
+  concat <$>
+    (mapM (\(_, d) -> definition kit =<< instantiateFull d) $
+     List.sortBy (compare `on` fst) $
+     -- The list is sorted to ensure that the order of the generated
+     -- definitions does not depend on things like the number of bits
+     -- in an Int (see Issue 1900).
+     HMap.toList defs)
 
 -- | Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):

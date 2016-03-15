@@ -1,33 +1,6 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > CompileNumbers.neg = λ a → 0 - a
-out > CompileNumbers._*Z_ = λ a b → a * b
-out > CompileNumbers.printInt =
-out >   λ a → Common.IO.putStrLn (Common.String.intToString a)
-out > CompileNumbers.compareNat =
-out >   λ a b →
-out >     let c = a < b in
-out >     case c of
-out >       Agda.Builtin.Bool.Bool.false →
-out >         let d = b < a in
-out >         case d of
-out >           Agda.Builtin.Bool.Bool.false → CompileNumbers.Diff.equal
-out >           Agda.Builtin.Bool.Bool.true →
-out >             CompileNumbers.Diff.greater (a - b - 1)
-out >           _ → error "TUnreachable"
-out >       Agda.Builtin.Bool.Bool.true → CompileNumbers.Diff.less (b - a - 1)
-out >       _ → error "TUnreachable"
-out > CompileNumbers.nested-match =
-out >   λ a →
-out >     case a of
-out >       0 → "zero"
-out >       1 → "one"
-out >       _ | a >= 2 → "lots"
-out >       -1 → "minus one"
-out >       -2 → "minus two"
-out >       _ → "minus lots"
-out > CompileNumbers._-N_ = λ a b → a - b
 out > CompileNumbers.match-on-lit =
 out >   λ a b →
 out >     case a of
@@ -46,6 +19,34 @@ out >         case a of
 out >           "neg" → 0 - b
 out >           _ → b
 out >       _ → b
+out > CompileNumbers.nested-match =
+out >   λ a →
+out >     case a of
+out >       0 → "zero"
+out >       1 → "one"
+out >       _ | a >= 2 → "lots"
+out >       -1 → "minus one"
+out >       -2 → "minus two"
+out >       _ → "minus lots"
+out > CompileNumbers.compareNat =
+out >   λ a b →
+out >     let c = a < b in
+out >     case c of
+out >       Agda.Builtin.Bool.Bool.false →
+out >         let d = b < a in
+out >         case d of
+out >           Agda.Builtin.Bool.Bool.false → CompileNumbers.Diff.equal
+out >           Agda.Builtin.Bool.Bool.true →
+out >             CompileNumbers.Diff.greater (a - b - 1)
+out >           _ → error "TUnreachable"
+out >       Agda.Builtin.Bool.Bool.true → CompileNumbers.Diff.less (b - a - 1)
+out >       _ → error "TUnreachable"
+out > CompileNumbers.neg = λ a → 0 - a
+out > CompileNumbers._-N_ = λ a b → a - b
+out > CompileNumbers._+Z_ = λ a b → a + b
+out > CompileNumbers._*Z_ = λ a b → a * b
+out > CompileNumbers.printInt =
+out >   λ a → Common.IO.putStrLn (Common.String.intToString a)
 out > CompileNumbers.main =
 out >   Common.IO.then
 out >     () () _ _
@@ -54,7 +55,6 @@ out >     (Common.IO.then
 out >        () () _ _
 out >        (CompileNumbers.printInt (CompileNumbers.match-on-lit₂ "neg" 42))
 out >        (Common.IO.putStrLn (CompileNumbers.nested-match -6)))
-out > CompileNumbers._+Z_ = λ a b → a + b
 out > -42
 out > -42
 out > minus lots
