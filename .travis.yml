@@ -240,21 +240,66 @@ script:
 # golden files.
 
   - if [[ $TEST = "main" ]]; then
-       make check-whitespace &&
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR succeed &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail &&
-       make BUILD_DIR=$BUILD_DIR interaction &&
-       make BUILD_DIR=$BUILD_DIR interactive &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test &&
-       make BUILD_DIR=$BUILD_DIR examples &&
-       make BUILD_DIR=$BUILD_DIR library-test &&
-       make BUILD_DIR=$BUILD_DIR api-test &&
-       make BUILD_DIR=$BUILD_DIR tests &&
-       make BUILD_DIR=$BUILD_DIR benchmark-without-logs &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
-       make BUILD_DIR=$BUILD_DIR lib-succeed &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction &&
-       make BUILD_DIR=$BUILD_DIR TAGS &&
+       make check-whitespace;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR succeed;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR interaction;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR interactive;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR examples;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR library-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR api-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR tests;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR lib-succeed;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR TAGS;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
        echo "======================================================================" &&
        echo "==================== Testing the Emacs mode ==========================" &&
        echo "======================================================================" &&
