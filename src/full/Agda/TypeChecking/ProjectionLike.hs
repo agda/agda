@@ -214,6 +214,9 @@ makeProjection x = inTopContext $ do
     validProj (_, 0) = return False
     validProj (d, _) = eligibleForProjectionLike d
 
+    -- NOTE: If the following definition turns out to be slow, then
+    -- one could perhaps reuse information computed by the termination
+    -- and/or positivity checkers.
     recursive = do
       occs <- computeOccurrences x
       let xocc = Map.lookup (ADef x) occs
