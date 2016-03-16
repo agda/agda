@@ -41,6 +41,7 @@ import qualified Agda.Utils.AssocList as AssocList
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
+import Agda.Utils.Pretty
 import qualified Agda.Utils.Map as Map
 
 #include "undefined.h"
@@ -633,6 +634,36 @@ flattenScope ms scope =
           | (x, mods) <- Map.toList (getNames s)
           , let ms' = [ tl | hd:tl <- ms, hd == x ]
           , not $ null ms'
+          , AbsModule m _ <- mods ]
+
+    moduleScope :: A.ModuleName -> Scope
+    moduleScope m = fromMaybe __IMPOSSIBLE__ $ Map.lookup m $ scopeModules scope
+
+-- | Get all concrete names in scope. Includes bound variables.
+concreteNamesInScope :: ScopeInfo -> Set C.QName
+concreteNamesInScope scope =
+  Set.unions [ build allNamesInScope root, imported, locals ]
+  where
+    current = moduleScope $ scopeCurrent scope
+    root    = mergeScopes $ current : map moduleScope (scopeParents current)
+
+    locals  = Set.fromList [ C.QName x | (x, _) <- scopeLocals scope ]
+
+    imported = Set.unions
+               [ qual c (build exportedNamesInScope $ moduleScope a)
+               | (c, a) <- Map.toList $ scopeImports root ]
+    qual c = Set.map (q c)
+      where
+        q (C.QName x)  = C.Qual x
+        q (C.Qual m x) = C.Qual m . q x
+
+    build :: (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Set C.QName
+    build getNames s = Set.unions $
+        (Set.fromList $ map C.QName $ Map.keys (getNames s :: ThingsInScope AbstractName)) :
+          [ Set.mapMonotonic (\ y -> C.Qual x y) $
+              build exportedNamesInScope $ moduleScope m
+          | (x, mods) <- Map.toList (getNames s)
+          , prettyShow x /= "_"
           , AbsModule m _ <- mods ]
 
     moduleScope :: A.ModuleName -> Scope
