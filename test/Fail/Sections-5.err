@@ -2,4 +2,7 @@ Sections-5.agda:4,8-25
 Not in scope:
   _Common.Prelude.+
   at Sections-5.agda:4,8-25
+    (did you mean
+       'Common.Prelude._+_' or
+       '_+_'?)
 when scope checking _Common.Prelude.+

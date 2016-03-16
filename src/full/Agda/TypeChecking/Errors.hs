@@ -16,9 +16,11 @@ import Prelude hiding (null)
 import Control.Monad.State
 
 import Data.Function
-import Data.List (nub, sortBy, intersperse)
+import Data.List (nub, sortBy, intersperse, isInfixOf)
 import Data.Maybe
+import Data.Char (toLower)
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
 import Agda.Syntax.Common
@@ -34,17 +36,20 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Scope.Monad (isDatatypeModule)
+import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
@@ -698,19 +703,31 @@ instance PrettyTCM TypeError where
 
     BothWithAndRHS -> fsep $ pwords "Unexpected right hand side"
 
-    NotInScope xs ->
-      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map name xs)
+    NotInScope xs -> do
+      inscope <- Set.toList . concreteNamesInScope <$> getScope
+      fsep (pwords "Not in scope:") $$ nest 2 (vcat $ map (name inscope) xs)
       where
-      name x = fsep [ pretty x
-                    , text "at" <+> prettyTCM (getRange x)
-                    , suggestion (P.prettyShow x)
-                    ]
-      suggestion s
-        | elem ':' s    = parens $ text "did you forget space around the ':'?"
-        | elem "->" two = parens $ text "did you forget space around the '->'?"
-        | otherwise     = empty
+      name inscope x =
+        fsep [ pretty x
+             , text "at" <+> prettyTCM (getRange x)
+             , suggestion inscope x
+             ]
+      suggestion inscope x = nest 2 $ par $
+        [ text "did you forget space around the ':'?"  | elem ':' s ] ++
+        [ text "did you forget space around the '->'?" | isInfixOf "->" s ] ++
+        [ sep [ text "did you mean"
+              , nest 2 $ vcat (punctuate (text " or") $ map (\ y -> text $ "'" ++ y ++ "'") ys) <> text "?" ]
+          | not $ null ys ]
         where
-          two = zipWith (\a b -> [a,b]) s (tail s)
+          s = P.prettyShow x
+          par []  = empty
+          par [d] = parens d
+          par ds  = parens $ vcat ds
+
+          strip x = map toLower $ filter (/= '_') $ P.prettyShow $ C.unqualify x
+          maxDist n = div n 3
+          close a b = editDistance a b <= maxDist (length a)
+          ys = map P.prettyShow $ filter (close (strip x) . strip) inscope
 
     NoSuchModule x -> fsep $ pwords "No such module" ++ [pretty x]
 

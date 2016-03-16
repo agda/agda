@@ -1,5 +1,8 @@
 Issue836.agda:16,5-8
 Not in scope:
-  R.X
-  at Issue836.agda:16,5-8
+  R.X at Issue836.agda:16,5-8
+    (did you mean
+       'M.R'.X' or
+       'Rmodule.X' or
+       'X'?)
 when scope checking R.X

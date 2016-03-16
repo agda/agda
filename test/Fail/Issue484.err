@@ -1,5 +1,5 @@
 Issue484.agda:10,8-13
 Not in scope:
-  A.foo
-  at Issue484.agda:10,8-13
+  A.foo at Issue484.agda:10,8-13
+    (did you mean 'foo′'?)
 when scope checking A.foo

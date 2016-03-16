@@ -22,7 +22,7 @@
 (agda2-info-action "*Error*" "1,1-5 Not in scope: used at 1,1-5 when scope checking used" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
-(agda2-info-action "*Error*" "1,1-21 Not in scope: Private.not-in-scope at 1,1-21 when scope checking Private.not-in-scope" nil)
+(agda2-info-action "*Error*" "1,1-21 Not in scope: Private.not-in-scope at 1,1-21 (did you mean 'in-scope'?) when scope checking Private.not-in-scope" nil)
 (agda2-highlight-load-and-delete-action)
 (agda2-status-action "")
 (agda2-status-action "Checked")

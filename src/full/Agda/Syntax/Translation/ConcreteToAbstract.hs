@@ -549,7 +549,7 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       FieldName d             -> return $ anameName d
       PatternSynResName d     -> return $ anameName d
       VarName x               -> typeError $ GenericError $ "Not a defined name: " ++ show x
-      UnknownName             -> typeError $ GenericError $ "Not in scope: " ++ show x
+      UnknownName             -> notInScope (toQName x)
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName

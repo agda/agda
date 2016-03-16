@@ -1,0 +1,7 @@
+Issue1903.agda:7,12-16
+Not in scope:
+  Fooo at Issue1903.agda:7,12-16
+    (did you mean
+       'foo' or
+       'fooo'?)
+when scope checking Fooo

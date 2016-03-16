@@ -1,5 +1,8 @@
 Issue836a.agda:14,20-23
 Not in scope:
-  D.c
-  at Issue836a.agda:14,20-23
+  D.c at Issue836a.agda:14,20-23
+    (did you mean
+       'MD.c' or
+       'N.D.c' or
+       'N.c'?)
 when scope checking D.c

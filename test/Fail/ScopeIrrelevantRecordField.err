@@ -2,4 +2,9 @@ ScopeIrrelevantRecordField.agda:10,9-17
 Not in scope:
   Bla.bla0
   at ScopeIrrelevantRecordField.agda:10,9-17
+    (did you mean
+       'Bla.bla1' or
+       'Bla.bla4' or
+       'Bla' or
+       'bla0''?)
 when scope checking Bla.bla0
