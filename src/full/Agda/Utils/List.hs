@@ -440,6 +440,37 @@ prop_commonSuffix xs ys zs =
   where
     zs' = commonSuffix (xs ++ zs) (ys ++ zs)
 
+editDistanceSpec :: Eq a => [a] -> [a] -> Int
+editDistanceSpec [] ys = length ys
+editDistanceSpec xs [] = length xs
+editDistanceSpec (x : xs) (y : ys)
+  | x == y    = editDistanceSpec xs ys
+  | otherwise = 1 + minimum [ editDistanceSpec (x : xs) ys
+                            , editDistanceSpec xs (y : ys)
+                            , editDistanceSpec xs ys ]
+
+editDistance :: Eq a => [a] -> [a] -> Int
+editDistance xs ys = editD 0 0
+  where xss = tails xs
+        yss = tails ys
+        tbl = Map.fromList [ ((i, j), editD' i j) | i <- [0..length xss - 1], j <- [0..length yss - 1] ]
+        editD i j = tbl Map.! (i, j)
+        editD' i j =
+          case (xss !! i, yss !! j) of
+            ([], ys) -> length ys
+            (xs, []) -> length xs
+            (x : xs, y : ys)
+              | x == y    -> editD (i + 1) (j + 1)
+              | otherwise -> 1 + minimum [ editD (i + 1) j, editD i (j + 1), editD (i + 1) (j + 1) ]
+
+prop_editDistance :: Property
+prop_editDistance =
+  forAllShrink (choose (0, 10)) shrink $ \ n ->
+  forAllShrink (choose (0, 10)) shrink $ \ m ->
+  forAllShrink (vector n) shrink $ \ xs ->
+  forAllShrink (vector m) shrink $ \ ys ->
+  editDistanceSpec xs ys == editDistance xs (ys :: [Integer])
+
 -- Hack to make $quickCheckAll work under ghc-7.8
 return []
 
