@@ -752,8 +752,10 @@ rEnd r@(Range f _) = (\p -> p { srcFile = f }) <$> rEnd' r
 --
 -- Precondition: The intervals must point to the same file.
 fuseIntervals :: Ord a => Interval' a -> Interval' a -> Interval' a
-fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
-    where ps = sort [iStart x, iStart y, iEnd x, iEnd y]
+fuseIntervals x y = Interval { iStart = head ss, iEnd = last es }
+    where
+    ss = sort [iStart x, iStart y]
+    es = sort [iEnd   x, iEnd   y]
 
 -- | @fuseRanges r r'@ unions the ranges @r@ and @r'@.
 --
