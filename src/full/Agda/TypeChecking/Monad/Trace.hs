@@ -48,17 +48,14 @@ traceCall mkCall m = do
   -- Andreas, 2015-02-09 Make sure we do not set a range
   -- outside the current file
   verboseS "check.ranges" 10 $
-    unlessNull callRange $ \ r ->
-      let is = rangeIntervals r in
-      unlessNull (Strict.mapMaybe srcFile $
-                    map iStart is ++ map iEnd is) $ \ files -> do
-        whenJustM (asks envCurrentPath) $ \ currentFile -> do
-          unlessNull (filter (/= currentFile) files) $ \ wrongFiles -> do
-            reportSLn "impossible" 10 $
-              prettyShow call ++
-              " is trying to set the current range to " ++ show callRange ++
-              " which is outside of the current file " ++ show currentFile
-            __IMPOSSIBLE__
+    Strict.whenJust (rangeFile callRange) $ \f -> do
+      currentFile <- asks envCurrentPath
+      when (currentFile /= Just f) $ do
+        reportSLn "impossible" 10 $
+          prettyShow call ++
+          " is trying to set the current range to " ++ show callRange ++
+          " which is outside of the current file " ++ show currentFile
+        __IMPOSSIBLE__
   cl <- liftTCM $ buildClosure call
   let trace = local $ foldr (.) id $
         [ \e -> e { envCall = Just cl } | interestingCall cl ] ++

@@ -174,7 +174,7 @@ instance EmbPrj AbsolutePath where
       Left err -> throwError $ findErrorToTypeError m err
       Right f  -> return f
 
-instance EmbPrj Position where
+instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icode4' file pos line col
 
   value = vcase valu where
@@ -217,7 +217,7 @@ instance EmbPrj a => EmbPrj (Seq a) where
   icod_ s = icode (Fold.toList s)
   value s = Seq.fromList `fmap` value s
 
-instance EmbPrj P.Interval where
+instance EmbPrj a => EmbPrj (P.Interval' a) where
   icod_ (P.Interval p q) = icode2' p q
 
   value = vcase valu where
@@ -225,8 +225,8 @@ instance EmbPrj P.Interval where
     valu _      = malformed
 
 instance EmbPrj Range where
-  icod_ r = icode (P.rangeIntervals r)
-  value r = P.intervalsToRange `fmap` value r
+  icod_ r = icode (P.rangeFile r, P.rangeIntervals r)
+  value r = uncurry P.intervalsToRange `fmap` value r
 
 instance EmbPrj C.Name where
   icod_ (C.NoName a b) = icode2 0 a b

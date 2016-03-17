@@ -1,2 +1,2 @@
 top_command (cmd_load currentFile [])
-IOTCM currentFile Interactive Indirect (Cmd_refine 0 (Range [Interval (Pn Nothing 20 2 7)  (Pn Nothing 27 2 14)]) "λ x → x")
+IOTCM currentFile Interactive Indirect (Cmd_refine 0 (intervalsToRange Nothing [Interval (Pn () 20 2 7)  (Pn () 27 2 14)]) "λ x → x")

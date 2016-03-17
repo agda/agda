@@ -42,7 +42,7 @@ nestedComment inp inp' _ =
         if keep then do
           inp'' <- getLexInput
           let p1 = lexPos inp; p2 = lexPos inp''
-              i = Interval p1 p2
+              i = posToInterval (lexSrcFile inp) p1 p2
               s = case (p1, p2) of
                     (Pn { posPos = p1 }, Pn { posPos = p2 }) ->
                       genericTake (p2 - p1) $ lexInput inp
@@ -59,7 +59,9 @@ hole inp inp' _ =
     do  setLexInput inp'
         runLookAhead err $ skipBlock "{!" "!}"
         p <- lexPos <$> getLexInput
-        return $ TokSymbol SymQuestionMark (Interval (lexPos inp) p)
+        return $
+          TokSymbol SymQuestionMark $
+          posToInterval (lexSrcFile inp) (lexPos inp) p
     where
         err _ = liftP $ parseErrorAt (lexPos inp) "Unterminated '{!'"
 

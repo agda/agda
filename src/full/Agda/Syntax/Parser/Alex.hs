@@ -28,9 +28,10 @@ import Agda.Utils.Tuple
 
 -- | This is what the lexer manipulates.
 data AlexInput = AlexInput
-  { lexPos      :: !Position    -- ^ current position
-  , lexInput    :: String       -- ^ current input
-  , lexPrevChar :: !Char        -- ^ previously read character
+  { lexSrcFile  :: !SrcFile              -- ^ File.
+  , lexPos      :: !PositionWithoutFile  -- ^ Current position.
+  , lexInput    :: String                -- ^ Current input.
+  , lexPrevChar :: !Char                 -- ^ Previously read character.
   }
 
 -- | A lens for 'lexInput'.
@@ -46,10 +47,11 @@ alexInputPrevChar = lexPrevChar
 --
 -- This function is used by Alex 2.
 alexGetChar :: AlexInput -> Maybe (Char, AlexInput)
-alexGetChar (AlexInput { lexInput = []  }) = Nothing
-alexGetChar (AlexInput { lexInput = c:s, lexPos = p }) =
+alexGetChar     (AlexInput { lexInput = []              }) = Nothing
+alexGetChar inp@(AlexInput { lexInput = c:s, lexPos = p }) =
     Just (c, AlexInput
-                 { lexInput     = s
+                 { lexSrcFile   = lexSrcFile inp
+                 , lexInput     = s
                  , lexPos       = movePos p c
                  , lexPrevChar  = c
                  }
@@ -72,7 +74,8 @@ getLexInput :: Parser AlexInput
 getLexInput = getInp <$> get
     where
         getInp s = AlexInput
-                    { lexPos        = parsePos s
+                    { lexSrcFile    = parseSrcFile s
+                    , lexPos        = parsePos s
                     , lexInput      = parseInp s
                     , lexPrevChar   = parsePrevChar s
                     }
@@ -80,7 +83,8 @@ getLexInput = getInp <$> get
 setLexInput :: AlexInput -> Parser ()
 setLexInput inp = modify upd
     where
-        upd s = s { parsePos        = lexPos inp
+        upd s = s { parseSrcFile    = lexSrcFile inp
+                  , parsePos        = lexPos inp
                   , parseInp        = lexInput inp
                   , parsePrevChar   = lexPrevChar inp
                   }

@@ -474,16 +474,15 @@ instance Read InteractionId where
     readsPrec = parseToReadsPrec $
         fmap InteractionId readParse
 
--- | Note that the grammar implemented by this instances matches an
--- old representation of ranges, not necessarily the current one.
+-- | Note that the grammar implemented by this instance does not
+-- necessarily match the current representation of ranges.
 
 instance Read a => Read (Range' a) where
-    readsPrec = parseToReadsPrec $ do
-                exact "Range"
-                fmap intervalsToRange readParse
-          `mplus` do
-                exact "noRange"
-                return noRange
+    readsPrec = parseToReadsPrec $
+      (exact "intervalsToRange" >>
+       liftM2 intervalsToRange readParse readParse)
+        `mplus`
+      (exact "noRange" >> return noRange)
 
 instance Read a => Read (Interval' a) where
     readsPrec = parseToReadsPrec $ do

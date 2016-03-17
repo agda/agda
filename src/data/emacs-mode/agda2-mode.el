@@ -748,7 +748,7 @@ An error is raised if no responses are received."
             (t (setq input-from-goal t)))
       (apply 'agda2-go t t t cmd
              (format "%d" g)
-             (if input-from-goal (agda2-goal-Range o) "noRange")
+             (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
 
 ;; Note that the following function is a security risk, since it
@@ -1414,7 +1414,7 @@ text properties."
         (if (and (not (equal new-txt 'paren)) (not (equal new-txt 'no-paren)))
             (apply 'agda2-go t t nil "Cmd_highlight"
               (format "%d" old-g)
-              (agda2-mkRange p (- q 2))
+              (agda2-mkRange `(,p ,(- q 2)))
               (agda2-string-quote new-txt) nil))
     )))
 
@@ -1432,23 +1432,27 @@ text properties."
 
 (defun agda2-goal-Range (o)
   "The Haskell Range of goal overlay O."
-  (agda2-mkRange (+ (overlay-start o) 2)
-                 (- (overlay-end   o) 2)))
+  (agda2-mkRange `(,(+ (overlay-start o) 2)
+                   ,(- (overlay-end   o) 2))))
 
-(defun agda2-mkRange (p q)
-  "The Haskell Range corresponding to two points."
-  (format "(Range [Interval %s %s])"
-          (agda2-mkPos p)
-          (agda2-mkPos q)))
+(defun agda2-mkRange (points)
+  "A string representing a range corresponding to POINTS.
+POINTS must be a list of integers, and its length must be 0 or 2."
+  (if points
+      (format "(intervalsToRange (Just (mkAbsolute %s)) %s)"
+              (agda2-string-quote (file-truename (buffer-file-name)))
+              (format "[Interval %s %s]"
+                      (agda2-mkPos (car points))
+                      (agda2-mkPos (cadr points))))
+    "noRange"))
 
 (defun agda2-mkPos (&optional p)
-  "The Haskell Position corresponding to P or `point'."
+  "The Haskell PositionWithoutFile corresponding to P or `point'."
   (save-excursion
     (save-restriction
       (widen)
       (if p (goto-char p))
-      (format "(Pn (Just (mkAbsolute %s)) %d %d %d)"
-              (agda2-string-quote (file-truename (buffer-file-name)))
+      (format "(Pn () %d %d %d)"
               (point)
               (count-lines (point-min) (point))
               (1+ (current-column))))))

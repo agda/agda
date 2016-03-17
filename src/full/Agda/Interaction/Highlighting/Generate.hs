@@ -677,7 +677,7 @@ storeDisambiguatedName :: A.QName -> TCM ()
 storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
   stDisambiguatedNames %= IntMap.insert i q
   where
-  start r = fromIntegral . P.posPos <$> P.rStart r
+  start r = fromIntegral . P.posPos <$> P.rStart' r
 
 ------------------------------------------------------------------------
 -- All tests

@@ -58,15 +58,16 @@ newtype Parser a = P { unP :: ParseState -> ParseResult a }
 -- | The parser state. Contains everything the parser and the lexer could ever
 --   need.
 data ParseState = PState
-    { parsePos      :: !Position        -- ^ position at current input location
-    , parseLastPos  :: !Position        -- ^ position of last token
-    , parseInp      :: String           -- ^ the current input
-    , parsePrevChar :: !Char            -- ^ the character before the input
-    , parsePrevToken:: String           -- ^ the previous token
-    , parseLayout   :: [LayoutContext]  -- ^ the stack of layout contexts
-    , parseLexState :: [LexState]       -- ^ the state of the lexer
-                                        --   (states can be nested so we need a stack)
-    , parseFlags    :: ParseFlags       -- ^ currently there are no flags
+    { parseSrcFile  :: !SrcFile
+    , parsePos      :: !PositionWithoutFile  -- ^ position at current input location
+    , parseLastPos  :: !PositionWithoutFile  -- ^ position of last token
+    , parseInp      :: String                -- ^ the current input
+    , parsePrevChar :: !Char                 -- ^ the character before the input
+    , parsePrevToken:: String                -- ^ the previous token
+    , parseLayout   :: [LayoutContext]       -- ^ the stack of layout contexts
+    , parseLexState :: [LexState]            -- ^ the state of the lexer
+                                             --   (states can be nested so we need a stack)
+    , parseFlags    :: ParseFlags            -- ^ currently there are no flags
     }
     deriving Show
 
@@ -92,10 +93,16 @@ data ParseFlags = ParseFlags
 
 -- | What you get if parsing fails.
 data ParseError = ParseError
-  { errPos        :: Position -- ^ where the error occured
-  , errInput      :: String   -- ^ the remaining input
-  , errPrevToken  :: String   -- ^ the previous token
-  , errMsg        :: String   -- ^ hopefully an explanation of what happened
+  { errSrcFile   :: !SrcFile
+                    -- ^ The file in which the error occurred.
+  , errPos       :: !PositionWithoutFile
+                    -- ^ Where the error occurred.
+  , errInput     :: String
+                    -- ^ The remaining input.
+  , errPrevToken :: String
+                    -- ^ The previous token.
+  , errMsg       :: String
+                    -- ^ Hopefully an explanation of what happened.
   }
     deriving (Typeable)
 
@@ -117,7 +124,8 @@ instance Monad Parser where
                           ParseOk s' x  -> unP (f x) s'
 
   fail msg = P $ \s -> ParseFailed $
-                         ParseError  { errPos       = parseLastPos s
+                         ParseError  { errSrcFile   = parseSrcFile s
+                                     , errPos       = parseLastPos s
                                      , errInput     = parseInp s
                                      , errPrevToken = parsePrevToken s
                                      , errMsg       = msg
@@ -146,13 +154,15 @@ instance Show ParseError where
 
 instance Pretty ParseError where
   pretty err = vcat
-      [ pretty (errPos err) <> colon <+> text (errMsg err)
+      [ pretty ((errPos err) { srcFile = errSrcFile err }) <> colon <+>
+        text (errMsg err)
       , text $ errPrevToken err ++ "<ERROR>"
       , text $ take 30 (errInput err) ++ "..."
       ]
 
 instance HasRange ParseError where
-  getRange err = posToRange (errPos err) (errPos err)
+  getRange err = posToRange' (errSrcFile err) p p
+    where p = errPos err
 
 {--------------------------------------------------------------------------
     Running the parser
@@ -160,8 +170,9 @@ instance HasRange ParseError where
 
 initStatePos :: Position -> ParseFlags -> String -> [LexState] -> ParseState
 initStatePos pos flags inp st =
-        PState  { parsePos          = pos
-                , parseLastPos      = pos
+        PState  { parseSrcFile      = srcFile pos
+                , parsePos          = pos'
+                , parseLastPos      = pos'
                 , parseInp          = inp
                 , parsePrevChar     = '\n'
                 , parsePrevToken    = ""
@@ -169,6 +180,8 @@ initStatePos pos flags inp st =
                 , parseLayout       = [NoLayout]
                 , parseFlags        = flags
                 }
+  where
+  pos' = pos { srcFile = () }
 
 -- | Constructs the initial state of the parser. The string argument
 --   is the input string, the file path is only there because it's part
@@ -208,23 +221,23 @@ parseFile flags st p file =
     Manipulating the state
  --------------------------------------------------------------------------}
 
-setParsePos :: Position -> Parser ()
+setParsePos :: PositionWithoutFile -> Parser ()
 setParsePos p = modify $ \s -> s { parsePos = p }
 
-setLastPos :: Position -> Parser ()
+setLastPos :: PositionWithoutFile -> Parser ()
 setLastPos p = modify $ \s -> s { parseLastPos = p }
 
 setPrevToken :: String -> Parser ()
 setPrevToken t = modify $ \s -> s { parsePrevToken = t }
 
-getLastPos :: Parser Position
+getLastPos :: Parser PositionWithoutFile
 getLastPos = get >>= return . parseLastPos
 
 -- | The parse interval is between the last position and the current position.
 getParseInterval :: Parser Interval
-getParseInterval =
-    do  s <- get
-        return $ Interval (parseLastPos s) (parsePos s)
+getParseInterval = do
+  s <- get
+  return $ posToInterval (parseSrcFile s) (parseLastPos s) (parsePos s)
 
 getLexState :: Parser [LexState]
 getLexState = parseLexState <$> get
@@ -255,13 +268,13 @@ parseError = fail
 --   lexing nested comments, which when failing will always fail at the end
 --   of the file. A more informative position is the beginning of the failing
 --   comment.
-parseErrorAt :: Position -> String -> Parser a
+parseErrorAt :: PositionWithoutFile -> String -> Parser a
 parseErrorAt p msg =
     do  setLastPos p
         parseError msg
 
 -- | Use 'parseErrorAt' or 'parseError' as appropriate.
-parseError' :: Maybe Position -> String -> Parser a
+parseError' :: Maybe PositionWithoutFile -> String -> Parser a
 parseError' = maybe parseError parseErrorAt
 
 

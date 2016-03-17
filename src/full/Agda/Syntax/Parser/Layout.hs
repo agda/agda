@@ -79,13 +79,14 @@ offsideRule inp _ _ =
     do  offs <- getOffside p
         case offs of
             LT  -> do   popContext
-                        return (TokSymbol SymCloseVirtualBrace (Interval p p))
+                        return (TokSymbol SymCloseVirtualBrace i)
             EQ  -> do   popLexState
-                        return (TokSymbol SymVirtualSemi (Interval p p))
+                        return (TokSymbol SymVirtualSemi i)
             GT  -> do   popLexState
                         lexToken
     where
         p = lexPos inp
+        i = posToInterval (lexSrcFile inp) p p
 
 
 {-| This action is only executed from the 'Agda.Syntax.Parser.Lexer.empty_layout'
@@ -97,9 +98,10 @@ emptyLayout :: LexAction Token
 emptyLayout inp _ _ =
     do  popLexState
         pushLexState bol
-        return (TokSymbol SymCloseVirtualBrace (Interval p p))
+        return (TokSymbol SymCloseVirtualBrace i)
     where
         p = lexPos inp
+        i = posToInterval (lexSrcFile inp) p p
 
 
 {-| Start a new layout context. This is one of two ways to get out of the
@@ -130,17 +132,18 @@ newLayoutContext inp _ _ =
         case ctx of
             Layout prevOffs | prevOffs >= offset ->
                 do  pushLexState empty_layout
-                    return (TokSymbol SymOpenVirtualBrace (Interval p p))
+                    return (TokSymbol SymOpenVirtualBrace i)
             _ ->
                 do  pushContext (Layout offset)
-                    return (TokSymbol SymOpenVirtualBrace (Interval p p))
+                    return (TokSymbol SymOpenVirtualBrace i)
     where
         p = lexPos inp
+        i = posToInterval (lexSrcFile inp) p p
 
 
 -- | Compute the relative position of a location to the
 --   current layout context.
-getOffside :: Position -> Parser Ordering
+getOffside :: Position' a -> Parser Ordering
 getOffside loc =
     do  ctx <- topContext
         return $ case ctx of
