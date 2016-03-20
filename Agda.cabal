@@ -613,6 +613,10 @@ test-suite agda-tests
   ghc-options:      -threaded
                     -Wall
                     -fwarn-identities
-                    -fwarn-missing-local-sigs
                     -fno-warn-unused-imports
                     -Werror
+
+  if impl(ghc < 8.0)
+    ghc-options: -fwarn-missing-local-sigs
+  else
+    ghc-options: -Wmissing-local-signatures
