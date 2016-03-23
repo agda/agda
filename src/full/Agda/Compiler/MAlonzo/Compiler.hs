@@ -148,11 +148,9 @@ definitions defs = do
   kit <- coinductionKit
   concat <$>
     (mapM (\(_, d) -> definition kit =<< instantiateFull d) $
-     List.sortBy (compare `on` fst) $
-     -- The list is sorted to ensure that the order of the generated
-     -- definitions does not depend on things like the number of bits
-     -- in an Int (see Issue 1900).
-     HMap.toList defs)
+    -- sort defs to ensure consistent order (see Issue 1900)
+     sortDefs defs
+    )
 
 -- | Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):

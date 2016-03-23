@@ -73,7 +73,8 @@ fromAgdaModule modNm curModImps iface = do
   setCommandLineOptions =<< gets (stPersistentOptions . stPersistentState)
   mapM_ setOptionsFromPragma (iPragmaOptions iface)
 
-  let defs = HMap.toList $ iSignature iface ^. sigDefinitions
+  -- sort defs to ensure consistent order (see Issue 1900)
+  let defs = sortDefs $ iSignature iface ^. sigDefinitions
 
   runCompileT modNm (do
     lift $ reportSLn "uhc" 10 "Translate datatypes..."

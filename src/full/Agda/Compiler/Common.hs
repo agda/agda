@@ -97,6 +97,14 @@ curMName = sigMName <$> curSig
 curDefs :: TCM Definitions
 curDefs = (^. sigDefinitions) <$> curSig
 
+sortDefs :: Definitions -> [(QName, Definition)]
+sortDefs defs =
+  -- The list is sorted to ensure that the order of the generated
+  -- definitions does not depend on things like the number of bits
+  -- in an Int (see Issue 1900).
+  List.sortBy (compare `on` fst) $
+  HMap.toList defs
+
 sigMName :: Signature -> ModuleName
 sigMName sig = case Map.keys (sig ^. sigSections) of
   []    -> __IMPOSSIBLE__
