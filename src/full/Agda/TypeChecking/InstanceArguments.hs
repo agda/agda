@@ -420,8 +420,9 @@ checkCandidates m t cands = disableDestructiveUpdate $
             solveAwakeConstraints' True
             verboseS "tc.instance" 15 $ do
               sol <- instantiateFull (MetaV m ctxElims)
-              reportSDoc "" 0 $ sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
-                                    , nest 2 $ prettyTCM sol ]
+              reportSDoc "tc.instance" 15 $
+                sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
+                    , nest 2 $ prettyTCM sol ]
             return True
         where
           handle :: TCErr -> TCM Bool
