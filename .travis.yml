@@ -140,7 +140,7 @@ install:
        cabal install alex &&
        cabal install happy &&
        cabal install --enable-tests --only-dependencies --force-reinstalls;
-    elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" && $GHC_VER = 7.8.4 ]]; then
+    elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install alex --constraint=transformers==0.3.0.0 &&
          cabal install happy --constraint=transformers==0.3.0.0 &&
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
