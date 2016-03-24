@@ -123,9 +123,6 @@ install:
   # GHC version.
   - ghc --version
 
-  # Highest GHC version available.
-  - GHC_HIGHEST_VER=7.10.3
-
   # Number of modules compile in parallel.
   - export JOBS=2
 
