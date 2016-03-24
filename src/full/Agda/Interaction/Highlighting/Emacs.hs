@@ -78,6 +78,11 @@ showAspects modFile (r, m) =
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
 
+-- TODO: The "go-to-definition" targets can contain long strings
+-- (absolute paths to files). At least one of these strings (the path
+-- to the current module) can occur many times. Perhaps it would be a
+-- good idea to use a more compact format.
+
 lispifyHighlightingInfo
   :: HighlightingInfo
   -> ModuleToSource
