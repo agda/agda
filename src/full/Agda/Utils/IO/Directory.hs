@@ -6,6 +6,7 @@ where
 import Control.Monad
 import System.Directory
 import System.FilePath
+import Data.ByteString as BS
 
 import Paths_Agda
 
@@ -25,7 +26,7 @@ copyIfChanged :: FilePath -> FilePath -> IO ()
 copyIfChanged src dst = do
   exist <- doesFileExist dst
   if not exist then copyFile src dst else do
-    new <- readFile src
-    old <- readFile dst
+    new <- BS.readFile src
+    old <- BS.readFile dst
     unless (old == new) $ copyFile src dst
 
