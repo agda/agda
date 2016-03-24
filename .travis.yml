@@ -59,17 +59,13 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=doc GHC_VER=7.10.3 CABAL_VER=1.22
+    - env: TEST=doc
       addons:
         apt:
           packages:
-            - cabal-install-1.22
             - dvipng
-            - ghc-7.10.3
             - texlive-latex-base
             - texlive-latex-extra
-          sources:
-            - hvr-ghc
 
     - env: TEST=main GHC_VER=7.8.4 CABAL_VER=1.18
       addons:
@@ -107,7 +103,9 @@ matrix:
 
 ##############################################################################
 before_install:
- - export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH
+  - if [[ $TEST != "doc" ]]; then
+       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
+    fi
 
 ##############################################################################
 install:
@@ -117,25 +115,16 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-  # Cabal version.
-  - cabal --version
-
-  # GHC version.
-  - ghc --version
-
-  # Number of modules compile in parallel.
-  - export JOBS=2
-
-  # The Emacs version.
-  - emacs --version
-
-  # Reading package list for `hackage.haskell.org`.
-  - cabal update
-  - cat $HOME/.cabal/config
-
-  # Installing latest version of cabal-install.
-  - cabal install cabal-install
-  - export PATH=$HOME/.cabal/bin:$PATH
+  - if [[ $TEST != "doc" ]]; then
+       cabal --version &&
+       ghc --version &&
+       emacs --version &&
+       cabal update &&
+       cat $HOME/.cabal/config &&
+       cabal install cabal-install &&
+       export PATH=$HOME/.cabal/bin:$PATH &&
+       export JOBS=2;
+    fi
 
 ##############################################################################
 # Installing the dependencies and latest versions of Alex and Happy
