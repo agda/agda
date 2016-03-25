@@ -196,16 +196,6 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               text ("findInScope 5: refined candidates: ") <+>
               prettyTCM (List.map candidateTerm cs)
             return (Just (cs, Nothing))
-      where
-        -- | Check whether a type is a function type with an instance or explicit domain.
-        isRecursive :: Term -> TCM Bool
-        isRecursive v = do
-          v <- reduce v
-          case ignoreSharing v of
-            Pi (Dom info _) t ->
-              if getHiding info /= Hidden then return True else
-                isRecursive $ unEl $ unAbs t
-            _ -> return False
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
