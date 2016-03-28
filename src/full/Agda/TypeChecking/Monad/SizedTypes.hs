@@ -41,17 +41,23 @@ data BoundedSize
      deriving (Eq, Show)
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
-isSizeType :: Type -> TCM (Maybe BoundedSize)
-isSizeType v = isSizeTypeTest <*> pure v
+class IsSizeType a where
+  isSizeType :: a -> TCM (Maybe BoundedSize)
 
-isSizeTypeTest :: TCM (Type -> Maybe BoundedSize)
+instance IsSizeType a => IsSizeType (Type' a) where
+  isSizeType = isSizeType . unEl
+
+instance IsSizeType Term where
+  isSizeType v = isSizeTypeTest <*> pure v
+
+isSizeTypeTest :: TCM (Term -> Maybe BoundedSize)
 isSizeTypeTest =
   flip (ifM (optSizedTypes <$> pragmaOptions)) (return $ const Nothing) $ do
     (size, sizelt) <- getBuiltinSize
     let testType (Def d [])        | Just d == size   = Just BoundedNo
         testType (Def d [Apply v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
         testType _                                    = Nothing
-    return $ testType . ignoreSharing . unEl
+    return $ testType . ignoreSharing
 
 getBuiltinDefName :: String -> TCM (Maybe QName)
 getBuiltinDefName s = fromDef . fmap ignoreSharing <$> getBuiltin' s

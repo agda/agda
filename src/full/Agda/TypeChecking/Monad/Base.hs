@@ -720,8 +720,8 @@ data Constraint
   | Guarded Constraint ProblemId
   | IsEmpty Range Type
     -- ^ The range is the one of the absurd pattern.
-  | CheckSizeLtSat Type
-    -- ^ Check that the 'Type' is either not a SIZELT or a non-empty SIZELT.
+  | CheckSizeLtSat Term
+    -- ^ Check that the 'Term' is either not a SIZELT or a non-empty SIZELT.
   | FindInScope MetaId (Maybe MetaId) (Maybe [Candidate])
     -- ^ the first argument is the instance argument, the second one is the meta
     --   on which the constraint may be blocked on and the third one is the list

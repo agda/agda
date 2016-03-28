@@ -300,7 +300,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       -- Andreas, 2015-05-28 Issue 1523
       -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
       -- TODO: do we need to block checkExpr?
-      checkSizeLtSat $ unDom argsT
+      checkSizeLtSat $ unEl $ unDom argsT
 
       -- In order to have as much type information as possible when checking
       -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
@@ -341,7 +341,7 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         -- Ensure we are not stepping under a possibly non-existing size.
         -- TODO: do we need to block checkExpr?
         let a = unDom arg
-        checkSizeLtSat a
+        checkSizeLtSat $ unEl a
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that

@@ -10,14 +10,16 @@
 
 module Agda.Interaction.BasicOps where
 
+import Prelude hiding (null)
+
 import Control.Arrow ((***), first, second)
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Identity
 
 import qualified Data.Map as Map
-import Data.List
+import Data.List hiding (null)
 import Data.Maybe
 import Data.Traversable hiding (mapM, forM, for)
 import Data.Monoid
@@ -60,6 +62,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Pretty
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -70,7 +73,11 @@ import Agda.Utils.Impossible
 -- | Parses an expression.
 
 parseExpr :: Range -> String -> TCM C.Expr
-parseExpr rng s = liftIO $ parsePosString exprParser pos s
+parseExpr rng s = do
+  C.ExprWhere e wh <- liftIO $ parsePosString exprWhereParser pos s
+  unless (null wh) $ typeError $ GenericError $
+    "where clauses are not supported in holes"
+  return e
   where pos = fromMaybe (startPos Nothing) $ rStart rng
 
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr

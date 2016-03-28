@@ -42,14 +42,15 @@ import Agda.Utils.Impossible
 ------------------------------------------------------------------------
 
 -- | Check whether a type is either not a SIZELT or a SIZELT that is non-empty.
-checkSizeLtSat :: Type -> TCM ()
+checkSizeLtSat :: Term -> TCM ()
 checkSizeLtSat t = do
   reportSDoc "tc.size" 10 $ sep
     [ text "checking that " <+> prettyTCM t <+> text " is not an empty type of sizes"
     , text "in context " <+> do inTopContext . prettyTCM =<< getContextTelescope
     ]
-  let postpone t = addConstraint $ CheckSizeLtSat t
-  ifBlockedType t (const postpone) $ \ t -> do
+  let postpone :: Term -> TCM ()
+      postpone t = addConstraint $ CheckSizeLtSat t
+  ifBlocked t (const postpone) $ \ t -> do
     caseMaybeM (isSizeType t) (return ()) $ \ b -> do
       case b of
         BoundedNo -> return ()
@@ -364,7 +365,7 @@ getSizeConstraints :: TCM [Closure Constraint]
 getSizeConstraints = do
   test <- isSizeTypeTest
   let sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
-              | isJust (test s) = Just cl
+              | isJust (test $ unEl s) = Just cl
       sizeConstraint _ = Nothing
   mapMaybe (sizeConstraint . theConstraint) <$> getAllConstraints
 
@@ -381,7 +382,7 @@ getSizeMetas interactionMetas = do
           HasType _ a -> do
             TelV tel b <- telView a
             -- b is reduced
-            caseMaybe (test b) no $ \ _ -> do
+            caseMaybe (test $ unEl b) no $ \ _ -> do
               let yes = return $ Just (m, a, tel)
               if interactionMetas then yes else do
                 ifM (isJust <$> isInteractionMeta m) no yes

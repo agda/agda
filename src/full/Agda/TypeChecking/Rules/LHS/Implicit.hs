@@ -99,7 +99,7 @@ insertImplicitSizeLtPatterns t = do
   isSize <- isSizeTypeTest
   let isBounded BoundedNo   = False
       isBounded BoundedLt{} = True
-      isSizeLt t = maybe False isBounded . isSize <$> reduce t
+      isSizeLt t = maybe False isBounded . isSize . unEl <$> reduce t
 
   -- Search for the last SizeLt type among the hidden arguments.
   TelV tel _ <- telView t
