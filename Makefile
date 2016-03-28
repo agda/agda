@@ -69,8 +69,8 @@ setup-emacs-mode : install-bin
 
 ## Making the documentation ###############################################
 
-.PHONY : doc
-doc:
+.PHONY : haddock
+haddock :
 	$(CABAL_CMD) configure --builddir=$(BUILD_DIR) --enable-tests
 	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR) --tests
 
