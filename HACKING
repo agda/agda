@@ -278,12 +278,15 @@ Testing and documentation
     make fix-whitespace
 
 * To build the user manual locally, you need to install
-  the following dependencies:
+  the following dependencies (tested with Sphinx >= 1.3.6):
     - Sphinx
-      `pip install Sphinx`
-    - Sphinx RTD theme
-      `pip install sphinx_rtd_theme`
-    - latex
+
+        pip install --user -U Sphinx[==version]
+
+      Note that the `--user` option put the Sphinx binaries in
+      `$HOME/.local/bin`.
+
+    - LaTeX
 
   To see the list of available targets, execute `make help`
   in doc/user-manual. E.g., call `make html` to build the

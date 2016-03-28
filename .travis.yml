@@ -208,11 +208,11 @@ install:
 # TODO (2016-03-06): We are installing a concrete version of Sphinx
 # because we don't know how to the install the latest no-beta version.
 
-# Note that `pip install --user` put the binaries in
+# Note that the `--user` option put the Sphinx binaries in
 # `$HOME/.local/bin`.
 
   - if [[ $TEST = "doc" ]]; then
-       pip install --user -U Sphinx==1.3.6 &&
+       pip install --user -U Sphinx==1.4 &&
        export PATH=$HOME/.local/bin:$PATH;
     fi
 
