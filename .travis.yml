@@ -1,72 +1,98 @@
-language: haskell
+# Adapted from https://github.com/hvr/multi-ghc-travis
 
+# NB: don't set `language: haskell` here.
+language: c
+
+# Explicitly request container-based infrastructure.
 sudo: false
 
 ##############################################################################
-# Installing the `kpsewhich` program
+# Required Ubuntu packages
 
-# This program is required by the LaTeX/HTML test-suite.
-
-# TODO (21 October 2015). The texlive-binaries package is only
-# required by the LaTeX/HTML test-suite, so we should install this
-# package only when TEST=non-require-stdlib.
-
-addons:
-  apt:
-    packages:
-    - texlive-binaries
+# The LaTeX/HTML test-suite requires:
+# * `kpsewhich` (included in texlive-binaries)
 
 ##############################################################################
-# We build with all the latest GHC versions for each 7.X, so we reduce
-# build times, possibly avoid compiler bugs and still test all the major
-# interface changes.
-
-ghc:
-  - 7.8.4
-  - 7.6.3
+# Tests
 
 # We use the word 'test' in a broad sense (e.g. it includes the Agda
 # test suite, the benchmark suite, the compilation with a specific set
-# of dependencies, the testing of other programs like `hTags`, etc.) Almost
-# all the tests are divided according to whether or not require the standard
-# library.
-#
-# The current tests non-requiring the standard library are:
-#
-# make check-whitespace
-# make succeed
-# make fail
-# make interaction
-# make interactive
-# make latex-html-test
-# make examples
-# make api-test
-# make tests
-# make TAGS (testing the hTags program)
-# agda-mode compile (testing the Emacs mode)
-#
-# The current tests requiring the standard library are:
-#
-# make library-test
-# make lib-succeed
-# make lib-interaction
-# make compiler-test
-# make benchmark-without-logs
-#
-# Other tests: These tests use a some how different set up.
-#
-# ghc-7.8.4-transformers-0.3.0.0
-# cpp
-# haddock
+# of dependencies, the testing of other programs like `hTags`, etc.)
+
+# N.B. that we run the tests `cpp`, `haddock` and `doc` only with the
+# highest GHC version available.
+
+# Travis runs the builds on this order.
+
+matrix:
+  include:
+    - env: TEST=main GHC_VER=7.10.3 CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.22
+            - ghc-7.10.3
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - env: TEST=cpp GHC_VER=7.10.3 CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.22
+            - ghc-7.10.3
+          sources:
+            - hvr-ghc
+
+    - env: TEST=haddock GHC_VER=7.10.3 CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.22
+            - ghc-7.10.3
+          sources:
+            - hvr-ghc
+
+    - env: TEST=main GHC_VER=7.8.4 CABAL_VER=1.18
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.18
+            - ghc-7.8.4
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - env: TEST=ghc-7.8.4-transformers-0.3.0.0 GHC_VER=7.8.4 CABAL_VER=1.18
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.18
+            - ghc-7.8.4
+          sources:
+            - hvr-ghc
+
+    - env: TEST=main GHC_VER=7.6.3 CABAL_VER=1.18
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.18
+            - ghc-7.6.3
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+  # Builds are loooong, we want to send an email as fast as possible.
+  fast_finish: true
+  # allow_failures:
+    # - ghc: A.B.C
 
 ##############################################################################
-# Travis runs the builds on this order.
-env:
-  - TEST=non-require-stdlib
-  - TEST=require-stdlib
-  - TEST=ghc-7.8.4-transformers-0.3.0.0
-  - TEST=cpp
-  - TEST=haddock
+before_install:
+  - if [[ $TEST != "doc" ]]; then
+       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
+    fi
 
 ##############################################################################
 install:
@@ -76,36 +102,36 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-  # The GHC version.
-  - GHC_VERSION_TRAVIS=`ghc --numeric-version`
-
-  # Number of modules compile in parallel.
-  - export JOBS=2
-
-##############################################################################
-# Installing latest versions of cabal-install, Alex and Happy
-
-  - if [ $TEST = "non-require-stdlib" -o $TEST = "require-stdlib" ]; then
+  - if [[ $TEST != "doc" ]]; then
+       cabal --version &&
+       ghc --version &&
+       emacs --version &&
+       cabal update &&
+       cat $HOME/.cabal/config &&
        cabal install cabal-install &&
        export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex &&
-       cabal install happy;
+       export JOBS=2;
     fi
 
 ##############################################################################
-# Installing dependencies
+# Installing the dependencies and latest versions of Alex and Happy
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
 # N.B. that we use the `--force-reinstalls` option [Issue 1520].
 
-  - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
-        cabal install --enable-tests --only-dependencies --force-reinstalls
-        ;;
-    esac
+# TODO (2016-02-21): Split the long lines (`\` doesn't work).
+
+  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" ]]; then
+       cabal install alex &&
+       cabal install happy &&
+       cabal install --enable-tests --only-dependencies --force-reinstalls;
+    elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
+         cabal install alex --constraint=transformers==0.3.0.0 &&
+         cabal install happy --constraint=transformers==0.3.0.0 &&
+         cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
+    fi
 
 ##############################################################################
 # Installing Agda
@@ -123,20 +149,6 @@ install:
 #
 # due to the cabal-install issue https://github.com/haskell/cabal/issues/975.
 
-##############################################################################
-# Running `cabal configure`
-
-  - export BUILD_DIR=$PWD/dist
-
-  - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
-        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests
-        ;;
-    esac
-
-##############################################################################
-# Running `cabal build`, `cabal copy` and `cabal register`
-
 # Note: `cabal build` sets up the number of jobs to $ncpus by default.
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
 
@@ -144,13 +156,14 @@ install:
 # `cabal build` (see Section 'cabal install ≠ Setup install' from
 # http://www.vex.net/~trebla/haskell/cabal-cabal.xhtml).
 
-  - case $TEST in
-      "non-require-stdlib" | "require-stdlib")
-        cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR &&
-        cabal copy &&
-        cabal register
-        ;;
-    esac
+  - export BUILD_DIR=$PWD/dist
+
+  - if [[ $TEST = "main" ]]; then
+       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests &&
+       cabal build -v2 -j${JOBS} &&
+       cabal copy &&
+       cabal register;
+    fi
 
 ##############################################################################
 # Installing Epic
@@ -163,14 +176,14 @@ install:
 ##############################################################################
 # Getting the standard library
 
-  - if [ $TEST = "require-stdlib" ]; then
+  - if [[ $TEST = "main" ]]; then
        make up-to-date-std-lib;
     fi
 
 ##############################################################################
 # Installing fix-agda-whitespace
 
-  - if [ $TEST = "non-require-stdlib" ]; then
+  - if [[ $TEST = "main" ]]; then
        make install-fix-agda-whitespace;
     fi
 
@@ -178,114 +191,108 @@ install:
 script:
 
 ##############################################################################
-# Testing compilation with transformers 0.3.0.0 which is shipped with
-# GHC 7.8.* [Issues 1156 and 1539]
-
-# N.B. that this test is not include in the Makefile tests.
-
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-  - if [ $TEST = "ghc-7.8.4-transformers-0.3.0.0" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install cabal-install --constraint=transformers==0.3.0.0 &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex --constraint=transformers==0.3.0.0 &&
-       cabal install happy --constraint=transformers==0.3.0.0 &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0 &&
-       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
-    fi
-
-##############################################################################
-# Testing compilation with cpp instead of cpphs [Issue 1647]
-
-# N.B. We will run this test only with the higher GHC version
-# available in Travis.
-
-# N.B. that this test is not include in the Makefile tests.
-
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-  - if [ $TEST = "cpp" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install cabal-install &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex &&
-       cabal install happy &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls &&
-       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 -j${JOBS} --builddir=$BUILD_DIR;
-    fi
-
-##############################################################################
-# Testing Haddock [Issue 1773]
-
-# N.B. We will run this test only with the higher GHC version
-# available in Travis.
-
-# N.B. that we use the `--force-reinstalls` option [Issue 1520].
-
-  - if [ $TEST = "haddock" -a $GHC_VERSION_TRAVIS = 7.8.4 ]; then
-       cabal install cabal-install &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
-       cat $HOME/.cabal/config &&
-       cabal install alex &&
-       cabal install happy &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls &&
-       make BUILD_DIR=$BUILD_DIR doc;
-    fi
-
-##############################################################################
 
 # We don't run LaTeX/XeLaTeX/LuaLaTeX on Travis (see Issues 1022 and
 # 1675), but we still compare the generated tex/html files with the
 # golden files.
 
-  - if [ $TEST = "non-require-stdlib" ]; then
-       make check-whitespace &&
-       make BUILD_DIR=$BUILD_DIR succeed &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail &&
-       make BUILD_DIR=$BUILD_DIR interaction &&
-       make BUILD_DIR=$BUILD_DIR interactive &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test &&
-       make BUILD_DIR=$BUILD_DIR examples &&
-       make BUILD_DIR=$BUILD_DIR api-test &&
-       make BUILD_DIR=$BUILD_DIR tests &&
-       make BUILD_DIR=$BUILD_DIR TAGS &&
+  - if [[ $TEST = "main" ]]; then
+       make check-whitespace;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR succeed;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR interaction;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR interactive;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR examples;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR library-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR api-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR tests;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR lib-succeed;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR TAGS;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
        echo "======================================================================" &&
        echo "==================== Testing the Emacs mode ==========================" &&
        echo "======================================================================" &&
-       emacs --version &&
        agda-mode compile;
     fi
 
 ##############################################################################
+# Testing compilation with transformers 0.3.0.0 which is shipped with
+# GHC 7.8.* [Issues 1156 and 1539]
 
-  - if [ $TEST = "require-stdlib" ]; then
-       make BUILD_DIR=$BUILD_DIR library-test &&
-       make BUILD_DIR=$BUILD_DIR lib-succeed &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction &&
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test &&
-       make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
+# N.B. that this test is not include in the Makefile tests.
+
+  - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
+       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
+       cabal build -v2 -j${JOBS};
     fi
 
 ##############################################################################
-matrix:
-  exclude:
-    - ghc: 7.6.3
-      env: TEST=ghc-7.8.4-transformers-0.3.0.0
-    - ghc: 7.6.3
-      env: TEST=cpp
-    - ghc: 7.6.3
-      env: TEST=haddock
+# Testing compilation with cpp instead of cpphs [Issue 1647]
 
-  # Builds are loooong, we want to send an email as fast as possible.
-  fast_finish: true
-  # allow_failures:
-    # - ghc: A.B.C
+# N.B. that this test is not include in the Makefile tests.
+
+  - if [[ $TEST = "cpp" ]]; then
+       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
+       cabal build -v2 -j${JOBS};
+    fi
 
 ##############################################################################
-# Every master and maintenance branches >= 2.4.3 or >= maint-2.4 must
+# Testing Haddock [Issue 1773]
+
+  - if [[ $TEST = "haddock" ]]; then
+       make BUILD_DIR=$BUILD_DIR haddock;
+    fi
+
+##############################################################################
+# Every master and maintenance branches >= 2.5 or >= maint-2.4 must
 # be here. You can also add your private branches if you want travis to
 # test them.
 
