@@ -38,7 +38,7 @@ module Agda.Syntax.Concrete
   , AsName(..)
   , OpenShortHand(..), RewriteEqn, WithExpr
   , LHS(..), Pattern(..), LHSCore(..)
-  , RHS, RHS'(..), WhereClause, WhereClause'(..)
+  , RHS, RHS'(..), WhereClause, WhereClause'(..), ExprWhere(..)
   , Pragma(..)
   , Module
   , ThingWithFixity(..)
@@ -57,11 +57,13 @@ module Agda.Syntax.Concrete
   )
   where
 
+import Prelude hiding (null)
+
 import Control.DeepSeq
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
-import Data.List
+import Data.List hiding (null)
 import Data.Set (Set)
 
 import Agda.Syntax.Position
@@ -75,6 +77,7 @@ import Agda.Syntax.Concrete.Name
 import qualified Agda.Syntax.Abstract.Name as A
 
 import Agda.Utils.Lens
+import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -273,6 +276,9 @@ data WhereClause' decls
   | SomeWhere Name decls  -- ^ Named where: @module M where@.
   deriving (Typeable, Functor, Foldable, Traversable)
 
+-- | An expression followed by a where clause.
+--   Currently only used to give better a better error message in interaction.
+data ExprWhere = ExprWhere Expr WhereClause
 
 -- | The things you are allowed to say when you shuffle names between name
 --   spaces (i.e. in @import@, @namespace@, or @open@ declarations).
@@ -455,6 +461,18 @@ patternNames = map unqualify . patternQNames
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
+
+-- Null
+------------------------------------------------------------------------
+
+-- | A 'WhereClause' is 'null' when the @where@ keyword is absent.
+--   An empty list of declarations does not count as 'null' here.
+
+instance Null (WhereClause' a) where
+  empty = NoWhere
+  null NoWhere = True
+  null AnyWhere{} = False
+  null SomeWhere{} = False
 
 -- Lenses
 ------------------------------------------------------------------------

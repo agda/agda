@@ -11,6 +11,7 @@ module Agda.Syntax.Parser
     , moduleParser
     , moduleNameParser
     , exprParser
+    , exprWhereParser
     , tokensParser
       -- * Parse errors
     , ParseError(..)
@@ -98,6 +99,14 @@ moduleNameParser = Parser { parser = P.moduleNameParser
 exprParser :: Parser Expr
 exprParser = Parser { parser = P.exprParser
                     , parseFlags = withoutComments }
+
+-- | Parses an expression followed by a where clause.
+
+exprWhereParser :: Parser ExprWhere
+exprWhereParser = Parser
+  { parser     = P.exprWhereParser
+  , parseFlags = withoutComments
+  }
 
 -- | Gives the parsed token stream (including comments).
 
