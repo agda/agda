@@ -739,7 +739,7 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 --   anonymous variables (if the name comes from a let-bound module).
 {-# SPECIALIZE getDefFreeVars :: QName -> TCM Nat #-}
 {-# SPECIALIZE getDefFreeVars :: QName -> ReduceM Nat #-}
-getDefFreeVars :: (Functor m, ReadTCState m, MonadReader TCEnv m) => QName -> m Nat
+getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m) => QName -> m Nat
 getDefFreeVars q = do
   let m = qnameModule q
   m0   <- commonParentModule m <$> currentModule
