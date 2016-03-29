@@ -12,7 +12,9 @@ import Agda.Syntax.Abstract.Name
 import Agda.TypeChecking.Monad.Base
 
 -- | Get the name of the current module, if any.
-currentModule :: TCM ModuleName
+{-# SPECIALIZE currentModule :: TCM ModuleName #-}
+{-# SPECIALIZE currentModule :: ReduceM ModuleName #-}
+currentModule :: MonadReader TCEnv m => m ModuleName
 currentModule = asks envCurrentModule
 
 -- | Set the name of the current module.
@@ -21,7 +23,9 @@ withCurrentModule m =
     local $ \e -> e { envCurrentModule = m }
 
 -- | Get the number of variables bound by anonymous modules.
-getAnonymousVariables :: ModuleName -> TCM Nat
+{-# SPECIALIZE getAnonymousVariables :: ModuleName -> TCM Nat #-}
+{-# SPECIALIZE getAnonymousVariables :: ModuleName -> ReduceM Nat #-}
+getAnonymousVariables :: MonadReader TCEnv m => ModuleName -> m Nat
 getAnonymousVariables m = do
   ms <- asks envAnonymousModules
   return $ sum [ n | (m', n) <- ms, mnameToList m' `isPrefixOf` mnameToList m ]

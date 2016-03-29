@@ -214,10 +214,12 @@ addSection m = do
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
-lookupSection :: ModuleName -> TCM Telescope
+{-# SPECIALIZE lookupSection :: ModuleName -> TCM Telescope #-}
+{-# SPECIALIZE lookupSection :: ModuleName -> ReduceM Telescope #-}
+lookupSection :: ReadTCState m => ModuleName -> m Telescope
 lookupSection m = do
-  sig  <- use $ stSignature . sigSections
-  isig <- use $ stImports   . sigSections
+  sig  <- (^. stSignature . sigSections) <$> getTCState
+  isig <- (^. stImports   . sigSections) <$> getTCState
   return $ maybe EmptyTel (^. secTelescope) $ Map.lookup m sig `mplus` Map.lookup m isig
 
 -- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
@@ -735,7 +737,9 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of
 --   anonymous variables (if the name comes from a let-bound module).
-getDefFreeVars :: QName -> TCM Nat
+{-# SPECIALIZE getDefFreeVars :: QName -> TCM Nat #-}
+{-# SPECIALIZE getDefFreeVars :: QName -> ReduceM Nat #-}
+getDefFreeVars :: (ReadTCState m, MonadReader TCEnv m) => QName -> m Nat
 getDefFreeVars q = do
   let m = qnameModule q
   m0   <- commonParentModule m <$> currentModule

@@ -108,6 +108,9 @@ data TCState = TCSt
     -- ^ State which is forever, like a diamond.
   }
 
+class Monad m => ReadTCState m where
+  getTCState :: m TCState
+
 instance Show TCState where
   show _ = "TCSt{}"
 
@@ -2291,6 +2294,9 @@ instance Monad ReduceM where
   return = pure
   ReduceM m >>= f = ReduceM $ \ e -> unReduceM (f $! m e) e
 
+instance ReadTCState ReduceM where
+  getTCState = ReduceM redSt
+
 runReduceM :: ReduceM a -> TCM a
 runReduceM m = do
   e <- ask
@@ -2330,6 +2336,9 @@ class ( Applicative tcm, MonadIO tcm
       , MonadState TCState tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
+
+instance MonadIO m => ReadTCState (TCMT m) where
+  getTCState = get
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . E.throwIO
