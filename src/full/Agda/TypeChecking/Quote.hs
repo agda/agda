@@ -212,7 +212,8 @@ quotingKit = do
           Lam info t -> lam !@ quoteHiding (getHiding info) @@ quoteAbs quoteTerm t
           Def x es   -> do
             d <- theDef <$> getConstInfo x
-            qx d @@ quoteArgs ts
+            n <- getDefFreeVars x
+            qx d @@ quoteArgs (drop n ts)
             where
               ts = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
               qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } =
