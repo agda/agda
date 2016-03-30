@@ -639,8 +639,7 @@ interpret (Cmd_intro pmLambda ii rng _) = do
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
       display_info $ Info_Intro $ text "No introduction forms found."
-    [s]   -> do
-      interpret $ Cmd_refine ii rng s
+    [s]   -> give_gen ii rng s Intro
     _:_:_ -> do
       display_info $ Info_Intro $
         sep [ text "Don't know which constructor to introduce of"
@@ -869,7 +868,7 @@ data Backend = MAlonzo
              | Epic | JS
     deriving (Show, Read)
 
-data GiveRefine = Give | Refine
+data GiveRefine = Give | Refine | Intro
   deriving (Eq, Show)
 
 -- | A "give"-like action (give, refine, etc).
@@ -896,6 +895,7 @@ give_gen ii rng s0 giveRefine = do
           case giveRefine of
             Give   -> B.give
             Refine -> B.refine
+            Intro  -> B.refine
     -- save scope of the interaction point (for printing the given expr. later)
     scope     <- lift $ getInteractionScope ii
     -- parse string and "give", obtaining an abstract expression
@@ -924,7 +924,9 @@ give_gen ii rng s0 giveRefine = do
     -- we still cannot just `give' the user string (which may be empty).
     -- WRONG: also, if no interaction metas were created by @Refine@
     -- WRONG: let literally = (giveRefine == Give || null iis) && rng /= noRange
-    let literally = ae == ae0 && rng /= noRange
+    -- Ulf, 2015-03-30, if we're doing intro we can't do literal give since
+    -- there is nothing in the hole (issue 1892).
+    let literally = giveRefine /= Intro && ae == ae0 && rng /= noRange
     -- Ulf, 2014-01-24: This works for give since we're highlighting the string
     -- that's already in the buffer. Doing it before the give action means that
     -- the highlighting is moved together with the text when the hole goes away.
