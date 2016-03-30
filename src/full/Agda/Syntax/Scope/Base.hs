@@ -755,6 +755,12 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList to
 data AllowAmbiguousNames = AmbiguousAnything | AmbiguousConstructors | AmbiguousNothing
   deriving (Eq)
 
+isNameInScope :: A.QName -> ScopeInfo -> Bool
+isNameInScope q scope =
+  billToPure [ Scoping, InverseScopeLookup ] $
+  Map.member q (scopeInverseName scope)
+  -- not $ null $ inverseScopeLookupName' AmbiguousAnything q scope
+
 -- | Find the concrete names that map (uniquely) to a given abstract name.
 --   Sort by length, shortest first.
 
@@ -790,8 +796,8 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
 
 recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo
 recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
-  scope { scopeInverseName   = Map.fromList [ (x, findName nameMap x) | x <- Map.keys nameMap ]
-        , scopeInverseModule = Map.fromList [ (x, findModule x)       | x <- Map.keys moduleMap ++ Map.keys importMap ]
+  scope { scopeInverseName   = nameMap
+        , scopeInverseModule = Map.fromList [ (x, findModule x) | x <- Map.keys moduleMap ++ Map.keys importMap ]
         }
   where
     this = scopeCurrent scope
@@ -842,7 +848,13 @@ recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
       (m, s)  <- scopes
       (x, ms) <- Map.toList (allNamesInScope s)
       q       <- anameName <$> ms
-      return (q, [(m, x)])
+      if elem m current
+        then return (q, [C.QName x])
+        else do
+          y <- findModule m
+          let z = C.qualify y x
+          guard $ not $ internalName z
+          return (q, [z])
 
 -- | Find the concrete names that map (uniquely) to a given abstract qualified name.
 --   Sort by length, shortest first.

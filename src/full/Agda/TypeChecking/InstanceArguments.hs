@@ -15,7 +15,7 @@ import Data.List as List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
-import Agda.Syntax.Scope.Base (inverseScopeLookupName', AllowAmbiguousNames(..))
+import Agda.Syntax.Scope.Base (isNameInScope)
 
 import Agda.TypeChecking.Errors ()
 import Agda.TypeChecking.Implicit (implicitArgs)
@@ -102,7 +102,7 @@ initialIFSCandidates t = do
                -- Ulf, 2014-08-20: constructors are always instances.
                Constructor{ conSrcCon = c }       -> Con c []
                _                                  -> Def q $ map Apply args
-          inScope <- not . null . inverseScopeLookupName' AmbiguousAnything q <$> getScope
+          inScope <- isNameInScope q <$> getScope
           return $ Candidate v t ExplicitToInstance <$ guard inScope
       where
         -- unbound constant throws an internal error
