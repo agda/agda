@@ -63,7 +63,7 @@ addConstraint c = do
        wakeConstraints (isWakeableIFSConstraint . clValue . theConstraint)
   where
     isWakeableIFSConstraint :: Constraint -> TCM Bool
-    isWakeableIFSConstraint (FindInScope _ b _) = caseMaybe b (return False) (\m -> not <$> isInstantiatedMeta m)
+    isWakeableIFSConstraint (FindInScope _ b _) = caseMaybe b (return True) (\m -> isInstantiatedMeta m)
     isWakeableIFSConstraint _ = return False
 
     isIFSConstraint :: Constraint -> Bool
