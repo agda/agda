@@ -121,7 +121,7 @@ setScope scope = modifyScope (const scope)
 
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
-modifyScope f = stScope %= f
+modifyScope f = stScope %= recomputeInverseScopeMaps . f
 
 -- | Run a computation in a local scope.
 withScope :: ScopeInfo -> TCM a -> TCM (a, ScopeInfo)

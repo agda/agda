@@ -98,10 +98,12 @@ updateScopeNameSpacesM f s = for (f $ scopeNameSpaces s) $ \ x ->
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
 data ScopeInfo = ScopeInfo
-      { scopeCurrent    :: A.ModuleName
-      , scopeModules    :: Map A.ModuleName Scope
-      , scopeLocals     :: LocalVars
-      , scopePrecedence :: Precedence
+      { scopeCurrent       :: A.ModuleName
+      , scopeModules       :: Map A.ModuleName Scope
+      , scopeLocals        :: LocalVars
+      , scopePrecedence    :: Precedence
+      , scopeInverseName   :: Map A.QName [C.QName]
+      , scopeInverseModule :: Map A.ModuleName [C.QName]
       }
   deriving (Typeable, Eq)
 
@@ -334,10 +336,12 @@ emptyScope = Scope
 -- | The empty scope info.
 emptyScopeInfo :: ScopeInfo
 emptyScopeInfo = ScopeInfo
-  { scopeCurrent    = noModuleName
-  , scopeModules    = Map.singleton noModuleName emptyScope
-  , scopeLocals     = []
-  , scopePrecedence = TopCtx
+  { scopeCurrent       = noModuleName
+  , scopeModules       = Map.singleton noModuleName emptyScope
+  , scopeLocals        = []
+  , scopePrecedence    = TopCtx
+  , scopeInverseName   = Map.empty
+  , scopeInverseModule = Map.empty
   }
 
 -- | Map functions over the names and modules in a scope.
@@ -763,7 +767,32 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
   -- trace ("moduleMap = " ++ show moduleMap) $
   case name of
     Left  m -> best $ filter unambiguousModule $ findModule m
-    Right q -> best $ filter unambiguousName   $ findName nameMap q
+    Right q -> best $ filter unambiguousName   $ findName q
+  where
+    findName   x = fromMaybe [] $ Map.lookup x (scopeInverseName scope)
+    findModule x = fromMaybe [] $ Map.lookup x (scopeInverseModule scope)
+
+    len :: C.QName -> Int
+    len (C.QName _)  = 1
+    len (C.Qual _ x) = 1 + len x
+
+    best :: [C.QName] -> [C.QName]
+    best = sortBy (compare `on` len)
+
+    unique :: forall a . [a] -> Bool
+    unique []      = __IMPOSSIBLE__
+    unique [_]     = True
+    unique (_:_:_) = False
+
+    unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
+    unambiguousName   q = amb == AmbiguousAnything || unique xs || amb == AmbiguousConstructors && all ((ConName ==) . anameKind) xs
+      where xs = scopeLookup q scope
+
+recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo
+recomputeInverseScopeMaps scope = billToPure [ Scoping , InverseScopeLookup ] $
+  scope { scopeInverseName   = Map.fromList [ (x, findName nameMap x) | x <- Map.keys nameMap ]
+        , scopeInverseModule = Map.fromList [ (x, findModule x)       | x <- Map.keys moduleMap ++ Map.keys importMap ]
+        }
   where
     this = scopeCurrent scope
     current = this : scopeParents (moduleScope this)
@@ -775,13 +804,6 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     restrict m s | m `elem` current = s
                  | otherwise = restrictPrivate s
 
-    len :: C.QName -> Int
-    len (C.QName _)  = 1
-    len (C.Qual _ x) = 1 + len x
-
-    best :: [C.QName] -> [C.QName]
-    best = sortBy (compare `on` len) . filter (not . internalName)
-
     internalName :: C.QName -> Bool
     internalName C.QName{} = False
     internalName (C.Qual m n) = intern m || internalName n
@@ -789,14 +811,6 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
       -- Recognize fresh names created Parser.y
       intern (C.Name _ [ C.Id ('.' : '#' : _) ]) = True
       intern _ = False
-    unique :: forall a . [a] -> Bool
-    unique []      = __IMPOSSIBLE__
-    unique [_]     = True
-    unique (_:_:_) = False
-
-    unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
-    unambiguousName   q = amb == AmbiguousAnything || unique xs || amb == AmbiguousConstructors && all ((ConName ==) . anameKind) xs
-      where xs = scopeLookup q scope
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]
     findName table q = do
@@ -805,7 +819,9 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
         then return (C.QName x)
         else do
           y <- findModule m
-          return $ C.qualify y x
+          let z = C.qualify y x
+          guard $ not $ internalName z
+          return z
 
     findModule :: A.ModuleName -> [C.QName]
     findModule q = findName moduleMap q ++
@@ -886,7 +902,7 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map ("  " ++) ss
 
 instance Show ScopeInfo where
-  show (ScopeInfo this mods locals ctx) =
+  show (ScopeInfo this mods locals ctx _ _) =
     unlines $
       [ "ScopeInfo"
       , "  current = " ++ show this
