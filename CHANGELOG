@@ -1077,6 +1077,11 @@ Instance search
        postulate
         forbidden : {x : A} → P x
 
+* Instance search now refuses to solve constraints with unconstrained
+  metavariables, since this can lead to non-termination.
+
+  See [Issue #1532] for an example.
+
 Other changes
 -------------
 
