@@ -748,17 +748,17 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList to
 
 -- * Inverse look-up
 
-data AllowAmbiguousConstructors = AllowAmbiguousConstructors | NoAmbiguousConstructors
+data AllowAmbiguousNames = AmbiguousAnything | AmbiguousConstructors | AmbiguousNothing
   deriving (Eq)
 
 -- | Find the concrete names that map (uniquely) to a given abstract name.
 --   Sort by length, shortest first.
 
 inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookup = inverseScopeLookup' AllowAmbiguousConstructors
+inverseScopeLookup = inverseScopeLookup' AmbiguousConstructors
 
-inverseScopeLookup' :: AllowAmbiguousConstructors -> Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLookup ] $
+inverseScopeLookup' :: AllowAmbiguousNames -> Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
+inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ] $
   -- trace ("importMap = " ++ show importMap) $
   -- trace ("moduleMap = " ++ show moduleMap) $
   case name of
@@ -794,8 +794,8 @@ inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLooku
     unique [_]     = True
     unique (_:_:_) = False
 
-    unambiguousModule q = unique (scopeLookup q scope :: [AbstractModule])
-    unambiguousName   q = unique xs || AllowAmbiguousConstructors == ambCon && all ((ConName ==) . anameKind) xs
+    unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
+    unambiguousName   q = amb == AmbiguousAnything || unique xs || amb == AmbiguousConstructors && all ((ConName ==) . anameKind) xs
       where xs = scopeLookup q scope
 
     findName :: Ord a => Map a [(A.ModuleName, C.Name)] -> a -> [C.QName]
@@ -833,7 +833,7 @@ inverseScopeLookup' ambCon name scope = billToPure [ Scoping , InverseScopeLooku
 inverseScopeLookupName :: A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookupName x = inverseScopeLookup (Right x)
 
-inverseScopeLookupName' :: AllowAmbiguousConstructors -> A.QName -> ScopeInfo -> [C.QName]
+inverseScopeLookupName' :: AllowAmbiguousNames -> A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookupName' ambCon x = inverseScopeLookup' ambCon (Right x)
 
 -- | Find the concrete names that map (uniquely) to a given abstract module name.

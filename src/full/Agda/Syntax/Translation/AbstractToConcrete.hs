@@ -145,7 +145,7 @@ lookupName x = do
       Just y  -> return y
       Nothing -> return $ nameConcrete x
 
-lookupQName :: AllowAmbiguousConstructors -> A.QName -> AbsToCon C.QName
+lookupQName :: AllowAmbiguousNames -> A.QName -> AbsToCon C.QName
 lookupQName ambCon x = do
   ys <- inverseScopeLookupName' ambCon x <$> asks currentScope
   lift $ reportSLn "scope.inverse" 100 $
@@ -347,7 +347,7 @@ instance ToConcrete A.Name C.Name where
   bindToConcrete x = bindName x
 
 instance ToConcrete A.QName C.QName where
-  toConcrete = lookupQName AllowAmbiguousConstructors
+  toConcrete = lookupQName AmbiguousConstructors
 
 instance ToConcrete A.ModuleName C.QName where
   toConcrete = lookupModule
@@ -365,7 +365,7 @@ instance ToConcrete A.Expr C.Expr where
         -- name has been resolved to a fully qualified name (except for
         -- variables)
     toConcrete (A.Lit (LitQName r x)) = do
-      x <- lookupQName NoAmbiguousConstructors x
+      x <- lookupQName AmbiguousNothing x
       bracket appBrackets $ return $
         C.App r (C.Quote r) (defaultNamedArg $ C.Ident x)
     toConcrete (A.Lit l)            = return $ C.Lit l
@@ -873,7 +873,7 @@ instance ToConcrete A.Pattern C.Pattern where
         return $ C.AbsurdP (getRange i)
 
       A.LitP (LitQName r x) -> do
-        x <- lookupQName NoAmbiguousConstructors x
+        x <- lookupQName AmbiguousNothing x
         bracketP_ appBrackets $ return $ C.AppP (C.QuoteP r) (defaultNamedArg (C.IdentP x))
       A.LitP l ->
         return $ C.LitP l
