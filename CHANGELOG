@@ -1082,6 +1082,10 @@ Instance search
 
   See [Issue #1532] for an example.
 
+* Top-level instances are now only considered if they are in scope. [Issue #1913]
+
+  Note that lambda-bound instances need not be in scope.
+
 Other changes
 -------------
 
