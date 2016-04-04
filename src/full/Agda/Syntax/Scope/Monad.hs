@@ -348,7 +348,7 @@ bindQModule acc q m = modifyCurrentScope $ \s ->
 
 -- | Clear the scope of any no names.
 stripNoNames :: ScopeM ()
-stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN
+stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN id
   where
     stripN = Map.filterWithKey $ const . not . isNoName
 
@@ -366,8 +366,9 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
       lift $ reportSLn "scope.copy" 50 $ show s
       s0 <- lift $ getNamedScope new
-      -- Delete private names, then copy names and modules.
-      s' <- mapScopeM_ copyD copyM $ setNameSpace PrivateNS emptyNameSpace s
+      -- Delete private names, then copy names and modules. Recompute inScope
+      -- set rather than trying to copy it.
+      s' <- recomputeInScopeSets <$> mapScopeM_ copyD copyM return (setNameSpace PrivateNS emptyNameSpace s)
       -- Fix name and parent.
       return $ s' { scopeName    = scopeName s0
                   , scopeParents = scopeParents s0
