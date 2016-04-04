@@ -334,7 +334,13 @@ data DataRecOrFun
   = DataName PositivityCheck Params  -- ^ name of a data with parameters
   | RecName  PositivityCheck Params  -- ^ name of a record with parameters
   | FunName  TerminationCheck        -- ^ name of a function
-  deriving (Eq)
+
+-- Ignore pragmas when checking equality
+instance Eq DataRecOrFun where
+  DataName _ p == DataName _ q = p == q
+  RecName  _ p == RecName  _ q = p == q
+  FunName  _   == FunName  _   = True
+  _            == _            = False
 
 type Params = [Hiding]
 
