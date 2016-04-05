@@ -77,14 +77,12 @@ runAgdaWithOptions generateHTML progName opts
       | otherwise           = do
           -- Main function.
           -- Bill everything to root of Benchmark trie.
-          Bench.billTo [] $ checkFile opts
+          Bench.billTo [] (checkFile opts) `finally_` do
+            -- Print benchmarks.
+            Bench.print
 
-          -- Print benchmarks.
-          Bench.print
-
-          -- Print accumulated statistics.
-          printStatistics 20 Nothing =<< use lensAccumStatistics
-
+            -- Print accumulated statistics.
+            printStatistics 20 Nothing =<< use lensAccumStatistics
   where
     checkFile :: CommandLineOptions -> TCM ()
     checkFile opts = do
