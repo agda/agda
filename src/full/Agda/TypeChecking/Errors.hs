@@ -683,7 +683,7 @@ instance PrettyTCM TypeError where
       fsep ( pwords "Ambiguous module name. The module name" ++
              [pretty x] ++
              pwords "could refer to any of the following files:"
-           ) $$ nest 2 (vcat $ map (text . filePath) files)
+           ) $$ nest 2 (vcat $ map pretty files)
 
     ClashingFileNamesFor x files ->
       fsep ( pwords "Multiple possible sources for module"

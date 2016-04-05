@@ -46,25 +46,27 @@ data-files:         Agda.css
                     -- EpicInclude/stdagda.h
                     agda.sty
                     postprocess-latex.pl
-                    lib/prim/Agda/Primitive.agda
-                    lib/prim/Agda/Builtin/Bool.agda
-                    lib/prim/Agda/Builtin/Char.agda
-                    lib/prim/Agda/Builtin/Coinduction.agda
-                    lib/prim/Agda/Builtin/Equality.agda
-                    lib/prim/Agda/Builtin/Float.agda
-                    lib/prim/Agda/Builtin/FromNat.agda
-                    lib/prim/Agda/Builtin/FromNeg.agda
-                    lib/prim/Agda/Builtin/FromString.agda
-                    lib/prim/Agda/Builtin/IO.agda
-                    lib/prim/Agda/Builtin/Int.agda
-                    lib/prim/Agda/Builtin/List.agda
-                    lib/prim/Agda/Builtin/Nat.agda
-                    lib/prim/Agda/Builtin/Reflection.agda
-                    lib/prim/Agda/Builtin/Size.agda
-                    lib/prim/Agda/Builtin/Strict.agda
-                    lib/prim/Agda/Builtin/String.agda
-                    lib/prim/Agda/Builtin/TrustMe.agda
-                    lib/prim/Agda/Builtin/Unit.agda
+                    prim/src/Agda/Primitive.agda
+                    prim/agda-pkg.yaml
+                    builtins/src/Agda/Builtin/Bool.agda
+                    builtins/src/Agda/Builtin/Char.agda
+                    builtins/src/Agda/Builtin/Coinduction.agda
+                    builtins/src/Agda/Builtin/Equality.agda
+                    builtins/src/Agda/Builtin/Float.agda
+                    builtins/src/Agda/Builtin/FromNat.agda
+                    builtins/src/Agda/Builtin/FromNeg.agda
+                    builtins/src/Agda/Builtin/FromString.agda
+                    builtins/src/Agda/Builtin/IO.agda
+                    builtins/src/Agda/Builtin/Int.agda
+                    builtins/src/Agda/Builtin/List.agda
+                    builtins/src/Agda/Builtin/Nat.agda
+                    builtins/src/Agda/Builtin/Reflection.agda
+                    builtins/src/Agda/Builtin/Size.agda
+                    builtins/src/Agda/Builtin/Strict.agda
+                    builtins/src/Agda/Builtin/String.agda
+                    builtins/src/Agda/Builtin/TrustMe.agda
+                    builtins/src/Agda/Builtin/Unit.agda
+                    builtins/agda-pkg.yaml
                     uhc-agda-base/LICENSE
                     uhc-agda-base/uhc-agda-base.cabal
                     uhc-agda-base/src/UHC/Agda/*.hs
@@ -106,7 +108,8 @@ library
     build-depends:  Win32 >= 2.2 && < 2.4
 
   build-depends:
-    array >= 0.4.0.1 && < 0.6
+      aeson >= 0.11.0.0 && < 1.1
+    , array >= 0.4.0.1 && < 0.6
     , base >= 4.6.0.1 && < 4.10
     , binary >= 0.7.2.1 && < 0.9
     , boxes >= 0.1.3 && < 0.2
@@ -256,6 +259,8 @@ library
                     Agda.Interaction.Options
                     Agda.Interaction.Options.Lenses
                     Agda.Main
+                    Agda.Packaging.Base
+                    Agda.Packaging.Database
                     Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
                     Agda.Syntax.Abstract.Pretty
@@ -571,6 +576,67 @@ executable agda-ghc-names
     , filepath >= 1.3.0.1 && < 1.5
   ghc-options:  -rtsopts
 
+executable agda-pkg
+  hs-source-dirs:   src/agda-pkg
+  main-is:          Main.hs
+  build-depends:    Agda == 2.5.0
+                  , aeson >= 0.9.0.0 && < 1.1
+                  , base >= 4.6.0.1 && < 6
+                  , bytestring >= 0.10.0.2 && < 0.11
+                  , containers >= 0.5.0.0 && < 0.6
+                  , data-hash >= 0.2.0.0 && < 0.3
+                  , directory >= 1.2.0.1 && < 1.3
+                  , exceptions >= 0.8.0.2 && < 0.9
+                  , filepath >= 1.3.0.1 && < 1.5
+                    -- mtl-2.1 contains a severe bug.
+                    --
+                    -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
+                  , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+                  , optparse-applicative >= 0.11.0.2 && < 13
+                  , process >= 1.1.0.2 && < 1.3
+                  , process-extras >= 0.3.0 && < 0.4
+                  , text >= 0.11.3.1 && < 1.3
+                  , yaml >= 0.8.15.2 && < 0.9
+  other-modules:    AgdaPkg.Build
+                  , AgdaPkg.Error
+                  , AgdaPkg.Internal
+                  , AgdaPkg.Monad
+                  , AgdaPkg.PackageDesc
+                  , AgdaPkg.PackageDesc.Base
+
+  build-tools: cpphs >= 1.19 && < 1.20
+  ghc-options: -pgmP cpphs -optP --cpp
+
+  if impl(ghc >= 7.6.3)
+    ghc-options: -w
+                 -Werror
+                 -fwarn-deprecated-flags
+                 -fwarn-dodgy-exports
+                 -fwarn-dodgy-foreign-imports
+                 -fwarn-dodgy-imports
+                 -fwarn-duplicate-exports
+                 -fwarn-hi-shadowing
+                 -fwarn-identities
+                 -fwarn-incomplete-patterns
+                 -fwarn-missing-fields
+                 -fwarn-missing-methods
+                 -fwarn-missing-signatures
+                 -fwarn-monomorphism-restriction
+                 -fwarn-orphans
+                 -fwarn-pointless-pragmas
+                 -fwarn-tabs
+                 -fwarn-overlapping-patterns
+                 -fwarn-unrecognised-pragmas
+                 -fwarn-unused-do-bind
+                 -fwarn-warnings-deprecations
+                 -fwarn-wrong-do-bind
+
+  if impl(ghc >= 7.8)
+    ghc-options: -fwarn-duplicate-constraints
+                 -fwarn-empty-enumerations
+                 -fwarn-overflowed-literals
+                 -fwarn-typed-holes
+                 -fwarn-inline-rule-shadowing
 
 -- Cabal testsuite integration has some serious bugs, but we
 -- can still make it work. See also:

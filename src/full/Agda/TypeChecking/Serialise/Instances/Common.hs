@@ -45,6 +45,8 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 import Agda.Interaction.FindFile
 
+import Agda.Packaging.Base
+
 import Agda.TypeChecking.Serialise.Base
 
 import Agda.Utils.BiMap (BiMap)
@@ -168,11 +170,12 @@ instance EmbPrj AbsolutePath where
             <- value m
     mf      <- gets modFile
     incs    <- gets includes
-    (r, mf) <- liftIO $ findFile'' incs m mf
+    dbs     <- gets packageDBStack
+    (r, mf) <- liftIO $ findFile'' dbs incs m mf
     modify $ \s -> s { modFile = mf }
     case r of
       Left err -> throwError $ findErrorToTypeError m err
-      Right f  -> return f
+      Right f  -> liftIO $ asAbsolutePath' dbs f
 
 instance EmbPrj a => EmbPrj (Position' a) where
   icod_ (P.Pn file pos line col) = icode4' file pos line col

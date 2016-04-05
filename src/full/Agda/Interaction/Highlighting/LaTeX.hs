@@ -26,6 +26,8 @@ import qualified Data.List   as List
 
 import Paths_Agda
 
+import Agda.Packaging.Base
+import Agda.Packaging.Database
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete (TopLevelModuleName, moduleNameParts)
 import qualified Agda.Interaction.FindFile as Find
@@ -530,7 +532,7 @@ generateLaTeX mod hi = do
       liftIO $ copyFile styFile (dir </> defaultStyFile)
 
   let outPath = modToFile mod
-  inAbsPath <- liftM filePath (Find.findFile mod)
+  inAbsPath <- filePath <$> (asAbsolutePath =<< Find.findFile mod)
 
   liftIO $ do
     source <- UTF8.readTextFile inAbsPath

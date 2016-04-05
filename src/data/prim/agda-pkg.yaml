@@ -1,0 +1,7 @@
+name: Agda-Primitives
+version: "1.0"
+library:
+  source-dirs: [ src ]
+  agda-dependencies: []
+  hs-dependencies: []
+  agda-options: ["--hide-prim-package"]

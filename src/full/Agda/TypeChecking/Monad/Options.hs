@@ -226,14 +226,14 @@ setIncludeDirs incs relativeTo = do
   incs <- return $  map (mkAbsolute . (filePath root </>)) incs
 
   -- Andreas, 2013-10-30  Add default include dir
-  libdir <- liftIO $ defaultLibDir
+--  libdir <- liftIO $ defaultLibDir
       -- NB: This is an absolute file name, but
       -- Agda.Utils.FilePath wants to check absoluteness anyway.
-  let primdir = mkAbsolute $ libdir </> "prim"
+--  let primdir = mkAbsolute $ libdir </> "prim"
       -- We add the default dir at the end, since it is then
       -- printed last in error messages.
       -- Might also be useful to overwrite default imports...
-  incs <- return $ incs ++ [primdir]
+--  incs <- return $ incs ++ [primdir]
 
   -- Check whether the include dirs have changed.  If yes, reset state.
   -- Andreas, 2013-10-30 comments:
@@ -248,6 +248,17 @@ setIncludeDirs incs relativeTo = do
 
   Lens.putAbsoluteIncludePaths incs
   check
+
+-- TODO this doesn't work for some reason?
+-- | Executes a TCM computation in an environment with no include dirs.
+withoutIncludeDirs :: TCM a -> TCM a
+withoutIncludeDirs f = do
+  oldIncs <- gets Lens.getAbsoluteIncludePaths
+  Lens.putAbsoluteIncludePaths []
+  r <- f
+  Lens.putAbsoluteIncludePaths oldIncs
+  return r
+
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =

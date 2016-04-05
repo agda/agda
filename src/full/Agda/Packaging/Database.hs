@@ -1,234 +1,168 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MultiWayIf #-}
+
 module Agda.Packaging.Database where
--- FIXME: proper exports
-{-
--- Standard Library Imports
-import           Control.Applicative
-import qualified Control.Exception
-import           Control.Monad.Cont
-import           Control.Monad.Error
-import           Data.List
-  ( foldl'
-  , intersperse
-  , isSuffixOf
-  , partition )
-import           Data.Maybe
-  ( fromJust )
-import           System.Directory
-  ( createDirectoryIfMissing
-  , getAppUserDataDirectory
-  , getDirectoryContents
-  , removeFile )
-import           System.FilePath
-import           System.IO
-  ( IOMode (ReadMode)
-  , hGetContents
-  , hSetEncoding
-  , openFile
-  , utf8 )
-import           System.IO.Error
-  ( isPermissionError
-  , try )
 
--- External Library Imports
-import qualified Distribution.InstalledPackageInfo
-  as Cabal
-    ( InstalledPackageInfo
-    , exposed
-    , exposedModules
-    , depends
-    , hiddenModules
-    , installedPackageId
-    , parseInstalledPackageInfo
-    , showInstalledPackageInfo )
-import qualified Distribution.Package
-  as Cabal
-    ( PackageIdentifier
-    , packageId )
-import qualified Distribution.ParseUtils
-  as Cabal
-    ( ParseResult (..)
-    , locatedErrorMsg )
-import qualified Distribution.Simple.Utils
-  as Cabal
-    ( die
-    , writeUTF8File )
-import qualified Distribution.Text
-  as Cabal
-    ( display
-    , simpleParse )
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Map (Map)
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
--- Local Imports
-import Agda.Packaging.Config
-import Agda.Packaging.Monad
-import Agda.Packaging.Types
+import Control.Monad
+import Control.Monad.Trans
+import System.IO.Error
+import Data.Aeson
+import System.Directory
+import System.FilePath
+import Control.Applicative
+import Data.Maybe
+import Data.List
+import qualified Data.ByteString as BS
+import Data.Version
+import System.Environment
+
 import Paths_Agda
-  ( getDataDir )
 
--------------------------------------------------------------------------------
+import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete.Name
+import Agda.Packaging.Base
+import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Imports
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Options
+import Agda.Interaction.Options
+
+import Agda.Utils.List
+import Agda.Utils.Either
+import Agda.Utils.Except
+import Agda.Utils.Pretty
+import Agda.Utils.FileName
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 --------------------------
 -- Getting the DB paths --
 --------------------------
 
-getPkgDBPathGlobal :: IO FilePath
+getPkgDBPathGlobal :: MonadIO m => m FilePath
 getPkgDBPathGlobal = do
-  result <- try action
-  case result of
-    Left  ioErr    -> Cabal.die $ show ioErr
-    Right filePath -> return filePath
-  where
-    action =  pure (</>)
-          <*> getDataDir
-          <*> pure "package.conf.d"
+  (</>) <$> liftIO getDataDir <*> pure (showVersion version </> "packages")
 
-getPkgDBPathUser :: IO FilePath
+getPkgDBPathUser :: MonadIO m => ExceptT String m FilePath
 getPkgDBPathUser = do
-  result <- try action
+  result <- liftIO $ tryIOError action
   case result of
-    Left  ioErr    -> Cabal.die $ show ioErr
+    Left  ioErr    -> throwError $ show ioErr
     Right filePath -> return filePath
   where
     action =  pure (</>)
           <*> getAppUserDataDirectory "Agda"
-          <*> pure "package.conf.d"
+          <*> pure (showVersion version </> "packages")
 
+packageDBPath :: MonadIO m => FilePath -> ExceptT String m FilePath
+packageDBPath db = case db of
+  "__GLOBAL_DB__" -> do
+    getPkgDBPathGlobal
+  "__USER_DB__"   -> do
+    getPkgDBPathUser
+  _ -> return db
 
 
 ---------------------------------
 -- Loading the DBs into memory --
 ---------------------------------
 
-getPkgDBs :: [FilePath] -> IO PackageDBStack
-getPkgDBs givenPkgDBNames = do
-  pkgDBNames <-
-    -- If no package databases are specified, default to getting the
-    -- global and user packages.
-    if null givenPkgDBNames
-    then
-          pure (\ db1 db2 -> db1 : db2 : [])
-      <*> getPkgDBPathGlobal
-      <*> getPkgDBPathUser
-    else
-      return givenPkgDBNames
-  mapM readParsePkgDB pkgDBNames
+readPkgDB :: FilePath -> ExceptT String IO PkgDB
+readPkgDB db = do
+  db <- packageDBPath db
+  pkgs <- do
+    isDir <- liftIO $ doesDirectoryExist db
+    if not isDir then do
+--      reportSLn "pkgs.load" 1 $ "Ignoring invalid package db: " ++ db
+      return []
+    else do
+      fs <- filter (".apkg" `isSuffixOf`) <$> (liftIO $ getDirectoryContents db)
 
-readParsePkgDB :: PackageDBName -> IO NamedPackageDB
-readParsePkgDB dbName = do
-  result <- try $ getDirectoryContents dbName
-  case result of
-    Left  ioErr     -> Cabal.die $ show ioErr
-    Right filePaths -> do
-      pkgInfos <- mapM parseSingletonPkgConf $ map (dbName </>) dbEntries
-      return $ NamedPackageDB
-        { dbName = dbName
-        , db     = pkgInfos }
-      where
-        dbEntries = filter (".conf" `isSuffixOf`) filePaths
+      forM fs $ \f -> do
+        readPackage (db </> f)
 
-parseSingletonPkgConf :: FilePath -> IO Cabal.InstalledPackageInfo
-parseSingletonPkgConf = (parsePkgInfo =<<) . readUTF8File
+  return $ PkgDB
+    { dbPath = db
+    , dbPackages = Map.fromList [ (pkgId p, p) | p <- pkgs]
+    }
+
+exceptTToTCM :: ExceptT String IO a -> TCM a
+exceptTToTCM e = do
+  caseEitherM (liftIO $ runExceptT e) genericError return
+
+loadPkgDBs :: TCM ()
+loadPkgDBs = do
+  reportSLn "pkgs.load" 1 "Loading package dbs..."
+
+  optDBs <- optPkgDBs <$> liftTCM commandLineOptions
+  envDBs <- wordsBy (==':') . fromMaybe "" . lookup "AGDA_PACKAGE_PATH" <$> liftIO getEnvironment
+
+  let dbs = optDBs ++ envDBs
+      -- If no package databases are specified, default to getting the
+      -- global packages.
+      dbs' = if null dbs then ["__GLOBAL_DB__"] else dbs
+
+  loadPkgDBs' dbs'
+
+loadPkgDBs' :: [String] -> TCM ()
+loadPkgDBs' fs = do
+
+  dbStk <- PkgDBStack
+    <$> mapM (exceptTToTCM  . readPkgDB) fs
+    <*> exposedPackagesFilter
+
+  setPackageDBs dbStk
+  reportSLn "pkgs.load" 10 "Successfully loaded package dbs."
+  reportSDoc "pkgs.load" 50 $ return $
+    text "All packages:" <+>
+      prettyList (map (pretty . pkgId . snd) $ allPackages' dbStk)
+  reportSDoc "pkgs.load" 50 $ return $
+    text "Exposed packages:" <+>
+      prettyList (map (pretty . pkgId . snd) $ exposedPackages' dbStk)
   where
-    readUTF8File :: FilePath -> IO String
-    readUTF8File file = do
-      handle <- openFile file ReadMode
-      hSetEncoding handle utf8
-      hGetContents handle
-
-parsePkgInfo :: String -> IO Cabal.InstalledPackageInfo
-parsePkgInfo pkgInfoStr =
-  case Cabal.parseInstalledPackageInfo pkgInfoStr of
-    Cabal.ParseOk     warnings pkgInfo ->
-      return pkgInfo
-    Cabal.ParseFailed err              ->
-      case Cabal.locatedErrorMsg err of
-        (Nothing     , msg) -> Cabal.die msg
-        (Just  lineNo, msg) -> Cabal.die (show lineNo ++ ": " ++ msg)
+    exposedPackagesFilter :: TCM (Package -> Bool)
+    exposedPackagesFilter = do
+      hidePrim <- optHidePrimPkg <$> commandLineOptions
+      exposeAll <- optExposeAll <$> commandLineOptions
+      exposedKeys <- Set.fromList . map (PackageKey . T.pack) . optExposePkgKeys <$> commandLineOptions
+      return $ \pkg ->
+        if | idName (pkgId pkg) == "Agda-Primitives" -> not hidePrim
+           | exposeAll -> True
+           | otherwise -> (idKey (pkgId pkg) `Set.member` exposedKeys)
 
 
--------------------
--- DB operations --
--------------------
+getPackage :: PackageId -> TCM Package
+getPackage pkgId =
+  snd . getPackage' pkgId <$> getPackageDBs
 
-data DBOp
-  = PkgAdd    Cabal.InstalledPackageInfo
-  | PkgModify Cabal.InstalledPackageInfo
-  | PkgRemove Cabal.InstalledPackageInfo
+getPrimitivesPackage :: TCM (Maybe Package)
+getPrimitivesPackage = do
+  -- we ignore the exposed/hidden status when looking for the primitive package
+  (_, pkgs) <- unzip . allPackages' <$> getPackageDBs
+  return $ headMaybe $ filter (("Agda-Primitives" ==). idName . pkgId) pkgs
 
+asAbsolutePath :: ModulePath -> TCM AbsolutePath
+asAbsolutePath mp = do
+  dbs <- getPackageDBs
+  liftIO $ asAbsolutePath' dbs mp
 
-----------------------------------
--- Processing the DBs in memory --
-----------------------------------
+findSrc :: TopLevelModuleName -> TCM [ModulePath]
+findSrc m = do
+  dbs <- getPackageDBs
+  liftIO $ findSrc' dbs m
 
-brokenPkgs :: PackageDB -> PackageDB
-brokenPkgs = snd . transClos []
-  where
-    -- Calculate the transitive closure of 'ok' packages, i.e.,
-    -- packages with all of their dependencies available.
-    transClos :: PackageDB -> PackageDB -> (PackageDB, PackageDB)
-    transClos okPkgs pkgs =
-      case partition (ok okPkgs) pkgs of
-        ([]     , pkgs') -> (okPkgs, pkgs')
-        (okPkgs', pkgs') -> transClos (okPkgs' ++ okPkgs) pkgs'
-      where
-        -- A package is 'ok' with respect to a package database if the
-        -- packages dependencies are available in the database.
-        ok :: PackageDB -> Cabal.InstalledPackageInfo -> Bool
-        ok okPkgs pkg = null dangling
-          where
-            dangling = filter (`notElem` pkgIds) (Cabal.depends pkg)
-            pkgIds   = map Cabal.installedPackageId okPkgs
-
-flattenPkgDBs :: PackageDBStack -> PackageDB
-flattenPkgDBs = concatMap db
-
-modifyDBWithOps :: PackageDB -> [DBOp] -> PackageDB
-modifyDBWithOps pkgDB dbOps = foldl' applyOp pkgDB dbOps
-  where
-    applyOp :: PackageDB -> DBOp -> PackageDB
-    applyOp pkgInfos (PkgAdd    pkgInfo) = pkgInfo : pkgInfos
-    applyOp pkgInfos (PkgModify pkgInfo) = applyOp pkgDB' $ PkgAdd pkgInfo
-      where
-        pkgDB' = applyOp pkgInfos $ PkgRemove pkgInfo
-    applyOp pkgInfos (PkgRemove pkgInfo) = filter fpred pkgInfos
-      where
-        fpred  = (Cabal.installedPackageId pkgInfo /=)
-               .  Cabal.installedPackageId
-
-
--------------------------------
--- Modifying the DBs on disk --
--------------------------------
-
-modifyAndWriteDBWithOps :: NamedPackageDB -> [DBOp] -> IO ()
-modifyAndWriteDBWithOps npkgDB dbOps = do
-  createDirectoryIfMissing True $ dbName npkgDB
-  writeDBWithOps npkgDB{ db = db' } dbOps
-  where
-    db' = db npkgDB `modifyDBWithOps` dbOps
-
-writeDBWithOps :: NamedPackageDB -> [DBOp] -> IO ()
-writeDBWithOps npkgDB = mapM_ doOp
-  where
-    fileNameOf      pkgInfo  =  dbName npkgDB
-                            </> Cabal.display (Cabal.installedPackageId pkgInfo)
-                            <.> "conf"
-
-    doOp (PkgAdd    pkgInfo) = Cabal.writeUTF8File (fileNameOf pkgInfo)
-                             $ Cabal.showInstalledPackageInfo  pkgInfo
-    doOp (PkgModify pkgInfo) = doOp                   $ PkgAdd pkgInfo
-    doOp (PkgRemove pkgInfo) = removeFile          (fileNameOf pkgInfo)
-
-modifyPkgInfoAndWriteDBWithFun :: Cabal.PackageIdentifier
-                               -> (Cabal.InstalledPackageInfo -> DBOp)
-                               -> AgdaPkg opt ()
-modifyPkgInfoAndWriteDBWithFun pkgId funToOp = asksM (rec . configPkgDBStack)
-  where
-    rec :: PackageDBStack -> AgdaPkg opt ()
-    rec = liftIO . mapM_ (\ npkgDB -> modifyAndWriteDBWithOps npkgDB (generateOps $ db npkgDB))
-      where
-        generateOps :: PackageDB -> [DBOp]
-        generateOps []                       = []
-        generateOps (pkgInfo:pkgInfos)
-          | Cabal.packageId pkgInfo == pkgId = funToOp pkgInfo : generateOps pkgInfos
-          | otherwise                        =                   generateOps pkgInfos
--}
+withExposedPackages :: (Package -> Bool) -> TCM a -> TCM a
+withExposedPackages f cont = do
+  dbs <- getPackageDBs
+  setPackageDBs $ dbs { stkPkgExposed = f }
+  r <- cont
+  setPackageDBs dbs
+  return r

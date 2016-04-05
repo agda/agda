@@ -21,7 +21,7 @@
 # To enter the development environment, simply call `nix-shell shell.nix`.
 #
 
-{ mkDerivation, alex, array, base, binary, boxes, bytestring
+{ mkDerivation, alex, aeson, array, base, binary, boxes, bytestring
 , containers, cpphs, data-hash, deepseq, directory, edit-distance
 , emacs, equivalence, filepath, geniplate-mirror, happy, hashable
 , hashtables, haskeline, haskell-src-exts, mtl, parallel, pretty
@@ -29,7 +29,7 @@
 , regex-tdfa, regex-tdfa-text, filemanip
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
-, zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
+, zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI, optparse-applicative, yaml, exceptions
 , uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
 }:
@@ -44,12 +44,12 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   buildDepends = [
-    array base binary boxes bytestring containers data-hash deepseq
+    aeson array base binary boxes bytestring containers data-hash deepseq
     directory edit-distance equivalence filepath geniplate-mirror
     hashable hashtables haskeline haskell-src-exts mtl parallel pretty
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib uhc-light tasty-quickcheck
-    monadplus EdisonCore EdisonAPI
+    monadplus EdisonCore EdisonAPI optparse-applicative yaml exceptions
   ];
   testDepends = [
     base containers directory filepath process-extras tasty

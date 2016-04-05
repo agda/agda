@@ -42,6 +42,8 @@ import qualified Codec.Compression.GZip as G
 
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 
+import Agda.Packaging.Base
+
 import Agda.TypeChecking.Serialise.Base
 import Agda.TypeChecking.Serialise.Instances ()
 
@@ -67,6 +69,7 @@ encode :: EmbPrj a => a -> TCM L.ByteString
 encode a = do
     collectStats <- hasVerbosity "profile.serialize" 20
     fileMod <- sourceToModule
+    dbs <- getPackageDBs
     newD@(Dict nD sD bD iD dD _tD
       _nameD
       _qnameD
@@ -75,7 +78,7 @@ encode a = do
       qnameC
       stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
-       icodeFileMod fileMod
+       icodeFileMod dbs fileMod
        icode a
     nL <- benchSort $ l nD
     sL <- benchSort $ l sD
@@ -144,6 +147,7 @@ decode :: EmbPrj a => L.ByteString -> TCM (Maybe a)
 decode s = do
   mf   <- use stModuleToSource
   incs <- getIncludeDirs
+  dbs <- getPackageDBs
 
   -- Note that B.runGetState and G.decompress can raise errors if the
   -- input is malformed. The decoder is (intended to be) strict enough
@@ -170,6 +174,7 @@ decode s = do
                 <$> liftIO H.new
                 <*> return mf <*> return incs
                 <*> return shared
+                <*> return dbs
         (r, st) <- runStateT (runExceptT (value r)) st
         return (Just (modFile st), r)
 
@@ -226,12 +231,15 @@ decodeFile f = decodeInterface =<< liftIO (L.readFile f)
 --   as map from 'AbsolutePath' to 'Int32', in order to directly get the identifiers
 --   from absolute pathes rather than going through top level module names.
 icodeFileMod
-  :: SourceToModule
+  :: PkgDBStack
+  -> SourceToModule
      -- ^ Maps file names to the corresponding module names.
      --   Must contain a mapping for every file name that is later encountered.
   -> S ()
-icodeFileMod fileMod = do
+icodeFileMod dbs fileMod = do
   hmap <- asks absPathD
-  forM_ (Map.toList fileMod) $ \ (absolutePath, topLevelModuleName) -> do
+  forM_ (Map.toList fileMod) $ \ (modulePath, topLevelModuleName) -> do
     i <- icod_ topLevelModuleName
-    liftIO $ H.insert hmap absolutePath i
+    liftIO $ do
+      absolutePath <- asAbsolutePath' dbs modulePath
+      H.insert hmap absolutePath i

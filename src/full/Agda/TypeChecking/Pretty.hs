@@ -13,6 +13,7 @@ import Control.Monad
 
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Version
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -30,6 +31,8 @@ import qualified Agda.Syntax.Abstract.Pretty as AP
 import Agda.Syntax.Concrete.Pretty (bracesAndSemicolons)
 import qualified Agda.Syntax.Concrete.Pretty as CP
 import qualified Agda.Syntax.Info as A
+
+import Agda.Packaging.Base
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (equalityUnview)

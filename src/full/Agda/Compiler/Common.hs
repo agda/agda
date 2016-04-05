@@ -27,6 +27,8 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
+import Agda.Packaging.Base
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -154,7 +156,7 @@ inCompilerEnv mainI cont =
       Nothing  -> do
         -- The default output directory is the project root.
         let tm = toTopLevelModuleName $ iModuleName mainI
-        f <- findFile tm
+        PlainPath f <- findFile tm
         return $ filePath $ C.projectRoot f tm
     setCommandLineOptions $
       opts { optCompileDir = Just compileDir }

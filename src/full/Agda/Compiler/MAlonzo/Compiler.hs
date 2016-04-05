@@ -44,6 +44,8 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
+import Agda.Packaging.Database
+
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
@@ -99,7 +101,7 @@ compile i = do
   decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp (map fakeDecl (reverse $ iHaskellCode i) ++ ds)
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
-               (findInterfaceFile . toTopLevelModuleName =<< curMName)
+               (traverse asAbsolutePath =<< findInterfaceFile . toTopLevelModuleName =<< curMName)
   noComp   = reportSLn "" 1 . (++ " : no compilation is needed.") . show . A.mnameToConcrete =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [show . A.mnameToConcrete <$> curMName, ifile, outFile_] :: TCM ()
@@ -626,7 +628,7 @@ hsCoerce e =
 copyRTEModules :: TCM ()
 copyRTEModules = do
   dataDir <- lift getDataDir
-  let srcDir = dataDir </> "MAlonzo" </> "src"
+  let srcDir = dataDir </> "MAlonzo-RTE" </> "src"
   (lift . copyDirContent srcDir) =<< compileDir
 
 writeModule :: HS.Module -> TCM ()

@@ -41,6 +41,9 @@ import Agda.Syntax.Common
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 
+import Agda.Packaging.Base
+import Agda.Packaging.Database
+
 import Agda.Utils.FileName (filePath)
 import Agda.Utils.Lens
 import qualified Agda.Utils.IO.UTF8 as UTF8
@@ -119,10 +122,11 @@ generatePage renderpage dir mod = do
   case mf of
     Nothing -> __IMPOSSIBLE__
     Just f  -> do
-      contents <- liftIO $ UTF8.readTextFile $ filePath f
+      f <- filePath <$> asAbsolutePath f
+      contents <- liftIO $ UTF8.readTextFile f
       css      <- maybe defaultCSSFile id . optCSSFile <$>
                     TCM.commandLineOptions
-      let html = renderpage css (filePath f) contents
+      let html = renderpage css f contents
       TCM.reportSLn "html" 1 $ "Generating HTML for " ++
                                render (pretty mod) ++
                                " (" ++ target ++ ")."

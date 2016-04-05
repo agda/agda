@@ -7,6 +7,7 @@ import Data.Set (Set)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Packaging.Base
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
@@ -77,6 +78,15 @@ dropDecodedModule x = modify $ \s ->
 
 withImportPath :: [C.TopLevelModuleName] -> TCM a -> TCM a
 withImportPath path = local $ \e -> e { envImportPath = path }
+
+setPackageDBs :: PkgDBStack -> TCM ()
+setPackageDBs pkgS = modify $ \s ->
+  s { stPersistentState =
+      (stPersistentState s) { stPackageDBs = pkgS }
+    }
+
+getPackageDBs :: TCM PkgDBStack
+getPackageDBs = stPackageDBs . stPersistentState <$> get
 
 -- | Assumes that the first module in the import path is the module we are
 --   worried about.
