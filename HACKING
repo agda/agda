@@ -262,6 +262,11 @@ Testing and documentation
   (Due to garbage collection, these benchmarks are not 100% stable.)
   Compare this with benchmarks before the new feature/bug fix.
 
+* You can obtain a simple profile by using -vprofile:7. This works
+  also in the Emacs mode, output goes to the *Agda debug* buffer. Note
+  that the -vprofile:7 option is /not/ supposed to be given in an
+  OPTIONS pragma, use agda2-program-args.
+
 * To avoid problems with the whitespace test failing we suggest add the
   following lines to .git/hooks/pre-commit
 

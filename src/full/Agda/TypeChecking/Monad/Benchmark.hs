@@ -2,10 +2,11 @@
 
 module Agda.TypeChecking.Monad.Benchmark
   ( module Agda.Benchmarking
-  , MonadBench
-  , getBenchmark
+  , B.MonadBench
+  , B.getBenchmark
   , updateBenchmarkingStatus
-  , billTo, billPureTo
+  , B.billTo, B.billPureTo
+  , B.reset
   , print
   ) where
 
@@ -16,7 +17,6 @@ import Agda.Benchmarking
 import Agda.TypeChecking.Monad.Base
 import{-# SOURCE #-} Agda.TypeChecking.Monad.Options
 
-import Agda.Utils.Benchmark (MonadBench(..), billTo, billPureTo)
 import qualified Agda.Utils.Benchmark as B
 
 import Agda.Utils.Monad
@@ -44,7 +44,7 @@ benchmarking = liftTCM $ hasVerbosity benchmarkKey benchmarkLevel
 -- profiling is not activated at level 7.
 print :: MonadTCM tcm => tcm ()
 print = liftTCM $ whenM benchmarking $ do
-  b <- getBenchmark
+  b <- B.getBenchmark
   reportSLn benchmarkKey benchmarkLevel $ prettyShow b
 
 -- -- | Bill a computation to a specific account.

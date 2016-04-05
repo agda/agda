@@ -14,6 +14,7 @@ import Prelude hiding (null)
 
 import qualified Control.Exception as E (evaluate)
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.Functor
 import qualified Data.List as List
@@ -127,6 +128,13 @@ instance MonadBench a m => MonadBench a (ReaderT r m) where
   finally m f = ReaderT $ \ r ->
     finally (m `runReaderT` r) (f `runReaderT` r)
 
+instance MonadBench a m => MonadBench a (StateT r m) where
+  getBenchmark    = lift $ getBenchmark
+  putBenchmark    = lift . putBenchmark
+  modifyBenchmark = lift . modifyBenchmark
+  finally m f = StateT $ \s ->
+    finally (m `runStateT` s) (f `runStateT` s)
+
 -- | Turn benchmarking on/off.
 
 setBenchmarking :: MonadBench a m => Bool -> m ()
@@ -148,6 +156,13 @@ switchBenchmarking newAccount = do
   -- Switch to new account.
   modifyBenchmark $ mapCurrentAccount $ const $ (, now) <$> newAccount
   return $ fst <$> oldAccount
+
+-- | Resets the account and the timing information.
+
+reset :: MonadBench a m => m ()
+reset = modifyBenchmark $
+  mapCurrentAccount (const Strict.Nothing) .
+  mapTimings (const Trie.empty)
 
 -- | Bill a computation to a specific account.
 --   Works even if the computation is aborted by an exception.
