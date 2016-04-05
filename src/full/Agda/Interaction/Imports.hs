@@ -108,7 +108,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iHaskellImports i) (iHaskellImportsUHC i) (iPatternSyns i)
+    addImportedThings sig bi (iHaskellImports i) (iHaskellImportsUHC i) (iPatternSyns i) (iDisplayForms i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     mapM_ rebind prim
@@ -121,13 +121,14 @@ addImportedThings ::
   Signature -> BuiltinThings PrimFun ->
   Set String -> -- MAlonzo imoprts
   Set String -> -- UHC backend imports
-  A.PatternSynDefns -> TCM ()
-addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns = do
+  A.PatternSynDefns -> DisplayForms -> TCM ()
+addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns display = do
   stImports %= \imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
   stImportedBuiltins %= \imp -> Map.union imp ibuiltin
   stHaskellImports %= \imp -> Set.union imp hsImports
   stHaskellImportsUHC %= \imp -> Set.union imp hsImportsUHC
   stPatternSynImports %= \imp -> Map.union imp patsyns
+  stImportedDisplayForms %= \imp -> HMap.unionWith (++) imp display
   addSignatureInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -391,9 +392,10 @@ getInterface' x isMain = do
 
             -- Merge the signature with the signature for imported
             -- things.
-            sig <- getSignature
+            sig     <- getSignature
             patsyns <- getPatternSyns
-            addImportedThings sig Map.empty Set.empty Set.empty patsyns
+            display <- use stImportsDisplayForms
+            addImportedThings sig Map.empty Set.empty Set.empty patsyns display
             setSignature emptySignature
             setPatternSyns Map.empty
 
@@ -409,6 +411,7 @@ getInterface' x isMain = do
             opts     <- stPersistentOptions . stPersistentState <$> get
             isig     <- getImportedSignature
             ibuiltin <- use stImportedBuiltins
+            display  <- use stImportsDisplayForms
             ipatsyns <- getPatternSynImports
             ho       <- getInteractionOutputCallback
             -- Every interface is treated in isolation. Note: Changes
@@ -432,7 +435,7 @@ getInterface' x isMain = do
                      setInteractionOutputCallback ho
                      stModuleToSource .= mf
                      setVisitedModules vs
-                     addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns
+                     addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns display
 
                      r  <- withMsgs $ createInterface file x
                      mf <- use stModuleToSource
@@ -730,6 +733,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     hsImps  <- getHaskellImports
     uhcHsImps <- getHaskellImportsUHC
     hsCode  <- use stHaskellCode
+    display <- use stImportsDisplayForms
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
@@ -744,6 +748,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
       , iScope           = empty -- publicModules scope
       , iInsideScope     = topLevelScope topLevel
       , iSignature       = sig
+      , iDisplayForms    = display
       , iBuiltin         = builtin'
       , iHaskellImports  = hsImps `Set.difference` previousHsImports
       , iHaskellImportsUHC = uhcHsImps `Set.difference` previousHsImportsUHC

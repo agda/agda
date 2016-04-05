@@ -521,9 +521,10 @@ addDisplayForm x df = do
 
 getDisplayForms :: QName -> TCM [Open DisplayForm]
 getDisplayForms q = do
-  ds <- defDisplay <$> getConstInfo q
-  ds' <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
-  return $ ds ++ ds'
+  ds  <- defDisplay <$> getConstInfo q
+  ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
+  ds2 <- maybe [] id . HMap.lookup q <$> use stImportedDisplayForms
+  return $ ds ++ ds1 ++ ds2
 
 -- | Find all names used (recursively) by display forms of a given name.
 chaseDisplayForms :: QName -> TCM (Set QName)

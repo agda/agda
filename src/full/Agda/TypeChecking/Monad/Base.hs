@@ -171,6 +171,8 @@ data PostScopeState = PostScopeState
     --   These will be serialized after successful type checking.
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
+  , stPostImportedDisplayForms :: !DisplayForms
+    -- ^ Display forms added by someone else to imported identifiers
   , stPostCurrentModule       :: Maybe ModuleName
     -- ^ The current module is available after it has been type
     -- checked.
@@ -282,6 +284,7 @@ initPostScopeState = PostScopeState
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
   , stPostImportsDisplayForms  = HMap.empty
+  , stPostImportedDisplayForms = HMap.empty
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , [])
   , stPostStatistics           = Map.empty
@@ -429,6 +432,11 @@ stImportsDisplayForms :: Lens' DisplayForms TCState
 stImportsDisplayForms f s =
   f (stPostImportsDisplayForms (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostImportsDisplayForms = x}}
+
+stImportedDisplayForms :: Lens' DisplayForms TCState
+stImportedDisplayForms f s =
+  f (stPostImportedDisplayForms (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostImportedDisplayForms = x}}
 
 stCurrentModule :: Lens' (Maybe ModuleName) TCState
 stCurrentModule f s =
@@ -631,6 +639,8 @@ data Interface = Interface
     --   not serialized, so if you deserialize an interface, @iInsideScope@
     --   will be empty.  You need to type-check the file to get @iInsideScope@.
   , iSignature       :: Signature
+  , iDisplayForms    :: DisplayForms
+    -- ^ Display forms added for imported identifiers.
   , iBuiltin         :: BuiltinThings (String, QName)
   , iHaskellImports  :: Set String
                         -- ^ Haskell imports listed in
@@ -649,7 +659,7 @@ data Interface = Interface
   deriving (Typeable, Show)
 
 instance Pretty Interface where
-  pretty (Interface sourceH importedM moduleN scope insideS signature builtin
+  pretty (Interface sourceH importedM moduleN scope insideS signature display builtin
                     haskellI haskellIUHC haskellCode highlighting pragmaO patternS) =
     hang (text "Interface") 2 $ vcat
       [ text "source hash:"         <+> (pretty . show) sourceH
@@ -658,6 +668,7 @@ instance Pretty Interface where
       , text "scope:"               <+> (pretty . show) scope
       , text "inside scope:"        <+> (pretty . show) insideS
       , text "signature:"           <+> (pretty . show) signature
+      , text "display:"             <+> (pretty . show) display
       , text "builtin:"             <+> (pretty . show) builtin
       , text "Haskell imports:"     <+> (pretty . show) haskellI
       , text "Haskell imports UHC:" <+> (pretty . show) haskellIUHC
