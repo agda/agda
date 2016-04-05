@@ -119,9 +119,13 @@ getScope = use stScope
 setScope :: ScopeInfo -> TCM ()
 setScope scope = modifyScope (const scope)
 
+-- | Modify the current scope without updating the inverse maps.
+modifyScope_ :: (ScopeInfo -> ScopeInfo) -> TCM ()
+modifyScope_ f = stScope %= f
+
 -- | Modify the current scope.
 modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
-modifyScope f = stScope %= recomputeInverseScopeMaps . f
+modifyScope f = modifyScope_ (recomputeInverseScopeMaps . f)
 
 -- | Run a computation in a local scope.
 withScope :: ScopeInfo -> TCM a -> TCM (a, ScopeInfo)
