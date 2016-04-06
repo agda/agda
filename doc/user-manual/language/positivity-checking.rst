@@ -55,10 +55,9 @@ Examples:
           field ap : U → U
 
 * Skipping a new-style mutual block. Anywhere before the declaration
-  and the definition of a data/record in the block::
+  or the definition of a data/record in the block::
 
     record U : Set
-    {-# NO_POSITIVITY_CHECK #-}
     data D   : Set
 
     record U where
