@@ -106,7 +106,11 @@ data ScopeInfo = ScopeInfo
       , scopeInverseModule :: Map A.ModuleName [C.QName]
       , scopeInScope       :: InScopeSet
       }
-  deriving (Typeable, Eq)
+  deriving Typeable
+
+instance Eq ScopeInfo where
+  ScopeInfo c1 m1 l1 p1 _ _ _ == ScopeInfo c2 m2 l2 p2 _ _ _ =
+    c1 == c2 && m1 == m2 && l1 == l2 && p1 == p2
 
 -- | Local variables.
 type LocalVars = AssocList C.Name LocalVar
