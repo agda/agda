@@ -21,9 +21,6 @@ default : ac \
           regexp-talk \
           relocatable-interfaces \
           simplelib \
-          term1 \
-          term2 \
-          term3 \
           view \
           test \
           # epic
@@ -55,7 +52,10 @@ test_files = AIM5/Hedberg/SET.agda \
              Setoid.agda \
              SimpleTypes.agda \
              syntax/Literate.lagda \
+             Termination/Mutual.agda \
              Termination/StreamEating.agda \
+             Termination/StructuralOrder.agda \
+             Termination/Tuple.agda \
              TT.agda \
              Vec.agda
 
@@ -65,24 +65,6 @@ echo = $(shell which echo)
 ifeq ("$(echo)","")
 echo = echo
 endif
-
-.PHONY : term1
-term1 : Termination/Mutual.agda
-	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) -iTermination $<
-	@$(echo) "ok"
-
-.PHONY : term2
-term2 : Termination/StructuralOrder.agda
-	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) -iTermination $<
-	@$(echo) "ok"
-
-.PHONY : term3
-term3 : Termination/Tuple.agda
-	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) -iTermination $<
-	@$(echo) "ok"
 
 .PHONY : polydep
 polydep : AIM5/PolyDep/Main.agda
