@@ -97,6 +97,7 @@ traceCall mkCall m = do
     ScopeCheckLHS{}           -> False
     NoHighlighting{}          -> True
     SetRange{}                -> False
+    ModuleContents{}          -> False
 
   isNoHighlighting NoHighlighting{} = True
   isNoHighlighting _                = False

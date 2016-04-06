@@ -784,7 +784,7 @@ moduleContents :: Rewrite
                -> TCM ([C.Name], [(C.Name, Type)])
                   -- ^ Module names, names paired up with
                   -- corresponding types.
-moduleContents norm rng s = do
+moduleContents norm rng s = traceCall ModuleContents $ do
   m <- parseName rng s
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
