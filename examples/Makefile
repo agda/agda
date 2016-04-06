@@ -52,9 +52,14 @@ test_files = AIM5/Hedberg/SET.agda \
              Setoid.agda \
              SimpleTypes.agda \
              syntax/Literate.lagda \
+             Termination/Acc.agda \
              Termination/Mutual.agda \
+             Termination/Nat.agda \
+             Termination/Ord.agda \
+             Termination/simplified-comb.agda \
              Termination/StreamEating.agda \
              Termination/StructuralOrder.agda \
+             Termination/TerminationTwoConstructors.agda \
              Termination/Tuple.agda \
              TT.agda \
              Vec.agda
