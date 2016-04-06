@@ -21,61 +21,49 @@ The pragma cannot be used in safe mode.
 
 Examples:
 
-* Skipping a single data definition.
+* Skipping a single data definition::
 
-  .. code-block:: agda
+    {-# NO_POSITIVITY_CHECK #-}
+    data D : Set where
+      lam : (D → D) → D
 
-       {-# NO_POSITIVITY_CHECK #-}
-       data D : Set where
-         lam : (D → D) → D
+* Skipping a single record definition::
 
-* Skipping a single record definition.
+    {-# NO_POSITIVITY_CHECK #-}
+    record U : Set where
+      field ap : U → U
 
-  .. code-block:: agda
+* Skipping an old-style mutual block. Somewhere within a mutual block
+  before a data/record definition::
 
-       {-# NO_POSITIVITY_CHECK #-}
-       record U : Set where
-         field ap : U → U
+    mutual
+      data D : Set where
+        lam : (D → D) → D
 
-* Skipping an old-style mutual block: Somewhere within a mutual block
-  before a data/record definition.
+      {-# NO_POSITIVITY_CHECK #-}
+      record U : Set where
+        field ap : U → U
 
-  .. code-block:: agda
+* Skipping an old-style mutual block. Before the ``mutual`` keyword::
 
-       mutual
-         data D : Set where
-           lam : (D → D) → D
+    {-# NO_POSITIVITY_CHECK #-}
+    mutual
+      data D : Set where
+        lam : (D → D) → D
 
-         {-# NO_POSITIVITY_CHECK #-}
-         record U : Set where
-           field ap : U → U
+      record U : Set where
+          field ap : U → U
 
-* Skipping an old-style mutual block: Before the ``mutual`` keyword.
+* Skipping a new-style mutual block. Anywhere before the declaration
+  and the definition of a data/record in the block::
 
-  .. code-block:: agda
+    record U : Set
+    {-# NO_POSITIVITY_CHECK #-}
+    data D   : Set
 
+    record U where
+      field ap : U → U
 
-       {-# NO_POSITIVITY_CHECK #-}
-       mutual
-         data D : Set where
-           lam : (D → D) → D
-
-         record U : Set where
-             field ap : U → U
-
-* Skipping a new-style mutual block: Anywhere before the declaration
-  and the definition of a data/record in the block.
-
-  .. code-block:: agda
-
-     record U : Set
-     {-# NO_POSITIVITY_CHECK #-}
-     data D   : Set
-
-     record U where
-       field ap : U → U
-
-     {-# NO_POSITIVITY_CHECK #-}
-     data D where
-       lam : (D → D) → D
-
+    {-# NO_POSITIVITY_CHECK #-}
+    data D where
+      lam : (D → D) → D
