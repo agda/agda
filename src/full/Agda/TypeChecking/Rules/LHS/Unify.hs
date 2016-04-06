@@ -565,10 +565,10 @@ dataStrategy k s = do
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (u, v) of
         (MetaV m es, Con c vs  ) -> do
-          us <- mcatMaybes $ liftTCM $ instMetaCon m es d hpars c
+          us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
           return $ Injectivity k a d hpars ixs c us vs
         (Con c us  , MetaV m es) -> do
-          vs <- mcatMaybes $ liftTCM $ instMetaCon m es d hpars c
+          vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
           return $ Injectivity k a d hpars ixs c us vs
         (Con c us  , Con c' vs ) | c == c' -> return $ Injectivity k a d hpars ixs c us vs
         (Con c _   , Con c' _  ) -> return $ Conflict k d hpars c c'
