@@ -1,16 +1,16 @@
 {-# OPTIONS --sized-types #-} -- --no-coverage-check #-}
 
-module DeBruijnExSubstSized where
+module Termination.Sized.DeBruijnExSubstSized where
 
-open import Data.Function -- using (_∘_)       -- composition, identity
 open import Data.Nat
 open import Data.Maybe
-open import Relation.Binary.PropositionalEquality
+open import Function -- using (_∘_)       -- composition, identity
+open import Relation.Binary.PropositionalEquality hiding ( subst )
 open ≡-Reasoning
 
 open import Size
 
-open import DeBruijn
+open import Termination.Sized.DeBruijn
 
 -- untyped de Bruijn terms
 data LamE (A : Set) : Size -> Set where
@@ -36,44 +36,44 @@ eval (flatE r)    = subst (eval) (eval r)
 -- Theorem (naturality of eval):  eval ∘ lamE f ≡ lam f ∘ eval
 evalNAT : {A B : Set}(f : A -> B) -> {ι : _} -> (t : LamE A ι) ->
   eval (lamE f t) ≡ lam f (eval t)
-evalNAT f (varE a)     = ≡-refl
+evalNAT f (varE a)     = refl
 evalNAT f (appE t1 t2) = begin
   eval (lamE f (appE t1 t2))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   eval (appE (lamE f t1) (lamE f t2))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   app (eval (lamE f t1)) (eval (lamE f t2))
-     ≡⟨ ≡-cong (\ x -> app x (eval (lamE f t2))) (evalNAT f t1) ⟩
+     ≡⟨ cong (\ x -> app x (eval (lamE f t2))) (evalNAT f t1) ⟩
   app (lam f (eval t1))  (eval (lamE f t2))
-     ≡⟨ ≡-cong (\ x -> app (lam f (eval t1)) x)  (evalNAT f t2) ⟩
+     ≡⟨ cong (\ x -> app (lam f (eval t1)) x)  (evalNAT f t2) ⟩
   app (lam f (eval t1))  (lam f (eval t2))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   lam f (app (eval t1) (eval t2))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   lam f (eval (appE t1 t2))
      ∎
 evalNAT f (absE r) = begin
   eval (lamE f (absE r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   eval (absE (lamE (fmap f) r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   abs (eval (lamE (fmap f) r))
-     ≡⟨ ≡-cong abs (evalNAT (fmap f) r) ⟩
+     ≡⟨ cong abs (evalNAT (fmap f) r) ⟩
   abs (lam (fmap f) (eval r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   lam f (abs (eval r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   lam f (eval (absE r))
      ∎
 -- in the following case, one manual size annotation is needed on the RHS
 -- it is for the first application of the I.H.
 evalNAT f (flatE {ι} r) = begin
   eval (lamE f (flatE r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   eval (flatE (lamE (lamE f) r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   subst eval (eval (lamE (lamE f) r))
-     ≡⟨ ≡-cong (subst (eval {ι})) (evalNAT (lamE f) r) ⟩
+     ≡⟨ cong (subst (eval {ι})) (evalNAT (lamE f) r) ⟩
   subst eval (lam (lamE f) (eval r))
      ≡⟨ substLaw1 (lamE f) eval (eval r) ⟩
   subst (eval ∘ lamE f) (eval r)
@@ -81,7 +81,7 @@ evalNAT f (flatE {ι} r) = begin
   subst (lam f ∘ eval) (eval r)
      ≡⟨ substLaw2 f eval (eval r) ⟩
   lam f (subst eval (eval r))
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   lam f (eval (flatE r))
      ∎
 
@@ -89,10 +89,10 @@ evalNATcor : {A : Set}{ι : _}(ee : LamE (LamE A ι) ι) ->
   subst id (eval (lamE eval ee)) ≡ eval (flatE ee)
 evalNATcor ee = begin
   subst id (eval (lamE eval ee))
-     ≡⟨ ≡-cong (subst id) (evalNAT eval ee) ⟩
+     ≡⟨ cong (subst id) (evalNAT eval ee) ⟩
   subst id (lam eval (eval ee))
      ≡⟨ substLaw1 eval id (eval ee) ⟩
   subst eval (eval ee)
-     ≡⟨ ≡-refl ⟩
+     ≡⟨ refl ⟩
   eval (flatE ee)
      ∎

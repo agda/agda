@@ -1,6 +1,6 @@
 {-# OPTIONS  --sized-types --show-implicit #-}
 
-module SizedNatAnnotated where
+module Termination.Sized.SizedNatAnnotated where
 
 open import Size
 
