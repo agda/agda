@@ -48,6 +48,7 @@ import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
+import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
 
 import Agda.TypeChecking.Monad as M hiding (MetaInfo, tick)
 import Agda.TypeChecking.Monad.Builtin
@@ -422,12 +423,13 @@ reifyTerm expandAnonDefs0 v = do
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
-    -- Andreas, 2012-10-20  expand a copy in an anonymous module
+    -- Andreas, 2012-10-20  expand a copy if not in scope
     -- to improve error messages.
     -- Don't do this if we have just expanded into a display form,
     -- otherwise we loop!
     reifyDef :: Bool -> QName -> I.Args -> TCM Expr
-    reifyDef True x@(QName m name) vs | A.isAnonymousModuleName m = do
+    reifyDef True x vs =
+      ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x vs) $ do
       r <- reduceDefCopy x vs
       case r of
         YesReduction _ v -> do
