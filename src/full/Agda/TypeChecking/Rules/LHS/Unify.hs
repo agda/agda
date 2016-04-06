@@ -590,7 +590,7 @@ dataStrategy k s = do
     -- Returns the fresh metas if successful
     instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> TCM (Maybe Args)
     instMetaCon m es d pars c = case allApplyElims es of
-      Just us -> do
+      Just us -> ifNotM (asks envAssignMetas) (return Nothing) $ do
           reportSDoc "tc.lhs.unify" 60 $
             text "Trying to instantiate the meta" <+> prettyTCM (MetaV m es) <+>
             text "with the constructor" <+> prettyTCM c <+> text "applied to fresh metas"
