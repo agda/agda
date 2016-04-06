@@ -98,6 +98,7 @@ traceCall mkCall m = do
     NoHighlighting{}          -> True
     CheckProjection{}         -> False
     SetRange{}                -> False
+    ModuleContents{}          -> False
 
   isNoHighlighting NoHighlighting{} = True
   isNoHighlighting _                = False

@@ -1597,6 +1597,7 @@ data Call = CheckClause Type A.SpineClause
           | ScopeCheckDeclaration D.NiceDeclaration
           | ScopeCheckLHS C.QName C.Pattern
           | NoHighlighting
+          | ModuleContents  -- ^ Interaction command: show module contents.
           | SetRange Range  -- ^ used by 'setCurrentRange'
     deriving (Typeable)
 
@@ -1628,6 +1629,7 @@ instance Pretty Call where
     pretty CheckSectionApplication{} = text "CheckSectionApplication"
     pretty CheckIsEmpty{}            = text "CheckIsEmpty"
     pretty NoHighlighting{}          = text "NoHighlighting"
+    pretty ModuleContents{}          = text "ModuleContents"
 
 instance HasRange Call where
     getRange (CheckClause _ c)               = getRange c
@@ -1657,6 +1659,7 @@ instance HasRange Call where
     getRange (CheckSectionApplication r _ _) = r
     getRange (CheckIsEmpty r _)              = r
     getRange NoHighlighting                  = noRange
+    getRange ModuleContents                  = noRange
 
 ---------------------------------------------------------------------------
 -- ** Instance table

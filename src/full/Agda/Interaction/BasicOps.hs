@@ -806,19 +806,18 @@ moduleContents :: Rewrite
                -> TCM ([C.Name], [(C.Name, Type)])
                   -- ^ Module names, names paired up with
                   -- corresponding types.
-moduleContents norm rng s = do
+moduleContents norm rng s = traceCall ModuleContents $ do
   m <- parseName rng s
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
       modules = exportedNamesInScope modScope
       names :: ThingsInScope AbstractName
       names = exportedNamesInScope modScope
-  types <- mapM (\(x, n) -> do
-                   d <- getConstInfo $ anameName n
-                   t <- normalForm norm =<< (defType <$> instantiateDef d)
-                   return (x, t))
-                (concatMap (\(x, ns) -> map ((,) x) ns) $
-                           Map.toList names)
+      xns = [ (x,n) | (x, ns) <- Map.toList names, n <- ns ]
+  types <- forM xns $ \(x, n) -> do
+    d <- getConstInfo $ anameName n
+    t <- normalForm norm =<< (defType <$> instantiateDef d)
+    return (x, t)
   return (Map.keys modules, types)
 
 whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])

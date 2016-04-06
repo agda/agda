@@ -1349,6 +1349,8 @@ instance PrettyTCM Call where
       where
       info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
+    ModuleContents -> fsep $ pwords "when retrieving the contents of a module"
+
     where
     hPretty :: Arg (Named_ Expr) -> TCM Doc
     hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (getHiding a)) a
