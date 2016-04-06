@@ -3,7 +3,7 @@
 -- {-# OPTIONS --verbose tc.constr.findInScope:15 #-}
 -- {-# OPTIONS --verbose tc.term.args.ifs:15 #-}
 
-module 05-equality-std1 where
+module InstanceArguments.05-equality-std1 where
 
 open import Relation.Binary using (IsDecEquivalence; module IsDecEquivalence; Reflexive; module DecSetoid)
 open import Data.Bool using (false; true; decSetoid)

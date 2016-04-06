@@ -1,4 +1,4 @@
-module 14-implicitConfigurations where
+module InstanceArguments.14-implicitConfigurations where
 
 postulate
   Integral : Set → Set

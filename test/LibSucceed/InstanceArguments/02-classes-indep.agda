@@ -6,7 +6,7 @@
 -- {-# OPTIONS --verbose tc.section.apply:15 #-}
 -- {-# OPTIONS --verbose tc.mod.apply:15 #-}
 
-module 02-classes-indep where
+module InstanceArguments.02-classes-indep where
 
 data T : Set where
   tt : T

@@ -24,14 +24,24 @@ testDir = "test" </> "LibSucceed"
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -- These modules are imported by Issue784.agda
-    RFInclude $ "LibSucceed/Issue784-.*"
-  , -- These modules are imported by Issue846.agda
-    RFInclude $ "LibSucceed/Issue846-.*"
-  , -- These modules are imported by Issue854.agda
-    RFInclude $ "LibSucceed/Issue854-.*"
-  , -- This module is imported by DeBruijnExSubstSized.agda
-    RFInclude $ "LibSucceed/Termination-Sized-DeBruijnBase.*"
+  [ -- TODO (see Issue 1927)
+    RFInclude $ "LibSucceed/InstanceArguments-03.*"
+    -- TODO (see Issue 1927)
+  , RFInclude $ "LibSucceed/InstanceArguments-05-equality-std1.*"
+    -- TODO (see Issue 1927)
+  , RFInclude $ "LibSucceed/InstanceArguments-05-equality-std2.*"
+    -- TODO (see Issue 1927)
+  , RFInclude $ "LibSucceed/InstanceArguments-10.*"
+    -- TODO (see Issue 1927)
+  , RFInclude $ "LibSucceed/InstanceArguments-11.*"
+    -- These modules are imported by Issue784.agda
+  , RFInclude $ "LibSucceed/Issue784-.*"
+    -- These modules are imported by Issue846.agda
+  , RFInclude $ "LibSucceed/Issue846-.*"
+    -- These modules are imported by Issue854.agda
+  , RFInclude $ "LibSucceed/Issue854-.*"
+    -- This module is imported by DeBruijnExSubstSized.agda
+  , RFInclude $ "LibSucceed/Termination-Sized-DeBruijnBase.*"
   ]
 
 tests :: IO TestTree

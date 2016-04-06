@@ -1,6 +1,6 @@
 {-# OPTIONS --universe-polymorphism #-}
 
-module 09-higherOrderClasses where
+module InstanceArguments.09-higherOrderClasses where
 
 open import Category.Applicative
 open import Category.Monad

@@ -6,7 +6,7 @@
 -- {-# OPTIONS --verbose tc.eta.rec:70 #-}
 -- {-# OPTIONS --verbose tc.sig.inst:30 #-}
 
-module 11-monads where
+module InstanceArguments.11-monads where
 
 open import Category.Monad using (RawMonad; module RawMonad)
 open import Category.Monad.Indexed using (RawIMonad; module RawIMonad)

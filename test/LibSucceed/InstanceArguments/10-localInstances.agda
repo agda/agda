@@ -1,4 +1,4 @@
-module 10-localInstances where
+module InstanceArguments.10-localInstances where
 
 import Data.Empty as E
 open import Data.String using (String; toList; _≟_)

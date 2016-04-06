@@ -1,4 +1,4 @@
-module 08-higherOrder where
+module InstanceArguments.08-higherOrder where
 
 explicitize : ∀ {A : Set} {B : A → Set} → ({{x : A}} → B x) → (x : A) → B x
 explicitize f x = f {{x}}

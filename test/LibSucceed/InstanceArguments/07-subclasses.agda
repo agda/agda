@@ -7,7 +7,7 @@
 -- {-# OPTIONS --verbose scope.rec:15 #-}
 -- {-# OPTIONS --verbose tc.rec.def:15 #-}
 
-module 07-subclasses where
+module InstanceArguments.07-subclasses where
 
 module Imports where
   module L where

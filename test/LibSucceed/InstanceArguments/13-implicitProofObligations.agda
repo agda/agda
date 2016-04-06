@@ -1,6 +1,6 @@
 {-# OPTIONS --universe-polymorphism #-}
 
-module 13-implicitProofObligations where
+module InstanceArguments.13-implicitProofObligations where
 
 module Imports where
   module L where

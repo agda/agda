@@ -1,6 +1,6 @@
 {-# OPTIONS --verbose tc.constr.findInScope:15 #-}
 
-module 03-classes where
+module InstanceArguments.03-classes where
 
 open import Algebra
 open import Algebra.Structures

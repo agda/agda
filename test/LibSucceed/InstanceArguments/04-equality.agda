@@ -8,7 +8,7 @@
 -- {-# OPTIONS --verbose scope.rec:15 #-}
 -- {-# OPTIONS --verbose tc.rec.def:15 #-}
 
-module 04-equality where
+module InstanceArguments.04-equality where
 
 record ⊤ : Set where
   constructor tt

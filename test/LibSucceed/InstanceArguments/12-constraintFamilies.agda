@@ -3,7 +3,7 @@
 -- {-# OPTIONS --verbose tc.term.args.ifs:15 #-}
 -- {-# OPTIONS --verbose tc.checkArgs:15 #-}
 
-module 12-constraintFamilies where
+module InstanceArguments.12-constraintFamilies where
 
 open import Level
 open import Function

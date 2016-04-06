@@ -1,6 +1,6 @@
 -- {-# OPTIONS --verbose tc.constr.findInScope:15 #-}
 
-module 01-arguments where
+module InstanceArguments.01-arguments where
 
 data T : Set where
   instance tt : T
