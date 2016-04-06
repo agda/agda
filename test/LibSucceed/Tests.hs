@@ -15,15 +15,28 @@ import System.FilePath
 import Test.Tasty                 ( testGroup, TestTree )
 import Test.Tasty.Silver          ( printProcResult )
 import Test.Tasty.Silver.Advanced ( GDiff(..), GShow(..), goldenTestIO1 )
+import Test.Tasty.Silver.Filter   ( RegexFilter(RFInclude) )
 
 import Utils
 
 testDir :: FilePath
 testDir = "test" </> "LibSucceed"
 
+disabledTests :: [RegexFilter]
+disabledTests =
+  [ -- These modules are imported by Issue784.agda
+    RFInclude $ "LibSucceed/Issue784-.*"
+  , -- These modules are imported by Issue846.agda
+    RFInclude $ "LibSucceed/Issue846-.*"
+  , -- These modules are imported by Issue854.agda
+    RFInclude $ "LibSucceed/Issue854-.*"
+  , -- This module is imported by DeBruijnExSubstSized.agda
+    RFInclude $ "LibSucceed/Termination-Sized-DeBruijnBase.*"
+  ]
+
 tests :: IO TestTree
 tests = do
-  inpFiles <- getAgdaFilesInDir NonRec testDir
+  inpFiles <- getAgdaFilesInDir Rec testDir
 
   let tests' :: [TestTree]
       tests' = map mkLibSucceedTest inpFiles

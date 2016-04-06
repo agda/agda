@@ -53,4 +53,4 @@ tests =
              ]
 
 disabledTests :: [RegexFilter]
-disabledTests = COMP.disabledTests
+disabledTests = COMP.disabledTests ++ LIBSUCCEED.disabledTests

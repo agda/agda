@@ -1,4 +1,4 @@
-module Termination.Sized.DeBruijn where
+module Termination.Sized.DeBruijnBase where
 
 open import Data.Maybe
 open import Function -- composition, identity

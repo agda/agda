@@ -10,7 +10,7 @@ open ≡-Reasoning
 
 open import Size
 
-open import Termination.Sized.DeBruijn
+open import Termination.Sized.DeBruijnBase
 
 -- untyped de Bruijn terms
 data LamE (A : Set) : Size -> Set where
