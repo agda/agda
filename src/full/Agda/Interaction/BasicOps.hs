@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
@@ -795,19 +796,66 @@ parseName r s = do
     _                      -> typeError $
       GenericError $ "Not an identifier: " ++ show m ++ "."
 
+-- | Check whether an expression is a (qualified) identifier.
+isQName :: C.Expr -> Maybe C.QName
+isQName m = do
+  case m of
+    C.Ident m              -> return m
+    C.RawApp _ [C.Ident m] -> return m
+    _ -> Nothing
+
+-- | Returns the contents of the given module or record.
+
+moduleContents
+  :: Rewrite
+     -- ^ How should the types be presented?
+  -> Range
+     -- ^ The range of the next argument.
+  -> String
+     -- ^ The module name.
+  -> TCM ([C.Name], [(C.Name, Type)])
+     -- ^ Module names, names paired up with corresponding types.
+
+moduleContents norm rng s = traceCall ModuleContents $ do
+  e <- parseExpr rng s
+  case isQName e of
+    -- If the expression is not a single identifier, it is not a module name
+    -- and treated as a record expression.
+    Nothing -> getRecordContents norm e
+    -- Otherwise, if it is not in scope as a module name, it is treated
+    -- as a record name.
+    Just x  -> do
+      ms :: [AbstractModule] <- scopeLookup x <$> getScope
+      if null ms then getRecordContents norm e else getModuleContents norm x
+
+-- | Returns the contents of the given record identifier.
+
+getRecordContents
+  :: Rewrite  -- ^ Amount of normalization in types.
+  -> C.Expr   -- ^ Expression presumably of record type.
+  -> TCM ([C.Name], [(C.Name, Type)])
+              -- ^ Module names, names paired up with corresponding types.
+getRecordContents norm ce = do
+  e <- toAbstract ce
+  (_, t) <- inferExpr e
+  let notRecordType = typeError $ ShouldBeRecordType t
+  (q, vs, defn) <- fromMaybeM notRecordType $ isRecordType t
+  case defn of
+    Record{ recFields = fs, recTel = tel } -> do
+      let xs   = map (nameConcrete . qnameName . unArg) fs
+          doms = telToList $ apply tel vs
+      ts <- mapM (normalForm norm) $ map (snd . unDom) doms
+      return ([], zip xs ts)
+    _ -> __IMPOSSIBLE__
+
 -- | Returns the contents of the given module.
 
-moduleContents :: Rewrite
-                  -- ^ How should the types be presented
-               -> Range
-                  -- ^ The range of the next argument.
-               -> String
-                  -- ^ The module name.
-               -> TCM ([C.Name], [(C.Name, Type)])
-                  -- ^ Module names, names paired up with
-                  -- corresponding types.
-moduleContents norm rng s = traceCall ModuleContents $ do
-  m <- parseName rng s
+getModuleContents
+  :: Rewrite  -- ^ Amount of normalization in types.
+  -> C.QName  -- ^ Module name.
+  -> TCM ([C.Name], [(C.Name, Type)])
+              -- ^ Module names, names paired up with corresponding types.
+getModuleContents norm m = do
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
       modules = exportedNamesInScope modScope
@@ -819,6 +867,7 @@ moduleContents norm rng s = traceCall ModuleContents $ do
     t <- normalForm norm =<< (defType <$> instantiateDef d)
     return (x, t)
   return (Map.keys modules, types)
+
 
 whyInScope :: String -> TCM (Maybe LocalVar, [AbstractName], [AbstractModule])
 whyInScope s = do
