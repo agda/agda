@@ -1,5 +1,5 @@
 Cannot set OPTION pragmas --allow-unsolved-metas
---no-positivity-check --no-termination-check --no-coverage-check
---type-in-type --injective-type-constructors
+--no-positivity-check --no-termination-check --type-in-type
+--injective-type-constructors
 --guardedness-preserving-type-constructors
 --experimental-irrelevance with safe flag.

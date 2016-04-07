@@ -328,6 +328,8 @@ Pragmas and options
      data D where
        lam : (D → D) → D
 
+* Removed --no-coverage-check option.
+
 Language
 ========
 

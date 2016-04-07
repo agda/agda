@@ -313,7 +313,6 @@ unsafePragmaOptions opts =
   [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
   [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
   [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
-  [ "--no-coverage-check"                        | not (optCompletenessCheck opts)   ] ++
   [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
   -- [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
@@ -395,8 +394,10 @@ noPositivityFlag o = return $ o { optDisablePositivity = True }
 dontTerminationCheckFlag :: Flag PragmaOptions
 dontTerminationCheckFlag o = return $ o { optTerminationCheck = False }
 
+-- The option was removed. See Issue 1918.
 dontCompletenessCheckFlag :: Flag PragmaOptions
-dontCompletenessCheckFlag o = return $ o { optCompletenessCheck = False }
+dontCompletenessCheckFlag _ =
+  throwError "the --no-coverage-check option has been removed"
 
 dontUniverseCheckFlag :: Flag PragmaOptions
 dontUniverseCheckFlag o = return $ o { optUniverseCheck        = False
@@ -662,7 +663,7 @@ pragmaOptions =
     , Option []     ["termination-depth"] (ReqArg terminationDepthFlag "N")
                     "allow termination checker to count decrease/increase upto N (default N=1)"
     , Option []     ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
-                    "do not warn about possibly incomplete pattern matches"
+                    "the option has been removed"
     , Option []     ["type-in-type"] (NoArg dontUniverseCheckFlag)
                     "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)

@@ -139,11 +139,10 @@ coverageCheck f t cs = do
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
     ]
-  whenM (optCompletenessCheck <$> pragmaOptions) $
-    -- report an error if there are uncovered cases
-    unless (null pss) $
-        setCurrentRange cs $
-          typeError $ CoverageFailure f (map (map (fmap namedThing)) pss)
+  -- report an error if there are uncovered cases
+  unless (null pss) $
+      setCurrentRange cs $
+        typeError $ CoverageFailure f (map (map (fmap namedThing)) pss)
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses
