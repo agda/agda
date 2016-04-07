@@ -1,5 +1,4 @@
 {-# OPTIONS --copatterns #-}
--- {-# OPTIONS --no-coverage-check #-}
 -- {-# OPTIONS -v tc.lhs.split:50 -v tc.cover:20 -v tc.cc:15 -v tc.lhs.top:10 #-}
 -- {-# OPTIONS -v term:20 #-}
 -- {-# OPTIONS --no-positivity-check #-}

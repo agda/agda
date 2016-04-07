@@ -1,6 +1,5 @@
 -- Andreas and James, Nov 2011 and Oct 2012
 -- function with flexible arity
--- {-# OPTIONS --no-coverage-check #-}
 -- {-# OPTIONS -v tc.cover:20 #-}
 module FlexibleInterpreter where
 

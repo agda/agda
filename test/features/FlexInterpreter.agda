@@ -1,5 +1,4 @@
 -- Andreas and James, Nov 2011 and Oct 2012
--- {-# OPTIONS --no-coverage-check #-}
 -- {-# OPTIONS -v tc.lhs:20 -v tc.cover.top:20 #-}
 module FlexInterpreter where
 

@@ -1,4 +1,4 @@
-{-# OPTIONS --sized-types #-} -- --no-coverage-check #-}
+{-# OPTIONS --sized-types #-}
 
 module Termination.Sized.DeBruijnExSubstSized where
 

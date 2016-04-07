@@ -1,4 +1,3 @@
--- {-# OPTIONS --no-coverage-check #-}
 -- {-# OPTIONS -v tc.lhs:40 #-}
 module FlexibleFunArity where
 

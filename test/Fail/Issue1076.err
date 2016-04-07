@@ -1,4 +1,4 @@
-Issue1076.agda:3,1-36
+Issue1076.agda:3,1-39
 OPTIONS pragma only allowed at beginning of file, before top module
 declaration
-when checking the pragma OPTIONS --no-coverage-check
+when checking the pragma OPTIONS --no-termination-check
