@@ -13,16 +13,16 @@
 
 module Issue1075 where
 
-open import Common.Prelude renaming (Nat to ℕ)
+open import Common.Prelude renaming (Nat to ℕ) hiding (map; length)
 open import Common.Product
 open import Common.Sum
 open import Common.Equality
 
 
-[_] : ∀{A} → A → List A
+[_] : {A : Set} → A → List A
 [ x ] = x ∷ []
 
-map : ∀ {A B} → (A → B) → List A → List B
+map : {A B : Set} → (A → B) → List A → List B
 map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
