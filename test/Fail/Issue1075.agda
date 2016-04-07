@@ -7,7 +7,6 @@
 -- The termination checker now rejects this code instead of crashing.
 -- I do not know whether it is supposed to terminate.
 
-{-# OPTIONS --no-coverage-check #-}
 {-# OPTIONS --allow-unsolved-metas #-}
 
 -- {-# OPTIONS -v term.matrices:40 #-}
@@ -424,6 +423,7 @@ rsubst+ Γ' pfΓ pf (⊤⁺ ∷ LA+) LA- LT (_ ∷ Values) (⊤⁺L N) =  rsubst
 -- ... | proj₁ , ()
 rsubst+ Γ' pfΓ pf ((x ∧⁺ x₁) ∷ LA+) LA- LT (∧⁺R V₁ V₂ ∷ Values) (∧⁺L N) =
   rsubst+ Γ' pfΓ pf (x ∷ x₁ ∷ LA+) LA- LT (V₁ ∷ V₂ ∷ Values) N
+rsubst+ {_} {_} {_} _ _ _ _ _ _ _ _ = ?
 
 
 

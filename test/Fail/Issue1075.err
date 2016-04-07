@@ -1,19 +1,19 @@
-Issue1075.agda:284,1-444,54
+Issue1075.agda:283,1-444,54
 Termination checking failed for the following functions:
   cut⁺, cut⁻, rsubst+, lsubst
 Problematic calls:
   rsubst+ [] pfΓ pf LA (A ∷ []) (N ∷ []) Values N'
-    (at Issue1075.agda:341,3-10)
+    (at Issue1075.agda:340,3-10)
   cut⁺ pfΓ pf (A ∷ []) (V₁ ∷ []) N
-    (at Issue1075.agda:346,96-100)
+    (at Issue1075.agda:345,96-100)
   lsubst pfΓ pf N₁ N₂
-    (at Issue1075.agda:361,60-66)
+    (at Issue1075.agda:360,60-66)
   cut⁻ pfΓ pf (x₁ ∷ LA) refl
   (cut⁺ pfΓ tt (x ∷ []) (V ∷ []) N₁ ∷ LExp) (Sp ∷ LExp')
-    (at Issue1075.agda:364,3-7)
+    (at Issue1075.agda:363,3-7)
   cut⁻ pfΓ (pf₁ , pf) (A ∷ []) refl (?0 Γ' LA- x x₁ pfΓ pf LT pf₁ Sp)
   (rsubst-v Γ' pfΓ pf LA- LT Sp ∷ [])
-    (at Issue1075.agda:383,3-7)
+    (at Issue1075.agda:382,3-7)
   cut⁺ pfΓ (proj₂ pf) (A ∷ []) (V ∷ []) N
     (at Issue1075.agda:431,32-36)
   lsubst (conspers pfΓ) pf M (wken N)
