@@ -41,7 +41,8 @@ import Agda.Version
 mimicGHCi :: TCM () -> TCM ()
 mimicGHCi setup = do
     liftIO $ do
-      hSetBuffering stdout NoBuffering
+      hSetBuffering stdout LineBuffering
+      hSetBuffering stdin  LineBuffering
       hSetEncoding  stdout utf8
       hSetEncoding  stdin  utf8
 
@@ -60,7 +61,9 @@ mimicGHCi setup = do
       Bench.reset
       done <- Bench.billTo [] $ do
 
-        liftIO $ putStr "Agda2> "
+        liftIO $ do
+          putStr "Agda2> "
+          hFlush stdout
         done <- liftIO isEOF
         unless done $ do
             r <- liftIO getLine
