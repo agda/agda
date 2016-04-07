@@ -32,8 +32,6 @@ disabledTests =
     -- TODO (see Issue 1927)
   , RFInclude $ "LibSucceed/InstanceArguments-05-equality-std2.*"
     -- TODO (see Issue 1927)
-  , RFInclude $ "LibSucceed/InstanceArguments-10.*"
-    -- TODO (see Issue 1927)
   , RFInclude $ "LibSucceed/InstanceArguments-11.*"
   ]
 

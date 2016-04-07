@@ -16,8 +16,9 @@ length = List.length ∘ toList
 
 open Eq {{...}}
 
-eqℕ : Eq ℕ
-eqℕ = record { eq = λ x x' → ⌊ x ℕ≟ x' ⌋ }
+instance
+  eqℕ : Eq ℕ
+  eqℕ = record { eq = λ x x' → ⌊ x ℕ≟ x' ⌋ }
 
 eqString₁ : String → String → Bool
 eqString₁ s₁ s₂ = ⌊ s₁ ≟ s₂ ⌋
@@ -25,8 +26,22 @@ eqString₁ s₁ s₂ = ⌊ s₁ ≟ s₂ ⌋
 eqString₂ : String → String → Bool
 eqString₂ = eq on length
 
-test : Bool → Bool
-test lengthEq = if eq "abcd" "dcba" then false else true
-  where eqLocal = record { eq = if lengthEq then eqString₂ else eqString₁ }
+testWhere : Bool → Bool
+testWhere lengthEq = if eq "abcd" "dcba" then false else true
+  where
+    instance
+      eqLocal : Eq String
+      eqLocal = record { eq = if lengthEq then eqString₂ else eqString₁ }
 
-test2 = test true
+testLet : Bool → Bool
+testLet lengthEq =
+  let instance
+        eqLocal : Eq String
+        eqLocal = record { eq = if lengthEq then eqString₂ else eqString₁ }
+  in if eq "abcd" "dcba" then false else true
+
+test1 : Bool
+test1 = testWhere true
+
+test2 : Bool
+test2 = testLet true
