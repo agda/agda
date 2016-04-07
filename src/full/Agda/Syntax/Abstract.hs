@@ -88,7 +88,7 @@ data Expr
   | Tactic ExprInfo Expr [NamedArg Expr] [NamedArg Expr]
                                        -- ^ @tactic e x1 .. xn | y1 | .. | yn@
   | DontCare Expr                      -- ^ For printing @DontCare@ from @Syntax.Internal@.
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show)
 
 -- | Record field assignment @f = e@.
 type Assign  = FieldAssignment' Expr
@@ -133,7 +133,7 @@ data Declaration
   | UnquoteDecl MutualInfo [DefInfo] [QName] Expr
   | UnquoteDef  [DefInfo] [QName] Expr
   | ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show)
 
 class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
@@ -414,6 +414,68 @@ instance IsProjP a => IsProjP (Named n a) where
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
+
+-- | Does not compare 'ScopeInfo' fields.
+
+instance Eq Expr where
+  ScopedExpr _ a1         == ScopedExpr _ a2         = a1 == a2
+
+  Var a1                  == Var a2                  = a1 == a2
+  Def a1                  == Def a2                  = a1 == a2
+  Proj a1                 == Proj a2                 = a1 == a2
+  Con a1                  == Con a2                  = a1 == a2
+  PatternSyn a1           == PatternSyn a2           = a1 == a2
+  Macro a1                == Macro a2                = a1 == a2
+  Lit a1                  == Lit a2                  = a1 == a2
+  QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
+  Underscore a1           == Underscore a2           = a1 == a2
+  App a1 b1 c1            == App a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+  WithApp a1 b1 c1        == WithApp a2 b2 c2        = (a1, b1, c1) == (a2, b2, c2)
+  Lam a1 b1 c1            == Lam a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+  AbsurdLam a1 b1         == AbsurdLam a2 b2         = (a1, b1) == (a2, b2)
+  ExtendedLam a1 b1 c1 d1 == ExtendedLam a2 b2 c2 d2 = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  Pi a1 b1 c1             == Pi a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
+  Fun a1 b1 c1            == Fun a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+  Set a1 b1               == Set a2 b2               = (a1, b1) == (a2, b2)
+  Prop a1                 == Prop a2                 = a1 == a2
+  Let a1 b1 c1            == Let a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+  ETel a1                 == ETel a2                 = a1 == a2
+  Rec a1 b1               == Rec a2 b2               = (a1, b1) == (a2, b2)
+  RecUpdate a1 b1 c1      == RecUpdate a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
+  QuoteGoal a1 b1 c1      == QuoteGoal a2 b2 c2      = (a1, b1, c1) == (a2, b2, c2)
+  QuoteContext a1         == QuoteContext a2         = a1 == a2
+  Quote a1                == Quote a2                = a1 == a2
+  QuoteTerm a1            == QuoteTerm a2            = a1 == a2
+  Unquote a1              == Unquote a2              = a1 == a2
+  Tactic a1 b1 c1 d1      == Tactic a2 b2 c2 d2      = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  DontCare a1             == DontCare a2             = a1 == a2
+
+  _                       == _                       = False
+
+-- | Does not compare 'ScopeInfo' fields.
+
+instance Eq Declaration where
+  ScopedDecl _ a1                == ScopedDecl _ a2                = a1 == a2
+
+  Axiom a1 b1 c1 d1 e1           == Axiom a2 b2 c2 d2 e2           = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
+  Field a1 b1 c1                 == Field a2 b2 c2                 = (a1, b1, c1) == (a2, b2, c2)
+  Primitive a1 b1 c1             == Primitive a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
+  Mutual a1 b1                   == Mutual a2 b2                   = (a1, b1) == (a2, b2)
+  Section a1 b1 c1 d1            == Section a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  Apply a1 b1 c1 d1 e1 f1        == Apply a2 b2 c2 d2 e2 f2        = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
+  Import a1 b1 c1                == Import a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
+  Pragma a1 b1                   == Pragma a2 b2                   = (a1, b1) == (a2, b2)
+  Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
+  FunDef a1 b1 c1 d1             == FunDef a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  DataSig a1 b1 c1 d1            == DataSig a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  DataDef a1 b1 c1 d1            == DataDef a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  RecSig a1 b1 c1 d1             == RecSig a2 b2 c2 d2             = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  RecDef a1 b1 c1 d1 e1 f1 g1 h1 == RecDef a2 b2 c2 d2 e2 f2 g2 h2 = (a1, b1, c1, d1, e1, f1, g1, h1) == (a2, b2, c2, d2, e2, f2, g2, h2)
+  PatternSynDef a1 b1 c1         == PatternSynDef a2 b2 c2         = (a1, b1, c1) == (a2, b2, c2)
+  UnquoteDecl a1 b1 c1 d1        == UnquoteDecl a2 b2 c2 d2        = (a1, b1, c1, d1) == (a2, b2, c2, d2)
+  UnquoteDef a1 b1 c1            == UnquoteDef a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
+
+  _                              == _                              = False
 
 instance Underscore Expr where
   underscore   = Underscore emptyMetaInfo
