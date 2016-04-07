@@ -4,6 +4,7 @@
 module LibSucceed.Tests where
 
 import qualified Data.Text as T
+import Data.List (isInfixOf)
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative ((<$>))
@@ -34,19 +35,26 @@ disabledTests =
   , RFInclude $ "LibSucceed/InstanceArguments-10.*"
     -- TODO (see Issue 1927)
   , RFInclude $ "LibSucceed/InstanceArguments-11.*"
-    -- These modules are imported by Issue784.agda
-  , RFInclude $ "LibSucceed/Issue784-.*"
+  ]
+
+notTests :: [String]
+notTests =
+  [ -- These modules are imported by Issue784.agda
+    "Issue784/"
     -- These modules are imported by Issue846.agda
-  , RFInclude $ "LibSucceed/Issue846-.*"
+  , "Issue846/"
     -- These modules are imported by Issue854.agda
-  , RFInclude $ "LibSucceed/Issue854-.*"
+  , "Issue854/"
     -- This module is imported by DeBruijnExSubstSized.agda
-  , RFInclude $ "LibSucceed/Termination-Sized-DeBruijnBase.*"
+  , "Termination-Sized-DeBruijnBase"
   ]
 
 tests :: IO TestTree
 tests = do
-  inpFiles <- getAgdaFilesInDir Rec testDir
+  let isTest file = not $ any (`isInfixOf` file) notTests
+  inpFiles <- filter isTest <$> getAgdaFilesInDir Rec testDir
+
+  print inpFiles
 
   let tests' :: [TestTree]
       tests' = map mkLibSucceedTest inpFiles
