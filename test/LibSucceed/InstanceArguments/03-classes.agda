@@ -25,12 +25,13 @@ record S (A : Set) : Set₁ where
     _≈_ : Rel A lzero
     _⟨+⟩_ : Op₂ A
     _⟨*⟩_ : Op₂ A
-    isSemiring' : IsSemiring _≈_ _⟨+⟩_ _⟨*⟩_ z o
+    instance isSemiring' : IsSemiring _≈_ _⟨+⟩_ _⟨*⟩_ z o
 
-ℕ-S : S ℕ
-ℕ-S = record { z = 0; o = 1;
-               _≈_ = _≡_; _⟨+⟩_ = _+_; _⟨*⟩_ = _*_;
-               isSemiring' = isSemiring }
+instance
+  ℕ-S : S ℕ
+  ℕ-S = record { z = 0; o = 1;
+                 _≈_ = _≡_; _⟨+⟩_ = _+_; _⟨*⟩_ = _*_;
+                 isSemiring' = isSemiring }
 
 zero' : {A : Set} → {{aRing : S A}} → A
 zero' {{ARing}} = S.z ARing
@@ -38,16 +39,9 @@ zero' {{ARing}} = S.z ARing
 zero-nat : ℕ
 zero-nat = zero'
 
-zero'' : {A : Set} {_≈_ : Rel A lzero} {_⟨+⟩_ _⟨*⟩_ : Op₂ A} {z o : A} →
-         {{isr : IsSemiring _≈_ _⟨+⟩_ _⟨*⟩_ z o}} → A
-zero'' {z = z} = z
-
-zero-nat' : ℕ
-zero-nat' = zero''
-
-isZero : {A : Set} {_≈_ : Rel A lzero} {_⟨+⟩_ _⟨*⟩_ : Op₂ A} {z o : A} →
-         {{isr : IsSemiring _≈_ _⟨+⟩_ _⟨*⟩_ z o}} → Zero _≈_ z _⟨*⟩_
-isZero {{isr}} = IsSemiring.zero isr
+isZero : {A : Set} {{r : S A}} (let open S r) →
+         Zero _≈_ z _⟨*⟩_
+isZero {{r}} = IsSemiring.zero (S.isSemiring' r)
 
 useIsZero : 0 * 5 ≡ 0
 useIsZero = proj₁ isZero 5

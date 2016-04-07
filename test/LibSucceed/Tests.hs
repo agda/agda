@@ -25,14 +25,7 @@ testDir = "test" </> "LibSucceed"
 
 disabledTests :: [RegexFilter]
 disabledTests =
-  [ -- TODO (see Issue 1927)
-    RFInclude $ "LibSucceed/InstanceArguments-03.*"
-    -- TODO (see Issue 1927)
-  , RFInclude $ "LibSucceed/InstanceArguments-05-equality-std1.*"
-    -- TODO (see Issue 1927)
-  , RFInclude $ "LibSucceed/InstanceArguments-05-equality-std2.*"
-    -- TODO (see Issue 1927)
-  , RFInclude $ "LibSucceed/InstanceArguments-11.*"
+  [
   ]
 
 notTests :: [String]
@@ -51,8 +44,6 @@ tests :: IO TestTree
 tests = do
   let isTest file = not $ any (`isInfixOf` file) notTests
   inpFiles <- filter isTest <$> getAgdaFilesInDir Rec testDir
-
-  print inpFiles
 
   let tests' :: [TestTree]
       tests' = map mkLibSucceedTest inpFiles
