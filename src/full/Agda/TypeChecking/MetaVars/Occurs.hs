@@ -579,23 +579,23 @@ rigidVarsNotContainedIn v is = liftTCM $ do
           reportSLn "tc.meta.kill" 20 $
             "found forbidden de Bruijn level " ++ show l
         return $ Any forbidden
-  getAny <$> foldRigid id test v
+  getAny <$> foldRigid test v
 
 -- | Collect the *definitely* rigid variables in a monoid.
 --   We need to successively reduce the expression to do this.
 
 class FoldRigid a where
---  foldRigid :: (MonadTCM tcm, Monoid (tcm m)) => (tcm m -> tcm m) -> (Nat -> tcm m) -> a -> tcm m
-  foldRigid :: (Monoid (TCM m)) => (TCM m -> TCM m) -> (Nat -> TCM m) -> a -> TCM m
+--  foldRigid :: (MonadTCM tcm, Monoid (tcm m)) => (Nat -> tcm m) -> a -> tcm m
+  foldRigid :: (Monoid (TCM m)) => (Nat -> TCM m) -> a -> TCM m
 
 instance FoldRigid Term where
-  foldRigid abs f t = do
+  foldRigid f t = do
     b <- liftTCM $ reduceB t
     case ignoreSharing $ ignoreBlocking b of
       Var i es   -> f i `mappend` fold es
       Lam _ t    -> fold t
       Lit{}      -> mempty
-      Def f es   -> case b of
+      Def _ es   -> case b of
         Blocked{}                   -> mempty
         NotBlocked MissingClauses _ -> mempty
         _        -> fold es
@@ -607,60 +607,60 @@ instance FoldRigid Term where
       DontCare{} -> mempty
       Shared{}   -> __IMPOSSIBLE__
       ExtLam{}   -> __IMPOSSIBLE__
-    where fold = foldRigid abs f
+    where fold = foldRigid f
 
 instance FoldRigid Type where
-  foldRigid abs f (El s t) = foldRigid abs f (s,t)
+  foldRigid f (El s t) = foldRigid f (s,t)
 
 instance FoldRigid Sort where
-  foldRigid abs f s =
+  foldRigid f s =
     case s of
       Type l     -> fold l
       Prop       -> mempty
       Inf        -> mempty
       SizeUniv   -> mempty
       DLub s1 s2 -> fold (s1, s2)
-    where fold = foldRigid abs f
+    where fold = foldRigid f
 
 instance FoldRigid Level where
-  foldRigid abs f (Max ls) = foldRigid abs f ls
+  foldRigid f (Max ls) = foldRigid f ls
 
 instance FoldRigid PlusLevel where
-  foldRigid abs f ClosedLevel{} = mempty
-  foldRigid abs f (Plus _ l)    = foldRigid abs f l
+  foldRigid f ClosedLevel{} = mempty
+  foldRigid f (Plus _ l)    = foldRigid f l
 
 instance FoldRigid LevelAtom where
-  foldRigid abs f l =
+  foldRigid f l =
     case l of
       MetaLevel{} -> mempty
       NeutralLevel MissingClauses _ -> mempty
       NeutralLevel _              l -> fold l
       BlockedLevel _              l -> fold l
       UnreducedLevel              l -> fold l
-    where fold = foldRigid abs f
+    where fold = foldRigid f
 
 instance (Subst a, FoldRigid a) => FoldRigid (Abs a) where
-  foldRigid abs f b = underAbstraction_ b $ foldRigid abs f
+  foldRigid f b = underAbstraction_ b $ foldRigid f
 
 instance FoldRigid a => FoldRigid (I.Arg a) where
-  foldRigid abs f a =
+  foldRigid f a =
     case getRelevance a of
       Irrelevant -> mempty
       UnusedArg  -> mempty
-      _          -> foldRigid abs f $ unArg a
+      _          -> foldRigid f $ unArg a
 
 instance FoldRigid a => FoldRigid (I.Dom a) where
-  foldRigid abs f dom = foldRigid abs f $ unDom dom
+  foldRigid f dom = foldRigid f $ unDom dom
 
 instance FoldRigid a => FoldRigid (Elim' a) where
-  foldRigid abs f (Apply a) = foldRigid abs f a
-  foldRigid abs f Proj{}    = mempty
+  foldRigid f (Apply a) = foldRigid f a
+  foldRigid f Proj{}    = mempty
 
 instance FoldRigid a => FoldRigid [a] where
-  foldRigid abs f = foldMap $ foldRigid abs f
+  foldRigid f = foldMap $ foldRigid f
 
 instance (FoldRigid a, FoldRigid b) => FoldRigid (a,b) where
-  foldRigid abs f (a,b) = foldRigid abs f a `mappend` foldRigid abs f b
+  foldRigid f (a,b) = foldRigid f a `mappend` foldRigid f b
 
 
 data PruneResult
