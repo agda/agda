@@ -26,8 +26,6 @@
 --    common super context in which all constraints of a cluster live,
 --    and raise all constraints to this context.
 --
---    This involves migrating from de Bruijn indices to de Bruijn levels.
---
 --    There might not be a common super context.  Then we are screwed,
 --    since our solver is not ready to deal with such a situation.  We
 --    will blatantly refuse to solve this cluster and blame it on the
@@ -35,7 +33,7 @@
 --
 -- 3. Convert the joint context into a hypothesis graph.
 --
---    This is straightforward.  Each de Bruijn level becomes a
+--    This is straightforward.  Each de Bruijn index becomes a
 --    rigid variable, each typing assumption @j : Size< i@ becomes an
 --    arc.
 --
