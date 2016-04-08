@@ -203,6 +203,7 @@ solveCluster cs = do
   let HypSizeConstraint gamma hids hs _ = maximumBy (compare `on` (length . sizeContext)) cs
   -- Length of longest context.
   let n = size gamma
+
   -- Now convert all size constraints to the largest context.
       csL = for cs $ \ (HypSizeConstraint cxt _ _ c) -> raise (n - size cxt) c
   -- Canonicalize the constraints.
@@ -391,8 +392,8 @@ instance PrettyTCM (SizeConstraint) where
 data HypSizeConstraint = HypSizeConstraint
   { sizeContext    :: Context
   , sizeHypIds     :: [CtxId]
-  , sizeHypotheses :: [SizeConstraint]
-  , sizeConstraint :: SizeConstraint
+  , sizeHypotheses :: [SizeConstraint]  -- ^ Living in @Context@.
+  , sizeConstraint :: SizeConstraint    -- ^ Living in @Context@.
   }
 
 instance Flexs SizeMeta HypSizeConstraint where
@@ -401,6 +402,7 @@ instance Flexs SizeMeta HypSizeConstraint where
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
     inTopContext $ modifyContext (const cxt) $ do
+      -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
       applyUnless (null hs)
        (((hcat $ punctuate (text ", ") $ map prettyTCM hs) <+> text "|-") <+>)
        (prettyTCM c)
