@@ -18,3 +18,5 @@ A = (Id : (i : Size) → Nat _ → Set)
 
 -- 1) Id,k,m |- ↑ 1 ≤ X 1      ==> ↑ 4 ≤ X 4
 -- 2) Id,k,m,p,j,n |- 1 ≤ X 1
+
+-- Unfixed by fix for #1914 (Andreas, 2016-04-08).

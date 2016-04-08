@@ -281,8 +281,17 @@ getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
 --   @X[σ] ≤ Y[τ]@ becomes @X[id] ≤ Y[τ[σ^-1]]@ or @X[σ[τ^1]] ≤ Y[id]@
 --   whichever is defined.  If none is defined, we give up.
 --
+--   Cf. @SizedTypes.oldCanonicalizeSizeConstraint@.
+--
+--   Fixes (the rather artificial) issue 300.
+--   But it is unsound when pruned metas occur and triggers issue 1914.
+--   Thus we deactivate it.
+--   This needs to be properly implemented, possibly using the
+--   metaPermuatation of each meta variable.
+
 canonicalizeSizeConstraint :: SizeConstraint -> Maybe (SizeConstraint)
-canonicalizeSizeConstraint c@(Constraint a cmp b) =
+canonicalizeSizeConstraint c@(Constraint a cmp b) = Just c
+{-
   case (a,b) of
 
     -- Case flex-flex
@@ -318,7 +327,7 @@ canonicalizeSizeConstraint c@(Constraint a cmp b) =
 
     -- Case no flex
     _ -> return c
-
+-}
 
 -- | Identifiers for rigid variables.
 data NamedRigid = NamedRigid
@@ -335,7 +344,10 @@ instance Plus NamedRigid Int NamedRigid where
 -- | Size metas in size expressions.
 data SizeMeta = SizeMeta
   { sizeMetaId   :: MetaId
-  , sizeMetaArgs :: [Int]
+  -- TODO to fix issue 300?
+  -- , sizeMetaPerm :: Permutation -- ^ Permutation from the current context
+  --                               --   to the context of the meta.
+  , sizeMetaArgs :: [Int]       -- ^ De Bruijn indices.
   }
 
 -- | An equality which ignores the meta arguments.
