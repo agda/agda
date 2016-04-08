@@ -215,6 +215,38 @@ solveCluster cs = do
     map (prettyTCM . HypSizeConstraint gamma hids hs) hs ++
     [ text "Canonicalized constraints" ] ++
     map (prettyTCM . HypSizeConstraint gamma hids hs) csC
+
+  -- -- ALT:
+  -- -- Now convert all size constraints to de Bruijn levels.
+
+  -- -- To get from indices in a context of length m <= n
+  -- -- to levels into the target context of length n,
+  -- -- we apply the following substitution:
+  -- -- Index m-1 needs to be mapped to level 0,
+  -- -- index m-2 needs to be mapped to level 1,
+  -- -- index 0 needs to be mapped to level m-1,
+  -- -- so the desired substitution is @downFrom m@.
+  -- let sub m = applySubst $ parallelS $ map var $ downFrom m
+
+  -- -- We simply reverse the context to get to de Bruijn levels.
+  -- -- Of course, all types in the context are broken, but
+  -- -- only need it for pretty printing constraints.
+  -- gamma <- return $ reverse gamma
+
+  -- -- We convert the hypotheses to de Bruijn levels.
+  -- hs <- return $ sub n hs
+
+  -- -- We get a form for pretty-printing
+  -- let prettyC = prettyTCM . HypSizeConstraint gamma hids hs
+
+  -- -- We convert the constraints to de Bruijn level format.
+  -- let csC :: [SizeConstraint]
+  --     csC = for cs $ \ (HypSizeConstraint cxt _ _ c) -> sub (size cxt) c
+
+  -- reportSDoc "tc.size.solve" 30 $ vcat $
+  --   [ text "Size hypotheses" ]           ++ map prettyC hs ++
+  --   [ text "Canonicalized constraints" ] ++ map prettyC csC
+
   -- Convert size metas to flexible vars.
   let metas :: [SizeMeta]
       metas = concat $ map (foldMap (:[])) csC
@@ -274,9 +306,9 @@ getSizeHypotheses gamma = inTopContext $ modifyContext (const gamma) $ do
           _ -> return Nothing
 
 -- | Convert size constraint into form where each meta is applied
---   to indices @0,1,..,n-1@ where @n@ is the arity of that meta.
+--   to indices @n-1,...,1,0@ where @n@ is the arity of that meta.
 --
---   @X[σ] <= t@ beomes @X[id] <= t[σ^-1]@
+--   @X[σ] <= t@ becomes @X[id] <= t[σ^-1]@
 --
 --   @X[σ] ≤ Y[τ]@ becomes @X[id] ≤ Y[τ[σ^-1]]@ or @X[σ[τ^1]] ≤ Y[id]@
 --   whichever is defined.  If none is defined, we give up.
@@ -297,33 +329,39 @@ canonicalizeSizeConstraint c@(Constraint a cmp b) = Just c
     -- Case flex-flex
     (Flex (SizeMeta m xs) n, Flex (SizeMeta l ys) n')
          -- try to invert xs on ys
-       | Just ys' <- mapM (\ y -> findIndex (==y) xs) ys ->
-           return $ Constraint (Flex (SizeMeta m [0..size xs-1]) n)
+       | let len = size xs
+       , Just ys' <- mapM (\ y -> (len-1 -) <$> findIndex (==y) xs) ys ->
+           return $ Constraint (Flex (SizeMeta m $ downFrom len) n)
                            cmp (Flex (SizeMeta l ys') n')
          -- try to invert ys on xs
-       | Just xs' <- mapM (\ x -> findIndex (==x) ys) xs ->
+       | let len = size ys
+       , Just xs' <- mapM (\ x -> (len-1 -) <$> findIndex (==x) ys) xs ->
            return $ Constraint (Flex (SizeMeta m xs') n)
-                           cmp (Flex (SizeMeta l [0..size ys-1]) n')
+                           cmp (Flex (SizeMeta l $ downFrom len) n')
          -- give up
        | otherwise -> Nothing
 
     -- Case flex-rigid
     (Flex (SizeMeta m xs) n, Rigid (NamedRigid x i) n') -> do
-      j <- findIndex (==i) xs
-      return $ Constraint (Flex (SizeMeta m [0..size xs-1]) n) cmp (Rigid (NamedRigid x j) n')
+      let len = size xs
+      j <- (len-1 -) <$> findIndex (==i) xs
+      return $ Constraint (Flex (SizeMeta m $ downFrom len) n)
+                      cmp (Rigid (NamedRigid x j) n')
 
     -- Case rigid-flex
     (Rigid (NamedRigid x i) n, Flex (SizeMeta m xs) n') -> do
-      j <- findIndex (==i) xs
-      return $ Constraint (Rigid (NamedRigid x j) n) cmp (Flex (SizeMeta m [0..size xs-1]) n')
+      let len = size xs
+      j <- (len-1 -) <$> findIndex (==i) xs
+      return $ Constraint (Rigid (NamedRigid x j) n)
+                      cmp (Flex (SizeMeta m $ downFrom len) n')
 
     -- Case flex-const
     (Flex (SizeMeta m xs) n, _)      ->
-      return $ Constraint (Flex (SizeMeta m [0..size xs-1]) n) cmp b
+      return $ Constraint (Flex (SizeMeta m $ downFrom $ size xs) n) cmp b
 
     -- Case const-flex
     (_, Flex (SizeMeta m xs) n') -> do
-      return $ Constraint a cmp (Flex (SizeMeta m [0..size xs-1]) n')
+      return $ Constraint a cmp (Flex (SizeMeta m $ downFrom $ size xs) n')
 
     -- Case no flex
     _ -> return c
