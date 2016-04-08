@@ -27,7 +27,10 @@ import Agda.TypeChecking.SizedTypes.Utils
 
 -- | Constant finite sizes @n >= 0@.
 newtype Offset = O Int
-  deriving (Eq, Ord, Num, Show, Enum)
+  deriving (Eq, Ord, Num, Enum)
+
+instance Show Offset where
+  show (O n) = show n
 
 instance MeetSemiLattice Offset where
   meet = min
@@ -158,58 +161,59 @@ instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
 
 -- * Constraint simplification
 
-type CTrans r f = Constraint' r f -> Maybe [Constraint' r f]
+type CTrans r f = Constraint' r f -> Either String [Constraint' r f]
 
 -- | Returns 'Nothing' if we have a contradictory constraint.
-simplify1 :: Eq r => CTrans r f-> CTrans r f
-simplify1 test c =
+simplify1 :: (Show f, Show r, Eq r) => CTrans r f -> CTrans r f
+simplify1 test c = do
+  let err = Left $ "size constraint " ++ show c ++ " is inconsistent"
   case c of
     -- rhs is Infty
-    Constraint a           Le  Infty -> Just []
-    Constraint Const{}     Lt  Infty -> Just []
-    Constraint Infty       Lt  Infty -> Nothing
+    Constraint a           Le  Infty -> return []
+    Constraint Const{}     Lt  Infty -> return []
+    Constraint Infty       Lt  Infty -> err
     Constraint (Rigid i n) Lt  Infty -> test $ Constraint (Rigid i 0) Lt Infty
-    Constraint a@Flex{}    Lt  Infty -> Just [c { leftExpr = a { offset = 0 }}]
+    Constraint a@Flex{}    Lt  Infty -> return [c { leftExpr = a { offset = 0 }}]
 
     -- rhs is Const
-    Constraint (Const n)   cmp (Const m) -> if compareOffset n cmp m then Just [] else Nothing
-    Constraint Infty       cmp  Const{}  -> Nothing
+    Constraint (Const n)   cmp (Const m) -> if compareOffset n cmp m then return [] else err
+    Constraint Infty       cmp  Const{}  -> err
     Constraint (Rigid i n) cmp (Const m) ->
       if compareOffset n cmp m then
         test (Constraint (Rigid i 0) Le (Const (m - n - ifLe cmp 0 1)))
-       else Nothing
+       else err
     Constraint (Flex x n)  cmp (Const m) ->
       if compareOffset n cmp m
-       then Just [Constraint (Flex x 0) Le (Const (m - n - ifLe cmp 0 1))]
-       else Nothing
+       then return [Constraint (Flex x 0) Le (Const (m - n - ifLe cmp 0 1))]
+       else err
 
     -- rhs is Rigid
-    Constraint Infty cmp Rigid{} -> Nothing
+    Constraint Infty cmp Rigid{} -> err
     Constraint (Const m) cmp (Rigid i n) ->
-      if compareOffset m cmp n then Just []
+      if compareOffset m cmp n then return []
       else test (Constraint (Const $ m - n) cmp (Rigid i 0))
     Constraint (Rigid j m) cmp (Rigid i n) | i == j ->
-      if compareOffset m cmp n then Just [] else Nothing
+      if compareOffset m cmp n then return [] else err
     Constraint (Rigid j m) cmp (Rigid i n) -> test c
     Constraint (Flex x m)  cmp (Rigid i n) ->
       if compareOffset m cmp n
-       then Just [Constraint (Flex x 0) Le (Rigid i (n - m - ifLe cmp 0 1))]
-       else Just [Constraint (Flex x $ m - n + ifLe cmp 0 1) Le (Rigid i 0)]
+       then return [Constraint (Flex x 0) Le (Rigid i (n - m - ifLe cmp 0 1))]
+       else return [Constraint (Flex x $ m - n + ifLe cmp 0 1) Le (Rigid i 0)]
 
     -- rhs is Flex
-    Constraint Infty Le (Flex x n) -> Just [Constraint Infty Le (Flex x 0)]
-    Constraint Infty Lt (Flex x n) -> Nothing
+    Constraint Infty Le (Flex x n) -> return [Constraint Infty Le (Flex x 0)]
+    Constraint Infty Lt (Flex x n) -> err
     Constraint (Const m) cmp (Flex x n) ->
-      if compareOffset m cmp n then Just []
-      else Just [Constraint (Const $ m - n + ifLe cmp 0 1) Le (Flex x 0)]
+      if compareOffset m cmp n then return []
+      else return [Constraint (Const $ m - n + ifLe cmp 0 1) Le (Flex x 0)]
     Constraint (Rigid i m) cmp (Flex x n) ->
       if compareOffset m cmp n
-      then Just [Constraint (Rigid i 0) cmp (Flex x $ n - m)]
-      else Just [Constraint (Rigid i $ m - n) cmp (Flex x 0)]
+      then return [Constraint (Rigid i 0) cmp (Flex x $ n - m)]
+      else return [Constraint (Rigid i $ m - n) cmp (Flex x 0)]
     Constraint (Flex y m) cmp (Flex x n) ->
       if compareOffset m cmp n
-      then Just [Constraint (Flex y 0) cmp (Flex x $ n - m)]
-      else Just [Constraint (Flex y $ m - n) cmp (Flex x 0)]
+      then return [Constraint (Flex y 0) cmp (Flex x $ n - m)]
+      else return [Constraint (Flex y $ m - n) cmp (Flex x 0)]
 
 -- | 'Le' acts as 'True', 'Lt' as 'False'.
 ifLe :: Cmp -> a -> a -> a
@@ -243,7 +247,7 @@ instance Show Cmp where
   show Lt = "<"
 
 instance (Show r, Show f) => Show (Constraint' r f) where
-  show (Constraint a cmp b) = show a ++ show cmp ++ show b
+  show (Constraint a cmp b) = show a ++ " " ++ show cmp ++ " " ++ show b
 
 -- * Wellformedness
 

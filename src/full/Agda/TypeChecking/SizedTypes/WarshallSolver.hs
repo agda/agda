@@ -446,14 +446,16 @@ type Hyp = Constraint
 type Hyp' = Constraint'
 type HypGraph r f = Graph r f Label
 
-hypGraph :: (Ord rigid, Ord flex) => Set rigid -> [Hyp' rigid flex] -> Maybe (HypGraph rigid flex)
+hypGraph :: (Ord rigid, Ord flex, Show rigid, Show flex) =>
+  Set rigid -> [Hyp' rigid flex] -> Either String (HypGraph rigid flex)
 hypGraph is hyps0 = do
   -- get a list of hypothesis from a list of constraints
   hyps <- concat <$> mapM (simplify1 $ \ c -> return [c]) hyps0
   let g = transClos $
             reflClos (Set.mapMonotonic NodeRigid is) $
               graphFromConstraints hyps
-  if negative g then Nothing else Just g
+  when (negative g) $ Left "size hypotheses graph has negative loop"
+  return g
 
 hypConn :: (Ord r, Ord f) => HypGraph r f -> Node r f -> Node r f -> Label
 -- hypConn hg NodeZero n2  = Label Le 0  -- WRONG: not the best information
@@ -463,7 +465,8 @@ hypConn hg n1 n2
   | Just l <- lookupEdge hg n1 n2 = l
   | otherwise                               = top
 
-simplifyWithHypotheses :: (Ord rigid, Ord flex) => HypGraph rigid flex -> [Constraint' rigid flex] -> Maybe [Constraint' rigid flex]
+simplifyWithHypotheses :: (Ord rigid, Ord flex, Show rigid, Show flex) =>
+  HypGraph rigid flex -> [Constraint' rigid flex] -> Either String [Constraint' rigid flex]
 simplifyWithHypotheses hg cons = concat <$> mapM (simplify1 test) cons
   where
     -- Test whether a constraint is compatible with the hypotheses:
@@ -473,7 +476,8 @@ simplifyWithHypotheses hg cons = concat <$> mapM (simplify1 test) cons
       let Edge n1 n2 l = edgeFromConstraint c
           l' = hypConn hg n1 n2
       -- l' <- lookupEdge hg n1 n2
-      guard (l' <= l)
+      unless (l' <= l) $ Left $
+        "size constraint " ++ show c ++ " not consistent with size hypotheses"
       return [c]
       -- if (l' <= l) then Just [c] else Nothing
 
@@ -482,7 +486,7 @@ simplifyWithHypotheses hg cons = concat <$> mapM (simplify1 test) cons
 
 type ConGraph r f = Graph r f Label
 
-constraintGraph :: (Ord r, Ord f, Show r, Show f) => [Constraint' r f] -> HypGraph r f -> Maybe (ConGraph r f)
+constraintGraph :: (Ord r, Ord f, Show r, Show f) => [Constraint' r f] -> HypGraph r f -> Either String (ConGraph r f)
 constraintGraph cons0 hg = do
   -- Simplify constraints, ensure they are locally consistent with
   -- hypotheses.
@@ -490,14 +494,16 @@ constraintGraph cons0 hg = do
   -- Build a transitive graph from constraints.
   let g = transClos $ graphFromConstraints cons
   -- Ensure it has no negative loops.
-  guard $ not $ negative g
+  when (negative g) $ Left $
+    "size constraint graph has negative loops"
   -- Ensure it does not constrain the hypotheses.
-  guard $ hg `implies` g
+  unless (hg `implies` g) $ Left $
+    "size constraint graph constrains size hypotheses"
   return g
 
 type ConGraphs r f = Graphs r f Label
 
-constraintGraphs :: (Ord r, Ord f, Show r, Show f) => [Constraint' r f] -> HypGraph r f -> Maybe ([f], ConGraphs r f)
+constraintGraphs :: (Ord r, Ord f, Show r, Show f) => [Constraint' r f] -> HypGraph r f -> Either String ([f], ConGraphs r f)
 constraintGraphs cons0 hg = do
   traceM $ "original constraints cons0 = " ++ show cons0
   -- Simplify constraints, ensure they are locally consistent with
@@ -512,14 +518,15 @@ constraintGraphs cons0 hg = do
   -- Check for flexibles to be set to infinity
   let (xss,gs) = unzip $ map infinityFlexs gs1
       xs       = concat xss
-  unless (null $ xs) $ do
+  unless (null xs) $ do
     traceM $ "flexibles to set to oo = " ++ show xs
     traceM $ "forest after oo-subst  = " ++ show (map graphToList gs)
   -- Ensure none has negative loops.
-  guard $ not $ negative gs
+  when (negative gs) $ Left $ "size constraint graph has negative loop"
   traceM $ "we are free of negative loops"
   -- Ensure it does not constrain the hypotheses.
-  forM_ gs $ do \ g -> guard $ hg `implies` g
+  forM_ gs $ \ g -> unless (hg `implies` g) $ Left $
+    "size constraint graph constrains size hypotheses"
   traceM $ "any constraint between rigids is implied by the hypotheses"
   return (xs, gs)
 
@@ -890,7 +897,7 @@ verifySolution :: (Ord r, Ord f, Show r, Show f) => HypGraph r f -> [Constraint'
 verifySolution hg cs sol = do
   cs <- return $ subst sol cs
   traceM $ "substituted constraints " ++ show cs
-  cs <- maybe (Left "solution produces inconsistency") Right $
+  cs <- -- maybe (Left "solution produces inconsistency") Right $
           concat <$> mapM (simplify1 $ \ c -> return [c]) cs
   traceM $ "simplified substituted constraints " ++ show cs
   -- cs <- maybe (Left "solution produces inconsistency") Right $
