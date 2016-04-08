@@ -727,10 +727,10 @@ killedType ((arg@(Dom info _), kill) : kills) b
 -- | Instantiate a meta variable with a new one that only takes
 --   the arguments which are not pruneable.
 performKill
-  :: [I.Arg Bool]  -- ^ Arguments to meta var in left to right order
+  :: [I.Arg Bool]  -- ^ Arguments to old meta var in left to right order
                    --   with @Bool@ indicating whether they can be pruned.
-  -> MetaId        -- ^ The meta var to receive pruning.
-  -> Type          -- ^ The type of the meta var.
+  -> MetaId        -- ^ The old meta var to receive pruning.
+  -> Type          -- ^ The pruned type of the new meta var.
   -> TCM ()
 performKill kills m a = do
   mv <- lookupMeta m
