@@ -52,7 +52,7 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.Lens
-import Agda.Utils.List (takeWhileJust)
+import Agda.Utils.List (takeWhileJust, downFrom)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -672,7 +672,6 @@ data PruneResult
 
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
---   @True@ is only returned if all arguments could be pruned.
 killArgs :: [Bool] -> MetaId -> TCM PruneResult
 killArgs kills _
   | not (or kills) = return NothingToPrune  -- nothing to kill
@@ -688,7 +687,7 @@ killArgs kills m = do
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
       if not (any unArg kills') then return PrunedNothing else do
-        performKill (reverse kills') m a'
+        performKill kills' m a'
         -- Only successful if all occurrences were killed
         -- Andreas, 2011-05-09 more precisely, check that at least
         -- the in 'kills' prescribed kills were carried out
@@ -725,23 +724,38 @@ killedType ((arg@(Dom info _), kill) : kills) b
     (args, b') = killedType kills b
     dontKill = not kill || 0 `freeIn` b'
 
--- The list starts with the last argument
-performKill :: [I.Arg Bool] -> MetaId -> Type -> TCM ()
+-- | Instantiate a meta variable with a new one that only takes
+--   the arguments which are not pruneable.
+performKill
+  :: [I.Arg Bool]  -- ^ Arguments to meta var in left to right order
+                   --   with @Bool@ indicating whether they can be pruned.
+  -> MetaId        -- ^ The meta var to receive pruning.
+  -> Type          -- ^ The type of the meta var.
+  -> TCM ()
 performKill kills m a = do
   mv <- lookupMeta m
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
-  let perm = Perm (size kills)
-             [ i | (i, Arg _ False) <- zip [0..] (reverse kills) ]
+  -- Arity of the old meta.
+  let n = size kills
+  -- The permutation of the new meta picks the arguments
+  -- which are not pruned in left to right order
+  -- (de Bruijn level order).
+  let perm = Perm n
+             [ i | (i, Arg _ False) <- zip [0..] kills ]
   m' <- newMeta (mvInfo mv) (mvPriority mv) perm
                 (HasType __IMPOSSIBLE__ a)
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
-  let vars = reverse [ Arg info (var i) | (i, Arg info False) <- zip [0..] kills ]
-      lam b a = Lam (argInfo a) (Abs "v" b)
-      tel     = map ("v" <$) (reverse kills)
+  let -- Arguments to new meta (de Bruijn indices)
+      -- in left to right order.
+      vars = [ Arg info (var i)
+             | (i, Arg info False) <- zip (downFrom n) kills ]
       u       = MetaV m' $ map Apply vars
+      -- Arguments to the old meta (just arg infos and name hints)
+      -- in left to right order.
+      tel     = map ("v" <$) kills
   dbg m' u
-  assignTerm m tel u
+  assignTerm m tel u  -- m tel := u
   where
     dbg m' u = reportSDoc "tc.meta.kill" 10 $ vcat
       [ text "actual killing"
