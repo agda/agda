@@ -1319,8 +1319,18 @@ Compiler backends
         postulate hs-return : {A : Set} -> A -> IO A
         {-# COMPILED_UHC hs-return (\_ -> UHC.Agda.Builtins.primReturn) #-}
 
-Emacs mode
-==========
+Emacs mode and interaction
+==========================
+
+* Module contents (C-c C-o) now also works for records. [See issue #1926.]
+  If you have an inferable expression of record type in an interaction point,
+  you can invoke C-c C-o to see its fields and types.  Example
+
+    record R : Set where
+      field f : A
+
+    test : R → R
+    test r = {!r!}  -- C-c C-o here
 
 * Less aggressive error notification.
 
