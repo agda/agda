@@ -1,0 +1,6 @@
+Issue300.agda:14,1-16,40
+Cannot solve size constraints
+↑ k ≤ _8 k
+j ≤ _8 j
+Reason: inconsistent lower bound for 8
+when checking the definition of A
