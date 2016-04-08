@@ -334,8 +334,8 @@ compareSizeViews cmp s1' s2' = do
 -- | Checked whether a size constraint is trivial (like @X <= X+1@).
 trivial :: Term -> Term -> TCM Bool
 trivial u v = do
-    a@(e , n ) <- sizeExpr u
-    b@(e', n') <- sizeExpr v
+    a@(e , n ) <- oldSizeExpr u
+    b@(e', n') <- oldSizeExpr v
     let triv = e == e' && n <= n'
           -- Andreas, 2012-02-24  filtering out more trivial constraints fixes
           -- test/lib-succeed/SizeInconsistentMeta4.agda
@@ -410,7 +410,7 @@ getSizeMetas = do
                 -- extension of its creation context
                 ctxIds <- getContextId
                 let a = SizeMeta m $ take (size tel) $ reverse ctxIds
-                (b, n) <- sizeExpr u
+                (b, n) <- oldSizeExpr u
                 return ([(m, size tel)], [Leq a (n-1) b])
 -}
           _ -> nothing
@@ -423,21 +423,22 @@ getSizeMetas = do
 ------------------------------------------------------------------------
 
 -- | Atomic size expressions.
-data SizeExpr
-  = SizeMeta MetaId [Int] -- ^ A size meta applied to de Bruijn levels.
-  | Rigid Int             -- ^ A de Bruijn level.
+data OldSizeExpr
+  = SizeMeta MetaId [Int] -- ^ A size meta applied to de Bruijn indices.
+  | Rigid Int             -- ^ A de Bruijn index.
   deriving (Eq)
 
-instance Show SizeExpr where
+instance Show OldSizeExpr where
   show (SizeMeta m _) = "X" ++ show (fromIntegral m :: Int)
   show (Rigid i)      = "c" ++ show i
 
 -- | Size constraints we can solve.
-data SizeConstraint
-  = Leq SizeExpr Int SizeExpr -- ^ @Leq a +n b@ represents @a =< b + n@.
-                              --   @Leq a -n b@ represents @a + n =< b@.
+data OldSizeConstraint
+  = Leq OldSizeExpr Int OldSizeExpr
+    -- ^ @Leq a +n b@ represents @a =< b + n@.
+    --   @Leq a -n b@ represents @a + n =< b@.
 
-instance Show SizeConstraint where
+instance Show OldSizeConstraint where
   show (Leq a n b)
     | n == 0    = show a ++ " =< " ++ show b
     | n > 0     = show a ++ " =< " ++ show b ++ " + " ++ show n
@@ -448,54 +449,52 @@ instance Show SizeConstraint where
 --   contexts.
 --
 --   cf. 'Agda.TypeChecking.LevelConstraints.simplifyLevelConstraint'
-computeSizeConstraints :: [Closure Constraint] -> TCM [SizeConstraint]
-computeSizeConstraints [] = return [] -- special case to avoid maximum []
-computeSizeConstraints cs = catMaybes <$> mapM computeSizeConstraint leqs
+oldComputeSizeConstraints :: [Closure Constraint] -> TCM [OldSizeConstraint]
+oldComputeSizeConstraints [] = return [] -- special case to avoid maximum []
+oldComputeSizeConstraints cs = catMaybes <$> mapM oldComputeSizeConstraint leqs
   where
     -- get the constraints plus contexts they are defined in
     gammas       = map (envContext . clEnv) cs
     ls           = map clValue cs
     -- compute the longest context (common water level)
-    -- gamma        = maximumBy (compare `on` size) gammas
-    -- waterLevel   = size gamma
     ns           = map size gammas
     waterLevel   = maximum ns
-    -- convert deBruijn indices to deBruijn levels to
-    -- enable comparing constraints under different contexts
-    -- leqs = zipWith raise (map ((waterLevel -) . size) gammas) ls
+    -- lift all constraints to live in the longest context
+    -- (assuming this context is an extension of the shorter ones)
+    -- by raising the de Bruijn indices
     leqs = zipWith raise (map (waterLevel -) ns) ls
 
--- | Turn a constraint over de Bruijn levels into a size constraint.
-computeSizeConstraint :: Constraint -> TCM (Maybe SizeConstraint)
-computeSizeConstraint c =
+-- | Turn a constraint over de Bruijn indices into a size constraint.
+oldComputeSizeConstraint :: Constraint -> TCM (Maybe OldSizeConstraint)
+oldComputeSizeConstraint c =
   case c of
     ValueCmp CmpLeq _ u v -> do
         reportSDoc "tc.size.solve" 50 $ sep
           [ text "converting size constraint"
           , prettyTCM c
           ]
-        (a, n) <- sizeExpr u
-        (b, m) <- sizeExpr v
+        (a, n) <- oldSizeExpr u
+        (b, m) <- oldSizeExpr v
         return $ Just $ Leq a (m - n) b
       `catchError` \ err -> case err of
         PatternErr{} -> return Nothing
         _            -> throwError err
     _ -> __IMPOSSIBLE__
 
--- | Turn a term with de Bruijn levels into a size expression with offset.
+-- | Turn a term with de Bruijn indices into a size expression with offset.
 --
 --   Throws a 'patternViolation' if the term isn't a proper size expression.
-sizeExpr :: Term -> TCM (SizeExpr, Int)
-sizeExpr u = do
+oldSizeExpr :: Term -> TCM (OldSizeExpr, Int)
+oldSizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
-  reportSDoc "tc.conv.size" 60 $ text "sizeExpr:" <+> prettyTCM u
+  reportSDoc "tc.conv.size" 60 $ text "oldSizeExpr:" <+> prettyTCM u
   s <- sizeView u
   case s of
     SizeInf     -> patternViolation
-    SizeSuc u   -> mapSnd (+1) <$> sizeExpr u
+    SizeSuc u   -> mapSnd (+1) <$> oldSizeExpr u
     OtherSize u -> case ignoreSharing u of
-      Var i []  -> return (Rigid i, 0)  -- i is already a de Bruijn level.
+      Var i []  -> return (Rigid i, 0)
       MetaV m es | Just xs <- mapM isVar es, fastDistinct xs
                 -> return (SizeMeta m xs, 0)
       _ -> patternViolation
@@ -507,22 +506,22 @@ sizeExpr u = do
 
 -- | Compute list of size metavariables with their arguments
 --   appearing in a constraint.
-flexibleVariables :: SizeConstraint -> [(MetaId, [Int])]
+flexibleVariables :: OldSizeConstraint -> [(MetaId, [Int])]
 flexibleVariables (Leq a _ b) = flex a ++ flex b
   where
     flex (Rigid _)       = []
     flex (SizeMeta m xs) = [(m, xs)]
 
 -- | Convert size constraint into form where each meta is applied
---   to levels @0,1,..,n-1@ where @n@ is the arity of that meta.
+--   to indices @0,1,..,n-1@ where @n@ is the arity of that meta.
 --
---   @X[σ] <= t@ beomes @X[id] <= t[σ^-1]@
+--   @X[σ] <= t@ becomes @X[id] <= t[σ^-1]@
 --
 --   @X[σ] ≤ Y[τ]@ becomes @X[id] ≤ Y[τ[σ^-1]]@ or @X[σ[τ^1]] ≤ Y[id]@
 --   whichever is defined.  If none is defined, we give up.
 --
-canonicalizeSizeConstraint :: SizeConstraint -> Maybe SizeConstraint
-canonicalizeSizeConstraint c@(Leq a n b) =
+oldCanonicalizeSizeConstraint :: OldSizeConstraint -> Maybe OldSizeConstraint
+oldCanonicalizeSizeConstraint c@(Leq a n b) =
   case (a,b) of
     (Rigid{}, Rigid{})       -> return c
     (SizeMeta m xs, Rigid i) -> do
@@ -542,17 +541,20 @@ canonicalizeSizeConstraint c@(Leq a n b) =
        | otherwise -> Nothing
 
 -- | Main function.
-solveSizeConstraints :: TCM ()
-solveSizeConstraints = whenM haveSizedTypes $ do
+--   Uses the old solver for size constraints using "Agda.Utils.Warshall".
+--   This solver does not smartly use size hypotheses @j : Size< i@.
+--   It only checks that its computed solution is compatible
+oldSolveSizeConstraints :: TCM ()
+oldSolveSizeConstraints = whenM haveSizedTypes $ do
   reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
   cs0 <- getSizeConstraints
-  cs <- computeSizeConstraints cs0
+  cs <- oldComputeSizeConstraints cs0
   ms <- getSizeMetas True -- get all size metas, also interaction metas
 
   when (not (null cs) || not (null ms)) $ do
     reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
 
-    cs <- return $ mapMaybe canonicalizeSizeConstraint cs
+    cs <- return $ mapMaybe oldCanonicalizeSizeConstraint cs
     reportSLn "tc.size.solve" 10 $ "Canonicalized constraints: " ++ show cs
 
     let -- Error for giving up
@@ -595,10 +597,11 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
 
 -- | Old solver for size constraints using "Agda.Utils.Warshall".
+--   This solver does not smartly use size hypotheses @j : Size< i@.
 oldSolver
-  :: [(MetaId, Int)]   -- ^ Size metas and their arity.
-  -> [SizeConstraint]  -- ^ Size constraints (in preprocessed form).
-  -> TCM Bool          -- ^ Returns @False@ if solver fails.
+  :: [(MetaId, Int)]      -- ^ Size metas and their arity.
+  -> [OldSizeConstraint]  -- ^ Size constraints (in preprocessed form).
+  -> TCM Bool             -- ^ Returns @False@ if solver fails.
 oldSolver metas cs = do
   let cannotSolve    = return False
       mkFlex (m, ar) = W.NewFlex (fromIntegral m) $ \ i -> fromIntegral i < ar

@@ -1,4 +1,4 @@
-{-# OPTIONS --sized-types #-}
+-- {-# OPTIONS -v tc.size:100 #-}
 
 module SizedTypesMergeSort where
 
