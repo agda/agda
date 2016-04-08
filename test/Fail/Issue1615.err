@@ -3,5 +3,5 @@ Cannot solve size constraints
 k < i, j < i |- k ≤ _11 i j n k m
 k < i, j < i |- j ≤ _11 i j n k m
 k < i, j < i |- ↑ _11 i j n k m ≤ i
-Reason: solution produces inconsistency
+Reason: size constraint i+1 ≤ i is inconsistent
 when checking the definition of min

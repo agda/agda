@@ -89,6 +89,7 @@ import Agda.TypeChecking.SizedTypes.Utils
 import Agda.TypeChecking.SizedTypes.WarshallSolver as Size
 
 import Agda.Utils.Cluster
+import Agda.Utils.Either
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -153,10 +154,10 @@ solveSizeConstraints_ cs0 = do
   -- Simplify constraints and check for obvious inconsistencies.
   cs <- concat <$> do
     forM ccs $ \ (c, HypSizeConstraint cxt hids hs sc) -> do
-      case simplify1 (\ c -> Just [c]) sc of
-        Nothing -> typeError . GenericDocError =<< do
+      case simplify1 (\ c -> return [c]) sc of
+        Left _ -> typeError . GenericDocError =<< do
           text "Contradictory size constraint" <+> prettyTCM c
-        Just cs -> return $ HypSizeConstraint cxt hids hs <$> cs
+        Right cs -> return $ HypSizeConstraint cxt hids hs <$> cs
 
   -- Cluster constraints according to the meta variables they mention.
   -- @csNoM@ are the constraints that do not mention any meta.
@@ -211,6 +212,8 @@ solveCluster cs = do
       csC :: [SizeConstraint]
       csC = applyWhen (null hs) (mapMaybe canonicalizeSizeConstraint) csL
   reportSDoc "tc.size.solve" 30 $ vcat $
+    [ text "Size hypotheses" ] ++
+    map (prettyTCM . HypSizeConstraint gamma hids hs) hs ++
     [ text "Canonicalized constraints" ] ++
     map (prettyTCM . HypSizeConstraint gamma hids hs) csC
   -- Convert size metas to flexible vars.
@@ -222,11 +225,11 @@ solveCluster cs = do
   -- Construct the hypotheses graph.
   let hyps = map (fmap (metaId . sizeMetaId)) hs
   -- There cannot be negative cycles in hypotheses graph due to scoping.
-  let hg = fromMaybe __IMPOSSIBLE__ $ hypGraph (rigids csF) hyps
+  let hg = fromRight __IMPOSSIBLE__ $ hypGraph (rigids csF) hyps
 
   -- Construct the constraint graph.
   --    g :: Size.Graph NamedRigid Int Label
-  g <- maybe (err "Inconsistent constraints") return $ constraintGraph csF hg
+  g <- either err return $ constraintGraph csF hg
   reportSDoc "tc.size.solve" 40 $ vcat $
     [ text "Constraint graph"
     , text (show g)
@@ -340,6 +343,8 @@ data SizeMeta = SizeMeta
 instance Eq  SizeMeta where (==)    = (==)    `on` sizeMetaId
 -- | An order which ignores the meta arguments.
 instance Ord SizeMeta where compare = compare `on` sizeMetaId
+
+instance Show SizeMeta where show = show . sizeMetaId
 
 instance PrettyTCM SizeMeta where
   prettyTCM (SizeMeta x es) = prettyTCM (MetaV x $ map (Apply . defaultArg . var) es)
