@@ -36,8 +36,8 @@ import Agda.Utils.Impossible
 
 -- | Run before serialisation to remove any definitions that are not reachable
 --   from the public interface to the module.
-eliminateDeadCode :: Signature -> TCM Signature
-eliminateDeadCode sig = Bench.billTo [Bench.DeadCode] $ do
+eliminateDeadCode :: DisplayForms -> Signature -> TCM (DisplayForms, Signature)
+eliminateDeadCode disp sig = Bench.billTo [Bench.DeadCode] $ do
   patsyn <- getPatternSyns
   public <- Set.map anameName . publicNames <$> getScope
   defs <- traverse instantiateFull $ sig ^. sigDefinitions
@@ -46,8 +46,9 @@ eliminateDeadCode sig = Bench.billTo [Bench.DeadCode] $ do
       valid = Set.null . Set.intersection dead . namesIn
       defs' = HMap.map ( \ d -> d { defDisplay = filter valid (defDisplay d) } )
             $ HMap.filterWithKey (\ x _ -> Set.member x r) defs
+      disp' = HMap.filter (not . null) $ HMap.map (filter valid) disp
   reportSLn "tc.dead" 10 $ "Removed " ++ show (HMap.size defs - HMap.size defs') ++ " unused definitions."
-  return $ set sigDefinitions defs' sig
+  return (disp', set sigDefinitions defs' sig)
 
 reachableFrom :: Set QName -> A.PatternSynDefns -> Definitions -> Set QName
 reachableFrom names psyns defs = follow names (Set.toList names)

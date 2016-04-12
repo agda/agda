@@ -726,15 +726,17 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
     -- with discarding also the nameBindingSite in QName:
     -- Saves 10% on serialization time (and file size)!
-    sig     <- killRange <$> (eliminateDeadCode =<< getSignature)
     builtin <- use stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
     hsImps  <- getHaskellImports
     uhcHsImps <- getHaskellImportsUHC
     hsCode  <- use stHaskellCode
-    display <- use stImportsDisplayForms
+    -- Ulf, 2016-04-12:
+    -- Non-closed display forms are not applicable outside the module anyway,
+    -- and should be dead-code eliminated (#1928).
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
+    (display, sig) <- second killRange <$> (eliminateDeadCode display =<< getSignature)
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
