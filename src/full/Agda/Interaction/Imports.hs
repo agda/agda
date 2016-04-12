@@ -734,6 +734,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     uhcHsImps <- getHaskellImportsUHC
     hsCode  <- use stHaskellCode
     display <- use stImportsDisplayForms
+    display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.

@@ -3,7 +3,7 @@
 
 module Agda.TypeChecking.Monad.Open
         ( makeOpen
-        , makeClosed
+        , makeClosed, isClosed
         , getOpen
         , tryOpen
         ) where
@@ -29,6 +29,10 @@ makeOpen x = do
 -- | Create an open term which is closed.
 makeClosed :: a -> Open a
 makeClosed = OpenThing []
+
+-- | Check if an 'Open' is closed.
+isClosed :: Open a -> Bool
+isClosed (OpenThing cxt _) = null cxt
 
 -- | Extract the value from an open term. Must be done in an extension of the
 --   context in which the term was created.
