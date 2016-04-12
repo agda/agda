@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.5.0
+version:         2.5.0.20160412
 cabal-version:   >= 1.8
 build-type:      Custom
 license:         OtherLicense
@@ -532,7 +532,7 @@ executable agda
   hs-source-dirs: src/main
   main-is:        Main.hs
   build-depends:
-    Agda == 2.5.0
+    Agda == 2.5.0.20160412
     -- Nothing is used from the following package, except for the
     -- prelude.
     , base >= 4.6.0.1 && < 6
