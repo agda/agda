@@ -30,6 +30,8 @@ import Agda.Utils.Except ( ExceptT, runExceptT, MonadError(throwError) )
 import Agda.Utils.List
 import Agda.Utils.Pretty
 
+import Agda.Version
+
 type LibM = ExceptT Doc IO
 
 catchIO :: IO a -> (IOException -> IO a) -> IO a
@@ -46,8 +48,8 @@ getAgdaAppDir = do
         putStrLn $ "Warning: Environment variable AGDA_DIR points to non-existing directory " ++ show dir ++ ", using " ++ show d ++ " instead."
         return d
 
-libraryFile :: FilePath
-libraryFile = "libraries"
+defaultLibraryFiles :: [FilePath]
+defaultLibraryFiles = ["libraries-" ++ version, "libraries"]
 
 defaultsFile :: FilePath
 defaultsFile = "defaults"
@@ -94,7 +96,11 @@ readDefaultsFile = do
 getLibrariesFile :: Maybe FilePath -> IO FilePath
 getLibrariesFile overrideLibFile = do
   agdaDir <- getAgdaAppDir
-  return $ fromMaybe (agdaDir </> libraryFile) overrideLibFile
+  let override = maybe [] (:[]) overrideLibFile
+  files   <- (override ++) <$> filterM doesFileExist (map (agdaDir </>) defaultLibraryFiles)
+  case files of
+    file : _ -> return file
+    []       -> return (agdaDir </> last defaultLibraryFiles) -- doesn't exist, but that's ok
 
 getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
 getInstalledLibraries overrideLibFile = mkLibM [] $ do

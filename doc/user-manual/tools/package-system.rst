@@ -34,14 +34,20 @@ paths are relative to the location of the library-file.
 Installing libraries
 --------------------
 
-To be found by Agda a library file has to be listed (with its full path) in the file
-``AGDA_DIR/libraries`` (where ``AGDA_DIR`` defaults to ``~/.agda`` on unix-like systems
-and ``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows, and can be
-overridden by setting the ``AGDA_DIR`` environment variable).
+To be found by Agda a library file has to be listed (with its full path) in a
+*libraries* file
+
+- ``AGDA_DIR/libraries-VERSION``, or if that doesn't exist
+- ``AGDA_DIR/libraries``
+
+where ``VERSION`` is the Agda version (for instance ``2.5.1``). The
+``AGDA_DIR`` defaults to ``~/.agda`` on unix-like systems and
+``C:\Users\USERNAME\AppData\Roaming\agda`` or similar on Windows, and can be
+overridden by setting the ``AGDA_DIR`` environment variable.
+
 Environment variables in the paths (of the form ``$VAR`` or ``${VAR}``) are
 expanded. The location of the libraries file used can be overridden using the
-``--library-file=FILE`` command line option, although this is not expected to
-be very useful.
+``--library-file=FILE`` command line option.
 
 You can find out the precise location of the ``libraries`` file by
 calling ``agda -l fjdsk Dummy.agda`` at the command line and looking at the
