@@ -840,6 +840,10 @@ hasElims v =
     MetaV x es -> Just (MetaV x, es)
     Con{}      -> Nothing
     Lit{}      -> Nothing
+    -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
+    Lam _ (Abs _ v)  -> case ignoreSharing v of
+      Var 0 [Proj f] -> Just (Def f, [])
+      _              -> Nothing
     Lam{}      -> Nothing
     Pi{}       -> Nothing
     Sort{}     -> Nothing

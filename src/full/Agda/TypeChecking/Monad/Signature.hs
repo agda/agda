@@ -262,7 +262,7 @@ addDisplayForms x = do
                         | m < length args -> "too few args"
                         | m > length args -> "too many args"
                         | otherwise       -> "args=" ++ show args ++ " es=" ++ show es
-                      Just (m, v) -> "not a def body"
+                      Just (m, v) -> "not a def body, but " ++ show v
           reportSLn "tc.display.section" 30 $
             "no display form from " ++ show x ++ " because " ++ reason
 
