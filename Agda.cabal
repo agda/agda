@@ -478,6 +478,7 @@ library
 
   if impl(ghc >= 7.6.3)
     ghc-options: -w
+                 -Werror
                  -fwarn-deprecated-flags
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
@@ -524,6 +525,8 @@ library
 
   if impl(ghc >= 8.0)
     ghc-options: -Wnoncanonical-monad-instances
+
+  ghc-prof-options: -fprof-auto
 
 executable agda
   hs-source-dirs: src/main
@@ -612,6 +615,7 @@ test-suite agda-tests
                     -Wall
                     -fwarn-identities
                     -fno-warn-unused-imports
+                    -Werror
 
   if impl(ghc < 8.0)
     ghc-options: -fwarn-missing-local-sigs
