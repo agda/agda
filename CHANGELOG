@@ -1156,9 +1156,9 @@ Type checking
     test : foo ≡ foo → Set₁
     test refl = Set
 
-* The aggressive behaviour of `with` introduced in 2.4.2.5 has been rolled
-  back. With no longer abstracts in the types of variables appearing in the
-  with-expressions. [Issue 1692]
+* The aggressive behaviour of `with` introduced in 2.4.2.5 has been
+  rolled back [Issue 1692]. With no longer abstracts in the types of
+  variables appearing in the with-expressions. [Issue 745]
 
   This means that the following example no longer works:
 
