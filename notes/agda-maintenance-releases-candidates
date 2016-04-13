@@ -78,7 +78,7 @@ the following procedure can be followed:
   first):
 
     cd $BASE
-    git tag -a $RC_VERSION -m "Agda $VERSION release candidate"
+    git tag -a $RC_VERSION -m "Agda $VERSION release candidate n"
 
 * Restore the Cabal test-suite in Agda.cabal.
 
@@ -97,7 +97,7 @@ the following procedure can be followed:
   candidate (requires Git >= 1.8.3) (untested):
 
     cd std-lib
-    git tag -a $RC_VERSION -m "Standard library compatible with Agda $VERSION release candidate n"
+    git tag -a $RC_VERSION -m "Agda standard library compatible with Agda $VERSION release candidate n"
     git push --follow-tags
 
 * Push all changes and merge into 'master' branch (requires Git >= 1.8.3).
