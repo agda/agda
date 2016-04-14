@@ -1,5 +1,3 @@
-Issue1428.agda:6,11-36
-Functions may not return sizes, thus, function type
-SizeUniv → SizeUniv is illegal
-when checking that the expression (A : SizeUniv) → SizeUniv is a
-type
+Issue1428.agda:8,10-11
+Set != Set₁
+when checking that the expression A has type Set

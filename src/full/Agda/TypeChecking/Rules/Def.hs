@@ -446,6 +446,11 @@ checkRHS i x aps t lhsResult@(LHSResult delta ps trhs perm) rhs0 = handleRHS rhs
 
         (proof, eqt) <- inferExpr eq
 
+        -- Andreas, 2016-04-14, see also Issue #1796
+        -- Run the size constraint solver to improve with-abstraction
+        -- in case the with-expression contains size metas.
+        solveSizeConstraints DefaultToInfty
+
         -- Check that the type is actually an equality (lhs ≡ rhs)
         -- and extract lhs, rhs, and their type.
 

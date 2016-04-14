@@ -593,8 +593,15 @@ tset = return $ sort (mkType 0)
 tSetOmega :: TCM Type
 tSetOmega = return $ sort Inf
 
+sSizeUniv :: Sort
+sSizeUniv = mkType 0
+-- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
+-- sSizeUniv = SizeUniv
+
 tSizeUniv :: TCM Type
-tSizeUniv = return $ El SizeUniv $ Sort SizeUniv
+tSizeUniv = tset
+-- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
+-- tSizeUniv = return $ El sSizeUniv $ Sort sSizeUniv
 -- Andreas, 2015-03-16 Since equality checking for types
 -- includes equality checking for sorts, we cannot put
 -- SizeUniv in Setω.  (SizeUniv : Setω) == (_0 : suc _0)

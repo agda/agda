@@ -237,7 +237,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tstring    = el primString
         tqname     = el primQName
         tmeta      = el primAgdaMeta
-        tsize      = El SizeUniv <$> primSize
+        tsize      = El sSizeUniv <$> primSize
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
@@ -580,8 +580,8 @@ bindBuiltinNoDef b q = do
         -- Andreas, 2015-02-14
         -- Special treatment of SizeUniv, should maybe be a primitive.
         def | b == builtinSizeUniv = emptyFunction
-                { funClauses = [ (empty :: Clause) { clauseBody = Body $ Sort SizeUniv } ]
-                , funCompiled = Just (CC.Done [] $ Sort SizeUniv)
+                { funClauses = [ (empty :: Clause) { clauseBody = Body $ Sort sSizeUniv } ]
+                , funCompiled = Just (CC.Done [] $ Sort sSizeUniv)
                 , funTerminates = Just True
                 }
             | otherwise = Axiom

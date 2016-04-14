@@ -20,4 +20,12 @@ loop : Size → ⊥
 loop i = iter i (c (pred i))
 
 absurd : ⊥
-absurd = loop ∞
+absurd = FIXME loop ∞
+
+-- Testcase temporarily mutilated, original error
+-- -Issue1428c.agda:13,5-19
+-- -We don't like postulated sizes in parametrized modules.
+-- +Issue1428c.agda:23,10-15
+-- +Not in scope:
+-- +  FIXME at Issue1428c.agda:23,10-15
+-- +when scope checking FIXME
