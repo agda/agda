@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 
 #if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE FlexibleContexts #-}
@@ -35,6 +36,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Functor
 import Agda.Utils.Pretty (prettyShow)
 
 #include "undefined.h"
@@ -288,12 +290,16 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
         Var _ es  -> areThereNonRigidMetaArgs es
         Con _ vs  -> areThereNonRigidMetaArgs (map Apply vs)
         MetaV i _ -> ifM (isRigid i) (return Nothing) $ do
-                      -- Ignore unconstrained level metas (#1865)
+                      -- Ignore unconstrained level and size metas (#1865)
                       Def lvl [] <- ignoreSharing <$> primLevel
+                      sz <- for (fmap ignoreSharing <$> getBuiltin' builtinSize) $ \case
+                              Just (Def sz []) -> [sz]
+                              Nothing          -> []
+                              _                -> __IMPOSSIBLE__
                       o          <- getOutputTypeName . jMetaType . mvJudgement =<< lookupMeta i
                       case o of
-                        OutputTypeName l | l == lvl -> return Nothing
-                        _                           -> return (Just i)
+                        OutputTypeName l | elem l (lvl : sz) -> return Nothing
+                        _                                   -> return (Just i)
         Lam _ t   -> isNonRigidMeta (unAbs t)
         _         -> return Nothing
 
