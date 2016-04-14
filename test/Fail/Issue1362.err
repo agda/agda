@@ -1,0 +1,4 @@
+Issue1362.agda:25,7-41
+quote D != quote M₁.D of type QName
+when checking that the expression
+cong getType {quote D} {quote D} ? has type type₁ ≡ type₂
