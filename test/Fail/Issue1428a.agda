@@ -19,4 +19,14 @@ d : ∀ i → D i
 d i = wrap (pred i)
 
 absurd : ⊥
-absurd = loop ∞ (d ∞)
+absurd = FIXME loop ∞ (d ∞)
+
+-- Testcase temporarily mutilated, original error:
+-- -Issue1428a.agda:9,20-31
+-- -Functions may not return sizes, thus, function type
+-- -(i : Size) → Size< i is illegal
+-- -when checking that the expression ∀ i → Size< i is a type
+-- +Issue1428a.agda:22,10-15
+-- +Not in scope:
+-- +  FIXME at Issue1428a.agda:22,10-15
+-- +when scope checking FIXME
