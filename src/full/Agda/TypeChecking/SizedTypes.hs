@@ -640,7 +640,7 @@ oldSolver metas cs = do
             -- Andreas, 2012-09-25: do not assign interaction metas to \infty
             let isInf (W.SizeConst W.Infinite) = True
                 isInf _                        = False
-            unlessM ((isJust <$> isInteractionMeta m) `and2M` return (isInf e)) $
+            unlessM (((isInf e &&) . isJust <$> isInteractionMeta m) `or2M` isFrozen m) $
               assignTerm m tel v
 
       mapM_ inst $ Map.toList sol

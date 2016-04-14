@@ -130,7 +130,7 @@ solveSizeConstraints flag =  do
   ms <- S.getSizeMetas False -- do not get interaction metas
   unless (null ms) $ do
     inf <- primSizeInf
-    forM_ ms $ \ (m, t, tel) -> do
+    forM_ ms $ \ (m, t, tel) -> unlessM (isFrozen m) $ do
       reportSDoc "tc.size.solve" 20 $
         text "solution " <+> prettyTCM (MetaV m []) <+>
         text " := "      <+> prettyTCM inf
