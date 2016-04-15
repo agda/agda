@@ -275,7 +275,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction;
+       make BUILD_DIR=$BUILD_DIR lib-interaction;
     fi
 
   - if [[ $TEST = "main" ]]; then
