@@ -211,32 +211,36 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
   where
     -- Andreas, 2015-05-03: Ulf, please comment on what
     -- is the idea behind okDisplayForm.
-    okDisplayForm (DWithApp d ds []) =
-      okDisplayForm d && all okDisplayTerm ds
+    -- Ulf, 2016-04-15: okDisplayForm should return True if the display form
+    -- can serve as a valid left-hand side. That means checking that it is a
+    -- defined name applied to valid lhs eliminators (projections or
+    -- applications to constructor patterns).
+    okDisplayForm (DWithApp d ds [])   = okDisplayForm d && all okDisplayTerm ds
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
-    okDisplayForm (DDef f es) = all okDElim es
-    okDisplayForm DDot{} = False
-    okDisplayForm DCon{} = False
-    okDisplayForm DTerm{} = True -- False?
-    okDisplayForm DWithApp{} = True -- False?
+    okDisplayForm (DDef f es)          = all okDElim es
+    okDisplayForm DDot{}               = False
+    okDisplayForm DCon{}               = False
+    okDisplayForm DTerm{}              = False
+    okDisplayForm DWithApp{}           = False
 
     okDisplayTerm (DTerm v) = okTerm v
-    okDisplayTerm DDot{} = True
-    okDisplayTerm DCon{} = True
-    okDisplayTerm DDef{} = False
-    okDisplayTerm _ = False
+    okDisplayTerm DDot{}    = True
+    okDisplayTerm DCon{}    = True
+    okDisplayTerm DDef{}    = False
+    okDisplayTerm _         = False
 
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
-    okDElim I.Proj{}    = True  -- True, man, or False?  No clue what I am implementing here --Andreas, 2015-05-03
+    okDElim I.Proj{}    = True
+
     okArg = okTerm . unArg
 
     okElim (I.Apply a) = okArg a
-    okElim (I.Proj{})  = False
+    okElim (I.Proj{})  = True
 
     okTerm (I.Var _ []) = True
     okTerm (I.Con c vs) = all okArg vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
-    okTerm _            = True -- False
+    okTerm _            = False
 
     -- Flatten a dt into (parentName, parentElims, withArgs).
     flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [DisplayTerm])
