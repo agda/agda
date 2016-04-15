@@ -170,8 +170,8 @@ below <reflection-tc-monad>`.
   data Definition : Set where
     funDef          : List Clause → Definition
     dataDef         : Nat → List Name → Definition -- parameters and constructors
-    recordDef       : Name → Definition -- name of constructor
-    dataConstructor : Name → Definition -- name of data/record type
+    recordDef       : Name → Definition            -- name of data/record type
+    dataConstructor : Name → Definition            -- name of constructor
     axiom           : Definition
     primFun         : Definition
 
