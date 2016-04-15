@@ -14,13 +14,6 @@ Important changes since 0.11:
 
 The library has been tested using Agda version 2.4.2.4.
 
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
-
 Important changes since 0.10:
 
 * Relation.Binary.PropositionalEquality.TrustMe.erase was added.
@@ -41,13 +34,6 @@ Important changes since 0.10:
 ------------------------------------------------------------------------
 
 The library has been tested using Agda version 2.4.2.3.
-
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
 
 Important changes since 0.9:
 
@@ -187,13 +173,6 @@ Important changes since 0.9:
 
 The library has been tested using Agda version 2.4.2.1.
 
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
-
 Important changes since 0.8.1:
 
 * Data.List.NonEmpty
@@ -223,13 +202,6 @@ Important changes since 0.8.1:
 
 The library has been tested using Agda version 2.4.2.
 
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
-
 Important changes since 0.8:
 
 * Reflection API
@@ -255,13 +227,6 @@ http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary.
 
 The library has been tested using Agda version 2.4.0.
 
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
-
 ------------------------------------------------------------------------
 Version 0.7
 ------------------------------------------------------------------------
@@ -271,14 +236,7 @@ http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary.
 
 The library has been tested using Agda version 2.3.2.
 
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
-
--------------------------------------------------------------------
+------------------------------------------------------------------------
 Version 0.6
 ------------------------------------------------------------------------
 
@@ -286,13 +244,6 @@ Version 0.6 of the standard library has now been released, see
 http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary.
 
 The library has been tested using Agda version 2.3.0.
-
-If you want to compile the library using the MAlonzo compiler, then
-you should first install some supporting Haskell code, for instance as
-follows:
-
-  cd ffi
-  cabal install
 
 ------------------------------------------------------------------------
 Version 0.5

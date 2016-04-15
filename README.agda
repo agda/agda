@@ -24,6 +24,13 @@ module README where
 -- The library comes with a .agda-lib file, for use with the library
 -- management system.
 
+-- If you want to compile the library using the GHC compiler backend,
+-- then you should first install some supporting Haskell code, for
+-- instance as follows:
+
+--   cd ffi
+--   cabal install
+
 -- Currently the library does not support the JavaScript compiler
 -- backend.
 
