@@ -16,8 +16,8 @@ postulate Name : Set
 
 primitive
   primQNameEquality : Name → Name → Bool
-  primQNameLess : Name → Name → Bool
-  primShowQName : Name → String
+  primQNameLess     : Name → Name → Bool
+  primShowQName     : Name → String
 
 -- Metavariables --
 
@@ -26,8 +26,8 @@ postulate Meta : Set
 
 primitive
   primMetaEquality : Meta → Meta → Bool
-  primMetaLess : Meta → Meta → Bool
-  primShowMeta : Meta → String
+  primMetaLess     : Meta → Meta → Bool
+  primShowMeta     : Meta → String
 
 -- Arguments --
 
@@ -38,7 +38,7 @@ data Visibility : Set where
 {-# BUILTIN HIDING   Visibility #-}
 {-# BUILTIN VISIBLE  visible    #-}
 {-# BUILTIN HIDDEN   hidden     #-}
-{-# BUILTIN INSTANCE instance′   #-}
+{-# BUILTIN INSTANCE instance′  #-}
 
 -- Arguments can be relevant or irrelevant.
 data Relevance : Set where
@@ -64,8 +64,8 @@ data Arg (A : Set) : Set where
 data Abs (A : Set) : Set where
   abs : (s : String) (x : A) → Abs A
 
-{-# BUILTIN ABS        Abs      #-}
-{-# BUILTIN ABSABS     abs      #-}
+{-# BUILTIN ABS    Abs #-}
+{-# BUILTIN ABSABS abs #-}
 
 -- Literals --
 
@@ -85,29 +85,7 @@ data Literal : Set where
 {-# BUILTIN AGDALITQNAME  name    #-}
 {-# BUILTIN AGDALITMETA   meta    #-}
 
--- Terms --
-
-data Sort   : Set
-data Clause : Set
-data Term   : Set
-Type = Term
-
-data Term where
-  var           : (x : Nat) (args : List (Arg Term)) → Term
-  con           : (c : Name) (args : List (Arg Term)) → Term
-  def           : (f : Name) (args : List (Arg Term)) → Term
-  lam           : (v : Visibility) (t : Abs Term) → Term
-  pat-lam       : (cs : List Clause) (args : List (Arg Term)) → Term
-  pi            : (a : Arg Type) (b : Abs Type) → Term
-  agda-sort     : (s : Sort) → Term
-  lit           : (l : Literal) → Term
-  meta          : (x : Meta) → List (Arg Term) → Term
-  unknown       : Term
-
-data Sort where
-  set     : (t : Term) → Sort
-  lit     : (n : Nat) → Sort
-  unknown : Sort
+-- Patterns --
 
 data Pattern : Set where
   con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
@@ -117,35 +95,60 @@ data Pattern : Set where
   proj   : (f : Name)    → Pattern
   absurd : Pattern
 
-data Clause where
-  clause        : (ps : List (Arg Pattern)) (t : Term) → Clause
-  absurd-clause : (ps : List (Arg Pattern)) → Clause
-
-{-# BUILTIN AGDASORT      Sort    #-}
-{-# BUILTIN AGDATERM      Term    #-}
 {-# BUILTIN AGDAPATTERN   Pattern #-}
-{-# BUILTIN AGDACLAUSE    Clause  #-}
-
-{-# BUILTIN AGDATERMVAR         var     #-}
-{-# BUILTIN AGDATERMCON         con     #-}
-{-# BUILTIN AGDATERMDEF         def     #-}
-{-# BUILTIN AGDATERMMETA        meta    #-}
-{-# BUILTIN AGDATERMLAM         lam     #-}
-{-# BUILTIN AGDATERMEXTLAM      pat-lam #-}
-{-# BUILTIN AGDATERMPI          pi      #-}
-{-# BUILTIN AGDATERMSORT        agda-sort #-}
-{-# BUILTIN AGDATERMLIT         lit     #-}
-{-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
-{-# BUILTIN AGDASORTSET         set     #-}
-{-# BUILTIN AGDASORTLIT         lit     #-}
-{-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
-
 {-# BUILTIN AGDAPATCON    con     #-}
 {-# BUILTIN AGDAPATDOT    dot     #-}
 {-# BUILTIN AGDAPATVAR    var     #-}
 {-# BUILTIN AGDAPATLIT    lit     #-}
 {-# BUILTIN AGDAPATPROJ   proj    #-}
 {-# BUILTIN AGDAPATABSURD absurd  #-}
+
+-- Terms --
+
+data Sort   : Set
+data Clause : Set
+data Term   : Set
+Type = Term
+
+data Term where
+  var       : (x : Nat) (args : List (Arg Term)) → Term
+  con       : (c : Name) (args : List (Arg Term)) → Term
+  def       : (f : Name) (args : List (Arg Term)) → Term
+  lam       : (v : Visibility) (t : Abs Term) → Term
+  pat-lam   : (cs : List Clause) (args : List (Arg Term)) → Term
+  pi        : (a : Arg Type) (b : Abs Type) → Term
+  agda-sort : (s : Sort) → Term
+  lit       : (l : Literal) → Term
+  meta      : (x : Meta) → List (Arg Term) → Term
+  unknown   : Term
+
+data Sort where
+  set     : (t : Term) → Sort
+  lit     : (n : Nat) → Sort
+  unknown : Sort
+
+data Clause where
+  clause        : (ps : List (Arg Pattern)) (t : Term) → Clause
+  absurd-clause : (ps : List (Arg Pattern)) → Clause
+
+{-# BUILTIN AGDASORT    Sort   #-}
+{-# BUILTIN AGDATERM    Term   #-}
+{-# BUILTIN AGDACLAUSE  Clause #-}
+
+{-# BUILTIN AGDATERMVAR         var       #-}
+{-# BUILTIN AGDATERMCON         con       #-}
+{-# BUILTIN AGDATERMDEF         def       #-}
+{-# BUILTIN AGDATERMMETA        meta      #-}
+{-# BUILTIN AGDATERMLAM         lam       #-}
+{-# BUILTIN AGDATERMEXTLAM      pat-lam   #-}
+{-# BUILTIN AGDATERMPI          pi        #-}
+{-# BUILTIN AGDATERMSORT        agda-sort #-}
+{-# BUILTIN AGDATERMLIT         lit       #-}
+{-# BUILTIN AGDATERMUNSUPPORTED unknown   #-}
+
+{-# BUILTIN AGDASORTSET         set     #-}
+{-# BUILTIN AGDASORTLIT         lit     #-}
+{-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
 {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
