@@ -1387,28 +1387,10 @@ Highlighting and textual backends
   [Issue 1714]
   This leads also to nicer printing in the LaTeX and html backends.
 
-Fixed issues (TODO)
+Fixed issues
 ============
 
-See https://github.com/agda/agda/issues
-* 480
-* 520
-* 1159
-* 1388
-* 1674
-* 1740
-* 1757
-* 1759
-* 1763
-* 1766
-* 1778
-* 1783
-* 1790
-* 1791
-* 1792
-* 1795
-* 1796
-* 1811
+See https://github.com/agda/agda/issues?q=milestone%3A2.5.1+is%3Aclosed
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5
