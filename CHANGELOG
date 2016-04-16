@@ -524,8 +524,8 @@ Reflection
     data Definition : Set where
       fun-def     : List Clause  → Definition
       data-type   : Nat → List Name → Definition -- parameters and constructors
-      record-type : Name → Definition            -- name of the constructor
-      data-con    : Name → Definition            -- name of the data/record type
+      record-type : Name → Definition            -- name of the data/record type
+      data-con    : Name → Definition            -- name of the constructor
       axiom       : Definition
       prim-fun    : Definition
 
