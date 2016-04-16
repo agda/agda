@@ -14,14 +14,6 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-override CABAL_OPTS+=--builddir=$(BUILD_DIR)
-
-# --program-suffix is not for the executable name in
-# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
-override CABAL_OPTS+=--program-suffix=-$(VERSION)
-
-AGDA_MODE=agda-mode-$(VERSION)
-
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
 
@@ -32,6 +24,8 @@ ifeq "$(GHC_VERSION)" "7.10"
 override CABAL_OPTS+=-fuhc
 endif
 endif
+
+override CABAL_OPTS+=--builddir=$(BUILD_DIR)
 
 # Run in interactive and parallel mode by default
 
