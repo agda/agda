@@ -16,17 +16,9 @@ procedure can be followed:
 
 * Update the lib.cabal version to X.Y.
 
-* Update the ffi/agda-lib-ffi.cabal version to X.Y.
-
 * Ensure that the library type-checks using Agda A.B.C:
 
     make test
-
-* Ensure that the auxiliary Haskell code used by the library builds
-  properly (with the versions of GHC supported by Agda A.B.C if
-  possible):
-
-    make agda-lib-ffi
 
 * If necessary, copy the contents of notes/future-version.txt to
   CHANGELOG. Remove the contents from notes/future-version.txt
