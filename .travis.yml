@@ -231,7 +231,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR fail;
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -243,7 +243,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -267,11 +267,11 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR compiler-test;
+       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR lib-succeed;
+       make BUILD_DIR=$BUILD_DIR lib-succeed;
     fi
 
   - if [[ $TEST = "main" ]]; then
