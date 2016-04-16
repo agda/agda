@@ -1,4 +1,12 @@
 ------------------------------------------------------------------------
+-- Release notes for Agda standard library version TODO
+------------------------------------------------------------------------
+
+The library has been tested using Agda version TODO.
+
+Important changes since 0.12:
+
+------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12
 ------------------------------------------------------------------------
 
