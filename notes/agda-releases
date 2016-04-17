@@ -4,6 +4,20 @@ followed:
 * First, release a release candidate (see
   notes/agda-releases-candidates).
 
+* The $FILES variable represents the files where it is necessary to
+  change the version number.
+
+    $FILES=
+      .ghci
+      Agda.cabal (twice)
+      default.nix
+      doc/user-manual/conf.py
+      mk/version.mk
+      src/data/emacs-mode/agda2-mode.el
+      src/size-solver/size-solver.cabal
+      test/interaction/Issue1244a.out
+      test/interaction/Issue1244b.out
+
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
 
@@ -14,14 +28,17 @@ followed:
     git clone git@github.com:agda/agda agda.release
     cd agda.release
 
-* Obtain and install the standard library branch related to the Agda
-  new version.
+* If the current version in master is 2.5.0 the versions used in this
+  notes are:
 
-    make up-to-date-std-lib
+    VERSION=<current-version-plus-0.0.1>
+    VERSION=2.5.1
 
-* Clone the standard library branch related to the Agda new version:
+    STABLE_BRANCH_VERSION=<two-first-digits-of-the-current-version>
+    STABLE_BRANCH_VERSION=2.5
 
-    make std-lib
+    NEXT_VERSION=<current-version-plus-0.1.0>
+    NEXT_VERSION=2.6.0
 
 * Finish the CHANGELOG.
 
@@ -29,29 +46,154 @@ followed:
 
 * Update the LICENSE file, if necessary.
 
-* Update the version number in:
+* Update the version numbers to $VERSION in $FILES.
 
-    .ghci
-    Agda.cabal (twice)
-    default.nix
-    doc/user-manual/conf.py
-    mk/version.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
+* Obtain and install the standard library branch related to the Agda
+  new version.
+
+    make up-to-date-std-lib
 
 * Add a second source-repository section to Agda.cabal:
 
     source-repository this
       type:     git
-      location: https://github.com/agda/agda/tree/<version>
-      tag:      <version>
+      location: https://github.com/agda/agda/tree/$VERSION
+      tag:      $VERSION
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
 
+* Run the test-suite:
+
+    make compile-emacs-mode
+    make test
+
+  Note that "compile-emacs-mode" invokes "agda-mode compile", which
+  should ensure that the Emacs mode can be compiled without errors or
+  warnings (except for the "cl package required at runtime" warning).
+
 * Remove the Cabal test-suite from Agda.cabal.
+
+* Build source distributions:
+
+    cabal configure
+    cabal check
+    cabal sdist
+    cabal install
+
+* Ensure that the package builds properly (with multiple versions of GHC if
+  possible) in Linux, MacOS X and Windows.
+
+    BASE=`pwd`
+    cd ${TMPDIR:-/tmp}
+    tar xzf $BASE/dist/Agda-$VERSION.tar.gz
+    cd Agda-$VERSION
+    cabal install
+
+  Do not forget to test:
+
+  ** The Emacs mode
+
+  ** The UHC backend (`cabal install -f uhc`)
+
+* Tag the release (do not forget to record the changes above first):
+
+    cd $BASE
+    git tag -a $VERSION -m "Agda $VERSION release"
+
+* Upload the Cabal package:
+
+    cd $BASE
+    cabal upload dist/Agda-$VERSION.tar.gz
+
+* Restore the Cabal test-suite in Agda.cabal.
+
+* Restore -Werror and -fprof-auto in Agda.cabal.
+
+* Remove the "this" source-repository section from the Cabal
+  file. (This would be unnecessary if we had two repositories, one
+  stable and one for development.)
+
+* Stable branch
+
+  ** Create the stable branch
+
+       git checkout -b stable-$STABLE_BRANCH_VERSION
+
+  ** Update the version numbers to $VERSION.1 in $FILES.
+
+  ** Add into the Makefile:
+
+      # --program-suffix is not for the executable name in
+      # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+      override CABAL_OPTS+=--program-suffix=-$(VERSION)
+
+      AGDA_MODE=agda-mode-$(VERSION)
+
+  ** Added stable-$STABLE_BRANCH_VERSION to the branches whitelist in
+     .travis.yml.
+
+  ** Update with stable-$STABLE_BRANCH_VERSION the branch used for
+     reporting the build status in README.md.
+
+  ** Add a new header to CHANGELOG.
+
+  ** Commit the above changes.
+
+  ** Merge the stable-$STABLE_BRANCH_VERSION branch.
+
+       git checkout master
+       git merge stable-$STABLE_BRANCH_VERSION
+
+* Update the version numbers to $NEXT_VERSION in $FILES.
+
+* Remove from the Makefile:
+
+    # --program-suffix is not for the executable name in
+    # $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+    override CABAL_OPTS+=--program-suffix=-$(VERSION)
+
+    AGDA_MODE=agda-mode-$(VERSION)
+
+* Update with `master` the branch used for reporting the build status
+  in README.md.
+
+* Remove the release notes for the released version from
+  doc/release-notes and create a template for the next version.
+
+* Push all changes
+
+    git push --follow-tags
+    git checkout stable-$STABLE_BRANCH_VERSION
+    git push -u origin stable-$STABLE_BRANCH_VERSION
+
+* Disable force push on the stable-$STABLE_BRANCH_VERSION branch, see
+
+  https://help.github.com/articles/about-protected-branches/
+  https://github.com/agda/agda-stdlib/settings/branches
+
+* Update the Agda Wiki:
+
+  ** Update the Download page:
+
+     *** Move the current version information to the old releases
+         section.
+
+     *** Update the last release information.
+
+     *** Update the stable version information.
+
+  ** Update the Release Notes page (under Documentation).
+
+  ** Update the Main page.
+
+* Announce the release of the new version on the Agda mailing lists
+  (users and developers).
+
+* Close in the bug tracker the milestone $VERSION.
+
+------------------------------------------------------------------------------
+Outdated (2016-04-16)
 
 * Disable sharing by default. Note that this change induces some
   changes in the test suite.
@@ -64,98 +206,6 @@ followed:
   ** Change the message "(default: ON)" to "(default: OFF)" in the
      above module.
 
-* Ensure that the Emacs mode can be compiled without errors or
-  warnings (except for the "cl package required at runtime" warning):
-
-    agda-mode compile
-
-* Run make test (and accept the updates the Agda version in the files
-  test/interaction/Issue1244a.out and test/interaction/Issue1244b.out).
-
-* Tag and build source distributions. (Do not forget to commit the
-  changes above first.)
-
-    VERSION=<version>
-    cabal configure
-    cabal check
-    cabal sdist
-    cabal install
-    git tag -a $VERSION -m "Agda $VERSION release"
-
-* Ensure that the package builds properly (with multiple versions of GHC if
-  possible) in Linux, MacOS X and Windows.
-
-    BASE=`pwd`
-    cd ${TMPDIR:-/tmp}
-    tar xzf $BASE/dist/Agda-$VERSION.tar.gz
-    cd Agda-$VERSION
-    cabal install
-
-  Do not forget to test the Emacs mode.
-
-* Upload the Cabal package using cabal upload.
-
-    cd $BASE
-    cabal upload dist/Agda-$VERSION.tar.gz
-
-* Push the release to github
-
-  git push
-  git push --tags
-
-* Restore the Cabal test-suite in Agda.cabal.
-
-* Restore -Werror and -fprof-auto in Agda.cabal.
-
-* Remove the "this" source-repository section from the Cabal
-  file. (This would be unnecessary if we had two repositories, one
-  stable and one for development.)
-
-* Create a maintenance branch
-
-    git checkout -b maint-$VERSION
-
-* Update the version number in the maintenance branch to $VERSION.1
-  in:
-
-    .ghci
-    Agda.cabal (twice)
-    default.nix
-    doc/user-manual/conf.py
-    mk/version.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
-
-* Add program suffix option to Makefile on maintenance branch:
-
-    CABAL_OPTS+=--program-suffix=-$(VERSION)
-
-* Update the branches whitelist in .travis.yml.
-
-* Update with maint-$VERSION the branch used for reporting the build
-  status in README.md.
-
-* Commit the above changes.
-
-* Merge maint-$VERSION. Comment the CABAL_OPTS line in
-  the Makefile.
-
-    git checkout master
-    git merge maint-$VERSION
-
-* Update the version numbers in master.
-
-    Agda.cabal (twice)
-    src/data/emacs-mode/agda2-mode.el
-    mk/version.mk
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
-
-* Remove the release notes for the released version from doc/release-notes and
-  create a template for the next version.
-
 * Enable sharing by default. Note that this change induces some
   changes in the test suite.
 
@@ -163,32 +213,3 @@ followed:
 
   ** Change the message "(default: OFF)" to "(default: ON)" in the
      above module.
-
-* Push all changes
-
-    git push
-    git checkout maint-$VERSION
-    git push -u origin maint-$VERSION
-
-* Disable force push on the maint-$VERSION branch, see
-
-  https://help.github.com/articles/about-protected-branches/
-  https://github.com/agda/agda-stdlib/settings/branches
-
-* Close in the bug tracker the milestone VERSION.
-
-* Update the Agda Wiki:
-
-  ** Update the Download page:
-
-     *** Move the current version information to the old releases
-         section.
-
-     *** Update the last release information.
-
-  ** Update the Release Notes page (under Documentation).
-
-  ** Update the Main page.
-
-* Announce the release of the new version on the Agda mailing lists
-  (users and developers).
