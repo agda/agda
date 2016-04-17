@@ -42,8 +42,9 @@ procedure can be followed:
 
 * Update the Agda wiki:
 
-  ** News section on the main page.
-
   ** The standard library page.
 
-* Announce the release of the new version on the Agda mailing list.
+  ** News section on the main page.
+
+* Announce the release of the new version on the Agda mailing lists
+  (users and developers).
