@@ -1,8 +1,8 @@
-When releasing a bugfix version of Agda, the following procedure can be
-followed:
+When releasing a stable version of Agda, the following procedure can
+be followed:
 
 * First, release a release candidate (see
-  notes/agda-maintenance-releases-candidates).
+  notes/agda-stable-releases-candidates).
 
 * Update in the bug tracker the milestone field of open issues to the
   next Agda version.
@@ -12,10 +12,10 @@ followed:
 * Get a clean Agda repository.
 
     MAJORVERSION=<current-Agda-version-eg-2.4.0>
-    VERSION=<current-maintenance-version-eg-2.4.0.2>
+    VERSION=<current-stable-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda.release
     cd agda.release
-    git checkout maint-$MAJORVERSION
+    git checkout stable-$MAJORVERSION
 
 * Obtain and install the standard library branch related to the Agda
   bugfix version:
@@ -71,9 +71,9 @@ followed:
 * Tag the relase (do not forget to record the changes above first):
 
     cd $BASE
-    git tag -a $VERSION -m "Agda $VERSION maintenance release"
+    git tag -a $VERSION -m "Agda $VERSION stable release"
 
-* Upload the Cabal package using cabal upload.
+* Upload the Cabal:
 
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
@@ -125,7 +125,7 @@ followed:
     git push --follow-tags
 
     git checkout master
-    git merge maint-$MAJORVERSION
+    git merge stable-$MAJORVERSION
 
 * Restore version numbers in 'master' (possibly by just resolving the
   merge conflicts):
@@ -144,8 +144,8 @@ followed:
 * Close in the bug tracker the milestone VERSION.
 
 * Announce on the Agda developers mailing list the creation of the
-  NEWVERSION branch in the standard library to be used with the
-  maintenance branch of Agda.
+  NEWVERSION branch in the standard library to be used with the stable
+  branch of Agda.
 
 * Update the Agda Wiki:
 
