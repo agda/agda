@@ -163,7 +163,7 @@ instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
 
 type CTrans r f = Constraint' r f -> Either String [Constraint' r f]
 
--- | Returns 'Nothing' if we have a contradictory constraint.
+-- | Returns an error message if we have a contradictory constraint.
 simplify1 :: (Show f, Show r, Eq r) => CTrans r f -> CTrans r f
 simplify1 test c = do
   let err = Left $ "size constraint " ++ show c ++ " is inconsistent"
