@@ -66,8 +66,9 @@ abort msg = do
 abortOnError :: Either String a -> IO a
 abortOnError = either abort return
 
-abortOnNothing :: String -> Maybe a -> IO a
-abortOnNothing msg = maybe (abort msg) return
+abortOnNothing :: String -> Either String a -> IO a
+abortOnNothing msg (Left _)  = abort msg
+abortOnNothing msg (Right a) = return a
 
 type Constraints = [Constraint]
 type Hypotheses  = Constraints
