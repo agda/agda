@@ -133,9 +133,9 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
     R.ConP c args -> do
       (names, args) <- toAbstractPats args
       return (names, A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [killRange c]) args)
-    R.DotP    -> return ([], A.DotP patNoRange (Underscore emptyMetaInfo))
-    R.VarP s  -> withName s' $ \name -> return ([name], A.VarP name)
-      where s' = if (isNoName s) then "z" else s --TODO: only do this when var is free
+    R.DotP    -> return ([], A.WildP patNoRange)
+    R.VarP s | isNoName s -> return ([], A.WildP patNoRange)
+    R.VarP s  -> withName s $ \ name -> return ([name], A.VarP name)
     R.LitP l  -> return ([], A.LitP l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
     R.ProjP p -> return ([], A.DefP patNoRange p [])
