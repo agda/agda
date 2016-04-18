@@ -1,8 +1,8 @@
 ------------------------------------------------------------------------
--- Release notes for Agda version 2.5.2
+-- Release notes for Agda version 2.6.0
 ------------------------------------------------------------------------
 
 TODO: replace X by a suitable number.
-Important changes since 2.5.1.X:
+Important changes since 2.5.X:
 
 See a template in /doc/release-notes/template.txt
