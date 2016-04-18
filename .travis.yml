@@ -214,6 +214,16 @@ install:
     fi
 
 ##############################################################################
+# Installing size-solver and shelltestrunner
+
+# Required for testing the size-solver program.
+
+  - if [[ $TEST = "main" ]]; then
+       make install-size-solver &&
+       cabal install shelltestrunner;
+    fi
+
+##############################################################################
 script:
 
 ##############################################################################
@@ -286,7 +296,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make install-size-solver;
+       make test-size-solver;
     fi
 
   - if [[ $TEST = "main" ]]; then

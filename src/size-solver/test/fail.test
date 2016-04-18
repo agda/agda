@@ -1,0 +1,27 @@
+#1. meta-hyp1.txt
+dist/build/size-solver/size-solver < test/fail/meta-hyp1.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Constraints
+j' < ∞
+j < X
+Hypotheses graph hg = [Edge {source = 0, target = ∞, label = ≤0},Edge {source = 0, target = j, label = ≤0},Edge {source = 0, target = j', label = ≤0},Edge {source = j, target = ∞, label = ≤0},Edge {source = j, target = j, label = ≤0},Edge {source = j', target = ∞, label = ≤0},Edge {source = j', target = j', label = ≤0}]
+Error: size constraint j' < ∞ not consistent with size hypotheses
+>>>2
+>>>= 1
+
+#1. meta-hyp2.txt
+dist/build/size-solver/size-solver < test/fail/meta-hyp2.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Constraints
+i ≤ X
+Y ≤ Z
+Z ≤ i
+j ≤ Y
+Hypotheses graph hg = [Edge {source = 0, target = ∞, label = ≤0},Edge {source = 0, target = i, label = ≤0},Edge {source = 0, target = j, label = ≤0},Edge {source = i, target = ∞, label = ≤0},Edge {source = i, target = i, label = ≤0},Edge {source = j, target = ∞, label = ≤0},Edge {source = j, target = j, label = ≤0}]
+Error: size constraint graph constrains size hypotheses
+>>>2
+>>>= 1
