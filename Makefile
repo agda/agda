@@ -299,6 +299,12 @@ check-whitespace :
 install-fix-agda-whitespace :
 	cd src/fix-agda-whitespace && $(CABAL_CMD) install
 
+## size-solver standalone program ############################################
+
+.PHONY : install-size-solver
+install-size-solver :
+	$(MAKE) -C src/size-solver
+
 ########################################################################
 # HPC
 
