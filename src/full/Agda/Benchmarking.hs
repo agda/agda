@@ -67,6 +67,8 @@ data Phase
     -- ^ Subphase for 'Termination'.
   | ModuleName
     -- ^ Subphase for 'Import'.
+  | BuildInterface
+    -- ^ Subphase for 'Serialization'.
   | Sort
     -- ^ Subphase for 'Serialization'.
   | BinaryEncode

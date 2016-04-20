@@ -646,7 +646,7 @@ createInterface file mname =
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     syntaxInfo <- use stSyntaxInfo
-    i <- Bench.billTo [Bench.Serialization] $ do
+    i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
       buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC options
 
     reportSLn "tc.top" 101 $ concat $
