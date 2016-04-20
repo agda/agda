@@ -14,12 +14,6 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-override CABAL_OPTS+=--builddir=$(BUILD_DIR)
-
-# --program-suffix is not for the executable name in
-# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
-override CABAL_OPTS+=--program-suffix=-$(VERSION)
-
 AGDA_MODE=agda-mode-$(VERSION)
 
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
@@ -64,16 +58,21 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
+CABAL_INSTALL=$(CABAL_CMD) install --enable-tests \
+              --disable-documentation --builddir=$(BUILD_DIR)
+
+# --program-suffix is not for the executable name in
+# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
+	$(CABAL_INSTALL) --disable-library-profiling \
+          --program-suffix=-$(VERSION) $(CABAL_OPTS)
 
 .PHONY : install-prof-bin
 install-prof-bin :
-	$(CABAL_CMD) install --enable-tests --disable-documentation \
-	  --enable-library-profiling --enable-profiling \
-          --program-suffix=_p $(CABAL_OPTS)
+	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
+          --program-suffix=-$(VERSION)_p $(CABAL_OPTS)
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
