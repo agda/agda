@@ -68,11 +68,11 @@ data Phase
   | ModuleName
     -- ^ Subphase for 'Import'.
   | Sort
-    -- ^ Subphase for 'Serialize'.
+    -- ^ Subphase for 'Serialization'.
   | BinaryEncode
-    -- ^ Subphase for 'Serialize'.
+    -- ^ Subphase for 'Serialization'.
   | Compress
-    -- ^ Subphase for 'Serialize'.
+    -- ^ Subphase for 'Serialization'.
   | Operators
     -- ^ Subphase for 'Parsing'.
   | Free
