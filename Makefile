@@ -69,16 +69,6 @@ install-bin :
 	$(CABAL_CMD) install --enable-tests --disable-documentation \
 	  --disable-library-profiling $(CABAL_OPTS)
 
-.PHONY : install-O0-bin
-install-O0-bin :
-	$(CABAL_CMD) install -O0 --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
-
-.PHONY : install-O2-bin
-install-O2-bin :
-	$(CABAL_CMD) install -O2 --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
-
 .PHONY : install-prof-bin
 install-prof-bin :
 	$(CABAL_CMD) install --enable-tests --disable-documentation \
