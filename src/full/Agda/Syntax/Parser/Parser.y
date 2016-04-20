@@ -172,6 +172,8 @@ import Agda.Utils.Impossible
     '|'                       { TokSymbol SymBar $$ }
     '('                       { TokSymbol SymOpenParen $$ }
     ')'                       { TokSymbol SymCloseParen $$ }
+    '(|'                      { TokSymbol SymOpenIdiomBracket $$ }
+    '|)'                      { TokSymbol SymCloseIdiomBracket $$ }
     '{{'                      { TokSymbol SymDoubleOpenBrace $$ }
     '}}'                      { TokSymbol SymDoubleCloseBrace $$ }
     '{'                       { TokSymbol SymOpenBrace $$ }
@@ -299,6 +301,8 @@ Token
     | '|'                       { TokSymbol SymBar $1 }
     | '('                       { TokSymbol SymOpenParen $1 }
     | ')'                       { TokSymbol SymCloseParen $1 }
+    | '(|'                      { TokSymbol SymOpenIdiomBracket $1 }
+    | '|)'                      { TokSymbol SymCloseIdiomBracket $1 }
     | '{{'                      { TokSymbol SymDoubleOpenBrace $1 }
     | '}}'                      { TokSymbol SymDoubleCloseBrace $1 }
     | '{'                       { TokSymbol SymOpenBrace $1 }
@@ -663,6 +667,7 @@ Expr3NoCurly
     | '{{' Expr DoubleCloseBrace                        { InstanceArg (getRange ($1,$2,$3))
                                                           (maybeNamed $2) }
     | '(' Expr ')'                      { Paren (getRange ($1,$2,$3)) $2 }
+    | '(|' Expr '|)'                    { IdiomBrackets (getRange ($1,$2,$3)) $2 }
     | '(' ')'                           { Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3                      { As (getRange ($1,$2,$3)) $1 $3 }

@@ -270,6 +270,7 @@ library
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
                     Agda.Syntax.Fixity
+                    Agda.Syntax.IdiomBrackets
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
                     Agda.Syntax.Internal.Defs

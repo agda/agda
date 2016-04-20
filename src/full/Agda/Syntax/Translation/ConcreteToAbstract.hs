@@ -60,6 +60,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Translation.AbstractToConcrete (ToConcrete)
+import Agda.Syntax.IdiomBrackets
 
 import Agda.TypeChecking.Monad.Base
   ( TypeError(..) , Call(..) , typeError , genericError , TCErr(..)
@@ -808,6 +809,10 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e
+
+  -- Idiom brackets
+      C.IdiomBrackets r e ->
+        toAbstractCtx TopCtx =<< parseIdiomBrackets r e
 
   -- Pattern things
       C.Dot _ _  -> notAnExpression e
