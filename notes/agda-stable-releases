@@ -78,6 +78,11 @@ be followed:
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz
 
+* Is the documentation missing on Hackage (see #1940)? You can use the
+  `neil` program for uploading the documentation:
+
+    neil doc --username=YourHackageUsername
+
 * Restore the Cabal test-suite in Agda.cabal.
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
