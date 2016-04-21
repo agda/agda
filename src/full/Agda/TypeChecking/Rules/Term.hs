@@ -980,12 +980,28 @@ quoteContext = do
 -- | Document ME!
 
 inferProjApp :: A.Expr -> [QName] -> A.Args -> TCM (Term, Type)
-inferProjApp e ds args0 = do
+inferProjApp e ds args0 = inferOrCheckProjApp e ds args0 Nothing
+
+checkProjApp  :: A.Expr -> [QName] -> A.Args -> Type -> TCM Term
+checkProjApp e ds args0 t = do
+  (v, ti) <- inferOrCheckProjApp e ds args0 (Just t)
+  coerce v ti t
+
+inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
+inferOrCheckProjApp e ds args0 mt = do
 
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
        "Cannot resolve overloaded projection " ++ show (A.nameConcrete $ A.qnameName $ head ds)
        ++ " because " ++ reason
+
+  -- The following cases need to be considered:
+  -- 1. No arguments to the projection.
+  -- 2. Arguments (parameters), but not the principal argument.
+  -- 3. Argument(s) including the principal argument.
+
+  -- For now, we only allow ambiguous projections if the first visible
+  -- argument is the record value.
 
   case filter (visible . getHiding) args0 of
     [] -> refuse "it is not applied to a visible argument"
@@ -1008,10 +1024,11 @@ inferProjApp e ds args0 = do
         -- the term u = d v
         -- the type tb is the type of this application
         [(d,u,tb)] -> do
-          z <- runExceptT $ checkArguments ExpandLast (getRange e) args tb typeDontCare
+          let tc = fromMaybe typeDontCare mt
+          z <- runExceptT $ checkArguments ExpandLast (getRange e) args tb tc
           case z of
             Right (us, trest) -> return (u `apply` us, trest)
-            Left (us, es, t0) -> refuse "checking further projection arguments failes"  -- TODO
+            Left (us, es, t0) -> refuse "checking further projection arguments fails"  -- TODO
 
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
@@ -1028,39 +1045,7 @@ checkApplication hd args e t = do
     A.Proj (AmbQ [_]) -> checkHeadApplication e t hd args
 
     -- Subcase: ambiguous projection
-    A.Proj (AmbQ ds@(_:_:_)) -> do
-      -- The following cases need to be considered:
-      -- 1. No arguments to the projection.
-      -- 2. Arguments (parameters), but not the principal argument.
-      -- 3. Argument(s) including the principal argument.
-
-      -- For now, we only allow ambiguous projections if the first visible
-      -- argument is the record value.
-      let refuse reason = typeError $ GenericError $
-           "Cannot resolve overloaded projection " ++ show (A.nameConcrete $ A.qnameName $ head ds)
-           ++ " because " ++ reason
-      case filter (visible . getHiding) args of
-        [] -> refuse "it is not applied to a visible argument"
-        (arg : args) -> do
-          (v, ta) <- inferExpr $ namedArg arg
-          let notRecordType = refuse "argument is not of record type"
-          caseMaybeM (isRecordType ta) notRecordType $ \ (q, _, _) -> do
-          -- ta should be a record type
-          -- try to project it with all of the possible projections
-          let try d = caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
-               caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
-                 if (q == q') then return $ Just (d, u, tb) else return Nothing
-          -- TODO use original projections
-          -- TODO: lazy!  This is strict:
-          cands <- catMaybes <$> mapM try ds
-          case cands of
-            [] -> refuse "no matching candidate found"
-            (_:_:_) -> refuse $ "several matching candidates found: " ++ show (map fst3 cands)
-            -- case: just one matching projection d
-            -- the term u = d v
-            -- the type tb is the type of this application
-            [(d,u,tb)] -> checkArguments' ExpandLast (getRange e) args tb t $ \ us trest -> do
-              coerce (u `apply` us) trest t
+    A.Proj (AmbQ ds@(_:_:_)) -> checkProjApp e ds args t
 
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs@(_:_:_)) -> do
