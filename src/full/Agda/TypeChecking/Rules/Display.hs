@@ -93,7 +93,7 @@ exprToTerm e =
     A.Lit l -> pure $ Lit l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
-    A.Proj f       -> pure $ Def f []   -- only for printing so we don't have to worry too much here
+    A.Proj (AmbQ (f:_)) -> pure $ Def f []   -- only for printing so we don't have to worry too much here
     A.PatternSyn f -> pure $ Def f []
     A.Macro f      -> pure $ Def f []
 

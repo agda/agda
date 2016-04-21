@@ -52,8 +52,8 @@ type Args = [NamedArg Expr]
 data Expr
   = Var  Name                          -- ^ Bound variable.
   | Def  QName                         -- ^ Constant: axiom, function, data or record type.
-  | Proj QName                         -- ^ Projection.
-  | Con  AmbiguousQName                -- ^ Constructor.
+  | Proj AmbiguousQName                -- ^ Projection (overloaded).
+  | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn QName                   -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
   | Lit Literal                        -- ^ Literal.
@@ -878,7 +878,7 @@ nameExpr :: AbstractName -> Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
     mk DefName        x = Def x
-    mk FldName        x = Proj x
+    mk FldName        x = Proj $ AmbQ [x]
     mk ConName        x = Con $ AmbQ [x]
     mk PatternSynName x = PatternSyn x
     mk MacroName      x = Macro x

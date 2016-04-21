@@ -850,7 +850,8 @@ checkExpr e t0 =
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
-              quoted (A.Proj x) = return x
+              quoted (A.Proj (AmbQ [x])) = return x
+              quoted (A.Proj (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.Con (AmbQ [x])) = return x
               quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.ScopedExpr _ e) = quoted e
@@ -1215,7 +1216,8 @@ inferHead e = do
         typeError $ VariableIsIrrelevant x
       return (apply u, unDom a)
     (A.Def x) -> inferHeadDef x
-    (A.Proj x) -> inferHeadDef x
+    (A.Proj (AmbQ [d])) -> inferHeadDef d
+    (A.Proj _) -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
     (A.Con (AmbQ [c])) -> do
 
       -- Constructors are polymorphic internally.

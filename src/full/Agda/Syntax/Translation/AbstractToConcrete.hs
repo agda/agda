@@ -357,7 +357,8 @@ instance ToConcrete A.ModuleName C.QName where
 instance ToConcrete A.Expr C.Expr where
     toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
     toConcrete (Def x)            = Ident <$> toConcrete x
-    toConcrete (Proj x)           = Ident <$> toConcrete x
+    toConcrete (Proj (AmbQ (x:_)))= Ident <$> toConcrete x
+    toConcrete (Proj (AmbQ []))   = __IMPOSSIBLE__
     toConcrete (A.Macro x)        = Ident <$> toConcrete x
     toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
     toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__

@@ -102,7 +102,7 @@ elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e [] = return e
 elims e (I.Apply arg : es) =
   elims (A.App exprInfo e $ fmap unnamed arg) es
-elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj d) $ defaultNamedArg e) es
+elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
 
 reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
 reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
