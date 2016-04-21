@@ -239,15 +239,17 @@ getDefType f t = do
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
 --   with field @f@, then @projectTyped v t f@ returns the type of @f v@.
+--   And also the record type (as first result).
 --
 --   Works also for projection-like definitions @f@.
+--   In this case, the first result is not a record type.
 --
 --   Precondition: @t@ is reduced.
-projectTyped :: Term -> Type -> QName -> TCM (Maybe (Term, Type))
+projectTyped :: Term -> Type -> QName -> TCM (Maybe (Dom Type, Term, Type))
 projectTyped v t f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
   (dom, b) <- mustBePi tf
   u <- f `applyDef` (argFromDom dom $> v)
-  return $ Just (u, b `absApp` v)
+  return $ Just (dom, u, b `absApp` v)
 
 -- | Check if a name refers to an eta expandable record.
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}

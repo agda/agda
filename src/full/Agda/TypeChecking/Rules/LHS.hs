@@ -412,7 +412,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
         gs <- recFields . theDef <$> getConstInfo d
         let u = Var i (map Proj fs)
         is <- forM gs $ \(Arg _ g) -> do
-                (_,b) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped u a g
+                (_,_,b) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped u a g
                 return (i,fs++[g],b)
         undotImplicitVars is idv
 

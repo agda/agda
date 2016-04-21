@@ -479,7 +479,7 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
           guard =<< do liftTCM $ isEtaRecord d
           fs <- liftTCM $ map unArg . recFields . theDef <$> getConstInfo d
           is <- forM fs $ \f -> do
-            (_, fa) <- MaybeT $ projectTyped u a f
+            (_, _, fa) <- MaybeT $ projectTyped u a f
             isEtaVarG (u `applyE` [Proj f]) fa mi (es++[Proj f])
           case (mi, is) of
             (Just i, _)     -> return i
@@ -503,7 +503,7 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     areEtaVarElims u a (Proj f : es) (Proj f' : es') = do
       guard $ f == f'
       a       <- liftTCM $ reduce a
-      (_, fa) <- MaybeT $ projectTyped u a f
+      (_, _, fa) <- MaybeT $ projectTyped u a f
       areEtaVarElims (u `applyE` [Proj f]) fa es es'
     -- These two cases can occur only when we're looking at two different
     -- variables (i.e. one of function type and the other of record type) so

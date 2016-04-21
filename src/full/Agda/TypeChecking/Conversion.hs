@@ -724,7 +724,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         res <- projectTyped v a f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
-          Just (u, t) -> do
+          Just (_, u, t) -> do
             -- Andreas, 2015-07-01:
             -- The arguments following the principal argument of a projection
             -- are invariant.  (At least as long as we have no explicit polarity
