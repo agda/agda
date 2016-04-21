@@ -389,7 +389,7 @@ instance PrettyTCM (Elim' DisplayTerm) where
   prettyTCM (Proj f)  = text "." <> prettyTCM f
 
 raisePatVars :: Int -> NLPat -> NLPat
-raisePatVars k (PVar id x) = PVar id (k+x)
+raisePatVars k (PVar id x bvs) = PVar id (k+x) bvs
 raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
@@ -398,7 +398,7 @@ raisePatVars k (PBoundVar i es) = PBoundVar i $ (fmap . fmap) (raisePatVars k) e
 raisePatVars k (PTerm t)   = PTerm t
 
 instance PrettyTCM NLPat where
-  prettyTCM (PVar id x) = prettyTCM (var x)
+  prettyTCM (PVar id x bvs) = prettyTCM (Var x (map (Apply . fmap var) bvs))
   prettyTCM (PWild)     = text $ "_"
   prettyTCM (PDef f es) = parens $
     prettyTCM f <+> fsep (map prettyTCM es)

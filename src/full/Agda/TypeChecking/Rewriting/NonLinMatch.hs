@@ -38,8 +38,7 @@ import Data.Foldable ( foldMap )
 #endif
 
 import Data.Maybe
-import Data.Functor
-import Data.Traversable hiding (for)
+import Data.Traversable (Traversable,traverse)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -57,13 +56,16 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope (renameP, permuteTel)
 
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -99,14 +101,23 @@ instance PatternFrom Term NLPat where
     case ignoreSharing v of
       Var i es
        | i < k     -> PBoundVar i <$> patternFrom k es
-       | null es   -> do
-           let i' = i-k
-           -- Pattern variables are labeled with their context id, because they
-           -- can only be instantiated once they're no longer bound by the
-           -- context (see Issue 1652).
-           id <- (!! i') <$> getContextId
-           return $ PVar (Just id) i'
-       | otherwise -> done
+       | otherwise -> do
+         -- The arguments of `var i` should be distinct bound variables
+         -- in order to build a Miller pattern
+         let mbvs = mfilter fastDistinct $ forM es $ \e -> do
+                      e <- isApplyElim e
+                      case ignoreSharing $ unArg e of
+                        Var j [] | j < k -> Just $ e $> j
+                        _                -> Nothing
+         case mbvs of
+           Just bvs -> do
+             let i' = i-k
+             -- Pattern variables are labeled with their context id, because they
+             -- can only be instantiated once they're no longer bound by the
+             -- context (see Issue 1652).
+             id <- (!! i') <$> getContextId
+             return $ PVar (Just id) i' bvs
+           Nothing -> done
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
       Def f es -> PDef f <$> patternFrom k es
@@ -229,7 +240,7 @@ instance Match NLPat Term where
             , msg ]) mzero
     case p of
       PWild  -> yes
-      PVar id i -> do
+      PVar id i bvs -> do
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
         ctx <- zip <$> getContextNames <*> getContextId
@@ -242,9 +253,15 @@ instance Match NLPat Term where
           Nothing -> do
             let boundVarOccs :: FreeVars
                 boundVarOccs = runFree (\var@(i,_) -> if i < n then singleton var else empty) IgnoreNot v
-            if null (rigidVars boundVarOccs)
-               then if null (flexibleVars boundVarOccs)
-                    then tellSub i (raise (-n) v)
+                allowedVars :: IntSet
+                allowedVars = IntSet.fromList (map unArg bvs)
+                perm :: Permutation
+                perm = Perm n $ reverse $ map unArg $ bvs
+                tel :: Telescope
+                tel = permuteTel perm k
+            if rigidVars boundVarOccs `IntSet.isSubsetOf` allowedVars
+               then if IntMap.keysSet (flexibleVars boundVarOccs) `IntSet.isSubsetOf` allowedVars
+                    then tellSub i $ teleLam tel $ renameP perm v
                     else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
                else no (text "")
       PDef f ps -> do
@@ -345,7 +362,8 @@ instance RaiseNLP a => RaiseNLP (Abs a) where
 
 instance RaiseNLP NLPat where
   raiseNLPFrom c k p = case p of
-    PVar _ _ -> p
+    PVar id i bvs -> let raise j = if j < c then j else j + k
+                     in PVar id i $ map (fmap raise) bvs
     PWild  -> p
     PDef f ps -> PDef f $ raiseNLPFrom c k ps
     PLam i q -> PLam i $ raiseNLPFrom c k q
