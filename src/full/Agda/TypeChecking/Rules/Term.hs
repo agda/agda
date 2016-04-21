@@ -1016,38 +1016,49 @@ inferOrCheckProjApp e ds args0 mt = do
         [ text "  principal arg " <+> prettyTCM arg
         , text "  has type "      <+> prettyTCM ta
         ]
-      let notRecordType = refuse "argument is not of record type"
-      caseMaybeM (isRecordType ta) notRecordType $ \ (q, _, _) -> do
       -- ta should be a record type
-      -- try to project it with all of the possible projections
-      let try d = caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
-           caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
-             if (q == q') then return $ Just (d, u, tb) else return Nothing
-      -- TODO use original projections
-      -- TODO: lazy!  This is strict:
-      cands <- catMaybes <$> mapM try ds
-      case cands of
-        [] -> refuse "no matching candidate found"
-        (_:_:_) -> refuse $ "several matching candidates found: " ++ show (map fst3 cands)
-        -- case: just one matching projection d
-        -- the term u = d v
-        -- the type tb is the type of this application
-        [(d,u,tb)] -> do
-          let tc = fromMaybe typeDontCare mt
-          let r  = getRange e
-          z <- runExceptT $ checkArguments ExpandLast r args tb tc
-          case z of
-            Right (us, trest) -> return (u `apply` us, trest)
-            -- We managed to check a part of es and got us1, but es2 remain.
-            Left (us1, es2, trest1) -> do
-              -- In the inference case:
-              -- To create a postponed type checking problem,
-              -- we do not use typeDontCare, but create a meta.
-              tc <- caseMaybe mt newTypeMeta_ return
-              v <- postponeTypeCheckingProblem_ $
-                CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
-                  coerce (u `apply` us1 `apply` us2) trest tc
-              return (v, tc)
+      tryRecordType ta >>= \case
+
+        -- case: argument is definitely not of record type
+        Left (Just _) -> refuse "argument is not of record type"
+
+        -- case: type is blocked so we don't know yet
+        Left Nothing -> do
+          tc <- caseMaybe mt newTypeMeta_ return
+          v <- postponeTypeCheckingProblem (CheckExpr e tc) $ unblockedTester ta
+          return (v, tc)
+
+        -- case: argument is of record type
+        Right (q, _, _) -> do
+          -- try to project it with all of the possible projections
+          let try d = caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
+               caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
+                 if (q == q') then return $ Just (d, u, tb) else return Nothing
+          -- TODO use original projections
+          -- TODO: lazy!  There should be at most one candidate. This is strict:
+          cands <- catMaybes <$> mapM try ds
+          case cands of
+            [] -> refuse "no matching candidate found"
+            (_:_:_) -> refuse $ "several matching candidates found: " ++ show (map fst3 cands)
+            -- case: just one matching projection d
+            -- the term u = d v
+            -- the type tb is the type of this application
+            [(d,u,tb)] -> do
+              let tc = fromMaybe typeDontCare mt
+              let r  = getRange e
+              z <- runExceptT $ checkArguments ExpandLast r args tb tc
+              case z of
+                Right (us, trest) -> return (u `apply` us, trest)
+                -- We managed to check a part of es and got us1, but es2 remain.
+                Left (us1, es2, trest1) -> do
+                  -- In the inference case:
+                  -- To create a postponed type checking problem,
+                  -- we do not use typeDontCare, but create a meta.
+                  tc <- caseMaybe mt newTypeMeta_ return
+                  v <- postponeTypeCheckingProblem_ $
+                    CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
+                      coerce (u `apply` us1 `apply` us2) trest tc
+                  return (v, tc)
 
 
 -- | @checkApplication hd args e t@ checks an application.

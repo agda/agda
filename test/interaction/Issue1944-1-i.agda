@@ -41,3 +41,7 @@ open T
 
 hole2 : ∀{A} → T A → A → A
 hole2 t x = f t {!x!}
+
+-- Milestone 2: Postpone overloading.
+
+hole3 = f {! r !}
