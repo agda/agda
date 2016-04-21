@@ -61,9 +61,6 @@ prof : install-prof-bin
 CABAL_INSTALL=$(CABAL_CMD) install --enable-tests \
               --disable-documentation --builddir=$(BUILD_DIR)
 
-# --program-suffix is not for the executable name in
-# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
-
 .PHONY : install-bin
 install-bin :
 	$(CABAL_INSTALL) --disable-library-profiling \
@@ -73,6 +70,9 @@ install-bin :
 install-prof-bin :
 	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
           --program-suffix=-$(VERSION)_p $(CABAL_OPTS)
+
+# --program-suffix is not for the executable name in
+# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
