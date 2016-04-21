@@ -15,3 +15,5 @@ goal_command 0 (cmd_goal_type_context_infer Normalised) "f s"
 
 goal_command 1 (cmd_compute True) "\ r -> f (t r)"
 goal_command 1 (cmd_goal_type_context_infer Normalised) "\ r -> f (t r)"
+
+goal_command 2 (cmd_give "x")

@@ -32,3 +32,12 @@ hole0 : A
 hole0 = {! f s !}  -- normalize me
 
 hole1 = {!λ r → f (t r)!} -- normalize me
+
+record T B : Set where
+  field f : B → B
+open T
+
+-- Postpone /further/ argument of overloaded projection.
+
+hole2 : ∀{A} → T A → A → A
+hole2 t x = f t {!x!}

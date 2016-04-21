@@ -12,6 +12,10 @@ record S B : Set where
   field f : B
 open S
 
+record T B : Set where
+  field f : B → B
+open T
+
 r : R A
 R.f r = a
 
@@ -25,3 +29,6 @@ u : _
 u = f s
 
 v = f s
+
+w : ∀{A} → T A → A → A
+w t x = f t x

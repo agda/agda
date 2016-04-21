@@ -1025,10 +1025,21 @@ inferOrCheckProjApp e ds args0 mt = do
         -- the type tb is the type of this application
         [(d,u,tb)] -> do
           let tc = fromMaybe typeDontCare mt
-          z <- runExceptT $ checkArguments ExpandLast (getRange e) args tb tc
+          let r  = getRange e
+          z <- runExceptT $ checkArguments ExpandLast r args tb tc
           case z of
             Right (us, trest) -> return (u `apply` us, trest)
-            Left (us, es, t0) -> refuse "checking further projection arguments fails"  -- TODO
+            -- We managed to check a part of es and got us1, but es2 remain.
+            Left (us1, es2, trest1) -> do
+              -- In the inference case:
+              -- To create a postponed type checking problem,
+              -- we do not use typeDontCare, but create a meta.
+              tc <- caseMaybe mt newTypeMeta_ return
+              v <- postponeTypeCheckingProblem_ $
+                CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
+                  coerce (u `apply` us1 `apply` us2) trest tc
+              return (v, tc)
+
 
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
