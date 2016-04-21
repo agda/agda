@@ -209,7 +209,7 @@ install:
 # `$HOME/.local/bin`.
 
   - if [[ $TEST = "doc" ]]; then
-       pip install --user -U sphinx-rtd-theme &&
+       pip install --user -r doc/user-manual/requirements.txt &&
        export PATH=$HOME/.local/bin:$PATH;
     fi
 
