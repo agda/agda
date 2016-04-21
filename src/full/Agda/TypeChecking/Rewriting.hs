@@ -350,7 +350,7 @@ instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
 instance NLPatVars NLPat where
   nlPatVars p =
     case p of
-      PVar _ i  -> singleton i
+      PVar _ i _ -> singleton i
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
@@ -375,7 +375,7 @@ instance KillCtxId RewriteRule where
 
 instance KillCtxId NLPat where
   killCtxId p = case p of
-    PVar _ i       -> PVar Nothing i
+    PVar _ i bvs   -> PVar Nothing i bvs
     PWild          -> p
     PDef f es      -> PDef f $ killCtxId es
     PLam i x       -> PLam i $ killCtxId x

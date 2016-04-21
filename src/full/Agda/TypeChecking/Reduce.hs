@@ -1167,7 +1167,7 @@ instance InstantiateFull Definition where
       return $ Defn rel x t pol occ df i c inst copy d
 
 instance InstantiateFull NLPat where
-  instantiateFull' (PVar x y) = return $ PVar x y
+  instantiateFull' (PVar x y z) = return $ PVar x y z
   instantiateFull' (PWild)    = return PWild
   instantiateFull' (PDef x y) = PDef <$> instantiateFull' x <*> instantiateFull' y
   instantiateFull' (PLam x y) = PLam x <$> instantiateFull' y
