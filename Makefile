@@ -58,25 +58,20 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
+CABAL_INSTALL=$(CABAL_CMD) install --enable-tests \
+              --disable-documentation --builddir=$(BUILD_DIR)
+
+# --program-suffix is not for the executable name in
+# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
+
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
-
-.PHONY : install-O0-bin
-install-O0-bin :
-	$(CABAL_CMD) install -O0 --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
-
-.PHONY : install-O2-bin
-install-O2-bin :
-	$(CABAL_CMD) install -O2 --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
+	$(CABAL_INSTALL) --disable-library-profiling \
+          $(CABAL_OPTS)
 
 .PHONY : install-prof-bin
 install-prof-bin :
-	$(CABAL_CMD) install --enable-tests --disable-documentation \
-	  --enable-library-profiling --enable-profiling \
+	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
           --program-suffix=_p $(CABAL_OPTS)
 
 .PHONY : compile-emacs-mode
