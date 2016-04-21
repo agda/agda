@@ -37,3 +37,12 @@ Language
     - Binding syntax and operator sections cannot appear immediately inside
       idiom brackets.
 
+* Layout for pattern matching lambdas.
+
+  You can now write pattern matching lambdas using the syntax
+
+    λ where false → true
+            true  → false
+
+  avoiding the need for explicit curly braces and semicolons.
+
