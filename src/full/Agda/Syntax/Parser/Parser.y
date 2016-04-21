@@ -632,6 +632,7 @@ Expr2
 ExtendedOrAbsurdLam :: { Expr }
 ExtendedOrAbsurdLam
     : '\\'  '{' LamClauses '}'     { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
+    | '\\' 'where' vopen LamClauses close { ExtendedLam (getRange ($1, $2, $4)) (reverse $4) }
     | '\\' AbsurdLamBindings       {% case $2 of
                                        Left (bs, h) -> if null bs then return $ AbsurdLam r h else
                                                        return $ Lam r bs (AbsurdLam r h)
