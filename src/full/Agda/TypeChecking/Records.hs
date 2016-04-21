@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP           #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -223,7 +224,8 @@ getDefType f t = do
           ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
-            Just <$> a `piApplyM` pars
+            if length pars < npars then failure "does not supply enough parameters"
+            else Just <$> a `piApplyM` pars
         _ -> failNotDef
   where
     failNotElig = failure "is not eligible for projection-likeness"

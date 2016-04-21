@@ -989,6 +989,11 @@ checkProjApp e ds args0 t = do
 
 inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
 inferOrCheckProjApp e ds args0 mt = do
+  reportSDoc "tc.proj.amb" 20 $ vcat
+    [ text "checking ambiguous projection "
+    , text $ "  ds    = " ++ show ds
+    , text "  args0 = " <+> sep (map prettyTCM args0)
+    ]
 
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
@@ -1007,6 +1012,10 @@ inferOrCheckProjApp e ds args0 mt = do
     [] -> refuse "it is not applied to a visible argument"
     (arg : args) -> do
       (v, ta) <- inferExpr $ namedArg arg
+      reportSDoc "tc.proj.amb" 25 $ vcat
+        [ text "  principal arg " <+> prettyTCM arg
+        , text "  has type "      <+> prettyTCM ta
+        ]
       let notRecordType = refuse "argument is not of record type"
       caseMaybeM (isRecordType ta) notRecordType $ \ (q, _, _) -> do
       -- ta should be a record type
