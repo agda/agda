@@ -4,7 +4,9 @@
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE DoAndIfThenElse            #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -37,6 +39,7 @@ module Agda.Syntax.Position
   , posToInterval
   , takeI
   , dropI
+  , getIntervalFile
 
     -- * Ranges
   , Range
@@ -68,6 +71,7 @@ module Agda.Syntax.Position
   , fuseRanges
   , beginningOf
   , beginningOfFile
+  , interleaveRanges
 
     -- * Tests
   , tests
@@ -77,6 +81,7 @@ import Prelude hiding (null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad
+import Control.Monad.Writer (runWriter, Writer, tell)
 
 import Data.Foldable (Foldable)
 import qualified Data.Foldable as Fold
@@ -172,6 +177,11 @@ intervalInvariant i =
 setIntervalFile :: a -> Interval' b -> Interval' a
 setIntervalFile f (Interval p1 p2) =
   Interval (p1 { srcFile = f }) (p2 { srcFile = f })
+
+-- | Gets the 'srcFile' component of the interval. Because of the invariant,
+--   they are both the same.
+getIntervalFile :: Interval' a -> a
+getIntervalFile = srcFile . iStart
 
 -- | Converts a file name and two positions to an interval.
 posToInterval ::
@@ -1024,6 +1034,39 @@ prop_rangeInvariant = rangeInvariant
 instance Show (Position' Integer) where show = show . fmap Strict.Just
 instance Show (Interval' Integer) where show = show . fmap Strict.Just
 instance Show (Range'    Integer) where show = show . fmap Strict.Just
+
+-- | Interleaves two streams of ranged elements
+--
+--   It will report the conflicts as a list of conflicting pairs.
+--   In case of conflict, the element with the earliest start position
+--   is placed first. In case of a tie, the element with the earliest
+--   ending position is placed first. If both tie, the element from the
+--   first list is placed first.
+interleaveRanges :: (HasRange a) => [a] -> [a] -> ([a], [(a,a)])
+interleaveRanges as bs = runWriter$ go as bs
+  where
+    go []         as = return as
+    go as         [] = return as
+    go as@(a:as') bs@(b:bs') =
+      let ra = getRange a
+          rb = getRange b
+
+          ra0 = rStart ra
+          rb0 = rStart rb
+
+          ra1 = rEnd ra
+          rb1 = rEnd rb
+      in
+      if ra1 <= rb0 then
+        (a:) <$> go as' bs
+      else if rb1 <= ra0 then
+        (b:) <$> go as bs'
+      else do
+        tell [(a,b)]
+        if ra0 < rb0 || (ra0 == rb0 && ra1 <= rb1) then
+          (a:) <$> go as' bs
+        else
+          (b:) <$> go as bs'
 
 ------------------------------------------------------------------------
 -- * All tests

@@ -10,141 +10,45 @@
   ><body
   ><pre
     ><a name="1" class="Comment"
-      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</a
-      ><a name="79"
-      >
-</a
-      ><a name="80" class="Comment"
-      >% Testing with Ubuntu 14.04.</a
-      ><a name="108"
-      >
+      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Testing with Ubuntu 14.04.
+
+% For testing this issue it is necessary to install the following
+% packages:
+
+%  sudo apt-get install texlive
+%  sudo apt-get install texlive-latex-extra
+%  sudo apt-get install texlive-xetex
+%  sudo apt-get install texlive-math-extra
+%  sudo apt-get install texlive-fonts-extra
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Testing with Ubuntu 12.04.
+
+% Ubuntu 12.04 uses an outdated TeX Live 2009. For testing this issue
+% it is necessary to install the following packages:
+
+%  sudo add-apt-repository ppa:texlive-backports/ppa -y
+%  sudo apt-get update
+%  sudo apt-get install texlive
+%  sudo apt-get install texlive-latex-extra
+%  sudo apt-get install texlive-xetex
+%  sudo apt-get install texlive-math-extra
+%  sudo apt-get install texlive-fonts-extra
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+
+\usepackage{agda}
+
+\begin{document}
+
+%\renewcommand{\AgdaIndent}{\;\;}
 
 </a
-      ><a name="110" class="Comment"
-      >% For testing this issue it is necessary to install the following</a
-      ><a name="175"
-      >
-</a
-      ><a name="176" class="Comment"
-      >% packages:</a
-      ><a name="187"
-      >
-
-</a
-      ><a name="189" class="Comment"
-      >%  sudo apt-get install texlive</a
-      ><a name="220"
-      >
-</a
-      ><a name="221" class="Comment"
-      >%  sudo apt-get install texlive-latex-extra</a
-      ><a name="264"
-      >
-</a
-      ><a name="265" class="Comment"
-      >%  sudo apt-get install texlive-xetex</a
-      ><a name="302"
-      >
-</a
-      ><a name="303" class="Comment"
-      >%  sudo apt-get install texlive-math-extra</a
-      ><a name="345"
-      >
-</a
-      ><a name="346" class="Comment"
-      >%  sudo apt-get install texlive-fonts-extra</a
-      ><a name="389"
-      >
-
-</a
-      ><a name="391" class="Comment"
-      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</a
-      ><a name="469"
-      >
-</a
-      ><a name="470" class="Comment"
-      >% Testing with Ubuntu 12.04.</a
-      ><a name="498"
-      >
-
-</a
-      ><a name="500" class="Comment"
-      >% Ubuntu 12.04 uses an outdated TeX Live 2009. For testing this issue</a
-      ><a name="569"
-      >
-</a
-      ><a name="570" class="Comment"
-      >% it is necessary to install the following packages:</a
-      ><a name="622"
-      >
-
-</a
-      ><a name="624" class="Comment"
-      >%  sudo add-apt-repository ppa:texlive-backports/ppa -y</a
-      ><a name="679"
-      >
-</a
-      ><a name="680" class="Comment"
-      >%  sudo apt-get update</a
-      ><a name="702"
-      >
-</a
-      ><a name="703" class="Comment"
-      >%  sudo apt-get install texlive</a
-      ><a name="734"
-      >
-</a
-      ><a name="735" class="Comment"
-      >%  sudo apt-get install texlive-latex-extra</a
-      ><a name="778"
-      >
-</a
-      ><a name="779" class="Comment"
-      >%  sudo apt-get install texlive-xetex</a
-      ><a name="816"
-      >
-</a
-      ><a name="817" class="Comment"
-      >%  sudo apt-get install texlive-math-extra</a
-      ><a name="859"
-      >
-</a
-      ><a name="860" class="Comment"
-      >%  sudo apt-get install texlive-fonts-extra</a
-      ><a name="903"
-      >
-
-</a
-      ><a name="905" class="Comment"
-      >%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%</a
-      ><a name="983"
-      >
-
-</a
-      ><a name="985" class="Comment"
-      >\documentclass{article}</a
-      ><a name="1008"
-      >
-
-</a
-      ><a name="1010" class="Comment"
-      >\usepackage{agda}</a
-      ><a name="1027"
-      >
-
-</a
-      ><a name="1029" class="Comment"
-      >\begin{document}</a
-      ><a name="1045"
-      >
-
-</a
-      ><a name="1047" class="Comment"
-      >%\renewcommand{\AgdaIndent}{\;\;}</a
-      ><a name="1080"
-      >
-
-\begin{code}
+      ><a name="1082"
+      >\begin{code}
 </a
       ><a name="1095" class="Keyword"
       >record</a
@@ -265,8 +169,12 @@
       ><a name="1222"
       >
 \end{code}
-
-\begin{code}
+</a
+      ><a name="1234" class="Comment"
+      >
+</a
+      ><a name="1235"
+      >\begin{code}
 </a
       ><a name="1248" href="Issue982.html#1248" class="Function"
       >uncurry</a
@@ -502,12 +410,10 @@
       ><a name="1411"
       >
 \end{code}
-
 </a
-      ><a name="1424" class="Comment"
-      >\end{document}</a
-      ><a name="1438"
+      ><a name="1423" class="Comment"
       >
+\end{document}
 </a
       ></pre
     ></body

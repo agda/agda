@@ -6,7 +6,6 @@
 module Agda.Utils.FileName
   ( AbsolutePath
   , filePath
-  , rootName
   , mkAbsolute
   , absolute
   , (===)

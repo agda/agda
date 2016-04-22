@@ -14,7 +14,7 @@ module Agda.Syntax.Parser.Lexer
     ( -- * The main function
       lexer
       -- * Lex states
-    , normal, literate, code
+    , normal, code
     , layout, empty_layout, bol, imp_dir
       -- * Alex generated functions
     , AlexReturn(..), alexScanUser
@@ -64,16 +64,6 @@ $white_nonl  = $white_notab # \n
 @q_ident    = @namespace @ident
 
 tokens :-
-
--- Lexing literate files
-<tex> $white_nonl* \\ "begin{code}" $white_nonl* $ { end_ }
-<tex> .+ / { keepComments } { withInterval TokTeX }
-<tex>    .+                         ;
-<tex>    \n                         ;
-<tex> () / { eof } { end_ }
-<bol_,layout_>
-  \\ "end{code}" / { inState code } { begin_ tex }
-  -- \end{code} should only be recognized if the bottom of the stack is <code>
 
 -- White space
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
@@ -249,12 +239,6 @@ tokens :-
 -- identifier 'toz' in imp_dir_ state, leading to a parse error later.
 
 {
-
--- | This is the initial state for parsing a literate file. Code blocks
---   should be enclosed in @\\begin{code}@ @\\end{code}@ pairs.
-literate :: LexState
-literate = tex
-
 
 -- | This is the initial state for parsing a regular, non-literate file.
 normal :: LexState

@@ -14,8 +14,9 @@ module Agda.Syntax.Parser.Monad
     , initState
     , defaultParseFlags
     , parse
-    , parsePosString
     , parseFile
+    , parsePosString
+    , parseFromSrc
       -- * Manipulating the state
     , setParsePos, setLastPos, getParseInterval
     , setPrevToken
@@ -43,6 +44,7 @@ import Agda.Utils.Except ( MonadError(catchError, throwError) )
 
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 import Agda.Utils.Pretty
 
@@ -198,7 +200,7 @@ defaultParseFlags = ParseFlags { parseKeepComments = False }
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
 parse :: ParseFlags -> [LexState] -> Parser a -> String -> ParseResult a
-parse flags st p input = unP p (initState Nothing flags input st)
+parse flags st p input = parseFromSrc flags st p Strict.Nothing input
 
 -- | The even more general way of parsing a string.
 parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
@@ -215,7 +217,14 @@ parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
           -> IO (ParseResult a)
 parseFile flags st p file =
     do  input <- liftIO $ UTF8.readTextFile $ filePath file
-        return $ unP p (initState (Just file) flags input st)
+        return $ parseFromSrc flags st p (Strict.Just file) input
+
+-- | Parses a string as if it were the contents of the given file
+--   Useful for integrating preprocessors.
+parseFromSrc :: ParseFlags -> [LexState] -> Parser a -> SrcFile -> String
+              -> ParseResult a
+parseFromSrc flags st p src input = unP p (initState (Strict.toLazy src) flags input st)
+
 
 {--------------------------------------------------------------------------
     Manipulating the state
