@@ -8,6 +8,7 @@ import Data.ByteString as B
 import Data.Word
 import qualified Data.Hash as H
 import qualified Data.List as L
+import Data.Digest.Murmur64
 
 import Agda.Utils.FileName
 
@@ -26,11 +27,5 @@ combineHashes hs = H.asWord64 $ L.foldl' H.combine (H.hashWord8 0) $ L.map H.has
 
 -- | Hashing a module name for unique identifiers.
 hashString :: String -> Integer
-hashString = Prelude.foldr step 0
-  where
-    step c n = mod (fromIntegral (fromEnum c) * prime1 + n * prime2) prime3
-
-    prime1 = 1230371
-    prime2 = 446441
-    prime3 = 275604541
+hashString = fromIntegral . asWord64 . hash64
 

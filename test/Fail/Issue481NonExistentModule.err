@@ -8,4 +8,4 @@ following locations:
   agda-default-include-path/NonExistentModule.agda
   agda-default-include-path/NonExistentModule.lagda
 when scope checking the declaration
-  import NonExistentModule as .#NonExistentModule-267088020
+  import NonExistentModule as .#NonExistentModule-4415008582379057274
