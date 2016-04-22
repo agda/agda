@@ -114,8 +114,8 @@ splitProblem mf (Problem ps qs tel pr) = do
               ]
             -- The record "self" is the definition f applied to the patterns
             let es = patternsToElims qs
-            fvs <- lift $ freeVarsToApply f
-            let self = defaultArg $ Def f (map Apply fvs) `applyE` es
+            -- Note: the module parameters are already part of qs
+            let self = defaultArg $ Def f [] `applyE` es
             -- Try the projection candidates
             msum $ map (tryProj self fs vs (length projs >= 2)) projs
 

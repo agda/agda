@@ -196,17 +196,19 @@ withArguments vs as = concat $ for (zip vs as) $ \case
 
 -- | Compute the clauses for the with-function given the original patterns.
 buildWithFunction
-  :: QName                -- ^ Name of the parent function.
+  :: [Name]               -- ^ Names of the module parameters of the parent function.
+  -> QName                -- ^ Name of the parent function.
   -> QName                -- ^ Name of the with-function.
   -> Type                 -- ^ Types of the parent function.
   -> [NamedArg Pattern] -- ^ Parent patterns.
+  -> Nat                  -- ^ Number of module parameters in parent patterns
   -> Substitution         -- ^ Substitution from parent lhs to with function lhs
   -> Permutation          -- ^ Final permutation.
   -> Nat                  -- ^ Number of needed vars.
   -> Nat                  -- ^ Number of with expressions.
   -> [A.SpineClause]      -- ^ With-clauses.
   -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
-buildWithFunction f aux t qs withSub perm n1 n cs = mapM buildWithClause cs
+buildWithFunction cxtNames f aux t qs npars withSub perm n1 n cs = mapM buildWithClause cs
   where
     -- Nested with-functions will iterate this function once for each parent clause.
     buildWithClause (A.Clause (A.SpineLHS i _ ps wps) inheritedDots rhs wh catchall) = do
@@ -215,7 +217,7 @@ buildWithFunction f aux t qs withSub perm n1 n cs = mapM buildWithClause cs
       reportSDoc "tc.with" 50 $ text "inheritedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a
                                                                | A.NamedDot x v a <- inheritedDots ]
       rhs <- buildRHS rhs
-      (namedDots, ps') <- stripWithClausePatterns f aux t qs perm ps
+      (namedDots, ps') <- stripWithClausePatterns cxtNames f aux t qs npars perm ps
       let (ps1, ps2) = genericSplitAt n1 ps'
       let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) (inheritedDots ++ namedDots) rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
@@ -236,7 +238,7 @@ buildWithFunction f aux t qs withSub perm n1 n cs = mapM buildWithClause cs
     permuteNamedDots (A.Clause lhs dots rhs wh catchall) =
       A.Clause lhs (applySubst withSub dots) rhs wh catchall
 
-{-| @stripWithClausePatterns parent f t qs π ps = ps'@
+{-| @stripWithClausePatterns cxtNames parent f t qs np π ps = ps'@
 
 [@Δ@]   context bound by lhs of original function (not an argument).
 
@@ -245,6 +247,8 @@ buildWithFunction f aux t qs withSub perm n1 n cs = mapM buildWithClause cs
 [@t@]   type of the original function.
 
 [@qs@]  internal patterns for original function.
+
+[@np@]  number of module parameters in @qs@
 
 [@π@]   permutation taking @vars(qs)@ to @support(Δ)@.
 
@@ -302,14 +306,16 @@ The projection patterns have vanished from @ps'@ (as they are already in @qs@).
 -}
 
 stripWithClausePatterns
-  :: QName                      -- ^ Name of the parent function.
+  :: [Name]                   -- ^ Names of the module parameters of the parent function
+  -> QName                    -- ^ Name of the parent function.
   -> QName                    -- ^ Name of with-function.
   -> Type                     -- ^ __@t@__   type of the original function.
   -> [NamedArg Pattern]       -- ^ __@qs@__  internal patterns for original function.
+  -> Nat                      -- ^ __@npars@__ number of module parameters is @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
   -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
   -> TCM ([A.NamedDotPattern], [NamedArg A.Pattern]) -- ^ __@ps'@__ patterns for with function (presumably of type @Δ@).
-stripWithClausePatterns parent f t qs perm ps = do
+stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
   -- Andreas, 2014-03-05 expand away pattern synoyms (issue 1074)
   ps <- expandPatternSynonyms ps
   psi <- insertImplicitPatternsT ExpandLast ps t
@@ -318,12 +324,18 @@ stripWithClausePatterns parent f t qs perm ps = do
     , nest 2 $ text "t   = " <+> prettyTCM t
     , nest 2 $ text "psi = " <+> fsep (punctuate comma $ map prettyA psi)
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (prettyTCM . namedArg) qs)
+    , nest 2 $ text "perm= " <+> text (show perm)
     ]
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', namedDots) <- runWriterT $ strip (Def parent []) t psi $ numberPatVars perm qs
+  (ps', namedDots) <- runWriterT $ strip (Def parent []) t psi $ drop npars $ numberPatVars perm qs
   reportSDoc "tc.with.strip" 50 $ nest 2 $
     text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
-  let psp = permute perm ps'
+      -- We need to add the patterns for the module parameters before
+      -- permuting.
+  let paramPat i (VarP x) = A.VarP (cxtNames !! i)
+      paramPat _ (DotP _) = A.WildP patNoRange
+      paramPat _ _ = __IMPOSSIBLE__
+  let psp = permute perm $ zipWith (fmap . fmap . paramPat) [0..] (take npars qs) ++ ps'
   reportSDoc "tc.with.strip" 10 $ vcat
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
     , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
