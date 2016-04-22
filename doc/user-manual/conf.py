@@ -28,7 +28,11 @@ from sphinx.errors import VersionRequirementError
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '1.4'
+
+# If your change the version here also change it in the
+# `requirements.txt` file [Issue #1936].
+needs_sphinx = '1.4.1'
+
 # Temporal fix for Sphinx bug (see
 # https://github.com/sphinx-doc/sphinx/issues/2436).
 if needs_sphinx > sphinx.__display_version__:
