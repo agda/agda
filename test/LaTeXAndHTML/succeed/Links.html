@@ -10,36 +10,16 @@
   ><body
   ><pre
     ><a name="1" class="Comment"
-      >\documentclass{article}</a
-      ><a name="24"
-      >
-</a
-      ><a name="25" class="Comment"
-      >\usepackage{hyperref}</a
-      ><a name="46"
-      >
-</a
-      ><a name="47" class="Comment"
-      >\usepackage[links]{agda}</a
-      ><a name="71"
-      >
-</a
-      ><a name="72" class="Comment"
-      >\begin{document}</a
-      ><a name="88"
-      >
+      >\documentclass{article}
+\usepackage{hyperref}
+\usepackage[links]{agda}
+\begin{document}
 
+\AgdaTarget{&#8469;}
+\AgdaTarget{zero}
 </a
-      ><a name="90" class="Comment"
-      >\AgdaTarget{&#8469;}</a
-      ><a name="104"
-      >
-</a
-      ><a name="105" class="Comment"
-      >\AgdaTarget{zero}</a
-      ><a name="122"
-      >
-\begin{code}
+      ><a name="123"
+      >\begin{code}
 </a
       ><a name="136" class="Keyword"
       >data</a
@@ -96,40 +76,20 @@
       ><a name="182"
       >
 \end{code}
+</a
+      ><a name="194" class="Comment"
+      >
+See next page for how to define \AgdaFunction{two} (doesn't turn into a
+link because the target hasn't been defined yet). We could do it
+manually though; \hyperlink{two}{\AgdaDatatype{two}}.
 
-</a
-      ><a name="195" class="Comment"
-      >See next page for how to define \AgdaFunction{two} (doesn't turn into a</a
-      ><a name="266"
-      >
-</a
-      ><a name="267" class="Comment"
-      >link because the target hasn't been defined yet). We could do it</a
-      ><a name="331"
-      >
-</a
-      ><a name="332" class="Comment"
-      >manually though; \hyperlink{two}{\AgdaDatatype{two}}.</a
-      ><a name="385"
-      >
+\newpage
 
+\AgdaTarget{two}
+\hypertarget{two}{}
 </a
-      ><a name="387" class="Comment"
-      >\newpage</a
-      ><a name="395"
-      >
-
-</a
-      ><a name="397" class="Comment"
-      >\AgdaTarget{two}</a
-      ><a name="413"
-      >
-</a
-      ><a name="414" class="Comment"
-      >\hypertarget{two}{}</a
-      ><a name="433"
-      >
-\begin{code}
+      ><a name="434"
+      >\begin{code}
 </a
       ><a name="447" href="Links.html#447" class="Function"
       >two</a
@@ -169,41 +129,21 @@
       ><a name="475"
       >
 \end{code}
+</a
+      ><a name="487" class="Comment"
+      >
+\AgdaInductiveConstructor{zero} is of type
+\AgdaDatatype{&#8469;}. \AgdaInductiveConstructor{suc} has not been defined to
+be a target so it doesn't turn into a link.
+
+\newpage
+
+Now that the target for \AgdaFunction{two} has been defined the link
+works automatically.
 
 </a
-      ><a name="488" class="Comment"
-      >\AgdaInductiveConstructor{zero} is of type</a
-      ><a name="530"
-      >
-</a
-      ><a name="531" class="Comment"
-      >\AgdaDatatype{&#8469;}. \AgdaInductiveConstructor{suc} has not been defined to</a
-      ><a name="603"
-      >
-</a
-      ><a name="604" class="Comment"
-      >be a target so it doesn't turn into a link.</a
-      ><a name="647"
-      >
-
-</a
-      ><a name="649" class="Comment"
-      >\newpage</a
-      ><a name="657"
-      >
-
-</a
-      ><a name="659" class="Comment"
-      >Now that the target for \AgdaFunction{two} has been defined the link</a
-      ><a name="727"
-      >
-</a
-      ><a name="728" class="Comment"
-      >works automatically.</a
-      ><a name="748"
-      >
-
-\begin{code}
+      ><a name="750"
+      >\begin{code}
 </a
       ><a name="763" class="Keyword"
       >data</a
@@ -243,24 +183,16 @@
       ><a name="804"
       >
 \end{code}
+</a
+      ><a name="816" class="Comment"
+      >
+The AgdaTarget command takes a list as input, enabling several targets
+to be specified as follows:
 
+\AgdaTarget{if, then, else, if\_then\_else\_}
 </a
-      ><a name="817" class="Comment"
-      >The AgdaTarget command takes a list as input, enabling several targets</a
-      ><a name="887"
-      >
-</a
-      ><a name="888" class="Comment"
-      >to be specified as follows:</a
-      ><a name="915"
-      >
-
-</a
-      ><a name="917" class="Comment"
-      >\AgdaTarget{if, then, else, if\_then\_else\_}</a
-      ><a name="962"
-      >
-\begin{code}
+      ><a name="963"
+      >\begin{code}
 </a
       ><a name="976" href="Links.html#976" class="Function Operator"
       >if_then_else_</a
@@ -385,29 +317,15 @@
       ><a name="1073"
       >
 \end{code}
+</a
+      ><a name="1085" class="Comment"
+      >
+\newpage
 
-</a
-      ><a name="1086" class="Comment"
-      >\newpage</a
-      ><a name="1094"
-      >
+Mixfix identifier need their underscores escaped:
+\AgdaFunction{if\_then\_else\_}.
 
-</a
-      ><a name="1096" class="Comment"
-      >Mixfix identifier need their underscores escaped:</a
-      ><a name="1145"
-      >
-</a
-      ><a name="1146" class="Comment"
-      >\AgdaFunction{if\_then\_else\_}.</a
-      ><a name="1178"
-      >
-
-</a
-      ><a name="1180" class="Comment"
-      >\end{document}</a
-      ><a name="1194"
-      >
+\end{document}
 </a
       ></pre
     ></body

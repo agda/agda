@@ -96,6 +96,7 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
+import Agda.Interaction.FindFile ( rootNameModule )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -1056,7 +1057,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         (outsideDecls, [ C.Module r m0 tel insideDecls ]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
-                then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootName file]
+                then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootNameModule file]
                 else do
                 -- Andreas, 2014-03-28  Issue 1078
                 -- We need to check the module name against the file name here.

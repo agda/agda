@@ -169,6 +169,7 @@ data DeclarationException
         | UnquoteDefRequiresSignature [Name]
         | BadMacroDef NiceDeclaration
         | InvalidNoPositivityCheckPragma Range
+
     deriving (Typeable)
 
 -- | Several declarations expect only type signatures as sub-declarations.  These are:

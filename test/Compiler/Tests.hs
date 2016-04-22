@@ -169,7 +169,7 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
         else
           return CompileSucceeded
         )
-  where inpFile = dropExtension inp <.> ".inp"
+  where inpFile = dropAgdaExtension inp <.> ".inp"
 
 agdaRunProgGoldenTest1 :: FilePath     -- ^ directory where to run the tests.
     -> Compiler
@@ -182,7 +182,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
   | (Just cOpts) <- lookup comp (forCompilers opts) =
       Just $ goldenVsAction testName goldenFile (doRun cOpts) printExecResult
   | otherwise = Nothing
-  where goldenFile = dropExtension inp <.> ".out"
+  where goldenFile = dropAgdaExtension inp <.> ".out"
         testName   = asTestName dir inp
 
         doRun cOpts = withTempDirectory dir testName (\compDir -> do
@@ -212,7 +212,7 @@ readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
 readOptions inpFile =
   maybe defaultOptions (read . T.unpack . decodeUtf8) <$> readFileMaybe optFile
-  where optFile = dropExtension inpFile <.> ".options"
+  where optFile = dropAgdaOrOtherExtension inpFile <.> ".options"
 
 cleanUpOptions :: AgdaArgs -> AgdaArgs
 cleanUpOptions = filter clean
@@ -224,7 +224,7 @@ cleanUpOptions = filter clean
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
-getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropExtension inpFile)
+getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
 printExecResult (CompileFailed r) = "COMPILE_FAILED\n\n" `T.append` printProcResult r

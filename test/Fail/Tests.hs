@@ -48,8 +48,8 @@ mkFailTest inp =
   goldenTest1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow updGolden
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName   = asTestName testDir inp
-        goldenFile = dropExtension inp <.> ".err"
-        flagFile   = dropExtension inp <.> ".flags"
+        goldenFile = dropAgdaExtension inp <.> ".err"
+        flagFile   = dropAgdaExtension inp <.> ".flags"
 
         readGolden = readTextFileMaybe goldenFile
         updGolden  = writeTextFile goldenFile

@@ -45,7 +45,7 @@ mkSucceedTest inp =
   goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName testDir inp
-        flagFile = dropExtension inp <.> ".flags"
+        flagFile = dropAgdaExtension inp <.> ".flags"
 
         -- we don't really have a golden file. Just use
         -- a dummy update function.
