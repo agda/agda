@@ -239,7 +239,21 @@ latex_elements = {
 #'pointsize': '10pt',
 
 # Additional stuff for the LaTeX preamble.
-#'preamble': '',
+'preamble': r'''
+\ifxetex
+  \usepackage{unicode-math}
+
+  % See the unicode package documentation for the options for
+  % \setmonofont.
+  \setmonofont
+    [ BoldFont       = DejaVuSansMono-Bold.ttf,
+      ItalicFont     = DejaVuSansMono-Oblique.ttf,
+      BoldItalicFont = DejaVuSansMono-BoldOblique.ttf,
+      Scale          = MatchLowercase,
+    ]
+    {DejaVuSansMono.ttf}
+\fi
+'''
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
