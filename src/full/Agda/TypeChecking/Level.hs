@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Level where
 
 import Control.Applicative
+import Data.Maybe
 import Data.List as List
 
 import Agda.Syntax.Common
@@ -40,13 +41,15 @@ levelType = El (mkType 0) <$> primLevel
 levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = apply1 <$> primLevelSuc
 
-builtinLevelKit :: TCM (Maybe LevelKit)
-builtinLevelKit = liftTCM $ do
-    level@(Def l []) <- ignoreSharing <$> primLevel
-    zero@(Def z [])  <- ignoreSharing <$> primLevelZero
-    suc@(Def s [])   <- ignoreSharing <$> primLevelSuc
-    max@(Def m [])   <- ignoreSharing <$> primLevelMax
-    return $ Just $ LevelKit
+{-# SPECIALIZE builtinLevelKit :: TCM LevelKit #-}
+{-# SPECIALIZE builtinLevelKit :: ReduceM LevelKit #-}
+builtinLevelKit :: (HasBuiltins m) => m LevelKit
+builtinLevelKit = do
+    level@(Def l []) <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevel
+    zero@(Def z [])  <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
+    suc@(Def s [])   <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
+    max@(Def m [])   <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
+    return $ LevelKit
       { lvlType  = level
       , lvlSuc   = \ a -> suc `apply1` a
       , lvlMax   = \ a b -> max `applys` [a, b]
@@ -56,33 +59,30 @@ builtinLevelKit = liftTCM $ do
       , maxName  = m
       , zeroName = z
       }
-  `catchError` \_ -> return Nothing
 
 -- | Raises an error if no level kit is available.
-
 requireLevels :: TCM LevelKit
-requireLevels = do
-  mKit <- builtinLevelKit
-  case mKit of
-    Nothing -> sequence_ [primLevel, primLevelZero, primLevelSuc, primLevelMax] >> __IMPOSSIBLE__
-    Just k  -> return k
+requireLevels = builtinLevelKit
 
-unLevel :: Term -> TCM Term
+{-# SPECIALIZE unLevel :: Term -> TCM Term #-}
+{-# SPECIALIZE unLevel :: Term -> ReduceM Term #-}
+unLevel :: (HasBuiltins m) => Term -> m Term
 unLevel (Level l)  = reallyUnLevelView l
 unLevel (Shared p) = unLevel (derefPtr p)
 unLevel v = return v
 
 {-# SPECIALIZE reallyUnLevelView :: Level -> TCM Term #-}
-reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
-reallyUnLevelView nv = liftTCM $ do
+{-# SPECIALIZE reallyUnLevelView :: Level -> ReduceM Term #-}
+reallyUnLevelView :: (HasBuiltins m) => Level -> m Term
+reallyUnLevelView nv = do
+  suc <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
+  zer <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
   case nv of
-    Max []              -> primLevelZero
+    Max []              -> return zer
     Max [Plus 0 a]      -> return $ unLevelAtom a
     Max [a]             -> do
-      zer <- primLevelZero
-      suc <- primLevelSuc
       return $ unPlusV zer (apply1 suc) a
-    _ -> (`unlevelWithKit` nv) <$> requireLevels
+    _ -> (`unlevelWithKit` nv) <$> builtinLevelKit
 
 unlevelWithKit :: LevelKit -> Level -> Term
 unlevelWithKit LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } (Max as) =
