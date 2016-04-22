@@ -22,7 +22,7 @@ ap : ∀ {i j} {A : Set i} {B : Set j} (f : A → B) {x y : A}
   → x == y → f x == f y
 ap f idp = idp
 
-ap-cst : {A B : Set} (b : B) {x y : A} (p : x == y)
+ap-cst : ∀ {a} {b} {A : Set a} {B : Set b} (b : B) {x y : A} (p : x == y)
   → ap (λ _ → b) p == idp
 ap-cst b idp = idp
 {-# REWRITE ap-cst #-}

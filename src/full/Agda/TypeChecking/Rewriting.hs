@@ -358,6 +358,7 @@ instance NLPatVars NLPat where
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
       PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
+      PSet l    -> nlPatVars l
       PBoundVar _ es -> nlPatVars es
       PTerm{}   -> empty
 
@@ -383,5 +384,6 @@ instance KillCtxId NLPat where
     PDef f es      -> PDef f $ killCtxId es
     PLam i x       -> PLam i $ killCtxId x
     PPi a b        -> PPi (killCtxId a) (killCtxId b)
+    PSet l         -> PSet $ killCtxId l
     PBoundVar i es -> PBoundVar i $ killCtxId es
     PTerm _        -> p
