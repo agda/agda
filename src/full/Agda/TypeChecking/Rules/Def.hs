@@ -383,7 +383,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere (unArg trhs) wh $ checkRHS i x aps t lhsResult rhs0
-        escapeContext (size delta) $ checkWithFunction with
+        escapeContext (size delta) $ updateModuleParameters (strengthenS __IMPOSSIBLE__ (size delta)) $ checkWithFunction with
 
         reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
           [ text "Clause before translation:"

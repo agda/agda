@@ -218,7 +218,12 @@ addSection m = do
       reportSLn "impossible" 60 $ "with content " ++ show sec
       __IMPOSSIBLE__
   -- Add the new section.
+  setDefaultModuleParameters m
   modifySignature $ over sigSections $ Map.insert m sec
+
+setDefaultModuleParameters :: ModuleName -> TCM ()
+setDefaultModuleParameters m =
+  stModuleParameters %= Map.insert m defaultModuleParameters
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.

@@ -11,8 +11,10 @@ module Agda.TypeChecking.Monad.Context where
 
 import Control.Applicative
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.List hiding (sort)
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
 
@@ -24,11 +26,13 @@ import Agda.Syntax.Scope.Monad (getLocalVars, setLocalVars)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!), downFrom)
 import Agda.Utils.Size
+import Agda.Utils.Lens
 
 -- * Modifying the context
 
@@ -73,6 +77,50 @@ inTopContext cont = do
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
 
+-- Manipulating module parameters --
+
+withModuleParameters :: Map ModuleName ModuleParameters -> TCM a -> TCM a
+withModuleParameters mp ret = do
+  old <- use stModuleParameters
+  stModuleParameters .= mp
+  x <- ret
+  stModuleParameters .= old
+  return x
+
+-- Applies a substitution to all module parameters
+updateModuleParameters :: MonadTCM tcm => Substitution -> tcm a -> tcm a
+updateModuleParameters sub ret = do
+  pm <- use stModuleParameters
+  let showMP pref mps = intercalate "\n" $ [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
+                                           | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
+                                                                 (Map.toList mps) ]
+  cxt <- reverse <$> getContext
+  reportSLn "tc.cxt.param" 20 $ "updatingModuleParameters\n  sub = " ++ show sub ++
+                                "\n  cxt = " ++ unwords (map (show . fst . unDom) cxt) ++
+                                "\n" ++ showMP "  old = " pm
+  let pm' = Map.map f pm
+  reportSLn "tc.cxt.param" 20 $ showMP "  new = " pm'
+  stModuleParameters .= pm'
+  x <- ret              -- We need to keep introduced modules around
+  pm1 <- use stModuleParameters
+  let pm'' = Map.union pm (defaultModuleParameters <$ Map.difference pm1 pm)
+  stModuleParameters .= pm''
+  reportSLn "tc.cxt.param" 20 $ showMP "  restored = " pm''
+  return x
+  where
+    f mp = mp { mpSubstitution = composeS sub (mpSubstitution mp) }
+
+-- Should be called everytime the context is extended.
+weakenModuleParameters :: MonadTCM tcm => Nat -> tcm a -> tcm a
+weakenModuleParameters n = updateModuleParameters (Wk n IdS)
+
+getModuleParameterSub :: MonadTCM tcm => ModuleName -> tcm Substitution
+getModuleParameterSub m = do
+  r <- use stModuleParameters
+  case Map.lookup m r of
+    Nothing -> return IdS
+    Just mp -> return $ mpSubstitution mp
+
 -- * Adding to the context
 
 -- | @addCtx x arg cont@ add a variable to the context.
@@ -94,6 +142,10 @@ addCtx x a ret = do
 class AddContext b where
   addContext  :: MonadTCM tcm => b -> tcm a -> tcm a
   contextSize :: b -> Nat
+
+-- | Also weaken module parameter substitution.
+addContext' :: (MonadTCM tcm, AddContext b) => b -> tcm a -> tcm a
+addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where

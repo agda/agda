@@ -212,7 +212,7 @@ checkRecDef i name ind eta con ps contel fields =
 -}
 
       let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar = addContext ("", Dom info rect)
+          addRecordVar = addContext' ("", Dom info rect)
           -- the record variable has the empty name by intention, see issue 208
 
       let m = qnameToMName name  -- Name of record module.
@@ -251,6 +251,7 @@ checkRecDef i name ind eta con ps contel fields =
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- getContextTelescope
+          setDefaultModuleParameters m
           checkRecordProjections m name con tel' (raise 1 ftel) fields
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check

@@ -558,15 +558,17 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
     reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
-    -- Check dot patterns
-    mapM_ checkDotPattern dpi
-    checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
-
     let qs'  = unnumberPatVars qs
         perm = dbPatPerm qs
         lhsResult = LHSResult delta qs' b' perm
+        paramSub  = wkS (size delta) idS
     reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
-    applyRelevanceToContext (getRelevance b') $ ret lhsResult
+    applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
+      -- Check dot patterns
+      mapM_ checkDotPattern dpi
+      checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
+      ret lhsResult
+
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS

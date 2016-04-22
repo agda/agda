@@ -262,7 +262,7 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-    addContext (xs, Dom info' t) $
+    addContext' (xs, Dom info' t) $
       ret $ bindsWithHidingToTel xs (Dom info t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
@@ -318,13 +318,13 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
         pid <- newProblem_ $ leqType (telePi tel t1) target
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext (xs, argsT) $ checkExpr body t1
+        v <- addContext' (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         blockTermOnProblem target (teleLam tel v) pid
        else do
         -- Now check body : ?t₁
         -- WRONG: v <- addContext tel $ checkExpr body t1
-        v <- addContext (xs, argsT) $ checkExpr body t1
+        v <- addContext' (xs, argsT) $ checkExpr body t1
         -- Block on the type comparison
         coerce (teleLam tel v) (telePi tel t1) target
 
@@ -354,8 +354,8 @@ checkLambda (Arg info (A.TBind _ xs typ)) body target = do
       where
         [WithHiding h x] = xs
         -- Andreas, Issue 630: take name from function type if lambda name is "_"
-        add y dom | isNoName x = addContext (y, dom)
-                  | otherwise  = addContext (x, dom)
+        add y dom | isNoName x = addContext' (y, dom)
+                  | otherwise  = addContext' (x, dom)
     useTargetType _ _ = __IMPOSSIBLE__
 
 -- | Checking a lambda whose domain type has already been checked.
@@ -418,7 +418,7 @@ insertHiddenLambdas h target postpone ret = do
             -- Otherwise, we found a hidden argument that we can insert.
             let x = absName b
             Lam (domInfo dom) . Abs x <$> do
-              addContext (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
+              addContext' (x, dom) $ insertHiddenLambdas h (absBody b) postpone ret
 
       _ -> typeError . GenericDocError =<< do
         text "Expected " <+> prettyTCM target <+> text " to be a function type"
@@ -2007,7 +2007,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       -- We remove the bindings for the pattern variables from the context.
       cxt0 <- getContext
       let (binds, cxt) = splitAt (size delta) cxt0
-      escapeContext (length binds) $ do
+      escapeContext (length binds) $ updateModuleParameters (strengthenS __IMPOSSIBLE__ (length binds)) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> text (show binds) -- prettyTCM binds
