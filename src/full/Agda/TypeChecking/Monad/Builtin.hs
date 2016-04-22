@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.Builtin where
 
 import Control.Applicative
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
 
 import qualified Data.Map as Map
 
@@ -25,6 +26,9 @@ import Agda.Utils.Impossible
 
 class (Functor m, Applicative m, Monad m) => HasBuiltins m where
   getBuiltinThing :: String -> m (Maybe (Builtin PrimFun))
+
+instance HasBuiltins m => HasBuiltins (MaybeT m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
 
 litType :: Literal -> TCM Type
 litType l = case l of
