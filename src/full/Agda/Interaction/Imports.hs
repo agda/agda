@@ -504,8 +504,11 @@ readInterface file = do
       _               -> throwError e
 
 -- | Writes the given interface to the given file.
+--
+-- The serialised interface is also deserialised and returned. The
+-- returned interface does not contain meta-variables.
 
-writeInterface :: FilePath -> Interface -> TCM ()
+writeInterface :: FilePath -> Interface -> TCM Interface
 writeInterface file i = do
     reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
     -- Andreas, 2015-07-13
@@ -519,9 +522,10 @@ writeInterface file i = do
     -- i <- return $
     --   i { iInsideScope  = removePrivates $ iInsideScope i
     --     }
-    encodeFile file i
+    i <- encodeFile file i
     reportSLn "import.iface.write" 5 $ "Wrote interface file."
     reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i) ++ ""
+    return i
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ file ++ "."
@@ -677,7 +681,7 @@ createInterface file mname =
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       let ifile = filePath $ toIFile file
-      writeInterface ifile i
+      i <- writeInterface ifile i
       return (i, NoWarnings)
      else do
       return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
@@ -742,8 +746,7 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     patsyns <- killRange <$> getPatternSyns
     h       <- liftIO $ hashFile file
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
-    reportSLn "import.iface" 7 "  instantiating all meta variables"
-    i <- instantiateFull $ Interface
+    return $ Interface
       { iSourceHash      = h
       , iImportedModules = mhs
       , iModuleName      = m
@@ -759,8 +762,6 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns
       }
-    reportSLn "import.iface" 7 "  interface complete"
-    return i
 
 -- | Returns (iSourceHash, iFullHash)
 getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))

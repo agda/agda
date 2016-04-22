@@ -14,14 +14,17 @@ import qualified Data.ByteString.Lazy as L
 import Data.Hashable
 import qualified Data.HashTable.IO as H
 import Data.Int (Int32)
+import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import Data.Typeable ( cast, Typeable, typeOf, TypeRep )
 
-import Agda.Syntax.Common (NameId)
+import Agda.Syntax.Common (NameId, MetaId)
 import Agda.Syntax.Internal (Term, QName(..), ModuleName(..), nameId)
-import Agda.TypeChecking.Monad.Base (TypeError(GenericError), ModuleToSource)
+import Agda.TypeChecking.Monad.Base
+  (TypeError(GenericError), ModuleToSource,
+   MetaStore, mvInstantiation, MetaInstantiation)
 
 import Agda.Utils.FileName
 import Agda.Utils.IORef
@@ -29,6 +32,9 @@ import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.Pointer
 import Agda.Utils.Except (ExceptT, throwError)
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -85,6 +91,9 @@ data Dict = Dict
   -- Memoizing A.Name does not buy us much if we already memoize A.QName.
   , nameD        :: !(HashTable NameId  Int32)    -- ^ Not written to interface file.
   , qnameD       :: !(HashTable QNameId Int32)    -- ^ Not written to interface file.
+  , metaIdD      :: !(HashTable MetaId Int32)     -- ^ Not written to interface file.
+  -- The meta-store.
+  , metaStoreD   :: !MetaStore                    -- ^ Not written to interface file.
   -- Fresh UIDs and reuse statistics:
   , nodeC        :: !(IORef FreshAndReuse)  -- counters for fresh indexes
   , stringC      :: !(IORef FreshAndReuse)
@@ -94,6 +103,7 @@ data Dict = Dict
   , termC        :: !(IORef FreshAndReuse)
   , nameC        :: !(IORef FreshAndReuse)
   , qnameC       :: !(IORef FreshAndReuse)
+  , metaIdC      :: !(IORef FreshAndReuse)
   , stats        :: !(HashTable String Int)
   , collectStats :: Bool
     -- ^ If @True@ collect in @stats@ the quantities of
@@ -105,8 +115,9 @@ data Dict = Dict
 emptyDict
   :: Bool
      -- ^ Collect statistics for @icode@ calls?
+  -> MetaStore
   -> IO Dict
-emptyDict collectStats = Dict
+emptyDict collectStats metaStore = Dict
   <$> H.new
   <*> H.new
   <*> H.new
@@ -115,6 +126,9 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
+  <*> return metaStore
+  <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
   <*> newIORef farEmpty
@@ -126,6 +140,17 @@ emptyDict collectStats = Dict
   <*> H.new
   <*> pure collectStats
   <*> H.new
+
+-- | The given meta-variable's instantiation.
+--
+-- Precondition: The meta must be instantiated.
+
+metaInstantiationS :: MetaId -> S MetaInstantiation
+metaInstantiationS m = do
+  mv <- Map.lookup m . metaStoreD <$> ask
+  case mv of
+    Nothing -> __IMPOSSIBLE__
+    Just v  -> return $ mvInstantiation v
 
 -- | Universal type, wraps everything.
 data U = forall a . Typeable a => U !a
