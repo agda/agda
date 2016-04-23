@@ -84,6 +84,20 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinQName              |-> builtinPostulate tset)
   , (builtinAgdaMeta           |-> builtinPostulate tset)
   , (builtinIO                 |-> builtinPostulate (tset --> tset))
+  , (builtinPath               |-> builtinPostulate (hPi "a" (el primLevel) $
+                                                hPi "A" (return $ sort $ varSort 0) $
+                                                (El (varSort 1) <$> varM 0) -->
+                                                (El (varSort 1) <$> varM 0) -->
+                                                return (sort $ varSort 1)))
+  , (builtinInterval           |-> builtinPostulate tset)
+  , (builtinPathAbs            |-> builtinPostulate (hPi "a" (el primLevel) $
+                                                hPi "A" (return $ sort $ varSort 0) $
+                                                hPi "x" (El (varSort 1) <$> varM 0) $
+                                                hPi "y" (El (varSort 2) <$> varM 1) $
+                                                (tinterval --> (El (varSort 3) <$> varM 2)) -->
+                                                (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
+  , (builtinIZero              |-> builtinPostulate tinterval)
+  , (builtinIOne               |-> builtinPostulate tinterval)
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaTerm           |-> BuiltinData tset
                                      [ builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam
@@ -251,6 +265,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tclause    = el primAgdaClause
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
         tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
+        tinterval  = el primInterval
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do

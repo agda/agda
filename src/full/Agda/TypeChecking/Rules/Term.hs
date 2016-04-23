@@ -274,6 +274,32 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
 
+ifPath :: QName -> TCM a -> TCM a -> TCM a
+ifPath d fallback work = do
+  pathname <- primPathName
+  reportSLn "tc.term.lambda" 60 $ show (pathname,d)
+  if pathname == d then work else fallback
+
+checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
+checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lhs rhs <- boldPathView ty = do
+    let btyp = El s (unArg typ)
+    interval <- el primInterval
+    v <- addContext (xs, Dom info interval) $ checkExpr body (raise 1 btyp)
+    iZero <- primIZero
+    iOne  <- primIOne
+    pathAbs <- primPathAbs
+    let lhs' = subst 0 iZero v
+        rhs' = subst 0 iOne  v
+
+    let t = apply pathAbs [level,typ,setHiding Hidden lhs,setHiding Hidden rhs,defaultArg (Lam info $ Abs (nameToArgName x) v)]
+    blockTerm ty $ do
+      equalTerm btyp lhs' (unArg lhs)
+      equalTerm btyp rhs' (unArg rhs)
+      return t
+  where
+    [WithHiding h x] = xs
+
+checkPath b body ty = __IMPOSSIBLE__
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
 ---------------------------------------------------------------------------
@@ -283,15 +309,30 @@ checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
 checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
-checkLambda (Arg info (A.TBind _ xs typ)) body target = do
+checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ show xs
 
   let numbinds = length xs
+      possiblePath = numbinds == 1 && (case unScope typ of
+                                         A.Underscore{} -> True
+                                         _              -> False)
+                     && not (any notVisible xs)
+  reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, typ)
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
-    then dontUseTargetType
+    then (if possiblePath then trySeeingIfPath else dontUseTargetType)
     else useTargetType tel btyp
   where
+    trySeeingIfPath = do
+      reportSLn "tc.term.lambda" 60 $ "trySeeingIfPath for " ++ show xs
+
+      ifBlockedType target postpone $ \tgt -> do
+          let t = ignoreSharing <$> tgt
+              fallback = dontUseTargetType
+          case unEl t of
+            Def d es -> ifPath d fallback $ checkPath b body t
+            _        -> fallback
+    postpone = \ m tgt -> postponeTypeCheckingProblem_ $ CheckExpr (A.Lam A.exprNoRange (A.DomainFull (A.TypedBindings noRange b)) body) tgt
     dontUseTargetType = do
       -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"

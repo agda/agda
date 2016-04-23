@@ -599,6 +599,29 @@ isEqualityType :: EqualityView -> Bool
 isEqualityType EqualityType{} = True
 isEqualityType OtherType{}    = False
 
+-- | View type as path type.
+
+data PathView
+  = PathType
+    { pathSort  :: Sort     -- ^ Sort of this type.
+    , pathName  :: QName    -- ^ Builtin PATH.
+    , pathLevel :: Arg Term -- ^ Hidden
+    , pathType  :: Arg Term -- ^ Hidden
+    , pathLhs   :: Arg Term -- ^ NotHidden
+    , pathRhs   :: Arg Term -- ^ NotHidden
+    }
+  | OType Type -- ^ reduced
+
+isPathType :: PathView -> Bool
+isPathType PathType{} = True
+isPathType OType{}    = False
+
+data IntervalView
+      = IZero
+      | IOne
+      | OTerm Term
+      deriving Show
+
 ---------------------------------------------------------------------------
 -- * Absurd Lambda
 ---------------------------------------------------------------------------

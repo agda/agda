@@ -105,6 +105,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
+    primPath, primInterval, primPathAbs, primIZero, primIOne, -- primPathApply,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
@@ -153,6 +154,12 @@ primList         = getBuiltin builtinList
 primNil          = getBuiltin builtinNil
 primCons         = getBuiltin builtinCons
 primIO           = getBuiltin builtinIO
+primPath         = getBuiltin builtinPath
+primInterval     = getBuiltin builtinInterval
+primPathAbs      = getBuiltin builtinPathAbs
+primIZero        = getBuiltin builtinIZero
+primIOne         = getBuiltin builtinIOne
+-- primPathApply    = getBuiltin builtinPathApply
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -268,6 +275,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
+  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, -- builtinPathApply,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -329,6 +337,12 @@ builtinList                          = "LIST"
 builtinNil                           = "NIL"
 builtinCons                          = "CONS"
 builtinIO                            = "IO"
+builtinPath                          = "PATH"
+builtinInterval                      = "INTERVAL"
+builtinPathAbs                       = "PATHABS"
+builtinIZero                         = "IZERO"
+builtinIOne                          = "IONE"
+-- builtinPathApply                     = "PATHAPPLY"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
@@ -474,6 +488,75 @@ coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit =
   (Just <$> coinductionKit')
   `catchError` \_ -> return Nothing
+
+
+------------------------------------------------------------------------
+-- * Path equality
+------------------------------------------------------------------------
+
+getPrimName :: Term -> QName
+getPrimName ty = do
+  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+      lamV (Shared p) = lamV (derefPtr p)
+      lamV v          = ([], v)
+  case lamV ty of
+            (_, Def path _) -> path
+            (_, _)          -> __IMPOSSIBLE__
+
+
+intervalView :: HasBuiltins m => Term -> m IntervalView
+intervalView t@(Def q []) = do
+  iz <- fmap getPrimName <$> getBuiltin' builtinIZero
+  io <- fmap getPrimName <$> getBuiltin' builtinIOne
+  return $ case q of
+    _ | Just q == iz -> IZero
+    _ | Just q == io -> IOne
+    _                -> OTerm t
+intervalView t = return $ OTerm t
+
+------------------------------------------------------------------------
+-- * Path equality
+------------------------------------------------------------------------
+
+-- | Get the name of the equality type.
+primPathName :: TCM QName
+primPathName = do
+  ty <- primPath
+  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+      lamV (Shared p) = lamV (derefPtr p)
+      lamV v          = ([], v)
+  return $ case lamV ty of
+            (_, Def path _) -> path
+            (_, _)          -> __IMPOSSIBLE__
+
+-- | Check whether the type is actually an path (lhs ≡ rhs)
+--   and extract lhs, rhs, and their type.
+--
+--   Precondition: type is reduced.
+
+pathView :: Type -> TCM PathView
+pathView t0@(El s t) = do
+  path <- primPathName
+  case ignoreSharing t of
+    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
+      | path' == path -> return $ PathType s path level typ lhs rhs
+    _ -> return $ OType t0
+
+boldPathView :: Type -> PathView
+boldPathView t0@(El s t) = do
+  case ignoreSharing t of
+    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
+      -> PathType s path' level typ lhs rhs
+    _ -> OType t0
+
+-- | Revert the 'PathView'.
+--
+--   Postcondition: type is reduced.
+
+pathUnview :: PathView -> Type
+pathUnview (OType t) = t
+pathUnview (PathType s path l t lhs rhs) =
+  El s $ Def path $ map Apply [l, t, lhs, rhs]
 
 ------------------------------------------------------------------------
 -- * Builtin equality

@@ -323,6 +323,37 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _       -> Nothing
 
+
+primPathApply :: TCM PrimitiveImpl
+primPathApply = do
+  t    <- hPi "a" (el primLevel) $
+          hPi "A" (return $ sort $ varSort 0) $
+          hPi "x" (El (varSort 1) <$> varM 0) $
+          hPi "y" (El (varSort 2) <$> varM 1) $
+          (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
+          --> el primInterval --> (El (varSort 3) <$> varM 2)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
+--    pathApply <- primFunName <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitive' "primPathApply"
+    pathAbs <- fmap getPrimName <$> getBuiltin' builtinPathAbs
+    case ts of
+      [l,a,x,y,p,r] -> do
+        sr <- reduceB' r
+        let r = ignoreBlocking sr
+        rv <- intervalView $ unArg r
+        case rv of
+           IZero -> redReturn (unArg x)
+           IOne  -> redReturn (unArg y)
+           OTerm r' -> do
+             sp <- reduceB' p
+             let p = unArg $ ignoreBlocking sp
+             case p of
+               Def q [Apply l,Apply a,Apply x,Apply y,Apply t]
+                   | Just q == pathAbs -> redReturn $ apply (unArg t) [fmap (const r') r]
+               _                       -> return $ NoReduction $ [notReduced l,notReduced a,notReduced x,notReduced y,reduced sp,reduced sr]
+
+      _ -> __IMPOSSIBLE__
+
+
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
 primTrustMe = do
@@ -584,6 +615,9 @@ list t = primList <@> t
 io :: TCM Term -> TCM Term
 io t = primIO <@> t
 
+path :: TCM Term -> TCM Term
+path t = primPath <@> t
+
 el :: TCM Term -> TCM Type
 el t = El (mkType 0) <$> t
 
@@ -720,9 +754,11 @@ primitiveFunctions = Map.fromList
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
+  , "primPathApply"       |-> primPathApply
   ]
   where
     (|->) = (,)
+
 
 floatEq :: Double -> Double -> Bool
 floatEq x y | isNaN x && isNaN y = True
