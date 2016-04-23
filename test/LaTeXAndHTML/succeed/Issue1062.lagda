@@ -33,7 +33,7 @@ open _×_
 -- Sized streams via head/tail.
 
 record Stream {i : Size} (A : Set) : Set where
-  coinductive
+  coinductive; constructor _∷_
   field
     head  : A
     tail  : ∀ {j : Size< i} → Stream {j} A
@@ -57,8 +57,11 @@ record List1 (A : Set) : Set where
   constructor _∷_
   field
     first  : A
-    rest   : List A
-open List1 public
+    tail   : List A
+open List1 using (first; tail)
+
+record ⊤ : Set where constructor trivial
+open List1 (trivial ∷ []) using (tail)
 
 unfold⁺ : ∀ {S : Size → Set} {A : Set}
 

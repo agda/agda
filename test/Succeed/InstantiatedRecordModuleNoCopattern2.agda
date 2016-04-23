@@ -20,4 +20,4 @@ open R s
 -- We can still use it in pattern position (since a field does not make sense here).
 
 ok : R
-out ok = Set
+out ok = Set  -- out should be highlighted as projection

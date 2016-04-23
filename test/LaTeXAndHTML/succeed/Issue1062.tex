@@ -65,7 +65,7 @@
 \>\AgdaKeyword{record} \AgdaRecord{Stream} \AgdaSymbol{\{}\AgdaBound{i} \AgdaSymbol{:} \AgdaPostulate{Size}\AgdaSymbol{\}} \AgdaSymbol{(}\AgdaBound{A} \AgdaSymbol{:} \AgdaPrimitiveType{Set}\AgdaSymbol{)} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where}\<%
 \\
 \>[0]\AgdaIndent{2}{}\<[2]%
-\>[2]\AgdaKeyword{coinductive}\<%
+\>[2]\AgdaKeyword{coinductive}\AgdaSymbol{;} \AgdaKeyword{constructor} \AgdaCoinductiveConstructor{\_∷\_}\<%
 \\
 \>[0]\AgdaIndent{2}{}\<[2]%
 \>[2]\AgdaKeyword{field}\<%
@@ -127,10 +127,16 @@
 \>[11]\AgdaSymbol{:} \AgdaBound{A}\<%
 \\
 \>[2]\AgdaIndent{4}{}\<[4]%
-\>[4]\AgdaField{rest} \<[11]%
+\>[4]\AgdaField{tail} \<[11]%
 \>[11]\AgdaSymbol{:} \AgdaDatatype{List} \AgdaBound{A}\<%
 \\
-\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaKeyword{public}\<%
+\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaKeyword{using} \AgdaSymbol{(}\AgdaField{first}\AgdaSymbol{;} \AgdaField{tail}\AgdaSymbol{)}\<%
+\\
+%
+\\
+\>\AgdaKeyword{record} \AgdaRecord{⊤} \AgdaSymbol{:} \AgdaPrimitiveType{Set} \AgdaKeyword{where} \AgdaKeyword{constructor} \AgdaInductiveConstructor{trivial}\<%
+\\
+\>\AgdaKeyword{open} \AgdaModule{List1} \AgdaSymbol{(}\AgdaInductiveConstructor{trivial} \AgdaInductiveConstructor{∷} \AgdaInductiveConstructor{[]}\AgdaSymbol{)} \AgdaKeyword{using} \AgdaSymbol{(}tail\AgdaSymbol{)}\<%
 \\
 %
 \\
