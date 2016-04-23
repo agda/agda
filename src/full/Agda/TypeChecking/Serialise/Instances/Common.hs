@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP                       #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 #if __GLASGOW_HASKELL__ >= 710
@@ -33,6 +35,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Typeable (Typeable)
 import Data.Void
 
 import Agda.Syntax.Common
@@ -233,6 +236,7 @@ instance EmbPrj Range where
 -- | Ranges that should be serialised properly.
 
 newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
+  deriving (Typeable)
 
 instance EmbPrj SerialisedRange where
   icod_ (SerialisedRange r) =
