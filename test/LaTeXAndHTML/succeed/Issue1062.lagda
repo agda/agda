@@ -56,12 +56,12 @@ _++ˢ_ : ∀ {i A} → List A → Stream {i} A → Stream {i} A
 record List1 (A : Set) : Set where
   constructor _∷_
   field
-    first  : A
-    tail   : List A
-open List1 using (first; tail)
+    head  : A
+    tail  : List A
+open List1 using (head; tail)
 
 record ⊤ : Set where constructor trivial
-open List1 (trivial ∷ []) using (tail)
+open List1 (trivial ∷ []) using (head; tail) -- problem: imports not colored
 
 unfold⁺ : ∀ {S : Size → Set} {A : Set}
 
@@ -69,7 +69,7 @@ unfold⁺ : ∀ {S : Size → Set} {A : Set}
 
   ∀ {i} → (s : S i) → Stream {i} A
 
-head  (unfold⁺ step s) =  first (fst (step s))
+head  (unfold⁺ step s) =  head (fst (step s))
 tail  (unfold⁺ step s) =  let  ((_ ∷ l) , s′) = step s
                           in   l ++ˢ unfold⁺ step s′
 \end{code}
