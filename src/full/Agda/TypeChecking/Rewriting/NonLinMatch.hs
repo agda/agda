@@ -266,9 +266,9 @@ instance Match NLPat Term where
                 tel = permuteTel perm k
             ok <- liftRed $ reallyFree isBadVar v
             case ok of
-              Left b      -> matchingBlocked b
-              Right True  -> no (text "")
-              Right False -> tellSub i $ teleLam tel $ renameP perm v
+              Left b         -> matchingBlocked b
+              Right Nothing  -> no (text "")
+              Right (Just v) -> tellSub i $ teleLam tel $ renameP perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of
@@ -310,26 +310,31 @@ instance Match NLPat Term where
       matchArgs :: Telescope -> Telescope -> [Elim' NLPat] -> Elims -> NLM ()
       matchArgs gamma k ps es = match gamma k ps =<< liftRed (reduce' es)
 
+-- Checks if the given term contains any free variables that satisfy the
+-- given condition on their DBI, possibly normalizing the term in the process.
+-- Returns `Right Nothing` if there are such variables, `Right (Just v')`
+-- if there are none (where v' is the possibly normalized version of the given
+-- term) or `Left b` if the problem is blocked on a meta.
 reallyFree :: (Normalise a, Free' a FreeVars)
-           => (Int -> Bool) -> a -> ReduceM (Either Blocked_ Bool)
+           => (Int -> Bool) -> a -> ReduceM (Either Blocked_ (Maybe a))
 reallyFree f v = do
     let xs = getVars v
     if null (stronglyRigidVars xs) && null (unguardedVars xs)
     then do
       if null (weaklyRigidVars xs) && null (flexibleVars xs)
          && null (irrelevantVars xs)
-      then return $ Right False
+      then return $ Right $ Just v
       else do
         v <- normalise' v
         let xs = getVars v
         if null (stronglyRigidVars xs) && null (unguardedVars xs)
            && null (weaklyRigidVars xs) && null (irrelevantVars xs)
         then if null (flexibleVars xs)
-             then return $ Right False
+             then return $ Right $ Just v
              else return $ Left $ foldMap (foldMap $ \m -> Blocked m ()) $
                     flexibleVars xs
-        else return $ Right True
-    else return $ Right True
+        else return $ Right Nothing
+    else return $ Right Nothing
   where
     getVars v = runFree (\var@(i,_) -> if f i then singleton var else empty) IgnoreNot v
 
