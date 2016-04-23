@@ -164,10 +164,6 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- This should succeed, as we have the correctly disambiguated.
             lift $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
 
-      tryTCM :: TCM a -> ListT TCM a
-      tryTCM m = maybe mzero return =<< do
-        lift $ (Just <$> m) `catchError` \ _ -> return Nothing
-
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero
 
