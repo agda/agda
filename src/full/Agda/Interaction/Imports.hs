@@ -503,8 +503,7 @@ readInterface file = do
                          -- document.
       _               -> throwError e
 
--- | Writes the given interface to the given file. Returns the file's
--- new modification time stamp, or 'Nothing' if the write failed.
+-- | Writes the given interface to the given file.
 
 writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
