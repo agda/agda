@@ -103,10 +103,11 @@ splitProblem mf (Problem ps qs tel pr) = do
       -- If the pattern is not a projection pattern, that's an error.
       -- Probably then there were too many arguments.
       caseMaybe (isProjP p) failure $ \ (AmbQ ds) -> do
-        let d = head ds
-        when (length ds /= 1) __IMPOSSIBLE__
         -- So it is a projection pattern (d = projection name), is it?
-        caseMaybeM (lift $ isProjection d) notProjP $ \ proj -> case proj of
+        projs <- mapMaybeM (lift . isProjection) ds
+        when (null projs) notProjP
+        when (length projs /= 1) __IMPOSSIBLE__
+        case head projs of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
           Projection{projProper = Nothing} -> notProjP
           Projection{projProper = Just d, projIndex = n, projArgInfo = ai} -> do

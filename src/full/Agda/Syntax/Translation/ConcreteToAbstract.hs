@@ -1871,15 +1871,14 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         unless (null ps1) $ typeError $ GenericDocError $
           P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
         qx <- resolveName d
-        d  <- case qx of
+        ds <- case qx of
                 FieldName [] -> __IMPOSSIBLE__
-                FieldName [d] -> return $ anameName d
-                FieldName ds -> genericError $ "not yet implemented: copatterns with overloaded destructors " ++ show ds
+                FieldName ds -> return $ map anameName ds
                 UnknownName -> notInScope d
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ show d ++ " isn't one"
-        A.LHSProj (AmbQ [d]) <$> toAbstract l <*> toAbstract ps2
+        A.LHSProj (AmbQ ds) <$> toAbstract l <*> toAbstract ps2
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
