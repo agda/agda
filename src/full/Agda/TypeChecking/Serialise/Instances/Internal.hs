@@ -2,11 +2,12 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Agda.TypeChecking.Serialise.Instances.Internal where
+module Agda.TypeChecking.Serialise.Instances.Internal () where
 
 import Control.Applicative
 import Control.Monad.State.Strict
 
+import Agda.Syntax.Common   as C
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Position as P
 
@@ -17,6 +18,8 @@ import Agda.TypeChecking.Serialise.Instances.Compilers ()
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Permutation
 
@@ -92,6 +95,27 @@ instance (EmbPrj a) => EmbPrj (I.Abs a) where
     valu [0, a, b] = valu2 NoAbs a b
     valu _         = malformed
 
+-- | A local type.
+
+data MetaOrInst
+  = Meta I.MetaId
+  | Inst [C.Arg String] I.Term
+
+-- | The encoder only accepts 'Meta', and the decoder always returns
+-- 'Inst' (if it is successful).
+
+instance EmbPrj MetaOrInst where
+  icod_ (Inst a b) = __IMPOSSIBLE__
+  icod_ (Meta m)   = icodeMemo metaIdD metaIdC m $ do
+    inst <- metaInstantiationS m
+    case inst of
+      InstV a b -> icode2' a b
+      _         -> __IMPOSSIBLE__
+
+  value = vcase valu where
+    valu [a, b] = valu2 Inst a b
+    valu _      = malformed
+
 instance EmbPrj I.Term where
   icod_ (Var     a []) = icode1' a
   icod_ (Var      a b) = icode2 0 a b
@@ -101,24 +125,28 @@ instance EmbPrj I.Term where
   icod_ (Con      a b) = icode2 4 a b
   icod_ (Pi       a b) = icode2 5 a b
   icod_ (Sort     a  ) = icode1 7 a
-  icod_ (MetaV    a b) = __IMPOSSIBLE__
   icod_ (DontCare a  ) = icode1 8 a
   icod_ (Level    a  ) = icode1 9 a
   icod_ (Shared p)     = icodeMemo termD termC p $ icode (derefPtr p)
+  icod_ (MetaV    a b) = icode2 10 (Meta a) b
 
   value r = vcase valu' r where
-    valu' xs       = gets mkShared <*> valu xs
-    valu [a]       = valu1 var   a
-    valu [0, a, b] = valu2 Var   a b
-    valu [1, a, b] = valu2 Lam   a b
-    valu [2, a]    = valu1 Lit   a
-    valu [3, a, b] = valu2 Def   a b
-    valu [4, a, b] = valu2 Con   a b
-    valu [5, a, b] = valu2 Pi    a b
-    valu [7, a]    = valu1 Sort  a
-    valu [8, a]    = valu1 DontCare a
-    valu [9, a]    = valu1 Level a
-    valu _         = malformed
+    valu' xs         = gets mkShared <*> valu xs
+    valu [a]         = valu1 var   a
+    valu [0, a, b]   = valu2 Var   a b
+    valu [1, a, b]   = valu2 Lam   a b
+    valu [2, a]      = valu1 Lit   a
+    valu [3, a, b]   = valu2 Def   a b
+    valu [4, a, b]   = valu2 Con   a b
+    valu [5, a, b]   = valu2 Pi    a b
+    valu [7, a]      = valu1 Sort  a
+    valu [8, a]      = valu1 DontCare a
+    valu [9, a]      = valu1 Level a
+    valu [10, ab, c] = valu2 helper ab c
+    valu _           = malformed
+
+    helper (Inst a b) = applyElimsToInst a b
+    helper Meta{}     = __IMPOSSIBLE__
 
 instance EmbPrj Level where
   icod_ (Max a) = icode1' a
@@ -139,29 +167,34 @@ instance EmbPrj PlusLevel where
 instance EmbPrj LevelAtom where
   icod_ (NeutralLevel _ a) = icode1' a
   icod_ (UnreducedLevel a) = icode1 1 a
-  icod_ MetaLevel{}        = __IMPOSSIBLE__
   icod_ BlockedLevel{}     = __IMPOSSIBLE__
+  icod_ (MetaLevel a b)    = icode2 2 (Meta a) b
 
   value = vcase valu where
-    valu [a]    = valu1 UnreducedLevel a -- we forget that we are a NeutralLevel,
-                                         -- since we do not want do (de)serialize
-                                         -- the reason for neutrality
-    valu [1, a] = valu1 UnreducedLevel a
-    valu _      = malformed
+    valu [a]        = valu1 UnreducedLevel a -- we forget that we are a NeutralLevel,
+                                             -- since we do not want do (de)serialize
+                                             -- the reason for neutrality
+    valu [1, a]     = valu1 UnreducedLevel a
+    valu [2, ab, c] = valu2 helper ab c
+    valu _          = malformed
+
+    helper (Inst a b) c = UnreducedLevel $ applyElimsToInst a b c
+    helper Meta{}     _ = __IMPOSSIBLE__
 
 instance EmbPrj I.Sort where
   icod_ (Type  a  ) = icode1' a
   icod_ Prop        = icode1 1 ()
   icod_ SizeUniv    = icode1 3 ()
   icod_ Inf         = icode1 4 ()
-  icod_ (DLub a b)  = __IMPOSSIBLE__
+  icod_ (DLub a b)  = icode2 5 a b
 
   value = vcase valu where
-    valu [a]    = valu1 Type  a
-    valu [1, _] = valu0 Prop
-    valu [3, _] = valu0 SizeUniv
-    valu [4, _] = valu0 Inf
-    valu _      = malformed
+    valu [a]       = valu1 Type  a
+    valu [1, _]    = valu0 Prop
+    valu [3, _]    = valu0 SizeUniv
+    valu [4, _]    = valu0 Inf
+    valu [5, a, b] = valu2 dLub a b
+    valu _         = malformed
 
 instance EmbPrj DisplayForm where
   icod_ (Display a b c) = icode3' a b c

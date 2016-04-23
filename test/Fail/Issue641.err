@@ -15,8 +15,6 @@ Starting highlighting from type info.
 Finished highlighting from type info.
 Starting serialization.
 Building interface...
-  instantiating all meta variables
-  interface complete
 Finished serialization.
 Starting writing to interface file.
 Writing interface file agda-default-include-path/Agda/Primitive.agdai.
