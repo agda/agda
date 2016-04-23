@@ -133,7 +133,6 @@ library
     -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to have made Agda
     -- much slower (infinitely slower?) in some cases.
     , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
-    , murmur-hash >= 0.1 && < 0.2
     , haskeline >= 0.7.1.3 && < 0.8
     , haskell-src-exts >= 1.16.0.1 && < 1.18
     , monadplus >= 1.4 && < 1.5
@@ -141,6 +140,7 @@ library
     --
     -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
     , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+    , murmur-hash >= 0.1 && < 0.2
     , QuickCheck >= 2.8.2 && < 2.9
     , parallel >= 3.2.0.4 && < 3.3
     -- pretty 1.1.1.2 and 1.1.1.3 do not follow the package versioning
