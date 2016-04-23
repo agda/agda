@@ -753,7 +753,7 @@ instance CoArbitrary NameId
 -- | A meta variable identifier is just a natural number.
 --
 newtype MetaId = MetaId { metaId :: Nat }
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Hashable, Typeable)
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
 
 instance Pretty MetaId where
   pretty (MetaId n) = text $ "_" ++ show n
