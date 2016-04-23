@@ -290,7 +290,6 @@ checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lh
     pathAbs <- primPathAbs
     let lhs' = subst 0 iZero v
         rhs' = subst 0 iOne  v
-
     let t = apply pathAbs [level,typ,setHiding Hidden lhs,setHiding Hidden rhs,defaultArg (Lam info $ Abs (nameToArgName x) v)]
     blockTerm ty $ do
       equalTerm btyp lhs' (unArg lhs)

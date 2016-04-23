@@ -32,6 +32,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -543,7 +544,11 @@ isNeutral b f es = liftTCM $ do
       no  = return False
   def <- getConstInfo f
   case theDef def of
-    Axiom{}    -> yes
+    Axiom{}    -> do i <- intervalView (Def f es)
+                     case i of
+                       IZero       -> no
+                       IOne        -> no
+                       _           -> yes
     Datatype{} -> yes
     Record{}   -> yes
     Function{} -> case b of
