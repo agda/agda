@@ -23,7 +23,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (constructorForm)
+import Agda.TypeChecking.Monad.Builtin (constructorForm,getPrimitive',pathView,primInterval,primPathAbs)
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
@@ -45,7 +45,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.ProjectionLike (elimView)
-
+import Agda.TypeChecking.Primitive
 import Agda.Interaction.Options
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -311,7 +311,8 @@ compareTerm' cmp a m n =
                   -- Record constructors are covariant (see test/succeed/CovariantConstructors).
                   compareArgs (repeat $ polFromCmp cmp) (telePi_ tel $ sort Prop) (Con c []) m' n'
 
-            else compareAtom cmp a' m n
+            else (do pathview <- pathView a'
+                     equalPath pathview a' m n)
         _ -> compareAtom cmp a' m n
   where
     -- equality at function type (accounts for eta)
@@ -323,6 +324,17 @@ compareTerm' cmp a m n =
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
     equalFun _ _ _ = __IMPOSSIBLE__
+    equalPath :: PathView -> Type -> Term -> Term -> TCM ()
+    equalPath (PathType s _ l a x y) _ m n = do
+        name <- freshName_ $ "i"
+        interval <- el primInterval
+        app <- (`Def` []) <$> primFunName <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitive' "primPathApply"
+        let
+          pathApply m = apply app $ map (raise 1) [l,a,setHiding Hidden x,setHiding Hidden y] ++ [defaultArg m,defaultArg (var 0)]
+          (m',n') = (pathApply (raise 1 m),pathApply (raise 1 n))
+        addContext (name, Dom defaultArgInfo interval) $ compareTerm cmp (El s $ raise 1 $ unArg a) m' n'
+    equalPath OType{} a' m n = compareAtom cmp a' m n
+
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
 --   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
