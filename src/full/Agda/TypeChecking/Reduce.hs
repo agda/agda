@@ -81,38 +81,29 @@ instance Instantiate Term where
   instantiate' t@(MetaV x es) = do
     mi <- mvInstantiation <$> lookupMeta x
     case mi of
+      InstV tel v -> instantiate' inst
+        where
+          -- A slight complication here is that the meta might be underapplied,
+          -- in which case we have to build the lambda abstraction before
+          -- applying the substitution, or overapplied in which case we need to
+          -- fall back to applyE.
+          (es1, es2) = splitAt (length tel) es
+          vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
+          rho = vs1 ++# wkS (length vs1) idS
+                -- really should be .. ++# emptyS but using wkS makes it reduce to idS
+                -- when applicable
+          -- specification: inst == foldr mkLam v tel `applyE` es
+          inst = applySubst rho (foldr mkLam v $ drop (length es1) tel) `applyE` es2
       Open                             -> return t
       OpenIFS                          -> return t
       BlockedConst _                   -> return t
       PostponedTypeCheckingProblem _ _ -> return t
       InstS _                          -> __IMPOSSIBLE__
-      InstV tel v                      ->
-        instantiate' $ applyElimsToInst tel v es
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = sortTm <$> instantiate' s
   instantiate' v@Shared{} =
     updateSharedTerm instantiate' v
   instantiate' t = return t
-
--- | @applyElimsToInst tel v es@ applies the eliminators @es@ to the
--- meta-variable instantiation @InstV tel vs@.
---
--- The result may contain a meta-variable at the head.
-
-applyElimsToInst :: [Arg String] -> Term -> Elims -> Term
-applyElimsToInst tel v es = inst
-  where
-  -- A slight complication here is that the meta might be underapplied,
-  -- in which case we have to build the lambda abstraction before
-  -- applying the substitution, or overapplied in which case we need to
-  -- fall back to applyE.
-  (es1, es2) = splitAt (length tel) es
-  vs1 = reverse $ map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-  rho = vs1 ++# wkS (length vs1) idS
-        -- really should be .. ++# emptyS but using wkS makes it reduce to idS
-        -- when applicable
-  -- specification: inst == foldr mkLam v tel `applyE` es
-  inst = applySubst rho (foldr mkLam v $ drop (length es1) tel) `applyE` es2
 
 instance Instantiate Level where
   instantiate' (Max as) = levelMax <$> instantiate' as

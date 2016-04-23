@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 
 -- Andreas, Makoto, Francesco 2014-10-15 AIM XX:
 -- -O2 does not have any noticable effect on runtime
@@ -54,15 +53,12 @@ import Agda.Utils.Lens
 
 import Agda.Utils.Except
 
-#include "undefined.h"
-import Agda.Utils.Impossible
-
 -- Note that the Binary instance for Int writes 64 bits, but throws
 -- away the 32 high bits when reading (at the time of writing, on
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20160422 * 10 + 1
+currentInterfaceVersion = 20160422 * 10 + 0
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -74,13 +70,10 @@ encode a = do
     newD@(Dict nD sD bD iD dD _tD
       _nameD
       _qnameD
-      _metaIdD
-      _metaStoreD
       nC sC bC iC dC tC
       nameC
       qnameC
-      metaIdC
-      stats _ _) <- liftIO . emptyDict collectStats =<< getMetaStore
+      stats _ _) <- liftIO $ emptyDict collectStats
     root <- liftIO $ (`runReaderT` newD) $ do
        icodeFileMod fileMod
        icode a
@@ -101,7 +94,6 @@ encode a = do
       statistics "Shared Term" tC
       statistics "A.QName"  qnameC
       statistics "A.Name"  nameC
-      statistics "MetaId"  metaIdC
     when collectStats $ do
       stats <- Map.fromList . map (second toInteger) <$> do
         liftIO $ H.toList stats
@@ -207,20 +199,11 @@ encodeInterface i = L.append hashes <$> encode i
     hashes :: L.ByteString
     hashes = B.runPut $ B.put (iSourceHash i) >> B.put (iFullHash i)
 
--- | Encodes an interface. To ensure relocatability file paths in
+-- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
---
--- A new version of the interface, without meta-variables, is
--- returned.
 
-encodeFile :: FilePath -> Interface -> TCM Interface
-encodeFile f i = do
-  s <- encodeInterface i
-  liftIO (L.writeFile f s)
-  mi <- decodeInterface s
-  case mi of
-    Nothing -> __IMPOSSIBLE__
-    Just i  -> return i
+encodeFile :: FilePath -> Interface -> TCM ()
+encodeFile f i = liftIO . L.writeFile f =<< encodeInterface i
 
 -- | Decodes something. The result depends on the include path.
 --
