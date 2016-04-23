@@ -15,6 +15,7 @@ import Control.Monad.Trans.Maybe
 import Data.Maybe (fromMaybe)
 import Data.List hiding (null)
 import Data.Traversable hiding (mapM, sequence)
+import Data.Foldable (msum)
 
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Generate (storeDisambiguatedName)
@@ -48,6 +49,7 @@ import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
+import Agda.Utils.Except (catchError)
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
 import Agda.Utils.List
@@ -89,12 +91,6 @@ splitProblem mf (Problem ps qs tel pr) = do
     -- Result splitting
     splitRest :: ProblemRest -> ListT TCM SplitProblem
     splitRest (ProblemRest (p : ps) b) | Just f <- mf = do
-      let failure   = typeError $ CannotEliminateWithPattern p $ unArg b
-          notProjP  = typeError $ NotAProjectionPattern p
-          notRecord = failure -- lift $ typeError $ ShouldBeRecordType $ unArg b
-          wrongHiding :: MonadTCM tcm => QName -> tcm a
-          wrongHiding d = typeError . GenericDocError =<< do
-            liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
       lift $ reportSDoc "tc.lhs.split" 20 $ sep
         [ text "splitting problem rest"
         , nest 2 $ text "pattern         p =" <+> prettyA p
@@ -106,16 +102,28 @@ splitProblem mf (Problem ps qs tel pr) = do
         -- So it is a projection pattern (d = projection name), is it?
         projs <- mapMaybeM (lift . isProjection) ds
         when (null projs) notProjP
-        when (length projs /= 1) __IMPOSSIBLE__
-        case head projs of
+        msum $ map (tryProj f (length projs >= 2)) projs
+      where
+      failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
+      notProjP  = lift $ typeError $ NotAProjectionPattern p
+      notRecord = failure -- lift $ typeError $ ShouldBeRecordType $ unArg b
+      wrongHiding :: MonadTCM tcm => QName -> tcm a
+      wrongHiding d = typeError . GenericDocError =<< do
+        liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
+
+      tryProj f amb proj = do
+        -- Recoverable errors are those coming from the projection.
+        -- If we have several projections (amb) we just try the next one.
+        let ambErr err = if amb then mzero else err
+        case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
-          Projection{projProper = Nothing} -> notProjP
+          Projection{projProper = Nothing} -> ambErr notProjP
           Projection{projProper = Just d, projIndex = n, projArgInfo = ai} -> do
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
-            unless (n > 0) notProjP
-            unless (getHiding p == getHiding ai) $ wrongHiding d
+            unless (n > 0) $ ambErr notProjP
+            unless (getHiding p == getHiding ai) $ ambErr $ wrongHiding d
             lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
@@ -129,7 +137,7 @@ splitProblem mf (Problem ps qs tel pr) = do
                   ]
                 -- Get the field decoration.
                 -- If the projection pattern @d@ is not a field name, that's an error.
-                argd <- maybe failure return $ find ((d ==) . unArg) fs
+                argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
                 let es = patternsToElims qs
                 -- the record "self" is the definition f applied to the patterns
                 fvs <- lift $ freeVarsToApply f
@@ -141,8 +149,14 @@ splitProblem mf (Problem ps qs tel pr) = do
                   [ text "we are              self = " <+> prettyTCM (unArg self)
                   , text "being projected by dType = " <+> prettyTCM dType
                   ]
-                lift $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
+                tryTCM $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
+
               _ -> __IMPOSSIBLE__
+
+      tryTCM :: TCM a -> ListT TCM a
+      tryTCM m = maybe mzero return =<< do
+        lift $ (Just <$> m) `catchError` \ _ -> return Nothing
+
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero
 

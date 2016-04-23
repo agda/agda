@@ -1,6 +1,6 @@
 -- Andreas, 2015-05-06 issue reported by Jesper Cockx
 
-{-# OPTIONS --copatterns #-}
+-- {-# OPTIONS -v tc.lhs.split:20 #-}
 
 record Foo (A : Set) : Set where
   field
