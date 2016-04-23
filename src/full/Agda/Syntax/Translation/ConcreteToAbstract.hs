@@ -155,6 +155,7 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
     vars p = case p of
       A.VarP x               -> [nameConcrete x]
       A.ConP _ _ args        -> concatMap (vars . namedArg) args
+      A.ProjP _ _            -> []
       A.WildP _              -> []
       A.AsP _ x p            -> nameConcrete x : vars p
       A.DotP _ _             -> []
@@ -174,6 +175,7 @@ noDotPattern err = dot
     dot p = case p of
       A.VarP x               -> pure $ A.VarP x
       A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
+      A.ProjP i d            -> pure $ A.ProjP i d
       A.WildP i              -> pure $ A.WildP i
       A.AsP i x p            -> A.AsP i x <$> dot p
       A.DotP{}               -> typeError $ GenericError err
@@ -1865,7 +1867,9 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps
         return $ A.LHSHead x args
-    toAbstract (C.LHSProj d ps1 l ps2) = do
+    toAbstract c@(C.LHSProj d ps1 l ps2) = do
+        unless (null ps1) $ typeError $ GenericDocError $
+          P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
         qx <- resolveName d
         d  <- case qx of
                 FieldName [] -> __IMPOSSIBLE__
@@ -1875,10 +1879,9 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ show d ++ " isn't one"
-        args1 <- toAbstract ps1
         l     <- toAbstract l
         args2 <- toAbstract ps2
-        return $ A.LHSProj d args1 l args2
+        return $ A.LHSProj (AmbQ [d]) [] l args2
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
@@ -1907,6 +1910,7 @@ instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
 instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.VarP x)             = return $ A.VarP x
     toAbstract (A.ConP i ds as)       = A.ConP i ds <$> mapM toAbstract as
+    toAbstract (A.ProjP i ds)         = return $ A.ProjP i ds
     toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
@@ -1953,6 +1957,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         (p', q') <- toAbstract (p, q)
         case p' of
             ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
+            ProjP i x          -> typeError $ InvalidPattern p0
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
             _                  -> typeError $ InvalidPattern p0

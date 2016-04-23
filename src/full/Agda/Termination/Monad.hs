@@ -480,7 +480,7 @@ data DeBruijnPat' a
   deriving (Functor, Show)
 
 instance IsProjP (DeBruijnPat' a) where
-  isProjP (ProjDBP d) = Just d
+  isProjP (ProjDBP d) = Just $ AmbQ [d]
   isProjP _           = Nothing
 
 instance PrettyTCM DeBruijnPat where

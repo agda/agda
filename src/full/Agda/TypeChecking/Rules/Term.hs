@@ -1549,7 +1549,7 @@ checkHeadApplication e t hd args = do
         rel <- asks envRelevance
         let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                  PublicAccess ConcreteDef noRange
-            core   = A.LHSProj { A.lhsDestructor = flat
+            core   = A.LHSProj { A.lhsDestructor = AmbQ [flat]
                                , A.lhsPatsLeft   = []
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }

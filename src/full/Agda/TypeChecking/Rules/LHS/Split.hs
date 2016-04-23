@@ -102,7 +102,9 @@ splitProblem mf (Problem ps qs tel pr) = do
         ]
       -- If the pattern is not a projection pattern, that's an error.
       -- Probably then there were too many arguments.
-      caseMaybe (isProjP p) failure $ \ d -> do
+      caseMaybe (isProjP p) failure $ \ (AmbQ ds) -> do
+        let d = head ds
+        when (length ds /= 1) __IMPOSSIBLE__
         -- So it is a projection pattern (d = projection name), is it?
         caseMaybeM (lift $ isProjection d) notProjP $ \ proj -> case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
@@ -179,10 +181,8 @@ splitProblem mf (Problem ps qs tel pr) = do
       case asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        (_, A.DefP _ d ps) -> typeError $
-          if null ps
-          then CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
-          else IllformedProjectionPattern $ namedArg p
+        (_, A.ProjP _ d) -> typeError $
+          CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
 
         -- Case: literal pattern.
         (xs, p@(A.LitP lit))  -> do

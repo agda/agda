@@ -383,7 +383,9 @@ stripWithClausePatterns parent f t qs perm ps = do
                 "pattern " ++ show d ++ ","
       case namedArg q of
         ProjP d -> case A.isProjP p of
-          Just d' -> do
+          Just (AmbQ ds) -> do
+            let d' = head ds
+            when (length ds /= 1) __IMPOSSIBLE__
             d' <- getOriginalProjection d'
             if d /= d' then mismatch else do
               t <- reduce t

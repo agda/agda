@@ -162,7 +162,7 @@ mapContent :: (b -> c) -> Path a b -> Path a c
 mapContent f (Path p c) = Path p (f c)
 
 data ProjEntry = ProjEntry
-  { projPE :: QName
+  { projPE :: AmbiguousQName
   , patsPE :: [NamedArg Name] -- ^ currently we only support variable patterns
   } deriving (Eq, Ord)
 
@@ -220,7 +220,8 @@ pathToRecord pps =
 
         where
           abstractions :: (ProjEntry, Expr) -> ScopeM RecordAssign
-          abstractions (ProjEntry p xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete p) <$>
+          abstractions (ProjEntry (AmbQ []) xs, e) = __IMPOSSIBLE__
+          abstractions (ProjEntry (AmbQ (p:_)) xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete p) <$>
             foldr abstract (return e) xs
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr

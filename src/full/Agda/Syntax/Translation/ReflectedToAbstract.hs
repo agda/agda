@@ -138,7 +138,7 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
     R.VarP s  -> withName s $ \ name -> return ([name], A.VarP name)
     R.LitP l  -> return ([], A.LitP l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
-    R.ProjP p -> return ([], A.DefP patNoRange p [])
+    R.ProjP d -> return ([], A.ProjP patNoRange $ AmbQ [killRange d])
 
 toAbstractPats :: [Arg R.Pattern] -> WithNames (Names, [NamedArg A.Pattern])
 toAbstractPats pats = case pats of
