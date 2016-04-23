@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 
 module Agda.TypeChecking.Rules.LHS.Split
   ( splitProblem
@@ -100,7 +101,7 @@ splitProblem mf (Problem ps qs tel pr) = do
       -- Probably then there were too many arguments.
       caseMaybe (isProjP p) failure $ \ (AmbQ ds) -> do
         -- So it is a projection pattern (d = projection name), is it?
-        projs <- mapMaybeM (lift . isProjection) ds
+        projs <- lift $ mapMaybeM (\ d -> fmap (d,) <$> isProjection d) ds
         when (null projs) notProjP
         -- If the target is not a record type, that's an error.
         -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
@@ -127,7 +128,7 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
 
-      tryProj self fs vs amb proj = do
+      tryProj self fs vs amb (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections (amb) we just try the next one.
         let ambErr err = if amb then mzero else err
@@ -154,6 +155,11 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- From here, we have the correctly disambiguated projection.
             -- Thus, we no longer catch errors.
             unless (getHiding p == getHiding ai) $ wrongHiding d
+
+            -- For highlighting, we remember which name we disambiguated to.
+            -- This is safe here (fingers crossed) as we won't decide on a
+            -- different projection even if we backtrack and come here again.
+            lift $ storeDisambiguatedName d0
 
             -- Get the type of projection d applied to "self"
             dType <- lift $ defType <$> getConstInfo d  -- full type!
