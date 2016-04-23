@@ -249,7 +249,7 @@ getDefType f t = do
 --   Precondition: @t@ is reduced.
 projectTyped :: Term -> Type -> QName -> TCM (Maybe (Dom Type, Term, Type))
 projectTyped v t f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
-  (dom, b) <- mustBePi tf
+  ifNotPiType tf (const $ return Nothing) {- else -} $ \ dom b -> do
   u <- f `applyDef` (argFromDom dom $> v)
   return $ Just (dom, u, b `absApp` v)
 
