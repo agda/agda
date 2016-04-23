@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 #if __GLASGOW_HASKELL__ >= 710
@@ -10,7 +9,8 @@
 #endif
 
 #if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverlappingInstances       #-}
 #endif
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -35,7 +35,9 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+#if __GLASGOW_HASKELL__ <= 708
 import Data.Typeable (Typeable)
+#endif
 import Data.Void
 
 import Agda.Syntax.Common
@@ -236,7 +238,9 @@ instance EmbPrj Range where
 -- | Ranges that should be serialised properly.
 
 newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
+#if __GLASGOW_HASKELL__ <= 708
   deriving (Typeable)
+#endif
 
 instance EmbPrj SerialisedRange where
   icod_ (SerialisedRange r) =
