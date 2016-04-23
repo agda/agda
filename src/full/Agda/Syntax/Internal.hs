@@ -514,7 +514,7 @@ properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record c
 properlyMatching ProjP{} = True
 
 instance IsProjP (Pattern' a) where
-  isProjP (ProjP d) = Just d
+  isProjP (ProjP d) = Just $ AmbQ [d]
   isProjP _         = Nothing
 
 -----------------------------------------------------------------------------

@@ -347,7 +347,7 @@ instance ToConcrete A.Name C.Name where
   bindToConcrete x = bindName x
 
 instance ToConcrete A.QName C.QName where
-  toConcrete = lookupQName AmbiguousConstructors
+  toConcrete = lookupQName AmbiguousConProjs
 
 instance ToConcrete A.ModuleName C.QName where
   toConcrete = lookupModule
@@ -357,7 +357,8 @@ instance ToConcrete A.ModuleName C.QName where
 instance ToConcrete A.Expr C.Expr where
     toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
     toConcrete (Def x)            = Ident <$> toConcrete x
-    toConcrete (Proj x)           = Ident <$> toConcrete x
+    toConcrete (Proj (AmbQ (x:_)))= Ident <$> toConcrete x
+    toConcrete (Proj (AmbQ []))   = __IMPOSSIBLE__
     toConcrete (A.Macro x)        = Ident <$> toConcrete x
     toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
     toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
@@ -831,7 +832,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.StaticPragma x -> C.StaticPragma r <$> toConcrete x
     A.InlinePragma x -> C.InlinePragma r <$> toConcrete x
     A.DisplayPragma f ps rhs ->
-      C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) f ps) <*> toConcrete rhs
+      C.DisplayPragma r <$> toConcrete (A.DefP (PatRange noRange) (AmbQ [f]) ps) <*> toConcrete rhs
 
 -- Left hand sides --------------------------------------------------------
 
@@ -845,7 +846,7 @@ instance ToConcrete A.LHS C.LHS where
           ret $ C.LHS lhs wps [] []
 
 instance ToConcrete A.LHSCore C.Pattern where
-    bindToConcrete = bindToConcrete . lhsCoreToPattern
+  bindToConcrete = bindToConcrete . lhsCoreToPattern
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []    _   = False
@@ -863,7 +864,12 @@ instance ToConcrete A.Pattern C.Pattern where
 
       A.ConP i (AmbQ []) args        -> __IMPOSSIBLE__
       p@(A.ConP i xs@(AmbQ (x:_)) args) -> tryOp x (A.ConP i xs) args
-      p@(A.DefP i x args)               -> tryOp x (A.DefP i x)  args
+
+      A.ProjP i (AmbQ []) -> __IMPOSSIBLE__
+      p@(A.ProjP i xs@(AmbQ (x:_))) -> C.IdentP <$> toConcrete x
+
+      p@(A.DefP i (AmbQ []) _) -> __IMPOSSIBLE__
+      p@(A.DefP i xs@(AmbQ (x:_)) args) -> tryOp x (A.DefP i xs)  args
 
       A.AsP i x p -> do
         (x, p) <- toConcreteCtx ArgumentCtx (x,p)
@@ -936,7 +942,8 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ opApp view
 
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
-      DefP _ f            ps -> Just (HdDef f, ps)
+      ProjP _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
+      DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, ps)
       _                      -> Nothing
 
 recoverOpApp :: (ToConcrete a c, HasRange c)

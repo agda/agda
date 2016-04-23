@@ -160,6 +160,7 @@ instance NamesIn (A.Pattern' a) where
   namesIn p = case p of
     A.VarP{}               -> Set.empty
     A.ConP _ c args        -> namesIn (c, args)
+    A.ProjP _ d            -> namesIn d
     A.DefP _ f args        -> namesIn (f, args)
     A.WildP{}              -> Set.empty
     A.AsP _ _ p            -> namesIn p

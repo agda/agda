@@ -155,6 +155,7 @@ checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
     vars p = case p of
       A.VarP x               -> [nameConcrete x]
       A.ConP _ _ args        -> concatMap (vars . namedArg) args
+      A.ProjP _ _            -> []
       A.WildP _              -> []
       A.AsP _ x p            -> nameConcrete x : vars p
       A.DotP _ _             -> []
@@ -174,6 +175,7 @@ noDotPattern err = dot
     dot p = case p of
       A.VarP x               -> pure $ A.VarP x
       A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
+      A.ProjP i d            -> pure $ A.ProjP i d
       A.WildP i              -> pure $ A.WildP i
       A.AsP i x p            -> A.AsP i x <$> dot p
       A.DotP{}               -> typeError $ GenericError err
@@ -495,7 +497,7 @@ instance ToAbstract OldQName A.Expr where
     case qx of
       VarName x'          -> return $ A.Var x'
       DefinedName _ d     -> return $ nameExpr d
-      FieldName     d     -> return $ nameExpr d
+      FieldName     ds    -> return $ A.Proj $ AmbQ (map anameName ds)
       ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
       UnknownName         -> notInScope x
       PatternSynResName d -> return $ nameExpr d
@@ -547,7 +549,8 @@ instance (Show a, ToQName a) => ToAbstract (OldName a) A.QName where
       -- We can get the cases below for DISPLAY pragmas
       ConstructorName (d : _) -> return $ anameName d   -- We'll throw out this one, so it doesn't matter which one we pick
       ConstructorName []      -> __IMPOSSIBLE__
-      FieldName d             -> return $ anameName d
+      FieldName (d:_)         -> return $ anameName d
+      FieldName []            -> __IMPOSSIBLE__
       PatternSynResName d     -> return $ anameName d
       VarName x               -> typeError $ GenericError $ "Not a defined name: " ++ show x
       UnknownName             -> notInScope (toQName x)
@@ -1560,7 +1563,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     case e of
       A.Def x          -> return [ A.RewritePragma x ]
-      A.Proj x         -> return [ A.RewritePragma x ]
+      A.Proj (AmbQ [x])-> return [ A.RewritePragma x ]
+      A.Proj x         -> genericError $ "REWRITE used on ambiguous name " ++ show x
       A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
@@ -1584,7 +1588,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
           A.Def x -> return x
-          A.Proj x -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
+          A.Proj (AmbQ [x]) -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
+          A.Proj x -> genericError $ "COMPILED on ambiguous name " ++ show x
           A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
           _       -> __IMPOSSIBLE__
     return [ A.CompiledPragma y hs ]
@@ -1604,7 +1609,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
           A.Def x -> return x
-          A.Proj x -> return x
+          A.Proj (AmbQ [x]) -> return x
+          A.Proj x -> genericError $
+            "COMPILED_JS used on ambiguous name " ++ prettyShow x
           A.Con (AmbQ [x]) -> return x
           A.Con x -> genericError $
             "COMPILED_JS used on ambiguous name " ++ prettyShow x
@@ -1625,21 +1632,27 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj x -> return x
+          A.Proj (AmbQ [x]) -> return x
+          A.Proj x -> genericError $
+            "NO_SMASHING used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of NO_SMASHING pragma should be a function"
       return [ A.NoSmashingPragma y ]
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj x -> return x
+          A.Proj (AmbQ [x]) -> return x
+          A.Proj x -> genericError $
+            "STATIC used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of STATIC pragma should be a function"
       return [ A.StaticPragma y ]
   toAbstract (C.InlinePragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj x -> return x
+          A.Proj (AmbQ [x]) -> return x
+          A.Proj x -> genericError $
+            "INLINE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INLINE pragma should be a function"
       return [ A.InlinePragma y ]
   toAbstract (C.BuiltinPragma _ b e) | isUntypedBuiltin b = do
@@ -1686,7 +1699,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case qx of
         VarName x'          -> return $ A.qnameFromList [x']
         DefinedName _ d     -> return $ anameName d
-        FieldName     d     -> return $ anameName d
+        FieldName     [d]    -> return $ anameName d
+        FieldName ds         -> genericError $ "Ambiguous projection " ++ show top ++ ": " ++ show (map anameName ds)
         ConstructorName [d] -> return $ anameName d
         ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show top ++ ": " ++ show (map anameName ds)
         UnknownName         -> notInScope top
@@ -1853,18 +1867,18 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
         x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps
         return $ A.LHSHead x args
-    toAbstract (C.LHSProj d ps1 l ps2) = do
+    toAbstract c@(C.LHSProj d ps1 l ps2) = do
+        unless (null ps1) $ typeError $ GenericDocError $
+          P.text "Ill-formed projection pattern" P.<+> P.pretty (foldl C.AppP (C.IdentP d) ps1)
         qx <- resolveName d
-        d  <- case qx of
-                FieldName d -> return $ anameName d
+        ds <- case qx of
+                FieldName [] -> __IMPOSSIBLE__
+                FieldName ds -> return $ map anameName ds
                 UnknownName -> notInScope d
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ show d ++ " isn't one"
-        args1 <- toAbstract ps1
-        l     <- toAbstract l
-        args2 <- toAbstract ps2
-        return $ A.LHSProj d args1 l args2
+        A.LHSProj (AmbQ ds) <$> toAbstract l <*> toAbstract ps2
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
@@ -1882,9 +1896,8 @@ instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where
 -}
 
 instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
-    toAbstract (A.LHSHead f ps)             = A.LHSHead f <$> mapM toAbstract ps
-    toAbstract (A.LHSProj d ps lhscore ps') = A.LHSProj d <$> mapM toAbstract ps
-      <*> mapM toAbstract lhscore <*> mapM toAbstract ps'
+    toAbstract (A.LHSHead f ps)         = A.LHSHead f <$> mapM toAbstract ps
+    toAbstract (A.LHSProj d lhscore ps) = A.LHSProj d <$> mapM toAbstract lhscore <*> mapM toAbstract ps
 
 -- Patterns are done in two phases. First everything but the dot patterns, and
 -- then the dot patterns. This is because dot patterns can refer to variables
@@ -1893,6 +1906,7 @@ instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
 instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.VarP x)             = return $ A.VarP x
     toAbstract (A.ConP i ds as)       = A.ConP i ds <$> mapM toAbstract as
+    toAbstract (A.ProjP i ds)         = return $ A.ProjP i ds
     toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
@@ -1924,7 +1938,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         getHiding p == NotHidden = do
       e <- toAbstract (OldQName x Nothing)
       let quoted (A.Def x) = return x
-          quoted (A.Proj x) = return x
+          quoted (A.Proj (AmbQ [x])) = return x
+          quoted (A.Proj (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.Con (AmbQ [x])) = return x
           quoted (A.Con (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.ScopedExpr _ e) = quoted e
@@ -1938,6 +1953,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         (p', q') <- toAbstract (p, q)
         case p' of
             ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
+            ProjP i x          -> typeError $ InvalidPattern p0
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
             _                  -> typeError $ InvalidPattern p0

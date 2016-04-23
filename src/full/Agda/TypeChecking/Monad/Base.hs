@@ -2526,6 +2526,10 @@ internalError s = typeError $ InternalError s
 genericError :: MonadTCM tcm => String -> tcm a
 genericError = typeError . GenericError
 
+{-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
+genericDocError :: MonadTCM tcm => Doc -> tcm a
+genericDocError = typeError . GenericDocError
+
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
 typeError :: MonadTCM tcm => TypeError -> tcm a
 typeError err = liftTCM $ throwError =<< typeError_ err

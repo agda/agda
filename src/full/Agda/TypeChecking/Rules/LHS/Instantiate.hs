@@ -182,6 +182,7 @@ nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
           A.VarP{}    -> False
           A.WildP{}   -> False
           A.AbsurdP{} -> False
-          A.DefP{}        -> __IMPOSSIBLE__  -- Projection pattern gives CannotEliminateWithPattern
+          A.ProjP{}        -> __IMPOSSIBLE__  -- Projection pattern gives CannotEliminateWithPattern
+          A.DefP{}        -> __IMPOSSIBLE__
           A.AsP{}         -> __IMPOSSIBLE__
           A.PatternSynP{} -> __IMPOSSIBLE__

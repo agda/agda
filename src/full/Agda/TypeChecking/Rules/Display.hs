@@ -68,7 +68,10 @@ patternToTerm p ret =
     A.VarP x               -> bindVar x $ ret 1 (Var 0 [])
     A.ConP _ (AmbQ [c]) ps -> pappToTerm c (Con (ConHead c Inductive [])) ps ret
     A.ConP _ (AmbQ cs) _   -> genericError $ "Ambiguous constructor: " ++ intercalate ", " (map show cs)
-    A.DefP _ f ps          -> pappToTerm f (Def f . map Apply) ps ret
+    A.ProjP _ (AmbQ [d])   -> ret 0 (Def d [])
+    A.ProjP _ (AmbQ ds)    -> genericError $ "Ambiguous projection: " ++ intercalate ", " (map show ds)
+    A.DefP _ (AmbQ [f]) ps -> pappToTerm f (Def f . map Apply) ps ret
+    A.DefP _ (AmbQ ds) _   -> genericError $ "Ambiguous DefP: " ++ intercalate ", " (map show ds)
     A.LitP l               -> ret 0 (Lit l)
     A.WildP _              -> bindWild $ ret 1 (Var 0 [])
     _ -> do
@@ -93,7 +96,7 @@ exprToTerm e =
     A.Lit l -> pure $ Lit l
     A.App _ e arg  -> apply <$> exprToTerm e <*> ((:[]) . inheritHiding arg <$> exprToTerm (namedArg arg))
 
-    A.Proj f       -> pure $ Def f []   -- only for printing so we don't have to worry too much here
+    A.Proj (AmbQ (f:_)) -> pure $ Def f []   -- only for printing so we don't have to worry too much here
     A.PatternSyn f -> pure $ Def f []
     A.Macro f      -> pure $ Def f []
 

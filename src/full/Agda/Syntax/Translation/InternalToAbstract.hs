@@ -102,7 +102,7 @@ elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e [] = return e
 elims e (I.Apply arg : es) =
   elims (A.App exprInfo e $ fmap unnamed arg) es
-elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj d) $ defaultNamedArg e) es
+elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
 
 reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
 reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
@@ -261,7 +261,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.Apply arg) = argToPat arg
-        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.DefP patNoRange d []
+        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.ProjP patNoRange $ AmbQ [d]
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
@@ -600,6 +600,7 @@ shuffleDots (ps, wps) = do
       A.DotP _ (A.Var x)   -> MonoidMap $ Map.singleton x (Any True,  Any $ getAll h)
       A.DotP{}             -> mempty
       A.ConP _ _ ps        -> argsVars h ps
+      A.ProjP _ _          -> mempty
       A.DefP _ _ ps        -> argsVars h ps
       A.PatternSynP _ _ ps -> argsVars h ps
       A.WildP{}            -> mempty
@@ -631,6 +632,7 @@ shuffleDots (ps, wps) = do
       A.DotP _ (A.Var x)   -> redotVar p x
       A.DotP{}             -> pure p
       A.ConP i c ps        -> A.ConP i c <$> redotArgs ps
+      A.ProjP _ _          -> pure p
       A.DefP i f ps        -> A.DefP i f <$> redotArgs ps
       A.PatternSynP i x ps -> A.PatternSynP i x <$> redotArgs ps
       A.WildP{}            -> pure p
@@ -673,6 +675,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
       patVars p = case p of
         A.VarP x      -> Set.singleton x
         A.ConP _ _ ps -> argsVars ps
+        A.ProjP _ _   -> Set.empty
         A.DefP _ _ ps -> Set.empty
         A.DotP _ e    -> Set.empty
         A.WildP _     -> Set.empty
@@ -724,6 +727,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           stripPat p = case p of
             A.VarP _      -> p
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
+            A.ProjP _ _   -> p
             A.DefP _ _ _  -> p
             A.DotP _ e    -> p
             A.WildP _     -> p
@@ -777,6 +781,7 @@ instance DotVars A.Pattern where
   dotVars p = case p of
     A.VarP _      -> Set.empty   -- do not add pattern vars
     A.ConP _ _ ps -> dotVars ps
+    A.ProjP _ _   -> Set.empty
     A.DefP _ _ ps -> dotVars ps
     A.DotP _ e    -> dotVars e
     A.WildP _     -> Set.empty
@@ -898,7 +903,7 @@ reifyPatterns tel perm ps = runTickT (reifyArgs ps)
             t'   = if Set.member "()" vars then underscore else t
         return $ A.DotP patNoRange t'
       I.LitP l  -> return $ A.LitP l
-      I.ProjP d -> return $ A.DefP patNoRange d []
+      I.ProjP d -> return $ A.ProjP patNoRange $ AmbQ [d]
       I.ConP c cpi ps -> do
         liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
         tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps

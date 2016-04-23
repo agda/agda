@@ -205,12 +205,14 @@ freshAbstractQName fx x = do
 
 -- * Resolving names
 
-data ResolvedName = VarName A.Name
-                  | DefinedName Access AbstractName
-                  | FieldName AbstractName           -- ^ record fields names need to be distinguished to parse copatterns
-                  | ConstructorName [AbstractName]
-                  | PatternSynResName AbstractName
-                  | UnknownName
+data ResolvedName
+  = VarName A.Name
+  | DefinedName Access AbstractName
+  | FieldName [AbstractName]
+      -- ^ record fields names need to be distinguished to parse copatterns
+  | ConstructorName [AbstractName]
+  | PatternSynResName AbstractName
+  | UnknownName
   deriving (Show, Eq)
 
 -- | Look up the abstract name referred to by a given concrete name.
@@ -254,8 +256,8 @@ resolveName' kinds names x = do
         ds       | all ((==ConName) . anameKind . fst) ds ->
           return $ ConstructorName $ map (upd . fst) ds
 
-        [(d, a)] | anameKind d == FldName ->
-          return $ FieldName $ upd d
+        ds       | all ((==FldName) . anameKind . fst) ds ->
+          return $ FieldName $ map (upd . fst) ds
 
         [(d, a)] | anameKind d == PatternSynName ->
           return $ PatternSynResName $ upd d
@@ -290,14 +292,16 @@ getNotation x ns = do
   case r of
     VarName y           -> return $ namesToNotation x y
     DefinedName _ d     -> return $ notation d
-    FieldName d         -> return $ notation d
-    ConstructorName ds  -> case mergeNotations $ map notation ds of
-                             [n] -> return n
-                             _   -> __IMPOSSIBLE__
+    FieldName ds        -> return $ oneNotation ds
+    ConstructorName ds  -> return $ oneNotation ds
     PatternSynResName n -> return $ notation n
     UnknownName         -> __IMPOSSIBLE__
   where
     notation = namesToNotation x . qnameName . anameName
+    oneNotation ds =
+      case mergeNotations $ map notation ds of
+        [n] -> n
+        _   -> __IMPOSSIBLE__
 
 -- * Binding names
 
@@ -310,16 +314,18 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
   ys <- case r of
-    FieldName d        -> typeError $ ClashingDefinition (C.QName x) $ anameName d
-    DefinedName _ d    -> typeError $ ClashingDefinition (C.QName x) $ anameName d
-    VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
-    ConstructorName [] -> __IMPOSSIBLE__
-    ConstructorName ds
-      | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind Defined ]
-      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (headWithDefault __IMPOSSIBLE__ ds)
+    DefinedName _ d     -> typeError $ ClashingDefinition (C.QName x) $ anameName d
+    VarName z           -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
+    FieldName       ds  -> ambiguous FldName ds
+    ConstructorName ds  -> ambiguous ConName ds
     PatternSynResName n -> typeError $ ClashingDefinition (C.QName x) $ anameName n
     UnknownName         -> return [AbsName y kind Defined]
   modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
+  where
+    ambiguous k ds@(d:_) =
+      if kind == k && all ((==k) . anameKind) ds then return [ AbsName y kind Defined ]
+      else typeError $ ClashingDefinition (C.QName x) $ anameName d
+    ambiguous k [] = __IMPOSSIBLE__
 
 -- | Rebind a name. Use with care!
 --   Ulf, 2014-06-29: Currently used to rebind the name defined by an

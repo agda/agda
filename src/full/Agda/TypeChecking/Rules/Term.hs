@@ -850,7 +850,8 @@ checkExpr e t0 =
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
-              quoted (A.Proj x) = return x
+              quoted (A.Proj (AmbQ [x])) = return x
+              quoted (A.Proj (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.Con (AmbQ [x])) = return x
               quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.ScopedExpr _ e) = quoted e
@@ -976,6 +977,90 @@ quoteContext = do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
 
+-- | Document ME!
+
+inferProjApp :: A.Expr -> [QName] -> A.Args -> TCM (Term, Type)
+inferProjApp e ds args0 = inferOrCheckProjApp e ds args0 Nothing
+
+checkProjApp  :: A.Expr -> [QName] -> A.Args -> Type -> TCM Term
+checkProjApp e ds args0 t = do
+  (v, ti) <- inferOrCheckProjApp e ds args0 (Just t)
+  coerce v ti t
+
+inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
+inferOrCheckProjApp e ds args0 mt = do
+  reportSDoc "tc.proj.amb" 20 $ vcat
+    [ text "checking ambiguous projection "
+    , text $ "  ds    = " ++ show ds
+    , text "  args0 = " <+> sep (map prettyTCM args0)
+    ]
+
+  let refuse :: String -> TCM (Term, Type)
+      refuse reason = typeError $ GenericError $
+       "Cannot resolve overloaded projection " ++ show (A.nameConcrete $ A.qnameName $ head ds)
+       ++ " because " ++ reason
+
+  -- The following cases need to be considered:
+  -- 1. No arguments to the projection.
+  -- 2. Arguments (parameters), but not the principal argument.
+  -- 3. Argument(s) including the principal argument.
+
+  -- For now, we only allow ambiguous projections if the first visible
+  -- argument is the record value.
+
+  case filter (visible . getHiding) args0 of
+    [] -> refuse "it is not applied to a visible argument"
+    (arg : args) -> do
+      (v, ta) <- inferExpr $ namedArg arg
+      reportSDoc "tc.proj.amb" 25 $ vcat
+        [ text "  principal arg " <+> prettyTCM arg
+        , text "  has type "      <+> prettyTCM ta
+        ]
+      -- ta should be a record type
+      tryRecordType ta >>= \case
+
+        -- case: argument is definitely not of record type
+        Left (Just _) -> refuse "argument is not of record type"
+
+        -- case: type is blocked so we don't know yet
+        Left Nothing -> do
+          tc <- caseMaybe mt newTypeMeta_ return
+          v <- postponeTypeCheckingProblem (CheckExpr e tc) $ unblockedTester ta
+          return (v, tc)
+
+        -- case: argument is of record type
+        Right (q, _, _) -> do
+          -- try to project it with all of the possible projections
+          let try d = caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
+               caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
+                 if (q == q') then return $ Just (d, u, tb) else return Nothing
+          -- TODO use original projections
+          -- TODO: lazy!  There should be at most one candidate. This is strict:
+          cands <- catMaybes <$> mapM try ds
+          case cands of
+            [] -> refuse "no matching candidate found"
+            (_:_:_) -> refuse $ "several matching candidates found: " ++ show (map fst3 cands)
+            -- case: just one matching projection d
+            -- the term u = d v
+            -- the type tb is the type of this application
+            [(d,u,tb)] -> do
+              let tc = fromMaybe typeDontCare mt
+              let r  = getRange e
+              z <- runExceptT $ checkArguments ExpandLast r args tb tc
+              case z of
+                Right (us, trest) -> return (u `apply` us, trest)
+                -- We managed to check a part of es and got us1, but es2 remain.
+                Left (us1, es2, trest1) -> do
+                  -- In the inference case:
+                  -- To create a postponed type checking problem,
+                  -- we do not use typeDontCare, but create a meta.
+                  tc <- caseMaybe mt newTypeMeta_ return
+                  v <- postponeTypeCheckingProblem_ $
+                    CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
+                      coerce (u `apply` us1 `apply` us2) trest tc
+                  return (v, tc)
+
+
 -- | @checkApplication hd args e t@ checks an application.
 --   Precondition: @Application hs args = appView e@
 --
@@ -985,6 +1070,13 @@ quoteContext = do
 checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 checkApplication hd args e t = do
   case hd of
+    A.Proj (AmbQ []) -> __IMPOSSIBLE__
+
+    -- Subcase: unambiguous projection
+    A.Proj (AmbQ [_]) -> checkHeadApplication e t hd args
+
+    -- Subcase: ambiguous projection
+    A.Proj (AmbQ ds@(_:_:_)) -> checkProjApp e ds args t
 
     -- Subcase: ambiguous constructor
     A.Con (AmbQ cs@(_:_:_)) -> do
@@ -1215,7 +1307,8 @@ inferHead e = do
         typeError $ VariableIsIrrelevant x
       return (apply u, unDom a)
     (A.Def x) -> inferHeadDef x
-    (A.Proj x) -> inferHeadDef x
+    (A.Proj (AmbQ [d])) -> inferHeadDef d
+    (A.Proj _) -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
     (A.Con (AmbQ [c])) -> do
 
       -- Constructors are polymorphic internally.
@@ -1456,8 +1549,7 @@ checkHeadApplication e t hd args = do
         rel <- asks envRelevance
         let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                  PublicAccess ConcreteDef noRange
-            core   = A.LHSProj { A.lhsDestructor = flat
-                               , A.lhsPatsLeft   = []
+            core   = A.LHSProj { A.lhsDestructor = AmbQ [flat]
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }
             clause = A.Clause (A.LHS (A.LHSRange noRange) core [])
@@ -1660,11 +1752,14 @@ inferExpr = inferExpr' DontExpandLast
 inferExpr' :: ExpandHidden -> A.Expr -> TCM (Term, Type)
 inferExpr' exh e = case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
-    (f, t0) <- inferHead hd
-    res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)
-    case res of
-      Right (vs, t1) -> return (f vs, t1)
-      Left t1 -> fallback -- blocked on type t1
+    case hd of
+      A.Proj (AmbQ ds@(_:_:_)) -> inferProjApp e ds args
+      _ -> do
+        (f, t0) <- inferHead hd
+        res <- runExceptT $ checkArguments exh (getRange hd) args t0 (sort Prop)
+        case res of
+          Right (vs, t1) -> return (f vs, t1)
+          Left t1 -> fallback -- blocked on type t1
   _ -> fallback
   where
     fallback = do

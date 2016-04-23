@@ -30,6 +30,7 @@ import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), typeError)
 import Agda.Utils.Either
+import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -162,7 +163,7 @@ mapContent :: (b -> c) -> Path a b -> Path a c
 mapContent f (Path p c) = Path p (f c)
 
 data ProjEntry = ProjEntry
-  { projPE :: QName
+  { projPE :: AmbiguousQName
   , patsPE :: [NamedArg Name] -- ^ currently we only support variable patterns
   } deriving (Eq, Ord)
 
@@ -198,13 +199,12 @@ clauseToPath (Clause lhs _ wheredecls _) = typeError $ NotImplemented $ "copatte
 
 lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
 lhsToPath acc lhs@LHSHead{}         = return $ Path acc lhs
-lhsToPath acc (LHSProj f [] lhs ps) | Just xs <- mapM (T.mapM (T.mapM fromVarP)) ps =
+lhsToPath acc (LHSProj f lhs ps) = do
+    let xs = fromMaybe __IMPOSSIBLE__ $ mapM (T.mapM (T.mapM fromVarP)) ps
     lhsToPath (ProjEntry f xs : acc) $ namedArg lhs
   where fromVarP :: Pattern -> Maybe Name
         fromVarP (VarP n) = Just n
         fromVarP _        = Nothing
-lhsToPath acc (LHSProj f _ lhs _)   = typeError $ NotImplemented $
-  "copatterns with patterns before the principal argument"
 
 -- | Expects a sorted list.
 pathToRecord :: [ProjPath Expr] -> ScopeM Expr
@@ -220,7 +220,8 @@ pathToRecord pps =
 
         where
           abstractions :: (ProjEntry, Expr) -> ScopeM RecordAssign
-          abstractions (ProjEntry p xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete p) <$>
+          abstractions (ProjEntry (AmbQ []) xs, e) = __IMPOSSIBLE__
+          abstractions (ProjEntry (AmbQ (p:_)) xs, e) = Left . FieldAssignment (C.unqualify $ qnameToConcrete p) <$>
             foldr abstract (return e) xs
 
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
@@ -400,8 +401,8 @@ tell1 a = tell [a]
 
 instance Alpha (LHSCore' e) where
   alpha' (LHSHead f ps) (LHSHead f' ps') = guard (f == f') >> alpha' ps ps'
-  alpha' (LHSProj d ps1 lhs ps2) (LHSProj d' ps1' lhs' ps2') =
-     guard (d == d') >> alpha' ps1 ps1' >> alpha' lhs lhs' >> alpha' ps2 ps2'
+  alpha' (LHSProj d lhs ps) (LHSProj d' lhs' ps') =
+     guard (d == d') >> alpha' lhs lhs' >> alpha' ps ps'
   alpha' _ _ = fail "not alpha equivalent"
 
 instance Alpha LHS where
