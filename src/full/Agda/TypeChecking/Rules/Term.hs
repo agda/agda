@@ -1059,6 +1059,7 @@ inferOrCheckProjApp e ds args0 mt = do
             -- the term u = d v
             -- the type tb is the type of this application
             [(d,u,tb)] -> do
+              storeDisambiguatedName d
               let tc = fromMaybe typeDontCare mt
               let r  = getRange e
               z <- runExceptT $ checkArguments ExpandLast r args tb tc
