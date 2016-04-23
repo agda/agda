@@ -1550,7 +1550,6 @@ checkHeadApplication e t hd args = do
         let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') noFixity'
                                  PublicAccess ConcreteDef noRange
             core   = A.LHSProj { A.lhsDestructor = AmbQ [flat]
-                               , A.lhsPatsLeft   = []
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }
             clause = A.Clause (A.LHS (A.LHSRange noRange) core [])

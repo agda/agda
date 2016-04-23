@@ -1879,9 +1879,7 @@ instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
                 _           -> genericError $
                   "head of copattern needs to be a field identifier, but "
                   ++ show d ++ " isn't one"
-        l     <- toAbstract l
-        args2 <- toAbstract ps2
-        return $ A.LHSProj (AmbQ [d]) [] l args2
+        A.LHSProj (AmbQ [d]) <$> toAbstract l <*> toAbstract ps2
 
 instance ToAbstract c a => ToAbstract (WithHiding c) (WithHiding a) where
   toAbstract (WithHiding h a) = WithHiding h <$> toAbstractHiding h a
@@ -1899,9 +1897,8 @@ instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where
 -}
 
 instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
-    toAbstract (A.LHSHead f ps)             = A.LHSHead f <$> mapM toAbstract ps
-    toAbstract (A.LHSProj d ps lhscore ps') = A.LHSProj d <$> mapM toAbstract ps
-      <*> mapM toAbstract lhscore <*> mapM toAbstract ps'
+    toAbstract (A.LHSHead f ps)         = A.LHSHead f <$> mapM toAbstract ps
+    toAbstract (A.LHSProj d lhscore ps) = A.LHSProj d <$> mapM toAbstract lhscore <*> mapM toAbstract ps
 
 -- Patterns are done in two phases. First everything but the dot patterns, and
 -- then the dot patterns. This is because dot patterns can refer to variables

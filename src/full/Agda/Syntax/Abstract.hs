@@ -296,9 +296,6 @@ data LHSCore' e
     -- | Projection
   | LHSProj  { lhsDestructor :: AmbiguousQName
                -- ^ Record projection identifier.
-             , lhsPatsLeft   :: [NamedArg (Pattern' e)]
-               -- ^ Indices of the projection.
-               --   Currently none @[]@, since we do not have indexed records.
              , lhsFocus      :: NamedArg (LHSCore' e)
                -- ^ Main branch.
              , lhsPatsRight  :: [NamedArg (Pattern' e)]
@@ -331,23 +328,22 @@ instance LHSToSpine LHS SpineLHS where
 
 lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
-lhsCoreToSpine (LHSProj d [] h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedArg h)
+lhsCoreToSpine (LHSProj d h ps) = (++ (p : ps)) <$> lhsCoreToSpine (namedArg h)
   where p = updateNamedArg (const $ ProjP patNoRange d) h
-lhsCoreToSpine (LHSProj d ps1 h ps2) = __IMPOSSIBLE__
 
 spineToLhsCore :: QNamed [NamedArg (Pattern' e)] -> LHSCore' e
 spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
 
 -- | Add applicative patterns (non-projection patterns) to the right.
 lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
-lhsCoreApp (LHSHead f ps)        ps' = LHSHead f $ ps ++ ps'
-lhsCoreApp (LHSProj d ps1 h ps2) ps' = LHSProj d ps1 h $ ps2 ++ ps'
+lhsCoreApp (LHSHead f ps)   ps' = LHSHead f   $ ps ++ ps'
+lhsCoreApp (LHSProj d h ps) ps' = LHSProj d h $ ps ++ ps'
 
 -- | Add projection and applicative patterns to the right.
 lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreAddSpine core ps = case ps2 of
     (Arg info (Named n (ProjP i d)) : ps2') ->
-       LHSProj d [] (Arg info $ Named n $ lhsCoreApp core ps1) []
+       LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
          `lhsCoreAddSpine` ps2'
     [] -> lhsCoreApp core ps
     _ -> __IMPOSSIBLE__
@@ -363,14 +359,13 @@ lhsCoreToPattern :: LHSCore -> Pattern
 lhsCoreToPattern lc =
   case lc of
     LHSHead f aps -> DefP noInfo (AmbQ [f]) aps
-    LHSProj d aps1 lhscore aps2 -> DefP noInfo d $
-      aps1 ++ fmap (fmap lhsCoreToPattern) lhscore : aps2
+    LHSProj d lhscore aps -> DefP noInfo d $
+      fmap (fmap lhsCoreToPattern) lhscore : aps
   where noInfo = patNoRange -- TODO, preserve range!
 
 mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
-mapLHSHead f (LHSHead x ps)        = f x ps
-mapLHSHead f (LHSProj d ps1 l ps2) =
-  LHSProj d ps1 (fmap (fmap (mapLHSHead f)) l) ps2
+mapLHSHead f (LHSHead x ps)   = f x ps
+mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 
 ---------------------------------------------------------------------------
 -- * Patterns
@@ -578,7 +573,7 @@ instance HasRange LHS where
 
 instance HasRange (LHSCore' e) where
     getRange (LHSHead f ps) = fuseRange f ps
-    getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
+    getRange (LHSProj d lhscore ps) = d `fuseRange` lhscore `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs rhs ds catchall) = getRange (lhs,rhs,ds)
@@ -699,8 +694,8 @@ instance KillRange LHS where
   killRange (LHS i a b)   = killRange3 LHS i a b
 
 instance KillRange e => KillRange (LHSCore' e) where
-  killRange (LHSHead a b)     = killRange2 LHSHead a b
-  killRange (LHSProj a b c d) = killRange4 LHSProj a b c d
+  killRange (LHSHead a b)   = killRange2 LHSHead a b
+  killRange (LHSProj a b c) = killRange3 LHSProj a b c
 
 instance KillRange a => KillRange (Clause' a) where
   killRange (Clause lhs rhs ds catchall) = killRange4 Clause lhs rhs ds catchall
