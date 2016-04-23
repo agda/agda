@@ -224,43 +224,43 @@ instance HasTags (HsType name) where
 
 instance TagName name => HasTags (HsBind name) where
   tags d = case d of
-    FunBind  { fun_id    = x   } -> tagsLN x
-    PatBind  { pat_lhs   = lhs } -> tags lhs
-    VarBind  { var_id    = x   } -> tagsN x
-    AbsBinds { abs_binds = bs  } -> tags bs
+    FunBind  { fun_id    = x   }    -> tagsLN x
+    PatBind  { pat_lhs   = lhs }    -> tags lhs
+    VarBind  { var_id    = x   }    -> tagsN x
+    AbsBinds { abs_binds = bs  }    -> tags bs
 #if MIN_VERSION_ghc(7,10,0)
     PatSynBind (PSB { psb_id = x }) -> tagsLN x
 #elif MIN_VERSION_ghc(7,8,0)
-    PatSynBind { patsyn_id = x } -> tagsLN x
+    PatSynBind { patsyn_id = x }    -> tagsLN x
 #endif
 
 instance TagName name => HasTags (Pat name) where
   tags p = case p of
-    VarPat x               -> tagsN x
-    LazyPat p              -> tags p
-    AsPat x p              -> tags (fmap Name x, p)
-    ParPat p               -> tags p
-    BangPat p              -> tags p
+    VarPat x                   -> tagsN x
+    LazyPat p                  -> tags p
+    AsPat x p                  -> tags (fmap Name x, p)
+    ParPat p                   -> tags p
+    BangPat p                  -> tags p
 #if MIN_VERSION_ghc(7,8,0)
-    ListPat ps _ _         -> tags ps
+    ListPat ps _ _             -> tags ps
 #else
-    ListPat ps _           -> tags ps
+    ListPat ps _               -> tags ps
 #endif
-    TuplePat ps _ _        -> tags ps
-    PArrPat ps _           -> tags ps
-    ConPatIn _ ps          -> tags ps
+    TuplePat ps _ _            -> tags ps
+    PArrPat ps _               -> tags ps
+    ConPatIn _ ps              -> tags ps
     ConPatOut{ pat_args = ps } -> tags ps
-    NPlusKPat x _ _ _      -> tagsLN x
-    SigPatIn p _           -> tags p
-    SigPatOut p _          -> tags p
-    CoPat{}                -> []
-    NPat{}                 -> []
-    LitPat{}               -> []
-    WildPat{}              -> []
-    ViewPat{}              -> []
-    QuasiQuotePat{}        -> []
+    NPlusKPat x _ _ _          -> tagsLN x
+    SigPatIn p _               -> tags p
+    SigPatOut p _              -> tags p
+    CoPat{}                    -> []
+    NPat{}                     -> []
+    LitPat{}                   -> []
+    WildPat{}                  -> []
+    ViewPat{}                  -> []
+    QuasiQuotePat{}            -> []
 #if MIN_VERSION_ghc(7,8,0)
-    SplicePat{}            -> []
+    SplicePat{}                -> []
 #endif
 
 instance (HasTags arg, HasTags recc) => HasTags (HsConDetails arg recc) where
@@ -277,17 +277,17 @@ instance HasTags arg => HasTags (HsRecField name arg) where
 
 instance TagName name => HasTags (Sig name) where
   tags d = case d of
-    GenericSig x _ -> concatMap tagsLN x
+    GenericSig x _      -> concatMap tagsLN x
 #if MIN_VERSION_ghc(7,10,0)
-    TypeSig x _ _ -> concatMap tagsLN x
+    TypeSig x _ _       -> concatMap tagsLN x
 #else
-    TypeSig x _ -> concatMap tagsLN x
+    TypeSig x _         -> concatMap tagsLN x
 #endif
-    FixSig{}      -> []
-    InlineSig{}   -> []
-    SpecSig{}     -> []
-    SpecInstSig{} -> []
-    IdSig{}       -> []
+    FixSig{}            -> []
+    InlineSig{}         -> []
+    SpecSig{}           -> []
+    SpecInstSig{}       -> []
+    IdSig{}             -> []
 #if MIN_VERSION_ghc(7,8,0)
     PatSynSig x _ _ _ _ -> tagsLN x
     MinimalSig{}        -> []
