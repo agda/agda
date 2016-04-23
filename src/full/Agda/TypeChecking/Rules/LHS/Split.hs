@@ -102,7 +102,23 @@ splitProblem mf (Problem ps qs tel pr) = do
         -- So it is a projection pattern (d = projection name), is it?
         projs <- mapMaybeM (lift . isProjection) ds
         when (null projs) notProjP
-        msum $ map (tryProj f (length projs >= 2)) projs
+        -- If the target is not a record type, that's an error.
+        -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
+        caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
+          Record{ recFields = fs } -> do
+            lift $ reportSDoc "tc.lhs.split" 20 $ sep
+              [ text $ "we are of record type r  = " ++ show r
+              , text   "applied to parameters vs = " <+> prettyTCM vs
+              , text $ "and have fields       fs = " ++ show fs
+              ]
+            -- The record "self" is the definition f applied to the patterns
+            let es = patternsToElims qs
+            fvs <- lift $ freeVarsToApply f
+            let self = defaultArg $ Def f (map Apply fvs) `applyE` es
+            -- Try the projection candidates
+            msum $ map (tryProj self fs vs (length projs >= 2)) projs
+
+          _ -> __IMPOSSIBLE__
       where
       failure   = lift $ typeError $ CannotEliminateWithPattern p $ unArg b
       notProjP  = lift $ typeError $ NotAProjectionPattern p
@@ -111,7 +127,7 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
 
-      tryProj f amb proj = do
+      tryProj self fs vs amb proj = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections (amb) we just try the next one.
         let ambErr err = if amb then mzero else err
@@ -123,35 +139,30 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
             unless (n > 0) $ ambErr notProjP
-            unless (getHiding p == getHiding ai) $ ambErr $ wrongHiding d
             lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
-            caseMaybeM (lift $ isRecordType $ unArg b) notRecord $ \(r, vs, def) -> case def of
-              Record{ recFields = fs } -> do
-                lift $ reportSDoc "tc.lhs.split" 20 $ sep
-                  [ text $ "we are of record type r  = " ++ show r
-                  , text   "applied to parameters vs = " <+> prettyTCM vs
-                  , text $ "and have fields       fs = " ++ show fs
-                  , text $ "original proj         d  = " ++ show d
-                  ]
-                -- Get the field decoration.
-                -- If the projection pattern @d@ is not a field name, that's an error.
-                argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
-                let es = patternsToElims qs
-                -- the record "self" is the definition f applied to the patterns
-                fvs <- lift $ freeVarsToApply f
-                let self = defaultArg $ Def f (map Apply fvs) `applyE` es
-                -- get the type of projection d applied to "self"
-                dType <- lift $ defType <$> getConstInfo d  -- full type!
+            lift $ reportSDoc "tc.lhs.split" 20 $ sep
+              [ text $ "original proj         d  = " ++ show d
+              ]
+            -- Get the field decoration.
+            -- If the projection pattern name @d@ is not a field name,
+            -- we have to try the next projection name.
+            -- If this was not an ambiguous projection, that's an error.
+            argd <- maybe (ambErr failure) return $ find ((d ==) . unArg) fs
 
-                lift $ reportSDoc "tc.lhs.split" 20 $ sep
-                  [ text "we are              self = " <+> prettyTCM (unArg self)
-                  , text "being projected by dType = " <+> prettyTCM dType
-                  ]
-                tryTCM $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
+            -- From here, we have the correctly disambiguated projection.
+            -- Thus, we no longer catch errors.
+            unless (getHiding p == getHiding ai) $ wrongHiding d
 
-              _ -> __IMPOSSIBLE__
+            -- Get the type of projection d applied to "self"
+            dType <- lift $ defType <$> getConstInfo d  -- full type!
+            lift $ reportSDoc "tc.lhs.split" 20 $ sep
+              [ text "we are              self = " <+> prettyTCM (unArg self)
+              , text "being projected by dType = " <+> prettyTCM dType
+              ]
+            -- This should succeed, as we have the correctly disambiguated.
+            lift $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
 
       tryTCM :: TCM a -> ListT TCM a
       tryTCM m = maybe mzero return =<< do
