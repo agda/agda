@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DoAndIfThenElse       #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -255,19 +256,19 @@ instance Match NLPat Term where
                     then tellSub i (var j)
                     else no (text $ "(CtxId = " ++ show id ++ ")")
           Nothing -> do
-            let boundVarOccs :: FreeVars
-                boundVarOccs = runFree (\var@(i,_) -> if i < n then singleton var else empty) IgnoreNot v
-                allowedVars :: IntSet
+            let allowedVars :: IntSet
                 allowedVars = IntSet.fromList (map unArg bvs)
+                isBadVar :: Int -> Bool
+                isBadVar i = i < n && not (i `IntSet.member` allowedVars)
                 perm :: Permutation
                 perm = Perm n $ reverse $ map unArg $ bvs
                 tel :: Telescope
                 tel = permuteTel perm k
-            if rigidVars boundVarOccs `IntSet.isSubsetOf` allowedVars
-               then if IntMap.keysSet (flexibleVars boundVarOccs) `IntSet.isSubsetOf` allowedVars
-                    then tellSub i $ teleLam tel $ renameP perm v
-                    else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
-               else no (text "")
+            ok <- liftRed $ reallyFree isBadVar v
+            case ok of
+              Left b      -> matchingBlocked b
+              Right True  -> no (text "")
+              Right False -> tellSub i $ teleLam tel $ renameP perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of
@@ -308,6 +309,30 @@ instance Match NLPat Term where
     where
       matchArgs :: Telescope -> Telescope -> [Elim' NLPat] -> Elims -> NLM ()
       matchArgs gamma k ps es = match gamma k ps =<< liftRed (reduce' es)
+
+reallyFree :: (Normalise a, Free' a FreeVars)
+           => (Int -> Bool) -> a -> ReduceM (Either Blocked_ Bool)
+reallyFree f v = do
+    let xs = getVars v
+    if null (stronglyRigidVars xs) && null (unguardedVars xs)
+    then do
+      if null (weaklyRigidVars xs) && null (flexibleVars xs)
+         && null (irrelevantVars xs)
+      then return $ Right False
+      else do
+        v <- normalise' v
+        let xs = getVars v
+        if null (stronglyRigidVars xs) && null (unguardedVars xs)
+           && null (weaklyRigidVars xs) && null (irrelevantVars xs)
+        then if null (flexibleVars xs)
+             then return $ Right False
+             else return $ Left $ foldMap (foldMap $ \m -> Blocked m ()) $
+                    flexibleVars xs
+        else return $ Right True
+    else return $ Right True
+  where
+    getVars v = runFree (\var@(i,_) -> if f i then singleton var else empty) IgnoreNot v
+
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
