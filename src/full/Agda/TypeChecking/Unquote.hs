@@ -125,7 +125,7 @@ isCon con tm = do t <- liftU tm
 
 isDef :: QName -> TCM Term -> UnquoteM Bool
 isDef f tm = do
-  t <- liftU tm
+  t <- liftU (etaContract =<< normalise =<< tm)
   case ignoreSharing t of
     Def g _ -> return (f == g)
     _       -> return False
