@@ -347,7 +347,7 @@ instance ToConcrete A.Name C.Name where
   bindToConcrete x = bindName x
 
 instance ToConcrete A.QName C.QName where
-  toConcrete = lookupQName AmbiguousConstructors
+  toConcrete = lookupQName AmbiguousConProjs
 
 instance ToConcrete A.ModuleName C.QName where
   toConcrete = lookupModule
