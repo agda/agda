@@ -323,6 +323,36 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _       -> Nothing
 
+primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
+primIBin unit absorber = do
+  t <- el primInterval --> el primInterval --> el primInterval
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ts -> do
+    case ts of
+     [x,y] -> do
+       sx <- reduceB' x
+       ix <- intervalView (unArg $ ignoreBlocking sx)
+       case ix of
+         ix | ix ==% absorber -> redReturn =<< intervalUnview absorber
+         ix | ix ==% unit     -> return $ YesReduction YesSimplification (unArg y)
+         _     -> do
+           sy <- reduceB' y
+           iy <- intervalView (unArg $ ignoreBlocking sy)
+           case iy of
+            iy | iy ==% absorber -> redReturn =<< intervalUnview absorber
+            iy | iy ==% unit     -> return $ YesReduction YesSimplification (unArg x)
+            _                   -> return $ NoReduction [reduced sx,reduced sy]
+     _ -> __IMPOSSIBLE__
+  where
+    (==%) IZero IZero = True
+    (==%) IOne IOne = True
+    (==%) _ _ = False
+
+
+primIMin :: TCM PrimitiveImpl
+primIMin = primIBin IOne IZero
+
+primIMax :: TCM PrimitiveImpl
+primIMax = primIBin IZero IOne
 
 primPathApply :: TCM PrimitiveImpl
 primPathApply = do
@@ -755,6 +785,8 @@ primitiveFunctions = Map.fromList
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
   , "primPathApply"       |-> primPathApply
+  , "primIMin"            |-> primIMin
+  , "primIMax"            |-> primIMax
   ]
   where
     (|->) = (,)

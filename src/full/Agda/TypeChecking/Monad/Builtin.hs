@@ -105,7 +105,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
-    primPath, primInterval, primPathAbs, primIZero, primIOne, -- primPathApply,
+    primPath, primInterval, primPathAbs, primIZero, primIOne, -- primIMin, primIMax, -- primPathApply,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
@@ -159,6 +159,8 @@ primInterval     = getBuiltin builtinInterval
 primPathAbs      = getBuiltin builtinPathAbs
 primIZero        = getBuiltin builtinIZero
 primIOne         = getBuiltin builtinIOne
+-- primIMin         = getBuiltin builtinIMin
+-- primIMax         = getBuiltin builtinIMax
 -- primPathApply    = getBuiltin builtinPathApply
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
@@ -342,6 +344,8 @@ builtinInterval                      = "INTERVAL"
 builtinPathAbs                       = "PATHABS"
 builtinIZero                         = "IZERO"
 builtinIOne                          = "IONE"
+-- builtinIMin                          = "IMin"
+-- builtinIMax                          = "IMax"
 -- builtinPathApply                     = "PATHAPPLY"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
@@ -513,6 +517,15 @@ intervalView t@(Def q []) = do
     _ | Just q == io -> IOne
     _                -> OTerm t
 intervalView t = return $ OTerm t
+
+intervalUnview :: HasBuiltins m => IntervalView -> m Term
+intervalUnview v = do
+  iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
+  io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
+  return $ case v of
+             IZero -> iz
+             IOne  -> io
+             OTerm t -> t
 
 ------------------------------------------------------------------------
 -- * Path equality
