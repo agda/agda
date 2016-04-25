@@ -542,6 +542,19 @@ primPathName = do
             (_, Def path _) -> path
             (_, _)          -> __IMPOSSIBLE__
 
+-- | Get the name of the equality type.
+primPathName' :: TCM (Maybe QName)
+primPathName' = do
+  mty <- getBuiltin' builtinPath
+  let lamV (Lam i b)  = mapFst (getHiding i :) $ lamV (unAbs b)
+      lamV (Shared p) = lamV (derefPtr p)
+      lamV v          = ([], v)
+  case mty of
+   Nothing -> return Nothing
+   Just ty -> return $ case lamV ty of
+                (_, Def path _) -> Just path
+                (_, _)          -> __IMPOSSIBLE__
+
 -- | Check whether the type is actually an path (lhs ≡ rhs)
 --   and extract lhs, rhs, and their type.
 --
@@ -549,8 +562,10 @@ primPathName = do
 
 pathView :: Type -> TCM PathView
 pathView t0@(El s t) = do
-  path <- primPathName
-  case ignoreSharing t of
+  mpath <- primPathName'
+  case mpath of
+   Nothing -> return $ OType t0
+   Just path -> case ignoreSharing t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
       | path' == path -> return $ PathType s path level typ lhs rhs
     _ -> return $ OType t0

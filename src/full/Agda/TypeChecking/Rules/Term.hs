@@ -276,9 +276,9 @@ checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
 
 ifPath :: QName -> TCM a -> TCM a -> TCM a
 ifPath d fallback work = do
-  pathname <- primPathName
+  pathname <- primPathName'
   reportSLn "tc.term.lambda" 60 $ show (pathname,d)
-  if pathname == d then work else fallback
+  if pathname == Just d then work else fallback
 
 checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lhs rhs <- boldPathView ty = do
