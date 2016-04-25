@@ -43,7 +43,7 @@ default : customised
 # Customised test cases.
 
 .PHONY:
-customised : customised/NestedProjectRoots customised/FFI
+customised : customised/NestedProjectRoots
 
 customised/NestedProjectRoots.err : %.err : %.agda
 	@echo "$*.agda"
@@ -65,37 +65,6 @@ customised/NestedProjectRoots : % : %.err
 	    $(AGDA_BIN) --no-default-libraries -icustomised/Imports customised/Imports/A.agda; \
 	    $(AGDA_BIN) --no-default-libraries -icustomised -icustomised/Imports $*.agda) \
 	    | $(clean) > $*.err.tmp
-	@echo `cat $*.err.tmp` > $*.err.tmp.2
-	@echo `cat $*.err` > $*.err.tmp.3
-	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
-		then rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
-				 true; \
-		else echo "== Old error ==="; \
-			 cat $*.err; \
-			 echo "== New error ==="; \
-			 cat $*.err.tmp; \
-			 rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
-			 false; \
-		fi
-
-FFI_clean=$(clean) | $(sed) -e 's/:[[:digit:]]\+$$//'
-
-customised/FFI.err : %.err : %.agda
-	@echo "$*.agda"
-	@if ($(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda) > $*.tmp; \
-		then echo "Unexpected success"; rm -f $*.tmp; false; \
-    else if [ -s $*.tmp ]; \
-		then cat $*.tmp | $(FFI_clean) > $@; cat $@; rm -f $*.tmp; true; \
-		else rm -f $@ $*.tmp; false; \
-		fi; \
-	fi
-
-.PHONY:
-customised/FFI : % : %.err
-	@echo $*.agda
-	-@rm -rf customised/MAlonzo
-	-@$(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda \
-	    | $(FFI_clean) > $*.err.tmp
 	@echo `cat $*.err.tmp` > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
 	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
