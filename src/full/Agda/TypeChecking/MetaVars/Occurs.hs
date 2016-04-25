@@ -542,6 +542,7 @@ isNeutral b f es = liftTCM $ do
   let yes = return True
       no  = return False
   def <- getConstInfo f
+  if defMatchable def then no else do
   case theDef def of
     Axiom{}    -> yes
     Datatype{} -> yes
