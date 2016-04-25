@@ -1011,13 +1011,14 @@ inferOrCheckProjApp e ds args mt = do
   case filter (visible . getHiding . snd) $ zip [0..] args of
     [] -> refuse "it is not applied to a visible argument"
     ((k, arg) : _) -> do
-      (v, ta) <- inferExpr $ namedArg arg
+      (v0, ta) <- inferExpr $ namedArg arg
       reportSDoc "tc.proj.amb" 25 $ vcat
         [ text "  principal arg " <+> prettyTCM arg
         , text "  has type "      <+> prettyTCM ta
         ]
-      -- ta should be a record type
-      ta <- reduce ta
+      -- ta should be a record type (after introducing the hidden args in v0)
+      (vargs, ta) <- implicitArgs (-1) (not . visible) ta
+      let v = v0 `apply` vargs
       tryRecordType ta >>= \case
 
         -- case: argument is definitely not of record type
