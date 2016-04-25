@@ -396,6 +396,7 @@ applySection' new ptel old ts rd rm = do
                     , defCompiledRep    = noCompiledRep
                     , defInstance       = inst
                     , defCopy           = True
+                    , defMatchable      = False
                     , theDef            = df }
             oldDef = theDef d
             isCon  = case oldDef of { Constructor{} -> True ; _ -> False }

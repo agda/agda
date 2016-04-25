@@ -10,7 +10,8 @@ import qualified Control.Exception as E
 import Control.Monad.State (put, get, gets, modify)
 import Control.Monad.Trans (liftIO)
 
-import Data.Map as Map
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -203,13 +204,16 @@ withSignature sig m = do
   return r
 
 -- ** Modifiers for rewrite rules
-addRewriteRulesFor :: QName -> RewriteRules -> Signature -> Signature
-addRewriteRulesFor f rews =
+addRewriteRulesFor :: QName -> RewriteRules -> [QName] -> Signature -> Signature
+addRewriteRulesFor f rews matchables =
     (over sigRewriteRules $ HMap.insertWith mappend f rews)
   . (updateDefinition f $ updateTheDef setNotInjective)
+  . (foldr (.) id $ map (\g -> updateDefinition g setMatchable) matchables)
     where
       setNotInjective def@Function{} = def { funInv = NotInjective }
       setNotInjective def            = def
+
+      setMatchable def = def { defMatchable = True }
 
 -- ** Modifiers for parts of the signature
 

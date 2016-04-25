@@ -256,7 +256,9 @@ addRewriteRule q = do
 addRewriteRules :: QName -> RewriteRules -> TCM ()
 addRewriteRules f rews = do
   reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-  modifySignature $ addRewriteRulesFor f rews
+  let matchables = getMatchables rews
+  reportSDoc "rewriting" 30 $ text "matchable symbols: " <+> prettyTCM matchables
+  modifySignature $ addRewriteRulesFor f rews matchables
   --rules <- getRewriteRulesFor f
   --reportSDoc "rewriting" 20 $ vcat
   --  [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
@@ -387,3 +389,27 @@ instance KillCtxId NLPat where
     PSet l         -> PSet $ killCtxId l
     PBoundVar i es -> PBoundVar i $ killCtxId es
     PTerm _        -> p
+
+-- | Get all symbols that a rewrite rule matches against
+class GetMatchables a where
+  getMatchables :: a -> [QName]
+
+instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
+  getMatchables = foldMap getMatchables
+
+instance GetMatchables NLPat where
+  getMatchables p =
+    case p of
+      PVar _ _ _     -> empty
+      PWild          -> empty
+      PDef f _       -> singleton f
+      PLam _ x       -> empty
+      PPi a b        -> empty
+      PSet l         -> empty
+      PBoundVar i es -> empty
+      PTerm _        -> empty -- should be safe (I hope)
+
+instance GetMatchables RewriteRule where
+  getMatchables rew = case rewLHS rew of
+    PDef _ ps -> getMatchables ps
+    _         -> __IMPOSSIBLE__
