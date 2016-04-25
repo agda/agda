@@ -39,6 +39,7 @@ import Agda.TypeChecking.Level
 import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.MetaVars (allMetas)
+import Agda.TypeChecking.Free
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
@@ -353,6 +354,32 @@ primIMin = primIBin IOne IZero
 
 primIMax :: TCM PrimitiveImpl
 primIMax = primIBin IZero IOne
+
+primCoe :: TCM PrimitiveImpl
+primCoe = do
+  t    <- hPi "a" (el primLevel) $
+          hPi "A" (return $ sort $ varSort 0) $
+          hPi "B" (return $ sort $ varSort 1) $
+          nPi "Q" (El (Type $ varLvlSuc 2) <$> primPath <#> (return $ Level $ varLvlSuc 2) <#> (return $ Sort (varSort 2)) <@> varM 1 <@> varM 0) $
+          nPi "p" (el primInterval) $
+          nPi "q" (el primInterval) $
+          (El (varSort 5) <$> getPrimitiveTerm "primPathApply" <#> (return $ Level $ varLvlSuc 5) <#> (return $ Sort (varSort 5))
+               <#> varM 4 <#> varM 3 <@> varM 2 <@> varM 1) -->
+          (El (varSort 5) <$> getPrimitiveTerm "primPathApply" <#> (return $ Level $ varLvlSuc 5) <#> (return $ Sort (varSort 5))
+               <#> varM 4 <#> varM 3 <@> varM 2 <@> varM 0)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ ts -> do
+    case ts of
+      [l,a,b,t,p,q,x] -> do
+        app <- (`Def` []) <$> primFunName <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitive' "primPathApply"
+        let
+          u = apply app $ map (raise 1) [l,l{- Wrong -},setHiding Hidden a,setHiding Hidden b,t] ++ [defaultArg (var 0)]
+
+        p <- normalise' u
+        if occurrence 0 p == NoOccurrence then return $ YesReduction YesSimplification (unArg x)
+                                          else return $ NoReduction (map notReduced ts)
+      _         -> __IMPOSSIBLE__
+ where
+   varLvlSuc n = Max [Plus 1 $ NeutralLevel mempty $ var n]
 
 primPathApply :: TCM PrimitiveImpl
 primPathApply = do
@@ -787,6 +814,7 @@ primitiveFunctions = Map.fromList
   , "primPathApply"       |-> primPathApply
   , "primIMin"            |-> primIMin
   , "primIMax"            |-> primIMax
+  , "primCoe"             |-> primCoe
   ]
   where
     (|->) = (,)

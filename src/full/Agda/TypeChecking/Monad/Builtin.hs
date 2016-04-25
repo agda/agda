@@ -85,6 +85,9 @@ getPrimitive :: String -> TCM PrimFun
 getPrimitive x =
   fromMaybeM (typeError $ NoSuchPrimitiveFunction x) $ getPrimitive' x
 
+getPrimitiveTerm :: String -> TCM Term
+getPrimitiveTerm x = (`Def` []) <$> primFunName <$> getPrimitive x
+
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term
 constructorForm v = constructorForm' primZero primSuc v
