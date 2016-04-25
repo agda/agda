@@ -988,11 +988,11 @@ checkProjApp e ds args0 t = do
   coerce v ti t
 
 inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
-inferOrCheckProjApp e ds args0 mt = do
+inferOrCheckProjApp e ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ text "checking ambiguous projection "
-    , text $ "  ds    = " ++ show ds
-    , text "  args0 = " <+> sep (map prettyTCM args0)
+    , text $ "  ds   = " ++ show ds
+    , text "  args = " <+> sep (map prettyTCM args)
     ]
 
   let refuse :: String -> TCM (Term, Type)
@@ -1008,9 +1008,9 @@ inferOrCheckProjApp e ds args0 mt = do
   -- For now, we only allow ambiguous projections if the first visible
   -- argument is the record value.
 
-  case filter (visible . getHiding) args0 of
+  case filter (visible . getHiding . snd) $ zip [0..] args of
     [] -> refuse "it is not applied to a visible argument"
-    (arg : args) -> do
+    ((k, arg) : _) -> do
       (v, ta) <- inferExpr $ namedArg arg
       reportSDoc "tc.proj.amb" 25 $ vcat
         [ text "  principal arg " <+> prettyTCM arg
@@ -1062,7 +1062,7 @@ inferOrCheckProjApp e ds args0 mt = do
               storeDisambiguatedName d
               let tc = fromMaybe typeDontCare mt
               let r  = getRange e
-              z <- runExceptT $ checkArguments ExpandLast r args tb tc
+              z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
               case z of
                 Right (us, trest) -> return (u `apply` us, trest)
                 -- We managed to check a part of es and got us1, but es2 remain.
