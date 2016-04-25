@@ -77,7 +77,9 @@ problemFromPats ps a = do
   -- For the initial problem, do not insert trailing implicits.
   -- This has the effect of not including trailing hidden domains in the problem telescope.
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
-  ps <- insertImplicitPatternsT DontExpandLast ps a
+  -- Ulf, 2016-04-25: Actually we do need to ExpandLast because where blocks
+  -- need the implicits.
+  ps <- insertImplicitPatternsT ExpandLast ps a
   -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
 
   -- Redo the telView, in order to *not* normalize the clause type further than necessary.
@@ -113,7 +115,7 @@ problemFromPats ps a = do
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
 updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
-      ps <- insertImplicitPatternsT DontExpandLast ps $ unArg a
+      ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpTo (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
