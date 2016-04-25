@@ -508,6 +508,8 @@ library
 
   if impl(ghc >= 7.10)
      ghc-options: -fwarn-unticked-promoted-constructors
+                  -- Enable after removing the support for GHC 7.8.
+                  -- -fwarn-deriving-typeable
 
   -- This option is deprected in GHC 7.10.1.
   if impl(ghc >= 7.8) && impl(ghc < 7.10)
