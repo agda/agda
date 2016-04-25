@@ -33,7 +33,7 @@ open _×_
 -- Sized streams via head/tail.
 
 record Stream {i : Size} (A : Set) : Set where
-  coinductive
+  coinductive; constructor _∷_
   field
     head  : A
     tail  : ∀ {j : Size< i} → Stream {j} A
@@ -56,9 +56,12 @@ _++ˢ_ : ∀ {i A} → List A → Stream {i} A → Stream {i} A
 record List1 (A : Set) : Set where
   constructor _∷_
   field
-    first  : A
-    rest   : List A
-open List1 public
+    head  : A
+    tail  : List A
+open List1 using (head; tail)
+
+record ⊤ : Set where constructor trivial
+open List1 (trivial ∷ []) using (head; tail) -- problem: imports not colored
 
 unfold⁺ : ∀ {S : Size → Set} {A : Set}
 
@@ -66,7 +69,7 @@ unfold⁺ : ∀ {S : Size → Set} {A : Set}
 
   ∀ {i} → (s : S i) → Stream {i} A
 
-head  (unfold⁺ step s) =  first (fst (step s))
+head  (unfold⁺ step s) =  head (fst (step s))
 tail  (unfold⁺ step s) =  let  ((_ ∷ l) , s′) = step s
                           in   l ++ˢ unfold⁺ step s′
 \end{code}

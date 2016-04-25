@@ -1058,6 +1058,7 @@ inferOrCheckProjApp e ds args0 mt = do
         , text "  has type "      <+> prettyTCM ta
         ]
       -- ta should be a record type
+      ta <- reduce ta
       tryRecordType ta >>= \case
 
         -- case: argument is definitely not of record type
@@ -1072,9 +1073,23 @@ inferOrCheckProjApp e ds args0 mt = do
         -- case: argument is of record type
         Right (q, _, _) -> do
           -- try to project it with all of the possible projections
-          let try d = caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
-               caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
-                 if (q == q') then return $ Just (d, u, tb) else return Nothing
+          let try d = do
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text $ "trying projection " ++ show d
+                , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
+                ]
+              caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text "  dom = " <+> prettyTCM dom
+                , text "  u   = " <+> prettyTCM u
+                , text "  tb  = " <+> prettyTCM tb
+                ]
+              caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text "  q   = " <+> prettyTCM q
+                , text "  q'  = " <+> prettyTCM q'
+                ]
+              if (q == q') then return $ Just (d, u, tb) else return Nothing
           -- TODO use original projections
           -- TODO: lazy!  There should be at most one candidate. This is strict:
           cands <- catMaybes <$> mapM try ds
@@ -1085,6 +1100,7 @@ inferOrCheckProjApp e ds args0 mt = do
             -- the term u = d v
             -- the type tb is the type of this application
             [(d,u,tb)] -> do
+              storeDisambiguatedName d
               let tc = fromMaybe typeDontCare mt
               let r  = getRange e
               z <- runExceptT $ checkArguments ExpandLast r args tb tc

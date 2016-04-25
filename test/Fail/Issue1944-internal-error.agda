@@ -21,3 +21,6 @@ open R s
 
 ok : R
 out ok = Set  -- out should be highlighted as projection
+
+test : R → R
+test x = out x  --  Was: internal error

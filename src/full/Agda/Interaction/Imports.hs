@@ -504,11 +504,8 @@ readInterface file = do
       _               -> throwError e
 
 -- | Writes the given interface to the given file.
---
--- The serialised interface is also deserialised and returned. The
--- returned interface does not contain meta-variables.
 
-writeInterface :: FilePath -> Interface -> TCM Interface
+writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
     reportSLn "import.iface.write" 5  $ "Writing interface file " ++ file ++ "."
     -- Andreas, 2015-07-13
@@ -522,10 +519,9 @@ writeInterface file i = do
     -- i <- return $
     --   i { iInsideScope  = removePrivates $ iInsideScope i
     --     }
-    i <- encodeFile file i
+    encodeFile file i
     reportSLn "import.iface.write" 5 $ "Wrote interface file."
     reportSLn "import.iface.write" 50 $ "  hash = " ++ show (iFullHash i) ++ ""
-    return i
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ file ++ "."
@@ -681,7 +677,7 @@ createInterface file mname =
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       let ifile = filePath $ toIFile file
-      i <- writeInterface ifile i
+      writeInterface ifile i
       return (i, NoWarnings)
      else do
       return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
@@ -729,6 +725,11 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
     -- with discarding also the nameBindingSite in QName:
     -- Saves 10% on serialization time (and file size)!
+    --
+    -- NOTE: We no longer discard all nameBindingSites (but the commit
+    -- that introduced this change seems to have made Agda a bit
+    -- faster and interface file sizes a bit smaller, at least for the
+    -- standard library).
     builtin <- use stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
@@ -739,14 +740,16 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
-    (display, sig) <- second killRange <$> (eliminateDeadCode display =<< getSignature)
+    -- TODO: Kill some ranges?
+    (display, sig) <- eliminateDeadCode display =<< getSignature
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.
     patsyns <- killRange <$> getPatternSyns
     h       <- liftIO $ hashFile file
     let builtin' = Map.mapWithKey (\ x b -> (x,) . primFunName <$> b) builtin
-    return $ Interface
+    reportSLn "import.iface" 7 "  instantiating all meta variables"
+    i <- instantiateFull $ Interface
       { iSourceHash      = h
       , iImportedModules = mhs
       , iModuleName      = m
@@ -762,6 +765,8 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
       , iPragmaOptions   = pragmas
       , iPatternSyns     = patsyns
       }
+    reportSLn "import.iface" 7 "  interface complete"
+    return i
 
 -- | Returns (iSourceHash, iFullHash)
 getInterfaceFileHashes :: FilePath -> TCM (Maybe (Hash, Hash))
