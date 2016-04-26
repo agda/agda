@@ -1050,12 +1050,12 @@ inferOrCheckProjApp e ds args mt = do
                 , text "  u   = " <+> prettyTCM u
                 , text "  tb  = " <+> prettyTCM tb
                 ]
-              (q', _, _) <- MaybeT $ isRecordType $ unDom dom
+              (q', pars, _) <- MaybeT $ isRecordType $ unDom dom
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  q   = " <+> prettyTCM q
                 , text "  q'  = " <+> prettyTCM q'
                 ]
-              if (q == q') then return (orig, (d, (dom, u, tb))) else mzero
+              if (q == q') then return (orig, (d, (pars, (dom, u, tb)))) else mzero
           -- TODO: lazy!  There should be at most one candidate. This is strict:
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
           case cands of
@@ -1066,15 +1066,12 @@ inferOrCheckProjApp e ds args mt = do
             -- case: just one matching projection d
             -- the term u = d v
             -- the type tb is the type of this application
-            [ (orig, (d, (dom,u,tb))) : _ ] -> do
+            [ (orig, (d, (pars, (dom,u,tb)))) : _ ] -> do
               storeDisambiguatedName d
 
               -- Check parameters
-              parsAndIndices <- case ignoreSharing $ unEl $ unDom dom of
-                Def _ es -> return $ map (fromMaybe __IMPOSSIBLE__ . isApplyElim) es
-                _ -> __IMPOSSIBLE__
               tfull <- typeOfConst d
-              (_,_) <- checkKnownArguments (take k args) parsAndIndices tfull
+              (_,_) <- checkKnownArguments (take k args) pars tfull
 
               -- Check remaining arguments
               let tc = fromMaybe typeDontCare mt
