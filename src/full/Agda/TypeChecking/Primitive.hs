@@ -373,10 +373,12 @@ primCoe = do
         app <- (`Def` []) <$> primFunName <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitive' "primPathApply"
         let
           u = apply app $ map (raise 1) [l,l{- Wrong -},setHiding Hidden a,setHiding Hidden b,t] ++ [defaultArg (var 0)]
-
-        p <- normalise' u
-        if occurrence 0 p == NoOccurrence then return $ YesReduction YesSimplification (unArg x)
-                                          else return $ NoReduction (map notReduced ts)
+        (p', q') <- normalise' (p, q)
+        if p' == q' then redReturn (unArg x)
+          else do
+            u' <- normalise' u
+            if occurrence 0 u' == NoOccurrence then return $ YesReduction YesSimplification (unArg x)
+                                               else return $ NoReduction (map notReduced ts)
       _         -> __IMPOSSIBLE__
  where
    varLvlSuc n = Max [Plus 1 $ NeutralLevel mempty $ var n]
