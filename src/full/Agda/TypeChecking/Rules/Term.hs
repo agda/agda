@@ -19,6 +19,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
 import Control.Monad.State (get, put)
 import Control.Monad.Reader
 
@@ -1040,24 +1041,23 @@ inferOrCheckProjApp e ds args mt = do
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
               -- get the original projection name
-              caseMaybeM (isProjection d) (return Nothing) $ \ (Projection{ projProper = mp }) -> do
-              caseMaybe mp (return Nothing) $ \ orig -> do
+              Projection{ projProper = mp } <- MaybeT $ isProjection d
+              orig <- MaybeT $ return mp
               -- try to eliminate
-              caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
+              (dom, u, tb) <- MaybeT (projectTyped v ta d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  dom = " <+> prettyTCM dom
                 , text "  u   = " <+> prettyTCM u
                 , text "  tb  = " <+> prettyTCM tb
                 ]
-              caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
+              (q', _, _) <- MaybeT $ isRecordType $ unDom dom
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  q   = " <+> prettyTCM q
                 , text "  q'  = " <+> prettyTCM q'
                 ]
-              if (q == q') then return $ Just (orig, (d, (dom, u, tb))) else return Nothing
-          -- TODO use original projections
+              if (q == q') then return (orig, (d, (dom, u, tb))) else mzero
           -- TODO: lazy!  There should be at most one candidate. This is strict:
-          cands <- groupOn fst . catMaybes <$> mapM try ds
+          cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
           case cands of
             [] -> refuse "no matching candidate found"
             [[]] -> refuse "no matching candidate found"
