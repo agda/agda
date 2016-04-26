@@ -11,13 +11,15 @@ Introduction
 A function is defined by first declaring its type followed by a number of
 equations called *clauses*. Each clause consists of the function being defined
 applied to a number of *patterns*, followed by ``=`` and a term called the
-*right-hand side*. For example:::
+*right-hand side*. For example:
+::
 
   not : Bool → Bool
   not true  = false
   not false = true
 
-Functions are allowed to call themselves recursively, for example:::
+Functions are allowed to call themselves recursively, for example:
+::
 
   twice : Nat → Nat
   twice zero    = zero
@@ -43,6 +45,7 @@ equations. Patterns are matched from top to bottom, i.e., the first pattern
 that matches the actual parameters is the one that is used.
 
 By default, Agda checks the following properties of a function definition:
+
 - The patterns in the left-hand side of each clause should consist only of
   constructors and variables
 - No variable should occur more than once on the left-hand side of a single
@@ -67,14 +70,16 @@ Dot patterns (also called *inaccessible patterns*) can be used when there is
 only a single type-correct value for a certain argument. The syntax for a dot
 pattern is ``.t``.
 
-As an example, consider the datatype ``Square`` defined as follows::
+As an example, consider the datatype ``Square`` defined as follows
+::
 
   data Square : Nat → Set where
     sq : (m : Nat) → Square (m * m)
 
 Suppose we want to define a function ``root : (n : Nat) → Square n → Nat`` that
 takes as its arguments a number ``n`` and a proof that it is a square, and
-returns the square root of that number. We can do so as follows:::
+returns the square root of that number. We can do so as follows:
+::
 
   root : (n : Nat) → Square n → Nat
   root .(m * m) (sq m) = m
@@ -94,16 +99,18 @@ Absurd patterns
 ---------------
 
 Absurd patterns can be used when none of the constructors for a particular
-argument would be valid. The syntax for an absurd pattern is ``()``
+argument would be valid. The syntax for an absurd pattern is ``()``.
 
-As an example, if we have a datatype ``Even`` defined as follows::
+As an example, if we have a datatype ``Even`` defined as follows
+::
 
   data Even : Nat → Set where
     even-zero  : Even zero
     even-plus2 : {n : Nat} → Even n → Even (suc (suc n))
 
 then we can define a function ``one-not-even : Even 1 → ⊥`` by using an absurd
-pattern:::
+pattern:
+::
 
   one-not-even : Even 1 → ⊥
   one-not-even ()
@@ -122,7 +129,8 @@ Case trees
 ==========
 
 Internally, Agda represents function definitions as *case trees*. For example,
-a function definition::
+a function definition
+::
 
   max : Nat → Nat → Nat
   max zero    n       = n
