@@ -92,6 +92,7 @@ import Agda.Utils.Except
 
 import Agda.Utils.Functor (($>))
 import Agda.Utils.Lens
+import Agda.Utils.List (groupOn)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1038,6 +1039,10 @@ inferOrCheckProjApp e ds args mt = do
                 [ text $ "trying projection " ++ show d
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
+              -- get the original projection name
+              caseMaybeM (isProjection d) (return Nothing) $ \ (Projection{ projProper = mp }) -> do
+              caseMaybe mp (return Nothing) $ \ orig -> do
+              -- try to eliminate
               caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  dom = " <+> prettyTCM dom
@@ -1049,17 +1054,19 @@ inferOrCheckProjApp e ds args mt = do
                 [ text "  q   = " <+> prettyTCM q
                 , text "  q'  = " <+> prettyTCM q'
                 ]
-              if (q == q') then return $ Just (d, u, tb) else return Nothing
+              if (q == q') then return $ Just (orig, (d, (dom, u, tb))) else return Nothing
           -- TODO use original projections
           -- TODO: lazy!  There should be at most one candidate. This is strict:
-          cands <- catMaybes <$> mapM try ds
+          cands <- groupOn fst . catMaybes <$> mapM try ds
           case cands of
             [] -> refuse "no matching candidate found"
-            (_:_:_) -> refuse $ "several matching candidates found: " ++ show (map fst3 cands)
+            [[]] -> refuse "no matching candidate found"
+            (_:_:_) -> refuse $ "several matching candidates found: "
+                 ++ show (map (fst . snd) $ concat cands)
             -- case: just one matching projection d
             -- the term u = d v
             -- the type tb is the type of this application
-            [(d,u,tb)] -> do
+            [ (orig, (d, (dom,u,tb))) : _ ] -> do
               storeDisambiguatedName d
               let tc = fromMaybe typeDontCare mt
               let r  = getRange e
