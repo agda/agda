@@ -1656,7 +1656,7 @@ checkKnownArguments
   -> TCM (Args, Type)
 checkKnownArguments []           vs t = return (vs, t)
 checkKnownArguments (arg : args) vs t = do
-  (vs', t') <- checkKnownArgument arg vs t
+  (vs', t') <- traceCall (SetRange $ getRange arg) $ checkKnownArgument arg vs t
   checkKnownArguments args vs' t'
 
 -- | Check an argument whose value we already know.
