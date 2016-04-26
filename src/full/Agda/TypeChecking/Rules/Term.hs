@@ -1068,6 +1068,15 @@ inferOrCheckProjApp e ds args mt = do
             -- the type tb is the type of this application
             [ (orig, (d, (dom,u,tb))) : _ ] -> do
               storeDisambiguatedName d
+
+              -- Check parameters
+              parsAndIndices <- case ignoreSharing $ unEl $ unDom dom of
+                Def _ es -> return $ map (fromMaybe __IMPOSSIBLE__ . isApplyElim) es
+                _ -> __IMPOSSIBLE__
+              tfull <- typeOfConst d
+              (_,_) <- checkKnownArguments (take k args) parsAndIndices tfull
+
+              -- Check remaining arguments
               let tc = fromMaybe typeDontCare mt
               let r  = getRange e
               z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
@@ -1636,11 +1645,58 @@ traceCallE call m = do
     Right e  -> return e
     Left err -> throwError err
 
+-- | Check arguments whose value we already know.
+--
+--   This function can be used to check user-supplied parameters
+--   we have already computed by inference.
+--
+--   The type @t@ of the head has enough domains.
+
+checkKnownArguments
+  :: [NamedArg A.Expr]
+  -> Args
+  -> Type
+  -> TCM (Args, Type)
+checkKnownArguments []           vs t = return (vs, t)
+checkKnownArguments (arg : args) vs t = do
+  (vs', t') <- checkKnownArgument arg vs t
+  checkKnownArguments args vs' t'
+
+-- | Check an argument whose value we already know.
+checkKnownArgument
+  :: NamedArg A.Expr
+  -> Args
+  -> Type
+  -> TCM (Args, Type)
+checkKnownArgument arg [] _ = genericDocError =<< do
+  text "Invalid projection parameter " <+> prettyA arg
+checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
+  (Dom info' a, b) <- mustBePi t
+  -- Bollocks:
+  -- unless (info' == infov) $ do
+  --    reportSDoc "impossible" 10 $ vcat
+  --      [ text "parameter " <+> prettyTCM (Arg infov v)
+  --      , text "has type  " <+> prettyTCM (Dom info' a)
+  --      ]
+  --    __IMPOSSIBLE__
+
+  -- Skip the arguments from vs that do not correspond to e
+  if not (getHiding info == getHiding info'
+          && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
+    -- Continue with the next one
+    then checkKnownArgument arg vs (b `absApp` v)
+    -- Found the right argument
+    else do
+      u <- checkExpr (namedThing e) a
+      equalTerm a u v
+      return (vs, b `absApp` v)
+
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen.  Returns the evaluated arguments @vs@, the remaining
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
+
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
 
