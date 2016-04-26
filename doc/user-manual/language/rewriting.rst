@@ -7,4 +7,3 @@ Rewriting
 .. note::
    This is a stub.
 
-

@@ -4,14 +4,17 @@
 Data Types
 **********
 
+Simple datatypes
+================
+
 Example datatypes
-=================
+-----------------
 
 In the introduction we already showed the definition of the data type of natural numbers (in unary notation)::
 
     data Nat : Set where
-	zero : Nat
-	suc  : Nat → Nat
+        zero : Nat
+        suc  : Nat → Nat
 
 We give a few more examples. First the data type of truth values::
 
@@ -22,7 +25,7 @@ We give a few more examples. First the data type of truth values::
 Then the unit set::
 
     data True : Set where
-	tt : True
+        tt : True
 
 The True set represents the trivially true proposition.::
 
@@ -44,26 +47,86 @@ Finally, the data type of Brouwer ordinals::
       limOrd  : (Nat → Ord) → Ord
 
 General form
-============
+------------
 
-The general form of the definition of a simple data type D is the following::
+The general form of the definition of a simple datatype D is the following::
 
-    data D : Set where
+    data D : Setᵢ where
       c₁ : A₁
       ...
       cₙ : Aₙ
 
-The name D of the data type and the names c₁, ..., cₙ of the
-constructors must be new wrt the current signature and context.
+The name D of the data type and the names `c₁`, ..., `cₙ` of the
+constructors must be new w.r.t. the current signature and context,
+and the types `A₁`, ..., `Aₙ` must be function types ending in `D`,
+i.e. they must be of the form::
 
-Agda checks that A₁, ..., Aₙ : Set wrt the current signature
-and context. Moreover, each Aᵢ has the form::
+  (y₁ : B₁) → ... → (yₘ : Bₘ) → D
+
+Parametrized datatypes
+======================
+
+Datatypes can have *parameters*. They are declared after the name of the
+datatype but before the colon, for example:::
+
+  data List (A : Set) : Set where
+    []  : List A
+    _∷_ : A → List A → List A
+
+Indexed datatypes
+=================
+
+In addition to parameters, datatypes can also have *indices*. In contrast to
+parameters which are required to be the same for all constructors, indices
+can vary from constructor to constructor. They are declared after the colon
+as function arguments to `Set`. For example, fixed-length vectors can be
+defined by indexing them over their length of type `Nat`:::
+
+  data Vector (A : Set) : Nat → Set where
+    []  : Vector A zero
+    _∷_ : {n : Nat} → A → Vector A n → Vector A (suc n)
+
+Notice that the parameter `A` is bound once for all constructors, while the
+index `{n : Nat}` must be bound locally in the constructor `_∷_`.
+
+Indexed datatypes can also be used to describe predicates, for example the
+predicate `Even : Nat → Set` can be defined as follows:::
+
+  data Even : Nat → Set where
+    even-zero  : Even zero
+    even-plus2 : {n : Nat} → Even n → Even (suc (suc n))
+
+General form
+------------
+
+The general form of the definition of a (parametrized, indexed) datatype D is
+the following::
+
+  data D (x₁ : P₁) ... (xₖ : Pₖ) : (y₁ : Q₁) → ... → (yₗ : Qₗ) → Set ℓ where
+    c₁ : A₁
+    ...
+    cₙ : Aₙ
+
+where the types `A₁`, ..., `Aₙ` are function types of the form::
+
+  (z₁ : B₁) → ... → (zₘ : Bₘ) → D x₁ ... xₖ t₁ ... tₗ
+
+
+Strict positivity
+=================
+
+When defining a datatype `D`, Agda poses an additional requirement on
+the types of the constructors of `D`, namely that `D` may only occur
+**strictly positively** in the types of their arguments.
+
+Concretely, for a datatype with constructors `c₁ : A₁`, ..., `cₙ : Aₙ`,
+Agda checks that each Aᵢ has the form::
 
     (y₁ : B₁) → ... → (yₘ : Bₘ) → D
 
 where an argument types Bᵢ of the constructors is either
 
-* *non-inductive* (a *side condition*) and does not mention D at all, 
+* *non-inductive* (a *side condition*) and does not mention D at all,
 
 * or *inductive* and has the form::
 
@@ -71,19 +134,11 @@ where an argument types Bᵢ of the constructors is either
 
 where D must not occur in any Cⱼ.
 
-Strict positivity
-=================
-
-The condition that D must not occur in any Cⱼ can be also phrased
-as D must only occur **strictly positively** in Bᵢ.
- 
-Agda can check this positivity condition.
-
 The strict positivity condition rules out declarations such as::
 
     data Bad : Set where
         bad : (Bad → Bad) → Bad
-          A      B       C
+        --     A     B      C
         -- A is in a negative position, B and C are OK
 
 since there is a negative occurrence of Bad in the type of the
@@ -102,13 +157,12 @@ type.::
     data ⊥ : Set where
 
     data Bad : Set where
-        bad : (Bad → Bad) → Bad
+      bad : (Bad → Bad) → Bad
 
     incon : ⊥
     incon = loop (bad (λ b → b))
-	where
-	    loop : (b : Bad) → ⊥
-	    loop (bad f) = loop (f (bad f))
-
+      where
+        loop : (b : Bad) → ⊥
+        loop (bad f) = loop (f (bad f))
 
 For more general information on termination see :ref:`termination-checking`.

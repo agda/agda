@@ -17,7 +17,7 @@ import System.IO
 
 extensions :: [String]
 extensions =
-  [".agda", ".cabal", ".el", ".hs", ".hs-boot", ".lhs", ".md", ".x", ".y"]
+  [".agda", ".cabal", ".el", ".hs", ".hs-boot", ".lhs", ".md", ".rst", ".x", ".y"]
 
 -- In test/succeed/LineEndings/ we test that Agda can handle various
 -- kinds of whitespace, so we exclude this directory.
