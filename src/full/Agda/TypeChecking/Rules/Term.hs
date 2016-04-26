@@ -1033,7 +1033,7 @@ inferOrCheckProjApp e ds args mt = do
           return (v, tc)
 
         -- case: argument is of record type
-        Right (q, _, _) -> do
+        Right (q, _pars0, _) -> do
           -- try to project it with all of the possible projections
           let try d = do
               reportSDoc "tc.proj.amb" 30 $ vcat
@@ -1055,7 +1055,13 @@ inferOrCheckProjApp e ds args mt = do
                 [ text "  q   = " <+> prettyTCM q
                 , text "  q'  = " <+> prettyTCM q'
                 ]
-              if (q == q') then return (orig, (d, (pars, (dom, u, tb)))) else mzero
+              guard (q == q')
+              -- Get the type of the projection and check
+              -- that the first visible argument is the record value.
+              tfull <- lift $ defType <$> getConstInfo d
+              TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
+              guard (size tel == size pars)
+              return (orig, (d, (pars, (dom, u, tb))))
           -- TODO: lazy!  There should be at most one candidate. This is strict:
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
           case cands of
