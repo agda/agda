@@ -63,7 +63,7 @@ and context. Moreover, each Aᵢ has the form::
 
 where an argument types Bᵢ of the constructors is either
 
-* *non-inductive* (a *side condition*) and does not mention D at all, 
+* *non-inductive* (a *side condition*) and does not mention D at all,
 
 * or *inductive* and has the form::
 
