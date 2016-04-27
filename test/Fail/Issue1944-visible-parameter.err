@@ -1,0 +1,4 @@
+Issue1944-visible-parameter.agda:24,12-21
+Cannot resolve overloaded projection f because no matching
+candidate found
+when checking that the expression f (r A a) has type A
