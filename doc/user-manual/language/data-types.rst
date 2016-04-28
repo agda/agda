@@ -24,15 +24,14 @@ We give a few more examples. First the data type of truth values:
       true  : Bool
       false : Bool
 
-The True set represents the trivially true proposition:
+The ``True`` set represents the trivially true proposition:
 ::
 
     data True : Set where
         tt : True
 
-The False set has no constructor and hence no elements. It represent
-the trivially false proposition:
-::
+The ``False`` set has no constructor and hence no elements. It
+represent the trivially false proposition: ::
 
     data False : Set where
 
@@ -54,7 +53,8 @@ Finally, the data type of Brouwer ordinals:
 General form
 ------------
 
-The general form of the definition of a simple datatype D is the following
+The general form of the definition of a simple datatype ``D`` is the
+following
 ::
 
     data D : Setᵢ where
@@ -62,10 +62,10 @@ The general form of the definition of a simple datatype D is the following
       ...
       cₙ : Aₙ
 
-The name D of the data type and the names `c₁`, ..., `cₙ` of the
-constructors must be new w.r.t. the current signature and context,
-and the types `A₁`, ..., `Aₙ` must be function types ending in `D`,
-i.e. they must be of the form
+The name ``D`` of the data type and the names ``c₁``, ..., ``cₙ`` of
+the constructors must be new w.r.t. the current signature and context,
+and the types ``A₁``, ..., ``Aₙ`` must be function types ending in
+``D``, i.e. they must be of the form
 ::
 
   (y₁ : B₁) → ... → (yₘ : Bₘ) → D
@@ -84,22 +84,24 @@ datatype but before the colon, for example:
 Indexed datatypes
 =================
 
-In addition to parameters, datatypes can also have *indices*. In contrast to
-parameters which are required to be the same for all constructors, indices
-can vary from constructor to constructor. They are declared after the colon
-as function arguments to `Set`. For example, fixed-length vectors can be
-defined by indexing them over their length of type `Nat`:
+In addition to parameters, datatypes can also have *indices*. In
+contrast to parameters which are required to be the same for all
+constructors, indices can vary from constructor to constructor. They
+are declared after the colon as function arguments to ``Set``. For
+example, fixed-length vectors can be defined by indexing them over
+their length of type ``Nat``:
 ::
 
   data Vector (A : Set) : Nat → Set where
     []  : Vector A zero
     _∷_ : {n : Nat} → A → Vector A n → Vector A (suc n)
 
-Notice that the parameter `A` is bound once for all constructors, while the
-index `{n : Nat}` must be bound locally in the constructor `_∷_`.
+Notice that the parameter ``A`` is bound once for all constructors,
+while the index ``{n : Nat}`` must be bound locally in the constructor
+``_∷_``.
 
-Indexed datatypes can also be used to describe predicates, for example the
-predicate `Even : Nat → Set` can be defined as follows:
+Indexed datatypes can also be used to describe predicates, for example
+the predicate ``Even : Nat → Set`` can be defined as follows:
 ::
 
   data Even : Nat → Set where
@@ -109,8 +111,8 @@ predicate `Even : Nat → Set` can be defined as follows:
 General form
 ------------
 
-The general form of the definition of a (parametrized, indexed) datatype D is
-the following
+The general form of the definition of a (parametrized, indexed)
+datatype ``D`` is the following
 ::
 
   data D (x₁ : P₁) ... (xₖ : Pₖ) : (y₁ : Q₁) → ... → (yₗ : Qₗ) → Set ℓ where
@@ -118,7 +120,7 @@ the following
     ...
     cₙ : Aₙ
 
-where the types `A₁`, ..., `Aₙ` are function types of the form
+where the types ``A₁``, ..., ``Aₙ`` are function types of the form
 ::
 
   (z₁ : B₁) → ... → (zₘ : Bₘ) → D x₁ ... xₖ t₁ ... tₗ
@@ -127,26 +129,27 @@ where the types `A₁`, ..., `Aₙ` are function types of the form
 Strict positivity
 =================
 
-When defining a datatype `D`, Agda poses an additional requirement on
-the types of the constructors of `D`, namely that `D` may only occur
-**strictly positively** in the types of their arguments.
+When defining a datatype ``D``, Agda poses an additional requirement
+on the types of the constructors of ``D``, namely that ``D`` may only
+occur **strictly positively** in the types of their arguments.
 
-Concretely, for a datatype with constructors `c₁ : A₁`, ..., `cₙ : Aₙ`,
-Agda checks that each Aᵢ has the form
+Concretely, for a datatype with constructors ``c₁ : A₁``, ..., ``cₙ :
+Aₙ``, Agda checks that each `Aᵢ` has the form
 ::
 
     (y₁ : B₁) → ... → (yₘ : Bₘ) → D
 
-where an argument types Bᵢ of the constructors is either
+where an argument types `Bᵢ` of the constructors is either
 
-* *non-inductive* (a *side condition*) and does not mention D at all,
+* *non-inductive* (a *side condition*) and does not mention ``D`` at
+  all,
 
 * or *inductive* and has the form
   ::
 
      (z₁ : C₁) → ... → (zₖ : Cₖ) → D
 
-  where D must not occur in any Cⱼ.
+  where ``D`` must not occur in any `Cⱼ`.
 
 The strict positivity condition rules out declarations such as
 ::
@@ -156,16 +159,16 @@ The strict positivity condition rules out declarations such as
         --     A     B      C
         -- A is in a negative position, B and C are OK
 
-since there is a negative occurrence of Bad in the type of the
+since there is a negative occurrence of ``Bad`` in the type of the
 argument of the constructor.  (Note that the corresponding data type
-declaration of Bad is allowed in standard functional languages such as
-Haskell and ML.).
+declaration of ``Bad`` is allowed in standard functional languages
+such as Haskell and ML.).
 
 Non strictly-positive declarations are rejected because one can write
 a non-terminating function using them.
 
 If the positivity check is disabled so that the above declaration of
-Bad is allowed, it is possible to construct a term of the empty
+``Bad`` is allowed, it is possible to construct a term of the empty
 type.
 ::
 
