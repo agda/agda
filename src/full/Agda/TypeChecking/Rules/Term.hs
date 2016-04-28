@@ -1005,6 +1005,7 @@ inferOrCheckProjApp e ds args mt = do
         ++ " because " ++ reason
       refuseNotApplied = refuse "it is not applied to a visible argument"
       refuseNoMatching = refuse "no matching candidate found"
+      refuseNotRecordType = refuse "principal argument is not of record type"
 
       -- Postpone the whole type checking problem
       -- if type of principal argument (or the type where we get it from) is blocked.
@@ -1032,7 +1033,7 @@ inferOrCheckProjApp e ds args mt = do
       ifBlockedType core (\ _ -> postpone) $ {-else-} \ core -> do
       ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
       ifBlockedType (unDom dom) (\ _ -> postpone) $ {-else-} \ ta -> do
-      caseMaybeM (isRecordType ta) refuseNotApplied $ \ (_q, _pars, defn) -> do
+      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
           case catMaybes $ for fs $ \ (Arg _ f) -> find (f ==) ds of
