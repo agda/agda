@@ -1054,16 +1054,9 @@ inferOrCheckProjApp e ds args mt = do
       -- ta should be a record type (after introducing the hidden args in v0)
       (vargs, ta) <- implicitArgs (-1) (not . visible) ta
       let v = v0 `apply` vargs
-      tryRecordType ta >>= \case
+      ifBlockedType ta (\ _ -> postpone) {-else-} $ \ ta -> do
+      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
 
-        -- case: argument is definitely not of record type
-        Left (Just _) -> refuse "argument is not of record type"
-
-        -- case: type is blocked so we don't know yet
-        Left Nothing -> postpone ta
-
-        -- case: argument is of record type
-        Right (q, _pars0, _) -> do
           -- try to project it with all of the possible projections
           let try d = do
               reportSDoc "tc.proj.amb" 30 $ vcat
@@ -1092,7 +1085,7 @@ inferOrCheckProjApp e ds args mt = do
               TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
               guard (size tel == size pars)
               return (orig, (d, (pars, (dom, u, tb))))
-          -- TODO: lazy!  There should be at most one candidate. This is strict:
+
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
           case cands of
             [] -> refuseNoMatching
