@@ -156,7 +156,7 @@ latexpdfja:
 
 .PHONY: xelatexpdf
 xelatexpdf:
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
+	$(SPHINXBUILD) -b latex -E -W $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 	@echo "Running LaTeX files through xelatex..."
 	$(MAKE) PDFLATEX=xelatex -C $(BUILDDIR)/latex all-pdf
 	@echo "xelatex finished; the PDF files are in $(BUILDDIR)/latex."
