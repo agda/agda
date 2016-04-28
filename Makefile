@@ -176,7 +176,6 @@ fail :
 	@echo "======================= Suite of failing tests ======================="
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail
-	@$(MAKE) -C test/Fail
 
 .PHONY : latex-html-test
 latex-html-test :
