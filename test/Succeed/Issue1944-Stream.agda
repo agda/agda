@@ -17,7 +17,7 @@ module M (A : Set) where
       head : A
       tail : Stream
 open M using (Stream)
-open module S = M.Stream
+open module S = M.Stream public
 
 -- This is a bit trickier for overloading projections
 -- as it has a parameter with is of a record type
@@ -28,7 +28,7 @@ record _≈_ {A : Set}(s t : Stream A) : Set where
   field
     head : head s ≡ head t
     tail : tail s ≈ tail t
-open module B = _≈_
+open module B = _≈_ public
 
 ≈refl : ∀{A} {s : Stream A} → s ≈ s
 head ≈refl = refl
@@ -39,7 +39,7 @@ head (≈sym p) = sym (head p)
 tail (≈sym p) = ≈sym (tail p)
 
 module N (A : Set) (s : Stream A) where
-  open module SS = Stream s
+  open module SS = Stream s public
 
   myhead : A
   myhead = SS.head  -- cannot use ambiguous head here
