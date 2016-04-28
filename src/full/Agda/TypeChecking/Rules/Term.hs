@@ -1008,10 +1008,11 @@ inferOrCheckProjApp e ds args mt = do
       refuseNotRecordType = refuse "principal argument is not of record type"
 
       -- Postpone the whole type checking problem
-      -- if type of principal argument (or the type where we get it from) is blocked.
-      postpone ta = do
+      -- if type of principal argument (or the type where we get it from)
+      -- is blocked by meta m.
+      postpone m = do
         tc <- caseMaybe mt newTypeMeta_ return
-        v <- postponeTypeCheckingProblem (CheckExpr e tc) $ unblockedTester ta
+        v <- postponeTypeCheckingProblem (CheckExpr e tc) $ isInstantiatedMeta m
         return (v, tc)
 
   -- The following cases need to be considered:
@@ -1030,9 +1031,9 @@ inferOrCheckProjApp e ds args mt = do
       -- If we have the type, we can try to get the type of the principal argument.
       -- It is the first visible argument.
       TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
-      ifBlockedType core (\ _ -> postpone) $ {-else-} \ core -> do
+      ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ core -> do
       ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
-      ifBlockedType (unDom dom) (\ _ -> postpone) $ {-else-} \ ta -> do
+      ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ ta -> do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
       case defn of
         Record { recFields = fs } -> do
@@ -1054,7 +1055,7 @@ inferOrCheckProjApp e ds args mt = do
       -- ta should be a record type (after introducing the hidden args in v0)
       (vargs, ta) <- implicitArgs (-1) (not . visible) ta
       let v = v0 `apply` vargs
-      ifBlockedType ta (\ _ -> postpone) {-else-} $ \ ta -> do
+      ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ ta -> do
       caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
 
           -- try to project it with all of the possible projections
