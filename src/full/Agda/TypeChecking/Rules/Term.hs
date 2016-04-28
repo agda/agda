@@ -91,7 +91,7 @@ import Agda.Utils.Except
   , runExceptT
   )
 
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (groupOn)
 import Agda.Utils.Maybe
@@ -992,15 +992,26 @@ checkProjApp e ds args0 t = do
 inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
 inferOrCheckProjApp e ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
-    [ text "checking ambiguous projection "
+    [ text "checking ambiguous projection"
     , text $ "  ds   = " ++ show ds
-    , text "  args = " <+> sep (map prettyTCM args)
+    , text   "  args = " <+> sep (map prettyTCM args)
+    , text   "  t    = " <+> caseMaybe mt (text "Nothing") prettyTCM
     ]
 
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
-       "Cannot resolve overloaded projection " ++ show (A.nameConcrete $ A.qnameName $ head ds)
-       ++ " because " ++ reason
+        "Cannot resolve overloaded projection "
+        ++ show (A.nameConcrete $ A.qnameName $ head ds)
+        ++ " because " ++ reason
+      refuseNotApplied = refuse "it is not applied to a visible argument"
+      refuseNoMatching = refuse "no matching candidate found"
+
+      -- Postpone the whole type checking problem
+      -- if type of principal argument (or the type where we get it from) is blocked.
+      postpone ta = do
+        tc <- caseMaybe mt newTypeMeta_ return
+        v <- postponeTypeCheckingProblem (CheckExpr e tc) $ unblockedTester ta
+        return (v, tc)
 
   -- The following cases need to be considered:
   -- 1. No arguments to the projection.
@@ -1011,7 +1022,28 @@ inferOrCheckProjApp e ds args mt = do
   -- argument is the record value.
 
   case filter (visible . getHiding . snd) $ zip [0..] args of
-    [] -> refuse "it is not applied to a visible argument"
+
+    -- Case: we have no visible argument to the projection.
+    -- In inference mode, we really need the visible argument, postponing does not help
+    [] -> caseMaybe mt refuseNotApplied $ \ t -> do
+      -- If we have the type, we can try to get the type of the principal argument.
+      -- It is the first visible argument.
+      TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
+      ifBlockedType core (\ _ -> postpone) $ {-else-} \ core -> do
+      ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
+      ifBlockedType (unDom dom) (\ _ -> postpone) $ {-else-} \ ta -> do
+      caseMaybeM (isRecordType ta) refuseNotApplied $ \ (_q, _pars, defn) -> do
+      case defn of
+        Record { recFields = fs } -> do
+          case catMaybes $ for fs $ \ (Arg _ f) -> find (f ==) ds of
+            [] -> refuseNoMatching
+            [d] -> do
+              storeDisambiguatedName d
+              (,t) <$> checkHeadApplication e t (A.Proj $ AmbQ [d]) args
+            ds' -> __IMPOSSIBLE__
+        _ -> __IMPOSSIBLE__
+
+    -- Case: we have a visible argument
     ((k, arg) : _) -> do
       (v0, ta) <- inferExpr $ namedArg arg
       reportSDoc "tc.proj.amb" 25 $ vcat
@@ -1027,10 +1059,7 @@ inferOrCheckProjApp e ds args mt = do
         Left (Just _) -> refuse "argument is not of record type"
 
         -- case: type is blocked so we don't know yet
-        Left Nothing -> do
-          tc <- caseMaybe mt newTypeMeta_ return
-          v <- postponeTypeCheckingProblem (CheckExpr e tc) $ unblockedTester ta
-          return (v, tc)
+        Left Nothing -> postpone ta
 
         -- case: argument is of record type
         Right (q, _pars0, _) -> do
@@ -1065,14 +1094,14 @@ inferOrCheckProjApp e ds args mt = do
           -- TODO: lazy!  There should be at most one candidate. This is strict:
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
           case cands of
-            [] -> refuse "no matching candidate found"
-            [[]] -> refuse "no matching candidate found"
+            [] -> refuseNoMatching
+            [[]] -> refuseNoMatching
             (_:_:_) -> refuse $ "several matching candidates found: "
                  ++ show (map (fst . snd) $ concat cands)
             -- case: just one matching projection d
             -- the term u = d v
             -- the type tb is the type of this application
-            [ (orig, (d, (pars, (dom,u,tb)))) : _ ] -> do
+            [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
               storeDisambiguatedName d
 
               -- Check parameters
