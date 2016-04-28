@@ -2,6 +2,7 @@
 
 module Utils where
 
+import Data.Text (Text)
 import qualified Data.Text as T
 import System.Exit
 
@@ -11,10 +12,14 @@ import Data.Maybe
 import Data.Char
 import qualified Data.Set as S
 import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Data.List
 import System.FilePath
 import System.Directory
 
+import qualified Data.ByteString as BS
+
+import Data.Text.Encoding
 import qualified System.Process.Text as PT
 import Data.Array
 import Text.Regex.TDFA.Text ()
@@ -72,6 +77,12 @@ asTestName testDir path = intercalate "-" parts
 
 doesEnvContain :: String -> IO Bool
 doesEnvContain v = isJust <$> getEnvVar v
+
+readTextFileMaybe :: FilePath -> IO (Maybe Text)
+readTextFileMaybe f = fmap decodeUtf8 <$> readFileMaybe f
+
+writeTextFile :: FilePath -> Text -> IO ()
+writeTextFile f = BS.writeFile f . encodeUtf8
 
 -- | Replaces all matches of a regex with the given text.
 --

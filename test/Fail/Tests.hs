@@ -7,6 +7,7 @@ module Fail.Tests where
 import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe, goldenTest1, GDiff (..), GShow (..))
+import System.IO.Temp
 import System.FilePath
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -31,7 +32,9 @@ tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir NonRec testDir
 
-  let tests' = map mkFailTest inpFiles
+  let tests' =
+        map mkFailTest inpFiles
+        ++ [ testGroup "customised" [ nestedProjectRoots ]]
 
   return $ testGroup "Fail" tests'
 
@@ -48,19 +51,37 @@ mkFailTest inp =
         goldenFile = dropExtension inp <.> ".err"
         flagFile   = dropExtension inp <.> ".flags"
 
-        readGolden = fmap decodeUtf8 <$> readFileMaybe goldenFile
-        updGolden  = BS.writeFile goldenFile . encodeUtf8
+        readGolden = readTextFileMaybe goldenFile
+        updGolden  = writeTextFile goldenFile
 
         doRun = do
           flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = ["-v0", "-i" ++ testDir, "-itest/" , inp, "--ignore-interfaces", "--no-default-libraries"] ++ words flags
-          res@(ret, stdout, _) <- readAgdaProcessWithExitCode agdaArgs T.empty
+          readAgdaProcessWithExitCode agdaArgs T.empty >>= expectFail
 
-          if ret == ExitSuccess
-            then
-              return $ AgdaUnexpectedSuccess res
-            else
-              AgdaResult <$> clean stdout
+nestedProjectRoots :: TestTree
+nestedProjectRoots = testGroup "NestedProjectRoots"
+  [ testWithArgs "NestedProjectRoots_1"  ["--ignore-interfaces", "--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
+  , testWithArgs "NestedProjectRoots_2" ["--ignore-interfaces", "--no-default-libraries", "-i" ++ dir </> "Imports", dir </> "Imports" </> "A.agda"]
+  , testWithArgs "NestedProjectRoots_3" ["--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
+  ]
+  where
+    dir = testDir </> "customised"
+    testWithArgs :: FilePath -> AgdaArgs -> TestTree
+    testWithArgs golden args =
+      goldenTest1 golden (readTextFileMaybe goldenFile)
+        (printAgdaResult <$> do
+          readAgdaProcessWithExitCode args T.empty >>= expectFail
+        )
+        resDiff resShow (writeTextFile goldenFile)
+      where
+        goldenFile = testDir </> "customised" </> golden <.> "err"
+
+expectFail :: ProgramResult -> IO AgdaResult
+expectFail res@(ret, stdout, _) =
+  if ret == ExitSuccess
+    then return $ AgdaUnexpectedSuccess res
+    else AgdaResult <$> clean stdout
 
 mkRegex :: T.Text -> R.Regex
 mkRegex r = either (error "Invalid regex") id $
@@ -101,7 +122,7 @@ clean inp = do
           , ("[^ (]*test.Common.", "")
           , (T.pack pwd `T.append` ".test", "..")
           , ("\\\\", "/")
-          , (":[[:digit:]]\\+:$", "")
+          , (":[[:digit:]]+:$", "")
           , ("[^ (]*lib.prim", "agda-default-include-path")
           , ("\xe2\x80\x9b|\xe2\x80\x99|\xe2\x80\x98|`", "'")
           ]
