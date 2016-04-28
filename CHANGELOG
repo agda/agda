@@ -4,6 +4,49 @@
 
 Important changes since 2.5.1:
 
+Language
+========
+
+* Overloaded projections [Issue #1944].
+
+  Ambiguous projections are no longer a scope error.  Instead they get
+  resolved based on the type of the record value they are
+  eliminating.  This corresponds to constructors, which can be
+  overloaded and get disambiguated based on the type they are
+  introducing.  Example:
+
+    module _ (A : Set) (a : A) where
+
+    record R B : Set where
+      field f : B
+    open R public
+
+    record S B : Set where
+      field f : B
+    open S public
+
+  Exporting `f` twice from both `R` and `S` is now allowed.  Then,
+
+    r : R A
+    f r = a
+
+    s : S A
+    f s = f r
+
+  disambiguates to:
+
+    r : R A
+    R.f r = a
+
+    s : S A
+    S.f s = R.f r
+
+  If the type of the projection is known, it can also be disambiguated
+  unapplied.
+
+    unapplied : R A -> A
+    unapplied = f
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.5.1
 ------------------------------------------------------------------------
