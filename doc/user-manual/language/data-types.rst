@@ -24,18 +24,17 @@ We give a few more examples. First the data type of truth values:
       true  : Bool
       false : Bool
 
-Then the unit set:
+The True set represents the trivially true proposition:
 ::
 
     data True : Set where
         tt : True
 
-The True set represents the trivially true proposition:
+The False set has no constructor and hence no elements. It represent
+the trivially false proposition:
 ::
 
     data False : Set where
-
-The False set has no constructor and hence no elements. It represent the trivially false proposition.
 
 Another example is the data type of non-empty  binary trees with natural numbers in the leaves:
 ::
