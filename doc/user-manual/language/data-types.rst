@@ -142,7 +142,11 @@ where an argument types Bᵢ of the constructors is either
 
 * *non-inductive* (a *side condition*) and does not mention D at all,
 
-* or *inductive* and has the form ``(z₁ : C₁) → ... → (zₖ : Cₖ) → D
+* or *inductive* and has the form
+  ::
+
+     (z₁ : C₁) → ... → (zₖ : Cₖ) → D
+
   where D must not occur in any Cⱼ.
 
 The strict positivity condition rules out declarations such as
