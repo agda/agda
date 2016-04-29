@@ -1042,7 +1042,7 @@ inferOrCheckProjApp e ds args mt = do
             [d] -> do
               storeDisambiguatedName d
               (,t) <$> checkHeadApplication e t (A.Proj $ AmbQ [d]) args
-            ds' -> __IMPOSSIBLE__
+            _ -> __IMPOSSIBLE__
         _ -> __IMPOSSIBLE__
 
     -- Case: we have a visible argument
