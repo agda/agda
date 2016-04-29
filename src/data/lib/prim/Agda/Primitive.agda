@@ -1,5 +1,7 @@
 -- The Agda primitives (preloaded).
 
+{-# OPTIONS --without-K #-}
+
 module Agda.Primitive where
 
 ------------------------------------------------------------------------
