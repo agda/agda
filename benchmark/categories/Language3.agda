@@ -3,14 +3,6 @@
 -- technique from McBride's "Outrageous but Meaningful Coincidences"
 ------------------------------------------------------------------------
 
--- The code contains an example, a partial definition of categories,
--- which triggers the use of an enormous amount of memory (with the
--- development version of Agda which is current at the time of
--- writing). I'm not entirely sure if the code is correct: 2.5G heap
--- doesn't seem to suffice to typecheck this code. /NAD
-
-{-# OPTIONS --allow-unsolved-metas #-}
-
 ------------------------------------------------------------------------
 -- Prelude
 
