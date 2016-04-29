@@ -60,22 +60,24 @@ mkFailTest inp =
           readAgdaProcessWithExitCode agdaArgs T.empty >>= expectFail
 
 nestedProjectRoots :: TestTree
-nestedProjectRoots = testGroup "NestedProjectRoots"
-  [ testWithArgs "NestedProjectRoots_1"  ["--ignore-interfaces", "--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
-  , testWithArgs "NestedProjectRoots_2" ["--ignore-interfaces", "--no-default-libraries", "-i" ++ dir </> "Imports", dir </> "Imports" </> "A.agda"]
-  , testWithArgs "NestedProjectRoots_3" ["--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
-  ]
+nestedProjectRoots = goldenTest1 "NestedProjectRoots" (readTextFileMaybe goldenFile)
+  doRun resDiff resShow (writeTextFile goldenFile)
   where
     dir = testDir </> "customised"
-    testWithArgs :: FilePath -> AgdaArgs -> TestTree
-    testWithArgs golden args =
-      goldenTest1 golden (readTextFileMaybe goldenFile)
-        (printAgdaResult <$> do
-          readAgdaProcessWithExitCode args T.empty >>= expectFail
-        )
-        resDiff resShow (writeTextFile goldenFile)
-      where
-        goldenFile = testDir </> "customised" </> golden <.> "err"
+    goldenFile = dir </> "NestedProjectRoots.err"
+    doRun = do
+      r1 <- readAgdaProcessWithExitCode
+              ["--ignore-interfaces", "--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
+              T.empty >>= fmap printAgdaResult . expectFail
+      r2 <- readAgdaProcessWithExitCode
+              ["--no-default-libraries", "-i" ++ dir </> "Imports", dir </> "Imports" </> "A.agda"]
+              T.empty >>= expectOk
+      r3 <- readAgdaProcessWithExitCode
+              ["--no-default-libraries", "-i" ++ dir, "-i" ++ dir </> "Imports", dir </> "NestedProjectRoots.agda"]
+              T.empty >>= fmap printAgdaResult . expectFail
+      return (r1 `T.append` r2 `T.append` r3)
+    expectOk (ExitSuccess, stdout, _) = clean stdout
+    expectOk p = return $ "UNEXPECTED_SUCCESS\n\n" `T.append` printProcResult p
 
 expectFail :: ProgramResult -> IO AgdaResult
 expectFail res@(ret, stdout, _) =
