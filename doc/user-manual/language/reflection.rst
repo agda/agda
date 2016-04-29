@@ -414,7 +414,7 @@ requires them to already be in scope.
 In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
 ``xᵢ : Name``) rather than the actual functions.
 
-One advantage of unquoteDef over unquoteDecl is that unquoteDef is allowed in
-mutual blocks, allowing mutually recursion between generated definitions and
-hand-written definitions.
+One advantage of ``unquoteDef`` over ``unquoteDecl`` is that
+``unquoteDef`` is allowed in mutual blocks, allowing mutually
+recursion between generated definitions and hand-written definitions.
 
