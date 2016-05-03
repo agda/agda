@@ -46,6 +46,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
@@ -69,6 +70,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -198,16 +200,25 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
       displayForm f vs
-    reportSLn "reify.display" 20 $
+    reportSLn "reify.display" 60 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
-      Just d  | okDisplayForm d ->
+      Just d  | okDisplayForm d -> do
         -- In the display term @d@, @var i@ should be a placeholder
         -- for the @i@th pattern of @ps@.
         -- Andreas, 2014-06-11:
         -- Are we sure that @d@ did not use @var i@ otherwise?
-        reifyDisplayFormP =<< displayLHS (map namedArg ps) wps d
-      _ -> return lhs
+        lhs' <- displayLHS (map namedArg ps) wps d
+        reportSDoc "reify.display" 70 $ do
+          doc <- prettyA lhs'
+          return $ vcat
+            [ text "rewritten lhs to"
+            , text "  lhs' = " <+> doc
+            ]
+        reifyDisplayFormP lhs'
+      _ -> do
+        reportSLn "reify.display" 70 $ "display form absent or not valid as lhs"
+        return lhs
   where
     -- Andreas, 2015-05-03: Ulf, please comment on what
     -- is the idea behind okDisplayForm.
