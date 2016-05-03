@@ -47,6 +47,44 @@ Language
     unapplied : R A -> A
     unapplied = f
 
+Emacs mode
+==========
+
+* Changed feature: Interactively split result.
+
+  Make-case (C-c C-c) with no variables will now /either/ introduce
+  function arguments /or/ do a copattern split (or fail).
+
+  This is as before:
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test a b = ?
+
+    -- expected:
+    -- proj₁ (test a b) = {!!}
+    -- proj₂ (test a b) = {!!}
+
+    testFun : {A B : Set} (a : A) (b : B) → A × B
+    testFun = ?
+
+    -- expected:
+    -- testFun a b = {!!}
+
+  This is has changed:
+
+    record FunRec A : Set where
+      field funField : A → A
+    open FunRec
+
+    testFunRec : ∀{A} → FunRec A
+    testFunRec = ?
+
+    -- expected (since 2016-05-03):
+    -- funField testFunRec = {!!}
+
+    -- used to be:
+    -- funField testFunRec x = {!!}
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.5.1
 ------------------------------------------------------------------------
