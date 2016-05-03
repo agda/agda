@@ -226,13 +226,15 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- can serve as a valid left-hand side. That means checking that it is a
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
-    okDisplayForm (DWithApp d ds [])   = okDisplayForm d && all okDisplayTerm ds
+    okDisplayForm (DWithApp d ds args) =
+      okDisplayForm d && all okDisplayTerm ds  && all okToDrop args
+      -- Andreas, 2016-05-03, issue #1950.
+      -- We might drop trailing hidden trivial (=variable) patterns.
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
     okDisplayForm (DDef f es)          = all okDElim es
     okDisplayForm DDot{}               = False
     okDisplayForm DCon{}               = False
     okDisplayForm DTerm{}              = False
-    okDisplayForm DWithApp{}           = False
 
     okDisplayTerm (DTerm v) = okTerm v
     okDisplayTerm DDot{}    = True
@@ -242,6 +244,12 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
+
+    okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
+      I.Var _ []   -> True
+      I.DontCare{} -> True  -- no matching on irrelevant things.  __IMPOSSIBLE__ anyway?
+      I.Level{}    -> True  -- no matching on levels. __IMPOSSIBLE__ anyway?
+      _ -> False
 
     okArg = okTerm . unArg
 
