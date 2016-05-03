@@ -186,7 +186,10 @@ makeCase hole rng s = withInteractionId hole $ do
       case res of
         Nothing  -> typeError $ GenericError $ "Cannot split on result here"
         Just cov -> ifNotM (optCopatterns <$> pragmaOptions) failNoCop $ {-else-} do
-          mapM (snd <.> fixTarget) $ splitClauses cov
+          -- Andreas, 2016-05-03: do not introduce function arguments after projection.
+          -- This is sometimes annoying and can anyway be done by another C-c C-c.
+          -- mapM (snd <.> fixTarget) $ splitClauses cov
+          return $ splitClauses cov
     (casectxt,) <$> mapM (makeAbstractClause f) scs
   else do
     -- split on variables

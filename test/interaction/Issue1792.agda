@@ -33,7 +33,7 @@ record Safe : Set₁ where
 open Safe
 
 mixfix : Safe
-mixfix = {! !}
+< mixfix >safe = {!!}
 -- C-c C-c RET gives
 --
 --   < mixfix >safe x
