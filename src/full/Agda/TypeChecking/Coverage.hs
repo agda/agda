@@ -564,7 +564,10 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
 
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive c (BlockingVar x Nothing)
+splitClauseWithAbsurd c x = split' Inductive False c (BlockingVar x Nothing)
+  -- Andreas, 2016-05-03, issue 1950:
+  -- Do not introduce trailing pattern vars after split,
+  -- because this does not work for with-clauses.
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
@@ -591,7 +594,7 @@ split :: Induction
       -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind sc x = fmap blendInAbsurdClause <$> split' ind sc x
+split ind sc x = fmap blendInAbsurdClause <$> split' ind True sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -626,10 +629,13 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
+       -> Bool
+          -- ^ If 'True', introduce new trailing variable patterns via
+          --   'fixTarget'.
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
+split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel x ps
 
@@ -649,6 +655,7 @@ split' ind sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExc
     forM cons $ \ con ->
       fmap (con,) <$> do
         msc <- computeNeighbourhood delta1 n delta2 d pars ixs x ps con
+        if not fixtarget then return msc else do
         Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
 
   case ns of
