@@ -85,6 +85,30 @@ Emacs mode
     -- used to be:
     -- funField testFunRec x = {!!}
 
+* Interactively splitting variable with C-c C-c no longer introduces
+  new trailing patterns.  This fixes issue #1950.
+
+    data Ty : Set where
+      _⇒_ : Ty → Ty → Ty
+
+    ⟦_⟧ : Ty → Set
+    ⟦ A ⇒ B ⟧ = ⟦ A ⟧ → ⟦ B ⟧
+
+    data Term : Ty → Set where
+      K : (A B : Ty) → Term (A ⇒ (B ⇒ A))
+
+    test : (A : Ty) (a : Term A) → ⟦ A ⟧
+    test A a = {!a!}
+
+  Before change, case splitting on `a` would give
+
+    test .(A ⇒ (B ⇒ A)) (K A B) x x₁ = ?
+
+  Now, it yields
+
+    test .(A ⇒ (B ⇒ A)) (K A B) = ?
+
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.5.1
 ------------------------------------------------------------------------
