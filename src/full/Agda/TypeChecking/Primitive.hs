@@ -406,7 +406,7 @@ primPathApply = do
              sp <- reduceB' p
              let p = unArg $ ignoreBlocking sp
              case p of
-               Def q [Apply l,Apply a,Apply x,Apply y,Apply t]
+               Def q [Apply l,Apply a,Apply t]
                    | Just q == pathAbs -> redReturn $ apply (unArg t) [fmap (const r') r]
                _                       -> return $ NoReduction $ [notReduced l,notReduced a,notReduced x,notReduced y,reduced sp,reduced sr]
 

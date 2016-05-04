@@ -92,10 +92,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinInterval           |-> builtinPostulate tset)
   , (builtinPathAbs            |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
-                                                hPi "x" (El (varSort 1) <$> varM 0) $
-                                                hPi "y" (El (varSort 2) <$> varM 1) $
-                                                (tinterval --> (El (varSort 3) <$> varM 2)) -->
-                                                (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)))
+                                                nPi "f" (tinterval --> (El (varSort 1) <$> varM 0)) $
+                                                (El (varSort 2) <$> primPath <#> varM 2 <#> varM 1 <@>
+                                                                      (varM 0 <@> primIZero) <@> (varM 0 <@> primIOne))))
   , (builtinIZero              |-> builtinPostulate tinterval)
   , (builtinIOne               |-> builtinPostulate tinterval)
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
