@@ -1085,7 +1085,13 @@ inferOrCheckProjApp e ds args mt = do
               -- that the first visible argument is the record value.
               tfull <- lift $ defType <$> getConstInfo d
               TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
-              guard (size tel == size pars)
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text $ "  size tel  = " ++ show (size tel)
+                , text $ "  size pars = " ++ show (size pars)
+                ]
+              -- See issue 1960 for when the following assertion fails for
+              -- the correct disambiguation.
+              -- guard (size tel == size pars)
               return (orig, (d, (pars, (dom, u, tb))))
 
           cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
