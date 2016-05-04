@@ -44,12 +44,12 @@ main = do
     putStrLn "Solutions"
     mapM_ (\ (x,p) -> print $ PolarityAssignment p x) $ Map.toAscList pols
 
-  hg <- abortOnNothing "invalid hypotheses" $ hypGraph (rigids cs) hs
+  hg <- abortOnError $ hypGraph (rigids cs) hs
   putStrLn $ "Hypotheses graph hg = " ++ show (graphToList hg)
   -- Test:
   -- print $ lub' hg (NodeZero, 0) (NodeRigid "i", 0)
 
-  (xs, gs) <- abortOnNothing "inconsistent constraints" $ constraintGraphs cs hg
+  (xs, gs) <- abortOnError $ constraintGraphs cs hg
 
   let xsSol = Map.fromList $ map (,Infty) xs
   sol <- (Map.union xsSol) <$> do abortOnError $ solveGraphs pols hg gs
@@ -65,9 +65,6 @@ abort msg = do
 
 abortOnError :: Either String a -> IO a
 abortOnError = either abort return
-
-abortOnNothing :: String -> Maybe a -> IO a
-abortOnNothing msg = maybe (abort msg) return
 
 type Constraints = [Constraint]
 type Hypotheses  = Constraints

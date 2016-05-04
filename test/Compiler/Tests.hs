@@ -110,7 +110,9 @@ simpleTests comp = do
 stdlibTests :: Compiler -> IO TestTree
 stdlibTests comp = do
   let testDir = "test" </> "Compiler" </> "with-stdlib"
-  inps <- getAgdaFilesInDir NonRec testDir
+  inps <- return [testDir </> "AllStdLib.agda"]
+    -- put all tests in AllStdLib to avoid compiling the standard library
+    -- multiple times
 
   let extraArgs :: [String]
       extraArgs = [ "-i" ++ testDir, "-i" ++ "std-lib" </> "src", "-istd-lib" ]

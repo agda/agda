@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.5.0
+version:         2.6.0
 cabal-version:   >= 1.8
 build-type:      Custom
 license:         OtherLicense
@@ -140,6 +140,7 @@ library
     --
     -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
     , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+    , murmur-hash >= 0.1 && < 0.2
     , QuickCheck >= 2.8.2 && < 2.9
     , parallel >= 3.2.0.4 && < 3.3
     -- pretty 1.1.1.2 and 1.1.1.3 do not follow the package versioning
@@ -270,6 +271,7 @@ library
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
                     Agda.Syntax.Fixity
+                    Agda.Syntax.IdiomBrackets
                     Agda.Syntax.Info
                     Agda.Syntax.Internal
                     Agda.Syntax.Internal.Defs
@@ -506,6 +508,8 @@ library
 
   if impl(ghc >= 7.10)
      ghc-options: -fwarn-unticked-promoted-constructors
+                  -- Enable after removing the support for GHC 7.8.
+                  -- -fwarn-deriving-typeable
 
   -- This option is deprected in GHC 7.10.1.
   if impl(ghc >= 7.8) && impl(ghc < 7.10)
@@ -524,7 +528,10 @@ library
     ghc-options: -fwarn-context-quantification
 
   if impl(ghc >= 8.0)
-    ghc-options: -Wnoncanonical-monad-instances
+    ghc-options: -Wmissing-pattern-synonym-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wunrecognised-warning-flags
+                 -Wunused-foralls
 
   ghc-prof-options: -fprof-auto
 
@@ -532,7 +539,7 @@ executable agda
   hs-source-dirs: src/main
   main-is:        Main.hs
   build-depends:
-    Agda == 2.5.0
+    Agda == 2.6.0
     -- Nothing is used from the following package, except for the
     -- prelude.
     , base >= 4.6.0.1 && < 6

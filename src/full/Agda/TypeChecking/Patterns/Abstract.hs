@@ -80,6 +80,7 @@ instance ExpandPatternSynonyms A.Pattern where
     A.DotP{}             -> return p
     A.LitP{}             -> return p
     A.AbsurdP{}          -> return p
+    A.ProjP i ds         -> return p
     A.ConP i ds as       -> A.ConP i ds <$> expandPatternSynonyms as
     A.DefP i q as        -> A.DefP i q <$> expandPatternSynonyms as
     A.AsP i x p          -> A.AsP i x <$> expandPatternSynonyms p

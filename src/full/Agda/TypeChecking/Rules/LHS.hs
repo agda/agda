@@ -169,6 +169,7 @@ updateInPatterns as ps qs = do
         A.VarP        _     -> __IMPOSSIBLE__
         A.ConP        _ _ _ -> __IMPOSSIBLE__
         A.RecP        _ _   -> __IMPOSSIBLE__
+        A.ProjP       _ _   -> __IMPOSSIBLE__
         A.DefP        _ _ _ -> __IMPOSSIBLE__
         A.AsP         _ _ _ -> __IMPOSSIBLE__
         A.AbsurdP     _     -> __IMPOSSIBLE__
@@ -197,6 +198,7 @@ updateInPatterns as ps qs = do
       A.ConP cpi _ nps    -> nps
       A.WildP pi          -> map (makeWildField pi) fs
       A.DotP pi e         -> map (makeDotField pi) fs
+      A.ProjP _ _         -> __IMPOSSIBLE__
       A.DefP _ _ _        -> __IMPOSSIBLE__
       A.AsP _ _ _         -> __IMPOSSIBLE__
       A.AbsurdP _         -> __IMPOSSIBLE__
@@ -229,7 +231,7 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
     -- need further splitting:
     isSolved A.ConP{}        = False
     isSolved A.LitP{}        = False
-    isSolved A.DefP{}        = False  -- projection pattern
+    isSolved A.ProjP{}       = False
     isSolved A.RecP{}        = False  -- record pattern
     -- solved:
     isSolved A.VarP{}        = True
@@ -237,6 +239,7 @@ isSolvedProblem problem = null (restPats $ problemRest problem) &&
     isSolved A.DotP{}        = True
     isSolved A.AbsurdP{}     = True
     -- impossible:
+    isSolved A.DefP{}        = __IMPOSSIBLE__
     isSolved A.AsP{}         = __IMPOSSIBLE__  -- removed by asView
     isSolved A.PatternSynP{} = __IMPOSSIBLE__  -- expanded before
 
@@ -262,7 +265,8 @@ noShadowingOfConstructors mkCall problem =
   noShadowing (A.AbsurdP   {}) t = return ()
   noShadowing (A.ConP      {}) t = return ()  -- only happens for eta expanded record patterns
   noShadowing (A.RecP      {}) t = return ()  -- record pattern
-  noShadowing (A.DefP      {}) t = return ()  -- projection pattern
+  noShadowing (A.ProjP     {}) t = return ()  -- projection pattern
+  noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = return ()
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
@@ -380,6 +384,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.AbsurdP _  -> return idv
       A.ConP _ _ _ -> __IMPOSSIBLE__
       A.LitP _     -> __IMPOSSIBLE__
+      A.ProjP _ _  -> __IMPOSSIBLE__
       A.DefP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _   -> __IMPOSSIBLE__
       A.AsP  _ _ _ -> __IMPOSSIBLE__
@@ -412,7 +417,7 @@ checkLeftoverDotPatterns ps vs as dpi = do
         gs <- recFields . theDef <$> getConstInfo d
         let u = Var i (map Proj fs)
         is <- forM gs $ \(Arg _ g) -> do
-                (_,b) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped u a g
+                (_,_,b) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped u a g
                 return (i,fs++[g],b)
         undotImplicitVars is idv
 
@@ -456,6 +461,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret = do
       bindDummy (absName tel)
     A.ConP{}        -> __IMPOSSIBLE__
     A.RecP{}        -> __IMPOSSIBLE__
+    A.ProjP{}       -> __IMPOSSIBLE__
     A.DefP{}        -> __IMPOSSIBLE__
     A.AsP{}         -> __IMPOSSIBLE__
     A.LitP{}        -> __IMPOSSIBLE__

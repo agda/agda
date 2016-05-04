@@ -178,8 +178,6 @@ addRewriteRule q = do
         [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side is neither a defined symbol nor a constructor" ]
   let failureFreeVars xs = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule, since the following variables are not bound by the left hand side: " , prettyList_ (map (prettyTCM . var) $ IntSet.toList xs) ]
-  let failureLhsReduction lhs = typeError . GenericDocError =<< hsep
-        [ prettyTCM q , text " is not a legal rewrite rule, since the left-hand side " , prettyTCM lhs , text " has top-level reductions" ]
   let failureIllegalRule = typeError . GenericDocError =<< hsep
         [ prettyTCM q , text " is not a legal rewrite rule" ]
 
@@ -209,7 +207,7 @@ addRewriteRule q = do
       rew <- addContext gamma1 $ do
         -- Normalize lhs: we do not want to match redexes.
         lhs <- normaliseArgs lhs
-        unlessM (isNormal lhs) $ failureLhsReduction lhs
+        checkNoLhsReduction lhs
 
         -- Normalize rhs: might be more efficient.
         rhs <- etaContract =<< normalise rhs
@@ -244,16 +242,23 @@ addRewriteRule q = do
       Con c vs -> Con c <$> do etaContract =<< normalise vs
       _ -> __IMPOSSIBLE__
 
-    isNormal :: Term -> TCM Bool
-    isNormal v = do
+    checkNoLhsReduction :: Term -> TCM ()
+    checkNoLhsReduction v = do
       v' <- normalise v
-      return $ v == v'
+      unless (v == v') $ do
+        reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
+        reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
+        typeError . GenericDocError =<< fsep
+          [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
+          , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
 addRewriteRules f rews = do
   reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-  modifySignature $ addRewriteRulesFor f rews
+  let matchables = getMatchables rews
+  reportSDoc "rewriting" 30 $ text "matchable symbols: " <+> prettyTCM matchables
+  modifySignature $ addRewriteRulesFor f rews matchables
   --rules <- getRewriteRulesFor f
   --reportSDoc "rewriting" 20 $ vcat
   --  [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
@@ -350,11 +355,12 @@ instance (Foldable f, NLPatVars a) => NLPatVars (f a) where
 instance NLPatVars NLPat where
   nlPatVars p =
     case p of
-      PVar _ i  -> singleton i
+      PVar _ i _ -> singleton i
       PDef _ es -> nlPatVars es
       PWild     -> empty
       PLam _ p' -> nlPatVars $ unAbs p'
       PPi a b   -> nlPatVars a `IntSet.union` nlPatVars (unAbs b)
+      PSet l    -> nlPatVars l
       PBoundVar _ es -> nlPatVars es
       PTerm{}   -> empty
 
@@ -375,10 +381,35 @@ instance KillCtxId RewriteRule where
 
 instance KillCtxId NLPat where
   killCtxId p = case p of
-    PVar _ i       -> PVar Nothing i
+    PVar _ i bvs   -> PVar Nothing i bvs
     PWild          -> p
     PDef f es      -> PDef f $ killCtxId es
     PLam i x       -> PLam i $ killCtxId x
     PPi a b        -> PPi (killCtxId a) (killCtxId b)
+    PSet l         -> PSet $ killCtxId l
     PBoundVar i es -> PBoundVar i $ killCtxId es
     PTerm _        -> p
+
+-- | Get all symbols that a rewrite rule matches against
+class GetMatchables a where
+  getMatchables :: a -> [QName]
+
+instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
+  getMatchables = foldMap getMatchables
+
+instance GetMatchables NLPat where
+  getMatchables p =
+    case p of
+      PVar _ _ _     -> empty
+      PWild          -> empty
+      PDef f _       -> singleton f
+      PLam _ x       -> empty
+      PPi a b        -> empty
+      PSet l         -> empty
+      PBoundVar i es -> empty
+      PTerm _        -> empty -- should be safe (I hope)
+
+instance GetMatchables RewriteRule where
+  getMatchables rew = case rewLHS rew of
+    PDef _ ps -> getMatchables ps
+    _         -> __IMPOSSIBLE__

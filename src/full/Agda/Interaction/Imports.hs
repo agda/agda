@@ -503,8 +503,7 @@ readInterface file = do
                          -- document.
       _               -> throwError e
 
--- | Writes the given interface to the given file. Returns the file's
--- new modification time stamp, or 'Nothing' if the write failed.
+-- | Writes the given interface to the given file.
 
 writeInterface :: FilePath -> Interface -> TCM ()
 writeInterface file i = do
@@ -646,7 +645,7 @@ createInterface file mname =
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     syntaxInfo <- use stSyntaxInfo
-    i <- Bench.billTo [Bench.Serialization] $ do
+    i <- Bench.billTo [Bench.Serialization, Bench.BuildInterface] $ do
       buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC options
 
     reportSLn "tc.top" 101 $ concat $
@@ -726,6 +725,11 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     -- Andreas, Makoto, 2014-10-18 AIM XX: repeating the experiment
     -- with discarding also the nameBindingSite in QName:
     -- Saves 10% on serialization time (and file size)!
+    --
+    -- NOTE: We no longer discard all nameBindingSites (but the commit
+    -- that introduced this change seems to have made Agda a bit
+    -- faster and interface file sizes a bit smaller, at least for the
+    -- standard library).
     builtin <- use stLocalBuiltins
     ms      <- getImports
     mhs     <- mapM (\ m -> (m,) <$> moduleHash m) $ Set.toList ms
@@ -736,7 +740,8 @@ buildInterface file topLevel syntaxInfo previousHsImports previousHsImportsUHC p
     -- Non-closed display forms are not applicable outside the module anyway,
     -- and should be dead-code eliminated (#1928).
     display <- HMap.filter (not . null) . HMap.map (filter isClosed) <$> use stImportsDisplayForms
-    (display, sig) <- second killRange <$> (eliminateDeadCode display =<< getSignature)
+    -- TODO: Kill some ranges?
+    (display, sig) <- eliminateDeadCode display =<< getSignature
     -- Andreas, 2015-02-09 kill ranges in pattern synonyms before
     -- serialization to avoid error locations pointing to external files
     -- when expanding a pattern synoym.

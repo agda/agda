@@ -161,6 +161,7 @@ instance Pretty Expr where
                     , text "in" <+> pretty e
                     ]
             Paren _ e -> parens $ pretty e
+            IdiomBrackets _ e -> text "(|" <+> pretty e <+> text "|)"
             As _ x e  -> pretty x <> text "@" <> pretty e
             Dot _ e   -> text "." <> pretty e
             Absurd _  -> text "()"

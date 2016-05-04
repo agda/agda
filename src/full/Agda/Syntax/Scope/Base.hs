@@ -791,7 +791,13 @@ scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ maybeToList to
 
 -- * Inverse look-up
 
-data AllowAmbiguousNames = AmbiguousAnything | AmbiguousConstructors | AmbiguousNothing
+data AllowAmbiguousNames
+  = AmbiguousAnything
+      -- ^ Used for instance arguments to check whether a name is in scope,
+      --   but we do not care whether is is ambiguous
+  | AmbiguousConProjs
+      -- ^ Ambiguous constructors or projections.
+  | AmbiguousNothing
   deriving (Eq)
 
 isNameInScope :: A.QName -> ScopeInfo -> Bool
@@ -803,7 +809,7 @@ isNameInScope q scope =
 --   Sort by length, shortest first.
 
 inverseScopeLookup :: Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
-inverseScopeLookup = inverseScopeLookup' AmbiguousConstructors
+inverseScopeLookup = inverseScopeLookup' AmbiguousConProjs
 
 inverseScopeLookup' :: AllowAmbiguousNames -> Either A.ModuleName A.QName -> ScopeInfo -> [C.QName]
 inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ] $
@@ -829,7 +835,11 @@ inverseScopeLookup' amb name scope = billToPure [ Scoping , InverseScopeLookup ]
     unique (_:_:_) = False
 
     unambiguousModule q = amb == AmbiguousAnything || unique (scopeLookup q scope :: [AbstractModule])
-    unambiguousName   q = amb == AmbiguousAnything || unique xs || amb == AmbiguousConstructors && all ((ConName ==) . anameKind) xs
+    unambiguousName   q = amb == AmbiguousAnything
+        || unique xs
+        || amb == AmbiguousConProjs
+           && (all ((ConName ==) . anameKind) xs
+            || all ((FldName ==) . anameKind) xs)
       where xs = scopeLookup q scope
 
 recomputeInverseScopeMaps :: ScopeInfo -> ScopeInfo

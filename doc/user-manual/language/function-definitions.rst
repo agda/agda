@@ -4,77 +4,148 @@
 Function Definitions
 ********************
 
-.. note::
-   This is a stub.
 
-Pattern matching
-----------------
+Introduction
+============
 
-.. _dot-patterns:
+A function is defined by first declaring its type followed by a number of
+equations called *clauses*. Each clause consists of the function being defined
+applied to a number of *patterns*, followed by ``=`` and a term called the
+*right-hand side*. For example:
+::
 
-Dot patterns
-~~~~~~~~~~~~
+  not : Bool → Bool
+  not true  = false
+  not false = true
 
-.. _absurd-patterns:
+Functions are allowed to call themselves recursively, for example:
+::
 
-Absurd patterns
-~~~~~~~~~~~~~~~
+  twice : Nat → Nat
+  twice zero    = zero
+  twice (suc n) = suc (suc (twice n))
 
-Function declarations
----------------------
+General form
+============
 
 The general form for defining a function is
 ::
 
- f : (x1 : A1) → … → (xn : An) → B
- f p1 … pn = d
+ f : (x₁ : A₁) → … → (xₙ : Aₙ) → B
+ f p₁ … pₙ = d
  …
- f q1 … qn = e
+ f q₁ … qₙ = e
 
-where ``f`` is a new identifier, ``A`` is a type, ``B`` is a type under the assumption that the variable ``x`` has the type ``A``, ``p_i`` and ``q_i`` are patterns and ``d`` and ``e`` are expressions.
+where ``f`` is a new identifier, ``pᵢ`` and ``qᵢ`` are patterns of type ``Aᵢ``,
+and ``d`` and ``e`` are expressions.
 
-The declaration above gives the identifier ``f`` the type ``(x1 : A1) → … → (xn : An) → B`` and ``f`` is defined by the defining equations. Patterns are matched from top to bottom, i.e., the first pattern that matches the actual parameters is the one that is used.
+The declaration above gives the identifier ``f`` the type
+``(x₁ : A₁) → … → (x₁ : A₁) → B`` and ``f`` is defined by the defining
+equations. Patterns are matched from top to bottom, i.e., the first pattern
+that matches the actual parameters is the one that is used.
 
-Abstraction
------------
-An object of type ``(x : A) → B`` is always equal to
+By default, Agda checks the following properties of a function definition:
+
+- The patterns in the left-hand side of each clause should consist only of
+  constructors and variables
+- No variable should occur more than once on the left-hand side of a single
+  clause.
+- The patterns of all clauses should together cover all possible inputs of
+  the function
+- The function should be terminating on all possible inputs, see
+  :ref:`termination-checking`.
+
+Special patterns
+================
+
+In addition to constructors consisting of constructors and variables, Agda
+supports two special kinds of patterns: dot patterns and absurd patterns.
+
+.. _dot-patterns:
+
+Dot patterns
+------------
+
+Dot patterns (also called *inaccessible patterns*) can be used when there is
+only a single type-correct value for a certain argument. The syntax for a dot
+pattern is ``.t``.
+
+As an example, consider the datatype ``Square`` defined as follows
 ::
 
- \x → b
+  data Square : Nat → Set where
+    sq : (m : Nat) → Square (m * m)
 
-where ``b : B`` under the assumption that ``x : A``.
-
-Typed abstraction can also be used:
+Suppose we want to define a function ``root : (n : Nat) → Square n → Nat`` that
+takes as its arguments a number ``n`` and a proof that it is a square, and
+returns the square root of that number. We can do so as follows:
 ::
 
- \(x : A) → b
+  root : (n : Nat) → Square n → Nat
+  root .(m * m) (sq m) = m
 
-is another notation for the abstraction above if the type of the variable ``x`` is ``A``.
+Notice that by matching on the argument of type ``Square n`` with the constructor
+``sq : (m : Nat) → Square (m * m)``, ``n`` is forced to be equal to ``m * m``.
 
-Application
------------
-The application of a function ``f : (x : A) → B`` to an argument ``a : A`` is written ``f a`` and the type of this is B[x := a].
+In general, when matching on an argument of type ``D i₁ … iₙ`` with a constructor
+``c : (x₁ : A₁) → … → (xₘ : Aₘ) → D j₁ … jₙ``, Agda will attempt to unify
+``i₁ … iₙ`` with ``j₁ … jₙ``. When the unification algorithm instantiates a
+variable ``x`` with value ``t``, the corresponding argument of the function
+should be replaced by a dot pattern ``.t``.
 
+.. _absurd-patterns:
 
-Notational conventions
-----------------------
+Absurd patterns
+---------------
 
-Function types:
+Absurd patterns can be used when none of the constructors for a particular
+argument would be valid. The syntax for an absurd pattern is ``()``.
+
+As an example, if we have a datatype ``Even`` defined as follows
 ::
 
- (x : A)(y : B) → C    is the same as (x : A) → (y : B) → C
- (x y : A) → C         is the same as (x : A)(y : A) → C
- forall (x : A) → C    is the same as (x : A) → C
- forall x → C          is the same as (x : _) → C
- forall x y → C        is the same as forall x → forall y → C
+  data Even : Nat → Set where
+    even-zero  : Even zero
+    even-plus2 : {n : Nat} → Even n → Even (suc (suc n))
 
-You can also use the Unicode symbol ``∀`` (type “\all” in the Emacs Agda mode) instead of forall.
+then we can define a function ``one-not-even : Even 1 → ⊥`` by using an absurd
+pattern:
+::
 
-Functional abstraction:::
+  one-not-even : Even 1 → ⊥
+  one-not-even ()
 
- \x y → e is the same as \x → (\y → e)
+Note that if the left-hand side of a clause contains an absurd pattern, its
+right-hand side should be omitted.
 
-Functional application:::
+In general, when matching on an argument of type ``D i₁ … iₙ`` with an absurd
+pattern, Agda will attempt for each constructor
+``c : (x₁ : A₁) → … → (xₘ : Aₘ) → D j₁ … jₙ`` of the datatype ``D`` to unify
+``i₁ … iₙ`` with ``j₁ … jₙ``. The absurd pattern will only be accepted if each
+of these unifications ends in a conflict.
 
- f a b is the same as (f a) b.
 
+Case trees
+==========
+
+Internally, Agda represents function definitions as *case trees*. For example,
+a function definition
+::
+
+  max : Nat → Nat → Nat
+  max zero    n       = n
+  max m       zero    = m
+  max (suc m) (suc n) = suc (max m n)
+
+will be represented internally as a case tree that looks like this:::
+
+  max m n = case m of
+    zero   -> n
+    suc m' -> case n of
+      zero   -> suc m'
+      suc n' -> suc (max m' n')
+
+Note that because Agda uses this representation of the function ``max``
+the equation ``max m zero = m`` will not hold by definition, but must be
+proven instead. You can have Agda warn you when a situation like this
+occurs by adding ``{-# OPTIONS --exact-split #-}`` at the top of your file.

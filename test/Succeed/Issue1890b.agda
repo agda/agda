@@ -29,7 +29,7 @@ module _ (A : Set) where
   helper-term = var 0 []
 
   helper-patterns : List (Arg Pattern)
-  helper-patterns = vArg (var "_") ∷
+  helper-patterns = vArg (var "x") ∷
                     []
 
   defineHelper : Type → TC ⊤

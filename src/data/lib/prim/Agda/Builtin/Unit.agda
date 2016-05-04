@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 
 module Agda.Builtin.Unit where
 

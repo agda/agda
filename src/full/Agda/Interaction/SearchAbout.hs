@@ -68,7 +68,7 @@ findMentions norm rg nm = do
       | otherwise        = Right str
 
     anames (DefinedName _ an)     = [an]
-    anames (FieldName     an)     = [an]
+    anames (FieldName     ans)    = ans
     anames (ConstructorName ans)  = ans
     anames (PatternSynResName an) = [an]
     anames _                      = []

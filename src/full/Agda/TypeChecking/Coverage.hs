@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE PatternGuards    #-}
 {-# LANGUAGE TupleSections    #-}
 
@@ -28,6 +29,7 @@ import Control.Applicative hiding (empty)
 #endif
 
 import Data.List hiding (null)
+import Data.Monoid (Any(..))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Traversable as Trav
@@ -188,23 +190,13 @@ cover f cs sc@(SClause tel ps _ target) = do
       reportSLn "tc.cover" 20 $ "pattern is not covered"
       return (SplittingDone (size tel), Set.empty, [ps])
 
-    -- case: split into projection patterns
-    BlockP   -> do
-      reportSLn "tc.cover" 20 $ "blocked by projection pattern"
-      -- if we want to split projections, but have no target type, we give up
+    -- We need to split!
+    -- If all clauses have an unsplit copattern, we try that first.
+    Block res bs -> tryIf (getAny res) splitRes $ do
       let done = return (SplittingDone (size tel), Set.empty, [ps])
-      caseMaybeM (splitResult f sc) done $ \ (Covering n scs) -> do
-        (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
-          mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
-          -- OR:
-          -- forM scs $ \ (proj, sc') -> (proj,) <$> do
-          --   cover f cs =<< do
-          --     snd <$> fixTarget sc'
-        let tree = SplitAt n $ zip projs trees
-        return (tree, Set.unions useds, concat psss)
-
-    -- case: split on variable
-    Block bs -> do
+      if null bs then done else do
+      -- Otherwise, if there are variables to split, we try them
+      -- in the order determined by a split strategy.
       reportSLn "tc.cover.strategy" 20 $ "blocking vars = " ++ show bs
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
@@ -242,6 +234,27 @@ cover f cs sc@(SClause tel ps _ target) = do
           return (tree, Set.unions useds, concat psss)
 
   where
+    tryIf :: Monad m => Bool -> m (Maybe a) -> m a -> m a
+    tryIf True  me m = fromMaybeM m me
+    tryIf False me m = m
+
+    -- Try to split result
+    splitRes :: TCM (Maybe (SplitTree, Set Nat, [[NamedArg DeBruijnPattern]]))
+    splitRes = do
+      reportSLn "tc.cover" 20 $ "blocked by projection pattern"
+      -- forM is a monadic map over a Maybe here
+      mcov <- splitResult f sc
+      Trav.forM mcov $ \ (Covering n scs) -> do
+        -- If result splitting was successful, continue coverage checking.
+        (projs, (trees, useds, psss)) <- mapSnd unzip3 . unzip <$> do
+          mapM (traverseF $ cover f cs <=< (snd <.> fixTarget)) scs
+          -- OR:
+          -- forM scs $ \ (proj, sc') -> (proj,) <$> do
+          --   cover f cs =<< do
+          --     snd <$> fixTarget sc'
+        let tree = SplitAt n $ zip projs trees
+        return (tree, Set.unions useds, concat psss)
+
     gatherEtaSplits :: Int -> SplitClause
                     -> [Arg DeBruijnPattern] -> [Arg DeBruijnPattern]
     gatherEtaSplits n sc []
@@ -551,7 +564,10 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
 
 -- | Entry point from @Interaction.MakeCase@.
 splitClauseWithAbsurd :: SplitClause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbsurd c x = split' Inductive c (BlockingVar x Nothing)
+splitClauseWithAbsurd c x = split' Inductive False c (BlockingVar x Nothing)
+  -- Andreas, 2016-05-03, issue 1950:
+  -- Do not introduce trailing pattern vars after split,
+  -- because this does not work for with-clauses.
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 --   @splitLast CoInductive@ is used in the @refine@ tactics.
@@ -578,7 +594,7 @@ split :: Induction
       -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind sc x = fmap blendInAbsurdClause <$> split' ind sc x
+split ind sc x = fmap blendInAbsurdClause <$> split' ind True sc x
   where
     n = lookupPatternVar sc $ blockingVarNo x
     blendInAbsurdClause :: Either SplitClause Covering -> Covering
@@ -613,10 +629,13 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
+       -> Bool
+          -- ^ If 'True', introduce new trailing variable patterns via
+          --   'fixTarget'.
        -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
+split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel x ps
 
@@ -636,6 +655,7 @@ split' ind sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTCM $ runExc
     forM cons $ \ con ->
       fmap (con,) <$> do
         msc <- computeNeighbourhood delta1 n delta2 d pars ixs x ps con
+        if not fixtarget then return msc else do
         Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
 
   case ns of

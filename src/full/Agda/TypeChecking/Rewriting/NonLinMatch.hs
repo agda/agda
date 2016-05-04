@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DoAndIfThenElse       #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -38,8 +39,7 @@ import Data.Foldable ( foldMap )
 #endif
 
 import Data.Maybe
-import Data.Functor
-import Data.Traversable hiding (for)
+import Data.Traversable (Traversable,traverse)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
@@ -52,18 +52,22 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Level (unLevel, reallyUnLevelView)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope (renameP, permuteTel)
 
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Permutation
 import Agda.Utils.Singleton
 import Agda.Utils.Size
 
@@ -94,26 +98,38 @@ instance (PatternFrom a b) => PatternFrom (Type' a) (Type' b) where
 
 instance PatternFrom Term NLPat where
   patternFrom k v = do
-    v <- reduce v
+    v <- unLevel =<< reduce v
     let done = return $ PTerm v
     case ignoreSharing v of
       Var i es
        | i < k     -> PBoundVar i <$> patternFrom k es
-       | null es   -> do
-           let i' = i-k
-           -- Pattern variables are labeled with their context id, because they
-           -- can only be instantiated once they're no longer bound by the
-           -- context (see Issue 1652).
-           id <- (!! i') <$> getContextId
-           return $ PVar (Just id) i'
-       | otherwise -> done
+       | otherwise -> do
+         -- The arguments of `var i` should be distinct bound variables
+         -- in order to build a Miller pattern
+         let mbvs = mfilter fastDistinct $ forM es $ \e -> do
+                      e <- isApplyElim e
+                      case ignoreSharing $ unArg e of
+                        Var j [] | j < k -> Just $ e $> j
+                        _                -> Nothing
+         case mbvs of
+           Just bvs -> do
+             let i' = i-k
+             -- Pattern variables are labeled with their context id, because they
+             -- can only be instantiated once they're no longer bound by the
+             -- context (see Issue 1652).
+             id <- (!! i') <$> getContextId
+             return $ PVar (Just id) i' bvs
+           Nothing -> done
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
       Def f es -> PDef f <$> patternFrom k es
       Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
       Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
-      Sort{}   -> done
-      Level{}  -> return PWild   -- TODO: unLevel and continue
+      Sort s   ->
+        case s of
+          Type l -> PSet <$> (patternFrom k =<< reallyUnLevelView l)
+          _      -> done
+      Level l  -> __IMPOSSIBLE__
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
@@ -229,7 +245,7 @@ instance Match NLPat Term where
             , msg ]) mzero
     case p of
       PWild  -> yes
-      PVar id i -> do
+      PVar id i bvs -> do
         -- If the variable is still bound by the current context, we cannot
         -- instantiate it so it has to match on the nose (see Issue 1652).
         ctx <- zip <$> getContextNames <*> getContextId
@@ -240,15 +256,21 @@ instance Match NLPat Term where
                     then tellSub i (var j)
                     else no (text $ "(CtxId = " ++ show id ++ ")")
           Nothing -> do
-            let boundVarOccs :: FreeVars
-                boundVarOccs = runFree (\var@(i,_) -> if i < n then singleton var else empty) IgnoreNot v
-            if null (rigidVars boundVarOccs)
-               then if null (flexibleVars boundVarOccs)
-                    then tellSub i (raise (-n) v)
-                    else matchingBlocked $ foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars boundVarOccs
-               else no (text "")
+            let allowedVars :: IntSet
+                allowedVars = IntSet.fromList (map unArg bvs)
+                isBadVar :: Int -> Bool
+                isBadVar i = i < n && not (i `IntSet.member` allowedVars)
+                perm :: Permutation
+                perm = Perm n $ reverse $ map unArg $ bvs
+                tel :: Telescope
+                tel = permuteTel perm k
+            ok <- liftRed $ reallyFree isBadVar v
+            case ok of
+              Left b         -> matchingBlocked b
+              Right Nothing  -> no (text "")
+              Right (Just v) -> tellSub i $ teleLam tel $ renameP perm v
       PDef f ps -> do
-        v <- liftRed $ constructorForm v
+        v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of
           Def f' es
             | f == f'   -> matchArgs gamma k ps es
@@ -273,6 +295,12 @@ instance Match NLPat Term where
           match gamma k pa a >> match gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
+      PSet p -> case ignoreSharing v of
+        Sort (Type l) -> do
+          l <- liftRed $ reduce' =<< reallyUnLevelView l
+          match gamma k p l
+        MetaV m es -> matchingBlocked $ Blocked m ()
+        _ -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> matchArgs gamma k ps es
         MetaV m es -> matchingBlocked $ Blocked m ()
@@ -281,6 +309,35 @@ instance Match NLPat Term where
     where
       matchArgs :: Telescope -> Telescope -> [Elim' NLPat] -> Elims -> NLM ()
       matchArgs gamma k ps es = match gamma k ps =<< liftRed (reduce' es)
+
+-- Checks if the given term contains any free variables that satisfy the
+-- given condition on their DBI, possibly normalizing the term in the process.
+-- Returns `Right Nothing` if there are such variables, `Right (Just v')`
+-- if there are none (where v' is the possibly normalized version of the given
+-- term) or `Left b` if the problem is blocked on a meta.
+reallyFree :: (Normalise a, Free' a FreeVars)
+           => (Int -> Bool) -> a -> ReduceM (Either Blocked_ (Maybe a))
+reallyFree f v = do
+    let xs = getVars v
+    if null (stronglyRigidVars xs) && null (unguardedVars xs)
+    then do
+      if null (weaklyRigidVars xs) && null (flexibleVars xs)
+         && null (irrelevantVars xs)
+      then return $ Right $ Just v
+      else do
+        v <- normalise' v
+        let xs = getVars v
+        if null (stronglyRigidVars xs) && null (unguardedVars xs)
+           && null (weaklyRigidVars xs) && null (irrelevantVars xs)
+        then if null (flexibleVars xs)
+             then return $ Right $ Just v
+             else return $ Left $ foldMap (foldMap $ \m -> Blocked m ()) $
+                    flexibleVars xs
+        else return $ Right Nothing
+    else return $ Right Nothing
+  where
+    getVars v = runFree (\var@(i,_) -> if f i then singleton var else empty) IgnoreNot v
+
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
@@ -345,12 +402,13 @@ instance RaiseNLP a => RaiseNLP (Abs a) where
 
 instance RaiseNLP NLPat where
   raiseNLPFrom c k p = case p of
-    PVar _ _ -> p
+    PVar id i bvs -> let raise j = if j < c then j else j + k
+                     in PVar id i $ map (fmap raise) bvs
     PWild  -> p
     PDef f ps -> PDef f $ raiseNLPFrom c k ps
     PLam i q -> PLam i $ raiseNLPFrom c k q
     PPi a b -> PPi (raiseNLPFrom c k a) (raiseNLPFrom c k b)
+    PSet l -> PSet $ raiseNLPFrom c k l
     PBoundVar i ps -> let j = if i < c then i else i + k
                       in PBoundVar j $ raiseNLPFrom c k ps
     PTerm u -> PTerm $ raiseFrom c k u
-

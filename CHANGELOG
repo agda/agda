@@ -1,4 +1,179 @@
 ------------------------------------------------------------------------
+-- Release notes for Agda version 2.5.2
+------------------------------------------------------------------------
+
+Important changes since 2.5.1:
+
+Language
+========
+
+* Idiom brackets.
+
+  There is new syntactic sugar for idiom brackets:
+
+    (| e a1 .. an |) expands to
+
+    pure e <*> a1 <*> .. <*> an
+
+  The desugaring takes place before scope checking and only requires names
+  'pure' and '_<*>_' in scope. Idiom brackets work well with operators, for
+  instance
+
+    (| if a then b else c |) desugars to
+
+    pure if_then_else_ <*> a <*> b <*> c
+
+  Limitations:
+
+    - The top-level application inside idiom brackets cannot include implicit
+      applications, so (| foo {x = e} a b |) is illegal. In the case e is pure
+      you can write (| (foo {x = e}) a b |) which desugars to
+
+        pure (foo {x = e}) <*> a <*> b
+
+    - Binding syntax and operator sections cannot appear immediately inside
+      idiom brackets.
+
+* Layout for pattern matching lambdas.
+
+  You can now write pattern matching lambdas using the syntax
+
+    λ where false → true
+            true  → false
+
+  avoiding the need for explicit curly braces and semicolons.
+
+* Overloaded projections [Issue #1944].
+
+  Ambiguous projections are no longer a scope error.  Instead they get
+  resolved based on the type of the record value they are
+  eliminating.  This corresponds to constructors, which can be
+  overloaded and get disambiguated based on the type they are
+  introducing.  Example:
+
+    module _ (A : Set) (a : A) where
+
+    record R B : Set where
+      field f : B
+    open R public
+
+    record S B : Set where
+      field f : B
+    open S public
+
+  Exporting `f` twice from both `R` and `S` is now allowed.  Then,
+
+    r : R A
+    f r = a
+
+    s : S A
+    f s = f r
+
+  disambiguates to:
+
+    r : R A
+    R.f r = a
+
+    s : S A
+    S.f s = R.f r
+
+  If the type of the projection is known, it can also be disambiguated
+  unapplied.
+
+    unapplied : R A -> A
+    unapplied = f
+
+* Projection parameters [Issue #1954].
+
+  When copying a module, projection parameters will now stay hidden
+  arguments, even if the module parameters are visible.
+  This matches the situation we had for constructors since long.
+  Example:
+
+    module P (A : Set) where
+      record R : Set where
+        field f : A
+
+    open module Q A = P A
+
+  Parameter A is now hidden in R.f:
+
+    test : ∀{A} → R A → A
+    test r = R.f r
+
+  Note that a module parameter that corresponds to the record value
+  argument of a projection will not be hidden.
+
+    module M (A : Set) (r : R A) where
+      open R A r public
+
+    test' : ∀{A} → R A → A
+    test' r = M.f r
+
+
+Emacs mode
+==========
+
+* Changed feature: Interactively split result.
+
+  Make-case (C-c C-c) with no variables will now /either/ introduce
+  function arguments /or/ do a copattern split (or fail).
+
+  This is as before:
+
+    test : {A B : Set} (a : A) (b : B) → A × B
+    test a b = ?
+
+    -- expected:
+    -- proj₁ (test a b) = {!!}
+    -- proj₂ (test a b) = {!!}
+
+    testFun : {A B : Set} (a : A) (b : B) → A × B
+    testFun = ?
+
+    -- expected:
+    -- testFun a b = {!!}
+
+  This is has changed:
+
+    record FunRec A : Set where
+      field funField : A → A
+    open FunRec
+
+    testFunRec : ∀{A} → FunRec A
+    testFunRec = ?
+
+    -- expected (since 2016-05-03):
+    -- funField testFunRec = {!!}
+
+    -- used to be:
+    -- funField testFunRec x = {!!}
+
+* Interactively splitting variable with C-c C-c no longer introduces
+  new trailing patterns.  This fixes issue #1950.
+
+    data Ty : Set where
+      _⇒_ : Ty → Ty → Ty
+
+    ⟦_⟧ : Ty → Set
+    ⟦ A ⇒ B ⟧ = ⟦ A ⟧ → ⟦ B ⟧
+
+    data Term : Ty → Set where
+      K : (A B : Ty) → Term (A ⇒ (B ⇒ A))
+
+    test : (A : Ty) (a : Term A) → ⟦ A ⟧
+    test A a = {!a!}
+
+  Before change, case splitting on `a` would give
+
+    test .(A ⇒ (B ⇒ A)) (K A B) x x₁ = ?
+
+  Now, it yields
+
+    test .(A ⇒ (B ⇒ A)) (K A B) = ?
+
+
+------------------------------------------------------------------------
 -- Release notes for Agda version 2.5.1
 ------------------------------------------------------------------------
 
@@ -524,8 +699,8 @@ Reflection
     data Definition : Set where
       fun-def     : List Clause  → Definition
       data-type   : Nat → List Name → Definition -- parameters and constructors
-      record-type : Name → Definition            -- name of the constructor
-      data-con    : Name → Definition            -- name of the data/record type
+      record-type : Name → Definition            -- name of the data/record type
+      data-con    : Name → Definition            -- name of the constructor
       axiom       : Definition
       prim-fun    : Definition
 
@@ -1387,28 +1562,10 @@ Highlighting and textual backends
   [Issue 1714]
   This leads also to nicer printing in the LaTeX and html backends.
 
-Fixed issues (TODO)
+Fixed issues
 ============
 
-See https://github.com/agda/agda/issues
-* 480
-* 520
-* 1159
-* 1388
-* 1674
-* 1740
-* 1757
-* 1759
-* 1763
-* 1766
-* 1778
-* 1783
-* 1790
-* 1791
-* 1792
-* 1795
-* 1796
-* 1811
+See https://github.com/agda/agda/issues?q=milestone%3A2.5.1+is%3Aclosed
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.4.2.5

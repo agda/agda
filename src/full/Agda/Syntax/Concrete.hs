@@ -150,6 +150,7 @@ data Expr
   | RecUpdate Range Expr [FieldAssignment]     -- ^ ex: @record e {x = a; y = b}@
   | Let Range [Declaration] Expr               -- ^ ex: @let Ds in e@
   | Paren Range Expr                           -- ^ ex: @(e)@
+  | IdiomBrackets Range Expr                   -- ^ ex: @(| e |)@
   | Absurd Range                               -- ^ ex: @()@ or @{}@, only in patterns
   | As Range Name Expr                         -- ^ ex: @x\@p@, only in patterns
   | Dot Range Expr                             -- ^ ex: @.p@, only in patterns
@@ -442,15 +443,17 @@ mapLhsOriginalPattern f lhs@LHS{ lhsOriginalPattern = p } =
 data AppView = AppView Expr [NamedArg Expr]
 
 appView :: Expr -> AppView
-appView (App r e1 e2) = vApp (appView e1) e2
+appView e =
+  case e of
+    App r e1 e2     -> vApp (appView e1) e2
+    RawApp _ (e:es) -> AppView e $ map arg es
+    _               ->  AppView e []
   where
     vApp (AppView e es) arg = AppView e (es ++ [arg])
-appView (RawApp _ (e:es)) = AppView e $ map arg es
-  where
+
     arg (HiddenArg   _ e) = setHiding Hidden   $ defaultArg e
     arg (InstanceArg _ e) = setHiding Instance $ defaultArg e
     arg e                 = defaultArg (unnamed e)
-appView e = AppView e []
 
 {--------------------------------------------------------------------------
     Patterns
@@ -541,6 +544,7 @@ instance HasRange Expr where
       SetN r _           -> r
       Let r _ _          -> r
       Paren r _          -> r
+      IdiomBrackets r _  -> r
       As r _ _           -> r
       Dot r _            -> r
       Absurd r           -> r
@@ -759,6 +763,7 @@ instance KillRange Expr where
   killRange (RecUpdate _ e ne)   = killRange2 (RecUpdate noRange) e ne
   killRange (Let _ d e)          = killRange2 (Let noRange) d e
   killRange (Paren _ e)          = killRange1 (Paren noRange) e
+  killRange (IdiomBrackets _ e)  = killRange1 (IdiomBrackets noRange) e
   killRange (Absurd _)           = Absurd noRange
   killRange (As _ n e)           = killRange2 (As noRange) n e
   killRange (Dot _ e)            = killRange1 (Dot noRange) e
@@ -873,6 +878,7 @@ instance NFData Expr where
   rnf (RecUpdate _ a b)  = rnf a `seq` rnf b
   rnf (Let _ a b)        = rnf a `seq` rnf b
   rnf (Paren _ a)        = rnf a
+  rnf (IdiomBrackets _ a)= rnf a
   rnf (Absurd _)         = ()
   rnf (As _ a b)         = rnf a `seq` rnf b
   rnf (Dot _ a)          = rnf a

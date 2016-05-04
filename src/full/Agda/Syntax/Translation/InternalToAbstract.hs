@@ -46,6 +46,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import Agda.Syntax.Info as Info
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
@@ -69,6 +70,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -102,7 +104,7 @@ elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e [] = return e
 elims e (I.Apply arg : es) =
   elims (A.App exprInfo e $ fmap unnamed arg) es
-elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj d) $ defaultNamedArg e) es
+elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
 
 reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
 reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
@@ -198,45 +200,66 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
       displayForm f vs
-    reportSLn "reify.display" 20 $
+    reportSLn "reify.display" 60 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
-      Just d  | okDisplayForm d ->
+      Just d  | okDisplayForm d -> do
         -- In the display term @d@, @var i@ should be a placeholder
         -- for the @i@th pattern of @ps@.
         -- Andreas, 2014-06-11:
         -- Are we sure that @d@ did not use @var i@ otherwise?
-        reifyDisplayFormP =<< displayLHS (map namedArg ps) wps d
-      _ -> return lhs
+        lhs' <- displayLHS (map namedArg ps) wps d
+        reportSDoc "reify.display" 70 $ do
+          doc <- prettyA lhs'
+          return $ vcat
+            [ text "rewritten lhs to"
+            , text "  lhs' = " <+> doc
+            ]
+        reifyDisplayFormP lhs'
+      _ -> do
+        reportSLn "reify.display" 70 $ "display form absent or not valid as lhs"
+        return lhs
   where
     -- Andreas, 2015-05-03: Ulf, please comment on what
     -- is the idea behind okDisplayForm.
-    okDisplayForm (DWithApp d ds []) =
-      okDisplayForm d && all okDisplayTerm ds
+    -- Ulf, 2016-04-15: okDisplayForm should return True if the display form
+    -- can serve as a valid left-hand side. That means checking that it is a
+    -- defined name applied to valid lhs eliminators (projections or
+    -- applications to constructor patterns).
+    okDisplayForm (DWithApp d ds args) =
+      okDisplayForm d && all okDisplayTerm ds  && all okToDrop args
+      -- Andreas, 2016-05-03, issue #1950.
+      -- We might drop trailing hidden trivial (=variable) patterns.
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
-    okDisplayForm (DDef f es) = all okDElim es
-    okDisplayForm DDot{} = False
-    okDisplayForm DCon{} = False
-    okDisplayForm DTerm{} = True -- False?
-    okDisplayForm DWithApp{} = True -- False?
+    okDisplayForm (DDef f es)          = all okDElim es
+    okDisplayForm DDot{}               = False
+    okDisplayForm DCon{}               = False
+    okDisplayForm DTerm{}              = False
 
     okDisplayTerm (DTerm v) = okTerm v
-    okDisplayTerm DDot{} = True
-    okDisplayTerm DCon{} = True
-    okDisplayTerm DDef{} = False
-    okDisplayTerm _ = False
+    okDisplayTerm DDot{}    = True
+    okDisplayTerm DCon{}    = True
+    okDisplayTerm DDef{}    = False
+    okDisplayTerm _         = False
 
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
-    okDElim I.Proj{}    = True  -- True, man, or False?  No clue what I am implementing here --Andreas, 2015-05-03
+    okDElim I.Proj{}    = True
+
+    okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
+      I.Var _ []   -> True
+      I.DontCare{} -> True  -- no matching on irrelevant things.  __IMPOSSIBLE__ anyway?
+      I.Level{}    -> True  -- no matching on levels. __IMPOSSIBLE__ anyway?
+      _ -> False
+
     okArg = okTerm . unArg
 
     okElim (I.Apply a) = okArg a
-    okElim (I.Proj{})  = False
+    okElim (I.Proj{})  = True
 
     okTerm (I.Var _ []) = True
     okTerm (I.Con c vs) = all okArg vs
     okTerm (I.Def x []) = isNoName $ qnameToConcrete x -- Handling wildcards in display forms
-    okTerm _            = True -- False
+    okTerm _            = False
 
     -- Flatten a dt into (parentName, parentElims, withArgs).
     flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [DisplayTerm])
@@ -257,7 +280,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.Apply arg) = argToPat arg
-        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.DefP patNoRange d []
+        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.ProjP patNoRange $ AmbQ [d]
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
@@ -596,6 +619,7 @@ shuffleDots (ps, wps) = do
       A.DotP _ (A.Var x)   -> MonoidMap $ Map.singleton x (Any True,  Any $ getAll h)
       A.DotP{}             -> mempty
       A.ConP _ _ ps        -> argsVars h ps
+      A.ProjP _ _          -> mempty
       A.DefP _ _ ps        -> argsVars h ps
       A.PatternSynP _ _ ps -> argsVars h ps
       A.WildP{}            -> mempty
@@ -627,6 +651,7 @@ shuffleDots (ps, wps) = do
       A.DotP _ (A.Var x)   -> redotVar p x
       A.DotP{}             -> pure p
       A.ConP i c ps        -> A.ConP i c <$> redotArgs ps
+      A.ProjP _ _          -> pure p
       A.DefP i f ps        -> A.DefP i f <$> redotArgs ps
       A.PatternSynP i x ps -> A.PatternSynP i x <$> redotArgs ps
       A.WildP{}            -> pure p
@@ -669,6 +694,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
       patVars p = case p of
         A.VarP x      -> Set.singleton x
         A.ConP _ _ ps -> argsVars ps
+        A.ProjP _ _   -> Set.empty
         A.DefP _ _ ps -> Set.empty
         A.DotP _ e    -> Set.empty
         A.WildP _     -> Set.empty
@@ -720,6 +746,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           stripPat p = case p of
             A.VarP _      -> p
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
+            A.ProjP _ _   -> p
             A.DefP _ _ _  -> p
             A.DotP _ e    -> p
             A.WildP _     -> p
@@ -773,6 +800,7 @@ instance DotVars A.Pattern where
   dotVars p = case p of
     A.VarP _      -> Set.empty   -- do not add pattern vars
     A.ConP _ _ ps -> dotVars ps
+    A.ProjP _ _   -> Set.empty
     A.DefP _ _ ps -> dotVars ps
     A.DotP _ e    -> dotVars e
     A.WildP _     -> Set.empty
@@ -894,7 +922,7 @@ reifyPatterns tel perm ps = runTickT (reifyArgs ps)
             t'   = if Set.member "()" vars then underscore else t
         return $ A.DotP patNoRange t'
       I.LitP l  -> return $ A.LitP l
-      I.ProjP d -> return $ A.DefP patNoRange d []
+      I.ProjP d -> return $ A.ProjP patNoRange $ AmbQ [d]
       I.ConP c cpi ps -> do
         liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
         tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps

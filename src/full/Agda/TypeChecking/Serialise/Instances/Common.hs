@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                       #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -8,12 +9,13 @@
 #endif
 
 #if __GLASGOW_HASKELL__ <= 708
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverlappingInstances       #-}
 #endif
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Agda.TypeChecking.Serialise.Instances.Common where
+module Agda.TypeChecking.Serialise.Instances.Common () where
 
 import Control.Applicative
 import Control.Monad.Reader
@@ -33,6 +35,9 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+#if __GLASGOW_HASKELL__ <= 708
+import Data.Typeable (Typeable)
+#endif
 import Data.Void
 
 import Agda.Syntax.Common
@@ -224,9 +229,26 @@ instance EmbPrj a => EmbPrj (P.Interval' a) where
     valu [p, q] = valu2 P.Interval p q
     valu _      = malformed
 
+-- | Ranges are always deserialised as 'noRange'.
+
 instance EmbPrj Range where
-  icod_ r = icode (P.rangeFile r, P.rangeIntervals r)
-  value r = uncurry P.intervalsToRange `fmap` value r
+  icod_ _ = icode0'
+  value _ = return noRange
+
+-- | Ranges that should be serialised properly.
+
+newtype SerialisedRange = SerialisedRange { underlyingRange :: Range }
+#if __GLASGOW_HASKELL__ <= 708
+  deriving (Typeable)
+#endif
+
+instance EmbPrj SerialisedRange where
+  icod_ (SerialisedRange r) =
+    icode2' (P.rangeFile r) (P.rangeIntervals r)
+
+  value = vcase valu where
+    valu [a, b] = SerialisedRange <$> valu2 P.intervalsToRange a b
+    valu _      = malformed
 
 instance EmbPrj C.Name where
   icod_ (C.NoName a b) = icode2 0 a b
@@ -322,10 +344,12 @@ instance EmbPrj A.ModuleName where
   value n           = A.MName `fmap` value n
 
 instance EmbPrj A.Name where
-  icod_ (A.Name a b c d) = icodeMemo nameD nameC a $ icode4' a b c d
+  icod_ (A.Name a b c d) = icodeMemo nameD nameC a $
+    icode4' a b (SerialisedRange c) d
 
   value = vcase valu where
-    valu [a, b, c, d] = valu4 A.Name a b c d
+    valu [a, b, c, d] = valu4 (\a b c -> A.Name a b (underlyingRange c))
+                              a b c d
     valu _            = malformed
 
 instance EmbPrj a => EmbPrj (C.FieldAssignment' a) where

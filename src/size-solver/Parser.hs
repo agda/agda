@@ -89,8 +89,8 @@ rigidOrFlexN x n = (rigidOrFlex x) { offset = fromInteger $ n }
 
 -- * Testing
 
-simplify :: [Constraint] -> [Maybe [Constraint]]
-simplify = map (simplify1 (\ c -> Just [c]))
+simplify :: [Constraint] -> [Either String [Constraint]]
+simplify = map (simplify1 (\ c -> return [c]))
 
 cs = simplify $ map parse
   [ "x<y+ 1"

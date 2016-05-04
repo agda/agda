@@ -77,7 +77,7 @@ It is also possible to define “coinductive families”. It is recommended not 
   data _≈_ : Coℕ → Coℕ → Set where
     zero : zero ≈ zero
     suc  : ∀ {m n} → ∞ (m ≈ n) → suc (♯ m) ≈ suc (♯ n)
-   
+
 The recommended definition is the following one:
 ::
 

@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 
 module Agda.Builtin.List where
 
@@ -14,4 +15,3 @@ data List {a} (A : Set a) : Set a where
 
 {-# COMPILED_DATA List MAlonzo.Code.Agda.Builtin.List.AgdaList [] (:) #-}
 {-# COMPILED_DATA_UHC List __LIST__ __NIL__ __CONS__ #-}
-

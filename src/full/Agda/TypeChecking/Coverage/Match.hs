@@ -56,10 +56,9 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
     matchIt i c = matchClause yesMatchLit mps i c +++
                   matchClause noMatchLit  mps i c
 
-    Yes _   +++ m = m
-    No      +++ _ = No
-    Block x +++ _ = Block x
-    BlockP  +++ _ = BlockP
+    Yes _     +++ m = m
+    No        +++ _ = No
+    m@Block{} +++ _ = m
 
 -- | We use a special representation of the patterns we're trying to match
 --   against a clause. In particular we want to keep track of which variables
@@ -99,11 +98,13 @@ isTrivialMPattern ProjMP{} = False -- or True?
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables are blocking the match.
 data Match a
-  = Yes a                -- ^ Matches unconditionally.
-  | No                   -- ^ Definitely does not match.
-  | Block BlockingVars   -- ^ Could match if non-empty list of blocking variables
-                         --   is instantiated properly.
-  | BlockP               -- ^ Could match if split on possible projections is performed.
+  = Yes a   -- ^ Matches unconditionally.
+  | No      -- ^ Definitely does not match.
+  | Block Any BlockingVars
+            -- ^ Could match if non-empty list of blocking variables
+            --   is instantiated properly.
+            --   Also 'Any' is 'True' if all clauses have a result split.
+            --   (Only then can we do result splitting.)
   deriving (Functor)
 
 -- | Variable blocking a match.
@@ -120,6 +121,7 @@ data BlockingVar  = BlockingVar
   } deriving (Show)
 type BlockingVars = [BlockingVar]
 
+-- | Lens for 'blockingVarCons'.
 mapBlockingVarCons :: (Maybe [ConHead] -> Maybe [ConHead]) -> BlockingVar -> BlockingVar
 mapBlockingVarCons f b = b { blockingVarCons = f (blockingVarCons b) }
 
@@ -144,12 +146,12 @@ zipBlockingVars xs ys = map upd xs
 --   It is left-strict, to be used with @foldr@.
 --   If one clause unconditionally matches ('Yes') we do not look further.
 choice :: Match a -> Match a -> Match a
-choice (Yes a)   _         = Yes a
-choice (Block x) (Block y) = Block (zipBlockingVars x y)
-choice (Block x) (Yes _)   = Block $ overlapping x
-choice (Block x) _         = Block x
-choice BlockP    m         = BlockP
-choice No        m         = m
+choice (Yes a)      _            = Yes a
+choice (Block r xs) (Block s ys) = Block (Any $ getAny r && getAny s) $
+  zipBlockingVars xs ys
+choice (Block r xs) (Yes _)      = Block r $ overlapping xs
+choice m@Block{}    No           = m
+choice No           m            = m
 
 type MatchLit = Literal -> MPat -> Match [MPat]
 
@@ -193,9 +195,9 @@ matchPats mlit ps qs = mconcat $ properMatchesLeft :
   where
     projPatternsLeft =
       let psrest = map unArg $ drop (length qs) ps
-      in  if null $ mapMaybe isProjP psrest -- not $ any properlyMatching psrest
-            then Yes []  -- no proj. patterns left
-            else BlockP  -- proj. patterns left
+      in  case mapMaybe isProjP psrest of -- not $ any properlyMatching psrest
+            [] -> Yes []               -- no proj. patterns left
+            ds -> Block (Any True) []  -- proj. patterns left
     properMatchesLeft =
       if any (properMatch . unArg) $ drop (length ps) qs
       then No else Yes []
@@ -213,7 +215,7 @@ matchPats mlit ps qs = mconcat $ properMatchesLeft :
 --   'Yes' is neutral: for a match, all patterns have to match.
 --
 --   'Block' accumulates variables of the split clause
---   that have to be instantiated
+--   that have to be instantiated (an projection names of copattern matches)
 --   to make the split clause an instance of the function clause.
 --
 --   'BlockP' yields to 'Block', since blocking vars can also
@@ -223,12 +225,10 @@ instance Monoid a => Monoid (Match a) where
   Yes a   `mappend` Yes b   = Yes $ mappend a b
   Yes _   `mappend` m       = m
   No      `mappend` _       = No
-  Block x `mappend` No      = No
-  Block x `mappend` Block y = Block $ mappend x y
-  Block x `mappend` _       = Block x
-  BlockP  `mappend` No      = No
-  BlockP  `mappend` Block y = Block y
-  BlockP  `mappend` _       = BlockP
+  Block{} `mappend` No      = No
+  Block r xs `mappend`
+                 Block s ys = Block (mappend r s) $ mappend xs ys
+  m@Block{} `mappend` Yes{} = m
 
 -- | @matchPat mlit p q@ checks whether a function clause pattern @p@
 --   covers a split clause pattern @q@.  There are three results:
@@ -250,7 +250,7 @@ matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes [] else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
 -- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
 matchPat mlit (ConP c _ ps) q = case q of
-  VarMP x -> Block [BlockingVar x (Just [c])]
+  VarMP x -> Block (Any False) [BlockingVar x (Just [c])]
   WildMP{} -> No -- Andreas, 2013-05-15 this was "Yes()" triggering issue 849
   ConMP c' i qs
     | c == c'   -> matchPats mlit (map (fmap namedThing) ps) qs

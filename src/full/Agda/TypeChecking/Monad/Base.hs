@@ -1086,8 +1086,9 @@ defRelevance = argInfoRelevance . defArgInfo
 
 -- | Non-linear (non-constructor) first-order pattern.
 data NLPat
-  = PVar (Maybe CtxId) !Int
-    -- ^ Matches anything (modulo non-linearity).
+  = PVar (Maybe CtxId) !Int [Arg Int]
+    -- ^ Matches anything (modulo non-linearity) that only contains bound
+    --   variables that occur in the given arguments.
   | PWild
     -- ^ Matches anything (e.g. irrelevant terms).
   | PDef QName PElims
@@ -1096,6 +1097,8 @@ data NLPat
     -- ^ Matches @λ x → t@
   | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
     -- ^ Matches @(x : A) → B@
+  | PSet NLPat
+    -- ^ Matches @Set l@
   | PBoundVar {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
@@ -1174,6 +1177,8 @@ data Definition = Defn
   , defCopy           :: Bool
     -- ^ Has this function been created by a module
                          -- instantiation?
+  , defMatchable      :: Bool
+    -- ^ Is the def matched against in a rewrite rule?
   , theDef            :: Defn
   }
     deriving (Typeable, Show)
@@ -1191,6 +1196,7 @@ defaultDefn info x t def = Defn
   , defCompiledRep    = noCompiledRep
   , defInstance       = Nothing
   , defCopy           = False
+  , defMatchable      = False
   , theDef            = def
   }
 
@@ -2523,6 +2529,10 @@ internalError s = typeError $ InternalError s
 genericError :: MonadTCM tcm => String -> tcm a
 genericError = typeError . GenericError
 
+{-# SPECIALIZE genericDocError :: Doc -> TCM a #-}
+genericDocError :: MonadTCM tcm => Doc -> tcm a
+genericDocError = typeError . GenericDocError
+
 {-# SPECIALIZE typeError :: TypeError -> TCM a #-}
 typeError :: MonadTCM tcm => TypeError -> tcm a
 typeError err = liftTCM $ throwError =<< typeError_ err
@@ -2614,19 +2624,20 @@ instance KillRange Section where
   killRange (Section tel) = killRange1 Section tel
 
 instance KillRange Definition where
-  killRange (Defn ai name t pols occs displ mut compiled inst copy def) =
-    killRange11 Defn ai name t pols occs displ mut compiled inst copy def
+  killRange (Defn ai name t pols occs displ mut compiled inst copy ma def) =
+    killRange11 Defn ai name t pols occs displ mut compiled inst copy ma def
     -- TODO clarify: Keep the range in the defName field?
 
 instance KillRange CtxId where
   killRange (CtxId x) = killRange1 CtxId x
 
 instance KillRange NLPat where
-  killRange (PVar x y) = killRange1 PVar x y
+  killRange (PVar x y z) = killRange3 PVar x y z
   killRange (PWild)    = PWild
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
+  killRange (PSet x)   = killRange1 PSet x
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
 

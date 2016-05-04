@@ -29,6 +29,7 @@
 , regex-tdfa, regex-tdfa-text, filemanip
 , tasty-silver, template-haskell, temporary, text, time
 , transformers, transformers-compat, unordered-containers, xhtml
+, murmur-hash
 , zlib, tasty-quickcheck, monadplus, EdisonCore, EdisonAPI
 , uhc-backend ? false, uhc ? null, uhc-light ? null
 , user-manual ? true, sphinx ? null, sphinx_rtd_theme ? null, texLive ? null
@@ -39,7 +40,7 @@ assert user-manual -> sphinx != null && sphinx_rtd_theme != null && texLive != n
 
 mkDerivation {
   pname = "Agda";
-  version = "2.5.0";
+  version = "2.6.0";
   src = ./.;
   isLibrary = true;
   isExecutable = true;
@@ -49,7 +50,7 @@ mkDerivation {
     hashable hashtables haskeline haskell-src-exts mtl parallel pretty
     process QuickCheck strict template-haskell text time transformers filemanip
     transformers-compat unordered-containers xhtml zlib uhc-light tasty-quickcheck
-    monadplus EdisonCore EdisonAPI
+    monadplus EdisonCore EdisonAPI murmur-hash
   ];
   testDepends = [
     base containers directory filepath process-extras tasty

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP           #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -223,7 +224,8 @@ getDefType f t = do
           ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
-            Just <$> a `piApplyM` pars
+            if length pars < npars then failure "does not supply enough parameters"
+            else Just <$> a `piApplyM` pars
         _ -> failNotDef
   where
     failNotElig = failure "is not eligible for projection-likeness"
@@ -239,15 +241,17 @@ getDefType f t = do
 
 -- | The analogue of 'piApply'.  If @v@ is a value of record type @t@
 --   with field @f@, then @projectTyped v t f@ returns the type of @f v@.
+--   And also the record type (as first result).
 --
 --   Works also for projection-like definitions @f@.
+--   In this case, the first result is not a record type.
 --
 --   Precondition: @t@ is reduced.
-projectTyped :: Term -> Type -> QName -> TCM (Maybe (Term, Type))
+projectTyped :: Term -> Type -> QName -> TCM (Maybe (Dom Type, Term, Type))
 projectTyped v t f = caseMaybeM (getDefType f t) (return Nothing) $ \ tf -> do
-  (dom, b) <- mustBePi tf
+  ifNotPiType tf (const $ return Nothing) {- else -} $ \ dom b -> do
   u <- f `applyDef` (argFromDom dom $> v)
-  return $ Just (u, b `absApp` v)
+  return $ Just (dom, u, b `absApp` v)
 
 -- | Check if a name refers to an eta expandable record.
 {-# SPECIALIZE isEtaRecord :: QName -> TCM Bool #-}

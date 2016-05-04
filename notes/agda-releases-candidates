@@ -1,12 +1,19 @@
 When releasing a release candidate (RC) for a new version of Agda, the
 following procedure can be followed:
 
-* Can we use HACKAGE for realising a release candidate? That is, are
-  the issues mentioned in
+* The $FILES variable represents the files where it is necessary to
+  change the version number.
 
-    https://github.com/haskell/hackage-server/issues/41
-
-  fixed?
+    $FILES=
+      .ghci
+      Agda.cabal (twice)
+      default.nix
+      doc/user-manual/conf.py
+      mk/version.mk
+      src/data/emacs-mode/agda2-mode.el
+      src/size-solver/size-solver.cabal
+      test/interaction/Issue1244a.out
+      test/interaction/Issue1244b.out
 
 * Verify that the Travis builds have no errors.
 
@@ -17,19 +24,9 @@ following procedure can be followed:
 
 * The version of the RC is the current version in master + current date
 
-    RC_VERSION=<current-master-version-current-date-eg-2.5.0.20160212>
+    $RC_VERSION=<current-master-version-current-date-eg-2.5.0.20160212>
 
-* Update the version number in:
-
-    .ghci
-    Agda.cabal (twice)
-    default.nix
-    doc/user-manual/conf.py
-    mk/version.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
+* Update the version numbers to $RC_VERSION in $FILES.
 
 * Obtain and install the standard library branch related to the Agda
   new version.
@@ -75,9 +72,13 @@ following procedure can be followed:
     cd Agda-$RC_VERSION
     cabal install
 
-  Do not forget to test the Emacs mode.
+  Do not forget to test:
 
-* Tag the relase candidate (do not forget to record the changes above
+  ** The Emacs mode
+
+  ** The UHC backend (`cabal install -f uhc`)
+
+* Tag the release candidate (do not forget to record the changes above
   first):
 
     cd $BASE
@@ -87,17 +88,7 @@ following procedure can be followed:
 
 * Restore -Werror and -fprof-auto in Agda.cabal.
 
-* Restore the version number VERSION in:
-
-    .ghci
-    Agda.cabal (twice)
-    default.nix
-    doc/user-manual/conf.py
-    mk/version.mk
-    src/data/emacs-mode/agda2-mode.el
-    src/size-solver/size-solver.cabal
-    test/interaction/Issue1244a.out
-    test/interaction/Issue1244b.out
+* Restore the version numbers $VERSION in $FILES.
 
 * Tag and push the standard library used for testing the release
   candidate (requires Git >= 1.8.3) (untested):

@@ -17,6 +17,7 @@ equality, ordering and a show function.
 
   postulate Name : Set
   {-# BUILTIN QNAME Name #-}
+
   primitive
     primQNameEquality : Name → Name → Bool
     primQNameLess     : Name → Name → Bool
@@ -32,7 +33,7 @@ terms and in patterns
 
   isNat : Name → Bool
   isNat (quote Nat) = true
-  isNat _ = false
+  isNat _           = false
 
 Note that the name being quoted must be in scope.
 
@@ -44,6 +45,7 @@ primitive equality, ordering and show::
 
   postulate Meta : Set
   {-# BUILTIN AGDAMETA Meta #-}
+
   primitive
     primMetaEquality : Meta → Meta → Bool
     primMetaLess     : Meta → Meta → Bool
@@ -61,12 +63,12 @@ has the following shape:
 ::
 
     data Literal : Set where
-      nat    : Nat    → Literal
-      float  : Float  → Literal
-      char   : Char   → Literal
-      string : String → Literal
-      name   : Name   → Literal
-      meta   : Meta   → Literal
+      nat    : (n : Nat)    → Literal
+      float  : (x : Float)  → Literal
+      char   : (c : Char)   → Literal
+      string : (s : String) → Literal
+      name   : (x : Name)   → Literal
+      meta   : (x : Meta)   → Literal
 
     {-# BUILTIN AGDALITERAL   Literal #-}
     {-# BUILTIN AGDALITNAT    nat     #-}
@@ -85,20 +87,20 @@ following data type.
 ::
 
   data Pattern : Set where
-    con    : Name → List (Arg Pattern) → Pattern
+    con    : (c : Name) (ps : List (Arg Pattern)) → Pattern
     dot    : Pattern
-    var    : String → Pattern
-    lit    : Literal → Pattern
+    var    : (s : String)  → Pattern
+    lit    : (l : Literal) → Pattern
+    proj   : (f : Name)    → Pattern
     absurd : Pattern
-    projP  : Name → Pattern
 
   {-# BUILTIN AGDAPATTERN   Pattern #-}
   {-# BUILTIN AGDAPATCON    con     #-}
   {-# BUILTIN AGDAPATDOT    dot     #-}
   {-# BUILTIN AGDAPATVAR    var     #-}
   {-# BUILTIN AGDAPATLIT    lit     #-}
+  {-# BUILTIN AGDAPATPROJ   proj    #-}
   {-# BUILTIN AGDAPATABSURD absurd  #-}
-  {-# BUILTIN AGDAPATPROJ   projP   #-}
 
 Terms
 ~~~~~
@@ -114,16 +116,16 @@ terms. Terms use de Bruijn indices to represent variables.
   Type = Term
 
   data Term where
-    var     : (x : Nat)  (args : List (Arg Term)) → Term
-    con     : (c : Name) (args : List (Arg Term)) → Term
-    def     : (f : Name) (args : List (Arg Term)) → Term
-    meta    : (x : Name) (args : List (Arg Term)) → Term
-    lam     : (v : Visibility) (t : Abs Term) → Term
-    pat-lam : (cs : List Clause) (args : List (Arg Term)) → Term
-    pi      : (t₁ : Arg Type) (t₂ : Abs Type) → Term
-    sort    : (s : Sort) → Term
-    lit     : (l : Literal) → Term
-    unknown : Term    -- Treated as '_' when unquoting.
+    var       : (x : Nat) (args : List (Arg Term)) → Term
+    con       : (c : Name) (args : List (Arg Term)) → Term
+    def       : (f : Name) (args : List (Arg Term)) → Term
+    lam       : (v : Visibility) (t : Abs Term) → Term
+    pat-lam   : (cs : List Clause) (args : List (Arg Term)) → Term
+    pi        : (a : Arg Type) (b : Abs Type) → Term
+    agda-sort : (s : Sort) → Term
+    lit       : (l : Literal) → Term
+    meta      : (x : Meta) → List (Arg Term) → Term
+    unknown   : Term -- Treated as '_' when unquoting.
 
   data Sort where
     set     : (t : Term) → Sort -- A Set of a given (possibly neutral) level.
@@ -131,27 +133,30 @@ terms. Terms use de Bruijn indices to represent variables.
     unknown : Sort
 
   data Clause where
-    clause        : (pats : List (Arg Pattern)) (body : Term) → Clause
-    absurd-clause : (pats : List (Arg Pattern)) → Clause
+    clause        : (ps : List (Arg Pattern)) (t : Term) → Clause
+    absurd-clause : (ps : List (Arg Pattern)) → Clause
 
-  {-# BUILTIN AGDASORT    Sort    #-}
-  {-# BUILTIN AGDATERM    Term    #-}
-  {-# BUILTIN AGDACLAUSE  Clause  #-}
+  {-# BUILTIN AGDASORT    Sort   #-}
+  {-# BUILTIN AGDATERM    Term   #-}
+  {-# BUILTIN AGDACLAUSE  Clause #-}
 
-  {-# BUILTIN AGDATERMVAR         var     #-}
-  {-# BUILTIN AGDATERMCON         con     #-}
-  {-# BUILTIN AGDATERMDEF         def     #-}
-  {-# BUILTIN AGDATERMMETA        meta    #-}
-  {-# BUILTIN AGDATERMLAM         lam     #-}
-  {-# BUILTIN AGDATERMEXTLAM      pat-lam #-}
-  {-# BUILTIN AGDATERMPI          pi      #-}
-  {-# BUILTIN AGDATERMSORT        sort    #-}
-  {-# BUILTIN AGDATERMLIT         lit     #-}
-  {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+  {-# BUILTIN AGDATERMVAR         var       #-}
+  {-# BUILTIN AGDATERMCON         con       #-}
+  {-# BUILTIN AGDATERMDEF         def       #-}
+  {-# BUILTIN AGDATERMMETA        meta      #-}
+  {-# BUILTIN AGDATERMLAM         lam       #-}
+  {-# BUILTIN AGDATERMEXTLAM      pat-lam   #-}
+  {-# BUILTIN AGDATERMPI          pi        #-}
+  {-# BUILTIN AGDATERMSORT        agda-sort #-}
+  {-# BUILTIN AGDATERMLIT         lit       #-}
+  {-# BUILTIN AGDATERMUNSUPPORTED unknown   #-}
 
   {-# BUILTIN AGDASORTSET         set     #-}
   {-# BUILTIN AGDASORTLIT         lit     #-}
   {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+  {-# BUILTIN AGDACLAUSECLAUSE clause        #-}
+  {-# BUILTIN AGDACLAUSEABSURD absurd-clause #-}
 
 Absurd lambdas ``λ ()`` are quoted to extended lambdas with an absurd clause.
 
@@ -168,20 +173,20 @@ below <reflection-tc-monad>`.
 ::
 
   data Definition : Set where
-    funDef          : List Clause → Definition
-    dataDef         : Nat → List Name → Definition -- parameters and constructors
-    recordDef       : Name → Definition -- name of constructor
-    dataConstructor : Name → Definition -- name of data/record type
-    axiom           : Definition
-    primFun         : Definition
+    function    : (cs : List Clause) → Definition
+    data-type   : (pars : Nat) (cs : List Name) → Definition  -- parameters and constructors
+    record-type : (c : Name) → Definition                     -- name of data/record type
+    data-cons   : (d : Name) → Definition                     -- name of constructor
+    axiom       : Definition
+    prim-fun    : Definition
 
-  {-# BUILTIN AGDADEFINITION                Definition      #-}
-  {-# BUILTIN AGDADEFINITIONFUNDEF          funDef          #-}
-  {-# BUILTIN AGDADEFINITIONDATADEF         dataDef         #-}
-  {-# BUILTIN AGDADEFINITIONRECORDDEF       recordDef       #-}
-  {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
-  {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
-  {-# BUILTIN AGDADEFINITIONPRIMITIVE       primFun         #-}
+  {-# BUILTIN AGDADEFINITION                Definition  #-}
+  {-# BUILTIN AGDADEFINITIONFUNDEF          function    #-}
+  {-# BUILTIN AGDADEFINITIONDATADEF         data-type   #-}
+  {-# BUILTIN AGDADEFINITIONRECORDDEF       record-type #-}
+  {-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR data-cons   #-}
+  {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom       #-}
+  {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim-fun    #-}
 
 Type errors
 ~~~~~~~~~~~
@@ -213,9 +218,9 @@ Metaprograms, i.e. programs that create other programs, run in a built-in type
 checking monad ``TC``::
 
   postulate
-    TC         : ∀ {a} → Set a → Set a
-    returnTC   : ∀ {a} {A : Set a} → A → TC A
-    bindTC     : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
+    TC       : ∀ {a} → Set a → Set a
+    returnTC : ∀ {a} {A : Set a} → A → TC A
+    bindTC   : ∀ {a b} {A : Set a} {B : Set b} → TC A → (A → TC B) → TC B
 
   {-# BUILTIN AGDATCM       TC       #-}
   {-# BUILTIN AGDATCMRETURN returnTC #-}
@@ -409,7 +414,7 @@ requires them to already be in scope.
 In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
 ``xᵢ : Name``) rather than the actual functions.
 
-One advantage of unquoteDef over unquoteDecl is that unquoteDef is allowed in
-mutual blocks, allowing mutually recursion between generated definitions and
-hand-written definitions.
+One advantage of ``unquoteDef`` over ``unquoteDecl`` is that
+``unquoteDef`` is allowed in mutual blocks, allowing mutually
+recursion between generated definitions and hand-written definitions.
 

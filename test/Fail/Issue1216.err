@@ -1,4 +1,4 @@
-Issue1216.agda:12,1-26
+Issue1216.agda:12,1-11
 Ill-formed projection pattern ind A
-when checking that the clause ind A loop = ind (loop A) has type
-Set → Coind
+when scope checking the left-hand side ind A loop in the definition
+of loop

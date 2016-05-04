@@ -58,26 +58,21 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
+CABAL_INSTALL=$(CABAL_CMD) install --enable-tests \
+              --disable-documentation --builddir=$(BUILD_DIR)
+
 .PHONY : install-bin
 install-bin :
-	$(CABAL_CMD) install --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
-
-.PHONY : install-O0-bin
-install-O0-bin :
-	$(CABAL_CMD) install -O0 --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
-
-.PHONY : install-O2-bin
-install-O2-bin :
-	$(CABAL_CMD) install -O2 --enable-tests --disable-documentation \
-	  --disable-library-profiling $(CABAL_OPTS)
+	$(CABAL_INSTALL) --disable-library-profiling \
+          $(CABAL_OPTS)
 
 .PHONY : install-prof-bin
 install-prof-bin :
-	$(CABAL_CMD) install --enable-tests --disable-documentation \
-	  --enable-library-profiling --enable-profiling \
+	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
           --program-suffix=_p $(CABAL_OPTS)
+
+# --program-suffix is not for the executable name in
+# $(BUILD_DIR)/build/, only for installing it into .cabal/bin
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
@@ -181,7 +176,6 @@ fail :
 	@echo "======================= Suite of failing tests ======================="
 	@echo "======================================================================"
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/Fail
-	@$(MAKE) -C test/Fail
 
 .PHONY : latex-html-test
 latex-html-test :
@@ -292,6 +286,22 @@ check-whitespace :
 .PHONY : install-fix-agda-whitespace
 install-fix-agda-whitespace :
 	cd src/fix-agda-whitespace && $(CABAL_CMD) install
+
+## size-solver standalone program ############################################
+
+.PHONY : install-size-solver
+install-size-solver :
+	@echo "======================================================================"
+	@echo "============== Installing the size-solver program ===================="
+	@echo "======================================================================"
+	$(MAKE) -C src/size-solver install-bin
+
+.PHONY : test-size-solver
+test-size-solver :
+	@echo "======================================================================"
+	@echo "=============== Testing the size-solver program ======================"
+	@echo "======================================================================"
+	$(MAKE) -C src/size-solver test
 
 ########################################################################
 # HPC

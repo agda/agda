@@ -1,22 +1,15 @@
-When releasing a release candidate (RC) for a bugfix version of Agda,
+When releasing a release candidate (RC) for a stable version of Agda,
 the following procedure can be followed:
-
-* Can we use HACKAGE for realising a release candidate? That is, are
-  the issues mentioned in
-
-    https://github.com/haskell/hackage-server/issues/41
-
-  fixed?
 
 * Verify that the Travis builds have no errors.
 
 * Get a clean Agda repository.
 
     MAJORVERSION=<current-Agda-version-eg-2.4.2>
-    VERSION=<current-maintenance-version-eg-2.4.0.2>
+    VERSION=<current-stable-version-eg-2.4.0.2>
     git clone git@github.com:agda/agda.git agda.release
     cd agda.release
-    git checkout maint-$MAJORVERSION
+    git checkout stable-$MAJORVERSION
 
 * The version of the RC is the current version released + current date
 
@@ -105,7 +98,7 @@ the following procedure can be followed:
     git push --follow-tags
 
     git checkout master
-    git merge maint-$MAJORVERSION
+    git merge stable-$MAJORVERSION
 
 * Push into master
 

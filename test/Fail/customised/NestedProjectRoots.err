@@ -3,7 +3,8 @@ Checking NestedProjectRoots (customised/NestedProjectRoots.agda).
  Finished Imports.A.
  Skipping Imports.A (customised/Imports/A.agdai).
 customised/NestedProjectRoots.agda:3,8-17
-The file customised/Imports/A.agda
+The file
+customised/Imports/A.agda
 can be accessed via several project roots. Both A and Imports.A
 point to this file.
 when scope checking the declaration
@@ -13,7 +14,8 @@ Finished A.
 Checking NestedProjectRoots (customised/NestedProjectRoots.agda).
  Skipping Imports.A (customised/Imports/A.agdai).
 customised/NestedProjectRoots.agda:3,8-17
-The file customised/Imports/A.agda
+The file
+customised/Imports/A.agda
 can be accessed via several project roots. Both A and Imports.A
 point to this file.
 when scope checking the declaration

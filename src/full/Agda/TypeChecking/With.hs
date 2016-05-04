@@ -383,11 +383,13 @@ stripWithClausePatterns parent f t qs perm ps = do
                 "pattern " ++ show d ++ ","
       case namedArg q of
         ProjP d -> case A.isProjP p of
-          Just d' -> do
+          Just (AmbQ ds) -> do
+            let d' = head ds
+            when (length ds /= 1) __IMPOSSIBLE__
             d' <- getOriginalProjection d'
             if d /= d' then mismatch else do
               t <- reduce t
-              (self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
+              (_, self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t d
               -- Andreas, 2016-01-21, issue #1791
               -- The type of a field might start with hidden quantifiers.
               -- So we may have to insert more implicit patterns here.

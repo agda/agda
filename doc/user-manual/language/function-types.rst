@@ -20,3 +20,28 @@ Functions are constructed by lambda abstractions, which can be either typed or u
 
  \ (A : Set)(x : A) → x
  \ A x → x
+
+The application of a function ``f : (x : A) → B`` to an argument ``a : A`` is written ``f a`` and the type of this is ``B[x := a]``.
+
+Notational conventions
+----------------------
+
+Function types:
+::
+
+ (x : A)(y : B) → C    is the same as (x : A) → (y : B) → C
+ (x y : A) → C         is the same as (x : A)(y : A) → C
+ forall (x : A) → C    is the same as (x : A) → C
+ forall x → C          is the same as (x : _) → C
+ forall x y → C        is the same as forall x → forall y → C
+
+You can also use the Unicode symbol ``∀`` (type “\all” in the Emacs Agda mode) instead of forall.
+
+Functional abstraction:::
+
+ \x y → e is the same as \x → (\y → e)
+
+Functional application:::
+
+ f a b is the same as (f a) b.
+

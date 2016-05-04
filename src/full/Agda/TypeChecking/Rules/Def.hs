@@ -727,5 +727,6 @@ containsAbsurdPattern p = case p of
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.RecP _ fs   -> any (containsAbsurdPattern . (^. exprFieldA)) fs
-    A.DefP _ _ _  -> False  -- projection pattern
+    A.ProjP _ _   -> False
+    A.DefP _ _ ps -> any (containsAbsurdPattern . namedArg) ps
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False

@@ -52,8 +52,8 @@ type Args = [NamedArg Expr]
 data Expr
   = Var  Name                          -- ^ Bound variable.
   | Def  QName                         -- ^ Constant: axiom, function, data or record type.
-  | Proj QName                         -- ^ Projection.
-  | Con  AmbiguousQName                -- ^ Constructor.
+  | Proj AmbiguousQName                -- ^ Projection (overloaded).
+  | Con  AmbiguousQName                -- ^ Constructor (overloaded).
   | PatternSyn QName                   -- ^ Pattern synonym.
   | Macro QName                        -- ^ Macro.
   | Lit Literal                        -- ^ Literal.
@@ -264,7 +264,7 @@ data RHS
 
 -- | The lhs of a clause in spine view (inside-out).
 --   Projection patterns are contained in @spLhsPats@,
---   represented as @DefP d []@.
+--   represented as @ProjP d@.
 data SpineLHS = SpineLHS
   { spLhsInfo     :: LHSInfo             -- ^ Range.
   , spLhsDefName  :: QName               -- ^ Name of function we are defining.
@@ -294,11 +294,8 @@ data LHSCore' e
              , lhsPats     :: [NamedArg (Pattern' e)]  -- ^ Applied to patterns @ps@.
              }
     -- | Projection
-  | LHSProj  { lhsDestructor :: QName
+  | LHSProj  { lhsDestructor :: AmbiguousQName
                -- ^ Record projection identifier.
-             , lhsPatsLeft   :: [NamedArg (Pattern' e)]
-               -- ^ Indices of the projection.
-               --   Currently none @[]@, since we do not have indexed records.
              , lhsFocus      :: NamedArg (LHSCore' e)
                -- ^ Main branch.
              , lhsPatsRight  :: [NamedArg (Pattern' e)]
@@ -331,29 +328,27 @@ instance LHSToSpine LHS SpineLHS where
 
 lhsCoreToSpine :: LHSCore' e -> A.QNamed [NamedArg (Pattern' e)]
 lhsCoreToSpine (LHSHead f ps) = QNamed f ps
-lhsCoreToSpine (LHSProj d ps1 h ps2) = (++ (p : ps2)) <$> lhsCoreToSpine (namedArg h)
-  where p = updateNamedArg (const $ DefP patNoRange d ps1) h
+lhsCoreToSpine (LHSProj d h ps) = (++ (p : ps)) <$> lhsCoreToSpine (namedArg h)
+  where p = updateNamedArg (const $ ProjP patNoRange d) h
 
 spineToLhsCore :: QNamed [NamedArg (Pattern' e)] -> LHSCore' e
 spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
 
 -- | Add applicative patterns (non-projection patterns) to the right.
 lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
-lhsCoreApp (LHSHead f ps)        ps' = LHSHead f $ ps ++ ps'
-lhsCoreApp (LHSProj d ps1 h ps2) ps' = LHSProj d ps1 h $ ps2 ++ ps'
+lhsCoreApp (LHSHead f ps)   ps' = LHSHead f   $ ps ++ ps'
+lhsCoreApp (LHSProj d h ps) ps' = LHSProj d h $ ps ++ ps'
 
 -- | Add projection and applicative patterns to the right.
 lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreAddSpine core ps = case ps2 of
-    (Arg info (Named n (DefP i d ps0)) : ps2') ->
-       LHSProj d ps0 (Arg info $ Named n $ lhsCoreApp core ps1) []
+    (Arg info (Named n (ProjP i d)) : ps2') ->
+       LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
          `lhsCoreAddSpine` ps2'
     [] -> lhsCoreApp core ps
     _ -> __IMPOSSIBLE__
   where
-    (ps1, ps2) = break (isDefP . namedArg) ps
-    isDefP DefP{} = True
-    isDefP _      = False
+    (ps1, ps2) = break (isJust . isProjP . namedArg) ps
 
 -- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
@@ -363,15 +358,14 @@ lhsCoreAllPatterns = map namedArg . qnamed . lhsCoreToSpine
 lhsCoreToPattern :: LHSCore -> Pattern
 lhsCoreToPattern lc =
   case lc of
-    LHSHead f aps -> DefP noInfo f aps
-    LHSProj d aps1 lhscore aps2 -> DefP noInfo d $
-      aps1 ++ fmap (fmap lhsCoreToPattern) lhscore : aps2
+    LHSHead f aps -> DefP noInfo (AmbQ [f]) aps
+    LHSProj d lhscore aps -> DefP noInfo d $
+      fmap (fmap lhsCoreToPattern) lhscore : aps
   where noInfo = patNoRange -- TODO, preserve range!
 
 mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
-mapLHSHead f (LHSHead x ps)        = f x ps
-mapLHSHead f (LHSProj d ps1 l ps2) =
-  LHSProj d ps1 (fmap (fmap (mapLHSHead f)) l) ps2
+mapLHSHead f (LHSHead x ps)   = f x ps
+mapLHSHead f (LHSProj d l ps) = LHSProj d (fmap (fmap (mapLHSHead f)) l) ps
 
 ---------------------------------------------------------------------------
 -- * Patterns
@@ -381,8 +375,12 @@ mapLHSHead f (LHSProj d ps1 l ps2) =
 data Pattern' e
   = VarP Name
   | ConP ConPatInfo AmbiguousQName [NamedArg (Pattern' e)]
-  | DefP PatInfo QName          [NamedArg (Pattern' e)]
-    -- ^ Defined pattern: function definition @f ps@ or destructor pattern @d p ps@.
+  | ProjP PatInfo AmbiguousQName
+    -- ^ Destructor pattern @d@.
+  | DefP PatInfo AmbiguousQName [NamedArg (Pattern' e)]
+    -- ^ Defined pattern: function definition @f ps@.
+    --   It is also abused to convert destructor patterns into concrete syntax
+    --   thus, we put AmbiguousQName here as well.
   | WildP PatInfo
     -- ^ Underscore pattern entered by user.
     --   Or generated at type checking for implicit arguments.
@@ -399,11 +397,11 @@ type Patterns = [NamedArg Pattern]
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
-  isProjP :: a -> Maybe QName
+  isProjP :: a -> Maybe AmbiguousQName
 
 instance IsProjP (Pattern' e) where
-  isProjP (DefP _ d []) = Just d
-  isProjP _             = Nothing
+  isProjP (ProjP _ d) = Just d
+  isProjP _           = Nothing
 
 instance IsProjP a => IsProjP (Arg a) where
   isProjP = isProjP . unArg
@@ -557,6 +555,7 @@ instance HasRange Declaration where
 instance HasRange (Pattern' e) where
     getRange (VarP x)            = getRange x
     getRange (ConP i _ _)        = getRange i
+    getRange (ProjP i _)         = getRange i
     getRange (DefP i _ _)        = getRange i
     getRange (WildP i)           = getRange i
     getRange (AsP i _ _)         = getRange i
@@ -574,7 +573,7 @@ instance HasRange LHS where
 
 instance HasRange (LHSCore' e) where
     getRange (LHSHead f ps) = fuseRange f ps
-    getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
+    getRange (LHSProj d lhscore ps) = d `fuseRange` lhscore `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
     getRange (Clause lhs rhs ds catchall) = getRange (lhs,rhs,ds)
@@ -596,7 +595,8 @@ instance HasRange LetBinding where
 instance SetRange (Pattern' a) where
     setRange r (VarP x)             = VarP (setRange r x)
     setRange r (ConP i ns as)       = ConP (setRange r i) ns as
-    setRange r (DefP _ n as)        = DefP (PatRange r) (setRange r n) as
+    setRange r (ProjP _ ns)         = ProjP (PatRange r) ns
+    setRange r (DefP _ ns as)       = DefP (PatRange r) ns as -- (setRange r n) as
     setRange r (WildP _)            = WildP (PatRange r)
     setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
     setRange r (DotP _ e)           = DotP (PatRange r) e
@@ -677,6 +677,7 @@ instance KillRange ModuleApplication where
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)            = killRange1 VarP x
   killRange (ConP i a b)        = killRange3 ConP i a b
+  killRange (ProjP i a)         = killRange2 ProjP i a
   killRange (DefP i a b)        = killRange3 DefP i a b
   killRange (WildP i)           = killRange1 WildP i
   killRange (AsP i a b)         = killRange3 AsP i a b
@@ -693,8 +694,8 @@ instance KillRange LHS where
   killRange (LHS i a b)   = killRange3 LHS i a b
 
 instance KillRange e => KillRange (LHSCore' e) where
-  killRange (LHSHead a b)     = killRange2 LHSHead a b
-  killRange (LHSProj a b c d) = killRange4 LHSProj a b c d
+  killRange (LHSHead a b)   = killRange2 LHSHead a b
+  killRange (LHSProj a b c) = killRange3 LHSProj a b c
 
 instance KillRange a => KillRange (Clause' a) where
   killRange (Clause lhs rhs ds catchall) = killRange4 Clause lhs rhs ds catchall
@@ -878,7 +879,7 @@ nameExpr :: AbstractName -> Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
     mk DefName        x = Def x
-    mk FldName        x = Proj x
+    mk FldName        x = Proj $ AmbQ [x]
     mk ConName        x = Con $ AmbQ [x]
     mk PatternSynName x = PatternSyn x
     mk MacroName      x = Macro x
@@ -896,8 +897,10 @@ patternToExpr :: Pattern -> Expr
 patternToExpr (VarP x)            = Var x
 patternToExpr (ConP _ c ps)       =
   Con c `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (DefP _ f ps)       =
+patternToExpr (ProjP _ ds)        = Proj ds
+patternToExpr (DefP _ (AmbQ [f]) ps) =
   Def f `app` map (fmap (fmap patternToExpr)) ps
+patternToExpr (DefP _ (AmbQ _) ps) = __IMPOSSIBLE__
 patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ e)          = e
@@ -919,6 +922,7 @@ substPattern s p = case p of
   VarP z        -> fromMaybe p (lookup z s)
   ConP i q ps   -> ConP i q (map (fmap (fmap (substPattern s))) ps)
   RecP i ps     -> RecP i (map (fmap (substPattern s)) ps)
+  ProjP i ds    -> p
   WildP i       -> p
   DotP i e      -> DotP i (substExpr (map (fmap patternToExpr) s) e)
   AbsurdP i     -> p

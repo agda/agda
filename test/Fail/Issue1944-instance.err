@@ -1,0 +1,4 @@
+Issue1944-instance.agda:23,14-20
+Cannot resolve overloaded projection test because principal
+argument is not of record type
+when checking that the expression test x has type Bool

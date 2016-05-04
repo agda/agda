@@ -692,7 +692,6 @@ buildOccurrenceGraph qs =
     defGraph :: QName -> TCM [Graph.Edge Node Node Edge]
     defGraph q = do
       occs <- computeOccurrences' q
-      es   <- computeEdges qs q occs
 
       reportSDoc "tc.pos.occs" 40 $
         (text "Occurrences in" <+> prettyTCM q <> text ":")
@@ -712,6 +711,11 @@ buildOccurrenceGraph qs =
                      $+$
                    (nest 2 $ vcat $ map (text . show) os))
                (Map.toList (flatten occs)))
+
+      -- Placing this line before the reportSDoc lines above creates a
+      -- space leak: occs is retained for too long.
+      es <- computeEdges qs q occs
+
       reportSDoc "tc.pos.occs.edges" 60 $
         text "Edges:"
           $+$

@@ -1,0 +1,3 @@
+Issue1944-checkParams.agda:25,18-19
+Invalid projection parameter  {{A = A}}
+when checking that the expression f {{A = A}} r has type _15 A B a

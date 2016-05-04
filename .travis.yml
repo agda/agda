@@ -209,8 +209,18 @@ install:
 # `$HOME/.local/bin`.
 
   - if [[ $TEST = "doc" ]]; then
-       pip install --user -U sphinx-rtd-theme &&
+       pip install --user -r doc/user-manual/requirements.txt &&
        export PATH=$HOME/.local/bin:$PATH;
+    fi
+
+##############################################################################
+# Installing size-solver and shelltestrunner
+
+# Required for testing the size-solver program.
+
+  - if [[ $TEST = "main" ]]; then
+       make install-size-solver &&
+       cabal install shelltestrunner;
     fi
 
 ##############################################################################
@@ -231,7 +241,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR fail;
+       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR fail;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -243,7 +253,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -266,20 +276,27 @@ script:
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
 
+# 2016-04-15: The option `AGDA_TESTS_OPTIONS="-j${JOBS}"` doesn't work
+# with the `compiler-test`.
+
   - if [[ $TEST = "main" ]]; then
        make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR compiler-test;
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make BUILD_DIR=$BUILD_DIR lib-succeed;
+       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR lib-succeed;
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="" BUILD_DIR=$BUILD_DIR lib-interaction;
+       make BUILD_DIR=$BUILD_DIR lib-interaction;
     fi
 
   - if [[ $TEST = "main" ]]; then
        make BUILD_DIR=$BUILD_DIR TAGS;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
+       make test-size-solver;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -333,3 +350,4 @@ branches:
   only:
     - master
     - maint-2.4
+    - stable-2.5
