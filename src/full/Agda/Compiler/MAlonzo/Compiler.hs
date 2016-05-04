@@ -133,8 +133,7 @@ imports = (++) <$> hsImps <*> imps where
   decl m = HS.ImportDecl dummy m True False False Nothing Nothing Nothing
 
   mnames :: TCM [ModuleName]
-  mnames = (++) <$> (Set.elems <$> use stImportedModules)
-                <*> (List.map fst . iImportedModules <$> curIF)
+  mnames = Set.elems <$> use stImportedModules
 
   uniq :: [HS.ModuleName] -> [HS.ModuleName]
   uniq = List.map head . List.group . List.sort
