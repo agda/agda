@@ -83,6 +83,34 @@ Language
     unapplied : R A -> A
     unapplied = f
 
+* Projection parameters [Issue #1954].
+
+  When copying a module, projection parameters will now stay hidden
+  arguments, even if the module parameters are visible.
+  This matches the situation we had for constructors since long.
+  Example:
+
+    module P (A : Set) where
+      record R : Set where
+        field f : A
+
+    open module Q A = P A
+
+  Parameter A is now hidden in R.f:
+
+    test : ∀{A} → R A → A
+    test r = R.f r
+
+  Note that a module parameter that corresponds to the record value
+  argument of a projection will not be hidden.
+
+    module M (A : Set) (r : R A) where
+      open R A r public
+
+    test' : ∀{A} → R A → A
+    test' r = M.f r
+
+
 Emacs mode
 ==========
 

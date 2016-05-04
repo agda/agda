@@ -70,8 +70,15 @@ addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
-              Constructor{} -> fmap (setHiding Hidden) tel
-              _             -> tel
+              Constructor{} -> fmap hideOrKeepInstance tel
+              Function{ funProjection = Just Projection{ projProper = Just{}, projIndex = n } } ->
+                let fallback = fmap hideOrKeepInstance tel in
+                if n > 0 then fallback else
+                -- if the record value is part of the telescope, its hiding should left unchanged
+                  case initLast $ telToList tel of
+                    Nothing -> fallback
+                    Just (doms, dom) -> telFromList $ fmap hideOrKeepInstance doms ++ [dom]
+              _ -> tel
   let d' = abstract tel' $ d { defName = q }
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
   modifySignature $ updateDefinitions $ HMap.insertWith (+++) q d'
