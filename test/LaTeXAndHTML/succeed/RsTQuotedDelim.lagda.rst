@@ -7,7 +7,7 @@ av
         false : Bool
         dunno : Bool
         aa : {- :: -} Bool
-        
+
 blip :: blop
 
        a : Bool

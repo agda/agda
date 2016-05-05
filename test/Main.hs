@@ -11,6 +11,7 @@ import qualified Succeed.Tests as SUCCEED
 import qualified Fail.Tests as FAIL
 import qualified LaTeXAndHTML.Tests as LATEXHTML
 import qualified LibSucceed.Tests as LIBSUCCEED
+import qualified UserManual.Tests as USERMANUAL
 
 import Test.Tasty as T
 import Test.Tasty.Silver.Interactive as TM
@@ -50,6 +51,7 @@ tests =
              , FAIL.tests
              , SUCCEED.tests
              , LIBSUCCEED.tests
+             , USERMANUAL.tests
              ]
 
 disabledTests :: [RegexFilter]

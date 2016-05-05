@@ -1,5 +1,5 @@
 ::
-   {- The only thing in between 
+   {- The only thing in between
 
 ::
       is markup -}

@@ -3,7 +3,7 @@ Queso!
 aaa
 
 ..
-  :: 
+  ::
     module TrailingColon where
 
         data Bool : Set where
