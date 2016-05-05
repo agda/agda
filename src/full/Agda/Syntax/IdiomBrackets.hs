@@ -35,8 +35,8 @@ appViewM e =
     onlyVisible a
       | defaultNamedArg () == (fmap (() <$) a) = return $ namedArg a
       | otherwise = genericError $ "Only regular arguments are allowed in idiom brackets (no implicit or instance arguments)"
-    noPlaceholder Placeholder{}     = genericError "Naked sections are not allowed in idiom brackets"
-    noPlaceholder (NoPlaceholder x) = return x
+    noPlaceholder Placeholder{}       = genericError "Naked sections are not allowed in idiom brackets"
+    noPlaceholder (NoPlaceholder _ x) = return x
 
     ordinary (Ordinary a) = return a
     ordinary _ = genericError "Binding syntax is not allowed in idiom brackets"
@@ -47,4 +47,3 @@ ensureInScope q = do
   case r of
     UnknownName -> genericError $ show q ++ " needs to be in scope to use idiom brackets (| ... |)"
     _ -> return ()
-
