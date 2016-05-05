@@ -176,6 +176,33 @@ Finding the commit that introduced a regression
     git reset --hard
     exit $status
 
+Cherry-picking a commit from master into stable
+------------------------------------------------
+
+For cherry-picking the commit 123 from master into stable, you can use
+the follow instructions:
+
+  * To create two local repositories, one on master and one on
+    stable (both up-to-date).
+
+  * Fetch the local master from the local stable
+
+      agda-stable$ git fetch ~/agda-master
+
+  * Cherry-pick the commit 123 into the local stable
+
+      agda-stable$ git cherry-pick 123
+
+  * Merge the local stable into the local master
+
+      agda-master$ git fetch ~/agda-stable
+      agda-master$ git merge FETCH_HEAD
+
+  * Push both local repositories
+
+      agda-stable$ git push
+      agda-master$ git push
+
 Standard library submodule
 --------------------------
 
