@@ -18,6 +18,7 @@ import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
 import Data.Foldable
 import Data.Hashable
+import qualified Data.Strict.Maybe as Strict
 import Data.Monoid
 import Data.Traversable
 import Data.Typeable (Typeable)
@@ -768,32 +769,49 @@ instance NFData MetaId where
 
 newtype Constr a = Constr a
 
-data Placeholder
+------------------------------------------------------------------------
+-- * Placeholders (used to parse sections)
+------------------------------------------------------------------------
+
+-- | The position of a name part or underscore in a name.
+
+data PositionInName
   = Beginning
-    -- ^ @_foo@.
+    -- ^ The following underscore is at the beginning of the name:
+    -- @_foo@.
   | Middle
-    -- ^ @foo_bar@.
+    -- ^ The following underscore is in the middle of the name:
+    -- @foo_bar@.
   | End
-    -- ^ @foo_@.
+    -- ^ The following underscore is at the end of the name: @foo_@.
   deriving (Show, Eq, Ord)
 
 -- | Placeholders are used to represent the underscores in a section.
+
 data MaybePlaceholder e
-  = Placeholder !Placeholder
-  | NoPlaceholder e
+  = Placeholder !PositionInName
+  | NoPlaceholder !(Strict.Maybe PositionInName) e
+    -- ^ The second argument is used only (but not always) for name
+    -- parts other than underscores.
   deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable, Show)
 
+-- | An abbreviation: @noPlaceholder = 'NoPlaceholder'
+-- 'Strict.Nothing'@.
+
+noPlaceholder :: e -> MaybePlaceholder e
+noPlaceholder = NoPlaceholder Strict.Nothing
+
 instance HasRange a => HasRange (MaybePlaceholder a) where
-  getRange Placeholder{}     = noRange
-  getRange (NoPlaceholder e) = getRange e
+  getRange Placeholder{}       = noRange
+  getRange (NoPlaceholder _ e) = getRange e
 
 instance KillRange a => KillRange (MaybePlaceholder a) where
-  killRange p@Placeholder{}   = p
-  killRange (NoPlaceholder e) = killRange1 NoPlaceholder e
+  killRange p@Placeholder{}     = p
+  killRange (NoPlaceholder p e) = killRange1 (NoPlaceholder p) e
 
 instance NFData a => NFData (MaybePlaceholder a) where
-  rnf (Placeholder _)   = ()
-  rnf (NoPlaceholder a) = rnf a
+  rnf (Placeholder _)     = ()
+  rnf (NoPlaceholder _ a) = rnf a
 
 ---------------------------------------------------------------------------
 -- * Interaction meta variables

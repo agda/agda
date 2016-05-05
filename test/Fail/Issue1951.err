@@ -1,0 +1,7 @@
+Issue1951.agda:14,12-21
+Could not parse the application ƛ !_ ⟶ !_
+Operators used in the grammar:
+  ƛ_⟶ (prefix notation, level 20) [Id (Issue1951.agda:1,1-3)]
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
+when scope checking ƛ !_ ⟶ !_

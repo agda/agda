@@ -452,9 +452,9 @@ buildParsers r flat kind exprNames = do
             nonAssoc = case filter (isInfix NonAssoc) ops of
               []  -> Nothing
               ops -> Just $ do
-                x <- NoPlaceholder <$> higher
+                x <- noPlaceholder <$> higher
                 f <- choice In ops
-                y <- NoPlaceholder <$> higher
+                y <- noPlaceholder <$> higher
                 return (f x y)
 
             or p1 []   p2 []   = Nothing
@@ -466,7 +466,7 @@ buildParsers r flat kind exprNames = do
             preRight =
               or (choice Pre)
                  (filter isPrefix ops)
-                 (\ops -> flip ($) <$> (NoPlaceholder <$> higher)
+                 (\ops -> flip ($) <$> (noPlaceholder <$> higher)
                                    <*> choice In ops)
                  (filter (isInfix RightAssoc) ops)
 
@@ -474,14 +474,14 @@ buildParsers r flat kind exprNames = do
             preRights = do
               preRight <- preRight
               return $ Data.Function.fix $ \preRights ->
-                preRight <*> (NoPlaceholder <$> (preRights <|> higher))
+                preRight <*> (noPlaceholder <$> (preRights <|> higher))
 
             postLeft :: Maybe (Parser e (MaybePlaceholder e -> e))
             postLeft =
               or (choice Post)
                  (filter isPostfix ops)
                  (\ops -> flip <$> choice In ops
-                               <*> (NoPlaceholder <$> higher))
+                               <*> (noPlaceholder <$> higher))
                  (filter (isInfix LeftAssoc) ops)
 
             postLefts :: Maybe (Parser e e)
@@ -489,7 +489,7 @@ buildParsers r flat kind exprNames = do
               postLeft <- postLeft
               return $ Data.Function.fix $ \postLefts ->
                 memoise (PostLeftsK key) $
-                  flip ($) <$> (NoPlaceholder <$> (postLefts <|> higher))
+                  flip ($) <$> (noPlaceholder <$> (postLefts <|> higher))
                            <*> postLeft
 
 ---------------------------------------------------------------------------

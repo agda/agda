@@ -12,6 +12,7 @@ import Prelude hiding (null)
 
 import Data.Functor
 import Data.Maybe
+import qualified Data.Strict.Maybe as Strict
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete
@@ -105,8 +106,8 @@ instance Pretty (OpApp Expr) where
   pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)
 
 instance Pretty a => Pretty (MaybePlaceholder a) where
-  pretty Placeholder{}     = text "_"
-  pretty (NoPlaceholder e) = pretty e
+  pretty Placeholder{}       = text "_"
+  pretty (NoPlaceholder _ e) = pretty e
 
 instance Pretty Expr where
     pretty e =
@@ -511,7 +512,7 @@ instance Pretty Pattern where
             IdentP x        -> pretty x
             AppP p1 p2      -> sep [ pretty p1, nest 2 $ pretty p2 ]
             RawAppP _ ps    -> fsep $ map pretty ps
-            OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap NoPlaceholder)) ps)
+            OpAppP _ q _ ps -> fsep $ prettyOpApp q (fmap (fmap (fmap (NoPlaceholder Strict.Nothing))) ps)
             HiddenP _ p     -> braces' $ pretty p
             InstanceP _ p   -> dbraces $ pretty p
             ParenP _ p      -> parens $ pretty p
@@ -545,7 +546,7 @@ prettyOpApp q es = merge [] $ prOp ms xs es
 
     -- Section underscores should be printed without surrounding
     -- whitespace. This function takes care of that.
-    merge :: [Doc] -> [(Doc, Maybe Placeholder)] -> [Doc]
+    merge :: [Doc] -> [(Doc, Maybe PositionInName)] -> [Doc]
     merge before []                            = reverse before
     merge before ((d, Nothing) : after)        = merge (d : before) after
     merge before ((d, Just Beginning) : after) = mergeRight before d after
