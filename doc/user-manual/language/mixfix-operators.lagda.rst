@@ -41,7 +41,7 @@ Precedence
 Consider the expression ``true and false ⇒ false``.
 Depending on which of ``_and_`` and ``_⇒_`` has more precedence,
 it can either be read as ``(false and true) ⇒ false = true``,
-or as ``false and (true ⇒ false) = true``. 
+or as ``false and (true ⇒ false) = true``.
 
 Each operator is associated to a precedence, which is a natural number.
 The default precedence for an operator is 20.
@@ -51,16 +51,16 @@ If we give ``_and_`` more precedence than ``_⇒_``, then we will get the first 
   infix 30 _and_
   -- infix 20 _⇒_ (default)
 
-  p-and : {x y z : Bool} →  x and y ⇒ z  ≡  (x and y) ⇒ z 
+  p-and : {x y z : Bool} →  x and y ⇒ z  ≡  (x and y) ⇒ z
   p-and = refl
 
   e-and : false and true ⇒ false  ≡  true
   e-and = refl
 
 But, if we declare a new operator ``_and’_``
-and give it less precedence than 
+and give it less precedence than
 ``_⇒_``, then we will get the second result::
-  
+
   _and’_ : Bool → Bool → Bool
   _and’_ = _and_
   infix 15 _and’_
@@ -83,7 +83,7 @@ respectively.
 
 If we declare an operator ``_⇒_`` as ``infixr``, it will associate to the right::
 
-  infixr 20 _⇒_ 
+  infixr 20 _⇒_
 
   p-right : {x y z : Bool} →  x ⇒ y ⇒ z  ≡  x ⇒ (y ⇒ z)
   p-right = refl
@@ -93,7 +93,7 @@ If we declare an operator ``_⇒_`` as ``infixr``, it will associate to the righ
 
 If we declare an operator ``_⇒’_`` as ``infixl``, it will associate to the left::
 
-  infixl 20 _⇒’_ 
+  infixl 20 _⇒’_
 
   _⇒’_ : Bool → Bool → Bool
   _⇒’_ = _⇒_
@@ -107,21 +107,21 @@ If we declare an operator ``_⇒’_`` as ``infixl``, it will associate to the l
 
 Ambiguity and Scope
 ===================
-  
+
 If you have not yet declared the fixity of an operator, Agda will
 complain if you try to use ambiguously:
 
 .. code-block:: agda
 
-  e-ambiguous : Bool                
+  e-ambiguous : Bool
   e-ambiguous = true ⇒ true ⇒ true
 
-.. code-block:: none  
+.. code-block:: none
 
   Could not parse the application true ⇒ true ⇒ true
   Operators used in the grammar:
     ⇒ (infix operator, level 20)
-  
+
 
 Fixity declarations may appear anywhere in a module that other
 declarations may appear. They then apply to the entire scope in which

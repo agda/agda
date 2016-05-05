@@ -129,7 +129,7 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed lib-interaction
+test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test
 
 .PHONY : quicktest
 quicktest : succeed fail
@@ -263,6 +263,14 @@ benchmark-without-logs :
 	@echo "============ Benchmark suite without creating logs ==================="
 	@echo "======================================================================"
 	@$(MAKE) -C benchmark without-creating-logs
+
+.PHONY : user-manual-test
+user-manual-test :
+	@echo "======================================================================"
+	@echo "=========================== User manual =============================="
+	@echo "======================================================================"
+	@find doc/user-manual -type f -name '*.agdai' -delete
+	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual
 
 ## Clean ##################################################################
 
