@@ -839,12 +839,12 @@ instance PrettyTCM TypeError where
         unambiguous e = pretty e
 
         isOrdinary :: MaybePlaceholder (C.OpApp e) -> Bool
-        isOrdinary (NoPlaceholder (C.Ordinary _)) = True
-        isOrdinary _                              = False
+        isOrdinary (NoPlaceholder _ (C.Ordinary _)) = True
+        isOrdinary _                                = False
 
         fromOrdinary :: MaybePlaceholder (C.OpApp e) -> e
-        fromOrdinary (NoPlaceholder (C.Ordinary e)) = e
-        fromOrdinary _                              = __IMPOSSIBLE__
+        fromOrdinary (NoPlaceholder _ (C.Ordinary e)) = e
+        fromOrdinary _                                = __IMPOSSIBLE__
 
         isPlaceholder :: MaybePlaceholder a -> Bool
         isPlaceholder Placeholder{}   = True

@@ -2070,9 +2070,9 @@ toAbstractOpApp op ns es = do
       ScopeM ([A.LamBinding], [NamedArg (Either A.Expr (OpApp e))])
     replacePlaceholders []       = return ([], [])
     replacePlaceholders (a : as) = case namedArg a of
-      NoPlaceholder x -> mapSnd (set (Right x) a :) <$>
-                           replacePlaceholders as
-      Placeholder p   -> do
+      NoPlaceholder _ x -> mapSnd (set (Right x) a :) <$>
+                             replacePlaceholders as
+      Placeholder _     -> do
         x <- freshName noRange "section"
         let i = argInfo a
         (ls, ns) <- replacePlaceholders as
