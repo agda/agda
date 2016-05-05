@@ -1,3 +1,7 @@
+..
+  ::
+  module tools.compilers where
+
 .. _compilers:
 
 ***********
@@ -36,7 +40,7 @@ Example
 The following "Hello, World!" example requires some :ref:`built-ins`
 and `Pragmas`_:
 
-.. code-block:: agda
+::
 
   module HelloWorld where
 
