@@ -89,7 +89,7 @@ requireOptionRewriting =
 
 -- | Check that the name given to the BUILTIN REWRITE is actually
 --   a relation symbol.
---   I.e., its type should be of the form @Δ → (lhs rhs : A) → Set ℓ@.
+--   I.e., its type should be of the form @Δ → (lhs : A) (rhs : B) → Set ℓ@.
 --   Note: we do not care about hiding/non-hiding of lhs and rhs.
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
@@ -102,12 +102,7 @@ verifyBuiltinRewrite v t = do
     (failure $ text "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
     case ignoreSharing (unEl core) of
-      Sort{} -> do
-        -- Check that the types of the last two arguments are equal.
-        unlessM (tryConversion $
-                   inTopContext $ addContext tel $ escapeContext 1 $
-                     equalType (raise 1 a) b) $
-          failure $ text $ "because the types of the last two arguments are different"
+      Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
