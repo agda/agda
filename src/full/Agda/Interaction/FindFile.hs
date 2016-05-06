@@ -191,6 +191,9 @@ dropAgdaExtension s = case catMaybes [ stripExtension ext s
                                      | ext <- sourceFileExts ] of
     [name] -> name
     _      -> __IMPOSSIBLE__
+  where
+    stripExtension :: String -> String -> Maybe String
+    stripExtension e = fmap reverse . stripPrefix (reverse e) . reverse
 
 rootNameModule :: AbsolutePath -> String
 rootNameModule = dropAgdaExtension . snd . splitFileName . filePath

@@ -7,7 +7,6 @@ import qualified Data.Text as T
 import System.Exit
 
 import Control.Applicative
-import Data.Functor.Identity (runIdentity)
 import System.Environment
 import Data.Maybe
 import Data.Char
@@ -71,6 +70,9 @@ dropAgdaExtension' p =  stripExtension ".agda" p
                         <|> stripExtension ".lagda" p
                         <|> stripExtension ".lagda.tex" p
                         <|> stripExtension ".lagda.rst" p
+  where
+    stripExtension :: String -> FilePath -> Maybe FilePath
+    stripExtension e = fmap reverse . stripPrefix (reverse e) . reverse
 
 dropAgdaExtension :: FilePath -> FilePath
 dropAgdaExtension p =
