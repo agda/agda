@@ -4,6 +4,54 @@
 
 Important changes since 2.5.1:
 
+Installation and infrastructure
+===============================
+
+* Modular support for literate programming
+
+  Literate programming support has been moved out of the lexer and into the
+  `Agda.Syntax.Parser.Literate` module.
+
+  Files ending in `.lagda` are still interpreted as literate TeX.
+  The extension `.lagda.tex` may now also be used for literate TeX files.
+
+  Support for more literate code formats and extensions can be added modularly.
+
+  By default, `.lagda.*` files are opened in the Emacs mode
+  corresponding to their last extension.  One may switch to and from
+  Agda mode manually.
+
+* reStructuredText
+
+  Literate Agda code can now be written in reStructuredText format, using
+  the `.lagda.rst` extension.
+
+  As a general rule, Agda will parse code following a line ending in `::`,
+  as long as that line does not start with `..`. The module name must
+  match the path of the file in the documentation, and must be given
+  explicitly.  Two files have been converted already:
+
+  - `language/mixfix-operators.lagda.rst`
+  - `tools/compilers.lagda.rst`
+
+  Note that:
+
+  - Code blocks inside an rST comment block will be type-checked by Agda,
+    but not rendered in the documentation.
+  - Code blocks delimited by `.. code-block:: agda` will be rendered in
+    the final documenation, but not type-checked by Agda.
+  - All lines inside a codeblock must be further indented than the first line
+    of the code block.
+  - Indentation must be consistent between code blocks. In other
+    words, the file as a whole must be a valid Agda file if all the
+    literate test is replaced by white space.
+
+* Documentation testing
+
+  All documentation files in the `doc/user-manual` directory that end
+  in `.lagda.rst` can be typechecked by running `make
+  user-manual-test`, and also as part of the general test suite.
+
 Language
 ========
 
