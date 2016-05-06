@@ -241,10 +241,8 @@ latex_elements = {
 # Additional stuff for the LaTeX preamble.
 'preamble': r'''
 \ifxetex
-  \usepackage{unicode-math}
+  \usepackage{fontspec}
 
-  % See the unicode package documentation for the options for
-  % \setmonofont.
   \setmonofont
     [ BoldFont       = DejaVuSansMono-Bold.ttf,
       ItalicFont     = DejaVuSansMono-Oblique.ttf,
