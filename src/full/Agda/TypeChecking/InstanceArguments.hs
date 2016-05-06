@@ -111,14 +111,6 @@ initialIFSCandidates t = do
         handle (TypeError _ (Closure {clValue = InternalError _})) = return Nothing
         handle err                                                 = throwError err
 
--- | @initializeIFSMeta s t@ generates an instance meta of type @t@
---   with suggested name @s@, possibly with leading lambdas.
-initializeIFSMeta :: String -> Type -> TCM Term
-initializeIFSMeta s t = do
-  t <- reduce t  -- see Issue 1321
-  cands <- initialIFSCandidates t
-  newIFSMeta s t cands
-
 -- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
 --   of the candidate terms @v@s to the type @t@ of the metavariable @m@.
 --   If successful, meta @m@ is solved with the instantiation of @v@.

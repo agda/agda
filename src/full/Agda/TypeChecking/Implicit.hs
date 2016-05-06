@@ -16,7 +16,6 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import {-# SOURCE #-} Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Tuple
@@ -53,9 +52,10 @@ implicitNamedArgs n expand t0 = do
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
   where
+    newMeta :: Hiding -> String -> Type -> TCM Term
     newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck
-    newMeta Instance = initializeIFSMeta
-    newMeta NotHidden = initializeIFSMeta
+    newMeta Instance = newIFSMeta
+    newMeta NotHidden = newIFSMeta
 
 ---------------------------------------------------------------------------
 
