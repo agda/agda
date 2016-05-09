@@ -9,6 +9,7 @@
 
 open import Level
 open import Relation.Binary
+open import Data.Sum
 
 -- The properties are specified using the following relation as
 -- "equality".
@@ -78,6 +79,9 @@ Idempotent ∙ = ∀ x → ∙ IdempotentOn x
 
 IdempotentFun : Op₁ A → Set _
 IdempotentFun f = ∀ x → f (f x) ≈ f x
+
+Selective : Op₂ A → Set _
+Selective _∙_ = ∀ x y → (x ∙ y) ≈ x ⊎ (x ∙ y) ≈ y
 
 _Absorbs_ : Op₂ A → Op₂ A → Set _
 _∙_ Absorbs _∘_ = ∀ x y → (x ∙ (x ∘ y)) ≈ x

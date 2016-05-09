@@ -6,6 +6,10 @@ The library has been tested using Agda version TODO.
 
 Important changes since 0.12:
 
+* Added the Selectivity property in Algebra.FunctionProperties
+  as well as proofs of the selectivity of min and max in
+  Data.Nat.Properties
+	
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12
 ------------------------------------------------------------------------
