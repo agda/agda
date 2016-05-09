@@ -238,6 +238,10 @@ latex_elements = {
 # The font size ('10pt', '11pt' or '12pt').
 #'pointsize': '10pt',
 
+# Fix the following XeLaTeX warning:
+# "Package inputenc Warning: inputenc package ignored with utf8 based engines."
+'inputenc':'',
+
 # Additional stuff for the LaTeX preamble.
 'preamble': r'''
 \ifxetex
