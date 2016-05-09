@@ -226,6 +226,17 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
     m     = size is
     (tel1, tel2) = telFromList -*- telFromList $ splitAt m $ telToList tel'
 
+instantiateTelescopeN
+  :: Telescope    -- ^ ⊢ Γ
+  -> [(Int,Term)] -- ^ Γ ⊢ var k_i : A_i ascending order, Γ ⊢ u_i : A_i
+  -> Maybe (Telescope,    -- ⊢ Γ'
+            Substitution) -- Γ' ⊢ σ : Γ
+instantiateTelescopeN tel []         = return (tel, IdS)
+instantiateTelescopeN tel ((k,t):xs) = do
+  (tel', sigma, _) <- instantiateTelescope tel k t
+  (tel'', sigma')  <- instantiateTelescopeN tel' (map (subtract 1 -*- applyPatSubst sigma) xs)
+  return (tel'', applyPatSubst sigma sigma')
+
 -- | Try to instantiate one variable in the telescope (given by its de Bruijn
 --   level) with the given value, returning the new telescope and a
 --   substitution to the old one. Returns Nothing if the given value depends

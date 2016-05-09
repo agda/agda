@@ -402,12 +402,12 @@ primPathApply = do
         case rv of
            IZero -> redReturn (unArg x)
            IOne  -> redReturn (unArg y)
-           OTerm r' -> do
+           _     -> do
              sp <- reduceB' p
              let p = unArg $ ignoreBlocking sp
              case p of
                Def q [Apply l,Apply a,Apply t]
-                   | Just q == pathAbs -> redReturn $ apply (unArg t) [fmap (const r') r]
+                   | Just q == pathAbs -> redReturn $ apply (unArg t) [r]
                _                       -> return $ NoReduction $ [notReduced l,notReduced a,notReduced x,notReduced y,reduced sp,reduced sr]
 
       _ -> __IMPOSSIBLE__

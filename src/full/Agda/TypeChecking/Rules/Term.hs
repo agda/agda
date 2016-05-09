@@ -1502,6 +1502,38 @@ checkConstructorApplication org t c args = do
       where
         name = fmap rangedThing . nameOf $ unArg arg
 
+toFaceMaps :: Term -> TCM [[(Int,Term)]]
+toFaceMaps t = do
+  view <- intervalView'
+  io <- primIOne
+  let f IZero = mzero
+      f IOne  = return []
+      f (IMin x y) = concat <$> map (f . view . unArg) [x,y]
+      f (IMax x y) = msum $ map (f . view . unArg) [x,y]
+      f (OTerm (Var i [])) = return [(i,io)]
+      f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
+  return (f (view t))
+
+forallFaceMaps :: Term -> (Substitution -> TCM ()) -> TCM ()
+forallFaceMaps t k = do
+  as <- toFaceMaps t
+  forM_ as $ \ xs -> do
+    tel <- getContextTelescope
+    reportSDoc "tc.term.facemaps" 100 $ text "before: " <+> prettyTCM tel
+    let toLevel j = size tel-1-j
+    let (tel',sigma) = fromMaybe __IMPOSSIBLE__ $ instantiateTelescopeN tel (map (first toLevel) $ sortOn fst xs)
+    inTopContext $ addContext tel' $ do
+      tel <- getContextTelescope
+      reportSDoc "tc.term.facemaps" 100 $ text "after: " <+> prettyTCM tel
+      k sigma
+
+-- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
+--   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
+pathAbs :: PathView -> Abs Term -> TCM Term
+pathAbs (OType _) t = __IMPOSSIBLE__
+pathAbs (PathType s path l a x y) t = do
+  pabs <- primPathAbs
+  return $ pabs `apply` [l,a,defaultArg $ Lam defaultArgInfo t]
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
 
@@ -1538,6 +1570,7 @@ checkConstructorApplication org t c args = do
 checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
+  conId     <- fmap getPrimName <$> getBuiltin' builtinConId
   case hd of
     A.Con (AmbQ [c]) | Just c == (nameOfSharp <$> kit) -> do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
@@ -1571,6 +1604,19 @@ checkHeadApplication e t hd args = do
         blockTerm t $ f vs <$ workOnTypes (do
           addCtxTel eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
+
+    (A.Def c) | Just c == conId -> do
+                    defaultResult' $ Just $ \ vs t1 -> do
+                      case vs of
+                       [_,_,_,_,phi,p] -> do
+                          phi <- reduce phi
+                          forallFaceMaps (unArg phi) $ \ alpha -> do
+                            iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
+                            let ty = pathUnview iv
+                            equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
+                            cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
+                            equalTerm ty (applySubst alpha (unArg p)) cx   -- G,phi |- p = \ i . x
+                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       arg <- case args of
@@ -1652,11 +1698,12 @@ checkHeadApplication e t hd args = do
     A.Con _  -> __IMPOSSIBLE__
     _ -> defaultResult
   where
-  defaultResult = do
+  defaultResult = defaultResult' Nothing
+  defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asks envExpandLast
-    checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
-      coerce (f vs) t1 t
+    checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 ->
+      maybe id (\ k m -> blockTerm t $ k vs t1 >> m) mk $ coerce (f vs) t1 t
 
 traceCallE ::
 #if !MIN_VERSION_transformers(0,4,1)

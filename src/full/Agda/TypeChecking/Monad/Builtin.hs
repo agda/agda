@@ -109,6 +109,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primPath, primInterval, primPathAbs, primIZero, primIOne, -- primIMin, primIMax, -- primPathApply,
+    primId, primConId,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
@@ -157,14 +158,13 @@ primList         = getBuiltin builtinList
 primNil          = getBuiltin builtinNil
 primCons         = getBuiltin builtinCons
 primIO           = getBuiltin builtinIO
+primId           = getBuiltin builtinId
+primConId        = getBuiltin builtinConId
 primPath         = getBuiltin builtinPath
 primInterval     = getBuiltin builtinInterval
 primPathAbs      = getBuiltin builtinPathAbs
 primIZero        = getBuiltin builtinIZero
 primIOne         = getBuiltin builtinIOne
--- primIMin         = getBuiltin builtinIMin
--- primIMax         = getBuiltin builtinIMax
--- primPathApply    = getBuiltin builtinPathApply
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -281,6 +281,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, -- builtinPathApply,
+  builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
   builtinInf, builtinSharp, builtinFlat,
@@ -342,14 +343,13 @@ builtinList                          = "LIST"
 builtinNil                           = "NIL"
 builtinCons                          = "CONS"
 builtinIO                            = "IO"
+builtinId                            = "ID"
+builtinConId                         = "CONID"
 builtinPath                          = "PATH"
 builtinInterval                      = "INTERVAL"
 builtinPathAbs                       = "PATHABS"
 builtinIZero                         = "IZERO"
 builtinIOne                          = "IONE"
--- builtinIMin                          = "IMin"
--- builtinIMax                          = "IMax"
--- builtinPathApply                     = "PATHAPPLY"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
@@ -468,6 +468,7 @@ builtinsNoDef =
   , builtinSizeSuc
   , builtinSizeInf
   , builtinSizeMax
+  , builtinConId
   ]
 
 -- | The coinductive primitives.
@@ -510,24 +511,43 @@ getPrimName ty = do
             (_, Def path _) -> path
             (_, _)          -> __IMPOSSIBLE__
 
+getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
+getBuiltinName' n = fmap getPrimName <$> getBuiltin' n
+getPrimitiveName' n = fmap primFunName <$> getPrimitive' n
+
+intervalView' :: HasBuiltins m => m (Term -> IntervalView)
+intervalView' = do
+  iz <- getBuiltinName' builtinIZero
+  io <- getBuiltinName' builtinIOne
+  imax <- getPrimitiveName' "primIMax"
+  imin <- getPrimitiveName' "primIMin"
+  return $ \ t ->
+    case t of
+      Def q es ->
+        case es of
+          [] | Just q == iz -> IZero
+          [] | Just q == io -> IOne
+          [Apply x,Apply y] | Just q == imin -> IMin x y
+          [Apply x,Apply y] | Just q == imax -> IMax x y
+          _                 -> OTerm t
+      _ -> OTerm t
 
 intervalView :: HasBuiltins m => Term -> m IntervalView
-intervalView t@(Def q []) = do
-  iz <- fmap getPrimName <$> getBuiltin' builtinIZero
-  io <- fmap getPrimName <$> getBuiltin' builtinIOne
-  return $ case q of
-    _ | Just q == iz -> IZero
-    _ | Just q == io -> IOne
-    _                -> OTerm t
-intervalView t = return $ OTerm t
+intervalView t = do
+  f <- intervalView'
+  return (f t)
 
 intervalUnview :: HasBuiltins m => IntervalView -> m Term
 intervalUnview v = do
   iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
   io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
+  imin <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMin"
+  imax <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMax"
   return $ case v of
              IZero -> iz
              IOne  -> io
+             IMin x y -> apply imin [x,y]
+             IMax x y -> apply imax [x,y]
              OTerm t -> t
 
 ------------------------------------------------------------------------
@@ -572,6 +592,17 @@ pathView t0@(El s t) = do
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
       | path' == path -> return $ PathType s path level typ lhs rhs
     _ -> return $ OType t0
+
+idViewAsPath :: Type -> TCM PathView
+idViewAsPath t0@(El s t) = do
+  mid <- fmap getPrimName <$> getBuiltin' builtinId
+  mpath <- fmap getPrimName <$> getBuiltin' builtinPath
+  case mid of
+   Just path | isJust mpath -> case ignoreSharing t of
+    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
+      | path' == path -> return $ PathType s (fromJust mpath) level typ lhs rhs
+    _ -> return $ OType t0
+   _ -> return $ OType t0
 
 boldPathView :: Type -> PathView
 boldPathView t0@(El s t) = do

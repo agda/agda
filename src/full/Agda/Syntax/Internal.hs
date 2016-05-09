@@ -619,6 +619,8 @@ isPathType OType{}    = False
 data IntervalView
       = IZero
       | IOne
+      | IMin (Arg Term) (Arg Term)
+      | IMax (Arg Term) (Arg Term)
       | OTerm Term
       deriving Show
 
