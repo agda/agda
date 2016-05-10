@@ -1505,11 +1505,15 @@ checkConstructorApplication org t c args = do
 toFaceMaps :: Term -> TCM [[(Int,Term)]]
 toFaceMaps t = do
   view <- intervalView'
+  iz <- primIZero
   io <- primIOne
+  ineg <- (\ q t -> Def q [Apply $ Arg defaultArgInfo t]) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
+
   let f IZero = mzero
       f IOne  = return []
       f (IMin x y) = concat <$> map (f . view . unArg) [x,y]
       f (IMax x y) = msum $ map (f . view . unArg) [x,y]
+      f (INeg x)   = map (id -*- ineg) <$> (f . view . unArg) x
       f (OTerm (Var i [])) = return [(i,io)]
       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
   return (f (view t))

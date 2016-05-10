@@ -521,6 +521,7 @@ intervalView' = do
   io <- getBuiltinName' builtinIOne
   imax <- getPrimitiveName' "primIMax"
   imin <- getPrimitiveName' "primIMin"
+  ineg <- getPrimitiveName' "primINeg"
   return $ \ t ->
     case t of
       Def q es ->
@@ -529,6 +530,7 @@ intervalView' = do
           [] | Just q == io -> IOne
           [Apply x,Apply y] | Just q == imin -> IMin x y
           [Apply x,Apply y] | Just q == imax -> IMax x y
+          [Apply x]         | Just q == ineg -> INeg x
           _                 -> OTerm t
       _ -> OTerm t
 
@@ -538,16 +540,23 @@ intervalView t = do
   return (f t)
 
 intervalUnview :: HasBuiltins m => IntervalView -> m Term
-intervalUnview v = do
+intervalUnview t = do
+  f <- intervalUnview'
+  return (f t)
+
+intervalUnview' :: HasBuiltins m => m (IntervalView -> Term)
+intervalUnview' = do
   iz <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIZero -- should it be a type error instead?
   io <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinIOne
   imin <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMin"
   imax <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primIMax"
-  return $ case v of
+  ineg <- (`Def` []) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
+  return $ \ v -> case v of
              IZero -> iz
              IOne  -> io
              IMin x y -> apply imin [x,y]
              IMax x y -> apply imax [x,y]
+             INeg x   -> apply ineg [x]
              OTerm t -> t
 
 ------------------------------------------------------------------------

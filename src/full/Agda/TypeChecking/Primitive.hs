@@ -324,6 +324,31 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _       -> Nothing
 
+primINeg :: TCM PrimitiveImpl
+primINeg = do
+  t <- el primInterval --> el primInterval
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ts -> do
+  case ts of
+   [x] -> do
+     unview <- intervalUnview'
+     view <- intervalView'
+     sx <- reduceB' x
+     ix <- intervalView (unArg $ ignoreBlocking sx)
+     let
+       ineg :: Arg Term -> Arg Term
+       ineg = fmap (unview . f . view)
+       f ix = case ix of
+         IZero -> IOne
+         IOne  -> IZero
+         IMin x y -> IMax (ineg x) (ineg y)
+         IMax x y -> IMin (ineg x) (ineg y)
+         INeg x -> OTerm (unArg x)
+         OTerm t -> INeg (Arg defaultArgInfo t)
+     case ix of
+      OTerm t -> return $ NoReduction [reduced sx]
+      _       -> redReturn (unview $ f ix)
+   _ -> __IMPOSSIBLE__
+
 primIBin :: IntervalView -> IntervalView -> TCM PrimitiveImpl
 primIBin unit absorber = do
   t <- el primInterval --> el primInterval --> el primInterval
@@ -816,6 +841,7 @@ primitiveFunctions = Map.fromList
   , "primPathApply"       |-> primPathApply
   , "primIMin"            |-> primIMin
   , "primIMax"            |-> primIMax
+  , "primINeg"            |-> primINeg
   , "primCoe"             |-> primCoe
   ]
   where

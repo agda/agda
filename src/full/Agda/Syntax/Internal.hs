@@ -621,6 +621,7 @@ data IntervalView
       | IOne
       | IMin (Arg Term) (Arg Term)
       | IMax (Arg Term) (Arg Term)
+      | INeg (Arg Term)
       | OTerm Term
       deriving Show
 
