@@ -96,7 +96,10 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 (El (varSort 2) <$> primPath <#> varM 2 <#> varM 1 <@>
                                                                       (varM 0 <@> primIZero) <@> (varM 0 <@> primIOne))))
   , (builtinIZero              |-> builtinPostulate tinterval)
-  , (builtinIOne               |-> builtinPostulate tinterval)
+  , (builtinIOne               |-> builtinPostulate tinterval)  
+  , (builtinBoundary           |-> builtinPostulate (hPi "a" (el primLevel) $
+                                                     nPi "A" (return $ sort $ varSort 0) $
+                                                     tinterval --> return (sort $ varSort 1)))
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->

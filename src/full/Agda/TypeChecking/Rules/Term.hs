@@ -803,9 +803,18 @@ checkArguments' exph r args t0 t k = do
       postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
       -- if unsuccessful, postpone checking until t0 unblocks
 
--- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
-checkExpr e t0 =
+checkExpr e t0 = do
+  boundary <- fmap getPrimName <$> getBuiltin' builtinBoundary
+  case unEl t0 of -- reduce?
+    Def q [Apply l,Apply a,Apply phi] | Just q == boundary -> do
+         phi' <- reduce (unArg phi)
+         forallFaceMaps phi' $ \ sigma -> checkExpr' e (applySubst sigma (El (getSort t0) (unArg a)))
+    _ -> checkExpr' e t0
+
+-- | Type check an expression.
+checkExpr' :: A.Expr -> Type -> TCM Term
+checkExpr' e t0 =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
   traceCall (CheckExprCall e t0) $ localScope $ doExpandLast $ shared =<< do
     reportSDoc "tc.term.expr.top" 15 $
