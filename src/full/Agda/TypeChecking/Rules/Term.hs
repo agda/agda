@@ -1526,10 +1526,17 @@ forallFaceMaps t k = do
     reportSDoc "tc.term.facemaps" 100 $ text "before: " <+> prettyTCM tel
     let toLevel j = size tel-1-j
     let (tel',sigma) = fromMaybe __IMPOSSIBLE__ $ instantiateTelescopeN tel (map (first toLevel) $ sortOn fst xs)
+    resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
+    -- Questions:
+    -- inTopContext messes with local variables, is that what we want?
+    -- old let bound variables should be updated too?
     inTopContext $ addContext tel' $ do
       tel <- getContextTelescope
       reportSDoc "tc.term.facemaps" 100 $ text "after: " <+> prettyTCM tel
-      k sigma
+      addBindings resolved $ k sigma
+  where
+    addBindings [] m = m
+    addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
 
 -- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
 --   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
