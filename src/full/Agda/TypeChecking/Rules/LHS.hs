@@ -715,9 +715,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         -- This should be the same datatype as we split on
         unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
-        -- reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
-        --   [ text "gamma' =" <+> text (show gamma')
-        --   ]
+        reportSDoc "tc.lhs.top" 20 $ addCtxTel delta1 $ nest 2 $ vcat
+          [ text "gamma' =" <+> prettyTCM gamma'
+          ]
 
         -- Andreas 2010-09-07  propagate relevance info to new vars
         let updRel = composeRelevance (getRelevance info)
