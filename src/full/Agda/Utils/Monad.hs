@@ -149,6 +149,13 @@ dropWhileM :: Monad m => (a -> m Bool) -> [a] -> m [a]
 dropWhileM p []       = return []
 dropWhileM p (x : xs) = ifM (p x) (dropWhileM p xs) (return (x : xs))
 
+-- | A ``monadic'' version of @'partition' :: (a -> Bool) -> [a] -> ([a],[a])
+partitionM :: (Functor m, Applicative m) => (a -> m Bool) -> [a] -> m ([a],[a])
+partitionM f [] =
+  pure ([], [])
+partitionM f (x:xs) =
+  (\ b (l, r) -> if b then (x:l, r) else (l, x:r)) <$> f x <*> partitionM f xs
+
 -- Error monad ------------------------------------------------------------
 
 -- | Finally for the 'Error' class. Errors in the finally part take
