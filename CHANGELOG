@@ -10,8 +10,9 @@ Important changes since 0.12:
   as well as proofs of the selectivity of min and max in
   Data.Nat.Properties
 
-* Added an alternative (non-degenerative) proof for totality in
-  Relation.Binary.Product.StrictLex: ×-total₂
+* Added `Relation.Binary.Product.StrictLex.×-total₂`, an alternative
+  (non-degenerative) proof for totality, and renamed `×-total` to
+  `x-total₁` in that module.
 
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12

@@ -134,9 +134,9 @@ module _ {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
        ×-dec
      dec-≤₂ (proj₂ x) (proj₂ y))
 
-  ×-total : ∀ {_≈₁_ _<₁_} → Total _<₁_ →
-            ∀ {_≤₂_} → Total (×-Lex _≈₁_ _<₁_ _≤₂_)
-  ×-total total₁ x y with total₁ (proj₁ x) (proj₁ y)
+  ×-total₁ : ∀ {_≈₁_ _<₁_} → Total _<₁_ →
+             ∀ {_≤₂_} → Total (×-Lex _≈₁_ _<₁_ _≤₂_)
+  ×-total₁ total₁ x y with total₁ (proj₁ x) (proj₁ y)
   ... | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
   ... | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
 
