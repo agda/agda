@@ -291,7 +291,8 @@ noShadowingOfConstructors mkCall problem =
           Function    {} -> return ()
           Record      {} -> return ()
           Constructor {} -> __IMPOSSIBLE__
-          Primitive   {} -> __IMPOSSIBLE__
+          -- TODO: in the future some stuck primitives might allow constructors
+          Primitive   {} -> return ()
       Var   {} -> return ()
       Pi    {} -> return ()
       Sort  {} -> return ()
