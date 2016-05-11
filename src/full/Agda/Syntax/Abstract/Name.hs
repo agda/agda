@@ -51,6 +51,10 @@ data Name = Name { nameId          :: !NameId
                  }
     deriving (Typeable)
 
+-- | Useful for debugging scoping problems
+uglyShowName :: Name -> String
+uglyShowName (Name i c _ _) = show (i,c)
+
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
 --   for show.

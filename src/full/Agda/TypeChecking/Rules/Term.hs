@@ -809,7 +809,10 @@ checkExpr e t0 = do
   case unEl t0 of -- reduce?
     Def q [Apply l,Apply a,Apply phi] | Just q == boundary -> do
          phi' <- reduce (unArg phi)
-         forallFaceMaps phi' $ \ sigma -> checkExpr' e (applySubst sigma (El (getSort t0) (unArg a)))
+         ts <- forallFaceMaps phi' $ \ sigma -> checkExpr' e (applySubst sigma (El (getSort t0) (unArg a)))
+         case ts of
+          [t] -> return t
+          _   -> typeError $ GenericError "Each component in a system must be a face map"
     _ -> checkExpr' e t0
 
 -- | Type check an expression.
@@ -1527,25 +1530,46 @@ toFaceMaps t = do
       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
   return (f (view t))
 
-forallFaceMaps :: Term -> (Substitution -> TCM ()) -> TCM ()
+forallFaceMaps :: Term -> (Substitution -> TCM a) -> TCM [a]
 forallFaceMaps t k = do
   as <- toFaceMaps t
-  forM_ as $ \ xs -> do
-    tel <- getContextTelescope
-    reportSDoc "tc.term.facemaps" 100 $ text "before: " <+> prettyTCM tel
-    let toLevel j = size tel-1-j
-    let (tel',sigma) = fromMaybe __IMPOSSIBLE__ $ instantiateTelescopeN tel (map (first toLevel) $ sortOn fst xs)
+  forM as $ \ xs -> do
+    -- TODO remove duplicate bindings in xs
+    cxt <- asks envContext
+--    reportSDoc "tc.term.facemaps" 100 $ text "before: " <+> prettyTCM cxt
+    cn <- getContextNames
+    reportSDoc "tc.term.facemaps" 50 $ text "before: " <+> text (unwords $ map uglyShowName cn)
+    (cxt',sigma) <- substContextN cxt (sortOn fst xs)
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
     -- Questions:
     -- inTopContext messes with local variables, is that what we want?
     -- old let bound variables should be updated too?
-    inTopContext $ addContext tel' $ do
-      tel <- getContextTelescope
-      reportSDoc "tc.term.facemaps" 100 $ text "after: " <+> prettyTCM tel
+    modifyContext (const cxt') $ do
+      c <- getContextNames
+      reportSDoc "tc.term.facemaps" 50 $ text "after: " <+> text (unwords $ map uglyShowName c)
       addBindings resolved $ k sigma
   where
     addBindings [] m = m
     addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
+
+    substContextN :: Context -> [(Int,Term)] -> TCM (Context , Substitution)
+    substContextN c [] = return (c, idS)
+    substContextN c ((i,t):xs) = do
+      (c', sigma) <- substContext i t c
+      (c'', sigma')  <- substContextN c' (map (subtract 1 -*- applySubst sigma) xs)
+      return (c'', applySubst sigma sigma')
+
+
+    -- assumes the term can be typed in the shorter telescope
+    -- the terms we get from toFaceMaps are closed.
+    substContext :: Int -> Term -> Context -> TCM (Context , Substitution)
+    substContext i t [] = __IMPOSSIBLE__
+    substContext i t (x:xs) | i == 0 = return $ (xs , singletonS 0 t)
+    substContext i t (x:xs) | i > 0 = do
+                                  (c,sigma) <- substContext (i-1) t xs
+                                  e <- mkContextEntry (applySubst sigma (ctxEntry x))
+                                  return (e:c, liftS 1 sigma)
+    substContext i t (x:xs) = __IMPOSSIBLE__
 
 -- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
 --   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
