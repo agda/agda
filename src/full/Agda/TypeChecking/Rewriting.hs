@@ -89,7 +89,7 @@ requireOptionRewriting =
 
 -- | Check that the name given to the BUILTIN REWRITE is actually
 --   a relation symbol.
---   I.e., its type should be of the form @Δ → (lhs rhs : A) → Set ℓ@.
+--   I.e., its type should be of the form @Δ → (lhs : A) (rhs : B) → Set ℓ@.
 --   Note: we do not care about hiding/non-hiding of lhs and rhs.
 verifyBuiltinRewrite :: Term -> Type -> TCM ()
 verifyBuiltinRewrite v t = do
@@ -102,12 +102,7 @@ verifyBuiltinRewrite v t = do
     (failure $ text "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
     case ignoreSharing (unEl core) of
-      Sort{} -> do
-        -- Check that the types of the last two arguments are equal.
-        unlessM (tryConversion $
-                   inTopContext $ addContext tel $ escapeContext 1 $
-                     equalType (raise 1 a) b) $
-          failure $ text $ "because the types of the last two arguments are different"
+      Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
       Level{}  -> __IMPOSSIBLE__
       Lam{}    -> __IMPOSSIBLE__
@@ -256,7 +251,9 @@ addRewriteRule q = do
 addRewriteRules :: QName -> RewriteRules -> TCM ()
 addRewriteRules f rews = do
   reportSDoc "rewriting" 10 $ text "rewrite rule ok, adding it to the definition of " <+> prettyTCM f
-  modifySignature $ addRewriteRulesFor f rews
+  let matchables = getMatchables rews
+  reportSDoc "rewriting" 30 $ text "matchable symbols: " <+> prettyTCM matchables
+  modifySignature $ addRewriteRulesFor f rews matchables
   --rules <- getRewriteRulesFor f
   --reportSDoc "rewriting" 20 $ vcat
   --  [ text "rewrite rules for " <+> prettyTCM f <+> text ":"
@@ -387,3 +384,27 @@ instance KillCtxId NLPat where
     PSet l         -> PSet $ killCtxId l
     PBoundVar i es -> PBoundVar i $ killCtxId es
     PTerm _        -> p
+
+-- | Get all symbols that a rewrite rule matches against
+class GetMatchables a where
+  getMatchables :: a -> [QName]
+
+instance (Foldable f, GetMatchables a) => GetMatchables (f a) where
+  getMatchables = foldMap getMatchables
+
+instance GetMatchables NLPat where
+  getMatchables p =
+    case p of
+      PVar _ _ _     -> empty
+      PWild          -> empty
+      PDef f _       -> singleton f
+      PLam _ x       -> empty
+      PPi a b        -> empty
+      PSet l         -> empty
+      PBoundVar i es -> empty
+      PTerm _        -> empty -- should be safe (I hope)
+
+instance GetMatchables RewriteRule where
+  getMatchables rew = case rewLHS rew of
+    PDef _ ps -> getMatchables ps
+    _         -> __IMPOSSIBLE__

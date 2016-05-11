@@ -30,7 +30,7 @@ tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir Rec testDir
 
-  let tests' = map mkSucceedTest inpFiles
+  let tests' = map (mkSucceedTest testDir) inpFiles
 
   return $ testGroup "Succeed" tests'
 
@@ -39,13 +39,15 @@ data AgdaResult
   | AgdaUnexpectedFail ProgramResult
   | AgdaWrongDotOutput T.Text
 
-mkSucceedTest :: FilePath -- inp file
+mkSucceedTest ::
+       FilePath -- test directory
+    -> FilePath -- inp file
     -> TestTree
-mkSucceedTest inp =
+mkSucceedTest dir inp =
   goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
 --  goldenVsAction testName goldenFile doRun printAgdaResult
-  where testName = asTestName testDir inp
-        flagFile = dropExtension inp <.> ".flags"
+  where testName = asTestName dir inp
+        flagFile = dropAgdaExtension inp <.> ".flags"
 
         -- we don't really have a golden file. Just use
         -- a dummy update function.
@@ -54,7 +56,7 @@ mkSucceedTest inp =
 
         doRun = do
           flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
-          let agdaArgs = [ "-v0", "-i" ++ testDir, "-itest/" , inp
+          let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , inp
                          , "--ignore-interfaces", "--vim"
                          , "--no-default-libraries"
                          , "-v impossible:10"
@@ -65,7 +67,7 @@ mkSucceedTest inp =
           res@(ret, _, _) <-
             if "--compile" `isInfixOf` flags
               then
-                withTempDirectory testDir ("MAZ_compile_" ++ testName) (\compDir ->
+                withTempDirectory dir ("MAZ_compile_" ++ testName) (\compDir ->
                   run ["--compile-dir=" ++ compDir]
                   )
               else
@@ -73,7 +75,7 @@ mkSucceedTest inp =
 
           case ret of
             ExitSuccess | testName == "Issue481" -> do
-              dotOrig <- TIO.readFile (testDir </> "Issue481.dot.orig")
+              dotOrig <- TIO.readFile (dir </> "Issue481.dot.orig")
               dot <- TIO.readFile "Issue481.dot"
               removeFile "Issue481.dot"
               if dot == dotOrig

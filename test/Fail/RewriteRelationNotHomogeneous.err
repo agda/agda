@@ -1,4 +1,0 @@
-RewriteRelationNotHomogeneous.agda:9,1-26
-R  does not have the right type for a rewriting relation
-because the types of the last two arguments are different
-when checking the pragma BUILTIN REWRITE R

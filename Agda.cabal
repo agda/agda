@@ -147,6 +147,7 @@ library
     -- policy.
     , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
     , process >= 1.1.0.2 && < 1.5
+    , regex-tdfa >= 1.2.2 && < 1.3
     , strict >= 0.3.2 && < 0.4
     , template-haskell >= 2.8.0.0 && < 2.12
     , text >= 0.11.3.1 && < 1.3
@@ -285,6 +286,7 @@ library
                     Agda.Syntax.Parser.Layout
                     Agda.Syntax.Parser.LexActions
                     Agda.Syntax.Parser.Lexer
+                    Agda.Syntax.Parser.Literate
                     Agda.Syntax.Parser.LookAhead
                     Agda.Syntax.Parser.Monad
                     Agda.Syntax.Parser.Parser
@@ -508,6 +510,8 @@ library
 
   if impl(ghc >= 7.10)
      ghc-options: -fwarn-unticked-promoted-constructors
+                  -- Enable after removing the support for GHC 7.8.
+                  -- -fwarn-deriving-typeable
 
   -- This option is deprected in GHC 7.10.1.
   if impl(ghc >= 7.8) && impl(ghc < 7.10)
@@ -526,7 +530,10 @@ library
     ghc-options: -fwarn-context-quantification
 
   if impl(ghc >= 8.0)
-    ghc-options: -Wnoncanonical-monad-instances
+    ghc-options: -Wmissing-pattern-synonym-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wunrecognised-warning-flags
+                 -Wunused-foralls
 
   ghc-prof-options: -fprof-auto
 
@@ -600,6 +607,7 @@ test-suite agda-tests
                     , containers >= 0.5.0.0 && < 0.6
                     , directory >= 1.2.0.1 && < 1.3
                     , filepath >= 1.3.0.1 && < 1.5
+                    , filemanip >= 0.3.6.3 && < 0.4
                     , process >= 1.1.0.2 && < 1.5
                     , process-extras >= 0.3.0 && < 0.4
                     , regex-tdfa >= 1.2.0 && < 1.3

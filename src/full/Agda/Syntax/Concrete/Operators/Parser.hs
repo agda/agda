@@ -12,6 +12,7 @@ import Control.Applicative
 import Data.Either
 import Data.Hashable
 import Data.Maybe
+import qualified Data.Strict.Maybe as Strict
 import Data.Set (Set)
 
 import GHC.Generics (Generic)
@@ -42,26 +43,26 @@ instance Hashable MemoKey
 type Parser tok a =
   MemoisedCPS.Parser MemoKey tok (MaybePlaceholder tok) a
 
-placeholder :: Placeholder -> Parser e (MaybePlaceholder e)
+placeholder :: PositionInName -> Parser e (MaybePlaceholder e)
 placeholder p = sat $ \t ->
   case t of
     Placeholder p' | p' == p -> True
     _                        -> False
 
 maybePlaceholder ::
-  Maybe Placeholder -> Parser e e -> Parser e (MaybePlaceholder e)
+  Maybe PositionInName -> Parser e e -> Parser e (MaybePlaceholder e)
 maybePlaceholder mp p = case mp of
   Nothing -> p'
   Just h  -> placeholder h <|> p'
   where
-  p' = NoPlaceholder <$> p
+  p' = noPlaceholder <$> p
 
 notPlaceholder :: Parser e e
 notPlaceholder = do
   tok <- token
   case tok of
-    Placeholder _   -> empty
-    NoPlaceholder e -> return e
+    Placeholder _     -> empty
+    NoPlaceholder _ e -> return e
 
 sat' :: (e -> Bool) -> Parser e e
 sat' p = do
@@ -116,7 +117,7 @@ instance IsExpr Pattern where
         IdentP x         -> LocalV x
         AppP e1 e2       -> AppV e1 e2
         OpAppP r d ns es -> OpAppV d ns ((map . fmap . fmap)
-                                           (NoPlaceholder . Ordinary) es)
+                                           (noPlaceholder . Ordinary) es)
         HiddenP _ e      -> HiddenArgV e
         InstanceP _ e    -> InstanceArgV e
         ParenP _ e       -> ParenV e
@@ -128,8 +129,8 @@ instance IsExpr Pattern where
         OpAppV d ns es -> let ess :: [NamedArg Pattern]
                               ess = (map . fmap . fmap)
                                       (\x -> case x of
-                                          Placeholder{}   -> __IMPOSSIBLE__
-                                          NoPlaceholder x -> fromOrdinary __IMPOSSIBLE__ x)
+                                          Placeholder{}     -> __IMPOSSIBLE__
+                                          NoPlaceholder _ x -> fromOrdinary __IMPOSSIBLE__ x)
                                       es
                           in OpAppP (fuseRange d ess) d ns ess
         HiddenArgV e   -> HiddenP (getRange e) e
@@ -143,8 +144,13 @@ instance IsExpr Pattern where
 data ParseSections = ParseSections | DoNotParseSections
   deriving (Eq, Show)
 
+-- | Runs a parser. If sections should be parsed, then identifiers
+-- with at least two name parts are split up into multiple tokens,
+-- using 'PositionInName' to record the tokens' original positions
+-- within their respective identifiers.
+
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
-parse (DoNotParseSections, p) es = Parser.parse p (map NoPlaceholder es)
+parse (DoNotParseSections, p) es = Parser.parse p (map noPlaceholder es)
 parse (ParseSections,      p) es = Parser.parse p
                                      (concat $ map splitExpr es)
   where
@@ -153,11 +159,11 @@ parse (ParseSections,      p) es = Parser.parse p
     LocalV n -> splitName n
     _        -> noSplit
     where
-    noSplit = [NoPlaceholder e]
+    noSplit = [noPlaceholder e]
 
     splitName n = case last ns of
-      NoName{}  -> noSplit
-      Name r ps -> splitParts r (init ns) Beginning ps
+      Name r ps@(_ : _ : _) -> splitParts r (init ns) Beginning ps
+      _                     -> noSplit
       where
       ns = qnameParts n
 
@@ -168,13 +174,16 @@ parse (ParseSections,      p) es = Parser.parse p
       -- Note also that the module qualifier, if any, is only applied
       -- to the first name part.
 
-      splitParts _ _ _ []          = []
+      splitParts _ _ _ []          = __IMPOSSIBLE__
       splitParts _ _ _ (Hole : []) = [Placeholder End]
+      splitParts r m _ (Id s : []) = [part r m End s]
       splitParts r m w (Hole : ps) = Placeholder w : splitParts r m  Middle ps
-      splitParts r m _ (Id s : ps) = part          : splitParts r [] Middle ps
-        where
-        part = NoPlaceholder $ unExprView $ LocalV $
-                 foldr Qual (QName (Name r [Id s])) m
+      splitParts r m w (Id s : ps) = part r m w s  : splitParts r [] Middle ps
+
+      part r m w s =
+        NoPlaceholder (Strict.Just w)
+                      (unExprView $ LocalV $
+                         foldr Qual (QName (Name r [Id s])) m)
 
 ---------------------------------------------------------------------------
 -- * Parser combinators
@@ -195,6 +204,51 @@ partP ms s = do
         isLocal e = case exprView e of
             LocalV y | str == show y -> Just (getRange y)
             _                        -> Nothing
+
+-- | Parses a split-up, unqualified name consisting of at least two
+-- name parts.
+--
+-- The parser does not check that underscores and other name parts
+-- alternate. The range of the resulting name is the range of the
+-- first name part that is not an underscore.
+
+atLeastTwoParts :: IsExpr e => Parser e Name
+atLeastTwoParts = do
+  (r, ps) <- parts Beginning
+  case r of
+    Nothing -> __IMPOSSIBLE__
+    Just r  -> return (Name r ps)
+  where
+  parts pos = do
+    tok          <- token
+    (pos', r, p) <- case tok of
+      Placeholder pos'                   -> return (pos', Nothing, Hole)
+      NoPlaceholder (Strict.Just pos') e -> case exprView e of
+        LocalV (QName (Name r [Id s])) -> return (pos', Just r, Id s)
+        _                              -> empty
+      _ -> empty
+    if pos == Middle && pos' == End then
+      return (r, [p])
+     else if pos' == pos then do
+      (r', ps) <- parts Middle
+      return (maybe r' Just r, p : ps)
+     else
+      empty
+
+-- | Either a wildcard (@_@), or an unqualified name (possibly
+-- containing multiple name parts).
+
+wildOrUnqualifiedName :: IsExpr e => Parser e (Maybe Name)
+wildOrUnqualifiedName =
+  (Nothing <$ partP [] "_")
+    <|>
+  (do e <- notPlaceholder
+      case exprView e of
+        LocalV (QName n) -> return (Just n)
+        WildV _          -> return Nothing
+        _                -> empty)
+    <|>
+  Just <$> atLeastTwoParts
 
 -- | Used to define the return type of 'opP'.
 
@@ -288,13 +342,10 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
     (r, es) <- worker ms xs
     return (r, Right (mkBinding h $ Name noRange [Hole]) : es)
   worker ms (BindHole h : xs) = do
-    e <- notPlaceholder
-    case exprView e of
-      LocalV (QName name) -> ret name
-      WildV e             -> ret (Name noRange [Hole])
-      _                   -> empty
-        -- Old error message: "Expected variable name in binding
-        -- position".
+    e <- wildOrUnqualifiedName
+    case e of
+      Just name -> ret name
+      Nothing   -> ret (Name noRange [Hole])
     where
     ret x = do
       (r, es) <- worker ms xs
@@ -311,10 +362,10 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
     NamedArg (MaybePlaceholder (OpApp e))
   findExprFor normalHoles binders n =
     case [ h | h@(_, m) <- normalHoles, namedArg m == n ] of
-      [(Placeholder p,   arg)] -> set (Placeholder p) arg
-      [(NoPlaceholder e, arg)] -> case [b | (b, m) <- binders, m == n] of
-        [] -> set (NoPlaceholder (Ordinary e)) arg -- no variable to bind
-        bs -> set (NoPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
+      [(Placeholder p,     arg)] -> set (Placeholder p) arg
+      [(NoPlaceholder _ e, arg)] -> case [b | (b, m) <- binders, m == n] of
+        [] -> set (noPlaceholder (Ordinary e)) arg -- no variable to bind
+        bs -> set (noPlaceholder (SyntaxBindingLambda (fuseRange bs e) bs e)) arg
       _ -> __IMPOSSIBLE__
 
   noPlaceholders :: [NamedArg (MaybePlaceholder (OpApp e))] -> Int

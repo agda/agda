@@ -1,0 +1,3 @@
+Issue1944-checkParams2.agda:24,17-18
+B != A of type Set
+when checking that the expression f {A = B} r has type _15 A B a

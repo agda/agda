@@ -19,6 +19,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Monad.Trans
+import Control.Monad.Trans.Maybe
 import Control.Monad.State (get, put)
 import Control.Monad.Reader
 
@@ -90,8 +91,9 @@ import Agda.Utils.Except
   , runExceptT
   )
 
-import Agda.Utils.Functor (($>))
+import Agda.Utils.Functor
 import Agda.Utils.Lens
+import Agda.Utils.List (groupOn)
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1041,17 +1043,30 @@ checkProjApp e ds args0 t = do
   coerce v ti t
 
 inferOrCheckProjApp :: A.Expr -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
-inferOrCheckProjApp e ds args0 mt = do
+inferOrCheckProjApp e ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
-    [ text "checking ambiguous projection "
-    , text $ "  ds    = " ++ show ds
-    , text "  args0 = " <+> sep (map prettyTCM args0)
+    [ text "checking ambiguous projection"
+    , text $ "  ds   = " ++ show ds
+    , text   "  args = " <+> sep (map prettyTCM args)
+    , text   "  t    = " <+> caseMaybe mt (text "Nothing") prettyTCM
     ]
 
   let refuse :: String -> TCM (Term, Type)
       refuse reason = typeError $ GenericError $
-       "Cannot resolve overloaded projection " ++ show (A.nameConcrete $ A.qnameName $ head ds)
-       ++ " because " ++ reason
+        "Cannot resolve overloaded projection "
+        ++ show (A.nameConcrete $ A.qnameName $ head ds)
+        ++ " because " ++ reason
+      refuseNotApplied = refuse "it is not applied to a visible argument"
+      refuseNoMatching = refuse "no matching candidate found"
+      refuseNotRecordType = refuse "principal argument is not of record type"
+
+      -- Postpone the whole type checking problem
+      -- if type of principal argument (or the type where we get it from)
+      -- is blocked by meta m.
+      postpone m = do
+        tc <- caseMaybe mt newTypeMeta_ return
+        v <- postponeTypeCheckingProblem (CheckExpr e tc) $ isInstantiatedMeta m
+        return (v, tc)
 
   -- The following cases need to be considered:
   -- 1. No arguments to the projection.
@@ -1061,61 +1076,96 @@ inferOrCheckProjApp e ds args0 mt = do
   -- For now, we only allow ambiguous projections if the first visible
   -- argument is the record value.
 
-  case filter (visible . getHiding) args0 of
-    [] -> refuse "it is not applied to a visible argument"
-    (arg : args) -> do
-      (v, ta) <- inferExpr $ namedArg arg
+  case filter (visible . getHiding . snd) $ zip [0..] args of
+
+    -- Case: we have no visible argument to the projection.
+    -- In inference mode, we really need the visible argument, postponing does not help
+    [] -> caseMaybe mt refuseNotApplied $ \ t -> do
+      -- If we have the type, we can try to get the type of the principal argument.
+      -- It is the first visible argument.
+      TelV _ptel core <- telViewUpTo' (-1) (not . visible) t
+      ifBlockedType core (\ m _ -> postpone m) $ {-else-} \ core -> do
+      ifNotPiType core (\ _ -> refuseNotApplied) $ {-else-} \ dom _b -> do
+      ifBlockedType (unDom dom) (\ m _ -> postpone m) $ {-else-} \ ta -> do
+      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (_q, _pars, defn) -> do
+      case defn of
+        Record { recFields = fs } -> do
+          case catMaybes $ for fs $ \ (Arg _ f) -> find (f ==) ds of
+            [] -> refuseNoMatching
+            [d] -> do
+              storeDisambiguatedName d
+              (,t) <$> checkHeadApplication e t (A.Proj $ AmbQ [d]) args
+            _ -> __IMPOSSIBLE__
+        _ -> __IMPOSSIBLE__
+
+    -- Case: we have a visible argument
+    ((k, arg) : _) -> do
+      (v0, ta) <- inferExpr $ namedArg arg
       reportSDoc "tc.proj.amb" 25 $ vcat
         [ text "  principal arg " <+> prettyTCM arg
         , text "  has type "      <+> prettyTCM ta
         ]
-      -- ta should be a record type
-      ta <- reduce ta
-      tryRecordType ta >>= \case
+      -- ta should be a record type (after introducing the hidden args in v0)
+      (vargs, ta) <- implicitArgs (-1) (not . visible) ta
+      let v = v0 `apply` vargs
+      ifBlockedType ta (\ m _ -> postpone m) {-else-} $ \ ta -> do
+      caseMaybeM (isRecordType ta) refuseNotRecordType $ \ (q, _pars0, _) -> do
 
-        -- case: argument is definitely not of record type
-        Left (Just _) -> refuse "argument is not of record type"
-
-        -- case: type is blocked so we don't know yet
-        Left Nothing -> do
-          tc <- caseMaybe mt newTypeMeta_ return
-          v <- postponeTypeCheckingProblem (CheckExpr e tc) $ unblockedTester ta
-          return (v, tc)
-
-        -- case: argument is of record type
-        Right (q, _, _) -> do
           -- try to project it with all of the possible projections
           let try d = do
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text $ "trying projection " ++ show d
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
-              caseMaybeM (projectTyped v ta d `catchError` \ _ -> return Nothing) (return Nothing) $ \ (dom, u, tb) -> do
+              -- get the original projection name
+              Projection{ projProper = mp } <- MaybeT $ isProjection d
+              orig <- MaybeT $ return mp
+              -- try to eliminate
+              (dom, u, tb) <- MaybeT (projectTyped v ta d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  dom = " <+> prettyTCM dom
                 , text "  u   = " <+> prettyTCM u
                 , text "  tb  = " <+> prettyTCM tb
                 ]
-              caseMaybeM (isRecordType $ unDom dom) (return Nothing) $ \ (q', _, _) -> do
+              (q', pars, _) <- MaybeT $ isRecordType $ unDom dom
               reportSDoc "tc.proj.amb" 30 $ vcat
                 [ text "  q   = " <+> prettyTCM q
                 , text "  q'  = " <+> prettyTCM q'
                 ]
-              if (q == q') then return $ Just (d, u, tb) else return Nothing
-          -- TODO use original projections
-          -- TODO: lazy!  There should be at most one candidate. This is strict:
-          cands <- catMaybes <$> mapM try ds
+              guard (q == q')
+              -- Get the type of the projection and check
+              -- that the first visible argument is the record value.
+              tfull <- lift $ defType <$> getConstInfo d
+              TelV tel _ <- lift $ telViewUpTo' (-1) (not . visible) tfull
+              reportSDoc "tc.proj.amb" 30 $ vcat
+                [ text $ "  size tel  = " ++ show (size tel)
+                , text $ "  size pars = " ++ show (size pars)
+                ]
+              -- See issue 1960 for when the following assertion fails for
+              -- the correct disambiguation.
+              -- guard (size tel == size pars)
+              return (orig, (d, (pars, (dom, u, tb))))
+
+          cands <- groupOn fst . catMaybes <$> mapM (runMaybeT . try) ds
           case cands of
-            [] -> refuse "no matching candidate found"
-            (_:_:_) -> refuse $ "several matching candidates found: " ++ show (map fst3 cands)
+            [] -> refuseNoMatching
+            [[]] -> refuseNoMatching
+            (_:_:_) -> refuse $ "several matching candidates found: "
+                 ++ show (map (fst . snd) $ concat cands)
             -- case: just one matching projection d
             -- the term u = d v
             -- the type tb is the type of this application
-            [(d,u,tb)] -> do
+            [ (_orig, (d, (pars, (_dom,u,tb)))) : _ ] -> do
               storeDisambiguatedName d
+
+              -- Check parameters
+              tfull <- typeOfConst d
+              (_,_) <- checkKnownArguments (take k args) pars tfull
+
+              -- Check remaining arguments
               let tc = fromMaybe typeDontCare mt
               let r  = getRange e
-              z <- runExceptT $ checkArguments ExpandLast r args tb tc
+              z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
               case z of
                 Right (us, trest) -> return (u `apply` us, trest)
                 -- We managed to check a part of es and got us1, but es2 remain.
@@ -1760,11 +1810,58 @@ traceCallE call m = do
     Right e  -> return e
     Left err -> throwError err
 
+-- | Check arguments whose value we already know.
+--
+--   This function can be used to check user-supplied parameters
+--   we have already computed by inference.
+--
+--   The type @t@ of the head has enough domains.
+
+checkKnownArguments
+  :: [NamedArg A.Expr]
+  -> Args
+  -> Type
+  -> TCM (Args, Type)
+checkKnownArguments []           vs t = return (vs, t)
+checkKnownArguments (arg : args) vs t = do
+  (vs', t') <- traceCall (SetRange $ getRange arg) $ checkKnownArgument arg vs t
+  checkKnownArguments args vs' t'
+
+-- | Check an argument whose value we already know.
+checkKnownArgument
+  :: NamedArg A.Expr
+  -> Args
+  -> Type
+  -> TCM (Args, Type)
+checkKnownArgument arg [] _ = genericDocError =<< do
+  text "Invalid projection parameter " <+> prettyA arg
+checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
+  (Dom info' a, b) <- mustBePi t
+  -- Bollocks:
+  -- unless (info' == infov) $ do
+  --    reportSDoc "impossible" 10 $ vcat
+  --      [ text "parameter " <+> prettyTCM (Arg infov v)
+  --      , text "has type  " <+> prettyTCM (Dom info' a)
+  --      ]
+  --    __IMPOSSIBLE__
+
+  -- Skip the arguments from vs that do not correspond to e
+  if not (getHiding info == getHiding info'
+          && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
+    -- Continue with the next one
+    then checkKnownArgument arg vs (b `absApp` v)
+    -- Found the right argument
+    else do
+      u <- checkExpr (namedThing e) a
+      equalTerm a u v
+      return (vs, b `absApp` v)
+
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen.  Returns the evaluated arguments @vs@, the remaining
 --   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
 --   that have to be solved for everything to be well-formed.
+
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
 

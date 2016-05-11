@@ -8,6 +8,7 @@ import Test.Tasty
 import Test.Tasty.Silver
 import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Data.Char
+import Data.List
 import Data.Maybe
 import System.Exit
 import System.FilePath
@@ -41,7 +42,7 @@ tests = do
   return $ testGroup "LaTeXAndHTML"
     [ mkLaTeXOrHTMLTest k agdaBin f
     | f <- inpFiles
-    , k <- HTML : [ LaTeX | takeExtension f == ".lagda" ]
+    , k <- HTML : [ LaTeX | any (`isSuffixOf` takeExtensions f) [".lagda",".lagda.tex"] ]
     ]
 
 data LaTeXResult
@@ -69,8 +70,8 @@ mkLaTeXOrHTMLTest k agdaBin inp =
     HTML  -> "html"
 
   testName    = asTestName testDir inp ++ "_" ++ show k
-  goldenFile  = dropExtension inp <.> extension
-  compFile    = dropExtension inp <.> ".compile"
+  goldenFile  = dropAgdaExtension inp <.> extension
+  compFile    = dropAgdaExtension inp <.> ".compile"
   outFileName = takeFileName goldenFile
 
   doRun = withTempDirectory "." testName $ \outDir -> do

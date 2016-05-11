@@ -96,6 +96,7 @@ import Agda.Utils.Null
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Pretty (render, Pretty, pretty, prettyShow)
 import Agda.Utils.Tuple
+import Agda.Interaction.FindFile ( rootNameModule )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -1056,7 +1057,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
         (outsideDecls, [ C.Module r m0 tel insideDecls ]) -> do
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
-                then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootName file]
+                then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootNameModule file]
                 else do
                 -- Andreas, 2014-03-28  Issue 1078
                 -- We need to check the module name against the file name here.
@@ -2070,9 +2071,9 @@ toAbstractOpApp op ns es = do
       ScopeM ([A.LamBinding], [NamedArg (Either A.Expr (OpApp e))])
     replacePlaceholders []       = return ([], [])
     replacePlaceholders (a : as) = case namedArg a of
-      NoPlaceholder x -> mapSnd (set (Right x) a :) <$>
-                           replacePlaceholders as
-      Placeholder p   -> do
+      NoPlaceholder _ x -> mapSnd (set (Right x) a :) <$>
+                             replacePlaceholders as
+      Placeholder _     -> do
         x <- freshName noRange "section"
         let i = argInfo a
         (ls, ns) <- replacePlaceholders as

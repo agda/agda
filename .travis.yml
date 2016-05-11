@@ -269,6 +269,10 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
+       make BUILD_DIR=$BUILD_DIR user-manual-test;
+    fi
+
+  - if [[ $TEST = "main" ]]; then
        make BUILD_DIR=$BUILD_DIR tests;
     fi
 

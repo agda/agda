@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 ------------------------------------------------------------------------
 -- | Functions which map between module names and file names.
 --
@@ -14,17 +15,21 @@ module Agda.Interaction.FindFile
   , checkModuleName
   , moduleName', moduleName
   , tests
+  , rootNameModule
+  , replaceModuleExtension
   ) where
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 import Data.List
+import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
+import Agda.Syntax.Parser.Literate (literateExts, literateExtsShortList)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
@@ -33,11 +38,18 @@ import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Lens
 
+#include "undefined.h"
+import Agda.Utils.Impossible
+
 -- | Converts an Agda file name to the corresponding interface file
 -- name.
 
 toIFile :: AbsolutePath -> AbsolutePath
-toIFile f = mkAbsolute (replaceExtension (filePath f) ".agdai")
+toIFile = replaceModuleExtension ".agdai"
+
+replaceModuleExtension :: String -> AbsolutePath -> AbsolutePath
+replaceModuleExtension ext@('.':_) = mkAbsolute . (++ ext) .  dropAgdaExtension . filePath
+replaceModuleExtension ext = replaceModuleExtension ('.':ext)
 
 -- | Errors which can arise when trying to find a source file.
 --
@@ -98,18 +110,20 @@ findFile'' dirs m modFile =
   case Map.lookup m modFile of
     Just f  -> return (Right f, modFile)
     Nothing -> do
-      files <- mapM absolute
-                    [ filePath dir </> file
-                    | dir  <- dirs
-                    , file <- map (moduleNameToFileName m)
-                                  [".agda", ".lagda"]
-                    ]
+      files <- fileList sourceFileExts
+      filesShortList <- fileList sourceFileExtsShortList
       existingFiles <-
         liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       return $ case nub existingFiles of
-        []     -> (Left (NotFound files), modFile)
+        []     -> (Left (NotFound filesShortList), modFile)
         [file] -> (Right file, Map.insert m file modFile)
-        files  -> (Left (Ambiguous files), modFile)
+        files  -> (Left (Ambiguous existingFiles), modFile)
+  where
+    fileList exts = mapM absolute
+                    [ filePath dir </> file
+                    | dir  <- dirs
+                    , file <- map (moduleNameToFileName m) exts
+                    ]
 
 -- | Finds the interface file corresponding to a given top-level
 -- module name. The returned paths are absolute.
@@ -164,7 +178,25 @@ moduleName' file = billTo [Bench.ModuleName] $ do
       return $ TopLevelModuleName [defaultName]
     _ -> return name
   where
-    defaultName = rootName file
+    defaultName = rootNameModule file
+
+sourceFileExts :: [String]
+sourceFileExts = [".agda"] ++ literateExts
+
+sourceFileExtsShortList :: [String]
+sourceFileExtsShortList = [".agda"] ++ literateExtsShortList
+
+dropAgdaExtension :: String -> String
+dropAgdaExtension s = case catMaybes [ stripExtension ext s
+                                     | ext <- sourceFileExts ] of
+    [name] -> name
+    _      -> __IMPOSSIBLE__
+  where
+    stripExtension :: String -> String -> Maybe String
+    stripExtension e = fmap reverse . stripPrefix (reverse e) . reverse
+
+rootNameModule :: AbsolutePath -> String
+rootNameModule = dropAgdaExtension . snd . splitFileName . filePath
 
 -- | A variant of 'moduleName'' which raises an error if the file name
 -- does not match the module name.

@@ -654,10 +654,9 @@ openModule_ cm dir = do
             realClash _              = True
 
             -- No ambiguity if concrete identifier is only mapped to
-            -- constructor names.
-            defClash (_, (qs0, qs1)) =
-              any ((/= ConName) . anameKind) (qs0 ++ qs1)
-
+            -- constructor names or only to projection names.
+            defClash (_, (qs0, qs1)) = not $ all (== ConName) ks || all (==FldName) ks
+              where ks = map anameKind $ qs0 ++ qs1
         -- We report the first clashing exported identifier.
         unlessNull (filter (\ x -> realClash x && defClash x) defClashes) $
           \ ((x, (_, q:_)) : _) -> typeError $ ClashingDefinition (C.QName x) (anameName q)

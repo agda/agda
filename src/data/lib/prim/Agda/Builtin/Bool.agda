@@ -1,3 +1,4 @@
+{-# OPTIONS --without-K #-}
 
 module Agda.Builtin.Bool where
 
@@ -13,4 +14,3 @@ data Bool : Set where
 {-# COMPILED_JS Bool  function (x,v) { return ((x)? v["true"]() : v["false"]()); } #-}
 {-# COMPILED_JS false false #-}
 {-# COMPILED_JS true  true  #-}
-

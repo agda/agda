@@ -72,13 +72,6 @@ wakeConstraints wake = do
   modifySleepingConstraints $ const sleepin
   modifyAwakeConstraints (++ wakeup)
 
-partitionM :: (a -> TCM Bool) -> [a] -> TCM ([a], [a])
-partitionM f [] = return ([], [])
-partitionM f (x:xs) = do
-  b <- f x
-  (l, r) <- partitionM f xs
-  if b then return (x:l, r) else return (l, x:r)
-
 -- danger...
 dropConstraints :: (ProblemConstraint -> Bool) -> TCM ()
 dropConstraints crit = do

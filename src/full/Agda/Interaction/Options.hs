@@ -63,6 +63,7 @@ import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.List          ( groupOn, wordsBy )
 import Agda.Utils.String        ( indent )
 import Agda.Utils.Trie          ( Trie )
+import Agda.Syntax.Parser.Literate ( literateExts )
 import qualified Agda.Utils.Trie as Trie
 
 import Agda.Version
@@ -71,7 +72,7 @@ import Paths_Agda ( getDataFileName )
 
 -- | This should probably go somewhere else.
 isLiterate :: FilePath -> Bool
-isLiterate file = ".lagda" `isSuffixOf` file
+isLiterate file = any (`isSuffixOf` file) literateExts
 
 -- OptDescr is a Functor --------------------------------------------------
 

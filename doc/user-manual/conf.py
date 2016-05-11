@@ -53,7 +53,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ['.lagda.rst','.rst']
 
 # The encoding of source files.
 source_encoding = 'utf-8-sig'
@@ -238,13 +238,15 @@ latex_elements = {
 # The font size ('10pt', '11pt' or '12pt').
 #'pointsize': '10pt',
 
+# Fix the following XeLaTeX warning:
+# "Package inputenc Warning: inputenc package ignored with utf8 based engines."
+'inputenc':'',
+
 # Additional stuff for the LaTeX preamble.
 'preamble': r'''
 \ifxetex
-  \usepackage{unicode-math}
+  \usepackage{fontspec}
 
-  % See the unicode package documentation for the options for
-  % \setmonofont.
   \setmonofont
     [ BoldFont       = DejaVuSansMono-Bold.ttf,
       ItalicFont     = DejaVuSansMono-Oblique.ttf,

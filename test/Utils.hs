@@ -2,6 +2,7 @@
 
 module Utils where
 
+import Data.Text (Text)
 import qualified Data.Text as T
 import System.Exit
 
@@ -11,10 +12,16 @@ import Data.Maybe
 import Data.Char
 import qualified Data.Set as S
 import Test.Tasty.Silver
+import Test.Tasty.Silver.Advanced (readFileMaybe)
 import Data.List
 import System.FilePath
+import qualified System.FilePath.Find as Find
+import System.FilePath.GlobPattern
 import System.Directory
 
+import qualified Data.ByteString as BS
+
+import Data.Text.Encoding
 import qualified System.Process.Text as PT
 import Data.Array
 import Text.Regex.TDFA.Text ()
@@ -52,26 +59,50 @@ getEnvVar :: String -> IO (Maybe String)
 getEnvVar v =
   lookup v <$> getEnvironment
 
-agdaExts :: S.Set String
-agdaExts = S.fromList [".agda", ".lagda"]
+-- | Checks if a String has Agda extension
+hasAgdaExtension :: FilePath -> Bool
+hasAgdaExtension = isJust . dropAgdaExtension'
 
 data SearchMode = Rec | NonRec
+
+dropAgdaExtension' :: FilePath -> Maybe FilePath
+dropAgdaExtension' p =  stripExtension ".agda" p
+                        <|> stripExtension ".lagda" p
+                        <|> stripExtension ".lagda.tex" p
+                        <|> stripExtension ".lagda.rst" p
+  where
+    stripExtension :: String -> FilePath -> Maybe FilePath
+    stripExtension e = fmap reverse . stripPrefix (reverse e) . reverse
+
+dropAgdaExtension :: FilePath -> FilePath
+dropAgdaExtension p =
+  fromMaybe (error$ "Utils.hs: Path " ++ p ++ " does not have an Agda extension") $
+  dropAgdaExtension' p
+
+dropAgdaOrOtherExtension :: FilePath -> FilePath
+dropAgdaOrOtherExtension = fromMaybe <$> dropExtension <*> dropAgdaExtension'
 
 getAgdaFilesInDir :: SearchMode -> FilePath -> IO [FilePath]
 getAgdaFilesInDir rec dir =
   sort <$>
     case rec of
-      Rec -> findByExtension (S.toList agdaExts) dir
-      NonRec -> map (dir </>) . filter (flip S.member agdaExts . takeExtension) <$>
+      Rec -> Find.find (pure True) (hasAgdaExtension <$> Find.filePath) dir
+      NonRec -> map (dir </>) . filter hasAgdaExtension <$>
                   getDirectoryContents dir
 
 -- | An Agda file path as test name
 asTestName :: FilePath -> FilePath -> String
 asTestName testDir path = intercalate "-" parts
-  where parts = splitDirectories $ dropExtension $ makeRelative testDir path
+  where parts = splitDirectories $ dropAgdaExtension $ makeRelative testDir path
 
 doesEnvContain :: String -> IO Bool
 doesEnvContain v = isJust <$> getEnvVar v
+
+readTextFileMaybe :: FilePath -> IO (Maybe Text)
+readTextFileMaybe f = fmap decodeUtf8 <$> readFileMaybe f
+
+writeTextFile :: FilePath -> Text -> IO ()
+writeTextFile f = BS.writeFile f . encodeUtf8
 
 -- | Replaces all matches of a regex with the given text.
 --

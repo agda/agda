@@ -4,17 +4,21 @@
 
 module _ (A : Set) (a : A) where
 
-record R B : Set where
-  field f : B
-open R
+module RecDefs where
 
-record S B : Set where
-  field f : B
-open S
+  record R B : Set where
+    field f : B
+  open R public
 
-record T B : Set where
-  field f : B → B
-open T
+  record S B : Set where
+    field f : B
+  open S public
+
+  record T B : Set where
+    field f : B → B
+  open T public
+
+open RecDefs public
 
 r : R A
 R.f r = a
