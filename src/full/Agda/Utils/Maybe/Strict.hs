@@ -1,14 +1,9 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-
-#if __GLASGOW_HASKELL__ >= 706
-{-# LANGUAGE DeriveGeneric #-}
-#endif
-
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# OPTIONS_GHC -fno-warn-orphans  #-}
 
 -- | A strict version of the 'Maybe' type.
 --
@@ -41,16 +36,10 @@ import           Data.Data           (Data (..))
 import           Data.Monoid         (Monoid (..))
 import           Data.Foldable       (Foldable (..))
 import           Data.Traversable    (Traversable (..))
-#if MIN_VERSION_base(4,7,0)
 import           Data.Typeable       (Typeable)
-#else
-import           Data.Typeable       (Typeable1)
-#endif
 import           Data.Strict.Maybe   (Maybe (Nothing, Just), fromJust,
                                       fromMaybe, isJust, isNothing, maybe)
-#if __GLASGOW_HASKELL__ >= 706
 import           GHC.Generics        (Generic (..))
-#endif
 import           Test.QuickCheck     (Arbitrary (..), CoArbitrary (..))
 
 import Agda.Utils.Null
@@ -64,15 +53,8 @@ toLazy Nothing  = Lazy.Nothing
 toLazy (Just x) = Lazy.Just x
 
 deriving instance Data a => Data (Maybe a)
-#if MIN_VERSION_base(4,7,0)
 deriving instance Typeable Maybe
-#else
-deriving instance Typeable1 Maybe
-#endif
-
-#if __GLASGOW_HASKELL__ >= 706
-deriving instance Generic  (Maybe a)
-#endif
+deriving instance Generic (Maybe a)
 
 instance Null (Maybe a) where
   empty = Nothing

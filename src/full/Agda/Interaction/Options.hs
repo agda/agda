@@ -31,11 +31,6 @@ import Control.Applicative
 import Control.Monad            ( (>=>), when )
 import Control.Monad.Trans
 
--- base-4.7 defines the Functor instances for OptDescr and ArgDescr
-#if !(MIN_VERSION_base(4,7,0))
-import Data.Orphans             ()
-#endif
-
 import Data.Either
 import Data.Maybe
 import Data.List                ( isSuffixOf , intercalate )
