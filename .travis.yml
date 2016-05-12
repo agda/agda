@@ -31,31 +31,31 @@ sudo: false
 
 matrix:
   include:
-    - env: TEST=main GHC_VER=7.10.3 CABAL_VER=1.22
+    - env: TEST=main GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
         apt:
           packages:
-            - cabal-install-1.22
-            - ghc-7.10.3
+            - cabal-install-1.24
+            - ghc-8.0.1
             - texlive-binaries
           sources:
             - hvr-ghc
 
-    - env: TEST=cpp GHC_VER=7.10.3 CABAL_VER=1.22
+    - env: TEST=cpp GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
         apt:
           packages:
-            - cabal-install-1.22
-            - ghc-7.10.3
+            - cabal-install-1.24
+            - ghc-8.0.1
           sources:
             - hvr-ghc
 
-    - env: TEST=haddock GHC_VER=7.10.3 CABAL_VER=1.22
+    - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
         apt:
           packages:
-            - cabal-install-1.22
-            - ghc-7.10.3
+            - cabal-install-1.24
+            - ghc-8.0.1
           sources:
             - hvr-ghc
 
@@ -66,6 +66,16 @@ matrix:
             - dvipng
             - texlive-latex-base
             - texlive-latex-extra
+
+    - env: TEST=main GHC_VER=7.10.3 CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.22
+            - ghc-7.10.3
+            - texlive-binaries
+          sources:
+            - hvr-ghc
 
     - env: TEST=main GHC_VER=7.8.4 CABAL_VER=1.18
       addons:
