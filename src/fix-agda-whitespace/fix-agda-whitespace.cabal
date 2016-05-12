@@ -10,9 +10,9 @@ tested-with:     GHC == 7.6.3
 executable fix-agda-whitespace
   hs-source-dirs:   .
   main-is:          FixWhitespace.hs
-  build-depends:
-    base >= 4.6.0.1 && < 4.10
-    , directory >= 1.2.0.1 && < 1.3
-    , filemanip >= 0.3.6.2 && < 0.4
-    , filepath >= 1.3.0.1 && < 1.5
-    , text >= 0.11.3.1 && < 1.3
+
+  build-depends:  base >= 4.6.0.1 && < 4.10
+                , directory >= 1.2.0.1 && < 1.3
+                , filemanip >= 0.3.6.2 && < 0.4
+                , filepath >= 1.3.0.1 && < 1.5
+                , text >= 0.11.3.1 && < 1.3
