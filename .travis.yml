@@ -108,8 +108,8 @@ matrix:
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  # allow_failures:
-    # - ghc: A.B.C
+  allow_failures:
+    - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
 
 ##############################################################################
 before_install:
