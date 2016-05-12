@@ -6,10 +6,10 @@ maintenance branch is maint-2.4.0.
 
 * Create a new branch based on maint-2.4.0 for testing GHC X.Y.Z:
 
-  ````bash
+  ```bash
   git checkout maint-2.4.0
   git checkout -b ghc-X.Y.Z
-  ````
+  ```
 
 * Install the tools in the `build-tools` field(s) of the `Agda.cabal`
   file.
@@ -36,19 +36,26 @@ maintenance branch is maint-2.4.0.
 
   `make TAGS`
 
+* Test the size-solver program:
+
+  ```bash
+  make install-size-solver
+  make test-size-solver
+  ```
+
 * Commit your changes.
 
 * Merge the ghc-X.Y.Z branch in the maint-2.4.0 branch and push it:
 
-````bash
+  ```bash
   git checkout maint-2.4.0
   git merge ghc-X.Y.Z
   git push
-  ````
+  ```
 
 * Merge the ghc-X.Y.Z branch in the master branch:
 
-  ````bash
+  ```bash
   git checkout master
   git merge ghc-X.Y.Z
   ```
