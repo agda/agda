@@ -7,8 +7,6 @@ Important changes since 2.5.1:
 Installation and infrastructure
 ===============================
 
-* Removed support for GHC 7.6.3.
-
 * Modular support for literate programming
 
   Literate programming support has been moved out of the lexer and into the
