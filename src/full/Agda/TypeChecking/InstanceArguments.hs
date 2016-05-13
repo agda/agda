@@ -80,7 +80,7 @@ initialIFSCandidates t = do
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
       rel          <- asks envRelevance
-      let qs = fromMaybe [] $ Map.lookup n instanceDefs
+      let qs = maybe [] Set.toList $ Map.lookup n instanceDefs
       catMaybes <$> mapM (candidate rel) qs
 
     candidate :: Relevance -> QName -> TCM (Maybe Candidate)
@@ -158,7 +158,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
     setCurrentRange mv $ do
       reportSLn "tc.instance" 15 $
         "findInScope 2: constraint: " ++ prettyShow m ++ "; candidates left: " ++ show (length cands)
-      reportSDoc "tc.instance" 70 $ nest 2 $ vcat
+      reportSDoc "tc.instance" 60 $ nest 2 $ vcat
         [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- cands ]
       t <- normalise =<< getMetaTypeInContext m
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
