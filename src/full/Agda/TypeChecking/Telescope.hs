@@ -7,11 +7,15 @@
 
 module Agda.TypeChecking.Telescope where
 
-import Control.Applicative
-import Control.Monad (forM_, unless, guard)
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
+import Control.Monad (unless, guard)
+
+import Data.Foldable (forM_)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import Data.List
+import Data.List hiding (null)
 import Data.Maybe
 
 import Agda.Syntax.Common
@@ -27,6 +31,7 @@ import Agda.TypeChecking.Free
 
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
