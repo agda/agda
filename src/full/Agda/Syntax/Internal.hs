@@ -31,6 +31,12 @@ import Data.Function
 import qualified Data.List as List
 import Data.Maybe
 import Data.Monoid
+
+-- base-4.7 defines the Num instance for Sum
+#if !(MIN_VERSION_base(4,7,0))
+import Data.Orphans             ()
+#endif
+
 import Data.Traversable
 import Data.Typeable (Typeable)
 

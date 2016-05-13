@@ -4,6 +4,10 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE TupleSections             #-}
 
+#if __GLASGOW_HASKELL__ <= 706
+{-# LANGUAGE FlexibleContexts #-}
+#endif
+
 module Agda.Syntax.Abstract.Views where
 
 import Control.Applicative

@@ -32,9 +32,9 @@ description:
   Note that the Agda library does not follow the package versioning
   policy, because it is not intended to be used by third-party
   packages.
-tested-with:        GHC == 7.8.4
+tested-with:        GHC == 7.6.3
+                    GHC == 7.8.4
                     GHC == 7.10.3
-                    GHC == 8.0.1
 extra-source-files: src/full/undefined.h
                     README.md
                     CHANGELOG
@@ -106,15 +106,15 @@ library
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
 
-  build-depends:  array >= 0.5.0.0 && < 0.6
-                , base >= 4.7.0.0 && < 4.10
+  build-depends:  array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
                 , binary >= 0.7.2.1 && < 0.9
                 , boxes >= 0.1.3 && < 0.2
-                , bytestring >= 0.10.4.0 && < 0.11
-                , containers >= 0.5.5.1 && < 0.6
+                , bytestring >= 0.10.0.2 && < 0.11
+                , containers >= 0.5.0.0 && < 0.6
                 , data-hash >= 0.2.0.0 && < 0.3
-                , deepseq >= 1.3.0.2 && < 1.5
-                , directory >= 1.2.1.0 && < 1.3
+                , deepseq >= 1.3.0.1 && < 1.5
+                , directory >= 1.2.0.1 && < 1.3
                 -- Edison versioning scheme:
                 -- http://rwd.rdockins.name/edison/home/.  EdisonAPI
                 -- isn't used by Agda, but EdisonCore 1.3.1 doesn't
@@ -123,7 +123,7 @@ library
                 , EdisonCore >= 1.3.1.1 && < 1.3.2
                 , edit-distance >= 0.2.1.2 && < 0.3
                 , equivalence >= 0.2.5 && < 0.4
-                , filepath >= 1.3.0.2 && < 1.5
+                , filepath >= 1.3.0.1 && < 1.5
                 , geniplate-mirror >= 0.6.0.6 && < 0.8
                 -- hashable 1.2.0.10 makes library-test 10x
                 -- slower. The issue was fixed in hashable 1.2.1.0.
@@ -147,18 +147,21 @@ library
                 , parallel >= 3.2.0.4 && < 3.3
                 -- pretty 1.1.1.2 and 1.1.1.3 do not follow the
                 -- package versioning policy.
-                , pretty >= 1.1.1.1 && < 1.1.1.2 || >= 1.1.2 && < 1.2
-                , process >= 1.2.0.0 && < 1.5
+                , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
+                , process >= 1.1.0.2 && < 1.5
                 , regex-tdfa >= 1.2.2 && < 1.3
                 , strict >= 0.3.2 && < 0.4
-                , template-haskell >= 2.9.0.0 && < 2.12
+                , template-haskell >= 2.8.0.0 && < 2.12
                 , text >= 0.11.3.1 && < 1.3
-                , time >= 1.4.2 && < 1.7
+                , time >= 1.4.0.1 && < 1.7
                 -- transformers 0.4.0.0 was deprecated.
-                , transformers >= 0.3.0.0 && < 0.4 || >= 0.4.1.0 && < 0.6
+                , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
                 , transformers-compat >= 0.3.3.3 && < 0.6
                 , unordered-containers >= 0.2.5.0 && < 0.3
                 , xhtml >= 3000.2.1 && < 3000.3
+
+  if impl(ghc < 7.8)
+    build-depends: base-orphans >= 0.3.1 && < 0.5
 
   if impl(ghc < 7.10)
     build-depends: void >= 0.5.4 && < 0.9
@@ -478,7 +481,7 @@ library
 
   other-modules:    Paths_Agda
 
-  if impl(ghc >= 7.8)
+  if impl(ghc >= 7.6.3)
     ghc-options: -w
                  -Werror
                  -fwarn-deprecated-flags
@@ -486,23 +489,25 @@ library
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
                  -fwarn-duplicate-exports
-                 -fwarn-empty-enumerations
                  -fwarn-hi-shadowing
                  -fwarn-identities
                  -fwarn-incomplete-patterns
-                 -fwarn-inline-rule-shadowing
                  -fwarn-missing-fields
                  -fwarn-missing-methods
                  -fwarn-missing-signatures
                  -fwarn-orphans
                  -fwarn-tabs
-                 -fwarn-typed-holes
-                 -fwarn-overflowed-literals
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
                  -fwarn-unused-do-bind
                  -fwarn-warnings-deprecations
                  -fwarn-wrong-do-bind
+
+  if impl(ghc >= 7.8)
+    ghc-options: -fwarn-empty-enumerations
+                 -fwarn-inline-rule-shadowing
+                 -fwarn-typed-holes
+                 -fwarn-overflowed-literals
 
   if impl(ghc >= 7.10)
      ghc-options: -fwarn-unticked-promoted-constructors
@@ -514,7 +519,7 @@ library
     ghc-options: -fwarn-amp
 
   -- This option will be removed in GHC 8.0.1.
-  if impl(ghc >= 7.8) && impl(ghc < 8.0)
+  if impl(ghc >= 7.6) && impl(ghc < 8.0)
     ghc-options: -fwarn-pointless-pragmas
 
   -- This option will be deprected in GHC 8.0.1.
@@ -539,8 +544,8 @@ executable agda
   build-depends:  Agda == 2.6.0
                   -- Nothing is used from the following package,
                   -- except for the prelude.
-                , base >= 4.7.0.0 && < 6
-  if impl(ghc >= 7.8)
+                , base >= 4.6.0.1 && < 6
+  if impl(ghc >= 7)
     -- If someone installs Agda with the setuid bit set, then the
     -- presence of +RTS may be a security problem (see GHC bug #3910).
     -- However, we sometimes recommend people to use +RTS to control
@@ -552,10 +557,10 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:    base >= 4.7.0.0 && < 4.10
-                  , directory >= 1.2.1.0 && < 1.3
-                  , filepath >= 1.3.0.2 && < 1.5
-                  , process >= 1.2.0.0 && < 1.5
+  build-depends:    base >= 4.6.0.1 && < 4.10
+                  , directory >= 1.2.0.1 && < 1.3
+                  , filepath >= 1.3.0.1 && < 1.5
+                  , process >= 1.1.0.2 && < 1.5
 
 executable agda-ghc-names
   hs-source-dirs:   src/agda-ghc-names
@@ -565,11 +570,11 @@ executable agda-ghc-names
                     , FixProf
                     , ResolveHsNames
 
-  build-depends:  base >= 4.7.0.0 && < 4.10
+  build-depends:  base >= 4.6.0.1 && < 4.10
                 , binary >= 0.7.2.1 && < 0.9
-                , containers >= 0.5.5.1 && < 0.6
+                , containers >= 0.5.0.0 && < 0.6
                 , filemanip >= 0.3.6.3 && < 0.4
-                , filepath >= 1.3.0.2 && < 1.5
+                , filepath >= 1.3.0.1 && < 1.5
                 , haskell-src-exts >= 1.16.0.1 && < 1.18
                 , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
 
@@ -597,14 +602,14 @@ test-suite agda-tests
                     , Succeed.Tests
                     , Utils
 
-  build-depends:  array >= 0.5.0.0 && < 0.6
-                , base >= 4.7.0.0 && < 4.10
-                , bytestring >= 0.10.4.0 && < 0.11
-                , containers >= 0.5.5.1 && < 0.6
-                , directory >= 1.2.1.0 && < 1.3
-                , filepath >= 1.3.0.2 && < 1.5
+  build-depends:  array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
+                , bytestring >= 0.10.0.2 && < 0.11
+                , containers >= 0.5.0.0 && < 0.6
+                , directory >= 1.2.0.1 && < 1.3
+                , filepath >= 1.3.0.1 && < 1.5
                 , filemanip >= 0.3.6.3 && < 0.4
-                , process >= 1.2.0.0 && < 1.5
+                , process >= 1.1.0.2 && < 1.5
                 , process-extras >= 0.3.0 && < 0.4
                 , regex-tdfa >= 1.2.0 && < 1.3
                 , regex-tdfa-text >= 1.0.0.3 && < 1.1
