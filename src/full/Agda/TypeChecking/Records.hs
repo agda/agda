@@ -502,12 +502,20 @@ etaExpandRecord_ r pars def u = do
       tel' = apply tel pars
   unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
   case ignoreSharing u of
+
     -- Already expanded.
     Con con_ args -> do
-      when (con /= con_) __IMPOSSIBLE__
+      when (con /= con_) $ do
+        reportSDoc "impossible" 10 $ vcat
+          [ text "etaExpandRecord_: the following two constructors should be identical"
+          , nest 2 $ text $ "con  = " ++ show con
+          , nest 2 $ text $ "con_ = " ++ show con_
+          ]
+        __IMPOSSIBLE__
       return (tel', con, args)
+
     -- Not yet expanded.
-    _             -> do
+    _ -> do
       -- Andreas, < 2016-01-18: Note: recFields are always the original projections,
       -- thus, we can use them in Proj directly.
       let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj x]
