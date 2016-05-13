@@ -193,6 +193,17 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
       caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
     _ -> no
 
+-- | Get the original projection info for name.
+{-# SPECIALIZE origProjection :: QName -> TCM (QName, Definition, Maybe Projection) #-}
+origProjection ::  HasConstInfo m => QName -> m (QName, Definition, Maybe Projection)
+origProjection f = do
+  def <- getConstInfo f
+  caseMaybe (isProjection_ $ theDef def) (return (f, def, Nothing)) $
+    \ p@Projection{ projProper = mproper } -> caseMaybe mproper (return (f, def, Just p)) $
+      \ f' -> if f == f' then return (f, def, Just p) else do
+        def <- getConstInfo f'
+        return (f', def, isProjection_ $ theDef def)
+
 -- | @getDefType f t@ computes the type of (possibly projection-(like))
 --   function @f@ whose first argument has type @t@.
 --   The `parameters' for @f@ are extracted from @t@.
@@ -204,15 +215,27 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
 getDefType :: QName -> Type -> TCM (Maybe Type)
 getDefType f t = do
-  def <- getConstInfo f
+  -- Andreas, Issue #1973: we need to take the original projection
+  -- since the parameters from the reduced type t are correct for
+  -- the original projection only.
+  -- Due to module application, the given (non-original) projection f
+  -- may expect less parameters, those corresponding to a unreduced
+  -- version of t (which we cannot obtain here).
+  (f, def, mp) <- origProjection f
   let a = defType def
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
-  caseMaybe (isProjection_ $ theDef def) fallback $
+  reportSDoc "tc.deftype" 20 $ vcat
+    [ text "definition f = " <> prettyTCM f <+> text ("raw: " ++ show f)
+    , text "has type   a = " <> prettyTCM a
+    , text "principal  t = " <> prettyTCM t
+    ]
+  caseMaybe mp fallback $
     \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
       -- otherwise, we have to instantiate @a@ to the "parameters" of @f@
       let npars | n == 0    = __IMPOSSIBLE__
                 | otherwise = n - 1
+      reportSLn "tc.deftype" 20 $ "projIndex    = " ++ show n
       -- we get the parameters from type @t@
       case ignoreSharing $ unEl t of
         Def d es -> do
@@ -224,6 +247,11 @@ getDefType f t = do
           ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+            reportSDoc "tc.deftype" 20 $ vcat
+              [ text $ "head d     = " ++ show d
+              , text "parameters =" <+> sep (map prettyTCM pars)
+              ]
+            reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
             if length pars < npars then failure "does not supply enough parameters"
             else Just <$> a `piApplyM` pars
         _ -> failNotDef
