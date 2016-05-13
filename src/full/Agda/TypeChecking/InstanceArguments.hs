@@ -80,7 +80,7 @@ initialIFSCandidates t = do
     getScopeDefs n = do
       instanceDefs <- getInstanceDefs
       rel          <- asks envRelevance
-      let qs = fromMaybe [] $ Map.lookup n instanceDefs
+      let qs = maybe [] Set.toList $ Map.lookup n instanceDefs
       catMaybes <$> mapM (candidate rel) qs
 
     candidate :: Relevance -> QName -> TCM (Maybe Candidate)

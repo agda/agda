@@ -286,7 +286,7 @@ initPostScopeState = PostScopeState
   , stPostImportsDisplayForms  = HMap.empty
   , stPostImportedDisplayForms = HMap.empty
   , stPostCurrentModule        = Nothing
-  , stPostInstanceDefs         = (Map.empty , [])
+  , stPostInstanceDefs         = (Map.empty , Set.empty)
   , stPostStatistics           = Map.empty
   , stPostMutualBlocks         = Map.empty
   , stPostLocalBuiltins        = Map.empty
@@ -1673,7 +1673,7 @@ instance HasRange Call where
 
 -- | The instance table is a @Map@ associating to every name of
 --   record/data type/postulate its list of instances
-type InstanceTable = Map QName [QName]
+type InstanceTable = Map QName (Set QName)
 
 -- | When typechecking something of the following form:
 --
@@ -1683,7 +1683,7 @@ type InstanceTable = Map QName [QName]
 --
 --   it's not yet known where to add @x@, so we add it to a list of
 --   unresolved instances and we'll deal with it later.
-type TempInstanceTable = (InstanceTable , [QName])
+type TempInstanceTable = (InstanceTable , Set QName)
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
