@@ -96,6 +96,16 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=main GHC_VER=7.6.3 CABAL_VER=1.18
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.18
+            - ghc-7.6.3
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
   allow_failures:
