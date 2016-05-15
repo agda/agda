@@ -77,6 +77,15 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=haddock GHC_VER=7.10.3 CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.22
+            - ghc-7.10.3
+          sources:
+            - hvr-ghc
+
     - env: TEST=main GHC_VER=7.8.4 CABAL_VER=1.18
       addons:
         apt:
