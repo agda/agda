@@ -178,10 +178,13 @@ withFunctionType delta1 vs as delta2 b = addContext delta1 $ do
   wd2b <- piAbstractVs (zip vs as) d2b
   dbg 30 "wΓ → Δ₂ → B" wd2b
 
-  let countArgs OtherType{}    = 1
-      countArgs EqualityType{} = 2
+  return (telePi_ delta1 wd2b, countWithArgs as)
 
-  return (telePi_ delta1 wd2b, sum $ map countArgs as)
+countWithArgs :: [EqualityView] -> Nat
+countWithArgs = sum . map countArgs
+  where
+    countArgs OtherType{}    = 1
+    countArgs EqualityType{} = 2
 
 -- | From a list of @with@ and @rewrite@ expressions and their types,
 --   compute the list of final @with@ expressions (after expanding the @rewrite@s).
