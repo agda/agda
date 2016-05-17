@@ -199,13 +199,22 @@ addCtxTel tel ret = loop tel where
   loop EmptyTel          = ret
   loop (ExtendTel t tel) = underAbstraction t tel loop
 
+getLetBindings :: MonadTCM tcm => tcm [(Name,(Term,Dom Type))]
+getLetBindings = do
+  bs <- asks envLetBindings
+  forM (Map.toList bs) $ \ (n,o) -> (,) n <$> getOpen o
+
+-- | Add a let bound variable
+{-# SPECIALIZE addLetBinding' :: Name -> Term -> Dom Type -> TCM a -> TCM a #-}
+addLetBinding' :: MonadTCM tcm => Name -> Term -> Dom Type -> tcm a -> tcm a
+addLetBinding' x v t ret = do
+    vt <- liftTCM $ makeOpen (v, t)
+    flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding info x v t0 ret = do
-    let t = Dom info t0
-    vt <- liftTCM $ makeOpen (v, t)
-    flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+addLetBinding info x v t0 ret = addLetBinding' x v (Dom info t0) ret
 
 
 -- * Querying the context

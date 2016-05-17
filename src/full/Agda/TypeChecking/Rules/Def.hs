@@ -242,6 +242,11 @@ checkFunDef' t ai delayed extlam with i name cs =
               , nest 2 $ sep $ map (prettyTCM . QNamed name) cs
               ]
 
+        reportSDoc "tc.cc.raw" 15 $ do
+          sep [ text "clauses before compilation"
+              , nest 2 $ sep $ map (text . show) cs
+              ]
+
         -- add clauses for the coverage checker (needs to reduce)
         addClauses name cs
 

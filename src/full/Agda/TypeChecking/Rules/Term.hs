@@ -49,7 +49,7 @@ import qualified Agda.Syntax.Reflected as R
 import Agda.Syntax.Scope.Base ( ThingsInScope, AbstractName
                               , emptyScopeInfo
                               , exportedNamesInScope)
-import Agda.Syntax.Scope.Monad (getNamedScope)
+import Agda.Syntax.Scope.Monad (getNamedScope, freshAbstractQName)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 import Agda.Syntax.Translation.ReflectedToAbstract (toAbstract_)
 
@@ -807,14 +807,56 @@ checkArguments' exph r args t0 t k = do
 
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 = do
-  boundary <- fmap getPrimName <$> getBuiltin' builtinBoundary
+  partial <- fmap getPrimName <$> getBuiltin' builtinPartial
   case unEl t0 of -- reduce?
-    Def q [Apply l,Apply a,Apply phi] | Just q == boundary -> do
+    Def q [Apply l,Apply a,Apply phi] | Just q == partial -> do
          phi' <- reduce (unArg phi)
-         ts <- forallFaceMaps phi' $ \ sigma -> checkExpr' e (applySubst sigma (El (getSort t0) (unArg a)))
-         case ts of
-          [t] -> return t
-          _   -> typeError $ GenericError "Each component in a system must be a face map"
+         iphi <- intervalView phi'
+         case iphi of
+          IZero -> checkExpr' e t0
+          _ -> do
+           gamma <- getContext
+           gamma_tel <- getContextTelescope
+           ts <- forallFaceMaps phi' $ \ sigma -> do
+             gamma' <- getContext
+             let a_sigma = (applySubst sigma (El (getSort t0) (unArg a)))
+             tel <- getContextTelescope
+             u <- checkExpr' e a_sigma
+             tinv <- El (mkType 0) <$> primInterval
+             let pats = teleNamedArgs gamma_tel
+                 mkConP q = ConP (ConHead q Inductive []) (noConPatternInfo { conPType = Just (Arg defaultArgInfo tinv) })
+                                                           []
+                 adjusted = map (fmap (fmap (\ p@(VarP (i,blah)) -> case lookupS sigma i of
+                                                                      Def q [] -> mkConP q
+                                                                      Var j [] -> VarP (j,blah)
+                                                                      _        -> p))) pats
+             reportSDoc "tc.partial" 80 $ text (show adjusted)
+             reportSDoc "tc.partial" 50 $ prettyTCM sigma
+             let c = Clause { clauseTel = tel
+                          , clauseType = Just $ Arg defaultArgInfo a_sigma
+                          , clauseBody = foldr (\ nm b -> Bind $ mkAbs nm b) (Body u) (teleNames tel)
+                          , namedClausePats = adjusted
+                          , clauseRange = noRange
+                          , clauseCatchall = False
+                          }
+
+             return (u,c)
+           case ts of
+             [(_,c)] -> do
+               q <- inTopContext $ do
+                    bname <- getPrimName <$> primPartial
+                    q <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName bname)
+                    let ty = (abstract gamma_tel t0)
+                    reportSDoc "tc.partial" 60 $ prettyTCM ty
+                    addConstant q (defaultDefn defaultArgInfo q ty (emptyFunction { funClauses = [c] }))
+                    return q
+               args <- getContextArgs
+               let t = (Def q [] `apply` args)
+               reportSDoc "tc.partial" 50 $ text (show c)
+--            reportSDoc "tc.partial" 50 $ prettyTCM t
+               reportSDoc "tc.partial" 50 $ prettyTCM =<< reduce t
+               return t
+             _   -> typeError $ GenericError "Each component in a system must be a face map"
     _ -> checkExpr' e t0
 
 -- | Type check an expression.
@@ -1564,6 +1606,7 @@ checkConstructorApplication org t c args = do
       where
         name = fmap rangedThing . nameOf $ unArg arg
 
+-- This should probably represent face maps with a more precise type
 toFaceMaps :: Term -> TCM [[(Int,Term)]]
 toFaceMaps t = do
   view <- intervalView'
@@ -1578,27 +1621,25 @@ toFaceMaps t = do
       f (INeg x)   = map (id -*- ineg) <$> (f . view . unArg) x
       f (OTerm (Var i [])) = return [(i,io)]
       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
-  return (f (view t))
+  xs <- mapM (mapM (\ (i,t) -> (,) i <$> reduce t)) (f (view t))
+  return xs
 
 forallFaceMaps :: Term -> (Substitution -> TCM a) -> TCM [a]
 forallFaceMaps t k = do
   as <- toFaceMaps t
-  forM as $ \ xs -> do
-    -- TODO remove duplicate bindings in xs
+  forM as $ \ xs' -> do
+    -- We might have conflicting definitions for the same variable, we pick the first.
+    -- That situation should rather be handled like an absurd case.
+    let xs = map head . groupBy (\ x y -> fst x == fst y) . sortOn fst $ xs'
     cxt <- asks envContext
---    reportSDoc "tc.term.facemaps" 100 $ text "before: " <+> prettyTCM cxt
-    cn <- getContextNames
-    reportSDoc "tc.term.facemaps" 50 $ text "before: " <+> text (unwords $ map uglyShowName cn)
-    (cxt',sigma) <- substContextN cxt (sortOn fst xs)
+    (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
-    -- Questions:
-    -- inTopContext messes with local variables, is that what we want?
-    -- old let bound variables should be updated too?
+    bs <- getLetBindings
     modifyContext (const cxt') $ do
-      c <- getContextNames
-      reportSDoc "tc.term.facemaps" 50 $ text "after: " <+> text (unwords $ map uglyShowName c)
-      addBindings resolved $ k sigma
+      addBindings' (map (id -*- (applySubst sigma -*- applySubst sigma)) bs) $ addBindings resolved $ k sigma
   where
+    addBindings' [] m = m
+    addBindings' ((n,(v,t)):bs) m = addLetBinding' n v t (addBindings' bs m)
     addBindings [] m = m
     addBindings ((Dom{domInfo = info,unDom = (nm,ty)},t):bs) m = addLetBinding info nm t ty (addBindings bs m)
 

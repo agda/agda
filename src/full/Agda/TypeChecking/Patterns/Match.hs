@@ -198,6 +198,11 @@ matchPattern p u = case (p, u) of
         let v = ignoreBlocking w
             arg = Arg info v  -- the reduced argument
         case ignoreSharing <$> w of
+          NotBlocked _ (Def c' [])
+            | conName c == c'               -> do
+                (m, vs) <- yesSimplification <$> matchPatterns ps []
+                return (m, Arg info $ Def c' [])
+            | otherwise             -> return (No                          , arg)
           NotBlocked _ (Con c' vs)
             | c == c'               -> do
                 (m, vs) <- yesSimplification <$> matchPatterns ps vs
