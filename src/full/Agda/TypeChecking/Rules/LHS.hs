@@ -54,7 +54,7 @@ import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
-import Agda.TypeChecking.Rules.LHS.Problem
+import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Split
@@ -519,10 +519,12 @@ checkLeftHandSide
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
+  -> Maybe Substitution
+     -- ^ Module parameter substitution from with-abstraction.
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ do
+checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ do
   problem0 <- problemFromPats ps a
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
