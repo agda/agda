@@ -1,5 +1,9 @@
 -- {-# OPTIONS -v tc.cover.split.con:20 #-}
 
+-- Ulf, 2016-05-18:
+-- This used to be in test/Fail, but with the new flexible module
+-- parameters it actually checks.
+
 open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Equality
 
@@ -71,13 +75,14 @@ weakLev (validLev d) = validLev (lookupSuc d)
 lookupLev : ∀ (x : Lev) (Γ : Cxt) → Dec (ValidLev x Γ)
 lookupLev x ε = no λ { (validLev ()) }
 lookupLev x (Γ , a) with x ≟ len Γ
-lookupLev ._ (Γ , a) | yes refl = yes (validLev lookupZero)
+lookupLev _ (Γ , a) | yes refl = yes (validLev lookupZero)
 lookupLev x (Γ , a) | no _ with lookupLev x Γ
 lookupLev x (Γ , a) | no ¬p | yes d = yes (weakLev d)
 lookupLev x (Γ , a) | no ¬p | no ¬d = no contra
   where
     contra : ¬ ValidLev x (Γ , a)
-    contra (validLev (lookupSuc valid)) = ?
+    contra (validLev (lookupSuc valid)) = ¬d (validLev valid)
+    contra (validLev lookupZero) = ¬p refl
 
 {- Unbound indices showing up in error message:
 

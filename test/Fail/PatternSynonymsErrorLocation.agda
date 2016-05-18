@@ -59,11 +59,12 @@ Var (cons , A , Gamma) C =  Sigma NatTag T
         T zero = A ≡ C
         T succ = Var Gamma C
 
+pattern vz-bad = zero , zero
 pattern vz   = zero , refl
 pattern vs x = succ , x
 
 idVar : (Gamma : Context)(C : Ty)(x : Var Gamma C) -> Var Gamma C
 idVar [] _ ()
--- CORRECT: idVar (A ∷ Gamma) C (zero , proof) = zero , proof
-idVar (A ∷ Gamma) C vz         = vz
+-- CORRECT: idVar (A ∷ Gamma) C vz = vz
+idVar (A ∷ Gamma) C vz-bad     = vz
 idVar (A ∷ Gamma) C (vs x)     = vs (idVar Gamma C x)

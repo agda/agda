@@ -5,8 +5,8 @@ postulate
 data D : A → Set where
   d : (a : A) → D a
 
-f : D a → Set
-f (d a) = A
+f : A → (D a → Set) → Set
+f a f = f (d a)
 
 -- Bad error:
 -- a != a of type A

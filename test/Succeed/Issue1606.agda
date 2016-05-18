@@ -16,7 +16,7 @@ data Wrap : (j : I) → Set where
   wrap : ∀ {j} → Wrap j
 
 works1 : ∀ {j} → Wrap j → C
-works1 {c ._} (wrap {c x}) with anything
+works1 {c _} (wrap {c x}) with anything
 ... | z = z
 
 works2 : ∀ {j} → Wrap j → C
@@ -28,22 +28,22 @@ works3 wrap with anything
 ... | z = z
 
 works : ∀ {j} → Wrap j → C
-works {c _} (wrap {c ._}) with anything
+works {c _} (wrap {c _}) with anything
 works {c _} (wrap .{c _}) | z = z
 
 -- The following should not pass, but issue 142 is hard to fix
 -- with the current infrastructure for with-clauses.
 -- Not many attempts have been made since 2009, and none succeeded.
 issue142 : ∀ {j} → Wrap j → C
-issue142 {c _} (wrap {c ._}) with anything
+issue142 {c _} (wrap {c _}) with anything
 issue142 {c _} (wrap .{c anything}) | z = z
 
 test : ∀ {j} → Wrap j → C
-test {c _} (wrap {c ._}) with anything
-test {c _} (wrap {c ._}) | z = z
+test {c _} (wrap {c _}) with anything
+test {c _} (wrap {c _}) | z = z
 
 test' : ∀ {j} → Wrap j → C
-test' {c _} (wrap {c ._}) with anything
+test' {c _} (wrap {c _}) with anything
 ... | z = z
 
 -- ERROR WAS::
@@ -55,11 +55,11 @@ test' {c _} (wrap {c ._}) with anything
 -- has type {j : I} → Wrap j → C
 
 works1a : ∀ {j} → Wrap j → C
-works1a {c ._} (wrap {c x}) with anything
-works1a {c ._} (wrap {c x}) | z = z
+works1a {c _} (wrap {c x}) with anything
+works1a {c _} (wrap {c x}) | z = z
 
 works1b : ∀ {j} → Wrap j → C
-works1b {c ._} (wrap {c x}) with anything
+works1b .{c _} (wrap {c x}) with anything
 works1b .{c _} (wrap {c x}) | z = z
 
 -- ERROR WAS:
