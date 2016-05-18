@@ -885,6 +885,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       [ nest 2 $ text "vs      =" <+> text (show vs)
       , nest 2 $ text "args    =" <+> text (show args)
       ]
+    addSection m1
     applySection m1 telInst x (vs ++ args) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
