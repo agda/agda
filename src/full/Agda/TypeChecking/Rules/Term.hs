@@ -807,10 +807,11 @@ checkArguments' exph r args t0 t k = do
 
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 = do
-  partial <- fmap getPrimName <$> getBuiltin' builtinPartial
+  restr <- fmap getPrimName <$> getBuiltin' builtinRestrict
   case unEl t0 of -- reduce?
-    Def q [Apply l,Apply a,Apply phi] | Just q == partial -> do
-         phi' <- reduce (unArg phi)
+    Def q [Apply l,Apply a,Apply phi] | Just q == restr -> do
+     ifBlocked (unArg phi) (\ m _ -> postponeTypeCheckingProblem (CheckExpr e t0)
+                                (isInstantiatedMeta m)) $ \ phi' -> do
          iphi <- intervalView phi'
          case iphi of
           IZero -> checkExpr' e t0
@@ -1616,21 +1617,20 @@ toFaceMaps t = do
 
   let f IZero = mzero
       f IOne  = return []
-      f (IMin x y) = concat <$> map (f . view . unArg) [x,y]
+      f (IMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
       f (IMax x y) = msum $ map (f . view . unArg) [x,y]
-      f (INeg x)   = map (id -*- ineg) <$> (f . view . unArg) x
-      f (OTerm (Var i [])) = return [(i,io)]
+      f (INeg x)   = map (id -*- not) <$> (f . view . unArg) x
+      f (OTerm (Var i [])) = return [(i,True)]
       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
-  xs <- mapM (mapM (\ (i,t) -> (,) i <$> reduce t)) (f (view t))
+      isConsistent xs = all (\ xs -> length xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
+      as = map (map (id -*- head) . Map.toAscList) . filter isConsistent . map (Map.fromListWith (++) . map (id -*- (:[]))) $ (f (view t))
+  xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
   return xs
 
 forallFaceMaps :: Term -> (Substitution -> TCM a) -> TCM [a]
 forallFaceMaps t k = do
   as <- toFaceMaps t
-  forM as $ \ xs' -> do
-    -- We might have conflicting definitions for the same variable, we pick the first.
-    -- That situation should rather be handled like an absurd case.
-    let xs = map head . groupBy (\ x y -> fst x == fst y) . sortOn fst $ xs'
+  forM as $ \ xs -> do
     cxt <- asks envContext
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
@@ -1648,7 +1648,7 @@ forallFaceMaps t k = do
     substContextN c ((i,t):xs) = do
       (c', sigma) <- substContext i t c
       (c'', sigma')  <- substContextN c' (map (subtract 1 -*- applySubst sigma) xs)
-      return (c'', applySubst sigma sigma')
+      return (c'', applySubst sigma' sigma)
 
 
     -- assumes the term can be typed in the shorter telescope
@@ -1661,6 +1661,15 @@ forallFaceMaps t k = do
                                   e <- mkContextEntry (applySubst sigma (ctxEntry x))
                                   return (e:c, liftS 1 sigma)
     substContext i t (x:xs) = __IMPOSSIBLE__
+
+-- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
+equalTermOnFace :: Term -> Type -> Term -> Term -> TCM ()
+equalTermOnFace phi ty u v = do
+  -- TODO postpone if phi contains metas
+  phi <- reduce phi
+  _ <- forallFaceMaps phi $ \ alpha -> equalTerm (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
+  return ()
+
 
 -- | "pathAbs (PathView s _ l a x y) t" builds "(\ t) : pv"
 --   Preconditions: PathView is PathType, and t[i0] = x, t[i1] = y
@@ -1706,6 +1715,9 @@ checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Ter
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
   conId     <- fmap getPrimName <$> getBuiltin' builtinConId
+  psingl    <- fmap getPrimName <$> getBuiltin' builtinPSingl
+  pOr       <- fmap primFunName <$> getPrimitive' "primPOr"
+  pComp       <- fmap primFunName <$> getPrimitive' "primComp"
   case hd of
     A.Con (AmbQ [c]) | Just c == (nameOfSharp <$> kit) -> do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
@@ -1739,6 +1751,14 @@ checkHeadApplication e t hd args = do
         blockTerm t $ f vs <$ workOnTypes (do
           addCtxTel eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
+    (A.Def c) | Just c == pComp -> do
+        defaultResult' $ Just $ \ vs t1 -> do
+          case vs of
+            [l,a,phi,u,a0] -> do
+              iz <- Arg defaultArgInfo <$> intervalUnview IZero
+              equalTermOnFace (unArg phi) (El (getSort t1) (apply (unArg a) [iz])) (unArg a0) (apply (unArg u) [iz])
+            _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+
 
     (A.Def c) | Just c == conId -> do
                     defaultResult' $ Just $ \ vs t1 -> do
@@ -1751,6 +1771,28 @@ checkHeadApplication e t hd args = do
                             equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
                             cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
                             equalTerm ty (applySubst alpha (unArg p)) cx   -- G,phi |- p = \ i . x
+                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+    (A.Def c) | Just c == psingl -> do
+       (f, t0) <- inferHead hd
+       expandLast <- asks envExpandLast
+       checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 ->
+                      case vs of
+                       [_,_,_,v] -> do
+                          coerce (unArg v) t1 t
+                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+    (A.Def c) | Just c == pOr -> do
+                    defaultResult' $ Just $ \ vs t1 -> do
+                      case vs of
+                       [l,a,phi1,phi2,u,v] -> do
+                          phi <- intervalUnview (IMin phi1 phi2)
+                          phi <- reduce phi
+                          alphas <- toFaceMaps phi
+                          reportSDoc "tc.term.por" 10 $ text (show phi)
+                          reportSDoc "tc.term.por" 10 $ text (show alphas)
+                          forallFaceMaps phi $ \ alpha -> do
+                            reportSDoc "tc.term.por" 10 $ text (show alpha)
+                            let [x,y] = map (applySubst alpha) [u,v]
+                            equalTerm (applySubst alpha t1) (unArg x) (unArg y)
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do

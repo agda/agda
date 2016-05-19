@@ -437,6 +437,52 @@ primPathApply = do
 
       _ -> __IMPOSSIBLE__
 
+primPOr :: TCM PrimitiveImpl
+primPOr = do
+  t    <- hPi "a" (el primLevel) $
+          hPi "A" (return $ sort $ varSort 0) $
+          hPi "i" (el primInterval) $
+          hPi "j" (el primInterval) $
+          (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@> varM 1) -->
+          (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@> varM 0) -->
+          (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@>
+           (intervalUnview =<< ((\ x y -> IMax (Arg defaultArgInfo x) (Arg defaultArgInfo y)) <$>
+                                                                                               varM 1 <*> varM 0)))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
+    case ts of
+     [l,a,i,j,u,v] -> do
+       si <- reduceB' i
+       vi <- intervalView $ unArg $ ignoreBlocking si
+       case vi of
+        IOne -> redReturn (unArg u)
+        _ -> do
+          sj <- reduceB' j
+          vj <- intervalView $ unArg $ ignoreBlocking sj
+          case vj of
+            IOne -> redReturn (unArg v)
+            _ -> return $ NoReduction [notReduced l,notReduced a,reduced si,reduced sj,notReduced u,notReduced v]
+
+
+     _ -> __IMPOSSIBLE__
+
+
+primComp :: TCM PrimitiveImpl
+primComp = do
+  t    <- hPi "a" (el primLevel) $
+          nPi "A" (el primInterval --> (return $ sort $ varSort 0)) $
+          nPi "φ" (el primInterval) $
+          (nPi "i" (el primInterval) $ El (varSort 3) <$> primPartial <#> varM 3 <@> (varM 2 <@> varM 0) <@> varM 1) -->
+          ((El (varSort 2) <$> (varM 1 <@> primIZero)) --> (El (varSort 2) <$> (varM 1 <@> primIOne)))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+    case ts of
+      [l,a,phi,u,x] -> do
+        sphi <- reduceB' phi
+        vphi <- intervalView $ unArg $ ignoreBlocking sphi
+        io   <- intervalUnview IOne
+        case vphi of
+          IOne -> redReturn (apply (unArg u) [Arg defaultArgInfo io])
+          _    -> return $ NoReduction [notReduced l,notReduced a, reduced sphi, notReduced u, notReduced x]
+      _ -> __IMPOSSIBLE__
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
@@ -843,6 +889,8 @@ primitiveFunctions = Map.fromList
   , "primIMax"            |-> primIMax
   , "primINeg"            |-> primINeg
   , "primCoe"             |-> primCoe
+  , "primPOr"             |-> primPOr
+  , "primComp"            |-> primComp
   ]
   where
     (|->) = (,)

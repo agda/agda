@@ -108,7 +108,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
-    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial,
+    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primRestrict, primPSingl,
     primId, primConId,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -165,7 +165,9 @@ primInterval     = getBuiltin builtinInterval
 primPathAbs      = getBuiltin builtinPathAbs
 primIZero        = getBuiltin builtinIZero
 primIOne         = getBuiltin builtinIOne
-primPartial     = getBuiltin builtinPartial
+primRestrict     = getBuiltin builtinRestrict
+primPartial      = getBuiltin builtinPartial
+primPSingl       = getBuiltin builtinPSingl
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -281,7 +283,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial,
+  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinRestrict, builtinPSingl,
   builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
@@ -351,7 +353,9 @@ builtinInterval                      = "INTERVAL"
 builtinPathAbs                       = "PATHABS"
 builtinIZero                         = "IZERO"
 builtinIOne                          = "IONE"
+builtinRestrict                      = "RESTRICT"
 builtinPartial                       = "PARTIAL"
+builtinPSingl                        = "PSINGL"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
@@ -471,6 +475,7 @@ builtinsNoDef =
   , builtinSizeInf
   , builtinSizeMax
   , builtinConId
+  , builtinPSingl
   ]
 
 -- | The coinductive primitives.
