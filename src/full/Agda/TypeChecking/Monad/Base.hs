@@ -1882,6 +1882,102 @@ initEnv = TCEnv { envContext             = []
 disableDestructiveUpdate :: TCM a -> TCM a
 disableDestructiveUpdate = local $ \e -> e { envAllowDestructiveUpdate = False }
 
+-- * e-prefixed lenses
+------------------------------------------------------------------------
+
+eContext :: Lens' Context TCEnv
+eContext f e = f (envContext e) <&> \ x -> e { envContext = x }
+
+eLetBindings :: Lens' LetBindings TCEnv
+eLetBindings f e = f (envLetBindings e) <&> \ x -> e { envLetBindings = x }
+
+eCurrentModule :: Lens' ModuleName TCEnv
+eCurrentModule f e = f (envCurrentModule e) <&> \ x -> e { envCurrentModule = x }
+
+eCurrentPath :: Lens' (Maybe AbsolutePath) TCEnv
+eCurrentPath f e = f (envCurrentPath e) <&> \ x -> e { envCurrentPath = x }
+
+eAnonymousModules :: Lens' [(ModuleName, Nat)] TCEnv
+eAnonymousModules f e = f (envAnonymousModules e) <&> \ x -> e { envAnonymousModules = x }
+
+eImportPath :: Lens' [C.TopLevelModuleName] TCEnv
+eImportPath f e = f (envImportPath e) <&> \ x -> e { envImportPath = x }
+
+eMutualBlock :: Lens' (Maybe MutualId) TCEnv
+eMutualBlock f e = f (envMutualBlock e) <&> \ x -> e { envMutualBlock = x }
+
+eTerminationCheck :: Lens' (TerminationCheck ()) TCEnv
+eTerminationCheck f e = f (envTerminationCheck e) <&> \ x -> e { envTerminationCheck = x }
+
+eSolvingConstraints :: Lens' Bool TCEnv
+eSolvingConstraints f e = f (envSolvingConstraints e) <&> \ x -> e { envSolvingConstraints = x }
+
+eCheckingWhere :: Lens' Bool TCEnv
+eCheckingWhere f e = f (envCheckingWhere e) <&> \ x -> e { envCheckingWhere = x }
+
+eAssignMetas :: Lens' Bool TCEnv
+eAssignMetas f e = f (envAssignMetas e) <&> \ x -> e { envAssignMetas = x }
+
+eActiveProblems :: Lens' [ProblemId] TCEnv
+eActiveProblems f e = f (envActiveProblems e) <&> \ x -> e { envActiveProblems = x }
+
+eAbstractMode :: Lens' AbstractMode TCEnv
+eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
+
+eRelevance :: Lens' Relevance TCEnv
+eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
+
+eDisplayFormsEnabled :: Lens' Bool TCEnv
+eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
+
+eReifyInteractionPoints :: Lens' Bool TCEnv
+eReifyInteractionPoints f e = f (envReifyInteractionPoints e) <&> \ x -> e { envReifyInteractionPoints = x }
+
+eEtaContractImplicit :: Lens' Bool TCEnv
+eEtaContractImplicit f e = f (envEtaContractImplicit e) <&> \ x -> e { envEtaContractImplicit = x }
+
+eRange :: Lens' Range TCEnv
+eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
+
+eHighlightingRange :: Lens' Range TCEnv
+eHighlightingRange f e = f (envHighlightingRange e) <&> \ x -> e { envHighlightingRange = x }
+
+eCall :: Lens' (Maybe (Closure Call)) TCEnv
+eCall f e = f (envCall e) <&> \ x -> e { envCall = x }
+
+eHighlightingLevel :: Lens' HighlightingLevel TCEnv
+eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlightingLevel = x }
+
+eHighlightingMethod :: Lens' HighlightingMethod TCEnv
+eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
+
+eModuleNestingLevel :: Lens' Integer TCEnv
+eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
+
+eAllowDestructiveUpdate :: Lens' Bool TCEnv
+eAllowDestructiveUpdate f e = f (envAllowDestructiveUpdate e) <&> \ x -> e { envAllowDestructiveUpdate = x }
+
+eExpandLast :: Lens' ExpandHidden TCEnv
+eExpandLast f e = f (envExpandLast e) <&> \ x -> e { envExpandLast = x }
+
+eAppDef :: Lens' (Maybe QName) TCEnv
+eAppDef f e = f (envAppDef e) <&> \ x -> e { envAppDef = x }
+
+eSimplification :: Lens' Simplification TCEnv
+eSimplification f e = f (envSimplification e) <&> \ x -> e { envSimplification = x }
+
+eAllowedReductions :: Lens' AllowedReductions TCEnv
+eAllowedReductions f e = f (envAllowedReductions e) <&> \ x -> e { envAllowedReductions = x }
+
+eCompareBlocked :: Lens' Bool TCEnv
+eCompareBlocked f e = f (envCompareBlocked e) <&> \ x -> e { envCompareBlocked = x }
+
+ePrintDomainFreePi :: Lens' Bool TCEnv
+ePrintDomainFreePi f e = f (envPrintDomainFreePi e) <&> \ x -> e { envPrintDomainFreePi = x }
+
+eInsideDotPattern :: Lens' Bool TCEnv
+eInsideDotPattern f e = f (envInsideDotPattern e) <&> \ x -> e { envInsideDotPattern = x }
+
 ---------------------------------------------------------------------------
 -- ** Context
 ---------------------------------------------------------------------------

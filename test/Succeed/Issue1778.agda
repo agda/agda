@@ -17,7 +17,7 @@ swap f _ {x , y} = f _ {y , x}
 -- NOW: swap f _ {xy} = f _ {proj₂ xy , proj₁ xy}
 
 test : f ≡ swap (swap f)
-test with Set -- trigers internal checking of type
+test with Set₂ -- trigers internal checking of type
 test | _ = refl
 
 -- WAS:
