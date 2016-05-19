@@ -302,25 +302,6 @@ splitExactlyAt 0 xs       = return ([], xs)
 splitExactlyAt n []       = Nothing
 splitExactlyAt n (x : xs) = mapFst (x :) <$> splitExactlyAt (n-1) xs
 
--- | @'extractNthElement' n xs@ gives the @n@-th element in @xs@
--- (counting from 0), plus the remaining elements (preserving order).
-
-extractNthElement' :: Integral i => i -> [a] -> ([a], a, [a])
-extractNthElement' n xs = (left, el, right)
-  where
-  (left, el : right) = genericSplitAt n xs
-
-extractNthElement :: Integral i => i -> [a] -> (a, [a])
-extractNthElement n xs = (el, left ++ right)
-  where
-  (left, el, right) = extractNthElement' n xs
-
-prop_extractNthElement :: Integer -> [Integer] -> Property
-prop_extractNthElement n xs =
-  0 <= n && n < genericLength xs ==>
-    genericTake n rest ++ [elem] ++ genericDrop n rest == xs
-  where (elem, rest) = extractNthElement n xs
-
 -- | A generalised variant of 'elemIndex'.
 
 genericElemIndex :: (Eq a, Integral i) => a -> [a] -> Maybe i
@@ -481,12 +462,3 @@ tests :: IO Bool
 tests = do
   putStrLn "Agda.Utils.List"
   $quickCheckAll
-
--- tests = runTests "Agda.Utils.List"
---   [ quickCheck' prop_distinct_fastDistinct
---   , quickCheck' prop_groupBy'
---   , quickCheck' prop_extractNthElement
---   , quickCheck' prop_genericElemIndex
---   , quickCheck' prop_zipWith'
---   , quickCheck' prop_uniqOn
---   ]

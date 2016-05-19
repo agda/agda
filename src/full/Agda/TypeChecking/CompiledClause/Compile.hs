@@ -163,7 +163,8 @@ splitC n (Cl ps b) = case unArg p of
   VarP{}      -> catchAll $ Cl ps b
   DotP{}      -> catchAll $ Cl ps b
   where
-    (ps0, p, ps1) = extractNthElement' n ps
+    (ps0, rest)   = splitAt n ps
+    (p, ps1)      = fromMaybe __IMPOSSIBLE__ $ uncons rest
 
 -- | Expand catch-alls that appear before actual matches.
 --
