@@ -14,6 +14,9 @@ Important changes since 0.12:
   (non-degenerative) proof for totality, and renamed `×-total` to
   `x-total₁` in that module.
 
+* Added the length-filter property to Data.List.Properties (the filter
+  equivalent to the pre-existing length-gfilter)
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12
 ------------------------------------------------------------------------

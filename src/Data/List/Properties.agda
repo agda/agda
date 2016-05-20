@@ -12,7 +12,7 @@ module Data.List.Properties where
 open import Algebra
 import Algebra.Monoid-solver
 open import Category.Monad
-open import Data.Bool.Base using (Bool; false; true; not)
+open import Data.Bool.Base using (Bool; false; true; not; if_then_else_)
 open import Data.List as List
 open import Data.List.All using (All; []; _∷_)
 open import Data.Maybe.Base using (Maybe; just; nothing)
@@ -333,6 +333,10 @@ length-gfilter p []       = z≤n
 length-gfilter p (x ∷ xs) with p x
 length-gfilter p (x ∷ xs) | just y  = s≤s (length-gfilter p xs)
 length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
+
+length-filter : ∀ {a} {A : Set a} (p : A → Bool) xs →
+                length (filter p xs) ≤ length xs
+length-filter p xs = length-gfilter (λ x → if p x then just x else nothing) xs
 
 -- Reverse.
 
