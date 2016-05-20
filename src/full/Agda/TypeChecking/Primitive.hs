@@ -441,8 +441,8 @@ primPOr :: TCM PrimitiveImpl
 primPOr = do
   t    <- hPi "a" (el primLevel) $
           hPi "A" (return $ sort $ varSort 0) $
-          hPi "i" (el primInterval) $
-          hPi "j" (el primInterval) $
+          nPi "i" (el primInterval) $
+          nPi "j" (el primInterval) $
           (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@> varM 1) -->
           (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@> varM 0) -->
           (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@>
@@ -473,16 +473,74 @@ primComp = do
           nPi "φ" (el primInterval) $
           (nPi "i" (el primInterval) $ El (varSort 3) <$> primPartial <#> varM 3 <@> (varM 2 <@> varM 0) <@> varM 1) -->
           ((El (varSort 2) <$> (varM 1 <@> primIZero)) --> (El (varSort 2) <$> (varM 1 <@> primIOne)))
+  unview <- intervalUnview'
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
-      [l,a,phi,u,x] -> do
+      [l,c,phi,u,a0] -> do
         sphi <- reduceB' phi
         vphi <- intervalView $ unArg $ ignoreBlocking sphi
         io   <- intervalUnview IOne
         case vphi of
           IOne -> redReturn (apply (unArg u) [Arg defaultArgInfo io])
-          _    -> return $ NoReduction [notReduced l,notReduced a, reduced sphi, notReduced u, notReduced x]
+          _    -> do
+           sc <- reduceB' c
+           case unArg $ ignoreBlocking sc of
+             Lam _info t ->
+               case unAbs t of
+                 Pi a b   -> redReturn =<< compPi unview t a b (ignoreBlocking sphi) u a0 --  __IMPOSSIBLE__ -- Lam _ (comp (Lam
+                 Sort s   | False -> __IMPOSSIBLE__ -- Glue guys
+                 Def q es | False -> __IMPOSSIBLE__  -- Datatypes and primitives
+                 _ -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
+             _ -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
       _ -> __IMPOSSIBLE__
+ where
+  compPi :: (IntervalView -> Term) ->
+            Abs Term -> Dom Type -> Abs Type -> -- Γ , i : I
+               Arg Term -- phi -- Γ
+            -> Arg Term -- u -- function -- Γ
+            -> Arg Term -- λ0 -- fine -- Γ
+            -> ReduceM Term
+  compPi unview t a b phi u a0 = do
+   tComp <- ((`Def` []) . primFunName . fromMaybe __IMPOSSIBLE__) <$> getPrimitive' "primComp"
+   let
+    toLevel (Type l) = l
+    toLevel _        = __IMPOSSIBLE__
+    termComp = pure tComp
+    v' = termComp <#> sa <@> (pure $ lam_j  -- Γ , u1 : A[i1] , i : I , j : I
+                                           at)
+                          <@> varM 0 -- Γ , u1 : A[i1] , i : I
+                          <@> (pure $ lam_j $ raise 2 u1) -- block until i = 1
+                          <@> (pure $ raise 1 u1)
+    u1 = var 0  -- Γ , u1 : A[i1]
+    a' = applySubst (liftS 1 $ raiseS 3) a -- Γ , u1 : A[i1] , i : I , j : I , i' : I
+    a'' = (applySubst (singletonS 0 iOrNj) a')
+    sa = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort a''
+
+    at = unEl . unDom $ a''
+
+    iOrNj = unview (IMax (argN $ var 1) (argN $ unview $ INeg $ argN $ var 0))  -- Γ , u1 : A[i1] , i : I , j : I
+               -- Γ , u1 : A[i1] , i : I
+    i0 = unview IZero
+    lam = Lam defaultArgInfo
+    lam_i m = lam (mkAbs (absName t) m)
+    lam_j m = lam (mkAbs "j" m)
+   v <- v'
+   let
+    b'  = unAbs $ b -- Γ , i : I , x : A[i]
+    b''' = applySubst (consS v $ liftS 1 $ raiseS 1) b' -- Γ , u1 : A[i1] , i : I
+    b'' = unEl b'''
+    sb = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort b'''
+   (Lam (getArgInfo a) . mkAbs (absName b)) <$>
+
+     -- Γ , u1 : A[i1]
+      (termComp <#> sb <@> pure (lam_i -- Γ , u1 : A[i1] , i : I
+                                      b'')
+                      <@> pure (raise 1 (unArg phi))
+
+                      <@> (lam_i <$> -- Γ , u1 : A[i1] , i : I
+                                  (gApply (getHiding a) (pure (raise 2 (unArg u)) <@> varM 0) (pure v))) -- block until φ = 1?
+                      <@> (gApply (getHiding a) (pure $ raise 1 (unArg a0)) (subst 0 i0 <$> pure v))) -- Γ , u1 : A[i1]
+
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
@@ -705,14 +763,14 @@ a --> b = garr id a b
 a .--> b = garr (const $ Irrelevant) a b
 a ..--> b = garr (const $ NonStrict) a b
 
-garr :: (Relevance -> Relevance) -> TCM Type -> TCM Type -> TCM Type
+garr :: Monad tcm => (Relevance -> Relevance) -> tcm Type -> tcm Type -> tcm Type
 garr f a b = do
   a' <- a
   b' <- b
   return $ El (getSort a' `sLub` getSort b') $
            Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
 
-gpi :: ArgInfo -> String -> TCM Type -> TCM Type -> TCM Type
+gpi :: MonadTCM tcm => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
   b <- addContext (name, Dom info a) b
@@ -720,22 +778,22 @@ gpi info name a b = do
   return $ El (getSort a `dLub` Abs y (getSort b))
               (Pi (Dom info a) (Abs y b))
 
-hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
+hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
 
-varM :: Int -> TCM Term
+varM :: Monad tcm => Int -> tcm Term
 varM = return . var
 
 infixl 9 <@>, <#>
 
-gApply :: Hiding -> TCM Term -> TCM Term -> TCM Term
+gApply :: Monad tcm => Hiding -> tcm Term -> tcm Term -> tcm Term
 gApply h a b = do
     x <- a
     y <- b
     return $ x `apply` [Arg (setHiding h defaultArgInfo) y]
 
-(<@>),(<#>) :: TCM Term -> TCM Term -> TCM Term
+(<@>),(<#>) :: Monad tcm => tcm Term -> tcm Term -> tcm Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
 
@@ -748,13 +806,13 @@ io t = primIO <@> t
 path :: TCM Term -> TCM Term
 path t = primPath <@> t
 
-el :: TCM Term -> TCM Type
+el :: Monad tcm => tcm Term -> tcm Type
 el t = El (mkType 0) <$> t
 
-tset :: TCM Type
+tset :: Monad tcm => tcm Type
 tset = return $ sort (mkType 0)
 
-tSetOmega :: TCM Type
+tSetOmega :: Monad tcm => tcm Type
 tSetOmega = return $ sort Inf
 
 sSizeUniv :: Sort
@@ -762,7 +820,7 @@ sSizeUniv = mkType 0
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
 -- sSizeUniv = SizeUniv
 
-tSizeUniv :: TCM Type
+tSizeUniv :: Monad tcm => tcm Type
 tSizeUniv = tset
 -- Andreas, 2016-04-14 switching off SizeUniv, unfixing issue #1428
 -- tSizeUniv = return $ El sSizeUniv $ Sort sSizeUniv
@@ -891,6 +949,8 @@ primitiveFunctions = Map.fromList
   , "primCoe"             |-> primCoe
   , "primPOr"             |-> primPOr
   , "primComp"            |-> primComp
+  , "primPOr'"             |-> primPOr
+  , "primComp'"            |-> primComp
   ]
   where
     (|->) = (,)

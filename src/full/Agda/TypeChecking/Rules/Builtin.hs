@@ -239,7 +239,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   ]
   where
         (|->) = (,)
-
+        v0,v1,v2,v3 :: TCM Term
         v0 = varM 0
         v1 = varM 1
         v2 = varM 2
