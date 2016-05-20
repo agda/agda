@@ -222,10 +222,13 @@ quotingKit = do
                     extlam !@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
           Con x ts   -> do
-            Constructor{conPars = np} <- theDef <$> getConstInfo (conName x)
-            let par  = arg !@ (arginfo !@ pure hidden @@ pure relevant) @@ pure unsupported
-                pars = replicate np $ par
-                args = list $ pars ++ map (quoteArg quoteTerm) ts
+            cDef <- getConstInfo (conName x)
+            let TelV tel _ = telView' (defType cDef)  -- no reduction required to get the parameter telescope
+                Constructor{conPars = np} = theDef cDef
+                hiding = map getHiding $ take np $ telToList tel
+                par h = arg !@ (arginfo !@ quoteHiding h @@ pure relevant) @@ pure unsupported
+                pars  = map par hiding
+                args  = list $ pars ++ map (quoteArg quoteTerm) ts
             con !@! quoteConName x @@ args
           Pi t u     -> pi !@  quoteDom quoteType t
                             @@ quoteAbs quoteType u
