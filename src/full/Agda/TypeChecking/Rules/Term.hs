@@ -1475,7 +1475,7 @@ checkConstructorApplication org t c args = do
            reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
            -- get the parameter names
            let TelV ptel _ = telView'UpTo n ctype
-           let pnames = map (fst . unDom) $ telToList ptel
+           let pnames = map (fmap fst) $ telToList ptel
            -- drop the parameter arguments
                args' = dropArgs pnames args
            -- check the non-parameter arguments
@@ -1503,14 +1503,24 @@ checkConstructorApplication org t c args = do
       in  any notUnderscore $ map (unScope . namedArg) hargs
 
     -- Drop the constructor arguments that correspond to parameters.
-    dropArgs [] args                                   = args
-    dropArgs ps []                                     = args
-    dropArgs ps args@(arg : _) | not (isHidden arg) = args
-    dropArgs (p:ps) args@(arg : args')
-      | elem name [Nothing, Just p] = dropArgs ps args'
-      | otherwise                   = dropArgs ps args
+    dropArgs [] args                = args
+    dropArgs ps []                  = args
+    dropArgs ps args@(arg : args')
+      | Just p   <- name,
+        Just ps' <- namedPar p ps   = dropArgs ps' args'
+      | Nothing  <- name,
+        Just ps' <- unnamedPar h ps = dropArgs ps' args'
+      | otherwise                   = args
       where
         name = fmap rangedThing . nameOf $ unArg arg
+        h    = getHiding arg
+
+        namedPar   x = dropPar ((x ==) . unDom)
+        unnamedPar h = dropPar ((h ==) . getHiding)
+
+        dropPar this (p : ps) | this p    = Just ps
+                              | otherwise = dropPar this ps
+        dropPar _ [] = Nothing
 
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
