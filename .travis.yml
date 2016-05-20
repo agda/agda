@@ -137,6 +137,7 @@ install:
   - if [[ $TEST != "doc" ]]; then
        cabal --version &&
        ghc --version &&
+       haddock --version &&
        emacs --version &&
        cabal update &&
        cat $HOME/.cabal/config &&
