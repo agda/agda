@@ -69,6 +69,15 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=uhc GHC_VER=7.10.3 CABAL_VER=1.22
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.22
+            - ghc-7.10.3
+          sources:
+            - hvr-ghc
+
     - env: TEST=haddock GHC_VER=7.10.3 CABAL_VER=1.22
       addons:
         apt:
@@ -330,6 +339,14 @@ script:
 
   - if [[ $TEST = "cpp" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
+       cabal build -v2 -j${JOBS};
+    fi
+
+##############################################################################
+# Testing compilation using the `uhc` flag
+
+  - if [[ $TEST = "uhc" ]]; then
+       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f uhc &&
        cabal build -v2 -j${JOBS};
     fi
 
