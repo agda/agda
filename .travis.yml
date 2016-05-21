@@ -168,7 +168,11 @@ install:
   - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
        cabal install alex &&
        cabal install happy &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls;
+       if [[ $TEST = "uhc" ]]; then
+          cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
+       else
+          cabal install --enable-tests --only-dependencies --force-reinstalls;
+       fi
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install alex --constraint=transformers==0.3.0.0 &&
          cabal install happy --constraint=transformers==0.3.0.0 &&
