@@ -59,6 +59,15 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=uhc GHC_VER=8.0.1 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.1
+          sources:
+            - hvr-ghc
+
     - env: TEST=main GHC_VER=7.10.3 CABAL_VER=1.22
       addons:
         apt:
@@ -66,15 +75,6 @@ matrix:
             - cabal-install-1.22
             - ghc-7.10.3
             - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - env: TEST=uhc GHC_VER=7.10.3 CABAL_VER=1.22
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.22
-            - ghc-7.10.3
           sources:
             - hvr-ghc
 
