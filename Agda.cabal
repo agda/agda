@@ -100,12 +100,13 @@ library
     ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(uhc)
-    build-depends:    shuffle >= 0.1.3.3
-                    , uhc-light >= 1.1.9.2 && < 1.2
-                    , uhc-util >= 0.1.6.3 && < 0.1.6.6
-                    , uulib >= 0.9.20
-    -- we use the CPP processor to conditionally import the UHC Light modules. If UHC Light is not
-    -- present, we instead create dummy definitions, see module Agda.Compiler.UHC.Bridge.
+    build-depends:  shuffle >= 0.1.3.3
+                  , uhc-light >= 1.1.9.2 && < 1.2
+                  , uhc-util >= 0.1.6.3 && < 0.1.6.7
+                  , uulib >= 0.9.20
+    -- we use the CPP processor to conditionally import the UHC Light
+    -- modules. If UHC Light is not present, we instead create dummy
+    -- definitions, see module Agda.Compiler.UHC.Bridge.
     cpp-options:    -DUHC_BACKEND
 
   if os(windows)
