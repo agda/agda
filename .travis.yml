@@ -165,7 +165,7 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" ]]; then
+  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
        cabal install alex &&
        cabal install happy &&
        cabal install --enable-tests --only-dependencies --force-reinstalls;
