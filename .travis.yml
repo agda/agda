@@ -59,14 +59,6 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=doc
-      addons:
-        apt:
-          packages:
-            - dvipng
-            - texlive-latex-base
-            - texlive-latex-extra
-
     - env: TEST=main GHC_VER=7.10.3 CABAL_VER=1.22
       addons:
         apt:
@@ -114,6 +106,14 @@ matrix:
             - texlive-binaries
           sources:
             - hvr-ghc
+
+    - env: TEST=doc
+      addons:
+        apt:
+          packages:
+            - dvipng
+            - texlive-latex-base
+            - texlive-latex-extra
 
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
