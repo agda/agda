@@ -437,15 +437,50 @@ primPathApply = do
 
       _ -> __IMPOSSIBLE__
 
+primOutPartial :: TCM PrimitiveImpl
+primOutPartial = do
+  t    <- hPi "a" (el primLevel) $
+          hPi "A" (return $ sort $ varSort 0) $
+          (El (varSort 1) <$> primPartial <#> varM 1 <@> varM 0 <@> intervalUnview IOne) -->
+          (El (varSort 1) <$> varM 0)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
+    case ts of
+     [l,a,u] -> redReturn (unArg u)
+     _ -> __IMPOSSIBLE__
+
+primPFrom1 :: TCM PrimitiveImpl
+primPFrom1 = do
+  t    <- hPi "a" (el primLevel) $
+          hPi "A" (el primInterval --> (return $ sort $ varSort 0)) $
+          (El (varSort 1) <$> varM 0 <@> intervalUnview IOne) -->
+          (nPi "i" (el primInterval) $
+           nPi "j" (el primInterval) $
+          (El (varSort 3) <$> primPartial <#> varM 3 <@> (varM 2 <@>
+             (intervalUnview =<< (\ i j -> IMax (argN i) (argN j)) <$> varM 1 <*> varM 0)) <@> varM 1))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+    case ts of
+      [l,a,u,i,j] -> do
+        si <- reduceB' i
+        vi <- intervalView $ unArg $ ignoreBlocking $ si
+        case vi of
+          IOne -> redReturn (unArg u)
+          _    -> do
+            sj <- reduceB' j
+            vj <- intervalView $ unArg $ ignoreBlocking $ sj
+            case vj of
+              IOne -> redReturn (unArg u)
+              _    -> return $ NoReduction $ [notReduced l, notReduced a, notReduced u, reduced si, reduced sj]
+      _         -> __IMPOSSIBLE__
+
 primPOr :: TCM PrimitiveImpl
 primPOr = do
   t    <- hPi "a" (el primLevel) $
           hPi "A" (return $ sort $ varSort 0) $
           nPi "i" (el primInterval) $
           nPi "j" (el primInterval) $
-          (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@> varM 1) -->
-          (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@> varM 0) -->
-          (El (varSort 3) <$> primPartial <#> varM 3 <#> varM 2 <@>
+          (El (varSort 3) <$> primPartial <#> varM 3 <@> varM 2 <@> varM 1) -->
+          (El (varSort 3) <$> primPartial <#> varM 3 <@> varM 2 <@> varM 0) -->
+          (El (varSort 3) <$> primPartial <#> varM 3 <@> varM 2 <@>
            (intervalUnview =<< ((\ x y -> IMax (Arg defaultArgInfo x) (Arg defaultArgInfo y)) <$>
                                                                                                varM 1 <*> varM 0)))
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
@@ -502,17 +537,21 @@ primComp = do
             -> ReduceM Term
   compPi unview t a b phi u a0 = do
    tComp <- ((`Def` []) . primFunName . fromMaybe __IMPOSSIBLE__) <$> getPrimitive' "primComp"
+   tFrom1 <- ((`Def` []) . primFunName . fromMaybe __IMPOSSIBLE__) <$> getPrimitive' "primPFrom1"
    let
+    ineg t = (unview . INeg . argN) <$> t
     toLevel (Type l) = l
     toLevel _        = __IMPOSSIBLE__
     termComp = pure tComp
     v' = termComp <#> sa <@> (pure $ lam_j  -- Γ , u1 : A[i1] , i : I , j : I
                                            at)
                           <@> varM 0 -- Γ , u1 : A[i1] , i : I
-                          <@> (pure $ lam_j $ raise 2 u1) -- block until i = 1
+                          <@> (lam_j <$> (pure tFrom1 <#> sa' <#> (pure $ lam_i $ unEl $ unDom a')
+                                                     <@> pure (raise 2 u1) <@> varM 1 <@> (ineg $ varM 0)))
                           <@> (pure $ raise 1 u1)
     u1 = var 0  -- Γ , u1 : A[i1]
     a' = applySubst (liftS 1 $ raiseS 3) a -- Γ , u1 : A[i1] , i : I , j : I , i' : I
+    sa' = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort a'
     a'' = (applySubst (singletonS 0 iOrNj) a')
     sa = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort a''
 
@@ -536,10 +575,10 @@ primComp = do
       (termComp <#> sb <@> pure (lam_i -- Γ , u1 : A[i1] , i : I
                                       b'')
                       <@> pure (raise 1 (unArg phi))
-
                       <@> (lam_i <$> -- Γ , u1 : A[i1] , i : I
                                   (gApply (getHiding a) (pure (raise 2 (unArg u)) <@> varM 0) (pure v))) -- block until φ = 1?
                       <@> (gApply (getHiding a) (pure $ raise 1 (unArg a0)) (subst 0 i0 <$> pure v))) -- Γ , u1 : A[i1]
+
 
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
@@ -949,6 +988,8 @@ primitiveFunctions = Map.fromList
   , "primCoe"             |-> primCoe
   , "primPOr"             |-> primPOr
   , "primComp"            |-> primComp
+  , "primPFrom1"          |-> primPFrom1
+  , "primOutPartial"      |-> primOutPartial
   , "primPOr'"             |-> primPOr
   , "primComp'"            |-> primComp
   ]
