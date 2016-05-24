@@ -19,6 +19,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.CompiledClause
 
+import Agda.Utils.Functor
 import Agda.Utils.Impossible
 #include "undefined.h"
 
@@ -138,6 +139,8 @@ instance NamesIn ConHead where namesIn h = namesIn (conName h)
 
 instance NamesIn a => NamesIn (Open a) where
   namesIn = namesIn . openThing
+
+instance NamesIn a => NamesIn (Local a) where namesIn = namesIn . dget
 
 instance NamesIn DisplayForm where
   namesIn (Display _ ps v) = namesIn (ps, v)

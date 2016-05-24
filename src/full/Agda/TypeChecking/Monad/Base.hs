@@ -92,6 +92,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -811,6 +812,22 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 -- | A thing tagged with the context it came from.
 data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
     deriving (Typeable, Show, Functor)
+
+instance Decoration Open where
+  traverseF f (OpenThing cxt x) = OpenThing cxt <$> f x
+
+data Local a = Local ModuleName a   -- ^ Local to a given module, the value
+                                    -- should have module parameters as free variables.
+             | Global a             -- ^ Global value, should be closed.
+    deriving (Typeable, Show, Functor, Foldable, Traversable)
+
+isGlobal :: Local a -> Bool
+isGlobal Global{} = True
+isGlobal Local{}  = False
+
+instance Decoration Local where
+  traverseF f (Local m x) = Local m <$> f x
+  traverseF f (Global x)  = Global <$> f x
 
 ---------------------------------------------------------------------------
 -- * Judgements
@@ -2790,6 +2807,10 @@ instance KillRange Projection where
 
 instance KillRange a => KillRange (Open a) where
   killRange = fmap killRange
+
+instance KillRange a => KillRange (Local a) where
+  killRange (Local a b) = killRange2 Local a b
+  killRange (Global a)  = killRange1 Global a
 
 instance KillRange DisplayForm where
   killRange (Display n vs dt) = killRange3 Display n vs dt

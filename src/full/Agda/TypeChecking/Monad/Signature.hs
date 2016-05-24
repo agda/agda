@@ -40,6 +40,7 @@ import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Exception ( ExceptionT )
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Local
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute

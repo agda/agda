@@ -177,6 +177,15 @@ instance EmbPrj a => EmbPrj (Open a) where
     valu [a, b] = valu2 OpenThing a b
     valu _      = malformed
 
+instance EmbPrj a => EmbPrj (Local a) where
+  icod_ (Local a b) = icode2' a b
+  icod_ (Global a)  = icode1' a
+
+  value = vcase valu where
+    valu [a, b] = valu2 Local a b
+    valu [a]    = valu1 Global a
+    valu _      = malformed
+
 instance EmbPrj CtxId where
   icod_ (CtxId a) = icode a
   value n         = CtxId `fmap` value n
