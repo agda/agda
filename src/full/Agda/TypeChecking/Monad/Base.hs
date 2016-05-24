@@ -1038,7 +1038,7 @@ sigRewriteRules f s =
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
-type DisplayForms = HashMap QName [Open DisplayForm]
+type DisplayForms = HashMap QName [LocalDisplayForm]
 
 data Section = Section { _secTelescope :: Telescope }
   deriving (Typeable, Show)
@@ -1076,6 +1076,8 @@ data DisplayForm = Display
   }
   deriving (Typeable, Show)
 
+type LocalDisplayForm = Local DisplayForm
+
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
 data DisplayTerm
@@ -1106,7 +1108,7 @@ instance Free' DisplayTerm c where
   freeVars' (DTerm v)          = freeVars' v
 
 -- | By default, we have no display form.
-defaultDisplayForm :: QName -> [Open DisplayForm]
+defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
 defRelevance :: Definition -> Relevance
@@ -1197,7 +1199,7 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
-  , defDisplay        :: [Open DisplayForm]
+  , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
   , defInstance       :: Maybe QName

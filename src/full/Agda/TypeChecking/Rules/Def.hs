@@ -60,6 +60,7 @@ import Agda.Utils.Maybe ( whenNothing )
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -677,16 +678,17 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- With display forms are closed
 
-  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 n qs perm' perm
+  df <- makeGlobal =<< withDisplayForm f aux delta1 delta2 n qs perm' perm
 
   reportSLn "tc.with.top" 20 "created with display form"
 
-  case df of
-    OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
-      [ text (show n)
-      , prettyList $ map prettyTCM ts
-      , prettyTCM dt
-      ]
+  case dget df of
+    Display n ts dt ->
+      reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
+        [ text (show n)
+        , prettyList $ map prettyTCM ts
+        , prettyTCM dt
+        ]
   addConstant aux =<< do
     useTerPragma $ (defaultDefn defaultArgInfo aux withFunType emptyFunction)
                    { defDisplay = [df] }

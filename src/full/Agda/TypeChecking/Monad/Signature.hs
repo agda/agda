@@ -520,7 +520,7 @@ applySection' new ptel old ts rd rm = do
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
-  d <- makeOpen df
+  d <- makeLocal df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   inCurrentSig <- isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
   if inCurrentSig
@@ -529,7 +529,7 @@ addDisplayForm x df = do
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
 
-getDisplayForms :: QName -> TCM [Open DisplayForm]
+getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- defDisplay <$> getConstInfo q
   ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
@@ -543,7 +543,7 @@ chaseDisplayForms q = go Set.empty [q]
     go used []       = pure used
     go used (q : qs) = do
       let rhs (Display _ _ e) = e   -- Only look at names in the right-hand side (#1870)
-      ds <- (`Set.difference` used) . Set.unions . map (namesIn . rhs . openThing)
+      ds <- (`Set.difference` used) . Set.unions . map (namesIn . rhs . dget)
             <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
       go (Set.union ds used) (Set.toList ds ++ qs)
 

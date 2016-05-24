@@ -24,6 +24,7 @@ import Agda.TypeChecking.Level
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Except
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -39,7 +40,7 @@ dtermToTerm dt = case dt of
 
 -- | Get the arities of all display forms for a name.
 displayFormArities :: QName -> TCM [Int]
-displayFormArities q = map (length . dfPats . openThing) <$> getDisplayForms q
+displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
 
 -- | Find a matching display form for @q vs@.
 --   In essence this tries to reqwrite @q vs@ with any
@@ -54,9 +55,9 @@ displayForm q vs = do
       n <- getContextId
       reportSLn "tc.display.top" 100 $
         "displayForm: context = " ++ show n ++
-        ", dfs = " ++ show (map openThingCtxIds odfs)
+        ", dfs = " ++ show odfs
     -- Use only the display forms that can be opened in the current context.
-    dfs   <- catMaybes <$> mapM tryOpen odfs
+    dfs   <- catMaybes <$> mapM getLocal odfs
     scope <- getScope
     -- Keep the display forms that match the application @c vs@.
     ms <- do
