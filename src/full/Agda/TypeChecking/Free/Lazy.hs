@@ -175,7 +175,10 @@ variable n = do
 
 -- | Going under a binder.
 bind :: FreeM a -> FreeM a
-bind = local $ \ e -> e { feBinders = 1 + feBinders e }
+bind = bind' 1
+
+bind' :: Nat -> FreeM a -> FreeM a
+bind' n = local $ \ e -> e { feBinders = n + feBinders e }
 
 -- | Changing the 'FlexRig' context.
 go :: FlexRig -> FreeM a -> FreeM a
