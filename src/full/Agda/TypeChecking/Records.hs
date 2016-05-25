@@ -21,6 +21,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -203,7 +204,7 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
 getDefType :: QName -> Type -> TCM (Maybe Type)
-getDefType f t = do
+getDefType f = skipPartial reduce $ \ t -> do
   def <- getConstInfo f
   let a = defType def
   -- if @f@ is not a projection (like) function, @a@ is the correct type
@@ -221,16 +222,16 @@ getDefType f t = do
           -- If it is stuck due to disabled reductions
           -- (because of failed termination check),
           -- we will produce garbage parameters.
-          ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
+          ifNotM (eligibleForProjectionLike d) (failNotElig t) $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
-            if length pars < npars then failure "does not supply enough parameters"
+            if length pars < npars then failure t "does not supply enough parameters"
             else Just <$> a `piApplyM` pars
-        _ -> failNotDef
+        _ -> failNotDef t
   where
-    failNotElig = failure "is not eligible for projection-likeness"
-    failNotDef  = failure "is not a Def."
-    failure reason = do
+    failNotElig t = failure t "is not eligible for projection-likeness"
+    failNotDef  t = failure t "is not a Def."
+    failure t reason = do
       reportSDoc "tc.deftype" 25 $ sep
         [ text "Def. " <+> prettyTCM f <+> text " is projection(like)"
         , text "but the type "
