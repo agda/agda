@@ -513,7 +513,7 @@ applySection' new ptel old ts rd rm = do
       reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
       reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
       reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
-      addCtxTel sectionTel $ addSection y
+      addContext sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()

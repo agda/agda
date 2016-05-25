@@ -293,7 +293,7 @@ sizePolarity d pol0 = do
             -- and seek confirm it by looking at the constructor types
             let check c = do
                   t <- defType <$> getConstInfo c
-                  addCtxTel (telFromList parTel) $ do
+                  addContext (telFromList parTel) $ do
                     let pars = map (defaultArg . var) $ downFrom np
                     TelV conTel target <- telView =<< (t `piApplyM` pars)
                     case conTel of

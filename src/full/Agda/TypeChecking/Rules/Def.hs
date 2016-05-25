@@ -564,7 +564,7 @@ checkWithRHS x aux t (LHSResult delta ps trhs perm) vs0 as cs = do
         -- we should remove it from the context first
         reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
           [ text "delta1 =" <+> prettyTCM delta1
-          , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
+          , text "delta2 =" <+> addContext delta1 (prettyTCM delta2)
           ]
         reportSDoc "tc.with.top" 25 $ vcat
           [ text "perm'  =" <+> text (show perm')
@@ -600,7 +600,7 @@ checkWithRHS x aux t (LHSResult delta ps trhs perm) vs0 as cs = do
         reportSDoc "tc.with.top" 20 $
           text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
         reportSDoc "tc.with.top" 20 $
-          text "              body" <+> (addCtxTel delta $ prettyTCM body)
+          text "              body" <+> (addContext delta $ prettyTCM body)
 
         return (body, WithFunction x aux t delta1 delta2 vs as t' ps perm' perm finalPerm cs)
 
@@ -612,11 +612,11 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
     [ text "checkWithFunction"
     , nest 2 $ vcat
       [ text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
+      , text "delta2 =" <+> addContext delta1 (prettyTCM delta2)
       , text "t      =" <+> prettyTCM t
-      , text "as     =" <+> addCtxTel delta1 (prettyTCM as)
-      , text "vs     =" <+> do addCtxTel delta1 $ prettyTCM vs
-      , text "b      =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM b
+      , text "as     =" <+> addContext delta1 (prettyTCM as)
+      , text "vs     =" <+> do addContext delta1 $ prettyTCM vs
+      , text "b      =" <+> do addContext delta1 $ addContext delta2 $ prettyTCM b
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
@@ -714,7 +714,7 @@ checkWhere trhs ds ret0 = do
             ret
       _ -> __IMPOSSIBLE__
   -- Add htel to check ds.
-  addCtxTel htel $ loop ds
+  addContext htel $ loop ds
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool

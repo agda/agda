@@ -365,7 +365,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                 suc n  = s `apply1` n
                 choice = foldr1 (\x y -> x `catchError` \_ -> y)
             xs <- mapM freshName_ xs
-            addCtxs xs (domFromArg $ defaultArg nat) $ f apply1 zero suc (==) (===) choice
+            addContext (xs, domFromArg $ defaultArg nat) $ f apply1 zero suc (==) (===) choice
 
 
 inductiveCheck :: String -> Int -> Term -> TCM ()

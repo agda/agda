@@ -825,7 +825,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
       ]
     -- Andreas, 2014-04-06, Issue 1094:
     -- Add the section with well-formed telescope.
-    addCtxTel aTel $ addSection m1
+    addContext aTel $ addSection m1
 
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
@@ -875,7 +875,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   when (tel == EmptyTel) $
     typeError $ GenericError $ show (qnameToConcrete name) ++ " is not a parameterised section"
 
-  addCtxTel telInst $ do
+  addContext telInst $ do
     vs <- freeVarsToApply name
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)

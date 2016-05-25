@@ -120,7 +120,7 @@ insertImplicitPatternsT exh            ps a = do
         , nest 2 $ text "ps  = " <+> do
             brackets $ fsep $ punctuate comma $ map prettyA ps
         , nest 2 $ text "tel = " <+> prettyTCM tel
-        , nest 2 $ text "b   = " <+> addCtxTel tel (prettyTCM b)
+        , nest 2 $ text "b   = " <+> addContext tel (prettyTCM b)
         ]
   case ps of
     [] -> insImp dummy tel
