@@ -706,10 +706,10 @@ introTactic pmLambda ii = do
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of
-              Datatype{}    -> addCtxTel tel' $ introData t
+              Datatype{}    -> addContext tel' $ introData t
               Record{ recNamedCon = name }
-                | name      -> addCtxTel tel' $ introData t
-                | otherwise -> addCtxTel tel' $ introRec d
+                | name      -> addContext tel' $ introData t
+                | otherwise -> addContext tel' $ introRec d
               _ -> fallback
           _ -> fallback
      `catchError` \_ -> return []
@@ -720,7 +720,7 @@ introTactic pmLambda ii = do
 
     showTCM v = show <$> prettyTCM v
 
-    introFun tel = addCtxTel tel' $ do
+    introFun tel = addContext tel' $ do
         reportSDoc "interaction.intro" 10 $ do TP.text "introFun" TP.<+> prettyTCM (telFromList tel)
         imp <- showImplicitArguments
         let okHiding0 h = imp || h == NotHidden

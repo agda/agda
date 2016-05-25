@@ -183,7 +183,7 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 newIFSMeta :: MetaNameSuggestion -> Type -> TCM Term
 newIFSMeta s t = do
   TelV tel t' <- telView t
-  addCtxTel tel $ do
+  addContext tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
     teleLam tel <$> newIFSMetaCtx s (telePi_ ctx t') vs
@@ -732,7 +732,7 @@ attemptInertRHSImprovement m args v = do
     patternViolation
   -- Solve the meta with _M := \ xs -> D (_Y1 xs) .. (_Yn xs), for fresh metas
   -- _Yi.
-  metaArgs <- inTopContext $ addCtxTel tel $ newArgsMeta a
+  metaArgs <- inTopContext $ addContext tel $ newArgsMeta a
   let varArgs = map Apply $ reverse $ zipWith (\i a -> var i <$ a) [0..] (reverse args)
       sol     = mkRHS metaArgs
       argTel  = map ("x" <$) args

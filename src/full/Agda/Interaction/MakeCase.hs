@@ -242,7 +242,7 @@ makeAbsurdClause f (SClause tel ps _ t) = do
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
     let c = Clause noRange tel ps NoBody t False
     -- Normalise the dot patterns
-    ps <- addCtxTel tel $ normalise $ namedClausePats c
+    ps <- addContext tel $ normalise $ namedClausePats c
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 -- | Make a clause with a question mark as rhs.

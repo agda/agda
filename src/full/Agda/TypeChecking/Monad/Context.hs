@@ -143,36 +143,6 @@ instance AddContext Telescope where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction t tel loop
 
-{-
--- | N-ary variant of @addCtx@.
-{-# SPECIALIZE addContext :: [Dom (Name, Type)] -> TCM a -> TCM a #-}
-addContext :: MonadTCM tcm => [Dom (Name, Type)] -> tcm a -> tcm a
-addContext ctx m =
-  foldr (\arg -> addCtx (fst $ unDom arg) (snd <$> arg)) m ctx
--}
-
--- | add a bunch of variables with the same type to the context
-{-# SPECIALIZE addCtxs :: [Name] -> Dom Type -> TCM a -> TCM a #-}
-addCtxs :: MonadTCM tcm => [Name] -> Dom Type -> tcm a -> tcm a
-addCtxs []     _ k = k
-addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
-
--- | Turns the string into a name and adds it to the context.
-{-# SPECIALIZE addCtxString :: String -> Dom Type -> TCM a -> TCM a #-}
-addCtxString :: MonadTCM tcm => String -> Dom Type -> tcm a -> tcm a
-addCtxString s a m = do
-  x <- freshName_ s
-  addCtx x a m
-
--- | Turns the string into a name and adds it to the context, with dummy type.
-{-# SPECIALIZE addCtxString_ :: String -> TCM a -> TCM a #-}
-addCtxString_ :: MonadTCM tcm => String -> tcm a -> tcm a
-addCtxString_ s = addCtxString s dummyDom
-
-{-# SPECIALIZE addCtxStrings_ :: [String] -> TCM a -> TCM a #-}
-addCtxStrings_ :: MonadTCM tcm => [String] -> tcm a -> tcm a
-addCtxStrings_ = flip (foldr addCtxString_)
-
 -- | Context entries without a type have this dummy type.
 dummyDom :: Dom Type
 dummyDom = defaultDom typeDontCare
@@ -183,7 +153,7 @@ underAbstraction :: (Subst t a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm 
 underAbstraction _ (NoAbs _ v) k = k v
 underAbstraction t a           k = do
     x <- freshName_ $ realName $ absName a
-    addCtx x t $ k $ absBody a
+    addContext (x, t) $ k $ absBody a
   where
     realName s = if isNoName s then "x" else argNameToString s
 
@@ -191,13 +161,6 @@ underAbstraction t a           k = do
 {-# SPECIALIZE underAbstraction_ :: Subst t a => Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction_ :: (Subst t a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction dummyDom
-
--- | Add a telescope to the context.
-{-# SPECIALIZE addCtxTel :: Telescope -> TCM a -> TCM a #-}
-addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
-addCtxTel tel ret = loop tel where
-  loop EmptyTel          = ret
-  loop (ExtendTel t tel) = underAbstraction t tel loop
 
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}

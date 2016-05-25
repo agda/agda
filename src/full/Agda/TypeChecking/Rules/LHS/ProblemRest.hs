@@ -104,7 +104,7 @@ problemFromPats ps a = do
         -- , text "ips   =" <+> prettyTCM ips  -- no prettyTCM instance
            , text "gamma =" <+> prettyTCM gamma
            , text "ps2   =" <+> fsep (map prettyA ps2)
-           , text "b     =" <+> addCtxTel gamma (prettyTCM b)
+           , text "b     =" <+> addContext gamma (prettyTCM b)
            ]
          ]
   return problem
@@ -123,7 +123,7 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
           pr        = ProblemRest ps2 (a $> b)
           qs1       = teleNamedArgs gamma
           n         = size as
-      reportSDoc "tc.lhs.problem" 10 $ addCtxTel tel0 $ vcat
+      reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
         [ text "checking lhs -- updated split problem:"
         , nest 2 $ vcat
           [ text "ps    =" <+> fsep (map prettyA ps)
@@ -132,7 +132,7 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
           , text "ps1   =" <+> fsep (map prettyA ps1)
           , text "gamma =" <+> prettyTCM gamma
           , text "ps2   =" <+> fsep (map prettyA ps2)
-          , text "b     =" <+> addCtxTel gamma (prettyTCM b)
+          , text "b     =" <+> addContext gamma (prettyTCM b)
           ]
         ]
       return $ (n,) $ Problem (ps0 ++ ps1) (applySubst (raiseS n) qs0 ++ qs1) tel1 pr

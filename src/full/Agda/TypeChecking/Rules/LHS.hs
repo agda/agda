@@ -534,7 +534,7 @@ checkLeftHandSide c f ps a ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ d
 
   unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
-  addCtxTel delta $ do
+  addContext delta $ do
     noShadowingOfConstructors c problem
     noPatternMatchingOnCodata qs
 
@@ -543,8 +543,8 @@ checkLeftHandSide c f ps a ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ d
          , nest 2 $ vcat
            [ text "ps    = " <+> fsep (map prettyA ps)
            , text "delta = " <+> prettyTCM delta
-           , text "dpi   = " <+> addCtxTel delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
-           , text "asb   = " <+> addCtxTel delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
+           , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
+           , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
            , text "qs    = " <+> text (show qs)
            ]
          ]
@@ -689,9 +689,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           [ text "split problem"
           , nest 2 $ vcat
             [ text "delta1 = " <+> prettyTCM delta1
-            , text "typeOfSplitVar =" <+> addCtxTel delta1 (prettyTCM typeOfSplitVar)
+            , text "typeOfSplitVar =" <+> addContext delta1 (prettyTCM typeOfSplitVar)
             , text "focusOutPat =" <+> (text . show) ip
-            , text "delta2 = " <+> addCtxTel delta1 (addContext ("x",domFromArg typeOfSplitVar) (prettyTCM delta2))
+            , text "delta2 = " <+> addContext delta1 (addContext ("x",domFromArg typeOfSplitVar) (prettyTCM delta2))
             ]
           ]
 
@@ -716,7 +716,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         -- This should be the same datatype as we split on
         unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
-        reportSDoc "tc.lhs.top" 20 $ addCtxTel delta1 $ nest 2 $ vcat
+        reportSDoc "tc.lhs.top" 20 $ addContext delta1 $ nest 2 $ vcat
           [ text "gamma' =" <+> prettyTCM gamma'
           ]
 
@@ -741,7 +741,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         -- Compute the constructor indices by dropping the parameters
         let us' = drop (size vs) us
 
-        reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
+        reportSDoc "tc.lhs.top" 15 $ addContext delta1 $
           sep [ text "preparing to unify"
               , nest 2 $ vcat
                 [ text "c      =" <+> prettyTCM c <+> text ":" <+> prettyTCM a
@@ -749,7 +749,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
                 , text "gamma  =" <+> prettyTCM gamma
                 , text "gamma' =" <+> prettyTCM gamma'
                 , text "vs     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM vs)
-                , text "us'    =" <+> addCtxTel gamma (brackets (fsep $ punctuate comma $ map prettyTCM us'))
+                , text "us'    =" <+> addContext gamma (brackets (fsep $ punctuate comma $ map prettyTCM us'))
                 , text "ws     =" <+> brackets (fsep $ punctuate comma $ map prettyTCM ws)
                 ]
               ]
@@ -792,7 +792,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           reportSDoc "tc.lhs.top" 15 $ text "unification successful"
           reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
             [ text "delta1' =" <+> prettyTCM delta1'
-            , text "rho0    =" <+> addCtxTel delta1' (prettyTCM rho0)
+            , text "rho0    =" <+> addContext delta1' (prettyTCM rho0)
             ]
 
           -- Andreas 2014-11-25  clear 'Forced' and 'Unused'
@@ -805,12 +805,12 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
               -- to the *new* telescope delta1'. These are needed to compute the
               -- correct types of new dot pattern instantiations.
               oldTypes = applyPatSubst rho0 $ flattenTel $ delta1 `abstract` gamma
-          (p0',newDpi) <- addCtxTel delta1' $ updateInPatterns
+          (p0',newDpi) <- addContext delta1' $ updateInPatterns
                             oldTypes
                             (problemInPat p0 ++ qs')
                             newPats
 
-          reportSDoc "tc.lhs.top" 20 $ addCtxTel delta1' $ nest 2 $ vcat
+          reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
             [ text "p0'     =" <+> text (show p0')
             , text "newDpi  =" <+> brackets (fsep $ punctuate comma $ map prettyTCM newDpi)
             ]
@@ -818,7 +818,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           -- split substitution into part for Δ₁ and part for Γ
           let (rho1,rho2) = splitS (size gamma) rho0
 
-          reportSDoc "tc.lhs.top" 20 $ addCtxTel delta1' $ nest 2 $ vcat
+          reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
             [ text "rho1    =" <+> prettyTCM rho1
             , text "rho2    =" <+> prettyTCM rho2
             ]
@@ -837,13 +837,13 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
               delta'  = delta1' `abstract` delta2'
               rho     = liftS (size delta2) rho3
 
-          reportSDoc "tc.lhs.top" 20 $ addCtxTel delta1' $ nest 2 $ vcat
+          reportSDoc "tc.lhs.top" 20 $ addContext delta1' $ nest 2 $ vcat
             [ text "crho2   =" <+> prettyTCM crho2
             , text "rho3    =" <+> prettyTCM rho3
             , text "delta2' =" <+> prettyTCM delta2'
             ]
 
-          reportSDoc "tc.lhs.top" 70 $ addCtxTel delta1' $ nest 2 $ vcat
+          reportSDoc "tc.lhs.top" 70 $ addContext delta1' $ nest 2 $ vcat
             [ text "crho2   =" <+> text (show crho2)
             , text "rho3    =" <+> text (show rho3)
             , text "delta2' =" <+> text (show delta2')
@@ -851,13 +851,13 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
 
           reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
             [ text "delta'  =" <+> prettyTCM delta'
-            , text "rho     =" <+> addCtxTel delta' (prettyTCM rho)
+            , text "rho     =" <+> addContext delta' (prettyTCM rho)
             ]
 
           -- compute new in patterns
           let ps'  = p0' ++ problemInPat (absBody p1)
 
-          reportSDoc "tc.lhs.top" 15 $ addCtxTel delta' $
+          reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "ps'    =" <+> brackets (fsep $ punctuate comma $ map prettyA ps')
               ]
@@ -866,7 +866,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           let dpi' = applyPatSubst rho dpi ++ raise (size delta2') newDpi
               asb' = applyPatSubst rho asb ++ raise (size delta2') (map (\x -> AsB x (patternToTerm crho2) ca) xs)
 
-          reportSDoc "tc.lhs.top" 15 $ addCtxTel delta' $
+          reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "dpi'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
               , text "asb'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
@@ -877,7 +877,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
               ip'      = applySubst rho ip
               rest'    = applyPatSubst rho (problemRest problem)
 
-          reportSDoc "tc.lhs.top" 15 $ addCtxTel delta' $
+          reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "sigma'  =" <+> prettyTCM sigma'
               , text "ip'     =" <+> text (show ip)

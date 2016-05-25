@@ -129,7 +129,7 @@ checkInternal' action v t = do
     Con c vs   -> do
       -- we need to fully apply the constructor to make getConType work
       TelV tel t <- telView t
-      addCtxTel tel $ do
+      addContext tel $ do
         let failure = typeError $ DoesNotConstructAnElementOf (conName c) t
             vs'     = raise (size tel) vs ++ teleArgs tel
         a <- maybe failure return =<< getConType c t

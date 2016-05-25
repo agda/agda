@@ -1022,7 +1022,7 @@ instance PrettyTCM TypeError where
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
-      | otherwise                  -> addCtxTel tel $ vcat (
+      | otherwise                  -> addContext tel $ vcat (
           [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
                    [prettyTCM c <> text ","] ++
                    pwords "because I get stuck when trying to solve the following" ++
@@ -1252,7 +1252,7 @@ instance PrettyTCM Call where
         pwords "when checking that the clause"
         ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
 
-    CheckPattern p tel t -> addCtxTel tel $ fsep $
+    CheckPattern p tel t -> addContext tel $ fsep $
       pwords "when checking that the pattern"
       ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 

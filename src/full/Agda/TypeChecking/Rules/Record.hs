@@ -212,7 +212,7 @@ checkRecDef i name ind eta con ps contel fields =
 -}
 
       let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar = addCtxString "" $ Dom info rect
+          addRecordVar = addContext ("", Dom info rect)
           -- the record variable has the empty name by intention, see issue 208
 
       let m = qnameToMName name  -- Name of record module.
@@ -299,7 +299,7 @@ checkRecordProjections m r con tel ftel fs = do
           , text "tel   =" <+> (inTopContext . prettyTCM $ tel)
           , text "ftel1 =" <+> prettyTCM ftel1
           , text "t     =" <+> prettyTCM t
-          , text "ftel2 =" <+> addCtxTel ftel1 (underAbstraction_ ftel2 prettyTCM)
+          , text "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
           ]
         ]
 
@@ -406,7 +406,7 @@ checkRecordProjections m r con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ text "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                       inTopContext (addCtxTel ftel (prettyTCM (clauseBody clause)))
+                       inTopContext (addContext ftel (prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ text "adding projection"

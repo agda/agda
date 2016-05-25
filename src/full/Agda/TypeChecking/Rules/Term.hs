@@ -203,7 +203,7 @@ forcePi h name (El s t) =
                 a <- newTypeMeta sa
                 x <- freshName_ name
                 let arg = setHiding h $ defaultDom a
-                b <- addCtx x arg $ newTypeMeta sb
+                b <- addContext (x, arg) $ newTypeMeta sb
                 let ty = El s' $ Pi arg (Abs (show x) b)
                 equalType (El s t') ty
                 ty' <- reduce ty
@@ -1166,7 +1166,7 @@ checkApplication hd args e t = do
       let getCon :: TCM (Maybe ConHead)
           getCon = do
             TelV tel t1 <- telView t
-            addCtxTel tel $ do
+            addContext tel $ do
              reportSDoc "tc.check.term.con" 40 $ nest 2 $
                text "target type: " <+> prettyTCM t1
              ifBlockedType t1 (\ m t -> return Nothing) $ \ t' ->
@@ -1254,7 +1254,7 @@ checkApplication hd args e t = do
           --  Unify Z a b == A
           --  Run the tactic on H
           tel    <- metaTel args                    -- (x : X) (y : Y x)
-          target <- addCtxTel tel newTypeMeta_      -- Z x y
+          target <- addContext tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
           (vs, EmptyTel) <- checkArguments_ ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
@@ -1268,7 +1268,7 @@ checkApplication hd args e t = do
         metaTel (arg : args) = do
           a <- newTypeMeta_
           let dom = a <$ domFromArg arg
-          ExtendTel dom . Abs "x" <$> addCtxString "x" dom (metaTel args)
+          ExtendTel dom . Abs "x" <$> addContext ("x", dom) (metaTel args)
 
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
@@ -1583,12 +1583,12 @@ checkHeadApplication e t hd args = do
           -- Andreas, 2011-05-10 report error about types rather  telescopes
           -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
 
-        reportSDoc "tc.term.con" 10 $ addCtxTel eTel $ vcat
+        reportSDoc "tc.term.con" 10 $ addContext eTel $ vcat
           [ text "checking" <+>
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
         blockTerm t $ f vs <$ workOnTypes (do
-          addCtxTel eTel $ leqType fType eType
+          addContext eTel $ leqType fType eType
           compareTel t t1 CmpLeq eTel fTel)
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do

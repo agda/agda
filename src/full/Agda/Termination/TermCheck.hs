@@ -597,7 +597,7 @@ termClause' clause = do
     -- how to get the following right?
     -- , nest 2 $ text "argPats' =" <+> do prettyA =<< reifyPatterns tel perm argPats'
     ]
-  addCtxTel tel $ do
+  addContext tel $ do
     ps <- liftTCM $ normalise $ map unArg argPats'
     (dbpats, res) <- openClause perm (unnumberPatVars ps) body
     case res of

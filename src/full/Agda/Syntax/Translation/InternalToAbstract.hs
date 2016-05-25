@@ -951,7 +951,7 @@ tryRecPFromConP p = do
     _ -> __IMPOSSIBLE__
 
 instance Reify NamedClause A.Clause where
-  reify (QNamed f (I.Clause _ tel ps' body _ catchall)) = addCtxTel tel $ do
+  reify (QNamed f (I.Clause _ tel ps' body _ catchall)) = addContext tel $ do
     ps  <- reifyPatterns tel perm ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f `catchError` \_ -> return 0

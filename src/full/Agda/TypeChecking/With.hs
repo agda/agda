@@ -152,7 +152,7 @@ withFunctionType
     --     @[vs/wtel]Δ₂′ = Δ₂@ and
     --     @[vs/wtel]b′ = b@.
     -- Plus the final number of with-arguments.
-withFunctionType delta1 vs as delta2 b = addCtxTel delta1 $ do
+withFunctionType delta1 vs as delta2 b = addContext delta1 $ do
 
   reportSLn "tc.with.abstract" 20 $ "preparing for with-abstraction"
 
@@ -597,16 +597,16 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   let display = Display arity (replicate arity $ var 0) dt
 
   -- Debug printing.
-  let addFullCtx = addCtxTel delta1
+  let addFullCtx = addContext delta1
                  . flip (foldr addContext) (for [1..n] $ \ i -> "w" ++ show i)
-                 . addCtxTel delta2
+                 . addContext delta2
   reportSDoc "tc.with.display" 20 $ vcat
     [ text "withDisplayForm"
     , nest 2 $ vcat
       [ text "f      =" <+> text (show f)
       , text "aux    =" <+> text (show aux)
       , text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 =" <+> do addCtxTel delta1 $ prettyTCM delta2
+      , text "delta2 =" <+> do addContext delta1 $ prettyTCM delta2
       , text "n      =" <+> text (show n)
       , text "perm   =" <+> text (show perm)
       , text "top    =" <+> do addFullCtx $ prettyTCM topArgs
