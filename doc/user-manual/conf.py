@@ -31,7 +31,7 @@ from sphinx.errors import VersionRequirementError
 
 # If your change the version here also change it in the
 # `requirements.txt` file [Issue #1936].
-needs_sphinx = '1.4.1'
+needs_sphinx = '1.4.2'
 
 # Temporal fix for Sphinx bug (see
 # https://github.com/sphinx-doc/sphinx/issues/2436).
