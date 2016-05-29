@@ -15,11 +15,6 @@
 import sys
 import os
 
-# Temporal fix for Sphinx bug (see
-# https://github.com/sphinx-doc/sphinx/issues/2436).
-import sphinx
-from sphinx.errors import VersionRequirementError
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -31,13 +26,7 @@ from sphinx.errors import VersionRequirementError
 
 # If your change the version here also change it in the
 # `requirements.txt` file [Issue #1936].
-needs_sphinx = '1.4.1'
-
-# Temporal fix for Sphinx bug (see
-# https://github.com/sphinx-doc/sphinx/issues/2436).
-if needs_sphinx > sphinx.__display_version__:
-     message = 'This project needs at least Sphinx v%s' % needs_sphinx
-     raise VersionRequirementError(message)
+needs_sphinx = '1.4.2'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
