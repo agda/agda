@@ -37,6 +37,7 @@ import Control.Monad.Reader
 import Data.Foldable (foldMap)
 import Data.IntMap (IntMap)
 import Data.Monoid
+import Data.Set (Set)
 
 import Test.QuickCheck
 
@@ -49,13 +50,15 @@ import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
 
+type MetaSet = Set MetaId
+
 -- | Depending on the surrounding context of a variable,
 --   it's occurrence can be classified as flexible or rigid,
 --   with finer distinctions.
 --
 --   The constructors are listed in increasing order (wrt. information content).
 data FlexRig
-  = Flexible [MetaId] -- ^ In arguments of metas.
+  = Flexible MetaSet  -- ^ In arguments of metas.
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
   | Unguarded         -- ^ In top position, or only under inductive record constructors.
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.
@@ -74,7 +77,7 @@ data FlexRig
 composeFlexRig :: FlexRig -> FlexRig -> FlexRig
 composeFlexRig o o' =
   case (o, o') of
-    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 ++ ms2
+    (Flexible ms1, Flexible ms2) -> Flexible $ ms1 `mappend` ms2
     (Flexible ms1, _) -> Flexible ms1
     (_, Flexible ms2) -> Flexible ms2
     (WeaklyRigid, _) -> WeaklyRigid
@@ -107,7 +110,7 @@ topVarOcc :: VarOcc
 topVarOcc = VarOcc StronglyRigid Relevant
 
 botVarOcc :: VarOcc
-botVarOcc = VarOcc (Flexible []) Irrelevant
+botVarOcc = VarOcc (Flexible mempty) Irrelevant
 
 type VarMap = IntMap VarOcc
 
@@ -379,7 +382,7 @@ instance Free' EqualityView c where
 
 instance Arbitrary FlexRig where
   arbitrary = oneof
-    [ pure $ Flexible [] -- TODO
+    [ pure $ Flexible mempty -- TODO
     , pure WeaklyRigid
     , pure Unguarded
     , pure StronglyRigid
