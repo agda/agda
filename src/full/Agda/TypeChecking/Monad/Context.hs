@@ -28,6 +28,7 @@ import Agda.TypeChecking.Monad.Open
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!), downFrom)
+import Agda.Utils.Size
 
 -- * Modifying the context
 
@@ -91,7 +92,8 @@ addCtx x a ret = do
 -- | Various specializations of @addCtx@.
 {-# SPECIALIZE addContext :: b -> TCM a -> TCM a #-}
 class AddContext b where
-  addContext :: MonadTCM tcm => b -> tcm a -> tcm a
+  addContext  :: MonadTCM tcm => b -> tcm a -> tcm a
+  contextSize :: b -> Nat
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
@@ -99,37 +101,46 @@ instance {-# OVERLAPPABLE #-} AddContext a => AddContext [a] where
 instance AddContext a => AddContext [a] where
 #endif
   addContext = flip (foldr addContext)
+  contextSize = sum . map contextSize
 
 instance AddContext (Name, Dom Type) where
   addContext = uncurry addCtx
+  contextSize _ = 1
 
 instance AddContext (Dom (Name, Type)) where
   addContext = addContext . distributeF
   -- addContext dom = addCtx (fst $ unDom dom) (snd <$> dom)
+  contextSize _ = 1
 
 instance AddContext ([Name], Dom Type) where
   addContext (xs, dom) = addContext (bindsToTel' id xs dom)
+  contextSize (xs, _) = length xs
 
 instance AddContext ([WithHiding Name], Dom Type) where
   addContext ([]                 , dom) = id
   addContext (WithHiding h x : xs, dom) =
     addContext (x , mapHiding (mappend h) dom) .
     addContext (xs, raise 1 dom)
+  contextSize (xs, _) = length xs
 
 instance AddContext (String, Dom Type) where
   addContext (s, dom) ret = do
     x <- freshName_ s
     addCtx x dom ret
+  contextSize _ = 1
 
 instance AddContext (Dom (String, Type)) where
   addContext = addContext . distributeF
   -- addContext dom = addContext (fst $ unDom dom, snd <$> dom)
+  contextSize _ = 1
 
 instance AddContext (Dom Type) where
   addContext dom = addContext ("_", dom)
+  contextSize _ = 1
 
 instance AddContext Name where
   addContext x = addContext (x, dummyDom)
+  contextSize _ = 1
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} AddContext String where
@@ -137,11 +148,13 @@ instance {-# OVERLAPPING #-} AddContext String where
 instance AddContext String where
 #endif
   addContext s = addContext (s, dummyDom)
+  contextSize _ = 1
 
 instance AddContext Telescope where
   addContext tel ret = loop tel where
     loop EmptyTel          = ret
     loop (ExtendTel t tel) = underAbstraction t tel loop
+  contextSize = size
 
 -- | Context entries without a type have this dummy type.
 dummyDom :: Dom Type
