@@ -377,8 +377,8 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
       when (not $ null namedDots) $ reportSDoc "tc.lhs.top" 50 $
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
-      bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult delta ps trhs perm) -> do
+      checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult delta ps trhs perm) ->
+        bindAsPatterns [ AsB x v a | A.NamedDot x v a <- applySubst (fromJust withSub) namedDots ] $ do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere (unArg trhs) wh $ checkRHS i x aps t lhsResult rhs0
@@ -700,7 +700,7 @@ checkWithFunction (WithFunction f aux t delta1 delta2 vs as b qs perm' perm fina
 
   -- Construct the body for the with function
   cs <- return $ map (A.lhsToSpine) cs
-  cs <- buildWithFunction f aux t qs finalPerm (size delta1) n cs
+  cs <- buildWithFunction f aux t qs withSub finalPerm (size delta1) n cs
   cs <- return $ map (A.spineToLhs) cs
 
   -- Check the with function
