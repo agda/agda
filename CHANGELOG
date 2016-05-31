@@ -160,6 +160,12 @@ Language
     test' : ∀{A} → R A → A
     test' r = M.f r
 
+* Eager insertion of implicit arguments [Issue #2001]
+
+  Implicit arguments are now (again) eagerly inserted in left-hand sides. The
+  previous behaviour of inserting implicits for where blocks, but not
+  right-hand sides was not type safe.
+
 
 Emacs mode
 ==========

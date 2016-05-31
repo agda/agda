@@ -8,7 +8,7 @@
 (agda2-info-action "*Type-checking*" " Finished Common.Product. " t)
 (agda2-info-action "*Type-checking*" "Finished SplitResult. " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : .A × .B ?1 : {A B : Set} → A → B → A × B ?2 : {A : Set} → FunRec A " nil)
+(agda2-info-action "*All Goals*" "?0 : .A × .B ?1 : .A → .B → .A × .B ?2 : FunRec .A " nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("proj₁ (test a b) = ?" "proj₂ (test a b) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))
