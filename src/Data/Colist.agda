@@ -121,7 +121,7 @@ concat ((x ∷ (y ∷ xs)) ∷ xss) = x ∷ ♯ concat ((y ∷ xs) ∷ xss)
 Any-map : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p}
           {f : A → B} {xs} →
           Any P (map f xs) ↔ Any (P ∘ f) xs
-Any-map {P = P} {f} = λ {xs} → record
+Any-map {P = P} {f} {xs} = record
   { to         = P.→-to-⟶ (to xs)
   ; from       = P.→-to-⟶ (from xs)
   ; inverse-of = record
