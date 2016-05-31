@@ -67,7 +67,7 @@ getOutputTypeName t = do
       Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
 
--- | The permutation should permute the corresponding telescope. (left-to-right list)
+-- | The permutation should permute the corresponding context. (right-to-left list)
 renameP :: Subst t a => Permutation -> a -> a
 renameP p = applySubst (renaming p)
 
