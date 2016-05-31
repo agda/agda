@@ -713,8 +713,8 @@ instance (DotVars a, DotVars b) => DotVars (Either a b) where
   dotVars = either dotVars dotVars
 
 instance DotVars A.Clause where
-  dotVars (A.Clause _ rhs [] _) = dotVars rhs
-  dotVars (A.Clause _ rhs (_:_) _) = __IMPOSSIBLE__ -- cannot contain where clauses?
+  dotVars (A.Clause _ _ rhs [] _) = dotVars rhs
+  dotVars (A.Clause _ _ rhs (_:_) _) = __IMPOSSIBLE__ -- cannot contain where clauses?
 
 instance DotVars A.Pattern where
   dotVars p = case p of
@@ -879,7 +879,7 @@ instance Reify NamedClause A.Clause where
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- reify $ renameP (reverseP perm) <$> body
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) rhs [] catchall
+    let result = A.Clause (spineToLhs lhs) [] rhs [] catchall
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where

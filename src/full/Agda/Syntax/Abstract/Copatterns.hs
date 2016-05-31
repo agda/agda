@@ -192,10 +192,10 @@ groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses re
     rhsExpr _       = __IMPOSSIBLE__
 
 clauseToPath :: Clause -> ScopeM (ProjPath Clause)
-clauseToPath (Clause (LHS i lhs wps) (RHS e) [] catchall) =
-  fmap (\ lhs -> Clause (LHS i lhs wps) (RHS e) [] catchall) <$> lhsToPath [] lhs
-clauseToPath (Clause lhs (RHS e) (_:_) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
-clauseToPath (Clause lhs _ wheredecls _) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
+clauseToPath (Clause (LHS i lhs wps) dots (RHS e) [] catchall) =
+  fmap (\ lhs -> Clause (LHS i lhs wps) dots (RHS e) [] catchall) <$> lhsToPath [] lhs
+clauseToPath (Clause lhs _ (RHS e) (_:_) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
+clauseToPath (Clause lhs _ _ wheredecls _) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
 
 lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
 lhsToPath acc lhs@LHSHead{}         = return $ Path acc lhs
@@ -333,8 +333,11 @@ instance Rename TypedBinding where
   rename rho (TLet r lbs)   = TLet r (rename rho lbs)
 
 instance Rename Clause where
-  rename rho (Clause lhs rhs wheredecls catchall) =
-    Clause (rename rho lhs) (rename rho rhs) (rename rho wheredecls) catchall
+  rename rho (Clause lhs dots rhs wheredecls catchall) =
+    Clause (rename rho lhs) (rename rho dots) (rename rho rhs) (rename rho wheredecls) catchall
+
+instance Rename NamedDotPattern where
+  rename rho (NamedDot x v t) = NamedDot (rename rho x) v t
 
 instance Rename RHS where
   rename rho e = case e of

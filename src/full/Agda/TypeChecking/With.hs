@@ -202,12 +202,13 @@ buildWithFunction
   -> TCM [A.SpineClause]  -- ^ With-clauses flattened wrt. parent patterns.
 buildWithFunction f aux t qs perm n1 n cs = mapM buildWithClause cs
   where
-    buildWithClause (A.Clause (A.SpineLHS i _ ps wps) rhs wh catchall) = do
+    -- Nested with-functions will iterate this function once for each parent clause.
+    buildWithClause (A.Clause (A.SpineLHS i _ ps wps) inheritedDots rhs wh catchall) = do
       let (wps0, wps1) = genericSplitAt n wps
           ps0          = map defaultNamedArg wps0
       rhs <- buildRHS rhs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns f aux t qs perm ps
-      let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh catchall
+      let result = A.Clause (A.SpineLHS i aux (ps1 ++ ps0 ++ ps2) wps1) inheritedDots rhs wh catchall
       reportSDoc "tc.with" 20 $ vcat
         [ text "buildWithClause returns" <+> prettyA result
         ]
