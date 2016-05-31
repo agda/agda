@@ -41,7 +41,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
 
-import Agda.TypeChecking.Rules.LHS.Problem (flexibleVarFromHiding)
+import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVar(..), FlexibleVarKind(..))
 import Agda.TypeChecking.Rules.LHS.Unify
 
 import Agda.TypeChecking.Coverage.Match
@@ -457,21 +457,21 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       preserve p = p
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal
+      delta1Gamma = delta1 `abstract` gamma
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma ps hix
 
   -- All variables are flexible
   -- let flex = [0..size delta1 + size gamma - 1]
-  let gammaDelta1  = gammal ++ telToList delta1
-      makeFlex i d = flexibleVarFromHiding (getHiding d) i
-      flex = zipWith makeFlex [0..] gammaDelta1
+  let makeFlex i d = FlexibleVar (getHiding d) ImplicitFlex (Just i) i
+      flex = zipWith makeFlex (downFrom $ size delta1Gamma) (telToList delta1Gamma)
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
   r <- unifyIndices
-         (delta1 `abstract` gamma)
+         delta1Gamma
          flex
          (raise (size gamma) dtype)
          conIxs

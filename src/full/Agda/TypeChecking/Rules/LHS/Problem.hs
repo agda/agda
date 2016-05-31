@@ -47,6 +47,7 @@ data FlexibleVarKind
 data FlexibleVar a = FlexibleVar
   { flexHiding :: Hiding
   , flexKind   :: FlexibleVarKind
+  , flexPos    :: Maybe Int
   , flexVar    :: a
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -55,10 +56,10 @@ instance LensHiding (FlexibleVar a) where
   mapHiding f x = x { flexHiding = f (flexHiding x) }
 
 defaultFlexibleVar :: a -> FlexibleVar a
-defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex a
+defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex Nothing a
 
 flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
-flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
+flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -90,6 +91,12 @@ instance ChooseFlex FlexibleVarKind where
 instance ChooseFlex a => ChooseFlex [a] where
   chooseFlex xs ys = mconcat $ zipWith chooseFlex xs ys
 
+instance ChooseFlex a => ChooseFlex (Maybe a) where
+  chooseFlex Nothing Nothing = ChooseEither
+  chooseFlex Nothing (Just y) = ChooseLeft
+  chooseFlex (Just x) Nothing = ChooseRight
+  chooseFlex (Just x) (Just y) = chooseFlex x y
+
 instance ChooseFlex Hiding where
   chooseFlex Hidden   Hidden   = ChooseEither
   chooseFlex Hidden   _        = ChooseLeft
@@ -106,8 +113,9 @@ instance ChooseFlex Int where
     GT -> ChooseRight
 
 instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
-  chooseFlex (FlexibleVar h1 f1 i1) (FlexibleVar h2 f2 i2) =
-    firstChoice [chooseFlex f1 f2, chooseFlex h1 h2, chooseFlex i1 i2]
+  chooseFlex (FlexibleVar h1 f1 p1 i1) (FlexibleVar h2 f2 p2 i2) =
+    firstChoice [ chooseFlex f1 f2, chooseFlex h1 h2
+                , chooseFlex p1 p2, chooseFlex i1 i2]
       where
         firstChoice :: [FlexChoice] -> FlexChoice
         firstChoice []                  = ChooseEither

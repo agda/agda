@@ -243,12 +243,14 @@ makeAbsurdClause f (SClause tel ps _ t) = do
     let c = Clause noRange tel ps NoBody t False
     -- Normalise the dot patterns
     ps <- addContext tel $ normalise $ namedClausePats c
+    reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
   A.Clause lhs _ _ _ <- makeAbsurdClause f cl
+  reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
   let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
                                -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
