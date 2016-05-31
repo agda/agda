@@ -43,7 +43,7 @@ import Data.Typeable (Typeable)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
-import Agda.Syntax.Abstract (IsProjP(..))
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty

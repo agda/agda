@@ -83,6 +83,16 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
   deriving (Eq, Ord, Typeable)
 
+-- | Check whether we are a projection pattern.
+class IsProjP a where
+  isProjP :: a -> Maybe AmbiguousQName
+
+instance IsProjP a => IsProjP (Arg a) where
+  isProjP = isProjP . unArg
+
+instance IsProjP a => IsProjP (Named n a) where
+  isProjP = isProjP . namedThing
+
 -- | A module is anonymous if the qualification path ends in an underscore.
 isAnonymousModuleName :: ModuleName -> Bool
 isAnonymousModuleName (MName []) = False

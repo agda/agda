@@ -395,19 +395,9 @@ data Pattern' e
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
 
--- | Check whether we are a projection pattern.
-class IsProjP a where
-  isProjP :: a -> Maybe AmbiguousQName
-
 instance IsProjP (Pattern' e) where
   isProjP (ProjP _ d) = Just d
   isProjP _           = Nothing
-
-instance IsProjP a => IsProjP (Arg a) where
-  isProjP = isProjP . unArg
-
-instance IsProjP a => IsProjP (Named n a) where
-  isProjP = isProjP . namedThing
 
 {--------------------------------------------------------------------------
     Instances
