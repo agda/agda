@@ -602,10 +602,10 @@ dataStrategy k s = do
             reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
             withMetaInfo' mv $ do
               let perm = mvPermutation mv
-              tel <- permuteTel perm <$> getContextTelescope
+              tel <- permuteTel perm <$> (instantiateFull =<< getContextTelescope)
               reportSDoc "tc.lhs.unify" 100 $ text "Context tel (for new metas): " <+> prettyTCM tel
               -- important: create the meta in the same environment as the original meta
-              newArgsMetaCtx ctype tel (mvPermutation mv) us
+              newArgsMetaCtx ctype tel perm us
           reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
           noConstraints $ assignV DirEq m us (Con c margs)
           return $ Just margs
