@@ -91,7 +91,22 @@ In general, when matching on an argument of type ``D i₁ … iₙ`` with a cons
 ``c : (x₁ : A₁) → … → (xₘ : Aₘ) → D j₁ … jₙ``, Agda will attempt to unify
 ``i₁ … iₙ`` with ``j₁ … jₙ``. When the unification algorithm instantiates a
 variable ``x`` with value ``t``, the corresponding argument of the function
-should be replaced by a dot pattern ``.t``.
+can be replaced by a dot pattern ``.t``. Using a dot pattern is optional, but
+can help readability. The following are also legal definitions of ``root``::
+
+  root₁ : (n : Nat) → Square n → Nat
+  root₁ _ (sq m) = m
+
+  root₂ : (n : Nat) → Square n → Nat
+  root₂ n (sq m) = m
+
+In the case of ``root₂``, ``n`` evaluates to ``m * m`` in the body of the
+function and is thus equivalent to
+
+::
+
+  root₃ : (n : Nat) → Square n → Nat
+  root₃ _ (sq m) = let n = m * m in m
 
 .. _absurd-patterns:
 
