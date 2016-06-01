@@ -1,0 +1,3 @@
+Issue1994.agda:36,1-20
+feq  is not a legal rewrite rule, since the following variables are not bound by the left hand side:  r
+when checking the pragma REWRITE feq
