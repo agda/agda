@@ -750,11 +750,11 @@ interpret (Cmd_make_case ii rng s) = do
     -- Drops pattern added to extended lambda functions when lambda lifting them
     extlam_dropLLifted :: CaseContext -> Bool -> A.Clause -> A.Clause
     extlam_dropLLifted Nothing _ x = x
-    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden (A.Clause (A.LHS info A.LHSProj{} ps) rhs decl catchall) = __IMPOSSIBLE__
-    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden (A.Clause (A.LHS info (A.LHSHead name nps) ps) rhs decl catchall)
+    extlam_dropLLifted _ _ (A.Clause (A.LHS _ A.LHSProj{} _) _ _ _ _) = __IMPOSSIBLE__
+    extlam_dropLLifted (Just (ExtLamInfo h nh)) hidden (A.Clause (A.LHS info (A.LHSHead name nps) ps) dots rhs decl catchall)
       = let n = if hidden then h + nh else nh
         in
-         (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) rhs decl catchall)
+         (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) dots rhs decl catchall)
 
 interpret (Cmd_compute ignore ii rng s) = do
   e <- lift $ B.parseExprIn ii rng s

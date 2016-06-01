@@ -666,7 +666,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr d) = head <$> toConcrete d
 
 instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
-  toConcrete (A.Clause lhs rhs wh catchall) =
+  toConcrete (A.Clause lhs _ rhs wh catchall) =
       bindToConcrete lhs $ \lhs ->
         case lhs of
           C.LHS p wps _ _ -> do

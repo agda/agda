@@ -812,7 +812,7 @@ checkExpr e t0 =
                   A.QuestionMark{}        -> True
                   _                       -> False
 
-                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _) = notVisible a
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _ _ _) = notVisible a
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
@@ -1629,7 +1629,7 @@ checkHeadApplication e t hd args = do
             core   = A.LHSProj { A.lhsDestructor = AmbQ [flat]
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }
-            clause = A.Clause (A.LHS (A.LHSRange noRange) core [])
+            clause = A.Clause (A.LHS (A.LHSRange noRange) core []) []
                               (A.RHS arg)
                               [] False
 

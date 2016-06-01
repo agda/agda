@@ -38,6 +38,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free as Free
@@ -833,6 +834,9 @@ instance Subst Term Constraint where
     UnBlock{}                -> c
     where
       rf x = applySubst rho x
+
+instance Subst Term A.NamedDotPattern where
+  applySubst rho (A.NamedDot x v a) = A.NamedDot x (applySubst rho v) (applySubst rho a)
 
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of

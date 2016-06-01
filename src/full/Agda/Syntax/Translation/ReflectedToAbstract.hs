@@ -153,11 +153,11 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
     (names, pats) <- toAbstractPats pats
     rhs           <- local (names++) $ toAbstract rhs
     let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
-    return $ A.Clause lhs (RHS rhs) [] False
+    return $ A.Clause lhs [] (RHS rhs) [] False
   toAbstract (QNamed name (R.AbsurdClause pats)) = do
     (_, pats) <- toAbstractPats pats
     let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
-    return $ A.Clause lhs AbsurdRHS [] False
+    return $ A.Clause lhs [] AbsurdRHS [] False
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where
   toAbstract = traverse toAbstract
