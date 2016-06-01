@@ -74,6 +74,7 @@ import Agda.TypeChecking.Rewriting.NonLinMatch
 import qualified Agda.TypeChecking.Reduce.Monad as Red
 
 import Agda.Utils.Functor
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -208,9 +209,17 @@ addRewriteRule q = do
         rhs <- etaContract =<< normalise rhs
         unless (null $ allMetas (lhs, rhs, b)) failureMetas
         pat <- patternFrom 0 lhs
+        reportSDoc "rewriting" 30 $
+          text "Pattern generated from lhs: " <+> prettyTCM pat
 
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
-        unlessNull (allFreeVars rhs IntSet.\\ nlPatVars pat) failureFreeVars
+        let freeVars  = usedArgs gamma1 `IntSet.union` allFreeVars (pat,rhs)
+            boundVars = nlPatVars pat
+        reportSDoc "rewriting" 40 $
+          text "variables bound by the pattern: " <+> text (show boundVars)
+        reportSDoc "rewriting" 40 $
+          text "variables free in the rewrite rule: " <+> text (show freeVars)
+        unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
         return $ RewriteRule q gamma pat rhs b
 
@@ -246,6 +255,14 @@ addRewriteRule q = do
         typeError . GenericDocError =<< fsep
           [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
           , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
+
+    usedArgs :: Telescope -> IntSet
+    usedArgs tel = IntSet.fromList $ map unDom $ usedIxs
+      where
+        n = size tel
+        allIxs = zipWith ($>) (flattenTel tel) (downFrom n)
+        usedIxs = filter (not . irrelevantOrUnused . getRelevance) allIxs
+
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()

@@ -61,6 +61,7 @@ import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Positivity.Occurrence
+import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
 
 import Agda.Interaction.Exceptions
 -- import {-# SOURCE #-} Agda.Interaction.FindFile
@@ -1076,6 +1077,16 @@ data DisplayTerm
   | DTerm Term
     -- ^ @v@.
   deriving (Typeable, Show)
+
+instance Free' DisplayForm c where
+  freeVars' (Display n ps t) = bind (freeVars' ps) `mappend` bind' n (freeVars' t)
+
+instance Free' DisplayTerm c where
+  freeVars' (DWithApp t ws vs) = freeVars' (t, (ws, vs))
+  freeVars' (DCon _ vs)        = freeVars' vs
+  freeVars' (DDef _ es)        = freeVars' es
+  freeVars' (DDot v)           = freeVars' v
+  freeVars' (DTerm v)          = freeVars' v
 
 -- | By default, we have no display form.
 defaultDisplayForm :: QName -> [Open DisplayForm]
