@@ -689,12 +689,8 @@ checkWhere
   -> [A.Declaration] -- ^ Where-declarations to check.
   -> TCM a           -- ^ Continuation.
   -> TCM a
-checkWhere trhs ds ret0 = do
-  -- Temporarily add trailing hidden arguments to check where-declarations.
-  TelV htel _ <- telViewUpTo' (-1) (not . visible) trhs
+checkWhere trhs ds ret = do
   let
-    -- Remove htel after checking ds.
-    ret = escapeContext (size htel) $ ret0
     loop ds = case ds of
       [] -> ret
       [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
@@ -713,8 +709,7 @@ checkWhere trhs ds ret0 = do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__
-  -- Add htel to check ds.
-  addContext htel $ loop ds
+  loop ds
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool

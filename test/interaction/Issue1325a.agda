@@ -8,6 +8,5 @@ data ℕ : Set where
 f : {n : ℕ}  → Set₁
 f = Set
   where
-  g : {n : ℕ} → Set → Set
-  g _ = {!.n!}
-
+  g : {m : ℕ} → Set → Set
+  g _ = {!.m!}

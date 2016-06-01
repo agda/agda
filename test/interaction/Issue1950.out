@@ -4,7 +4,7 @@
 (agda2-info-action "*Type-checking*" "Checking Issue1950 (Issue1950.agda). " t)
 (agda2-info-action "*Type-checking*" "Finished Issue1950. " t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "?0 : {a : ⟦ A ⟧} → eq B' (.b a) (.a a) ?1 : {u : Unit} → Unit " nil)
+(agda2-info-action "*All Goals*" "?0 : eq B' (.b .a₁) (.a .a₁) ?1 : Unit " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
 ((last . 2) . (agda2-make-case-action '("eq-sym (A `→ B) h | ♭ = ?" "eq-sym (A `→ B) h | B' `→ B'' = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))

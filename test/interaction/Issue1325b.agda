@@ -5,7 +5,7 @@ data ℕ : Set where
   zero : ℕ
   suc  : ℕ → ℕ
 
-f : {n n : ℕ}  → Set₁
+f : {m m : ℕ}  → Set₁
 f = Set
   where
   g : {n n : ℕ} → Set → Set
