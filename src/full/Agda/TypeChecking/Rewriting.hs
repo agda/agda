@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards     #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Rewriting with arbitrary rules.
 --
@@ -425,3 +428,15 @@ instance GetMatchables RewriteRule where
   getMatchables rew = case rewLHS rew of
     PDef _ ps -> getMatchables ps
     _         -> __IMPOSSIBLE__
+
+-- Only computes free variables that are not bound (i.e. those in a PTerm)
+instance Free' NLPat c where
+  freeVars' p = case p of
+    PVar _ _ _ -> mempty
+    PWild -> mempty
+    PDef _ es -> freeVars' es
+    PLam _ u -> freeVars' u
+    PPi a b -> freeVars' (a,b)
+    PSet l -> freeVars' l
+    PBoundVar _ es -> freeVars' es
+    PTerm t -> freeVars' t

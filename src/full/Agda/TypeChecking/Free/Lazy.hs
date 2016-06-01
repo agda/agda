@@ -43,7 +43,6 @@ import Test.QuickCheck
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.TypeChecking.Monad.Base
 
 -- import Agda.TypeChecking.Irrelevance
 
@@ -377,18 +376,6 @@ instance Free' Clause c where
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarSet #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
   freeVars' = freeVars' . clauseBody
-
--- Only computes free variables that are not bound (i.e. those in a PTerm)
-instance Free' NLPat c where
-  freeVars' p = case p of
-    PVar _ _ _ -> mempty
-    PWild -> mempty
-    PDef _ es -> freeVars' es
-    PLam _ u -> freeVars' u
-    PPi a b -> freeVars' (a,b)
-    PSet l -> freeVars' l
-    PBoundVar _ es -> freeVars' es
-    PTerm t -> freeVars' t
 
 instance Free' EqualityView c where
   freeVars' (OtherType t) = freeVars' t

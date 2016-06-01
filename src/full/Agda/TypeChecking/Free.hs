@@ -33,6 +33,7 @@ module Agda.TypeChecking.Free
     , occurrence
     , closed
     , freeVars -- only for testing
+    , freeVars'
     ) where
 
 import Prelude hiding (null)
