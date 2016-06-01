@@ -1,7 +1,0 @@
-Issue87.agda:9,1-10,34
-Inaccessible (dotted) patterns from the parent clause must also be
-inaccessible in the with clause, when checking the pattern {i},
-when checking that the clause
-bar (d x) (d y) with y
-bar (d x) (d {i} y) | z = d {i} y
-has type {i : I} → D i → D i → D i
