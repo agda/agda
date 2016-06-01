@@ -541,8 +541,13 @@ stripWithClausePatterns parent f t qs perm ps = do
           unless (size psi' == size tel') $ typeError $
             WrongNumberOfConstructorArguments (conName c) (size tel') (size psi')
 
+          -- Andreas, Ulf, 2016-06-01, Ulf's variant at issue #679
+          -- Since instantiating the type with a constructor pattern
+          -- can reveal more hidden arguments, we need to insert them here.
+          psi <- insertImplicitPatternsT ExpandLast (psi' ++ ps) t'
+
           -- Keep going
-          strip self' t' (psi' ++ ps) (qs' ++ qs)
+          strip self' t' psi (qs' ++ qs)
 
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.
