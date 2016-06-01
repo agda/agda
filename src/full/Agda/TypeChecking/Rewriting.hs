@@ -107,6 +107,7 @@ verifyBuiltinRewrite v t = do
   caseMaybeM (relView t)
     (failure $ text "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
+    unless (visible a && visible b) $ failure $ text "because its two final arguments are not both visible."
     case ignoreSharing (unEl core) of
       Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
@@ -121,8 +122,8 @@ verifyBuiltinRewrite v t = do
 data RelView = RelView
   { relViewTel   :: Telescope  -- ^ The whole telescope @Δ, t, t'@.
   , relViewDelta :: ListTel    -- ^ @Δ@.
-  , relViewType  :: Type       -- ^ @t@.
-  , relViewType' :: Type       -- ^ @t'@.
+  , relViewType  :: Dom Type   -- ^ @t@.
+  , relViewType' :: Dom Type   -- ^ @t'@.
   , relViewCore  :: Type       -- ^ @core@.
   }
 
@@ -134,7 +135,7 @@ relView t = do
   let n                = size tel
       (delta, lastTwo) = splitAt (n - 2) $ telToList tel
   if size lastTwo < 2 then return Nothing else do
-    let [a, b] = snd . unDom <$> lastTwo
+    let [a, b] = fmap snd <$> lastTwo
     return $ Just $ RelView tel delta a b core
 
 -- | Add @q : Γ → rel us lhs rhs@ as rewrite rule
@@ -226,7 +227,7 @@ addRewriteRule q = do
           text "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        return $ RewriteRule q gamma pat rhs b
+        return $ RewriteRule q gamma pat rhs (unDom b)
 
       reportSDoc "rewriting" 10 $
         text "considering rewrite rule " <+> prettyTCM rew
