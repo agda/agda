@@ -252,15 +252,17 @@ instance Match NLPat Term where
     let n = size k
         b = void vb
         v = ignoreBlocking vb
+        prettyPat  = addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
+        prettyTerm = addContext k (prettyTCM v)
     traceSDocNLM "rewriting" 100 (sep
-      [ text "matching" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
-      , text "with" <+> addContext k (prettyTCM v)]) $ do
+      [ text "matching" <+> prettyPat
+      , text "with" <+> prettyTerm]) $ do
     let yes = return ()
         no msg =
           traceSDocNLM "rewriting" 80 (sep
-            [ text "mismatch between" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
-            , text " and " <+> addContext k (prettyTCM v)
-            , msg ]) mzero
+            [ text "mismatch between" <+> prettyPat
+            , text " and " <+> prettyTerm
+            , msg ]) $ matchingBlocked b
         block b' =
           traceSDocNLM "rewriting" 80 (sep
             [ text "matching blocked on meta"
