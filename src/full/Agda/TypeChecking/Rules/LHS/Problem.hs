@@ -225,9 +225,10 @@ consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProble
 
 -- | Instantiations of a dot pattern with a term.
 --   `Maybe e` if the user wrote a dot pattern .e
---   `Nothing` if this is an instantiation of an implicit argument or an underscore _
+--   `Nothing` if this is an instantiation of an implicit argument or a name.
 data DotPatternInst = DPI
-  { dotPatternUserExpr :: Maybe A.Expr
+  { dotPatternName     :: Maybe A.Name
+  , dotPatternUserExpr :: Maybe A.Expr
   , dotPatternInst     :: Term
   , dotPatternType     :: Dom Type
   }
@@ -249,18 +250,19 @@ instance Subst Term (Problem' p) where
                        , problemRest = applySubst rho $ problemRest p }
 
 instance Subst Term DotPatternInst where
-  applySubst rho (DPI e v a) = uncurry (DPI e) $ applySubst rho (v,a)
+  applySubst rho (DPI x e v a) = uncurry (DPI x e) $ applySubst rho (v,a)
 
 instance Subst Term AsBinding where
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
 instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI me v a) = sep
-    [ prettyA e <+> text "="
+  prettyTCM (DPI mx me v a) = sep
+    [ x <+> text "=" <+> text "." <> prettyA e
     , nest 2 $ prettyTCM v <+> text ":"
     , nest 2 $ prettyTCM a
     ]
-    where e = fromMaybe underscore me
+    where x = maybe (text "_") prettyA mx
+          e = fromMaybe underscore me
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =

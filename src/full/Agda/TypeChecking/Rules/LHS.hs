@@ -92,10 +92,8 @@ class IsFlexiblePattern a where
 instance IsFlexiblePattern A.Pattern where
   maybeFlexiblePattern p =
     case p of
-      A.DotP{}
-        -> return DotFlex
-      A.WildP{}
-        -> return ImplicitFlex
+      A.DotP{}  -> return DotFlex
+      A.WildP{} -> return ImplicitFlex
       A.ConP _ (A.AmbQ [c]) qs
         -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
              (maybeFlexiblePattern qs)
@@ -152,8 +150,8 @@ updateInPatterns as ps qs = do
       VarP (i,_) -> return (IntMap.singleton i p, [])
       -- Case: the unifier did instantiate the variable
       DotP u     -> case namedThing (unArg p) of
-        A.DotP _ e -> return (IntMap.empty,[DPI (Just e) u a])
-        A.WildP _  -> return (IntMap.empty,[DPI Nothing  u a])
+        A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
+        A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.ConP _ (A.AmbQ [c]) qs -> do
           Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -186,7 +184,7 @@ updateInPatterns as ps qs = do
             -- If the user wrote a dot pattern but the unifier eta-expanded the
             -- corresponding variable, add the corresponding instantiation
             dpi :: [DotPatternInst]
-            dpi = maybe [] (\e -> [DPI (Just e) (patternToTerm $ unArg q) a]) (isDotP (namedThing $ unArg p))
+            dpi = maybe [] (\e -> [DPI Nothing (Just e) (patternToTerm $ unArg q) a]) (isDotP (namedThing $ unArg p))
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
       LitP _     -> __IMPOSSIBLE__
@@ -311,7 +309,7 @@ noShadowingOfConstructors mkCall problem =
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
-checkDotPattern (DPI (Just e) v (Dom info a)) =
+checkDotPattern (DPI _ (Just e) v (Dom info a)) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ text "checking dot pattern"
@@ -329,7 +327,7 @@ checkDotPattern (DPI (Just e) v (Dom info a)) =
           ]
     -- Should be ok to do noConstraints here
     noConstraints $ equalTerm a u v
-checkDotPattern (DPI Nothing _ _) = return ()
+checkDotPattern (DPI _ Nothing _ _) = return ()
 
 -- | Checks whether the dot patterns left over after splitting can be covered
 --   by shuffling around the dots from implicit positions. Returns the updated
@@ -392,8 +390,8 @@ checkLeftoverDotPatterns ps vs as dpi = do
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
 
     gatherImplicitDotVars :: DotPatternInst -> TCM [(Int,[QName])]
-    gatherImplicitDotVars (DPI (Just _) _ _) = return [] -- Not implicit
-    gatherImplicitDotVars (DPI Nothing u _)  = gatherVars u
+    gatherImplicitDotVars (DPI _ (Just _) _ _) = return [] -- Not implicit
+    gatherImplicitDotVars (DPI _ Nothing u _)  = gatherVars u
       where
         gatherVars :: Term -> TCM [(Int,[QName])]
         gatherVars u = case ignoreSharing u of
