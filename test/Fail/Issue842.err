@@ -1,4 +1,0 @@
-Issue842.agda:9,1-10,2
-Incomplete pattern matching for F. Missing cases:
-  F c₂
-when checking the definition of F

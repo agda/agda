@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP           #-}
+{-# LANGUAGE LambdaCase    #-}
 {-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.CompiledClause.Compile where
@@ -155,16 +156,18 @@ splitOn single n cs = mconcat $ map (fmap (:[]) . splitC n) $
     expandCatchAlls single n cs
 
 splitC :: Int -> Cl -> Case Cl
-splitC n (Cl ps b) = case unArg p of
+splitC n (Cl ps b) = caseMaybe mp fallback $ \case
   ProjP d     -> projCase d $ Cl (ps0 ++ ps1) b
   ConP c _ qs -> conCase (conName c) $ WithArity (length qs) $
                    Cl (ps0 ++ map (fmap namedThing) qs ++ ps1) b
   LitP l      -> litCase l $ Cl (ps0 ++ ps1) b
-  VarP{}      -> catchAll $ Cl ps b
-  DotP{}      -> catchAll $ Cl ps b
+  VarP{}      -> fallback
+  DotP{}      -> fallback
   where
-    (ps0, rest)   = splitAt n ps
-    (p, ps1)      = fromMaybe __IMPOSSIBLE__ $ uncons rest
+    (ps0, rest) = splitAt n ps
+    mp          = unArg <$> headMaybe rest
+    ps1         = drop 1 rest
+    fallback    = catchAll $ Cl ps b
 
 -- | Expand catch-alls that appear before actual matches.
 --

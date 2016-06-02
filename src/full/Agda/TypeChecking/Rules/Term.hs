@@ -565,7 +565,7 @@ catchIlltypedPatternBlockedOnMeta :: TCM () -> TCM (Maybe (TCErr, MetaId))
 catchIlltypedPatternBlockedOnMeta m = (Nothing <$ m) `catchError` \ err -> do
   let reraise = throwError err
   case err of
-    TypeError s cl@(Closure sig env scope (IlltypedPattern p a)) ->
+    TypeError s cl@Closure{ clValue = IlltypedPattern p a } ->
       enterClosure cl $ \ _ -> do
         ifBlockedType a (\ x _ -> return $ Just (err, x)) $ {- else -} \ _ -> reraise
     _ -> reraise
