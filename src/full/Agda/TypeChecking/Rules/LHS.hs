@@ -554,24 +554,25 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
     bindLHSVars (filter (isNothing . isProjP) ps) delta $ do
       let asb' = asb
 
-      bindAsPatterns asb' $ do
-        reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
-        reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> ((text . show) =<< getContext)
-        reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
-        reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
+      reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
+      reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> ((text . show) =<< getContext)
+      reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
+      reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
-        let qs'  = unnumberPatVars qs
-            perm = dbPatPerm qs
-            lhsResult = LHSResult delta qs' b' perm
-            paramSub  = wkS (size delta) idS
-        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
+      let qs'  = unnumberPatVars qs
+          perm = dbPatPerm qs
+          lhsResult = LHSResult delta qs' b' perm
+          paramSub  = wkS (size delta) idS
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
+
+      bindAsPatterns asb' $ do
         applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
 
-          -- Check dot patterns
-          mapM_ checkDotPattern dpi
-          checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
+        -- Check dot patterns
+        mapM_ checkDotPattern dpi
+        checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
 
-          ret lhsResult
+        ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
