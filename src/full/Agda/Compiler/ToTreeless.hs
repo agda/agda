@@ -158,7 +158,10 @@ casetree cc = do
     CC.Done xs v -> lambdasUpTo (length xs) $ do
         v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v
         substTerm v
-    CC.Case (Arg _ n) (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
+    CC.Case _ (CC.Branches True _ _ Just{}) -> lift $ do
+      typeError . GenericDocError =<< do
+        text "Not yet implemented: compilation of copattern matching with catch-all clause"
+    CC.Case (Arg _ n) (CC.Branches True conBrs _ Nothing) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
