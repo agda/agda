@@ -166,8 +166,7 @@ casetree cc = do
     CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
-        fromMaybe C.tUnreachable
-          <$> (fmap C.TVar <$> asks ccCatchAll)
+        fromCatchAll
       else do
         caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
               ((c:_), []) -> do
@@ -180,14 +179,16 @@ casetree cc = do
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
-          -- normally, Agda should make sure that a pattern match is total,
-          -- so we set the default to unreachable if no default has been provided.
-          def <- fromMaybe C.tUnreachable
-            <$> (fmap C.TVar <$> asks ccCatchAll)
+          def <- fromCatchAll
           C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)
+  where
+    -- normally, Agda should make sure that a pattern match is total,
+    -- so we set the default to unreachable if no default has been provided.
+    fromCatchAll :: CC C.TTerm
+    fromCatchAll = maybe C.tUnreachable C.TVar <$> asks ccCatchAll
 
 commonArity :: CC.CompiledClauses -> Int
 commonArity cc =
