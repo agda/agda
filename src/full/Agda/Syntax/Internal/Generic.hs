@@ -100,6 +100,11 @@ instance TermLike a => TermLike (Ptr a) where
   traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
+instance TermLike a => TermLike (Blocked a) where
+  traverseTerm f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
+  foldTerm f = foldMap (foldTerm f)
+
 -- * Real terms
 
 instance TermLike Term where
