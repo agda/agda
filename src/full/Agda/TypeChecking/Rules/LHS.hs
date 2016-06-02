@@ -531,44 +531,49 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
 
   -- doing the splits:
-  LHSState problem@(Problem ps qs delta rest) sigma dpi asb
-    <- checkLHS f $ LHSState problem0 idS [] []
+  do  -- just here temporarily to make more informative diffs
+    LHSState problem@(Problem ps qs delta rest) sigma dpi asb
+      <- checkLHS f $ LHSState problem0 idS [] []
 
-  unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
+    unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
-  addContext delta $ do
-    noShadowingOfConstructors c problem
-    noPatternMatchingOnCodata qs
+    addContext delta $ do
+      noShadowingOfConstructors c problem
+      noPatternMatchingOnCodata qs
 
-  reportSDoc "tc.lhs.top" 10 $
-    vcat [ text "checked lhs:"
-         , nest 2 $ vcat
-           [ text "ps    = " <+> fsep (map prettyA ps)
-           , text "delta = " <+> prettyTCM delta
-           , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
-           , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
-           , text "qs    = " <+> text (show qs)
+    reportSDoc "tc.lhs.top" 10 $
+      vcat [ text "checked lhs:"
+           , nest 2 $ vcat
+             [ text "ps    = " <+> fsep (map prettyA ps)
+             , text "delta = " <+> prettyTCM delta
+             , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
+             , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
+             , text "qs    = " <+> text (show qs)
+             ]
            ]
-         ]
 
-  let b' = restType rest
-  bindLHSVars (filter (isNothing . isProjP) ps) delta $ bindAsPatterns asb $ do
-    reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
-    reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> ((text . show) =<< getContext)
-    reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
-    reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
+    let b' = restType rest
+    bindLHSVars (filter (isNothing . isProjP) ps) delta $ do
+      let asb' = asb
 
-    let qs'  = unnumberPatVars qs
-        perm = dbPatPerm qs
-        lhsResult = LHSResult delta qs' b' perm
-        paramSub  = wkS (size delta) idS
-    reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
-    applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
-      -- Check dot patterns
-      mapM_ checkDotPattern dpi
-      checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
-      ret lhsResult
+      bindAsPatterns asb' $ do
+        reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
+        reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> ((text . show) =<< getContext)
+        reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
+        reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
+        let qs'  = unnumberPatVars qs
+            perm = dbPatPerm qs
+            lhsResult = LHSResult delta qs' b' perm
+            paramSub  = wkS (size delta) idS
+        reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
+        applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
+
+          -- Check dot patterns
+          mapM_ checkDotPattern dpi
+          checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
+
+          ret lhsResult
 
 -- | The loop (tail-recursive): split at a variable in the problem until problem is solved
 checkLHS
