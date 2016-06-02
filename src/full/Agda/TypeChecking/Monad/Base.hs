@@ -92,6 +92,7 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -812,6 +813,22 @@ dirToCmp cont DirGeq = flip $ cont CmpLeq
 data Open a = OpenThing { openThingCtxIds :: [CtxId], openThing :: a }
     deriving (Typeable, Show, Functor)
 
+instance Decoration Open where
+  traverseF f (OpenThing cxt x) = OpenThing cxt <$> f x
+
+data Local a = Local ModuleName a   -- ^ Local to a given module, the value
+                                    -- should have module parameters as free variables.
+             | Global a             -- ^ Global value, should be closed.
+    deriving (Typeable, Show, Functor, Foldable, Traversable)
+
+isGlobal :: Local a -> Bool
+isGlobal Global{} = True
+isGlobal Local{}  = False
+
+instance Decoration Local where
+  traverseF f (Local m x) = Local m <$> f x
+  traverseF f (Global x)  = Global <$> f x
+
 ---------------------------------------------------------------------------
 -- * Judgements
 --
@@ -1021,7 +1038,7 @@ sigRewriteRules f s =
 type Sections    = Map ModuleName Section
 type Definitions = HashMap QName Definition
 type RewriteRuleMap = HashMap QName RewriteRules
-type DisplayForms = HashMap QName [Open DisplayForm]
+type DisplayForms = HashMap QName [LocalDisplayForm]
 
 data Section = Section { _secTelescope :: Telescope }
   deriving (Typeable, Show)
@@ -1059,6 +1076,8 @@ data DisplayForm = Display
   }
   deriving (Typeable, Show)
 
+type LocalDisplayForm = Local DisplayForm
+
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
 data DisplayTerm
@@ -1089,7 +1108,7 @@ instance Free' DisplayTerm c where
   freeVars' (DTerm v)          = freeVars' v
 
 -- | By default, we have no display form.
-defaultDisplayForm :: QName -> [Open DisplayForm]
+defaultDisplayForm :: QName -> [LocalDisplayForm]
 defaultDisplayForm c = []
 
 defRelevance :: Definition -> Relevance
@@ -1121,10 +1140,11 @@ type RewriteRules = [RewriteRule]
 
 -- | Rewrite rules can be added independently from function clauses.
 data RewriteRule = RewriteRule
-  { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → lhs ≡ rhs@
+  { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → f ps ≡ rhs@
                              --   where @≡@ is the rewrite relation.
   , rewContext :: Telescope  -- ^ @Γ@.
-  , rewLHS     :: NLPat      -- ^ @Γ ⊢ lhs : t@.
+  , rewHead    :: QName      -- ^ @f@.
+  , rewPats    :: PElims     -- ^ @Γ ⊢ ps  : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   }
@@ -1180,7 +1200,7 @@ data Definition = Defn
     --   23,    3
     --   27,    1
 
-  , defDisplay        :: [Open DisplayForm]
+  , defDisplay        :: [LocalDisplayForm]
   , defMutual         :: MutualId
   , defCompiledRep    :: CompiledRepresentation
   , defInstance       :: Maybe QName
@@ -2749,8 +2769,8 @@ instance KillRange NLPat where
   killRange (PTerm x)  = killRange1 PTerm x
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma lhs rhs t) =
-    killRange5 RewriteRule q gamma lhs rhs t
+  killRange (RewriteRule q gamma f es rhs t) =
+    killRange6 RewriteRule q gamma f es rhs t
 
 instance KillRange CompiledRepresentation where
   killRange = id
@@ -2790,6 +2810,10 @@ instance KillRange Projection where
 
 instance KillRange a => KillRange (Open a) where
   killRange = fmap killRange
+
+instance KillRange a => KillRange (Local a) where
+  killRange (Local a b) = killRange2 Local a b
+  killRange (Global a)  = killRange1 Global a
 
 instance KillRange DisplayForm where
   killRange (Display n vs dt) = killRange3 Display n vs dt

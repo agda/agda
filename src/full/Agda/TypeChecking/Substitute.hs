@@ -192,7 +192,8 @@ instance Apply RewriteRule where
   apply r args = RewriteRule
     { rewName    = rewName r
     , rewContext = apply (rewContext r) args
-    , rewLHS     = applySubst sub (rewLHS r)
+    , rewHead    = rewHead r
+    , rewPats    = applySubst sub (rewPats r)
     , rewRHS     = applySubst sub (rewRHS r)
     , rewType    = applySubst sub (rewType r)
     }
@@ -428,8 +429,8 @@ instance Abstract Definition where
 --   we do not need to change lhs, rhs, and t since they live in Γ.
 --   See 'Abstract Clause'.
 instance Abstract RewriteRule where
-  abstract tel (RewriteRule q gamma lhs rhs t) =
-    RewriteRule q (abstract tel gamma) lhs rhs t
+  abstract tel (RewriteRule q gamma f ps rhs t) =
+    RewriteRule q (abstract tel gamma) f ps rhs t
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPING #-} Abstract [Occ.Occurrence] where
@@ -793,9 +794,9 @@ instance Subst Term NLPat where
     PTerm u -> PTerm $ applySubst rho u
 
 instance Subst Term RewriteRule where
-  applySubst rho (RewriteRule q gamma lhs rhs t) =
+  applySubst rho (RewriteRule q gamma f ps rhs t) =
     RewriteRule q (applySubst rho gamma)
-                  (applySubst (liftS n rho) lhs)
+                f (applySubst (liftS n rho) ps)
                   (applySubst (liftS n rho) rhs)
                   (applySubst (liftS n rho) t)
     where n = size gamma

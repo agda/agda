@@ -177,6 +177,15 @@ instance EmbPrj a => EmbPrj (Open a) where
     valu [a, b] = valu2 OpenThing a b
     valu _      = malformed
 
+instance EmbPrj a => EmbPrj (Local a) where
+  icod_ (Local a b) = icode2' a b
+  icod_ (Global a)  = icode1' a
+
+  value = vcase valu where
+    valu [a, b] = valu2 Local a b
+    valu [a]    = valu1 Global a
+    valu _      = malformed
+
 instance EmbPrj CtxId where
   icod_ (CtxId a) = icode a
   value n         = CtxId `fmap` value n
@@ -229,11 +238,11 @@ instance EmbPrj NLPat where
     valu _            = malformed
 
 instance EmbPrj RewriteRule where
-  icod_ (RewriteRule a b c d e) = icode5' a b c d e
+  icod_ (RewriteRule a b c d e f) = icode6' a b c d e f
 
   value = vcase valu where
-    valu [a, b, c, d, e] = valu5 RewriteRule a b c d e
-    valu _               = malformed
+    valu [a, b, c, d, e, f] = valu6 RewriteRule a b c d e f
+    valu _                  = malformed
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icode5' a b c d e
