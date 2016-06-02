@@ -506,7 +506,7 @@ printErrorInfo e = printHighlightingInfo . compress =<< errorHighlighting e
 
 errorHighlighting :: TCErr -> TCM File
 
-errorHighlighting (TypeError s cl@(Closure sig env scope (TerminationCheckFailed termErrs))) =
+errorHighlighting (TypeError s cl@Closure{ clValue = TerminationCheckFailed termErrs }) =
   -- For termination errors, we keep the previous highlighting,
   -- just additionally mark the bad calls.
   return $ terminationErrorHighlighting termErrs
