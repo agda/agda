@@ -14,11 +14,11 @@ not : Bool → Bool
 not true = false
 not      = λ _ → true
 
-f-true : not true ≡ false
-f-true = refl
+not-true : not true ≡ false
+not-true = refl
 
-f-false : not false ≡ true
-f-false = refl
+not-false : not false ≡ true
+not-false = refl
 
 record _×_ (A B : Set) : Set where
   constructor _,_
