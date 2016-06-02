@@ -63,6 +63,7 @@ import Agda.TypeChecking.Telescope (renameP, permuteTel)
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -141,7 +142,20 @@ instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
 
-type NLMState = (Sub, PostponedEquations)
+data NLMState = NLMState
+  { _nlmSub   :: Sub
+  , _nlmEqs   :: PostponedEquations
+  }
+
+instance Null NLMState where
+  empty  = NLMState { _nlmSub = empty , _nlmEqs = empty }
+  null s = null (s^.nlmSub) && null (s^.nlmEqs)
+
+nlmSub :: Lens' Sub NLMState
+nlmSub f s = f (_nlmSub s) <&> \x -> s {_nlmSub = x}
+
+nlmEqs :: Lens' PostponedEquations NLMState
+nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 liftRed :: ReduceM a -> NLM a
 liftRed = lift . lift
@@ -168,7 +182,7 @@ matchingBlocked = throwError
 -- | Add substitution @i |-> v@ to result of matching.
 tellSub :: Int -> Term -> NLM ()
 tellSub i v = do
-  caseMaybeM (IntMap.lookup i <$> gets fst) (modify $ first $ IntMap.insert i v) $ \v' -> do
+  caseMaybeM (IntMap.lookup i <$> use nlmSub) (nlmSub %= IntMap.insert i v) $ \v' -> do
     unlessM (liftRed $ equal v v') $ matchingBlocked $ NotBlocked ReallyNotBlocked () -- lies!
 
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
@@ -176,7 +190,7 @@ tellEq gamma k u v =
   traceSDocNLM "rewriting" 60 (sep
                [ text "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
                , text " and " <+> addContext k (prettyTCM v) ]) $ do
-  modify $ second $ (PostponedEquation k u v:)
+  nlmEqs %= (PostponedEquation k u v:)
 
 type Sub = IntMap Term
 
@@ -355,8 +369,9 @@ nonLinMatch gamma p v = do
   let no msg b = traceSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
-  caseEitherM (runNLM $ match gamma EmptyTel p v) (no "matching") $ \ (s, eqs) -> do
-    let sub = makeSubstitution gamma s
+  caseEitherM (runNLM $ match gamma EmptyTel p v) (no "matching") $ \ s -> do
+    let sub = makeSubstitution gamma $ s^.nlmSub
+        eqs = s^.nlmEqs
     traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ do
       ifM (checkPostponedEquations sub eqs)
         (return $ Right sub)
