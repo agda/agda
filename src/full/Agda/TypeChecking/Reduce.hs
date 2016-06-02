@@ -1177,10 +1177,11 @@ instance InstantiateFull NLPat where
   instantiateFull' (PTerm x)  = PTerm <$> instantiateFull' x
 
 instance InstantiateFull RewriteRule where
-  instantiateFull' (RewriteRule q gamma lhs rhs t) =
+  instantiateFull' (RewriteRule q gamma f ps rhs t) =
     RewriteRule q
       <$> instantiateFull' gamma
-      <*> instantiateFull' lhs
+      <*> pure f
+      <*> instantiateFull' ps
       <*> instantiateFull' rhs
       <*> instantiateFull' t
 

@@ -198,36 +198,44 @@ addRewriteRule q = do
       gamma1 <- instantiateFull gamma1
       let gamma = gamma0 `abstract` gamma1
 
-      unless (null $ allMetas (telToList gamma1)) failureMetas
+      unless (null $ allMetas (telToList gamma1)) $ do
+        reportSDoc "rewriting" 30 $ text "metas in gamma1: " <+> text (show $ allMetas $ telToList gamma1)
+        failureMetas
 
-      -- Find head symbol f of the lhs.
-      f <- case ignoreSharing lhs of
-        Def f es -> return f
-        Con c vs -> return $ conName c
+      -- Find head symbol f of the lhs and its arguments.
+      (f , hd , es) <- case ignoreSharing lhs of
+        Def f es -> return (f , Def f , es)
+        Con c vs -> do
+          let hd = Con c . fromMaybe __IMPOSSIBLE__ . allApplyElims
+          return (conName c , hd  , map Apply vs)
         _        -> failureNotDefOrCon
 
       rew <- addContext gamma1 $ do
-        -- Normalize lhs: we do not want to match redexes.
-        lhs <- normaliseArgs lhs
-        checkNoLhsReduction lhs
+        -- Normalize lhs args: we do not want to match redexes.
+        es <- etaContract =<< normalise es
+        checkNoLhsReduction (hd es)
 
         -- Normalize rhs: might be more efficient.
         rhs <- etaContract =<< normalise rhs
-        unless (null $ allMetas (lhs, rhs, b)) failureMetas
-        pat <- patternFrom 0 lhs
+        unless (null $ allMetas (es, rhs, b)) $ do
+          reportSDoc "rewriting" 30 $ text "metas in lhs: " <+> text (show $ allMetas es)
+          reportSDoc "rewriting" 30 $ text "metas in rhs: " <+> text (show $ allMetas rhs)
+          reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
+          failureMetas
+        ps <- patternFrom 0 es
         reportSDoc "rewriting" 30 $
-          text "Pattern generated from lhs: " <+> prettyTCM pat
+          text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
-        let freeVars  = usedArgs gamma1 `IntSet.union` allFreeVars (pat,rhs)
-            boundVars = nlPatVars pat
+        let freeVars  = usedArgs gamma1 `IntSet.union` allFreeVars (ps,rhs)
+            boundVars = nlPatVars ps
         reportSDoc "rewriting" 40 $
           text "variables bound by the pattern: " <+> text (show boundVars)
         reportSDoc "rewriting" 40 $
           text "variables free in the rewrite rule: " <+> text (show freeVars)
         unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        return $ RewriteRule q gamma pat rhs (unDom b)
+        return $ RewriteRule q gamma f ps rhs (unDom b)
 
       reportSDoc "rewriting" 10 $
         text "considering rewrite rule " <+> prettyTCM rew
@@ -246,12 +254,6 @@ addRewriteRule q = do
 
     _ -> failureWrongTarget
   where
-    normaliseArgs :: Term -> TCM Term
-    normaliseArgs v = case ignoreSharing v of
-      Def f es -> Def f <$> do etaContract =<< normalise es
-      Con c vs -> Con c <$> do etaContract =<< normalise vs
-      _ -> __IMPOSSIBLE__
-
     checkNoLhsReduction :: Term -> TCM ()
     checkNoLhsReduction v = do
       v' <- normalise v
@@ -300,21 +302,25 @@ addRewriteRules f rews = do
   --  , vcat (map prettyTCM rules)
   --  ]
 
--- | @rewriteWith t v rew@
---   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
-rewriteWith :: Maybe Type -> Term -> RewriteRule -> ReduceM (Either (Blocked Term) Term)
-rewriteWith mt v rew@(RewriteRule q gamma lhs rhs b) = do
+-- | @rewriteWith t f es rew@
+--   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
+rewriteWith :: Maybe Type
+            -> (Elims -> Term)
+            -> Elims
+            -> RewriteRule
+            -> ReduceM (Either (Blocked Term) Term)
+rewriteWith mt f es rew@(RewriteRule q gamma _ ps rhs b) = do
   Red.traceSDoc "rewriting" 75 (sep
-    [ text "attempting to rewrite term " <+> prettyTCM v
+    [ text "attempting to rewrite term " <+> prettyTCM (f es)
     , text " with rule " <+> prettyTCM rew
     ]) $ do
-    result <- nonLinMatch gamma lhs v
+    result <- nonLinMatch gamma ps es
     case result of
-      Left block -> return $ Left $ const v <$> block
+      Left block -> return $ Left $ block $> f es -- TODO: remember reductions
       Right sub  -> do
         let v' = applySubst sub rhs
         Red.traceSDoc "rewriting" 70 (sep
-          [ text "rewrote " <+> prettyTCM v
+          [ text "rewrote " <+> prettyTCM (f es)
           , text " to " <+> prettyTCM v'
           ]) $ return $ Right v'
 
@@ -370,7 +376,7 @@ rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- els
       loop block es (rew:rews)
        | let n = rewArity rew, length es >= n = do
             let (es1, es2) = List.genericSplitAt n es
-            result <- rewriteWith Nothing (hd es1) rew
+            result <- rewriteWith Nothing hd es1 rew
             case result of
               Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) es rews
               Left (NotBlocked _ _) -> loop block es rews
@@ -400,9 +406,7 @@ instance NLPatVars NLPat where
       PTerm{}   -> empty
 
 rewArity :: RewriteRule -> Int
-rewArity rew = case rewLHS rew of
-  PDef _f es -> length es
-  _          -> __IMPOSSIBLE__
+rewArity = length . rewPats
 
 -- | Erase the CtxId's of rewrite rules
 class KillCtxId a where
@@ -412,7 +416,7 @@ instance (Functor f, KillCtxId a) => KillCtxId (f a) where
   killCtxId = fmap killCtxId
 
 instance KillCtxId RewriteRule where
-  killCtxId rule@RewriteRule{ rewLHS = lhs } = rule{ rewLHS = killCtxId lhs }
+  killCtxId rule@RewriteRule{ rewPats = ps } = rule{ rewPats = killCtxId ps }
 
 instance KillCtxId NLPat where
   killCtxId p = case p of
@@ -445,9 +449,7 @@ instance GetMatchables NLPat where
       PTerm _        -> empty -- should be safe (I hope)
 
 instance GetMatchables RewriteRule where
-  getMatchables rew = case rewLHS rew of
-    PDef _ ps -> getMatchables ps
-    _         -> __IMPOSSIBLE__
+  getMatchables = getMatchables . rewPats
 
 -- Only computes free variables that are not bound (i.e. those in a PTerm)
 instance Free' NLPat c where

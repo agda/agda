@@ -1140,10 +1140,11 @@ type RewriteRules = [RewriteRule]
 
 -- | Rewrite rules can be added independently from function clauses.
 data RewriteRule = RewriteRule
-  { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → lhs ≡ rhs@
+  { rewName    :: QName      -- ^ Name of rewrite rule @q : Γ → f ps ≡ rhs@
                              --   where @≡@ is the rewrite relation.
   , rewContext :: Telescope  -- ^ @Γ@.
-  , rewLHS     :: NLPat      -- ^ @Γ ⊢ lhs : t@.
+  , rewHead    :: QName      -- ^ @f@.
+  , rewPats    :: PElims     -- ^ @Γ ⊢ ps  : t@.
   , rewRHS     :: Term       -- ^ @Γ ⊢ rhs : t@.
   , rewType    :: Type       -- ^ @Γ ⊢ t@.
   }
@@ -2768,8 +2769,8 @@ instance KillRange NLPat where
   killRange (PTerm x)  = killRange1 PTerm x
 
 instance KillRange RewriteRule where
-  killRange (RewriteRule q gamma lhs rhs t) =
-    killRange5 RewriteRule q gamma lhs rhs t
+  killRange (RewriteRule q gamma f es rhs t) =
+    killRange6 RewriteRule q gamma f es rhs t
 
 instance KillRange CompiledRepresentation where
   killRange = id

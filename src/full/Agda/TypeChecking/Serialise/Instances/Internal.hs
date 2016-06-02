@@ -238,11 +238,11 @@ instance EmbPrj NLPat where
     valu _            = malformed
 
 instance EmbPrj RewriteRule where
-  icod_ (RewriteRule a b c d e) = icode5' a b c d e
+  icod_ (RewriteRule a b c d e f) = icode6' a b c d e f
 
   value = vcase valu where
-    valu [a, b, c, d, e] = valu5 RewriteRule a b c d e
-    valu _               = malformed
+    valu [a, b, c, d, e, f] = valu6 RewriteRule a b c d e f
+    valu _                  = malformed
 
 instance EmbPrj Projection where
   icod_ (Projection a b c d e) = icode5' a b c d e
