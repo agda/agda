@@ -213,7 +213,7 @@ addRewriteRule q = do
       rew <- addContext gamma1 $ do
         -- Normalize lhs args: we do not want to match redexes.
         es <- etaContract =<< normalise es
-        checkNoLhsReduction (hd es)
+        checkNoLhsReduction f (hd es)
 
         -- Normalize rhs: might be more efficient.
         rhs <- etaContract =<< normalise rhs
@@ -254,8 +254,8 @@ addRewriteRule q = do
 
     _ -> failureWrongTarget
   where
-    checkNoLhsReduction :: Term -> TCM ()
-    checkNoLhsReduction v = do
+    checkNoLhsReduction :: QName -> Term -> TCM ()
+    checkNoLhsReduction f v = do
       v' <- normalise v
       unless (v == v') $ do
         reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
@@ -264,18 +264,14 @@ addRewriteRule q = do
         -- A reason for a reduction of the lhs could be that
         -- the rewrite rule has already been added.
         -- In this case, we want a nicer error message.
-        checkNotAlreadyAdded
+        checkNotAlreadyAdded f
         typeError . GenericDocError =<< fsep
           [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
           , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
 
-    checkNotAlreadyAdded :: TCM ()
-    checkNotAlreadyAdded = do
-      -- get all rewrite rules
-      st <- getTCState
-      let sig  = st ^. stSignature ^. sigRewriteRules
-          imp  = st ^. stImports   ^. sigRewriteRules
-          rews = concat $ HMap.elems sig ++ HMap.elems imp
+    checkNotAlreadyAdded :: QName -> TCM ()
+    checkNotAlreadyAdded f = do
+      rews <- getRewriteRulesFor f
       -- check if q is already an added rewrite rule
       when (any ((q ==) . rewName) rews) $
         typeError . GenericDocError =<< do
