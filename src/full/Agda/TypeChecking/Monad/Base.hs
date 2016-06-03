@@ -171,6 +171,7 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
+  , stPostModuleParameters    :: Map ModuleName ModuleParameters
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
   , stPostImportedDisplayForms :: !DisplayForms
@@ -285,6 +286,7 @@ initPostScopeState = PostScopeState
   , stPostDirty                = False
   , stPostOccursCheckDefs      = Set.empty
   , stPostSignature            = emptySignature
+  , stPostModuleParameters     = Map.empty
   , stPostImportsDisplayForms  = HMap.empty
   , stPostImportedDisplayForms = HMap.empty
   , stPostCurrentModule        = Nothing
@@ -429,6 +431,11 @@ stSignature :: Lens' Signature TCState
 stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
+
+stModuleParameters :: Lens' (Map ModuleName ModuleParameters) TCState
+stModuleParameters f s =
+  f (stPostModuleParameters (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleParameters = x}}
 
 stImportsDisplayForms :: Lens' DisplayForms TCState
 stImportsDisplayForms f s =
@@ -688,10 +695,11 @@ iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 -- ** Closure
 ---------------------------------------------------------------------------
 
-data Closure a = Closure { clSignature  :: Signature
-                         , clEnv        :: TCEnv
-                         , clScope      :: ScopeInfo
-                         , clValue      :: a
+data Closure a = Closure { clSignature        :: Signature
+                         , clEnv              :: TCEnv
+                         , clScope            :: ScopeInfo
+                         , clModuleParameters :: Map ModuleName ModuleParameters
+                         , clValue            :: a
                          }
     deriving (Typeable)
 
@@ -706,7 +714,8 @@ buildClosure x = do
     env   <- ask
     sig   <- use stSignature
     scope <- use stScope
-    return $ Closure sig env scope x
+    pars  <- use stModuleParameters
+    return $ Closure sig env scope pars x
 
 ---------------------------------------------------------------------------
 -- ** Constraints
@@ -1780,6 +1789,14 @@ ifTopLevelAndHighlightingLevelIs l m = do
 ---------------------------------------------------------------------------
 -- * Type checking environment
 ---------------------------------------------------------------------------
+
+data ModuleParameters = ModuleParams
+  { mpSubstitution :: Substitution
+      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context.
+  } deriving (Typeable, Show)
+
+defaultModuleParameters :: ModuleParameters
+defaultModuleParameters = ModuleParams IdS
 
 data TCEnv =
     TCEnv { envContext             :: Context

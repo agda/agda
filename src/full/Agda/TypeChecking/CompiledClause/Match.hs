@@ -177,7 +177,8 @@ match' ((c, es, patch) : stack) = do
 
               -- In case of a projection, push the projFrame
               NotBlocked _ (Proj p) -> performedSimplification $
-                match' $ projFrame p $ catchAllFrame $ stack
+                match' $ projFrame p $ stack -- catchAllFrame $ stack
+                -- Issue #1986: no catch-all for copattern matching!
 
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.

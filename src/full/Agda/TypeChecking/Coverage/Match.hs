@@ -72,6 +72,10 @@ data MPat
   | ProjMP QName -- ^ Projection copattern.
   deriving (Show)
 
+instance IsProjP MPat where
+  isProjP (ProjMP q) = Just (AmbQ [q])
+  isProjP _ = Nothing
+
 buildMPatterns :: [Arg DeBruijnPattern] -> [Arg MPat]
 buildMPatterns ps = map (fmap build) ps
   where
@@ -190,13 +194,24 @@ matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 --   are simply dropped by @zipWith@.  This will result
 --   in @mconcat []@ which is @Yes []@.
 matchPats :: MatchLit -> [Arg (Pattern' a)] -> [Arg MPat] -> Match [MPat]
-matchPats mlit ps qs = mconcat $
+matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
     zipWith (matchPat mlit) (map unArg ps) (map unArg qs) ++
-    [ projPatternsLeft ]
+    [ projPatternsLeftInMatchedClause ]
   where
-    projPatternsLeft =
+    -- Andreas, 2016-06-03, issue #1986:
+    -- catch-all for copatterns is inconsistent as found by Ulf.
+    -- Thus, if the split clause has copatterns left,
+    -- the current (shorter) clause is not considered covering.
+    projPatternsLeftInSplitClause =
+      let qsrest = map unArg $ drop (length ps) qs
+      in  case mapMaybe isProjP qsrest of
+            [] -> Yes [] -- no proj. patterns left
+            _  -> No     -- proj. patterns left
+    -- If the current clause has additional copatterns in
+    -- comparison to the split clause, we should split on them.
+    projPatternsLeftInMatchedClause =
       let psrest = map unArg $ drop (length qs) ps
-      in  case mapMaybe isProjP psrest of -- not $ any properlyMatching psrest
+      in  case mapMaybe isProjP psrest of
             [] -> Yes []               -- no proj. patterns left
             ds -> Block (Any True) []  -- proj. patterns left
 

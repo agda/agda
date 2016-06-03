@@ -218,7 +218,12 @@ addSection m = do
       reportSLn "impossible" 60 $ "with content " ++ show sec
       __IMPOSSIBLE__
   -- Add the new section.
+  setDefaultModuleParameters m
   modifySignature $ over sigSections $ Map.insert m sec
+
+setDefaultModuleParameters :: ModuleName -> TCM ()
+setDefaultModuleParameters m =
+  stModuleParameters %= Map.insert m defaultModuleParameters
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
@@ -778,7 +783,17 @@ getModuleFreeVars m = do
 moduleParamsToApply :: ModuleName -> TCM Args
 moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
-  args <- take <$> getModuleFreeVars m <*> getContextArgs
+
+  reportSLn "tc.sig.param" 20 $ "compupting module parameters of " ++ show m
+  cxt <- getContext
+  n   <- getModuleFreeVars m
+  tel <- take n . telToList <$> lookupSection m
+  sub <- getModuleParameterSub m
+  reportSLn "tc.sig.param" 20 $ "  n    = " ++ show n ++
+                                "\n  cxt  = " ++ show cxt ++
+                                "\n  sub  = " ++ show sub
+  let args = applySubst sub $ zipWith (\ i a -> Var i [] <$ argFromDom a) (downFrom (length tel)) tel
+  reportSLn "tc.sig.param" 20 $ "  args = " ++ show args
 
   -- Apply the original ArgInfo, as the hiding information in the current
   -- context might be different from the hiding information expected by @m@.

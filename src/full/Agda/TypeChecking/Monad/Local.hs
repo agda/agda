@@ -24,7 +24,7 @@ import Agda.Utils.Impossible
 makeLocal :: Free' a All => a -> TCM (Local a)
 makeLocal x | closed x = return $ Global x
             | otherwise = inFreshModuleIfFreeParams $ do
-  m   <- currentModule
+  m <- currentModule
   return (Local m x)
 
 makeGlobal :: Free' a All => a -> TCM (Local a)
@@ -36,9 +36,6 @@ getLocal (Global x) = return (Just x)
 getLocal l@(Local m x) = do
   m' <- currentModule
   if m' == m || isSubModuleOf m' m
-    then do
-      tel  <- lookupSection m
-      tel' <- getContextTelescope
-      return $ Just $ raise (size tel' - size tel) x
+    then Just . (`applySubst` x) <$> getModuleParameterSub m
     else return Nothing
 
