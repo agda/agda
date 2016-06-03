@@ -19,19 +19,3 @@ not-true = refl
 
 not-false : not false ≡ true
 not-false = refl
-
-record _×_ (A B : Set) : Set where
-  constructor _,_
-  field fst : A
-        snd : B
-open _×_
-
-dup : ∀{A : Set}(a : A) → A × A
-fst (dup a) = a
-dup a =  a , a
-
-fst-dup : ∀{A} (a : A) → fst (dup a) ≡ a
-fst-dup a = refl
-
-snd-dup : ∀{A} (a : A) → snd (dup a) ≡ a
-snd-dup a = refl
