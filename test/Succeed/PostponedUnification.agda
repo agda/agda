@@ -27,5 +27,5 @@ data U : Nat -> Nat -> Set where
   u  : (x : Nat) -> U zero x
 
 bar : (n m : Nat) -> U n (n + m) -> Set
-bar ._ ._ (u x) = Nat
+bar _ _ (u x) = Nat
 

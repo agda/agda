@@ -53,9 +53,9 @@ test0f  wrap | z = z
 --test00 wrap with anything
 --test00 {.c} wrap | z = z
 
-test00a : ∀ {j} → Wrap j → C
-test00a (wrap {c {x}}) with anything
-test00a {.c} wrap | z = z
+-- test00a : ∀ {j} → Wrap j → C
+-- test00a (wrap {c {x}}) with anything
+-- test00a {.c} wrap | z = z
 
 --test00b : ∀ {j} → Wrap j → C
 --test00b (wrap {c {_}}) with anything
@@ -81,9 +81,9 @@ test00a {.c} wrap | z = z
 --test000 wrap with anything
 --test000 .{c {_}} wrap | z = z
 
-test000a : ∀ {j} → Wrap j → C
-test000a (wrap {c {x}}) with anything
-test000a .{c {_}} wrap | z = z
+-- test000a : ∀ {j} → Wrap j → C
+-- test000a (wrap {c {x}}) with anything
+-- test000a .{c {_}} wrap | z = z
 
 --test000b : ∀ {j} → Wrap j → C
 --test000b (wrap {c {_}}) with anything
@@ -131,9 +131,9 @@ test11c : ∀ {j} → Wrap j → C
 test11c .{c} (wrap {c}) with anything
 test11c wrap | z = z
 
-test111a : ∀ {j} → Wrap j → C
-test111a (wrap {c {x}}) with anything
-test111a .{c} wrap | z = z
+-- test111a : ∀ {j} → Wrap j → C
+-- test111a (wrap {c {x}}) with anything
+-- test111a .{c} wrap | z = z
 
 --test111b : ∀ {j} → Wrap j → C
 --test111b (wrap {c {_}}) with anything
@@ -213,17 +213,17 @@ test3d wrap | z = z
 -- test3f wrap | z = z
 
 test3g : ∀ {j} → Wrap j → C
-test3g {c {._}} (wrap {c {x}}) with anything
-test3g {c {._}} wrap | z = z
+test3g {c {_}} (wrap {c {x}}) with anything
+test3g {c {_}} wrap | z = z
 
 test3h : ∀ {j} → Wrap j → C
-test3h {c {._}} (wrap {c {x}}) with anything
+test3h {c {_}} (wrap {c {x}}) with anything
 test3h wrap | z = z
 
 -- test3i : ∀ {j} → Wrap j → C
--- test3i {c {._}} (wrap {c {_}}) with anything
--- test3i {c {._}} wrap | z = z
+-- test3i {c {_}} (wrap {c {_}}) with anything
+-- test3i {c {_}} wrap | z = z
 
 test3j : ∀ {j} → Wrap j → C
-test3j {c {._}} (wrap {c {_}}) with anything
+test3j {c {_}} (wrap {c {_}}) with anything
 test3j wrap | z = z

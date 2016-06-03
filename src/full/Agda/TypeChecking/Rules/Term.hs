@@ -1996,9 +1996,12 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         , text "t     =" <+> prettyTCM t
         ]
       ]
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult delta ps _t _perm) -> do
-      -- A single pattern in internal syntax is returned.
-      let p = case ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
+    fvs <- getContextSize
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _perm) -> do
+          -- After dropping the free variable patterns there should be a single pattern left.
+      let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
+          -- Also strip the context variables from the telescope
+          delta = telFromList $ drop fvs $ telToList delta0
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ text "p (I) =" <+> text (show p)
         , text "delta =" <+> text (show delta)
@@ -2008,7 +2011,13 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       -- We remove the bindings for the pattern variables from the context.
       cxt0 <- getContext
       let (binds, cxt) = splitAt (size delta) cxt0
-      escapeContext (length binds) $ updateModuleParameters (strengthenS __IMPOSSIBLE__ (length binds)) $ do
+          toDrop       = length binds
+          strSub       = strengthenS __IMPOSSIBLE__ toDrop
+          -- Outer let-bindings will have been rebound by checkLeftHandSide, so
+          -- we need to strenghten those as well.
+          strengthenLetBind (OpenThing cxt va) = OpenThing (drop toDrop cxt) (applySubst strSub va)
+      escapeContext toDrop $ updateModuleParameters strSub
+                           $ locally eLetBindings (fmap strengthenLetBind) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> text (show binds) -- prettyTCM binds

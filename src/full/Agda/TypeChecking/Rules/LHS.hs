@@ -14,6 +14,7 @@ import Control.Applicative
 import Control.Arrow (first, second, (***))
 import Control.Monad hiding (mapM, forM, sequence)
 import Control.Monad.State hiding (mapM, forM, sequence)
+import Control.Monad.Reader hiding (mapM, forM, sequence)
 import Control.Monad.Trans.Maybe
 
 import Data.Function (on)
@@ -22,6 +23,8 @@ import qualified Data.IntMap as IntMap
 import Data.List (delete, sortBy, stripPrefix)
 import Data.Monoid
 import Data.Traversable
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Agda.Interaction.Options
 import Agda.Interaction.Options.Lenses
@@ -49,6 +52,7 @@ import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rewriting
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Telescope
@@ -93,6 +97,7 @@ instance IsFlexiblePattern A.Pattern where
   maybeFlexiblePattern p =
     case p of
       A.DotP{}  -> return DotFlex
+      A.VarP{}  -> return ImplicitFlex
       A.WildP{} -> return ImplicitFlex
       A.ConP _ (A.AmbQ [c]) qs
         -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
@@ -152,6 +157,7 @@ updateInPatterns as ps qs = do
       DotP u     -> case namedThing (unArg p) of
         A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
+        A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
         A.ConP _ (A.AmbQ [c]) qs -> do
           Def r es  <- ignoreSharing <$> reduce (unEl $ unDom a)
           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
@@ -164,7 +170,6 @@ updateInPatterns as ps qs = do
               -- Andreas, 2012-09-19 propagate relevance info to dot patterns
               bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
           updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel)
-        A.VarP        _     -> __IMPOSSIBLE__
         A.ConP        _ _ _ -> __IMPOSSIBLE__
         A.RecP        _ _   -> __IMPOSSIBLE__
         A.ProjP       _ _   -> __IMPOSSIBLE__
@@ -482,7 +487,10 @@ bindAsPatterns (AsB x v a : asb) ret = do
 
 -- | Result of checking the LHS of a clause.
 data LHSResult = LHSResult
-  { lhsVarTele      :: Telescope
+  { lhsParameters   :: Nat
+    -- ^ The number of original module parameters. These are present in the
+    -- the patterns.
+  , lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
   , lhsPatterns     :: [NamedArg Pattern]
@@ -496,7 +504,7 @@ data LHSResult = LHSResult
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult tel ps t perm) = LHSResult
+  instantiateFull' (LHSResult n tel ps t perm) = LHSResult n
     <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' t
@@ -523,13 +531,34 @@ checkLeftHandSide
      -- ^ Continuation.
   -> TCM a
 checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ do
-  problem0 <- problemFromPats ps a
+
+  -- To allow module parameters to be refined by matching, we're adding the
+  -- context arguments as wildcard patterns and extending the type with the
+  -- context telescope.
+  cxt <- reverse <$> getContext
+  let tel = telFromList' show cxt
+      cps = [ unnamed . A.VarP . fst <$> argFromDom d | d <- cxt ]
+  problem0 <- problemFromPats (cps ++ ps) (telePi tel a)
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
   -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
 
+  -- We need to grab all let-bindings here (while we still have the old
+  -- context). They will be rebound below once we have the new context set up.
+  -- Subtle: if we're checking a with the context will be empty so we can't use
+  -- 'getOpen'. On the other hand, if we're checking a with the let bindings
+  -- lives in the right context already so we can use 'openThing'.
+  let openLet | isNothing withSub' = getOpen
+              | otherwise          = return . openThing
+  oldLets <- asks $ Map.toList . envLetBindings
+  reportSDoc "tc.lhs.top" 70 $ vcat
+    [ text "context =" <+> inTopContext (prettyTCM tel)
+    , text "cIds    =" <+> (text . show =<< getContextId)
+    , text "oldLets =" <+> text (show oldLets) ]
+  oldLets <- sequence [ (x,) <$> openLet b | (x, b) <- oldLets ]
+
   -- doing the splits:
-  do  -- just here temporarily to make more informative diffs
+  inTopContext $ do
     LHSState problem@(Problem ps qs delta rest) sigma dpi asb
       <- checkLHS f $ LHSState problem0 idS [] []
 
@@ -552,7 +581,11 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
     let b' = restType rest
     bindLHSVars (filter (isNothing . isProjP) ps) delta $ do
-      let asb' = asb
+      let -- Find the variable patterns that have been refined
+          refinedParams = [ AsB x v (unDom a) | DPI (Just x) _ v a <- dpi ]
+          asb'          = refinedParams ++ asb
+
+      reportSDoc "tc.lhs.top" 10 $ text "asb' = " <+> (brackets $ fsep $ punctuate comma $ map prettyTCM asb')
 
       reportSDoc "tc.lhs.top" 10 $ text "bound pattern variables"
       reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "context = " <+> ((text . show) =<< getContext)
@@ -561,12 +594,34 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
       let qs'  = unnumberPatVars qs
           perm = dbPatPerm qs
-          lhsResult = LHSResult delta qs' b' perm
-          paramSub  = wkS (size delta) idS
+          notProj ProjP{} = False
+          notProj _       = True
+                      -- Note: This works because we can't change the number of
+                      --       arguments in the lhs of a with-function relative to
+                      --       the parent function.
+          numPats   = length $ takeWhile (notProj . namedArg) qs
+          lhsResult = LHSResult (length cxt) delta qs' b' perm
+          -- In the case of a non-with function the pattern substitution
+          -- should be weakened by the number of non-parameter patterns to
+          -- get the paramSub.
+          withSub = fromMaybe (wkS (numPats - length cxt) idS) withSub'
+          -- At this point we need to update the module parameters for all
+          -- parent modules.
+          patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# EmptyS
+          paramSub = composeS patSub withSub
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> text (show patSub)
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> text (show withSub)
+      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> text (show paramSub)
 
-      bindAsPatterns asb' $ do
+      let newLets = [ AsB x (applySubst paramSub v) (applySubst paramSub $ unDom a) | (x, (v, a)) <- oldLets ]
+      reportSDoc "tc.lhs.top" 50 $ text "old let-bindings:" <+> text (show oldLets)
+      reportSDoc "tc.lhs.top" 50 $ text "new let-bindings:" <+> (brackets $ fsep $ punctuate comma $ map prettyTCM newLets)
+
+      bindAsPatterns (asb' ++ newLets) $
         applyRelevanceToContext (getRelevance b') $ updateModuleParameters paramSub $ do
+
+        rebindLocalRewriteRules
 
         -- Check dot patterns
         mapM_ checkDotPattern dpi

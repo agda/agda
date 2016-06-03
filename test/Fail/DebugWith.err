@@ -18,6 +18,9 @@ with function call .DebugWith.with-34 b f (f b) trash1 trash2
                    (f : (x : A) → P x) (trash3 : Trash)
              delta (trash1 : Trash) (b : A) (trash2 : Trash)
                    (f : (x : A) → P x) (trash3 : Trash)
+            delta1 (b : A) (f : (x : A) → P x)
+            delta2 (trash1 : Trash) (trash2 : Trash)
+                   (trash3 : Trash)
               body [h0 h1 h2 h3 h4]
                    .DebugWith.with-34 h1 h3 (h3 h1) h0 h2 h4
 checkWithFunction

@@ -743,9 +743,9 @@ splitResult f sc@(SClause tel ps _ target) = do
           , text   "applied to parameters vs = " <+> (addContext tel $ prettyTCM vs)
           , text $ "and have fields       fs = " ++ show fs
           ]
-        fvs <- freeVarsToApply f
         let es = patternsToElims ps
-        let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
+        -- Note: module parameters are part of ps
+        let self  = defaultArg $ Def f [] `applyE` es
             pargs = vs ++ [self]
         reportSDoc "tc.cover" 20 $ sep
           [ text   "we are              self = " <+> (addContext tel $ prettyTCM $ unArg self)
