@@ -30,6 +30,7 @@ data AppView = Application Expr [NamedArg Expr]
 appView :: Expr -> AppView
 appView e =
   case e of
+    App _ e1 e2 | Dot _ f <- unScope $ namedArg e2 -> Application f [defaultNamedArg e1]
     App i e1 arg | Application hd es <- appView e1
                    -> Application hd $ es ++ [arg]
     ScopedExpr _ e -> appView e
@@ -113,6 +114,7 @@ instance ExprLike Expr where
       Lit{}                   -> pure e0
       QuestionMark{}          -> pure e0
       Underscore{}            -> pure e0
+      Dot ei e                -> Dot ei <$> recurse e
       App ei e arg            -> App ei <$> recurse e <*> recurse arg
       WithApp ei e es         -> WithApp ei <$> recurse e <*> recurse es
       Lam ei b e              -> Lam ei <$> recurse b <*> recurse e
@@ -148,6 +150,7 @@ instance ExprLike Expr where
       Lit{}                -> m
       QuestionMark{}       -> m
       Underscore{}         -> m
+      Dot _ e              -> m `mappend` fold e
       App _ e e'           -> m `mappend` fold e `mappend` fold e'
       WithApp _ e es       -> m `mappend` fold e `mappend` fold es
       Lam _ b e            -> m `mappend` fold b `mappend` fold e
@@ -183,6 +186,7 @@ instance ExprLike Expr where
       Lit{}                   -> f e
       QuestionMark{}          -> f e
       Underscore{}            -> f e
+      Dot ei e                -> f =<< Dot ei <$> trav e
       App ei e arg            -> f =<< App ei <$> trav e <*> trav arg
       WithApp ei e es         -> f =<< WithApp ei <$> trav e <*> trav es
       Lam ei b e              -> f =<< Lam ei <$> trav b <*> trav e

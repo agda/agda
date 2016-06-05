@@ -25,7 +25,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern
-import Agda.Syntax.Abstract (IsProjP(..))
+import Agda.Syntax.Abstract (IsProjP(..), MaybePostfixProjP(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Views (asView)
 import qualified Agda.Syntax.Info as A
@@ -95,9 +95,12 @@ splitProblem mf (Problem ps qs tel pr) = do
         , nest 2 $ text "pattern         p =" <+> prettyA p
         , nest 2 $ text "eliminates type b =" <+> prettyTCM b
         ]
+      lift $ reportSDoc "tc.lhs.split" 80 $ sep
+        [ nest 2 $ text $ "pattern (raw)   p = " ++ show p
+        ]
       -- If the pattern is not a projection pattern, that's an error.
       -- Probably then there were too many arguments.
-      caseMaybe (isProjP p) failure $ \ (AmbQ ds) -> do
+      caseMaybe (maybePostfixProjP p) failure $ \ (AmbQ ds) -> do
         -- So it is a projection pattern (d = projection name), is it?
         projs <- lift $ mapMaybeM (\ d -> fmap (d,) <$> isProjection d) ds
         when (null projs) notProjP

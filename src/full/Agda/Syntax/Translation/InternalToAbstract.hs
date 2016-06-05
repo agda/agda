@@ -744,6 +744,7 @@ instance BlankVars A.Expr where
     A.Lit _                -> e
     A.QuestionMark{}       -> e
     A.Underscore _         -> e
+    A.Dot i e              -> A.Dot i $ blank bound e
     A.App i e1 e2          -> uncurry (A.App i) $ blank bound (e1, e2)
     A.WithApp i e es       -> uncurry (A.WithApp i) $ blank bound (e, es)
     A.Lam i b e            -> let bound' = varsBoundIn b `Set.union` bound

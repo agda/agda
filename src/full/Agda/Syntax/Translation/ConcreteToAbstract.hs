@@ -829,7 +829,7 @@ instance ToAbstract C.Expr A.Expr where
         toAbstractCtx TopCtx =<< parseIdiomBrackets r e
 
   -- Pattern things
-      C.Dot _ _  -> notAnExpression e
+      C.Dot r e  -> A.Dot (ExprRange r) <$> toAbstract e
       C.As _ _ _ -> notAnExpression e
       C.Absurd _ -> notAnExpression e
 

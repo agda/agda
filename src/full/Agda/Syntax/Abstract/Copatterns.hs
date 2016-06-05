@@ -263,7 +263,7 @@ instance Rename QName where
   rename _ q = q
 
 instance Rename Name where
-  rename rho x = maybe x id (rho x)
+  rename rho x = fromMaybe x (rho x)
 
 instance Rename Expr where
   rename rho e =
@@ -275,6 +275,7 @@ instance Rename Expr where
       Lit l                 -> e
       QuestionMark{}        -> e
       Underscore i          -> e
+      Dot i e               -> Dot i (rename rho e)
       App i e es            -> App i (rename rho e) (rename rho es)
       WithApp i e es        -> WithApp i (rename rho e) (rename rho es)
       Lam i lb e            -> Lam i (rename rho lb) (rename rho e)

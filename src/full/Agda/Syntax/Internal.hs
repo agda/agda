@@ -135,7 +135,9 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 
 -- | Eliminations, subsuming applications and projections.
 --
-data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
+data Elim' a
+  = Apply (Arg a)  -- ^ Application.
+  | Proj QName     -- ^ Projection.  'QName' is name of a record projection.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term

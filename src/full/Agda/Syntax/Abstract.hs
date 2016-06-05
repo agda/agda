@@ -67,6 +67,7 @@ data Expr
     --   'metaNumber' to 'Nothing' while keeping the 'InteractionId'.
   | Underscore   MetaInfo
     -- ^ Meta variable for hidden argument (must be inferred locally).
+  | Dot ExprInfo Expr                  -- ^ @.e@, for postfix projection.
   | App  ExprInfo Expr (NamedArg Expr) -- ^ Ordinary (binary) application.
   | WithApp ExprInfo Expr [Expr]       -- ^ With application.
   | Lam  ExprInfo LamBinding Expr      -- ^ @λ bs → e@.
@@ -349,16 +350,16 @@ lhsCoreToSpine (LHSHead f ps) = QNamed f ps
 lhsCoreToSpine (LHSProj d h ps) = (++ (p : ps)) <$> lhsCoreToSpine (namedArg h)
   where p = updateNamedArg (const $ ProjP patNoRange d) h
 
-spineToLhsCore :: QNamed [NamedArg (Pattern' e)] -> LHSCore' e
+spineToLhsCore :: IsProjP e => QNamed [NamedArg (Pattern' e)] -> LHSCore' e
 spineToLhsCore (QNamed f ps) = lhsCoreAddSpine (LHSHead f []) ps
 
 -- | Add applicative patterns (non-projection patterns) to the right.
-lhsCoreApp :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreApp :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreApp (LHSHead f ps)   ps' = LHSHead f   $ ps ++ ps'
 lhsCoreApp (LHSProj d h ps) ps' = LHSProj d h $ ps ++ ps'
 
 -- | Add projection and applicative patterns to the right.
-lhsCoreAddSpine :: LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
+lhsCoreAddSpine :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreAddSpine core ps = case ps2 of
     (Arg info (Named n (ProjP i d)) : ps2') ->
        LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
@@ -366,7 +367,7 @@ lhsCoreAddSpine core ps = case ps2 of
     [] -> lhsCoreApp core ps
     _ -> __IMPOSSIBLE__
   where
-    (ps1, ps2) = break (isJust . isProjP . namedArg) ps
+    (ps1, ps2) = break (isJust . isProjP) ps
 
 -- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
@@ -417,6 +418,25 @@ instance IsProjP (Pattern' e) where
   isProjP (ProjP _ d) = Just d
   isProjP _           = Nothing
 
+instance IsProjP Expr where
+  isProjP (Proj ds)        = Just ds
+  isProjP (ScopedExpr _ e) = isProjP e
+  isProjP _                = Nothing
+
+class MaybePostfixProjP a where
+  maybePostfixProjP :: a -> Maybe AmbiguousQName
+
+instance IsProjP e => MaybePostfixProjP (Pattern' e) where
+  maybePostfixProjP (DotP _ e)  = isProjP e
+  maybePostfixProjP (ProjP _ d) = Just d
+  maybePostfixProjP _           = Nothing
+
+instance MaybePostfixProjP a => MaybePostfixProjP (Arg a) where
+  maybePostfixProjP = maybePostfixProjP . unArg
+
+instance MaybePostfixProjP a => MaybePostfixProjP (Named n a) where
+  maybePostfixProjP = maybePostfixProjP . namedThing
+
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
@@ -435,6 +455,7 @@ instance Eq Expr where
   Lit a1                  == Lit a2                  = a1 == a2
   QuestionMark a1 b1      == QuestionMark a2 b2      = (a1, b1) == (a2, b2)
   Underscore a1           == Underscore a2           = a1 == a2
+  Dot r1 e1               == Dot r2 e2               = (r1, e1) == (r2, e2)
   App a1 b1 c1            == App a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
   WithApp a1 b1 c1        == WithApp a2 b2 c2        = (a1, b1, c1) == (a2, b2, c2)
   Lam a1 b1 c1            == Lam a2 b2 c2            = (a1, b1, c1) == (a2, b2, c2)
@@ -516,6 +537,7 @@ instance HasRange Expr where
     getRange (Lit l)               = getRange l
     getRange (QuestionMark i _)    = getRange i
     getRange (Underscore  i)       = getRange i
+    getRange (Dot i _)             = getRange i
     getRange (App i _ _)           = getRange i
     getRange (WithApp i _ _)       = getRange i
     getRange (Lam i _ _)           = getRange i
@@ -632,6 +654,7 @@ instance KillRange Expr where
   killRange (Lit l)                = killRange1 Lit l
   killRange (QuestionMark i ii)    = killRange2 QuestionMark i ii
   killRange (Underscore  i)        = killRange1 Underscore i
+  killRange (Dot i e)              = killRange2 Dot i e
   killRange (App i e1 e2)          = killRange3 App i e1 e2
   killRange (WithApp i e es)       = killRange3 WithApp i e es
   killRange (Lam i b e)            = killRange3 Lam i b e
@@ -808,6 +831,7 @@ instance AllNames Expr where
   allNames Lit{}                   = Seq.empty
   allNames QuestionMark{}          = Seq.empty
   allNames Underscore{}            = Seq.empty
+  allNames (Dot _ e)               = allNames e
   allNames (App _ e1 e2)           = allNames e1 >< allNames e2
   allNames (WithApp _ e es)        = allNames e >< allNames es
   allNames (Lam _ b e)             = allNames b >< allNames e
@@ -979,6 +1003,7 @@ instance SubstExpr Expr where
     Lit _                 -> e
     QuestionMark{}        -> e
     Underscore   _        -> e
+    Dot i e               -> Dot i (substExpr s e)
     App  i e e'           -> App i (substExpr s e) (substExpr s e')
     WithApp i e es        -> WithApp i (substExpr s e) (substExpr s es)
     Lam  i lb e           -> Lam i lb (substExpr s e)

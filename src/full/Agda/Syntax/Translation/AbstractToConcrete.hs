@@ -372,6 +372,9 @@ instance ToConcrete A.Expr C.Expr where
       C.Underscore (getRange i) $
         prettyShow . NamedMeta (metaNameSuggestion i) . MetaId . metaId <$> metaNumber i
 
+    toConcrete (A.Dot i e) =
+      C.Dot (getRange i) <$> toConcrete e
+
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e
         -- or fallback to App
@@ -454,7 +457,7 @@ instance ToConcrete A.Expr C.Expr where
                            Irrelevant -> addDot a e
                            NonStrict  -> addDot a (addDot a e)
                            _          -> e
-            addDot a e = Dot (getRange a) e
+            addDot a e = C.Dot (getRange a) e
             mkArg (Arg info e) = case getHiding info of
                                           Hidden    -> HiddenArg   (getRange e) (unnamed e)
                                           Instance  -> InstanceArg (getRange e) (unnamed e)
