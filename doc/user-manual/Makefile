@@ -31,7 +31,6 @@ help:
 	@echo "  latex      to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
 	@echo "  latexpdf   to make LaTeX files and run them through pdflatex"
 	@echo "  latexpdfja to make LaTeX files and run them through platex/dvipdfmx"
-	@echo "  xelatexpdf to make LaTeX files and run them through pdflatex"
 	@echo "  text       to make text files"
 	@echo "  man        to make manual pages"
 	@echo "  texinfo    to make Texinfo files"
@@ -137,7 +136,7 @@ latex:
 
 .PHONY: latexpdf
 latexpdf:
-	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) $(BUILDDIR)/latex
+	$(SPHINXBUILD) -b latex -E -W $(ALLSPHINXOPTS) $(BUILDDIR)/latex
 	@echo "Running LaTeX files through pdflatex..."
 	$(MAKE) -C $(BUILDDIR)/latex all-pdf
 	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
@@ -148,13 +147,6 @@ latexpdfja:
 	@echo "Running LaTeX files through platex and dvipdfmx..."
 	$(MAKE) -C $(BUILDDIR)/latex all-pdf-ja
 	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
-
-.PHONY: xelatexpdf
-xelatexpdf:
-	$(SPHINXBUILD) -b latex -E -W $(ALLSPHINXOPTS) $(BUILDDIR)/latex
-	@echo "Running LaTeX files through xelatex..."
-	$(MAKE) PDFLATEX=xelatex -C $(BUILDDIR)/latex all-pdf
-	@echo "xelatex finished; the PDF files are in $(BUILDDIR)/latex."
 
 .PHONY: text
 text:
