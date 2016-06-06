@@ -26,7 +26,7 @@
 
 # If your change the version here also change it in the
 # `requirements.txt` file [Issue #1936].
-needs_sphinx = '1.4.2'
+needs_sphinx = '1.4.3'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -257,10 +257,6 @@ latex_elements = {
      # The font size ('10pt', '11pt' or '12pt').
      #
      # 'pointsize': '10pt',
-
-     # Fix the following XeLaTeX warning:
-     # "Package inputenc Warning: inputenc package ignored with utf8 based engines."
-     'inputenc':'',
 
      # Additional stuff for the LaTeX preamble.
      #
