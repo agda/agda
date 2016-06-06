@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Agda documentation build configuration file, created by
-# sphinx-quickstart on Sun Jun  5 19:12:20 2016.
+# sphinx-quickstart on Sun Jun  5 20:41:51 2016.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -144,7 +144,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-# html_title = None
+# html_title = u'Agda v2.5.2'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
