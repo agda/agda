@@ -5,7 +5,6 @@ module Agda.Compiler.Treeless.AsPatterns (recoverAsPatterns) where
 import Control.Applicative
 import Control.Monad.Reader
 import Data.Monoid
-import Data.Traversable
 
 import Agda.Syntax.Treeless
 import Agda.Syntax.Literal
