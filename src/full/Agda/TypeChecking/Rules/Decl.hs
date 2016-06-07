@@ -875,7 +875,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   when (tel == EmptyTel) $
     typeError $ GenericError $ show (qnameToConcrete name) ++ " is not a parameterised section"
 
-  addContext telInst $ do
+  addContext' telInst $ do
     vs <- freeVarsToApply name
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
