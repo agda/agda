@@ -139,6 +139,20 @@ pattern, Agda will attempt for each constructor
 ``i₁ … iₙ`` with ``j₁ … jₙ``. The absurd pattern will only be accepted if each
 of these unifications ends in a conflict.
 
+As-patterns
+-----------
+
+As-patterns (or ``@-patterns``) can be used to name a pattern. The name has the
+same scope as normal pattern variables (i.e. the right-hand side, where clause,
+and dot patterns). The name reduces to the value of the named pattern. For example::
+
+  module _ {A : Set} (_<_ : A → A → Bool) where
+    merge : List A → List A → List A
+    merge xs [] = xs
+    merge [] ys = ys
+    merge xs@(x ∷ xs₁) ys@(y ∷ ys₁) =
+      if x < y then x ∷ merge xs₁ ys
+               else y ∷ merge xs ys₁
 
 Case trees
 ==========

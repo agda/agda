@@ -1983,14 +1983,12 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
-    toAbstract p0@(C.AsP r x p) = typeError $ NotSupported "@-patterns"
-      {- do
+    toAbstract p0@(C.AsP r x p) = do
         x <- toAbstract (NewName x)
         p <- toAbstract p
         return $ A.AsP info x p
         where
             info = PatRange r
-      -}
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
         where info = PatRange r

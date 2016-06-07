@@ -58,6 +58,7 @@ import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
+import Agda.TypeChecking.Rules.LHS.AsPatterns
 import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
@@ -99,6 +100,7 @@ instance IsFlexiblePattern A.Pattern where
       A.DotP{}  -> return DotFlex
       A.VarP{}  -> return ImplicitFlex
       A.WildP{} -> return ImplicitFlex
+      A.AsP _ _ p -> maybeFlexiblePattern p
       A.ConP _ (A.AmbQ [c]) qs
         -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
              (maybeFlexiblePattern qs)
@@ -154,7 +156,7 @@ updateInPatterns as ps qs = do
       -- Case: the unifier did not instantiate the variable
       VarP (i,_) -> return (IntMap.singleton i p, [])
       -- Case: the unifier did instantiate the variable
-      DotP u     -> case namedThing (unArg p) of
+      DotP u     -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
@@ -170,11 +172,11 @@ updateInPatterns as ps qs = do
               -- Andreas, 2012-09-19 propagate relevance info to dot patterns
               bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
           updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel)
+        A.AsP         _ _ _ -> __IMPOSSIBLE__
         A.ConP        _ _ _ -> __IMPOSSIBLE__
         A.RecP        _ _   -> __IMPOSSIBLE__
         A.ProjP       _ _   -> __IMPOSSIBLE__
         A.DefP        _ _ _ -> __IMPOSSIBLE__
-        A.AsP         _ _ _ -> __IMPOSSIBLE__
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.LitP        _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
@@ -559,8 +561,8 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem ps qs delta rest) sigma dpi asb
-      <- checkLHS f $ LHSState problem0 idS [] []
+    LHSState problem@(Problem pxs qs delta rest) sigma dpi
+      <- checkLHS f $ LHSState problem0 idS []
 
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
@@ -568,10 +570,15 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
       noShadowingOfConstructors c problem
       noPatternMatchingOnCodata qs
 
+    -- f is Nothing when checking let pattern-bindings. In that case there can
+    -- be no copatterns, so we don't need to worry about self.
+    let self = Def (fromMaybe __IMPOSSIBLE__ f) []
+    asb <- addContext delta $ recoverAsPatterns delta (telePi tel a) self (cps ++ ps) qs
+
     reportSDoc "tc.lhs.top" 10 $
       vcat [ text "checked lhs:"
            , nest 2 $ vcat
-             [ text "ps    = " <+> fsep (map prettyA ps)
+             [ text "pxs   = " <+> fsep (map prettyA pxs)
              , text "delta = " <+> prettyTCM delta
              , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
              , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
@@ -580,7 +587,7 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
            ]
 
     let b' = restType rest
-    bindLHSVars (filter (isNothing . isProjP) ps) delta $ do
+    bindLHSVars (filter (isNothing . isProjP) pxs) delta $ do
       let -- Find the variable patterns that have been refined
           refinedParams = [ AsB x v (unDom a) | DPI (Just x) _ v a <- dpi ]
           asb'          = refinedParams ++ asb
@@ -625,7 +632,7 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
         -- Check dot patterns
         mapM_ checkDotPattern dpi
-        checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
+        checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
 
         ret lhsResult
 
@@ -634,7 +641,7 @@ checkLHS
   :: Maybe QName       -- ^ The name of the definition we are checking.
   -> LHSState          -- ^ The current state.
   -> TCM LHSState      -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem sigma dpi asb) = do
+checkLHS f st@(LHSState problem sigma dpi) = do
 
   problem <- insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
@@ -663,7 +670,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           ip'      = ip ++ [fmap (Named Nothing . ProjP) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' sigma dpi asb)
+      st' <- updateProblemRest (LHSState problem' sigma dpi)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
@@ -671,9 +678,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
 
-    trySplit (Split p0 xs (Arg _ (LitFocus lit ip a)) p1) _ = do
+    trySplit (Split p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
 
-      -- substitute the literal in p1 and sigma and dpi and asb
+      -- substitute the literal in p1 and sigma and dpi
       let delta1 = problemTel p0
           delta2 = absApp (fmap problemTel p1) (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
@@ -684,7 +691,6 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           --       ++ [ var i | i <- [size delta2 ..] ]
           sigma'   = applySubst rho sigma
           dpi'     = applyPatSubst rho dpi
-          asb0     = applyPatSubst rho asb
           ip'      = applySubst rho ip
           rest'    = applyPatSubst rho (problemRest problem)
 
@@ -692,14 +698,13 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
           delta'   = abstract delta1 delta2
           problem' = Problem ps' ip' delta' rest'
-          asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
-      st' <- updateProblemRest (LHSState problem' sigma' dpi' asb')
+      st' <- updateProblemRest (LHSState problem' sigma' dpi')
       checkLHS f st'
 
     -- Split on constructor pattern (unifier might fail)
 
-    trySplit (Split p0 xs focus@(Arg info Focus{}) p1) tryNextSplit = do
-      res <- trySplitConstructor p0 xs focus p1
+    trySplit (Split p0 focus@(Arg info Focus{}) p1) tryNextSplit = do
+      res <- trySplitConstructor p0 focus p1
       case res of
         -- Success.  Continue checking LHS.
         Unifies st'    -> checkLHS f st'
@@ -721,8 +726,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         NoUnify  tcerr -> return $ NoUnify  tcerr
         DontKnow tcerr -> return $ DontKnow tcerr
 
-    trySplitConstructor p0 xs (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
-    trySplitConstructor p0 xs (Arg info
+    trySplitConstructor p0 (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
+    trySplitConstructor p0 (Arg info
              (Focus { focusCon      = c
                     , focusPatOrigin= porigin
                     , focusConArgs  = qs
@@ -925,14 +930,12 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
               [ text "ps'    =" <+> brackets (fsep $ punctuate comma $ map prettyA ps')
               ]
 
-          -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
+          -- The final dpis are the new ones plus the old ones substituted by ρ
           let dpi' = applyPatSubst rho dpi ++ raise (size delta2') newDpi
-              asb' = applyPatSubst rho asb ++ raise (size delta2') (map (\x -> AsB x (patternToTerm crho2) ca) xs)
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "dpi'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
-              , text "asb'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
               ]
 
           -- Apply the substitution
@@ -952,8 +955,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
           st'@(LHSState problem'@(Problem ps' ip' delta' rest')
-                        sigma' dpi' asb')
-            <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
+                        sigma' dpi')
+            <- updateProblemRest $ LHSState problem' sigma' dpi'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"

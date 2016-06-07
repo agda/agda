@@ -389,6 +389,7 @@ library
                     Agda.TypeChecking.Rules.Def
                     Agda.TypeChecking.Rules.Display
                     Agda.TypeChecking.Rules.LHS
+                    Agda.TypeChecking.Rules.LHS.AsPatterns
                     Agda.TypeChecking.Rules.LHS.Implicit
                     Agda.TypeChecking.Rules.LHS.Instantiate
                     Agda.TypeChecking.Rules.LHS.Problem

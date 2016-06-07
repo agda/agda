@@ -195,8 +195,6 @@ data SplitProblem
       { splitLPats   :: ProblemPart
         -- ^ The typed user patterns left of the split position.
         --   Invariant: @'problemRest' == empty@.
-      , splitAsNames :: [Name]
-        -- ^ The as-bindings for the focus.
       , splitFocus   :: Arg Focus
         -- ^ How to split the variable at the split position.
       , splitRPats   :: Abs ProblemPart
@@ -239,7 +237,6 @@ data LHSState = LHSState
   { lhsProblem :: Problem
   , lhsSubst   :: PatternSubstitution
   , lhsDPI     :: [DotPatternInst]
-  , lhsAsB     :: [AsBinding]
   }
 
 instance Subst Term ProblemRest where

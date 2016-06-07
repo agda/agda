@@ -148,5 +148,4 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
       { lhsProblem = p'
       , lhsSubst   = applySubst tau (lhsSubst st)
       , lhsDPI     = applyPatSubst tau (lhsDPI st)
-      , lhsAsB     = applyPatSubst tau (lhsAsB st)
       }
