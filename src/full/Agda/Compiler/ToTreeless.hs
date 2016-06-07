@@ -32,6 +32,7 @@ import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
+import Agda.Compiler.Treeless.AsPatterns
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -87,6 +88,8 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
   body <- caseToSeq body
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
+  body <- recoverAsPatterns body
+  reportSDoc "treeless.opt.aspat" (30 + v) $ text "-- after @-pattern recovery"  $$ pbody body
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after third simplification"  $$ pbody body
   body <- eraseTerms q body
