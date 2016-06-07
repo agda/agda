@@ -101,6 +101,22 @@ Language
   Now this is no longer disallowed. Instead n is bound to the appropriate
   value in each clause.
 
+* As-patterns [Issue #78].
+
+  As-patterns (@-patterns) are finally working and can be used to name a
+  pattern. The name has the same scope as normal pattern variables (i.e. the
+  right-hand side, where clause, and dot patterns). The name reduces to the
+  value of the named pattern. For example::
+
+    module _ {A : Set} (_<_ : A → A → Bool) where
+      merge : List A → List A → List A
+      merge xs [] = xs
+      merge [] ys = ys
+      merge xs@(x ∷ xs₁) ys@(y ∷ ys₁) =
+        if x < y then x ∷ merge xs₁ ys
+                 else y ∷ merge xs ys₁
+
+
 * Idiom brackets.
 
   There is new syntactic sugar for idiom brackets:

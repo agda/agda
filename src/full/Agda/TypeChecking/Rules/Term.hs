@@ -2011,12 +2011,24 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       cxt0 <- getContext
       let (binds, cxt) = splitAt (size delta) cxt0
           toDrop       = length binds
-          strSub       = strengthenS __IMPOSSIBLE__ toDrop
+
+          -- We create a substitution for the let-bound variables
+          -- (unfortunately, we cannot refer to x in internal syntax
+          -- so we have to copy v).
+          sigma = zipWith ($) fs (repeat v)
+          -- We apply the types of the let bound-variables to this substitution.
+          -- The 0th variable in a context is the last one, so we reverse.
+          -- Further, we need to lower all other de Bruijn indices by
+          -- the size of delta, so we append the identity substitution.
+          sub    = parallelS (reverse sigma)
+
           -- Outer let-bindings will have been rebound by checkLeftHandSide, so
-          -- we need to strenghten those as well.
-          strengthenLetBind (OpenThing cxt va) = OpenThing (drop toDrop cxt) (applySubst strSub va)
-      escapeContext toDrop $ updateModuleParameters strSub
-                           $ locally eLetBindings (fmap strengthenLetBind) $ do
+          -- we need to strenghten those as well. Don't use a strengthening
+          -- subsititution since @-patterns in the pattern binding will reference
+          -- the pattern variables.
+          subLetBind (OpenThing cxt va) = OpenThing (drop toDrop cxt) (applySubst sub va)
+      escapeContext toDrop $ updateModuleParameters sub
+                           $ locally eLetBindings (fmap subLetBind) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> text (show binds) -- prettyTCM binds
@@ -2026,15 +2038,6 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
        x <- freshNoName (getRange e)
        addLetBinding Relevant x v t $ do
  -}
-        -- We create a substitution for the let-bound variables
-        -- (unfortunately, we cannot refer to x in internal syntax
-        -- so we have to copy v).
-        let sigma = zipWith ($) fs (repeat v)
-        -- We apply the types of the let bound-variables to this substitution.
-        -- The 0th variable in a context is the last one, so we reverse.
-        -- Further, we need to lower all other de Bruijn indices by
-        -- the size of delta, so we append the identity substitution.
-        let sub    = parallelS (reverse sigma)
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "fdelta =" <+> text (show fdelta)

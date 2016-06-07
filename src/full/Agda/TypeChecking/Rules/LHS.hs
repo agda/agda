@@ -58,6 +58,7 @@ import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Telescope
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
+import Agda.TypeChecking.Rules.LHS.AsPatterns
 import Agda.TypeChecking.Rules.LHS.Problem hiding (Substitution)
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
@@ -99,6 +100,7 @@ instance IsFlexiblePattern A.Pattern where
       A.DotP{}  -> return DotFlex
       A.VarP{}  -> return ImplicitFlex
       A.WildP{} -> return ImplicitFlex
+      A.AsP _ _ p -> maybeFlexiblePattern p
       A.ConP _ (A.AmbQ [c]) qs
         -> ifM (isNothing <$> isRecordConstructor c) mzero {-else-}
              (maybeFlexiblePattern qs)
@@ -154,7 +156,7 @@ updateInPatterns as ps qs = do
       -- Case: the unifier did not instantiate the variable
       VarP (i,_) -> return (IntMap.singleton i p, [])
       -- Case: the unifier did instantiate the variable
-      DotP u     -> case namedThing (unArg p) of
+      DotP u     -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
         A.WildP _  -> return (IntMap.empty, [DPI Nothing  Nothing  u a])
         A.VarP x   -> return (IntMap.empty, [DPI (Just x) Nothing  u a])
@@ -170,11 +172,11 @@ updateInPatterns as ps qs = do
               -- Andreas, 2012-09-19 propagate relevance info to dot patterns
               bs  = map (mapRelevance (composeRelevance (getRelevance a))) bs0
           updates bs qs (map (DotP . unArg) us `withArgsFrom` teleArgNames ftel)
+        A.AsP         _ _ _ -> __IMPOSSIBLE__
         A.ConP        _ _ _ -> __IMPOSSIBLE__
         A.RecP        _ _   -> __IMPOSSIBLE__
         A.ProjP       _ _   -> __IMPOSSIBLE__
         A.DefP        _ _ _ -> __IMPOSSIBLE__
-        A.AsP         _ _ _ -> __IMPOSSIBLE__
         A.AbsurdP     _     -> __IMPOSSIBLE__
         A.LitP        _     -> __IMPOSSIBLE__
         A.PatternSynP _ _ _ -> __IMPOSSIBLE__
@@ -559,7 +561,7 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem ps qs delta rest) sigma dpi
+    LHSState problem@(Problem pxs qs delta rest) sigma dpi
       <- checkLHS f $ LHSState problem0 idS []
 
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
@@ -568,21 +570,27 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
       noShadowingOfConstructors c problem
       noPatternMatchingOnCodata qs
 
+    -- f is Nothing when checking let pattern-bindings. In that case there can
+    -- be no copatterns, so we don't need to worry about self.
+    let self = Def (fromMaybe __IMPOSSIBLE__ f) []
+    asb <- addContext delta $ recoverAsPatterns delta (telePi tel a) self (cps ++ ps) qs
+
     reportSDoc "tc.lhs.top" 10 $
       vcat [ text "checked lhs:"
            , nest 2 $ vcat
-             [ text "ps    = " <+> fsep (map prettyA ps)
+             [ text "pxs   = " <+> fsep (map prettyA pxs)
              , text "delta = " <+> prettyTCM delta
              , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
+             , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
              , text "qs    = " <+> text (show qs)
              ]
            ]
 
     let b' = restType rest
-    bindLHSVars (filter (isNothing . isProjP) ps) delta $ do
+    bindLHSVars (filter (isNothing . isProjP) pxs) delta $ do
       let -- Find the variable patterns that have been refined
           refinedParams = [ AsB x v (unDom a) | DPI (Just x) _ v a <- dpi ]
-          asb'          = refinedParams
+          asb'          = refinedParams ++ asb
 
       reportSDoc "tc.lhs.top" 10 $ text "asb' = " <+> (brackets $ fsep $ punctuate comma $ map prettyTCM asb')
 
@@ -624,7 +632,7 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
         -- Check dot patterns
         mapM_ checkDotPattern dpi
-        checkLeftoverDotPatterns ps (downFrom $ size delta) (flattenTel delta) dpi
+        checkLeftoverDotPatterns pxs (downFrom $ size delta) (flattenTel delta) dpi
 
         ret lhsResult
 

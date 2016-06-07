@@ -929,7 +929,7 @@ substPattern s p = case p of
   AbsurdP i     -> p
   LitP l        -> p
   DefP{}        -> p              -- destructor pattern
-  AsP{}         -> __IMPOSSIBLE__ -- @-patterns (not supported anyways)
+  AsP i x p     -> AsP i x (substPattern s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
 
 class SubstExpr a where
