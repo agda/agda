@@ -262,7 +262,7 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
-    (s', (renM, renD)) <- copyScope recN m0 s
+    (s', (renM, renD)) <- copyScope recN m0 (removeOnlyQualified s)
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
