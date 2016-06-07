@@ -1,0 +1,52 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > CompileAsPattern._.merge =
+out >   λ a b c d e →
+out >     let f = seq e d in
+out >     case d of
+out >       Agda.Builtin.List.List.[] → e
+out >       Agda.Builtin.List.List._∷_ g h →
+out >         case e of
+out >           Agda.Builtin.List.List.[] → d
+out >           Agda.Builtin.List.List._∷_ i j →
+out >             Common.Bool.if_then_else_
+out >               _ _ (c g i)
+out >               (Agda.Builtin.List.List._∷_ g (CompileAsPattern._.merge a b c h e))
+out >               (Agda.Builtin.List.List._∷_ i (CompileAsPattern._.merge a b c d j))
+out >           _ → f
+out >       _ → f
+out > CompileAsPattern.mapM! =
+out >   λ a b c →
+out >     case c of
+out >       Agda.Builtin.List.List.[] → Common.IO.return () _ _
+out >       Agda.Builtin.List.List._∷_ d e →
+out >         Common.IO._>>=_
+out >           () () _ _ (b d) (λ f → CompileAsPattern.mapM! a b e)
+out >       _ → error "TUnreachable"
+out > CompileAsPattern.xs =
+out >   Agda.Builtin.List.List._∷_
+out >     2
+out >     (Agda.Builtin.List.List._∷_
+out >        3
+out >        (Agda.Builtin.List.List._∷_
+out >           5
+out >           (Agda.Builtin.List.List._∷_
+out >              10 (Agda.Builtin.List.List._∷_ 20 Agda.Builtin.List.List.[]))))
+out > CompileAsPattern.ys =
+out >   Agda.Builtin.List.List._∷_
+out >     0
+out >     (Agda.Builtin.List.List._∷_
+out >        1
+out >        (Agda.Builtin.List.List._∷_
+out >           2
+out >           (Agda.Builtin.List.List._∷_
+out >              8
+out >              (Agda.Builtin.List.List._∷_
+out >                 10 (Agda.Builtin.List.List._∷_ 15 Agda.Builtin.List.List.[])))))
+out > CompileAsPattern.main =
+out >   CompileAsPattern.mapM!
+out >     _ Common.IO.printNat
+out >     (CompileAsPattern._.merge
+out >        _ _ _<_ CompileAsPattern.xs CompileAsPattern.ys)
+out > 012235810101520
