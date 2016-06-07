@@ -206,14 +206,14 @@ splitProblem mf (Problem ps qs tel pr) = do
             underAbstraction dom xtel $ \ tel -> splitP ps tel
 
       p <- lift $ expandLitPattern p
-      case asView $ namedArg p of
+      case snd $ asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        (_, A.ProjP _ d) -> typeError $
+        A.ProjP _ d -> typeError $
           CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
 
         -- Case: literal pattern.
-        (xs, p@(A.LitP lit))  -> do
+        p@(A.LitP lit)  -> do
           -- Note that, in the presence of --without-K, this branch is
           -- based on the assumption that the types of literals are
           -- not indexed.
@@ -227,14 +227,13 @@ splitProblem mf (Problem ps qs tel pr) = do
             {- then -} keepGoing $
             {- else -} return Split
               { splitLPats   = empty
-              , splitAsNames = xs
               , splitFocus   = Arg ai $ LitFocus lit qs a
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
               `mplus` keepGoing
 
         -- Case: record pattern
-        (xs, p@(A.RecP _patInfo fs)) -> do
+        p@(A.RecP _patInfo fs) -> do
           res <- lift $ tryRecordType a
           case res of
             -- Subcase: blocked
@@ -266,13 +265,12 @@ splitProblem mf (Problem ps qs tel pr) = do
               args <- lift $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
               (return Split
                 { splitLPats   = empty
-                , splitAsNames = xs
                 , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) qs d pars ixs a
                 , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
         -- Case: constructor pattern.
-        (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
+        p@(A.ConP ci (A.AmbQ cs) args) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
                     -- Type is blocked by a meta and constructor is unambiguous,
@@ -354,7 +352,6 @@ splitProblem mf (Problem ps qs tel pr) = do
 
                       (return Split
                         { splitLPats   = empty
-                        , splitAsNames = xs
                         , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
                         , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                         }) `mplus` keepGoing

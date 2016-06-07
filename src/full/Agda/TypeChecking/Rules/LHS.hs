@@ -559,8 +559,8 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
 
   -- doing the splits:
   inTopContext $ do
-    LHSState problem@(Problem ps qs delta rest) sigma dpi asb
-      <- checkLHS f $ LHSState problem0 idS [] []
+    LHSState problem@(Problem ps qs delta rest) sigma dpi
+      <- checkLHS f $ LHSState problem0 idS []
 
     unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
@@ -574,7 +574,6 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
              [ text "ps    = " <+> fsep (map prettyA ps)
              , text "delta = " <+> prettyTCM delta
              , text "dpi   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM dpi)
-             , text "asb   = " <+> addContext delta (brackets $ fsep $ punctuate comma $ map prettyTCM asb)
              , text "qs    = " <+> text (show qs)
              ]
            ]
@@ -583,7 +582,7 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
     bindLHSVars (filter (isNothing . isProjP) ps) delta $ do
       let -- Find the variable patterns that have been refined
           refinedParams = [ AsB x v (unDom a) | DPI (Just x) _ v a <- dpi ]
-          asb'          = refinedParams ++ asb
+          asb'          = refinedParams
 
       reportSDoc "tc.lhs.top" 10 $ text "asb' = " <+> (brackets $ fsep $ punctuate comma $ map prettyTCM asb')
 
@@ -634,7 +633,7 @@ checkLHS
   :: Maybe QName       -- ^ The name of the definition we are checking.
   -> LHSState          -- ^ The current state.
   -> TCM LHSState      -- ^ The final state after all splitting is completed
-checkLHS f st@(LHSState problem sigma dpi asb) = do
+checkLHS f st@(LHSState problem sigma dpi) = do
 
   problem <- insertImplicitProblem problem
   -- Note: inserting implicits no longer preserve solvedness,
@@ -663,7 +662,7 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           ip'      = ip ++ [fmap (Named Nothing . ProjP) projPat]
           problem' = Problem ps' ip' delta rest
       -- Jump the trampolin
-      st' <- updateProblemRest (LHSState problem' sigma dpi asb)
+      st' <- updateProblemRest (LHSState problem' sigma dpi)
       -- If the field is irrelevant, we need to continue in irr. cxt.
       -- (see Issue 939).
       applyRelevanceToContext (getRelevance projPat) $ do
@@ -671,9 +670,9 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
 
     -- Split on literal pattern (does not fail as there is no call to unifier)
 
-    trySplit (Split p0 xs (Arg _ (LitFocus lit ip a)) p1) _ = do
+    trySplit (Split p0 (Arg _ (LitFocus lit ip a)) p1) _ = do
 
-      -- substitute the literal in p1 and sigma and dpi and asb
+      -- substitute the literal in p1 and sigma and dpi
       let delta1 = problemTel p0
           delta2 = absApp (fmap problemTel p1) (Lit lit)
           rho    = singletonS (size delta2) (LitP lit)
@@ -684,7 +683,6 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           --       ++ [ var i | i <- [size delta2 ..] ]
           sigma'   = applySubst rho sigma
           dpi'     = applyPatSubst rho dpi
-          asb0     = applyPatSubst rho asb
           ip'      = applySubst rho ip
           rest'    = applyPatSubst rho (problemRest problem)
 
@@ -692,14 +690,13 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
       let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
           delta'   = abstract delta1 delta2
           problem' = Problem ps' ip' delta' rest'
-          asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
-      st' <- updateProblemRest (LHSState problem' sigma' dpi' asb')
+      st' <- updateProblemRest (LHSState problem' sigma' dpi')
       checkLHS f st'
 
     -- Split on constructor pattern (unifier might fail)
 
-    trySplit (Split p0 xs focus@(Arg info Focus{}) p1) tryNextSplit = do
-      res <- trySplitConstructor p0 xs focus p1
+    trySplit (Split p0 focus@(Arg info Focus{}) p1) tryNextSplit = do
+      res <- trySplitConstructor p0 focus p1
       case res of
         -- Success.  Continue checking LHS.
         Unifies st'    -> checkLHS f st'
@@ -721,8 +718,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
         NoUnify  tcerr -> return $ NoUnify  tcerr
         DontKnow tcerr -> return $ DontKnow tcerr
 
-    trySplitConstructor p0 xs (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
-    trySplitConstructor p0 xs (Arg info
+    trySplitConstructor p0 (Arg info LitFocus{}) p1 = __IMPOSSIBLE__
+    trySplitConstructor p0 (Arg info
              (Focus { focusCon      = c
                     , focusPatOrigin= porigin
                     , focusConArgs  = qs
@@ -925,14 +922,12 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
               [ text "ps'    =" <+> brackets (fsep $ punctuate comma $ map prettyA ps')
               ]
 
-          -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
+          -- The final dpis are the new ones plus the old ones substituted by ρ
           let dpi' = applyPatSubst rho dpi ++ raise (size delta2') newDpi
-              asb' = applyPatSubst rho asb ++ raise (size delta2') (map (\x -> AsB x (patternToTerm crho2) ca) xs)
 
           reportSDoc "tc.lhs.top" 15 $ addContext delta' $
             nest 2 $ vcat
               [ text "dpi'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
-              , text "asb'    =" <+> brackets (fsep $ punctuate comma $ map prettyTCM asb')
               ]
 
           -- Apply the substitution
@@ -952,8 +947,8 @@ checkLHS f st@(LHSState problem sigma dpi asb) = do
           -- if rest type reduces,
           -- extend the split problem by previously not considered patterns
           st'@(LHSState problem'@(Problem ps' ip' delta' rest')
-                        sigma' dpi' asb')
-            <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
+                        sigma' dpi')
+            <- updateProblemRest $ LHSState problem' sigma' dpi'
 
           reportSDoc "tc.lhs.top" 12 $ sep
             [ text "new problem from rest"
