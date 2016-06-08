@@ -108,7 +108,7 @@ data Axiom
 type Ren a = [(a, a)]
 
 data Declaration
-  = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
+  = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant, but not hidden)
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions

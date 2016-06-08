@@ -1293,9 +1293,8 @@ fixities = foldMap $ \ d -> case d of
   Pragma      {}  -> mempty
 
 
--- Andreas, 2012-04-07
--- The following function is only used twice, for building a Let, and for
--- printing an error message.
+-- The following function is (at the time of writing) only used three
+-- times: for building Lets, and for printing error messages.
 
 -- | (Approximately) convert a 'NiceDeclaration' back to a 'Declaration'.
 notSoNiceDeclaration :: NiceDeclaration -> Declaration
