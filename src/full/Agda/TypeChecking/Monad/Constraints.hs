@@ -84,11 +84,15 @@ dropConstraints crit = do
   modifySleepingConstraints filt
   modifyAwakeConstraints    filt
 
-putAllConstraintsToSleep :: TCM ()
-putAllConstraintsToSleep = do
+putConstraintsToSleep :: (ProblemConstraint -> Bool) -> TCM ()
+putConstraintsToSleep sleepy = do
   awakeOnes <- use stAwakeConstraints
-  modifySleepingConstraints $ (++ awakeOnes)
-  modifyAwakeConstraints    $ const []
+  let (gotoSleep, stayAwake) = partition sleepy awakeOnes
+  modifySleepingConstraints $ (++ gotoSleep)
+  modifyAwakeConstraints    $ const stayAwake
+
+putAllConstraintsToSleep :: TCM ()
+putAllConstraintsToSleep = putConstraintsToSleep (const True)
 
 takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
 takeAwakeConstraint = do
