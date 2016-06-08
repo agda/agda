@@ -44,6 +44,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except ( MonadError(catchError) )
@@ -266,6 +267,7 @@ errorString err = case err of
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
+  DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
   WithoutKError{}                          -> "WithoutKError"
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
@@ -1126,6 +1128,16 @@ instance PrettyTCM TypeError where
         pwords $ "Unquote failed because of unsolved meta variables."
 
       UnquotePanic err -> __IMPOSSIBLE__
+
+    DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
+        pwords $ "deBruijnIndex " ++ show i ++ " is not in scope in the empty context"
+    DeBruijnIndexOutOfScope i cxt names ->
+        sep [ text ("deBruijn index " ++ show i ++ " is not in scope in the context")
+            , inTopContext $ addContext "_" $ prettyTCM cxt' ]
+      where
+        cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
+        nameCxt [] = EmptyTel
+        nameCxt (x : xs) = ExtendTel (defaultDom (El I.Prop $ I.Var 0 [])) $ NoAbs (show x) $ nameCxt xs
 
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"

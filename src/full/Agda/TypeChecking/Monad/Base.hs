@@ -2373,6 +2373,7 @@ data TypeError
         | IFSNoCandidateInScope Type
     -- Reflection errors
         | UnquoteFailed UnquoteError
+        | DeBruijnIndexOutOfScope Nat Telescope [Name]
     -- Safe flag errors
         | SafeFlagPostulate C.Name
         | SafeFlagPragma [String]

@@ -1,3 +1,2 @@
 Issue1303.agda:9,1-19,8
-Panic: unbound variable @1
-when checking that the expression @1 has type Set
+deBruijn index 1 is not in scope in the context (dot₁ : _)
