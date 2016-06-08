@@ -93,6 +93,7 @@ xForPrim table = do
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _))    = conName q
       getName (Builtin (Shared p))   = getName (Builtin $ derefPtr p)
+      getName (Builtin (Lam _ b))    = getName (Builtin $ unAbs b)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
   concat <$> sequence [ maybe (return []) id $ L.lookup s table
