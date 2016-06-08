@@ -1011,12 +1011,22 @@ getMetaRelevance = envRelevance . getMetaEnv
 data InteractionPoint = InteractionPoint
   { ipRange :: Range        -- ^ The position of the interaction point.
   , ipMeta  :: Maybe MetaId -- ^ The meta variable, if any, holding the type etc.
+  , ipClause:: IPClause
+      -- ^ The clause of the interaction point (if any).
+      --   Used for case splitting.
   }
 
 instance Eq InteractionPoint where (==) = (==) `on` ipMeta
 
 -- | Data structure managing the interaction points.
 type InteractionPoints = Map InteractionId InteractionPoint
+
+-- | Which clause is an interaction point located in?
+data IPClause = IPClause
+  { ipcQName    :: QName  -- ^ The name of the function.
+  , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
+  }
+  | IPNoClause -- ^ The interaction point is not the rhs of a clause.
 
 ---------------------------------------------------------------------------
 -- ** Signature
@@ -1840,6 +1850,9 @@ data TCEnv =
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
                 --   than 'envRange'.
+          , envClause :: IPClause
+                -- ^ What is the current clause we are type-checking?
+                --   Will be recorded in interaction points in this clause.
           , envCall  :: Maybe (Closure Call)
                 -- ^ what we're doing at the moment
           , envHighlightingLevel  :: HighlightingLevel
@@ -1913,6 +1926,7 @@ initEnv = TCEnv { envContext             = []
                 , envEtaContractImplicit    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
+                , envClause                 = IPNoClause
                 , envCall                   = Nothing
                 , envHighlightingLevel      = None
                 , envHighlightingMethod     = Indirect
