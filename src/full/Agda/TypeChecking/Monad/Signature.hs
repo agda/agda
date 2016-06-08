@@ -784,7 +784,7 @@ moduleParamsToApply :: ModuleName -> TCM Args
 moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
 
-  reportSLn "tc.sig.param" 20 $ "compupting module parameters of " ++ show m
+  reportSLn "tc.sig.param" 90 $ "compupting module parameters of " ++ show m
   cxt <- getContext
   n   <- getModuleFreeVars m
   tel <- take n . telToList <$> lookupSection m
