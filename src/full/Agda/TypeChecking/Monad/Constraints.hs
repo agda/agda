@@ -31,21 +31,26 @@ stealConstraints pid = do
   current <- currentProblem
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show current ++ " is stealing problem " ++ show pid ++ "'s constraints!"
   -- Rename @pid@ to @current@ in all constraints.
-  let rename pc@(PConstr pid' c) | pid' == pid = PConstr current c
-                                 | otherwise   = pc
+  let rename pc@(PConstr pids c) | elem pid pids = PConstr (current : pids) c
+                                 | otherwise     = pc
   -- We should never steal from an active problem.
   whenM (elem pid <$> asks envActiveProblems) __IMPOSSIBLE__
   modifyAwakeConstraints    $ List.map rename
   modifySleepingConstraints $ List.map rename
 
 solvingProblem :: ProblemId -> TCM a -> TCM a
-solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
-  x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
-  ifNotM (isProblemSolved pid)
-    (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
-    $ {- else -} do
-      reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
-      wakeConstraints (return . blockedOn pid . clValue . theConstraint)
+solvingProblem pid = solvingProblems [pid]
+
+solvingProblems :: [ProblemId] -> TCM a -> TCM a
+solvingProblems pids m = verboseBracket "tc.constr.solve" 50 ("working on problems " ++ show pids) $ do
+  x <- local (\e -> e { envActiveProblems = pids ++ envActiveProblems e }) m
+  sequence_
+    [ ifNotM (isProblemSolved pid)
+        (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
+      $ {- else -} do
+        reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
+        wakeConstraints (return . blockedOn pid . clValue . theConstraint)
+    | pid <- pids ]
   return x
   where
     blockedOn pid (Guarded _ pid') = pid == pid'
@@ -54,10 +59,10 @@ solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem 
 isProblemSolved :: ProblemId -> TCM Bool
 isProblemSolved pid =
   and2M (notElem pid <$> asks envActiveProblems)
-        (all ((/= pid) . constraintProblem) <$> getAllConstraints)
+        (all (notElem pid . constraintProblems) <$> getAllConstraints)
 
 getConstraintsForProblem :: ProblemId -> TCM Constraints
-getConstraintsForProblem pid = List.filter ((== pid) . constraintProblem) <$> getAllConstraints
+getConstraintsForProblem pid = List.filter (elem pid . constraintProblems) <$> getAllConstraints
 
 -- | Get the awake constraints
 getAwakeConstraints :: TCM Constraints
@@ -68,8 +73,8 @@ wakeConstraints wake = do
   c <- use stSleepingConstraints
   (wakeup, sleepin) <- partitionM wake c
   reportSLn "tc.constr.wake" 50 $
-    "waking up         " ++ show (List.map constraintProblem wakeup) ++ "\n" ++
-    "  still sleeping: " ++ show (List.map constraintProblem sleepin)
+    "waking up         " ++ show (List.map constraintProblems wakeup) ++ "\n" ++
+    "  still sleeping: " ++ show (List.map constraintProblems sleepin)
   modifySleepingConstraints $ const sleepin
   modifyAwakeConstraints (++ wakeup)
 
@@ -123,15 +128,15 @@ getAllConstraints :: TCM Constraints
 getAllConstraints = gets $ \s -> s^.stAwakeConstraints ++ s^.stSleepingConstraints
 
 withConstraint :: (Constraint -> TCM a) -> ProblemConstraint -> TCM a
-withConstraint f (PConstr pid c) = do
+withConstraint f (PConstr pids c) = do
   -- We should preserve the problem stack and the isSolvingConstraint flag
-  (pids, isSolving) <- asks $ envActiveProblems &&& envSolvingConstraints
+  (pids', isSolving) <- asks $ envActiveProblems &&& envSolvingConstraints
   enterClosure c $ \c ->
-    local (\e -> e { envActiveProblems = pids, envSolvingConstraints = isSolving }) $
-    solvingProblem pid (f c)
+    local (\e -> e { envActiveProblems = pids', envSolvingConstraints = isSolving }) $
+    solvingProblems pids (f c)
 
 buildProblemConstraint :: ProblemId -> Constraint -> TCM ProblemConstraint
-buildProblemConstraint pid c = PConstr pid <$> buildClosure c
+buildProblemConstraint pid c = PConstr [pid] <$> buildClosure c
 
 buildConstraint :: Constraint -> TCM ProblemConstraint
 buildConstraint c = flip buildProblemConstraint c =<< currentProblem

@@ -221,7 +221,7 @@ instance PrettyTCM Relevance where
   prettyTCM UnusedArg  = empty
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pid c) = brackets (prettyTCM pid) <+> prettyTCM c
+  prettyTCM (PConstr pid c) = prettyList (map prettyTCM pid) <+> prettyTCM c
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of

@@ -295,7 +295,7 @@ outputFormId (OutputForm _ _ o) = out o
       FindInScopeOF _ _ _        -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
-  reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) pid <$> reify c)
+  reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (last pids) <$> reify c)
 
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
