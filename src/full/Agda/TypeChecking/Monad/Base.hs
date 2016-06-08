@@ -724,8 +724,8 @@ buildClosure x = do
 type Constraints = [ProblemConstraint]
 
 data ProblemConstraint = PConstr
-  { constraintProblem :: ProblemId
-  , theConstraint     :: Closure Constraint
+  { constraintProblems :: [ProblemId]
+  , theConstraint      :: Closure Constraint
   }
   deriving (Typeable, Show)
 
