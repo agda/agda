@@ -1,3 +1,5 @@
 TermSplicingOutOfScope.agda:7,11-36
-Panic: unbound variable @3
-when checking that the expression @3 has type Set
+deBruijn index 3 is not in scope in the context
+(x : Set) (y : Set) (z : Set)
+when checking that the expression unquote (give (var 3 [])) has
+type Set
