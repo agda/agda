@@ -2353,6 +2353,7 @@ data TypeError
         | SplitError SplitError
     -- Positivity errors
         | NotStrictlyPositive QName [Occ]
+        | TooManyPolarities QName Integer
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
         | UnsolvedMetas [Range]
@@ -2423,6 +2424,7 @@ data TypeError
         | SafeFlagTerminating
         | SafeFlagPrimTrustMe
         | SafeFlagNoPositivityCheck
+        | SafeFlagPolarity
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting

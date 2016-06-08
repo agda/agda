@@ -668,7 +668,10 @@ getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
-setPolarity q pol = modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
+setPolarity q pol = do
+  reportSLn "tc.polarity.set" 20 $
+    "Setting polarity of " ++ show q ++ " to " ++ show pol ++ "."
+  modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
@@ -678,6 +681,8 @@ getArgOccurrence d i = do
     Constructor{} -> StrictPos
     _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
 
+-- | Sets the 'defArgOccurrences' for the given identifier (which
+-- should already exist in the signature).
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os = modifyArgOccurrences d $ const os
 

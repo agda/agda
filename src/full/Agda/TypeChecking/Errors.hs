@@ -225,6 +225,7 @@ errorString err = case err of
   SafeFlagTerminating{}                    -> "SafeFlagTerminating"
   SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
   SafeFlagNoPositivityCheck{}              -> "SafeFlagNoPositivityCheck"
+  SafeFlagPolarity{}                       -> "SafeFlagPolarity"
   ShadowedModule{}                         -> "ShadowedModule"
   ShouldBeASort{}                          -> "ShouldBeASort"
   ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
@@ -240,6 +241,7 @@ errorString err = case err of
   TooFewFields{}                           -> "TooFewFields"
   TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
   TooManyFields{}                          -> "TooManyFields"
+  TooManyPolarities{}                      -> "TooManyPolarities"
   SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
   DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
   VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
@@ -1105,6 +1107,11 @@ instance PrettyTCM TypeError where
         com []    = empty
         com (_:_) = comma
 
+    TooManyPolarities x n -> fsep $
+      pwords "Too many polarities given in the POLARITY pragma for" ++
+      [prettyTCM x] ++
+      pwords "(at most" ++ [text (show n)] ++ pwords "allowed)."
+
     IFSNoCandidateInScope t -> fsep $
       pwords "No instance of type" ++ [prettyTCM t] ++ pwords "was found in scope."
 
@@ -1158,6 +1165,9 @@ instance PrettyTCM TypeError where
 
     SafeFlagNoPositivityCheck -> fsep $
       pwords "Cannot use NO_POSITIVITY_CHECK pragma with safe flag."
+
+    SafeFlagPolarity -> fsep $
+      pwords "The POLARITY pragma must not be used in safe mode."
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
@@ -1303,7 +1313,7 @@ instance PrettyTCM Call where
     CheckDataDef _ x ps cs ->
       fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 
-    CheckConstructor d _ _ (A.Axiom _ _ _ c _) -> fsep $
+    CheckConstructor d _ _ (A.Axiom _ _ _ _ c _) -> fsep $
       pwords "when checking the constructor" ++ [prettyTCM c] ++
       pwords "in the declaration of" ++ [prettyTCM d]
 
@@ -1344,8 +1354,13 @@ instance PrettyTCM Call where
     ScopeCheckExpr e -> fsep $ pwords "when scope checking" ++ [pretty e]
 
     ScopeCheckDeclaration d ->
-      fwords "when scope checking the declaration" $$
-      nest 2 (pretty $ simpleDecl d)
+      fwords ("when scope checking the declaration" ++ suffix) $$
+      nest 2 (vcat $ map pretty ds)
+      where
+      ds     = D.notSoNiceDeclarations d
+      suffix = case ds of
+        [_] -> ""
+        _   -> "s"
 
     ScopeCheckLHS x p ->
       fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
@@ -1366,8 +1381,6 @@ instance PrettyTCM Call where
     where
     hPretty :: Arg (Named_ Expr) -> TCM Doc
     hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (getHiding a)) a
-
-    simpleDecl = D.notSoNiceDeclaration
 
 ---------------------------------------------------------------------------
 -- * Natural language

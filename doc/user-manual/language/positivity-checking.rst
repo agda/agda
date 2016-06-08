@@ -66,3 +66,65 @@ Examples:
     {-# NO_POSITIVITY_CHECK #-}
     data D where
       lam : (D → D) → D
+
+.. _polarity:
+
+POLARITY pragmas
+________________
+
+Polarity pragmas can be attached to postulates. The polarities express
+how the postulate's arguments are used. The following polarities
+are available:
+
+* ``_``:  Unused.
+* ``++``: Strictly positive.
+* ``+``:  Positive.
+* ``-``:  Negative.
+* ``*``:  Unknown/mixed.
+
+Polarity pragmas have the form ``{-# POLARITY name <zero or more
+polarities> #-}``, and can be given wherever fixity declarations can
+be given. The listed polarities apply to the given postulate's
+arguments (explicit/implicit/instance), from left to right. Polarities
+currently cannot be given for module parameters. If the postulate
+takes n arguments (excluding module parameters), then the number of
+polarities given must be between 0 and n (inclusive).
+
+Polarity pragmas make it possible to use postulated type formers in
+recursive types in the following way:
+::
+
+  postulate
+    ∥_∥ : Set → Set
+
+  {-# POLARITY ∥_∥ ++ #-}
+
+  data D : Set where
+    c : ∥ D ∥ → D
+
+Note that one can use postulates that may seem benign, together with
+polarity pragmas, to prove that the empty type is inhabited:
+::
+
+  postulate
+    _⇒_    : Set → Set → Set
+    lambda : {A B : Set} → (A → B) → A ⇒ B
+    apply  : {A B : Set} → A ⇒ B → A → B
+
+  {-# POLARITY _⇒_ ++ #-}
+
+  data ⊥ : Set where
+
+  data D : Set where
+    c : D ⇒ ⊥ → D
+
+  not-inhabited : D → ⊥
+  not-inhabited (c f) = apply f (c f)
+
+  d : D
+  d = c (lambda not-inhabited)
+
+  bad : ⊥
+  bad = not-inhabited d
+
+Polarity pragmas are not allowed in safe mode.
