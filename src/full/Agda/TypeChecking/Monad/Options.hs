@@ -301,11 +301,14 @@ showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
 -- | Switch on printing of implicit and irrelevant arguments.
 --   E.g. for reification in with-function generation.
 withShowAllArguments :: TCM a -> TCM a
-withShowAllArguments ret = do
+withShowAllArguments = withShowAllArguments' True
+
+withShowAllArguments' :: Bool -> TCM a -> TCM a
+withShowAllArguments' yes ret = do
   opts <- pragmaOptions
   let imp = optShowImplicit opts
       irr = optShowIrrelevant opts
-  setPragmaOptions $ opts { optShowImplicit = True, optShowIrrelevant = True }
+  setPragmaOptions $ opts { optShowImplicit = yes, optShowIrrelevant = yes }
   x <- ret
   opts <- pragmaOptions
   setPragmaOptions $ opts { optShowImplicit = imp, optShowIrrelevant = irr }
