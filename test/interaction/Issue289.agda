@@ -13,7 +13,10 @@ foo d y = {!y!}
 -- distinction.
 -- when checking that the expression ? has type ⊤
 
--- NOW: (Andreas, 2013-03-22)
+-- THEN: (Andreas, 2013-03-22)
 -- Since goal is solved, further case distinction is not supported;
 -- try `Solve constraints' instead
 -- when checking that the expression ? has type ⊤
+
+-- NOW: (Andreas, 2016-06-08)
+-- Case splitting works!

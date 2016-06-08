@@ -25,7 +25,7 @@ import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars)
 import Agda.Utils.Permutation (Permutation(Perm), permute, takeP, compactP)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv)
-import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
+import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo, lookupInteractionPoint)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 import Agda.TypeChecking.Substitute (piApply, applySubst)
@@ -36,6 +36,8 @@ import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Monad.Builtin (constructorForm)
 import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.Utils.HashMap as HMap
+
+import Agda.Interaction.MakeCase (getClauseForIP)
 
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
@@ -751,39 +753,21 @@ negtype ee = f (0 :: Int)
 
 -- ---------------------------------------
 
-findClauseDeep :: I.MetaId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
-findClauseDeep m = do
-  sig <- getImportedSignature
-  let res = do
-        def <- HMap.elems $ sig ^. MB.sigDefinitions
-        MB.Function{MB.funClauses = cs} <- [MB.theDef def]
-        c <- cs
-        unless (peelbinds False findMeta $ I.clauseBody c) []
-        return (MB.defName def, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
-  return $ case res of
-    [] -> Nothing
-    r:_ -> Just r   -- TODO: with pattern matching lambdas we might get more than one hit, which to choose?
+findClauseDeep :: Common.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
+findClauseDeep ii = do
+  MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
+  (f, clauseNo) <- case ipCl of
+    MB.IPClause f clauseNo -> return (f, clauseNo)
+    MB.IPNoClause -> MB.typeError $ MB.GenericError $
+      "Cannot apply the auto tactic here, we are not in a function clause"
+  (_, c) <- getClauseForIP f clauseNo
+  return $ Just (f, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
     peelbinds d f = r
      where r b = case b of
                   I.Bind b -> r $ I.absBody b
                   I.NoBody -> d
                   I.Body e -> f e
-    findMeta e =
-     case I.ignoreSharing e of
-      I.Var _ es -> findMetas $ I.argsFromElims es
-      I.Lam _ b -> findMeta (I.absBody b)
-      I.Lit{} -> False
-      I.Level (I.Max as) -> any (fmLevel m) as
-      I.Def _ es -> findMetas $ I.argsFromElims es
-      I.Con _ as -> findMetas as
-      I.Pi it ot -> findMetat (Common.unDom it) || findMetat (I.unAbs ot)
-      I.Sort{} -> False
-      I.MetaV m' _  -> m == m'
-      I.DontCare _ -> False
-      I.Shared{} -> __IMPOSSIBLE__
-    findMetas = any (findMeta . Common.unArg)
-    findMetat (I.El _ e) = findMeta e
     toplevel e =
      case I.ignoreSharing e of
       I.MetaV{} -> True

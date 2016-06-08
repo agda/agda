@@ -128,7 +128,7 @@ auto ii rng argstr = do
     -- Add the @autohints@ for that meta to the hints collection.
     mi <- lookupInteractionId ii
     --thisdefinfo <- catchError (liftM Just $ findClause mi) (\_ -> return Nothing)
-    thisdefinfo <- findClauseDeep mi
+    thisdefinfo <- findClauseDeep ii
     ehints <- (ehints ++) <$> do autohints hintmode mi $ fmap fst3 thisdefinfo
 
     -- If @thisdefinfo /= Nothing@ get the its type (normalized).
