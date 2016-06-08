@@ -224,7 +224,7 @@ errorString err = case err of
   SafeFlagNonTerminating{}                 -> "SafeFlagNonTerminating"
   SafeFlagTerminating{}                    -> "SafeFlagTerminating"
   SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
-  SafeFlagNoPositivityCheck{}              -> "SafeNoPositivityCheck"
+  SafeFlagNoPositivityCheck{}              -> "SafeFlagNoPositivityCheck"
   ShadowedModule{}                         -> "ShadowedModule"
   ShouldBeASort{}                          -> "ShouldBeASort"
   ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
