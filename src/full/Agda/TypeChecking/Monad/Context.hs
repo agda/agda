@@ -95,17 +95,17 @@ updateModuleParameters sub ret = do
                                            | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
                                                                  (Map.toList mps) ]
   cxt <- reverse <$> getContext
-  reportSLn "tc.cxt.param" 20 $ "updatingModuleParameters\n  sub = " ++ show sub ++
+  reportSLn "tc.cxt.param" 90 $ "updatingModuleParameters\n  sub = " ++ show sub ++
                                 "\n  cxt = " ++ unwords (map (show . fst . unDom) cxt) ++
                                 "\n" ++ showMP "  old = " pm
   let pm' = Map.map f pm
-  reportSLn "tc.cxt.param" 20 $ showMP "  new = " pm'
+  reportSLn "tc.cxt.param" 90 $ showMP "  new = " pm'
   stModuleParameters .= pm'
   x <- ret              -- We need to keep introduced modules around
   pm1 <- use stModuleParameters
   let pm'' = Map.union pm (defaultModuleParameters <$ Map.difference pm1 pm)
   stModuleParameters .= pm''
-  reportSLn "tc.cxt.param" 20 $ showMP "  restored = " pm''
+  reportSLn "tc.cxt.param" 90 $ showMP "  restored = " pm''
   return x
   where
     f mp = mp { mpSubstitution = composeS sub (mpSubstitution mp) }
