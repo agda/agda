@@ -475,7 +475,7 @@ primIdJ = do
        pabs   <- getBuiltin' builtinPathAbs
        case (comp, papply, conid, pabs, unArg $ ignoreBlocking $ seq) of
          (Just comp, Just papply, Just conid, Just pabs
-         , Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p]) | Just q == conidn -> do
+          , Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p]) | Just q == conidn -> do
           redReturn $ comp `apply`
              [lc
              ,argN $ Lam defaultArgInfo $ mkAbs "i" $ let
