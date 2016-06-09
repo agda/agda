@@ -547,6 +547,21 @@ library
   ghc-prof-options: -fprof-auto
 
   default-language: Haskell2010
+  default-extensions: ConstraintKinds
+                    , DataKinds
+                    , DefaultSignatures
+                    , ExistentialQuantification
+                    , FlexibleContexts
+                    , FlexibleInstances
+                    , FunctionalDependencies
+                    , LambdaCase
+                    , MultiParamTypeClasses
+                    , NamedFieldPuns
+                    , RankNTypes
+                    , RecordWildCards
+                    , StandaloneDeriving
+                    , TupleSections
+                    , TypeSynonymInstances
 
 executable agda
   hs-source-dirs: src/main
