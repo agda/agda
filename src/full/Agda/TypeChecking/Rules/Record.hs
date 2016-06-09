@@ -384,7 +384,8 @@ checkRecordProjections m r con tel ftel fs = do
                             }
 
         let projection = Projection
-              { projProper   = Just projname
+              { projProper   = True
+              , projOrig     = projname
               -- name of the record type:
               , projFromType = r
               -- index of the record argument (in the type),

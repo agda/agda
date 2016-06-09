@@ -1065,8 +1065,8 @@ inferOrCheckProjApp e ds args mt = do
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
               -- get the original projection name
-              Projection{ projProper = mp } <- MaybeT $ isProjection d
-              orig <- MaybeT $ return mp
+              Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
+              guard proper
               -- try to eliminate
               (dom, u, tb) <- MaybeT (projectTyped v ta d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
@@ -1353,7 +1353,7 @@ inferHeadDef x = do
   let app =
         case proj of
           Nothing -> \ f args -> return $ Def f $ map Apply args
-          Just p  -> \ f args -> return $ projDropPars f p `apply` args
+          Just p  -> \ f args -> return $ projDropPars p `apply` args
   mapFst apply <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).

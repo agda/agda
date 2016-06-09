@@ -1297,10 +1297,11 @@ data ExtLamInfo = ExtLamInfo
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
-  { projProper    :: Maybe QName
-    -- ^ @Nothing@ if only projection-like, @Just q@ if record projection,
-    --   where @q@ is the original projection name
-    --   (current name could be from module app).
+  { projProper    :: Bool
+    -- ^ @False@ if only projection-like, @True@ if record projection.
+  , projOrig      :: QName
+    -- ^ The original projection name
+    --   (current name could be from module application).
   , projFromType  :: QName
     -- ^ Type projected from.  Record type if @projProper = Just{}@.
   , projIndex     :: Int
@@ -1324,22 +1325,22 @@ newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
   deriving (Typeable, Show, Null)
 
 -- | Building the projection function (which drops the parameters).
-projDropPars :: QName -> Projection -> Term
+projDropPars :: Projection -> Term
 -- Proper projections:
-projDropPars f (Projection (Just d) _ _ lams) =
+projDropPars (Projection True d _ _ lams) =
   case initLast $ getProjLams lams of
     Nothing -> Def d []
     Just (pars, Arg i y) ->
       let core = Lam i $ Abs y $ Var 0 [Proj d] in
       List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
 -- Projection-like functions:
-projDropPars f (Projection Nothing _ _ lams) | null lams = __IMPOSSIBLE__
-projDropPars f (Projection Nothing _ _ lams) =
-  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def f []) $ init $ getProjLams lams
+projDropPars (Projection False _ _ _ lams) | null lams = __IMPOSSIBLE__
+projDropPars (Projection False d _ _ lams) =
+  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
 
 -- | The info of the principal (record) argument.
 projArgInfo :: Projection -> ArgInfo
-projArgInfo (Projection _ _ _ lams) =
+projArgInfo (Projection _ _ _ _ lams) =
   maybe __IMPOSSIBLE__ getArgInfo $ lastMaybe $ getProjLams lams
 
 
@@ -2861,7 +2862,7 @@ instance KillRange TermHead where
   killRange (ConsHead q) = ConsHead $ killRange q
 
 instance KillRange Projection where
-  killRange (Projection a b c d) = killRange4 Projection a b c d
+  killRange (Projection a b c d e) = killRange5 Projection a b c d e
 
 instance KillRange ProjLams where
   killRange = id

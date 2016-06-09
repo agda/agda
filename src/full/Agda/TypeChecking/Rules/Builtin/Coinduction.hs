@@ -141,7 +141,8 @@ bindBuiltinFlat e =
                                Map.empty
                                Nothing
         projection = Projection
-          { projProper   = Just flat
+          { projProper   = True
+          , projOrig     = flat
           , projFromType = inf
           , projIndex    = 3
           , projLams     = ProjLams $ [ argH "a" , argH "A" , argN "x" ]

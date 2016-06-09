@@ -245,10 +245,10 @@ instance EmbPrj RewriteRule where
     valu _                  = malformed
 
 instance EmbPrj Projection where
-  icod_ (Projection a b c d) = icode4' a b c d
+  icod_ (Projection a b c d e) = icode5' a b c d e
 
   value = vcase valu where
-    valu [a, b, c, d] = valu4 Projection a b c d
+    valu [a, b, c, d, e] = valu5 Projection a b c d e
     valu _ = malformed
 
 instance EmbPrj ProjLams where

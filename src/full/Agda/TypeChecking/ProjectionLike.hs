@@ -182,10 +182,11 @@ makeProjection x = -- if True then return () else do
                   tel = take pIndex $ telToList $ theTel $ telView' t
               unless (length tel == pIndex) __IMPOSSIBLE__
               let projection = Projection
-                    { projProper   = Nothing
+                    { projProper   = False
+                    , projOrig     = x
                     , projFromType = d
                     , projIndex    = pIndex
-                    , projLams     = ProjLams $ map (\ (Dom ai (x, _)) -> Arg ai x) tel
+                    , projLams     = ProjLams $ map (\ (Dom ai (y, _)) -> Arg ai y) tel
                     }
               let newDef = def
                            { funProjection     = Just projection
