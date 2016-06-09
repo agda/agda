@@ -1662,7 +1662,7 @@ data Call = CheckClause Type A.SpineClause
           | IsTypeCall A.Expr Sort
           | IsType_ A.Expr
           | InferVar Name
-          | InferDef Range QName
+          | InferDef QName
           | CheckArguments Range [NamedArg A.Expr] Type Type
           | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
           | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
@@ -1721,7 +1721,7 @@ instance HasRange Call where
     getRange (IsTypeCall e s)                = getRange e
     getRange (IsType_ e)                     = getRange e
     getRange (InferVar x)                    = getRange x
-    getRange (InferDef _ f)                  = getRange f
+    getRange (InferDef f)                    = getRange f
     getRange (CheckArguments r _ _ _)        = r
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i

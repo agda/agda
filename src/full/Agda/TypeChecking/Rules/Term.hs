@@ -1402,7 +1402,7 @@ inferHead e = do
 
 inferDef :: (Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
-    traceCall (InferDef (getRange x) x) $ do
+    traceCall (InferDef x) $ do
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
