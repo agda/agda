@@ -31,7 +31,7 @@ data Field = forall a. Field
 agdaLibFields :: [Field]
 agdaLibFields =
   [ Field "name"    False parseName                      $ \ name l -> l { libName     = name }
-  , Field "include" True  pure                           $ \ inc  l -> l { libIncludes = inc }
+  , Field "include" True  (pure . concatMap words)       $ \ inc  l -> l { libIncludes = inc }
   , Field "depend"  True  (pure . concatMap splitCommas) $ \ ds   l -> l { libDepends  = ds }
   ]
   where
