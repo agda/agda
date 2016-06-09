@@ -760,7 +760,7 @@ findClauseDeep ii = do
     MB.IPClause f clauseNo -> return (f, clauseNo)
     MB.IPNoClause -> MB.typeError $ MB.GenericError $
       "Cannot apply the auto tactic here, we are not in a function clause"
-  (_, c) <- getClauseForIP f clauseNo
+  (_, c, _) <- getClauseForIP f clauseNo
   return $ Just (f, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
     peelbinds d f = r

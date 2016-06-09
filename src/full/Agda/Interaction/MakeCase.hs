@@ -107,15 +107,17 @@ parseVariables ii rng ss = do
             _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
 
 -- | Lookup the clause for an interaction point in the signature.
+--   Returns the CaseContext, the clause itself, and a list of previous clauses
 
 -- Andreas, 2016-06-08, issue #289 and #2006.
 -- This replace the old findClause hack (shutter with disgust).
-getClauseForIP :: QName -> Int -> TCM (CaseContext, Clause)
+getClauseForIP :: QName -> Int -> TCM (CaseContext, Clause, [Clause])
 getClauseForIP f clauseNo = do
   (theDef <$> getConstInfo f) >>= \case
     Function{funClauses = cs, funExtLam = extlam} -> do
-      let c = fromMaybe __IMPOSSIBLE__ $ cs !!! clauseNo
-      return (extlam, c)
+      let (cs1,cs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
+          c         = fromMaybe __IMPOSSIBLE__ $ headMaybe cs2
+      return (extlam, c, cs1)
     _ -> __IMPOSSIBLE__
 
 -- | Entry point for case splitting tactic.
@@ -127,7 +129,7 @@ makeCase hole rng s = withInteractionId hole $ do
     IPClause f clauseNo -> return (f, clauseNo)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
-  (casectxt, clause) <- getClauseForIP f clauseNo
+  (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo
   let perm = clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
@@ -169,7 +171,11 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     vars <- parseVariables hole rng vars
-    cs <- split f vars $ clauseToSplitClause clause
+    scs <- split f vars $ clauseToSplitClause clause
+    -- filter out clauses that are already covered
+    scs <- filterM (not <.> isCovered f prevClauses . fst) scs
+    cs <- forM scs $ \(sc, isAbsurd) ->
+            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f sc
     reportSDoc "interaction.case" 65 $ vcat
       [ text "split result:"
       , nest 2 $ vcat $ map (text . show) cs
@@ -180,16 +186,16 @@ makeCase hole rng s = withInteractionId hole $ do
   failNoCop = typeError $ GenericError $
     "OPTION --copatterns needed to split on result here"
 
-  split :: QName -> [Nat] -> SplitClause -> TCM [A.Clause]
-  split f [] clause = singleton <$> makeAbstractClause f clause
+  -- Split clause on given variables, return the resulting clauses together
+  -- with a bool indicating whether each clause is absurd
+  split :: QName -> [Nat] -> SplitClause -> TCM [(SplitClause, Bool)]
+  split f [] clause = return [(clause,False)]
   split f (var : vars) clause = do
     z <- splitClauseWithAbsurd clause var
     case z of
       Left err          -> typeError $ SplitError err
-      Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl
-      Right (Right cov)
-        | null vars -> mapM (makeAbstractClause f) $ splitClauses cov
-        | otherwise -> concat <$> do
+      Right (Left cl)   -> return [(cl,True)]
+      Right (Right cov) -> concat <$> do
             forM (splitClauses cov) $ \ cl ->
               split f (mapMaybe (newVar cl) vars) cl
 

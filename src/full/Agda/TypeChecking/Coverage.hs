@@ -14,6 +14,7 @@ module Agda.TypeChecking.Coverage
   ( SplitClause(..), clauseToSplitClause, fixTarget
   , Covering(..), splitClauses
   , coverageCheck
+  , isCovered
   , splitClauseWithAbsurd
   , splitLast
   , splitResult
@@ -154,6 +155,12 @@ coverageCheck f t cs = do
         typeError $ UnreachableClauses f (map clausePats unreached)
   return splitTree
 
+-- | Top-level function for eliminating redundant clauses in the interactive
+--   case splitter
+isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
+isCovered f cs sc = do
+  (_, _, missing) <- cover f cs sc
+  return $ null missing
 
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
