@@ -1,3 +1,16 @@
+..
+  ::
+  module language.reflection where
+
+  open import language.built-ins
+
+  data ⊥ : Set where
+
+  ¬_ : ∀ {u} → Set u → Set u
+  ¬ x  = x → ⊥
+
+  infixl 2 ¬_
+
 .. _reflection:
 
 **********
@@ -58,25 +71,58 @@ Literals
 
 Literals are mapped to the built-in ``AGDALITERAL`` datatype. Given the appropriate
 built-in binding for the types ``Nat``, ``Float``, etc, the ``AGDALITERAL`` datatype
-has the following shape:
+has the following shape::
 
-::
+  data Literal : Set where
+    nat    : (n : Nat)    → Literal
+    float  : (x : Float)  → Literal
+    char   : (c : Char)   → Literal
+    string : (s : String) → Literal
+    name   : (x : Name)   → Literal
+    meta   : (x : Meta)   → Literal
 
-    data Literal : Set where
-      nat    : (n : Nat)    → Literal
-      float  : (x : Float)  → Literal
-      char   : (c : Char)   → Literal
-      string : (s : String) → Literal
-      name   : (x : Name)   → Literal
-      meta   : (x : Meta)   → Literal
+  {-# BUILTIN AGDALITERAL   Literal #-}
+  {-# BUILTIN AGDALITNAT    nat     #-}
+  {-# BUILTIN AGDALITFLOAT  float   #-}
+  {-# BUILTIN AGDALITCHAR   char    #-}
+  {-# BUILTIN AGDALITSTRING string  #-}
+  {-# BUILTIN AGDALITQNAME  name    #-}
+  {-# BUILTIN AGDALITMETA   meta    #-}
 
-    {-# BUILTIN AGDALITERAL   Literal #-}
-    {-# BUILTIN AGDALITNAT    nat     #-}
-    {-# BUILTIN AGDALITFLOAT  float   #-}
-    {-# BUILTIN AGDALITCHAR   char    #-}
-    {-# BUILTIN AGDALITSTRING string  #-}
-    {-# BUILTIN AGDALITQNAME  name    #-}
-    {-# BUILTIN AGDALITMETA   meta    #-}
+Arguments
+~~~~~~~~~
+
+Arguments can be (visible), {hidden}, or {{instance}}::
+
+  data Visibility : Set where
+    visible hidden instance′ : Visibility
+
+  {-# BUILTIN HIDING   Visibility #-}
+  {-# BUILTIN VISIBLE  visible    #-}
+  {-# BUILTIN HIDDEN   hidden     #-}
+  {-# BUILTIN INSTANCE instance′  #-}
+
+Arguments can be relevant or irrelevant::
+
+  data Relevance : Set where
+    relevant irrelevant : Relevance
+
+  {-# BUILTIN RELEVANCE  Relevance  #-}
+  {-# BUILTIN RELEVANT   relevant   #-}
+  {-# BUILTIN IRRELEVANT irrelevant #-}
+
+Visibility and relevance characterise the behaviour of an argument::
+
+  data ArgInfo : Set where
+    arg-info : (v : Visibility) (r : Relevance) → ArgInfo
+
+  data Arg (A : Set) : Set where
+    arg : (i : ArgInfo) (x : A) → Arg A
+
+  {-# BUILTIN ARGINFO    ArgInfo  #-}
+  {-# BUILTIN ARGARGINFO arg-info #-}
+  {-# BUILTIN ARG        Arg      #-}
+  {-# BUILTIN ARGARG     arg      #-}
 
 Patterns
 ~~~~~~~~
@@ -102,6 +148,17 @@ following data type.
   {-# BUILTIN AGDAPATPROJ   proj    #-}
   {-# BUILTIN AGDAPATABSURD absurd  #-}
 
+Name abstraction
+~~~~~~~~~~~~~~~~
+
+::
+
+  data Abs (A : Set) : Set where
+    abs : (s : String) (x : A) → Abs A
+
+  {-# BUILTIN ABS    Abs #-}
+  {-# BUILTIN ABSABS abs #-}
+
 Terms
 ~~~~~
 
@@ -113,6 +170,7 @@ terms. Terms use de Bruijn indices to represent variables.
 
   data Term : Set
   data Sort : Set
+  data Clause : Set
   Type = Term
 
   data Term where
@@ -235,7 +293,7 @@ following primitive operations::
     unify : Term → Term → TC ⊤
 
     -- Throw a type error. Can be caught by catchTC.
-    typeError : ∀ {a} {A : Set a} → String → TC A
+    typeError : ∀ {a} {A : Set a} → List ErrorPart → TC A
 
     -- Block a type checking computation on a metavariable. This will abort
     -- the computation and restart it (from the beginning) when the
@@ -293,7 +351,6 @@ following primitive operations::
     getDefinition : Name → TC Definition
 
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
-  {-# BUILTIN AGDATCMNEWMETA            newMeta            #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
   {-# BUILTIN AGDATCMCATCHERROR         catchTC            #-}
@@ -334,7 +391,9 @@ Macro application is guided by the type of the macro, where ``Term`` and
 other type are preserved as-is.
 
 For example, the macro application ``f u v w`` where
-``f : Term → Name → Bool → Term → TC ⊤`` desugars into::
+``f : Term → Name → Bool → Term → TC ⊤`` desugars into:
+
+.. code-block:: agda
 
   unquote (f (quoteTerm u) (quote v) w)
 
@@ -361,12 +420,16 @@ Limitations:
 
 Silly example:
 
+..
+  ::
+  module example₁ where
+
 ::
 
     macro
-      plus-to-times : Term → Term → TC ⊤
-      plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
-      plus-to-times v hole = unify hole v
+        plus-to-times : Term → Term → TC ⊤
+        plus-to-times (def (quote _+_) (a ∷ b ∷ [])) hole = unify hole (def (quote _*_) (a ∷ b ∷ []))
+        plus-to-times v hole = unify hole v
 
     thm : (a b : Nat) → plus-to-times (a + b) ≡ a * b
     thm a b = refl
@@ -375,6 +438,11 @@ Macros lets you write tactics that can be applied without any syntactic
 overhead. For instance, suppose you have a solver::
 
   magic : Type → Term
+
+..
+  ::
+  postulate God : (A : Set) → A
+  magic t = def (quote God) (arg (arg-info visible relevant) t ∷ [])
 
 that takes a reflected goal and outputs a proof (when successful). You can then
 define the following macro::
@@ -385,10 +453,19 @@ define the following macro::
       bindTC (inferType hole) λ goal →
       unify hole (magic goal)
 
-This lets you apply the magic tactic as a normal function::
+This lets you apply the magic tactic as a normal function:
 
-  thm : ¬ P ≡ NP
-  thm = by-magic
+..
+  ::
+
+  module P≠NP where
+    postulate T : Set
+    postulate P NP : T
+
+::
+
+    thm : ¬ P ≡ NP
+    thm = by-magic
 
 Unquoting Declarations
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -398,7 +475,9 @@ be able to create top-level definitions. You can do this from a macro using the
 ``declareDef`` and ``defineFun`` primitives, but there is no way to bring such
 definitions into scope. For this purpose there are two top-level primitives
 ``unquoteDecl`` and ``unquoteDef`` that runs a ``TC`` computation in a
-declaration position. They both have the same form::
+declaration position. They both have the same form:
+
+.. code-block:: agda
 
   unquoteDecl x₁ .. xₙ = m
   unquoteDef  x₁ .. xₙ = m

@@ -1,3 +1,7 @@
+..
+  ::
+  module language.copatterns where
+
 .. _copatterns:
 
 **********
