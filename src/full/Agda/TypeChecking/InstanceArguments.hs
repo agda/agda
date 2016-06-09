@@ -97,7 +97,7 @@ initialIFSCandidates t = do
           args <- freeVarsToApply q
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> projDropPars p `apply` args
+               Function{ funProjection = Just p } -> projDropPars q p `apply` args
                -- Andreas, 2014-08-19: constructors cannot be declared as
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.

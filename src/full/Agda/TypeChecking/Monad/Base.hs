@@ -86,6 +86,7 @@ import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Hash
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1308,7 +1309,7 @@ data Projection = Projection
     --   it is already applied to the record value.
     --   This can happen in module instantiation, but
     --   then either the record value is @var 0@, or @funProjection == Nothing@.
-  , projDropPars  :: Term
+  , projLams :: ProjLams
     -- ^ Term @t@ to be be applied to record parameters and record value.
     --   The parameters will be dropped.
     --   In case of a proper projection, a postfix projection application
@@ -1316,9 +1317,31 @@ data Projection = Projection
     --   (Invariant: the number of abstractions equals 'projIndex'.)
     --   In case of a projection-like function, just the function symbol
     --   is returned as 'Def':  @t = \ pars -> f@.
-  , projArgInfo   :: ArgInfo
-    -- ^ The info of the principal (record) argument.
   } deriving (Typeable, Show)
+
+-- | Abstractions to build projection function (dropping parameters).
+newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
+  deriving (Typeable, Show, Null)
+
+-- | Building the projection function (which drops the parameters).
+projDropPars :: QName -> Projection -> Term
+-- Proper projections:
+projDropPars f (Projection (Just d) _ _ lams) =
+  case initLast $ getProjLams lams of
+    Nothing -> Def d []
+    Just (pars, Arg i y) ->
+      let core = Lam i $ Abs y $ Var 0 [Proj d] in
+      List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
+-- Projection-like functions:
+projDropPars f (Projection Nothing _ _ lams) | null lams = __IMPOSSIBLE__
+projDropPars f (Projection Nothing _ _ lams) =
+  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def f []) $ init $ getProjLams lams
+
+-- | The info of the principal (record) argument.
+projArgInfo :: Projection -> ArgInfo
+projArgInfo (Projection _ _ _ lams) =
+  maybe __IMPOSSIBLE__ getArgInfo $ lastMaybe $ getProjLams lams
+
 
 data EtaEquality = Specified !Bool | Inferred !Bool deriving (Typeable,Show)
 
@@ -2838,7 +2861,10 @@ instance KillRange TermHead where
   killRange (ConsHead q) = ConsHead $ killRange q
 
 instance KillRange Projection where
-  killRange (Projection a b c d e) = killRange4 Projection a b c d e
+  killRange (Projection a b c d) = killRange4 Projection a b c d
+
+instance KillRange ProjLams where
+  killRange = id
 
 instance KillRange a => KillRange (Open a) where
   killRange = fmap killRange

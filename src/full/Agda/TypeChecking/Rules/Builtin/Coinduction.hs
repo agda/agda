@@ -144,8 +144,7 @@ bindBuiltinFlat e =
           { projProper   = Just flat
           , projFromType = inf
           , projIndex    = 3
-          , projDropPars = teleNoAbs (take 2 $ telToList tel) $ Lam defaultArgInfo $ Abs "x" $ Var 0 [Proj flat]
-          , projArgInfo  = defaultArgInfo
+          , projLams     = ProjLams $ [ argH "a" , argH "A" , argN "x" ]
           }
     addConstant flat $
       flatDefn { defPolarity       = []

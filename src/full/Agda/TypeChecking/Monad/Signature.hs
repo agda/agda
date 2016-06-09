@@ -425,8 +425,8 @@ applySection' new ptel old ts rd rm = do
             proj   = case oldDef of
               Function{funProjection = Just p@Projection{projIndex = n}}
                 | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
-                -> Just $ p { projIndex    = n - size ts'
-                            , projDropPars = projDropPars p `apply` ts'
+                -> Just $ p { projIndex = n - size ts'
+                            , projLams  = projLams p `apply` ts'
                             }
               _ -> Nothing
             def =
@@ -469,8 +469,8 @@ applySection' new ptel old ts rd rm = do
                   return newDef
 
             head = case oldDef of
-                     Function{funProjection = Just Projection{ projDropPars = f}}
-                       -> f
+                     Function{funProjection = Just p}
+                       -> projDropPars x p
                      _ -> Def x []
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel

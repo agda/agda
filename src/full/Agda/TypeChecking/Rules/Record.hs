@@ -363,8 +363,8 @@ checkRecordProjections m r con tel ftel fs = do
         let -- Andreas, 2010-09-09: comment for existing code
             -- split the telescope into parameters (ptel) and the type or the record
             -- (rt) which should be  R ptel
-            (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
-            projArgI    = domInfo rt
+            telList = telToList tel
+            (_ptel,[rt]) = splitAt (size tel - 1) telList
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
@@ -383,21 +383,14 @@ checkRecordProjections m r con tel ftel fs = do
                             , clauseCatchall  = False
                             }
 
-        -- Andreas, 2013-10-20
-        -- creating the projection construction function
-        let core = Lam projArgI $ Abs "r" $ bodyMod $ projcall
-            -- leading lambdas are to ignore parameter applications
-            proj = teleNoAbs ptel core
-            -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
-            projection = Projection
+        let projection = Projection
               { projProper   = Just projname
               -- name of the record type:
               , projFromType = r
               -- index of the record argument (in the type),
               -- start counting with 1:
-              , projIndex    = size ptel + 1  -- which is @size tel@
-              , projDropPars = proj
-              , projArgInfo  = projArgI
+              , projIndex    = size tel -- which is @size ptel + 1@
+              , projLams     = ProjLams $ map (\ (Dom ai (x,_)) -> Arg ai x) telList
               }
 
         reportSDoc "tc.rec.proj" 80 $ sep
