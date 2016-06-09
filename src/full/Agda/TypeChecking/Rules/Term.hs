@@ -1353,7 +1353,7 @@ inferHeadDef x = do
   let app =
         case proj of
           Nothing -> \ f args -> return $ Def f $ map Apply args
-          Just p  -> \ f args -> return $ projDropPars p `apply` args
+          Just p  -> \ f args -> return $ projDropParsApply p args
   mapFst apply <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).

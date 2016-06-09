@@ -468,14 +468,12 @@ applySection' new ptel old ts rd rm = do
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
 
-            head = case oldDef of
-                     Function{funProjection = Just p}
-                       -> projDropPars p
-                     _ -> Def x []
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
-                        , clauseBody      = Body $ head `apply` ts'
+                        , clauseBody      = Body $ case oldDef of
+                            Function{funProjection = Just p} -> projDropParsApply p ts'
+                            _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
                         }

@@ -146,6 +146,11 @@ partitionMaybe f = loop
       Nothing -> mapFst (a :) $ loop as
       Just b  -> mapSnd (b :) $ loop as
 
+-- | Drops from both lists simultaneously until one list is empty.
+dropCommon :: [a] -> [b] -> ([a],[b])
+dropCommon (x : xs) (y : ys) = dropCommon xs ys
+dropCommon xs ys = (xs, ys)
+
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf []       ys = True
