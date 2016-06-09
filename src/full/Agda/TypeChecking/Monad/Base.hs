@@ -37,7 +37,7 @@ import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
 import Data.Typeable (Typeable)
-import Data.Foldable
+import Data.Foldable (Foldable)
 import Data.Traversable
 import Data.IORef
 
