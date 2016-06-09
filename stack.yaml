@@ -1,0 +1,9 @@
+resolver: lts-6.2
+
+# Local packages, usually specified by relative directory name
+packages:
+- '.'
+- src/fix-agda-whitespace/
+- src/hTags/
+- src/size-solver/
+#- test/ #Dead
