@@ -1,3 +1,7 @@
+..
+  ::
+  module language.foreign-function-interface where
+
 .. _foreign-function-interface:
 
 **************************
@@ -30,7 +34,7 @@ The IMPORT pragma
 
 The ``IMPORT`` pragma instructs the compiler to generate a Haskell import statement in the compiled code. The pragma above will generate the following Haskell code:
 
-::
+.. code-block:: haskell
 
   import qualified HsModule
 
@@ -41,13 +45,15 @@ The COMPILED_TYPE pragma
 
 ::
 
+  postulate D : Set
   {-# COMPILED_TYPE D HsType #-}
 
 The ``COMPILED_TYPE`` pragma tells the compiler that the postulated Agda type ``D`` corresponds to the Haskell type ``HsType``. This information is used when checking the types of ``COMPILED`` functions and constructors.
 
 The COMPILED_DATA pragma
 ------------------------
-::
+
+.. code-block:: agda
 
   {-# COMPILED_DATA D HsD HsC1 .. HsCn #-}
 
@@ -83,8 +89,10 @@ is as follows:
 
 The COMPILED pragma
 -------------------
+
 ::
 
+  postulate f : ∀ a b → (a → b) → List a → List b
   {-# COMPILED f HsCode #-}
 
 The ``COMPILED`` pragma tells the compiler to compile the postulated function ``f`` to the Haskell Code ``HsCode``. ``HsCode`` can be an arbitrary Haskell term of the right type. This is checked by translating the given Agda type of ``f`` into a Haskell type (see :ref:`translating-agda-types-to-haskell`) and checking that this matches the type of ``HsCode``.
@@ -122,38 +130,46 @@ Handling typeclass constraints
 ------------------------------
 
 The problem here is that Agda’s Haskell FFI doesn’t understand Haskell’s class system. If you look at this error message, GHC complains about a missing class constraint:
-::
+
+.. code-block:: text
 
   No instance for (Graphics.UI.Gtk.ObjectClass xA)
     arising from a use of Graphics.UI.Gtk.objectDestroy’
 
 A work around to represent Haskell Classes in Agda is to use a Haskell datatype to represent the class constraint in a way Agda understands:
-::
+
+.. code-block:: haskell
 
   {-# LANGUAGE GADTs #-}
   data MyObjectClass a = ObjectClass a => Witness
 
 We also need to write a small wrapper for the ``objectDestroy`` function in Haskell:
-::
 
-  myObjectDestroy :: MyObjectClass a → Signal a (IO ())
+.. code-block:: haskell
+
+  myObjectDestroy :: MyObjectClass a -> Signal a (IO ())
   myObjectDestroy Witness = objectDestroy
 
 Notice that the class constraint disappeared from the Haskell type signature! The only missing part are the Agda FFI bindings:
+
 ::
 
   postulate
+    Window : Set
+    Signal : Set → Set → Set
     MyObjectClass : Set → Set
     windowInstance : MyObjectClass Window
-    myObjectDestroy : forall ā → MyObjectClass a → Signal a Unit
+    myObjectDestroy : ∀ {a} → MyObjectClass a → Signal a Unit
+  {-# COMPILED_TYPE Window Window #-}
+  {-# COMPILED_TYPE Signal Signal #-}
   {-# COMPILED_TYPE MyObjectClass MyObjectClass #-}
   {-# COMPILED windowInstance (Witness :: MyObjectClass Window) #-}
   {-# COMPILED myObjectDestroy (\_ → myObjectDestroy) #-}
 
-Then you should be able to call this as follows in Agda:
-::
+Then you should be able to call this as follows in Agda::
 
-  myObjectDestroy windowInstance
+  p : Signal Window Unit
+  p = myObjectDestroy windowInstance
 
 This is somewhat similar to doing a dictionary-translation of the Haskell class system and generates quite a bit of boilerplate code.
 
@@ -163,14 +179,17 @@ The COMPILED_EXPORT pragma
 
 ::
 
-  {-# COMPILED_EXPORT f hsNameForF #-}
+  g : ∀ {a : Set} → a → a
+  g x = x
+
+  {-# COMPILED_EXPORT g hsNameForG #-}
 
 The ``COMPILED_EXPORT`` pragma tells the compiler that the Agda function ``f`` should be compiled to a Haskell function called ``hsNameForF``. Without this pragma, functions are compiled to Haskell functions with unpredictable names and, as a result, cannot be invoked from Haskell. The type of ``hsNameForF`` will be the translated type of ``f`` (see :ref:`translating-agda-types-to-haskell`). If f is defined in file A/B.agda, then ``hsNameForF`` should be imported from module ``MAlonzo.Code.A.B``.
 
 Example:
 ::
 
-  — file IdAgda.agda
+  -- file IdAgda.agda
   module IdAgda where
 
   idAgda : {A : Set} → A → A
@@ -179,16 +198,18 @@ Example:
   {-# COMPILED_EXPORT idAgda idAgda #-}
 
 The compiled and exported function ``idAgda`` can then be imported and invoked from Haskell like this:
-::
 
-  — file UseIdAgda.hs
+.. code-block:: haskell
+
+  -- file UseIdAgda.hs
   module UseIdAgda where
 
   import MAlonzo.Code.IdAgda (idAgda)
-  — idAgda :: () → a → a
+  -- idAgda :: () -> a -> a
 
-  idAgdaApplied :: a → a
+  idAgdaApplied :: a -> a
   idAgdaApplied = idAgda ()
+
 
 .. _translating-agda-types-to-haskell:
 
@@ -199,7 +220,8 @@ Translating Agda types to Haskell
    This section may contain outdated material!
 
 When checking the type of COMPILED function f : A, the Agda type A is translated to a Haskell type TA and the Haskell code Ef is checked against this type. The core of the translation on kinds K[[M]], types T[[M]] and expressions E[[M]] is:
-::
+
+.. code-block:: text
 
     K[[ Set A ]] = *
     K[[ x As ]] = undef

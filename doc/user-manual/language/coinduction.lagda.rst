@@ -1,3 +1,9 @@
+..
+  ::
+  module language.coinduction where
+
+  open import Coinduction
+
 .. _coinduction:
 
 ***********
@@ -30,7 +36,8 @@ To use coinduction it is recommended that you import the module Coinduction from
      suc  : ∞ Coℕ → Coℕ
 
 The type ``∞ A`` can be seen as a suspended computation of type ``A``. It comes with delay and force functions:
-::
+
+.. code-block:: agda
 
   ♯_ : ∀ {a} {A : Set a} → A → ∞ A
   ♭  : ∀ {a} {A : Set a} → ∞ A → A
@@ -72,11 +79,12 @@ The check for guarded corecursion is integrated with the check for size-change t
   sp₁       ∘ get f₂    = get (λ x → sp₁ ∘ f₂ x)
 
 It is also possible to define “coinductive families”. It is recommended not to use the delay constructor (``♯_``) in a constructor’s index expressions. The following definition of equality between coinductive “natural numbers” is discouraged:
+
 ::
 
-  data _≈_ : Coℕ → Coℕ → Set where
-    zero : zero ≈ zero
-    suc  : ∀ {m n} → ∞ (m ≈ n) → suc (♯ m) ≈ suc (♯ n)
+  data _≈’_ : Coℕ → Coℕ → Set where
+    zero : zero ≈’ zero
+    suc  : ∀ {m n} → ∞ (m ≈’ n) → suc (♯ m) ≈’ suc (♯ n)
 
 The recommended definition is the following one:
 ::

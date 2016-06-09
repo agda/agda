@@ -1,3 +1,11 @@
+..
+  ::
+  module language.function-definitions where
+
+  open import language.built-ins
+
+  data ⊥ : Set where
+
 .. _function-definitions:
 
 ********************
@@ -29,7 +37,8 @@ General form
 ============
 
 The general form for defining a function is
-::
+
+.. code-block:: agda
 
  f : (x₁ : A₁) → … → (xₙ : Aₙ) → B
  f p₁ … pₙ = d
@@ -166,7 +175,9 @@ a function definition
   max m       zero    = m
   max (suc m) (suc n) = suc (max m n)
 
-will be represented internally as a case tree that looks like this:::
+will be represented internally as a case tree that looks like this:
+
+.. code-block:: agda
 
   max m n = case m of
     zero   -> n

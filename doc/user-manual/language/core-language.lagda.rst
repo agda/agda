@@ -1,3 +1,7 @@
+..
+  ::
+  module language.core-language where
+
 .. _core-language:
 
 *************

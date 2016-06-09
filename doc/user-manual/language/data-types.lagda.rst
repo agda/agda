@@ -1,3 +1,8 @@
+..
+  ::
+  {-# OPTIONS --no-positivity-check #-}
+  module language.data-types where
+
 .. _data-types:
 
 **********
@@ -13,49 +18,48 @@ Example datatypes
 In the introduction we already showed the definition of the data type of natural numbers (in unary notation):
 ::
 
-    data Nat : Set where
-        zero : Nat
-        suc  : Nat → Nat
+  data Nat : Set where
+      zero : Nat
+      suc  : Nat → Nat
 
 We give a few more examples. First the data type of truth values:
 ::
 
-    data Bool : Set where
-      true  : Bool
-      false : Bool
+  data Bool : Set where
+    true  : Bool
+    false : Bool
 
 The ``True`` set represents the trivially true proposition:
 ::
 
-    data True : Set where
-        tt : True
+  data True : Set where
+      tt : True
 
 The ``False`` set has no constructor and hence no elements. It
 represent the trivially false proposition: ::
 
-    data False : Set where
+  data False : Set where
 
-Another example is the data type of non-empty  binary trees with natural numbers in the leaves:
-::
+Another example is the data type of non-empty  binary trees with natural numbers in the leaves::
 
-    data BinTree : Set where
-      leaf   : Nat → BinTree
-      branch : BinTree → BinTree → BinTree
+  data BinTree : Set where
+    leaf   : Nat → BinTree
+    branch : BinTree → BinTree → BinTree
 
-Finally, the data type of Brouwer ordinals:
-::
+Finally, the data type of Brouwer ordinals::
 
-    data Ord : Set where
-      zeroOrd : Ord
-      sucOrd  : Ord → Ord
-      limOrd  : (Nat → Ord) → Ord
+  data Ord : Set where
+    zeroOrd : Ord
+    sucOrd  : Ord → Ord
+    limOrd  : (Nat → Ord) → Ord
 
 General form
 ------------
 
 The general form of the definition of a simple datatype ``D`` is the
 following
-::
+
+.. code-block:: agda
 
     data D : Setᵢ where
       c₁ : A₁
@@ -66,7 +70,8 @@ The name ``D`` of the data type and the names ``c₁``, ..., ``cₙ`` of
 the constructors must be new w.r.t. the current signature and context,
 and the types ``A₁``, ..., ``Aₙ`` must be function types ending in
 ``D``, i.e. they must be of the form
-::
+
+.. code-block:: agda
 
   (y₁ : B₁) → ... → (yₘ : Bₘ) → D
 
@@ -74,8 +79,7 @@ Parametrized datatypes
 ======================
 
 Datatypes can have *parameters*. They are declared after the name of the
-datatype but before the colon, for example:
-::
+datatype but before the colon, for example::
 
   data List (A : Set) : Set where
     []  : List A
@@ -89,8 +93,7 @@ contrast to parameters which are required to be the same for all
 constructors, indices can vary from constructor to constructor. They
 are declared after the colon as function arguments to ``Set``. For
 example, fixed-length vectors can be defined by indexing them over
-their length of type ``Nat``:
-::
+their length of type ``Nat``::
 
   data Vector (A : Set) : Nat → Set where
     []  : Vector A zero
@@ -113,7 +116,8 @@ General form
 
 The general form of the definition of a (parametrized, indexed)
 datatype ``D`` is the following
-::
+
+.. code-block:: agda
 
   data D (x₁ : P₁) ... (xₖ : Pₖ) : (y₁ : Q₁) → ... → (yₗ : Qₗ) → Set ℓ where
     c₁ : A₁
@@ -121,7 +125,8 @@ datatype ``D`` is the following
     cₙ : Aₙ
 
 where the types ``A₁``, ..., ``Aₙ`` are function types of the form
-::
+
+.. code-block:: agda
 
   (z₁ : B₁) → ... → (zₘ : Bₘ) → D x₁ ... xₖ t₁ ... tₗ
 
@@ -135,7 +140,8 @@ occur **strictly positively** in the types of their arguments.
 
 Concretely, for a datatype with constructors ``c₁ : A₁``, ..., ``cₙ :
 Aₙ``, Agda checks that each `Aᵢ` has the form
-::
+
+.. code-block:: agda
 
     (y₁ : B₁) → ... → (yₘ : Bₘ) → D
 
@@ -145,13 +151,19 @@ where an argument types `Bᵢ` of the constructors is either
   all,
 
 * or *inductive* and has the form
-  ::
+
+  .. code-block:: agda
 
      (z₁ : C₁) → ... → (zₖ : Cₖ) → D
 
   where ``D`` must not occur in any `Cⱼ`.
 
+..
+  ::
+  module hidden₁ where
+
 The strict positivity condition rules out declarations such as
+
 ::
 
     data Bad : Set where
@@ -170,18 +182,23 @@ a non-terminating function using them.
 If the positivity check is disabled so that the above declaration of
 ``Bad`` is allowed, it is possible to construct a term of the empty
 type.
+
+.. code-block:: agda
+
+  {-# OPTIONS --no-positivity-check #-}
+
+
 ::
 
-    {-# OPTIONS --no-positivity-check #-}
-    data ⊥ : Set where
+  data ⊥ : Set where
 
-    data Bad : Set where
-      bad : (Bad → Bad) → Bad
+  data Bad : Set where
+    bad : (Bad → Bad) → Bad
 
-    incon : ⊥
-    incon = loop (bad (λ b → b))
-      where
-        loop : (b : Bad) → ⊥
-        loop (bad f) = loop (f (bad f))
+  incon : ⊥
+  incon = loop (bad (λ b → b))
+    where
+      loop : (b : Bad) → ⊥
+      loop (bad f) = loop (f (bad f))
 
 For more general information on termination see :ref:`termination-checking`.

@@ -1,3 +1,15 @@
+..
+  ::
+  {-# OPTIONS --rewriting #-}
+  module language.built-ins where
+
+  data Maybe (A : Set) : Set where
+    just : A → Maybe A
+    nothing : Maybe A
+
+  postulate String : Set
+  {-# BUILTIN STRING String #-}
+
 .. _built-ins:
 
 *********
@@ -37,7 +49,7 @@ reexport the definitions from these modules.
 The unit type
 -------------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Unit
 
@@ -50,12 +62,45 @@ Agda needs to know about the unit type since some of the primitive operations
 in the :ref:`reflected type checking monad <reflection-tc-monad>` return values
 in the unit type.
 
+.. _built-in-bool:
+
+Booleans
+--------
+
+.. code-block:: agda
+
+  module Agda.Builtin.Bool where
+
+Built-in booleans are bound using the ``BOOLEAN``, ``TRUE`` and ``FALSE`` built-ins::
+
+  data Bool : Set where
+    false true : Bool
+  {-# BUILTIN BOOL  Bool  #-}
+  {-# BUILTIN TRUE  true  #-}
+  {-# BUILTIN FALSE false #-}
+
+Note that unlike for natural numbers, you need to bind the constructors
+separately. The reason for this is that Agda cannot tell which constructor
+should correspond to true and which to false, since you are free to name them
+whatever you like.
+
+The only effect of binding the boolean type is that you can then use primitive
+functions returning booleans, such as built-in ``NATEQUALS``.
+
+..
+  ::
+  infixl 1 if_then_else_
+  if_then_else_ : {A : Set} → Bool → A → A → A
+  if true then x else _ = x
+  if false then _ else y = y
+
+
 .. _built-in-nat:
 
 Natural numbers
 ---------------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Nat
 
@@ -104,7 +149,7 @@ built-in functions are the following::
 
   _*_ : Nat → Nat → Nat
   zero  * m = zero
-  suc n * m = n * m + m
+  suc n * m = (n * m) + m
   {-# BUILTIN NATTIMES _*_ #-}
 
   _==_ : Nat → Nat → Bool
@@ -141,7 +186,7 @@ The ``NATDIVSUCAUX`` and ``NATMODSUCAUX`` are built-ins bind helper functions
 for defining natural number division and modulo operations, and satisfy the
 properties
 
-::
+.. code-block:: agda
 
   div n (suc m) ≡ div-helper 0 m n m
   mod n (suc m) ≡ mod-helper 0 m n m
@@ -149,7 +194,7 @@ properties
 Integers
 --------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Int
 
@@ -182,7 +227,7 @@ binding for `String <Strings_>`_)::
 Floats
 ------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Float
 
@@ -223,33 +268,10 @@ exceptions:
 This is to allow decidable equality and proof carrying comparisons on floating
 point numbers.
 
-Booleans
---------
-
-::
-
-  module Agda.Builtin.Bool
-
-Built-in booleans are bound using the ``BOOLEAN``, ``TRUE`` and ``FALSE`` built-ins::
-
-  data Bool : Set where
-    false true : Bool
-  {-# BUILTIN BOOL  Bool  #-}
-  {-# BUILTIN TRUE  true  #-}
-  {-# BUILTIN FALSE false #-}
-
-Note that unlike for natural numbers, you need to bind the constructors
-separately. The reason for this is that Agda cannot tell which constructor
-should correspond to true and which to false, since you are free to name them
-whatever you like.
-
-The only effect of binding the boolean type is that you can then use primitive
-functions returning booleans, such as built-in ``NATEQUALS``.
-
 Lists
 -----
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.List
 
@@ -261,6 +283,7 @@ Built-in lists are bound using the ``LIST``, ``NIL`` and ``CONS`` built-ins::
   {-# BUILTIN LIST List #-}
   {-# BUILTIN NIL  []   #-}
   {-# BUILTIN CONS _∷_  #-}
+  infixr 5 _∷_
 
 Even though Agda could easily tell which constructor is ``NIL`` and which is
 ``CONS`` you still have to bind them separately.
@@ -274,14 +297,14 @@ and ``primStringFromList``.
 Characters
 ----------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Char
 
 The character type is bound with the ``CHARACTER`` built-in::
 
   postulate Char : Set
-  {-# BUILTIN CHARACTER Char #-}
+  {-# BUILTIN CHAR Char #-}
 
 Binding the character type lets you use :ref:`character literals
 <lexical-structure-char-literals>`. The following primitive functions are
@@ -315,11 +338,13 @@ natural number modulo ``0x110000``.
 Strings
 -------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.String
 
-The string type is bound with the ``STRING`` built-in::
+The string type is bound with the ``STRING`` built-in:
+
+.. code-block:: agda
 
   postulate String : Set
   {-# BUILTIN STRING String #-}
@@ -329,11 +354,11 @@ Binding the string type lets you use :ref:`string literals
 available on strings (given suitable bindings for `Bool <Booleans_>`_, `Char
 <Characters_>`_ and `List <Lists_>`_)::
 
-  primStringToList   : String → List Char
-  primStringFromList : List Char → String
-  primStringAppend   : String → String → String
-  primStringEquality : String → String → Bool
-  primShowString     : String → String
+  postulate primStringToList   : String → List Char
+  postulate primStringFromList : List Char → String
+  postulate primStringAppend   : String → String → String
+  postulate primStringEquality : String → String → Bool
+  postulate primShowString     : String → String
 
 String literals can be :ref:`overloaded <overloaded-strings>`.
 
@@ -342,12 +367,13 @@ String literals can be :ref:`overloaded <overloaded-strings>`.
 Equality
 --------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Equality
 
 The identity type can be bound to the built-in ``EQUALITY`` as follows::
 
+  infix 4 _≡_
   data _≡_ {a} {A : Set a} (x : A) : A → Set a where
     refl : x ≡ x
   {-# BUILTIN EQUALITY _≡_  #-}
@@ -359,7 +385,7 @@ construction <with-rewrite>`.
 primTrustMe
 ~~~~~~~~~~~
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.TrustMe
 
@@ -390,14 +416,16 @@ replace them by ``primTrustMe``::
 Universe levels
 ---------------
 
-::
+.. code-block:: agda
 
   module Agda.Primitive
 
 :ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
 pragmas. In contrast to the ``Agda.Builtin`` modules, the ``Agda.Primitive`` module
 is auto-imported and thus it is not possible to change the level built-ins. For
-reference these are the bindings::
+reference these are the bindings:
+
+.. code-block:: agda
 
   postulate
     Level : Set
@@ -412,7 +440,7 @@ reference these are the bindings::
 Sized types
 -----------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Size
 
@@ -430,7 +458,7 @@ bind the size primitives it is enough to write::
 Coinduction
 -----------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Coinduction
 
@@ -449,7 +477,7 @@ See :ref:`coinduction` for more information.
 IO
 --
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.IO
 
@@ -464,7 +492,7 @@ the ``main`` function has the right type (see :ref:`compilers`).
 Literal overloading
 -------------------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.FromNat
   module Agda.Builtin.FromNeg
@@ -476,7 +504,7 @@ built-ins for the conversion functions.
 Reflection
 ----------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Reflection
 
@@ -499,7 +527,7 @@ rewriting experiments typically want different relations.
 Strictness
 ----------
 
-::
+.. code-block:: agda
 
   module Agda.Builtin.Strict
 
@@ -527,10 +555,10 @@ to ``let x = e in seq x (f x)``.
 
 For example, consider the following function::
 
-  -- pow n a = a 2ⁿ
-  pow : Nat → Nat → Nat
-  pow zero    a = a
-  pow (suc n) a = pow n (a + a)
+  -- pow’ n a = a 2ⁿ
+  pow’ : Nat → Nat → Nat
+  pow’ zero    a = a
+  pow’ (suc n) a = pow’ n (a + a)
 
 At compile-time this will be exponential, due to call-by-name evaluation, and
 at run-time there is a space leak caused by unevaluated ``a + a`` thunks. Both
