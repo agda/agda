@@ -9,3 +9,6 @@ bla = {!!}  -- Splitting here should be fine
 macro
   comp : Term → Term → TC ⊤
   comp x t = bindTC (quoteTC (bla x)) (λ y → unify t y)
+
+foo : Term
+foo = comp Set
