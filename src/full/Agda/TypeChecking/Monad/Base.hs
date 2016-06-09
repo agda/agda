@@ -86,6 +86,7 @@ import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Hash
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Null
@@ -1296,10 +1297,11 @@ data ExtLamInfo = ExtLamInfo
 
 -- | Additional information for projection 'Function's.
 data Projection = Projection
-  { projProper    :: Maybe QName
-    -- ^ @Nothing@ if only projection-like, @Just q@ if record projection,
-    --   where @q@ is the original projection name
-    --   (current name could be from module app).
+  { projProper    :: Bool
+    -- ^ @False@ if only projection-like, @True@ if record projection.
+  , projOrig      :: QName
+    -- ^ The original projection name
+    --   (current name could be from module application).
   , projFromType  :: QName
     -- ^ Type projected from.  Record type if @projProper = Just{}@.
   , projIndex     :: Int
@@ -1308,7 +1310,7 @@ data Projection = Projection
     --   it is already applied to the record value.
     --   This can happen in module instantiation, but
     --   then either the record value is @var 0@, or @funProjection == Nothing@.
-  , projDropPars  :: Term
+  , projLams :: ProjLams
     -- ^ Term @t@ to be be applied to record parameters and record value.
     --   The parameters will be dropped.
     --   In case of a proper projection, a postfix projection application
@@ -1316,9 +1318,31 @@ data Projection = Projection
     --   (Invariant: the number of abstractions equals 'projIndex'.)
     --   In case of a projection-like function, just the function symbol
     --   is returned as 'Def':  @t = \ pars -> f@.
-  , projArgInfo   :: ArgInfo
-    -- ^ The info of the principal (record) argument.
   } deriving (Typeable, Show)
+
+-- | Abstractions to build projection function (dropping parameters).
+newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
+  deriving (Typeable, Show, Null)
+
+-- | Building the projection function (which drops the parameters).
+projDropPars :: Projection -> Term
+-- Proper projections:
+projDropPars (Projection True d _ _ lams) =
+  case initLast $ getProjLams lams of
+    Nothing -> Def d []
+    Just (pars, Arg i y) ->
+      let core = Lam i $ Abs y $ Var 0 [Proj d] in
+      List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
+-- Projection-like functions:
+projDropPars (Projection False _ _ _ lams) | null lams = __IMPOSSIBLE__
+projDropPars (Projection False d _ _ lams) =
+  List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
+
+-- | The info of the principal (record) argument.
+projArgInfo :: Projection -> ArgInfo
+projArgInfo (Projection _ _ _ _ lams) =
+  maybe __IMPOSSIBLE__ getArgInfo $ lastMaybe $ getProjLams lams
+
 
 data EtaEquality = Specified !Bool | Inferred !Bool deriving (Typeable,Show)
 
@@ -1638,7 +1662,7 @@ data Call = CheckClause Type A.SpineClause
           | IsTypeCall A.Expr Sort
           | IsType_ A.Expr
           | InferVar Name
-          | InferDef Range QName
+          | InferDef QName
           | CheckArguments Range [NamedArg A.Expr] Type Type
           | CheckDataDef Range Name [A.LamBinding] [A.Constructor]
           | CheckRecDef Range Name [A.LamBinding] [A.Constructor]
@@ -1697,7 +1721,7 @@ instance HasRange Call where
     getRange (IsTypeCall e s)                = getRange e
     getRange (IsType_ e)                     = getRange e
     getRange (InferVar x)                    = getRange x
-    getRange (InferDef _ f)                  = getRange f
+    getRange (InferDef f)                    = getRange f
     getRange (CheckArguments r _ _ _)        = r
     getRange (CheckDataDef i _ _ _)          = getRange i
     getRange (CheckRecDef i _ _ _)           = getRange i
@@ -2838,7 +2862,10 @@ instance KillRange TermHead where
   killRange (ConsHead q) = ConsHead $ killRange q
 
 instance KillRange Projection where
-  killRange (Projection a b c d e) = killRange4 Projection a b c d e
+  killRange (Projection a b c d e) = killRange5 Projection a b c d e
+
+instance KillRange ProjLams where
+  killRange = id
 
 instance KillRange a => KillRange (Open a) where
   killRange = fmap killRange

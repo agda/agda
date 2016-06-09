@@ -134,12 +134,13 @@ splitProblem mf (Problem ps qs tel pr) = do
         let ambErr err = if amb then mzero else err
         case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
-          Projection{projProper = Nothing} -> ambErr notProjP
-          Projection{projProper = Just d, projIndex = n, projArgInfo = ai} -> do
+          Projection{projProper = False} -> ambErr notProjP
+          Projection{projProper = True, projOrig = d, projLams = lams} -> do
+            let ai = projArgInfo proj
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
-            unless (n > 0) $ ambErr notProjP
+            when (null lams) $ ambErr notProjP
             lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.

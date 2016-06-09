@@ -110,8 +110,9 @@ getRecordDef r = maybe err return =<< isRecord r
 
 -- | Get the record name belonging to a field name.
 getRecordOfField :: QName -> TCM (Maybe QName)
-getRecordOfField d = maybe Nothing fromP <$> isProjection d
-  where fromP Projection{ projProper = mp, projFromType = r} = mp $> r
+getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
+  \ Projection{ projProper = proper, projFromType = r} ->
+    return $ if proper then Just r else Nothing
 
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [Arg C.Name]
@@ -150,9 +151,7 @@ getRecordTypeFields t =
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
 getOriginalProjection :: QName -> TCM QName
-getOriginalProjection q = do
-  proj <- fromMaybe __IMPOSSIBLE__ <$> isProjection q
-  return $ fromMaybe __IMPOSSIBLE__ $ projProper proj
+getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 -- | Get the type of the record constructor.
 getRecordConstructorType :: QName -> TCM Type
@@ -198,9 +197,11 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
 origProjection ::  HasConstInfo m => QName -> m (QName, Definition, Maybe Projection)
 origProjection f = do
   def <- getConstInfo f
-  caseMaybe (isProjection_ $ theDef def) (return (f, def, Nothing)) $
-    \ p@Projection{ projProper = mproper } -> caseMaybe mproper (return (f, def, Just p)) $
-      \ f' -> if f == f' then return (f, def, Just p) else do
+  let proj     = isProjection_ $ theDef def
+      fallback = return (f, def, proj)
+  caseMaybe proj fallback $
+    \ p@Projection{ projProper = proper, projOrig = f' } ->
+      if not proper || f == f' then fallback else do
         def <- getConstInfo f'
         return (f', def, isProjection_ $ theDef def)
 

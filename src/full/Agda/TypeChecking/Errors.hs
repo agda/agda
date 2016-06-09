@@ -1334,7 +1334,7 @@ instance PrettyTCM Call where
     InferVar x ->
       fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 
-    InferDef _ x ->
+    InferDef x ->
       fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 
     CheckIsEmpty r t ->

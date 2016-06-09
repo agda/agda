@@ -1066,8 +1066,8 @@ inferOrCheckProjApp e ds args mt = do
                 , text "  td  = " <+> caseMaybeM (getDefType d ta) (text "Nothing") prettyTCM
                 ]
               -- get the original projection name
-              Projection{ projProper = mp } <- MaybeT $ isProjection d
-              orig <- MaybeT $ return mp
+              Projection{ projProper = proper, projOrig = orig } <- MaybeT $ isProjection d
+              guard proper
               -- try to eliminate
               (dom, u, tb) <- MaybeT (projectTyped v ta d `catchError` \ _ -> return Nothing)
               reportSDoc "tc.proj.amb" 30 $ vcat
@@ -1353,8 +1353,8 @@ inferHeadDef x = do
   proj <- isProjection x
   let app =
         case proj of
-          Nothing -> \ f args -> return $ Def f $ map Apply args
-          Just p  -> \ f args -> return $ projDropPars p `apply` args
+          Nothing -> \ args -> Def x $ map Apply args
+          Just p  -> \ args -> projDropParsApply p args
   mapFst apply <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
@@ -1384,7 +1384,8 @@ inferHead e = do
 
       -- First, inferDef will try to apply the constructor
       -- to the free parameters of the current context. We ignore that.
-      (u, a) <- inferDef (\ c _ -> getOrigConTerm c) c
+      vc <- getOrigConTerm c
+      (u, a) <- inferDef (\ _ -> vc) c
 
       -- Next get the number of parameters in the current context.
       Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
@@ -1400,9 +1401,9 @@ inferHead e = do
       (term, t) <- inferExpr e
       return (apply term, t)
 
-inferDef :: (QName -> Args -> TCM Term) -> QName -> TCM (Term, Type)
+inferDef :: (Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
-    traceCall (InferDef (getRange x) x) $ do
+    traceCall (InferDef x) $ do
     -- getConstInfo retrieves the *absolute* (closed) type of x
     -- instantiateDef relativizes it to the current context
     d  <- instantiateDef =<< getConstInfo x
@@ -1422,7 +1423,7 @@ inferDef mkTerm x =
       text "inferred def " <+> prettyTCM x <+> hsep (map prettyTCM vs)
     let t = defType d
     reportSDoc "tc.term.def" 10 $ nest 2 $ text " : " <+> prettyTCM t
-    v  <- mkTerm x vs
+    let v = mkTerm vs -- applies x to vs, dropping parameters
     reportSDoc "tc.term.def" 10 $ nest 2 $ text " --> " <+> prettyTCM v
     return (v, t)
 

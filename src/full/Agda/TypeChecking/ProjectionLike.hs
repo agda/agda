@@ -128,7 +128,8 @@ eligibleForProjectionLike d = do
 
 -- | Turn a definition into a projection if it looks like a projection.
 makeProjection :: QName -> TCM ()
-makeProjection x = inTopContext $ do
+makeProjection x = -- if True then return () else do
+ inTopContext $ do
   -- reportSLn "tc.proj.like" 30 $ "Considering " ++ show x ++ " for projection likeness"
   defn <- getConstInfo x
   let t = defType defn
@@ -177,17 +178,15 @@ makeProjection x = inTopContext $ do
               reportSLn "tc.proj.like" 60 $ "  rewrote clauses to\n    " ++ show cc
 
               -- Andreas, 2013-10-20 build parameter dropping function
-              let (ptel, Dom ai _ : _) = splitAt n $ telToList $ theTel $ telView' t
-                  -- leading lambdas are to ignore parameter applications
-                  proj = teleNoAbs ptel $ Def x []
-                  -- proj = foldr (\ (Dom ai (y, _)) -> Lam ai . NoAbs y) (Def x []) ptel
-
+              let pIndex = n + 1
+                  tel = take pIndex $ telToList $ theTel $ telView' t
+              unless (length tel == pIndex) __IMPOSSIBLE__
               let projection = Projection
-                    { projProper   = Nothing
+                    { projProper   = False
+                    , projOrig     = x
                     , projFromType = d
-                    , projIndex    = n + 1
-                    , projDropPars = proj
-                    , projArgInfo  = ai
+                    , projIndex    = pIndex
+                    , projLams     = ProjLams $ map (\ (Dom ai (y, _)) -> Arg ai y) tel
                     }
               let newDef = def
                            { funProjection     = Just projection
