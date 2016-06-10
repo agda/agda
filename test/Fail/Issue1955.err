@@ -1,0 +1,4 @@
+Issue1955.agda:17,13-21
+No instance of type Y unit was found in scope.
+when checking that unit is a valid argument to a function of type
+(A : Set) {{YA : Y A}} {{ZA : Z A}} → unit
