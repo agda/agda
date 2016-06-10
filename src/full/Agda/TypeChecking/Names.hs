@@ -13,6 +13,7 @@ module Agda.TypeChecking.Names where
 
 import Control.Monad
 import Control.Applicative
+import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans
@@ -66,6 +67,9 @@ type Names = [String]
 runNamesT :: Names -> NamesT m a -> m a
 runNamesT n m = runReaderT (unName m) n
 
+runNames :: Names -> NamesT Identity a -> a
+runNames n m = runIdentity (runNamesT n m)
+
 inCxt :: (Monad m, Subst t a) => Names -> a -> NamesT m a
 inCxt ctx a = do
   ctx' <- NamesT ask
@@ -78,6 +82,11 @@ cl' = pure
 
 cl :: Monad m => m a -> NamesT m a
 cl = lift
+
+open :: (Monad m, Subst t a) => a -> NamesT m (NamesT m a)
+open a = do
+  ctx <- NamesT ask
+  pure $ inCxt ctx a
 
 bind' :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
 bind' n f = do

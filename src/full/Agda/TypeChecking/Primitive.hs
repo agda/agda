@@ -480,33 +480,34 @@ primIdJ = do
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
         el' p $ bC <@> y <@> p)
   unview <- intervalUnview'
+  -- TODO make a kit
+  let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
+      imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
+      ineg x = unview . INeg . argN <$> x
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
     case ts of
      [la,lc,a,x,c,d,y,eq] -> do
-       seq <- reduceB' eq
+       seq    <- reduceB' eq
        conidn <- getBuiltinName' builtinConId
-       conid <- getBuiltin' builtinConId
-       comp <- getPrimitiveTerm' "primComp"
+       conid  <- getBuiltin' builtinConId
+       comp   <- getPrimitiveTerm' "primComp"
        papply <- getPrimitiveTerm' "primPathApply"
        pabs   <- getBuiltin' builtinPathAbs
        case (comp, papply, conid, pabs, unArg $ ignoreBlocking $ seq) of
          (Just comp, Just papply, Just conid, Just pabs
           , Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p]) | Just q == conidn -> do
-          redReturn $ comp `apply`
-             [lc
-             ,argN $ Lam defaultArgInfo $ mkAbs "i" $ let
-                  w = papply `apply` [la,a,x,y,p]
-                  wi = raise 1 w `apply` [argN $ var 0]
-                  pabs' t = pabs `apply` (map (raise 1) [la,a] ++ [argN t])
-               in unArg (raise 1 c) `apply`
-                        [argH $ wi
-                        ,argN $ conid `apply` (map (raise 1) [la,a,x] ++ [argH wi] ++
-                                                [argN $ unview (IMax (raise 1 phi) (argN $ unview (INeg (argN $ var 0))))
-                                                ,argN $ pabs' $ Lam defaultArgInfo $ mkAbs "j" $ raise 2 w `apply`
-                                                             [argN $ unview $ (IMin (argN $ var 1) (argN $ var 0))]])]
-             ,argN $ unArg phi
-             ,argN $ Lam defaultArgInfo $ mkAbs "i" $ unArg $ raise 1 d -- TODO cast to Partial, and block
-             ,d]
+          redReturn $ runNames [] $ do
+             [lc,c,d,la,a,x,y,phi,p] <- mapM (open . unArg) [lc,c,d,la,a,x,y,phi,p]
+             let w = pure papply <#> la <#> a <#> x <#> y <@> p
+             pure comp <#> lc
+                       <@> (lam "i" $ \ i ->
+                              c <#> (w <@> i)
+                                <@> (pure conid <#> la <#> a <#> x <#> (w <@> i)
+                                                <@> phi `imax` ineg i
+                                                <@> (pure pabs <#> la <#> a <@> (lam "j" $ \ j -> w <@> imin i j))))
+                       <@> phi
+                       <@> (lam "i" $ \ _ -> d) -- TODO cast to Partial, and block
+                       <@> d
          _ -> return $ NoReduction $ map notReduced [la,lc,a,x,c,d,y] ++ [reduced seq]
      _ -> __IMPOSSIBLE__
 
