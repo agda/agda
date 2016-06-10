@@ -306,7 +306,7 @@ tomyClause cl@(I.Clause {I.clauseBody = body}) = do
 
 tomyPat :: Common.Arg I.Pattern -> TOM (Pat O)
 tomyPat p = case Common.unArg p of
- I.ProjP _ -> lift $ copatternsNotImplemented
+ I.ProjP{} -> lift $ copatternsNotImplemented
  I.VarP n -> return $ PatVar (show n)
  I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
  I.ConP con _ pats -> do
@@ -812,6 +812,6 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
      _ -> Nothing
     fes nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
-     (I.Proj f : es1, I.Proj f' : es2) | f == f' -> fes nl n c es1 es2
+     (I.Proj _ f : es1, I.Proj _ f' : es2) | f == f' -> fes nl n c es1 es2
      (I.Apply (Common.Arg info1 e1) : es1, I.Apply (Common.Arg info2 e2) : es2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> f nl n (\n -> fes nl n c es1 es2) e1 e2
      _ -> Nothing

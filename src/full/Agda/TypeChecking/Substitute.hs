@@ -104,7 +104,7 @@ canProject f v =
 conApp :: ConHead -> Args -> Elims -> Term
 conApp ch                  args []             = Con ch args
 conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
-conApp ch@(ConHead c _ fs) args (Proj f  : es) =
+conApp ch@(ConHead c _ fs) args (Proj _ f: es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
@@ -803,7 +803,7 @@ instance Subst Term Pattern where
     DotP t       -> DotP $ applySubst rho t
     VarP s       -> p
     LitP l       -> p
-    ProjP _      -> p
+    ProjP{}      -> p
 
 instance Subst Term NLPat where
   applySubst rho p = case p of
@@ -921,18 +921,18 @@ instance Subst Term EqualityView where
 -- * Projections
 ---------------------------------------------------------------------------
 
--- | @projDropParsApply proj args = 'projDropPars' proj `'apply'` args@
+-- | @projDropParsApply proj o args = 'projDropPars' proj o `'apply'` args@
 --
 --   This function is an optimization, saving us from construction lambdas we
 --   immediately remove through application.
-projDropParsApply :: Projection -> Args -> Term
-projDropParsApply (Projection proper d _ _ lams) args =
+projDropParsApply :: Projection -> ProjOrigin -> Args -> Term
+projDropParsApply (Projection proper d _ _ lams) o args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
     Nothing -> if proper then Def d $ map Apply args else __IMPOSSIBLE__
     Just (pars, Arg i y) ->
-      let core = if proper then Lam i $ Abs y $ Var 0 [Proj d] else Def d []
+      let core = if proper then Lam i $ Abs y $ Var 0 [Proj o d] else Def d []
       -- Now drop pars many args
           (pars', args') = dropCommon pars args
       -- We only have to abstract over the parameters that exceed the arguments.
@@ -1180,8 +1180,6 @@ deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)
 deriving instance Eq Candidate
 
-deriving instance (Subst t a, Eq a)  => Eq  (Elim' a)
-deriving instance (Subst t a, Ord a) => Ord (Elim' a)
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
@@ -1264,6 +1262,17 @@ instance (Subst t a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b
+
+instance (Subst t a, Eq a)  => Eq  (Elim' a) where
+  Apply  a == Apply  b = a == b
+  Proj _ x == Proj _ y = x == y
+  _ == _ = False
+
+instance (Subst t a, Ord a) => Ord (Elim' a) where
+  Apply  a `compare` Apply  b = a `compare` b
+  Proj _ x `compare` Proj _ y = x `compare` y
+  Apply{}  `compare` Proj{}   = LT
+  Proj{}   `compare` Apply{}  = GT
 
 ---------------------------------------------------------------------------
 -- * Level stuff

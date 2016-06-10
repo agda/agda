@@ -80,7 +80,7 @@ newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
-  isProjP :: a -> Maybe AmbiguousQName
+  isProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP a => IsProjP (Arg a) where
   isProjP = isProjP . unArg

@@ -100,7 +100,7 @@ splitProblem mf (Problem ps qs tel pr) = do
         ]
       -- If the pattern is not a projection pattern, that's an error.
       -- Probably then there were too many arguments.
-      caseMaybe (maybePostfixProjP p) failure $ \ (AmbQ ds) -> do
+      caseMaybe (maybePostfixProjP p) failure $ \ (o, AmbQ ds) -> do
         -- So it is a projection pattern (d = projection name), is it?
         projs <- lift $ mapMaybeM (\ d -> fmap (d,) <$> isProjection d) ds
         when (null projs) notProjP
@@ -118,7 +118,7 @@ splitProblem mf (Problem ps qs tel pr) = do
             -- Note: the module parameters are already part of qs
             let self = defaultArg $ Def f [] `applyE` es
             -- Try the projection candidates
-            msum $ map (tryProj self fs vs (length projs >= 2)) projs
+            msum $ map (tryProj o self fs vs (length projs >= 2)) projs
 
           _ -> __IMPOSSIBLE__
       where
@@ -129,7 +129,8 @@ splitProblem mf (Problem ps qs tel pr) = do
       wrongHiding d = typeError . GenericDocError =<< do
         liftTCM $ text "Wrong hiding used for projection " <+> prettyTCM d
 
-      tryProj self fs vs amb (d0, proj) = do
+      tryProj :: ProjOrigin -> Arg Term -> [Arg QName] -> Args -> Bool -> (QName, Projection) -> ListT TCM SplitProblem
+      tryProj o self fs vs amb (d0, proj) = do
         -- Recoverable errors are those coming from the projection.
         -- If we have several projections (amb) we just try the next one.
         let ambErr err = if amb then mzero else err
@@ -170,7 +171,7 @@ splitProblem mf (Problem ps qs tel pr) = do
               , text "being projected by dType = " <+> prettyTCM dType
               ]
             -- This should succeed, as we have the correctly disambiguated.
-            lift $ SplitRest argd <$> dType `piApplyM` (vs ++ [self])
+            lift $ SplitRest argd o <$> dType `piApplyM` (vs ++ [self])
 
     -- if there are no more patterns left in the problem rest, there is nothing to split:
     splitRest _ = mzero
@@ -214,7 +215,7 @@ splitProblem mf (Problem ps qs tel pr) = do
       case snd $ asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        A.ProjP _ d -> typeError $
+        A.ProjP{} -> typeError $
           CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
 
         -- Case: literal pattern.

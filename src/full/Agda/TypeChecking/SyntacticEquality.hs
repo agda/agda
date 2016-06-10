@@ -164,7 +164,7 @@ instance SynEq a => SynEq [a] where
 instance SynEq a => SynEq (Elim' a) where
   synEq e e' =
     case (e, e') of
-      (Proj f , Proj f' ) | f == f' -> pure2 e
+      (Proj _ f, Proj _ f') | f == f' -> pure2 e
       (Apply a, Apply a') -> Apply <$$> synEq a a'
       _                   -> inequal (e, e')
 

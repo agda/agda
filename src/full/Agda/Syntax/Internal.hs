@@ -136,8 +136,8 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 -- | Eliminations, subsuming applications and projections.
 --
 data Elim' a
-  = Apply (Arg a)  -- ^ Application.
-  | Proj QName     -- ^ Projection.  'QName' is name of a record projection.
+  = Apply (Arg a)         -- ^ Application.
+  | Proj ProjOrigin QName -- ^ Projection.  'QName' is name of a record projection.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
@@ -459,7 +459,7 @@ data Pattern' x
     --   The subpatterns do not contain any projection copatterns.
   | LitP Literal
     -- ^ E.g. @5@, @"hello"@.
-  | ProjP QName
+  | ProjP ProjOrigin QName
     -- ^ Projection copattern.  Can only appear by itself.
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
@@ -527,8 +527,8 @@ properlyMatching (ConP _ ci ps) = isNothing (conPRecord ci) || -- not a record c
 properlyMatching ProjP{} = True
 
 instance IsProjP (Pattern' a) where
-  isProjP (ProjP d) = Just $ AmbQ [d]
-  isProjP _         = Nothing
+  isProjP (ProjP o d) = Just (o, AmbQ [d])
+  isProjP _ = Nothing
 
 -----------------------------------------------------------------------------
 -- * Explicit substitutions
@@ -840,7 +840,7 @@ unSpine v =
       case es of
         []                -> v
         e@(Apply a) : es' -> unSpine' h (e : res) es'
-        Proj f      : es' -> unSpine' (Def f) [Apply (defaultArg v)] es'
+        Proj _o f   : es' -> unSpine' (Def f) [Apply (defaultArg v)] es'
       where v = h $ reverse res
 
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which
@@ -855,8 +855,8 @@ hasElims v =
     Lit{}      -> Nothing
     -- Andreas, 2016-04-13, Issue 1932: We convert λ x → x .f  into f
     Lam _ (Abs _ v)  -> case ignoreSharing v of
-      Var 0 [Proj f] -> Just (Def f, [])
-      _              -> Nothing
+      Var 0 [Proj _o f] -> Just (Def f, [])
+      _ -> Nothing
     Lam{}      -> Nothing
     Pi{}       -> Nothing
     Sort{}     -> Nothing
@@ -891,11 +891,11 @@ splitApplyElims (Apply u : es) = mapFst (u :) $ splitApplyElims es
 splitApplyElims es             = ([], es)
 
 class IsProjElim e where
-  isProjElim  :: e -> Maybe QName
+  isProjElim  :: e -> Maybe (ProjOrigin, QName)
 
 instance IsProjElim Elim where
-  isProjElim (Proj d) = Just d
-  isProjElim Apply{}  = Nothing
+  isProjElim (Proj o d) = Just (o, d)
+  isProjElim Apply{}    = Nothing
 
 -- | Discard @Proj f@ entries.
 dropProjElims :: IsProjElim e => [e] -> [e]
@@ -906,22 +906,8 @@ argsFromElims :: Elims -> Args
 argsFromElims = map argFromElim . dropProjElims
 
 -- | Drop 'Proj' constructors. (Safe)
-allProjElims :: Elims -> Maybe [QName]
+allProjElims :: Elims -> Maybe [(ProjOrigin, QName)]
 allProjElims = mapM isProjElim
-
-{- NOTE: Elim' already contains Arg.
-
--- | Commute functors 'Arg' and 'Elim\''.
-swapArgElim :: Arg (Elim' a) -> Elim' (Arg a)
-
-swapArgElim (Arg ai (Apply a)) = Apply (Arg ai a)
-swapArgElim (Arg ai (Proj  d)) = Proj  d
-
--- IMPOSSIBLE TO DEFINE
-swapElimArg :: Elim' (Arg a) -> Arg (Elim' a)
-swapElimArg (Apply (Arg ai a)) = Arg ai (Apply a)
-swapElimArg (Proj  d) = defaultArg (Proj  d)
--}
 
 ---------------------------------------------------------------------------
 -- * Null instances.
@@ -1106,7 +1092,7 @@ instance KillRange a => KillRange (Pattern' a) where
       DotP v           -> killRange1 DotP v
       ConP con info ps -> killRange3 ConP con info ps
       LitP l           -> killRange1 LitP l
-      ProjP q          -> killRange1 ProjP q
+      ProjP o q        -> killRange1 (ProjP o) q
 
 instance KillRange Clause where
   killRange (Clause r tel ps body t catchall) = killRange6 Clause r tel ps body t catchall
@@ -1228,7 +1214,7 @@ instance Pretty Type where
 
 instance Pretty Elim where
   prettyPrec p (Apply v) = prettyPrec p v
-  prettyPrec _ (Proj x)  = text ("." ++ show x)
+  prettyPrec _ (Proj _o x)  = text ("." ++ show x)
 
 instance Pretty DBPatVar where
   prettyPrec _ x = text $ show (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
@@ -1245,7 +1231,7 @@ instance Pretty a => Pretty (Pattern' a) where
   --     b = maybe False (== ConPImplicit) $ conPRecord i
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
   prettyPrec _ (LitP l)      = text (show l)
-  prettyPrec _ (ProjP q)     = text (show q)
+  prettyPrec _ (ProjP _o q)  = text ("." ++ show q)
 
 instance Pretty a => Pretty (ClauseBodyF a) where
   pretty b = case b of

@@ -165,7 +165,7 @@ instance PatternVars (A.Pattern' e) where
   patternVars p = case p of
       A.VarP x               -> [x]
       A.ConP _ _ args        -> patternVars args
-      A.ProjP _ _            -> []
+      A.ProjP _ _ _          -> []
       A.WildP _              -> []
       A.AsP _ x p            -> x : patternVars p
       A.DotP _ _             -> []
@@ -186,7 +186,7 @@ noDotPattern err = dot
     dot p = case p of
       A.VarP x               -> pure $ A.VarP x
       A.ConP i c args        -> A.ConP i c <$> (traverse $ traverse $ traverse dot) args
-      A.ProjP i d            -> pure $ A.ProjP i d
+      A.ProjP i o d          -> pure $ A.ProjP i o d
       A.WildP i              -> pure $ A.WildP i
       A.AsP i x p            -> A.AsP i x <$> dot p
       A.DotP{}               -> typeError $ GenericError err
@@ -508,7 +508,7 @@ instance ToAbstract OldQName A.Expr where
     case qx of
       VarName x'          -> return $ A.Var x'
       DefinedName _ d     -> return $ nameExpr d
-      FieldName     ds    -> return $ A.Proj $ AmbQ (map anameName ds)
+      FieldName     ds    -> return $ A.Proj ProjPrefix $ AmbQ (map anameName ds)
       ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
       UnknownName         -> notInScope x
       PatternSynResName d -> return $ nameExpr d
@@ -828,8 +828,10 @@ instance ToAbstract C.Expr A.Expr where
       C.IdiomBrackets r e ->
         toAbstractCtx TopCtx =<< parseIdiomBrackets r e
 
-  -- Pattern things
+  -- Post-fix projections
       C.Dot r e  -> A.Dot (ExprRange r) <$> toAbstract e
+
+  -- Pattern things
       C.As _ _ _ -> notAnExpression e
       C.Absurd _ -> notAnExpression e
 
@@ -1599,8 +1601,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     case e of
       A.Def x          -> return [ A.RewritePragma x ]
-      A.Proj (AmbQ [x])-> return [ A.RewritePragma x ]
-      A.Proj x         -> genericError $ "REWRITE used on ambiguous name " ++ show x
+      A.Proj _ (AmbQ [x]) -> return [ A.RewritePragma x ]
+      A.Proj _ x       -> genericError $ "REWRITE used on ambiguous name " ++ show x
       A.Con (AmbQ [x]) -> return [ A.RewritePragma x ]
       A.Con x          -> genericError $ "REWRITE used on ambiguous name " ++ show x
       A.Var x          -> genericError $ "REWRITE used on parameter " ++ show x ++ " instead of on a defined symbol"
@@ -1624,8 +1626,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
           A.Def x -> return x
-          A.Proj (AmbQ [x]) -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
-          A.Proj x -> genericError $ "COMPILED on ambiguous name " ++ show x
+          A.Proj _ (AmbQ [x]) -> return x -- TODO: do we need to do s.th. special for projections? (Andreas, 2014-10-12)
+          A.Proj _ x -> genericError $ "COMPILED on ambiguous name " ++ show x
           A.Con _ -> genericError "Use COMPILED_DATA for constructors" -- TODO
           _       -> __IMPOSSIBLE__
     return [ A.CompiledPragma y hs ]
@@ -1645,8 +1647,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
     e <- toAbstract $ OldQName x Nothing
     y <- case e of
           A.Def x -> return x
-          A.Proj (AmbQ [x]) -> return x
-          A.Proj x -> genericError $
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
             "COMPILED_JS used on ambiguous name " ++ prettyShow x
           A.Con (AmbQ [x]) -> return x
           A.Con x -> genericError $
@@ -1668,8 +1670,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj (AmbQ [x]) -> return x
-          A.Proj x -> genericError $
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
             "NO_SMASHING used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of NO_SMASHING pragma should be a function"
       return [ A.NoSmashingPragma y ]
@@ -1677,8 +1679,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj (AmbQ [x]) -> return x
-          A.Proj x -> genericError $
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
             "STATIC used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of STATIC pragma should be a function"
       return [ A.StaticPragma y ]
@@ -1686,8 +1688,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x Nothing
       y <- case e of
           A.Def  x -> return x
-          A.Proj (AmbQ [x]) -> return x
-          A.Proj x -> genericError $
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
             "INLINE used on ambiguous name " ++ prettyShow x
           _        -> genericError "Target of INLINE pragma should be a function"
       return [ A.InlinePragma y ]
@@ -1951,7 +1953,7 @@ instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
 instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
     toAbstract (A.VarP x)             = return $ A.VarP x
     toAbstract (A.ConP i ds as)       = A.ConP i ds <$> mapM toAbstract as
-    toAbstract (A.ProjP i ds)         = return $ A.ProjP i ds
+    toAbstract (A.ProjP i o ds)       = return $ A.ProjP i o ds
     toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
     toAbstract (A.WildP i)            = return $ A.WildP i
     toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
@@ -1983,8 +1985,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         getHiding p == NotHidden = do
       e <- toAbstract (OldQName x Nothing)
       let quoted (A.Def x) = return x
-          quoted (A.Proj (AmbQ [x])) = return x
-          quoted (A.Proj (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
+          quoted (A.Proj _ (AmbQ [x])) = return x
+          quoted (A.Proj _ (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.Con (AmbQ [x])) = return x
           quoted (A.Con (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.ScopedExpr _ e) = quoted e
@@ -1998,7 +2000,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         (p', q') <- toAbstract (p, q)
         case p' of
             ConP i x as        -> return $ ConP (i {patInfo = info}) x (as ++ [q'])
-            ProjP i x          -> typeError $ InvalidPattern p0
+            ProjP i o x        -> typeError $ InvalidPattern p0
             DefP _ x as        -> return $ DefP info x (as ++ [q'])
             PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
             _                  -> typeError $ InvalidPattern p0

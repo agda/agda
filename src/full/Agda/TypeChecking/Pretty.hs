@@ -222,7 +222,7 @@ instance PrettyTCM ArgName where
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
 instance PrettyTCM Elim where
   prettyTCM (Apply v) = text "$" <+> prettyTCM v
-  prettyTCM (Proj f)  = text "." <> prettyTCM f
+  prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
 instance PrettyTCM a => PrettyTCM (MaybeReduced a) where
   prettyTCM = prettyTCM . ignoreReduced
@@ -396,11 +396,11 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
         showCon = parens $ prTy $ prettyTCM c <+> fsep (map (prettyTCM . namedArg) ps)
         prTy d = d -- caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> prettyTCM t
   prettyTCM (LitP l)      = text (show l)
-  prettyTCM (ProjP q)     = text (show q)
+  prettyTCM (ProjP _ q)   = text ("." ++ show q)
 
 instance PrettyTCM (Elim' DisplayTerm) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
-  prettyTCM (Proj f)  = text "." <> prettyTCM f
+  prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
 raisePatVars :: Int -> NLPat -> NLPat
 raisePatVars k (PVar id x bvs) = PVar id (k+x) bvs
@@ -427,7 +427,7 @@ instance PrettyTCM NLPat where
 
 instance PrettyTCM (Elim' NLPat) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
-  prettyTCM (Proj f)  = text "." <> prettyTCM f
+  prettyTCM (Proj _ f)= text "." <> prettyTCM f
 
 instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl

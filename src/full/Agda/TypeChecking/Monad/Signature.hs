@@ -476,7 +476,7 @@ applySection' new ptel old ts rd rm = do
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
                         , clauseBody      = Body $ case oldDef of
-                            Function{funProjection = Just p} -> projDropParsApply p ts'
+                            Function{funProjection = Just p} -> projDropParsApply p ProjSystem ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
@@ -997,11 +997,11 @@ usesCopatterns q = do
 
 -- | Apply a function @f@ to its first argument, producing the proper
 --   postfix projection if @f@ is a projection.
-applyDef :: QName -> Arg Term -> TCM Term
-applyDef f a = do
+applyDef :: ProjOrigin -> QName -> Arg Term -> TCM Term
+applyDef o f a = do
   let fallback = return $ Def f [Apply a]
   caseMaybeM (isProjection f) fallback $ \ isP -> do
     if projIndex isP <= 0 then fallback else do
       -- Get the original projection, if existing.
       if not (projProper isP) then fallback else do
-        return $ unArg a `applyE` [Proj $ projOrig isP]
+        return $ unArg a `applyE` [Proj o $ projOrig isP]

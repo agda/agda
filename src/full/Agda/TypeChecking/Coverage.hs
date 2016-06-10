@@ -273,14 +273,14 @@ cover f cs sc@(SClause tel ps _ target) = do
            ConP  _ _ qs ->
              map (fmap namedThing) qs ++ gatherEtaSplits (-1) sc ps
            LitP  _      -> __IMPOSSIBLE__
-           ProjP _      -> __IMPOSSIBLE__
+           ProjP{}      -> __IMPOSSIBLE__
        | otherwise ->
            (p $> lookupS (scSubst sc) i) : gatherEtaSplits (n-1) sc ps
         where i = dbPatVarIndex x
       DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (map (fmap namedThing) qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
-      ProjP _      -> gatherEtaSplits n sc ps
+      ProjP{}      -> gatherEtaSplits n sc ps
 
     addEtaSplits :: Int -> [Arg DeBruijnPattern] -> SplitTree -> SplitTree
     addEtaSplits k []     t = t
@@ -292,7 +292,7 @@ cover f cs sc@(SClause tel ps _ target) = do
             t' = [(conName c , addEtaSplits k (qs ++ ps) t)]
         in  SplitAt (p $> k) t'
       LitP  _       -> __IMPOSSIBLE__
-      ProjP _       -> __IMPOSSIBLE__
+      ProjP{}       -> __IMPOSSIBLE__
 
     etaRecordSplits :: Int -> [Arg DeBruijnPattern] -> (QName,SplitClause)
                     -> SplitTree -> (QName,SplitTree)
@@ -770,7 +770,7 @@ splitResult f sc@(SClause tel ps _ target) = do
             dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
             let -- type of projection instantiated at self
                 target' = Just $ proj $> dType `piApply` pargs
-                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP) proj]
+                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP ProjSystem) proj]
                          , scSubst  = idS
                          , scTarget = target'
                          }

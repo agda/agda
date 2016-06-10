@@ -672,7 +672,7 @@ assign dir x args v = do
           Left NeutralArg  -> Just <$> attemptPruning x args fvs
           -- we have a projected variable which could not be eta-expanded away:
           -- same as neutral
-          Left (ProjectedVar i qs) -> Just <$> attemptPruning x args fvs
+          Left ProjectedVar{} -> Just <$> attemptPruning x args fvs
 
       case mids of
         Nothing  -> patternViolation -- Ulf 2014-07-13: actually not needed after all: attemptInertRHSImprovement x args v
@@ -945,7 +945,7 @@ etaExpandProjectedVar i v fail succeed = do
 class NoProjectedVar a where
   noProjectedVar :: a -> Either ProjVarExc ()
 
-data ProjVarExc = ProjVarExc Int [QName]
+data ProjVarExc = ProjVarExc Int [(ProjOrigin, QName)]
 
 -- ASR (17 June 2015). Unused Error instance.
 -- instance Error ProjVarExc where
@@ -1048,7 +1048,7 @@ type Res = [(Arg Nat, Term)]
 data InvertExcept
   = CantInvert                -- ^ Cannot recover.
   | NeutralArg                -- ^ A potentially neutral arg: can't invert, but can try pruning.
-  | ProjectedVar Int [QName]  -- ^ Try to eta-expand var to remove projs.
+  | ProjectedVar Int [(ProjOrigin, QName)]  -- ^ Try to eta-expand var to remove projs.
 
 #if !MIN_VERSION_transformers(0,4,1)
 instance Error InvertExcept where
@@ -1098,7 +1098,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
           case isRC of
             Just (_, Record{ recFields = fs })
               | length fs == length vs -> do
-                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj f] where
+                let aux (Arg _ v) (Arg info' f) = (Arg ai v,) $ t `applyE` [Proj ProjSystem f] where
                      ai = ArgInfo
                        { argInfoHiding    = min (getHiding info) (getHiding info')
                        , argInfoRelevance = max (getRelevance info) (getRelevance info')

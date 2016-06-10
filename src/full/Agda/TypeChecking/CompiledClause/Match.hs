@@ -29,9 +29,7 @@ matchCompiled c args = do
   r <- matchCompiledE c $ map (fmap Apply) args
   case r of
     YesReduction simpl v -> return $ YesReduction simpl v
-    NoReduction bes      -> return $ NoReduction $ fmap (map fromElim) bes
-  where fromElim (Apply v) = v
-        fromElim (Proj f ) = __IMPOSSIBLE__
+    NoReduction bes      -> return $ NoReduction $ fmap (map argFromElim) bes
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and
 --   and a spine @es@ and tries to apply the function to @es@.
@@ -172,7 +170,7 @@ match' ((c, es, patch) : stack) = do
                 match' $ conFrame c vs $ catchAllFrame $ stack
 
               -- In case of a projection, push the projFrame
-              NotBlocked _ (Proj p) -> performedSimplification $
+              NotBlocked _ (Proj _ p) -> performedSimplification $
                 match' $ projFrame p $ stack -- catchAllFrame $ stack
                 -- Issue #1986: no catch-all for copattern matching!
 

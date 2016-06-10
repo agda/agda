@@ -95,8 +95,8 @@ nelims e (I.Apply arg : es) = do
   let hd | notVisible arg && dontShowImp = e
          | otherwise                     = A.App noExprInfo e arg
   nelims hd es
-nelims e (I.Proj d    : es) =
-  nelims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
+nelims e (I.Proj o d  : es) =
+  nelims (A.App noExprInfo (A.Proj o $ AmbQ [d]) $ defaultNamedArg e) es
 
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e = nelims e . map (fmap unnamed)
@@ -272,7 +272,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
         argToPat arg = fmap unnamed <$> traverse termToPat arg
         elimToPat (I.Apply arg) = argToPat arg
-        elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.ProjP patNoRange $ AmbQ [d]
+        elimToPat (I.Proj o d)  = return $ defaultNamedArg $ A.ProjP patNoRange o $ AmbQ [d]
 
         termToPat :: DisplayTerm -> TCM A.Pattern
 
@@ -661,7 +661,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           stripPat p = case p of
             A.VarP _      -> p
             A.ConP i c ps -> A.ConP i c $ stripArgs True ps
-            A.ProjP _ _   -> p
+            A.ProjP{}     -> p
             A.DefP _ _ _  -> p
             A.DotP _ e    -> p
             A.WildP _     -> p
@@ -723,7 +723,7 @@ instance BlankVars A.Pattern where
   blank bound p = case p of
     A.VarP _      -> p   -- do not blank pattern vars
     A.ConP c i ps -> A.ConP c i $ blank bound ps
-    A.ProjP _ _   -> p
+    A.ProjP{}     -> p
     A.DefP i f ps -> A.DefP i f $ blank bound ps
     A.DotP i e    -> A.DotP i $ blank bound e
     A.WildP _     -> p
@@ -739,7 +739,7 @@ instance BlankVars A.Expr where
     A.Var x                -> if x `Set.member` bound then e
                               else A.Underscore emptyMetaInfo
     A.Def _                -> e
-    A.Proj _               -> e
+    A.Proj{}               -> e
     A.Con _                -> e
     A.Lit _                -> e
     A.QuestionMark{}       -> e
@@ -875,7 +875,7 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
         t <- liftTCM $ reify v
         return $ A.DotP patNoRange t
       I.LitP l  -> return $ A.LitP l
-      I.ProjP d -> return $ A.ProjP patNoRange $ AmbQ [d]
+      I.ProjP o d     -> return $ A.ProjP patNoRange o $ AmbQ [d]
       I.ConP c cpi ps -> do
         liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
         tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyPatterns ps

@@ -707,10 +707,10 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
             -- __IMPOSSIBLE__
 
     -- case: f == f' are projections
-    (Proj f : els1, Proj f' : els2)
+    (Proj o f : els1, Proj _ f' : els2)
       | f /= f'   -> typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
       | otherwise -> ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
-        res <- projectTyped v a f -- fails only if f is proj.like but parameters cannot be retrieved
+        res <- projectTyped v a o f -- fails only if f is proj.like but parameters cannot be retrieved
         case res of
           Just (_, u, t) -> do
             -- Andreas, 2015-07-01:
