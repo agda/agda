@@ -1,9 +1,4 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}  -- because of func. deps.
 
 #if __GLASGOW_HASKELL__ <= 708

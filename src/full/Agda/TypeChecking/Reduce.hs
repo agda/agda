@@ -1,13 +1,6 @@
 {-# LANGUAGE CPP                      #-}
-{-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE PatternGuards            #-}
-{-# LANGUAGE TupleSections            #-}
 {-# LANGUAGE UndecidableInstances     #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 module Agda.TypeChecking.Reduce where
 

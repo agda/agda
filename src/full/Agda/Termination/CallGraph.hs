@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TupleSections              #-}
 
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by

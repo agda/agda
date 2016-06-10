@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 
 -- | Computing the free variables of a term.
 --

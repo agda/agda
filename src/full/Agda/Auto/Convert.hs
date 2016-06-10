@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
-
 module Agda.Auto.Convert where
 
 import Control.Applicative hiding (getConst, Const(..))

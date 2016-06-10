@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
 
 module Agda.TypeChecking.Rules.Builtin
   ( bindBuiltin

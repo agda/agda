@@ -1,5 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 

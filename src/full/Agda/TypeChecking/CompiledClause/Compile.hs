@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.CompiledClause.Compile where
 

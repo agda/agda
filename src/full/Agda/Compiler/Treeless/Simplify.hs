@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
 import Control.Arrow (first, second, (***))

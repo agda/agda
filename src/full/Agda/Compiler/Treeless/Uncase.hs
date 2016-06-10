@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Uncase (caseToSeq) where
 
 import Control.Applicative

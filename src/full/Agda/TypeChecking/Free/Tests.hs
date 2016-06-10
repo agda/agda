@@ -7,10 +7,6 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
 
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
-
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 -- | Tests for free variable computations.

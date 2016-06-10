@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE EmptyDataDecls #-}
 
 -- | An empty type with some useful instances.
 module Agda.Utils.Empty where

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP             #-}
-{-# LANGUAGE PatternGuards   #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}

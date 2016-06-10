@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Injectivity where
 

@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE PatternGuards #-}
 
 -- | The treeless syntax is intended to be used as input for the compiler backends.
 -- It is more low-level than Internal syntax and is not used for type checking.

@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE UndecidableInstances #-}

@@ -3,16 +3,9 @@
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE DoAndIfThenElse            #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NondecreasingIndentation   #-}
-{-# LANGUAGE PatternGuards              #-}
-{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE StandaloneDeriving         #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult

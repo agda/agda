@@ -1,9 +1,4 @@
 {-# LANGUAGE CPP                       #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE FunctionalDependencies    #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
-{-# LANGUAGE Rank2Types                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 module Agda.Auto.NarrowingSearch where

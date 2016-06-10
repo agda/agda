@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE DefaultSignatures #-}
 
 -- | Overloaded @null@ and @empty@ for collections and sequences.
 

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.AsPatterns (recoverAsPatterns) where
 
 import Control.Applicative

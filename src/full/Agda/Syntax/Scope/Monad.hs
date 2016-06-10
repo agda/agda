@@ -1,11 +1,5 @@
 {-# LANGUAGE CPP                      #-}
-{-# LANGUAGE LambdaCase               #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE TupleSections            #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 {-| The scope monad with operations.
 -}

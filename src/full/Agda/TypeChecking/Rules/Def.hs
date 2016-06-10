@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                      #-}
-{-# LANGUAGE LambdaCase               #-}
-{-# LANGUAGE PatternGuards            #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where

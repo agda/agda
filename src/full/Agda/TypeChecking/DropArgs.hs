@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 module Agda.TypeChecking.DropArgs where
 

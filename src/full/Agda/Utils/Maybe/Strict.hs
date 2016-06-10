@@ -5,8 +5,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 #endif
 
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 

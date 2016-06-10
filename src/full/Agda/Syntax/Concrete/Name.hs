@@ -1,9 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).

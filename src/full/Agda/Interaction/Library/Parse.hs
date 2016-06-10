@@ -1,7 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecordWildCards #-}
 module Agda.Interaction.Library.Parse (parseLibFile, stripComments, splitCommas) where
 
 import Control.Applicative
