@@ -184,6 +184,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               , text "for type" <+> prettyTCM t
               ]
 
+            -- If we actually solved the constraints we should wake up any held
+            -- instance constraints, to make sure we don't forget about them.
+            wakeConstraints (return . isIFSConstraint . clValue . theConstraint)
+            solveAwakeConstraints' False
             return Nothing  -- We’re done
 
           _ -> do
@@ -352,7 +356,8 @@ dropSameCandidates m cands = do
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
 checkCandidates m t cands = disableDestructiveUpdate $
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
-  ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
+  ifM (anyMetaTypes cands) (return Nothing) $
+  holdConstraints (\ _ -> isIFSConstraint . clValue . theConstraint) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ text "candidates"
@@ -421,10 +426,10 @@ checkCandidates m t cands = disableDestructiveUpdate $
               text "assignment failed:" <+> prettyTCM err
             return False
 
-    isIFSConstraint :: Constraint -> Bool
-    isIFSConstraint FindInScope{} = True
-    isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
-    isIFSConstraint _             = False
+isIFSConstraint :: Constraint -> Bool
+isIFSConstraint FindInScope{} = True
+isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
+isIFSConstraint _             = False
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term
