@@ -1,0 +1,102 @@
+{-# LANGUAGE CPP                        #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE UndecidableInstances       #-}
+
+{-| Primitive functions, such as addition on builtin integers.
+-}
+module Agda.TypeChecking.Names where
+
+import Control.Monad
+import Control.Applicative
+import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Trans
+
+import Data.Char
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.List
+import Data.Traversable (traverse)
+import Data.Monoid (mempty)
+
+import Agda.Interaction.Options
+
+import Agda.Syntax.Position
+import Agda.Syntax.Common hiding (Nat)
+import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic (TermLike(..))
+import Agda.Syntax.Literal
+import Agda.Syntax.Concrete.Pretty ()
+
+import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
+import qualified Agda.TypeChecking.Monad as TCM
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce.Monad
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Level
+import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, quoteClauseWithKit, quotingKit)
+import Agda.TypeChecking.Pretty ()  -- instances only
+import Agda.TypeChecking.MetaVars (allMetas)
+import Agda.TypeChecking.Free
+
+import Agda.Utils.Monad
+import Agda.Utils.Pretty (pretty)
+import Agda.Utils.String ( Str(Str), unStr )
+import Agda.Utils.Maybe
+
+#include "undefined.h"
+import Agda.Utils.Impossible
+import Debug.Trace
+
+instance HasBuiltins m => HasBuiltins (NamesT m) where
+  getBuiltinThing b = lift $ getBuiltinThing b
+
+newtype NamesT m a = NamesT { unName :: ReaderT Names m a } deriving (Functor,Applicative,Monad,MonadTrans,MonadIO)
+deriving instance MonadState s m => MonadState s (NamesT m)
+type Names = [String]
+
+runNamesT :: Names -> NamesT m a -> m a
+runNamesT n m = runReaderT (unName m) n
+
+inCxt :: (Monad m, Subst t a) => Names -> a -> NamesT m a
+inCxt ctx a = do
+  ctx' <- NamesT ask
+  unless (ctx `isSuffixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
+  return $ raise (genericLength ctx' - genericLength ctx) a
+
+-- closed terms
+cl' :: Monad m => a -> NamesT m a
+cl' = pure
+
+cl :: Monad m => m a -> NamesT m a
+cl = lift
+
+bind' :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m a
+bind' n f = do
+  cxt <- NamesT ask
+  (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (debruijnVar 0)))
+
+bind :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
+bind n f = mkAbs "n" <$> bind' n f
+
+glam :: Monad m => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
+glam info n f = Lam info <$> bind n f
+
+lam :: Monad m => ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
+lam n f = glam defaultArgInfo n f
+
+
+instance MonadTCM m => MonadTCM (NamesT m) where
+   liftTCM = lift . liftTCM
+
+instance MonadReader r m => MonadReader r (NamesT m) where
+  ask = lift ask
+  local f (NamesT m) = NamesT $ mapReaderT (local f) m

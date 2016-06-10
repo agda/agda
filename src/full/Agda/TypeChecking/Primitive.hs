@@ -40,6 +40,7 @@ import Agda.TypeChecking.Quote (QuotingKit, quoteTermWithKit, quoteTypeWithKit, 
 import Agda.TypeChecking.Pretty ()  -- instances only
 import Agda.TypeChecking.MetaVars (allMetas)
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Names
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
@@ -382,16 +383,17 @@ primIMax = primIBin IZero IOne
 
 primCoe :: TCM PrimitiveImpl
 primCoe = do
-  t    <- hPi "a" (el primLevel) $
-          hPi "A" (return $ sort $ varSort 0) $
-          hPi "B" (return $ sort $ varSort 1) $
-          nPi "Q" (El (Type $ varLvlSuc 2) <$> primPath <#> (return $ Level $ varLvlSuc 2) <#> (return $ Sort (varSort 2)) <@> varM 1 <@> varM 0) $
-          nPi "p" (el primInterval) $
-          nPi "q" (el primInterval) $
-          (El (varSort 5) <$> getPrimitiveTerm "primPathApply" <#> (return $ Level $ varLvlSuc 5) <#> (return $ Sort (varSort 5))
-               <#> varM 4 <#> varM 3 <@> varM 2 <@> varM 1) -->
-          (El (varSort 5) <$> getPrimitiveTerm "primPathApply" <#> (return $ Level $ varLvlSuc 5) <#> (return $ Sort (varSort 5))
-               <#> varM 4 <#> varM 3 <@> varM 2 <@> varM 0)
+  t    <- runNamesT [] $
+          hPi' "a" (el $ cl primLevel) $ \ a -> let seta = Sort . tmSort <$> a in
+          hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+          hPi' "B" (sort . tmSort <$> a) $ \ bB ->
+          nPi' "Q" (El <$> (sortSuc <$> a) <*> cl primPath <#> (lvlSuc <$> a) <#> seta <@> bA <@> bB) $ \ bQ ->
+          nPi' "p" (el $ cl primInterval) $ \ p ->
+          nPi' "q" (el $ cl primInterval) $ \ q ->
+          (el' a $ cl (getPrimitiveTerm "primPathApply") <#> (lvlSuc <$> a) <#> seta
+               <#> bA <#> bB <@> bQ <@> p) -->
+          (el' a $ cl (getPrimitiveTerm "primPathApply") <#> (lvlSuc <$> a) <#> seta
+               <#> bA <#> bB <@> bQ <@> q)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ ts -> do
     case ts of
       [l,a,b,t,p,q,x] -> do
@@ -406,16 +408,29 @@ primCoe = do
                                                else return $ NoReduction (map notReduced ts)
       _         -> __IMPOSSIBLE__
  where
-   varLvlSuc n = Max [Plus 1 $ NeutralLevel mempty $ var n]
+   tmLvlSuc t = Max [Plus 1 $ NeutralLevel mempty $ t]
+   sortSuc = Type . tmLvlSuc
+   lvlSuc = Level . tmLvlSuc
+
+
+el' :: Monad m => m Term -> m Term -> m Type
+el' l a = El <$> (tmSort <$> l) <*> a
 
 primPathApply :: TCM PrimitiveImpl
 primPathApply = do
-  t    <- hPi "a" (el primLevel) $
-          hPi "A" (return $ sort $ varSort 0) $
-          hPi "x" (El (varSort 1) <$> varM 0) $
-          hPi "y" (El (varSort 2) <$> varM 1) $
-          (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
-          --> el primInterval --> (El (varSort 3) <$> varM 2)
+  -- t    <- hPi "a" (el primLevel) $
+  --         hPi "A" (return $ sort $ varSort 0) $
+  --         hPi "x" (El (varSort 1) <$> varM 0) $
+  --         hPi "y" (El (varSort 2) <$> varM 1) $
+  --         (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
+  --         --> el primInterval --> (El (varSort 3) <$> varM 2)
+  t <- runNamesT [] $
+           hPi' "a" (el (cl primLevel)) $ \ a ->
+           hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+           hPi' "x" (el' a bA) $ \ x ->
+           hPi' "y" (el' a bA) $ \ y ->
+           (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
+            --> el (cl primInterval) --> (el' a bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
     pathAbs <- getBuiltinName' builtinPathAbs
     case ts of
@@ -438,10 +453,11 @@ primPathApply = do
 
 primOutPartial :: TCM PrimitiveImpl
 primOutPartial = do
-  t    <- hPi "a" (el primLevel) $
-          hPi "A" (return $ sort $ varSort 0) $
-          (El (varSort 1) <$> primPartial <#> varM 1 <@> varM 0 <@> intervalUnview IOne) -->
-          (El (varSort 1) <$> varM 0)
+  t    <- runNamesT [] $
+          hPi' "a" (el $ cl primLevel) $ \ a ->
+          hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+          (el' a $ cl primPartial <#> a <@> bA <@> intervalUnview IOne) -->
+          (el' a $ bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
     case ts of
      [l,a,u] -> redReturn (unArg u)
@@ -450,19 +466,19 @@ primOutPartial = do
 -- ∀ {a}{c}{A : Set a}{x : A}(C : ∀ y → Id x y → Set c) → C x (conid i1 (\ i → x)) → ∀ {y} (p : Id x y) → C y p
 primIdJ :: TCM PrimitiveImpl
 primIdJ = do
-  let lam_i t = Lam defaultArgInfo (mkAbs "i" t)
-  t <- hPi "a" (el primLevel) $
-       hPi "p" (el primLevel) $
-       hPi "A" (return $ sort $ varSort 1) $
-       hPi "x" (El (varSort 2) <$> varM 0) $
-       nPi "C" (nPi "y" (El (varSort 3) <$> varM 1) $
-                 (El (varSort 4) <$> primId <#> varM 4 <#> varM 2 <@> varM 1 <@> varM 0) --> return (sort $ varSort 3)) $
-       (El (varSort 3) <$> varM 0 <@> varM 1 <@>
-            (primConId <#> varM 4 <#> varM 2 <#> varM 1 <#> varM 1 <@> primIOne
-                       <@> (primPathAbs <#> varM 4 <#> varM 2 <@> (pure $ lam_i (var 2))))) -->
-       (hPi "y" (El (varSort 4) <$> varM 2) $
-        nPi "p" (El (varSort 4) <$> primId <#> varM 5 <#> varM 3 <@> varM 2 <@> varM 0) $
-        El (varSort 5) <$> varM 2 <@> varM 1 <@> varM 0)
+  t <- runNamesT [] $
+       hPi' "a" (el $ cl primLevel) $ \ a ->
+       hPi' "p" (el $ cl primLevel) $ \ p ->
+       hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+       hPi' "x" (el' a bA) $ \ x ->
+       nPi' "C" (nPi' "y" (el' a bA) $ \ y ->
+                 (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> p)) $ \ bC ->
+       (el' p $ bC <@> x <@>
+            (cl primConId <#> a <#> bA <#> x <#> x <@> cl primIOne
+                       <@> (cl primPathAbs <#> a <#> bA <@> lam "i" (\ _ -> x)))) -->
+       (hPi' "y" (el' a bA) $ \ y ->
+        nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
+        el' p $ bC <@> y <@> p)
   unview <- intervalUnview'
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
     case ts of
@@ -520,15 +536,20 @@ primPFrom1 = do
 
 primPOr :: TCM PrimitiveImpl
 primPOr = do
-  t    <- hPi "a" (el primLevel) $
-          hPi "A" (return $ sort $ varSort 0) $
-          nPi "i" (el primInterval) $
-          nPi "j" (el primInterval) $
-          (El (varSort 3) <$> primPartial <#> varM 3 <@> varM 2 <@> varM 1) -->
-          (El (varSort 3) <$> primPartial <#> varM 3 <@> varM 2 <@> varM 0) -->
-          (El (varSort 3) <$> primPartial <#> varM 3 <@> varM 2 <@>
-           (intervalUnview =<< ((\ x y -> IMax (Arg defaultArgInfo x) (Arg defaultArgInfo y)) <$>
-                                                                                               varM 1 <*> varM 0)))
+  let imax x y = do
+        x' <- x
+        y' <- y
+        intervalUnview (IMax (argN x') (argN y'))
+  t    <- runNamesT [] $
+          hPi' "a" (el $ cl primLevel)    $ \ a  ->
+          hPi' "A" (sort . tmSort <$> a)  $ \ bA ->
+          nPi' "i" (el $ cl primInterval) $ \ i  ->
+          nPi' "j" (el $ cl primInterval) $ \ j  ->
+          (el' a $ cl primPartial <#> a <@> bA <@> i) -->
+          (el' a $ cl primPartial <#> a <@> bA <@> j) -->
+          (el' a $ cl primPartial <#> a <@> bA <@> (imax i j))
+
+
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
     case ts of
      [l,a,i,j,u,v] -> do
@@ -549,11 +570,12 @@ primPOr = do
 
 primComp :: TCM PrimitiveImpl
 primComp = do
-  t    <- hPi "a" (el primLevel) $
-          nPi "A" (el primInterval --> (return $ sort $ varSort 0)) $
-          nPi "φ" (el primInterval) $
-          (nPi "i" (el primInterval) $ El (varSort 3) <$> primPartial <#> varM 3 <@> (varM 2 <@> varM 0) <@> varM 1) -->
-          ((El (varSort 2) <$> (varM 1 <@> primIZero)) --> (El (varSort 2) <$> (varM 1 <@> primIOne)))
+  t    <- runNamesT [] $
+          hPi' "a" (el $ cl primLevel) $ \ a ->
+          nPi' "A" (el (cl primInterval) --> (sort . tmSort <$> a)) $ \ bA ->
+          nPi' "φ" (el $ cl primInterval) $ \ phi ->
+          (nPi' "i" (el $ cl primInterval) $ \ i -> el' a $ cl primPartial <#> a <@> (bA <@> i) <@> phi) -->
+          ((el' a (bA <@> cl primIZero)) --> (el' a (bA <@> cl primIOne)))
   unview <- intervalUnview'
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
@@ -844,7 +866,7 @@ infixr 4 -->
 infixr 4 .-->
 infixr 4 ..-->
 
-(-->), (.-->), (..-->) :: TCM Type -> TCM Type -> TCM Type
+(-->), (.-->), (..-->) :: Monad tcm => tcm Type -> tcm Type -> tcm Type
 a --> b = garr id a b
 a .--> b = garr (const $ Irrelevant) a b
 a ..--> b = garr (const $ NonStrict) a b
@@ -867,6 +889,12 @@ gpi info name a b = do
 hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
 nPi = gpi defaultArgInfo
+
+hPi', nPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+hPi' s a b = hPi s a (bind' s b)
+nPi' s a b = nPi s a (bind' s b)
+
+
 
 varM :: Monad tcm => Int -> tcm Term
 varM = return . var
