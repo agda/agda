@@ -23,6 +23,9 @@ ifneq ($(shell which uhc),)
 ifeq "$(GHC_VERSION)" "7.10"
 override CABAL_OPTS+=-fuhc
 endif
+ifeq "$(GHC_VERSION)" "8.0"
+override CABAL_OPTS+=-fuhc
+endif
 endif
 
 override CABAL_OPTS+=--builddir=$(BUILD_DIR)

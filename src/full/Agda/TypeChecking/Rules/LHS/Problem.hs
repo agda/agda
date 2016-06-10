@@ -47,6 +47,7 @@ data FlexibleVarKind
 data FlexibleVar a = FlexibleVar
   { flexHiding :: Hiding
   , flexKind   :: FlexibleVarKind
+  , flexPos    :: Maybe Int
   , flexVar    :: a
   } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -55,10 +56,10 @@ instance LensHiding (FlexibleVar a) where
   mapHiding f x = x { flexHiding = f (flexHiding x) }
 
 defaultFlexibleVar :: a -> FlexibleVar a
-defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex a
+defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex Nothing a
 
 flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
-flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex a
+flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)
@@ -90,6 +91,12 @@ instance ChooseFlex FlexibleVarKind where
 instance ChooseFlex a => ChooseFlex [a] where
   chooseFlex xs ys = mconcat $ zipWith chooseFlex xs ys
 
+instance ChooseFlex a => ChooseFlex (Maybe a) where
+  chooseFlex Nothing Nothing = ChooseEither
+  chooseFlex Nothing (Just y) = ChooseLeft
+  chooseFlex (Just x) Nothing = ChooseRight
+  chooseFlex (Just x) (Just y) = chooseFlex x y
+
 instance ChooseFlex Hiding where
   chooseFlex Hidden   Hidden   = ChooseEither
   chooseFlex Hidden   _        = ChooseLeft
@@ -106,8 +113,9 @@ instance ChooseFlex Int where
     GT -> ChooseRight
 
 instance (ChooseFlex a) => ChooseFlex (FlexibleVar a) where
-  chooseFlex (FlexibleVar h1 f1 i1) (FlexibleVar h2 f2 i2) =
-    firstChoice [chooseFlex f1 f2, chooseFlex h1 h2, chooseFlex i1 i2]
+  chooseFlex (FlexibleVar h1 f1 p1 i1) (FlexibleVar h2 f2 p2 i2) =
+    firstChoice [ chooseFlex f1 f2, chooseFlex h1 h2
+                , chooseFlex p1 p2, chooseFlex i1 i2]
       where
         firstChoice :: [FlexChoice] -> FlexChoice
         firstChoice []                  = ChooseEither
@@ -187,8 +195,6 @@ data SplitProblem
       { splitLPats   :: ProblemPart
         -- ^ The typed user patterns left of the split position.
         --   Invariant: @'problemRest' == empty@.
-      , splitAsNames :: [Name]
-        -- ^ The as-bindings for the focus.
       , splitFocus   :: Arg Focus
         -- ^ How to split the variable at the split position.
       , splitRPats   :: Abs ProblemPart
@@ -217,9 +223,10 @@ consSplitProblem p x dom s@Split{ splitLPats = ps } = s{ splitLPats = consProble
 
 -- | Instantiations of a dot pattern with a term.
 --   `Maybe e` if the user wrote a dot pattern .e
---   `Nothing` if this is an instantiation of an implicit argument or an underscore _
+--   `Nothing` if this is an instantiation of an implicit argument or a name.
 data DotPatternInst = DPI
-  { dotPatternUserExpr :: Maybe A.Expr
+  { dotPatternName     :: Maybe A.Name
+  , dotPatternUserExpr :: Maybe A.Expr
   , dotPatternInst     :: Term
   , dotPatternType     :: Dom Type
   }
@@ -230,7 +237,6 @@ data LHSState = LHSState
   { lhsProblem :: Problem
   , lhsSubst   :: PatternSubstitution
   , lhsDPI     :: [DotPatternInst]
-  , lhsAsB     :: [AsBinding]
   }
 
 instance Subst Term ProblemRest where
@@ -241,18 +247,19 @@ instance Subst Term (Problem' p) where
                        , problemRest = applySubst rho $ problemRest p }
 
 instance Subst Term DotPatternInst where
-  applySubst rho (DPI e v a) = uncurry (DPI e) $ applySubst rho (v,a)
+  applySubst rho (DPI x e v a) = uncurry (DPI x e) $ applySubst rho (v,a)
 
 instance Subst Term AsBinding where
   applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
 
 instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI me v a) = sep
-    [ prettyA e <+> text "="
+  prettyTCM (DPI mx me v a) = sep
+    [ x <+> text "=" <+> text "." <> prettyA e
     , nest 2 $ prettyTCM v <+> text ":"
     , nest 2 $ prettyTCM a
     ]
-    where e = fromMaybe underscore me
+    where x = maybe (text "_") prettyA mx
+          e = fromMaybe underscore me
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =

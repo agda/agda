@@ -232,7 +232,7 @@ defn q ls t Nothing (Function { funProjection = proj, funClauses = cls }) = do
     Nothing -> case proj of
       Just Projection{ projProper, projFromType = p, projIndex = i } -> do
         -- Andreas, 2013-05-20: whether a projection is proper is now stored.
-        if isJust projProper then
+        if projProper then
           -- For projections from records we use a field lookup
             return (curriedLambda (numPars cls)
               (Lookup (Local (LocalId 0)) (last ls)))

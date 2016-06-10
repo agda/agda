@@ -39,6 +39,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Abstract.Name as A (QNamed)
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
+import qualified Agda.Syntax.Internal as I
 
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
@@ -238,11 +239,18 @@ data TypedBinding
 
 type Telescope  = [TypedBindings]
 
+data NamedDotPattern = NamedDot Name I.Term I.Type
+  deriving (Typeable, Show)
+
+instance Eq NamedDotPattern where
+  _ == _ = True -- These are not relevant for caching purposes
+
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause' lhs = Clause
   { clauseLHS        :: lhs
+  , clauseNamedDots  :: [NamedDotPattern] -- only in with-clauses where we inherit some already checked dot patterns from the parent
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
   , clauseCatchall   :: Bool
@@ -395,19 +403,9 @@ data Pattern' e
 type Pattern  = Pattern' Expr
 type Patterns = [NamedArg Pattern]
 
--- | Check whether we are a projection pattern.
-class IsProjP a where
-  isProjP :: a -> Maybe AmbiguousQName
-
 instance IsProjP (Pattern' e) where
   isProjP (ProjP _ d) = Just d
   isProjP _           = Nothing
-
-instance IsProjP a => IsProjP (Arg a) where
-  isProjP = isProjP . unArg
-
-instance IsProjP a => IsProjP (Named n a) where
-  isProjP = isProjP . namedThing
 
 {--------------------------------------------------------------------------
     Instances
@@ -576,7 +574,7 @@ instance HasRange (LHSCore' e) where
     getRange (LHSProj d lhscore ps) = d `fuseRange` lhscore `fuseRange` ps
 
 instance HasRange a => HasRange (Clause' a) where
-    getRange (Clause lhs rhs ds catchall) = getRange (lhs,rhs,ds)
+    getRange (Clause lhs _ rhs ds catchall) = getRange (lhs,rhs,ds)
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
@@ -698,7 +696,10 @@ instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSProj a b c) = killRange3 LHSProj a b c
 
 instance KillRange a => KillRange (Clause' a) where
-  killRange (Clause lhs rhs ds catchall) = killRange4 Clause lhs rhs ds catchall
+  killRange (Clause lhs dots rhs ds catchall) = killRange5 Clause lhs dots rhs ds catchall
+
+instance KillRange NamedDotPattern where
+  killRange (NamedDot a b c) = killRange3 NamedDot a b c
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
@@ -781,7 +782,7 @@ instance AllNames Declaration where
   allNames (ScopedDecl _ decls)       = allNames decls
 
 instance AllNames Clause where
-  allNames (Clause _ rhs decls _) = allNames rhs >< allNames decls
+  allNames (Clause _ _ rhs decls _) = allNames rhs >< allNames decls
 
 instance AllNames RHS where
   allNames (RHS e)                   = allNames e
@@ -928,7 +929,7 @@ substPattern s p = case p of
   AbsurdP i     -> p
   LitP l        -> p
   DefP{}        -> p              -- destructor pattern
-  AsP{}         -> __IMPOSSIBLE__ -- @-patterns (not supported anyways)
+  AsP i x p     -> AsP i x (substPattern s p) -- Note: cannot substitute into as-variable
   PatternSynP{} -> __IMPOSSIBLE__ -- pattern synonyms (already gone)
 
 class SubstExpr a where

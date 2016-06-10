@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternGuards     #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Rewriting with arbitrary rules.
 --
@@ -74,11 +77,16 @@ import Agda.TypeChecking.Rewriting.NonLinMatch
 import qualified Agda.TypeChecking.Reduce.Monad as Red
 
 import Agda.Utils.Functor
+import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Singleton
 import Agda.Utils.Size
+import Agda.Utils.Lens
+import qualified Agda.Utils.HashMap as HMap
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -101,6 +109,7 @@ verifyBuiltinRewrite v t = do
   caseMaybeM (relView t)
     (failure $ text "because it should accept at least two arguments") $
     \ (RelView tel delta a b core) -> do
+    unless (visible a && visible b) $ failure $ text "because its two final arguments are not both visible."
     case ignoreSharing (unEl core) of
       Sort{}   -> return ()
       Con{}    -> __IMPOSSIBLE__
@@ -115,8 +124,8 @@ verifyBuiltinRewrite v t = do
 data RelView = RelView
   { relViewTel   :: Telescope  -- ^ The whole telescope @Δ, t, t'@.
   , relViewDelta :: ListTel    -- ^ @Δ@.
-  , relViewType  :: Type       -- ^ @t@.
-  , relViewType' :: Type       -- ^ @t'@.
+  , relViewType  :: Dom Type   -- ^ @t@.
+  , relViewType' :: Dom Type   -- ^ @t'@.
   , relViewCore  :: Type       -- ^ @core@.
   }
 
@@ -128,7 +137,7 @@ relView t = do
   let n                = size tel
       (delta, lastTwo) = splitAt (n - 2) $ telToList tel
   if size lastTwo < 2 then return Nothing else do
-    let [a, b] = snd . unDom <$> lastTwo
+    let [a, b] = fmap snd <$> lastTwo
     return $ Just $ RelView tel delta a b core
 
 -- | Add @q : Γ → rel us lhs rhs@ as rewrite rule
@@ -191,28 +200,44 @@ addRewriteRule q = do
       gamma1 <- instantiateFull gamma1
       let gamma = gamma0 `abstract` gamma1
 
-      unless (null $ allMetas (telToList gamma1)) failureMetas
+      unless (null $ allMetas (telToList gamma1)) $ do
+        reportSDoc "rewriting" 30 $ text "metas in gamma1: " <+> text (show $ allMetas $ telToList gamma1)
+        failureMetas
 
-      -- Find head symbol f of the lhs.
-      f <- case ignoreSharing lhs of
-        Def f es -> return f
-        Con c vs -> return $ conName c
+      -- Find head symbol f of the lhs and its arguments.
+      (f , hd , es) <- case ignoreSharing lhs of
+        Def f es -> return (f , Def f , es)
+        Con c vs -> do
+          let hd = Con c . fromMaybe __IMPOSSIBLE__ . allApplyElims
+          return (conName c , hd  , map Apply vs)
         _        -> failureNotDefOrCon
 
       rew <- addContext gamma1 $ do
-        -- Normalize lhs: we do not want to match redexes.
-        lhs <- normaliseArgs lhs
-        checkNoLhsReduction lhs
+        -- Normalize lhs args: we do not want to match redexes.
+        es <- etaContract =<< normalise es
+        checkNoLhsReduction f (hd es)
 
         -- Normalize rhs: might be more efficient.
         rhs <- etaContract =<< normalise rhs
-        unless (null $ allMetas (lhs, rhs, b)) failureMetas
-        pat <- patternFrom 0 lhs
+        unless (null $ allMetas (es, rhs, b)) $ do
+          reportSDoc "rewriting" 30 $ text "metas in lhs: " <+> text (show $ allMetas es)
+          reportSDoc "rewriting" 30 $ text "metas in rhs: " <+> text (show $ allMetas rhs)
+          reportSDoc "rewriting" 30 $ text "metas in b  : " <+> text (show $ allMetas b)
+          failureMetas
+        ps <- patternFrom 0 es
+        reportSDoc "rewriting" 30 $
+          text "Pattern generated from lhs: " <+> prettyTCM (PDef f ps)
 
         -- check that FV(rhs) ⊆ nlPatVars(lhs)
-        unlessNull (allFreeVars rhs IntSet.\\ nlPatVars pat) failureFreeVars
+        let freeVars  = usedArgs gamma1 `IntSet.union` allFreeVars (ps,rhs)
+            boundVars = nlPatVars ps
+        reportSDoc "rewriting" 40 $
+          text "variables bound by the pattern: " <+> text (show boundVars)
+        reportSDoc "rewriting" 40 $
+          text "variables free in the rewrite rule: " <+> text (show freeVars)
+        unlessNull (freeVars IntSet.\\ boundVars) failureFreeVars
 
-        return $ RewriteRule q gamma pat rhs b
+        return $ RewriteRule q gamma f ps rhs (unDom b)
 
       reportSDoc "rewriting" 10 $
         text "considering rewrite rule " <+> prettyTCM rew
@@ -231,21 +256,36 @@ addRewriteRule q = do
 
     _ -> failureWrongTarget
   where
-    normaliseArgs :: Term -> TCM Term
-    normaliseArgs v = case ignoreSharing v of
-      Def f es -> Def f <$> do etaContract =<< normalise es
-      Con c vs -> Con c <$> do etaContract =<< normalise vs
-      _ -> __IMPOSSIBLE__
-
-    checkNoLhsReduction :: Term -> TCM ()
-    checkNoLhsReduction v = do
+    checkNoLhsReduction :: QName -> Term -> TCM ()
+    checkNoLhsReduction f v = do
       v' <- normalise v
       unless (v == v') $ do
         reportSDoc "rewriting" 20 $ text "v  = " <+> text (show v)
         reportSDoc "rewriting" 20 $ text "v' = " <+> text (show v')
+        -- Andreas, 2016-06-01, issue 1997
+        -- A reason for a reduction of the lhs could be that
+        -- the rewrite rule has already been added.
+        -- In this case, we want a nicer error message.
+        checkNotAlreadyAdded f
         typeError . GenericDocError =<< fsep
           [ prettyTCM q <+> text " is not a legal rewrite rule, since the left-hand side "
           , prettyTCM v <+> text " reduces to " <+> prettyTCM v' ]
+
+    checkNotAlreadyAdded :: QName -> TCM ()
+    checkNotAlreadyAdded f = do
+      rews <- getRewriteRulesFor f
+      -- check if q is already an added rewrite rule
+      when (any ((q ==) . rewName) rews) $
+        typeError . GenericDocError =<< do
+          text "Rewrite rule " <+> prettyTCM q <+> text " has already been added"
+
+    usedArgs :: Telescope -> IntSet
+    usedArgs tel = IntSet.fromList $ map unDom $ usedIxs
+      where
+        n = size tel
+        allIxs = zipWith ($>) (flattenTel tel) (downFrom n)
+        usedIxs = filter (not . irrelevantOrUnused . getRelevance) allIxs
+
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()
@@ -260,21 +300,38 @@ addRewriteRules f rews = do
   --  , vcat (map prettyTCM rules)
   --  ]
 
--- | @rewriteWith t v rew@
---   tries to rewrite @v : t@ with @rew@, returning the reduct if successful.
-rewriteWith :: Maybe Type -> Term -> RewriteRule -> ReduceM (Either (Blocked Term) Term)
-rewriteWith mt v rew@(RewriteRule q gamma lhs rhs b) = do
+-- | Sledgehammer approach to local rewrite rules. Rebind them after each
+--   left-hand side (which scrambles the context).
+rebindLocalRewriteRules :: TCM ()
+rebindLocalRewriteRules = do
+  current <- currentModule
+  ruleMap <- use $ stSignature . sigRewriteRules
+  let isLocal r = m == current || m `isSubModuleOf` current
+        where m = qnameModule $ rewName r
+      ruleMap' = HMap.map (filter (not . isLocal)) ruleMap
+      locals = map rewName $ filter isLocal $ concat $ map reverse $ HMap.elems ruleMap
+  stSignature . sigRewriteRules .= ruleMap'
+  mapM_ addRewriteRule locals
+
+-- | @rewriteWith t f es rew@
+--   tries to rewrite @f es : t@ with @rew@, returning the reduct if successful.
+rewriteWith :: Maybe Type
+            -> (Elims -> Term)
+            -> Elims
+            -> RewriteRule
+            -> ReduceM (Either (Blocked Term) Term)
+rewriteWith mt f es rew@(RewriteRule q gamma _ ps rhs b) = do
   Red.traceSDoc "rewriting" 75 (sep
-    [ text "attempting to rewrite term " <+> prettyTCM v
+    [ text "attempting to rewrite term " <+> prettyTCM (f es)
     , text " with rule " <+> prettyTCM rew
     ]) $ do
-    result <- nonLinMatch gamma lhs v
+    result <- nonLinMatch gamma ps es
     case result of
-      Left block -> return $ Left $ const v <$> block
+      Left block -> return $ Left $ block $> f es -- TODO: remember reductions
       Right sub  -> do
         let v' = applySubst sub rhs
         Red.traceSDoc "rewriting" 70 (sep
-          [ text "rewrote " <+> prettyTCM v
+          [ text "rewrote " <+> prettyTCM (f es)
           , text " to " <+> prettyTCM v'
           ]) $ return $ Right v'
 
@@ -330,7 +387,7 @@ rewrite bv = ifNotM (optRewriting <$> pragmaOptions) (return $ Left bv) $ {- els
       loop block es (rew:rews)
        | let n = rewArity rew, length es >= n = do
             let (es1, es2) = List.genericSplitAt n es
-            result <- rewriteWith Nothing (hd es1) rew
+            result <- rewriteWith Nothing hd es1 rew
             case result of
               Left (Blocked m u)    -> loop (block `mappend` Blocked m ()) es rews
               Left (NotBlocked _ _) -> loop block es rews
@@ -360,9 +417,7 @@ instance NLPatVars NLPat where
       PTerm{}   -> empty
 
 rewArity :: RewriteRule -> Int
-rewArity rew = case rewLHS rew of
-  PDef _f es -> length es
-  _          -> __IMPOSSIBLE__
+rewArity = length . rewPats
 
 -- | Erase the CtxId's of rewrite rules
 class KillCtxId a where
@@ -372,7 +427,7 @@ instance (Functor f, KillCtxId a) => KillCtxId (f a) where
   killCtxId = fmap killCtxId
 
 instance KillCtxId RewriteRule where
-  killCtxId rule@RewriteRule{ rewLHS = lhs } = rule{ rewLHS = killCtxId lhs }
+  killCtxId rule@RewriteRule{ rewPats = ps } = rule{ rewPats = killCtxId ps }
 
 instance KillCtxId NLPat where
   killCtxId p = case p of
@@ -405,6 +460,16 @@ instance GetMatchables NLPat where
       PTerm _        -> empty -- should be safe (I hope)
 
 instance GetMatchables RewriteRule where
-  getMatchables rew = case rewLHS rew of
-    PDef _ ps -> getMatchables ps
-    _         -> __IMPOSSIBLE__
+  getMatchables = getMatchables . rewPats
+
+-- Only computes free variables that are not bound (i.e. those in a PTerm)
+instance Free' NLPat c where
+  freeVars' p = case p of
+    PVar _ _ _ -> mempty
+    PWild -> mempty
+    PDef _ es -> freeVars' es
+    PLam _ u -> freeVars' u
+    PPi a b -> freeVars' (a,b)
+    PSet l -> freeVars' l
+    PBoundVar _ es -> freeVars' es
+    PTerm t -> freeVars' t

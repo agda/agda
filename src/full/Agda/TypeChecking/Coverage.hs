@@ -14,6 +14,7 @@ module Agda.TypeChecking.Coverage
   ( SplitClause(..), clauseToSplitClause, fixTarget
   , Covering(..), splitClauses
   , coverageCheck
+  , isCovered
   , splitClauseWithAbsurd
   , splitLast
   , splitResult
@@ -41,7 +42,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
 
-import Agda.TypeChecking.Rules.LHS.Problem (flexibleVarFromHiding)
+import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVar(..), FlexibleVarKind(..))
 import Agda.TypeChecking.Rules.LHS.Unify
 
 import Agda.TypeChecking.Coverage.Match
@@ -154,6 +155,12 @@ coverageCheck f t cs = do
         typeError $ UnreachableClauses f (map clausePats unreached)
   return splitTree
 
+-- | Top-level function for eliminating redundant clauses in the interactive
+--   case splitter
+isCovered :: QName -> [Clause] -> SplitClause -> TCM Bool
+isCovered f cs sc = do
+  (_, _, missing) <- cover f cs sc
+  return $ null missing
 
 -- | @cover f cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
@@ -457,21 +464,21 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       preserve p = p
       gammal = map (fmap preserve) . telToList $ gamma0
       gamma  = telFromList gammal
+      delta1Gamma = delta1 `abstract` gamma
 
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma ps hix
 
   -- All variables are flexible
   -- let flex = [0..size delta1 + size gamma - 1]
-  let gammaDelta1  = gammal ++ telToList delta1
-      makeFlex i d = flexibleVarFromHiding (getHiding d) i
-      flex = zipWith makeFlex [0..] gammaDelta1
+  let makeFlex i d = FlexibleVar (getHiding d) ImplicitFlex (Just i) i
+      flex = zipWith makeFlex (downFrom $ size delta1Gamma) (telToList delta1Gamma)
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
       givenIxs = raise (size gamma) ixs
 
   r <- unifyIndices
-         (delta1 `abstract` gamma)
+         delta1Gamma
          flex
          (raise (size gamma) dtype)
          conIxs
@@ -520,8 +527,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
           , text "hps    =" <+> text (show hps)
           , text "d      =" <+> prettyTCM d
           , text "pars   =" <+> prettyList (map prettyTCM pars)
-          , text "ixs    =" <+> addCtxTel delta1 (prettyList (map prettyTCM ixs))
-          , text "cixs   =" <+> do addCtxTel gamma $ prettyList (map prettyTCM cixs)
+          , text "ixs    =" <+> addContext delta1 (prettyList (map prettyTCM ixs))
+          , text "cixs   =" <+> do addContext gamma $ prettyList (map prettyTCM cixs)
           , text "delta1 =" <+> prettyTCM delta1
           , text "delta2 =" <+> prettyTCM delta2
           , text "gamma  =" <+> prettyTCM gamma
@@ -694,10 +701,10 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
 
   where
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
-    inContextOfT = addCtxTel tel . escapeContext (x + 1)
+    inContextOfT = addContext tel . escapeContext (x + 1)
 
     inContextOfDelta2 :: MonadTCM tcm => tcm a -> tcm a
-    inContextOfDelta2 = addCtxTel tel . escapeContext x
+    inContextOfDelta2 = addContext tel . escapeContext x
 
     -- Debug printing
     debugInit tel x ps =
@@ -735,20 +742,20 @@ splitResult f sc@(SClause tel ps _ target) = do
   -- if we want to split projections, but have no target type, we give up
   let done = return Nothing
   caseMaybe target done $ \ t -> do
-    isR <- addCtxTel tel $ isRecordType $ unArg t
+    isR <- addContext tel $ isRecordType $ unArg t
     case isR of
       Just (_r, vs, Record{ recFields = fs }) -> do
         reportSDoc "tc.cover" 20 $ sep
           [ text $ "we are of record type _r = " ++ show _r
-          , text   "applied to parameters vs = " <+> (addCtxTel tel $ prettyTCM vs)
+          , text   "applied to parameters vs = " <+> (addContext tel $ prettyTCM vs)
           , text $ "and have fields       fs = " ++ show fs
           ]
-        fvs <- freeVarsToApply f
         let es = patternsToElims ps
-        let self  = defaultArg $ Def f (map Apply fvs) `applyE` es
+        -- Note: module parameters are part of ps
+        let self  = defaultArg $ Def f [] `applyE` es
             pargs = vs ++ [self]
         reportSDoc "tc.cover" 20 $ sep
-          [ text   "we are              self = " <+> (addCtxTel tel $ prettyTCM $ unArg self)
+          [ text   "we are              self = " <+> (addContext tel $ prettyTCM $ unArg self)
           ]
         let n = defaultArg $ permRange (dbPatPerm ps)
             -- Andreas & James, 2013-11-19 includes the dot patterns!

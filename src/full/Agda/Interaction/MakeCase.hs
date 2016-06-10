@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE TupleSections   #-}
 
 module Agda.Interaction.MakeCase where
@@ -49,50 +50,6 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Impossible
 
 type CaseContext = Maybe ExtLamInfo
-
--- | Find the clause whose right hand side is the given meta
--- BY SEARCHING THE WHOLE SIGNATURE. Returns
--- the original clause, before record patterns have been translated
--- away. Raises an error if there is no matching clause.
---
--- Andreas, 2010-09-21: This looks like a SUPER UGLY HACK to me. You are
--- walking through the WHOLE signature to find an information you have
--- thrown away earlier.  (shutter with disgust).
--- This code fails for record rhs because they have been eta-expanded,
--- so the MVar is gone.
-findClause :: MetaId -> TCM (CaseContext, QName, Clause)
-findClause m = do
-  sig <- getImportedSignature
-  let res = do
-        def <- HMap.elems $ sig ^. sigDefinitions
-        Function{funClauses = cs, funExtLam = extlam} <- [theDef def]
-        c <- cs
-        unless (rhsIsm $ clauseBody c) []
-        return (extlam, defName def, c)
-  case res of
-    []  -> do
-      reportSDoc "interaction.case" 10 $ vcat $
-        [ text "Interaction.MakeCase.findClause fails"
-        , text "expected rhs to be meta var" <+> (text $ show m)
-        , text "but could not find it in the signature"
-        ]
-      reportSDoc "interaction.case" 100 $ vcat $ map (text . show) (HMap.elems $ sig ^. sigDefinitions)  -- you asked for it!
-      ifM (isInstantiatedMeta m)
-        -- Andreas, 2012-03-22 If the goal has been solved by eta expansion, further
-        -- case splitting is pointless and `smart-ass Agda' will refuse.
-        -- Maybe not the best solution, but the lazy alternative to replace this
-        -- SUPER UGLY HACK.
-        (typeError $ GenericError "Since goal is solved, further case distinction is not supported; try `Solve constraints' instead")
-        (typeError $ GenericError "Right hand side must be a single hole when making a case distinction")
-    [triple] -> return triple
-    _   -> __IMPOSSIBLE__
-  where
-    rhsIsm (Bind b)   = rhsIsm $ unAbs b
-    rhsIsm NoBody     = False
-    rhsIsm (Body e)   = case ignoreSharing e of
-      MetaV m' _  -> m == m'
-      _           -> False
-
 
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
@@ -149,13 +106,33 @@ parseVariables ii rng ss = do
             -- Issue 1325: Variable names in context can be ambiguous.
             _       -> typeError $ GenericError $ "Ambiguous variable " ++ s
 
+-- | Lookup the clause for an interaction point in the signature.
+--   Returns the CaseContext, the clause itself, and a list of previous clauses
+
+-- Andreas, 2016-06-08, issue #289 and #2006.
+-- This replace the old findClause hack (shutter with disgust).
+getClauseForIP :: QName -> Int -> TCM (CaseContext, Clause, [Clause])
+getClauseForIP f clauseNo = do
+  (theDef <$> getConstInfo f) >>= \case
+    Function{funClauses = cs, funExtLam = extlam} -> do
+      let (cs1,cs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
+          c         = fromMaybe __IMPOSSIBLE__ $ headMaybe cs2
+      return (extlam, c, cs1)
+    _ -> __IMPOSSIBLE__
 
 -- | Entry point for case splitting tactic.
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
-  meta <- lookupInteractionId hole
-  (casectxt, f, clause@(Clause{ clauseTel = tel, namedClausePats = ps })) <- findClause meta
+  InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
+  let meta = fromMaybe __IMPOSSIBLE__ mm
+  (f, clauseNo) <- case ipCl of
+    IPClause f clauseNo -> return (f, clauseNo)
+    IPNoClause -> typeError $ GenericError $
+      "Cannot split here, as we are not in a function definition"
+  (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo
   let perm = clausePerm clause
+      tel  = clauseTel  clause
+      ps   = namedClausePats clause
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
     , nest 2 $ vcat
@@ -194,7 +171,11 @@ makeCase hole rng s = withInteractionId hole $ do
   else do
     -- split on variables
     vars <- parseVariables hole rng vars
-    cs <- split f vars $ clauseToSplitClause clause
+    scs <- split f vars $ clauseToSplitClause clause
+    -- filter out clauses that are already covered
+    scs <- filterM (not <.> isCovered f prevClauses . fst) scs
+    cs <- forM scs $ \(sc, isAbsurd) ->
+            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f sc
     reportSDoc "interaction.case" 65 $ vcat
       [ text "split result:"
       , nest 2 $ vcat $ map (text . show) cs
@@ -205,16 +186,16 @@ makeCase hole rng s = withInteractionId hole $ do
   failNoCop = typeError $ GenericError $
     "OPTION --copatterns needed to split on result here"
 
-  split :: QName -> [Nat] -> SplitClause -> TCM [A.Clause]
-  split f [] clause = singleton <$> makeAbstractClause f clause
+  -- Split clause on given variables, return the resulting clauses together
+  -- with a bool indicating whether each clause is absurd
+  split :: QName -> [Nat] -> SplitClause -> TCM [(SplitClause, Bool)]
+  split f [] clause = return [(clause,False)]
   split f (var : vars) clause = do
     z <- splitClauseWithAbsurd clause var
     case z of
       Left err          -> typeError $ SplitError err
-      Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl
-      Right (Right cov)
-        | null vars -> mapM (makeAbstractClause f) $ splitClauses cov
-        | otherwise -> concat <$> do
+      Right (Left cl)   -> return [(cl,True)]
+      Right (Right cov) -> concat <$> do
             forM (splitClauses cov) $ \ cl ->
               split f (mapMaybe (newVar cl) vars) cl
 
@@ -242,17 +223,19 @@ makeAbsurdClause f (SClause tel ps _ t) = do
     -- Jesper, 2015-09-19 Don't contract, since we do on-demand splitting
     let c = Clause noRange tel ps NoBody t False
     -- Normalise the dot patterns
-    ps <- addCtxTel tel $ normalise $ namedClausePats c
+    ps <- addContext tel $ normalise $ namedClausePats c
+    reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
-  A.Clause lhs _ _ _ <- makeAbsurdClause f cl
+  A.Clause lhs _ _ _ _ <- makeAbsurdClause f cl
+  reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
   let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
                                -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
-  return $ A.Clause lhs (A.RHS $ A.QuestionMark info ii) [] False
+  return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
 
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do

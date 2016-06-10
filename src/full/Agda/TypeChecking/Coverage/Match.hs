@@ -72,6 +72,10 @@ data MPat
   | ProjMP QName -- ^ Projection copattern.
   deriving (Show)
 
+instance IsProjP MPat where
+  isProjP (ProjMP q) = Just (AmbQ [q])
+  isProjP _ = Nothing
+
 buildMPatterns :: [Arg DeBruijnPattern] -> [Arg MPat]
 buildMPatterns ps = map (fmap build) ps
   where
@@ -178,32 +182,38 @@ matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 -- | @matchPats mlit ps qs@ checks whether a function clause with patterns
 --   @ps@ covers a split clause with patterns @qs@.
 --
---   Issue 842: if in case of functions with varying arity,
---   the split clause has proper patterns left, we refuse to match,
---   because it would be troublesome to construct the split tree later.
---   We would have to move bindings from the rhs to the lhs.
---   For example, this is rejected:
+--   Issue #842 / #1986: This is accepted:
 --   @
 --     F : Bool -> Set1
 --     F true = Set
 --     F      = \ x -> Set
 --   @
+--   For the second clause, the split clause is @F false@,
+--   so there are more patterns in the split clause than
+--   in the considered clause.  These additional patterns
+--   are simply dropped by @zipWith@.  This will result
+--   in @mconcat []@ which is @Yes []@.
 matchPats :: MatchLit -> [Arg (Pattern' a)] -> [Arg MPat] -> Match [MPat]
-matchPats mlit ps qs = mconcat $ properMatchesLeft :
+matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
     zipWith (matchPat mlit) (map unArg ps) (map unArg qs) ++
-    [ projPatternsLeft ]
+    [ projPatternsLeftInMatchedClause ]
   where
-    projPatternsLeft =
+    -- Andreas, 2016-06-03, issue #1986:
+    -- catch-all for copatterns is inconsistent as found by Ulf.
+    -- Thus, if the split clause has copatterns left,
+    -- the current (shorter) clause is not considered covering.
+    projPatternsLeftInSplitClause =
+      let qsrest = map unArg $ drop (length ps) qs
+      in  case mapMaybe isProjP qsrest of
+            [] -> Yes [] -- no proj. patterns left
+            _  -> No     -- proj. patterns left
+    -- If the current clause has additional copatterns in
+    -- comparison to the split clause, we should split on them.
+    projPatternsLeftInMatchedClause =
       let psrest = map unArg $ drop (length qs) ps
-      in  case mapMaybe isProjP psrest of -- not $ any properlyMatching psrest
+      in  case mapMaybe isProjP psrest of
             [] -> Yes []               -- no proj. patterns left
             ds -> Block (Any True) []  -- proj. patterns left
-    properMatchesLeft =
-      if any (properMatch . unArg) $ drop (length ps) qs
-      then No else Yes []
-    properMatch ConMP{} = True
-    properMatch LitMP{} = True
-    properMatch _       = False
 
 -- | Combine results of checking whether function clause patterns
 --   covers split clause patterns.

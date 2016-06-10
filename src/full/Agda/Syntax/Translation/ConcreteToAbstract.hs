@@ -262,7 +262,7 @@ checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
-    (s', (renM, renD)) <- copyScope recN m0 s
+    (s', (renM, renD)) <- copyScope recN m0 (removeOnlyQualified s)
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
@@ -1742,7 +1742,7 @@ instance ToAbstract C.Clause A.Clause where
     if not (null eqs)
       then do
         rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
-        return $ A.Clause lhs' rhs [] catchall
+        return $ A.Clause lhs' [] rhs [] catchall
       else do
         -- ASR (16 November 2015) Issue 1137: We ban termination
         -- pragmas inside `where` clause.
@@ -1753,7 +1753,7 @@ instance ToAbstract C.Clause A.Clause where
         (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
                       toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
         rhs <- toAbstract rhs
-        return $ A.Clause lhs' rhs ds catchall
+        return $ A.Clause lhs' [] rhs ds catchall
 
 whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
 whereToAbstract _ _      []   inner = (,[]) <$> inner
@@ -1983,14 +1983,12 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     -- toAbstract p@(C.WildP r)    = A.VarP <$> freshName r "_"
     toAbstract (C.ParenP _ p)   = toAbstract p
     toAbstract (C.LitP l)       = return $ A.LitP l
-    toAbstract p0@(C.AsP r x p) = typeError $ NotSupported "@-patterns"
-      {- do
+    toAbstract p0@(C.AsP r x p) = do
         x <- toAbstract (NewName x)
         p <- toAbstract p
         return $ A.AsP info x p
         where
             info = PatRange r
-      -}
     -- we have to do dot patterns at the end
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
         where info = PatRange r

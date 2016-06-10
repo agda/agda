@@ -125,9 +125,9 @@ inlineWithClauses f cl = inTopContext $ do
 --
 --   Precondition: we are 'inTopContext'.
 withExprClauses :: Clause -> Type -> Args -> TCM [Clause]
-withExprClauses cl t args = {- addCtxTel (clauseTel cl) $ -} loop t args where
+withExprClauses cl t args = {- addContext (clauseTel cl) $ -} loop t args where
   -- Note: for the following code, it does not matter which context we are in.
-  -- Restore the @addCtxTel (clauseTel cl)@ if that should become necessary
+  -- Restore the @addContext (clauseTel cl)@ if that should become necessary
   -- (like when debug printing @args@ etc).
   loop t []     = return []
   loop t (a:as) =
@@ -160,7 +160,7 @@ inlinedClauses f cl t wf = do
 --   @inline f pcl t wf wcl@ inlines with-clause @wcl@ of with-function @wf@
 --   (of type @t@) into parent clause @pcl@ (original function being @f@).
 inline :: QName -> Clause -> Type -> QName -> Clause -> TCM Clause
-inline f pcl t wf wcl = inTopContext $ addCtxTel (clauseTel wcl) $ do
+inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   -- The tricky part here is to get the variables to line up properly. The
   -- order of the arguments to the with-function is not the same as the order
   -- of the arguments to the parent function. Fortunately we have already

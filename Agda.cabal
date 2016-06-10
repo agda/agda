@@ -35,6 +35,7 @@ description:
 tested-with:        GHC == 7.6.3
                     GHC == 7.8.4
                     GHC == 7.10.3
+                    GHC == 8.0.1
 extra-source-files: src/full/undefined.h
                     README.md
                     CHANGELOG
@@ -94,69 +95,66 @@ library
     ghc-options: -pgmP cpphs -optP --cpp
 
   if flag(uhc)
-    build-depends:    shuffle >= 0.1.3.3
-                    , uhc-light >= 1.1.9.2 && < 1.2
-                    , uhc-util >= 0.1.6.3 && < 0.1.6.6
-                    , uulib >= 0.9.20
-    -- we use the CPP processor to conditionally import the UHC Light modules. If UHC Light is not
-    -- present, we instead create dummy definitions, see module Agda.Compiler.UHC.Bridge.
+    build-depends:  shuffle >= 0.1.3.3
+                  , uhc-light >= 1.1.9.2 && < 1.2
+                  , uhc-util >= 0.1.6.3 && < 0.1.6.7
+                  , uulib >= 0.9.20
+    -- we use the CPP processor to conditionally import the UHC Light
+    -- modules. If UHC Light is not present, we instead create dummy
+    -- definitions, see module Agda.Compiler.UHC.Bridge.
     cpp-options:    -DUHC_BACKEND
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
 
-  build-depends:
-    array >= 0.4.0.1 && < 0.6
-    , base >= 4.6.0.1 && < 4.10
-    , binary >= 0.7.2.1 && < 0.9
-    , boxes >= 0.1.3 && < 0.2
-    , bytestring >= 0.10.0.2 && < 0.11
-    , containers >= 0.5.0.0 && < 0.6
-    , data-hash >= 0.2.0.0 && < 0.3
-    , deepseq >= 1.3.0.1 && < 1.5
-    , directory >= 1.2.0.1 && < 1.3
-    -- Edison versioning scheme: http://rwd.rdockins.name/edison/home/.
-    -- EdisonAPI isn't used by Agda, but EdisonCore 1.3.1 doesn't
-    -- declare what version of EdisonAPI it depends on.
-    , EdisonAPI == 1.3
-    , EdisonCore >= 1.3.1.1 && < 1.3.2
-    , edit-distance >= 0.2.1.2 && < 0.3
-    , equivalence >= 0.2.5 && < 0.4
-    , filepath >= 1.3.0.1 && < 1.5
-    , geniplate-mirror >= 0.6.0.6 && < 0.8
-    -- hashable 1.2.0.10 makes library-test 10x slower. The issue was
-    -- fixed in hashable 1.2.1.0.
-    -- https://github.com/tibbe/hashable/issues/57.
-    , hashable >= 1.2.1.0 && < 1.3
-    -- There is a "serious bug"
-    -- (https://hackage.haskell.org/package/hashtables-1.2.0.2/changelog)
-    -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to have made Agda
-    -- much slower (infinitely slower?) in some cases.
-    , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
-    , haskeline >= 0.7.1.3 && < 0.8
-    , haskell-src-exts >= 1.16.0.1 && < 1.18
-    , monadplus >= 1.4 && < 1.5
-    -- mtl-2.1 contains a severe bug.
-    --
-    -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
-    , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
-    , murmur-hash >= 0.1 && < 0.2
-    , QuickCheck >= 2.8.2 && < 2.9
-    , parallel >= 3.2.0.4 && < 3.3
-    -- pretty 1.1.1.2 and 1.1.1.3 do not follow the package versioning
-    -- policy.
-    , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
-    , process >= 1.1.0.2 && < 1.5
-    , regex-tdfa >= 1.2.2 && < 1.3
-    , strict >= 0.3.2 && < 0.4
-    , template-haskell >= 2.8.0.0 && < 2.12
-    , text >= 0.11.3.1 && < 1.3
-    , time >= 1.4.0.1 && < 1.7
-    -- transformers 0.4.0.0 was deprecated.
-    , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
-    , transformers-compat >= 0.3.3.3 && < 0.6
-    , unordered-containers >= 0.2.5.0 && < 0.3
-    , xhtml >= 3000.2.1 && < 3000.3
+  build-depends:  array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
+                , binary >= 0.7.2.1 && < 0.9
+                , boxes >= 0.1.3 && < 0.2
+                , bytestring >= 0.10.0.2 && < 0.11
+                , containers >= 0.5.0.0 && < 0.6
+                , data-hash >= 0.2.0.0 && < 0.3
+                , deepseq >= 1.3.0.1 && < 1.5
+                , directory >= 1.2.0.1 && < 1.3
+                , EdisonCore >= 1.3.1.1 && < 1.3.2
+                , edit-distance >= 0.2.1.2 && < 0.3
+                , equivalence >= 0.2.5 && < 0.4
+                , filepath >= 1.3.0.1 && < 1.5
+                , geniplate-mirror >= 0.6.0.6 && < 0.8
+                -- hashable 1.2.0.10 makes library-test 10x
+                -- slower. The issue was fixed in hashable 1.2.1.0.
+                -- https://github.com/tibbe/hashable/issues/57.
+                , hashable >= 1.2.1.0 && < 1.3
+                -- There is a "serious bug"
+                -- (https://hackage.haskell.org/package/hashtables-1.2.0.2/changelog)
+                -- in hashtables 1.2.0.0/1.2.0.1. This bug seems to
+                -- have made Agda much slower (infinitely slower?) in
+                -- some cases.
+                , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
+                , haskeline >= 0.7.1.3 && < 0.8
+                , haskell-src-exts >= 1.16.0.1 && < 1.18
+                , monadplus >= 1.4 && < 1.5
+                -- mtl-2.1 contains a severe bug.
+                --
+                -- mtl >= 2.2 && < 2.2.1 doesn't export Control.Monad.Except.
+                , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+                , murmur-hash >= 0.1 && < 0.2
+                , QuickCheck >= 2.8.2 && < 2.9
+                , parallel >= 3.2.0.4 && < 3.3
+                -- pretty 1.1.1.2 and 1.1.1.3 do not follow the
+                -- package versioning policy.
+                , pretty >= 1.1.1.0 && < 1.1.1.2 || >= 1.1.2 && < 1.2
+                , process >= 1.1.0.2 && < 1.5
+                , regex-tdfa >= 1.2.2 && < 1.3
+                , strict >= 0.3.2 && < 0.4
+                , template-haskell >= 2.8.0.0 && < 2.12
+                , text >= 0.11.3.1 && < 1.3
+                , time >= 1.4.0.1 && < 1.7
+                -- transformers 0.4.0.0 was deprecated.
+                , transformers >= 0.3 && < 0.4 || >= 0.4.1.0 && < 0.6
+                , transformers-compat >= 0.3.3.3 && < 0.6
+                , unordered-containers >= 0.2.5.0 && < 0.3
+                , xhtml >= 3000.2.1 && < 3000.3
 
   if impl(ghc < 7.8)
     build-depends: base-orphans >= 0.3.1 && < 0.5
@@ -170,9 +168,8 @@ library
   else
     build-depends: zlib >= 0.4.0.1 && < 0.7
 
-  build-tools:
-    alex >= 3.1.0 && < 3.2
-    , happy >= 1.19.4 && < 2
+  build-tools:  alex >= 3.1.0 && < 3.2
+              , happy >= 1.19.4 && < 2
 
   exposed-modules:  Agda.Auto.Auto
                     Agda.Auto.CaseSplit
@@ -212,6 +209,7 @@ library
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
                     Agda.Compiler.ToTreeless
+                    Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin
                     Agda.Compiler.Treeless.Compare
                     Agda.Compiler.Treeless.Erase
@@ -356,6 +354,7 @@ library
                     Agda.TypeChecking.Monad.Env
                     Agda.TypeChecking.Monad.Exception
                     Agda.TypeChecking.Monad.Imports
+                    Agda.TypeChecking.Monad.Local
                     Agda.TypeChecking.Monad.MetaVars
                     Agda.TypeChecking.Monad.Mutual
                     Agda.TypeChecking.Monad.Open
@@ -391,6 +390,7 @@ library
                     Agda.TypeChecking.Rules.Def
                     Agda.TypeChecking.Rules.Display
                     Agda.TypeChecking.Rules.LHS
+                    Agda.TypeChecking.Rules.LHS.AsPatterns
                     Agda.TypeChecking.Rules.LHS.Implicit
                     Agda.TypeChecking.Rules.LHS.Instantiate
                     Agda.TypeChecking.Rules.LHS.Problem
@@ -540,11 +540,10 @@ library
 executable agda
   hs-source-dirs: src/main
   main-is:        Main.hs
-  build-depends:
-    Agda == 2.6.0
-    -- Nothing is used from the following package, except for the
-    -- prelude.
-    , base >= 4.6.0.1 && < 6
+  build-depends:  Agda == 2.6.0
+                  -- Nothing is used from the following package,
+                  -- except for the prelude.
+                , base >= 4.6.0.1 && < 6
   if impl(ghc >= 7)
     -- If someone installs Agda with the setuid bit set, then the
     -- presence of +RTS may be a security problem (see GHC bug #3910).
@@ -557,11 +556,10 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  build-depends:
-    base >= 4.6.0.1 && < 4.10
-    , directory >= 1.2.0.1 && < 1.3
-    , filepath >= 1.3.0.1 && < 1.5
-    , process >= 1.1.0.2 && < 1.5
+  build-depends:    base >= 4.6.0.1 && < 4.10
+                  , directory >= 1.2.0.1 && < 1.3
+                  , filepath >= 1.3.0.1 && < 1.5
+                  , process >= 1.1.0.2 && < 1.5
 
 executable agda-ghc-names
   hs-source-dirs:   src/agda-ghc-names
@@ -570,14 +568,15 @@ executable agda-ghc-names
                     , Find
                     , FixProf
                     , ResolveHsNames
-  build-depends:
-    base >= 4.6.0.1 && < 4.10
-    , binary >= 0.7.2.1 && < 0.9
-    , containers >= 0.5.0.0 && < 0.6
-    , filemanip >= 0.3.6.3 && < 0.4
-    , haskell-src-exts >= 1.16.0.1 && < 1.18
-    , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
-    , filepath >= 1.3.0.1 && < 1.5
+
+  build-depends:  base >= 4.6.0.1 && < 4.10
+                , binary >= 0.7.2.1 && < 0.9
+                , containers >= 0.5.0.0 && < 0.6
+                , filemanip >= 0.3.6.3 && < 0.4
+                , filepath >= 1.3.0.1 && < 1.5
+                , haskell-src-exts >= 1.16.0.1 && < 1.18
+                , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
+
   ghc-options:  -rtsopts
 
 
@@ -601,21 +600,22 @@ test-suite agda-tests
                     , LibSucceed.Tests
                     , Succeed.Tests
                     , Utils
-  build-depends:      array >= 0.4.0.1 && < 0.6
-                    , base >= 4.6.0.1 && < 4.10
-                    , bytestring >= 0.10.0.2 && < 0.11
-                    , containers >= 0.5.0.0 && < 0.6
-                    , directory >= 1.2.0.1 && < 1.3
-                    , filepath >= 1.3.0.1 && < 1.5
-                    , filemanip >= 0.3.6.3 && < 0.4
-                    , process >= 1.1.0.2 && < 1.5
-                    , process-extras >= 0.3.0 && < 0.4
-                    , regex-tdfa >= 1.2.0 && < 1.3
-                    , regex-tdfa-text >= 1.0.0.3 && < 1.1
-                    , tasty >= 0.10 && < 0.12
-                    , tasty-silver >= 3.1.8 && < 3.2
-                    , temporary >= 1.2.0.3 && < 1.3
-                    , text >= 0.11.3.1 && < 1.3
+
+  build-depends:  array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
+                , bytestring >= 0.10.0.2 && < 0.11
+                , containers >= 0.5.0.0 && < 0.6
+                , directory >= 1.2.0.1 && < 1.3
+                , filepath >= 1.3.0.1 && < 1.5
+                , filemanip >= 0.3.6.3 && < 0.4
+                , process >= 1.1.0.2 && < 1.5
+                , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.2 && < 0.5
+                , regex-tdfa >= 1.2.0 && < 1.3
+                , regex-tdfa-text >= 1.0.0.3 && < 1.1
+                , tasty >= 0.10 && < 0.12
+                , tasty-silver >= 3.1.8 && < 3.2
+                , temporary >= 1.2.0.3 && < 1.3
+                , text >= 0.11.3.1 && < 1.3
 
   -- we use the CPP processor to conditionally enable the UHC specific compiler tests.
   if flag(uhc)

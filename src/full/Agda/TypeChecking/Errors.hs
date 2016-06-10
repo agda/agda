@@ -44,6 +44,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.Except ( MonadError(catchError) )
@@ -266,6 +267,7 @@ errorString err = case err of
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
+  DeBruijnIndexOutOfScope{}                -> "DeBruijnIndexOutOfScope"
   WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
   WithoutKError{}                          -> "WithoutKError"
   WrongHidingInApplication{}               -> "WrongHidingInApplication"
@@ -1022,7 +1024,7 @@ instance PrettyTCM TypeError where
 
     CoverageCantSplitOn c tel cIxs gIxs
       | length cIxs /= length gIxs -> __IMPOSSIBLE__
-      | otherwise                  -> addCtxTel tel $ vcat (
+      | otherwise                  -> addContext tel $ vcat (
           [ fsep $ pwords "I'm not sure if there should be a case for the constructor" ++
                    [prettyTCM c <> text ","] ++
                    pwords "because I get stuck when trying to solve the following" ++
@@ -1126,6 +1128,16 @@ instance PrettyTCM TypeError where
         pwords $ "Unquote failed because of unsolved meta variables."
 
       UnquotePanic err -> __IMPOSSIBLE__
+
+    DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
+        pwords $ "deBruijnIndex " ++ show i ++ " is not in scope in the empty context"
+    DeBruijnIndexOutOfScope i cxt names ->
+        sep [ text ("deBruijn index " ++ show i ++ " is not in scope in the context")
+            , inTopContext $ addContext "_" $ prettyTCM cxt' ]
+      where
+        cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
+        nameCxt [] = EmptyTel
+        nameCxt (x : xs) = ExtendTel (defaultDom (El I.Prop $ I.Var 0 [])) $ NoAbs (show x) $ nameCxt xs
 
     SafeFlagPostulate e -> fsep $
       pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
@@ -1252,7 +1264,7 @@ instance PrettyTCM Call where
         pwords "when checking that the clause"
         ++ [prettyA cl] ++ pwords "has type" ++ [prettyTCM t]
 
-    CheckPattern p tel t -> addCtxTel tel $ fsep $
+    CheckPattern p tel t -> addContext tel $ fsep $
       pwords "when checking that the pattern"
       ++ [prettyA p] ++ pwords "has type" ++ [prettyTCM t]
 
@@ -1322,7 +1334,7 @@ instance PrettyTCM Call where
     InferVar x ->
       fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 
-    InferDef _ x ->
+    InferDef x ->
       fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 
     CheckIsEmpty r t ->

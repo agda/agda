@@ -84,8 +84,7 @@ bindWild ret = do
   bindVar x ret
 
 bindVar :: Name -> TCM a -> TCM a
-bindVar x ret = do
-  addCtx x (defaultDom typeDontCare) ret
+bindVar x ret = addContext x ret
 
 exprToTerm :: A.Expr -> TCM Term
 exprToTerm e =

@@ -212,7 +212,7 @@ checkRecDef i name ind eta con ps contel fields =
 -}
 
       let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar = addCtxString "" $ Dom info rect
+          addRecordVar = addContext' ("", Dom info rect)
           -- the record variable has the empty name by intention, see issue 208
 
       let m = qnameToMName name  -- Name of record module.
@@ -251,6 +251,7 @@ checkRecDef i name ind eta con ps contel fields =
           -- record type.
           -- See test/Succeed/ProjectionsTakeModuleTelAsParameters.agda.
           tel' <- getContextTelescope
+          setDefaultModuleParameters m
           checkRecordProjections m name con tel' (raise 1 ftel) fields
 
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
@@ -299,7 +300,7 @@ checkRecordProjections m r con tel ftel fs = do
           , text "tel   =" <+> (inTopContext . prettyTCM $ tel)
           , text "ftel1 =" <+> prettyTCM ftel1
           , text "t     =" <+> prettyTCM t
-          , text "ftel2 =" <+> addCtxTel ftel1 (underAbstraction_ ftel2 prettyTCM)
+          , text "ftel2 =" <+> addContext ftel1 (underAbstraction_ ftel2 prettyTCM)
           ]
         ]
 
@@ -362,8 +363,8 @@ checkRecordProjections m r con tel ftel fs = do
         let -- Andreas, 2010-09-09: comment for existing code
             -- split the telescope into parameters (ptel) and the type or the record
             -- (rt) which should be  R ptel
-            (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
-            projArgI    = domInfo rt
+            telList = telToList tel
+            (_ptel,[rt]) = splitAt (size tel - 1) telList
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
@@ -382,21 +383,15 @@ checkRecordProjections m r con tel ftel fs = do
                             , clauseCatchall  = False
                             }
 
-        -- Andreas, 2013-10-20
-        -- creating the projection construction function
-        let core = Lam projArgI $ Abs "r" $ bodyMod $ projcall
-            -- leading lambdas are to ignore parameter applications
-            proj = teleNoAbs ptel core
-            -- proj = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) core ptel
-            projection = Projection
-              { projProper   = Just projname
+        let projection = Projection
+              { projProper   = True
+              , projOrig     = projname
               -- name of the record type:
               , projFromType = r
               -- index of the record argument (in the type),
               -- start counting with 1:
-              , projIndex    = size ptel + 1  -- which is @size tel@
-              , projDropPars = proj
-              , projArgInfo  = projArgI
+              , projIndex    = size tel -- which is @size ptel + 1@
+              , projLams     = ProjLams $ map (\ (Dom ai (x,_)) -> Arg ai x) telList
               }
 
         reportSDoc "tc.rec.proj" 80 $ sep
@@ -406,7 +401,7 @@ checkRecordProjections m r con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ text "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                       inTopContext (addCtxTel ftel (prettyTCM (clauseBody clause)))
+                       inTopContext (addContext ftel (prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ text "adding projection"

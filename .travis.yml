@@ -31,6 +31,43 @@ sudo: false
 
 matrix:
   include:
+    - env: TEST=main GHC_VER=8.0.1 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.1
+            - texlive-binaries
+          sources:
+            - hvr-ghc
+
+    - env: TEST=cpp GHC_VER=8.0.1 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.1
+          sources:
+            - hvr-ghc
+
+    - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.1
+          sources:
+            - hvr-ghc
+
+    - env: TEST=uhc GHC_VER=8.0.1 CABAL_VER=1.24
+      addons:
+        apt:
+          packages:
+            - cabal-install-1.24
+            - ghc-8.0.1
+          sources:
+            - hvr-ghc
+
     - env: TEST=main GHC_VER=7.10.3 CABAL_VER=1.22
       addons:
         apt:
@@ -38,15 +75,6 @@ matrix:
             - cabal-install-1.22
             - ghc-7.10.3
             - texlive-binaries
-          sources:
-            - hvr-ghc
-
-    - env: TEST=cpp GHC_VER=7.10.3 CABAL_VER=1.22
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.22
-            - ghc-7.10.3
           sources:
             - hvr-ghc
 
@@ -58,14 +86,6 @@ matrix:
             - ghc-7.10.3
           sources:
             - hvr-ghc
-
-    - env: TEST=doc
-      addons:
-        apt:
-          packages:
-            - dvipng
-            - texlive-latex-base
-            - texlive-latex-extra
 
     - env: TEST=main GHC_VER=7.8.4 CABAL_VER=1.18
       addons:
@@ -96,10 +116,18 @@ matrix:
           sources:
             - hvr-ghc
 
+    - env: TEST=doc
+      addons:
+        apt:
+          packages:
+            - dvipng
+            - texlive-latex-base
+            - texlive-latex-extra
+
   # Builds are loooong, we want to send an email as fast as possible.
   fast_finish: true
-  # allow_failures:
-    # - ghc: A.B.C
+  allow_failures:
+    - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
 
 ##############################################################################
 before_install:
@@ -118,6 +146,7 @@ install:
   - if [[ $TEST != "doc" ]]; then
        cabal --version &&
        ghc --version &&
+       haddock --version &&
        emacs --version &&
        cabal update &&
        cat $HOME/.cabal/config &&
@@ -136,10 +165,14 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" ]]; then
+  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
        cabal install alex &&
        cabal install happy &&
-       cabal install --enable-tests --only-dependencies --force-reinstalls;
+       if [[ $TEST = "uhc" ]]; then
+          cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
+       else
+          cabal install --enable-tests --only-dependencies --force-reinstalls;
+       fi
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install alex --constraint=transformers==0.3.0.0 &&
          cabal install happy --constraint=transformers==0.3.0.0 &&
@@ -328,6 +361,14 @@ script:
 
   - if [[ $TEST = "cpp" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
+       cabal build -v2 -j${JOBS};
+    fi
+
+##############################################################################
+# Testing compilation using the `uhc` flag
+
+  - if [[ $TEST = "uhc" ]]; then
+       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f uhc &&
        cabal build -v2 -j${JOBS};
     fi
 

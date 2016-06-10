@@ -45,6 +45,7 @@ import qualified Data.IntMap as IntMap
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Data.List (elemIndex)
+import Data.Monoid
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Common as C
@@ -63,6 +64,7 @@ import Agda.TypeChecking.Telescope (renameP, permuteTel)
 import Agda.Utils.Either
 import Agda.Utils.Except
 import Agda.Utils.Functor
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -141,7 +143,20 @@ instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
 -- | Monad for non-linear matching.
 type NLM = ExceptT Blocked_ (StateT NLMState ReduceM)
 
-type NLMState = (Sub, PostponedEquations)
+data NLMState = NLMState
+  { _nlmSub   :: Sub
+  , _nlmEqs   :: PostponedEquations
+  }
+
+instance Null NLMState where
+  empty  = NLMState { _nlmSub = empty , _nlmEqs = empty }
+  null s = null (s^.nlmSub) && null (s^.nlmEqs)
+
+nlmSub :: Lens' Sub NLMState
+nlmSub f s = f (_nlmSub s) <&> \x -> s {_nlmSub = x}
+
+nlmEqs :: Lens' PostponedEquations NLMState
+nlmEqs f s = f (_nlmEqs s) <&> \x -> s {_nlmEqs = x}
 
 liftRed :: ReduceM a -> NLM a
 liftRed = lift . lift
@@ -168,15 +183,15 @@ matchingBlocked = throwError
 -- | Add substitution @i |-> v@ to result of matching.
 tellSub :: Int -> Term -> NLM ()
 tellSub i v = do
-  caseMaybeM (IntMap.lookup i <$> gets fst) (modify $ first $ IntMap.insert i v) $ \v' -> do
-    unlessM (liftRed $ equal v v') $ matchingBlocked $ NotBlocked ReallyNotBlocked () -- lies!
+  caseMaybeM (IntMap.lookup i <$> use nlmSub) (nlmSub %= IntMap.insert i v) $ \v' -> do
+    whenJustM (liftRed $ equal v v') matchingBlocked
 
 tellEq :: Telescope -> Telescope -> Term -> Term -> NLM ()
 tellEq gamma k u v =
   traceSDocNLM "rewriting" 60 (sep
                [ text "adding equality between" <+> addContext (gamma `abstract` k) (prettyTCM u)
                , text " and " <+> addContext k (prettyTCM v) ]) $ do
-  modify $ second $ (PostponedEquation k u v:)
+  nlmEqs %= (PostponedEquation k u v:)
 
 type Sub = IntMap Term
 
@@ -233,16 +248,25 @@ instance (Match a b, Subst t1 a, Subst t2 b) => Match (Abs a) (Abs b) where
 
 instance Match NLPat Term where
   match gamma k p v = do
+    vb <- liftRed $ reduceB' v
     let n = size k
+        b = void vb
+        v = ignoreBlocking vb
+        prettyPat  = addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
+        prettyTerm = addContext k (prettyTCM v)
     traceSDocNLM "rewriting" 100 (sep
-      [ text "matching" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
-      , text "with" <+> addContext k (prettyTCM v)]) $ do
+      [ text "matching" <+> prettyPat
+      , text "with" <+> prettyTerm]) $ do
     let yes = return ()
         no msg =
           traceSDocNLM "rewriting" 80 (sep
-            [ text "mismatch between" <+> addContext (gamma `abstract` k) (prettyTCM (raisePatVars n p))
-            , text " and " <+> addContext k (prettyTCM v)
-            , msg ]) mzero
+            [ text "mismatch between" <+> prettyPat
+            , text " and " <+> prettyTerm
+            , msg ]) $ matchingBlocked b
+        block b' =
+          traceSDocNLM "rewriting" 80 (sep
+            [ text "matching blocked on meta"
+            , text (show b) ]) $ matchingBlocked (b `mappend` b')
     case p of
       PWild  -> yes
       PVar id i bvs -> do
@@ -266,56 +290,50 @@ instance Match NLPat Term where
                 tel = permuteTel perm k
             ok <- liftRed $ reallyFree isBadVar v
             case ok of
-              Left b         -> matchingBlocked b
+              Left b         -> block b
               Right Nothing  -> no (text "")
               Right (Just v) -> tellSub i $ teleLam tel $ renameP perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of
           Def f' es
-            | f == f'   -> matchArgs gamma k ps es
+            | f == f'   -> match gamma k ps es
             | otherwise -> no (text "")
           Con c vs
-            | f == conName c -> matchArgs gamma k ps (Apply <$> vs)
+            | f == conName c -> match gamma k ps (Apply <$> vs)
             | otherwise -> no (text "")
           Lam i u -> do
             let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PBoundVar 0 []])
-            body <- liftRed $ reduce' $ absBody u
+                body  = absBody u
             match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
           _ -> no (text "")
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
-        body <- liftRed $ reduce' body
         match gamma k p' body
       PPi pa pb  -> case ignoreSharing v of
-        Pi a b -> do
-          (a,b) <- liftRed $ reduce' (a,b)
-          match gamma k pa a >> match gamma k pb b
+        Pi a b -> match gamma k pa a >> match gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PSet p -> case ignoreSharing v of
         Sort (Type l) -> do
-          l <- liftRed $ reduce' =<< reallyUnLevelView l
+          l <- liftRed $ reallyUnLevelView l
           match gamma k p l
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
-        Var i' es | i == i' -> matchArgs gamma k ps es
+        Var i' es | i == i' -> match gamma k ps es
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PTerm u -> tellEq gamma k u v
-    where
-      matchArgs :: Telescope -> Telescope -> [Elim' NLPat] -> Elims -> NLM ()
-      matchArgs gamma k ps es = match gamma k ps =<< liftRed (reduce' es)
 
 -- Checks if the given term contains any free variables that satisfy the
 -- given condition on their DBI, possibly normalizing the term in the process.
 -- Returns `Right Nothing` if there are such variables, `Right (Just v')`
 -- if there are none (where v' is the possibly normalized version of the given
 -- term) or `Left b` if the problem is blocked on a meta.
-reallyFree :: (Normalise a, Free' a FreeVars)
+reallyFree :: (Reduce a, Normalise a, Free' a FreeVars)
            => (Int -> Bool) -> a -> ReduceM (Either Blocked_ (Maybe a))
 reallyFree f v = do
     let xs = getVars v
@@ -325,19 +343,20 @@ reallyFree f v = do
          && null (irrelevantVars xs)
       then return $ Right $ Just v
       else do
-        v <- normalise' v
-        let xs = getVars v
+        bv <- normaliseB' v
+        let b  = void bv
+            v  = ignoreBlocking bv
+            xs = getVars v
+            b' = foldMap (foldMap $ \m -> Blocked m ()) $ flexibleVars xs
         if null (stronglyRigidVars xs) && null (unguardedVars xs)
            && null (weaklyRigidVars xs) && null (irrelevantVars xs)
         then if null (flexibleVars xs)
              then return $ Right $ Just v
-             else return $ Left $ foldMap (foldMap $ \m -> Blocked m ()) $
-                    flexibleVars xs
+             else return $ Left $ b `mappend` b'
         else return $ Right Nothing
     else return $ Right Nothing
   where
     getVars v = runFree (\var@(i,_) -> if f i then singleton var else empty) IgnoreNot v
-
 
 makeSubstitution :: Telescope -> Sub -> Substitution
 makeSubstitution gamma sub =
@@ -345,8 +364,8 @@ makeSubstitution gamma sub =
     where
       val i = IntMap.lookup i sub
 
-checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM Bool
-checkPostponedEquations sub eqs = andM $ for eqs $
+checkPostponedEquations :: Substitution -> PostponedEquations -> ReduceM (Maybe Blocked_)
+checkPostponedEquations sub eqs = forM' eqs $
   \ (PostponedEquation k lhs rhs) -> equal (applySubst (liftS (size k) sub) lhs) rhs
 
 -- main function
@@ -355,23 +374,34 @@ nonLinMatch gamma p v = do
   let no msg b = traceSDoc "rewriting" 80 (sep
                    [ text "matching failed during" <+> text msg
                    , text "blocking: " <+> text (show b) ]) $ return (Left b)
-  caseEitherM (runNLM $ match gamma EmptyTel p v) (no "matching") $ \ (s, eqs) -> do
-    let sub = makeSubstitution gamma s
+  caseEitherM (runNLM $ match gamma EmptyTel p v) (no "matching") $ \ s -> do
+    let sub = makeSubstitution gamma $ s^.nlmSub
+        eqs = s^.nlmEqs
     traceSDoc "rewriting" 90 (text $ "sub = " ++ show sub) $ do
-      ifM (checkPostponedEquations sub eqs)
-        (return $ Right sub)
-        (no "checking of postponed equations" $ NotBlocked ReallyNotBlocked ()) -- more lies
+      ok <- checkPostponedEquations sub eqs
+      case ok of
+        Nothing -> return $ Right sub
+        Just b  -> no "checking of postponed equations" b
 
 -- | Untyped βη-equality, does not handle things like empty record types.
-equal :: Term -> Term -> ReduceM Bool
+--   Returns `Nothing` if the terms are equal, or `Just b` if the terms are not
+--   (where b contains information about possible metas blocking the reduction)
+equal :: Term -> Term -> ReduceM (Maybe Blocked_)
 equal u v = do
-  (u, v) <- etaContract =<< normalise' (u, v)
-  let ok = u == v
-  if ok then return True else
+  buv <- etaContract =<< normaliseB' (u, v)
+  let b     = void buv
+      (u,v) = ignoreBlocking buv
+      ok    = u == v
+  if ok then return Nothing else
     traceSDoc "rewriting" 80 (sep
       [ text "mismatch between " <+> prettyTCM u
       , text " and " <+> prettyTCM v
-      ]) $ return False
+      ]) $ return $ Just b
+
+-- | Normalise the given term but also preserve blocking tags
+--   TODO: implement a more efficient version of this.
+normaliseB' :: (Reduce t, Normalise t) => t -> ReduceM (Blocked t)
+normaliseB' = normalise' >=> reduceB'
 
 -- | Raise (bound) variables in a NLPat
 

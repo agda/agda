@@ -111,8 +111,9 @@ getRecordDef r = maybe err return =<< isRecord r
 
 -- | Get the record name belonging to a field name.
 getRecordOfField :: QName -> TCM (Maybe QName)
-getRecordOfField d = maybe Nothing fromP <$> isProjection d
-  where fromP Projection{ projProper = mp, projFromType = r} = mp $> r
+getRecordOfField d = caseMaybeM (isProjection d) (return Nothing) $
+  \ Projection{ projProper = proper, projFromType = r} ->
+    return $ if proper then Just r else Nothing
 
 -- | Get the field names of a record.
 getRecordFieldNames :: QName -> TCM [Arg C.Name]
@@ -151,9 +152,7 @@ getRecordTypeFields t =
 -- | Get the original name of the projection
 --   (the current one could be from a module application).
 getOriginalProjection :: QName -> TCM QName
-getOriginalProjection q = do
-  proj <- fromMaybe __IMPOSSIBLE__ <$> isProjection q
-  return $ fromMaybe __IMPOSSIBLE__ $ projProper proj
+getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
 -- | Get the type of the record constructor.
 getRecordConstructorType :: QName -> TCM Type
@@ -194,6 +193,19 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
       caseMaybeM (isRecord r) no $ \ def -> return $ Right (r,vs,def)
     _ -> no
 
+-- | Get the original projection info for name.
+{-# SPECIALIZE origProjection :: QName -> TCM (QName, Definition, Maybe Projection) #-}
+origProjection ::  HasConstInfo m => QName -> m (QName, Definition, Maybe Projection)
+origProjection f = do
+  def <- getConstInfo f
+  let proj     = isProjection_ $ theDef def
+      fallback = return (f, def, proj)
+  caseMaybe proj fallback $
+    \ p@Projection{ projProper = proper, projOrig = f' } ->
+      if not proper || f == f' then fallback else do
+        def <- getConstInfo f'
+        return (f', def, isProjection_ $ theDef def)
+
 -- | @getDefType f t@ computes the type of (possibly projection-(like))
 --   function @f@ whose first argument has type @t@.
 --   The `parameters' for @f@ are extracted from @t@.
@@ -205,15 +217,27 @@ tryRecordType t = ifBlockedType t (\ _ _ -> return $ Left Nothing) $ \ t -> do
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
 getDefType :: QName -> Type -> TCM (Maybe Type)
 getDefType f = skipPartial reduce $ \ t -> do
-  def <- getConstInfo f
+  -- Andreas, Issue #1973: we need to take the original projection
+  -- since the parameters from the reduced type t are correct for
+  -- the original projection only.
+  -- Due to module application, the given (non-original) projection f
+  -- may expect less parameters, those corresponding to a unreduced
+  -- version of t (which we cannot obtain here).
+  (f, def, mp) <- origProjection f
   let a = defType def
   -- if @f@ is not a projection (like) function, @a@ is the correct type
       fallback = return $ Just a
-  caseMaybe (isProjection_ $ theDef def) fallback $
+  reportSDoc "tc.deftype" 20 $ vcat
+    [ text "definition f = " <> prettyTCM f <+> text ("raw: " ++ show f)
+    , text "has type   a = " <> prettyTCM a
+    , text "principal  t = " <> prettyTCM t
+    ]
+  caseMaybe mp fallback $
     \ (Projection{ projIndex = n }) -> if n <= 0 then fallback else do
       -- otherwise, we have to instantiate @a@ to the "parameters" of @f@
       let npars | n == 0    = __IMPOSSIBLE__
                 | otherwise = n - 1
+      reportSLn "tc.deftype" 20 $ "projIndex    = " ++ show n
       -- we get the parameters from type @t@
       case ignoreSharing $ unEl t of
         Def d es -> do
@@ -225,6 +249,11 @@ getDefType f = skipPartial reduce $ \ t -> do
           ifNotM (eligibleForProjectionLike d) (failNotElig t) $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
+            reportSDoc "tc.deftype" 20 $ vcat
+              [ text $ "head d     = " ++ show d
+              , text "parameters =" <+> sep (map prettyTCM pars)
+              ]
+            reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
             if length pars < npars then failure t "does not supply enough parameters"
             else Just <$> a `piApplyM` pars
         _ -> failNotDef t
@@ -475,12 +504,20 @@ etaExpandRecord_ r pars def u = do
       tel' = apply tel pars
   unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
   case ignoreSharing u of
+
     -- Already expanded.
     Con con_ args -> do
-      when (con /= con_) __IMPOSSIBLE__
+      when (con /= con_) $ do
+        reportSDoc "impossible" 10 $ vcat
+          [ text "etaExpandRecord_: the following two constructors should be identical"
+          , nest 2 $ text $ "con  = " ++ show con
+          , nest 2 $ text $ "con_ = " ++ show con_
+          ]
+        __IMPOSSIBLE__
       return (tel', con, args)
+
     -- Not yet expanded.
-    _             -> do
+    _ -> do
       -- Andreas, < 2016-01-18: Note: recFields are always the original projections,
       -- thus, we can use them in Proj directly.
       let xs' = for xs $ fmap $ \ x -> u `applyE` [Proj x]

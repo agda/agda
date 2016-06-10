@@ -1,4 +1,4 @@
 Issue659.agda:32,11-15
-((r₁ : (ℓ : Level) → R ℓ) {a : Level} {A : Set a} → A → A) !=<
+(((ℓ : Level) → R ℓ) → {a : Level} {A : Set a} → A → A) !=<
 (P _k_26 _A_28) because this would result in an invalid use of Setω
 when checking that the expression M.id has type P _k_26 _A_28

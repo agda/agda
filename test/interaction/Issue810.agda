@@ -1,8 +1,9 @@
 -- {-# OPTIONS -v interaction:100 #-}
 module Issue810 where
 
-postulate
-  T : Set → Set
+record T (A : Set) : Set where
+  constructor mkT
+  field unT : A
 
 introHid : {A : Set} → T A
 introHid = {!!}

@@ -138,10 +138,10 @@ unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.Chec
     reportSDoc "tc.lhs.unify" 10 $
       sep [ text "unifyIndices"
           , nest 2 $ prettyTCM tel
-          , nest 2 $ addCtxTel tel $ text (show flex)
-          , nest 2 $ addCtxTel tel $ parens (prettyTCM a)
-          , nest 2 $ addCtxTel tel $ prettyList $ map prettyTCM us
-          , nest 2 $ addCtxTel tel $ prettyList $ map prettyTCM vs
+          , nest 2 $ addContext tel $ text (show flex)
+          , nest 2 $ addContext tel $ parens (prettyTCM a)
+          , nest 2 $ addContext tel $ prettyList $ map prettyTCM us
+          , nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
           ]
     initialState    <- initUnifyState tel flex a us vs
     reportSDoc "tc.lhs.unify" 20 $ text "initial unifyState:" <+> prettyTCM initialState
@@ -223,8 +223,8 @@ instance PrettyTCM UnifyState where
   prettyTCM state = text "UnifyState" <+> nest 2 (vcat $
     [ text "  variable tel:  " <+> prettyTCM gamma
     , text "  flexible vars: " <+> prettyTCM (map flexVar $ flexVars state)
-    , text "  equation tel:  " <+> addCtxTel gamma (prettyTCM delta)
-    , text "  equations:     " <+> addCtxTel gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
+    , text "  equation tel:  " <+> addContext gamma (prettyTCM delta)
+    , text "  equations:     " <+> addContext gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
     ])
     where
       gamma = varTel state
@@ -304,8 +304,8 @@ solveVar k u s = case instantiateTelescope (varTel s) k u of
   where
     permuteFlex :: Permutation -> FlexibleVars -> FlexibleVars
     permuteFlex perm =
-      mapMaybe $ \(FlexibleVar h k x) ->
-        FlexibleVar h k <$> findIndex (x==) (permPicks perm)
+      mapMaybe $ \(FlexibleVar h k p x) ->
+        FlexibleVar h k p <$> findIndex (x==) (permPicks perm)
 
 applyUnder :: Int -> Telescope -> Term -> Telescope
 applyUnder k tel u
@@ -526,7 +526,7 @@ basicUnifyStrategy :: Int -> UnifyStrategy
 basicUnifyStrategy k s = do
   Equal a u v <- liftTCM $ eqUnLevel (getEquality k s)
   ha <- mfromMaybe $ isHom n a
-  (mi, mj) <- liftTCM $ addCtxTel (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
+  (mi, mj) <- liftTCM $ addContext (varTel s) $ (,) <$> isEtaVar u ha <*> isEtaVar v ha
   liftTCM $ reportSDoc "tc.lhs.unify" 30 $ text "isEtaVar results: " <+> text (show [mi,mj])
   case (mi, mj) of
     (Just i, Just j)
@@ -602,10 +602,10 @@ dataStrategy k s = do
             reportSDoc "tc.lhs.unify" 80 $ text "Type of constructor: " <+> prettyTCM ctype
             withMetaInfo' mv $ do
               let perm = mvPermutation mv
-              tel <- permuteTel perm <$> getContextTelescope
+              tel <- permuteTel perm <$> (instantiateFull =<< getContextTelescope)
               reportSDoc "tc.lhs.unify" 100 $ text "Context tel (for new metas): " <+> prettyTCM tel
               -- important: create the meta in the same environment as the original meta
-              newArgsMetaCtx ctype tel (mvPermutation mv) us
+              newArgsMetaCtx ctype tel perm us
           reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
           noConstraints $ assignV DirEq m us (Con c margs)
           return $ Just margs
@@ -653,7 +653,7 @@ etaExpandVarStrategy k s = do
 etaExpandEquationStrategy :: Int -> UnifyStrategy
 etaExpandEquationStrategy k s = do
   let Equal a u v = getEqualityUnraised k s
-  (d, pars) <- mcatMaybes $ liftTCM $ addCtxTel tel $ isEtaRecordType a
+  (d, pars) <- mcatMaybes $ liftTCM $ addContext tel $ isEtaRecordType a
   sing <- liftTCM $ (Right True ==) <$> isSingletonRecord d pars
   projLeft <- liftTCM $ shouldProject u
   projRight <- liftTCM $ shouldProject v
@@ -757,7 +757,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } =
   liftTCM $ do
-    addCtxTel (varTel s) $ noConstraints $ equalTerm a u v
+    addContext (varTel s) $ noConstraints $ equalTerm a u v
     ifM ((optWithoutK <$> pragmaOptions) `and2M` (not <$> isSet (unEl a)))
     {-then-} (DontKnow <$> withoutKErr)
     {-else-} (Unifies  <$> reduceEqTel (solveEq k u s))
@@ -805,10 +805,10 @@ unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
               js = is ++ [n-1-k]
           caseMaybeM (trySplitTelescopeExact js (eqTel s)) (DontKnow <$> err) $
             \(SplitTel tel1 tel2 perm) -> do
-            reportSDoc "tc.lhs.unify" 40 $ addCtxTel (varTel s) $ sep $
+            reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $ sep $
               [ text "split telescope" <+> prettyTCM (eqTel s) <+> text ("at " ++ show js)
               , text "  into" <+> prettyTCM tel1
-              , text "  and " <+> addCtxTel tel1 (prettyTCM tel2)
+              , text "  and " <+> addContext tel1 (prettyTCM tel2)
               , text "  perm =" <+> text (show perm)
               ]
             let n1   = size tel1
@@ -854,7 +854,7 @@ unifyStep s EtaExpandVar{ expandVar = fi, expandVarRecordType = d , expandVarPar
   c       <- liftTCM $ getRecordConstructor d
   let nfields         = size delta
       (varTel', rho)  = expandTelescopeVar (varTel s) (m-1-i) delta c
-      projectFlexible = [ FlexibleVar (flexHiding fi) (projFlexKind j) (i+j) | j <- [0..nfields-1] ]
+      projectFlexible = [ FlexibleVar (flexHiding fi) (projFlexKind j) (flexPos fi) (i+j) | j <- [0..nfields-1] ]
   tellUnifySubst $ rho
   Unifies <$> liftTCM (reduce $ UState
     { varTel   = varTel'

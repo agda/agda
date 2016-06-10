@@ -191,7 +191,7 @@ registerInteractionPoint r maybeId = do
     Just i  -> return $ InteractionId i
     Nothing -> fresh
   m <- use stInteractionPoints
-  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing }
+  let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipClause = IPNoClause }
   case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
     -- However, it needs to be at the same range as the new one.
@@ -205,8 +205,9 @@ registerInteractionPoint r maybeId = do
 -- | Hook up meta variable to interaction point.
 connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
 connectInteractionPoint ii mi = do
+  ipCl <- asks envClause
   m <- use stInteractionPoints
-  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi }
+  let ip = InteractionPoint { ipRange = __IMPOSSIBLE__, ipMeta = Just mi, ipClause = ipCl }
   -- The interaction point needs to be present already, we just set the meta.
   case Map.insertLookupWithKey (\ key new old -> new { ipRange = ipRange old }) ii ip m of
     (Nothing, _) -> __IMPOSSIBLE__

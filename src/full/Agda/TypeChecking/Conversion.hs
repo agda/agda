@@ -373,7 +373,7 @@ compareTel t1 t2 cmp tel1 tel2 =
           let checkDom = escapeContext 1 $ compareType cmp a1 a2
               c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
 
-          addCtx name dom1 $
+          addContext (name, dom1) $
             if dependent
             then guardConstraint c checkDom
             else checkDom >> solveConstraint_ c
@@ -615,7 +615,7 @@ compareAtom cmp t m n =
                 -- We only need to require a1 == a2 if t2 is a dependent function type.
                 -- If it's non-dependent it doesn't matter what we add to the context.
                 name <- freshName_ (suggest b1 b2)
-                addCtx name dom1 $
+                addContext (name, dom1) $
                   if isBinderUsed b2 -- dependent function type?
                   then guardConstraint conCoDom checkDom
                   else checkDom >> solveConstraint_ conCoDom

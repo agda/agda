@@ -1,0 +1,4 @@
+Issue1990.agda:6,1-28
+_≅_  does not have the right type for a rewriting relation
+because its two final arguments are not both visible.
+when checking the pragma BUILTIN REWRITE _≅_

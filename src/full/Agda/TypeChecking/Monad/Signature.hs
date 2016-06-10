@@ -40,6 +40,7 @@ import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Exception ( ExceptionT )
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Local
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Substitute
@@ -71,7 +72,7 @@ addConstant q d = do
   tel <- getContextTelescope
   let tel' = replaceEmptyName "r" $ killRange $ case theDef d of
               Constructor{} -> fmap hideOrKeepInstance tel
-              Function{ funProjection = Just Projection{ projProper = Just{}, projIndex = n } } ->
+              Function{ funProjection = Just Projection{ projProper = True, projIndex = n } } ->
                 let fallback = fmap hideOrKeepInstance tel in
                 if n > 0 then fallback else
                 -- if the record value is part of the telescope, its hiding should left unchanged
@@ -217,7 +218,12 @@ addSection m = do
       reportSLn "impossible" 60 $ "with content " ++ show sec
       __IMPOSSIBLE__
   -- Add the new section.
+  setDefaultModuleParameters m
   modifySignature $ over sigSections $ Map.insert m sec
+
+setDefaultModuleParameters :: ModuleName -> TCM ()
+setDefaultModuleParameters m =
+  stModuleParameters %= Map.insert m defaultModuleParameters
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
@@ -364,7 +370,8 @@ applySection' new ptel old ts rd rm = do
           reportSLn "tc.mod.apply" 60 $ "making new def for " ++ show y ++ " from " ++ show x ++ " with " ++ show np ++ " args " ++ show abstr
           reportSLn "tc.mod.apply" 80 $
             "args = " ++ show ts' ++ "\n" ++
-            "old type = " ++ prettyShow (defType d) ++ "\n" ++
+            "old type = " ++ prettyShow (defType d)
+          reportSLn "tc.mod.apply" 80 $
             "new type = " ++ prettyShow t
           addConstant y =<< nd y
           makeProjection y
@@ -417,9 +424,9 @@ applySection' new ptel old ts rd rm = do
             isVar0 t = case ignoreSharing $ unArg t of Var 0 [] -> True; _ -> False
             proj   = case oldDef of
               Function{funProjection = Just p@Projection{projIndex = n}}
-                | size ts < n || (size ts == n && isVar0 (last ts))
-                -> Just $ p { projIndex    = n - size ts
-                            , projDropPars = projDropPars p `apply` ts
+                | size ts' < n || (size ts' == n && maybe True isVar0 (lastMaybe ts'))
+                -> Just $ p { projIndex = n - size ts'
+                            , projLams  = projLams p `apply` ts'
                             }
               _ -> Nothing
             def =
@@ -461,14 +468,12 @@ applySection' new ptel old ts rd rm = do
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
 
-            head = case oldDef of
-                     Function{funProjection = Just Projection{ projDropPars = f}}
-                       -> f
-                     _ -> Def x []
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
-                        , clauseBody      = Body $ head `apply` ts'
+                        , clauseBody      = Body $ case oldDef of
+                            Function{funProjection = Just p} -> projDropParsApply p ts'
+                            _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
                         , clauseCatchall  = False
                         }
@@ -513,12 +518,12 @@ applySection' new ptel old ts rd rm = do
       reportSLn "tc.mod.apply" 80 $ "  totalArgs    = " ++ show totalArgs
       reportSLn "tc.mod.apply" 80 $ "  tel          = " ++ intercalate " " (map (fst . unDom) $ telToList tel)  -- only names
       reportSLn "tc.mod.apply" 80 $ "  sectionTel   = " ++ intercalate " " (map (fst . unDom) $ telToList ptel) -- only names
-      addCtxTel sectionTel $ addSection y
+      addContext sectionTel $ addSection y
 
 -- | Add a display form to a definition (could be in this or imported signature).
 addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
-  d <- makeOpen df
+  d <- makeLocal df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
   inCurrentSig <- isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
   if inCurrentSig
@@ -527,7 +532,7 @@ addDisplayForm x df = do
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
 
-getDisplayForms :: QName -> TCM [Open DisplayForm]
+getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- defDisplay <$> getConstInfo q
   ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
@@ -541,7 +546,7 @@ chaseDisplayForms q = go Set.empty [q]
     go used []       = pure used
     go used (q : qs) = do
       let rhs (Display _ _ e) = e   -- Only look at names in the right-hand side (#1870)
-      ds <- (`Set.difference` used) . Set.unions . map (namesIn . rhs . openThing)
+      ds <- (`Set.difference` used) . Set.unions . map (namesIn . rhs . dget)
             <$> (getDisplayForms q `catchError_` \ _ -> pure [])  -- might be a pattern synonym
       go (Set.union ds used) (Set.toList ds ++ qs)
 
@@ -746,11 +751,16 @@ getCurrentModuleFreeVars = size <$> (lookupSection =<< currentModule)
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   number of parameters shared with the current module and the number of
 --   anonymous variables (if the name comes from a let-bound module).
-{-# SPECIALIZE getDefFreeVars :: QName -> TCM Nat #-}
-{-# SPECIALIZE getDefFreeVars :: QName -> ReduceM Nat #-}
 getDefFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m) => QName -> m Nat
-getDefFreeVars q = do
-  let m = qnameModule q
+getDefFreeVars = getModuleFreeVars . qnameModule
+
+freeVarsToApply :: QName -> TCM Args
+freeVarsToApply = moduleParamsToApply . qnameModule
+
+{-# SPECIALIZE getModuleFreeVars :: ModuleName -> TCM Nat #-}
+{-# SPECIALIZE getModuleFreeVars :: ModuleName -> ReduceM Nat #-}
+getModuleFreeVars :: (Functor m, Applicative m, ReadTCState m, MonadReader TCEnv m) => ModuleName -> m Nat
+getModuleFreeVars m = do
   m0   <- commonParentModule m <$> currentModule
   (+) <$> getAnonymousVariables m <*> (size <$> lookupSection m0)
 
@@ -768,26 +778,35 @@ getDefFreeVars q = do
 --        module M₃ Θ where
 --          ... M₁.M₂.f [insert Γ raised by Θ]
 --   @
-freeVarsToApply :: QName -> TCM Args
-freeVarsToApply x = do
-  -- Get the correct number of free variables (correctly raised) of @x@.
+moduleParamsToApply :: ModuleName -> TCM Args
+moduleParamsToApply m = do
+  -- Get the correct number of free variables (correctly raised) of @m@.
 
-  args <- take <$> getDefFreeVars x <*> getContextArgs
+  reportSLn "tc.sig.param" 90 $ "compupting module parameters of " ++ show m
+  cxt <- getContext
+  n   <- getModuleFreeVars m
+  tel <- take n . telToList <$> lookupSection m
+  sub <- getModuleParameterSub m
+  reportSLn "tc.sig.param" 20 $ "  n    = " ++ show n ++
+                                "\n  cxt  = " ++ show cxt ++
+                                "\n  sub  = " ++ show sub
+  let args = applySubst sub $ zipWith (\ i a -> Var i [] <$ argFromDom a) (downFrom (length tel)) tel
+  reportSLn "tc.sig.param" 20 $ "  args = " ++ show args
 
   -- Apply the original ArgInfo, as the hiding information in the current
-  -- context might be different from the hiding information expected by @x@.
+  -- context might be different from the hiding information expected by @m@.
 
-  getSection (qnameModule x) >>= \case
+  getSection m >>= \case
     Nothing -> do
-      -- We have no section for @x@.
+      -- We have no section for @m@.
       -- This should only happen for toplevel definitions, and then there
       -- are no free vars to apply, or?
       -- unless (null args) __IMPOSSIBLE__
       -- No, this invariant is violated by private modules, see Issue1701a.
       return args
     Just (Section tel) -> do
-      -- The section telescope of the home of @x@ should be as least
-      -- as long as the number of free vars @x@ is applied to.
+      -- The section telescope of @m@ should be as least
+      -- as long as the number of free vars @m@ is applied to.
       -- We still check here as in no case, we want @zipWith@ to silently
       -- drop some @args@.
       -- And there are also anonymous modules, thus, the invariant is not trivial.
@@ -959,7 +978,7 @@ isInlineFun _ = False
 --   (projection applied to argument).
 isProperProjection :: Defn -> Bool
 isProperProjection d = caseMaybe (isProjection_ d) False $ \ isP ->
-  if projIndex isP <= 0 then False else isJust $ projProper isP
+  if projIndex isP <= 0 then False else projProper isP
 
 -- | Number of dropped initial arguments of a projection(-like) function.
 projectionArgs :: Defn -> Int
@@ -981,5 +1000,5 @@ applyDef f a = do
   caseMaybeM (isProjection f) fallback $ \ isP -> do
     if projIndex isP <= 0 then fallback else do
       -- Get the original projection, if existing.
-      caseMaybe (projProper isP) fallback $ \ f' -> do
-        return $ unArg a `applyE` [Proj f']
+      if not (projProper isP) then fallback else do
+        return $ unArg a `applyE` [Proj $ projOrig isP]

@@ -1,4 +1,4 @@
-Issue998.agda:9,4-7
+Issue998.agda:9,12-15
 a != a of type A
 (because one is a variable and one a defined identifier)
-when checking that the pattern d a has type D a
+when checking that the expression d a has type D a

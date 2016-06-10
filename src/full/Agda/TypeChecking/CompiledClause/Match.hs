@@ -175,9 +175,10 @@ match' ((c, es, patch) : stack) = do
               NotBlocked _ (Apply (Arg info (Con c vs))) -> performedSimplification $
                 match' $ conFrame c vs $ catchAllFrame $ stack
 
-              -- In case of a projection, push the litFrame
+              -- In case of a projection, push the projFrame
               NotBlocked _ (Proj p) -> performedSimplification $
-                match' $ projFrame p $ stack
+                match' $ projFrame p $ stack -- catchAllFrame $ stack
+                -- Issue #1986: no catch-all for copattern matching!
 
               -- Otherwise, we are stuck.  If we were stuck before,
               -- we keep the old reason, otherwise we give reason StuckOn here.

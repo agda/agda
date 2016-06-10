@@ -825,7 +825,10 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
       ]
     -- Andreas, 2014-04-06, Issue 1094:
     -- Add the section with well-formed telescope.
-    addCtxTel aTel $ addSection m1
+    addContext aTel $ do
+      reportSDoc "tc.mod.apply" 80 $
+        text "addSection" <+> prettyTCM m1 <+> (getContextTelescope >>= \ tel -> inTopContext (prettyTCM tel))
+      addSection m1
 
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
@@ -833,7 +836,10 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
       , nest 2 $ text "  mods:" <+> text (show rm)
       ]
     args <- instantiateFull $ vs ++ ts
-    applySection m1 ptel m2 args rd rm
+    let n = size aTel
+    etaArgs <- inTopContext $ addContext aTel getContextArgs
+    addContext' aTel $
+      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) rd rm
 
 checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   let name = mnameToQName x
@@ -875,7 +881,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   when (tel == EmptyTel) $
     typeError $ GenericError $ show (qnameToConcrete name) ++ " is not a parameterised section"
 
-  addCtxTel telInst $ do
+  addContext' telInst $ do
     vs <- freeVarsToApply name
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ nest 2 $ text "vs      =" <+> sep (map prettyTCM vs)
@@ -885,6 +891,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       [ nest 2 $ text "vs      =" <+> text (show vs)
       , nest 2 $ text "args    =" <+> text (show args)
       ]
+    addSection m1
     applySection m1 telInst x (vs ++ args) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all

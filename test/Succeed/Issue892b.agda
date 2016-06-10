@@ -25,10 +25,10 @@ module QM2p (x : D) = Q.M2 x x
 test-h : X₂ → D
 test-h = QM2d.h
 
-test-g₁ : X₁ → D
+test-g₁ : X₂ → X₁ → D
 test-g₁ = QM2d.g
 
-test-g₂ : D → X₁ → D
+test-g₂ : D → X₂ → X₁ → D
 test-g₂ = QM2p.g
 
 data Nat : Set where
@@ -89,6 +89,8 @@ module NatTrans (Y : Set) where
 module NT = NatTrans
 
 foo : Set → Set
-foo X = Eta.Z
+foo X = Eta.Z X → Eta′.Z X
   module Local where
     module Eta = NT.NatT X X
+    -- equivalent to
+    module Eta′ (Y : Set) = NT.NatT X X Y

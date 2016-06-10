@@ -386,9 +386,10 @@ freshTCM m = do
 -- | Look through the signature and reconstruct the instance table.
 addSignatureInstances :: Signature -> TCM ()
 addSignatureInstances sig = do
-  let itable = Map.fromListWith (++)
-               [ (c, [i]) | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sig ^. sigDefinitions ]
-  modifyInstanceDefs $ first $ Map.unionWith (++) itable
+  let itable = Map.fromListWith Set.union
+               [ (c, Set.singleton i)
+               | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sig ^. sigDefinitions ]
+  modifyInstanceDefs $ first $ Map.unionWith Set.union itable
 
 -- | Lens for 'stInstanceDefs'.
 updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
@@ -400,18 +401,18 @@ modifyInstanceDefs = modify . updateInstanceDefs
 getAllInstanceDefs :: TCM TempInstanceTable
 getAllInstanceDefs = use stInstanceDefs
 
-getAnonInstanceDefs :: TCM [QName]
+getAnonInstanceDefs :: TCM (Set QName)
 getAnonInstanceDefs = snd <$> getAllInstanceDefs
 
 -- | Remove all instances whose type is still unresolved.
 clearAnonInstanceDefs :: TCM ()
-clearAnonInstanceDefs = modifyInstanceDefs $ mapSnd $ const []
+clearAnonInstanceDefs = modifyInstanceDefs $ mapSnd $ const Set.empty
 
 -- | Add an instance whose type is still unresolved.
 addUnknownInstance :: QName -> TCM ()
 addUnknownInstance x = do
   reportSLn "tc.decl.instance" 10 $ "adding definition " ++ show x ++ " to the instance table (the type is not yet known)"
-  modifyInstanceDefs $ mapSnd (x:)
+  modifyInstanceDefs $ mapSnd $ Set.insert x
 
 -- | Add instance to some ``class''.
 addNamedInstance
@@ -423,4 +424,4 @@ addNamedInstance x n = do
   -- Mark x as instance for n.
   modifySignature $ updateDefinition x $ \ d -> d { defInstance = Just n }
   -- Add x to n's instances.
-  modifyInstanceDefs $ mapFst $ Map.insertWith (++) n [x]
+  modifyInstanceDefs $ mapFst $ Map.insertWith Set.union n $ Set.singleton x

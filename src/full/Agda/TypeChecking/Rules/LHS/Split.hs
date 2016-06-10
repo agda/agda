@@ -114,8 +114,8 @@ splitProblem mf (Problem ps qs tel pr) = do
               ]
             -- The record "self" is the definition f applied to the patterns
             let es = patternsToElims qs
-            fvs <- lift $ freeVarsToApply f
-            let self = defaultArg $ Def f (map Apply fvs) `applyE` es
+            -- Note: the module parameters are already part of qs
+            let self = defaultArg $ Def f [] `applyE` es
             -- Try the projection candidates
             msum $ map (tryProj self fs vs (length projs >= 2)) projs
 
@@ -134,12 +134,13 @@ splitProblem mf (Problem ps qs tel pr) = do
         let ambErr err = if amb then mzero else err
         case proj of
           -- Andreas, 2015-05-06 issue 1413 projProper=Nothing is not impossible
-          Projection{projProper = Nothing} -> ambErr notProjP
-          Projection{projProper = Just d, projIndex = n, projArgInfo = ai} -> do
+          Projection{projProper = False} -> ambErr notProjP
+          Projection{projProper = True, projOrig = d, projLams = lams} -> do
+            let ai = projArgInfo proj
             -- If projIndex==0, then the projection is already applied
             -- to the record value (like in @open R r@), and then it
             -- is no longer a projection but a record field.
-            unless (n > 0) $ ambErr notProjP
+            when (null lams) $ ambErr notProjP
             lift $ reportSLn "tc.lhs.split" 90 "we are a projection pattern"
             -- If the target is not a record type, that's an error.
             -- It could be a meta, but since we cannot postpone lhs checking, we crash here.
@@ -206,14 +207,14 @@ splitProblem mf (Problem ps qs tel pr) = do
             underAbstraction dom xtel $ \ tel -> splitP ps tel
 
       p <- lift $ expandLitPattern p
-      case asView $ namedArg p of
+      case snd $ asView $ namedArg p of
 
         -- Case: projection pattern.  That's an error.
-        (_, A.ProjP _ d) -> typeError $
+        A.ProjP _ d -> typeError $
           CannotEliminateWithPattern p (telePi tel0 $ unArg $ restType pr)
 
         -- Case: literal pattern.
-        (xs, p@(A.LitP lit))  -> do
+        p@(A.LitP lit)  -> do
           -- Note that, in the presence of --without-K, this branch is
           -- based on the assumption that the types of literals are
           -- not indexed.
@@ -227,14 +228,13 @@ splitProblem mf (Problem ps qs tel pr) = do
             {- then -} keepGoing $
             {- else -} return Split
               { splitLPats   = empty
-              , splitAsNames = xs
               , splitFocus   = Arg ai $ LitFocus lit qs a
               , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
               }
               `mplus` keepGoing
 
         -- Case: record pattern
-        (xs, p@(A.RecP _patInfo fs)) -> do
+        p@(A.RecP _patInfo fs) -> do
           res <- lift $ tryRecordType a
           case res of
             -- Subcase: blocked
@@ -266,13 +266,12 @@ splitProblem mf (Problem ps qs tel pr) = do
               args <- lift $ insertMissingFields d (const $ A.WildP A.patNoRange) fs axs
               (return Split
                 { splitLPats   = empty
-                , splitAsNames = xs
                 , splitFocus   = Arg ai $ Focus c ConPRec args (getRange p) qs d pars ixs a
                 , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                 }) `mplus` keepGoing
 
         -- Case: constructor pattern.
-        (xs, p@(A.ConP ci (A.AmbQ cs) args)) -> do
+        p@(A.ConP ci (A.AmbQ cs) args) -> do
           let tryInstantiate a'
                 | [c] <- cs = do
                     -- Type is blocked by a meta and constructor is unambiguous,
@@ -354,7 +353,6 @@ splitProblem mf (Problem ps qs tel pr) = do
 
                       (return Split
                         { splitLPats   = empty
-                        , splitAsNames = xs
                         , splitFocus   = Arg ai $ Focus c (A.patOrigin ci) args (getRange p) qs d pars ixs a
                         , splitRPats   = Abs x  $ Problem ps () tel __IMPOSSIBLE__
                         }) `mplus` keepGoing

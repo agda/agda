@@ -27,6 +27,7 @@ import Agda.Syntax.Scope.Monad (getCurrentModule)
 import Agda.Utils.Maybe
 import Agda.Utils.List
 import Agda.Utils.Functor
+import Agda.Utils.Size
 
 type Names = [Name]
 
@@ -93,9 +94,13 @@ instance ToAbstract Literal Expr where
 instance ToAbstract Term Expr where
   toAbstract t = case t of
     R.Var i es -> do
-      let fallback = withName ("@" ++ show i) return
-      name <- fromMaybeM fallback $ askName i
-      toAbstract (A.Var name, es)
+      mname <- askName i
+      case mname of
+        Nothing -> do
+          cxt   <- lift $ getContextTelescope
+          names <- asks $ drop (size cxt) . reverse
+          lift $ withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
+        Just name -> toAbstract (A.Var name, es)
     R.Con c es -> toAbstract (A.Con (AmbQ [killRange c]), es)
     R.Def f es -> toAbstract (A.Def (killRange f), es)
     R.Lam h t  -> do
@@ -153,11 +158,11 @@ instance ToAbstract (QNamed R.Clause) A.Clause where
     (names, pats) <- toAbstractPats pats
     rhs           <- local (names++) $ toAbstract rhs
     let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
-    return $ A.Clause lhs (RHS rhs) [] False
+    return $ A.Clause lhs [] (RHS rhs) [] False
   toAbstract (QNamed name (R.AbsurdClause pats)) = do
     (_, pats) <- toAbstractPats pats
     let lhs = spineToLhs $ SpineLHS (LHSRange noRange) name pats []
-    return $ A.Clause lhs AbsurdRHS [] False
+    return $ A.Clause lhs [] AbsurdRHS [] False
 
 instance ToAbstract [QNamed R.Clause] [A.Clause] where
   toAbstract = traverse toAbstract

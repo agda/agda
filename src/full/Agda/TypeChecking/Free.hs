@@ -33,6 +33,7 @@ module Agda.TypeChecking.Free
     , occurrence
     , closed
     , freeVars -- only for testing
+    , freeVars'
     ) where
 
 import Prelude hiding (null)
@@ -45,6 +46,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as Map
+import Data.Set (Set)
 
 import qualified Agda.Benchmarking as Bench
 
@@ -54,6 +56,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Free.Lazy
   ( Free'(..) , FreeEnv(..), initFreeEnv
   , VarOcc(..), IgnoreSorts(..), Variable, SingleVar
+  , MetaSet
   )
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
@@ -75,9 +78,10 @@ data FreeVars = FV
     --   whereas weakly rigid ones stay weakly rigid.
   , weaklyRigidVars   :: VarSet
     -- ^ Ordinary rigid variables, e.g., in arguments of variables.
-  , flexibleVars      :: IntMap [MetaId]
+  , flexibleVars      :: IntMap MetaSet
     -- ^ Variables occuring in arguments of metas.
     --   These are only potentially free, depending how the meta variable is instantiated.
+    --   The set contains the id's of the meta variables that this variable is an argument to.
   , irrelevantVars    :: VarSet
     -- ^ Variables in irrelevant arguments and under a @DontCare@, i.e.,
     --   in irrelevant positions.
@@ -93,7 +97,7 @@ mapWRV f fv = fv { weaklyRigidVars   = f $ weaklyRigidVars   fv }
 mapIRV f fv = fv { irrelevantVars    = f $ irrelevantVars    fv }
 mapUUV f fv = fv { unusedVars        = f $ unusedVars        fv }
 
-mapFXV :: (IntMap [MetaId] -> IntMap [MetaId]) -> FreeVars -> FreeVars
+mapFXV :: (IntMap MetaSet -> IntMap MetaSet) -> FreeVars -> FreeVars
 mapFXV f fv = fv { flexibleVars      = f $ flexibleVars      fv }
 
 -- | Rigid variables: either strongly rigid, unguarded, or weakly rigid.
@@ -118,7 +122,7 @@ data Occurrence
   | StronglyRigid     -- ^ Under at least one and only inductive constructors.
   | Unguarded         -- ^ In top position, or only under inductive record constructors.
   | WeaklyRigid       -- ^ In arguments to variables and definitions.
-  | Flexible [MetaId] -- ^ In arguments of metas.
+  | Flexible MetaSet  -- ^ In arguments of metas.
   | Unused
   deriving (Eq,Show)
 
@@ -138,14 +142,14 @@ occurrenceFV x fv
   | otherwise                           = NoOccurrence
 
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
-flexible :: [MetaId] -> FreeVars -> FreeVars
+flexible :: MetaSet -> FreeVars -> FreeVars
 flexible ms fv =
     fv { stronglyRigidVars = Set.empty
        , unguardedVars     = Set.empty
        , weaklyRigidVars   = Set.empty
        , flexibleVars      = Map.unionsWith mappend
                                [ Map.fromSet (const ms) (rigidVars fv)
-                               , fmap (ms++) (flexibleVars fv) ]
+                               , fmap (mappend ms) (flexibleVars fv) ]
        }
 
 -- | Mark rigid variables as non-strongly.  Useful when traversing arguments of variables.

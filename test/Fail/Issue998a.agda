@@ -4,8 +4,8 @@ postulate
 data D : Set → Set₁ where
   d : (A : Set) → D A
 
-f : D A → Set
-f (d A) = A
+f : Set → (D A → Set) → Set
+f A f = f (d A)
 
 -- Expected error:
 -- A != A of type Set

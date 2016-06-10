@@ -32,6 +32,7 @@ import Agda.Compiler.Treeless.Erase
 import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
+import Agda.Compiler.Treeless.AsPatterns
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -87,6 +88,8 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.erase" (30 + v) $ text "-- after erasure"  $$ pbody body
   body <- caseToSeq body
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
+  body <- recoverAsPatterns body
+  reportSDoc "treeless.opt.aspat" (30 + v) $ text "-- after @-pattern recovery"  $$ pbody body
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after third simplification"  $$ pbody body
   body <- eraseTerms q body
@@ -158,13 +161,17 @@ casetree cc = do
     CC.Done xs v -> lambdasUpTo (length xs) $ do
         v <- lift $ putAllowedReductions [ProjectionReductions, CopatternReductions] $ normalise v
         substTerm v
-    CC.Case (Arg _ n) (CC.Branches True conBrs _ _) -> lambdasUpTo n $ do
+    CC.Case _ (CC.Branches True _ _ Just{}) -> __IMPOSSIBLE__
+      -- Andreas, 2016-06-03, issue #1986: Ulf: "no catch-all for copatterns!"
+      -- lift $ do
+      --   typeError . GenericDocError =<< do
+      --     text "Not yet implemented: compilation of copattern matching with catch-all clause"
+    CC.Case (Arg _ n) (CC.Branches True conBrs _ Nothing) -> lambdasUpTo n $ do
       mkRecord =<< traverse casetree (CC.content <$> conBrs)
     CC.Case (Arg _ n) (CC.Branches False conBrs litBrs catchAll) -> lambdasUpTo (n + 1) $ do
       if Map.null conBrs && Map.null litBrs then do
         -- there are no branches, just return default
-        fromMaybe C.tUnreachable
-          <$> (fmap C.TVar <$> asks ccCatchAll)
+        fromCatchAll
       else do
         caseTy <- case (Map.keys conBrs, Map.keys litBrs) of
               ((c:_), []) -> do
@@ -177,14 +184,16 @@ casetree cc = do
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
           x <- lookupLevel n <$> asks ccCxt
-          -- normally, Agda should make sure that a pattern match is total,
-          -- so we set the default to unreachable if no default has been provided.
-          def <- fromMaybe C.tUnreachable
-            <$> (fmap C.TVar <$> asks ccCatchAll)
+          def <- fromCatchAll
           C.TCase x caseTy def <$> do
             br1 <- conAlts n conBrs
             br2 <- litAlts n litBrs
             return (br1 ++ br2)
+  where
+    -- normally, Agda should make sure that a pattern match is total,
+    -- so we set the default to unreachable if no default has been provided.
+    fromCatchAll :: CC C.TTerm
+    fromCatchAll = maybe C.tUnreachable C.TVar <$> asks ccCatchAll
 
 commonArity :: CC.CompiledClauses -> Int
 commonArity cc =

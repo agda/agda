@@ -221,7 +221,7 @@ instance PrettyTCM Relevance where
   prettyTCM UnusedArg  = empty
 
 instance PrettyTCM ProblemConstraint where
-  prettyTCM (PConstr pid c) = brackets (prettyTCM pid) <+> prettyTCM c
+  prettyTCM (PConstr pid c) = prettyList (map prettyTCM pid) <+> prettyTCM c
 
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
@@ -419,11 +419,11 @@ instance PrettyTCM (Type' NLPat) where
   prettyTCM = prettyTCM . unEl
 
 instance PrettyTCM RewriteRule where
-  prettyTCM (RewriteRule q gamma lhs rhs b) = sep
+  prettyTCM (RewriteRule q gamma f ps rhs b) = sep
     [ prettyTCM q <+> text " rule "
     , prettyTCM gamma <+> text " |- "
     , addContext gamma $ hsep
-      [ prettyTCM lhs
+      [ prettyTCM (PDef f ps)
       , text " --> "
       , prettyTCM rhs
       , text " : "

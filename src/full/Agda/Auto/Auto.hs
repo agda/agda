@@ -128,7 +128,7 @@ auto ii rng argstr = do
     -- Add the @autohints@ for that meta to the hints collection.
     mi <- lookupInteractionId ii
     --thisdefinfo <- catchError (liftM Just $ findClause mi) (\_ -> return Nothing)
-    thisdefinfo <- findClauseDeep mi
+    thisdefinfo <- findClauseDeep ii
     ehints <- (ehints ++) <$> do autohints hintmode mi $ fmap fst3 thisdefinfo
 
     -- If @thisdefinfo /= Nothing@ get the its type (normalized).
@@ -375,7 +375,7 @@ auto ii rng argstr = do
               cls'' <- forM cls' $ \ (I.Clause _ tel ps body t catchall) -> do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
-                 ps <- addCtxTel tel $ normalise ps
+                 ps <- addContext tel $ normalise ps
                  body <- etaContractBody body
                  liftM modifyAbstractClause $ inContext [] $ reify $ AN.QNamed def $ I.Clause noRange tel ps body t catchall
               pcs <- withInteractionId ii $ mapM prettyA cls''

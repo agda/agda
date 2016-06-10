@@ -77,7 +77,9 @@ problemFromPats ps a = do
   -- For the initial problem, do not insert trailing implicits.
   -- This has the effect of not including trailing hidden domains in the problem telescope.
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
-  ps <- insertImplicitPatternsT DontExpandLast ps a
+  -- Ulf, 2016-04-25: Actually we do need to ExpandLast because where blocks
+  -- need the implicits.
+  ps <- insertImplicitPatternsT ExpandLast ps a
   -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
 
   -- Redo the telView, in order to *not* normalize the clause type further than necessary.
@@ -104,7 +106,7 @@ problemFromPats ps a = do
         -- , text "ips   =" <+> prettyTCM ips  -- no prettyTCM instance
            , text "gamma =" <+> prettyTCM gamma
            , text "ps2   =" <+> fsep (map prettyA ps2)
-           , text "b     =" <+> addCtxTel gamma (prettyTCM b)
+           , text "b     =" <+> addContext gamma (prettyTCM b)
            ]
          ]
   return problem
@@ -113,7 +115,7 @@ problemFromPats ps a = do
 --   Possible if type of problem rest has been updated to a function type.
 updateProblemRest_ :: Problem -> TCM (Nat, Problem)
 updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
-      ps <- insertImplicitPatternsT DontExpandLast ps $ unArg a
+      ps <- insertImplicitPatternsT ExpandLast ps $ unArg a
       -- (Issue 734: Do only the necessary telView to preserve clause types as much as possible.)
       TelV tel b   <- telViewUpTo (length ps) $ unArg a
       let gamma     = useNamesFromPattern ps tel
@@ -123,7 +125,7 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
           pr        = ProblemRest ps2 (a $> b)
           qs1       = teleNamedArgs gamma
           n         = size as
-      reportSDoc "tc.lhs.problem" 10 $ addCtxTel tel0 $ vcat
+      reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
         [ text "checking lhs -- updated split problem:"
         , nest 2 $ vcat
           [ text "ps    =" <+> fsep (map prettyA ps)
@@ -132,7 +134,7 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
           , text "ps1   =" <+> fsep (map prettyA ps1)
           , text "gamma =" <+> prettyTCM gamma
           , text "ps2   =" <+> fsep (map prettyA ps2)
-          , text "b     =" <+> addCtxTel gamma (prettyTCM b)
+          , text "b     =" <+> addContext gamma (prettyTCM b)
           ]
         ]
       return $ (n,) $ Problem (ps0 ++ ps1) (applySubst (raiseS n) qs0 ++ qs1) tel1 pr
@@ -146,5 +148,4 @@ updateProblemRest st@LHSState { lhsProblem = p } = do
       { lhsProblem = p'
       , lhsSubst   = applySubst tau (lhsSubst st)
       , lhsDPI     = applyPatSubst tau (lhsDPI st)
-      , lhsAsB     = applyPatSubst tau (lhsAsB st)
       }
