@@ -16,6 +16,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Monad
+import Agda.Utils.Except
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -93,6 +94,23 @@ putConstraintsToSleep sleepy = do
 
 putAllConstraintsToSleep :: TCM ()
 putAllConstraintsToSleep = putConstraintsToSleep (const True)
+
+data ConstraintStatus = AwakeConstraint | SleepingConstraint
+  deriving (Eq, Show)
+
+-- | Suspend constraints matching the predicate during the execution of the
+--   second argument. Caution: held sleeping constraints will not be woken up
+--   by events that would normally trigger a wakeup call.
+holdConstraints :: (ConstraintStatus -> ProblemConstraint -> Bool) -> TCM a -> TCM a
+holdConstraints p m = do
+  (holdAwake, stillAwake)   <- partition (p AwakeConstraint)    <$> use stAwakeConstraints
+  (holdAsleep, stillAsleep) <- partition (p SleepingConstraint) <$> use stSleepingConstraints
+  stAwakeConstraints    .= stillAwake
+  stSleepingConstraints .= stillAsleep
+  let restore = do
+        stAwakeConstraints    %= (holdAwake ++)
+        stSleepingConstraints %= (holdAsleep ++)
+  catchError (m <* restore) (\ err -> restore *> throwError err)
 
 takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
 takeAwakeConstraint = do
