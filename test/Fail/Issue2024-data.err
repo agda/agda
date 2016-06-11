@@ -1,0 +1,4 @@
+Issue2024-data.agda:3,12-15
+Not in scope:
+  Foo at Issue2024-data.agda:3,12-15
+when scope checking Foo
