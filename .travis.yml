@@ -6,6 +6,11 @@ language: c
 # Explicitly request container-based infrastructure.
 sudo: false
 
+cache:
+  directories:
+  - $HOME/.ghc
+  - $HOME/.cabal
+
 ##############################################################################
 # Required Ubuntu packages
 
