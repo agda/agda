@@ -177,6 +177,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
 
         mcands <- checkCandidates m t cands
+        debugConstraints
         case mcands of
 
           Just [] -> do
@@ -194,7 +195,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 
             -- If we actually solved the constraints we should wake up any held
             -- instance constraints, to make sure we don't forget about them.
-            wakeConstraints (return . isIFSConstraint . clValue . theConstraint)
+            wakeConstraints (return . const True)
             solveAwakeConstraints' False
             return Nothing  -- We’re done
 
@@ -313,7 +314,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 --   If the resulting list contains exactly one element, then the state is the
 --   same as the one obtained after running the corresponding computation. In
 --   all the other cases, the state is reseted.
-filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM Bool) -> TCM [Candidate]
+filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM [Candidate]
 filterResetingState m cands f = disableDestructiveUpdate $ do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
@@ -323,8 +324,11 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
         a  <- instantiateFull =<< (`piApply` ctxArgs) <$> getMetaType m
         return (ok, v, a)
   result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
-  let result' = [ (c, v, a, s) | (c, ((True, v, a), s)) <- result ]
-  result <- dropSameCandidates m result'
+  let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, r /= No ]
+      noMaybes = null [ Maybe | (_, ((Maybe, _, _), _)) <- result ]
+            -- It's not safe to compare maybes for equality because they might
+            -- not have instantiated at all.
+  result <- if noMaybes then dropSameCandidates m result' else return result'
   case result of
     [(c, _, _, s)] -> [c] <$ put s
     _              -> return [ c | (c, _, _, _) <- result ]
@@ -359,6 +363,9 @@ dropSameCandidates m cands = do
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
 
+data YesNoMaybe = Yes | No | Maybe
+  deriving (Show, Eq)
+
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
@@ -384,14 +391,15 @@ checkCandidates m t cands = disableDestructiveUpdate $
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
-    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM Bool
+    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
     checkCandidateForMeta m t (Candidate term t' eti) = do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m
       setCurrentRange mv $ do
-        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
-          liftTCM $ flip catchError handle $ do
+        debugConstraints
+        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $
+          liftTCM $ runCandidateCheck $ do
             reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
             reportSDoc "tc.instance" 20 $ vcat
               [ text "checkCandidateForMeta"
@@ -420,19 +428,32 @@ checkCandidates m t cands = disableDestructiveUpdate $
             -- unsolvable by the assignment, but don't do this for FindInScope's
             -- to prevent loops. We currently also ignore UnBlock constraints
             -- to be on the safe side.
+            debugConstraints
             solveAwakeConstraints' True
+
             verboseS "tc.instance" 15 $ do
               sol <- instantiateFull (MetaV m ctxElims)
-              reportSDoc "tc.instance" 15 $
-                sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
-                    , nest 2 $ prettyTCM sol ]
-            return True
+              case sol of
+                MetaV m' _ | m == m' ->
+                  reportSDoc "tc.instance" 15 $
+                    sep [ text "instance search: maybe solution for" <+> prettyTCM m <> text ":"
+                        , nest 2 $ prettyTCM v ]
+                _ ->
+                  reportSDoc "tc.instance" 15 $
+                    sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
+                        , nest 2 $ prettyTCM sol ]
         where
-          handle :: TCErr -> TCM Bool
+          runCandidateCheck check =
+            flip catchError handle $
+            ifNoConstraints_ check
+              (return Yes)
+              (\ _ -> Maybe <$ reportSLn "tc.instance" 50 "assignment inconclusive")
+
+          handle :: TCErr -> TCM YesNoMaybe
           handle err = do
             reportSDoc "tc.instance" 50 $
               text "assignment failed:" <+> prettyTCM err
-            return False
+            return No
 
 isIFSConstraint :: Constraint -> Bool
 isIFSConstraint FindInScope{} = True
