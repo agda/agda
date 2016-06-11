@@ -38,6 +38,8 @@ matrix:
             - cabal-install-1.24
             - ghc-8.0.1
             - texlive-binaries
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -47,6 +49,8 @@ matrix:
           packages:
             - cabal-install-1.24
             - ghc-8.0.1
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -56,6 +60,8 @@ matrix:
           packages:
             - cabal-install-1.24
             - ghc-8.0.1
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -65,6 +71,8 @@ matrix:
           packages:
             - cabal-install-1.24
             - ghc-8.0.1
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -75,6 +83,8 @@ matrix:
             - cabal-install-1.22
             - ghc-7.10.3
             - texlive-binaries
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -84,6 +94,8 @@ matrix:
           packages:
             - cabal-install-1.22
             - ghc-7.10.3
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -94,6 +106,8 @@ matrix:
             - cabal-install-1.18
             - ghc-7.8.4
             - texlive-binaries
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -103,6 +117,8 @@ matrix:
           packages:
             - cabal-install-1.18
             - ghc-7.8.4
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -113,6 +129,8 @@ matrix:
             - cabal-install-1.18
             - ghc-7.6.3
             - texlive-binaries
+            - alex-3.1.3
+            - happy-1.19.4
           sources:
             - hvr-ghc
 
@@ -132,7 +150,7 @@ matrix:
 ##############################################################################
 before_install:
   - if [[ $TEST != "doc" ]]; then
-       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
+       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH;
     fi
 
 ##############################################################################
@@ -156,7 +174,7 @@ install:
     fi
 
 ##############################################################################
-# Installing the dependencies and latest versions of Alex and Happy
+# Installing the dependencies
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
@@ -166,16 +184,12 @@ install:
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
   - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
-       cabal install alex &&
-       cabal install happy &&
        if [[ $TEST = "uhc" ]]; then
           cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
        else
           cabal install --enable-tests --only-dependencies --force-reinstalls;
        fi
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
-         cabal install alex --constraint=transformers==0.3.0.0 &&
-         cabal install happy --constraint=transformers==0.3.0.0 &&
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
     fi
 
