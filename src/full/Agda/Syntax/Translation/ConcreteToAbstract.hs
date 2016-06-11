@@ -1492,9 +1492,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r
-
-      y <- freshAbstractQName fx n
-      bindName PublicAccess PatternSynName n y
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
@@ -1503,6 +1500,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
          as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
          return (as, p)
+      y <- freshAbstractQName fx n
+      bindName PublicAccess PatternSynName n y
       modifyPatternSyns (Map.insert y defn)
       return [A.PatternSynDef y as p]   -- only for highlighting
       where unVarName (VarName a) = return a
