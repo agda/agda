@@ -58,8 +58,6 @@ Installation and infrastructure
 Language
 ========
 
-* Fixed a serious performance problem with instance search [Issues #1952, #1998]
-
 * Dot patterns are now optional
 
   Consider the following program
