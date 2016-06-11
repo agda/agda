@@ -10,6 +10,7 @@ tested-with: GHC == 7.6.3
 
 executable hTags
   main-is: Main.hs
+  other-modules: Tags
 
   build-depends:  base >= 4.6.0.1 && < 4.10
                 , directory >= 1.2.0.1 && < 1.3
