@@ -1304,20 +1304,20 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
+        t'  <- toAbstract t
         x'  <- freshAbstractQName f x
         bindName a DefName x x'
-        t' <- toAbstract t
         return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
 
     C.NiceDataSig r f a x ls t _ -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
+        t'  <- toAbstract t
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
         bindName a (DataName (length ls)) x x' -}
         bindName a DefName x x'
-        t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
     C.FunSig r f p i m rel tc x t -> toAbstractNiceAxiom A.FunSig m (C.Axiom r f p i rel x t)
