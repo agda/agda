@@ -1498,7 +1498,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
          return (as, p)
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
