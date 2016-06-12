@@ -492,7 +492,22 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
 -- Treat tabs as if they were spaces.
 spaces (s@(T.uncons -> Just ('\t', _)) : ss) =
   spaces $ T.replicate (T.length s) (T.singleton ' ') : ss
-spaces (_                              : ss) = __IMPOSSIBLE__
+
+-- Treat non-standard spaces as if they were standard ones
+-- [Issue 2019].
+--
+-- Some Unicode non-standard spaces:
+-- U+00A0: NO-BREAK SPACE        ("\ " with Agda input method)
+-- U+2004: THREE-PER-EM SPACE    ("\;" with Agda input method)
+-- U+202F: NARROW NO-BREAK SPACE ("\," with Agda input method)
+spaces (s@(T.uncons -> Just (c, _)) : ss)
+  | ord c == 0x00A0 ||
+    ord c == 0x2004 ||
+    ord c == 0x202F =
+      spaces $ T.replicate (T.length s) (T.singleton ' ') : ss
+  | otherwise = __IMPOSSIBLE__
+
+spaces (_ : ss) = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- * Main.
