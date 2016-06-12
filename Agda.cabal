@@ -107,6 +107,11 @@ library
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
+  if impl(ghc >= 8.0)
+    ghc-options: -Wcompat -Wnoncanonical-monad-instances -Wnoncanonical-monadfail-instances
+  else
+    -- provide/emulate `Control.Monad.Fail` and `Data.Semigroups` API for pre-GHC8
+    build-depends: fail == 4.9.*, semigroups == 0.18.*
 
   build-depends:  array >= 0.4.0.1 && < 0.6
                 , base >= 4.6.0.1 && < 4.10
