@@ -5,6 +5,7 @@ Agda 2
 
 Table of contents:
 
+* [Documentation](#documentation)
 * [Prerequisites](#prerequisites)
 * [Installing Agda](#installing-agda)
 * [Configuring the Emacs mode](#configuring-the-emacs-mode)
@@ -13,6 +14,11 @@ Table of contents:
 Note that this README only discusses installation of Agda, not its standard
 library. See the [Agda Wiki][agdawiki] for information about the library.
 
+Documentation
+-------------
+
+* [User manual](http://agda.readthedocs.io)
+* [CHANGELOG](https://github.com/agda/agda/blob/master/CHANGELOG)
 
 Prerequisites
 -------------
