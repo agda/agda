@@ -10,7 +10,7 @@
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))
 ((last . 2) . (agda2-make-case-action '("(A nofun) B = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))
-((last . 2) . (agda2-make-case-action '("mixfix .<_>safe = ?")))
+((last . 2) . (agda2-make-case-action '("< mixfix >safe = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))
 ((last . 2) . (agda2-make-case-action '("< mixfix >safe x = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))

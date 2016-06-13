@@ -27,6 +27,7 @@ import Data.Traversable
 import Data.Typeable (Typeable)
 import Data.Void
 
+import Agda.Syntax.Concrete.Name (NumHoles(..))
 import Agda.Syntax.Concrete (FieldAssignment'(..), exprFieldA)
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -362,13 +363,19 @@ lhsCoreApp (LHSProj d h ps) ps' = LHSProj d h $ ps ++ ps'
 -- | Add projection and applicative patterns to the right.
 lhsCoreAddSpine :: IsProjP e => LHSCore' e -> [NamedArg (Pattern' e)] -> LHSCore' e
 lhsCoreAddSpine core ps = case ps2 of
-    (Arg info (Named n (ProjP i ProjPrefix d)) : ps2') ->
-       LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
-         `lhsCoreAddSpine` ps2'
     [] -> lhsCoreApp core ps
+    p@(Arg info (Named n (ProjP i o d))) : ps2' | let nh = numHoles d->
+      -- Andreas, 2016-06-13
+      -- If the projection was written prefix by the user
+      -- or it is fully applied an operator
+      -- we turn it to prefix projection form.
+      (if o == ProjPrefix || nh > 0 && nh <= 1 + length ps2' then
+        LHSProj d (Arg info $ Named n $ lhsCoreApp core ps1) []
+      else lhsCoreApp core $ ps1 ++ [p])
+        `lhsCoreAddSpine` ps2'
     _ -> __IMPOSSIBLE__
   where
-    (ps1, ps2) = break (maybe False ((ProjPrefix ==) . fst) . isProjP) ps
+    (ps1, ps2) = break (isJust . isProjP) ps
 
 -- | Used for checking pattern linearity.
 lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
