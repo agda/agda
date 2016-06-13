@@ -1514,6 +1514,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
+         unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
+           typeError . GenericDocError =<< do
+             text "Unbound variables in pattern synonym: " <+>
+               sep (map prettyA xs)
          return (as, p)
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y

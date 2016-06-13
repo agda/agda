@@ -1,0 +1,4 @@
+Issue2027.agda:6,1-15
+Unbound variables in pattern synonym:  x
+when scope checking the declaration
+  pattern hm = x
