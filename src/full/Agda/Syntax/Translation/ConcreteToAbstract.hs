@@ -148,25 +148,41 @@ annotateExpr m = do
 
 -- | Make sure that each variable occurs only once.
 checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
-checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
-  typeError $ RepeatedVariablesInPattern ys
-  where
-    xs = concatMap vars ps
-    vars :: A.Pattern' e -> [C.Name]
-    vars p = case p of
-      A.VarP x               -> [nameConcrete x]
-      A.ConP _ _ args        -> concatMap (vars . namedArg) args
+checkPatternLinearity ps = do
+  unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ ys -> do
+    typeError $ RepeatedVariablesInPattern ys
+
+class PatternVars a where
+  patternVars :: a -> [A.Name]
+
+instance PatternVars a => PatternVars [a] where
+  patternVars = concatMap patternVars
+
+instance PatternVars a => PatternVars (Arg a) where
+  patternVars = patternVars . unArg
+
+instance PatternVars a => PatternVars (Named n a) where
+  patternVars = patternVars . namedThing
+
+instance PatternVars a => PatternVars (C.FieldAssignment' a) where
+  patternVars = patternVars . (^. exprFieldA)
+
+instance PatternVars (A.Pattern' e) where
+  patternVars p = case p of
+      A.VarP x               -> [x]
+      A.ConP _ _ args        -> patternVars args
       A.ProjP _ _            -> []
       A.WildP _              -> []
-      A.AsP _ x p            -> nameConcrete x : vars p
+      A.AsP _ x p            -> x : patternVars p
       A.DotP _ _             -> []
       A.AbsurdP _            -> []
       A.LitP _               -> []
-      A.DefP _ _ args        -> concatMap (vars . namedArg) args
+      A.DefP _ _ args        -> patternVars args
         -- Projection pattern, @args@ should be empty unless we have
         -- indexed records.
-      A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
-      A.RecP _ fs            -> concatMap (vars . (^. exprFieldA)) fs
+      A.PatternSynP _ _ args -> patternVars args
+      A.RecP _ fs            -> patternVars fs
+
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -1498,7 +1514,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
+         unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
+           typeError . GenericDocError =<< do
+             text "Unbound variables in pattern synonym: " <+>
+               sep (map prettyA xs)
          return (as, p)
       y <- freshAbstractQName fx n
       bindName PublicAccess PatternSynName n y
