@@ -1372,7 +1372,7 @@ forallFaceMaps t k = do
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
     bs <- getLetBindings
-    modifyContext (const cxt') $ do
+    modifyContext (const cxt') $ updateModuleParameters sigma $ do
       addBindings' (map (id -*- (applySubst sigma -*- applySubst sigma)) bs) $ addBindings resolved $ k sigma
   where
     addBindings' [] m = m
