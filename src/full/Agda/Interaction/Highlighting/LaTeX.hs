@@ -489,21 +489,10 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
   output $ ptClose <+> T.replicate (T.length s) ptNL
   spaces ss
 
--- Treat tabs as if they were spaces.
-spaces (s@(T.uncons -> Just ('\t', _)) : ss) =
-  spaces $ T.replicate (T.length s) (T.singleton ' ') : ss
-
--- Treat non-standard spaces as if they were standard ones
--- [Issue 2019].
---
--- Some Unicode non-standard spaces:
--- U+00A0: NO-BREAK SPACE        ("\ " with Agda input method)
--- U+2004: THREE-PER-EM SPACE    ("\;" with Agda input method)
--- U+202F: NARROW NO-BREAK SPACE ("\," with Agda input method)
+-- Treat tabs and non-standard spaces as if they were spaces
+-- [Issue_#2019].
 spaces (s@(T.uncons -> Just (c, _)) : ss)
-  | ord c == 0x00A0 ||
-    ord c == 0x2004 ||
-    ord c == 0x202F =
+  | isSpace c && not (c `elem` "\n") =
       spaces $ T.replicate (T.length s) (T.singleton ' ') : ss
   | otherwise = __IMPOSSIBLE__
 
