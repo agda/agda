@@ -57,7 +57,7 @@ import Data.Foldable ( foldMap )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid ( Monoid(mappend, mempty) )
+import Data.Semigroup ( Semigroup, Monoid, (<>), mempty, mappend )
 import Data.List as List hiding (null)
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
@@ -75,7 +75,8 @@ import Agda.Utils.Lens
 import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import qualified Agda.Utils.Pretty as Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
@@ -241,7 +242,7 @@ instance Pretty DeclarationException where
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
+        f (x, fs) = pretty x Pretty.<> text ": " <+> fsep (map pretty fs)
   pretty (InvalidName x) = fsep $
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
@@ -1247,9 +1248,12 @@ plusFixities m1 m2
 -- | While 'Fixities' is not a monoid under disjoint union (which might fail),
 --   we get the monoid instance for the monadic @Nice Fixities@ which propagates
 --   the first error.
+instance Semigroup (Nice Fixities) where
+  c1 <> c2 = plusFixities ==<< (c1, c2)
+
 instance Monoid (Nice Fixities) where
-  mempty        = return $ Map.empty
-  mappend c1 c2 = plusFixities ==<< (c1, c2)
+  mempty = return $ Map.empty
+  mappend = (<>)
 
 -- | Get the fixities from the current block.
 --   Doesn't go inside modules and where blocks.

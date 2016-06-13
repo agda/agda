@@ -8,7 +8,7 @@ import Control.Monad
 
 import Data.Function
 import Data.Map(Map)
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 import Data.Set (Set)
 import Data.Typeable ( Typeable )
 
@@ -60,6 +60,21 @@ data EInterface = EInterface
     , injectiveFuns :: Map QName InjectiveFun
     } deriving (Typeable, Show)
 
+instance Semigroup EInterface where
+  x <> y = EInterface
+      { constrTags    = comb constrTags
+      , definitions   = comb definitions
+      , defDelayed    = comb defDelayed
+      , conArity      = comb conArity
+      , mainName      = mainName x `mplus` mainName y
+      , relevantArgs  = comb relevantArgs
+      , forcedArgs    = comb forcedArgs
+      , injectiveFuns = comb injectiveFuns
+      }
+    where
+      comb :: Semigroup a => (EInterface -> a) -> a
+      comb f = ((<>) `on` f) x y
+
 instance Monoid EInterface where
   mempty = EInterface
       { constrTags    = mempty
@@ -71,16 +86,4 @@ instance Monoid EInterface where
       , forcedArgs    = mempty
       , injectiveFuns = mempty
       }
-  mappend x y = EInterface
-      { constrTags    = comb constrTags
-      , definitions   = comb definitions
-      , defDelayed    = comb defDelayed
-      , conArity      = comb conArity
-      , mainName      = mainName x `mplus` mainName y
-      , relevantArgs  = comb relevantArgs
-      , forcedArgs    = comb forcedArgs
-      , injectiveFuns = comb injectiveFuns
-      }
-    where
-      comb :: Monoid a => (EInterface -> a) -> a
-      comb f = (mappend `on` f) x y
+  mappend = (<>)

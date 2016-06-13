@@ -41,7 +41,7 @@ import Prelude hiding (null)
 import Control.Monad.Reader
 
 import Data.Maybe
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat, Any(..), All(..))
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 import Data.IntMap (IntMap)
@@ -204,9 +204,12 @@ instance Null FreeVars where
   null (FV a b c d e f) = null a && null b && null c && null d && null e && null f
 
 -- | Free variable sets form a monoid under 'union'.
+instance Semigroup FreeVars where
+  (<>) = union
+
 instance Monoid FreeVars where
   mempty  = empty
-  mappend = union
+  mappend = (<>)
   mconcat = unions
 
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
@@ -336,9 +339,12 @@ initFreeConf = FreeConf
 -- | Return type of fold over syntax.
 type FreeT = Reader FreeConf FreeVars
 
+instance Semigroup FreeT where
+  (<>) = liftA2 mappend
+
 instance Monoid FreeT where
   mempty  = pure mempty
-  mappend = liftA2 mappend
+  mappend = (<>)
   mconcat = mconcat <.> sequence
 
 -- | Base case: a variable.

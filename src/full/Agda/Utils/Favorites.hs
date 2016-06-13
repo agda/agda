@@ -18,7 +18,7 @@ import Prelude hiding ( null )
 
 import Data.Foldable (Foldable)
 import Data.Functor
-import Data.Monoid
+import Data.Semigroup
 import qualified Data.List as List
 import qualified Data.Set as Set
 
@@ -115,9 +115,11 @@ fromList :: PartialOrd a => [a] -> Favorites a
 fromList = List.foldl' (flip insert) empty
 
 -- | 'Favorites' forms a 'Monoid' under 'empty' and 'union.
+instance PartialOrd a => Semigroup (Favorites a) where
+  (<>) = union
 instance PartialOrd a => Monoid (Favorites a) where
   mempty  = empty
-  mappend = union
+  mappend = (<>)
 
 ------------------------------------------------------------------------
 -- * Properties

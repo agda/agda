@@ -22,7 +22,7 @@ import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 import Control.Applicative hiding (empty)
 
@@ -36,6 +36,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable
@@ -91,7 +92,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 
@@ -1508,10 +1509,13 @@ instance Null Simplification where
   empty = NoSimplification
   null  = (== NoSimplification)
 
+instance Semigroup Simplification where
+  YesSimplification <> _ = YesSimplification
+  NoSimplification  <> s = s
+
 instance Monoid Simplification where
   mempty = NoSimplification
-  mappend YesSimplification _ = YesSimplification
-  mappend NoSimplification  s = s
+  mappend = (<>)
 
 data Reduced no yes = NoReduction no | YesReduction Simplification yes
     deriving (Typeable, Functor)
@@ -2699,9 +2703,12 @@ instance Null (TCM Doc) where
   null = __IMPOSSIBLE__
 
 -- | Short-cutting disjunction forms a monoid.
+instance Semigroup (TCM Any) where
+  ma <> mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
+
 instance Monoid (TCM Any) where
   mempty = return mempty
-  ma `mappend` mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
+  mappend = (<>)
 
 patternViolation :: TCM a
 patternViolation = throwError PatternErr

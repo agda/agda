@@ -9,7 +9,7 @@ import Control.Monad.State
 
 import qualified Data.List as List
 import Data.Maybe (mapMaybe)
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat, Any(..))
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Abstract (IsProjP(..))
@@ -230,15 +230,18 @@ matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
 --
 --   'BlockP' yields to 'Block', since blocking vars can also
 --   block the result type.
-instance Monoid a => Monoid (Match a) where
-  mempty                    = Yes mempty
-  Yes a   `mappend` Yes b   = Yes $ mappend a b
-  Yes _   `mappend` m       = m
-  No      `mappend` _       = No
-  Block{} `mappend` No      = No
-  Block r xs `mappend`
+instance Monoid a => Semigroup (Match a) where
+  Yes a   <> Yes b   = Yes $ mappend a b
+  Yes _   <> m       = m
+  No      <> _       = No
+  Block{} <> No      = No
+  Block r xs <>
                  Block s ys = Block (mappend r s) $ mappend xs ys
-  m@Block{} `mappend` Yes{} = m
+  m@Block{} <> Yes{} = m
+
+instance Monoid a => Monoid (Match a) where
+  mempty = Yes mempty
+  mappend = (<>)
 
 -- | @matchPat mlit p q@ checks whether a function clause pattern @p@
 --   covers a split clause pattern @q@.  There are three results:
