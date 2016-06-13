@@ -8,8 +8,6 @@ sudo: false
 
 cache:
   directories:
-  - $HOME/.ghc
-  - $HOME/.cabal
   - $HOME/.stack
 
 ##############################################################################
@@ -195,7 +193,7 @@ install:
            cabal update &&
            cat $HOME/.cabal/config
            export PATH=$HOME/.cabal/bin:$PATH
-           cabal install --force-reinstalls cabal-install
+           cabal install cabal-install
            ;;
        esac
     fi
