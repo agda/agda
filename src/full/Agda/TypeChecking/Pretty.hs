@@ -4,6 +4,14 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+-- To define <>, we will probably need to add:
+--import Prelude hiding ((<>))
+-- but using that now gives warnings and doesn't silence -Wsemigroup
+#if __GLASGOW_HASKELL__ >= 800
+{-# OPTIONS_GHC -Wno-semigroup    #-}
+#endif
+
+
 module Agda.TypeChecking.Pretty where
 
 import Prelude hiding (null)

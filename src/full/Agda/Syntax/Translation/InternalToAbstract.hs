@@ -34,7 +34,7 @@ import Data.Foldable (foldMap)
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Traversable as Trav
@@ -70,7 +70,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -583,9 +583,12 @@ instance Reify ClauseBody RHS where
 -- monoid.
 newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
 
+instance (Ord k, Monoid v) => Semigroup (MonoidMap k v) where
+  MonoidMap m1 <> MonoidMap m2 = MonoidMap (Map.unionWith mappend m1 m2)
+
 instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
   mempty = MonoidMap Map.empty
-  mappend (MonoidMap m1) (MonoidMap m2) = MonoidMap (Map.unionWith mappend m1 m2)
+  mappend = (<>)
 
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.

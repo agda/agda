@@ -538,8 +538,10 @@ library
   if impl(ghc >= 8.0)
     ghc-options: -Wmissing-pattern-synonym-signatures
                  -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
                  -Wunrecognised-warning-flags
                  -Wunused-foralls
+                 -Wsemigroup
 
   ghc-prof-options: -fprof-auto
 

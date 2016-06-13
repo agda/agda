@@ -19,7 +19,7 @@ import qualified Data.ByteString.Char8 as ByteString
 import Data.Foldable
 import Data.Hashable
 import qualified Data.Strict.Maybe as Strict
-import Data.Monoid
+import Data.Semigroup hiding (Arg)
 import Data.Traversable
 import Data.Typeable (Typeable)
 
@@ -30,7 +30,7 @@ import Test.QuickCheck hiding (Small)
 import Agda.Syntax.Position
 
 import Agda.Utils.Functor
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -83,13 +83,16 @@ data Hiding  = Hidden | Instance | NotHidden
 
 -- | 'Hiding' is an idempotent partial monoid, with unit 'NotHidden'.
 --   'Instance' and 'NotHidden' are incompatible.
+instance Semigroup Hiding where
+  NotHidden <> h         = h
+  h         <> NotHidden = h
+  Hidden    <> Hidden    = Hidden
+  Instance  <> Instance  = Instance
+  _         <> _         = __IMPOSSIBLE__
+
 instance Monoid Hiding where
   mempty = NotHidden
-  mappend NotHidden h         = h
-  mappend h         NotHidden = h
-  mappend Hidden    Hidden    = Hidden
-  mappend Instance  Instance  = Instance
-  mappend _         _         = __IMPOSSIBLE__
+  mappend = (<>)
 
 instance KillRange Hiding where
   killRange = id
@@ -843,11 +846,14 @@ data ImportDirective' a b = ImportDirective
 data Using' a b = UseEverything | Using [ImportedName' a b]
   deriving (Typeable, Eq)
 
+instance Semigroup (Using' a b) where
+  UseEverything <> u = u
+  u <> UseEverything = u
+  Using xs <> Using ys = Using (xs ++ ys)
+
 instance Monoid (Using' a b) where
   mempty = UseEverything
-  mappend UseEverything u = u
-  mappend u UseEverything = u
-  mappend (Using xs) (Using ys) = Using (xs ++ ys)
+  mappend = (<>)
 
 -- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective' a b
