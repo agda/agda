@@ -540,8 +540,8 @@ library
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
                  -Wunrecognised-warning-flags
-                 -Wunused-foralls
                  -Wsemigroup
+                 -Wunused-foralls
 
   ghc-prof-options: -fprof-auto
 
