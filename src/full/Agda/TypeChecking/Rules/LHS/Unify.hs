@@ -34,7 +34,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Semigroup
 import Data.List hiding (null, sort)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -60,7 +60,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Substitute.Pattern
@@ -734,12 +734,15 @@ data UnifyOutput = UnifyOutput
   , unifyLog   :: UnifyLog
   }
 
-instance Monoid UnifyOutput where
-  mempty        = UnifyOutput IdS []
-  x `mappend` y = UnifyOutput
+instance Semigroup UnifyOutput where
+  x <> y = UnifyOutput
     { unifySubst = unifySubst y `composeS` unifySubst x
     , unifyLog   = unifyLog x ++ unifyLog y
     }
+
+instance Monoid UnifyOutput where
+  mempty        = UnifyOutput IdS []
+  mappend = (<>)
 
 type UnifyM a = WriterT UnifyOutput TCM a
 

@@ -16,7 +16,7 @@ import Prelude hiding (null)
 
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable, foldMap)
 import Data.Traversable (Traversable)
@@ -27,7 +27,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -89,20 +89,25 @@ hasCatchAll = getAny . loop
     Done{}    -> mempty
     Case _ br -> maybe (foldMap loop br) (const $ Any True) $ catchAllBranch br
 
-instance Monoid c => Monoid (WithArity c) where
-  mempty = WithArity __IMPOSSIBLE__ mempty
-  mappend (WithArity n1 c1) (WithArity n2 c2)
+instance Monoid c => Semigroup (WithArity c) where
+  WithArity n1 c1 <> WithArity n2 c2
     | n1 == n2  = WithArity n1 $ mappend c1 c2
     | otherwise = __IMPOSSIBLE__   -- arity must match!
 
-instance Monoid m => Monoid (Case m) where
-  mempty = empty
-  mappend (Branches cop  cs  ls  m)
-          (Branches cop' cs' ls' m') =
+instance Monoid c => Monoid (WithArity c) where
+  mempty = WithArity __IMPOSSIBLE__ mempty
+  mappend = (<>)
+
+instance Monoid m => Semigroup (Case m) where
+  Branches cop  cs  ls  m <> Branches cop' cs' ls' m' =
     Branches (cop || cop') -- for @projCase <> mempty@
              (Map.unionWith mappend cs cs')
              (Map.unionWith mappend ls ls')
              (mappend m m')
+
+instance Monoid m => Monoid (Case m) where
+  mempty = empty
+  mappend = (<>)
 
 instance Null (Case m) where
   empty = Branches False Map.empty Map.empty Nothing

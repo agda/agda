@@ -17,7 +17,7 @@ module Agda.Termination.CallMatrix where
 --   , tests
 --   ) where
 
-import Data.Monoid
+import Data.Semigroup
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 
@@ -182,7 +182,7 @@ noAug m = CallMatrixAug m mempty
 --   Use overloaded 'null', 'empty', 'singleton', 'mappend'.
 newtype CMSet cinfo = CMSet { cmSet :: Favorites (CallMatrixAug cinfo) }
   deriving ( Show, Arbitrary, CoArbitrary
-           , Monoid, Null, Singleton (CallMatrixAug cinfo) )
+           , Semigroup, Monoid, Null, Singleton (CallMatrixAug cinfo) )
 
 -- | Call matrix set product is the Cartesian product.
 

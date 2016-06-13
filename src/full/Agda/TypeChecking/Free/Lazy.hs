@@ -36,7 +36,7 @@ import Control.Monad.Reader
 
 import Data.Foldable (foldMap)
 import Data.IntMap (IntMap)
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
 import Data.Set (Set)
 
 import Test.QuickCheck
@@ -155,9 +155,11 @@ initFreeEnv sing = FreeEnv
 
 type FreeM c = Reader (FreeEnv c) c
 
+instance Monoid c => Semigroup (FreeM c) where
+  (<>) = liftA2 mappend
 instance Monoid c => Monoid (FreeM c) where
   mempty  = pure mempty
-  mappend = liftA2 mappend
+  mappend = (<>)
   mconcat = mconcat <.> sequence
 
 -- instance Singleton a c => Singleton a (FreeM c) where

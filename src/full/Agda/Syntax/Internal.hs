@@ -30,7 +30,7 @@ import Data.Foldable ( Foldable, foldMap )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Sum(..))
 
 -- base-4.7 defines the Num instance for Sum
 #if !(MIN_VERSION_base(4,7,0))
@@ -62,7 +62,8 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
 import Agda.Utils.Size
-import Agda.Utils.Pretty as P
+import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -295,17 +296,20 @@ data NotBlocked
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
 --   @'StuckOn'{}@ should be propagated, if tied, we take the left.
+instance Semigroup NotBlocked where
+  ReallyNotBlocked <> b = b
+  -- MissingClauses is dominant (absorptive)
+  b@MissingClauses <> _ = b
+  _ <> b@MissingClauses = b
+  -- StuckOn is second strongest
+  b@StuckOn{}      <> _ = b
+  _ <> b@StuckOn{}      = b
+  b <> _                = b
+
 instance Monoid NotBlocked where
   -- ReallyNotBlocked is neutral
-  mempty                       = ReallyNotBlocked
-  ReallyNotBlocked `mappend` b = b
-  -- MissingClauses is dominant (absorptive)
-  b@MissingClauses `mappend` _ = b
-  _ `mappend` b@MissingClauses = b
-  -- StuckOn is second strongest
-  b@StuckOn{}      `mappend` _ = b
-  _ `mappend` b@StuckOn{}      = b
-  b `mappend` _                = b
+  mempty = ReallyNotBlocked
+  mappend = (<>)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t
@@ -329,11 +333,14 @@ instance Applicative Blocked where
 -- | @'Blocked' t@ without the @t@.
 type Blocked_ = Blocked ()
 
+instance Semigroup Blocked_ where
+  b@Blocked{}    <> _              = b
+  _              <> b@Blocked{}    = b
+  NotBlocked x _ <> NotBlocked y _ = NotBlocked (x <> y) ()
+
 instance Monoid Blocked_ where
   mempty = notBlocked ()
-  b@Blocked{}    `mappend` _              = b
-  _              `mappend` b@Blocked{}    = b
-  NotBlocked x _ `mappend` NotBlocked y _ = NotBlocked (x `mappend` y) ()
+  mappend = (<>)
 
 -- See issues 1573 and 1674.
 #if !MIN_VERSION_transformers(0,4,1)

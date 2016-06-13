@@ -16,7 +16,7 @@ import Data.Functor.Identity
 import qualified Data.List as List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid
+import Data.Semigroup
 import qualified Data.Set as Set
 import Data.Traversable
 
@@ -142,9 +142,12 @@ traverse' f = (Bag . Map.fromListWith (++)) <.> traverse trav . Map.elems . bag
 instance Show a => Show (Bag a) where
   showsPrec _ (Bag b) = ("Agda.Utils.Bag.Bag (" ++) . showsPrec 0 b . (')':)
 
+instance Ord a => Semigroup (Bag a) where
+  (<>) = union
+
 instance Ord a => Monoid (Bag a) where
   mempty  = empty
-  mappend = union
+  mappend = (<>)
   mconcat = unions
 
 instance Foldable Bag where
