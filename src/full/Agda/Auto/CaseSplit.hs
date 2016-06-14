@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE Rank2Types          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Auto.CaseSplit where

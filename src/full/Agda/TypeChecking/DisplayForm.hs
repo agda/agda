@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 -- | Tools for 'DisplayTerm' and 'DisplayForm'.
 

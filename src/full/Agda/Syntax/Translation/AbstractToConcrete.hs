@@ -1,15 +1,5 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase             #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE PatternGuards          #-}
-{-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
 

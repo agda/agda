@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Agda.Syntax.Parser.Monad
     ( -- * The parser monad

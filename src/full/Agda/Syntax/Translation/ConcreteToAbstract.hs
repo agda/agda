@@ -1,11 +1,5 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE DoAndIfThenElse        #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708

@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections     #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
 

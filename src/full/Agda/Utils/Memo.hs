@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP        #-}
-{-# LANGUAGE RankNTypes #-}
 
 module Agda.Utils.Memo where
 

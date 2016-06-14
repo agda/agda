@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 #if !(MIN_VERSION_mtl(2,2,1))
 {-# OPTIONS_GHC -fno-warn-orphans #-}

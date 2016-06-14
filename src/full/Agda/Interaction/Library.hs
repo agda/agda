@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE PatternGuards #-}
 
 module Agda.Interaction.Library
   ( getDefaultLibraries

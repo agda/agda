@@ -1,9 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TupleSections              #-}
 
 -- | Finite bijections (implemented as a pair of maps).
 

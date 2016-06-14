@@ -1,8 +1,5 @@
 {-# LANGUAGE CPP              #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE PatternGuards    #-}
-{-# LANGUAGE TupleSections    #-}
 
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 

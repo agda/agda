@@ -1,12 +1,8 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DoAndIfThenElse            #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TupleSections              #-}
 
 -- | Directed graphs (can of course simulate undirected graphs).
 --

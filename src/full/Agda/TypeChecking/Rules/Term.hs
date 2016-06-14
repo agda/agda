@@ -1,16 +1,6 @@
 {-# LANGUAGE CPP                      #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE LambdaCase               #-}
-{-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE PatternGuards            #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE TupleSections            #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 module Agda.TypeChecking.Rules.Term where
 

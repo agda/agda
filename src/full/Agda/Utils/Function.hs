@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 
 module Agda.Utils.Function where
 

@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 -- | Preprocessors for literate code formats
 module Agda.Syntax.Parser.Literate (
   literateProcessors,

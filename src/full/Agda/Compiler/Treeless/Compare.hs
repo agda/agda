@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Compare (equalTerms) where
 
 import Agda.Syntax.Treeless

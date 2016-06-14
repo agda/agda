@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
 
 {-| Functions for inserting implicit arguments at the right places.
 -}

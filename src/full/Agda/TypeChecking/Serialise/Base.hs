@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                       #-}
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 module Agda.TypeChecking.Serialise.Base where

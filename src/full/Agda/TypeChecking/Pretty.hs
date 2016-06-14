@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- To define <>, we will probably need to add:

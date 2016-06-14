@@ -1,7 +1,5 @@
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Records where
 
