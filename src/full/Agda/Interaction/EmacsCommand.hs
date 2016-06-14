@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 
 ------------------------------------------------------------------------
 -- | Code for instructing Emacs to do things

@@ -15,9 +15,6 @@
 --
 -- Ulf, 2015-10-30: Guards are actually a better primitive. Fixed that.
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import Control.Applicative

@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Env where
 

@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.With where
 

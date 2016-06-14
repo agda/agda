@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Agda.TypeChecking.SizedTypes.Utils where
 

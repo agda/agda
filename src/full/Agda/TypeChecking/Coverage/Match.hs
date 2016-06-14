@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP           #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE PatternGuards #-}
 
 module Agda.TypeChecking.Coverage.Match where
 

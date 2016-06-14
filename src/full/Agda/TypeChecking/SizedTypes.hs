@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE PatternGuards            #-}
 
 module Agda.TypeChecking.SizedTypes where
 

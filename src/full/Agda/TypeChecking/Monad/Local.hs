@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Agda.TypeChecking.Monad.Local where
 
 import Control.Applicative

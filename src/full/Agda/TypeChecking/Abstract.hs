@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Functions for abstracting terms over other terms.

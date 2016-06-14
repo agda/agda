@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP                       #-}
-{-# LANGUAGE FunctionalDependencies    #-}
 {-# LANGUAGE IncoherentInstances       #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 #if __GLASGOW_HASKELL__ <= 708

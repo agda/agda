@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- | The occurs check for unification.  Does pruning on the fly.

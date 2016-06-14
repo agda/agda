@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PatternGuards       #-}
 
 module Agda.Compiler.ToTreeless
   ( toTreeless
