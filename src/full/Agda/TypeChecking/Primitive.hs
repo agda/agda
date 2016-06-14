@@ -501,9 +501,9 @@ primIdJ = do
              let w = pure papply <#> la <#> a <#> x <#> y <@> p
              pure comp <#> lc
                        <@> (lam "i" $ \ i ->
-                              c <#> (w <@> i)
+                              c <@> (w <@> i)
                                 <@> (pure conid <#> la <#> a <#> x <#> (w <@> i)
-                                                <@> phi `imax` ineg i
+                                                <@> (phi `imax` ineg i)
                                                 <@> (pure pabs <#> la <#> a <@> (lam "j" $ \ j -> w <@> imin i j))))
                        <@> phi
                        <@> (lam "i" $ \ _ -> d) -- TODO cast to Partial, and block
