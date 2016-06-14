@@ -10,6 +10,7 @@ tested-with: GHC == 7.6.3
 
 executable hTags
   main-is: Main.hs
+  other-modules: Tags
 
   build-depends:  base >= 4.6.0.1 && < 4.10
                 , directory >= 1.2.0.1 && < 1.3
@@ -18,6 +19,14 @@ executable hTags
                 , ghc >= 7.6.3 && < 8.1
                 , process >= 1.1.0.2 && < 1.5
                 , strict >= 0.3.2 && < 0.4
+                -- Most APIs we use are unchanged since 1.10, except for
+                -- Exception in Language.Haskell.Extension. Compare:
+                -- http://hackage.haskell.org/package/Cabal-1.10.2.0/docs/Language-Haskell-Extension.html
+                -- http://hackage.haskell.org/package/Cabal-1.12.0/docs/Language-Haskell-Extension.html
+                --
+                -- We must still support 1.16.0 since GHC 7.6.3 was built using
+                -- that.
+                , Cabal >= 1.12.0 && < 1.26
 
     -- Since we are using GHC as a library and transformers 0.3.0.0
     -- was shipped as a *base* library of GHC 7.8.*, we must use a
