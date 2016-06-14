@@ -88,7 +88,7 @@ debug_loc :
 
 hTags=../hTags/dist/build/hTags/hTags
 hTags_include=$(BUILD_DIR)/build/autogen/cabal_macros.h ./undefined.h
-hTags_flags=-i $(BUILD_DIR)/build/autogen/cabal_macros.h -I ./
+hTags_flags=-i $(BUILD_DIR)/build/autogen/cabal_macros.h -I ./ --cabal ../../Agda.cabal
 
 $(hTags) : $(wildcard ../hTags/*.hs)
 	$(MAKE) -C ../hTags
