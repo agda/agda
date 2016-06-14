@@ -58,16 +58,16 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - alex-3.1.3
-            - cabal-install-1.24
-            - ghc-8.0.1
-            - happy-1.19.4
-          sources:
-            - hvr-ghc
+    # - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
+    #   addons:
+    #     apt:
+    #       packages:
+    #         - alex-3.1.3
+    #         - cabal-install-1.24
+    #         - ghc-8.0.1
+    #         - happy-1.19.4
+    #       sources:
+    #         - hvr-ghc
 
     - env: TEST=uhc GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
