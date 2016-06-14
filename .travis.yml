@@ -164,10 +164,9 @@ before_install:
   - if [[ $TEST != "doc" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH;
     fi
-  - |
-    if [[ $TEST == "stack" ]]; then
-       mkdir -p ~/.local/bin
-       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  - if [[ $TEST == "stack" ]]; then
+       mkdir -p ~/.local/bin &&
+       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';
     fi
 
 ##############################################################################
@@ -178,8 +177,9 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-  - |
-    if [[ $TEST != "doc" ]]; then
+  # || true allows for failure -- we don't expect ~/.cabal/bin to exist at that
+  # point.
+  - if [[ $TEST != "doc" ]]; then
        cabal --version &&
        ghc --version &&
        haddock --version &&
@@ -191,14 +191,14 @@ install:
            ;;
          *)
            cabal update &&
-           cat $HOME/.cabal/config
-           ls -l $HOME/.cabal/bin
-           which cabal
-           cabal install cabal-install
-           which cabal
-           ls -l $HOME/.cabal/bin
-           export PATH=$HOME/.cabal/bin:$PATH
-           which cabal
+           cat $HOME/.cabal/config &&
+           (ls -l $HOME/.cabal/bin || true) &&
+           which cabal &&
+           cabal install cabal-install &&
+           which cabal &&
+           ls -l $HOME/.cabal/bin &&
+           export PATH=$HOME/.cabal/bin:$PATH &&
+           which cabal &&
            cabal --version
            ;;
        esac
@@ -214,8 +214,7 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - |
-    if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
+  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
        if [[ $TEST = "uhc" ]]; then
           cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
        else
@@ -224,7 +223,7 @@ install:
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
     elif [[ $TEST = "stack" ]]; then
-         stack --no-terminal test --bench --only-dependencies
+         stack --no-terminal test --bench --only-dependencies;
     fi
 
 ##############################################################################
@@ -252,10 +251,8 @@ install:
 
   - export BUILD_DIR=$PWD/dist
 
-  - |
-    if [[ $TEST = "stack" ]]; then
-       #stack --no-terminal test --bench --no-run-benchmarks --haddock --no-haddock-deps
-       stack --no-terminal build --bench --no-run-benchmarks
+  - if [[ $TEST = "stack" ]]; then
+       stack --no-terminal build --bench --no-run-benchmarks;
     fi
 
   - if [[ $TEST = "main" ]]; then
