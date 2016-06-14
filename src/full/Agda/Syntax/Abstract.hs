@@ -41,6 +41,8 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Internal as I
 
+import Agda.TypeChecking.Positivity.Occurrence
+
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
 
@@ -108,7 +110,11 @@ data Axiom
 type Ren a = [(a, a)]
 
 data Declaration
-  = Axiom      Axiom DefInfo ArgInfo QName Expr      -- ^ type signature (can be irrelevant and colored, but not hidden)
+  = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
+    -- ^ Type signature (can be irrelevant, but not hidden).
+    --
+    -- The fourth argument contains an optional assignment of
+    -- polarities to arguments.
   | Field      DefInfo QName (Arg Expr)              -- ^ record field
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
@@ -140,7 +146,7 @@ class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
 
 instance GetDefInfo Declaration where
-  getDefInfo (Axiom _ i _ _ _)      = Just i
+  getDefInfo (Axiom _ i _ _ _ _)    = Just i
   getDefInfo (Field i _ _)          = Just i
   getDefInfo (Primitive i _ _)      = Just i
   getDefInfo (ScopedDecl _ (d:_))   = getDefInfo d
@@ -453,7 +459,7 @@ instance Eq Expr where
 instance Eq Declaration where
   ScopedDecl _ a1                == ScopedDecl _ a2                = a1 == a2
 
-  Axiom a1 b1 c1 d1 e1           == Axiom a2 b2 c2 d2 e2           = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
+  Axiom a1 b1 c1 d1 e1 f1        == Axiom a2 b2 c2 d2 e2 f2        = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
   Field a1 b1 c1                 == Field a2 b2 c2                 = (a1, b1, c1) == (a2, b2, c2)
   Primitive a1 b1 c1             == Primitive a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Mutual a1 b1                   == Mutual a2 b2                   = (a1, b1) == (a2, b2)
@@ -531,7 +537,7 @@ instance HasRange Expr where
     getRange (Macro x)             = getRange x
 
 instance HasRange Declaration where
-    getRange (Axiom    _ i _ _ _    ) = getRange i
+    getRange (Axiom    _ i _ _ _ _  ) = getRange i
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
@@ -647,7 +653,7 @@ instance KillRange Expr where
   killRange (Macro x)              = killRange1 Macro x
 
 instance KillRange Declaration where
-  killRange (Axiom    p i rel a b     ) = killRange4 (Axiom p)  i rel a b
+  killRange (Axiom    p i a b c d     ) = killRange4 (\i a c d -> Axiom p i a b c d) i a c d
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
@@ -762,7 +768,7 @@ instance AllNames QName where
   allNames q = Seq.singleton q
 
 instance AllNames Declaration where
-  allNames (Axiom   _ _ _ q _)        = Seq.singleton q
+  allNames (Axiom   _ _ _ _ q _)      = Seq.singleton q
   allNames (Field     _   q _)        = Seq.singleton q
   allNames (Primitive _   q _)        = Seq.singleton q
   allNames (Mutual     _ defs)        = allNames defs
@@ -849,7 +855,7 @@ instance AllNames ModuleApplication where
 -- Precondition: The declaration has to be a (scoped) 'Axiom'.
 
 axiomName :: Declaration -> QName
-axiomName (Axiom _ _ _ q _)    = q
+axiomName (Axiom _ _ _ _ q _)  = q
 axiomName (ScopedDecl _ (d:_)) = axiomName d
 axiomName _                    = __IMPOSSIBLE__
 
@@ -863,7 +869,7 @@ instance AnyAbstract a => AnyAbstract [a] where
   anyAbstract = Fold.any anyAbstract
 
 instance AnyAbstract Declaration where
-  anyAbstract (Axiom _ i _ _ _)      = defAbstract i == AbstractDef
+  anyAbstract (Axiom _ i _ _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (Field i _ _)          = defAbstract i == AbstractDef
   anyAbstract (Mutual     _ ds)      = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)      = anyAbstract ds

@@ -353,7 +353,7 @@ instance ExprLike SpineLHS where
 instance ExprLike Declaration where
   recurseExpr f d =
     case d of
-      Axiom a d i x e           -> Axiom a d i x <$> rec e
+      Axiom a d i mp x e        -> Axiom a d i mp x <$> rec e
       Field i x e               -> Field i x <$> rec e
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds

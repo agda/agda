@@ -72,6 +72,8 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Name
 import qualified Agda.Syntax.Abstract.Name as A
 
+import Agda.TypeChecking.Positivity.Occurrence
+
 import Agda.Utils.Lens
 import Agda.Utils.Null
 
@@ -391,6 +393,7 @@ data Pragma
   | CatchallPragma            Range
   | DisplayPragma             Range Pattern Expr
   | NoPositivityCheckPragma   Range
+  | PolarityPragma            Range Name [Occurrence]
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
@@ -657,6 +660,7 @@ instance HasRange Pragma where
   getRange (CatchallPragma r)                = r
   getRange (DisplayPragma r _ _)             = r
   getRange (NoPositivityCheckPragma r)       = r
+  getRange (PolarityPragma r _ _)            = r
 
 instance HasRange AsName where
   getRange a = getRange (asRange a, asName a)
@@ -833,6 +837,7 @@ instance KillRange Pragma where
   killRange (CatchallPragma _)                = CatchallPragma noRange
   killRange (DisplayPragma _ lhs rhs)         = killRange2 (DisplayPragma noRange) lhs rhs
   killRange (NoPositivityCheckPragma _)       = NoPositivityCheckPragma noRange
+  killRange (PolarityPragma _ q occs)         = killRange1 (\q -> PolarityPragma noRange q occs) q
 
 instance KillRange RHS where
   killRange AbsurdRHS = AbsurdRHS
@@ -964,6 +969,7 @@ instance NFData Pragma where
   rnf (CatchallPragma _)                = ()
   rnf (DisplayPragma _ a b)             = rnf a `seq` rnf b
   rnf (NoPositivityCheckPragma _)       = ()
+  rnf (PolarityPragma _ a b)            = rnf a `seq` rnf b
 
 -- | Ranges are not forced.
 

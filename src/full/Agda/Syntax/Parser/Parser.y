@@ -45,6 +45,8 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
+import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
+
 import Agda.Utils.Either hiding (tests)
 import Agda.Utils.Hash
 import Agda.Utils.List (spanJust)
@@ -150,6 +152,7 @@ import Agda.Utils.Impossible
     'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
     'OPTIONS'                 { TokKeyword KwOPTIONS $$ }
+    'POLARITY'                { TokKeyword KwPOLARITY $$ }
     'REWRITE'                 { TokKeyword KwREWRITE $$ }
     'STATIC'                  { TokKeyword KwSTATIC $$ }
     'TERMINATING'             { TokKeyword KwTERMINATING $$ }
@@ -279,6 +282,7 @@ Token
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
     | 'OPTIONS'                 { TokKeyword KwOPTIONS $1 }
+    | 'POLARITY'                { TokKeyword KwPOLARITY $1 }
     | 'REWRITE'                 { TokKeyword KwREWRITE $1 }
     | 'STATIC'                  { TokKeyword KwSTATIC $1 }
     | 'TERMINATING'             { TokKeyword KwTERMINATING $1 }
@@ -1385,6 +1389,7 @@ DeclarationPragma
   | CatchallPragma           { $1 }
   | DisplayPragma            { $1 }
   | NoPositivityCheckPragma  { $1 }
+  | PolarityPragma           { $1 }
   | OptionsPragma            { $1 }
     -- Andreas, 2014-03-06
     -- OPTIONS pragma not allowed everywhere, but don't give parse error.
@@ -1529,6 +1534,20 @@ NoPositivityCheckPragma :: { Pragma }
 NoPositivityCheckPragma
   : '{-#' 'NO_POSITIVITY_CHECK' '#-}'
     { NoPositivityCheckPragma (getRange ($1,$2,$3)) }
+
+PolarityPragma :: { Pragma }
+PolarityPragma
+  : '{-#' 'POLARITY' PragmaName Polarities '#-}'
+    { let (rs, occs) = unzip (reverse $4) in
+      PolarityPragma (getRange ($1,$2,$3,rs,$5)) $3 occs }
+
+-- Possibly empty list of polarities. Reversed.
+Polarities :: { [(Range, Occurrence)] }
+Polarities : {- empty -}          { [] }
+           | Polarities Polarity  { $2 : $1 }
+
+Polarity :: { (Range, Occurrence) }
+Polarity : string {% polarity $1 }
 
 {--------------------------------------------------------------------------
     Sequences of declarations
@@ -1697,6 +1716,20 @@ mkQName :: [(Interval, String)] -> Parser QName
 mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
+
+-- | Polarity parser.
+
+polarity :: (Interval, String) -> Parser (Range, Occurrence)
+polarity (i, s) =
+  case s of
+    "_"  -> ret Unused
+    "++" -> ret StrictPos
+    "+"  -> ret JustPos
+    "-"  -> ret JustNeg
+    "*"  -> ret Mixed
+    _    -> fail $ "Not a valid polarity: " ++ s
+  where
+  ret x = return (getRange i, x)
 
 recoverLayout :: [(Interval, String)] -> String
 recoverLayout [] = ""

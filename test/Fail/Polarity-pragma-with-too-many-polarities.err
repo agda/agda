@@ -1,0 +1,3 @@
+Polarity-pragma-with-too-many-polarities.agda:2,3-10
+Too many polarities given in the POLARITY pragma for A (at most 0
+allowed).

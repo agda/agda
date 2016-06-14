@@ -20,6 +20,8 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Position
 
+import Agda.TypeChecking.Positivity.Occurrence
+
 import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -469,6 +471,8 @@ instance Pretty Pragma where
     pretty (CatchallPragma _) = text "CATCHALL"
     pretty (DisplayPragma _ lhs rhs) = text "DISPLAY" <+> sep [ pretty lhs <+> text "=", nest 2 $ pretty rhs ]
     pretty (NoPositivityCheckPragma _) = text "NO_POSITIVITY_CHECK"
+    pretty (PolarityPragma _ q occs) =
+      hsep (text "NO_POSITIVITY_CHECK" : pretty q : map pretty occs)
 
 instance Pretty Fixity where
     pretty (Fixity _ Unrelated   _)   = __IMPOSSIBLE__
@@ -478,6 +482,17 @@ instance Pretty Fixity where
             LeftAssoc  -> "infixl"
             RightAssoc -> "infixr"
             NonAssoc   -> "infix"
+
+instance Pretty Occurrence where
+  pretty Unused    = text "_"
+  pretty Mixed     = text "*"
+  pretty JustNeg   = text "-"
+  pretty JustPos   = text "+"
+  pretty StrictPos = text "++"
+
+  -- No syntax has been assigned to GuardPos.
+
+  pretty GuardPos  = __IMPOSSIBLE__
 
 instance Pretty GenPart where
     pretty (IdPart x)   = text x

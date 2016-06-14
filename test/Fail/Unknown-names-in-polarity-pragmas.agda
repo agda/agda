@@ -1,0 +1,2 @@
+{-# POLARITY F #-}
+{-# POLARITY G #-}
