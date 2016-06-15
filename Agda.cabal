@@ -574,3 +574,52 @@ executable agda-ghc-names
     , filepath >= 1.3.0.1 && < 1.5
   ghc-options:  -rtsopts
 
+
+-- Cabal testsuite integration has some serious bugs, but we
+-- can still make it work. See also:
+-- https://github.com/haskell/cabal/issues/1938
+-- https://github.com/haskell/cabal/issues/2214
+-- https://github.com/haskell/cabal/issues/1953
+--
+-- This test suite should only be run using the Makefile.
+-- The Makefile sets up the required environment,
+-- executing the tests using cabal directly is almost
+-- guarantued to fail. See also Issue 1490.
+test-suite agda-tests
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test/
+  main-is:          Main.hs
+  other-modules:    Compiler.Tests
+                    , Fail.Tests
+                    , LaTeXAndHTML.Tests
+                    , LibSucceed.Tests
+                    , Succeed.Tests
+                    , Utils
+  build-depends:      array >= 0.4.0.1 && < 0.6
+                    , base >= 4.6.0.1 && < 4.10
+                    , bytestring >= 0.10.0.2 && < 0.11
+                    , containers >= 0.5.0.0 && < 0.6
+                    , directory >= 1.2.0.1 && < 1.3
+                    , filepath >= 1.3.0.1 && < 1.5
+                    , process >= 1.1.0.2 && < 1.5
+                    , process-extras >= 0.3.0 && < 0.3.4 || >= 0.4.1.2 && < 0.5
+                    , regex-tdfa >= 1.2.0 && < 1.3
+                    , regex-tdfa-text >= 1.0.0.3 && < 1.1
+                    , tasty >= 0.10 && < 0.12
+                    , tasty-silver >= 3.1.8 && < 3.2
+                    , temporary >= 1.2.0.3 && < 1.3
+                    , text >= 0.11.3.1 && < 1.3
+
+  -- we use the CPP processor to conditionally enable the UHC specific compiler tests.
+  if flag(uhc)
+    cpp-options:    -DUHC_BACKEND
+
+  ghc-options:      -threaded
+                    -Wall
+                    -fwarn-identities
+                    -fno-warn-unused-imports
+
+  if impl(ghc < 8.0)
+    ghc-options: -fwarn-missing-local-sigs
+  else
+    ghc-options: -Wmissing-local-signatures
