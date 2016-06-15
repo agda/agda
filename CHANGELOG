@@ -35,6 +35,7 @@ Bug fixes
     test .(A ⇒ (B ⇒ A)) (K A B) = ?
 
 * Other issues fixed ( see https://github.com/agda/agda/issues ):
+  - #1322 (Missing error for attempted higher order instance)
   - #1951 (mixfix binders not working in 'syntax')
   - #1967 (too eager insteance search error)
   - #1974 (lost constraint dependencies)
