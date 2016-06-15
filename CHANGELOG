@@ -39,6 +39,7 @@ Bug fixes
   - #1967 (too eager insteance search error)
   - #1974 (lost constraint dependencies)
   - #1982 (internal error in unifier)
+  - #2034 (function type instance goals)
 
 * Interactively splitting variable with C-c C-c no longer introduces
   new trailing patterns.  This fixes issue #1950.
