@@ -4,6 +4,11 @@
 
 Important changes since 2.5.1:
 
+Installation and infrastructure
+===============================
+
+* Added support for GHC 8.0.1.
+
 Bug fixes
 =========
 
