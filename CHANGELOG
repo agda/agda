@@ -46,6 +46,13 @@ Bug fixes
   - #1982 (internal error in unifier)
   - #2034 (function type instance goals)
 
+Compiler backends
+=================
+
+* UHC compiler backend
+
+  Added support for UHC 1.1.9.4.
+
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.5.1
 ------------------------------------------------------------------------
