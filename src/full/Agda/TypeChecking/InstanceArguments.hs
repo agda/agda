@@ -161,6 +161,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       reportSDoc "tc.instance" 70 $ nest 2 $ vcat
         [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- cands ]
       t <- normalise =<< getMetaTypeInContext m
+      insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
 
@@ -197,6 +198,22 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               text ("findInScope 5: refined candidates: ") <+>
               prettyTCM (List.map candidateTerm cs)
             return (Just (cs, Nothing))
+
+-- | Precondition: type is spine reduced and ends in a Def or a Var.
+insidePi :: Type -> (Type -> TCM a) -> TCM a
+insidePi t ret =
+  case ignoreSharing $ unEl t of
+    Pi a b     -> addContext (absName b, a) $ insidePi (unAbs b) ret
+    Def{}      -> ret t
+    Var{}      -> ret t
+    Sort{}     -> __IMPOSSIBLE__
+    Con{}      -> __IMPOSSIBLE__
+    Lam{}      -> __IMPOSSIBLE__
+    Lit{}      -> __IMPOSSIBLE__
+    Level{}    -> __IMPOSSIBLE__
+    MetaV{}    -> __IMPOSSIBLE__
+    Shared{}   -> __IMPOSSIBLE__
+    DontCare{} -> __IMPOSSIBLE__
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
@@ -313,7 +330,7 @@ filterResetingState m cands f = disableDestructiveUpdate $ do
       tryC c = do
         ok <- f c
         v  <- instantiateFull (MetaV m ctxElims)
-        a  <- instantiateFull =<< (`piApply` ctxArgs) <$> getMetaType m
+        a  <- instantiateFull =<< (`piApplyM` ctxArgs) =<< getMetaType m
         return (ok, v, a)
   result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
   let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, r /= No ]
