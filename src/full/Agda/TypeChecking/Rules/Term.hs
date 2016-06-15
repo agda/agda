@@ -285,7 +285,7 @@ ifPath d fallback work = do
 checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lhs rhs <- boldPathView ty = do
     let btyp = El s (unArg typ)
-    interval <- el primInterval
+    interval <- elInf primInterval
     v <- addContext' (xs, Dom info interval) $ checkExpr body (raise 1 btyp)
     iZero <- primIZero
     iOne  <- primIOne

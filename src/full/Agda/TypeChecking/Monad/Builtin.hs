@@ -479,6 +479,9 @@ builtinsNoDef =
   , builtinSizeMax
   , builtinConId
   , builtinPSingl
+  , builtinInterval
+  , builtinPartial
+  , builtinRestrict
   ]
 
 -- | The coinductive primitives.

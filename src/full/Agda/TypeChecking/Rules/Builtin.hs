@@ -89,7 +89,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 (El (varSort 1) <$> varM 0) -->
                                                 (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1)))
-  , (builtinInterval           |-> builtinPostulate tset)
+  , (builtinInterval           |-> builtinPostulate tSetOmega)
   , (builtinPathAbs            |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 nPi "f" (tinterval --> (El (varSort 1) <$> varM 0)) $
@@ -99,15 +99,15 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinIOne               |-> builtinPostulate tinterval)
   , (builtinPartial            |-> builtinPostulate (hPi "a" (el primLevel) $
                                                      nPi "A" (return $ sort $ varSort 0) $
-                                                     tinterval --> return (sort $ varSort 1)))
+                                                     tinterval --> return (sort $ Inf)))
   , (builtinRestrict           |-> builtinPostulate (hPi "a" (el primLevel) $
                                                      nPi "A" (return $ sort $ varSort 0) $
-                                                     tinterval --> return (sort $ varSort 1)))
+                                                     tinterval --> return (sort $ Inf)))
   , (builtinPSingl             |-> builtinPostulate (hPi "a" (el primLevel) $
                                                      hPi "A" (return $ sort $ varSort 0) $
                                                      hPi "i"  tinterval $
                                                      (El (varSort 2) <$> primRestrict <#> varM 2 <@> varM 1 <@> varM 0)
-                                                     --> (El (varSort 2) <$> primPartial <#> varM 2 <@> varM 1 <@> varM 0)))
+                                                     --> (elInf $ primPartial <#> varM 2 <@> varM 1 <@> varM 0)))
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
@@ -286,7 +286,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tclause    = el primAgdaClause
         tTCM l a   = elV l (primAgdaTCM <#> varM l <@> a)
         tTCM_ a    = el (primAgdaTCM <#> primLevelZero <@> a)
-        tinterval  = el primInterval
+        tinterval  = El Inf <$> primInterval
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) (===) choice -> do
