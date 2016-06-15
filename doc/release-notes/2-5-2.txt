@@ -8,8 +8,6 @@ Important changes since 2.5.1.X:
 Installation and infrastructure
 ===============================
 
-* Added support for GHC 8.0.1.
-
 * Modular support for literate programming
 
   Literate programming support has been moved out of the lexer and into the
