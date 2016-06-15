@@ -1,0 +1,3 @@
+Issue1322.agda:20,19-21
+No instance of type ⊥ was found in scope.
+when checking that the expression it has type n == zero → ⊥
