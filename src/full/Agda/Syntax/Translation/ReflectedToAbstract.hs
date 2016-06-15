@@ -69,7 +69,7 @@ instance ToAbstract [Arg Term] [NamedArg Expr] where
   toAbstract = traverse toAbstract
 
 instance ToAbstract r Expr => ToAbstract (Dom r, Name) (A.TypedBindings) where
-  toAbstract (Dom i x, name) = do
+  toAbstract (Dom{domInfo = i,unDom = x}, name) = do
     dom <- toAbstract x
     return $ TypedBindings noRange $ Arg i $ TBind noRange [pure name] dom
 

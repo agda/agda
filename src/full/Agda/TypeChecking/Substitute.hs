@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor      #-}
@@ -459,7 +460,7 @@ instance Abstract Projection where
 
 instance Abstract ProjLams where
   abstract tel (ProjLams lams) = ProjLams $
-    map (\ (Dom ai (x, _)) -> Arg ai x) (telToList tel) ++ lams
+    map (\ !dom -> argFromDom (fst <$> dom)) (telToList tel) ++ lams
 
 instance Abstract Defn where
   abstract tel d = case d of
@@ -530,8 +531,8 @@ telVars m = map (fmap namedThing) . (namedTelVars m)
 
 namedTelVars :: Int -> Telescope -> [NamedArg DeBruijnPattern]
 namedTelVars m EmptyTel                     = []
-namedTelVars m (ExtendTel (Dom info a) tel) =
-  Arg info (namedDBVarP (m-1) $ absName tel) :
+namedTelVars m (ExtendTel !dom tel) =
+  Arg (domInfo dom) (namedDBVarP (m-1) $ absName tel) :
   namedTelVars (m-1) (unAbs tel)
 
 instance Abstract FunctionInverse where
@@ -558,7 +559,7 @@ instance Abstract v => Abstract (Map k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\(Arg info x) -> ExtendTel (Dom info $ sort Prop) . Abs x)
+        tel   = foldr (\arg@(Arg info x) -> ExtendTel (sort Prop <$ domFromArg arg) . Abs x)
                       EmptyTel
               $ zipWith (<$) names args
         names = cycle $ map (stringToArgName . (:[])) ['a'..'z']
@@ -938,7 +939,7 @@ type ListTel = ListTel' ArgName
 telFromList' :: (a -> ArgName) -> ListTel' a -> Telescope
 telFromList' f = foldr extTel EmptyTel
   where
-    extTel (Dom info (x, a)) = ExtendTel (Dom info a) . Abs (f x)
+    extTel !dom = ExtendTel (snd <$> dom) . Abs (f . fst $ unDom dom)
 
 telFromList :: ListTel -> Telescope
 telFromList = telFromList' id
@@ -986,8 +987,10 @@ telView'UpTo n t = case ignoreSharing $ unEl t of
 
 -- | @mkPi dom t = telePi (telFromList [dom]) t@
 mkPi :: Dom (ArgName, Type) -> Type -> Type
-mkPi (Dom info (x, a)) b = el $ Pi (Dom info a) (mkAbs x b)
+mkPi !dom b = el $ Pi a (mkAbs x b)
   where
+    x = fst $ unDom dom
+    a = snd <$> dom
     el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
 
 mkLam :: Arg ArgName -> Term -> Term
@@ -1031,7 +1034,7 @@ class TeleNoAbs a where
   teleNoAbs :: a -> Term -> Term
 
 instance TeleNoAbs ListTel where
-  teleNoAbs tel t = foldr (\ (Dom ai (x, _)) -> Lam ai . NoAbs x) t tel
+  teleNoAbs tel t = foldr (\ (Dom{domInfo = ai, unDom = (x, _)}) -> Lam ai . NoAbs x) t tel
 
 instance TeleNoAbs Telescope where
   teleNoAbs tel = teleNoAbs $ telToList tel

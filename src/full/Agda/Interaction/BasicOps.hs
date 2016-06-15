@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -634,15 +635,15 @@ contextOfMeta ii norm = do
     let n         = length cxt
         localVars = zipWith raise [1..] cxt
         mkLet (x, lb) = do
-          (tm, Dom c ty) <- getOpen lb
-          return $ Dom c (x, ty)
+          (tm, !dom) <- getOpen lb
+          return $ (,) x <$> dom
     letVars <- mapM mkLet . Map.toDescList =<< asks envLetBindings
     gfilter visible . reverse <$> mapM out (letVars ++ localVars)
   where gfilter p = catMaybes . map p
         visible (OfType x y) | not (isNoName x) = Just (OfType' x y)
                              | otherwise        = Nothing
         visible _            = __IMPOSSIBLE__
-        out (Dom _ (x, t)) = do
+        out (Dom{unDom = (x, t)}) = do
           t' <- reify =<< normalForm norm t
           return $ OfType x t'
 

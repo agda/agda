@@ -319,7 +319,7 @@ compareTerm' cmp a m n =
     -- equality at function type (accounts for eta)
     equalFun :: Term -> Term -> Term -> TCM ()
     equalFun (Shared p) m n = equalFun (derefPtr p) m n
-    equalFun (Pi dom@(Dom info _) b) m n = do
+    equalFun (Pi dom@(Dom{domInfo = info}) b) m n = do  -- TODO equalPartial here
         name <- freshName_ $ suggest (absName b) "x"
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
@@ -333,7 +333,7 @@ compareTerm' cmp a m n =
         let
           pathApply m = apply app $ map (raise 1) [l,a,setHiding Hidden x,setHiding Hidden y] ++ [defaultArg m,defaultArg (var 0)]
           (m',n') = (pathApply (raise 1 m),pathApply (raise 1 n))
-        addContext (name, Dom defaultArgInfo interval) $ compareTerm cmp (El s $ raise 1 $ unArg a) m' n'
+        addContext (name, defaultDom interval) $ compareTerm cmp (El s $ raise 1 $ unArg a) m' n'
     equalPath OType{} a' m n = cmpPartial a' m n
     cmpPartial a'@(El s (Def q es)) m n = do
        mp <- fmap getPrimName <$> getBuiltin' builtinPartial
@@ -353,7 +353,7 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, EmptyTel) -> return ()
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
-    (ExtendTel dom1@(Dom i1 a1) tel1, ExtendTel dom2@(Dom i2 a2) tel2)
+    (ExtendTel dom1@(Dom{domInfo = i1, unDom = a1}) tel1, ExtendTel dom2@(Dom{domInfo = i2, unDom = a2}) tel2) -- TODO check equality of Finite?
       | getHiding i1 /= getHiding i2 -> bad
         -- Andreas, 2011-09-11 do not test r1 == r2 because they could differ
         -- e.g. one could be Forced and the other Relevant (see fail/UncurryMeta)
@@ -364,7 +364,7 @@ compareTel t1 t2 cmp tel1 tel2 =
 -- NEW
           pid <- newProblem_ $ compareType cmp a1 a2
           dom <- if dependent
-                 then Dom i1 <$> blockTypeOnProblem a1 pid
+                 then traverse (const $ blockTypeOnProblem a1 pid) dom1
                  else return dom1
           addContext (name, dom) $ compareTel t1 t2 cmp (absBody tel1) (absBody tel2)
           stealConstraints pid
@@ -584,7 +584,7 @@ compareAtom cmp t m n =
                 patternViolation
           maybe impossible return =<< getConType c t
         equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
-          (Pi dom1@(Dom i1 a1@(El a1s a1t)) b1, Pi (Dom i2 a2) b2)
+          (Pi dom1@(Dom i1 _ a1@(El a1s a1t)) b1, Pi (Dom i2 _ a2) b2) -- TODO compare Finite?
             | argInfoHiding i1 /= argInfoHiding i2 -> typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
             | not (compareRelevance cmp (ignoreForced $ argInfoRelevance i2)
@@ -599,7 +599,7 @@ compareAtom cmp t m n =
                 -- If it's non-dependent it doesn't matter what we add to the context.
                 pid <- newProblem_ $ compareType cmp a2 a1
                 dom <- if isBinderUsed b2
-                       then Dom i1 <$> blockTypeOnProblem a1 pid
+                       then traverse (const $ blockTypeOnProblem a1 pid) dom1
                        -- then Dom i1 . El a1s <$> blockTermOnProblem (El Inf $ Sort a1s) a1t pid
                        else return dom1
                 name <- freshName_ (suggest b1 b2)
@@ -669,7 +669,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       let (pol, pols) = nextPolarity pols0
       ifBlockedType a (\ m t -> patternViolation) $ skipPartial reduce $ \ a -> do
         case ignoreSharing . unEl $ a of
-          (Pi (Dom info b) codom) -> do
+          (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
             mlvl <- mlevel
             let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
                 freeInCoDom _         = False

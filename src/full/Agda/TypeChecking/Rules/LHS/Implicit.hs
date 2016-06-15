@@ -106,7 +106,7 @@ insertImplicitSizeLtPatterns t = do
   let ts = reverse $ takeWhile (not . visible) $ telToList tel
   keep <- reverse <$> dropWhileM (not <.> isSizeLt . snd . unDom) ts
   -- Insert implicit patterns upto (including) the last SizeLt type.
-  return [ Arg ai implicitP | Dom ai _ <- keep ]
+  return [ Arg ai implicitP | Dom {domInfo = ai} <- keep ]
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.

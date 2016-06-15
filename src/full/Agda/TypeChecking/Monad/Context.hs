@@ -242,7 +242,7 @@ addLetBinding' x v t ret = do
 -- | Add a let bound variable
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding info x v t0 ret = addLetBinding' x v (Dom info t0) ret
+addLetBinding info x v t0 ret = addLetBinding' x v (defaultArgDom info t0) ret
 
 
 -- * Querying the context
@@ -261,7 +261,7 @@ getContextSize = genericLength <$> asks envContext
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
 getContextArgs :: (Applicative m, MonadReader TCEnv m) => m Args
 getContextArgs = reverse . zipWith mkArg [0..] <$> getContext
-  where mkArg i (Dom info _) = Arg info $ var i
+  where mkArg i dom = var i <$ argFromDom dom
 
 -- | Generate @[var (n - 1), ..., var 0]@ for all declarations in the context.
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}

@@ -285,9 +285,9 @@ bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TBind _ xs _))) : b
   bindParameters (map (mergeHiding . fmap (A.DomainFree info)) xs ++ bs) a ret
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg info (A.TLet _ lbs))) : bs) a ret =
   __IMPOSSIBLE__
-bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg@(Dom info' a) b)) ret
+bindParameters ps0@(A.DomainFree info x : ps) (El _ (Pi arg b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
-    | argInfoHiding info /= argInfoHiding info' =
+    | argInfoHiding info /= argInfoHiding (domInfo arg) =
         __IMPOSSIBLE__
     | otherwise = addContext' (x, arg) $ bindParameters ps (absBody b) $ \tel s ->
                     ret (ExtendTel arg $ Abs (nameToArgName x) tel) s

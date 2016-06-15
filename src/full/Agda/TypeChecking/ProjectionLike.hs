@@ -186,7 +186,7 @@ makeProjection x = -- if True then return () else do
                     , projOrig     = x
                     , projFromType = d
                     , projIndex    = pIndex
-                    , projLams     = ProjLams $ map (\ (Dom ai (y, _)) -> Arg ai y) tel
+                    , projLams     = ProjLams $ map (argFromDom . fmap fst) tel
                     }
               let newDef = def
                            { funProjection     = Just projection

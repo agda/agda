@@ -126,13 +126,13 @@ teleArgNames = map (argFromDom . fmap fst) . telToList
 teleArgs :: (DeBruijn a) => Telescope -> [Arg a]
 teleArgs tel =
   [ Arg info (debruijnNamedVar n i)
-  | (i, Dom info (n,_)) <- zip (downFrom $ size l) l ]
+  | (i, Dom {domInfo = info, unDom = (n,_)}) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
 teleNamedArgs :: (DeBruijn a) => Telescope -> [NamedArg a]
 teleNamedArgs tel =
   [ Arg info (Named (Just $ Ranged noRange $ argNameToString name) (debruijnNamedVar name i))
-  | (i, Dom info (name,_)) <- zip (downFrom $ size l) l ]
+  | (i, Dom {domInfo = info, unDom = (name,_)}) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
 -- | Permute telescope: permutes or drops the types in the telescope according

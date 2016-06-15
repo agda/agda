@@ -316,7 +316,7 @@ noShadowingOfConstructors mkCall problem =
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
-checkDotPattern (DPI _ (Just e) v (Dom info a)) =
+checkDotPattern (DPI _ (Just e) v (Dom{domInfo = info, unDom = a})) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ text "checking dot pattern"

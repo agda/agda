@@ -191,7 +191,7 @@ splitProblem mf (Problem ps qs tel pr) = do
     splitP _            (ExtendTel _ NoAbs{})  = __IMPOSSIBLE__
 
     -- pattern with type?  Let's get to work:
-    splitP ps0@(p : ps) tel0@(ExtendTel dom@(Dom ai a) xtel@(Abs x tel)) = do
+    splitP ps0@(p : ps) tel0@(ExtendTel dom@(Dom{domInfo = ai, unDom = a}) xtel@(Abs x tel)) = do
 
       liftTCM $ reportSDoc "tc.lhs.split" 30 $ sep
         [ text "splitP looking at pattern"

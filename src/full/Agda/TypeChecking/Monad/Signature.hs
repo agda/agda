@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE DoAndIfThenElse   #-}
 {-# LANGUAGE FlexibleContexts  #-}
@@ -811,7 +812,7 @@ moduleParamsToApply m = do
       -- drop some @args@.
       -- And there are also anonymous modules, thus, the invariant is not trivial.
       when (size tel < size args) __IMPOSSIBLE__
-      return $ zipWith (\ (Dom ai _) (Arg _ v) -> Arg ai v) (telToList tel) args
+      return $ zipWith (\ !dom (Arg _ v) -> v <$ argFromDom dom) (telToList tel) args
 
 -- | Unless all variables in the context are module parameters, create a fresh
 --   module to capture the non-module parameters. Used when unquoting to make

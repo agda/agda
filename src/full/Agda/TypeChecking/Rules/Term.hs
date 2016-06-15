@@ -122,7 +122,7 @@ isType_ e =
   let fallback = isType e =<< do workOnTypes $ newSortMeta
   case unScope e of
     A.Fun i (Arg info t) b -> do
-      a <- Dom info <$> isType_ t
+      a <- setArgInfo info . defaultDom <$> isType_ t
       b <- isType_ b
       s <- ptsRule a b
       let t' = El s $ Pi a $ NoAbs underscore b
@@ -262,8 +262,8 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
     let info' = mapRelevance (modRel lamOrPi allowed) info
-    addContext' (xs, Dom info' t) $
-      ret $ bindsWithHidingToTel xs (Dom info t)
+    addContext' (xs, setArgInfo info' $ defaultDom t) $
+      ret $ bindsWithHidingToTel xs (setArgInfo info $ defaultDom t)
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -286,7 +286,7 @@ checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lhs rhs <- boldPathView ty = do
     let btyp = El s (unArg typ)
     interval <- elInf primInterval
-    v <- addContext' (xs, Dom info interval) $ checkExpr body (raise 1 btyp)
+    v <- addContext' (xs, defaultDom interval) $ checkExpr body (raise 1 btyp)
     iZero <- primIZero
     iOne  <- primIOne
     pathAbs <- primPathAbs
@@ -339,7 +339,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
 
       -- First check that argsT is a valid type
-      argsT <- workOnTypes $ Dom info <$> isType_ typ
+      argsT <- workOnTypes $ setArgInfo info . defaultDom <$> isType_ typ
       -- Andreas, 2015-05-28 Issue 1523
       -- If argsT is a SizeLt, it must be non-empty to avoid non-termination.
       -- TODO: do we need to block checkExpr?
@@ -390,7 +390,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ a
-        v <- add (notInScopeName y) (Dom (setRelevance r' info) argT) $ checkExpr body btyp
+        v <- add (notInScopeName y) (defaultArgDom (setRelevance r' info) argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam info $ Abs (nameToArgName x) v) pid
       where
         [WithHiding h x] = xs
@@ -471,7 +471,7 @@ checkAbsurdLambda i h e t = do
   t <- instantiateFull t
   ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t' -> do
     case ignoreSharing $ unEl t' of
-      Pi dom@(Dom info' a) b
+      Pi dom@(Dom{domInfo = info', unDom = a}) b
         | h /= getHiding info' -> typeError $ WrongHidingInLambda t'
         | not (null $ allMetas a) ->
             postponeTypeCheckingProblem (CheckExpr e t') $
@@ -887,7 +887,7 @@ checkExpr' e t0 =
 
         -- Insert hidden lambda if all of the following conditions are met:
             -- type is a hidden function type, {x : A} -> B or {{x : A} -> B
-        _   | Pi (Dom info _) b <- ignoreSharing $ unEl t
+        _   | Pi (Dom{domInfo = info}) b <- ignoreSharing $ unEl t
             , let h = getHiding info
             , notVisible h
             -- expression is not a matching hidden lambda or question mark
@@ -1002,7 +1002,7 @@ checkExpr' e t0 =
             a' <- isType_ a
             b' <- isType_ b
             s <- ptsRule a' b'
-            let v = Pi (Dom info a') (NoAbs underscore b')
+            let v = Pi (defaultArgDom info a') (NoAbs underscore b')
             noFunctionsIntoSize b' $ El s v
             coerce v (sort s) t
         A.Set _ n    -> do
@@ -1867,7 +1867,7 @@ checkKnownArgument
 checkKnownArgument arg [] _ = genericDocError =<< do
   text "Invalid projection parameter " <+> prettyA arg
 checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
-  (Dom info' a, b) <- mustBePi t
+  (Dom{domInfo = info',unDom = a}, b) <- mustBePi t
   -- Bollocks:
   -- unless (info' == infov) $ do
   --    reportSDoc "impossible" 10 $ vcat
@@ -1905,10 +1905,10 @@ checkArguments exh r [] t0 t1 =
       t1' <- unEl <$> reduce t1
       implicitArgs (-1) (expand t1') t0
     where
-      expand (Pi (Dom info _) _)   Hidden = getHiding info /= Hidden &&
+      expand (Pi (Dom{domInfo = info}) _)   Hidden = getHiding info /= Hidden &&
                                             exh == ExpandLast
       expand _                     Hidden = exh == ExpandLast
-      expand (Pi (Dom info _) _) Instance = getHiding info /= Instance
+      expand (Pi (Dom{domInfo = info}) _) Instance = getHiding info /= Instance
       expand _                   Instance = True
       expand _                  NotHidden = False
 
@@ -1963,7 +1963,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
 
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case ignoreSharing $ unEl t0' of
-          Pi (Dom info' a) b
+          Pi (Dom{domInfo = info', unDom = a}) b
             | getHiding info == getHiding info'
               && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
                 u <- lift $ applyRelevanceToContext (getRelevance info') $
@@ -2139,7 +2139,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
     p <- expandPatternSynonyms p
     (v, t) <- inferExpr' ExpandLast e
     let -- construct a type  t -> dummy  for use in checkLeftHandSide
-        t0 = El (getSort t) $ Pi (Dom defaultArgInfo t) (NoAbs underscore typeDontCare)
+        t0 = El (getSort t) $ Pi (defaultDom t) (NoAbs underscore typeDontCare)
         p0 = Arg defaultArgInfo (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"

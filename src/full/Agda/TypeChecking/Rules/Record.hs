@@ -212,7 +212,7 @@ checkRecDef i name ind eta con ps contel fields =
 -}
 
       let info = setRelevance recordRelevance defaultArgInfo
-          addRecordVar = addContext' ("", Dom info rect)
+          addRecordVar = addContext' ("", setArgInfo info $ defaultDom rect)
           -- the record variable has the empty name by intention, see issue 208
 
       let m = qnameToMName name  -- Name of record module.
@@ -287,7 +287,7 @@ checkRecordProjections m r con tel ftel fs = do
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
 
-    checkProjs ftel1 (ExtendTel (Dom ai t) ftel2) (A.Field info x _ : fs) =
+    checkProjs ftel1 (ExtendTel (dom@Dom{domInfo = ai,unDom = t}) ftel2) (A.Field info x _ : fs) =
       traceCall (CheckProjection (getRange info) x t) $ do
       -- Andreas, 2012-06-07:
       -- Issue 387: It is wrong to just type check field types again
@@ -328,7 +328,7 @@ checkRecordProjections m r con tel ftel fs = do
           projcall = Var 0 [Proj projname]
           rel      = getRelevance ai
           -- the recursive call
-          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom ai t)
+          recurse  = checkProjs (abstract ftel1 $ ExtendTel dom
                                  $ Abs (nameToArgName $ qnameName projname) EmptyTel)
                                 (ftel2 `absApp` projcall) fs
 
@@ -367,7 +367,7 @@ checkRecordProjections m r con tel ftel fs = do
             (_ptel,[rt]) = splitAt (size tel - 1) telList
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
-                     [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
+                     [ Arg info $ unnamed $ VarP "x" | Dom{domInfo = info} <- telToList ftel ]
             nobind 0 = id
             nobind n = Bind . Abs "_" . nobind (n - 1)
             body   = nobind (size ftel1)
@@ -391,7 +391,7 @@ checkRecordProjections m r con tel ftel fs = do
               -- index of the record argument (in the type),
               -- start counting with 1:
               , projIndex    = size tel -- which is @size ptel + 1@
-              , projLams     = ProjLams $ map (\ (Dom ai (x,_)) -> Arg ai x) telList
+              , projLams     = ProjLams $ map (argFromDom . fmap fst) telList
               }
 
         reportSDoc "tc.rec.proj" 80 $ sep

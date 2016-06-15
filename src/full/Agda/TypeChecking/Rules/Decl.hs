@@ -742,7 +742,7 @@ checkModuleArity m tel args = check tel args
 
     check tel []             = return tel
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Dom info _) btel) args0@(Arg info' (Named rname _) : args) =
+    check (ExtendTel (Dom{domInfo = info}) btel) args0@(Arg info' (Named rname _) : args) =
       let name = fmap rangedThing rname
           y    = absName btel
           tel  = absBody btel in
@@ -856,9 +856,9 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       -- Telescopes do not have @NoAbs@.
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
       -- Found last parameter: switch it to @Instance@.
-      instFinal (ExtendTel (Dom info t) (Abs n EmptyTel)) =
-                 ExtendTel (Dom ifo' t) (Abs n EmptyTel)
-        where ifo' = setHiding Instance info
+      instFinal (ExtendTel dom (Abs n EmptyTel)) =
+                 ExtendTel do' (Abs n EmptyTel)
+        where do' = setHiding Instance dom
       -- Otherwise, keep searchinf for last parameter:
       instFinal (ExtendTel arg (Abs n tel)) =
                  ExtendTel arg (Abs n (instFinal tel))

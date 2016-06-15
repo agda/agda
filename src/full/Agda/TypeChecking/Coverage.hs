@@ -649,8 +649,8 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
   -- Split the telescope at the variable
   -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
-    let (tel1, Dom info (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (n, Dom info t, telFromList tel1, telFromList tel2)
+    let (tel1, dom : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (fst $ unDom dom, snd <$> dom, telFromList tel1, telFromList tel2)
 
   -- Check that t is a datatype or a record
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails

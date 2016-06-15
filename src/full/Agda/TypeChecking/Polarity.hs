@@ -284,7 +284,7 @@ sizePolarity d pol0 = do
             (parTel, ixTel) = genericSplitAt np $ telToList tel
         case ixTel of
           []                 -> exit  -- No size index
-          Dom _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
+          Dom{unDom = (_,a)} : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
             -- we assume the size index to be 'Covariant' ...
             let pol   = genericTake np pol0
                 polCo = pol ++ [Covariant]

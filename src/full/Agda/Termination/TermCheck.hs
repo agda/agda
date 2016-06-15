@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -996,7 +997,8 @@ instance ExtractCalls LevelAtom where
 
 -- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
 maskSizeLt :: MonadTCM tcm => Dom Type -> tcm (Dom Type)
-maskSizeLt dom@(Dom info a) = liftTCM $ do
+maskSizeLt !dom = liftTCM $ do
+  let a = unDom dom
   (msize, msizelt) <- getBuiltinSize
   case (msize, msizelt) of
     (_ , Nothing) -> return dom
@@ -1004,8 +1006,8 @@ maskSizeLt dom@(Dom info a) = liftTCM $ do
     (Just size, Just sizelt) -> do
       TelV tel c <- telView a
       case ignoreSharingType a of
-        El s (Def d [v]) | d == sizelt -> return $ Dom info $
-          abstract tel $ El s $ Def size []
+        El s (Def d [v]) | d == sizelt -> return $
+          (abstract tel $ El s $ Def size []) <$ dom
         _ -> return dom
 
 {- | @compareArgs es@

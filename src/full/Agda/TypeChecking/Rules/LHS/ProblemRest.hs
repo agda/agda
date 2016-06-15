@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE CPP           #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -29,18 +30,18 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Dom info (_, a)) | notHidden info && not (isNoName x) =
-      Dom info (nameToArgName x, a)
-    ren A.AbsurdP{} (Dom info (_, a)) | notHidden info = Dom info ("()", a)
+    ren (A.VarP x) !dom | notHidden (domInfo dom) && not (isNoName x) =
+      (\(_,a) -> (nameToArgName x,a)) <$> dom
+    ren A.AbsurdP{} !dom | notHidden (domInfo dom) = (\ (_,a) -> ("()",a)) <$> dom
     -- Andreas, 2013-03-13: inserted the following line in the hope to fix issue 819
     -- but it does not do the job, instead, it puts a lot of "_"s
     -- instead of more sensible names into error messages.
     -- ren A.WildP{}  (Dom info (_, a)) | notHidden info = Dom info ("_", a)
-    ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
+    ren A.PatternSynP{} !_ = __IMPOSSIBLE__  -- ensure there are no syns left
     -- Andreas, 2016-05-10, issue 1848: if context variable has no name, call it "x"
-    ren _ (Dom info (x, a)) | notHidden info && isNoName x =
-      Dom info (stringToArgName "x", a)
-    ren _ a = a
+    ren _ !dom | notHidden (domInfo dom) && isNoName (fst (unDom dom)) =
+      (\ (_,a) -> (stringToArgName "x",a)) <$> dom
+    ren _ !a = a
 
 -- | Are there any untyped user patterns left?
 noProblemRest :: Problem -> Bool

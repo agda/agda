@@ -272,7 +272,7 @@ newArgsMetaCtx' :: Condition -> Type -> Telescope -> Permutation -> Args -> TCM 
 newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case ignoreSharing tm of
-    Pi dom@(Dom info a) codom | condition dom codom -> do
+    Pi dom@(Dom{domInfo = info, unDom = a}) codom | condition dom codom -> do
       u <- applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var

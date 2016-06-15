@@ -453,7 +453,7 @@ instance Occurs a => Occurs (Arg a) where
   metaOccurs m a = metaOccurs m (unArg a)
 
 instance Occurs a => Occurs (Dom a) where
-  occurs red ctx m xs (Dom info x) = Dom info <$> occurs red ctx m xs x
+  occurs red ctx m xs = traverse $ occurs red ctx m xs
   metaOccurs m = metaOccurs m . unDom
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
@@ -716,7 +716,7 @@ killArgs kills m = do
 --   @t'@ is type @t@ after pruning all @k'i==True@.
 killedType :: [(Dom (ArgName, Type), Bool)] -> Type -> ([Arg Bool], Type)
 killedType [] b = ([], b)
-killedType ((arg@(Dom info _), kill) : kills) b
+killedType ((arg@(Dom {domInfo = info}), kill) : kills) b
   | dontKill  = (Arg info False : args, mkPi arg b')
   | otherwise = (Arg info True  : args, strengthen __IMPOSSIBLE__ b')
   where

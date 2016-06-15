@@ -406,11 +406,11 @@ instance EmbPrj a => EmbPrj (Arg a) where
     valu _      = malformed
 
 instance EmbPrj a => EmbPrj (Dom a) where
-  icod_ (Dom i e) = icode2' i e
+  icod_ (Dom i b e) = icode3' i b e
 
   value = vcase valu where
-    valu [i, e] = valu2 Dom i e
-    valu _      = malformed
+    valu [i, b, e] = valu3 Dom i b e
+    valu _         = malformed
 
 instance EmbPrj Induction where
   icod_ Inductive   = icode0'

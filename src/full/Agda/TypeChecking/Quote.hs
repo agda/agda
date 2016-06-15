@@ -191,7 +191,7 @@ quotingKit = do
       quoteList q xs = list (map q xs)
 
       quoteDom :: (Type -> ReduceM Term) -> Dom Type -> ReduceM Term
-      quoteDom q (Dom info t) = arg !@ quoteArgInfo info @@ q t
+      quoteDom q (Dom{domInfo = info, unDom = t}) = arg !@ quoteArgInfo info @@ q t
 
       quoteAbs :: Subst t a => (a -> ReduceM Term) -> Abs a -> ReduceM Term
       quoteAbs q (Abs s t)   = abs !@! quoteString s @@ q t
@@ -299,4 +299,3 @@ quoteList :: [Term] -> TCM Term
 quoteList xs = do
   kit <- quotingKit
   runReduceM (quoteListWithKit kit pure xs)
-

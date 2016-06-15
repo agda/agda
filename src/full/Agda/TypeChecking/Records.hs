@@ -382,7 +382,7 @@ expandRecordVar i gamma0 = do
       l     = size gamma - 1 - i
   -- Extract type of @i@th de Bruijn index.
   -- Γ = Γ₁, x:a, Γ₂
-  let (gamma1, dom@(Dom ai (x, a)) : gamma2) = splitAt l gamma
+  let (gamma1, dom@(Dom{domInfo = ai, unDom = (x, a)}) : gamma2) = splitAt l gamma
   -- This must be a eta-expandable record type.
   let failure = do
         reportSDoc "tc.meta.assign.proj" 25 $
@@ -449,7 +449,7 @@ curryAt t n = do
   TelV gamma core <- telViewUpTo n t
   case ignoreSharing $ unEl core of
     -- There should be at least one domain left
-    Pi (Dom ai a) b -> do
+    Pi (dom@Dom{domInfo = ai, unDom = a}) b -> do
       -- Eta-expand @dom@ along @qs@ into a telescope @tel@, computing a substitution.
       -- For now, we only eta-expand once.
       -- This might trigger another call to @etaExpandProjectedVar@ later.
@@ -469,7 +469,7 @@ curryAt t n = do
           curry v = teleLam gamma $ teleLam tel $
                       raise (n+m) v `apply` (xs ++ [Arg ai u])
           zs  = for fs $ fmap $ \ f -> Var 0 [Proj f]
-          atel = sgTel $ Dom ai (absName b, a)
+          atel = sgTel $ (,) (absName b) <$> dom
           uncurry v = teleLam gamma $ teleLam atel $
                         raise (n + 1) v `apply` (xs ++ zs)
       return (curry, uncurry, t')

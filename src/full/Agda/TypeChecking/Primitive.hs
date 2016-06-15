@@ -880,15 +880,15 @@ garr f a b = do
   a' <- a
   b' <- b
   return $ El (getSort a' `sLub` getSort b') $
-    Pi (Dom (mapRelevance f defaultArgInfo) a') (NoAbs "_" b')
+    Pi (mapRelevance f $ defaultDom a') (NoAbs "_" b')
 
 gpi :: MonadTCM tcm => ArgInfo -> String -> tcm Type -> tcm Type -> tcm Type
 gpi info name a b = do
   a <- a
-  b <- addContext (name, Dom info a) b
+  b <- addContext (name, defaultArgDom info a) b
   let y = stringToArgName name
   return $ El (getSort a `dLub` Abs y (getSort b))
-              (Pi (Dom info a) (Abs y b))
+              (Pi (defaultArgDom info a) (Abs y b))
 
 hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi $ setHiding Hidden defaultArgInfo
@@ -953,14 +953,14 @@ argN :: e -> Arg e
 argN = Arg defaultArgInfo
 
 domN :: e -> Dom e
-domN = Dom defaultArgInfo
+domN = defaultDom
 
 -- | Abbreviation: @argH = 'hide' 'Arg' 'defaultArgInfo'@.
 argH :: e -> Arg e
 argH = Arg $ setHiding Hidden defaultArgInfo
 
 domH :: e -> Dom e
-domH = Dom $ setHiding Hidden defaultArgInfo
+domH = setHiding Hidden . defaultDom
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions

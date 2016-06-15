@@ -94,6 +94,10 @@ class SynEq a where
   synEq' :: a -> a -> SynEqM (a,a)
   synEq' a a' = ifEqual (uncurry synEq) (a, a')
 
+instance SynEq Bool where
+  synEq x y | x == y = return (x,y)
+  synEq x y | otherwise = inequal (x,y)
+
 -- | Syntactic term equality ignores 'DontCare' stuff.
 instance SynEq Term where
   synEq v v' = do
@@ -194,7 +198,7 @@ instance SynEq a => SynEq (Arg a) where
   synEq (Arg ai a) (Arg ai' a') = Arg <$$> synEq ai ai' <**> synEq a a'
 
 instance SynEq a => SynEq (Dom a) where
-  synEq (Dom ai a) (Dom ai' a') = Dom <$$> synEq ai ai' <**> synEq a a'
+  synEq (Dom ai b a) (Dom ai' b' a') = Dom <$$> synEq ai ai' <**> synEq b b' <**> synEq a a'
 
 instance SynEq ArgInfo where
   synEq ai@(ArgInfo h r) ai'@(ArgInfo h' r')

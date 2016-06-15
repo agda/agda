@@ -200,7 +200,7 @@ instance GenC a => GenC (Arg a) where
   genC conf = (\ (h, a) -> Arg (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Dom a) where
-  genC conf = (\ (h, a) -> Dom (setHiding h defaultArgInfo) a) <$> genC conf
+  genC conf = (\ (h, a) -> defaultArgDom (setHiding h defaultArgInfo) a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
   genC conf = Abs x <$> genC (extendConf conf)
@@ -430,7 +430,7 @@ instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Dom a) (Dom b) where
-  shrinkC conf (Dom info x) = (\ (h,x) -> Dom (setHiding h info) x) <$> shrinkC conf (argInfoHiding info, x)
+  shrinkC conf dom@Dom{domInfo = info,unDom = x} = (\ (h,x) -> x <$ dom{domInfo = (setHiding h info)}) <$> shrinkC conf (argInfoHiding info, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where

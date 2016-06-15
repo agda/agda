@@ -42,7 +42,7 @@ implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
-      Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
+      Pi (Dom{domInfo = info, unDom = a}) b | let x = absName b, expand (getHiding info) x -> do
           when (getHiding info /= Hidden) $
             reportSDoc "tc.term.args.ifs" 15 $
             text "inserting instance meta for type" <+> prettyTCM a

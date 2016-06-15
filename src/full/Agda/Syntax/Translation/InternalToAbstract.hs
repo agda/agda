@@ -392,7 +392,7 @@ reifyTerm expandAnonDefs0 v = do
                 -- Andreas, 2012-09-18
                 -- If the first regular constructor argument is hidden,
                 -- we keep the parameters to avoid confusion.
-                (Dom info _ : _) | isHidden info -> do
+                (Dom {domInfo = info} : _) | isHidden info -> do
                   let us = genericReplicate (np - n) $
                              setRelevance Relevant $ Arg info underscore
                   apps h $ us ++ es
@@ -943,7 +943,7 @@ instance Reify I.Telescope A.Telescope where
     return $ TypedBindings r (Arg info (TBind r [pure x] e)) : bs
 
 instance Reify i a => Reify (Dom i) (Arg a) where
-    reify (Dom info i) = Arg info <$> reify i
+    reify (Dom{domInfo = info, unDom = i}) = Arg info <$> reify i
 
 instance Reify i a => Reify [i] [a] where
     reify = traverse reify

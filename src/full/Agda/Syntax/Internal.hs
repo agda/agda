@@ -774,10 +774,10 @@ class SgTel a where
   sgTel :: a -> Telescope
 
 instance SgTel (ArgName, Dom Type) where
-  sgTel (x, dom) = ExtendTel dom $ Abs x EmptyTel
+  sgTel (x, !dom) = ExtendTel dom $ Abs x EmptyTel
 
 instance SgTel (Dom (ArgName, Type)) where
-  sgTel (Dom ai (x, t)) = ExtendTel (Dom ai t) $ Abs x EmptyTel
+  sgTel dom = ExtendTel (snd <$> dom) $ Abs (fst $ unDom dom) EmptyTel
 
 instance SgTel (Dom Type) where
   sgTel dom = sgTel (stringToArgName "_", dom)

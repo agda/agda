@@ -16,6 +16,7 @@ import Agda.Syntax.Concrete (exprFieldA)
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Internal.Pattern as IP
 import qualified Agda.Syntax.Common as Common
+import Agda.Syntax.Common (Dom(..),domInfo,unDom)
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
@@ -408,7 +409,7 @@ tomyExp v0 =
       cc  <- lift $ liftIO $ readIORef c
       let Just npar = fst $ cdorigin cc
       return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-    I.Pi (Common.Dom info x) b -> do
+    I.Pi Dom{domInfo = info, unDom = x} b -> do
       let y    = I.absBody b
           name = I.absName b
       x' <- tomyType x
@@ -529,7 +530,7 @@ frommyExp (NotM e) =
   Pi _ hid _ x (Abs mid y) -> do
    x' <- frommyType x
    y' <- frommyType y
-   return $ I.Pi (Common.Dom (icnvh hid) x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
+   return $ I.Pi ((Common.defaultDom x') {domInfo = icnvh hid}) (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (Common.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
@@ -633,7 +634,7 @@ frommyClause (ids, pats, mrhs) = do
       let Id id = mid
       tel <- ctel ctx
       t' <- frommyType t
-      return $ I.ExtendTel (Common.Dom (icnvh hid) t') (I.Abs id tel)
+      return $ I.ExtendTel ((Common.defaultDom t') {domInfo = icnvh hid} ) (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
      getperms n [] _ _ = __IMPOSSIBLE__
@@ -806,7 +807,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fes nl (n + 1) c as1 as2
       (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (Common.Dom info1 it1) ot1, I.Pi (Common.Dom info2 it2) ot2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (Common.Dom{Common.domInfo = info1, Common.unDom = it1}) ot1, I.Pi (Common.Dom{ Common.domInfo = info2, Common.unDom = it2}) ot2) | Common.argInfoHiding info1 == Common.argInfoHiding info2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
