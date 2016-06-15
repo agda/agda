@@ -39,6 +39,7 @@ Bug fixes
   - #1967 (too eager insteance search error)
   - #1974 (lost constraint dependencies)
   - #1982 (internal error in unifier)
+  - #2034 (function type instance goals)
 
 ------------------------------------------------------------------------
 -- Release notes for Agda version 2.5.1
