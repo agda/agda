@@ -127,7 +127,7 @@ makeCase hole rng s = withInteractionId hole $ do
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo
-  let perm = clausePerm clause
+  let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
   reportSDoc "interaction.case" 10 $ vcat

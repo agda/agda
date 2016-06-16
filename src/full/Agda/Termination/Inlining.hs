@@ -183,7 +183,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   -- Finally we need to add the right number of Bind's to the body.
   let body = rebindBody (permRange perm) $
              applySubst (renamingR perm) .
-             applySubst (renaming $ reverseP $ clausePerm wcl)
+             applySubst (renaming $ reverseP $ fromMaybe __IMPOSSIBLE__ $ clausePerm wcl)
               <$> clauseBody wcl
   return wcl { namedClausePats = numberPatVars perm pats
              , clauseBody      = body

@@ -612,7 +612,8 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
     if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
-            else fromMaybe __IMPOSSIBLE__ $ permPicks (dbPatPerm pats) !!! k
+            else fromMaybe __IMPOSSIBLE__ $ permPicks perm !!! k
+        perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm pats
         k = size tel - x - 1
         arg = telVars (size tel) tel !! k
 
@@ -754,7 +755,7 @@ splitResult f sc@(SClause tel ps _ target) = do
         reportSDoc "tc.cover" 20 $ sep
           [ text   "we are              self = " <+> (addContext tel $ prettyTCM $ unArg self)
           ]
-        let n = defaultArg $ permRange (dbPatPerm ps)
+        let n = defaultArg $ permRange $ fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
             -- Andreas & James, 2013-11-19 includes the dot patterns!
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.
