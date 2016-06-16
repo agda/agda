@@ -883,7 +883,8 @@ instance Reify NamedClause A.Clause where
     where
       info = LHSRange noRange
       ps   = unnumberPatVars ps'
-      perm = dbPatPerm ps'
+      perm = fromMaybe __IMPOSSIBLE__ $
+               dbPatPerm ps'
 
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do

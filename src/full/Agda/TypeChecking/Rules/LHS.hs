@@ -596,7 +596,7 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
       reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
       let qs'  = unnumberPatVars qs
-          perm = dbPatPerm qs
+          perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm qs
           notProj ProjP{} = False
           notProj _       = True
                       -- Note: This works because we can't change the number of

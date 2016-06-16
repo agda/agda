@@ -452,7 +452,8 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.
-      rhsSubst' = mkSub $ permute (reverseP $ clausePerm clause) s'
+      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
+      rhsSubst' = mkSub $ permute (reverseP perm) s'
       -- TODO: Is it OK to replace the definition above with the
       -- following one?
       --
@@ -462,7 +463,7 @@ translateRecordPatterns clause = do
       -- order (i.e. the type signature for the variable which occurs
       -- first in the list of patterns comes first).
       flattenedOldTel =
-        permute (invertP __IMPOSSIBLE__ $ compactP $ clausePerm clause) $
+        permute (invertP __IMPOSSIBLE__ $ compactP perm) $
         zip (teleNames $ clauseTel clause) $
         flattenTel $
         clauseTel clause

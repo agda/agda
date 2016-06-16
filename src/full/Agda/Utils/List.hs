@@ -72,7 +72,6 @@ initLast as = Just $ loop as where
 
 -- | Lookup function (partially safe).
 (!!!) :: [a] -> Int -> Maybe a
-_        !!! n | n < 0 = __IMPOSSIBLE__
 []       !!! _         = Nothing
 (x : _)  !!! 0         = Just x
 (_ : xs) !!! n         = xs !!! (n - 1)

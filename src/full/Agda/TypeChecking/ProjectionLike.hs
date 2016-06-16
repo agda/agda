@@ -226,7 +226,7 @@ makeProjection x = -- if True then return () else do
                             -- which case we can't reconstruct the dropped parameters
           , checkBody n b ]
       where
-        Perm _ p = clausePerm cl
+        Perm _ p = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
         ps       = namedClausePats cl
         b        = clauseBody cl
 

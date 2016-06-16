@@ -125,13 +125,17 @@ numberPatVars perm ps = evalState (labelPatVars ps) $
 unnumberPatVars :: LabelPatVars a b i => b -> a
 unnumberPatVars = unlabelPatVars
 
-dbPatPerm :: [NamedArg DeBruijnPattern] -> Permutation
-dbPatPerm ps = Perm (size ixs) picks
+-- | Computes the permutation from the clause telescope
+--   to the pattern variables.
+--
+--   Use as @fromMaybe __IMPOSSIBLE__ . dbPatPerm@ to crash
+--   in a controlled way if a de Bruijn index is out of scope here.
+dbPatPerm :: [NamedArg DeBruijnPattern] -> Maybe Permutation
+dbPatPerm ps = Perm (size ixs) <$> picks
   where
     ixs   = concatMap (getIndices . namedThing . unArg) ps
     n     = size $ catMaybes ixs
-    picks = for (downFrom n) $ \i ->
-      fromMaybe __IMPOSSIBLE__ $ findIndex (Just i ==) ixs
+    picks = forM (downFrom n) $ \ i -> findIndex (Just i ==) ixs
 
     getIndices :: DeBruijnPattern -> [Maybe Int]
     getIndices (VarP (i,_))  = [Just i]
@@ -140,7 +144,13 @@ dbPatPerm ps = Perm (size ixs) picks
     getIndices (LitP _)      = []
     getIndices (ProjP _)     = []
 
-clausePerm :: Clause -> Permutation
+
+-- | Computes the permutation from the clause telescope
+--   to the pattern variables.
+--
+--   Use as @fromMaybe __IMPOSSIBLE__ . clausePerm@ to crash
+--   in a controlled way if a de Bruijn index is out of scope here.
+clausePerm :: Clause -> Maybe Permutation
 clausePerm = dbPatPerm . namedClausePats
 
 patternToElim :: Arg DeBruijnPattern -> Elim
