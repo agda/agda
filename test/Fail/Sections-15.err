@@ -1,8 +1,8 @@
 Sections-15.agda:4,8-39
 Could not parse the application if_then 4 Common.Prelude.else 5
 Operators used in the grammar:
-  if_then_else (prefix operator, level 20) [if_then_else_ (Bool.agda:17,1-14)]
-  if_then_else (prefix operator, level 20) [if_then_else_ (Bool.agda:17,1-14)]
+  Common.Prelude.if_then_else (prefix operator, level 20) [if_then_else_ (Bool.agda:17,1-14)]
+  if_then_else                (prefix operator, level 20) [if_then_else_ (Bool.agda:17,1-14)]
 (the treatment of operators was changed in Agda 2.5.1, so code that
 used to parse may have to be changed)
 when scope checking if_then 4 Common.Prelude.else 5

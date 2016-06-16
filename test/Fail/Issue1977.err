@@ -1,0 +1,7 @@
+Issue1977.agda:8,7-22
+Could not parse the application [ M.undefined ]
+Operators used in the grammar:
+  M.[_] (closed operator) [[_] (Issue1977.agda:6,5-8)]
+(the treatment of operators was changed in Agda 2.5.1, so code that
+used to parse may have to be changed)
+when scope checking [ M.undefined ]

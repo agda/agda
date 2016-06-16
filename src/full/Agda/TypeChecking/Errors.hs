@@ -956,7 +956,15 @@ instance PrettyTCM TypeError where
         )
         where
         nota    = sectNotation sect
-        section = trim (notation nota)
+        section = qualifyFirstIdPart
+                    (foldr (\x s -> C.nameToRawName x ++ "." ++ s)
+                           ""
+                           (init (C.qnameParts (notaName nota))))
+                    (trim (notation nota))
+
+        qualifyFirstIdPart _ []              = []
+        qualifyFirstIdPart q (IdPart x : ps) = IdPart (q ++ x) : ps
+        qualifyFirstIdPart q (p : ps)        = p : qualifyFirstIdPart q ps
 
         trim = case sectKind sect of
           InfixNotation   -> trimLeft . trimRight
