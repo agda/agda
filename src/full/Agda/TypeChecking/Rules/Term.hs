@@ -66,6 +66,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
@@ -479,6 +480,10 @@ checkAbsurdLambda i h e t = do
 checkExtendedLambda :: A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
                        A.Expr -> Type -> TCM Term
 checkExtendedLambda i di qname cs e t = do
+   -- Andreas, 2016-06-16 issue #2045
+   -- Try to get rid of unsolved size metas before we
+   -- fix the type of the extended lambda auxiliary function
+   solveSizeConstraints DontDefaultToInfty
    t <- instantiateFull t
    ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t -> do
      j   <- currentOrFreshMutualBlock
