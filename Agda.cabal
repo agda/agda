@@ -87,6 +87,12 @@ flag uhc
   description:
     Enable the UHC backend. For details, consult the Agda User Manual.
 
+flag debug
+  default: False
+  manual: True
+  description:
+    Enable debugging features that may slow Agda down.
+
 library
   hs-source-dirs:   src/full
   include-dirs:     src/full
@@ -104,6 +110,9 @@ library
     -- modules. If UHC Light is not present, we instead create dummy
     -- definitions, see module Agda.Compiler.UHC.Bridge.
     cpp-options:    -DUHC_BACKEND
+
+  if flag(debug)
+    cpp-options:    -DDEBUG
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
@@ -273,6 +282,7 @@ library
                     Agda.Syntax.Concrete.Generic
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
+                    Agda.Syntax.Concrete.Operators.Parser.Monad
                     Agda.Syntax.Concrete.Operators
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
