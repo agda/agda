@@ -621,6 +621,13 @@ bindBuiltinNoDef b q = do
                 , funTerminates = Just True
                 }
             | otherwise = Axiom
+    Just (BuiltinPrim s _verify) -> do
+      PrimImpl t pf <- lookupPrimitiveFunction s
+      bindPrimitive s (pf {primFunName = q})
+      addConstant q $
+        defaultDefn defaultArgInfo q t $
+          Primitive ConcreteDef -- TODO fix (Info.defAbstract i)
+              s [] Nothing
 
     Just{}  -> __IMPOSSIBLE__
     Nothing -> __IMPOSSIBLE__ -- typeError $ NoSuchBuiltinName b
