@@ -56,7 +56,7 @@ instance NamesIn Defn where
     Function    { funClauses = cl, funCompiled = cc }              -> namesIn (cl, cc)
     Datatype    { dataClause = cl, dataCons = cs, dataSort = s }   -> namesIn (cl, cs, s)
     Record      { recClause = cl, recConHead = c, recFields = fs } -> namesIn (cl, c, fs)
-      -- Don't need recTel or recConType since those will be reachable from the constructor
+      -- Don't need recTel since those will be reachable from the constructor
     Constructor { conSrcCon = c, conData = d }                     -> namesIn (c, d)
     Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
 

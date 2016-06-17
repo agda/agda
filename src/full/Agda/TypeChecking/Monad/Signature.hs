@@ -435,10 +435,9 @@ applySection' new ptel old ts rd rm = do
                          , dataClause = Just cl
                          , dataCons   = map copyName cs
                          }
-                Record{ recPars = np, recConType = t, recTel = tel } -> return $
+                Record{ recPars = np, recTel = tel } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
-                         , recConType = piApply t ts'
                          , recTel     = apply tel ts'
                          }
                 _ -> do

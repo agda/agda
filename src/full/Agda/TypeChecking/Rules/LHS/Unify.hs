@@ -980,7 +980,9 @@ isSet a = do
            ifNotM (allM ixtypes isSet) (return False) $ allM cs $ \c -> do
              ctype <- defType <$> getConstInfo c
              checkConstructorType d $ ctype `piApply` pars
-        Record{ recConType = ctype } -> checkConstructorType d $ ctype `piApply` args
+        Record{ recConHead = c } -> do
+          ctype <- defType <$> getConstInfo (conName c)
+          checkConstructorType d $ ctype `piApply` args
         _ -> return False
     _ -> return False
   where

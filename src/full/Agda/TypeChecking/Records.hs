@@ -156,10 +156,6 @@ getRecordTypeFields t =
 getOriginalProjection :: QName -> TCM QName
 getOriginalProjection q = projOrig . fromMaybe __IMPOSSIBLE__ <$> isProjection q
 
--- | Get the type of the record constructor.
-getRecordConstructorType :: QName -> TCM Type
-getRecordConstructorType r = recConType <$> getRecordDef r
-
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: QName -> TCM ConHead

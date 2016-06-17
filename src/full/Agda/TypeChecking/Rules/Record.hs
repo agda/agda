@@ -149,7 +149,6 @@ checkRecDef i name ind eta con ps contel fields =
                                 , recClause         = Nothing
                                 , recConHead        = con
                                 , recNamedCon       = hasNamedCon
-                                , recConType        = contype  -- addConstant adds params!
                                 , recFields         = fs
                                 , recTel            = ftel     -- addConstant adds params!
                                 , recAbstr          = Info.defAbstract i

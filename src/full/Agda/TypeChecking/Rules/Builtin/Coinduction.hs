@@ -82,7 +82,6 @@ bindBuiltinSharp e =
                   , recInduction      = Just CoInductive
                   , recClause         = Nothing
                   , recConHead        = ConHead sharp CoInductive []  -- flat is added later
-                  , recConType        = sharpType
                   , recNamedCon       = True
                   , recFields         = []  -- flat is added later
                   , recTel            = fieldTel
