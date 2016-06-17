@@ -404,7 +404,7 @@ getInterface' x isMain = do
             vs       <- getVisitedModules
             ds       <- getDecodedModules
             opts     <- stPersistentOptions . stPersistentState <$> get
-            isig     <- getImportedSignature
+            isig     <- use stImports
             ibuiltin <- use stImportedBuiltins
             display  <- use stImportsDisplayForms
             ipatsyns <- getPatternSynImports

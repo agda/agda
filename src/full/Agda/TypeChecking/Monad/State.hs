@@ -177,9 +177,6 @@ modifyImportedSignature f = stImports %= f
 getSignature :: TCM Signature
 getSignature = use stSignature
 
-getImportedSignature :: TCM Signature
-getImportedSignature = use stImports
-
 -- | Update a possibly imported definition. Warning: changes made to imported
 --   definitions (during type checking) will not persist outside the current
 --   module. This function is currently used to update the compiled
@@ -190,9 +187,6 @@ modifyGlobalDefinition q f = modifySignature (updateDefinition q f) >>
 
 setSignature :: Signature -> TCM ()
 setSignature sig = modifySignature $ const sig
-
-setImportedSignature :: Signature -> TCM ()
-setImportedSignature sig = stImports .= sig
 
 -- | Run some computation in a different signature, restore original signature.
 withSignature :: Signature -> TCM a -> TCM a
