@@ -1,0 +1,12 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue2028 (Issue2028.agda). " t)
+(agda2-info-action "*Type-checking*" "Finished Issue2028. " t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : Set _31 : (A ∪ U) .x → U .x [ at Issue2028.agda:26,3-28,6 ] " nil)
+((last . 1) . (agda2-goals-action '(0)))
+Ambiguous name: Issue2028..extendedlambda0
+(agda2-info-action "*Error*" "An internal error has occurred. Please report this as a bug. Location of the error: src/full/Agda/TypeChecking/Reduce/Monad.hs:175 " nil)
+(agda2-highlight-load-and-delete-action)
+(agda2-status-action "")
