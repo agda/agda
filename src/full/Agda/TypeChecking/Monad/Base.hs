@@ -1407,7 +1407,6 @@ data Defn = Axiom
             , recClause         :: Maybe Clause
             , recConHead        :: ConHead              -- ^ Constructor name and fields.
             , recNamedCon       :: Bool
-            , recConType        :: Type                 -- ^ The record constructor's type. (Includes record parameters.)
             , recFields         :: [Arg QName]
             , recTel            :: Telescope            -- ^ The record field telescope. (Includes record parameters.)
                                                         --   Note: @TelV recTel _ == telView' recConType@.
@@ -2848,7 +2847,7 @@ instance KillRange Defn where
       Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop ->
         killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
+      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e          -> killRange5 Constructor a b c d e
       Primitive a b c d              -> killRange4 Primitive a b c d
 

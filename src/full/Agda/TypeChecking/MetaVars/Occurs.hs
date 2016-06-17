@@ -355,7 +355,7 @@ instance Occurs Defn where
   -- we check the constructor types
   metaOccurs m Datatype{ dataCons = cs }    = mapM_ mocc cs
     where mocc c = metaOccurs m . defType =<< getConstInfo c
-  metaOccurs m Record{ recConType = v }     = metaOccurs m v
+  metaOccurs m Record{ recConHead = c }     = metaOccurs m . defType =<< getConstInfo (conName c)
   metaOccurs m Constructor{}                = return ()
   metaOccurs m Primitive{}                  = return ()
 

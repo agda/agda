@@ -16,7 +16,6 @@ import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
-import Agda.TypeChecking.Monad.State (getImportedSignature)
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars)
 import Agda.Utils.Permutation (Permutation(Perm), permute, takeP, compactP)
 import Agda.TypeChecking.Level (reallyUnLevelView)
