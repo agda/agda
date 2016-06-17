@@ -667,15 +667,15 @@ createInterface file mname =
       printUnsolvedInfo
 
     reportSLn "import.iface.create" 7 $ "Starting writing to interface file."
-    r <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
+    warn <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
      then Bench.billTo [Bench.Serialization] $ do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       let ifile = filePath $ toIFile file
       writeInterface ifile i
-      return (i, NoWarnings)
+      return NoWarnings
      else do
-      return (i, SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints)
+      return $ SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints
     reportSLn "import.iface.create" 7 $ "Finished writing to interface file."
 
     -- Profiling: Print statistics.
@@ -688,7 +688,7 @@ createInterface file mname =
     verboseS "profile" 1 $ do
       reportSLn "import.iface" 5 $ "Accumulated statistics."
 
-    return $ first constructIScope r
+    return (constructIScope i, warn)
 
 -- constructIScope :: ScopeInfo -> Map ModuleName Scope
 constructIScope :: Interface -> Interface
