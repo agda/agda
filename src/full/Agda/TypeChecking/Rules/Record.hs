@@ -102,12 +102,13 @@ checkRecDef i name ind eta con ps contel fields =
       s <- case ignoreSharing $ unEl t0' of
         Sort s  -> return s
         _       -> typeError $ ShouldBeASort t0
-      gamma <- getContextTelescope  -- the record params (incl. module params)
-      reportSDoc "tc.rec" 20 $ vcat
-        [ text "gamma = " <+> inTopContext (prettyTCM gamma) ]
+
+      reportSDoc "tc.rec" 20 $ do
+        gamma <- getContextTelescope  -- the record params (incl. module params)
+        text "gamma = " <+> inTopContext (prettyTCM gamma)
 
       -- record type (name applied to parameters)
-      let rect = El s $ Def name $ map Apply $ teleArgs gamma
+      rect <- El s . Def name . map Apply <$> getContextArgs
 
       -- Put in @rect@ as correct target of constructor type.
       -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
