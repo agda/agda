@@ -122,13 +122,18 @@ recordFieldNames = map (fmap (nameConcrete . qnameName)) . recFields
 -- | Find all records with at least the given fields.
 findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
-  defs <- (HMap.union `on` (^. sigDefinitions)) <$> getSignature <*> getImportedSignature
-  let possible def = case theDef def of
-        Record{ recFields = fs } -> Set.isSubsetOf given inrecord
-          where inrecord = Set.fromList $ map (nameConcrete . qnameName . unArg) fs
-        _ -> False
-  return [ defName d | d <- HMap.elems defs, possible d ]
+  defs  <- HMap.elems <$> use (stSignature . sigDefinitions)
+  idefs <- HMap.elems <$> use (stImports   . sigDefinitions)
+  return $ cands defs ++ cands idefs
   where
+    cands defs = [ defName d | d <- defs, possible d ]
+    possible def =
+      -- Check whether the given fields are contained
+      -- in the fields of record @def@ (if it is a record).
+      case theDef def of
+        Record{ recFields = fs } -> Set.isSubsetOf given $
+          Set.fromList $ map (nameConcrete . qnameName . unArg) fs
+        _ -> False
     given = Set.fromList fields
 
 -- | Get the field types of a record.
