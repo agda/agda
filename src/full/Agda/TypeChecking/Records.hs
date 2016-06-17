@@ -21,7 +21,6 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -216,7 +215,7 @@ origProjection f = do
 --
 --   See also: 'Agda.TypeChecking.Datatypes.getConType'
 getDefType :: QName -> Type -> TCM (Maybe Type)
-getDefType f = skipPartial reduce $ \ t -> do
+getDefType f t = do
   -- Andreas, Issue #1973: we need to take the original projection
   -- since the parameters from the reduced type t are correct for
   -- the original projection only.
@@ -246,7 +245,7 @@ getDefType f = skipPartial reduce $ \ t -> do
           -- If it is stuck due to disabled reductions
           -- (because of failed termination check),
           -- we will produce garbage parameters.
-          ifNotM (eligibleForProjectionLike d) (failNotElig t) $ {- else -} do
+          ifNotM (eligibleForProjectionLike d) failNotElig $ {- else -} do
             -- now we know it is reduced, we can safely take the parameters
             let pars = fromMaybe __IMPOSSIBLE__ $ allApplyElims $ take npars es
             reportSDoc "tc.deftype" 20 $ vcat
@@ -254,13 +253,13 @@ getDefType f = skipPartial reduce $ \ t -> do
               , text "parameters =" <+> sep (map prettyTCM pars)
               ]
             reportSLn "tc.deftype" 60 $ "parameters = " ++ show pars
-            if length pars < npars then failure t "does not supply enough parameters"
+            if length pars < npars then failure "does not supply enough parameters"
             else Just <$> a `piApplyM` pars
-        _ -> failNotDef t
+        _ -> failNotDef
   where
-    failNotElig t = failure t "is not eligible for projection-likeness"
-    failNotDef  t = failure t "is not a Def."
-    failure t reason = do
+    failNotElig = failure "is not eligible for projection-likeness"
+    failNotDef  = failure "is not a Def."
+    failure reason = do
       reportSDoc "tc.deftype" 25 $ sep
         [ text "Def. " <+> prettyTCM f <+> text " is projection(like)"
         , text "but the type "

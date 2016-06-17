@@ -673,7 +673,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
         , text ""
         ]
       let (pol, pols) = nextPolarity pols0
-      ifBlockedType a (\ m t -> patternViolation) $ skipPartial reduce $ \ a -> do
+      ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         case ignoreSharing . unEl $ a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
             mlvl <- mlevel

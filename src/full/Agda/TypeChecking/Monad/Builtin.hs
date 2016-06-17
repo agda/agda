@@ -647,17 +647,6 @@ pathUnview (OType t) = t
 pathUnview (PathType s path l t lhs rhs) =
   El s $ Def path $ map Apply [l, t, lhs, rhs]
 
-skipPartial :: HasBuiltins tcm => (Term -> tcm Term) -> (Type -> tcm a) -> (Type -> tcm a)
-skipPartial reduce k t = do
-        mp <- fmap getPrimName <$> getBuiltin' builtinPartial
-        case ignoreSharing $ unEl t of
-         Def d [Apply l, Apply a, Apply phi] | Just d == mp -> do
-            -- phi should be i1 here.
-            a <- reduce (unArg a)
-            k (El (getSort t) a)
-         _ -> k t
-
-
 ------------------------------------------------------------------------
 -- * Builtin equality
 ------------------------------------------------------------------------
