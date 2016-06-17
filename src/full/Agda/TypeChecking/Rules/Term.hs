@@ -833,9 +833,10 @@ checkExpr e t0 = do
                                                                       _        -> p))) pats
              reportSDoc "tc.partial" 80 $ text (show adjusted)
              reportSDoc "tc.partial" 50 $ prettyTCM sigma
+             ty <- (elInf (primIsOne <@> primIOne) --> pure a_sigma) -- TODO dependent
              let c = Clause { clauseTel = tel
-                          , clauseType = Just $ Arg defaultArgInfo a_sigma
-                          , clauseBody = foldr (\ nm b -> Bind $ mkAbs nm b) (Body u) (teleNames tel)
+                          , clauseType = Just $ Arg defaultArgInfo ty
+                          , clauseBody = foldr (\ nm b -> Bind $ mkAbs nm b) (Body (Lam defaultArgInfo $ NoAbs "_" $ u)) (teleNames tel)
                           , namedClausePats = adjusted
                           , clauseRange = noRange
                           , clauseCatchall = False
@@ -844,9 +845,11 @@ checkExpr e t0 = do
              return (u,c)
            case ts of
              [(_,c)] -> do
+               t0 <- elInf $ primPartial <#> pure (unArg l) <@> pure (unArg a) <@> pure (unArg phi) -- TODO make dependent
                q <- inTopContext $ do
                     bname <- getPrimName <$> primPartial
                     q <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName bname)
+
                     let ty = (abstract gamma_tel t0)
                     reportSDoc "tc.partial" 60 $ prettyTCM ty
                     addConstant q (defaultDefn defaultArgInfo q ty (emptyFunction { funClauses = [c] }))
@@ -1704,7 +1707,10 @@ checkHeadApplication e t hd args = do
           case vs of
             [l,a,phi,u,a0] -> do
               iz <- Arg defaultArgInfo <$> intervalUnview IZero
-              equalTermOnFace (unArg phi) (El (getSort t1) (apply (unArg a) [iz])) (unArg a0) (apply (unArg u) [iz])
+              ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg a `apply` [iz]) <@> (pure $ unArg phi)
+              equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
+                  (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
+                  (apply (unArg u) [iz])
             _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
 

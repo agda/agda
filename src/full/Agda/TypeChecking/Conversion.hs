@@ -263,7 +263,7 @@ compareTerm' cmp a m n =
           b <- levelView n
           equalLevel a b
 -- OLD:        Pi dom _  -> equalFun (dom, a') m n
-        a@Pi{}    -> equalFun a m n
+        a@Pi{}    -> equalFun s a m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r es  -> do
           isrec <- isEtaRecord r
@@ -317,14 +317,20 @@ compareTerm' cmp a m n =
         _ -> compareAtom cmp a' m n
   where
     -- equality at function type (accounts for eta)
-    equalFun :: Term -> Term -> Term -> TCM ()
-    equalFun (Shared p) m n = equalFun (derefPtr p) m n
-    equalFun (Pi dom@(Dom{domInfo = info}) b) m n = do  -- TODO equalPartial here
+    equalFun :: Sort -> Term -> Term -> Term -> TCM ()
+    equalFun s (Shared p) m n = equalFun s (derefPtr p) m n
+    equalFun s a@(Pi dom@(Dom{domFinite = True}) b) m n = do
+       mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
+       case unEl $ unDom dom of
+          Def q [Apply phi]
+              | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
+          _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
+    equalFun _ (Pi dom@(Dom{domInfo = info,domFinite = False}) b) m n = do
         name <- freshName_ $ suggest (absName b) "x"
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg info $ var 0]
-    equalFun _ _ _ = __IMPOSSIBLE__
+    equalFun _ _ _ _ = __IMPOSSIBLE__
     equalPath :: PathView -> Type -> Term -> Term -> TCM ()
     equalPath (PathType s _ l a x y) _ m n = do
         name <- freshName_ $ "i"
@@ -334,13 +340,13 @@ compareTerm' cmp a m n =
           pathApply m = apply app $ map (raise 1) [l,a,setHiding Hidden x,setHiding Hidden y] ++ [defaultArg m,defaultArg (var 0)]
           (m',n') = (pathApply (raise 1 m),pathApply (raise 1 n))
         addContext (name, defaultDom interval) $ compareTerm cmp (El s $ raise 1 $ unArg a) m' n'
-    equalPath OType{} a' m n = cmpPartial a' m n
-    cmpPartial a'@(El s (Def q es)) m n = do
-       mp <- fmap getPrimName <$> getBuiltin' builtinPartial
+    equalPath OType{} a' m n = cmpIsOne a' m n
+    cmpIsOne a'@(El s (Def q es)) m n = do
+       mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
        case es of
-        [_, Apply a, Apply phi] | mp == Just q -> compareTermOnFace cmp (unArg phi) (El s (unArg a)) m n
+        [_] | mp == Just q -> return ()
         _                -> compareAtom cmp a' m n
-    cmpPartial a' m n = compareAtom cmp a' m n
+    cmpIsOne a' m n = compareAtom cmp a' m n
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
 --   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if

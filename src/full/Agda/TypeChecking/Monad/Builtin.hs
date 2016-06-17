@@ -111,7 +111,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
-    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primRestrict, primPSingl,
+    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primRestrict, primPSingl, primIsOne, primItIsOne,
     primId, primConId,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -169,8 +169,10 @@ primPathAbs      = getBuiltin builtinPathAbs
 primIZero        = getBuiltin builtinIZero
 primIOne         = getBuiltin builtinIOne
 primRestrict     = getBuiltin builtinRestrict
-primPartial      = getBuiltin builtinPartial
+primPartial      = getPrimitiveTerm "primPartial"
 primPSingl       = getBuiltin builtinPSingl
+primIsOne        = getBuiltin builtinIsOne
+primItIsOne      = getBuiltin builtinItIsOne
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -286,7 +288,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinRestrict, builtinPSingl,
+  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinRestrict, builtinPSingl, builtinIsOne, builtinItIsOne,
   builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
@@ -359,6 +361,8 @@ builtinIOne                          = "IONE"
 builtinRestrict                      = "RESTRICT"
 builtinPartial                       = "PARTIAL"
 builtinPSingl                        = "PSINGL"
+builtinIsOne                         = "ISONE"
+builtinItIsOne                       = "ITISONE"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
@@ -482,6 +486,7 @@ builtinsNoDef =
   , builtinInterval
   , builtinPartial
   , builtinRestrict
+  , builtinIsOne
   ]
 
 -- | The coinductive primitives.

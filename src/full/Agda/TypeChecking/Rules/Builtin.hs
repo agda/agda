@@ -97,9 +97,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                                       (varM 0 <@> primIZero) <@> (varM 0 <@> primIOne))))
   , (builtinIZero              |-> builtinPostulate tinterval)
   , (builtinIOne               |-> builtinPostulate tinterval)
-  , (builtinPartial            |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                     nPi "A" (return $ sort $ varSort 0) $
-                                                     tinterval --> return (sort $ Inf)))
+  , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinRestrict           |-> builtinPostulate (hPi "a" (el primLevel) $
                                                      nPi "A" (return $ sort $ varSort 0) $
                                                      tinterval --> return (sort $ Inf)))
@@ -108,6 +106,8 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                      hPi "i"  tinterval $
                                                      (El (varSort 2) <$> primRestrict <#> varM 2 <@> varM 1 <@> varM 0)
                                                      --> (elInf $ primPartial <#> varM 2 <@> varM 1 <@> varM 0)))
+  , (builtinIsOne              |-> builtinPostulate (tinterval --> return (sort $ Inf)))
+  , (builtinItIsOne            |-> builtinPostulate (elInf $ primIsOne <@> primIOne))
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->
