@@ -268,10 +268,16 @@ data RHS
   | AbsurdRHS
   | WithRHS QName [Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
-  | RewriteRHS [(QName, Expr)] RHS [Declaration]
-      -- ^ The 'QName's are the names of the generated with functions.
-      --   One for each 'Expr'.
-      --   The RHS shouldn't be another @RewriteRHS@.
+  | RewriteRHS
+    { rewriteExprs      :: [(QName, Expr)]
+      -- ^ The 'QName's are the names of the generated with functions,
+      --   one for each 'Expr'.
+    , rewriteRHS        :: RHS
+      -- ^ The RHS should not be another @RewriteRHS@.
+    , rewriteWhereDecls :: [Declaration]
+      -- ^ The where clauses are attached to the @RewriteRHS@ by
+      ---  the scope checker (instead of to the clause).
+    }
   deriving (Typeable, Show, Eq)
 
 -- | The lhs of a clause in spine view (inside-out).
