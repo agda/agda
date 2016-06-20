@@ -216,7 +216,8 @@ removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii = do
   ip <- stInteractionPoints %%= \ m -> do
     let (mip, m') = Map.updateLookupWithKey (\ _ _ -> Nothing) ii m
-    return (m', fromMaybe __IMPOSSIBLE__ mip)
+    return (m',
+      fromMaybe __IMPOSSIBLE__ mip)
   stSolvedInteractionPoints %= Map.insert ii ip
 
 -- | Get a list of interaction ids.
