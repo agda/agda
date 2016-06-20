@@ -154,6 +154,8 @@ data PostScopeState = PostScopeState
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
   , stPostMetaStore           :: MetaStore
   , stPostInteractionPoints   :: InteractionPoints -- scope checker first
+  , stPostSolvedInteractionPoints :: InteractionPoints
+    -- ^ Interaction points that have been filled by a give or solve action.
   , stPostAwakeConstraints    :: Constraints
   , stPostSleepingConstraints :: Constraints
   , stPostDirty               :: Bool -- local
@@ -277,6 +279,7 @@ initPostScopeState = PostScopeState
   , stPostDisambiguatedNames   = IntMap.empty
   , stPostMetaStore            = Map.empty
   , stPostInteractionPoints    = Map.empty
+  , stPostSolvedInteractionPoints = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -402,6 +405,12 @@ stInteractionPoints :: Lens' InteractionPoints TCState
 stInteractionPoints f s =
   f (stPostInteractionPoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInteractionPoints = x}}
+
+stSolvedInteractionPoints :: Lens' InteractionPoints TCState
+stSolvedInteractionPoints f s =
+  f (stPostSolvedInteractionPoints (stPostScopeState s)) <&>
+  \ x -> s {stPostScopeState = (stPostScopeState s)
+             {stPostSolvedInteractionPoints = x}}
 
 stAwakeConstraints :: Lens' Constraints TCState
 stAwakeConstraints f s =
@@ -1021,8 +1030,14 @@ type InteractionPoints = Map InteractionId InteractionPoint
 data IPClause = IPClause
   { ipcQName    :: QName  -- ^ The name of the function.
   , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
+  , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
   }
-  | IPNoClause -- ^ The interaction point is not the rhs of a clause.
+  | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
+
+instance Eq IPClause where
+  IPNoClause     == IPNoClause       = True
+  IPClause x i _ == IPClause x' i' _ = x == x' && i == i'
+  _              == _                = False
 
 ---------------------------------------------------------------------------
 -- ** Signature
