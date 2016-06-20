@@ -7,6 +7,7 @@
 (agda2-info-action "*All Goals*" "?0 : Bool " nil)
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-verbose "splitting clause: f = test context = (x₁ : Bool) tel = (x₁ : Bool) perm = x0 -> x0 ps = [r(x = VarP (0,\"x\"))] ")
+(agda2-verbose "parseVariables: current module = Issue1842 current section = function's fvs = 0 ")
 (agda2-verbose "Interaction.MakeCase.makeCase: split clause: context = (x₁ : Bool) tel = ps = [r(x = ConP Issue1842.Bool.true(inductive)[] (ConPatternInfo {conPRecord = Nothing, conPType = Nothing}) [])] ")
 (agda2-verbose "normalized patterns: [r(x = ConP Issue1842.Bool.true(inductive)[] (ConPatternInfo {conPRecord = Nothing, conPType = Nothing}) [])] ")
 (agda2-verbose "reified lhs: LHS {lhsInfo = LHSRange , lhsCore = LHSHead {lhsDefName = Issue1842.test, lhsPats = [r(ConP PatRange (AmbQ {unAmbQ = [Issue1842.Bool.true]}) [])]}, lhsWithPats = []} ")

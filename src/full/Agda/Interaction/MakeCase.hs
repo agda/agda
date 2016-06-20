@@ -51,8 +51,13 @@ type CaseContext = Maybe ExtLamInfo
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
 
-parseVariables :: InteractionId -> Range -> [String] -> TCM [Int]
-parseVariables ii rng ss = do
+parseVariables
+  :: QName           -- ^ The function name.
+  -> InteractionId   -- ^ The hole of this function we are working on.
+  -> Range           -- ^ The range of this hole.
+  -> [String]        -- ^ The words the user entered in this hole (variable names).
+  -> TCM [Int]       -- ^ The computed de Bruijn indices of the variables to split on.
+parseVariables f ii rng ss = do
 
   -- Get into the context of the meta.
   mId <- lookupInteractionId ii
@@ -65,8 +70,19 @@ parseVariables ii rng ss = do
     xs <- forM (downFrom n) $ \ i -> do
       (,i) . P.render <$> prettyTCM (var i)
 
-    -- Get number of module parameters.  These cannot be split on.
-    fv <- getCurrentModuleFreeVars
+    reportSDoc "interaction.case" 20 $ do
+      m   <- currentModule
+      tel <- lookupSection m
+      fv  <- getDefFreeVars f
+      vcat
+       [ text "parseVariables:"
+       , text "current module  =" <+> prettyTCM m
+       , text "current section =" <+> inTopContext (prettyTCM tel)
+       , text $ "function's fvs  = " ++ show fv
+       ]
+
+    -- Get number of free variables.  These cannot be split on.
+    fv <- getDefFreeVars f
     let numSplittableVars = n - fv
 
     -- Resolve each string to a variable.
@@ -167,7 +183,7 @@ makeCase hole rng s = withInteractionId hole $ do
     (casectxt,) <$> mapM (makeAbstractClause f) scs
   else do
     -- split on variables
-    vars <- parseVariables hole rng vars
+    vars <- parseVariables f hole rng vars
     scs <- split f vars $ clauseToSplitClause clause
     -- filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
