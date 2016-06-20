@@ -1,7 +1,8 @@
 Agda 2
 ======
 
-[![Hackage](https://img.shields.io/hackage/v/Agda.svg)](http://hackage.haskell.org/package/Agda) [![Build Status](https://travis-ci.org/agda/agda.svg?branch=stable-2.5)](https://travis-ci.org/agda/agda)
+[![Hackage version](https://img.shields.io/hackage/v/Agda.svg?label=Hackage)](http://hackage.haskell.org/package/Agda)
+[![Build Status](https://travis-ci.org/agda/agda.svg?branch=stable-2.5)](https://travis-ci.org/agda/agda)
 
 Table of contents:
 
