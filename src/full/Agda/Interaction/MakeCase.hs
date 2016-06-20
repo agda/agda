@@ -249,15 +249,3 @@ makeAbstractClause f cl = do
                                -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
   let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
   return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
-
-deBruijnIndex :: A.Expr -> TCM Nat
-deBruijnIndex e = do
-  (v, _) <- -- Andreas, 2010-09-21 allow splitting on irrelevant (record) vars
---            Context.wakeIrrelevantVars $
-            applyRelevanceToContext Irrelevant $
-              inferExpr e
-  case ignoreSharing v of
-    Var n _ -> return n
-    _       -> typeError . GenericError . show =<< (fsep $
-                pwords "The scrutinee of a case distinction must be a variable,"
-                ++ [ prettyTCM v ] ++ pwords "isn't.")
