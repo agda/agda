@@ -133,9 +133,14 @@ getClauseForIP f clauseNo = do
       return (extlam, c, cs1)
     _ -> __IMPOSSIBLE__
 
+
 -- | Entry point for case splitting tactic.
+
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
+
+  -- Get function clause which contains the interaction point.
+
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   let meta = fromMaybe __IMPOSSIBLE__ mm
   (f, clauseNo) <- case ipCl of
@@ -156,9 +161,14 @@ makeCase hole rng s = withInteractionId hole $ do
       , text "ps      =" <+> text (show ps)
       ]
     ]
+
+  -- Check split variables.
+
   let vars = words s
+
+  -- If we have no split variables, split on result.
+
   if null vars then do
-    -- split result
     (piTel, sc) <- fixTarget $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
@@ -194,8 +204,8 @@ makeCase hole rng s = withInteractionId hole $ do
       , nest 2 $ vcat $ map (text . show) cs
       ]
     return (casectxt,cs)
-  where
 
+  where
   failNoCop = typeError $ GenericError $
     "OPTION --copatterns needed to split on result here"
 
@@ -219,6 +229,8 @@ makeCase hole rng s = withInteractionId hole $ do
     _        -> Nothing
 
 
+-- | Make clause with no rhs (because of absurd match).
+
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel ps _ t) = do
   reportSDoc "interaction.case" 10 $ vcat
@@ -240,9 +252,11 @@ makeAbsurdClause f (SClause tel ps _ t) = do
     reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
+
 -- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
+
   A.Clause lhs _ _ _ _ <- makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
   let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
