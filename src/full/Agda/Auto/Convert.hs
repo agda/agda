@@ -752,7 +752,7 @@ findClauseDeep :: Common.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Boo
 findClauseDeep ii = do
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
   (f, clauseNo) <- case ipCl of
-    MB.IPClause f clauseNo -> return (f, clauseNo)
+    MB.IPClause f clauseNo _ -> return (f, clauseNo)
     MB.IPNoClause -> MB.typeError $ MB.GenericError $
       "Cannot apply the auto tactic here, we are not in a function clause"
   (_, c, _) <- getClauseForIP f clauseNo

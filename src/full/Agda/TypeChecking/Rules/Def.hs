@@ -99,7 +99,7 @@ isAlias cs t =
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAlias t' ai delayed i name e = atClause name 0 $ do
+checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
@@ -205,7 +205,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
 
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
-            forM (zip cs [0..]) $ \ (c, clauseNo) -> atClause name clauseNo $ do
+          forM (zip cs [0..]) $ \ (c, clauseNo) -> do
+            atClause name clauseNo (A.clauseRHS c) $ do
               c <- applyRelevanceToContext (argInfoRelevance ai) $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
@@ -763,5 +764,5 @@ containsAbsurdPattern p = case p of
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
 
 -- | Set the current clause number.
-atClause :: QName -> Int -> TCM a -> TCM a
-atClause name i = local $ \ e -> e { envClause = IPClause name i }
+atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a
+atClause name i rhs = local $ \ e -> e { envClause = IPClause name i rhs }

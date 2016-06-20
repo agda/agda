@@ -143,8 +143,8 @@ makeCase hole rng s = withInteractionId hole $ do
 
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   let meta = fromMaybe __IMPOSSIBLE__ mm
-  (f, clauseNo) <- case ipCl of
-    IPClause f clauseNo -> return (f, clauseNo)
+  (f, clauseNo, rhs) <- case ipCl of
+    IPClause f clauseNo rhs-> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo
@@ -190,15 +190,15 @@ makeCase hole rng s = withInteractionId hole $ do
           -- This is sometimes annoying and can anyway be done by another C-c C-c.
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return $ splitClauses cov
-    (casectxt,) <$> mapM (makeAbstractClause f) scs
+    (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
     vars <- parseVariables f hole rng vars
     scs <- split f vars $ clauseToSplitClause clause
     -- filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
-    cs <- forM scs $ \(sc, isAbsurd) ->
-            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f sc
+    cs <- forM scs $ \(sc, isAbsurd) -> do
+            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f rhs sc
     reportSDoc "interaction.case" 65 $ vcat
       [ text "split result:"
       , nest 2 $ vcat $ map (text . show) cs
@@ -254,12 +254,14 @@ makeAbsurdClause f (SClause tel ps _ t) = do
 
 
 -- | Make a clause with a question mark as rhs.
-makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
-makeAbstractClause f cl = do
+
+makeAbstractClause :: QName -> A.RHS -> SplitClause -> TCM A.Clause
+makeAbstractClause f rhs cl = do
 
   A.Clause lhs _ _ _ _ <- makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
-  let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
-                               -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
-  let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
-  return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
+  return $ A.Clause lhs [] rhs [] False
+  -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
+  --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
+  -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
+  -- return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
