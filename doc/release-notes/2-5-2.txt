@@ -53,6 +53,19 @@ Installation and infrastructure
   in `.lagda.rst` can be typechecked by running `make
   user-manual-test`, and also as part of the general test suite.
 
+* Support installation through Stack
+
+  The Agda sources now also include a configuration for the stack install tool
+  (tested through continuous integration).
+
+  It should hence be possible to repeatably build any future Agda version
+  (including unreleased commits) from source by checking out that version and
+  running `stack install` from the checkout directory.
+  By using repeatable builds, this should keep selecting the same dependencies
+  in the face of new releases on Hackage.
+
+  For further motivation, see https://github.com/agda/agda/issues/2005.
+
 Language
 ========
 
