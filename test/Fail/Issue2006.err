@@ -1,5 +1,5 @@
 Issue2006.agda:21,14-24
-deBruijn index 6 is not in scope in the context
+de Bruijn index 6 is not in scope in the context
 {n : Nat} {a : Level} {A : Set a} (xs : Vec A n) (k : Nat) (x : _)
 when checking that the expression unquote (deBruijn 6) has type
 Nat → Nat

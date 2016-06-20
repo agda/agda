@@ -1143,9 +1143,9 @@ instance PrettyTCM TypeError where
       UnquotePanic err -> __IMPOSSIBLE__
 
     DeBruijnIndexOutOfScope i EmptyTel [] -> fsep $
-        pwords $ "deBruijnIndex " ++ show i ++ " is not in scope in the empty context"
+        pwords $ "de Bruijn index " ++ show i ++ " is not in scope in the empty context"
     DeBruijnIndexOutOfScope i cxt names ->
-        sep [ text ("deBruijn index " ++ show i ++ " is not in scope in the context")
+        sep [ text ("de Bruijn index " ++ show i ++ " is not in scope in the context")
             , inTopContext $ addContext "_" $ prettyTCM cxt' ]
       where
         cxt' = cxt `abstract` raise (size cxt) (nameCxt names)
@@ -1233,7 +1233,7 @@ prettyInEqual t1 t2 = do
       "they contain different but identically rendered identifiers somewhere"
     varVar :: Int -> Int -> TCM Doc
     varVar i j = parens $ fwords $
-                   "because one has deBruijn index " ++ show i
+                   "because one has de Bruijn index " ++ show i
                    ++ " and the other " ++ show j
 
 class PrettyUnequal a where
