@@ -3,8 +3,12 @@
 module Agda.Interaction.MakeCase where
 
 import Prelude hiding (mapM, mapM_, null)
+
 import Control.Applicative hiding (empty)
 import Control.Monad hiding (mapM, mapM_, forM)
+
+import qualified Data.Map as Map
+import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable
 
@@ -190,6 +194,7 @@ makeCase hole rng s = withInteractionId hole $ do
           -- This is sometimes annoying and can anyway be done by another C-c C-c.
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return $ splitClauses cov
+    checkClauseIsClean ipCl
     (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
@@ -203,6 +208,7 @@ makeCase hole rng s = withInteractionId hole $ do
       [ text "split result:"
       , nest 2 $ vcat $ map (text . show) cs
       ]
+    checkClauseIsClean ipCl
     return (casectxt,cs)
 
   where
@@ -228,6 +234,13 @@ makeCase hole rng s = withInteractionId hole $ do
     Var y [] -> Just y
     _        -> Nothing
 
+  -- Check whether clause has been refined after last load.
+  -- In this case, we refuse to split, as this might lose the refinements.
+  checkClauseIsClean :: IPClause -> TCM ()
+  checkClauseIsClean ipCl = do
+    sips <- Map.elems <$> use stSolvedInteractionPoints
+    when (List.any ((== ipCl) . ipClause) sips) $
+      typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
 
 -- | Make clause with no rhs (because of absurd match).
 
