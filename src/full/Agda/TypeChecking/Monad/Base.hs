@@ -1861,8 +1861,8 @@ data TCEnv =
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envReifyInteractionPoints :: Bool
-                -- ^ Should we try to recover interaction points when reifying?
-                --   If 'False', we print a simple @?@.
+                -- ^ should we try to recover interaction points when reifying?
+                --   disabled when generating types for with functions
           , envEtaContractImplicit :: Bool
                 -- ^ it's safe to eta contract implicit lambdas as long as we're
                 --   not going to reify and retypecheck (like when doing with

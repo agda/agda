@@ -147,7 +147,8 @@ instance Reify MetaId Expr where
                  , metaNameSuggestion = miNameSuggestion mi
                  }
           underscore = return $ A.Underscore mi'
-      caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
+      ifNotM shouldReifyInteractionPoints underscore $ {- else -}
+        caseMaybeM (isInteractionMeta x) underscore $ \ ii@InteractionId{} ->
           return $ A.QuestionMark mi' ii
 
 -- Does not print with-applications correctly:
@@ -433,26 +434,10 @@ reifyTerm expandAnonDefs0 v = do
           return $ and [df, freeIn 0 b, closed a]
 
     I.Sort s     -> reify s
-    -- Andreas, 2016-06-20
-    -- When generating clauses by case splits, we put a simple @?@
     I.MetaV x es -> do
-      caseMaybeM (isInteractionMeta x) fallback $ \ ii -> do
-        ifM shouldReifyInteractionPoints fallback $ {-else-} do
-          -- Reify to be printed as a simple @?@.
-          -- TODO: this drops ALL arguments, not just the meta substitution.
-          mi  <- mvInfo <$> lookupMeta x
-          let info = Info.MetaInfo
-               { metaRange          = getRange $ miClosRange mi
-               , metaScope          = M.clScope $ miClosRange mi
-               , metaNumber         = Nothing
-               , metaNameSuggestion = ""
-               }
-          return $ A.QuestionMark info ii
-      where
-        -- Not an interaction meta or full reification with arguments requested.
-        fallback = do
-          x' <- reify x
-          apps x' =<< reifyIArgs (fromMaybe __IMPOSSIBLE__ $ allApplyElims es)
+      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+      x' <- reify x
+      apps x' =<< reifyIArgs vs
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
