@@ -257,7 +257,7 @@ install:
 
   - if [[ $TEST = "main" ]]; then
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests &&
-       cabal build -v2 -j${JOBS} &&
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS} &&
        cabal copy &&
        cabal register;
     fi
@@ -402,7 +402,7 @@ script:
 
   - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 -j${JOBS};
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
 
 ##############################################################################
@@ -412,7 +412,7 @@ script:
 
   - if [[ $TEST = "cpp" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 -j${JOBS};
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
 
 ##############################################################################
@@ -420,7 +420,7 @@ script:
 
   - if [[ $TEST = "uhc" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f uhc &&
-       cabal build -v2 -j${JOBS};
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
 
 ##############################################################################
