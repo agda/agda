@@ -446,7 +446,6 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS r
         return (NoBody, NoWithFunction)
 
       -- Case: @rewrite@
-      A.RewriteRHS [] rhs [] -> handleRHS rhs
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
