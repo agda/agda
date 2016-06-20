@@ -6,5 +6,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : ⊤ " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-((last . 2) . (agda2-make-case-action '("foo d d = ?")))
+((last . 2) . (agda2-make-case-action '("foo d d = record {}")))
 ((last . 1) . (agda2-goals-action '(0)))
