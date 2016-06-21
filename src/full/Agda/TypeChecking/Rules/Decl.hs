@@ -731,18 +731,22 @@ checkTypeSignature (A.Axiom funSig i info mp x e) =
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 
+
 -- | Type check a module.
+
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
-checkSection i x tel ds =
+checkSection i x tel ds = do
+  reportSDoc "tc.mod.check" 10 $
+    text "checking section" <+> prettyTCM x <+> fsep (map prettyAs tel)
+
   checkTelescope tel $ \ tel' -> do
     addSection x
-    verboseS "tc.mod.check" 10 $ do
-      dx   <- prettyTCM x
-      dtel <- mapM prettyAs tel
-      dtel' <- prettyTCM =<< lookupSection x
-      reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
-      reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
+
+    reportSDoc "tc.mod.check" 10 $ inTopContext $
+      nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection x
+
     withCurrentModule x $ mapM_ checkDeclCached ds
+
 
 -- | Helper for 'checkSectionApplication'.
 --
