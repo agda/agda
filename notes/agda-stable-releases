@@ -164,8 +164,6 @@ be followed:
 
      *** Update the last release information.
 
-  ** Update the Release Notes page (under Documentation).
-
   ** Update the Main page.
 
   ** Update the standard library page (tested with Agda $VERSION).
