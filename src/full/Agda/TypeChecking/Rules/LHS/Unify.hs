@@ -214,7 +214,7 @@ normaliseEqTel s@UState{ eqTel = tel } = do
   return $ s { eqTel = tel }
 
 instance PrettyTCM UnifyState where
-  prettyTCM state = text "UnifyState" <+> nest 2 (vcat $
+  prettyTCM state = text "UnifyState" $$ nest 2 (vcat $
     [ text "  variable tel:  " <+> prettyTCM gamma
     , text "  flexible vars: " <+> prettyTCM (map flexVar $ flexVars state)
     , text "  equation tel:  " <+> addContext gamma (prettyTCM delta)
