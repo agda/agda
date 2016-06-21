@@ -288,6 +288,7 @@ instance Injectible Term where
               Nothing        -> __IMPOSSIBLE__
               Just (Proj{})  -> __IMPOSSIBLE__
               Just (Apply a) -> t1 <: unArg a
+              Just (IApply x y a) -> t1 <: a -- TODO Andrea: injectible!?
       (Var i1 es1, Var i2 es2) | i1 == i2 -> es1 <: es2
       (Def q1 es1, Def q2 es2) | q1 == q2 -> es1 <: es2
       (Con con1 args1, Con con2 args2) -> do

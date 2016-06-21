@@ -79,6 +79,7 @@ instance MentionsMeta a => MentionsMeta (Closure a) where
 instance MentionsMeta Elim where
   mentionsMeta x Proj{} = False
   mentionsMeta x (Apply v) = mentionsMeta x v
+  mentionsMeta x (IApply y0 y1 v) = mentionsMeta x (y0,y1,v)
 
 instance MentionsMeta a => MentionsMeta (Tele a) where
   mentionsMeta x EmptyTel = False

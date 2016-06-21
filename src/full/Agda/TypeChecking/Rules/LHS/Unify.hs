@@ -511,6 +511,11 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     -- Jedi mind tricks on us)
     areEtaVarElims u a (Proj  _ : _ ) (Apply _ : _  ) = mzero
     areEtaVarElims u a (Apply _ : _ ) (Proj  _ : _  ) = mzero
+    areEtaVarElims u a (Proj  _ : _ ) (IApply{} : _  ) = mzero
+    areEtaVarElims u a (IApply{} : _ ) (Proj  _ : _  ) = mzero
+    areEtaVarElims u a (Apply  _ : _ ) (IApply{} : _  ) = mzero
+    areEtaVarElims u a (IApply{} : _ ) (Apply  _ : _  ) = mzero
+    areEtaVarElims u a (IApply{} : _) (IApply{} : _) = __IMPOSSIBLE__ -- TODO Andrea: not actually impossible
     areEtaVarElims u a (Apply v : es) (Apply i : es') = do
       ifNotPiType a (const mzero) $ \dom cod -> do
       _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []

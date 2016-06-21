@@ -306,6 +306,7 @@ instance (Free a, Free b) => Free (a,b) where
 instance Free a => Free (Elim' a) where
   freeVars' (Apply a) = freeVars' a
   freeVars' (Proj{} ) = mempty
+  freeVars' (IApply x y r) = mconcat $ map freeVars' [x,y,r]
 
 instance Free a => Free (Arg a) where
   freeVars' a = f <$> freeVars' (unArg a)

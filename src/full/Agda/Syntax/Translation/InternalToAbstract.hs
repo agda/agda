@@ -102,11 +102,13 @@ reifyIArgs = mapM reifyIArg
 
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e [] = return e
+elims e (I.IApply x y r : es) = elims (A.App exprInfo e $ Arg defaultArgInfo (unnamed r)) es
 elims e (I.Apply arg : es) =
   elims (A.App exprInfo e $ fmap unnamed arg) es
 elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
 
 reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
+reifyIElim (I.IApply x y r) = I.IApply <$> reify x <*> reify y <*> reify r
 reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
 reifyIElim (I.Proj d)  = return $ I.Proj d
 
@@ -242,6 +244,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okDisplayTerm DDef{}    = False
     okDisplayTerm _         = False
 
+    okDElim (I.IApply x y r) = okDisplayTerm r -- TODO Andrea: making sense?
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
 
@@ -253,6 +256,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
     okArg = okTerm . unArg
 
+    okElim (I.IApply x y r) = okTerm r
     okElim (I.Apply a) = okArg a
     okElim (I.Proj{})  = True
 
@@ -279,6 +283,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
         ci   = ConPatInfo ConPCon patNoRange
 
         argToPat arg = fmap unnamed <$> traverse termToPat arg
+        elimToPat (I.IApply _ _ r) = argToPat (Arg defaultArgInfo r)
         elimToPat (I.Apply arg) = argToPat arg
         elimToPat (I.Proj d)    = return $ defaultNamedArg $ A.ProjP patNoRange $ AmbQ [d]
 
@@ -565,6 +570,7 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
 instance Reify Elim Expr where
   reifyWhen = reifyWhenE
   reify e = case e of
+    I.IApply x y r -> appl "iapply" <$> reify (defaultArg r :: Arg Term)
     I.Apply v -> appl "apply" <$> reify v
     I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
     where

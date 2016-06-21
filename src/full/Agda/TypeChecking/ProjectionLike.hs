@@ -71,6 +71,9 @@ projView v = do
           Apply a : es -> return $ ProjectionView f a es
           -- Since a projection is a function, it cannot be projected itself.
           Proj{}  : _  -> __IMPOSSIBLE__
+          -- The principal argument of a projection-like cannot be the interval?
+          IApply{} : _ -> __IMPOSSIBLE__
+
     _ -> fallback
 
 -- | Reduce away top-level projection like functions.

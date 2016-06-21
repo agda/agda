@@ -656,8 +656,31 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
     (Proj{}  : _, []         ) -> failure -- could be x.p =?= x for projection p
     ([]         , Apply{} : _) -> failure -- not impossible, see issue 878
     (Apply{} : _, []         ) -> failure
+    ([]         , IApply{} : _) -> failure
+    (IApply{} : _, []         ) -> failure
     (Apply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- NB: popped up in issue 889
     (Proj{}  : _, Apply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True -- but should be impossible (but again in issue 1467)
+    (IApply{} : _, Proj{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+    (Proj{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+    (IApply{} : _, Apply{}  : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+    (Apply{}  : _, IApply{} : _) -> __IMPOSSIBLE__ <$ solveAwakeConstraints' True
+    (e@(IApply x1 y1 r1) : els1, IApply x2 y2 r2 : els2) -> do
+       -- Andrea: copying stuff from the Apply case..
+      let (pol, pols) = nextPolarity pols0
+      ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
+          va <- pathView a
+          case va of
+            PathType s path l bA x y -> do
+              codom <- el' (pure . unArg $ l) (pure . unArg $ bA)
+              b <- elInf primInterval
+              compareWithPol pol (flip compareTerm b)
+                                  r1 r2
+              -- TODO: compare (x1,x2) and (y1,y2) ?
+              compareElims pols codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
+                                (applyE v [e]) els1 els2
+
+            OType{} -> patternViolation
+
     (Apply arg1 : els1, Apply arg2 : els2) ->
       verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
       reportSDoc "tc.conv.elim" 10 $ nest 2 $ vcat

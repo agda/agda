@@ -693,6 +693,7 @@ instance ExtractCalls a => ExtractCalls (Dom a) where
 instance ExtractCalls a => ExtractCalls (Elim' a) where
   extract Proj{}    = return empty
   extract (Apply a) = extract $ unArg a
+  extract (IApply x y a) = extract (x,(y,a)) -- TODO Andrea: conservative
 
 instance ExtractCalls a => ExtractCalls [a] where
   extract = mapM' extract
@@ -1078,6 +1079,9 @@ compareElim e p = do
     (Proj{}, _         )           -> return Order.unknown
     (Apply{}, ProjDBP{})           -> return Order.unknown
     (Apply arg, _)                 -> compareTerm (unArg arg) p
+    -- TODO Andrea: making sense?
+    (IApply{}, ProjDBP{})          -> return Order.unknown
+    (IApply _ _ arg, _)            -> compareTerm arg p
 
 -- | In dependent records, the types of later fields may depend on the
 --   values of earlier fields.  Thus when defining an inhabitant of a
@@ -1193,6 +1197,12 @@ instance StripAllProjections Elims where
       []             -> return []
       (Apply a : es) -> do
         (:) <$> (Apply <$> stripAllProjections a) <*> stripAllProjections es
+      (IApply x y a : es) -> do
+        -- TODO Andrea: are we doind extra work?
+        (:) <$> (IApply <$> stripAllProjections x
+                        <*> stripAllProjections y
+                        <*> stripAllProjections a)
+            <*> stripAllProjections es
       (Proj p  : es) -> do
         isP <- isProjectionButNotCoinductive p
         applyUnless isP (Proj p :) <$> stripAllProjections es

@@ -166,6 +166,7 @@ patternToTerm :: DeBruijnPattern -> Term
 patternToTerm p = case patternToElim (defaultArg p) of
   Apply x -> unArg x
   Proj  f -> __IMPOSSIBLE__
+  IApply{} -> __IMPOSSIBLE__
 
 -- patternsToElims :: Permutation -> [NamedArg Pattern] -> [Elim]
 -- patternsToElims perm ps = evalState (mapM build' ps) xs

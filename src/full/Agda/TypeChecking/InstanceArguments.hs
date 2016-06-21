@@ -272,8 +272,11 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
     areThereNonRigidMetaArgs []             = return Nothing
     areThereNonRigidMetaArgs (Proj _ : xs)  = areThereNonRigidMetaArgs xs
+
     areThereNonRigidMetaArgs (Apply x : xs) = do
       ifJustM (isNonRigidMeta $ unArg x) (return . Just) (areThereNonRigidMetaArgs xs)
+    areThereNonRigidMetaArgs (IApply x y v : xs) = areThereNonRigidMetaArgs $ map (Apply . defaultArg) [x, y, v] ++ xs -- TODO Andrea HACK
+
 
     isNonRigidMeta :: Term -> TCM (Maybe MetaId)
     isNonRigidMeta v =

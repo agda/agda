@@ -419,15 +419,21 @@ primCoe = do
    sortSuc = Type . tmLvlSuc
    lvlSuc = Level . tmLvlSuc
 
+primPathAbs' :: TCM PrimitiveImpl
+primPathAbs' = do
+  t <- runNamesT [] $
+       hPi' "a" (el $ cl primLevel) $ \ a ->
+       hPi' "A" (sort . tmSort <$> a) $ \ bA ->
+       nPi' "f" (el (cl primInterval) --> el' a bA) $ \ f ->
+       el' a $ cl primPath <#> a <#> bA <@> (f <@> cl primIZero)
+                                        <@> (f <@> cl primIOne)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
+    case ts of
+     [a,bA,f] -> redReturn (unArg f)
+     _ -> __IMPOSSIBLE__
 
 primPathApply :: TCM PrimitiveImpl
 primPathApply = do
-  -- t    <- hPi "a" (el primLevel) $
-  --         hPi "A" (return $ sort $ varSort 0) $
-  --         hPi "x" (El (varSort 1) <$> varM 0) $
-  --         hPi "y" (El (varSort 2) <$> varM 1) $
-  --         (El (varSort 3) <$> primPath <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0)
-  --         --> elInf primInterval --> (El (varSort 3) <$> varM 2)
   t <- runNamesT [] $
            hPi' "a" (el (cl primLevel)) $ \ a ->
            hPi' "A" (sort . tmSort <$> a) $ \ bA ->
@@ -435,23 +441,15 @@ primPathApply = do
            hPi' "y" (el' a bA) $ \ y ->
            (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
             --> el (cl primInterval) --> (el' a bA)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     pathAbs <- getBuiltinName' builtinPathAbs
     case ts of
-      [l,a,x,y,p,r] -> do
-        sr <- reduceB' r
-        let r = ignoreBlocking sr
-        rv <- intervalView $ unArg r
-        case rv of
-           IZero -> redReturn (unArg x)
-           IOne  -> redReturn (unArg y)
-           _     -> do
-             sp <- reduceB' p
-             case unArg $ ignoreBlocking sp of
-               Def q [Apply l,Apply a,Apply t]
-                   | Just q == pathAbs -> redReturn $ apply (unArg t) [r]
-               _                       -> return $ NoReduction $ map notReduced [l,a,x,y] ++ map reduced [sp,sr]
-
+      [l,a,x,y,p] -> do
+        redReturn $ runNames [] $ do
+          [p,x,y] <- mapM (open . unArg) [p,x,y]
+          lam "i" $ \ i -> do
+               [p,x,y,i] <- sequence [p,x,y,i]
+               pure $ p `applyE` [IApply x y i]
       _ -> __IMPOSSIBLE__
 
 primOutPartial :: TCM PrimitiveImpl
@@ -485,10 +483,10 @@ primIdJ = do
         el' p $ bC <@> y <@> p)
   unview <- intervalUnview'
   conidn <- getBuiltinName builtinConId
-  conid  <- getBuiltin builtinConId
+  conid  <- primConId
   comp   <- getPrimitiveTerm "primComp"
   papply <- getPrimitiveTerm "primPathApply"
-  pabs   <- getBuiltin builtinPathAbs
+  pabs   <- primPathAbs
   -- TODO make a kit
   let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
       imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
@@ -1091,6 +1089,7 @@ primitiveFunctions = Map.fromList
   , "primOutPartial"      |-> primOutPartial
   , "primIdJ"             |-> primIdJ
   , "primPartial"         |-> primPartial'
+  , "primPathAbs"         |-> primPathAbs'
   ]
   where
     (|->) = (,)

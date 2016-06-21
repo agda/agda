@@ -35,6 +35,7 @@ matchCompiled c args = do
     YesReduction simpl v -> return $ YesReduction simpl v
     NoReduction bes      -> return $ NoReduction $ fmap (map fromElim) bes
   where fromElim (Apply v) = v
+        fromElim (IApply x y v) = __IMPOSSIBLE__ -- TODO: Andrea how are projections handled?
         fromElim (Proj f ) = __IMPOSSIBLE__
 
 -- | @matchCompiledE c es@ takes a function given by case tree @c@ and

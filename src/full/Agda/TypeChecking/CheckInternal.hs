@@ -251,6 +251,7 @@ inferSpine' action t self self' (e : es) = do
     , text "eliminated by e = " <+> prettyTCM e
     ]
   case e of
+    IApply{} -> __IMPOSSIBLE__ -- TODO Andrea: not actually impossible
     Apply (Arg ai v) -> do
       (a, b) <- shouldBePi t
       checkArgInfo ai $ domInfo a

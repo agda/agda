@@ -127,6 +127,7 @@ matchCopatterns ps vs = do
 
 -- | Match a single copattern.
 matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
+matchCopattern _ (IApply{}) = __IMPOSSIBLE__ -- TODO Andrea: path copatterns
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)

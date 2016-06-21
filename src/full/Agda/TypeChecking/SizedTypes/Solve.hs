@@ -498,6 +498,7 @@ sizeExpr u = do
       _           -> return Nothing
   where
     isVar (Proj{})  = Nothing
+    isVar (IApply _ _ v) = isVar (Apply (defaultArg v))
     isVar (Apply v) = case ignoreSharing $ unArg v of
       Var i [] -> Just i
       _        -> Nothing

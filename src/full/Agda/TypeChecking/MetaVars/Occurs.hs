@@ -433,9 +433,14 @@ instance Occurs Sort where
 instance Occurs a => Occurs (Elim' a) where
   occurs red ctx m xs e@Proj{}  = return e
   occurs red ctx m xs (Apply a) = Apply <$> occurs red ctx m xs a
+  occurs red ctx m xs (IApply x y a)
+    = IApply <$> occurs red ctx m xs x
+             <*> occurs red ctx m xs y
+             <*> occurs red ctx m xs a
 
   metaOccurs m (Proj{} ) = return ()
   metaOccurs m (Apply a) = metaOccurs m a
+  metaOccurs m (IApply x y a) = metaOccurs m (x,(y,a))
 
 instance (Occurs a, Subst t a) => Occurs (Abs a) where
   occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (liftUnderAbs xs))
@@ -653,6 +658,7 @@ instance FoldRigid a => FoldRigid (Dom a) where
 
 instance FoldRigid a => FoldRigid (Elim' a) where
   foldRigid f (Apply a) = foldRigid f a
+  foldRigid f (IApply x y a) = foldRigid f (x,(y,a))
   foldRigid f Proj{}    = mempty
 
 instance FoldRigid a => FoldRigid [a] where

@@ -324,6 +324,7 @@ instance Free' a c => Free' (Elim' a) c where
   -- {-# SPECIALIZE freeVars' :: Free' a VarMap => Elim' a -> FreeM VarMap #-}
   freeVars' (Apply a) = freeVars' a
   freeVars' (Proj{} ) = mempty
+  freeVars' (IApply x y r) = mconcat $ map freeVars' [x,y,r]
 
 instance Free' a c => Free' (Arg a) c where
   -- {-# SPECIALIZE instance Free' a All => Free' (Arg a) All #-}

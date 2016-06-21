@@ -132,6 +132,7 @@ instance NamesIn Literal where
 
 instance NamesIn a => NamesIn (Elim' a) where
   namesIn (Apply arg) = namesIn arg
+  namesIn (IApply x y arg) = namesIn (x, y, arg)
   namesIn (Proj f)    = namesIn f
 
 instance NamesIn QName   where namesIn x = Set.singleton x

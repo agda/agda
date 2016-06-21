@@ -88,6 +88,7 @@ instance Apply Term where
       Lam _ b     ->
         case es of
           Apply a : es0 -> lazyAbsApp b (unArg a) `applyE` es0
+          IApply _ _ a : es0 -> lazyAbsApp b a `applyE` es0
           _             -> __IMPOSSIBLE__
       MetaV x es' -> MetaV x (es' ++ es)
       Shared p    -> Shared $ applyE p es
@@ -112,6 +113,7 @@ canProject f v =
 conApp :: ConHead -> Args -> Elims -> Term
 conApp ch                  args []             = Con ch args
 conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
+conApp ch                  args (IApply{} : es) = __IMPOSSIBLE__
 conApp ch@(ConHead c _ fs) args (Proj f  : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
@@ -333,6 +335,7 @@ instance Apply ClauseBody where
   applyE  b       []             = b
 
   applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
+  applyE (Bind b) (IApply x y a : es) = lazyAbsApp b a `applyE` es -- Andrea: TODO review after allowing copatterns for Path
   applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
   applyE (Body v) es             = Body $ v `applyE` es
   applyE  NoBody   _             = NoBody
@@ -848,6 +851,7 @@ instance Subst Term A.NamedDotPattern where
 instance Subst t a => Subst t (Elim' a) where
   applySubst rho e = case e of
     Apply v -> Apply $ applySubst rho v
+    IApply x y r -> IApply (applySubst rho x) (applySubst rho y) (applySubst rho r)
     Proj{}  -> e
 
 instance Subst t a => Subst t (Abs a) where

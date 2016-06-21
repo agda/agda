@@ -222,6 +222,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
     ePatToPat :: Elim' Pattern -> NamedArg Pattern
     ePatToPat (Apply p) = fmap unnamed p
     ePatToPat (Proj  d) = defaultNamedArg $ ProjP d
+    ePatToPat (IApply x y p) = __IMPOSSIBLE__ -- TODO Andrea: path copatterns
 
     dtermToPat :: DisplayTerm -> StateT (Int, [(Int, Int)]) TCM Pattern
     dtermToPat v =

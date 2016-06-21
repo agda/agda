@@ -62,10 +62,12 @@ instance EmbPrj a => EmbPrj (Drop a) where
 
 instance EmbPrj a => EmbPrj (Elim' a) where
   icod_ (Apply a) = icode1' a
+  icod_ (IApply x y a) = icode3' x y a
   icod_ (Proj  a) = icode1 0 a
 
   value = vcase valu where
     valu [a]    = valu1 Apply a
+    valu [x,y,a] = valu3 IApply x y a
     valu [0, a] = valu1 Proj a
     valu _      = malformed
 

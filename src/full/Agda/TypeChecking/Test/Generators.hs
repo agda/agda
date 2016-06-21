@@ -440,6 +440,7 @@ instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
 
 instance ShrinkC a b => ShrinkC (Elim' a) (Elim' b) where
   shrinkC conf (Apply a) = Apply <$> shrinkC conf a
+  shrinkC conf (IApply x y a) = IApply <$> shrinkC conf x <*> shrinkC conf y <*> shrinkC conf a
   shrinkC conf (Proj  p) = []
   noShrink = fmap noShrink
 

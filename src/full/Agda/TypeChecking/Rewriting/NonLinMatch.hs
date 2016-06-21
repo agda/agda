@@ -227,12 +227,18 @@ instance Match a b => Match (Elim' a) (Elim' b) where
   match gamma k p v =
    case (p, v) of
      (Apply p, Apply v) -> match gamma k p v
+     -- The types should ensure that the endpoints are the same.
+     (IApply _ _ p,IApply _ _ v) -> match gamma k p v
      (Proj x , Proj y ) -> if x == y then return () else
                              traceSDocNLM "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
                                , text " and " <+> prettyTCM y ]) mzero
      (Apply{}, Proj{} ) -> __IMPOSSIBLE__
      (Proj{} , Apply{}) -> __IMPOSSIBLE__
+     (IApply{}, Proj{} ) -> __IMPOSSIBLE__
+     (Proj{} , IApply{}) -> __IMPOSSIBLE__
+     (IApply{}, Apply{} ) -> __IMPOSSIBLE__
+     (Apply{} , IApply{}) -> __IMPOSSIBLE__
 
 instance Match a b => Match (Dom a) (Dom b) where
   match gamma k p v = match gamma k (C.unDom p) (C.unDom v)

@@ -139,6 +139,7 @@ data Term = Var {-# UNPACK #-} !Int Elims -- ^ @x es@ neutral
 -- | Eliminations, subsuming applications and projections.
 --
 data Elim' a = Apply (Arg a) | Proj QName -- ^ name of a record projection
+             | IApply a a a -- ^ IApply x y r, x and y are the endpoints
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Elim = Elim' Term
@@ -856,6 +857,7 @@ unSpine v =
       case es of
         []                -> v
         e@(Apply a) : es' -> unSpine' h (e : res) es'
+        e@IApply{}  : es' -> unSpine' h (e : res) es'
         Proj f      : es' -> unSpine' (Def f) [Apply (defaultArg v)] es'
       where v = h $ reverse res
 
@@ -891,11 +893,13 @@ getElims v = maybe default id $ hasElims v
 argFromElim :: Elim -> Arg Term
 argFromElim (Apply u) = u
 argFromElim Proj{}    = __IMPOSSIBLE__
+argFromElim IApply{}    = __IMPOSSIBLE__
 
 -- | Drop 'Apply' constructor. (Safe)
 isApplyElim :: Elim -> Maybe (Arg Term)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
+isApplyElim (IApply _ _ r)    = Just (defaultArg r)  -- TODO Andrea: hack
 
 -- | Drop 'Apply' constructors. (Safe)
 allApplyElims :: Elims -> Maybe Args
@@ -912,6 +916,7 @@ class IsProjElim e where
 instance IsProjElim Elim where
   isProjElim (Proj d) = Just d
   isProjElim Apply{}  = Nothing
+  isProjElim IApply{} = Nothing
 
 -- | Discard @Proj f@ entries.
 dropProjElims :: IsProjElim e => [e] -> [e]
@@ -1241,6 +1246,7 @@ instance Pretty Type where
 
 instance Pretty Elim where
   prettyPrec p (Apply v) = prettyPrec p v
+  prettyPrec p (IApply x y r) = prettyPrec p r
   prettyPrec _ (Proj x)  = text ("." ++ show x)
 
 instance Pretty a => Pretty (Pattern' a) where

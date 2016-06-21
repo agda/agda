@@ -144,6 +144,7 @@ instance Instantiate Sort where
 
 instance Instantiate Elim where
   instantiate' (Apply v) = Apply <$> instantiate' v
+  instantiate' (IApply x y v) = IApply <$> instantiate' x <*> instantiate' y <*> instantiate' v
   instantiate' (Proj f)  = pure $ Proj f
 
 instance Instantiate t => Instantiate (Abs t) where
@@ -257,6 +258,7 @@ instance Reduce Sort where
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
+  reduce' (IApply x y v) = IApply <$> reduce' x <*> reduce' y <*> reduce' v
   reduce' (Proj f)  = pure $ Proj f
 
 instance Reduce Level where
@@ -310,15 +312,27 @@ instance (Reduce a, Reduce b) => Reduce (a,b) where
 instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce' (x,y,z) = (,,) <$> reduce' x <*> reduce' y <*> reduce' z
 
+reduceIApply :: ReduceM (Blocked Term) -> [Elim] -> ReduceM (Blocked Term)
+reduceIApply d (IApply x y r : es) = do
+  view <- intervalView'
+  r <- reduce' r
+  case view r of
+   IZero -> reduceB' (applyE x es)
+   IOne  -> reduceB' (applyE y es)
+   _     -> reduceIApply d es
+reduceIApply d (_ : es) = reduceIApply d es
+reduceIApply d [] = d
+
 instance Reduce Term where
   reduceB' = {-# SCC "reduce'<Term>" #-} rewriteAfter $ \ v -> do
     v <- instantiate' v
     let done = return $ notBlocked v
+        iapp = reduceIApply done
     case v of
 --    Andreas, 2012-11-05 not reducing meta args does not destroy anything
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
-      MetaV x es -> done
+      MetaV x es -> iapp es
       Def f es   -> unfoldDefinitionE False reduceB' (Def f []) f es
       Con c args -> do
           -- Constructors can reduce' when they come from an
@@ -331,7 +345,7 @@ instance Reduce Term where
                     {- else -} done
       Pi _ _   -> done
       Lit _    -> done
-      Var _ _  -> done
+      Var _ es  -> iapp es
       Lam _ _  -> done
       DontCare _ -> done
       Shared{}   -> updateSharedTermF reduceB' v
@@ -363,6 +377,9 @@ unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
 unfoldCorecursionE e@(Proj f)           = return $ notBlocked e
 unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
   unfoldCorecursion v
+unfoldCorecursionE (IApply x y r) = do -- TODO check if this makes sense
+   [x,y,r] <- mapM unfoldCorecursion [x,y,r]
+   return $ IApply <$> x <*> y <*> r
 
 unfoldCorecursion :: Term -> ReduceM (Blocked Term)
 unfoldCorecursion = rewriteAfter $ \ v -> do
@@ -703,6 +720,7 @@ instance Simplify Type where
 
 instance Simplify Elim where
   simplify' (Apply v) = Apply <$> simplify' v
+  simplify' (IApply x y v) = IApply <$> simplify' x <*> simplify' y <*> simplify' v
   simplify' (Proj f)  = pure $ Proj f
 
 instance Simplify Sort where
@@ -865,6 +883,7 @@ instance Normalise Term where
 
 instance Normalise Elim where
   normalise' (Apply v) = Apply <$> normalise' v
+  normalise' (IApply x y v) = IApply <$> normalise' x <*> normalise' y <*> normalise' v
   normalise' (Proj f)  = pure $ Proj f
 
 instance Normalise Level where
@@ -1134,6 +1153,7 @@ instance InstantiateFull Constraint where
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
+  instantiateFull' (IApply x y v) = IApply <$> instantiateFull' x <*> instantiateFull' y <*> instantiateFull' v
   instantiateFull' (Proj f)  = pure $ Proj f
 
 instance InstantiateFull e => InstantiateFull (Map k e) where

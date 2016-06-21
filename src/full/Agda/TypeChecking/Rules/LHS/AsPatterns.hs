@@ -59,6 +59,7 @@ smashType a self (e : es) =
       a <- reduce a
       Just (_, self, a) <- projectTyped self a f
       (ProjT a :) <$> smashType a self es
+    IApply{} -> __IMPOSSIBLE__ -- TODO Andrea: not actually impossible
 
 smashTel :: Telescope -> [Term] -> [Type]
 smashTel _ []                       = []
