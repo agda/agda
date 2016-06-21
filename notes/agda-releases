@@ -57,11 +57,15 @@ followed:
 
     source-repository this
       type:     git
-      location: https://github.com/agda/agda/tree/$VERSION
-      tag:      $VERSION
+      location: https://github.com/agda/agda/tree/v$VERSION
+      tag:      v$VERSION
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
+
+* Ensure that cabal haddock works with GHC 8.0.1 (see #1992):
+
+    make haddock
 
 * Run the test-suite:
 
@@ -79,7 +83,6 @@ followed:
     cabal configure
     cabal check
     cabal sdist
-    cabal install
 
 * Ensure that the package builds properly (with multiple versions of GHC if
   possible) in Linux, MacOS X and Windows.
@@ -99,7 +102,7 @@ followed:
 * Tag the release (do not forget to record the changes above first):
 
     cd $BASE
-    git tag -a $VERSION -m "Agda $VERSION release"
+    git tag -a v$VERSION -m "Agda $VERSION release"
 
 * Upload the Cabal package:
 
@@ -187,8 +190,6 @@ followed:
      *** Update the last release information.
 
      *** Update the stable version information.
-
-  ** Update the Release Notes page (under Documentation).
 
   ** Update the Main page.
 
