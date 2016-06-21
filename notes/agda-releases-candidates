@@ -65,7 +65,6 @@ following procedure can be followed:
     cabal configure
     cabal check
     cabal sdist
-    cabal install
 
 * Ensure that the package builds properly (with multiple versions of GHC if
   possible) in Linux, MacOS X and Windows.
