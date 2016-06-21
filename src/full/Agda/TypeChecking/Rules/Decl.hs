@@ -509,7 +509,11 @@ checkAxiom funSig i info0 mp x e = do
   when (Info.defInstance i == InstanceDef) $ do
     addTypedInstance x t
 
-  traceCall (IsType_ e) $ solveSizeConstraints DefaultToInfty -- need Range for error message
+  traceCall (IsType_ e) $ do -- need Range for error message
+    -- Andreas, 2016-06-21, issue #2054
+    -- Do not default size metas to ∞ in local type signatures
+    checkingWhere <- asks envCheckingWhere
+    solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when_ (Info.defAbstract i == AbstractDef) $ freezeMetas
