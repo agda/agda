@@ -171,22 +171,3 @@ patternToTerm :: DeBruijnPattern -> Term
 patternToTerm p = case patternToElim (defaultArg p) of
   Apply x -> unArg x
   Proj  f -> __IMPOSSIBLE__
-
--- patternsToElims :: Permutation -> [NamedArg Pattern] -> [Elim]
--- patternsToElims perm ps = evalState (mapM build' ps) xs
---   where
---     xs   = permute (invertP __IMPOSSIBLE__ perm) $ downFrom (size perm)
-
---     tick :: State [Int] Int
---     tick = do x : xs <- get; put xs; return x
-
---     build' :: NamedArg Pattern -> State [Int] Elim
---     build' = build . fmap namedThing
-
---     build :: Arg Pattern -> State [Int] Elim
---     build (Arg ai (VarP _)     ) = Apply . Arg ai . var <$> tick
---     build (Arg ai (ConP c _ ps)) =
---       Apply . Arg ai . Con c <$> mapM (argFromElim <.> build') ps
---     build (Arg ai (DotP t)     ) = Apply (Arg ai t) <$ tick
---     build (Arg ai (LitP l)     ) = return $ Apply $ Arg ai $ Lit l
---     build (Arg ai (ProjP dest) ) = return $ Proj  $ dest
