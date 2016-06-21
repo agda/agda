@@ -46,7 +46,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Pattern as I
 import Agda.Syntax.Scope.Base (isNameInScope, inverseScopeLookupName)
 
-import Agda.TypeChecking.Monad as M hiding (MetaInfo, tick)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
@@ -60,6 +60,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -142,7 +143,7 @@ instance Reify MetaId Expr where
       mi  <- mvInfo <$> lookupMeta x
       let mi' = Info.MetaInfo
                  { metaRange          = getRange $ miClosRange mi
-                 , metaScope          = M.clScope $ miClosRange mi
+                 , metaScope          = clScope $ miClosRange mi
                  , metaNumber         = Just x
                  , metaNameSuggestion = miNameSuggestion mi
                  }
@@ -787,55 +788,24 @@ instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
   dotVars (TLet _ _)    = __IMPOSSIBLE__ -- Since the internal syntax has no let bindings left
 
-class MonadTick m where
-  tick :: m Nat
-
-newtype TickT m a = TickT { unTickT :: StateT Nat m a }
-  deriving (Functor, Applicative, Monad, MonadReader r, MonadTrans, MonadIO) -- MonadExcept e,
-
-instance Monad m => MonadTick (TickT m) where
-  tick = TickT $ do i <- get; put (i + 1); return i
-
-instance MonadState s m => MonadState s (TickT m) where
-  state f = lift $ state f -- TickT $ StateT $ \ n -> (,n) <$> state f
-
-instance MonadTCM tcm => MonadTCM (TickT tcm) where
-  liftTCM = lift . liftTCM
-
-runTickT :: Monad m => TickT m a -> m a
-runTickT m = evalStateT (unTickT m) 0
-
--- TODO: implement reifyPatterns on de Bruijn patterns ( numberPatVars )
-reifyPatterns :: I.Telescope -> Permutation -> [NamedArg I.Pattern] -> TCM [NamedArg A.Pattern]
-reifyPatterns tel perm ps = runTickT (reifyArgs ps)
+-- | Assumes that pattern variables have been added to the context already.
+--   Picks pattern variable names from context.
+reifyPatterns :: MonadTCM tcm => [NamedArg I.DeBruijnPattern] -> tcm [NamedArg A.Pattern]
+reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
   where
-    reifyArgs :: [NamedArg I.Pattern] -> TickT TCM [NamedArg A.Pattern]
-    reifyArgs is = mapM reifyArg is
-
-    reifyArg :: NamedArg I.Pattern -> TickT TCM (NamedArg A.Pattern)
-    reifyArg i = stripNameFromExplicit <$>
-                 traverse (traverse reifyPat) i
-
+    stripNameFromExplicit :: NamedArg p -> NamedArg p
     stripNameFromExplicit a
       | getHiding a == NotHidden = fmap (unnamed . namedThing) a
       | otherwise                = a
 
-    translate n = fromMaybe __IMPOSSIBLE__ $ vars !!! n
-      where
-        vars = permPicks $ invertP __IMPOSSIBLE__ perm
-
-    reifyPat :: I.Pattern -> TickT TCM A.Pattern
+    reifyPat :: MonadTCM tcm => I.DeBruijnPattern -> tcm A.Pattern
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      case p of
-      I.VarP "()" -> A.AbsurdP patNoRange <$ tick   -- HACK
-      I.VarP s -> do
-        i <- tick
-        let j = translate i
-        liftTCM $ A.VarP <$> nameOfBV (size tel - 1 - j)
+      I.VarP (_, "()") -> return $ A.AbsurdP patNoRange    -- HACK
+      I.VarP (i, _   ) -> liftTCM $ A.VarP <$> nameOfBV i
       I.DotP v -> do
         t <- liftTCM $ reify v
-        _ <- tick
         let vars = Set.map show (dotVars t)
             t'   = if Set.member "()" vars then underscore else t
         return $ A.DotP patNoRange t'
@@ -843,10 +813,10 @@ reifyPatterns tel perm ps = runTickT (reifyArgs ps)
       I.ProjP d -> return $ A.ProjP patNoRange $ AmbQ [d]
       I.ConP c cpi ps -> do
         liftTCM $ reportSLn "reify.pat" 60 $ "reifying pattern " ++ show p
-        tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyArgs ps
+        tryRecPFromConP =<< do A.ConP ci (AmbQ [conName c]) <$> reifyPatterns ps
         where
-          origin = fromMaybe ConPCon $ I.conPRecord cpi
           ci = ConPatInfo origin patNoRange
+          origin = fromMaybe ConPCon $ I.conPRecord cpi
 
 -- | If the record constructor is generated or the user wrote a record pattern,
 --   turn constructor pattern into record pattern.
@@ -869,8 +839,8 @@ tryRecPFromConP p = do
     _ -> __IMPOSSIBLE__
 
 instance Reify NamedClause A.Clause where
-  reify (QNamed f (I.Clause _ tel ps' body _ catchall)) = addContext tel $ do
-    ps  <- reifyPatterns tel perm ps
+  reify (QNamed f (I.Clause _ tel ps body _ catchall)) = addContext tel $ do
+    ps  <- reifyPatterns ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f `catchError` \_ -> return 0
     lhs <- stripImps $ dropParams nfv lhs
@@ -882,9 +852,7 @@ instance Reify NamedClause A.Clause where
     return result
     where
       info = LHSRange noRange
-      ps   = unnumberPatVars ps'
-      perm = fromMaybe __IMPOSSIBLE__ $
-               dbPatPerm ps'
+      perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
 
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do
