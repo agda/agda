@@ -57,8 +57,8 @@ followed:
 
     source-repository this
       type:     git
-      location: https://github.com/agda/agda/tree/$VERSION
-      tag:      $VERSION
+      location: https://github.com/agda/agda/tree/v$VERSION
+      tag:      v$VERSION
 
 * Remove -Werror and -fprof-auto from Agda.cabal (this is required by
   `cabal --check`).
@@ -102,7 +102,7 @@ followed:
 * Tag the release (do not forget to record the changes above first):
 
     cd $BASE
-    git tag -a $VERSION -m "Agda $VERSION release"
+    git tag -a v$VERSION -m "Agda $VERSION release"
 
 * Upload the Cabal package:
 
