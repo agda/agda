@@ -28,7 +28,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Semigroup
+import Data.Semigroup hiding (Arg)
 import Data.List hiding (null, sort)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -173,8 +173,8 @@ data UnifyState = UState
   { varTel   :: Telescope
   , flexVars :: FlexibleVars
   , eqTel    :: Telescope
-  , eqLHS    :: [Term]
-  , eqRHS    :: [Term]
+  , eqLHS    :: [Arg Term]
+  , eqRHS    :: [Arg Term]
   } deriving (Show)
 
 instance Reduce UnifyState where
@@ -226,11 +226,9 @@ instance PrettyTCM UnifyState where
       prettyEquality x y = prettyTCM x <+> text "=?=" <+> prettyTCM y
 
 initUnifyState :: Telescope -> FlexibleVars -> Type -> Args -> Args -> TCM UnifyState
-initUnifyState tel flex a us vs = do
-  let lhs = map unArg us
-      rhs = map unArg vs
-      n   = size lhs
-  unless (n == size lhs) __IMPOSSIBLE__
+initUnifyState tel flex a lhs rhs = do
+  let n = size lhs
+  unless (n == size rhs) __IMPOSSIBLE__
   TelV eqTel _ <- telView a
   unless (n == size eqTel) __IMPOSSIBLE__
   reduce $ UState tel flex eqTel lhs rhs
@@ -257,20 +255,22 @@ eqCount = size . eqTel
 getEquality :: Int -> UnifyState -> Equality
 getEquality k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
   if k < 0 then __IMPOSSIBLE__ else
-    Equal (unDom $ (flattenTel eqs) !! k) (lhs !! k) (rhs !! k)
+    Equal (unDom $ (flattenTel eqs) !! k) (unArg $ lhs !! k) (unArg $ rhs !! k)
 
 -- | As getEquality, but with the unraised type
 getEqualityUnraised :: Int -> UnifyState -> Equality
 getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
   if k < 0 then __IMPOSSIBLE__ else
-    Equal (snd . unDom $ (telToList eqs) !! k) (lhs !! k) (rhs !! k)
+    Equal (snd . unDom $ (telToList eqs) !! k)
+          (unArg $ lhs !! k)
+          (unArg $ rhs !! k)
 
 getEqInfo :: Int -> UnifyState -> ArgInfo
 getEqInfo k UState { eqTel = eqs } =
   if k < 0 then __IMPOSSIBLE__ else domInfo $ telToList eqs !! k
 
 -- | Add a list of equations to the front of the equation telescope
-addEqs :: Telescope -> [Term] -> [Term] -> UnifyState -> UnifyState
+addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
 addEqs tel us vs s =
   s { eqTel = tel `abstract` eqTel s
     , eqLHS = us ++ eqLHS s
@@ -278,7 +278,7 @@ addEqs tel us vs s =
     }
   where k = size tel
 
-addEq :: Type -> Term -> Term -> UnifyState -> UnifyState
+addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
 addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
 
 
@@ -793,10 +793,7 @@ unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
                      _        -> Nothing
       case mis of
         Nothing | withoutK -> DontKnow <$> err
-        Nothing -> do
-          return $ Unifies $
-            addEqs ctel (map unArg lhs) (map unArg rhs) $
-              solveEq k ceq s
+        Nothing -> return $ Unifies $ addEqs ctel lhs rhs $ solveEq k ceq s
         Just is -> do
           let n  = eqCount s
               js = is ++ [n-1-k]
@@ -814,8 +811,8 @@ unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
                 sub2 = (ceq : reverse cixs) ++# raiseS (size ctel)
             Unifies <$> liftTCM (reduceEqTel $ s
               { eqTel    = ctel `abstract` (applySubst sub2 tel2)
-              , eqLHS    = map unArg lhs ++ drop n1 (permute perm $ eqLHS s)
-              , eqRHS    = map unArg rhs ++ drop n1 (permute perm $ eqRHS s)
+              , eqLHS    = lhs ++ drop n1 (permute perm $ eqLHS s)
+              , eqRHS    = rhs ++ drop n1 (permute perm $ eqRHS s)
               })
     _ -> __IMPOSSIBLE__
   where
@@ -890,7 +887,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   where
     expandKth us = do
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
-      vs <- liftTCM $ map unArg . snd <$> etaExpandRecord d pars v
+      vs <- liftTCM $ snd <$> etaExpandRecord d pars (unArg v)
       vs <- liftTCM $ reduce vs
       return $ us1 ++ vs ++ us2
 
@@ -906,24 +903,24 @@ unifyStep s (StripSizeSuc k u v) = do
   return $ Unifies $ s
     { eqTel = unflattenTel (teleNames $ eqTel s) $
         updateAt k (fmap $ const sz) $ flattenTel $ eqTel s --TODO: is this necessary?
-    , eqLHS = updateAt k (const u) $ eqLHS s
-    , eqRHS = updateAt k (const v) $ eqRHS s
+    , eqLHS = updateAt k (const $ defaultArg u) $ eqLHS s
+    , eqRHS = updateAt k (const $ defaultArg v) $ eqRHS s
     }
 
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
-  return $ Unifies $ solveEq k (DontCare (lhs !! k)) s
+  return $ Unifies $ solveEq k (DontCare $ unArg $ lhs !! k) s
 
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
   TelV dtel _ <- liftTCM $ telView dtype
-  let n = eqCount s
+  let n   = eqCount s
       m   = size dtel
       deq = Def d $ map Apply $ teleArgs dtel
   Unifies <$> liftTCM (reduceEqTel $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
-    , eqLHS = map unArg us ++ dropAt k (eqLHS s)
-    , eqRHS = map unArg vs ++ dropAt k (eqRHS s)
+    , eqLHS = us ++ dropAt k (eqLHS s)
+    , eqRHS = vs ++ dropAt k (eqRHS s)
     })
 
 unify :: UnifyState -> UnifyStrategy -> UnifyM (UnificationResult' UnifyState)
@@ -961,7 +958,7 @@ unify s strategy = if isUnifyStateSolved s
     failure :: UnifyM (UnificationResult' a)
     failure = do
       err <- addContext (varTel s) $ typeError_ $
-               UnificationStuck (eqTel s) (eqLHS s) (eqRHS s)
+               UnificationStuck (eqTel s) (map unArg $ eqLHS s) (map unArg $ eqRHS s)
       return $ DontKnow err
 
 isSet :: Term -> TCM Bool
