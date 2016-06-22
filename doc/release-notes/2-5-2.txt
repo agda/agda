@@ -108,7 +108,7 @@ Language
     module _ {A : Set} {n : Nat} where
       f : Vec A n → Vec A n
       f []       = []
-      f (x ∷ xs) = x ∷ f xs
+      f (x ∷ xs) = x ∷ xs
 
   Now this is no longer disallowed. Instead n is bound to the appropriate
   value in each clause.
