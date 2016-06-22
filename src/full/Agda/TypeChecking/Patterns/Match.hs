@@ -32,7 +32,7 @@ import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.
-data Match a = Yes Simplification [a]
+data Match a = Yes Simplification [Arg a]
              | No
              | DontKnow (Blocked ())
   deriving Functor
@@ -150,8 +150,8 @@ matchPatterns ps vs = do
 matchPattern :: Pattern -> Arg Term -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
-  (VarP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
-  (DotP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
+  (VarP _ , arg          ) -> return (Yes NoSimplification [arg], arg)
+  (DotP _ , arg          ) -> return (Yes NoSimplification [arg], arg)
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w

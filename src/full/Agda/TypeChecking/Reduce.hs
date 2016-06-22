@@ -605,9 +605,9 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
     --   Γ ⊢ (σ,v) : Δ.A
     --   Δ ⊢ λ b : A → B
     --   Δ.A ⊢ b : B
-    app :: [Term] -> ClauseBody -> Substitution -> Term
+    app :: Args -> ClauseBody -> Substitution -> Term
     app []       (Body v)           sigma = applySubst sigma v
-    app (v : vs) (Bind (Abs   _ b)) sigma = app vs b $ consS v sigma -- CBN
+    app (v : vs) (Bind (Abs   _ b)) sigma = app vs b $ consS (unArg v) sigma -- CBN
     app (v : vs) (Bind (NoAbs _ b)) sigma = app vs b sigma
     app  _        NoBody            sigma = __IMPOSSIBLE__
     app (_ : _)  (Body _)           sigma = __IMPOSSIBLE__
