@@ -492,7 +492,7 @@ spaces (s@(T.uncons -> Just ('\n', _)) : ss) = do
 -- Treat tabs and non-standard spaces as if they were spaces
 -- [Issue_#2019].
 spaces (s@(T.uncons -> Just (c, _)) : ss)
-  | isSpace c && not (c `elem` "\n") =
+  | isSpace c && (c /= '\n') =
       spaces $ T.replicate (T.length s) (T.singleton ' ') : ss
   | otherwise = __IMPOSSIBLE__
 
