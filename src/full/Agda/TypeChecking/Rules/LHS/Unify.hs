@@ -368,8 +368,6 @@ data UnifyStep
     , injectParameters   :: Args
     , injectIndices      :: Args
     , injectConstructor  :: ConHead
-    , injectArgsLeft     :: Args
-    , injectArgsRight    :: Args
     }
   | Conflict
     { conflictAt         :: Int
@@ -430,7 +428,7 @@ instance PrettyTCM UnifyStep where
       , text "variable:   " <+> text (show i)
       , text "term:       " <+> text (show u)
       ])
-    Injectivity k a d pars ixs c _ _ -> text "Injectivity" $$ nest 2 (vcat $
+    Injectivity k a d pars ixs c -> text "Injectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       , text "type:       " <+> text (show a)
       , text "datatype:   " <+> text (show d)
@@ -628,13 +626,13 @@ dataStrategy k s = do
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (u, v) of
-        (MetaV m es, Con c vs  ) -> do
+        (MetaV m es, Con c _   ) -> do
           us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
-          return $ Injectivity k a d hpars ixs c us vs
-        (Con c us  , MetaV m es) -> do
+          return $ Injectivity k a d hpars ixs c
+        (Con c _   , MetaV m es) -> do
           vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
-          return $ Injectivity k a d hpars ixs c us vs
-        (Con c us  , Con c' vs ) | c == c' -> return $ Injectivity k a d hpars ixs c us vs
+          return $ Injectivity k a d hpars ixs c
+        (Con c _   , Con c' _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
         (Con c _   , Con c' _  ) -> return $ Conflict k d hpars c c'
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
         (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
@@ -846,7 +844,7 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
         return $ solveVar i u s
     err = addContext (varTel s) $ typeError_ $ UnificationRecursiveEq a i u
 
-unifyStep s (Injectivity k a d pars ixs c _ _) = do
+unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
   let n = eqCount s
 
