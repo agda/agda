@@ -41,6 +41,7 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -54,6 +55,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
+import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
@@ -366,8 +368,6 @@ data UnifyStep
     , injectParameters   :: Args
     , injectIndices      :: Args
     , injectConstructor  :: ConHead
-    , injectArgsLeft     :: Args
-    , injectArgsRight    :: Args
     }
   | Conflict
     { conflictAt         :: Int
@@ -428,7 +428,7 @@ instance PrettyTCM UnifyStep where
       , text "variable:   " <+> text (show i)
       , text "term:       " <+> text (show u)
       ])
-    Injectivity k a d pars ixs c _ _ -> text "Injectivity" $$ nest 2 (vcat $
+    Injectivity k a d pars ixs c -> text "Injectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       , text "type:       " <+> text (show a)
       , text "datatype:   " <+> text (show d)
@@ -616,23 +616,23 @@ basicUnifyStrategy k s = do
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
-  Equal a u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEquality k s)
+  Equal a u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
   case a of
     El _ (Def d es) -> do
       npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      hpars <- mfromMaybe $ isHom (eqCount s) pars
+      hpars <- mfromMaybe $ isHom k pars
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (u, v) of
-        (MetaV m es, Con c vs  ) -> do
+        (MetaV m es, Con c _   ) -> do
           us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
-          return $ Injectivity k a d hpars ixs c us vs
-        (Con c us  , MetaV m es) -> do
+          return $ Injectivity k a d hpars ixs c
+        (Con c _   , MetaV m es) -> do
           vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
-          return $ Injectivity k a d hpars ixs c us vs
-        (Con c us  , Con c' vs ) | c == c' -> return $ Injectivity k a d hpars ixs c us vs
+          return $ Injectivity k a d hpars ixs c
+        (Con c _   , Con c' _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
         (Con c _   , Con c' _  ) -> return $ Conflict k d hpars c c'
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
         (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
@@ -844,60 +844,83 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
         return $ solveVar i u s
     err = addContext (varTel s) $ typeError_ $ UnificationRecursiveEq a i u
 
-unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
+unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
-  ctype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
+  let n = eqCount s
+
+  -- Get constructor telescope and target indices
+  ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
   reportSDoc "tc.lhs.unify" 40 $ text "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
-  (lhs, rhs) <- liftTCM $ reduce (lhs,rhs)
-  case ignoreSharing  $ unEl ctarget of
-    Def d' es | d == d' -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          cixs = map unArg $ drop (length pars) args
-          ceq  = Con c $ teleArgs ctel
-      let mis  = mfilter fastDistinct $ forM ixs $ \ix ->
-                   case ignoreSharing $ unArg ix of
-                     Var i [] | i < eqCount s -> Just i
-                     _        -> Nothing
-      case mis of
-        Nothing | withoutK -> DontKnow <$> err
-        Nothing -> return $ Unifies $ addEqs ctel lhs rhs $ solveEq k ceq s
-        Just is -> do
-          let n  = eqCount s
-              js = is ++ [n-1-k]
-          caseMaybeM (trySplitTelescopeExact js (eqTel s)) (DontKnow <$> err) $
-            \(SplitTel tel1 tel2 perm) -> do
-            reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $ sep $
-              [ text "split telescope" <+> prettyTCM (eqTel s) <+> text ("at " ++ show js)
-              , text "  into" <+> prettyTCM tel1
-              , text "  and " <+> addContext tel1 (prettyTCM tel2)
-              , text "  perm =" <+> text (show perm)
-              ]
-            let n1   = size tel1
-                n2   = size tel2
-                sub1 = renaming perm :: Substitution -- or renamingR?
-                sub2 = (ceq : reverse cixs) ++# raiseS (size ctel)
-            Unifies <$> liftTCM (reduceEqTel $ s
-              { eqTel    = ctel `abstract` (applySubst sub2 tel2)
-              , eqLHS    = lhs ++ drop n1 (permute perm $ eqLHS s)
-              , eqRHS    = rhs ++ drop n1 (permute perm $ eqRHS s)
-              })
-    _ -> __IMPOSSIBLE__
+  let cixs = case ignoreSharing $ unEl ctarget of
+               Def d' es | d == d' ->
+                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                 in  drop (length pars) args
+               _ -> __IMPOSSIBLE__
+
+  -- Get index telescope of the datatype
+  dtype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
+  reportSDoc "tc.lhs.unify" 40 $ text "Datatype type: " <+> prettyTCM dtype
+
+  -- Split equation telescope into parts before and after current equation
+  let (eqListTel1, _ : eqListTel2) = genericSplitAt k $ telToList $ eqTel s
+      (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
+
+  -- This is where the magic of higher-dimensional unification happens
+  -- We need to generalize the indices `ixs` to the target indices of the
+  -- constructor `cixs`. This is done by calling the unification algorithm
+  -- recursively (this doesn't get stuck in a loop because a type should
+  -- never be indexed over itself). Note the similarity with the
+  -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
+  res <- liftTCM $ addContext (varTel s) $ unifyIndices
+           (eqTel1 `abstract` ctel)
+           (allFlexVars $ eqTel1 `abstract` ctel)
+           dtype
+           (raise (size ctel) ixs)
+           cixs
+  case res of
+    -- Higher-dimensional unification can never end in a conflict,
+    -- because `cong c1 ...` and `cong c2 ...` don't even have the
+    -- same type for distinct constructors c1 and c2.
+    NoUnify _ -> __IMPOSSIBLE__
+
+    -- TODO: we could still make progress here if not --without-K,
+    -- but I'm not sure if it's necessary.
+    DontKnow _ -> liftTCM $ DontKnow <$> err
+
+    Unifies (eqTel1', rho0) -> do
+      -- Split ps0 into parts for eqTel1 and ctel
+      let (rho1, rho2) = splitS (size ctel) rho0
+
+      -- Compute new equation telescope context and substitution
+      let ceq     = ConP c noConPatternInfo $ applySubst rho2 $ teleNamedArgs ctel
+          rho3    = consS ceq rho1
+          eqTel2' = applyPatSubst rho3 eqTel2
+          eqTel'  = eqTel1' `abstract` eqTel2'
+          rho     = liftS (size eqTel2) rho3
+
+      eqTel' <- liftTCM $ reduce eqTel'
+
+      -- Compute new lhs and rhs by matching the old ones against rho
+      (lhs', rhs') <- liftTCM . reduce =<< do
+        let dbps = applySubst rho $ teleNamedArgs $ eqTel s
+            ps   = unnumberPatVars dbps
+            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm dbps
+        (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
+        (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
+        case (lhsMatch, rhsMatch) of
+          (Match.Yes _ lhs', Match.Yes _ rhs') ->
+            return (permute perm lhs', permute perm rhs')
+          _ -> __IMPOSSIBLE__
+
+      return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
+
   where
-    n = eqCount s
-
-    err = addContext (varTel s `abstract` eqTel s) $ typeError_
-        (UnifyIndicesNotVars
-          a
-          (Con c $ raise n lhs)
-          (Con c $ raise n rhs)
-          ixs)
-
-    trySplitTelescopeExact js tel = case splitTelescopeExact js tel of
-      Just x  -> return $ Just x
-      Nothing -> do
-        tel <- liftTCM $ normalise tel
-        return $ splitTelescopeExact js tel
+    err :: TCM TCErr
+    err = let n           = eqCount s
+              Equal a u v = getEquality k s
+          in addContext (varTel s `abstract` eqTel s) $ typeError_
+               (UnifyIndicesNotVars a (raise n u) (raise n v) (raise (n-k) ixs))
 
 unifyStep s Conflict
   { conflictConLeft    = c
