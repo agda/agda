@@ -128,6 +128,7 @@ unifyIndices :: MonadTCM tcm
              -> Args
              -> Args
              -> tcm UnificationResult
+unifyIndices tel flex a [] [] = return $ Unifies (tel, idS)
 unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ text "unifyIndices"
