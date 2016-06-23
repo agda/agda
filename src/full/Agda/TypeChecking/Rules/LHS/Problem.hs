@@ -24,8 +24,10 @@ import Agda.TypeChecking.Substitute.Pattern
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty hiding ((<>))
 
+import Agda.Utils.List
 import Agda.Utils.Null
 import Agda.Utils.Permutation
+import Agda.Utils.Size
 
 type Substitution   = [Maybe Term]
 type FlexibleVars   = [FlexibleVar Nat]
@@ -59,6 +61,11 @@ defaultFlexibleVar a = FlexibleVar Hidden ImplicitFlex Nothing a
 
 flexibleVarFromHiding :: Hiding -> a -> FlexibleVar a
 flexibleVarFromHiding h a = FlexibleVar h ImplicitFlex Nothing a
+
+allFlexVars :: Telescope -> FlexibleVars
+allFlexVars tel = zipWith makeFlex (downFrom $ size tel) $ telToList tel
+  where
+    makeFlex i d = FlexibleVar (getHiding d) ImplicitFlex (Just i) i
 
 data FlexChoice = ChooseLeft | ChooseRight | ChooseEither | ExpandBoth
   deriving (Eq, Show)

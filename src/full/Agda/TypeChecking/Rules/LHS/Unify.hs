@@ -28,7 +28,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Semigroup
+import Data.Semigroup hiding (Arg)
 import Data.List hiding (null, sort)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -128,11 +128,12 @@ unifyIndices :: MonadTCM tcm
              -> Args
              -> Args
              -> tcm UnificationResult
+unifyIndices tel flex a [] [] = return $ Unifies (tel, idS)
 unifyIndices tel flex a us vs = liftTCM $ Bench.billTo [Bench.Typing, Bench.CheckLHS, Bench.UnifyIndices] $ do
     reportSDoc "tc.lhs.unify" 10 $
       sep [ text "unifyIndices"
           , nest 2 $ prettyTCM tel
-          , nest 2 $ addContext tel $ text (show flex)
+          , nest 2 $ addContext tel $ text $ show $ map flexVar flex
           , nest 2 $ addContext tel $ parens (prettyTCM a)
           , nest 2 $ addContext tel $ prettyList $ map prettyTCM us
           , nest 2 $ addContext tel $ prettyList $ map prettyTCM vs
@@ -173,8 +174,8 @@ data UnifyState = UState
   { varTel   :: Telescope
   , flexVars :: FlexibleVars
   , eqTel    :: Telescope
-  , eqLHS    :: [Term]
-  , eqRHS    :: [Term]
+  , eqLHS    :: [Arg Term]
+  , eqRHS    :: [Arg Term]
   } deriving (Show)
 
 instance Reduce UnifyState where
@@ -215,10 +216,10 @@ normaliseEqTel s@UState{ eqTel = tel } = do
 
 instance PrettyTCM UnifyState where
   prettyTCM state = text "UnifyState" $$ nest 2 (vcat $
-    [ text "  variable tel:  " <+> prettyTCM gamma
-    , text "  flexible vars: " <+> prettyTCM (map flexVar $ flexVars state)
-    , text "  equation tel:  " <+> addContext gamma (prettyTCM delta)
-    , text "  equations:     " <+> addContext gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
+    [ text "variable tel:  " <+> prettyTCM gamma
+    , text "flexible vars: " <+> prettyTCM (map flexVar $ flexVars state)
+    , text "equation tel:  " <+> addContext gamma (prettyTCM delta)
+    , text "equations:     " <+> addContext gamma (prettyList_ (zipWith prettyEquality (eqLHS state) (eqRHS state)))
     ])
     where
       gamma = varTel state
@@ -226,11 +227,9 @@ instance PrettyTCM UnifyState where
       prettyEquality x y = prettyTCM x <+> text "=?=" <+> prettyTCM y
 
 initUnifyState :: Telescope -> FlexibleVars -> Type -> Args -> Args -> TCM UnifyState
-initUnifyState tel flex a us vs = do
-  let lhs = map unArg us
-      rhs = map unArg vs
-      n   = size lhs
-  unless (n == size lhs) __IMPOSSIBLE__
+initUnifyState tel flex a lhs rhs = do
+  let n = size lhs
+  unless (n == size rhs) __IMPOSSIBLE__
   TelV eqTel _ <- telView a
   unless (n == size eqTel) __IMPOSSIBLE__
   reduce $ UState tel flex eqTel lhs rhs
@@ -257,20 +256,22 @@ eqCount = size . eqTel
 getEquality :: Int -> UnifyState -> Equality
 getEquality k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
   if k < 0 then __IMPOSSIBLE__ else
-    Equal (unDom $ (flattenTel eqs) !! k) (lhs !! k) (rhs !! k)
+    Equal (unDom $ (flattenTel eqs) !! k) (unArg $ lhs !! k) (unArg $ rhs !! k)
 
 -- | As getEquality, but with the unraised type
 getEqualityUnraised :: Int -> UnifyState -> Equality
 getEqualityUnraised k UState { eqTel = eqs, eqLHS = lhs, eqRHS = rhs } =
   if k < 0 then __IMPOSSIBLE__ else
-    Equal (snd . unDom $ (telToList eqs) !! k) (lhs !! k) (rhs !! k)
+    Equal (snd . unDom $ (telToList eqs) !! k)
+          (unArg $ lhs !! k)
+          (unArg $ rhs !! k)
 
 getEqInfo :: Int -> UnifyState -> ArgInfo
 getEqInfo k UState { eqTel = eqs } =
   if k < 0 then __IMPOSSIBLE__ else domInfo $ telToList eqs !! k
 
 -- | Add a list of equations to the front of the equation telescope
-addEqs :: Telescope -> [Term] -> [Term] -> UnifyState -> UnifyState
+addEqs :: Telescope -> [Arg Term] -> [Arg Term] -> UnifyState -> UnifyState
 addEqs tel us vs s =
   s { eqTel = tel `abstract` eqTel s
     , eqLHS = us ++ eqLHS s
@@ -278,7 +279,7 @@ addEqs tel us vs s =
     }
   where k = size tel
 
-addEq :: Type -> Term -> Term -> UnifyState -> UnifyState
+addEq :: Type -> Arg Term -> Arg Term -> UnifyState -> UnifyState
 addEq a u v = addEqs (ExtendTel (defaultDom a) (Abs underscore EmptyTel)) [u] [v]
 
 
@@ -412,6 +413,73 @@ data UnifyStep
     , typeConArgsLeft    :: Args
     , typeConArgsRight   :: Args
     } deriving (Show)
+
+instance PrettyTCM UnifyStep where
+  prettyTCM step = case step of
+    Deletion k a u v -> text "Deletion" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "type:       " <+> text (show a)
+      , text "lhs:        " <+> text (show u)
+      , text "rhs:        " <+> text (show v)
+      ])
+    Solution k a i u -> text "Solution" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "type:       " <+> text (show a)
+      , text "variable:   " <+> text (show i)
+      , text "term:       " <+> text (show u)
+      ])
+    Injectivity k a d pars ixs c _ _ -> text "Injectivity" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "type:       " <+> text (show a)
+      , text "datatype:   " <+> text (show d)
+      , text "parameters: " <+> text (show pars)
+      , text "indices:    " <+> text (show ixs)
+      , text "constructor:" <+> text (show c)
+      ])
+    Conflict k d pars c1 c2 -> text "Conflict" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "datatype:   " <+> text (show d)
+      , text "parameters: " <+> text (show pars)
+      , text "con1:       " <+> text (show c1)
+      , text "con2:       " <+> text (show c2)
+      ])
+    Cycle k d pars i u -> text "Cycle" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "datatype:   " <+> text (show d)
+      , text "parameters: " <+> text (show pars)
+      , text "variable:   " <+> text (show i)
+      , text "term:       " <+> text (show u)
+      ])
+    EtaExpandVar fi r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
+      [ text "variable:   " <+> text (show fi)
+      , text "record type:" <+> text (show r)
+      , text "parameters: " <+> text (show pars)
+      ])
+    EtaExpandEquation k r pars -> text "EtaExpandVar" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "record type:" <+> text (show r)
+      , text "parameters: " <+> text (show pars)
+      ])
+    LitConflict k a u v -> text "LitConflict" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "type:       " <+> text (show a)
+      , text "lhs:        " <+> text (show u)
+      , text "rhs:        " <+> text (show v)
+      ])
+    StripSizeSuc k u v -> text "StripSizeSuc" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "lhs:        " <+> text (show u)
+      , text "rhs:        " <+> text (show v)
+      ])
+    SkipIrrelevantEquation k -> text "SkipIrrelevantEquation" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      ])
+    TypeConInjectivity k d us vs -> text "TypeConInjectivity" $$ nest 2 (vcat $
+      [ text "position:   " <+> text (show k)
+      , text "datatype:   " <+> text (show d)
+      , text "lhs:        " <+> text (show us)
+      , text "rhs:        " <+> text (show vs)
+      ])
 
 type UnifyStrategy = UnifyState -> ListT TCM UnifyStep
 
@@ -755,7 +823,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } =
   liftTCM $ do
     addContext (varTel s) $ noConstraints $ equalTerm a u v
-    ifM ((optWithoutK <$> pragmaOptions) `and2M` (not <$> isSet (unEl a)))
+    ifM ((optWithoutK <$> pragmaOptions) `and2M` (not <$> addContext (varTel s) (isSet (unEl a))))
     {-then-} (DontKnow <$> withoutKErr)
     {-else-} (Unifies  <$> reduceEqTel (solveEq k u s))
   `catchError` \err -> return $ DontKnow err
@@ -793,10 +861,7 @@ unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
                      _        -> Nothing
       case mis of
         Nothing | withoutK -> DontKnow <$> err
-        Nothing -> do
-          return $ Unifies $
-            addEqs ctel (map unArg lhs) (map unArg rhs) $
-              solveEq k ceq s
+        Nothing -> return $ Unifies $ addEqs ctel lhs rhs $ solveEq k ceq s
         Just is -> do
           let n  = eqCount s
               js = is ++ [n-1-k]
@@ -814,8 +879,8 @@ unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
                 sub2 = (ceq : reverse cixs) ++# raiseS (size ctel)
             Unifies <$> liftTCM (reduceEqTel $ s
               { eqTel    = ctel `abstract` (applySubst sub2 tel2)
-              , eqLHS    = map unArg lhs ++ drop n1 (permute perm $ eqLHS s)
-              , eqRHS    = map unArg rhs ++ drop n1 (permute perm $ eqRHS s)
+              , eqLHS    = lhs ++ drop n1 (permute perm $ eqLHS s)
+              , eqRHS    = rhs ++ drop n1 (permute perm $ eqRHS s)
               })
     _ -> __IMPOSSIBLE__
   where
@@ -890,7 +955,7 @@ unifyStep s EtaExpandEquation{ expandAt = k, expandRecordType = d, expandParamet
   where
     expandKth us = do
       let (us1,v:us2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt k us
-      vs <- liftTCM $ map unArg . snd <$> etaExpandRecord d pars v
+      vs <- liftTCM $ snd <$> etaExpandRecord d pars (unArg v)
       vs <- liftTCM $ reduce vs
       return $ us1 ++ vs ++ us2
 
@@ -906,24 +971,24 @@ unifyStep s (StripSizeSuc k u v) = do
   return $ Unifies $ s
     { eqTel = unflattenTel (teleNames $ eqTel s) $
         updateAt k (fmap $ const sz) $ flattenTel $ eqTel s --TODO: is this necessary?
-    , eqLHS = updateAt k (const u) $ eqLHS s
-    , eqRHS = updateAt k (const v) $ eqRHS s
+    , eqLHS = updateAt k (const $ defaultArg u) $ eqLHS s
+    , eqRHS = updateAt k (const $ defaultArg v) $ eqRHS s
     }
 
 unifyStep s (SkipIrrelevantEquation k) = do
   let lhs = eqLHS s
-  return $ Unifies $ solveEq k (DontCare (lhs !! k)) s
+  return $ Unifies $ solveEq k (DontCare $ unArg $ lhs !! k) s
 
 unifyStep s (TypeConInjectivity k d us vs) = do
   dtype <- defType <$> liftTCM (getConstInfo d)
   TelV dtel _ <- liftTCM $ telView dtype
-  let n = eqCount s
+  let n   = eqCount s
       m   = size dtel
       deq = Def d $ map Apply $ teleArgs dtel
   Unifies <$> liftTCM (reduceEqTel $ s
     { eqTel = dtel `abstract` applyUnder k (eqTel s) (raise k deq)
-    , eqLHS = map unArg us ++ dropAt k (eqLHS s)
-    , eqRHS = map unArg vs ++ dropAt k (eqRHS s)
+    , eqLHS = us ++ dropAt k (eqLHS s)
+    , eqRHS = vs ++ dropAt k (eqRHS s)
     })
 
 unify :: UnifyState -> UnifyStrategy -> UnifyM (UnificationResult' UnifyState)
@@ -943,7 +1008,7 @@ unify s strategy = if isUnifyStateSolved s
                  -> UnifyM (UnificationResult' UnifyState)
                  -> UnifyM (UnificationResult' UnifyState)
     tryUnifyStep step fallback = do
-      reportSDoc "tc.lhs.unify" 20 $ text "trying unifyStep" <+> text (show step)
+      reportSDoc "tc.lhs.unify" 20 $ text "trying unifyStep" <+> prettyTCM step
       x <- unifyStep s step
       case x of
         Unifies s'   -> do
@@ -961,7 +1026,7 @@ unify s strategy = if isUnifyStateSolved s
     failure :: UnifyM (UnificationResult' a)
     failure = do
       err <- addContext (varTel s) $ typeError_ $
-               UnificationStuck (eqTel s) (eqLHS s) (eqRHS s)
+               UnificationStuck (eqTel s) (map unArg $ eqLHS s) (map unArg $ eqRHS s)
       return $ DontKnow err
 
 isSet :: Term -> TCM Bool
