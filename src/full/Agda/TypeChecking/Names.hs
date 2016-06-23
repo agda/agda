@@ -73,8 +73,10 @@ runNames n m = runIdentity (runNamesT n m)
 inCxt :: (Monad m, Subst t a) => Names -> a -> NamesT m a
 inCxt ctx a = do
   ctx' <- NamesT ask
-  unless (ctx `isSuffixOf` ctx') $ fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
-  return $ raise (genericLength ctx' - genericLength ctx) a
+  if (ctx `isSuffixOf` ctx')
+     then return $ raise (genericLength ctx' - genericLength ctx) a
+     else fail $ "thing out of context (" ++ show ctx ++ " is not a sub context of " ++ show ctx' ++ ")"
+
 
 -- closed terms
 cl' :: Monad m => a -> NamesT m a
@@ -94,7 +96,7 @@ bind' n f = do
   (NamesT . local (n:) . unName $ f (inCxt (n:cxt) (debruijnVar 0)))
 
 bind :: (Monad m, Subst t' b, DeBruijn b, Subst t a, Free a) => ArgName -> (NamesT m b -> NamesT m a) -> NamesT m (Abs a)
-bind n f = mkAbs "n" <$> bind' n f
+bind n f = mkAbs n <$> bind' n f
 
 glam :: Monad m => ArgInfo -> ArgName -> (NamesT m Term -> NamesT m Term) -> NamesT m Term
 glam info n f = Lam info <$> bind n f
