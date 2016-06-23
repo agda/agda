@@ -609,6 +609,7 @@ primComp = do
           (el' a (bA <@> cl primIZero) --> el' a (bA <@> cl primIOne))
   unview <- intervalUnview'
   one <- primItIsOne
+  mpath <- primPathName'
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,c,phi,u,a0] -> do
@@ -624,6 +625,27 @@ primComp = do
                case unAbs t of
                  Pi a b   -> redReturn =<< compPi unview t a b (ignoreBlocking sphi) u a0 --  __IMPOSSIBLE__ -- Lam _ (comp (Lam
                  Sort s   | False -> __IMPOSSIBLE__ -- Glue guys
+                 Def q [ Apply _ , Apply bA , Apply x , Apply y ] | Just q == mpath -> do
+                   tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
+                   tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+                   let
+                     ineg t = (unview . INeg . argN) <$> t
+                     imax u t = do u <- u; t <- t; return $ unview (IMax (argN u) (argN t))
+                     iz = pure $ unview IZero
+                   redReturn . runNames [] $ do
+                      [l,p,p0] <- mapM (open . unArg) [l,u,a0]
+                      phi      <- open . unArg . ignoreBlocking $ sphi
+                      [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (inCxt ["i"] . unArg $ a))) [bA, x, y]
+                      lam "j" $ \ j ->
+                        pure tComp <#> l <@> bA <@> (phi `imax` (ineg j `imax` j))
+                                                <@> (lam "i'" $ \ i -> let or = pure tOr <#> l <#> (bA <@> i) in
+                                                    or <@> phi <@> (ineg j `imax` j)
+                                                       <@> (lam "o" $ \ o -> p <@> i <@> o <@@> (x <@> i, y <@> i, j))
+                                                       <@> (or <@> ineg j <@> j <@> (lam "_" $ const (x <@> i))
+                                                                                <@> (lam "_" $ const (y <@> i))))
+                                                <@> (p0 <@@> (x <@> iz, y <@> iz, j))
+
+
                  Def q es | False -> __IMPOSSIBLE__  -- Datatypes and primitives
                  _ -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
              _ -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
@@ -949,6 +971,14 @@ gApply h a b = do
 (<@>),(<#>) :: Monad tcm => tcm Term -> tcm Term -> tcm Term
 (<@>) = gApply NotHidden
 (<#>) = gApply Hidden
+
+(<@@>) :: Monad tcm => tcm Term -> (tcm Term,tcm Term,tcm Term) -> tcm Term
+t <@@> (x,y,r) = do
+  t <- t
+  x <- x
+  y <- y
+  r <- r
+  return $ t `applyE` [IApply x y r]
 
 list :: TCM Term -> TCM Term
 list t = primList <@> t
