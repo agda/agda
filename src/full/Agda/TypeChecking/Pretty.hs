@@ -152,6 +152,7 @@ instance PrettyTCM Type         where prettyTCM = prettyA <=< reify
 instance PrettyTCM Sort         where prettyTCM = prettyA <=< reify
 instance PrettyTCM DisplayTerm  where prettyTCM = prettyA <=< reify
 instance PrettyTCM NamedClause  where prettyTCM = prettyA <=< reify
+instance PrettyTCM (QNamed Clause) where prettyTCM = prettyA <=< reify
 instance PrettyTCM Level        where prettyTCM = prettyA <=< reify . Level
 instance PrettyTCM Permutation  where prettyTCM = text . show
 instance PrettyTCM Polarity     where prettyTCM = text . show

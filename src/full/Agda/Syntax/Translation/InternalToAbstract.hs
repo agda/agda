@@ -16,7 +16,7 @@
 -}
 module Agda.Syntax.Translation.InternalToAbstract
   ( Reify(..)
-  , NamedClause
+  , NamedClause(..)
   , reifyPatterns
   ) where
 
@@ -532,11 +532,11 @@ reifyTerm expandAnonDefs0 v = do
     reifyExtLam :: QName -> Int -> [I.Clause] -> [NamedArg Term] -> TCM Expr
     reifyExtLam x n cls vs = do
       reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
-      -- drop lambda lifted arguments
-      cls <- mapM (reify . QNamed x . dropArgs n) $ cls
+      cls <- mapM (reify . NamedClause x n) $ cls
+      fv <- getDefFreeVars x
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs vs
+      napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs (drop (fv + n) vs)
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
 nameFirstIfHidden :: [Dom (ArgName, t)] -> [Arg a] -> [NamedArg a]
@@ -567,8 +567,8 @@ instance Reify Elim Expr where
       appl :: String -> Arg Expr -> Expr
       appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
 
-type NamedClause = QNamed I.Clause
--- data NamedClause = NamedClause QName I.Clause
+data NamedClause = NamedClause QName Nat I.Clause
+  -- Also tracks how many patterns should be dropped.
 
 instance Reify ClauseBody RHS where
   reify NoBody     = return AbsurdRHS
@@ -838,12 +838,15 @@ tryRecPFromConP p = do
           mkFA ax nap = FieldAssignment (unArg ax) (namedArg nap)
     _ -> __IMPOSSIBLE__
 
+instance Reify (QNamed I.Clause) A.Clause where
+  reify (QNamed f cl) = reify (NamedClause f 0 cl)
+
 instance Reify NamedClause A.Clause where
-  reify (QNamed f (I.Clause _ tel ps body _ catchall)) = addContext tel $ do
+  reify (NamedClause f toDrop (I.Clause _ tel ps body _ catchall)) = addContext tel $ do
     ps  <- reifyPatterns ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f `catchError` \_ -> return 0
-    lhs <- stripImps $ dropParams nfv lhs
+    lhs <- stripImps $ dropParams (nfv + toDrop) lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
     rhs <- reify $ renameP (reverseP perm) <$> body
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
