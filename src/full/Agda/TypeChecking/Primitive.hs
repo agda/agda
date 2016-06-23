@@ -596,7 +596,7 @@ primPartialP' = do
         lam "a" $ \ l ->
         lam "φ" $ \ phi ->
         lam "A" $ \ a ->
-        toFinitePi <$> hPi' "p" (elInf $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
+        toFinitePi <$> nPi' "p" (elInf $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
 
 primComp :: TCM PrimitiveImpl
