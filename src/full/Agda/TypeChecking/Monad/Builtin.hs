@@ -111,7 +111,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
-    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primRestrict, primPSingl, primIsOne, primItIsOne,
+    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl, primIsOne, primItIsOne,
     primId, primConId,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
@@ -170,6 +170,7 @@ primIZero        = getBuiltin builtinIZero
 primIOne         = getBuiltin builtinIOne
 primRestrict     = getBuiltin builtinRestrict
 primPartial      = getPrimitiveTerm "primPartial"
+primPartialP     = getPrimitiveTerm "primPartialP"
 primPSingl       = getBuiltin builtinPSingl
 primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
@@ -288,7 +289,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinRestrict, builtinPSingl, builtinIsOne, builtinItIsOne,
+  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl, builtinIsOne, builtinItIsOne,
   builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
@@ -360,6 +361,7 @@ builtinIZero                         = "IZERO"
 builtinIOne                          = "IONE"
 builtinRestrict                      = "RESTRICT"
 builtinPartial                       = "PARTIAL"
+builtinPartialP                      = "PARTIALP"
 builtinPSingl                        = "PSINGL"
 builtinIsOne                         = "ISONE"
 builtinItIsOne                       = "ITISONE"
@@ -485,6 +487,7 @@ builtinsNoDef =
   , builtinPSingl
   , builtinInterval
   , builtinPartial
+  , builtinPartialP
   , builtinRestrict
   , builtinIsOne
   ]

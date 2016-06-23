@@ -93,6 +93,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinIZero              |-> builtinPostulate tinterval)
   , (builtinIOne               |-> builtinPostulate tinterval)
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))
+  , (builtinPartialP           |-> BuiltinPrim "primPartialP" (const $ return ()))
   , (builtinRestrict           |-> builtinPostulate (hPi "a" (el primLevel) $
                                                      nPi "A" (return $ sort $ varSort 0) $
                                                      tinterval --> return (sort $ Inf)))

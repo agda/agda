@@ -582,6 +582,23 @@ primPartial' = do
           redReturn $ Pi (d { domFinite = True }) b
       _ -> __IMPOSSIBLE__
 
+primPartialP' :: TCM PrimitiveImpl
+primPartialP' = do
+  t <- runNamesT [] $
+       (hPi' "a" (el $ cl primLevel) $ \ a ->
+        nPi' "φ" (elInf (cl primInterval)) $ \ phi ->
+        nPi' "A" (elInf $ cl primPartial <#> (cl primLevelSuc <@> a) <@> (Sort . tmSort <$> a) <@> phi) $ \ bA ->
+        return (sort $ Inf))
+  let toFinitePi :: Type -> Term
+      toFinitePi (El _ (Pi d b)) = Pi (d { domFinite = True }) b
+      toFinitePi _               = __IMPOSSIBLE__
+  v <- runNamesT [] $
+        lam "a" $ \ l ->
+        lam "φ" $ \ phi ->
+        lam "A" $ \ a ->
+        toFinitePi <$> hPi' "p" (elInf $ cl primIsOne <@> phi) (\ p -> el' l (a <@> p))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \ _ -> redReturn v
+
 primComp :: TCM PrimitiveImpl
 primComp = do
   t    <- runNamesT [] $
@@ -1089,6 +1106,7 @@ primitiveFunctions = Map.fromList
   , "primOutPartial"      |-> primOutPartial
   , "primIdJ"             |-> primIdJ
   , "primPartial"         |-> primPartial'
+  , "primPartialP"         |-> primPartialP'
   , "primPathAbs"         |-> primPathAbs'
   ]
   where
