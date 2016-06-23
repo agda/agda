@@ -176,7 +176,7 @@ matchPattern p u = case (p, u) of
 
   -- Case data constructor pattern.
   (ConP c _ ps, Arg info v) ->
-    do  w <- traverse constructorForm =<< reduceB' v
+    do  w <- reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
         -- 1) it does not hurt to do it all the time, and
@@ -192,7 +192,9 @@ matchPattern p u = case (p, u) of
                    -- unfolded (due to open public).
                _ -> return w
 -}
-        w <- case w of
+        -- Jesper, 23-06-2016: Note that unfoldCorecursion may destroy
+        -- constructor forms, so we only call constructorForm after.
+        w <- traverse constructorForm =<< case w of
                NotBlocked r u -> unfoldCorecursion u  -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                _ -> return w
         let v = ignoreBlocking w
