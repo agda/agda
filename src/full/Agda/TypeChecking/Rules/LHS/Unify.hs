@@ -7,6 +7,102 @@
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+-- | Unification algorithm for specializing datatype indices, as described in
+--     \"Unifiers as Equivalences: Proof-Relevant Unification of Dependently
+--     Typed Data\" by Jesper Cockx, Dominique Devriese, and Frank Piessens
+--     (ICFP 2016).
+--
+--   This is the unification algorithm used for checking the left-hand side
+--   of clauses (see @Agda.TypeChecking.Rules.LHS@), coverage checking (see
+--   @Agda.TypeChecking.Coverage@) and indirectly also for interactive case
+--   splitting (see @Agda.Interaction.MakeCase@).
+--
+--   A unification problem (of type @UnifyState@) consists of:
+--   1. A telescope @varTel@ of free variables, some or all of which are
+--      flexible (as indicated by @flexVars@).
+--   2. A telescope @eqTel@ containing the types of the equations.
+--   3. Left- and right-hand sides for each equation:
+--      @varTel ⊢ eqLHS : eqTel@ and @varTel ⊢ eqRHS : eqTel@.
+--
+--   The unification algorithm can end in three different ways:
+--   (type @UnificationResult@):
+--   - A *positive success* @Unifies (tel, sigma)@ with @tel ⊢ sigma : varTel@
+--     and @tel ⊢ eqLHS [ varTel ↦ sigma ] ≡ eqRHS [ varTel ↦ sigma ] : eqTel@.
+--     In this case, @sigma@ is an *equivalence* between the telescopes @tel@
+--     and @varTel(eqLHS ≡ eqRHS)@.
+--   - A *negative success* @NoUnify err@ means that a conflicting equation
+--     was found (e.g an equation between two distinct constructors or a cycle).
+--   - A *failure* @DontKnow err@ means that the unifier got stuck.
+--
+--   The unification algorithm itself consists of two parts:
+--   1. A *unification strategy* takes a unification problem and produces a
+--      list of suggested unification rules (of type @UnifyStep@). Strategies
+--      can be constructed by composing simpler strategies (see for example the
+--      definition of @completeStrategyAt@).
+--   2. The *unification engine* @unifyStep@ takes a unification rule and tries
+--      to apply it to the given state, writing the result to the UnifyOutput
+--      on a success.
+--
+--   The unification steps (of type @UnifyStep@) are the following:
+--   - *Deletion* removes a reflexive equation @u =?= v : a@ if the left- and
+--     right-hand side @u@ and @v@ are (definitionally) equal. This rule results
+--     in a failure if --without-K is enabled (see \"Pattern Matching Without K\"
+--     by Jesper Cockx, Dominique Devriese, and Frank Piessens (ICFP 2014).
+--   - *Solution* solves an equation if one side is (eta-equivalent to) a
+--     flexible variable. In case both sides are flexible variables, the
+--     unification strategy makes a choice according to the @chooseFlex@
+--     function in @Agda.TypeChecking.Rules.LHS.Problem@.
+--   - *Injectivity* decomposes an equation of the form
+--     @c us =?= c vs : D pars is@ where @c : Δc → D pars js@ is a constructor
+--     of the inductive datatype @D@ into a sequence of equations
+--     @us =?= vs : delta@. In case @D@ is an indexed datatype,
+--     *higher-dimensional unification* is applied (see below).
+--   - *Conflict* detects absurd equations of the form
+--     @c₁ us =?= c₂ vs : D pars is@ where @c₁@ and @c₂@ are two distinct
+--     constructors of the datatype @D@.
+--   - *Cycle* detects absurd equations of the form @x =?= v : D pars is@ where
+--     @x@ is a variable of the datatype @D@ that occurs strongly rigid in @v@.
+--   - *EtaExpandVar* eta-expands a single flexible variable @x : R@ where @R@
+--     is a (eta-expandable) record type, replacing it by one variable for each
+--     field of @R@.
+--   - *EtaExpandEquation* eta-expands an equation @u =?= v : R@ where @R@ is a
+--     (eta-expandable) record type, replacing it by one equation for each field
+--     of @R@. The left- and right-hand sides of these equations are the
+--     projections of @u@ and @v@.
+--   - *LitConflict* detects absurd equations of the form @l₁ =?= l₂ : A@ where
+--     @l₁@ and @l₂@ are distinct literal terms.
+--   - *StripSizeSuc* simplifies an equation of the form
+--     @sizeSuc x =?= sizeSuc y : Size@ to @x =?= y : Size@.
+--   - *SkipIrrelevantEquation@ removes an equation between irrelevant terms.
+--   - *TypeConInjectivity* decomposes an equation of the form
+--     @D us =?= D vs : Set i@ where @D@ is a datatype. This rule is only used
+--     if --injective-type-constructors is enabled.
+--
+--   Higher-dimensional unification (new, does not yet appear in any paper):
+--   If an equation of the form @c us =?= c vs : D pars is@ is encountered where
+--   @c : Δc → D pars js@ is a constructor of an indexed datatype
+--   @D pars : Φ → Set ℓ@, it is in general unsound to just simplify this
+--   equation to @us =?= vs : Δc@. For this reason, the injectivity rule in the
+--   paper restricts the indices @is@ to be distinct variables that are bound in
+--   the telescope @eqTel@. But we can be more general by introducing new
+--   variables @ks@ to the telescope @eqTel@ and equating these to @is@:
+--   @
+--       Δ₁(x : D pars is)Δ₂
+--        ≃
+--       Δ₁(ks : Φ)(x : D pars ks)(ps : is ≡Φ ks)Δ₂
+--   @
+--   Since @ks@ are distinct variables, it's now possible to apply injectivity
+--   to the equation @x@, resulting in the following new equation telescope:
+--   @
+--     Δ₁(ys : Δc)(ps : is ≡Φ js[Δc ↦ ys])Δ₂
+--   @
+--   Now we can solve the equations @ps@ by recursively calling the unification
+--   algorithm with flexible variables @Δ₁(ys : Δc)@. This is called
+--   *higher-dimensional unification* since we are unifying equality proofs
+--   rather than terms. If the higher-dimensional unification succeeds, the
+--   resulting telescope serves as the new equation telescope for the original
+--   unification problem.
+
 module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult
   , UnificationResult'(..)
