@@ -2283,7 +2283,7 @@ data TypeError
         | CannotEliminateWithPattern (NamedArg A.Pattern) Type
         | TooManyArgumentsInLHS Type
         | WrongNumberOfConstructorArguments QName Nat Nat
-        | ShouldBeEmpty Type [Pattern]
+        | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
             -- ^ The given type should have been a sort.
         | ShouldBePi Type

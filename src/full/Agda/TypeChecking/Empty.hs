@@ -39,4 +39,4 @@ isEmptyType r t = do
         Right cov -> do
           let cs = splitClauses cov
           unless (null cs) $
-            typeError $ ShouldBeEmpty t $ map (namedArg . last . unnumberPatVars . scPats) $ cs
+            typeError $ ShouldBeEmpty t $ map (namedArg . last . scPats) cs
