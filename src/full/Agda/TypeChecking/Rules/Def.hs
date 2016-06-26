@@ -726,27 +726,35 @@ checkWhere
   -> [A.Declaration] -- ^ Where-declarations to check.
   -> TCM a           -- ^ Continuation.
   -> TCM a
-checkWhere trhs ds ret = do
-  let
+checkWhere _trhs ds ret = loop ds
+  where
     loop ds = case ds of
       [] -> ret
       [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
-      [A.Section _ m tel ds]  -> do
-        checkTelescope tel $ \ tel' -> do
-          reportSDoc "tc.def.where" 10 $
-            text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
-          addSection m
-          verboseS "tc.def.where" 10 $ do
-            dx   <- prettyTCM m
-            dtel <- mapM prettyAs tel
-            dtel' <- prettyTCM =<< lookupSection m
-            reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
-            reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
-          withCurrentModule m $ local (\ e -> e { envCheckingWhere = True }) $ do
+      [A.Section _ m tel ds]  -> newSection m tel $ do
+          local (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__
-  loop ds
+
+-- | Enter a new section during type-checking.
+
+newSection :: ModuleName -> A.Telescope -> TCM a -> TCM a
+newSection m tel cont = do
+  reportSDoc "tc.section" 10 $
+    text "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
+
+  checkTelescope tel $ \ tel' -> do
+    reportSDoc "tc.section" 10 $
+      text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
+
+    addSection m
+
+    reportSDoc "tc.section" 10 $ inTopContext $
+      nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection m
+
+    withCurrentModule m cont
+
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool
