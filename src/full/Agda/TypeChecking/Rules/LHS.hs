@@ -491,7 +491,7 @@ data LHSResult = LHSResult
   , lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
-  , lhsPatterns     :: [NamedArg Pattern]
+  , lhsPatterns     :: [NamedArg DeBruijnPattern]
     -- ^ The patterns in internal syntax.
   , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
@@ -595,15 +595,14 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
       reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
       reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
-      let qs'  = unnumberPatVars qs
-          perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm qs
+      let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm qs
           notProj ProjP{} = False
           notProj _       = True
                       -- Note: This works because we can't change the number of
                       --       arguments in the lhs of a with-function relative to
                       --       the parent function.
           numPats   = length $ takeWhile (notProj . namedArg) qs
-          lhsResult = LHSResult (length cxt) delta qs' b' perm
+          lhsResult = LHSResult (length cxt) delta qs b' perm
           -- In the case of a non-with function the pattern substitution
           -- should be weakened by the number of non-parameter patterns to
           -- get the paramSub.

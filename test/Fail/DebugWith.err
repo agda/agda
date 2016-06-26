@@ -30,7 +30,7 @@ checkWithFunction
   as     = [P b]
   vs     = [f b]
   b      = Set
-  qs     = [r(trash1 = VarP "trash1"),r(b = VarP "b"),r(trash2 = VarP "trash2"),r(f = VarP "f"),r(trash3 = VarP "trash3")]
+  qs     = [r(trash1 = VarP (4,"trash1")),r(b = VarP (3,"b")),r(trash2 = VarP (2,"trash2")),r(f = VarP (1,"f")),r(trash3 = VarP (0,"trash3"))]
   perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
   perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
   fperm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4

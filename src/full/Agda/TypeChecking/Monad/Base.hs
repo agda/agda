@@ -2289,7 +2289,7 @@ data TypeError
         | ShouldBePi Type
             -- ^ The given type should have been a pi.
         | ShouldBeRecordType Type
-        | ShouldBeRecordPattern Pattern
+        | ShouldBeRecordPattern DeBruijnPattern
         | NotAProjectionPattern (NamedArg A.Pattern)
         | NotAProperTerm
         | SetOmegaNotValidType
