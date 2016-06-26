@@ -114,7 +114,7 @@ foldMatch match = loop where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [NamedArg Pattern] -> [Elim] -> ReduceM (Match Term, [Elim])
+matchCopatterns :: [NamedArg DeBruijnPattern] -> [Elim] -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchCopatterns"
@@ -126,7 +126,7 @@ matchCopatterns ps vs = do
      foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
+matchCopattern :: DeBruijnPattern -> Elim -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
@@ -134,7 +134,7 @@ matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
-matchPatterns :: [NamedArg Pattern] -> [Arg Term] -> ReduceM (Match Term, [Arg Term])
+matchPatterns :: [NamedArg DeBruijnPattern] -> [Arg Term] -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchPatterns"
@@ -147,7 +147,7 @@ matchPatterns ps vs = do
      foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
-matchPattern :: Pattern -> Arg Term -> ReduceM (Match Term, Arg Term)
+matchPattern :: DeBruijnPattern -> Arg Term -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
   (VarP _ , arg          ) -> return (Yes NoSimplification [arg], arg)

@@ -58,7 +58,7 @@ import Agda.Utils.Impossible
 --   E.g. for @(x , (y , z))@ we return @[ fst, fst . snd, snd . snd ]@.
 --
 --   If it is not a record pattern, error 'ShouldBeRecordPattern' is raised.
-recordPatternToProjections :: Pattern -> TCM [Term -> Term]
+recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
     VarP{}       -> return [ \ x -> x ]
@@ -73,7 +73,7 @@ recordPatternToProjections p =
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
     proj p = (`applyE` [Proj $ unArg p])
-    comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
+    comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
 

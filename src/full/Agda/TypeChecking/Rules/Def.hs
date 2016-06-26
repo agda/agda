@@ -342,7 +342,7 @@ data WithFunctionProblem
     , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
     , wfExprTypes  :: [EqualityView]       -- ^ Types of the with and rewrite expressions.
     , wfRHSType    :: Type                 -- ^ Type of the right hand side.
-    , wfParentPats :: [NamedArg Pattern]   -- ^ Parent patterns.
+    , wfParentPats :: [NamedArg DeBruijnPattern] -- ^ Parent patterns.
     , wfParentParams :: Nat                -- ^ Number of module parameters in parent patterns
     , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
     , wfPermParent :: Permutation          -- ^ Permutation reordering the variables in the parent pattern.
@@ -382,7 +382,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs perm) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs _perm) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere (unArg trhs) wh $ checkRHS i x aps t lhsResult rhs0
@@ -396,7 +396,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
           [ text "Clause before translation:"
           , nest 2 $ vcat
             [ text "delta =" <+> prettyTCM delta
-            , text "perm  =" <+> text (show perm)
+            -- , text "perm  =" <+> text (show perm)
             , text "ps    =" <+> text (show ps)
             , text "body  =" <+> text (show body)
             , text "body  =" <+> prettyTCM body
@@ -412,7 +412,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         return $
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
-                 , namedClausePats = numberPatVars perm ps
+                 , namedClausePats = ps
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall
