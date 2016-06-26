@@ -247,8 +247,8 @@ addDisplayForms x = do
           , all (isVar . namedArg) pats
           , Just (m, Def y es) <- strip (b `apply` vs0)
           , Just vs <- mapM isApplyElim es -> do
-              let ps = raise 1 $ map unArg vs
-                  df = Display 0 ps $ DTerm $ Def top $ map Apply args
+              let ps = map unArg vs
+                  df = Display m ps $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
@@ -277,7 +277,7 @@ addDisplayForms x = do
     strip (Body v)   = return (0, unSpine v)
     strip  NoBody    = Nothing
     strip (Bind b)   = do
-      (n, v) <- strip $ absBody b
+      (n, v) <- strip $ absApp b (Var 0 [])
       return (n + 1, ignoreSharing v)
 
     isVar VarP{} = True
@@ -519,19 +519,22 @@ addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeLocal df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
-  inCurrentSig <- isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
-  if inCurrentSig
-     then modifySignature add
-     else stImportsDisplayForms %= HMap.insertWith (++) x [d]
+  ifM (isLocal x)
+    {-then-} (modifySignature add)
+    {-else-} (stImportsDisplayForms %= HMap.insertWith (++) x [d])
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
+
+isLocal :: QName -> TCM Bool
+isLocal x = isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- defDisplay <$> getConstInfo q
   ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
   ds2 <- maybe [] id . HMap.lookup q <$> use stImportedDisplayForms
-  return $ ds ++ ds1 ++ ds2
+  ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
+                  (return $ ds1 ++ ds ++ ds2)
 
 -- | Find all names used (recursively) by display forms of a given name.
 chaseDisplayForms :: QName -> TCM (Set QName)
