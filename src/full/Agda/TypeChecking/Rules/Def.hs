@@ -385,7 +385,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs _perm) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-        (body, with) <- checkWhere (unArg trhs) wh $ checkRHS i x aps t lhsResult rhs0
+        (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
 
         -- Note that the with function doesn't necessarily share any part of
         -- the context with the parent (but withSub will take you from parent
@@ -450,7 +450,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS r
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
-      A.RewriteRHS [] rhs wh -> checkWhere (unArg trhs) wh $ handleRHS rhs
+      A.RewriteRHS [] rhs wh -> checkWhere wh $ handleRHS rhs
       A.RewriteRHS ((qname,eq):qes) rhs wh -> do
 
         -- Action for skipping this rewrite.
@@ -722,31 +722,38 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
 
 -- | Type check a where clause.
 checkWhere
-  :: Type            -- ^ Type of rhs.
-  -> [A.Declaration] -- ^ Where-declarations to check.
+  :: [A.Declaration] -- ^ Where-declarations to check.
   -> TCM a           -- ^ Continuation.
   -> TCM a
-checkWhere trhs ds ret = do
-  let
+checkWhere ds ret = loop ds
+  where
     loop ds = case ds of
       [] -> ret
       [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
-      [A.Section _ m tel ds]  -> do
-        checkTelescope tel $ \ tel' -> do
-          reportSDoc "tc.def.where" 10 $
-            text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
-          addSection m
-          verboseS "tc.def.where" 10 $ do
-            dx   <- prettyTCM m
-            dtel <- mapM prettyAs tel
-            dtel' <- prettyTCM =<< lookupSection m
-            reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
-            reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
-          withCurrentModule m $ local (\ e -> e { envCheckingWhere = True }) $ do
+      [A.Section _ m tel ds]  -> newSection m tel $ do
+          local (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__
-  loop ds
+
+-- | Enter a new section during type-checking.
+
+newSection :: ModuleName -> A.Telescope -> TCM a -> TCM a
+newSection m tel cont = do
+  reportSDoc "tc.section" 10 $
+    text "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
+
+  checkTelescope tel $ \ tel' -> do
+    reportSDoc "tc.section" 10 $
+      text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
+
+    addSection m
+
+    reportSDoc "tc.section" 10 $ inTopContext $
+      nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection m
+
+    withCurrentModule m cont
+
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool

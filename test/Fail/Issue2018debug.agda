@@ -1,6 +1,6 @@
 -- Andreas, 2016-06-21 fixed context for a debug message
 
-{-# OPTIONS -v tc.mod.check:10 #-} -- KEEP! to print debug message
+{-# OPTIONS -v tc.section:10 #-} -- KEEP! to print debug message
 
 module _ {A : Set} where
 

@@ -58,7 +58,7 @@ import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
-import Agda.TypeChecking.Rules.Def     ( checkFunDef, useTerPragma )
+import Agda.TypeChecking.Rules.Def     ( checkFunDef, newSection, useTerPragma )
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
@@ -735,17 +735,7 @@ checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 -- | Type check a module.
 
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
-checkSection i x tel ds = do
-  reportSDoc "tc.mod.check" 10 $
-    text "checking section" <+> prettyTCM x <+> fsep (map prettyAs tel)
-
-  checkTelescope tel $ \ tel' -> do
-    addSection x
-
-    reportSDoc "tc.mod.check" 10 $ inTopContext $
-      nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection x
-
-    withCurrentModule x $ mapM_ checkDeclCached ds
+checkSection _ x tel ds = newSection x tel $ mapM_ checkDeclCached ds
 
 
 -- | Helper for 'checkSectionApplication'.
