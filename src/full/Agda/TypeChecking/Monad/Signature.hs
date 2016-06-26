@@ -519,12 +519,14 @@ addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeLocal df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
-  inCurrentSig <- isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
-  if inCurrentSig
-     then modifySignature add
-     else stImportsDisplayForms %= HMap.insertWith (++) x [d]
+  ifM (isLocal x)
+    {-then-} (modifySignature add)
+    {-else-} (stImportsDisplayForms %= HMap.insertWith (++) x [d])
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
+
+isLocal :: QName -> TCM Bool
+isLocal x = isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
