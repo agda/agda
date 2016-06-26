@@ -8973,3 +8973,67 @@ ModuleName                      20ms
 real	3m10.064s
 user	3m8.308s
 sys	0m1.412s
+
+
+
+
+
+2016-06-26 agda-master 2.6.0 ghc-7.8.4
+========================================================================
+
+Finished README.
+Total                        94,221ms
+Miscellaneous                 4,902ms
+Parsing                         624ms
+Parsing.Operators             7,515ms
+Import                        1,955ms
+Deserialization                  20ms
+Scoping                       3,016ms
+Scoping.InverseScopeLookup      576ms
+Typing                        9,029ms
+Typing.OccursCheck            2,875ms
+Typing.CheckLHS              21,046ms
+Typing.CheckLHS.UnifyIndices    920ms
+Termination                     533ms
+Termination.Graph               341ms
+Termination.RecCheck            231ms
+Termination.Compare             161ms
+Positivity                    2,073ms
+Injectivity                     465ms
+ProjectionLikeness               93ms
+Coverage                        448ms
+Highlighting                    635ms
+Serialization                26,229ms
+Serialization.BuildInterface  1,517ms
+Serialization.Sort              296ms
+Serialization.BinaryEncode    5,972ms
+Serialization.Compress          973ms
+DeadCode                      1,760ms
+ModuleName                        3ms
+
+ 117,456,330,328 bytes allocated in the heap
+  15,633,531,704 bytes copied during GC
+     439,263,904 bytes maximum residency (41 sample(s))
+       3,020,488 bytes maximum slop
+            1129 MB total memory in use (0 MB lost due to fragmentation)
+
+                                    Tot time (elapsed)  Avg pause  Max pause
+  Gen  0      1625 colls,     0 par   20.81s   20.92s     0.0129s    0.1599s
+  Gen  1        41 colls,     0 par    7.16s    7.18s     0.1751s    0.4843s
+
+  INIT    time    0.00s  (  0.00s elapsed)
+  MUT     time   65.61s  ( 66.40s elapsed)
+  GC      time   27.98s  ( 28.10s elapsed)
+  EXIT    time    0.01s  (  0.02s elapsed)
+  Total   time   93.61s  ( 94.53s elapsed)
+
+  %GC     time      29.9%  (29.7% elapsed)
+
+  Alloc rate    1,790,178,276 bytes per MUT second
+
+  Productivity  70.1% of total user, 69.4% of total elapsed
+
+
+real	1m34.579s
+user	1m33.614s
+sys	0m0.700s
