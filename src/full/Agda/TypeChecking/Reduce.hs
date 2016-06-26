@@ -581,7 +581,7 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
           -- if clause is underapplied, skip to next clause
           if length es < n then goCls cls es else do
             let (es0, es1) = splitAt n es
-            (m, es0) <- matchCopatterns (unnumberPatVars pats) es0
+            (m, es0) <- matchCopatterns pats es0
             es <- return $ es0 ++ es1
             case m of
               No         -> goCls cls es
