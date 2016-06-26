@@ -333,7 +333,7 @@ instance Reduce Term where
 --    and seems to save 2% sec on the standard library
 --      MetaV x args -> notBlocked . MetaV x <$> reduce' args
       MetaV x es -> iapp es
-      Def f es   -> unfoldDefinitionE False reduceB' (Def f []) f es
+      Def f es   -> flip reduceIApply es $ unfoldDefinitionE False reduceB' (Def f []) f es
       Con c args -> do
           -- Constructors can reduce' when they come from an
           -- instantiated module.
