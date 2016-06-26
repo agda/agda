@@ -184,10 +184,15 @@ updateInPatterns as ps qs = do
             fs  = killRange $ recFields def
             tel = recTel def `apply` pars
             as  = applyPatSubst (parallelS $ map (namedThing . unArg) qs) $ flattenTel tel
-            -- If the user wrote a dot pattern but the unifier eta-expanded the
-            -- corresponding variable, add the corresponding instantiation
+            -- If the user wrote a dot pattern or variable but the unifier
+            -- eta-expanded it, add the corresponding instantiation.
             dpi :: [DotPatternInst]
-            dpi = maybe [] (\e -> [DPI Nothing (Just e) (patternToTerm $ unArg q) a]) (isDotP (namedThing $ unArg p))
+            dpi = mkDPI $ patternToTerm $ unArg q
+              where
+                mkDPI v = case namedThing $ unArg p of
+                  A.DotP _ e -> [DPI Nothing (Just e) v a]
+                  A.VarP x   -> [DPI (Just x) Nothing v a]
+                  _        -> []
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
       LitP _     -> __IMPOSSIBLE__
@@ -195,7 +200,7 @@ updateInPatterns as ps qs = do
 
     projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
-      A.VarP x            -> map makeVarField fs
+      A.VarP x            -> map (makeDotField $ PatRange $ getRange x) fs
       A.ConP cpi _ nps    -> nps
       A.WildP pi          -> map (makeWildField pi) fs
       A.DotP pi e         -> map (makeDotField pi) fs
@@ -207,7 +212,6 @@ updateInPatterns as ps qs = do
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _          -> __IMPOSSIBLE__
       where
-        makeVarField (Arg fi f) = Arg fi $ unnamed $ A.VarP $ qnameName f
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi (Arg fi f) = Arg fi $ unnamed $
           A.DotP pi $ A.Underscore underscoreInfo
@@ -219,10 +223,6 @@ updateInPatterns as ps qs = do
               , A.metaNameSuggestion = show $ A.nameConcrete $ qnameName f
               }
 
-
-    isDotP :: A.Pattern -> Maybe A.Expr
-    isDotP (A.DotP _ e) = Just e
-    isDotP _            = Nothing
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
