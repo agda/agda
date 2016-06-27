@@ -113,6 +113,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl, primIsOne, primItIsOne,
     primId, primConId,
+    primIsEquiv, primGlue, prim_glue, prim_unglue,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
@@ -174,6 +175,10 @@ primPartialP     = getPrimitiveTerm "primPartialP"
 primPSingl       = getBuiltin builtinPSingl
 primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
+primIsEquiv      = getBuiltin builtinIsEquiv
+primGlue         = getPrimitiveTerm builtinGlue
+prim_glue        = getPrimitiveTerm builtin_glue
+prim_unglue      = getPrimitiveTerm builtin_unglue
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -289,7 +294,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl, builtinIsOne, builtinItIsOne,
+  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl, builtinIsOne,  builtinItIsOne,
+  builtinIsEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
@@ -365,6 +371,10 @@ builtinPartialP                      = "PARTIALP"
 builtinPSingl                        = "PSINGL"
 builtinIsOne                         = "ISONE"
 builtinItIsOne                       = "ITISONE"
+builtinIsEquiv                       = "ISEQUIV"
+builtinGlue                          = "primGlue"
+builtin_glue                         = "prim_glue"
+builtin_unglue                       = "prim_unglue"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"

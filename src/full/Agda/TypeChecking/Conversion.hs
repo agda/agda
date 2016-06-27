@@ -346,8 +346,18 @@ compareTerm' cmp a m n =
        case es of
         [_] | mp == Just q -> return ()
         _                -> compareAtom cmp a' m n
-    cmpIsOne a' m n = compareAtom cmp a' m n
-
+    cmpIsOne a' m n = cmpGlue a' m n
+    cmpGlue a'@(El s (Def q es)) m n = do
+       mp <- getPrimitiveName' builtinGlue
+       case es of
+        (Apply l: Apply a:_) | mp == Just q, Just args <- allApplyElims es -> do
+              ty <- el' (pure $ unArg l) (pure $ unArg a)
+              unglue <- prim_unglue
+              let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
+              compareTerm cmp ty (mkUnglue m)
+                                 (mkUnglue n)
+        _                -> compareAtom cmp a' m n
+    cmpGlue a' m n = compareAtom cmp a' m n
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
 --   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
 --   not.

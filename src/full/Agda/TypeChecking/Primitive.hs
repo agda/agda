@@ -704,6 +704,77 @@ primComp = do
 
 
 
+primGlue' :: TCM PrimitiveImpl
+primGlue' = do
+  -- Glue' : ∀ {l} (A : Set l) → ∀ φ → (T : Partial (Set a) φ) (f : (PartialP φ \ o → (T o) -> A))
+  --            ([f] : PartialP φ \ o → isEquiv (T o) A (f o)) → Set l
+  t <- runNamesT [] $
+       (hPi' "l" (el $ cl primLevel) $ \ l ->
+       nPi' "A" (sort . tmSort <$> l) $ \ a ->
+       nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       nPi' "T" (elInf $ cl primPartial <#> (cl primLevelSuc <@> l) <@> (Sort . tmSort <$> l) <@> φ) $ \ t ->
+       nPi' "f" (elInf $ cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> unEl <$> (el' l (t <@> o) --> el' l a))) $ \ f ->
+       elInf (cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)))
+       --> (sort . tmSort <$> l))
+  view <- intervalView'
+  one <- primItIsOne
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ts ->
+    case ts of
+     [l,a,phi,t,f,pf] -> do
+       sphi <- reduceB' phi
+       case view $ unArg $ ignoreBlocking $ sphi of
+         IOne -> redReturn $ unArg t `apply` [argN one]
+         _    -> return (NoReduction $ map notReduced [l,a] ++ [reduced sphi] ++ map notReduced [t,f,pf])
+     _ -> __IMPOSSIBLE__
+
+prim_glue' :: TCM PrimitiveImpl
+prim_glue' = do
+  t <- runNamesT [] $
+       (hPi' "l" (el $ cl primLevel) $ \ l ->
+       hPi' "A" (sort . tmSort <$> l) $ \ a ->
+       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       hPi' "T" (elInf $ cl primPartial <#> (cl primLevelSuc <@> l) <@> (Sort . tmSort <$> l) <@> φ) $ \ t ->
+       hPi' "f" (elInf $ cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> unEl <$> (el' l (t <@> o) --> el' l a))) $ \ f ->
+       hPi' "pf" (elInf (cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)))) $ \ pf ->
+       (elInf $ cl primPartialP <#> l <@> φ <@> t) --> (el' l a --> el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)))
+  view <- intervalView'
+  one <- primItIsOne
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
+    case ts of
+      [l,bA,phi,bT,f,pf,t,a] -> do
+       sphi <- reduceB' phi
+       case view $ unArg $ ignoreBlocking $ sphi of
+         IOne -> redReturn $ unArg t `apply` [argN one]
+         _    -> return (NoReduction $ map notReduced [l,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf,t,a])
+      _ -> __IMPOSSIBLE__
+
+prim_unglue' :: TCM PrimitiveImpl
+prim_unglue' = do
+  t <- runNamesT [] $
+       (hPi' "l" (el $ cl primLevel) $ \ l ->
+       hPi' "A" (sort . tmSort <$> l) $ \ a ->
+       hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
+       hPi' "T" (elInf $ cl primPartial <#> (cl primLevelSuc <@> l) <@> (Sort . tmSort <$> l) <@> φ) $ \ t ->
+       hPi' "f" (elInf $ cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> unEl <$> (el' l (t <@> o) --> el' l a))) $ \ f ->
+       hPi' "pf" (elInf (cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)))) $ \ pf ->
+       (el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)) --> el' l a)
+  view <- intervalView'
+  one <- primItIsOne
+  mglue <- getPrimitiveName' builtin_glue
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ts ->
+    case ts of
+      [l,bA,phi,bT,f,pf,b] -> do
+       sphi <- reduceB' phi
+       case view $ unArg $ ignoreBlocking $ sphi of
+         IOne -> redReturn $ unArg f `apply` [argN one,b]
+         _    -> do
+            sb <- reduceB' b
+            case unArg $ ignoreBlocking $ sb of
+               Def q [Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply a]
+                     | Just q == mglue -> redReturn $ unArg a
+               _ -> return (NoReduction $ map notReduced [l,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf] ++ [reduced sb])
+      _ -> __IMPOSSIBLE__
+
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
 primTrustMe = do
@@ -1138,6 +1209,9 @@ primitiveFunctions = Map.fromList
   , "primPartial"         |-> primPartial'
   , "primPartialP"         |-> primPartialP'
   , "primPathAbs"         |-> primPathAbs'
+  , builtinGlue           |-> primGlue'
+  , builtin_glue           |-> prim_glue'
+  , builtin_unglue           |-> prim_unglue'
   ]
   where
     (|->) = (,)
