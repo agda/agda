@@ -967,10 +967,15 @@ unifyStep s LitConflict
         (typeError_ $ UnequalTerms CmpEq (Lit l) (Lit l') a)
 
 unifyStep s (StripSizeSuc k u v) = do
-  sz <- liftTCM sizeType
+  sizeTy <- liftTCM sizeType
+  sizeSu <- liftTCM $ sizeSuc 1 (var 0)
+  let n          = eqCount s
+      sub        = liftS (n-k-1) $ consS sizeSu $ raiseS 1
+      eqFlatTel  = flattenTel $ eqTel s
+      eqFlatTel' = applySubst sub $ updateAt k (fmap $ const sizeTy) $ eqFlatTel
+      eqTel'     = unflattenTel (teleNames $ eqTel s) eqFlatTel'
   return $ Unifies $ s
-    { eqTel = unflattenTel (teleNames $ eqTel s) $
-        updateAt k (fmap $ const sz) $ flattenTel $ eqTel s --TODO: is this necessary?
+    { eqTel = eqTel'
     , eqLHS = updateAt k (const $ defaultArg u) $ eqLHS s
     , eqRHS = updateAt k (const $ defaultArg v) $ eqRHS s
     }
