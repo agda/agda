@@ -511,7 +511,6 @@ library
                  -fwarn-missing-fields
                  -fwarn-missing-methods
                  -fwarn-missing-signatures
-                 -fwarn-orphans
                  -fwarn-tabs
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
