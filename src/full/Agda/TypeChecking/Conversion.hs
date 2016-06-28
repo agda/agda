@@ -319,13 +319,13 @@ compareTerm' cmp a m n =
     -- equality at function type (accounts for eta)
     equalFun :: Sort -> Term -> Term -> Term -> TCM ()
     equalFun s (Shared p) m n = equalFun s (derefPtr p) m n
-    equalFun s a@(Pi dom@(Dom{domFinite = True}) b) m n = do
+    equalFun s a@(Pi dom b) m n | domFinite dom = do
        mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
        case unEl $ unDom dom of
           Def q [Apply phi]
               | Just q == mp -> compareTermOnFace cmp (unArg phi) (El s (Pi (dom {domFinite = False}) b)) m n
           _                  -> equalFun s (Pi (dom{domFinite = False}) b) m n
-    equalFun _ (Pi dom@(Dom{domInfo = info,domFinite = False}) b) m n = do
+    equalFun _ (Pi dom@Dom{domInfo = info} b) m n | not $ domFinite dom = do
         name <- freshName_ $ suggest (absName b) "x"
         addContext (name, dom) $ compareTerm cmp (absBody b) m' n'
       where
@@ -335,29 +335,22 @@ compareTerm' cmp a m n =
     equalPath (PathType s _ l a x y) _ m n = do
         name <- freshName_ $ "i"
         interval <- el primInterval
-        app <- (`Def` []) <$> primFunName <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitive' "primPathApply"
-        let
-          pathApply m = apply app $ map (raise 1) [l,a,setHiding Hidden x,setHiding Hidden y] ++ [defaultArg m,defaultArg (var 0)]
-          (m',n') = (pathApply (raise 1 m),pathApply (raise 1 n))
+        let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
         addContext (name, defaultDom interval) $ compareTerm cmp (El s $ raise 1 $ unArg a) m' n'
-    equalPath OType{} a' m n = cmpIsOne a' m n
-    cmpIsOne a'@(El s (Def q es)) m n = do
-       mp <- fmap getPrimName <$> getBuiltin' builtinIsOne
-       case es of
-        [_] | mp == Just q -> return ()
-        _                -> compareAtom cmp a' m n
-    cmpIsOne a' m n = cmpGlue a' m n
-    cmpGlue a'@(El s (Def q es)) m n = do
-       mp <- getPrimitiveName' builtinGlue
-       case es of
-        (Apply l: Apply a:_) | mp == Just q, Just args <- allApplyElims es -> do
+    equalPath OType{} a' m n = cmpDef a' m n
+    cmpDef a'@(El s ty) m n = do
+       mIsOne <- getBuiltinName'   builtinIsOne
+       mGlue  <- getPrimitiveName' builtinGlue
+       case ty of
+         Def q es | Just q == mIsOne -> return ()
+         Def q es@(Apply l: Apply a:_) | Just q == mGlue, Just args <- allApplyElims es -> do
               ty <- el' (pure $ unArg l) (pure $ unArg a)
               unglue <- prim_unglue
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
-              compareTerm cmp ty (mkUnglue m)
-                                 (mkUnglue n)
-        _                -> compareAtom cmp a' m n
-    cmpGlue a' m n = compareAtom cmp a' m n
+              reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
+              compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+         _ -> compareAtom cmp a' m n
+
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
 --   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
 --   not.

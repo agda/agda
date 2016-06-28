@@ -95,13 +95,18 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinPartial            |-> BuiltinPrim "primPartial" (const $ return ()))
   , (builtinPartialP           |-> BuiltinPrim "primPartialP" (const $ return ()))
   , (builtinRestrict           |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                     nPi "A" (return $ sort $ varSort 0) $
-                                                     tinterval --> return (sort $ Inf)))
+                                                     nPi "phi" tinterval $
+                                                     nPi "A" (elInf $ primPartial <#> (primLevelSuc <@> varM 1)
+                                                                                  <@> (pure $ Sort $ varSort 1)
+                                                                                  <@> varM 0) $
+                                                     return (sort $ Inf)))
   , (builtinPSingl             |-> builtinPostulate (hPi "a" (el primLevel) $
-                                                     hPi "A" (return $ sort $ varSort 0) $
                                                      hPi "i"  tinterval $
+                                                     hPi "A" (elInf $ primPartial <#> (primLevelSuc <@> varM 1)
+                                                                                  <@> (pure $ Sort $ varSort 1)
+                                                                                  <@> varM 0) $
                                                      (El (varSort 2) <$> primRestrict <#> varM 2 <@> varM 1 <@> varM 0)
-                                                     --> (elInf $ primPartial <#> varM 2 <@> varM 1 <@> varM 0)))
+                                                     --> (elInf $ primPartialP <#> varM 2 <@> varM 1 <@> varM 0)))
   , (builtinIsOne              |-> builtinPostulate (tinterval --> return (sort $ Inf)))
   , (builtinItIsOne            |-> builtinPostulate (elInf $ primIsOne <@> primIOne))
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $

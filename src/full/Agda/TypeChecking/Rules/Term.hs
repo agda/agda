@@ -809,7 +809,7 @@ checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 = do
   restr <- fmap getPrimName <$> getBuiltin' builtinRestrict
   case unEl t0 of -- reduce?
-    Def q [Apply l,Apply a,Apply phi] | Just q == restr -> do
+    Def q [Apply l,Apply phi,Apply a] | Just q == restr -> do
      ifBlocked (unArg phi) (\ m _ -> postponeTypeCheckingProblem (CheckExpr e t0)
                                 (isInstantiatedMeta m)) $ \ phi' -> do
          iphi <- intervalView phi'
@@ -820,9 +820,9 @@ checkExpr e t0 = do
            gamma_tel <- getContextTelescope
            ts <- forallFaceMaps phi' $ \ sigma -> do
              gamma' <- getContext
-             let a_sigma = (applySubst sigma (El (getSort t0) (unArg a)))
+             let (l_sigma, a_sigma) = applySubst sigma (unArg l, unArg a)
              tel <- getContextTelescope
-             u <- checkExpr' e a_sigma
+             u <- checkExpr' e =<< (el' (pure l_sigma) $ pure a_sigma <@> primItIsOne)
              tinv <- El (mkType 0) <$> primInterval
              let pats = teleNamedArgs gamma_tel
                  mkConP q = ConP (ConHead q Inductive []) (noConPatternInfo { conPType = Just (Arg defaultArgInfo tinv) })
@@ -833,7 +833,7 @@ checkExpr e t0 = do
                                                                       _        -> p))) pats
              reportSDoc "tc.partial" 80 $ text (show adjusted)
              reportSDoc "tc.partial" 50 $ prettyTCM sigma
-             ty <- (elInf (primIsOne <@> primIOne) --> pure a_sigma) -- TODO dependent
+             ty <- elInf $ primPartialP <#> pure l_sigma <@> primIOne <@> pure a_sigma
              let c = Clause { clauseTel = tel
                           , clauseType = Just $ Arg defaultArgInfo ty
                           , clauseBody = foldr (\ nm b -> Bind $ mkAbs nm b) (Body (Lam defaultArgInfo $ NoAbs "_" $ u)) (teleNames tel)
@@ -845,7 +845,7 @@ checkExpr e t0 = do
              return (u,c)
            case ts of
              [(_,c)] -> do
-               t0 <- elInf $ primPartial <#> pure (unArg l) <@> pure (unArg a) <@> pure (unArg phi) -- TODO make dependent
+               t0 <- elInf $ primPartialP <#> pure (unArg l) <@> pure (unArg phi) <@> pure (unArg a)
                q <- inTopContext $ do
                     bname <- getPrimName <$> primPartial
                     q <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName bname)
