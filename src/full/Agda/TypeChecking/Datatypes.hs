@@ -153,6 +153,15 @@ getNumberOfParameters d = do
     Constructor{ conPars = n } -> return $ Just n
     _                          -> return Nothing
 
+-- | Precondition: Name is a data or record type.
+getConstructors :: QName -> TCM [QName]
+getConstructors d = do
+  def <- theDef <$> getConstInfo d
+  case def of
+    Datatype{dataCons = cs} -> return cs
+    Record{recConHead = h}  -> return [conName h]
+    _                       -> __IMPOSSIBLE__
+
 {- UNUSED
 data DatatypeInfo = DataInfo
   { datatypeName   :: QName
