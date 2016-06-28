@@ -3,19 +3,16 @@ EXECUTED_PROGRAM
 ret > ExitSuccess
 out > CompileAsPattern._.merge =
 out >   λ a b c d e →
-out >     let f = seq e d in
 out >     case d of
 out >       Agda.Builtin.List.List.[] → e
-out >       Agda.Builtin.List.List._∷_ g h →
+out >       Agda.Builtin.List.List._∷_ f g →
 out >         case e of
 out >           Agda.Builtin.List.List.[] → d
-out >           Agda.Builtin.List.List._∷_ i j →
+out >           Agda.Builtin.List.List._∷_ h i →
 out >             Common.Bool.if_then_else_
-out >               _ _ (c g i)
-out >               (Agda.Builtin.List.List._∷_ g (CompileAsPattern._.merge a b c h e))
-out >               (Agda.Builtin.List.List._∷_ i (CompileAsPattern._.merge a b c d j))
-out >           _ → f
-out >       _ → f
+out >               _ _ (c f h)
+out >               (Agda.Builtin.List.List._∷_ f (CompileAsPattern._.merge a b c g e))
+out >               (Agda.Builtin.List.List._∷_ h (CompileAsPattern._.merge a b c d i))
 out > CompileAsPattern.mapM! =
 out >   λ a b c →
 out >     case c of

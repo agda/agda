@@ -93,7 +93,7 @@ eraseTerms q = runE . eraseTop q
                    _             -> erase $ subst 0 TErased b
             else tLet e <$> erase b
         TCase x t d bs -> do
-          d  <- erase d
+          d  <- ifM (isComplete t bs) (pure tUnreachable) (erase d)
           bs <- mapM eraseAlt bs
           tCase x t d bs
 
@@ -137,6 +137,14 @@ eraseTerms q = runE . eraseTop q
       TALit l b   -> TALit l   <$> erase b
       TACon c a b -> TACon c a <$> erase b
       TAGuard g b -> TAGuard   <$> erase g <*> erase b
+
+-- | Doesn't have any type information (other than the name of the data type),
+--   so we can't do better than checking if all constructors are present.
+isComplete :: CaseType -> [TAlt] -> E Bool
+isComplete (CTData d) bs = do
+  cs <- lift $ getConstructors d
+  return $ length cs == length [ b | b@TACon{} <- bs ]
+isComplete _ _ = pure False
 
 data TypeInfo = Empty | Erasable | NotErasable
   deriving (Eq, Show)
