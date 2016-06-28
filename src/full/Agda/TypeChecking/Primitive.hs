@@ -424,7 +424,7 @@ primPathAbs' = do
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
-       nPi' "f" (el (cl primInterval) --> el' a bA) $ \ f ->
+       nPi' "f" (elInf (cl primInterval) --> el' a bA) $ \ f ->
        el' a $ cl primPath <#> a <#> bA <@> (f <@> cl primIZero)
                                         <@> (f <@> cl primIOne)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
@@ -440,7 +440,7 @@ primPathApply = do
            hPi' "x" (el' a bA) $ \ x ->
            hPi' "y" (el' a bA) $ \ y ->
            (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
-            --> el (cl primInterval) --> (el' a bA)
+            --> elInf (cl primInterval) --> (el' a bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     pathAbs <- getBuiltinName' builtinPathAbs
     case ts of
@@ -470,17 +470,17 @@ primIdJ :: TCM PrimitiveImpl
 primIdJ = do
   t <- runNamesT [] $
        hPi' "a" (el $ cl primLevel) $ \ a ->
-       hPi' "p" (el $ cl primLevel) $ \ p ->
+       hPi' "c" (el $ cl primLevel) $ \ c ->
        hPi' "A" (sort . tmSort <$> a) $ \ bA ->
        hPi' "x" (el' a bA) $ \ x ->
        nPi' "C" (nPi' "y" (el' a bA) $ \ y ->
-                 (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> p)) $ \ bC ->
-       (el' p $ bC <@> x <@>
+                 (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
+       (el' c $ bC <@> x <@>
             (cl primConId <#> a <#> bA <#> x <#> x <@> cl primIOne
                        <@> (cl primPathAbs <#> a <#> bA <@> lam "i" (\ _ -> x)))) -->
        (hPi' "y" (el' a bA) $ \ y ->
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
-        el' p $ bC <@> y <@> p)
+        el' c $ bC <@> y <@> p)
   unview <- intervalUnview'
   conidn <- getBuiltinName builtinConId
   conid  <- primConId
@@ -603,7 +603,7 @@ primComp :: TCM PrimitiveImpl
 primComp = do
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel) $ \ a ->
-          nPi' "A" (el (cl primInterval) --> (sort . tmSort <$> a)) $ \ bA ->
+          nPi' "A" (elInf (cl primInterval) --> (sort . tmSort <$> a)) $ \ bA ->
           nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> elInf $ cl primPartial <#> a <@> (bA <@> i) <@> phi) -->
           (el' a (bA <@> cl primIZero) --> el' a (bA <@> cl primIOne))

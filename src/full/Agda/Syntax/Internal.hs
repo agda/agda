@@ -742,10 +742,10 @@ sort :: Sort -> Type
 sort s = El (sSuc s) $ Sort s
 
 varSort :: Int -> Sort
-varSort n = tmSort (var n)
+varSort n = Type $ Max [Plus 0 $ NeutralLevel mempty $ var n]
 
 tmSort :: Term -> Sort
-tmSort t = Type $ Max [Plus 0 $ NeutralLevel mempty $ t]
+tmSort t = Type $ Max [Plus 0 $ UnreducedLevel t]
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
