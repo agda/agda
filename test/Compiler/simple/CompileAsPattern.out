@@ -23,7 +23,6 @@ out >       Agda.Builtin.List.List.[] → Common.IO.return () _ _
 out >       Agda.Builtin.List.List._∷_ d e →
 out >         Common.IO._>>=_
 out >           () () _ _ (b d) (λ f → CompileAsPattern.mapM! a b e)
-out >       _ → error "TUnreachable"
 out > CompileAsPattern.xs =
 out >   Agda.Builtin.List.List._∷_
 out >     2

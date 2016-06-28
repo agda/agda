@@ -6,7 +6,6 @@ out >   λ a b c d e f g h i j k l m n o →
 out >     let p =
 out >           case o of
 out >             EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (i j l k m r))
-out >             _ → error "TUnreachable" in
 out >     case n of
 out >       EraseRefl.Dec.yes q →
 out >         case o of

@@ -7,13 +7,11 @@ out >   λ a b c →
 out >     case c of
 out >       Common.Maybe.Maybe.nothing → a
 out >       Common.Maybe.Maybe.just d → b d
-out >       _ → error "TUnreachable"
 out > UnusedArguments.maybe =
 out >   λ a b c d e f g →
 out >     case g of
 out >       Common.Maybe.Maybe.nothing → e
 out >       Common.Maybe.Maybe.just h → f h
-out >       _ → error "TUnreachable"
 out > -- used args: _ _ _ _ e f
 out > UnusedArguments.mapMaybe[stripped] =
 out >   λ a b →
@@ -34,14 +32,12 @@ out >     case c of
 out >       Agda.Builtin.List.List.[] → b
 out >       Agda.Builtin.List.List._∷_ d e →
 out >         a d (UnusedArguments.foldr _ _ a b e)
-out >       _ → error "TUnreachable"
 out > UnusedArguments.foldr =
 out >   λ a b c d e →
 out >     case e of
 out >       Agda.Builtin.List.List.[] → d
 out >       Agda.Builtin.List.List._∷_ f g →
 out >         c f (UnusedArguments.foldr a b c d g)
-out >       _ → error "TUnreachable"
 out > UnusedArguments.main =
 out >   Common.IO.then
 out >     () () _ _
