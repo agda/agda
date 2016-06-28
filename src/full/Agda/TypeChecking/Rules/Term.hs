@@ -66,6 +66,7 @@ import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Patterns.Abstract
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Pretty
@@ -1669,6 +1670,7 @@ checkHeadApplication e t hd args = do
   psingl    <- fmap getPrimName <$> getBuiltin' builtinPSingl
   pOr       <- fmap primFunName <$> getPrimitive' "primPOr"
   pComp       <- fmap primFunName <$> getPrimitive' "primComp"
+  mglue     <- getPrimitiveName' builtin_glue
   case hd of
     A.Con (AmbQ [c]) | Just c == (nameOfSharp <$> kit) -> do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
@@ -1747,6 +1749,18 @@ checkHeadApplication e t hd args = do
                             reportSDoc "tc.term.por" 10 $ text (show alpha)
                             let [x,y] = map (applySubst alpha) [u,v]
                             equalTerm (applySubst alpha t1) (unArg x) (unArg y)
+                       _ -> typeError $ GenericError $ show c ++ " must be fully applied"
+    (A.Def c) | Just c == mglue -> do
+                    defaultResult' $ Just $ \ vs t1 -> do
+                      case vs of
+                       [l,bA,phi,bT,f,pf,t,a] -> do
+                          v <- runNamesT [] $ do
+                                [f,t] <- mapM (open . unArg) [f,t]
+                                lam "o" $ \ o -> f <@> o <@> (t <@> o)
+                          ty <- runNamesT [] $ do
+                                [l,phi,bT] <- mapM (open . unArg) [l,phi,bT]
+                                elInf $ cl primPartialP <#> l <@> phi <@> bT
+                          equalTermOnFace (unArg phi) ty (Lam defaultArgInfo (NoAbs "_" (unArg a))) v
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
