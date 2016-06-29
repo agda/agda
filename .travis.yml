@@ -192,13 +192,8 @@ install:
          *)
            cabal update &&
            cat $HOME/.cabal/config &&
-           (ls -l $HOME/.cabal/bin || true) &&
-           which cabal &&
            cabal install cabal-install &&
-           which cabal &&
-           ls -l $HOME/.cabal/bin &&
            export PATH=$HOME/.cabal/bin:$PATH &&
-           which cabal &&
            cabal --version
            ;;
        esac
