@@ -3,18 +3,12 @@ EXECUTED_PROGRAM
 ret > ExitSuccess
 out > EraseRefl.decEq₂ =
 out >   λ a b c d e f g h i j k l m n o →
-out >     let p =
-out >           case o of
-out >             EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (i j l k m r))
-out >             _ → error "TUnreachable" in
 out >     case n of
-out >       EraseRefl.Dec.yes q →
+out >       EraseRefl.Dec.yes p →
 out >         case o of
-out >           EraseRefl.Dec.yes r → EraseRefl.Dec.yes _
-out >           EraseRefl.Dec.no r → EraseRefl.Dec.no (λ s → r (i j l k m s))
-out >           _ → p
-out >       EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (h j l k m r))
-out >       _ → p
+out >           EraseRefl.Dec.yes q → EraseRefl.Dec.yes _
+out >           EraseRefl.Dec.no q → EraseRefl.Dec.no (λ r → q (i j l k m r))
+out >       EraseRefl.Dec.no p → EraseRefl.Dec.no (λ q → p (h j l k m q))
 out > EraseRefl.main = Common.IO.putStrLn ""
 out >
 out >
