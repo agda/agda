@@ -1720,13 +1720,20 @@ checkHeadApplication e t hd args = do
                     defaultResult' $ Just $ \ vs t1 -> do
                       case vs of
                        [_,_,_,_,phi,p] -> do
-                          phi <- reduce phi
-                          forallFaceMaps (unArg phi) $ \ alpha -> do
-                            iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
-                            let ty = pathUnview iv
-                            equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
-                            cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
-                            equalTerm ty (applySubst alpha (unArg p)) cx   -- G,phi |- p = \ i . x
+                          iv@(PathType s _ l a x y) <- idViewAsPath t1
+                          -- the following duplicates reduction of phi
+                          equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
+                          const_x <- pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
+                          let ty = pathUnview iv
+                          equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G,phi |- p = \ i . x
+
+                          -- phi <- reduce phi
+                          -- forallFaceMaps (unArg phi) $ \ alpha -> do
+                          --   iv@(PathType s _ l a x y) <- idViewAsPath (applySubst alpha t1)
+                          --   let ty = pathUnview iv
+                          --   equalTerm (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
+                          --   cx <- pathAbs iv (NoAbs (stringToArgName "_") (applySubst alpha (unArg x)))
+                          --   equalTerm ty (applySubst alpha (unArg p)) cx   -- G,phi |- p = \ i . x
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
     (A.Def c) | Just c == psingl -> do
        (f, t0) <- inferHead hd
@@ -1739,16 +1746,13 @@ checkHeadApplication e t hd args = do
     (A.Def c) | Just c == pOr -> do
                     defaultResult' $ Just $ \ vs t1 -> do
                       case vs of
-                       [l,a,phi1,phi2,u,v] -> do
+                       [l,phi1,phi2,a,u,v] -> do
                           phi <- intervalUnview (IMin phi1 phi2)
-                          phi <- reduce phi
-                          alphas <- toFaceMaps phi
                           reportSDoc "tc.term.por" 10 $ text (show phi)
-                          reportSDoc "tc.term.por" 10 $ text (show alphas)
-                          forallFaceMaps phi $ \ alpha -> do
-                            reportSDoc "tc.term.por" 10 $ text (show alpha)
-                            let [x,y] = map (applySubst alpha) [u,v]
-                            equalTerm (applySubst alpha t1) (unArg x) (unArg y)
+                          -- phi <- reduce phi
+                          -- alphas <- toFaceMaps phi
+                          -- reportSDoc "tc.term.por" 10 $ text (show alphas)
+                          equalTermOnFace phi t1 (unArg u) (unArg v)
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
     (A.Def c) | Just c == mglue -> do
                     defaultResult' $ Just $ \ vs t1 -> do

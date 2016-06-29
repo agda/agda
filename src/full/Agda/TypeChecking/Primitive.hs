@@ -539,19 +539,21 @@ primPFrom1 = do
               _    -> return $ NoReduction $ [notReduced l, notReduced a, notReduced u, reduced si, reduced sj]
       _         -> __IMPOSSIBLE__
 
+
 primPOr :: TCM PrimitiveImpl
 primPOr = do
   t    <- runNamesT [] $
           hPi' "a" (el $ cl primLevel)    $ \ a  ->
-          hPi' "A" (sort . tmSort <$> a)  $ \ bA ->
           nPi' "i" (elInf $ cl primInterval) $ \ i  ->
           nPi' "j" (elInf $ cl primInterval) $ \ j  ->
-          (elInf $ cl primPartial <#> a <@> bA <@> i) -->
-          (elInf $ cl primPartial <#> a <@> bA <@> j) -->
-          (elInf $ cl primPartial <#> a <@> bA <@> imax i j)
+          hPi' "A" (elInf $ cl primPartial <#> (cl primLevelSuc <@> a)
+                                        <@> (Sort . tmSort <$> a) <@> (imax i j)) $ \ bA ->
+          (elInf $ cl primPartialP <#> a <@> i <@> (lam "i1" $ \ i1 -> bA <@> (cl primIsOne1 <@> i <@> j <@> i1))) -->
+          (elInf $ cl primPartialP <#> a <@> j <@> (lam "j1" $ \ j1 -> bA <@> (cl primIsOne2 <@> i <@> j <@> j1))) -->
+          (elInf $ cl primPartialP <#> a <@> imax i j <@> bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
     case ts of
-     [l,a,i,j,u,v] -> do
+     [l,i,j,a,u,v] -> do
        si <- reduceB' i
        vi <- intervalView $ unArg $ ignoreBlocking si
        case vi of
@@ -561,7 +563,7 @@ primPOr = do
           vj <- intervalView $ unArg $ ignoreBlocking sj
           case vj of
             IOne -> redReturn (unArg v)
-            _ -> return $ NoReduction [notReduced l,notReduced a,reduced si,reduced sj,notReduced u,notReduced v]
+            _ -> return $ NoReduction [notReduced l,reduced si,reduced sj,notReduced a,notReduced u,notReduced v]
 
 
      _ -> __IMPOSSIBLE__
@@ -628,6 +630,7 @@ primComp = do
                  Def q [ Apply _ , Apply bA , Apply x , Apply y ] | Just q == mpath -> do
                    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
                    tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
+
                    let
                      ineg t = (unview . INeg . argN) <$> t
                      imax u t = do u <- u; t <- t; return $ unview (IMax (argN u) (argN t))
@@ -638,11 +641,11 @@ primComp = do
                       [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (inCxt ["i"] . unArg $ a))) [bA, x, y]
                       lam "j" $ \ j ->
                         pure tComp <#> l <@> bA <@> (phi `imax` (ineg j `imax` j))
-                                                <@> (lam "i'" $ \ i -> let or = pure tOr <#> l <#> (bA <@> i) in
-                                                    or <@> phi <@> (ineg j `imax` j)
+                                                <@> (lam "i'" $ \ i -> let or f1 f2 = pure tOr <#> l <@> f1 <@> f2 <#> (lam "_" $ \ _ -> bA <@> i) in
+                                                    or phi (ineg j `imax` j)
                                                        <@> (lam "o" $ \ o -> p <@> i <@> o <@@> (x <@> i, y <@> i, j))
-                                                       <@> (or <@> ineg j <@> j <@> (lam "_" $ const (x <@> i))
-                                                                                <@> (lam "_" $ const (y <@> i))))
+                                                       <@> (or (ineg j) j <@> (lam "_" $ const (x <@> i))
+                                                                               <@> (lam "_" $ const (y <@> i))))
                                                 <@> (p0 <@@> (x <@> iz, y <@> iz, j))
 
 

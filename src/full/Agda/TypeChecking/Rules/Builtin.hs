@@ -30,6 +30,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -109,6 +110,16 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                      --> (elInf $ primPartialP <#> varM 2 <@> varM 1 <@> varM 0)))
   , (builtinIsOne              |-> builtinPostulate (tinterval --> return (sort $ Inf)))
   , (builtinItIsOne            |-> builtinPostulate (elInf $ primIsOne <@> primIOne))
+  , (builtinIsOne1             |-> builtinPostulate (runNamesT [] $
+                                                     nPi' "i" (cl tinterval) $ \ i ->
+                                                     nPi' "j" (cl tinterval) $ \ j ->
+                                                     nPi' "i1" (elInf $ cl primIsOne <@> i) $ \ i1 ->
+                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+  , (builtinIsOne2             |-> builtinPostulate (runNamesT [] $
+                                                     nPi' "i" (cl tinterval) $ \ i ->
+                                                     nPi' "j" (cl tinterval) $ \ j ->
+                                                     nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
+                                                     (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->

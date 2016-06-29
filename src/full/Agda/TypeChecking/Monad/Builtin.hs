@@ -111,7 +111,8 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
-    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl, primIsOne, primItIsOne,
+    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
+    primIsOne, primItIsOne, primIsOne1, primIsOne2,
     primId, primConId,
     primIsEquiv, primGlue, prim_glue, prim_unglue,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
@@ -179,6 +180,8 @@ primIsEquiv      = getBuiltin builtinIsEquiv
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
 prim_unglue      = getPrimitiveTerm builtin_unglue
+primIsOne1       = getBuiltin builtinIsOne1
+primIsOne2       = getBuiltin builtinIsOne2
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -294,7 +297,8 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl, builtinIsOne,  builtinItIsOne,
+  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
+  builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2,
   builtinIsEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
@@ -375,6 +379,8 @@ builtinIsEquiv                       = "ISEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim-glue"
 builtin_unglue                       = "prim-unglue"
+builtinIsOne1                        = "ISONE1"
+builtinIsOne2                        = "ISONE2"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"
