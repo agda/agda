@@ -28,9 +28,6 @@ cache:
 # test suite, the benchmark suite, the compilation with a specific set
 # of dependencies, the testing of other programs like `hTags`, etc.)
 
-# N.B. that we run the tests `cpp`, `haddock` and `doc` only with the
-# highest GHC version available.
-
 # Travis runs the builds on this order.
 
 matrix:
