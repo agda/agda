@@ -140,7 +140,7 @@ instance PrettyTCM Range       where prettyTCM = pretty
 instance PrettyTCM a => PrettyTCM (Closure a) where
   prettyTCM cl = enterClosure cl prettyTCM
 
-instance PrettyTCM a => PrettyTCM [a] where
+instance {-# OVERLAPPABLE #-} PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
@@ -208,7 +208,7 @@ instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
   prettyTCM x = prettyA =<< reify x
 
-instance PrettyTCM ArgName where
+instance {-# OVERLAPPING #-} PrettyTCM ArgName where
   prettyTCM = text . show
 
 -- instance (Reify a e, ToConcrete e c, P.Pretty c, PrettyTCM a) => PrettyTCM (Elim' a) where
