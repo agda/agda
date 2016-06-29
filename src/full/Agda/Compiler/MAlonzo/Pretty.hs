@@ -216,4 +216,3 @@ instance Pretty HS.Name  where pretty = text . HS.prettyPrint
 instance Pretty HS.CName where pretty = text . HS.prettyPrint
 instance Pretty HS.QOp   where pretty = text . HS.prettyPrint
 
-
