@@ -39,10 +39,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.1
-            - happy-1.19.4
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -51,10 +51,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.1
-            - happy-1.19.4
+            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -62,10 +62,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.1
-            - happy-1.19.4
+            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -73,10 +73,10 @@ matrix:
     #   addons:
     #     apt:
     #       packages:
-    #         - alex-3.1.3
+    #         - alex-3.1.7
     #         - cabal-install-1.24
     #         - ghc-8.0.1
-    #         - happy-1.19.4
+    #         - happy-1.19.5
     #       sources:
     #         - hvr-ghc
 
@@ -84,10 +84,10 @@ matrix:
       addons:
         apt:
           packages:
-            - happy-1.19.4
+            - happy-1.19.5
             - cabal-install-1.24
             - ghc-8.0.1
-            - alex-3.1.3
+            - alex-3.1.7
           sources:
             - hvr-ghc
 
@@ -95,10 +95,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.22
             - ghc-7.10.3
-            - happy-1.19.4
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -107,10 +107,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.22
             - ghc-7.10.3
-            - happy-1.19.4
+            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -126,10 +126,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.8.4
-            - happy-1.19.4
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -138,10 +138,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.8.4
-            - happy-1.19.4
+            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -149,10 +149,10 @@ matrix:
       addons:
         apt:
           packages:
-            - alex-3.1.3
+            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.6.3
-            - happy-1.19.4
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
