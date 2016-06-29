@@ -17,6 +17,12 @@ Important changes since 0.12:
 * Added the length-filter property to Data.List.Properties (the filter
   equivalent to the pre-existing length-gfilter)
 
+* Useful lemmas and properties that were previously in private scope,
+  either explicitly or within records, have been made public in several
+  Properties.agda files. These include:
+
+    Data.List.Any.Properties
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12
 ------------------------------------------------------------------------
