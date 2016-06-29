@@ -35,6 +35,7 @@ import qualified Agda.Compiler.JS.Parser as JS
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
@@ -581,11 +582,15 @@ sameDef d1 d2 = do
 whatInduction :: QName -> TCM Induction
 whatInduction c = do
   def <- theDef <$> getConstInfo c
+  mz <- getBuiltinName' builtinIZero
+  mo <- getBuiltinName' builtinIOne
   case def of
     Datatype{ dataInduction = i } -> return i
     Record{ recRecursive = False} -> return Inductive
     Record{ recInduction = i    } -> return $ fromMaybe Inductive i
     Constructor{ conInd = i }     -> return i
+    _ | Just c == mz || Just c == mo
+                                  -> return Inductive
     _                             -> __IMPOSSIBLE__
 
 -- | Does the given constructor come from a single-constructor type?
