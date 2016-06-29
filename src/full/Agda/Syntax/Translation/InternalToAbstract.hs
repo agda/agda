@@ -802,8 +802,9 @@ reifyPatterns = mapM $ stripNameFromExplicit <.> traverse (traverse reifyPat)
     reifyPat p = do
      liftTCM $ reportSLn "reify.pat" 80 $ "reifying pattern " ++ show p
      case p of
-      I.VarP (_, "()") -> return $ A.AbsurdP patNoRange    -- HACK
-      I.VarP (i, _   ) -> liftTCM $ A.VarP <$> nameOfBV i
+      I.VarP x | isAbsurdPatternName (dbPatVarName x)
+               -> return $ A.AbsurdP patNoRange    -- HACK
+      I.VarP x -> liftTCM $ A.VarP <$> nameOfBV (dbPatVarIndex x)
       I.DotP v -> do
         t <- liftTCM $ reify v
         let vars = Set.map show (dotVars t)

@@ -431,8 +431,8 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        VarP (i, _x)  -> do
-          ps <- intro1 t $ \ t -> strip (self `apply1` var i) t ps qs
+        VarP x  -> do
+          ps <- intro1 t $ \ t -> strip (self `apply1` var (dbPatVarIndex x)) t ps qs
           return $ p : ps
 
         DotP v  -> case namedArg p of
@@ -531,7 +531,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           _ -> mismatch
       where
         mismatch = typeError $
-          WithClausePatternMismatch (namedArg p0) (snd <$> namedArg q)
+          WithClausePatternMismatch (namedArg p0) (dbPatVarName <$> namedArg q)
         -- | Make an ImplicitP, keeping arg. info.
         makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
@@ -707,7 +707,7 @@ patsToElims = map $ toElim . fmap namedThing
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
       ProjP d     -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP (i, x) -> DTerm  $ var i
+      VarP x      -> DTerm  $ var $ dbPatVarIndex x
       DotP t      -> DDot   $ t
       ConP c _ ps -> DCon c $ toTerms ps
       LitP l      -> DTerm  $ Lit l

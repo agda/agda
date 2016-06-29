@@ -174,7 +174,7 @@ cover f cs sc@(SClause tel ps _ target) = do
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
   case match cs ups of
     Yes (i,mps)
-     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialMPattern mps)
+     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
@@ -266,7 +266,7 @@ cover f cs sc@(SClause tel ps _ target) = do
                                     -- split by now already
        | otherwise = []
     gatherEtaSplits n sc (p:ps) = case unArg p of
-      VarP  (i,_)
+      VarP x
        | n == 0    -> case lookupS (scSubst sc) i of -- this is the main split
            VarP  _      -> __IMPOSSIBLE__
            DotP  _      -> __IMPOSSIBLE__
@@ -276,6 +276,7 @@ cover f cs sc@(SClause tel ps _ target) = do
            ProjP _      -> __IMPOSSIBLE__
        | otherwise ->
            (p $> lookupS (scSubst sc) i) : gatherEtaSplits (n-1) sc ps
+        where i = dbPatVarIndex x
       DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (map (fmap namedThing) qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
@@ -663,7 +664,11 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
 
   case ns of
     []  -> do
-      let ps' = (fmap . fmap . fmap . fmap) (\(y,name) -> if (x==y) then (y,"()") else (y,name)) ps
+      let ps' = (fmap . fmap . fmap . fmap)
+                  (\(DBPatVar name y) -> if (x==y)
+                                         then DBPatVar absurdPatternName y
+                                         else DBPatVar name y)
+                  ps
       return $ Left $ SClause
                { scTel  = telFromList $ telToList delta1 ++
                                         [fmap ((,) "()") t] ++ -- add name "()"

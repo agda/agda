@@ -231,7 +231,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
             {-else-} (DotP (dtermToTerm v) <$ skip)
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->
-          ifM (bindVar i) (VarP . nameToPatVarName <$> lift (nameOfBV i))
+          ifM (bindVar i) (varP . nameToPatVarName <$> lift (nameOfBV i))
                           (pure $ DotP (Var i []))
         DTerm (Con c vs) -> ConP c noConPatternInfo . map (fmap unnamed) <$>
                               mapM (traverse (dtermToPat . DTerm)) vs

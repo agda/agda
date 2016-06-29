@@ -560,7 +560,7 @@ openClause perm ps body = do
     xs   = permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
     build :: DeBruijnPattern -> TerM DeBruijnPat
-    build (VarP (i, _))   = return $ VarDBP i
+    build (VarP x)        = return $ VarDBP $ dbPatVarIndex x
     build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
     build (DotP t)        = termToDBP t
     build (LitP l)        = return $ LitDBP l

@@ -129,7 +129,7 @@ bindBuiltinFlat e =
           { clauseRange     = noRange
           , clauseTel       = tel
           , namedClausePats = [ argN $ Named Nothing $
-              ConP sharpCon cpi [ argN $ Named Nothing $ VarP (0,"x") ] ]
+              ConP sharpCon cpi [ argN $ Named Nothing $ debruijnNamedVar "x" 0 ] ]
           , clauseBody      = Bind $ Abs "x" $ Body $ var 0
           , clauseType      = Just $ defaultArg $ El (varSort 2) $ var 1
           , clauseCatchall  = False

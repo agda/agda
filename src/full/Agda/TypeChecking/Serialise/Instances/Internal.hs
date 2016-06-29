@@ -389,6 +389,13 @@ instance EmbPrj I.ConPatternInfo where
     valu [a, b] = valu2 ConPatternInfo a b
     valu _      = malformed
 
+instance EmbPrj I.DBPatVar where
+  icod_ (DBPatVar a b) = icode2' a b
+
+  value = vcase valu where
+    valu [a, b] = valu2 DBPatVar a b
+    valu _      = malformed
+
 instance EmbPrj a => EmbPrj (I.Pattern' a) where
   icod_ (VarP a    ) = icode1' a
   icod_ (ConP a b c) = icode3' a b c

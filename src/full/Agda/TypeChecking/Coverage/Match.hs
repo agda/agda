@@ -7,7 +7,7 @@ import Control.Applicative
 import Control.Monad.State
 
 import qualified Data.List as List
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, isJust)
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat, Any(..))
 import Data.Traversable (traverse)
 
@@ -16,6 +16,9 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
+
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute.Pattern ()
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -39,11 +42,9 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [Arg DeBruijnPattern] -> Match (Nat,[MPat])
+match :: [Clause] -> [Arg DeBruijnPattern] -> Match (Nat,[DeBruijnPattern])
 match cs ps = foldr choice No $ zipWith matchIt [0..] cs
   where
-    mps = buildMPatterns ps
-
     -- If liberal matching on literals fails or blocks we go with that.
     -- If it succeeds we use the result from conservative literal matching.
     -- This is to make sure that we split enough when literals are involved.
@@ -52,51 +53,27 @@ match cs ps = foldr choice No $ zipWith matchIt [0..] cs
     --    f (c :: s) = ...
     -- would never split the tail of the list if we only used conservative
     -- literal matching.
-    matchIt i c = matchClause yesMatchLit mps i c +++
-                  matchClause noMatchLit  mps i c
+    matchIt i c = matchClause yesMatchLit ps i c +++
+                  matchClause noMatchLit  ps i c
 
     Yes _     +++ m = m
     No        +++ _ = No
     m@Block{} +++ _ = m
 
--- | We use a special representation of the patterns we're trying to match
---   against a clause. In particular we want to keep track of which variables
---   are blocking a match.
-data MPat
-  = VarMP Nat    -- ^ De Bruijn index (usually, rightmost variable in patterns is 0).
-  | ConMP ConHead (Maybe ConPOrigin) [Arg MPat]
-  | LitMP Literal
-  | DotMP MPat   -- ^ For keeping track of the original dot positions.
-  | WildMP       -- ^ For dot patterns that cannot be turned into patterns.
-  | ProjMP QName -- ^ Projection copattern.
-  deriving (Show)
+buildPattern :: Term -> Maybe DeBruijnPattern
+buildPattern (Con c args)   = Just $ ConP c noConPatternInfo $ map (fmap $ unnamed . DotP) args
+buildPattern (Var i [])     = Just $ debruijnVar i
+buildPattern (Shared p)     = buildPattern (derefPtr p)
+buildPattern _              = Nothing
 
-instance IsProjP MPat where
-  isProjP (ProjMP q) = Just (AmbQ [q])
-  isProjP _ = Nothing
-
-buildMPatterns :: [Arg DeBruijnPattern] -> [Arg MPat]
-buildMPatterns ps = map (fmap build) ps
-  where
-    build (VarP (i,_))    = VarMP i
-    build (ConP con i ps) = ConMP con (conPRecord i) $ buildMPatterns $ map (fmap namedThing) $ ps
-    build (DotP t)        = DotMP $ buildT t
-    build (LitP l)        = LitMP l
-    build (ProjP dest)    = ProjMP dest
-
-    buildT (Con c args)   = ConMP c Nothing $ map (fmap buildT) args
-    buildT (Var i [])     = VarMP i
-    buildT (Shared p)     = buildT (derefPtr p)
-    buildT _              = WildMP
-
-isTrivialMPattern :: MPat -> Bool
-isTrivialMPattern VarMP{} = True
-isTrivialMPattern (ConMP c (Just _) ps) = all isTrivialMPattern $ map unArg ps
-isTrivialMPattern (ConMP c Nothing ps) = False
-isTrivialMPattern LitMP{} = False
-isTrivialMPattern DotMP{} = True
-isTrivialMPattern WildMP{} = True
-isTrivialMPattern ProjMP{} = False -- or True?
+isTrivialPattern :: Pattern' a -> Bool
+isTrivialPattern VarP{}  = True
+isTrivialPattern (ConP c i ps)
+ | isJust (conPRecord i) = all isTrivialPattern $ map (namedThing . unArg) ps
+ | otherwise             = False
+isTrivialPattern LitP{}  = False
+isTrivialPattern DotP{}  = True
+isTrivialPattern ProjP{} = False -- or True?
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variables are blocking the match.
@@ -156,26 +133,29 @@ choice (Block r xs) (Yes _)      = Block r $ overlapping xs
 choice m@Block{}    No           = m
 choice No           m            = m
 
-type MatchLit = Literal -> MPat -> Match [MPat]
+type MatchLit = Literal -> DeBruijnPattern -> Match [DeBruijnPattern]
 
 noMatchLit :: MatchLit
 noMatchLit _ _ = No
 
 yesMatchLit :: MatchLit
-yesMatchLit _ q@VarMP{}  = Yes [q]
-yesMatchLit _ q@WildMP{} = Yes [q]
-yesMatchLit _ _        = No
+yesMatchLit _ q@VarP{} = Yes [q]
+yesMatchLit l (DotP t) = case buildPattern t of
+  Just q  -> yesMatchLit l q
+  Nothing -> No
+yesMatchLit _ _          = No
 
 -- | Check if a clause could match given generously chosen literals
 matchLits :: Clause -> [Arg DeBruijnPattern] -> Bool
 matchLits c ps =
-  case matchClause yesMatchLit (buildMPatterns ps) 0 c of
+  case matchClause yesMatchLit ps 0 c of
     Yes _ -> True
     _     -> False
 
 -- | @matchClause mlit qs i c@ checks whether clause @c@ number @i@
 --   covers a split clause with patterns @qs@.
-matchClause :: MatchLit -> [Arg MPat] -> Nat -> Clause -> Match (Nat,[MPat])
+matchClause :: MatchLit -> [Arg DeBruijnPattern] -> Nat -> Clause
+            -> Match (Nat,[DeBruijnPattern])
 matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 
 -- | @matchPats mlit ps qs@ checks whether a function clause with patterns
@@ -192,7 +172,8 @@ matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 --   in the considered clause.  These additional patterns
 --   are simply dropped by @zipWith@.  This will result
 --   in @mconcat []@ which is @Yes []@.
-matchPats :: MatchLit -> [Arg (Pattern' a)] -> [Arg MPat] -> Match [MPat]
+matchPats :: MatchLit -> [Arg (Pattern' a)] -> [Arg DeBruijnPattern]
+          -> Match [DeBruijnPattern]
 matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
     zipWith (matchPat mlit) (map unArg ps) (map unArg qs) ++
     [ projPatternsLeftInMatchedClause ]
@@ -244,32 +225,32 @@ instance Monoid a => Monoid (Match a) where
 
 -- | @matchPat mlit p q@ checks whether a function clause pattern @p@
 --   covers a split clause pattern @q@.  There are three results:
---   @Yes ()@ means it covers, because @p@ is a variable
---   pattern or @q@ is a wildcard.
+--   @Yes rs@ means it covers, because @p@ is a variable pattern. @rs@ collects
+--   the instantiations of the variables in @p@ s.t. @p[rs] = q@.
 --   @No@ means it does not cover.
 --   @Block [x]@ means @p@ is a proper instance of @q@ and could become
 --   a cover if @q@ was split on variable @x@.
-matchPat :: MatchLit -> Pattern' a -> MPat -> Match [MPat]
+matchPat :: MatchLit -> Pattern' a -> DeBruijnPattern -> Match [DeBruijnPattern]
 matchPat _    (VarP _) q = Yes [q]
 matchPat _    (DotP _) q = Yes []
 -- Jesper, 2014-11-04: putting 'Yes [q]' here triggers issue 1333.
--- Not checking for trivial MPats should be safe here, as dot patterns are
+-- Not checking for trivial patterns should be safe here, as dot patterns are
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
 -- on them doesn't change the reduction behaviour.
-matchPat mlit p (DotMP q) = matchPat mlit p q
 matchPat mlit (LitP l) q = mlit l q
-matchPat _    (ProjP d) (ProjMP d') = if d == d' then Yes [] else No
+matchPat _    (ProjP d) (ProjP d') = if d == d' then Yes [] else No
 matchPat _    (ProjP d) _ = __IMPOSSIBLE__
 -- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
-matchPat mlit (ConP c _ ps) q = case q of
-  VarMP x -> Block (Any False) [BlockingVar x (Just [c])]
-  WildMP{} -> No -- Andreas, 2013-05-15 this was "Yes()" triggering issue 849
-  ConMP c' i qs
-    | c == c'   -> matchPats mlit (map (fmap namedThing) ps) qs
+matchPat mlit p@(ConP c _ ps) q = case q of
+  VarP x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
+  ConP c' i qs
+    | c == c'   -> matchPats mlit (map (fmap namedThing) ps) (map (fmap namedThing) qs)
     | otherwise -> No
-  LitMP _  -> __IMPOSSIBLE__
-  ProjMP _ -> __IMPOSSIBLE__
-  DotMP _  -> __IMPOSSIBLE__
+  DotP t -> case buildPattern t of
+    Just q  -> matchPat mlit p q
+    Nothing -> No
+  LitP _  -> __IMPOSSIBLE__
+  ProjP _ -> __IMPOSSIBLE__
 
 {- UNUSED
 class RecordPattern a where

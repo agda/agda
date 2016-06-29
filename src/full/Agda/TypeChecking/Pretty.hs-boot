@@ -27,3 +27,4 @@ instance PrettyTCM Elim
 instance PrettyTCM Type
 instance PrettyTCM Sort
 instance PrettyTCM DisplayTerm
+instance PrettyTCM DBPatVar

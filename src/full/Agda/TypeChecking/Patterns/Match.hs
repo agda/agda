@@ -114,7 +114,10 @@ foldMatch match = loop where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [NamedArg DeBruijnPattern] -> [Elim] -> ReduceM (Match Term, [Elim])
+matchCopatterns :: (Show a, PrettyTCM a)
+                => [NamedArg (Pattern' a)]
+                -> [Elim]
+                -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchCopatterns"
@@ -126,7 +129,10 @@ matchCopatterns ps vs = do
      foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: DeBruijnPattern -> Elim -> ReduceM (Match Term, Elim)
+matchCopattern :: (Show a)
+               => Pattern' a
+               -> Elim
+               -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
@@ -134,7 +140,10 @@ matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
-matchPatterns :: [NamedArg DeBruijnPattern] -> [Arg Term] -> ReduceM (Match Term, [Arg Term])
+matchPatterns :: (Show a)
+              => [NamedArg (Pattern' a)]
+              -> [Arg Term]
+              -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchPatterns"
@@ -147,7 +156,10 @@ matchPatterns ps vs = do
      foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
-matchPattern :: DeBruijnPattern -> Arg Term -> ReduceM (Match Term, Arg Term)
+matchPattern :: (Show a)
+             => (Pattern' a)
+             -> Arg Term
+             -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
   (VarP _ , arg          ) -> return (Yes NoSimplification [arg], arg)

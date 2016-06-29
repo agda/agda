@@ -114,7 +114,7 @@ compile shared cs = case nextSplit cs of
     Nothing : _ -> Fail
     []          -> __IMPOSSIBLE__
   where
-    name (VarP x) = snd x
+    name (VarP x) = dbPatVarName x
     name (DotP _) = underscore
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
@@ -247,7 +247,7 @@ expandCatchAlls single n cs =
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
-            conPArgs = map (fmap ($> VarP (0, "_"))) qs'
+            conPArgs = map (fmap ($> debruijnNamedVar "_" 0)) qs'
             conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
         LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__

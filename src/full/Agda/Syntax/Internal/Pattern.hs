@@ -90,19 +90,19 @@ instance LabelPatVars a b i => LabelPatVars [a] [b] i where
   labelPatVars = traverse labelPatVars
   unlabelPatVars = fmap unlabelPatVars
 
-instance LabelPatVars (Pattern' x) (Pattern' (i,x)) i where
+instance LabelPatVars Pattern DeBruijnPattern Int where
   labelPatVars p =
     case p of
-      VarP x       -> VarP . (,x) <$> next
+      VarP x       -> do i <- next
+                         return $ VarP (DBPatVar x i)
       DotP t       -> DotP t <$ next
       ConP c mt ps -> ConP c mt <$> labelPatVars ps
       LitP l       -> return $ LitP l
       ProjP q      -> return $ ProjP q
     where next = do (x:xs) <- get; put xs; return x
-  unlabelPatVars = fmap snd
+  unlabelPatVars = fmap dbPatVarName
 
 -- | Augment pattern variables with their de Bruijn index.
-{-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg (Pattern' x)] -> [NamedArg (Pattern' (Int, x))] #-}
 {-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg Pattern] -> [NamedArg DeBruijnPattern] #-}
 --
 --  Example:
@@ -138,7 +138,7 @@ dbPatPerm ps = Perm (size ixs) <$> picks
     picks = forM (downFrom n) $ \ i -> findIndex (Just i ==) ixs
 
     getIndices :: DeBruijnPattern -> [Maybe Int]
-    getIndices (VarP (i,_))  = [Just i]
+    getIndices (VarP x)      = [Just $ dbPatVarIndex x]
     getIndices (ConP c _ ps) = concatMap (getIndices . namedThing . unArg) ps
     getIndices (DotP _)      = [Nothing]
     getIndices (LitP _)      = []
@@ -154,7 +154,7 @@ clausePerm :: Clause -> Maybe Permutation
 clausePerm = dbPatPerm . namedClausePats
 
 patternToElim :: Arg DeBruijnPattern -> Elim
-patternToElim (Arg ai (VarP (i, _))) = Apply $ Arg ai $ var i
+patternToElim (Arg ai (VarP x)) = Apply $ Arg ai $ var $ dbPatVarIndex x
 patternToElim (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
       map (argFromElim . patternToElim . fmap namedThing) ps
 patternToElim (Arg ai (DotP t)     ) = Apply $ Arg ai t
