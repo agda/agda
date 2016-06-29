@@ -150,7 +150,7 @@ updateInPatterns as ps qs = do
            -> TCM (IntMap (NamedArg A.Pattern), [DotPatternInst])
     update a p q = case unArg q of
       -- Case: the unifier did not instantiate the variable
-      VarP (i,_) -> return (IntMap.singleton i p, [])
+      VarP x     -> return (IntMap.singleton (dbPatVarIndex x) p, [])
       -- Case: the unifier did instantiate the variable
       DotP u     -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])

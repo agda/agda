@@ -464,15 +464,23 @@ data Pattern' x
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
 
--- | Type used when numbering pattern variables.
-type DeBruijnPattern = Pattern' (Int, PatVarName)
+varP :: ArgName -> Pattern
+varP = VarP
 
-namedVarP :: PatVarName -> Named (Ranged PatVarName) Pattern
-namedVarP x = Named named $ VarP x
+-- | Type used when numbering pattern variables.
+data DBPatVar = DBPatVar
+  { dbPatVarName  :: PatVarName
+  , dbPatVarIndex :: Int
+  } deriving (Typeable, Show)
+
+type DeBruijnPattern = Pattern' DBPatVar
+
+namedVarP :: PatVarName -> Named_ Pattern
+namedVarP x = Named named $ varP x
   where named = if isUnderscore x then Nothing else Just $ unranged x
 
-namedDBVarP :: Int -> PatVarName -> Named (Ranged PatVarName) DeBruijnPattern
-namedDBVarP m = (fmap . fmap) (m,) . namedVarP
+namedDBVarP :: Int -> PatVarName -> Named_ DeBruijnPattern
+namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).
@@ -1086,6 +1094,9 @@ instance KillRange Substitution where
 instance KillRange ConPatternInfo where
   killRange (ConPatternInfo mr mt) = killRange1 (ConPatternInfo mr) mt
 
+instance KillRange DBPatVar where
+  killRange (DBPatVar x i) = killRange2 DBPatVar x i
+
 instance KillRange a => KillRange (Pattern' a) where
   killRange p =
     case p of
@@ -1216,6 +1227,9 @@ instance Pretty Type where
 instance Pretty Elim where
   prettyPrec p (Apply v) = prettyPrec p v
   prettyPrec _ (Proj x)  = text ("." ++ show x)
+
+instance Pretty DBPatVar where
+  prettyPrec _ x = text $ show (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP x)      = prettyPrec n x

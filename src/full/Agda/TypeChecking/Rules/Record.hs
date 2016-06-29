@@ -382,7 +382,7 @@ checkRecordProjections m r con tel ftel fs = do
             (_ptel,[rt]) = splitAt (size tel - 1) telList
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
-                     [ Arg info $ unnamed $ VarP "x" | Dom info _ <- telToList ftel ]
+                     [ Arg info $ unnamed $ varP "x" | Dom info _ <- telToList ftel ]
             nobind 0 = id
             nobind n = Bind . Abs "_" . nobind (n - 1)
             body   = nobind (size ftel1)

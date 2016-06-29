@@ -78,7 +78,7 @@ instance IsProjP MPat where
 buildMPatterns :: [Arg DeBruijnPattern] -> [Arg MPat]
 buildMPatterns ps = map (fmap build) ps
   where
-    build (VarP (i,_))    = VarMP i
+    build (VarP x)        = VarMP $ dbPatVarIndex x
     build (ConP con i ps) = ConMP con (conPRecord i) $ buildMPatterns $ map (fmap namedThing) $ ps
     build (DotP t)        = DotMP $ buildT t
     build (LitP l)        = LitMP l

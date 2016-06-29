@@ -582,7 +582,7 @@ nextVar = RecPatM $ do
   n <- lift get
   lift $ put $ succ n
   noVars <- lift ask
-  return (VarP "r", var $ noVars - n - 1)
+  return (varP "r", var $ noVars - n - 1)
 
 ------------------------------------------------------------------------
 -- Types used to record changes to a clause

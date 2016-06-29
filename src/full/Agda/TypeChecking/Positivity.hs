@@ -603,7 +603,7 @@ etaExpandClause :: Nat -> Clause -> Clause
 etaExpandClause n c@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
   | otherwise = c
-      { namedClausePats = raise m ps ++ map (defaultArg . unnamed . VarP . (,underscore)) (downFrom m)
+      { namedClausePats = raise m ps ++ map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
       , clauseBody      = liftBody m b
       , clauseTel       = telFromList $
           telToList tel ++ (replicate m $ (underscore,) <$> dummyDom)

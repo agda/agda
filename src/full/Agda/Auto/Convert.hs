@@ -664,7 +664,7 @@ frommyClause (ids, pats, mrhs) = do
      cnvps n (_ : _) = __IMPOSSIBLE__
      cnvp (HI hid p) = do
       p' <- case p of
-       CSPatVar v -> return (I.VarP $ let HI _ (Id n, _) = ids !! v in n)
+       CSPatVar v -> return (I.varP $ let HI _ (Id n, _) = ids !! v in n)
        CSPatConApp c ps -> do
         cdef <- lift $ readIORef c
         let (Just ndrop, name) = cdorigin cdef
