@@ -174,7 +174,7 @@ cover f cs sc@(SClause tel ps _ target) = do
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
   case match cs ups of
     Yes (i,mps)
-     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialMPattern mps)
+     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
