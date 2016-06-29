@@ -579,7 +579,7 @@ primPartial' = do
           (El s (Pi d b)) <- runNamesT [] $ do
                              [l,a,phi] <- mapM (open . unArg) [l,a,phi]
                              (elInf $ pure isOne <@> phi) --> el' l a
-          redReturn $ Pi (d { domFinite = True }) b
+          redReturn $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
       _ -> __IMPOSSIBLE__
 
 primPartialP' :: TCM PrimitiveImpl
@@ -590,7 +590,7 @@ primPartialP' = do
         nPi' "A" (elInf $ cl primPartial <#> (cl primLevelSuc <@> a) <@> (Sort . tmSort <$> a) <@> phi) $ \ bA ->
         return (sort $ Inf))
   let toFinitePi :: Type -> Term
-      toFinitePi (El _ (Pi d b)) = Pi (d { domFinite = True }) b
+      toFinitePi (El _ (Pi d b)) = Pi (setRelevance Irrelevant $ d { domFinite = True }) b
       toFinitePi _               = __IMPOSSIBLE__
   v <- runNamesT [] $
         lam "a" $ \ l ->
