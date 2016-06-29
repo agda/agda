@@ -28,9 +28,6 @@ cache:
 # test suite, the benchmark suite, the compilation with a specific set
 # of dependencies, the testing of other programs like `hTags`, etc.)
 
-# N.B. that we run the tests `cpp`, `haddock` and `doc` only with the
-# highest GHC version available.
-
 # Travis runs the builds on this order.
 
 matrix:
@@ -47,18 +44,7 @@ matrix:
           sources:
             - hvr-ghc
 
-    - env: TEST=cpp GHC_VER=8.0.1 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - alex-3.1.7
-            - cabal-install-1.24
-            - ghc-8.0.1
-            - happy-1.19.5
-          sources:
-            - hvr-ghc
-
-    - env: TEST=debug GHC_VER=8.0.1 CABAL_VER=1.24
+    - env: TEST=cpp-and-debug GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
         apt:
           packages:
@@ -220,7 +206,7 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "debug" || $TEST = "haddock" || $TEST = "uhc" ]]; then
+  - if [[ $TEST = "main" || $TEST = "cpp-and-debug" || $TEST = "haddock" || $TEST = "uhc" ]]; then
        if [[ $TEST = "uhc" ]]; then
           cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
        else
@@ -412,11 +398,11 @@ script:
     fi
 
 ##############################################################################
-# Testing compilation with cpp instead of cpphs [Issue 1647]
+# Testing compilation with cpp instead of cpphs [Issue #1647]
 
 # N.B. that this test is not include in the Makefile tests.
 
-  - if [[ $TEST = "cpp" ]]; then
+  - if [[ $TEST = "cpp-and-debug" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
        cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
@@ -426,7 +412,7 @@ script:
 
 # N.B. that this test is not include in the Makefile tests.
 
-  - if [[ $TEST = "debug" ]]; then
+  - if [[ $TEST = "cpp-and-debug" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f debug &&
        cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
