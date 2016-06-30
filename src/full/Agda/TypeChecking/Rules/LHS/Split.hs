@@ -197,6 +197,9 @@ splitProblem mf (Problem ps qs tel pr) = do
         , nest 2 $ text "dom =" <+> prettyTCM dom
         ]
 
+      -- Andreas, 2016-06-30, issue #2075: need test here!
+      unless (getHiding p == getHiding ai) $ typeError WrongHidingInLHS
+
       -- Possible reinvokations:
       let -- 1. Redo this argument (after meta instantiation).
           tryAgain = splitP ps0 tel0

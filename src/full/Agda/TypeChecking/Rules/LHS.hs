@@ -448,7 +448,9 @@ bindLHSVars []        tel@ExtendTel{}  _   = do
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
 bindLHSVars (p : ps) (ExtendTel a tel) ret = do
+  -- see test/Fail/WronHidingInLHS:
   unless (getHiding p == getHiding a) $ typeError WrongHidingInLHS
+
   case namedArg p of
     A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
