@@ -619,7 +619,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
       , "  vars = " ++ show vars
       ]
     let allps       = ps ++ map defaultNamedArg wps
-        sps         = blankDots $ foldl (.) (strip Set.empty) (map rearrangeBinding $ Set.toList vars) $ allps
+        sps         = blankDots $ strip allps
         (ps', wps') = splitAt (length sps - length wps) sps
     reportSLn "reify.implicit" 30 $ unlines
       [ "  ps'  = " ++ show ps'
@@ -650,14 +650,7 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           blank e | Set.null (Set.difference (dotVars e) bound) = e
                   | otherwise = A.Underscore emptyMetaInfo
 
-      -- Pick the "best" place to bind the variable. Best in this case
-      -- is the left-most explicit binding site. But, of course we can't
-      -- do this since binding site might be forced by a parent clause.
-      -- Why? Because the binding site we pick might not exist in the
-      -- generated with function if it corresponds to a dot pattern.
-      rearrangeBinding x ps = ps
-
-      strip dvs ps = stripArgs True ps
+      strip ps = stripArgs True ps
         where
           stripArgs _ [] = []
           stripArgs fixedPos (a : as) =
@@ -672,7 +665,6 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
 
           canStrip a as = and
             [ varOrDot p
-            , noInterestingBindings p
             , all (flip canStrip []) $ takeWhile isUnnamedHidden as
             ]
             where p = namedArg a
@@ -693,9 +685,6 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
             A.AsP i x p   -> A.AsP i x $ stripPat p
             A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
             A.RecP i fs   -> A.RecP i $ map (fmap stripPat) fs  -- TODO Andreas: is this right?
-
-          noInterestingBindings p =
-            Set.null $ dvs `Set.intersection` patVars p
 
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
