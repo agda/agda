@@ -853,7 +853,10 @@ checkExpr e t0 = do
 
                     let ty = (abstract gamma_tel t0)
                     reportSDoc "tc.partial" 60 $ prettyTCM ty
-                    addConstant q (defaultDefn defaultArgInfo q ty (emptyFunction { funClauses = [c] }))
+                    addConstant q (defaultDefn defaultArgInfo q ty (emptyFunction { funClauses = [c]
+                                                                                  -- TODO Andrea: figure out the right numbers.
+                                                                                  , funExtLam = Just (ExtLamInfo 0 0)
+                                                                                  }))
                     return q
                args <- getContextArgs
                let t = (Def q [] `apply` args)
