@@ -127,8 +127,8 @@ quotingKit = do
       quoteRelevance UnusedArg  = pure relevant
 
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h r) = arginfo !@ quoteHiding h
-                                           @@ quoteRelevance r
+      quoteArgInfo (ArgInfo h r _) = arginfo !@ quoteHiding h
+                                             @@ quoteRelevance r
 
       quoteLit :: Literal -> ReduceM Term
       quoteLit l@LitNat{}    = litNat    !@! Lit l

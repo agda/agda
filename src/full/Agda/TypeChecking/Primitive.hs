@@ -158,7 +158,7 @@ instance ToTerm ArgInfo where
     ins  <- primInstance
     rel  <- primRelevant
     irr  <- primIrrelevant
-    return $ \ (ArgInfo h r) -> info `applys`
+    return $ \ (ArgInfo h r _) -> info `applys`
       [ case h of
           NotHidden -> vis
           Hidden    -> hid
