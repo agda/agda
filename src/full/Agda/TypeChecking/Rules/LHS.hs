@@ -897,7 +897,8 @@ checkLHS f st@(LHSState problem sigma dpi) = do
           let cpi = ConPatternInfo (isRec $> porigin) (Just storedPatternType)
 
           -- compute final context and permutation
-          let crho2   = ConP c cpi $ applySubst rho2 $ teleNamedArgs gamma
+          let crho2   = ConP c cpi $ applySubst rho2 $
+                          teleNamedArgs gamma `useOriginFrom` qs'
               rho3    = consS crho2 rho1
               delta2' = applyPatSubst rho3 delta2
               delta'  = delta1' `abstract` delta2'
