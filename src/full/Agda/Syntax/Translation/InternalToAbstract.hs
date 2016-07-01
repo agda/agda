@@ -691,6 +691,8 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           varOrDot A.VarP{}      = True
           varOrDot A.WildP{}     = True
           varOrDot A.DotP{}      = True
+          varOrDot (A.ConP cpi _ ps) | patOrigin cpi == ConPImplicit
+                                 = all varOrDot $ map namedArg ps
           varOrDot _             = False
 
 -- | @dotVars ps@ gives all the variables inside of dot patterns of @ps@
