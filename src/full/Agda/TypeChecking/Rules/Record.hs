@@ -58,7 +58,7 @@ checkRecDef
   :: Info.DefInfo              -- ^ Position and other info.
   -> QName                     -- ^ Record type identifier.
   -> Maybe (Ranged Induction)  -- ^ Optional: (co)inductive declaration.
-  -> Maybe Bool
+  -> Maybe Bool                -- ^ Optional: user specified eta/no-eta
   -> Maybe QName               -- ^ Optional: constructor name.
   -> [A.LamBinding]            -- ^ Record parameters.
   -> A.Expr                    -- ^ Approximate type of constructor (@fields@ -> Set).
