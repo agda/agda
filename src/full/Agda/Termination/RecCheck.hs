@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {- Checking for recursion:
 
    - We detect truly (co)recursive definitions by computing the
@@ -27,6 +29,9 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Defs
 
 import Agda.TypeChecking.Monad
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 recursive :: [QName] -> TCM Bool
 recursive names = do
