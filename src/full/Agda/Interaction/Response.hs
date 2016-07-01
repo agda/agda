@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses

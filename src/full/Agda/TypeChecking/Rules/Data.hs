@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
-
 module Agda.TypeChecking.Rules.Data where
 
 import Control.Applicative
@@ -209,7 +205,7 @@ checkConstructor
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
-checkConstructor d tel nofIxs s con@(A.Axiom _ i ai c e) =
+checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
     traceCall (CheckConstructor d tel s con) $ do
 {- WRONG
       -- Andreas, 2011-04-26: the following happens to the right of ':'

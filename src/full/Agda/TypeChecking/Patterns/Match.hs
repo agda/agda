@@ -32,7 +32,7 @@ import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.
-data Match a = Yes Simplification [a]
+data Match a = Yes Simplification [Arg a]
              | No
              | DontKnow (Blocked ())
   deriving Functor
@@ -114,7 +114,10 @@ foldMatch match = loop where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: [NamedArg Pattern] -> [Elim] -> ReduceM (Match Term, [Elim])
+matchCopatterns :: (Show a, PrettyTCM a)
+                => [NamedArg (Pattern' a)]
+                -> [Elim]
+                -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchCopatterns"
@@ -126,16 +129,22 @@ matchCopatterns ps vs = do
      foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: Pattern -> Elim -> ReduceM (Match Term, Elim)
-matchCopattern _ (IApply{}) = __IMPOSSIBLE__ -- TODO Andrea: path copatterns
+matchCopattern :: (Show a)
+               => Pattern' a
+               -> Elim
+               -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP p) elim@(Proj q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
 matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
+matchCopattern _       IApply{}  = __IMPOSSIBLE__ -- TODO Andrea: path copatterns
 
-matchPatterns :: [NamedArg Pattern] -> [Arg Term] -> ReduceM (Match Term, [Arg Term])
+matchPatterns :: (Show a)
+              => [NamedArg (Pattern' a)]
+              -> [Arg Term]
+              -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
   traceSDoc "tc.match" 50
     (vcat [ text "matchPatterns"
@@ -148,11 +157,14 @@ matchPatterns ps vs = do
      foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
-matchPattern :: Pattern -> Arg Term -> ReduceM (Match Term, Arg Term)
+matchPattern :: (Show a)
+             => (Pattern' a)
+             -> Arg Term
+             -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
-  (VarP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
-  (DotP _ , arg@(Arg _ v)) -> return (Yes NoSimplification [v], arg)
+  (VarP _ , arg          ) -> return (Yes NoSimplification [arg], arg)
+  (DotP _ , arg          ) -> return (Yes NoSimplification [arg], arg)
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
@@ -177,7 +189,7 @@ matchPattern p u = case (p, u) of
 
   -- Case data constructor pattern.
   (ConP c _ ps, Arg info v) ->
-    do  w <- traverse constructorForm =<< reduceB' v
+    do  w <- reduceB' v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
         -- 1) it does not hurt to do it all the time, and
@@ -193,7 +205,9 @@ matchPattern p u = case (p, u) of
                    -- unfolded (due to open public).
                _ -> return w
 -}
-        w <- case w of
+        -- Jesper, 23-06-2016: Note that unfoldCorecursion may destroy
+        -- constructor forms, so we only call constructorForm after.
+        w <- traverse constructorForm =<< case w of
                NotBlocked r u -> unfoldCorecursion u  -- Andreas, 2014-06-12 TODO: r == ReallyNotBlocked sufficient?
                _ -> return w
         let v = ignoreBlocking w

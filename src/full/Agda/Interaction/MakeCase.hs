@@ -1,13 +1,14 @@
 {-# LANGUAGE CPP             #-}
-{-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE TupleSections   #-}
 
 module Agda.Interaction.MakeCase where
 
 import Prelude hiding (mapM, mapM_, null)
+
 import Control.Applicative hiding (empty)
 import Control.Monad hiding (mapM, mapM_, forM)
+
+import qualified Data.Map as Map
+import qualified Data.List as List
 import Data.Maybe
 import Data.Traversable
 
@@ -54,8 +55,13 @@ type CaseContext = Maybe ExtLamInfo
 -- | Parse variables (visible or hidden), returning their de Bruijn indices.
 --   Used in 'makeCase'.
 
-parseVariables :: InteractionId -> Range -> [String] -> TCM [Int]
-parseVariables ii rng ss = do
+parseVariables
+  :: QName           -- ^ The function name.
+  -> InteractionId   -- ^ The hole of this function we are working on.
+  -> Range           -- ^ The range of this hole.
+  -> [String]        -- ^ The words the user entered in this hole (variable names).
+  -> TCM [Int]       -- ^ The computed de Bruijn indices of the variables to split on.
+parseVariables f ii rng ss = do
 
   -- Get into the context of the meta.
   mId <- lookupInteractionId ii
@@ -68,8 +74,19 @@ parseVariables ii rng ss = do
     xs <- forM (downFrom n) $ \ i -> do
       (,i) . P.render <$> prettyTCM (var i)
 
-    -- Get number of module parameters.  These cannot be split on.
-    fv <- getCurrentModuleFreeVars
+    reportSDoc "interaction.case" 20 $ do
+      m   <- currentModule
+      tel <- lookupSection m
+      fv  <- getDefFreeVars f
+      vcat
+       [ text "parseVariables:"
+       , text "current module  =" <+> prettyTCM m
+       , text "current section =" <+> inTopContext (prettyTCM tel)
+       , text $ "function's fvs  = " ++ show fv
+       ]
+
+    -- Get number of free variables.  These cannot be split on.
+    fv <- getDefFreeVars f
     let numSplittableVars = n - fv
 
     -- Resolve each string to a variable.
@@ -120,17 +137,22 @@ getClauseForIP f clauseNo = do
       return (extlam, c, cs1)
     _ -> __IMPOSSIBLE__
 
+
 -- | Entry point for case splitting tactic.
+
 makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
+
+  -- Get function clause which contains the interaction point.
+
   InteractionPoint { ipMeta = mm, ipClause = ipCl} <- lookupInteractionPoint hole
   let meta = fromMaybe __IMPOSSIBLE__ mm
-  (f, clauseNo) <- case ipCl of
-    IPClause f clauseNo -> return (f, clauseNo)
+  (f, clauseNo, rhs) <- case ipCl of
+    IPClause f clauseNo rhs-> return (f, clauseNo, rhs)
     IPNoClause -> typeError $ GenericError $
       "Cannot split here, as we are not in a function definition"
   (casectxt, clause, prevClauses) <- getClauseForIP f clauseNo
-  let perm = clausePerm clause
+  let perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
       tel  = clauseTel  clause
       ps   = namedClausePats clause
   reportSDoc "interaction.case" 10 $ vcat
@@ -143,9 +165,14 @@ makeCase hole rng s = withInteractionId hole $ do
       , text "ps      =" <+> text (show ps)
       ]
     ]
+
+  -- Check split variables.
+
   let vars = words s
+
+  -- If we have no split variables, split on result.
+
   if null vars then do
-    -- split result
     (piTel, sc) <- fixTarget $ clauseToSplitClause clause
     -- Andreas, 2015-05-05 If we introduced new function arguments
     -- do not split on result.  This might be more what the user wants.
@@ -167,22 +194,24 @@ makeCase hole rng s = withInteractionId hole $ do
           -- This is sometimes annoying and can anyway be done by another C-c C-c.
           -- mapM (snd <.> fixTarget) $ splitClauses cov
           return $ splitClauses cov
-    (casectxt,) <$> mapM (makeAbstractClause f) scs
+    checkClauseIsClean ipCl
+    (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
-    vars <- parseVariables hole rng vars
+    vars <- parseVariables f hole rng vars
     scs <- split f vars $ clauseToSplitClause clause
     -- filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
-    cs <- forM scs $ \(sc, isAbsurd) ->
-            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f sc
+    cs <- forM scs $ \(sc, isAbsurd) -> do
+            if isAbsurd then makeAbsurdClause f sc else makeAbstractClause f rhs sc
     reportSDoc "interaction.case" 65 $ vcat
       [ text "split result:"
       , nest 2 $ vcat $ map (text . show) cs
       ]
+    checkClauseIsClean ipCl
     return (casectxt,cs)
-  where
 
+  where
   failNoCop = typeError $ GenericError $
     "OPTION --copatterns needed to split on result here"
 
@@ -205,6 +234,15 @@ makeCase hole rng s = withInteractionId hole $ do
     Var y [] -> Just y
     _        -> Nothing
 
+  -- Check whether clause has been refined after last load.
+  -- In this case, we refuse to split, as this might lose the refinements.
+  checkClauseIsClean :: IPClause -> TCM ()
+  checkClauseIsClean ipCl = do
+    sips <- Map.elems <$> use stSolvedInteractionPoints
+    when (List.any ((== ipCl) . ipClause) sips) $
+      typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
+
+-- | Make clause with no rhs (because of absurd match).
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel ps _ t) = do
@@ -227,24 +265,16 @@ makeAbsurdClause f (SClause tel ps _ t) = do
     reportSDoc "interaction.case" 60 $ text "normalized patterns: " <+> text (show ps)
     inTopContext $ reify $ QNamed f $ c { namedClausePats = ps }
 
+
 -- | Make a clause with a question mark as rhs.
-makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
-makeAbstractClause f cl = do
+
+makeAbstractClause :: QName -> A.RHS -> SplitClause -> TCM A.Clause
+makeAbstractClause f rhs cl = do
+
   A.Clause lhs _ _ _ _ <- makeAbsurdClause f cl
   reportSDoc "interaction.case" 60 $ text "reified lhs: " <+> text (show lhs)
-  let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
-                               -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
-  let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
-  return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False
-
-deBruijnIndex :: A.Expr -> TCM Nat
-deBruijnIndex e = do
-  (v, _) <- -- Andreas, 2010-09-21 allow splitting on irrelevant (record) vars
---            Context.wakeIrrelevantVars $
-            applyRelevanceToContext Irrelevant $
-              inferExpr e
-  case ignoreSharing v of
-    Var n _ -> return n
-    _       -> typeError . GenericError . show =<< (fsep $
-                pwords "The scrutinee of a case distinction must be a variable,"
-                ++ [ prettyTCM v ] ++ pwords "isn't.")
+  return $ A.Clause lhs [] rhs [] False
+  -- let ii = InteractionId (-1)  -- Dummy interaction point since we never type check this.
+  --                              -- Can end up in verbose output though (#1842), hence not __IMPOSSIBLE__.
+  -- let info = A.emptyMetaInfo   -- metaNumber = Nothing in order to print as ?, not ?n
+  -- return $ A.Clause lhs [] (A.RHS $ A.QuestionMark info ii) [] False

@@ -38,9 +38,7 @@ out >         case d of
 out >           Agda.Builtin.Bool.Bool.false → CompileNumbers.Diff.equal
 out >           Agda.Builtin.Bool.Bool.true →
 out >             CompileNumbers.Diff.greater (a - b - 1)
-out >           _ → error "TUnreachable"
 out >       Agda.Builtin.Bool.Bool.true → CompileNumbers.Diff.less (b - a - 1)
-out >       _ → error "TUnreachable"
 out > CompileNumbers.neg = λ a → 0 - a
 out > CompileNumbers._-N_ = λ a b → a - b
 out > CompileNumbers._+Z_ = λ a b → a + b

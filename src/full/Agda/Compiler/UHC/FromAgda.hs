@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP             #-}
-{-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE PatternGuards   #-}
 
 -- | Convert from Agda's internal representation to UHC Core via Treeless.
 --

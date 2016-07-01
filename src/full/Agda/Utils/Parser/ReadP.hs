@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE MagicHash     #-}
-{-# LANGUAGE Rank2Types    #-}
 
 -----------------------------------------------------------------------------
 -- |

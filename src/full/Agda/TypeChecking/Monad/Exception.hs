@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 -- | Basically a copy of the ErrorT monad transformer. It's handy to slap

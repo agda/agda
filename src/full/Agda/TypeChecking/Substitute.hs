@@ -2,13 +2,6 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE PatternGuards      #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -276,9 +269,9 @@ instance Apply Defn where
         , dataClause     = apply cl args
 --        , dataArgOccurrences = List.drop (length args) occ
         }
-    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel
+    Record{ recPars = np, recClause = cl, recTel = tel
           {-, recArgOccurrences = occ-} } ->
-      d { recPars = np - size args, recConType = piApply t args
+      d { recPars = np - size args
         , recClause = apply cl args, recTel = apply tel args
 --        , recArgOccurrences = List.drop (length args) occ
         }
@@ -493,9 +486,8 @@ instance Abstract Defn where
         , dataNonLinPars = abstract tel nlps
         , dataClause     = abstract tel cl
         }
-    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel' } ->
+    Record{ recPars = np, recClause = cl, recTel = tel' } ->
       d { recPars    = np + size tel
-        , recConType = abstract tel t
         , recClause  = abstract tel cl
         , recTel     = abstract tel tel'
         }

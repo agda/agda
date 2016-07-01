@@ -1,0 +1,4 @@
+Polarity-pragma-out-of-scope.agda:6,16-17
+The following names are not declared in the same scope as their
+polarity pragmas (they could for instance be out of scope, imported
+from another module, or declared in a super module): A

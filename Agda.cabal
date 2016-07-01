@@ -1,6 +1,6 @@
 name:            Agda
 version:         2.6.0
-cabal-version:   >= 1.8
+cabal-version:   >= 1.10
 build-type:      Custom
 license:         OtherLicense
 license-file:    LICENSE
@@ -39,6 +39,7 @@ tested-with:        GHC == 7.6.3
 extra-source-files: src/full/undefined.h
                     README.md
                     CHANGELOG
+                    stack.yaml
 data-dir:           src/data
 data-files:         Agda.css
                     emacs-mode/*.el
@@ -86,6 +87,12 @@ flag uhc
   description:
     Enable the UHC backend. For details, consult the Agda User Manual.
 
+flag debug
+  default: False
+  manual: True
+  description:
+    Enable debugging features that may slow Agda down.
+
 library
   hs-source-dirs:   src/full
   include-dirs:     src/full
@@ -103,6 +110,9 @@ library
     -- modules. If UHC Light is not present, we instead create dummy
     -- definitions, see module Agda.Compiler.UHC.Bridge.
     cpp-options:    -DUHC_BACKEND
+
+  if flag(debug)
+    cpp-options:    -DDEBUG
 
   if os(windows)
     build-depends:  Win32 >= 2.2 && < 2.4
@@ -132,7 +142,7 @@ library
                 -- some cases.
                 , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.1.3 && < 0.8
-                , haskell-src-exts >= 1.16.0.1 && < 1.18
+                , haskell-src-exts >= 1.17 && < 1.18
                 , monadplus >= 1.4 && < 1.5
                 -- mtl-2.1 contains a severe bug.
                 --
@@ -167,6 +177,12 @@ library
     build-depends: zlib >= 0.4.0.1 && < 0.6.1
   else
     build-depends: zlib >= 0.4.0.1 && < 0.7
+
+  if impl(ghc < 8.0)
+    -- provide/emulate `Control.Monad.Fail` and `Data.Semigroups` API
+    -- for pre-GHC8
+    build-depends:  fail == 4.9.*
+                  , semigroups == 0.18.*
 
   build-tools:  alex >= 3.1.0 && < 3.2
               , happy >= 1.19.4 && < 2
@@ -266,6 +282,7 @@ library
                     Agda.Syntax.Concrete.Generic
                     Agda.Syntax.Concrete.Name
                     Agda.Syntax.Concrete.Operators.Parser
+                    Agda.Syntax.Concrete.Operators.Parser.Monad
                     Agda.Syntax.Concrete.Operators
                     Agda.Syntax.Concrete.Pretty
                     Agda.Syntax.Concrete
@@ -495,7 +512,6 @@ library
                  -fwarn-missing-fields
                  -fwarn-missing-methods
                  -fwarn-missing-signatures
-                 -fwarn-orphans
                  -fwarn-tabs
                  -fwarn-overlapping-patterns
                  -fwarn-unrecognised-pragmas
@@ -533,10 +549,29 @@ library
   if impl(ghc >= 8.0)
     ghc-options: -Wmissing-pattern-synonym-signatures
                  -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
                  -Wunrecognised-warning-flags
+                 -Wsemigroup
                  -Wunused-foralls
 
   ghc-prof-options: -fprof-auto
+
+  default-language: Haskell2010
+  default-extensions: ConstraintKinds
+                    , DataKinds
+                    , DefaultSignatures
+                    , ExistentialQuantification
+                    , FlexibleContexts
+                    , FlexibleInstances
+                    , FunctionalDependencies
+                    , LambdaCase
+                    , MultiParamTypeClasses
+                    , NamedFieldPuns
+                    , RankNTypes
+                    , RecordWildCards
+                    , StandaloneDeriving
+                    , TupleSections
+                    , TypeSynonymInstances
 
 executable agda
   hs-source-dirs: src/main
@@ -545,6 +580,7 @@ executable agda
                   -- Nothing is used from the following package,
                   -- except for the prelude.
                 , base >= 4.6.0.1 && < 6
+  default-language: Haskell2010
   if impl(ghc >= 7)
     -- If someone installs Agda with the setuid bit set, then the
     -- presence of +RTS may be a security problem (see GHC bug #3910).
@@ -561,6 +597,7 @@ executable agda-mode
                   , directory >= 1.2.0.1 && < 1.3
                   , filepath >= 1.3.0.1 && < 1.5
                   , process >= 1.1.0.2 && < 1.5
+  default-language: Haskell2010
 
 executable agda-ghc-names
   hs-source-dirs:   src/agda-ghc-names
@@ -579,6 +616,7 @@ executable agda-ghc-names
                 , mtl >= 2.1.1 && <= 2.1.3.1 || >= 2.2.1 && < 2.3
 
   ghc-options:  -rtsopts
+  default-language: Haskell2010
 
 
 -- Cabal testsuite integration has some serious bugs, but we
@@ -632,3 +670,4 @@ test-suite agda-tests
     ghc-options: -fwarn-missing-local-sigs
   else
     ghc-options: -Wmissing-local-signatures
+  default-language: Haskell2010

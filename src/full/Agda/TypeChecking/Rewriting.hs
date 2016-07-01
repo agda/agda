@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards     #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -284,8 +281,9 @@ addRewriteRule q = do
       where
         n = size tel
         allIxs = zipWith ($>) (flattenTel tel) (downFrom n)
-        usedIxs = filter (not . irrelevantOrUnused . getRelevance) allIxs
-
+        usedIxs = filter (not . unused . getRelevance) allIxs
+        unused UnusedArg{} = True
+        unused _           = False
 
 -- | Append rewrite rules to a definition.
 addRewriteRules :: QName -> RewriteRules -> TCM ()

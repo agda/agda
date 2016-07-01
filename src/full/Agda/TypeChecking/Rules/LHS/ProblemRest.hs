@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 

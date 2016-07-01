@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 module Agda.Syntax.IdiomBrackets (parseIdiomBrackets) where
 
 import Control.Applicative

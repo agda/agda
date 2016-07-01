@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Syntax.Abstract.Pretty where
 

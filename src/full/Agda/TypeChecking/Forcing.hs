@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 {-| A constructor argument is forced if it appears as pattern variable
 in an index of the target.

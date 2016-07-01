@@ -1,10 +1,4 @@
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE TupleSections #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 module Agda.TypeChecking.Rules.Decl where
 
@@ -14,6 +8,7 @@ import Control.Monad.State (modify, gets)
 import Control.Monad.Writer (tell)
 
 import qualified Data.Foldable as Fold
+import Data.List (genericLength)
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Set as Set
@@ -45,6 +40,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Primitive
@@ -62,7 +58,7 @@ import Agda.TypeChecking.Unquote
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
-import Agda.TypeChecking.Rules.Def     ( checkFunDef, useTerPragma )
+import Agda.TypeChecking.Rules.Def     ( checkFunDef, newSection, useTerPragma )
 import Agda.TypeChecking.Rules.Builtin
 import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
@@ -209,7 +205,8 @@ checkDecl d = setCurrentRange d $ do
 
     -- check record or data type signature
     checkSig i x ps t = checkTypeSignature $
-      A.Axiom A.NoFunSig i defaultArgInfo x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+      A.Axiom A.NoFunSig i defaultArgInfo Nothing x
+              (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
 
     check x i m = do
       reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
@@ -448,8 +445,9 @@ checkProjectionLikeness_ names = Bench.billTo [Bench.ProjectionLikeness] $ do
                "mutual definitions are not considered for projection-likeness"
 
 -- | Type check an axiom.
-checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo -> QName -> A.Expr -> TCM ()
-checkAxiom funSig i info0 x e = do
+checkAxiom :: A.Axiom -> Info.DefInfo -> ArgInfo ->
+              Maybe [Occurrence] -> QName -> A.Expr -> TCM ()
+checkAxiom funSig i info0 mp x e = do
   -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
   -- even if not declared as such (Issue 610).
   rel <- max (getRelevance info0) <$> asks envRelevance
@@ -480,19 +478,42 @@ checkAxiom funSig i info0 x e = do
     whenM ((== SizeUniv) <$> do reduce $ getSort t) $ do
       whenM ((> 0) <$> getContextSize) $ do
         typeError $ GenericError $ "We don't like postulated sizes in parametrized modules."
+
+  -- Ensure that polarity pragmas do not contain too many occurrences.
+  (occs, pols) <- case mp of
+    Nothing   -> return ([], [])
+    Just occs -> do
+      TelV tel _ <- telView t
+      let n = genericLength (telToList tel)
+      when (n < genericLength occs) $
+        typeError $ TooManyPolarities x n
+      let pols = map polFromOcc occs
+      reportSLn "tc.polarity.pragma" 10 $
+        "Setting occurrences and polarity for " ++ show x ++ ":\n  " ++
+        show occs ++ "\n  " ++ show pols
+      return (occs, pols)
+
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
   addConstant x =<< do
-    useTerPragma $ defaultDefn info x t $
-      case funSig of
-        A.FunSig   -> emptyFunction
-        A.NoFunSig -> Axiom    -- NB: used also for data and record type sigs
+    useTerPragma $
+      (defaultDefn info x t $
+         case funSig of
+           A.FunSig   -> emptyFunction
+           A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
+        { defArgOccurrences = occs
+        , defPolarity       = pols
+        }
 
   -- Add the definition to the instance table, if needed
   when (Info.defInstance i == InstanceDef) $ do
     addTypedInstance x t
 
-  traceCall (IsType_ e) $ solveSizeConstraints DefaultToInfty -- need Range for error message
+  traceCall (IsType_ e) $ do -- need Range for error message
+    -- Andreas, 2016-06-21, issue #2054
+    -- Do not default size metas to ∞ in local type signatures
+    checkingWhere <- asks envCheckingWhere
+    solveSizeConstraints $ if checkingWhere then DontDefaultToInfty else DefaultToInfty
 
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when_ (Info.defAbstract i == AbstractDef) $ freezeMetas
@@ -703,25 +724,19 @@ checkTypeSignature :: A.TypeSignature -> TCM ()
 checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
-checkTypeSignature (A.Axiom funSig i info x e) =
+checkTypeSignature (A.Axiom funSig i info mp x e) =
     case Info.defAccess i of
-        PublicAccess  -> inConcreteMode $ checkAxiom funSig i info x e
-        PrivateAccess -> inAbstractMode $ checkAxiom funSig i info x e
+        PublicAccess  -> inConcreteMode $ checkAxiom funSig i info mp x e
+        PrivateAccess -> inAbstractMode $ checkAxiom funSig i info mp x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 
+
 -- | Type check a module.
+
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
-checkSection i x tel ds =
-  checkTelescope tel $ \ tel' -> do
-    addSection x
-    verboseS "tc.mod.check" 10 $ do
-      dx   <- prettyTCM x
-      dtel <- mapM prettyAs tel
-      dtel' <- prettyTCM =<< lookupSection x
-      reportSLn "tc.mod.check" 10 $ "checking section " ++ show dx ++ " " ++ show dtel
-      reportSLn "tc.mod.check" 10 $ "    actual tele: " ++ show dtel'
-    withCurrentModule x $ mapM_ checkDeclCached ds
+checkSection _ x tel ds = newSection x tel $ mapM_ checkDeclCached ds
+
 
 -- | Helper for 'checkSectionApplication'.
 --

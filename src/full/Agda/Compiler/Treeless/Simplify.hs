@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE PatternGuards #-}
 module Agda.Compiler.Treeless.Simplify (simplifyTTerm) where
 
 import Control.Arrow (first, second, (***))
@@ -257,19 +255,33 @@ simplify FunctionKit{..} = simpl
     tLet e b        = TLet e b
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
+    tCase x t d [] = pure d
     tCase x t d bs
       | isUnreachable d =
         case reverse bs' of
           [] -> pure d
-          TALit _ b   : as  -> pure $ tCase' x t b (reverse as)
-          TAGuard _ b : as  -> pure $ tCase' x t b (reverse as)
+          TALit _ b   : as  -> tCase x t b (reverse as)
+          TAGuard _ b : as  -> tCase x t b (reverse as)
           TACon c a b : _   -> pure $ tCase' x t d bs'
-      | otherwise = pure $ TCase x t d bs'
+      | otherwise = do
+        d' <- lookupIfVar d
+        case d' of
+          TCase y _ d bs'' | x == y ->
+            tCase x t d (bs' ++ filter noOverlap bs'')
+          _ -> pure $ TCase x t d bs'
       where
         bs' = filter (not . isUnreachable) bs
 
-        tCase' x t d [] = d
-        tCase' x t d bs = TCase x t d bs
+        lookupIfVar (TVar i) = lookupVar i
+        lookupIfVar t = pure t
+
+        noOverlap b = not $ any (overlapped b) bs'
+        overlapped (TACon c _ _) (TACon c' _ _) = c == c'
+        overlapped (TALit l _)   (TALit l' _)   = l == l'
+        overlapped _             _              = False
+
+    tCase' x t d [] = d
+    tCase' x t d bs = TCase x t d bs
 
     tApp :: TTerm -> [TTerm] -> S TTerm
     tApp (TLet e b) es = TLet e <$> underLet e (tApp b (raise 1 es))

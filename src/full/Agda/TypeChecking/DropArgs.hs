@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 module Agda.TypeChecking.DropArgs where
 
@@ -47,11 +46,13 @@ instance DropArgs ClauseBody where
 -- | NOTE: does not work for recursive functions.
 instance DropArgs Clause where
   dropArgs n cl =
-      cl{ clauseTel  = dropArgs n $ clauseTel cl
-          -- Andreas, 2012-09-25: just dropping the front of telescope
+      cl{ -- Andreas, 2012-09-25: just dropping the front of telescope
           -- makes it ill-formed (unbound indices)
           -- we should let the telescope intact!?
-        , namedClausePats = drop n $ namedClausePats cl
+          -- Ulf, 2016-06-23: Indeed. After parameter refinement it's even
+          -- worse: the module parameters we want to drop aren't necessarily
+          -- the first things in the telescope.
+          namedClausePats = drop n $ namedClausePats cl
         , clauseBody = dropArgs n $ clauseBody cl -- BUG: need to drop also from recursive calls!!
         }
 

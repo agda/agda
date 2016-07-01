@@ -29,7 +29,7 @@ data Keyword
         | KwUnquote | KwUnquoteDecl | KwUnquoteDef
         | KwSyntax
         | KwPatternSyn | KwTactic | KwCATCHALL
-        | KwNO_POSITIVITY_CHECK
+        | KwNO_POSITIVITY_CHECK | KwPOLARITY
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

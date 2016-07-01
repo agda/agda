@@ -1,11 +1,7 @@
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -747,7 +743,7 @@ introTactic pmLambda ii = do
 
     introData t = do
       let tel  = telFromList [defaultDom ("_", t)]
-          pat  = [defaultArg $ unnamed $ I.VarP (0,"c")]
+          pat  = [defaultArg $ unnamed $ debruijnNamedVar "c" 0]
       r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []

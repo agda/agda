@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP              #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RelaxedPolyRec   #-}
 
 -- | Generates data used for precise syntax highlighting.
 
@@ -425,7 +423,7 @@ nameKinds hlLevel decl = do
 
   declToKind :: A.Declaration ->
                 HashMap A.QName NameKind -> HashMap A.QName NameKind
-  declToKind (A.Axiom _ i _ q _)
+  declToKind (A.Axiom _ i _ _ q _)
     | SI.defMacro i == Common.MacroDef = insert q Macro
     | otherwise                        = insert q Postulate
   declToKind (A.Field _ q _)        = insert q Field -- Function

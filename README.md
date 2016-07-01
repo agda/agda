@@ -1,10 +1,13 @@
 Agda 2
 ======
 
-[![Hackage](https://img.shields.io/hackage/v/Agda.svg)](http://hackage.haskell.org/package/Agda) [![Build Status](https://travis-ci.org/agda/agda.svg?branch=master)](https://travis-ci.org/agda/agda)
+[![Hackage version](https://img.shields.io/hackage/v/Agda.svg?label=Hackage)](http://hackage.haskell.org/package/Agda)
+[![Stackage version](https://www.stackage.org/package/Agda/badge/lts?label=Stackage)](https://www.stackage.org/package/Agda)
+[![Build Status](https://travis-ci.org/agda/agda.svg?branch=master)](https://travis-ci.org/agda/agda)
 
 Table of contents:
 
+* [Documentation](#documentation)
 * [Prerequisites](#prerequisites)
 * [Installing Agda](#installing-agda)
 * [Configuring the Emacs mode](#configuring-the-emacs-mode)
@@ -13,6 +16,11 @@ Table of contents:
 Note that this README only discusses installation of Agda, not its standard
 library. See the [Agda Wiki][agdawiki] for information about the library.
 
+Documentation
+-------------
+
+* [User manual](http://agda.readthedocs.io)
+* [CHANGELOG](https://github.com/agda/agda/blob/master/CHANGELOG)
 
 Prerequisites
 -------------

@@ -1,8 +1,4 @@
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE PatternGuards        #-}
-{-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Rules.LHS where
 
@@ -154,7 +150,7 @@ updateInPatterns as ps qs = do
            -> TCM (IntMap (NamedArg A.Pattern), [DotPatternInst])
     update a p q = case unArg q of
       -- Case: the unifier did not instantiate the variable
-      VarP (i,_) -> return (IntMap.singleton i p, [])
+      VarP x     -> return (IntMap.singleton (dbPatVarIndex x) p, [])
       -- Case: the unifier did instantiate the variable
       DotP u     -> case snd $ asView $ namedThing (unArg p) of
         A.DotP _ e -> return (IntMap.empty, [DPI Nothing  (Just e) u a])
@@ -188,10 +184,15 @@ updateInPatterns as ps qs = do
             fs  = killRange $ recFields def
             tel = recTel def `apply` pars
             as  = applyPatSubst (parallelS $ map (namedThing . unArg) qs) $ flattenTel tel
-            -- If the user wrote a dot pattern but the unifier eta-expanded the
-            -- corresponding variable, add the corresponding instantiation
+            -- If the user wrote a dot pattern or variable but the unifier
+            -- eta-expanded it, add the corresponding instantiation.
             dpi :: [DotPatternInst]
-            dpi = maybe [] (\e -> [DPI Nothing (Just e) (patternToTerm $ unArg q) a]) (isDotP (namedThing $ unArg p))
+            dpi = mkDPI $ patternToTerm $ unArg q
+              where
+                mkDPI v = case namedThing $ unArg p of
+                  A.DotP _ e -> [DPI Nothing (Just e) v a]
+                  A.VarP x   -> [DPI (Just x) Nothing v a]
+                  _        -> []
         second (dpi++) <$>
           updates as (projectInPat p fs) (map (fmap namedThing) qs)
       LitP _     -> __IMPOSSIBLE__
@@ -199,7 +200,7 @@ updateInPatterns as ps qs = do
 
     projectInPat :: NamedArg A.Pattern -> [Arg QName] -> [NamedArg A.Pattern]
     projectInPat p fs = case namedThing (unArg p) of
-      A.VarP x            -> map makeVarField fs
+      A.VarP x            -> map (makeDotField $ PatRange $ getRange x) fs
       A.ConP cpi _ nps    -> nps
       A.WildP pi          -> map (makeWildField pi) fs
       A.DotP pi e         -> map (makeDotField pi) fs
@@ -211,7 +212,6 @@ updateInPatterns as ps qs = do
       A.PatternSynP _ _ _ -> __IMPOSSIBLE__
       A.RecP _ _          -> __IMPOSSIBLE__
       where
-        makeVarField (Arg fi f) = Arg fi $ unnamed $ A.VarP $ qnameName f
         makeWildField pi (Arg fi f) = Arg fi $ unnamed $ A.WildP pi
         makeDotField pi (Arg fi f) = Arg fi $ unnamed $
           A.DotP pi $ A.Underscore underscoreInfo
@@ -223,10 +223,6 @@ updateInPatterns as ps qs = do
               , A.metaNameSuggestion = show $ A.nameConcrete $ qnameName f
               }
 
-
-    isDotP :: A.Pattern -> Maybe A.Expr
-    isDotP (A.DotP _ e) = Just e
-    isDotP _            = Nothing
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
@@ -452,7 +448,9 @@ bindLHSVars []        tel@ExtendTel{}  _   = do
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
 bindLHSVars []        EmptyTel         ret = ret
 bindLHSVars (p : ps) (ExtendTel a tel) ret = do
+  -- see test/Fail/WronHidingInLHS:
   unless (getHiding p == getHiding a) $ typeError WrongHidingInLHS
+
   case namedArg p of
     A.VarP x      -> addContext (x, a) $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
@@ -495,7 +493,7 @@ data LHSResult = LHSResult
   , lhsVarTele      :: Telescope
     -- ^ Δ : The types of the pattern variables, in internal dependency order.
     -- Corresponds to 'clauseTel'.
-  , lhsPatterns     :: [NamedArg Pattern]
+  , lhsPatterns     :: [NamedArg DeBruijnPattern]
     -- ^ The patterns in internal syntax.
   , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
@@ -599,15 +597,14 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
       reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
       reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
-      let qs'  = unnumberPatVars qs
-          perm = dbPatPerm qs
+      let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm qs
           notProj ProjP{} = False
           notProj _       = True
                       -- Note: This works because we can't change the number of
                       --       arguments in the lhs of a with-function relative to
                       --       the parent function.
           numPats   = length $ takeWhile (notProj . namedArg) qs
-          lhsResult = LHSResult (length cxt) delta qs' b' perm
+          lhsResult = LHSResult (length cxt) delta qs b' perm
           -- In the case of a non-with function the pattern substitution
           -- should be weakened by the number of non-parameter patterns to
           -- get the paramSub.

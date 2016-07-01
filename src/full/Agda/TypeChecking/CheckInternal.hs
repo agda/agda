@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 -- Initially authored by Andreas, 2013-10-22.
 

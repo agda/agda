@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
-
 module Agda.Auto.Convert where
 
 import Control.Applicative hiding (getConst, Const(..))
@@ -21,7 +17,6 @@ import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
-import Agda.TypeChecking.Monad.State (getImportedSignature)
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars)
 import Agda.Utils.Permutation (Permutation(Perm), permute, takeP, compactP)
 import Agda.TypeChecking.Level (reallyUnLevelView)
@@ -670,7 +665,7 @@ frommyClause (ids, pats, mrhs) = do
      cnvps n (_ : _) = __IMPOSSIBLE__
      cnvp (HI hid p) = do
       p' <- case p of
-       CSPatVar v -> return (I.VarP $ let HI _ (Id n, _) = ids !! v in n)
+       CSPatVar v -> return (I.varP $ let HI _ (Id n, _) = ids !! v in n)
        CSPatConApp c ps -> do
         cdef <- lift $ readIORef c
         let (Just ndrop, name) = cdorigin cdef
@@ -758,7 +753,7 @@ findClauseDeep :: Common.InteractionId -> MB.TCM (Maybe (AN.QName, I.Clause, Boo
 findClauseDeep ii = do
   MB.InteractionPoint { MB.ipClause = ipCl} <- lookupInteractionPoint ii
   (f, clauseNo) <- case ipCl of
-    MB.IPClause f clauseNo -> return (f, clauseNo)
+    MB.IPClause f clauseNo _ -> return (f, clauseNo)
     MB.IPNoClause -> MB.typeError $ MB.GenericError $
       "Cannot apply the auto tactic here, we are not in a function clause"
   (_, c, _) <- getClauseForIP f clauseNo

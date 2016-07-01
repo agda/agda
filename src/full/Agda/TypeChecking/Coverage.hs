@@ -1,8 +1,5 @@
 {-# LANGUAGE CPP              #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE PatternGuards    #-}
-{-# LANGUAGE TupleSections    #-}
 
 {-# OPTIONS_GHC -fwarn-unused-imports #-}
 
@@ -42,7 +39,7 @@ import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
 
-import Agda.TypeChecking.Rules.LHS.Problem (FlexibleVar(..), FlexibleVarKind(..))
+import Agda.TypeChecking.Rules.LHS.Problem (allFlexVars)
 import Agda.TypeChecking.Rules.LHS.Unify
 
 import Agda.TypeChecking.Coverage.Match
@@ -177,7 +174,7 @@ cover f cs sc@(SClause tel ps _ target) = do
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
   case match cs ups of
     Yes (i,mps)
-     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialMPattern mps)
+     | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
@@ -269,7 +266,7 @@ cover f cs sc@(SClause tel ps _ target) = do
                                     -- split by now already
        | otherwise = []
     gatherEtaSplits n sc (p:ps) = case unArg p of
-      VarP  (i,_)
+      VarP x
        | n == 0    -> case lookupS (scSubst sc) i of -- this is the main split
            VarP  _      -> __IMPOSSIBLE__
            DotP  _      -> __IMPOSSIBLE__
@@ -279,6 +276,7 @@ cover f cs sc@(SClause tel ps _ target) = do
            ProjP _      -> __IMPOSSIBLE__
        | otherwise ->
            (p $> lookupS (scSubst sc) i) : gatherEtaSplits (n-1) sc ps
+        where i = dbPatVarIndex x
       DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
       ConP  _ _ qs -> gatherEtaSplits n sc (map (fmap namedThing) qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
@@ -469,9 +467,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
   debugInit con ctype d pars ixs cixs delta1 delta2 gamma ps hix
 
   -- All variables are flexible
-  -- let flex = [0..size delta1 + size gamma - 1]
-  let makeFlex i d = FlexibleVar (getHiding d) ImplicitFlex (Just i) i
-      flex = zipWith makeFlex (downFrom $ size delta1Gamma) (telToList delta1Gamma)
+  let flex = allFlexVars delta1Gamma
 
   -- Unify constructor target and given type (in Δ₁Γ)
   let conIxs   = drop (size pars) cixs
@@ -615,7 +611,8 @@ lookupPatternVar SClause{ scTel = tel, scPats = pats } x = arg $>
     if n < 0 then __IMPOSSIBLE__ else n
   where n = if k < 0
             then __IMPOSSIBLE__
-            else fromMaybe __IMPOSSIBLE__ $ permPicks (dbPatPerm pats) !!! k
+            else fromMaybe __IMPOSSIBLE__ $ permPicks perm !!! k
+        perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm pats
         k = size tel - x - 1
         arg = telVars (size tel) tel !! k
 
@@ -667,7 +664,11 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
 
   case ns of
     []  -> do
-      let ps' = (fmap . fmap . fmap . fmap) (\(y,name) -> if (x==y) then (y,"()") else (y,name)) ps
+      let ps' = (fmap . fmap . fmap . fmap)
+                  (\(DBPatVar name y) -> if (x==y)
+                                         then DBPatVar absurdPatternName y
+                                         else DBPatVar name y)
+                  ps
       return $ Left $ SClause
                { scTel  = telFromList $ telToList delta1 ++
                                         [fmap ((,) "()") t] ++ -- add name "()"
@@ -757,7 +758,7 @@ splitResult f sc@(SClause tel ps _ target) = do
         reportSDoc "tc.cover" 20 $ sep
           [ text   "we are              self = " <+> (addContext tel $ prettyTCM $ unArg self)
           ]
-        let n = defaultArg $ permRange (dbPatPerm ps)
+        let n = defaultArg $ permRange $ fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
             -- Andreas & James, 2013-11-19 includes the dot patterns!
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.

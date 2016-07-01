@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -7,8 +6,8 @@ module Agda.Utils.PartialOrd where
 
 import Data.Functor
 import Data.Maybe
-import Data.Monoid
 import Data.List
+import Data.Semigroup
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -128,9 +127,12 @@ seqPO POGT POGT = POGT   -- idempotent
 seqPO _    _    = POAny
 
 -- | Partial ordering forms a monoid under sequencing.
+instance Semigroup PartialOrdering where
+  (<>) = seqPO
+
 instance Monoid PartialOrdering where
   mempty  = POEQ
-  mappend = seqPO
+  mappend = (<>)
 
 -- | Embed 'Ordering'.
 fromOrdering :: Ordering -> PartialOrdering

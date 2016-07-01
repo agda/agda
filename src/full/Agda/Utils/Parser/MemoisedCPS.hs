@@ -21,37 +21,32 @@
 -- non-termination for grammars that are not cyclic.)
 
 {-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes            #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 module Agda.Utils.Parser.MemoisedCPS
-  ( Parser
-  , parse
-  , token
-  , tok
-  , sat
-  , chainl1
-  , chainr1
-  , memoise
+  ( ParserClass(..)
+  , Parser
+  , ParserWithGrammar
   ) where
 
 import Control.Applicative
 import Control.Monad (ap, liftM2)
-import Control.Monad.State.Strict (State, evalState, get)
+import Control.Monad.State.Strict (State, evalState, get, put)
 import Data.Array
 import Data.Hashable
 import qualified Data.HashMap.Strict as Map
 import Data.HashMap.Strict (HashMap)
+import qualified Data.HashSet as Set
+import Data.HashSet (HashSet)
 import qualified Data.IntMap.Strict as IntMap
 import Data.IntMap.Strict (IntMap)
 import Data.List
+import Text.PrettyPrint.HughesPJ hiding (empty)
+import qualified Text.PrettyPrint.HughesPJ as PP
 
 import Agda.Utils.Monad (modify')
+
+#include "undefined.h"
+import Agda.Utils.Impossible
 
 -- | Positions.
 
@@ -111,94 +106,89 @@ instance Alternative (Parser k r tok) where
   P p1 <|> P p2 = P $ \input i k ->
     liftM2 (++) (p1 input i k) (p2 input i k)
 
--- | Runs the parser.
+class (Functor p, Applicative p, Alternative p, Monad p) =>
+      ParserClass p k r tok | p -> k, p -> r, p -> tok where
+  -- | Runs the parser.
+  parse :: p a -> [tok] -> [a]
 
-parse :: Parser k r tok a -> [tok] -> [a]
-parse p toks =
-  flip evalState IntMap.empty $
-  unP p (listArray (0, n - 1) toks) 0 $ \j x ->
-    if j == n then return [x] else return []
-  where n = genericLength toks
+  -- | Tries to print the parser, or returns 'PP.empty', depending on
+  -- the implementation. This function might not terminate.
+  grammar :: p a -> Doc
 
--- | Parses a single token.
+  -- | Parses a single token.
+  token :: p tok
 
-token :: Parser k r tok tok
-token = P $ \input i k ->
-  if inRange (bounds input) i then
-    (k $! (i + 1)) $! (input ! i)
-  else
-    return []
+  -- | Parses a token satisfying the given predicate.
+  sat :: (tok -> Bool) -> p tok
 
--- | Parses a token satisfying the given predicate.
+  -- | Parses a given token.
+  tok :: (Eq tok, Show tok) => tok -> p tok
 
-sat :: (tok -> Bool) -> Parser k r tok tok
-sat p = do
-  t <- token
-  if p t then return t else empty
+  -- | Uses the given function to modify the printed representation
+  -- (if any) of the given parser.
+  annotate :: (Doc -> Doc) -> p a -> p a
 
--- | Parses a given token.
+  -- | Memoises the given parser.
+  --
+  -- Every memoised parser must be annotated with a /unique/ key.
+  -- (Parametrised parsers must use distinct keys for distinct
+  -- inputs.)
+  memoise :: (Eq k, Hashable k, Show k) => k -> p r -> p r
 
-tok :: Eq tok => tok -> Parser k r tok tok
-tok t = sat (t ==)
+  -- | Memoises the given parser, but only if printing, not if
+  -- parsing.
+  --
+  -- Every memoised parser must be annotated with a /unique/ key.
+  -- (Parametrised parsers must use distinct keys for distinct
+  -- inputs.)
+  memoiseIfPrinting :: (Eq k, Hashable k, Show k) => k -> p r -> p r
 
--- | Parses one or more things, separated by separators.
---
--- Combines the results in a right-associative way.
+instance ParserClass (Parser k r tok) k r tok where
+  parse p toks =
+    flip evalState IntMap.empty $
+    unP p (listArray (0, n - 1) toks) 0 $ \j x ->
+      if j == n then return [x] else return []
+    where n = genericLength toks
 
-chainr1
-  :: Parser k r tok a
-     -- ^ Parser for a thing.
-  -> Parser k r tok (a -> a -> a)
-     -- ^ Parser for a separator.
-  -> Parser k r tok a
-chainr1 p op = c
-  where c = (\x f -> f x) <$> p <*>
-            (pure id <|> flip <$> op <*> c)
+  grammar _ = PP.empty
 
--- | Parses one or more things, separated by separators.
---
--- Combines the results in a left-associative way.
+  token = P $ \input i k ->
+    if inRange (bounds input) i then
+      (k $! (i + 1)) $! (input ! i)
+    else
+      return []
 
-chainl1
-  :: Parser k r tok a
-     -- ^ Parser for a thing.
-  -> Parser k r tok (a -> a -> a)
-     -- ^ Parser for a separator.
-  -> Parser k r tok a
-chainl1 p op = (\x f -> f x) <$> p <*> c
-  where
-  c =   pure (\x -> x)
-    <|> (\f y g x -> g (f x y)) <$> op <*> p <*> c
+  sat p = do
+    t <- token
+    if p t then return t else empty
 
--- | Memoises the given parser.
---
--- Every memoised parser must be annotated with a /unique/ key.
--- (Parametrised parsers must use distinct keys for distinct inputs.)
+  tok t = sat (t ==)
 
-memoise ::
-  (Eq k, Hashable k) =>
-  k -> Parser k r tok r -> Parser k r tok r
-memoise key p = P $ \input i k -> do
+  annotate _ p = p
 
-  let alter j zero f m =
-        IntMap.alter (Just . f . maybe zero id) j m
+  memoiseIfPrinting _ p = p
 
-      lookupTable   = fmap (\m -> Map.lookup key =<<
-                                  IntMap.lookup i m) get
-      insertTable v = modify' $ alter i Map.empty (Map.insert key v)
+  memoise key p = P $ \input i k -> do
 
-  v <- lookupTable
-  case v of
-    Nothing -> do
-      insertTable (Value IntMap.empty [k])
-      unP p input i $ \j r -> do
-        Just (Value rs ks) <- lookupTable
-        insertTable (Value (alter j [] (r :) rs) ks)
-        concat <$> mapM (\k -> k j r) ks  -- See note [Reverse ks?].
-    Just (Value rs ks) -> do
-      insertTable (Value rs (k : ks))
-      concat . concat <$>
-        mapM (\(i, rs) -> mapM (k i) rs) (IntMap.toList rs)
+    let alter j zero f m =
+          IntMap.alter (Just . f . maybe zero id) j m
+
+        lookupTable   = fmap (\m -> Map.lookup key =<<
+                                    IntMap.lookup i m) get
+        insertTable v = modify' $ alter i Map.empty (Map.insert key v)
+
+    v <- lookupTable
+    case v of
+      Nothing -> do
+        insertTable (Value IntMap.empty [k])
+        unP p input i $ \j r -> do
+          Just (Value rs ks) <- lookupTable
+          insertTable (Value (alter j [] (r :) rs) ks)
+          concat <$> mapM (\k -> k j r) ks  -- See note [Reverse ks?].
+      Just (Value rs ks) -> do
+        insertTable (Value rs (k : ks))
+        concat . concat <$>
+          mapM (\(i, rs) -> mapM (k i) rs) (IntMap.toList rs)
 
 -- [Reverse ks?]
 --
@@ -206,3 +196,78 @@ memoise key p = P $ \input i k -> do
 -- infinitely ambiguous grammars, including S ∷= S | ε. However, in
 -- some cases the results would not be fair (some valid results would
 -- never be returned).
+
+-- | An extended parser type, with some support for printing parsers.
+
+data ParserWithGrammar k r tok a =
+  PG (Bool -> Either (Parser k r tok a)
+                     (State (HashSet k) Doc))
+  -- ^ Invariant: If the boolean is 'True', then the result must be
+  -- @'Left' something@, and if the boolean is 'False', then the
+  -- result must be @'Right' something@.
+
+-- | A smart constructor.
+
+pg :: Parser k r tok a ->
+      State (HashSet k) Doc ->
+      ParserWithGrammar k r tok a
+pg p d = PG $ \b -> if b then Left p else Right d
+
+-- | Extracts the parser.
+
+parser :: ParserWithGrammar k r tok a -> Parser k r tok a
+parser (PG p) = either id __IMPOSSIBLE__ (p True)
+
+-- | Extracts the document.
+
+doc :: ParserWithGrammar k r tok a -> State (HashSet k) Doc
+doc (PG p) = either __IMPOSSIBLE__ id (p False)
+
+instance Monad (ParserWithGrammar k r tok) where
+  return  = pure
+  p >>= f = pg (parser p >>= parser . f)
+               ((\d -> parens (d <+> text ">>= ?")) <$> doc p)
+
+instance Functor (ParserWithGrammar k r tok) where
+  fmap f p = pg (fmap f (parser p)) (doc p)
+
+instance Applicative (ParserWithGrammar k r tok) where
+  pure x    = pg (pure x) (return (text "ε"))
+  p1 <*> p2 =
+    pg (parser p1 <*> parser p2)
+       (liftM2 (\d1 d2 -> parens (sep [d1, d2])) (doc p1) (doc p2))
+
+instance Alternative (ParserWithGrammar k r tok) where
+  empty     = pg empty (return (text "∅"))
+  p1 <|> p2 =
+    pg (parser p1 <|> parser p2)
+       (liftM2 (\d1 d2 -> parens (sep [d1, text "|", d2])) (doc p1) (doc p2))
+
+  many p = pg (many (parser p)) ((<+> text "⋆") . parens <$> doc p)
+  some p = pg (some (parser p)) ((<+> text "+") . parens <$> doc p)
+
+-- | A helper function.
+
+memoiseDoc ::
+  (Eq k, Hashable k, Show k) =>
+  k -> ParserWithGrammar k r tok r -> State (HashSet k) Doc
+memoiseDoc key p = do
+  s <- get
+  if Set.member key s then
+    return (text ("<" ++ show key ++ ">"))
+   else do
+    put (Set.insert key s)
+    (\d -> parens $
+             text ("μ " ++ show key ++ ".") $+$ nest 2 d) <$>
+      doc p
+
+instance ParserClass (ParserWithGrammar k r tok) k r tok where
+  parse p                 = parse (parser p)
+  grammar p               = evalState (doc p) Set.empty
+  token                   = pg token (return (text "·"))
+  sat p                   = pg (sat p) (return (text "sat ?"))
+  tok t                   = pg (tok t) (return (text (show t)))
+  annotate f p            = pg (parser p) (f <$> doc p)
+  memoise key p           = pg (memoise key (parser p))
+                               (memoiseDoc key p)
+  memoiseIfPrinting key p = pg (parser p) (memoiseDoc key p)

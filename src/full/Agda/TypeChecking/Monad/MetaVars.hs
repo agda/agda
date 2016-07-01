@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections     #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
 
@@ -216,8 +214,11 @@ connectInteractionPoint ii mi = do
 -- | Move an interaction point from the current ones to the old ones.
 removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii = do
-  scope <- getInteractionScope ii
-  modifyInteractionPoints $ Map.delete ii
+  ip <- stInteractionPoints %%= \ m -> do
+    let (mip, m') = Map.updateLookupWithKey (\ _ _ -> Nothing) ii m
+    return (m',
+      fromMaybe __IMPOSSIBLE__ mip)
+  stSolvedInteractionPoints %= Map.insert ii ip
 
 -- | Get a list of interaction ids.
 getInteractionPoints :: TCM [InteractionId]

@@ -1,10 +1,6 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
-
 module Agda.TypeChecking.CompiledClause.Match where
 
 import Control.Applicative

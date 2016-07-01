@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
 
 module Agda.TypeChecking.Rules.LHS.Split
   ( splitProblem
@@ -198,6 +196,9 @@ splitProblem mf (Problem ps qs tel pr) = do
         , nest 2 $ text "p   =" <+> prettyA p
         , nest 2 $ text "dom =" <+> prettyTCM dom
         ]
+
+      -- Andreas, 2016-06-30, issue #2075: need test here!
+      unless (getHiding p == getHiding ai) $ typeError WrongHidingInLHS
 
       -- Possible reinvokations:
       let -- 1. Redo this argument (after meta instantiation).

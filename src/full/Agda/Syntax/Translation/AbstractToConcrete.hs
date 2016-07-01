@@ -1,15 +1,5 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase             #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE PatternGuards          #-}
-{-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 -- {-# OPTIONS -fwarn-unused-binds #-}
 
@@ -659,10 +649,11 @@ instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =
     withScope scope $ toConcrete (Constr d)
-  toConcrete (Constr (A.Axiom _ i info x t)) = do
+  toConcrete (Constr (A.Axiom _ i info Nothing x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteTop t
     return $ C.TypeSig info x' t'
+  toConcrete (Constr (A.Axiom _ _ _ (Just _) _ _)) = __IMPOSSIBLE__
   toConcrete (Constr d) = head <$> toConcrete d
 
 instance ToConcrete a C.LHS => ToConcrete (A.Clause' a) [C.Declaration] where
@@ -694,12 +685,16 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
     withScope scope (declsToConcrete ds)
 
-  toConcrete (Axiom _ i info x t) = do
+  toConcrete (Axiom _ i info mp x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteTop t
-      return [C.Postulate (getRange i) [C.TypeSig info x' t']]
+      return $
+        (case mp of
+           Nothing   -> []
+           Just occs -> [C.Pragma (PolarityPragma noRange x' occs)]) ++
+        [C.Postulate (getRange i) [C.TypeSig info x' t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x

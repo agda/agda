@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -40,6 +39,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
+import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
@@ -53,7 +53,6 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Either
-import Agda.Utils.Parser.MemoisedCPS (memoise)
 import Agda.Utils.Pretty
 #if MIN_VERSION_base(4,8,0)
 import Agda.Utils.List hiding ( uncons )
@@ -346,44 +345,49 @@ buildParsers r flat kind exprNames = do
       , "relatedOperators   = " ++ show relatedOperators
       ]
 
-    return (parseSections, everything, Data.Function.fix $ \p -> Parsers
-        { pTop    = memoise TopK $
-                    Fold.asum $
-                      foldr ($) (pApp p)
-                        (map (\(l, ns) higher ->
-                                 mkP (Right l) parseSections
-                                     (pTop p) ns higher True)
-                             relatedOperators) :
-                      map (\(k, n) ->
-                              mkP (Left k) parseSections
-                                  (pTop p) [n] (pApp p) False)
-                          (zip [0..] unrelatedOperators)
-        , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
-        , pArgs   = argsP (pNonfix p)
-        , pNonfix = memoise NonfixK $
-                    Fold.asum $
-                      pAtom p :
-                      flip map nonWithSections (\sect ->
-                        let n = sectNotation sect
+    let g = Data.Function.fix $ \p -> Parsers
+              { pTop    = memoise TopK $
+                          Fold.asum $
+                            foldr ($) (pApp p)
+                              (map (\(l, ns) higher ->
+                                       mkP (Right l) parseSections
+                                           (pTop p) ns higher True)
+                                   relatedOperators) :
+                            map (\(k, n) ->
+                                    mkP (Left k) parseSections
+                                        (pTop p) [n] (pApp p) False)
+                                (zip [0..] unrelatedOperators)
+              , pApp    = memoise AppK $ appP (pNonfix p) (pArgs p)
+              , pArgs   = argsP (pNonfix p)
+              , pNonfix = memoise NonfixK $
+                          Fold.asum $
+                            pAtom p :
+                            flip map nonWithSections (\sect ->
+                              let n = sectNotation sect
 
-                            inner :: forall k. NK k ->
-                                     Parser e (OperatorType k e)
-                            inner = opP parseSections (pTop p) n
-                        in
-                        case notationKind (notation n) of
-                          InfixNotation ->
-                            flip ($) <$> placeholder Beginning
-                                     <*> inner In
-                                     <*> placeholder End
-                          PrefixNotation ->
-                            inner Pre <*> placeholder End
-                          PostfixNotation ->
-                            flip ($) <$> placeholder Beginning
-                                     <*> inner Post
-                          NonfixNotation -> inner Non
-                          NoNotation     -> __IMPOSSIBLE__)
-        , pAtom   = atomP isAtom
-        })
+                                  inner :: forall k. NK k ->
+                                           Parser e (OperatorType k e)
+                                  inner = opP parseSections (pTop p) n
+                              in
+                              case notationKind (notation n) of
+                                InfixNotation ->
+                                  flip ($) <$> placeholder Beginning
+                                           <*> inner In
+                                           <*> placeholder End
+                                PrefixNotation ->
+                                  inner Pre <*> placeholder End
+                                PostfixNotation ->
+                                  flip ($) <$> placeholder Beginning
+                                           <*> inner Post
+                                NonfixNotation -> inner Non
+                                NoNotation     -> __IMPOSSIBLE__)
+              , pAtom   = atomP isAtom
+              }
+
+    reportSDoc "scope.grammar" 10 $ return $
+      text "Operator grammar:" $$ nest 2 (grammar (pTop g))
+
+    return (parseSections, everything, g)
     where
         level :: NewNotation -> PrecedenceLevel
         level = fixityLevel . notaFixity
@@ -451,11 +455,11 @@ buildParsers r flat kind exprNames = do
             nonAssoc :: Maybe (Parser e e)
             nonAssoc = case filter (isInfix NonAssoc) ops of
               []  -> Nothing
-              ops -> Just $ do
-                x <- noPlaceholder <$> higher
-                f <- choice In ops
-                y <- noPlaceholder <$> higher
-                return (f x y)
+              ops -> Just $
+                (\x f y -> f (noPlaceholder x) (noPlaceholder y))
+                  <$> higher
+                  <*> choice In ops
+                  <*> higher
 
             or p1 []   p2 []   = Nothing
             or p1 []   p2 ops2 = Just (p2 ops2)
@@ -474,7 +478,8 @@ buildParsers r flat kind exprNames = do
             preRights = do
               preRight <- preRight
               return $ Data.Function.fix $ \preRights ->
-                preRight <*> (noPlaceholder <$> (preRights <|> higher))
+                memoiseIfPrinting (PreRightsK key) $
+                  preRight <*> (noPlaceholder <$> (preRights <|> higher))
 
             postLeft :: Maybe (Parser e (MaybePlaceholder e -> e))
             postLeft =

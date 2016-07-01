@@ -1,10 +1,6 @@
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE DoAndIfThenElse       #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards         #-}
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
+{-# LANGUAGE UndecidableInstances     #-}
 
 {- |  Non-linear matching of the lhs of a rewrite rule against a
       neutral term.

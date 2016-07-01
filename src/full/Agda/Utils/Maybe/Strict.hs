@@ -5,8 +5,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 #endif
 
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -38,7 +36,7 @@ import           Control.Applicative (pure, (<$>))
 import           Control.DeepSeq     (NFData (..))
 import           Data.Binary         (Binary (..))
 import           Data.Data           (Data (..))
-import           Data.Monoid         (Monoid (..))
+import           Data.Semigroup      (Semigroup, Monoid, (<>), mempty, mappend)
 import           Data.Foldable       (Foldable (..))
 import           Data.Traversable    (Traversable (..))
 #if MIN_VERSION_base(4,7,0)
@@ -80,12 +78,14 @@ instance Null (Maybe a) where
 
 -- The monoid instance was fixed in strict-base-types 0.5.0. See
 -- Issue 1805.
+instance Monoid a => Semigroup (Maybe a) where
+  Nothing <> m       = m
+  m       <> Nothing = m
+  Just x1 <> Just x2 = Just (x1 `mappend` x2)
+
 instance Monoid a => Monoid (Maybe a) where
   mempty = Nothing
-
-  Nothing `mappend` m       = m
-  m       `mappend` Nothing = m
-  Just x1 `mappend` Just x2 = Just (x1 `mappend` x2)
+  mappend = (<>)
 
 instance Foldable Maybe where
     foldMap _ Nothing  = mempty

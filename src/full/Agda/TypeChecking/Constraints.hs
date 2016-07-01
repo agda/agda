@@ -25,6 +25,7 @@ import Agda.Utils.Except ( MonadError(throwError) )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -205,4 +206,13 @@ checkTypeCheckingProblem p = case p of
   CheckArgs eh r args t0 t1 k    -> checkArguments' eh r args t0 t1 k
   CheckLambda args body target   -> checkPostponedLambda args body target
   UnquoteTactic tac hole t       -> unquoteTactic tac hole t $ return hole
+
+debugConstraints :: TCM ()
+debugConstraints = verboseS "tc.constr" 50 $ do
+  awake    <- use stAwakeConstraints
+  sleeping <- use stSleepingConstraints
+  reportSDoc "" 0 $ vcat
+    [ text "Current constraints"
+    , nest 2 $ vcat [ text "awake " <+> vcat (map prettyTCM awake)
+                    , text "asleep" <+> vcat (map prettyTCM sleeping) ] ]
 

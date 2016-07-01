@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards     #-}
 
 module Agda.Compiler.Epic.Injection where
 

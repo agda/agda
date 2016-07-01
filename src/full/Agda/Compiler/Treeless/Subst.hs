@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -7,7 +6,7 @@ module Agda.Compiler.Treeless.Subst where
 import Control.Applicative
 import qualified Data.Map as Map
 import Data.Map (Map)
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, All(..), Any(..))
 import Data.Maybe
 
 import Agda.Syntax.Treeless
@@ -49,10 +48,10 @@ instance Subst TTerm TAlt where
   applySubst rho (TAGuard g b) = TAGuard (applySubst rho g) (applySubst rho b)
 
 newtype UnderLambda = UnderLambda Any
-  deriving (Eq, Ord, Show, Monoid)
+  deriving (Eq, Ord, Show, Semigroup, Monoid)
 
 newtype SeqArg = SeqArg All
-  deriving (Eq, Ord, Show, Monoid)
+  deriving (Eq, Ord, Show, Semigroup, Monoid)
 
 data Occurs = Occurs Int UnderLambda SeqArg
   deriving (Eq, Ord, Show)
@@ -66,9 +65,12 @@ inSeq (Occurs n l _) = Occurs n l mempty
 underLambda :: Occurs -> Occurs
 underLambda o = o <> Occurs 0 (UnderLambda $ Any True) mempty
 
+instance Semigroup Occurs where
+  Occurs a k s <> Occurs b l t = Occurs (a + b) (k <> l) (s <> t)
+
 instance Monoid Occurs where
   mempty = Occurs 0 mempty mempty
-  mappend (Occurs a k s) (Occurs b l t) = Occurs (a + b) (k <> l) (s <> t)
+  mappend = (<>)
 
 class HasFree a where
   freeVars :: a -> Map Int Occurs

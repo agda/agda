@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 
 module Agda.TypeChecking.MetaVars.Mention where
 

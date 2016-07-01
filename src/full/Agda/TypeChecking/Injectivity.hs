@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.Injectivity where
 
@@ -183,7 +182,7 @@ useInjectivity cmp a u v = do
       Nothing -> typeError $ UnequalTerms cmp u v a
       Just cl@Clause{ clauseTel  = tel } -> maybeAbort $ do
           let ps   = clausePats cl
-              perm = clausePerm cl
+              perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
           -- These are what dot patterns should be instantiated at
           ms <- map unArg <$> newTelMeta tel
           reportSDoc "tc.inj.invert" 20 $ vcat

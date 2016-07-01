@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
 -- | Contains the state monad that the compiler works in and some functions
@@ -40,8 +38,8 @@ import Data.Char
 
 #if __GLASGOW_HASKELL__ <= 708
 import Control.Applicative
-import Data.Monoid
 #endif
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 
 import Agda.Compiler.UHC.MagicTypes
 import Agda.Syntax.Internal
@@ -71,10 +69,13 @@ data CoreMeta = CoreMeta
   , coreExports :: [CExport] -- ^ UHC core exports
   }
 
+instance Semigroup CoreMeta where
+  CoreMeta a b c <> CoreMeta r s t =
+    CoreMeta (Map.union a r) (Map.unionWith (++) b s) (c ++ t)
+
 instance Monoid CoreMeta where
   mempty = CoreMeta mempty mempty []
-  mappend (CoreMeta a b c) (CoreMeta r s t) =
-    CoreMeta (Map.union a r) (Map.unionWith (++) b s) (c ++ t)
+  mappend = (<>)
 
 -- | Stuff we need in our compiler
 data CompileState = CompileState

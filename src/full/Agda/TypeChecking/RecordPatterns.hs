@@ -1,8 +1,5 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE PatternGuards              #-}
-{-# LANGUAGE TupleSections              #-}
 
 -- | Code which replaces pattern matching on record constructors with
 -- uses of projection functions.
@@ -61,7 +58,7 @@ import Agda.Utils.Impossible
 --   E.g. for @(x , (y , z))@ we return @[ fst, fst . snd, snd . snd ]@.
 --
 --   If it is not a record pattern, error 'ShouldBeRecordPattern' is raised.
-recordPatternToProjections :: Pattern -> TCM [Term -> Term]
+recordPatternToProjections :: DeBruijnPattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
     VarP{}       -> return [ \ x -> x ]
@@ -76,7 +73,7 @@ recordPatternToProjections p =
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
     proj p = (`applyE` [Proj $ unArg p])
-    comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
+    comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
 
@@ -455,7 +452,8 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.
-      rhsSubst' = mkSub $ permute (reverseP $ clausePerm clause) s'
+      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
+      rhsSubst' = mkSub $ permute (reverseP perm) s'
       -- TODO: Is it OK to replace the definition above with the
       -- following one?
       --
@@ -465,7 +463,7 @@ translateRecordPatterns clause = do
       -- order (i.e. the type signature for the variable which occurs
       -- first in the list of patterns comes first).
       flattenedOldTel =
-        permute (invertP __IMPOSSIBLE__ $ compactP $ clausePerm clause) $
+        permute (invertP __IMPOSSIBLE__ $ compactP perm) $
         zip (teleNames $ clauseTel clause) $
         flattenTel $
         clauseTel clause
@@ -584,7 +582,7 @@ nextVar = RecPatM $ do
   n <- lift get
   lift $ put $ succ n
   noVars <- lift ask
-  return (VarP "r", var $ noVars - n - 1)
+  return (varP "r", var $ noVars - n - 1)
 
 ------------------------------------------------------------------------
 -- Types used to record changes to a clause

@@ -1,10 +1,5 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE DoAndIfThenElse   #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE PatternGuards     #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -254,8 +249,8 @@ addDisplayForms x = do
           , all (isVar . namedArg) pats
           , Just (m, Def y es) <- strip (b `apply` vs0)
           , Just vs <- mapM isApplyElim es -> do
-              let ps = raise 1 $ map unArg vs
-                  df = Display 0 ps $ DTerm $ Def top $ map Apply args
+              let ps = map unArg vs
+                  df = Display m ps $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
@@ -284,7 +279,7 @@ addDisplayForms x = do
     strip (Body v)   = return (0, unSpine v)
     strip  NoBody    = Nothing
     strip (Bind b)   = do
-      (n, v) <- strip $ absBody b
+      (n, v) <- strip $ absApp b (Var 0 [])
       return (n + 1, ignoreSharing v)
 
     isVar VarP{} = True
@@ -442,10 +437,9 @@ applySection' new ptel old ts rd rm = do
                          , dataClause = Just cl
                          , dataCons   = map copyName cs
                          }
-                Record{ recPars = np, recConType = t, recTel = tel } -> return $
+                Record{ recPars = np, recTel = tel } -> return $
                   oldDef { recPars    = np - size ts'
                          , recClause  = Just cl
-                         , recConType = piApply t ts'
                          , recTel     = apply tel ts'
                          }
                 _ -> do
@@ -527,19 +521,22 @@ addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeLocal df
   let add = updateDefinition x $ \ def -> def{ defDisplay = d : defDisplay def }
-  inCurrentSig <- isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
-  if inCurrentSig
-     then modifySignature add
-     else stImportsDisplayForms %= HMap.insertWith (++) x [d]
+  ifM (isLocal x)
+    {-then-} (modifySignature add)
+    {-else-} (stImportsDisplayForms %= HMap.insertWith (++) x [d])
   whenM (hasLoopingDisplayForm x) $
     typeError . GenericDocError $ text "Cannot add recursive display form for" <+> pretty x
+
+isLocal :: QName -> TCM Bool
+isLocal x = isJust . HMap.lookup x <$> use (stSignature . sigDefinitions)
 
 getDisplayForms :: QName -> TCM [LocalDisplayForm]
 getDisplayForms q = do
   ds  <- defDisplay <$> getConstInfo q
   ds1 <- maybe [] id . HMap.lookup q <$> use stImportsDisplayForms
   ds2 <- maybe [] id . HMap.lookup q <$> use stImportedDisplayForms
-  return $ ds ++ ds1 ++ ds2
+  ifM (isLocal q) (return $ ds ++ ds1 ++ ds2)
+                  (return $ ds1 ++ ds ++ ds2)
 
 -- | Find all names used (recursively) by display forms of a given name.
 chaseDisplayForms :: QName -> TCM (Set QName)
@@ -674,7 +671,10 @@ getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
-setPolarity q pol = modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
+setPolarity q pol = do
+  reportSLn "tc.polarity.set" 20 $
+    "Setting polarity of " ++ show q ++ " to " ++ show pol ++ "."
+  modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
 
 -- | Get argument occurrence info for argument @i@ of definition @d@ (never fails).
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
@@ -684,6 +684,8 @@ getArgOccurrence d i = do
     Constructor{} -> StrictPos
     _             -> fromMaybe Mixed $ defArgOccurrences def !!! i
 
+-- | Sets the 'defArgOccurrences' for the given identifier (which
+-- should already exist in the signature).
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os = modifyArgOccurrences d $ const os
 

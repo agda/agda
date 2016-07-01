@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
 
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
-
 -- Author:  Ulf Norell
 -- Created: 2013-11-09
 
@@ -187,7 +183,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   -- Finally we need to add the right number of Bind's to the body.
   let body = rebindBody (permRange perm) $
              applySubst (renamingR perm) .
-             applySubst (renaming $ reverseP $ clausePerm wcl)
+             applySubst (renaming $ reverseP $ fromMaybe __IMPOSSIBLE__ $ clausePerm wcl)
               <$> clauseBody wcl
   return wcl { namedClausePats = numberPatVars perm pats
              , clauseBody      = body
@@ -236,7 +232,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
             {-else-} (DotP (dtermToTerm v) <$ skip)
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->
-          ifM (bindVar i) (VarP . nameToPatVarName <$> lift (nameOfBV i))
+          ifM (bindVar i) (varP . nameToPatVarName <$> lift (nameOfBV i))
                           (pure $ DotP (Var i []))
         DTerm (Con c vs) -> ConP c noConPatternInfo . map (fmap unnamed) <$>
                               mapM (traverse (dtermToPat . DTerm)) vs

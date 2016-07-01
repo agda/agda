@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 
 -- | Computing the free variables of a term.
 --
@@ -41,7 +40,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 
 import Data.Foldable (foldMap)
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -173,9 +172,12 @@ empty :: FreeVars
 empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty Set.empty
 
 -- | Free variable sets form a monoid under 'union'.
+instance Semigroup FreeVars where
+  (<>) = union
+
 instance Monoid FreeVars where
   mempty  = empty
-  mappend = union
+  mappend = (<>)
   mconcat = unions
 
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
@@ -223,9 +225,12 @@ freeVarsIgnore i t = freeVars' t `runReader` initFreeConf{ fcIgnoreSorts = i }
 -- | Return type of fold over syntax.
 type FreeT = Reader FreeConf FreeVars
 
+instance Semigroup FreeT where
+  (<>) = liftA2 mappend
+
 instance Monoid FreeT where
   mempty  = pure mempty
-  mappend = liftA2 mappend
+  mappend = (<>)
   mconcat = mconcat <.> sequence
 
 -- | Base case: a variable.

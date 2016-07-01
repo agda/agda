@@ -99,6 +99,7 @@ tokens :-
 <pragma_>   "NO_TERMINATION_CHECK"     { keyword KwNO_TERMINATION_CHECK }
 <pragma_>   "NON_TERMINATING"          { keyword KwNON_TERMINATING }
 <pragma_>   "OPTIONS"                  { keyword KwOPTIONS }
+<pragma_>   "POLARITY"                 { keyword KwPOLARITY }
 <pragma_>   "REWRITE"                  { keyword KwREWRITE }
 <pragma_>   "STATIC"                   { keyword KwSTATIC }
 <pragma_>   "TERMINATING"              { keyword KwTERMINATING }

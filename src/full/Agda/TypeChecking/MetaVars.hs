@@ -1,9 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE PatternGuards     #-}
-{-# LANGUAGE RelaxedPolyRec    #-}
-{-# LANGUAGE TupleSections     #-}
 
 module Agda.TypeChecking.MetaVars where
 

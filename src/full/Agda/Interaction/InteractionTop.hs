@@ -2,11 +2,7 @@
 {-# LANGUAGE DeriveFoldable        #-}
 {-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveTraversable     #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TupleSections         #-}
 
 {-# OPTIONS_GHC -fno-cse #-}
 
@@ -957,7 +953,7 @@ highlightExpr e =
   where
     dummy = mkName_ (NameId 0 0) "dummy"
     info  = mkDefInfo (nameConcrete dummy) noFixity' PublicAccess ConcreteDef (getRange e)
-    decl  = A.Axiom NoFunSig info defaultArgInfo (qnameFromList [dummy]) e
+    decl  = A.Axiom NoFunSig info defaultArgInfo Nothing (qnameFromList [dummy]) e
 
 -- | Sorts interaction points based on their ranges.
 

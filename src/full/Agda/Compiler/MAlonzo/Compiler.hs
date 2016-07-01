@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
@@ -71,7 +69,7 @@ import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty (prettyShow, Pretty)
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Singleton
@@ -644,8 +642,7 @@ writeModule (HS.Module l m ps w ex imp ds) = do
         ]
 
 
-outFile' :: (HS.Pretty a, TransformBi HS.ModuleName (Wrap a)) =>
-            a -> TCM (FilePath, FilePath)
+outFile' :: Pretty a => a -> TCM (FilePath, FilePath)
 outFile' m = do
   mdir <- compileDir
   let (fdir, fn) = splitFileName $ repldot pathSeparator $

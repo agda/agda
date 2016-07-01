@@ -15,9 +15,6 @@
 --
 -- Ulf, 2015-10-30: Guards are actually a better primitive. Fixed that.
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Agda.Compiler.Treeless.Builtin (translateBuiltins) where
 
 import Control.Applicative
@@ -125,8 +122,10 @@ transform BuiltinKit{..} = tr
                 TCase 0 _ d bs' -> map sucBranch bs' ++ [nPlusKAlt 1 d]
                 b -> [nPlusKAlt 1 b]
               where
-                sucBranch (TALit (LitNat r i) b) = TALit (LitNat r (i + 1)) $ applySubst (str __IMPOSSIBLE__) b
-                sucBranch alt | Just (k, b) <- nPlusKView alt = nPlusKAlt (k + 1) $ applySubst (liftS 1 $ str __IMPOSSIBLE__) b
+                sucBranch (TALit (LitNat r i) b) = TALit (LitNat r (i + 1)) $ TLet (tInt i) b
+                sucBranch alt | Just (k, b) <- nPlusKView alt =
+                  nPlusKAlt (k + 1) $ TLet (tOp PAdd (TVar 0) (tInt 1)) $
+                    applySubst ([TVar 1, TVar 0] ++# wkS 2 idS) b
                 sucBranch _ = __IMPOSSIBLE__
 
                 nPlusKAlt k b = TAGuard (tOp PGeq (TVar e) (tInt k)) $

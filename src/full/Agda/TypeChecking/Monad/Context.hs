@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections     #-}
 
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
@@ -289,7 +286,7 @@ getContextNames = map (fst . unDom) <$> getContext
 lookupBV :: MonadReader TCEnv m => Nat -> m (Dom (Name, Type))
 lookupBV n = do
   ctx <- getContext
-  let failure = fail $ "deBruijn index out of scope: " ++ show n ++
+  let failure = fail $ "de Bruijn index out of scope: " ++ show n ++
                        " in context " ++ show (map (fst . unDom) ctx)
   maybe failure (return . fmap (raise $ n + 1)) $ ctx !!! n
 

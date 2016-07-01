@@ -1,8 +1,5 @@
 {-# LANGUAGE BangPatterns         #-}
 {-# LANGUAGE CPP                  #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
@@ -444,7 +441,7 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
-    let ps = unnumberPatVars $ clausePats cl
+    let ps = clausePats cl
     (Concat (mapMaybe matching (zip [0..] ps)) >+<) <$>
       walk (patItems ps) (clauseBody cl)
     where
@@ -466,7 +463,7 @@ instance ComputeOccurrences Clause where
 
       -- @patItem i p@ replicates index @i@ as often as there are
       -- pattern variables in @p@ (dot patterns count as variable)
-      patItem :: Int -> Arg Pattern -> [Maybe Item]
+      patItem :: Int -> Arg (Pattern' a) -> [Maybe Item]
       patItem i p = map (const $ Just $ AnArg i) $ patternVars p
 
 instance ComputeOccurrences Term where
@@ -606,7 +603,7 @@ etaExpandClause :: Nat -> Clause -> Clause
 etaExpandClause n c@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b }
   | m <= 0    = c
   | otherwise = c
-      { namedClausePats = raise m ps ++ map (defaultArg . unnamed . VarP . (,underscore)) (downFrom m)
+      { namedClausePats = raise m ps ++ map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
       , clauseBody      = liftBody m b
       , clauseTel       = telFromList $
           telToList tel ++ (replicate m $ (underscore,) <$> dummyDom)

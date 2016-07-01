@@ -4,12 +4,8 @@
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TupleSections              #-}
 #if __GLASGOW_HASKELL__ <= 708
 {-# LANGUAGE OverlappingInstances #-}
 #endif
@@ -30,7 +26,7 @@ import Data.Foldable ( Foldable, foldMap )
 import Data.Function
 import qualified Data.List as List
 import Data.Maybe
-import Data.Monoid
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Sum(..))
 
 -- base-4.7 defines the Num instance for Sum
 #if !(MIN_VERSION_base(4,7,0))
@@ -62,7 +58,8 @@ import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
 import Agda.Utils.Size
-import Agda.Utils.Pretty as P
+import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -296,17 +293,20 @@ data NotBlocked
 -- | 'ReallyNotBlocked' is the unit.
 --   'MissingClauses' is dominant.
 --   @'StuckOn'{}@ should be propagated, if tied, we take the left.
+instance Semigroup NotBlocked where
+  ReallyNotBlocked <> b = b
+  -- MissingClauses is dominant (absorptive)
+  b@MissingClauses <> _ = b
+  _ <> b@MissingClauses = b
+  -- StuckOn is second strongest
+  b@StuckOn{}      <> _ = b
+  _ <> b@StuckOn{}      = b
+  b <> _                = b
+
 instance Monoid NotBlocked where
   -- ReallyNotBlocked is neutral
-  mempty                       = ReallyNotBlocked
-  ReallyNotBlocked `mappend` b = b
-  -- MissingClauses is dominant (absorptive)
-  b@MissingClauses `mappend` _ = b
-  _ `mappend` b@MissingClauses = b
-  -- StuckOn is second strongest
-  b@StuckOn{}      `mappend` _ = b
-  _ `mappend` b@StuckOn{}      = b
-  b `mappend` _                = b
+  mempty = ReallyNotBlocked
+  mappend = (<>)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t
@@ -330,11 +330,14 @@ instance Applicative Blocked where
 -- | @'Blocked' t@ without the @t@.
 type Blocked_ = Blocked ()
 
+instance Semigroup Blocked_ where
+  b@Blocked{}    <> _              = b
+  _              <> b@Blocked{}    = b
+  NotBlocked x _ <> NotBlocked y _ = NotBlocked (x <> y) ()
+
 instance Monoid Blocked_ where
   mempty = notBlocked ()
-  b@Blocked{}    `mappend` _              = b
-  _              `mappend` b@Blocked{}    = b
-  NotBlocked x _ `mappend` NotBlocked y _ = NotBlocked (x `mappend` y) ()
+  mappend = (<>)
 
 -- See issues 1573 and 1674.
 #if !MIN_VERSION_transformers(0,4,1)
@@ -462,15 +465,23 @@ data Pattern' x
 type Pattern = Pattern' PatVarName
     -- ^ The @PatVarName@ is a name suggestion.
 
--- | Type used when numbering pattern variables.
-type DeBruijnPattern = Pattern' (Int, PatVarName)
+varP :: ArgName -> Pattern
+varP = VarP
 
-namedVarP :: PatVarName -> Named (Ranged PatVarName) Pattern
-namedVarP x = Named named $ VarP x
+-- | Type used when numbering pattern variables.
+data DBPatVar = DBPatVar
+  { dbPatVarName  :: PatVarName
+  , dbPatVarIndex :: Int
+  } deriving (Typeable, Show)
+
+type DeBruijnPattern = Pattern' DBPatVar
+
+namedVarP :: PatVarName -> Named_ Pattern
+namedVarP x = Named named $ varP x
   where named = if isUnderscore x then Nothing else Just $ unranged x
 
-namedDBVarP :: Int -> PatVarName -> Named (Ranged PatVarName) DeBruijnPattern
-namedDBVarP m = (fmap . fmap) (m,) . namedVarP
+namedDBVarP :: Int -> PatVarName -> Named_ DeBruijnPattern
+namedDBVarP m = (fmap . fmap) (\x -> DBPatVar x m) . namedVarP
 
 -- | The @ConPatternInfo@ states whether the constructor belongs to
 --   a record type (@Just@) or data type (@Nothing@).
@@ -1117,6 +1128,9 @@ instance KillRange Substitution where
 instance KillRange ConPatternInfo where
   killRange (ConPatternInfo mr mt) = killRange1 (ConPatternInfo mr) mt
 
+instance KillRange DBPatVar where
+  killRange (DBPatVar x i) = killRange2 DBPatVar x i
+
 instance KillRange a => KillRange (Pattern' a) where
   killRange p =
     case p of
@@ -1248,6 +1262,9 @@ instance Pretty Elim where
   prettyPrec p (Apply v) = prettyPrec p v
   prettyPrec p (IApply x y r) = prettyPrec p r
   prettyPrec _ (Proj x)  = text ("." ++ show x)
+
+instance Pretty DBPatVar where
+  prettyPrec _ x = text $ show (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP x)      = prettyPrec n x

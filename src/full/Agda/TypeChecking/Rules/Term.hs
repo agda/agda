@@ -1,16 +1,6 @@
 {-# LANGUAGE CPP                      #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE LambdaCase               #-}
-{-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE PatternGuards            #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE TupleSections            #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -77,6 +67,7 @@ import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide, LHSResult(..))
@@ -498,7 +489,7 @@ checkAbsurdLambda i h e t = do
                   [Clause
                     { clauseRange     = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
-                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ VarP (0,"()")]
+                    , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ debruijnNamedVar "()" 0]
                     , clauseBody      = Bind $ NoAbs "()" NoBody
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
@@ -530,6 +521,10 @@ checkAbsurdLambda i h e t = do
 checkExtendedLambda :: A.ExprInfo -> A.DefInfo -> QName -> [A.Clause] ->
                        A.Expr -> Type -> TCM Term
 checkExtendedLambda i di qname cs e t = do
+   -- Andreas, 2016-06-16 issue #2045
+   -- Try to get rid of unsolved size metas before we
+   -- fix the type of the extended lambda auxiliary function
+   solveSizeConstraints DontDefaultToInfty
    t <- instantiateFull t
    ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ $ CheckExpr e t') $ \ t -> do
      j   <- currentOrFreshMutualBlock
@@ -826,13 +821,16 @@ checkExpr e t0 = do
              u <- checkExpr' e =<< (el' (pure l_sigma) $ pure a_sigma <@> primItIsOne)
              tinv <- El (mkType 0) <$> primInterval
              let pats = teleNamedArgs gamma_tel
+--type DeBruijnPattern = Pattern' DBPatVar
+
                  mkConP q = ConP (ConHead q Inductive []) (noConPatternInfo { conPType = Just (Arg defaultArgInfo tinv) })
                                                            []
-                 adjusted = map (fmap (fmap (\ p@(VarP (i,blah)) -> case lookupS sigma i of
+                 adjusted :: [NamedArg DeBruijnPattern]
+                 adjusted = map (fmap (fmap (\ p@(VarP v) -> case lookupS sigma (dbPatVarIndex v) of
                                                                       Def q [] -> mkConP q
-                                                                      Var j [] -> VarP (j,blah)
+                                                                      Var j [] -> VarP (v {dbPatVarIndex = j})
                                                                       _        -> p))) pats
-             reportSDoc "tc.partial" 80 $ text (show adjusted)
+--             reportSDoc "tc.partial" 80 $ text (show adjusted)
              reportSDoc "tc.partial" 50 $ prettyTCM sigma
              ty <- elInf $ primPartialP <#> pure l_sigma <@> primIOne <@> pure a_sigma
              let c = Clause { clauseTel = tel

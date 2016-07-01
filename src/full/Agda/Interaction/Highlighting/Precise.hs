@@ -39,7 +39,7 @@ import Agda.Utils.List hiding (tests)
 import Data.Maybe
 import Data.List
 import Data.Function
-import Data.Monoid
+import Data.Semigroup
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (second)
 import Control.Monad
@@ -171,6 +171,9 @@ mergeAspects m1 m2 = Aspects
   , definitionSite = (mplus `on` definitionSite) m1 m2
   }
 
+instance Semigroup Aspects where
+  (<>) = mergeAspects
+
 instance Monoid Aspects where
   mempty = Aspects
     { aspect         = Nothing
@@ -178,7 +181,7 @@ instance Monoid Aspects where
     , note           = Nothing
     , definitionSite = Nothing
     }
-  mappend = mergeAspects
+  mappend = (<>)
 
 -- | Merges files.
 
@@ -186,9 +189,12 @@ merge :: File -> File -> File
 merge f1 f2 =
   File { mapping = (IntMap.unionWith mappend `on` mapping) f1 f2 }
 
+instance Semigroup File where
+  (<>) = merge
+
 instance Monoid File where
   mempty  = File { mapping = IntMap.empty }
-  mappend = merge
+  mappend = (<>)
 
 ------------------------------------------------------------------------
 -- Inspection
@@ -324,9 +330,12 @@ prop_merge :: File -> File -> Bool
 prop_merge f1 f2 =
   merge f1 f2 == decompress (mergeC (compress f1) (compress f2))
 
+instance Semigroup CompressedFile where
+  (<>) = mergeC
+
 instance Monoid CompressedFile where
   mempty  = CompressedFile []
-  mappend = mergeC
+  mappend = (<>)
 
 -- | @splitAtC p f@ splits the compressed file @f@ into @(f1, f2)@,
 -- where all the positions in @f1@ are @< p@, and all the positions

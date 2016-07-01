@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TupleSections              #-}
 
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by
@@ -31,7 +29,7 @@ module Agda.Termination.CallGraph
 import Prelude hiding (null)
 
 import qualified Data.List as List
-import Data.Monoid
+import Data.Semigroup
 import Data.Set (Set)
 
 import Agda.Termination.CallMatrix (CallMatrix, callMatrix, CallMatrixAug(..), CMSet(..), CallComb(..))
@@ -48,7 +46,7 @@ import Agda.Utils.Function
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.PartialOrd
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.QuickCheck hiding (label)
 import Agda.Utils.Singleton
 import Agda.Utils.TestHelpers
@@ -123,9 +121,12 @@ union (CallGraph cs1) (CallGraph cs2) = CallGraph $
 
 -- | 'CallGraph' is a monoid under 'union'.
 
+instance Semigroup (CallGraph cinfo) where
+  (<>) = union
+
 instance Monoid (CallGraph cinfo) where
   mempty  = empty
-  mappend = union
+  mappend = (<>)
 
 -- | Inserts a call into a call graph.
 

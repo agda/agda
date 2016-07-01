@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP               #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards     #-}
 
 module Agda.TypeChecking.Polarity where
 
@@ -258,7 +256,7 @@ nonvariantToUnusedArgInClause pol cl@Clause{clauseTel = tel, namedClausePats = p
       -- get a list of 'Relevance's for the variables bound in the pattern
       rels0 = getRelevance <$> (concatMap (patternVars . fmap namedThing) ps')
       -- this is the order the variables appear in the telescope
-      perm  = clausePerm cl
+      perm  = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
       rels  = permute perm rels0
       -- now improve 'Relevance' in 'Telescope' by pattern relevance
       updateDom UnusedArg = mapRelevance mkUnused

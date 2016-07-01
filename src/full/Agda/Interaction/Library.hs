@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE PatternGuards #-}
 
 module Agda.Interaction.Library
   ( getDefaultLibraries
@@ -75,10 +73,12 @@ findAgdaLibFiles root = do
       if up == root then return [] else findAgdaLibFiles up
     files -> return files
 
-getDefaultLibraries :: FilePath -> LibM ([LibName], [FilePath])
-getDefaultLibraries root = mkLibM [] $ do
+getDefaultLibraries :: FilePath -> Bool -> LibM ([LibName], [FilePath])
+getDefaultLibraries root optDefaultLibs = mkLibM [] $ do
   libs <- findAgdaLibFiles root
-  if null libs then first (, []) <$> readDefaultsFile
+  if null libs
+    then
+    if optDefaultLibs then first (, []) <$> readDefaultsFile else return (([], []), [])
     else first libsAndPaths <$> parseLibFiles Nothing (zip (repeat 0) libs)
   where
     libsAndPaths ls = (concatMap libDepends ls, concatMap libIncludes ls)

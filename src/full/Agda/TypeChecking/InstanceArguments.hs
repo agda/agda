@@ -1,9 +1,5 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE LambdaCase #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.InstanceArguments where
 
@@ -161,6 +157,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       reportSDoc "tc.instance" 60 $ nest 2 $ vcat
         [ sep [ prettyTCM v <+> text ":", nest 2 $ prettyTCM t ] | Candidate v t _ <- cands ]
       t <- normalise =<< getMetaTypeInContext m
+      insidePi t $ \ t -> do
       reportSDoc "tc.instance" 15 $ text "findInScope 3: t =" <+> prettyTCM t
       reportSLn "tc.instance" 70 $ "findInScope 3: t: " ++ show t
 
@@ -169,6 +166,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
       ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
 
         mcands <- checkCandidates m t cands
+        debugConstraints
         case mcands of
 
           Just [] -> do
@@ -184,6 +182,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               , text "for type" <+> prettyTCM t
               ]
 
+            -- If we actually solved the constraints we should wake up any held
+            -- instance constraints, to make sure we don't forget about them.
+            wakeConstraints (return . const True)
+            solveAwakeConstraints' False
             return Nothing  -- We’re done
 
           _ -> do
@@ -192,6 +194,22 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
               text ("findInScope 5: refined candidates: ") <+>
               prettyTCM (List.map candidateTerm cs)
             return (Just (cs, Nothing))
+
+-- | Precondition: type is spine reduced and ends in a Def or a Var.
+insidePi :: Type -> (Type -> TCM a) -> TCM a
+insidePi t ret =
+  case ignoreSharing $ unEl t of
+    Pi a b     -> addContext' (absName b, a) $ insidePi (unAbs b) ret
+    Def{}      -> ret t
+    Var{}      -> ret t
+    Sort{}     -> __IMPOSSIBLE__
+    Con{}      -> __IMPOSSIBLE__
+    Lam{}      -> __IMPOSSIBLE__
+    Lit{}      -> __IMPOSSIBLE__
+    Level{}    -> __IMPOSSIBLE__
+    MetaV{}    -> __IMPOSSIBLE__
+    Shared{}   -> __IMPOSSIBLE__
+    DontCare{} -> __IMPOSSIBLE__
 
 -- | A meta _M is rigidly constrained if there is a constraint _M us == D vs,
 -- for inert D. Such metas can safely be instantiated by recursive instance
@@ -304,18 +322,21 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
 --   If the resulting list contains exactly one element, then the state is the
 --   same as the one obtained after running the corresponding computation. In
 --   all the other cases, the state is reseted.
-filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM Bool) -> TCM [Candidate]
+filterResetingState :: MetaId -> [Candidate] -> (Candidate -> TCM YesNoMaybe) -> TCM [Candidate]
 filterResetingState m cands f = disableDestructiveUpdate $ do
   ctxArgs  <- getContextArgs
   let ctxElims = map Apply ctxArgs
       tryC c = do
         ok <- f c
         v  <- instantiateFull (MetaV m ctxElims)
-        a  <- instantiateFull =<< (`piApply` ctxArgs) <$> getMetaType m
+        a  <- instantiateFull =<< (`piApplyM` ctxArgs) =<< getMetaType m
         return (ok, v, a)
   result <- mapM (\c -> do bs <- localTCStateSaving (tryC c); return (c, bs)) cands
-  let result' = [ (c, v, a, s) | (c, ((True, v, a), s)) <- result ]
-  result <- dropSameCandidates m result'
+  let result' = [ (c, v, a, s) | (c, ((r, v, a), s)) <- result, r /= No ]
+      noMaybes = null [ Maybe | (_, ((Maybe, _, _), _)) <- result ]
+            -- It's not safe to compare maybes for equality because they might
+            -- not have instantiated at all.
+  result <- if noMaybes then dropSameCandidates m result' else return result'
   case result of
     [(c, _, _, s)] -> [c] <$ put s
     _              -> return [ c | (c, _, _, _) <- result ]
@@ -350,12 +371,16 @@ dropSameCandidates m cands = do
                              {- else -} (\ _ -> return False)
                              `catchError` (\ _ -> return False)
 
+data YesNoMaybe = Yes | No | Maybe
+  deriving (Show, Eq)
+
 -- | Given a meta @m@ of type @t@ and a list of candidates @cands@,
 -- @checkCandidates m t cands@ returns a refined list of valid candidates.
 checkCandidates :: MetaId -> Type -> [Candidate] -> TCM (Maybe [Candidate])
 checkCandidates m t cands = disableDestructiveUpdate $
   verboseBracket "tc.instance.candidates" 20 ("checkCandidates " ++ prettyShow m) $
-  ifM (anyMetaTypes cands) (return Nothing) $ Just <$> do
+  ifM (anyMetaTypes cands) (return Nothing) $
+  holdConstraints (\ _ -> isIFSConstraint . clValue . theConstraint) $ Just <$> do
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ text "target:" <+> prettyTCM t
     reportSDoc "tc.instance.candidates" 20 $ nest 2 $ vcat
       [ text "candidates"
@@ -374,14 +399,15 @@ checkCandidates m t cands = disableDestructiveUpdate $
         MetaV{} -> return True
         _       -> anyMetaTypes cands
 
-    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM Bool
+    checkCandidateForMeta :: MetaId -> Type -> Candidate -> TCM YesNoMaybe
     checkCandidateForMeta m t (Candidate term t' eti) = do
       -- Andreas, 2015-02-07: New metas should be created with range of the
       -- current instance meta, thus, we set the range.
       mv <- lookupMeta m
       setCurrentRange mv $ do
-        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $ do
-          liftTCM $ flip catchError handle $ do
+        debugConstraints
+        verboseBracket "tc.instance" 20 ("checkCandidateForMeta " ++ prettyShow m) $
+          liftTCM $ runCandidateCheck $ do
             reportSLn "tc.instance" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
             reportSDoc "tc.instance" 20 $ vcat
               [ text "checkCandidateForMeta"
@@ -410,24 +436,37 @@ checkCandidates m t cands = disableDestructiveUpdate $
             -- unsolvable by the assignment, but don't do this for FindInScope's
             -- to prevent loops. We currently also ignore UnBlock constraints
             -- to be on the safe side.
+            debugConstraints
             solveAwakeConstraints' True
+
             verboseS "tc.instance" 15 $ do
               sol <- instantiateFull (MetaV m ctxElims)
-              reportSDoc "tc.instance" 15 $
-                sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
-                    , nest 2 $ prettyTCM sol ]
-            return True
+              case sol of
+                MetaV m' _ | m == m' ->
+                  reportSDoc "tc.instance" 15 $
+                    sep [ text "instance search: maybe solution for" <+> prettyTCM m <> text ":"
+                        , nest 2 $ prettyTCM v ]
+                _ ->
+                  reportSDoc "tc.instance" 15 $
+                    sep [ text "instance search: found solution for" <+> prettyTCM m <> text ":"
+                        , nest 2 $ prettyTCM sol ]
         where
-          handle :: TCErr -> TCM Bool
+          runCandidateCheck check =
+            flip catchError handle $
+            ifNoConstraints_ check
+              (return Yes)
+              (\ _ -> Maybe <$ reportSLn "tc.instance" 50 "assignment inconclusive")
+
+          handle :: TCErr -> TCM YesNoMaybe
           handle err = do
             reportSDoc "tc.instance" 50 $
               text "assignment failed:" <+> prettyTCM err
-            return False
+            return No
 
-    isIFSConstraint :: Constraint -> Bool
-    isIFSConstraint FindInScope{} = True
-    isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
-    isIFSConstraint _             = False
+isIFSConstraint :: Constraint -> Bool
+isIFSConstraint FindInScope{} = True
+isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
+isIFSConstraint _             = False
 
 -- | To preserve the invariant that a constructor is not applied to its
 --   parameter arguments, we explicitly check whether function term

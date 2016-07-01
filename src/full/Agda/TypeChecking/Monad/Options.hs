@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.TypeChecking.Monad.Options where
 
@@ -106,11 +105,10 @@ setLibraryIncludes o = do
 addDefaultLibraries :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
 addDefaultLibraries rel o
   | or [ not $ null $ optLibraries o
-       , not $ optDefaultLibs o
        , optShowVersion o ] = pure o
   | otherwise = do
   root <- getProjectRoot rel
-  (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root)
+  (libs, incs) <- libToTCM $ getDefaultLibraries (filePath root) (optDefaultLibs o)
   return o{ optIncludePaths = incs ++ optIncludePaths o, optLibraries = libs }
 
 class (Functor m, Applicative m, Monad m) => HasOptions m where

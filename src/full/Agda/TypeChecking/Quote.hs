@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE RankNTypes #-}
 
 module Agda.TypeChecking.Quote where
 
@@ -165,8 +162,8 @@ quotingKit = do
       quotePats ps = list $ map (quoteArg quotePat . fmap namedThing) ps
 
       quotePat :: DeBruijnPattern -> ReduceM Term
-      quotePat (VarP (_,"()"))   = pure absurdP
-      quotePat (VarP (_,x))      = varP !@! quoteString x
+      quotePat (VarP x) | isAbsurdPatternName (dbPatVarName x) = pure absurdP
+      quotePat (VarP x)          = varP !@! quoteString (dbPatVarName x)
       quotePat (DotP _)          = pure dotP
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
       quotePat (LitP l)          = litP !@! Lit l

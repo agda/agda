@@ -6,6 +6,10 @@ language: c
 # Explicitly request container-based infrastructure.
 sudo: false
 
+cache:
+  directories:
+  - $HOME/.stack
+
 ##############################################################################
 # Required Ubuntu packages
 
@@ -24,9 +28,6 @@ sudo: false
 # test suite, the benchmark suite, the compilation with a specific set
 # of dependencies, the testing of other programs like `hTags`, etc.)
 
-# N.B. that we run the tests `cpp`, `haddock` and `doc` only with the
-# highest GHC version available.
-
 # Travis runs the builds on this order.
 
 matrix:
@@ -35,36 +36,44 @@ matrix:
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.1
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
 
-    - env: TEST=cpp GHC_VER=8.0.1 CABAL_VER=1.24
+    - env: TEST=cpp-and-debug GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.24
             - ghc-8.0.1
+            - happy-1.19.5
           sources:
             - hvr-ghc
 
-    - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
-      addons:
-        apt:
-          packages:
-            - cabal-install-1.24
-            - ghc-8.0.1
-          sources:
-            - hvr-ghc
+    # - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
+    #   addons:
+    #     apt:
+    #       packages:
+    #         - alex-3.1.7
+    #         - cabal-install-1.24
+    #         - ghc-8.0.1
+    #         - happy-1.19.5
+    #       sources:
+    #         - hvr-ghc
 
     - env: TEST=uhc GHC_VER=8.0.1 CABAL_VER=1.24
       addons:
         apt:
           packages:
+            - happy-1.19.5
             - cabal-install-1.24
             - ghc-8.0.1
+            - alex-3.1.7
           sources:
             - hvr-ghc
 
@@ -72,8 +81,10 @@ matrix:
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.22
             - ghc-7.10.3
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -82,7 +93,17 @@ matrix:
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.22
+            - ghc-7.10.3
+            - happy-1.19.5
+          sources:
+            - hvr-ghc
+
+    - env: TEST=stack GHC_VER=7.10.3
+      addons:
+        apt:
+          packages:
             - ghc-7.10.3
           sources:
             - hvr-ghc
@@ -91,8 +112,10 @@ matrix:
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.8.4
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -101,8 +124,10 @@ matrix:
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.8.4
+            - happy-1.19.5
           sources:
             - hvr-ghc
 
@@ -110,8 +135,10 @@ matrix:
       addons:
         apt:
           packages:
+            - alex-3.1.7
             - cabal-install-1.18
             - ghc-7.6.3
+            - happy-1.19.5
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -132,7 +159,11 @@ matrix:
 ##############################################################################
 before_install:
   - if [[ $TEST != "doc" ]]; then
-       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:$PATH;
+       export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
+    fi
+  - if [[ $TEST == "stack" ]]; then
+       mkdir -p ~/.local/bin &&
+       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';
     fi
 
 ##############################################################################
@@ -143,20 +174,30 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
+  # || true allows for failure -- we don't expect ~/.cabal/bin to exist at that
+  # point.
   - if [[ $TEST != "doc" ]]; then
        cabal --version &&
        ghc --version &&
        haddock --version &&
        emacs --version &&
-       cabal update &&
-       cat $HOME/.cabal/config &&
-       cabal install cabal-install &&
-       export PATH=$HOME/.cabal/bin:$PATH &&
        export JOBS=2;
+       case "$TEST" in
+         stack)
+           export PATH=$HOME/.local/bin:$PATH
+           ;;
+         *)
+           cabal update &&
+           cat $HOME/.cabal/config &&
+           cabal install cabal-install &&
+           export PATH=$HOME/.cabal/bin:$PATH &&
+           cabal --version
+           ;;
+       esac
     fi
 
 ##############################################################################
-# Installing the dependencies and latest versions of Alex and Happy
+# Installing the dependencies
 
 # N.B. that `cabal install` doesn't set up the number of jobs by default
 # (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
@@ -165,18 +206,16 @@ install:
 
 # TODO (2016-02-21): Split the long lines (`\` doesn't work).
 
-  - if [[ $TEST = "main" || $TEST = "cpp" || $TEST = "haddock" || $TEST = "uhc" ]]; then
-       cabal install alex &&
-       cabal install happy &&
+  - if [[ $TEST = "main" || $TEST = "cpp-and-debug" || $TEST = "haddock" || $TEST = "uhc" ]]; then
        if [[ $TEST = "uhc" ]]; then
           cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
        else
           cabal install --enable-tests --only-dependencies --force-reinstalls;
        fi
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
-         cabal install alex --constraint=transformers==0.3.0.0 &&
-         cabal install happy --constraint=transformers==0.3.0.0 &&
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
+    elif [[ $TEST = "stack" ]]; then
+         stack --no-terminal test --bench --only-dependencies;
     fi
 
 ##############################################################################
@@ -204,9 +243,13 @@ install:
 
   - export BUILD_DIR=$PWD/dist
 
+  - if [[ $TEST = "stack" ]]; then
+       stack --no-terminal build --bench --no-run-benchmarks;
+    fi
+
   - if [[ $TEST = "main" ]]; then
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests &&
-       cabal build -v2 -j${JOBS} &&
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS} &&
        cabal copy &&
        cabal register;
     fi
@@ -351,17 +394,27 @@ script:
 
   - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
        cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 -j${JOBS};
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
 
 ##############################################################################
-# Testing compilation with cpp instead of cpphs [Issue 1647]
+# Testing compilation with cpp instead of cpphs [Issue #1647]
 
 # N.B. that this test is not include in the Makefile tests.
 
-  - if [[ $TEST = "cpp" ]]; then
+  - if [[ $TEST = "cpp-and-debug" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 -j${JOBS};
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
+    fi
+
+##############################################################################
+# Testing compilation using the `debug` flag [Issue #2070]
+
+# N.B. that this test is not include in the Makefile tests.
+
+  - if [[ $TEST = "cpp-and-debug" ]]; then
+       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f debug &&
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
 
 ##############################################################################
@@ -369,7 +422,7 @@ script:
 
   - if [[ $TEST = "uhc" ]]; then
        cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f uhc &&
-       cabal build -v2 -j${JOBS};
+       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
     fi
 
 ##############################################################################
@@ -396,3 +449,4 @@ branches:
     - master
     - maint-2.4
     - stable-2.5
+    - release-2.5.1

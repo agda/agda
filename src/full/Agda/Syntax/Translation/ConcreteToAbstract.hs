@@ -1,11 +1,5 @@
 {-# LANGUAGE CPP                    #-}
-{-# LANGUAGE DoAndIfThenElse        #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE PatternGuards          #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -148,25 +142,41 @@ annotateExpr m = do
 
 -- | Make sure that each variable occurs only once.
 checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
-checkPatternLinearity ps = unlessNull (duplicates xs) $ \ ys -> do
-  typeError $ RepeatedVariablesInPattern ys
-  where
-    xs = concatMap vars ps
-    vars :: A.Pattern' e -> [C.Name]
-    vars p = case p of
-      A.VarP x               -> [nameConcrete x]
-      A.ConP _ _ args        -> concatMap (vars . namedArg) args
+checkPatternLinearity ps = do
+  unlessNull (duplicates $ map nameConcrete $ patternVars ps) $ \ ys -> do
+    typeError $ RepeatedVariablesInPattern ys
+
+class PatternVars a where
+  patternVars :: a -> [A.Name]
+
+instance PatternVars a => PatternVars [a] where
+  patternVars = concatMap patternVars
+
+instance PatternVars a => PatternVars (Arg a) where
+  patternVars = patternVars . unArg
+
+instance PatternVars a => PatternVars (Named n a) where
+  patternVars = patternVars . namedThing
+
+instance PatternVars a => PatternVars (C.FieldAssignment' a) where
+  patternVars = patternVars . (^. exprFieldA)
+
+instance PatternVars (A.Pattern' e) where
+  patternVars p = case p of
+      A.VarP x               -> [x]
+      A.ConP _ _ args        -> patternVars args
       A.ProjP _ _            -> []
       A.WildP _              -> []
-      A.AsP _ x p            -> nameConcrete x : vars p
+      A.AsP _ x p            -> x : patternVars p
       A.DotP _ _             -> []
       A.AbsurdP _            -> []
       A.LitP _               -> []
-      A.DefP _ _ args        -> concatMap (vars . namedArg) args
+      A.DefP _ _ args        -> patternVars args
         -- Projection pattern, @args@ should be empty unless we have
         -- indexed records.
-      A.PatternSynP _ _ args -> concatMap (vars . namedArg) args
-      A.RecP _ fs            -> concatMap (vars . (^. exprFieldA)) fs
+      A.PatternSynP _ _ args -> patternVars args
+      A.RecP _ fs            -> patternVars fs
+
 
 -- | Make sure that there are no dot patterns (called on pattern synonyms).
 noDotPattern :: String -> A.Pattern' e -> ScopeM (A.Pattern' Void)
@@ -208,7 +218,7 @@ recordConstructorType fields = build fs
     build (NiceField r _ f _ _ x (Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Arg info (C.TBind r [pure $ mkBoundName x f] e)] $ build fs
       where r = getRange x
-    build (d : fs)                     = C.Let (getRange d) [notSoNiceDeclaration d] $
+    build (d : fs)                     = C.Let (getRange d) (notSoNiceDeclarations d) $
                                            build fs
     build []                           = C.SetN noRange 0 -- todo: nicer
 
@@ -1092,10 +1102,11 @@ instance {-# OVERLAPPING #-} ToAbstract [C.Declaration] [A.Declaration] where
 instance ToAbstract [C.Declaration] [A.Declaration] where
 #endif
   toAbstract ds = do
-    -- Don't allow to switch off termination checker (Issue 586) or
-    -- positivity checker (Issue 1614) in --safe mode.
+    -- When --safe is active the termination checker (Issue 586) and
+    -- positivity checker (Issue 1614) may not be switched off, and
+    -- polarities may not be assigned.
     ds <- ifM (optSafe <$> commandLineOptions)
-              (mapM (noNoTermCheck >=> noNoPositivityCheck) ds)
+              (mapM (noNoTermCheck >=> noNoPositivityCheck >=> noPolarity) ds)
               (return ds)
     toAbstract =<< niceDecls ds
    where
@@ -1113,6 +1124,10 @@ instance ToAbstract [C.Declaration] [A.Declaration] where
     noNoPositivityCheck (C.Pragma (C.NoPositivityCheckPragma _)) =
       typeError $ SafeFlagNoPositivityCheck
     noNoPositivityCheck d = return d
+
+    noPolarity :: C.Declaration -> TCM C.Declaration
+    noPolarity (C.Pragma C.PolarityPragma{}) = typeError SafeFlagPolarity
+    noPolarity d                             = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
@@ -1261,7 +1276,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     case d of
 
   -- Axiom (actual postulate)
-    C.Axiom r f p i rel x t -> do
+    C.Axiom r f p i rel _ x t -> do
       -- check that we do not postulate in --safe mode
       clo <- commandLineOptions
       when (optSafe clo) (typeError (SafeFlagPostulate x))
@@ -1304,23 +1319,24 @@ instance ToAbstract NiceDeclaration A.Declaration where
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
+        t'  <- toAbstract t
         x'  <- freshAbstractQName f x
         bindName a DefName x x'
-        t' <- toAbstract t
         return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
 
     C.NiceDataSig r f a x ls t _ -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
+        t'  <- toAbstract t
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
         bindName a (DataName (length ls)) x x' -}
         bindName a DefName x x'
-        t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p i m rel tc x t -> toAbstractNiceAxiom A.FunSig m (C.Axiom r f p i rel x t)
+    C.FunSig r f p i m rel tc x t -> toAbstractNiceAxiom A.FunSig m
+                                       (C.Axiom r f p i rel Nothing x t)
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
@@ -1361,7 +1377,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "data" 20 $ "Checked data " ++ show x
         return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
       where
-        conName (C.Axiom _ _ _ _ _ c _) = c
+        conName (C.Axiom _ _ _ _ _ _ c _) = c
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
@@ -1492,17 +1508,19 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NicePatternSyn r fx n as p -> do
       reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r
-
-      y <- freshAbstractQName fx n
-      bindName PublicAccess PatternSynName n y
       defn@(as, p) <- withLocalVars $ do
          p  <- toAbstract =<< parsePatternSyn p
          checkPatternLinearity [p]
          let err = "Dot patterns are not allowed in pattern synonyms. Use '_' instead."
          p <- noDotPattern err p
          as <- (traverse . mapM) (unVarName <=< resolveName . C.QName) as
-         as <- (map . fmap) unBlind <$> toAbstract ((map . fmap) Blind as)
+         unlessNull (patternVars p \\ map unArg as) $ \ xs -> do
+           typeError . GenericDocError =<< do
+             text "Unbound variables in pattern synonym: " <+>
+               sep (map prettyA xs)
          return (as, p)
+      y <- freshAbstractQName fx n
+      bindName PublicAccess PatternSynName n y
       modifyPatternSyns (Map.insert y defn)
       return [A.PatternSynDef y as p]   -- only for highlighting
       where unVarName (VarName a) = return a
@@ -1510,13 +1528,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     where
       -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom funSig isMacro (C.Axiom r f p i info x t) = do
+      toAbstractNiceAxiom funSig isMacro (C.Axiom r f p i info mp x t) = do
         t' <- toAbstractCtx TopCtx t
         y  <- freshAbstractQName f x
         let kind | isMacro == MacroDef = MacroName
                  | otherwise           = DefName
         bindName p kind x y
-        return [ A.Axiom funSig (mkDefInfoInstance x f p ConcreteDef i isMacro r) info y t' ]
+        return [ A.Axiom funSig (mkDefInfoInstance x f p ConcreteDef i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
 
 
@@ -1546,16 +1564,18 @@ bindConstructorName m x f a p record = do
 instance ToAbstract ConstrDecl A.Declaration where
   toAbstract (ConstrDecl record m a p d) = do
     case d of
-      C.Axiom r f _ i info x t -> do -- rel==Relevant
+      C.Axiom r f _ i info Nothing x t -> do -- rel==Relevant
         t' <- toAbstractCtx TopCtx t
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         y <- bindConstructorName m x f a p record
         printScope "con" 15 "bound constructor"
-        return $ A.Axiom NoFunSig (mkDefInfoInstance x f p ConcreteDef i NotMacroDef r) info y t'
+        return $ A.Axiom NoFunSig (mkDefInfoInstance x f p ConcreteDef i NotMacroDef r)
+                         info Nothing y t'
+      C.Axiom _ _ _ _ _ (Just _) _ _ -> __IMPOSSIBLE__
       _ -> typeError . GenericDocError $
         P.text "Illegal declaration in data type definition " P.$$
-        P.nest 2 (pretty (notSoNiceDeclaration d))
+        P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))
 
 instance ToAbstract C.Pragma [A.Pragma] where
   toAbstract (C.ImpossiblePragma _) = impossibleTest
@@ -1721,6 +1741,9 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
   -- No positivity checking pragmas are handled by the nicifier.
   toAbstract C.NoPositivityCheckPragma{} = __IMPOSSIBLE__
+
+  -- Polarity pragmas are handled by the niceifier.
+  toAbstract C.PolarityPragma{} = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
   toAbstract (C.Clause top _ C.Ellipsis{} _ _ _) = genericError "bad '...'" -- TODO: error message

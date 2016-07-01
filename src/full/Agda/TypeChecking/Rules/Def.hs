@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                      #-}
-{-# LANGUAGE LambdaCase               #-}
-{-# LANGUAGE PatternGuards            #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Rules.Def where
@@ -101,7 +99,7 @@ isAlias cs t =
 
 -- | Check a trivial definition of the form @f = e@
 checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAlias t' ai delayed i name e = atClause name 0 $ do
+checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
@@ -207,7 +205,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
 
         -- Check the clauses
         cs <- traceCall NoHighlighting $ do -- To avoid flicker.
-            forM (zip cs [0..]) $ \ (c, clauseNo) -> atClause name clauseNo $ do
+          forM (zip cs [0..]) $ \ (c, clauseNo) -> do
+            atClause name clauseNo (A.clauseRHS c) $ do
               c <- applyRelevanceToContext (argInfoRelevance ai) $ do
                 checkClause t withSub c
               -- Andreas, 2013-11-23 do not solve size constraints here yet
@@ -348,7 +347,7 @@ data WithFunctionProblem
     , wfExprs      :: [Term]               -- ^ With and rewrite expressions.
     , wfExprTypes  :: [EqualityView]       -- ^ Types of the with and rewrite expressions.
     , wfRHSType    :: Type                 -- ^ Type of the right hand side.
-    , wfParentPats :: [NamedArg Pattern]   -- ^ Parent patterns.
+    , wfParentPats :: [NamedArg DeBruijnPattern] -- ^ Parent patterns.
     , wfParentParams :: Nat                -- ^ Number of module parameters in parent patterns
     , wfPermSplit  :: Permutation          -- ^ Permutation resulting from splitting the telescope into needed and unneeded vars.
     , wfPermParent :: Permutation          -- ^ Permutation reordering the variables in the parent pattern.
@@ -388,10 +387,10 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs perm) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs _perm) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
-        (body, with) <- checkWhere (unArg trhs) wh $ checkRHS i x aps t lhsResult rhs0
+        (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
 
         -- Note that the with function doesn't necessarily share any part of
         -- the context with the parent (but withSub will take you from parent
@@ -402,7 +401,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
           [ text "Clause before translation:"
           , nest 2 $ vcat
             [ text "delta =" <+> prettyTCM delta
-            , text "perm  =" <+> text (show perm)
+            -- , text "perm  =" <+> text (show perm)
             , text "ps    =" <+> text (show ps)
             , text "body  =" <+> text (show body)
             , text "body  =" <+> prettyTCM body
@@ -418,7 +417,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         return $
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
-                 , namedClausePats = numberPatVars perm ps
+                 , namedClausePats = ps
                  , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall
@@ -453,11 +452,10 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS r
         return (NoBody, NoWithFunction)
 
       -- Case: @rewrite@
-      A.RewriteRHS [] rhs [] -> handleRHS rhs
       -- Andreas, 2014-01-17, Issue 1402:
       -- If the rewrites are discarded since lhs=rhs, then
       -- we can actually have where clauses.
-      A.RewriteRHS [] rhs wh -> checkWhere (unArg trhs) wh $ handleRHS rhs
+      A.RewriteRHS [] rhs wh -> checkWhere wh $ handleRHS rhs
       A.RewriteRHS ((qname,eq):qes) rhs wh -> do
 
         -- Action for skipping this rewrite.
@@ -729,31 +727,38 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
 
 -- | Type check a where clause.
 checkWhere
-  :: Type            -- ^ Type of rhs.
-  -> [A.Declaration] -- ^ Where-declarations to check.
+  :: [A.Declaration] -- ^ Where-declarations to check.
   -> TCM a           -- ^ Continuation.
   -> TCM a
-checkWhere trhs ds ret = do
-  let
+checkWhere ds ret = loop ds
+  where
     loop ds = case ds of
       [] -> ret
       [A.ScopedDecl scope ds] -> withScope_ scope $ loop ds
-      [A.Section _ m tel ds]  -> do
-        checkTelescope tel $ \ tel' -> do
-          reportSDoc "tc.def.where" 10 $
-            text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
-          addSection m
-          verboseS "tc.def.where" 10 $ do
-            dx   <- prettyTCM m
-            dtel <- mapM prettyAs tel
-            dtel' <- prettyTCM =<< lookupSection m
-            reportSLn "tc.def.where" 10 $ "checking where section " ++ show dx ++ " " ++ show dtel
-            reportSLn "tc.def.where" 10 $ "        actual tele: " ++ show dtel'
-          withCurrentModule m $ local (\ e -> e { envCheckingWhere = True }) $ do
+      [A.Section _ m tel ds]  -> newSection m tel $ do
+          local (\ e -> e { envCheckingWhere = True }) $ do
             checkDecls ds
             ret
       _ -> __IMPOSSIBLE__
-  loop ds
+
+-- | Enter a new section during type-checking.
+
+newSection :: ModuleName -> A.Telescope -> TCM a -> TCM a
+newSection m tel cont = do
+  reportSDoc "tc.section" 10 $
+    text "checking section" <+> prettyTCM m <+> fsep (map prettyAs tel)
+
+  checkTelescope tel $ \ tel' -> do
+    reportSDoc "tc.section" 10 $
+      text "adding section:" <+> prettyTCM m <+> text (show (size tel'))
+
+    addSection m
+
+    reportSDoc "tc.section" 10 $ inTopContext $
+      nest 4 $ text "actual tele:" <+> do prettyTCM =<< lookupSection m
+
+    withCurrentModule m cont
+
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
 containsAbsurdPattern :: A.Pattern -> Bool
@@ -771,5 +776,5 @@ containsAbsurdPattern p = case p of
     A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- False
 
 -- | Set the current clause number.
-atClause :: QName -> Int -> TCM a -> TCM a
-atClause name i = local $ \ e -> e { envClause = IPClause name i }
+atClause :: QName -> Int -> A.RHS -> TCM a -> TCM a
+atClause name i rhs = local $ \ e -> e { envClause = IPClause name i rhs }

@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP        #-}
-{-# LANGUAGE RankNTypes #-}
 
 -- | A cut-down implementation of lenses, with names taken from
 --   Edward Kmett's lens package.

@@ -1,2 +1,2 @@
 Issue1303.agda:9,1-19,8
-deBruijn index 1 is not in scope in the context (dot₁ : _)
+de Bruijn index 1 is not in scope in the context (dot₁ : _)

@@ -1,0 +1,38 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > { compiling CompileCatchAll.f
+out > CompileCatchAll.f =
+out >   λ a b →
+out >     case b of
+out >       Agda.Builtin.List.List.[] → 0
+out >       Agda.Builtin.List.List._∷_ c d →
+out >         case a of
+out >           Agda.Builtin.List.List.[] → c
+out >           Agda.Builtin.List.List._∷_ e f → e
+out > }
+out > { compiling CompileCatchAll.main
+out > CompileCatchAll.main =
+out >   Common.IO.then
+out >     () () _ _
+out >     (Common.IO.printNat
+out >        (CompileCatchAll.f
+out >           Agda.Builtin.List.List.[] Agda.Builtin.List.List.[]))
+out >     (Common.IO.then
+out >        () () _ _
+out >        (Common.IO.printNat
+out >           (CompileCatchAll.f
+out >              (Agda.Builtin.List.List._∷_ 1 Agda.Builtin.List.List.[])
+out >              Agda.Builtin.List.List.[]))
+out >        (Common.IO.then
+out >           () () _ _
+out >           (Common.IO.printNat
+out >              (CompileCatchAll.f
+out >                 Agda.Builtin.List.List.[]
+out >                 (Agda.Builtin.List.List._∷_ 2 Agda.Builtin.List.List.[])))
+out >           (Common.IO.printNat
+out >              (CompileCatchAll.f
+out >                 (Agda.Builtin.List.List._∷_ 3 Agda.Builtin.List.List.[])
+out >                 (Agda.Builtin.List.List._∷_ 4 Agda.Builtin.List.List.[])))))
+out > }
+out > 0023

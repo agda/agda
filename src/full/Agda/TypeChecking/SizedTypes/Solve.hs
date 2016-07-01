@@ -1,10 +1,6 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE NondecreasingIndentation #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TupleSections         #-}
 
 -- | Solving size constraints under hypotheses.
 --

@@ -4,13 +4,7 @@
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveTraversable          #-}
-{-# LANGUAGE ExistentialQuantification  #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE NamedFieldPuns             #-}
-{-# LANGUAGE Rank2Types                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
@@ -22,7 +16,7 @@ import qualified Control.Concurrent as C
 import qualified Control.Exception as E
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer hiding ((<>))
 import Control.Monad.Trans.Maybe
 import Control.Applicative hiding (empty)
 
@@ -36,6 +30,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map -- hiding (singleton, null, empty)
 import Data.Set (Set)
 import qualified Data.Set as Set -- hiding (singleton, null, empty)
+import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, Any(..))
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable
@@ -91,7 +86,7 @@ import Agda.Utils.ListT
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Singleton
 import Agda.Utils.Functor
 
@@ -159,6 +154,8 @@ data PostScopeState = PostScopeState
     --   for each @'A.AmbiguousQName'@ already passed by the type checker.
   , stPostMetaStore           :: MetaStore
   , stPostInteractionPoints   :: InteractionPoints -- scope checker first
+  , stPostSolvedInteractionPoints :: InteractionPoints
+    -- ^ Interaction points that have been filled by a give or solve action.
   , stPostAwakeConstraints    :: Constraints
   , stPostSleepingConstraints :: Constraints
   , stPostDirty               :: Bool -- local
@@ -282,6 +279,7 @@ initPostScopeState = PostScopeState
   , stPostDisambiguatedNames   = IntMap.empty
   , stPostMetaStore            = Map.empty
   , stPostInteractionPoints    = Map.empty
+  , stPostSolvedInteractionPoints = Map.empty
   , stPostAwakeConstraints     = []
   , stPostSleepingConstraints  = []
   , stPostDirty                = False
@@ -407,6 +405,12 @@ stInteractionPoints :: Lens' InteractionPoints TCState
 stInteractionPoints f s =
   f (stPostInteractionPoints (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostInteractionPoints = x}}
+
+stSolvedInteractionPoints :: Lens' InteractionPoints TCState
+stSolvedInteractionPoints f s =
+  f (stPostSolvedInteractionPoints (stPostScopeState s)) <&>
+  \ x -> s {stPostScopeState = (stPostScopeState s)
+             {stPostSolvedInteractionPoints = x}}
 
 stAwakeConstraints :: Lens' Constraints TCState
 stAwakeConstraints f s =
@@ -1026,8 +1030,14 @@ type InteractionPoints = Map InteractionId InteractionPoint
 data IPClause = IPClause
   { ipcQName    :: QName  -- ^ The name of the function.
   , ipcClauseNo :: Int    -- ^ The number of the clause of this function.
+  , ipcClause   :: A.RHS  -- ^ The original AST clause rhs.
   }
-  | IPNoClause -- ^ The interaction point is not the rhs of a clause.
+  | IPNoClause -- ^ The interaction point is not in the rhs of a clause.
+
+instance Eq IPClause where
+  IPNoClause     == IPNoClause       = True
+  IPClause x i _ == IPClause x' i' _ = x == x' && i == i'
+  _              == _                = False
 
 ---------------------------------------------------------------------------
 -- ** Signature
@@ -1412,7 +1422,6 @@ data Defn = Axiom
             , recClause         :: Maybe Clause
             , recConHead        :: ConHead              -- ^ Constructor name and fields.
             , recNamedCon       :: Bool
-            , recConType        :: Type                 -- ^ The record constructor's type. (Includes record parameters.)
             , recFields         :: [Arg QName]
             , recTel            :: Telescope            -- ^ The record field telescope. (Includes record parameters.)
                                                         --   Note: @TelV recTel _ == telView' recConType@.
@@ -1508,10 +1517,13 @@ instance Null Simplification where
   empty = NoSimplification
   null  = (== NoSimplification)
 
+instance Semigroup Simplification where
+  YesSimplification <> _ = YesSimplification
+  NoSimplification  <> s = s
+
 instance Monoid Simplification where
   mempty = NoSimplification
-  mappend YesSimplification _ = YesSimplification
-  mappend NoSimplification  s = s
+  mappend = (<>)
 
 data Reduced no yes = NoReduction no | YesReduction Simplification yes
     deriving (Typeable, Functor)
@@ -2271,13 +2283,13 @@ data TypeError
         | CannotEliminateWithPattern (NamedArg A.Pattern) Type
         | TooManyArgumentsInLHS Type
         | WrongNumberOfConstructorArguments QName Nat Nat
-        | ShouldBeEmpty Type [Pattern]
+        | ShouldBeEmpty Type [DeBruijnPattern]
         | ShouldBeASort Type
             -- ^ The given type should have been a sort.
         | ShouldBePi Type
             -- ^ The given type should have been a pi.
         | ShouldBeRecordType Type
-        | ShouldBeRecordPattern Pattern
+        | ShouldBeRecordPattern DeBruijnPattern
         | NotAProjectionPattern (NamedArg A.Pattern)
         | NotAProperTerm
         | SetOmegaNotValidType
@@ -2349,6 +2361,7 @@ data TypeError
         | SplitError SplitError
     -- Positivity errors
         | NotStrictlyPositive QName [Occ]
+        | TooManyPolarities QName Integer
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
         | UnsolvedMetas [Range]
@@ -2419,6 +2432,7 @@ data TypeError
         | SafeFlagTerminating
         | SafeFlagPrimTrustMe
         | SafeFlagNoPositivityCheck
+        | SafeFlagPolarity
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting
@@ -2699,9 +2713,12 @@ instance Null (TCM Doc) where
   null = __IMPOSSIBLE__
 
 -- | Short-cutting disjunction forms a monoid.
+instance Semigroup (TCM Any) where
+  ma <> mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
+
 instance Monoid (TCM Any) where
   mempty = return mempty
-  ma `mappend` mb = Any <$> do (getAny <$> ma) `or2M` (getAny <$> mb)
+  mappend = (<>)
 
 patternViolation :: TCM a
 patternViolation = throwError PatternErr
@@ -2845,7 +2862,7 @@ instance KillRange Defn where
       Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop ->
         killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
+      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e          -> killRange5 Constructor a b c d e
       Primitive a b c d              -> killRange4 Primitive a b c d
 

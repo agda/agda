@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP           #-}
-{-# LANGUAGE LambdaCase    #-}
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
 
 module Agda.TypeChecking.With where
 
@@ -200,7 +197,7 @@ buildWithFunction
   -> QName                -- ^ Name of the parent function.
   -> QName                -- ^ Name of the with-function.
   -> Type                 -- ^ Types of the parent function.
-  -> [NamedArg Pattern] -- ^ Parent patterns.
+  -> [NamedArg DeBruijnPattern] -- ^ Parent patterns.
   -> Nat                  -- ^ Number of module parameters in parent patterns
   -> Substitution         -- ^ Substitution from parent lhs to with function lhs
   -> Permutation          -- ^ Final permutation.
@@ -310,7 +307,7 @@ stripWithClausePatterns
   -> QName                    -- ^ Name of the parent function.
   -> QName                    -- ^ Name of with-function.
   -> Type                     -- ^ __@t@__   type of the original function.
-  -> [NamedArg Pattern]       -- ^ __@qs@__  internal patterns for original function.
+  -> [NamedArg DeBruijnPattern] -- ^ __@qs@__  internal patterns for original function.
   -> Nat                      -- ^ __@npars@__ number of module parameters is @qs@.
   -> Permutation              -- ^ __@π@__   permutation taking @vars(qs)@ to @support(Δ)@.
   -> [NamedArg A.Pattern]     -- ^ __@ps@__  patterns in with clause (eliminating type @t@).
@@ -327,7 +324,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
     , nest 2 $ text "perm= " <+> text (show perm)
     ]
   -- Andreas, 2015-11-09 Issue 1710: self starts with parent-function, not with-function!
-  (ps', namedDots) <- runWriterT $ strip (Def parent []) t psi $ drop npars $ numberPatVars perm qs
+  (ps', namedDots) <- runWriterT $ strip (Def parent []) t psi $ drop npars qs
   reportSDoc "tc.with.strip" 50 $ nest 2 $
     text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- We need to add the patterns for the module parameters before
@@ -434,8 +431,8 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
               strip self1 t1 ps qs
           Nothing -> mismatch
 
-        VarP (i, _x)  -> do
-          ps <- intro1 t $ \ t -> strip (self `apply1` var i) t ps qs
+        VarP x  -> do
+          ps <- intro1 t $ \ t -> strip (self `apply1` var (dbPatVarIndex x)) t ps qs
           return $ p : ps
 
         DotP v  -> case namedArg p of
@@ -534,7 +531,7 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
           _ -> mismatch
       where
         mismatch = typeError $
-          WithClausePatternMismatch (namedArg p0) (snd <$> namedArg q)
+          WithClausePatternMismatch (namedArg p0) (dbPatVarName <$> namedArg q)
         -- | Make an ImplicitP, keeping arg. info.
         makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
@@ -614,7 +611,7 @@ withDisplayForm
   -> Telescope            -- ^ __@Δ₁@__      The arguments of the @with@ function before the @with@ expressions.
   -> Telescope            -- ^ __@Δ₂@__      The arguments of the @with@ function after the @with@ expressions.
   -> Nat                  -- ^ __@n@__       The number of @with@ expressions.
-  -> [NamedArg Pattern]   -- ^ __@qs@__      The parent patterns.
+  -> [NamedArg DeBruijnPattern]   -- ^ __@qs@__      The parent patterns.
   -> Permutation          -- ^ __@perm@__    Permutation to split into needed and unneeded vars.
   -> Permutation          -- ^ __@lhsPerm@__ Permutation reordering the variables in parent patterns.
   -> TCM DisplayForm
@@ -630,7 +627,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
   -- Build the rhs of the display form.
   wild <- freshNoName_ <&> \ x -> Def (qualify_ x) []
   let -- Convert the parent patterns to terms.
-      tqs0       = patsToElims lhsPerm qs
+      tqs0       = patsToElims qs
       -- Build a substitution to replace the parent pattern vars
       -- by the pattern vars of the with-function.
       (ys0, ys1) = splitAt (size delta1) $ permute perm $ downFrom m
@@ -696,13 +693,9 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
 -- Andreas, 2014-12-05 refactored using numberPatVars
 -- Andreas, 2013-02-28 modeled after Coverage/Match/buildMPatterns
--- The permutation is the one of the original clause.
-patsToElims :: Permutation -> [NamedArg Pattern] -> [I.Elim' DisplayTerm]
-patsToElims perm ps = toElims $ numberPatVars perm ps
+patsToElims :: [NamedArg DeBruijnPattern] -> [I.Elim' DisplayTerm]
+patsToElims = map $ toElim . fmap namedThing
   where
-    toElims :: [NamedArg DeBruijnPattern] -> [I.Elim' DisplayTerm]
-    toElims = map $ toElim . fmap namedThing
-
     toElim :: Arg DeBruijnPattern -> I.Elim' DisplayTerm
     toElim (Arg ai p) = case p of
       ProjP d -> I.Proj d
@@ -714,7 +707,7 @@ patsToElims perm ps = toElims $ numberPatVars perm ps
     toTerm :: DeBruijnPattern -> DisplayTerm
     toTerm p = case p of
       ProjP d     -> DDef d [] -- WRONG. TODO: convert spine to non-spine ... DDef d . defaultArg
-      VarP (i, x) -> DTerm  $ var i
+      VarP x      -> DTerm  $ var $ dbPatVarIndex x
       DotP t      -> DDot   $ t
       ConP c _ ps -> DCon c $ toTerms ps
       LitP l      -> DTerm  $ Lit l

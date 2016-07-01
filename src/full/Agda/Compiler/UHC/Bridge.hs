@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                #-}
-{-# LANGUAGE EmptyDataDecls     #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | Exports the UHC API, and provides dummy

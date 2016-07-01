@@ -1,12 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams             #-}
-{-# LANGUAGE NamedFieldPuns             #-}
-{-# LANGUAGE PatternGuards              #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TupleSections              #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -552,28 +547,23 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
     mask p           d = Masked d     p
 
 -- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
-openClause :: Permutation -> [Pattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
+openClause :: Permutation -> [DeBruijnPattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
 openClause perm ps body = do
   -- invariant: xs has enough variables for the body
   unless (permRange perm == genericLength xs) __IMPOSSIBLE__
-  dbps <- evalStateT (mapM build ps) xs
+  dbps <- mapM build ps
   return . (dbps,) $ case body `applys` map var xs of
     NoBody -> Nothing
     Body v -> Just v
     _      -> __IMPOSSIBLE__
   where
-    -- TODO: express build using numberPatVars
-    -- length of the telescope
-    n    = size perm
     -- the variables as a map from the body variables to the clause telescope
     xs   = permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
 
-    tick = do x : xs <- get; put xs; return x
-
-    build :: Pattern -> StateT [Nat] TerM DeBruijnPat
-    build (VarP _)        = VarDBP <$> tick
+    build :: DeBruijnPattern -> TerM DeBruijnPat
+    build (VarP x)        = return $ VarDBP $ dbPatVarIndex x
     build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
-    build (DotP t)        = tick *> do lift $ termToDBP t
+    build (DotP t)        = termToDBP t
     build (LitP l)        = return $ LitDBP l
     build (ProjP d)       = return $ ProjDBP d
 
@@ -590,7 +580,7 @@ termClause' clause = do
   cl @ Clause { clauseTel  = tel
               , clauseBody = body } <- introHiddenLambdas clause
   let argPats' = clausePats cl
-      perm     = clausePerm cl
+      perm     = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
@@ -600,7 +590,7 @@ termClause' clause = do
     ]
   addContext tel $ do
     ps <- liftTCM $ normalise $ map unArg argPats'
-    (dbpats, res) <- openClause perm (unnumberPatVars ps) body
+    (dbpats, res) <- openClause perm ps body
     case res of
       Nothing -> return empty
       Just v -> do

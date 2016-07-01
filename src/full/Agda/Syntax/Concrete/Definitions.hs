@@ -1,13 +1,6 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-
-#if __GLASGOW_HASKELL__ >= 710
-{-# LANGUAGE FlexibleContexts #-}
-#endif
 
 -- | Preprocess 'Agda.Syntax.Concrete.Declaration's, producing 'NiceDeclaration's.
 --
@@ -39,7 +32,7 @@ module Agda.Syntax.Concrete.Definitions
     , DeclarationException(..)
     , Nice, runNice
     , niceDeclarations
-    , notSoNiceDeclaration
+    , notSoNiceDeclarations
     , niceHasAbstract
     , Measure
     ) where
@@ -57,8 +50,9 @@ import Data.Foldable ( foldMap )
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
-import Data.Monoid ( Monoid(mappend, mempty) )
+import Data.Semigroup ( Semigroup, Monoid, (<>), mempty, mappend )
 import Data.List as List hiding (null)
+import qualified Data.Set as Set
 import Data.Traversable (traverse)
 import Data.Typeable (Typeable)
 
@@ -70,12 +64,15 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty ()
 
+import Agda.TypeChecking.Positivity.Occurrence
+
 import Agda.Utils.Except ( Error(strMsg), MonadError(throwError) )
 import Agda.Utils.Lens
 import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad
 import Agda.Utils.Null
-import Agda.Utils.Pretty
+import qualified Agda.Utils.Pretty as Pretty
+import Agda.Utils.Pretty hiding ((<>))
 import Agda.Utils.Tuple
 import Agda.Utils.Update
 
@@ -92,8 +89,11 @@ import Agda.Utils.Impossible
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-  = Axiom Range Fixity' Access IsInstance ArgInfo Name Expr
-      -- ^ Axioms and functions can be declared irrelevant. (Hiding should be NotHidden)
+  = Axiom Range Fixity' Access IsInstance ArgInfo (Maybe [Occurrence]) Name Expr
+      -- ^ Fifth argument: Axioms and functions can be declared
+      -- irrelevant. ('Hiding' should be 'NotHidden'.)
+      --
+      -- Sixth argument: Polarities can be assigned to identifiers.
   | NiceField Range IsInstance Fixity' Access IsAbstract Name (Arg Expr)
   | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
   | NiceMutual Range TerminationCheck PositivityCheck [NiceDeclaration]
@@ -141,6 +141,7 @@ data Clause = Clause Name Catchall LHS RHS WhereClause [Clause]
 -- | The exception type.
 data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
+        | MultiplePolarityPragmas [Name]
         | InvalidName Name
         | DuplicateDefinition Name
         | MissingDefinition Name
@@ -151,6 +152,8 @@ data DeclarationException
         | WrongParameters Name
         | NotAllowedInMutual NiceDeclaration
         | UnknownNamesInFixityDecl [Name]
+        | UnknownNamesInPolarityPragmas [Name]
+        | PolarityPragmasButNotPostulates [Name]
         | Codata Range
         | DeclarationPanic String
         | UselessPrivate Range
@@ -183,34 +186,37 @@ data KindOfBlock
 
 
 instance HasRange DeclarationException where
-  getRange (MultipleFixityDecls xs)           = getRange (fst $ head xs)
-  getRange (InvalidName x)                    = getRange x
-  getRange (DuplicateDefinition x)            = getRange x
-  getRange (MissingDefinition x)              = getRange x
-  getRange (MissingWithClauses x)             = getRange x
-  getRange (MissingTypeSignature x)           = getRange x
-  getRange (MissingDataSignature x)           = getRange x
-  getRange (WrongDefinition x k k')           = getRange x
-  getRange (WrongParameters x)                = getRange x
-  getRange (AmbiguousFunClauses lhs xs)       = getRange lhs
-  getRange (NotAllowedInMutual x)             = getRange x
-  getRange (UnknownNamesInFixityDecl xs)      = getRange . head $ xs
-  getRange (Codata r)                         = r
-  getRange (DeclarationPanic _)               = noRange
-  getRange (UselessPrivate r)                 = r
-  getRange (UselessAbstract r)                = r
-  getRange (UselessInstance r)                = r
-  getRange (WrongContentBlock _ r)            = r
-  getRange (InvalidTerminationCheckPragma r)  = r
-  getRange (InvalidMeasureMutual r)           = r
-  getRange (PragmaNoTerminationCheck r)       = r
-  getRange (InvalidCatchallPragma r)          = r
-  getRange (UnquoteDefRequiresSignature x)    = getRange x
-  getRange (BadMacroDef d)                    = getRange d
-  getRange (InvalidNoPositivityCheckPragma r) = r
+  getRange (MultipleFixityDecls xs)             = getRange (fst $ head xs)
+  getRange (MultiplePolarityPragmas xs)         = getRange (head xs)
+  getRange (InvalidName x)                      = getRange x
+  getRange (DuplicateDefinition x)              = getRange x
+  getRange (MissingDefinition x)                = getRange x
+  getRange (MissingWithClauses x)               = getRange x
+  getRange (MissingTypeSignature x)             = getRange x
+  getRange (MissingDataSignature x)             = getRange x
+  getRange (WrongDefinition x k k')             = getRange x
+  getRange (WrongParameters x)                  = getRange x
+  getRange (AmbiguousFunClauses lhs xs)         = getRange lhs
+  getRange (NotAllowedInMutual x)               = getRange x
+  getRange (UnknownNamesInFixityDecl xs)        = getRange . head $ xs
+  getRange (UnknownNamesInPolarityPragmas xs)   = getRange . head $ xs
+  getRange (PolarityPragmasButNotPostulates xs) = getRange . head $ xs
+  getRange (Codata r)                           = r
+  getRange (DeclarationPanic _)                 = noRange
+  getRange (UselessPrivate r)                   = r
+  getRange (UselessAbstract r)                  = r
+  getRange (UselessInstance r)                  = r
+  getRange (WrongContentBlock _ r)              = r
+  getRange (InvalidTerminationCheckPragma r)    = r
+  getRange (InvalidMeasureMutual r)             = r
+  getRange (PragmaNoTerminationCheck r)         = r
+  getRange (InvalidCatchallPragma r)            = r
+  getRange (UnquoteDefRequiresSignature x)      = getRange x
+  getRange (BadMacroDef d)                      = getRange d
+  getRange (InvalidNoPositivityCheckPragma r)   = r
 
 instance HasRange NiceDeclaration where
-  getRange (Axiom r _ _ _ _ _ _)             = r
+  getRange (Axiom r _ _ _ _ _ _ _)           = r
   getRange (NiceField r _ _ _ _ _ _)         = r
   getRange (NiceMutual r _ _ _)              = r
   getRange (NiceModule r _ _ _ _ _ )         = r
@@ -241,7 +247,9 @@ instance Pretty DeclarationException where
         , vcat $ map f xs
         ]
       where
-        f (x, fs) = pretty x <> text ": " <+> fsep (map pretty fs)
+        f (x, fs) = pretty x Pretty.<> text ": " <+> fsep (map pretty fs)
+  pretty (MultiplePolarityPragmas xs) = fsep $
+    pwords "Multiple polarity pragmas for" ++ map pretty xs
   pretty (InvalidName x) = fsep $
     pwords "Invalid name:" ++ [pretty x]
   pretty (DuplicateDefinition x) = fsep $
@@ -267,6 +275,10 @@ instance Pretty DeclarationException where
     ]
   pretty (UnknownNamesInFixityDecl xs) = fsep $
     pwords "The following names are not declared in the same scope as their syntax or fixity declaration (i.e., either not in scope at all, imported from another module, or declared in a super module):" ++ map pretty xs
+  pretty (UnknownNamesInPolarityPragmas xs) = fsep $
+    pwords "The following names are not declared in the same scope as their polarity pragmas (they could for instance be out of scope, imported from another module, or declared in a super module):" ++ map pretty xs
+  pretty (PolarityPragmasButNotPostulates xs) = fsep $
+    pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
   pretty (UselessPrivate _)      = fsep $
     pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
   pretty (UselessAbstract _)      = fsep $
@@ -409,10 +421,12 @@ data NiceEnv = NiceEnv
   { _loneSigs :: LoneSigs
     -- ^ Lone type signatures that wait for their definition.
   , fixs     :: Fixities
+  , pols     :: Polarities
   }
 
-type LoneSigs = Map Name DataRecOrFun
-type Fixities = Map Name Fixity'
+type LoneSigs   = Map Name DataRecOrFun
+type Fixities   = Map Name Fixity'
+type Polarities = Map Name [Occurrence]
 
 -- | Initial nicifier state.
 
@@ -420,6 +434,7 @@ initNiceEnv :: NiceEnv
 initNiceEnv = NiceEnv
   { _loneSigs = empty
   , fixs      = empty
+  , pols      = empty
   }
 
 -- * Handling the lone signatures, stored to infer mutual blocks.
@@ -467,6 +482,15 @@ getFixity x = do
   when (isUnderscore x) $ throwError $ InvalidName x
   Map.findWithDefault noFixity' x <$> gets fixs  -- WAS: defaultFixity'
 
+-- | Fail if the name is @_@. Otherwise the name's polarity, if any,
+-- is removed from the state and returned.
+getPolarity :: Name -> Nice (Maybe [Occurrence])
+getPolarity x = do
+  when (isUnderscore x) $ throwError $ InvalidName x
+  p <- gets (Map.lookup x . pols)
+  modify (\s -> s { pols = Map.delete x (pols s) })
+  return p
+
 runNice :: Nice a -> Either DeclarationException a
 runNice nice = nice `evalStateT` initNiceEnv
 
@@ -508,15 +532,27 @@ parameters = List.concat . List.map numP where
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
   -- Get fixity and syntax declarations.
-  fixs <- fixities ds
-  case Map.keys fixs \\ concatMap declaredNames ds of
+  (fixs, polarities) <- fixitiesAndPolarities ds
+  let declared    = Set.fromList (concatMap declaredNames ds)
+      unknownFixs = Map.keysSet fixs       Set.\\ declared
+      unknownPols = Map.keysSet polarities Set.\\ declared
+  case (Set.null unknownFixs, Set.null unknownPols) of
     -- If we have fixity/syntax decls for names not declared
     -- in the current scope, fail.
-    xs@(_:_) -> throwError $ UnknownNamesInFixityDecl xs
-    []       -> localState $ do
-      -- Run the nicifier in an initial environment of fixity decls.
-      put $ initNiceEnv { fixs = fixs }
+    (False, _)   -> throwError $ UnknownNamesInFixityDecl
+                                   (Set.toList unknownFixs)
+    -- Fail if there are polarity pragmas with undeclared names.
+    (_, False)   -> throwError $ UnknownNamesInPolarityPragmas
+                                   (Set.toList unknownPols)
+    (True, True) -> localState $ do
+      -- Run the nicifier in an initial environment of fixity decls
+      -- and polarities.
+      put $ initNiceEnv { fixs = fixs, pols = polarities }
       ds <- nice ds
+      -- Check that every polarity pragma was used.
+      unusedPolarities <- gets (Map.keys . pols)
+      unless (null unusedPolarities) $ do
+        throwError $ PolarityPragmasButNotPostulates unusedPolarities
       -- Check that every signature got its definition.
       checkLoneSigs . Map.toList =<< use loneSigs
       -- Note that loneSigs is ensured to be empty.
@@ -694,7 +730,14 @@ niceDeclarations ds = do
         Macro r ds' ->
           (++) <$> (macroBlock r =<< nice ds') <*> nice ds
 
-        Postulate _ ds' -> (++) <$> niceAxioms PostulateBlock ds' <*> nice ds
+        Postulate _ ds' ->
+          (++) <$> (mapM setPolarity =<< niceAxioms PostulateBlock ds') <*> nice ds
+          where
+          setPolarity (Axiom r f acc i arg Nothing x e) = do
+            mp <- getPolarity x
+            return (Axiom r f acc i arg mp x e)
+          setPolarity (Axiom _ _ _ _ _ (Just _) _ _) = __IMPOSSIBLE__
+          setPolarity d = return d
 
         Primitive _ ds' -> (++) <$> (map toPrim <$> niceAxioms PrimitiveBlock ds') <*> nice ds
 
@@ -705,9 +748,11 @@ niceDeclarations ds = do
           (NiceModuleMacro r PublicAccess x modapp op is :)
             <$> nice ds
 
-        -- Fixity and syntax declarations have been looked at already.
-        Infix _ _           -> nice ds
-        Syntax _ _          -> nice ds
+        -- Fixity and syntax declarations and polarity pragmas have
+        -- already been processed.
+        Infix _ _                 -> nice ds
+        Syntax _ _                -> nice ds
+        Pragma (PolarityPragma{}) -> nice ds
 
         PatternSyn r n as p -> do
           fx <- getFixity n
@@ -873,7 +918,7 @@ niceDeclarations ds = do
     niceAxiom b d = case d of
       TypeSig rel x t -> do
         fx <- getFixity x
-        return [ Axiom (getRange d) fx PublicAccess NotInstanceDef rel x t ]
+        return [ Axiom (getRange d) fx PublicAccess NotInstanceDef rel Nothing x t ]
       Field i x argt -> do
         fx <- getFixity x
         return [ NiceField (getRange d) i fx PublicAccess ConcreteDef x argt ]
@@ -884,8 +929,8 @@ niceDeclarations ds = do
       _ -> throwError $ WrongContentBlock b $ getRange d
 
     toPrim :: NiceDeclaration -> NiceDeclaration
-    toPrim (Axiom r f a i rel x t) = PrimitiveFunction r f a ConcreteDef x t
-    toPrim _                     = __IMPOSSIBLE__
+    toPrim (Axiom r f a i rel Nothing x t) = PrimitiveFunction r f a ConcreteDef x t
+    toPrim _                               = __IMPOSSIBLE__
 
     -- Create a function definition.
     mkFunDef info termCheck x mt ds0 = do
@@ -1137,7 +1182,7 @@ niceDeclarations ds = do
     mkPrivate :: Updater NiceDeclaration
     mkPrivate d =
       case d of
-        Axiom r f p i rel x e            -> (\ p -> Axiom r f p i rel x e) <$> setPrivate p
+        Axiom r f p i rel mp x e         -> (\ p -> Axiom r f p i rel mp x e) <$> setPrivate p
         NiceField r i f p a x e          -> (\ p -> NiceField r i f p a x e) <$> setPrivate p
         PrimitiveFunction r f p a x e    -> (\ p -> PrimitiveFunction r f p a x e) <$> setPrivate p
         NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mapM mkPrivate ds
@@ -1183,7 +1228,7 @@ niceDeclarations ds = do
     mkInstance :: Updater NiceDeclaration
     mkInstance d =
       case d of
-        Axiom r f p i rel x e            -> (\ i -> Axiom r f p i rel x e) <$> setInstance i
+        Axiom r f p i rel mp x e         -> (\ i -> Axiom r f p i rel mp x e) <$> setInstance i
         FunSig r f p i m rel tc x e      -> (\ i -> FunSig r f p i m rel tc x e) <$> setInstance i
         NiceUnquoteDecl r f p i a tc x e -> (\ i -> NiceUnquoteDecl r f p i a tc x e) <$> setInstance i
         NiceMutual{}                     -> return d
@@ -1244,29 +1289,50 @@ plusFixities m1 m2
     compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
                                                  (s1 == noNotation || s2 == noNotation)
 
--- | While 'Fixities' is not a monoid under disjoint union (which might fail),
---   we get the monoid instance for the monadic @Nice Fixities@ which propagates
---   the first error.
-instance Monoid (Nice Fixities) where
-  mempty        = return $ Map.empty
-  mappend c1 c2 = plusFixities ==<< (c1, c2)
+-- | While 'Fixities' and Polarities are not semigroups under disjoint
+--   union (which might fail), we get a semigroup instance for the
+--   monadic @Nice (Fixities, Polarities)@ which propagates the first
+--   error.
+instance Semigroup (Nice (Fixities, Polarities)) where
+  c1 <> c2 = do
+    (f1, p1) <- c1
+    (f2, p2) <- c2
+    f <- plusFixities f1 f2
+    p <- mergePolarities p1 p2
+    return (f, p)
+    where
+    mergePolarities p1 p2
+      | Set.null i = return (Map.union p1 p2)
+      | otherwise  = throwError $ MultiplePolarityPragmas (Set.toList i)
+      where
+      i = Set.intersection (Map.keysSet p1) (Map.keysSet p2)
 
--- | Get the fixities from the current block.
+instance Monoid (Nice (Fixities, Polarities)) where
+  mempty  = return (Map.empty, Map.empty)
+  mappend = (<>)
+
+-- | Get the fixities and polarity pragmas from the current block.
 --   Doesn't go inside modules and where blocks.
---   The reason for this is that fixity declarations have to appear at the same
---   level (or possibly outside an abstract or mutual block) as its target
+--   The reason for this is that these declarations have to appear at the same
+--   level (or possibly outside an abstract or mutual block) as their target
 --   declaration.
-fixities :: [Declaration] -> Nice Fixities
-fixities = foldMap $ \ d -> case d of
+fixitiesAndPolarities :: [Declaration] -> Nice (Fixities, Polarities)
+fixitiesAndPolarities = foldMap $ \ d -> case d of
+  -- These declarations define polarities:
+  Pragma (PolarityPragma _ x occs) -> return (Map.empty, Map.singleton x occs)
   -- These declarations define fixities:
-  Syntax x syn    -> return $ Map.singleton x $ Fixity' noFixity syn
-  Infix  f xs     -> return $ Map.fromList $ map (,Fixity' f noNotation) xs
+  Syntax x syn    -> return ( Map.singleton x (Fixity' noFixity syn)
+                            , Map.empty
+                            )
+  Infix  f xs     -> return ( Map.fromList (map (,Fixity' f noNotation) xs)
+                            , Map.empty
+                            )
   -- We look into these blocks:
-  Mutual    _ ds' -> fixities ds'
-  Abstract  _ ds' -> fixities ds'
-  Private   _ ds' -> fixities ds'
-  InstanceB _ ds' -> fixities ds'
-  Macro     _ ds' -> fixities ds'
+  Mutual    _ ds' -> fixitiesAndPolarities ds'
+  Abstract  _ ds' -> fixitiesAndPolarities ds'
+  Private   _ ds' -> fixitiesAndPolarities ds'
+  InstanceB _ ds' -> fixitiesAndPolarities ds'
+  Macro     _ ds' -> fixitiesAndPolarities ds'
   -- All other declarations are ignored.
   -- We expand these boring cases to trigger a revisit
   -- in case the @Declaration@ type is extended in the future.
@@ -1289,35 +1355,38 @@ fixities = foldMap $ \ d -> case d of
   Pragma      {}  -> mempty
 
 
--- Andreas, 2012-04-07
--- The following function is only used twice, for building a Let, and for
--- printing an error message.
+-- The following function is (at the time of writing) only used three
+-- times: for building Lets, and for printing error messages.
 
--- | (Approximately) convert a 'NiceDeclaration' back to a 'Declaration'.
-notSoNiceDeclaration :: NiceDeclaration -> Declaration
-notSoNiceDeclaration d =
+-- | (Approximately) convert a 'NiceDeclaration' back to a list of
+-- 'Declaration's.
+notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
+notSoNiceDeclarations d =
   case d of
-    Axiom _ _ _ _ rel x e            -> TypeSig rel x e
-    NiceField _ i _ _ _ x argt       -> Field i x argt
-    PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig defaultArgInfo x e]
-    NiceMutual r _ _ ds              -> Mutual r $ map notSoNiceDeclaration ds
-    NiceModule r _ _ x tel ds        -> Module r x tel ds
-    NiceModuleMacro r _ x ma o dir   -> ModuleMacro r x ma o dir
-    NiceOpen r x dir                 -> Open r x dir
-    NiceImport r x as o dir          -> Import r x as o dir
-    NicePragma _ p                   -> Pragma p
-    NiceRecSig r _ _ x bs e _        -> RecordSig r x bs e
-    NiceDataSig r _ _ x bs e _       -> DataSig r Inductive x bs e
-    NiceFunClause _ _ _ _ _ d        -> d
-    FunSig _ _ _ _ _ rel tc x e      -> TypeSig rel x e
-    FunDef r [d] _ _ _ _ _           -> d
-    FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
-    DataDef r _ _ x bs _ cs          -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs
-    RecDef r _ _ x i e c bs _ ds     -> Record r x i e (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
+    Axiom _ _ _ _ rel mp x e         -> (case mp of
+                                           Nothing   -> []
+                                           Just occs -> [Pragma (PolarityPragma noRange x occs)]) ++
+                                        [TypeSig rel x e]
+    NiceField _ i _ _ _ x argt       -> [Field i x argt]
+    PrimitiveFunction r _ _ _ x e    -> [Primitive r [TypeSig defaultArgInfo x e]]
+    NiceMutual r _ _ ds              -> [Mutual r $ concatMap notSoNiceDeclarations ds]
+    NiceModule r _ _ x tel ds        -> [Module r x tel ds]
+    NiceModuleMacro r _ x ma o dir   -> [ModuleMacro r x ma o dir]
+    NiceOpen r x dir                 -> [Open r x dir]
+    NiceImport r x as o dir          -> [Import r x as o dir]
+    NicePragma _ p                   -> [Pragma p]
+    NiceRecSig r _ _ x bs e _        -> [RecordSig r x bs e]
+    NiceDataSig r _ _ x bs e _       -> [DataSig r Inductive x bs e]
+    NiceFunClause _ _ _ _ _ d        -> [d]
+    FunSig _ _ _ _ _ rel tc x e      -> [TypeSig rel x e]
+    FunDef r [d] _ _ _ _ _           -> [d]
+    FunDef r ds _ _ _ _ _            -> [Mutual r ds] -- Andreas, 2012-04-07 Hack!
+    DataDef r _ _ x bs _ cs          -> [Data r Inductive x bs Nothing $ concatMap notSoNiceDeclarations cs]
+    RecDef r _ _ x i e c bs _ ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
-    NicePatternSyn r _ n as p        -> PatternSyn r n as p
-    NiceUnquoteDecl r _ _ _ _ _ x e  -> UnquoteDecl r x e
-    NiceUnquoteDef r _ _ _ _ x e     -> UnquoteDef r x e
+    NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
+    NiceUnquoteDecl r _ _ _ _ _ x e  -> [UnquoteDecl r x e]
+    NiceUnquoteDef r _ _ _ _ x e     -> [UnquoteDef r x e]
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract

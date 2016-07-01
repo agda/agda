@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP             #-}
-{-# LANGUAGE DoAndIfThenElse #-}
 
 -- | UHC compiler backend, main entry point.
 

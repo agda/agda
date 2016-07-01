@@ -1,5 +1,3 @@
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -128,9 +126,9 @@ pTerm t = case t of
         first ((x, e) :) <$> bindName x (pLets bs b)
 
   TCase x _ def alts -> paren 0 $
-    (\ sc alts def ->
+    (\ sc alts defd ->
       sep [ text "case" <+> sc <+> text "of"
-          , nest 2 $ vcat (alts ++ [ text "_ →" <+> def ]) ]
+          , nest 2 $ vcat (alts ++ [ text "_ →" <+> defd | null alts || def /= TError TUnreachable ]) ]
     ) <$> pTerm' 0 (TVar x)
       <*> mapM pAlt alts
       <*> pTerm' 0 def

@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
@@ -15,7 +13,7 @@ import Data.Maybe
 import qualified Data.Strict.Maybe as Strict
 import Data.Set (Set)
 
-import GHC.Generics (Generic)
+import Text.PrettyPrint.HughesPJ hiding (empty)
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract.Name as A
@@ -23,28 +21,16 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete
-
-import qualified Agda.Utils.Parser.MemoisedCPS as MemoisedCPS
-import Agda.Utils.Parser.MemoisedCPS hiding (Parser, parse)
-import qualified Agda.Utils.Parser.MemoisedCPS as Parser
+import Agda.Syntax.Concrete.Operators.Parser.Monad hiding (parse)
+import qualified Agda.Syntax.Concrete.Operators.Parser.Monad as P
 
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-data MemoKey = NodeK      (Either Integer Integer)
-             | PostLeftsK (Either Integer Integer)
-             | TopK
-             | AppK
-             | NonfixK
-  deriving (Eq, Generic)
-
-instance Hashable MemoKey
-
-type Parser tok a =
-  MemoisedCPS.Parser MemoKey tok (MaybePlaceholder tok) a
-
 placeholder :: PositionInName -> Parser e (MaybePlaceholder e)
-placeholder p = sat $ \t ->
+placeholder p =
+  annotate (const $ text ("_" ++ show p)) $
+  sat $ \t ->
   case t of
     Placeholder p' | p' == p -> True
     _                        -> False
@@ -150,9 +136,8 @@ data ParseSections = ParseSections | DoNotParseSections
 -- within their respective identifiers.
 
 parse :: IsExpr e => (ParseSections, Parser e a) -> [e] -> [a]
-parse (DoNotParseSections, p) es = Parser.parse p (map noPlaceholder es)
-parse (ParseSections,      p) es = Parser.parse p
-                                     (concat $ map splitExpr es)
+parse (DoNotParseSections, p) es = P.parse p (map noPlaceholder es)
+parse (ParseSections,      p) es = P.parse p (concat $ map splitExpr es)
   where
   splitExpr :: IsExpr e => e -> [MaybePlaceholder e]
   splitExpr e = case exprView e of
@@ -194,7 +179,7 @@ parse (ParseSections,      p) es = Parser.parse p
 
 -- | Parse a specific identifier as a NamePart
 partP :: IsExpr e => [Name] -> RawName -> Parser e Range
-partP ms s = do
+partP ms s = annotate (const $ text (show str)) $ do
     tok <- notPlaceholder
     case isLocal tok of
       Just p  -> return p
@@ -277,9 +262,9 @@ data NK (k :: NotationKind) :: * where
 opP :: forall e k. IsExpr e
     => ParseSections
     -> Parser e e -> NewNotation -> NK k -> Parser e (OperatorType k e)
-opP parseSections p (NewNotation q names _ syn isOp) kind = do
-
-  (range, hs) <- worker (init $ qnameParts q) withoutExternalHoles
+opP parseSections p (NewNotation q names _ syn isOp) kind =
+  flip fmap (worker (init $ qnameParts q)
+                    withoutExternalHoles) $ \(range, hs) ->
 
   let (normal, binders) = partitionEithers hs
       lastHole          = maximum $ mapMaybe holeTarget syn
@@ -299,8 +284,9 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
         where
         args = map (findExprFor (f normal) binders) [0..lastHole]
         q'   = setRange range q
+  in
 
-  return $ case kind of
+  case kind of
     In   -> \x y -> app (\es -> (x, leadingHole) : es ++ [(y, trailingHole)])
     Pre  -> \  y -> app (\es ->                    es ++ [(y, trailingHole)])
     Post -> \x   -> app (\es -> (x, leadingHole) : es)
@@ -325,32 +311,31 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
     Parser e (Range, [Either (MaybePlaceholder e, NamedArg Int)
                              (LamBinding, Int)])
   worker ms []              = return (noRange, [])
-  worker ms (IdPart x : xs) = do
-    r1       <- partP ms x
-    (r2, es) <- worker [] xs
-                -- Only the first
-                -- part is qualified.
-    return (fuseRanges r1 r2, es)
-  worker ms (NormalHole h : xs) = do
-    e <- maybePlaceholder
-           (if isOp && parseSections == ParseSections
-            then Just Middle else Nothing)
-           p
-    (r, es) <- worker ms xs
-    return (r, Left (e, h) : es)
-  worker ms (WildHole h : xs) = do
-    (r, es) <- worker ms xs
-    return (r, Right (mkBinding h $ Name noRange [Hole]) : es)
+  worker ms (IdPart x : xs) =
+    (\r1 (r2, es) -> (fuseRanges r1 r2, es))
+      <$> partP ms x
+      <*> worker [] xs
+          -- Only the first part is qualified.
+  worker ms (NormalHole h : xs) =
+    (\e (r, es) -> (r, Left (e, h) : es))
+      <$> maybePlaceholder
+            (if isOp && parseSections == ParseSections
+             then Just Middle else Nothing)
+            p
+      <*> worker ms xs
+  worker ms (WildHole h : xs) =
+    (\(r, es) -> (r, Right (mkBinding h $ Name noRange [Hole]) : es))
+      <$> worker ms xs
   worker ms (BindHole h : xs) = do
-    e <- wildOrUnqualifiedName
-    case e of
-      Just name -> ret name
-      Nothing   -> ret (Name noRange [Hole])
-    where
-    ret x = do
-      (r, es) <- worker ms xs
-      return (r, Right (mkBinding h x) : es)
-      -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
+    (\e (r, es) ->
+        let x = case e of
+                  Just name -> name
+                  Nothing   -> Name noRange [Hole]
+        in (r, Right (mkBinding h x) : es))
+           -- Andreas, 2011-04-07 put just 'Relevant' here, is this
+           -- correct?
+      <$> wildOrUnqualifiedName
+      <*> worker ms xs
 
   mkBinding h x = (DomainFree defaultArgInfo $ mkBoundName_ x, h)
 
@@ -375,7 +360,8 @@ opP parseSections p (NewNotation q names _ syn isOp) kind = do
     isPlaceholder Placeholder{}   = 1
 
 argsP :: IsExpr e => Parser e e -> Parser e [NamedArg e]
-argsP p = many (nothidden <|> hidden <|> instanceH)
+argsP p = many (annotate (const $ text "<argument>") $
+                  nothidden <|> hidden <|> instanceH)
     where
         isHidden (HiddenArgV _) = True
         isHidden _              = False
@@ -399,15 +385,12 @@ argsP p = many (nothidden <|> hidden <|> instanceH)
             return $ hide $ defaultArg e
 
 appP :: IsExpr e => Parser e e -> Parser e [NamedArg e] -> Parser e e
-appP p pa = do
-    h  <- p
-    es <- pa
-    return $ foldl app h es
+appP p pa = foldl app <$> p <*> pa
     where
         app e = unExprView . AppV e
 
 atomP :: IsExpr e => (QName -> Bool) -> Parser e e
-atomP p = do
+atomP p = annotate (const $ text "<atom>") $ do
     e <- notPlaceholder
     case exprView e of
         LocalV x | not (p x) -> empty
