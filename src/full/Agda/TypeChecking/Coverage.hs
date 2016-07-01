@@ -495,7 +495,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       -- Andreas, 2015-05-01  I guess it is fine to use @noConPatternInfo@
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
-      let conp    = ConP con noConPatternInfo $ applySubst rho2 $ teleNamedArgs gamma
+      let conp    = ConP con noConPatternInfo $ applySubst rho2 $
+                      map (setOrigin Inserted) $ teleNamedArgs gamma
 
       -- Compute final context and substitution
       let rho3    = consS conp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)

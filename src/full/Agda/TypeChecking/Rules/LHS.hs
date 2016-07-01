@@ -537,7 +537,8 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
   -- context telescope.
   cxt <- reverse <$> getContext
   let tel = telFromList' show cxt
-      cps = [ unnamed . A.VarP . fst <$> argFromDom d | d <- cxt ]
+      cps = [ unnamed . A.VarP . fst <$> setOrigin Inserted (argFromDom d)
+            | d <- cxt ]
   problem0 <- problemFromPats (cps ++ ps) (telePi tel a)
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
