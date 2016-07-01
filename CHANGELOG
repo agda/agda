@@ -17,6 +17,10 @@ Important changes since 0.12:
 * Added the length-filter property to Data.List.Properties (the filter
   equivalent to the pre-existing length-gfilter)
 
+* Added `Congruent₁` and `Congruent₂` to Algebra.FunctionProperties.
+  These are aliases for `_Preserves _≈_ ⟶ _≈_` and
+  `_Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_` from Relation.Binary.Core
+
 ------------------------------------------------------------------------
 -- Release notes for Agda standard library version 0.12
 ------------------------------------------------------------------------
