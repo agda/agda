@@ -607,6 +607,7 @@ instance (Ord k, Monoid v) => Monoid (MonoidMap k v) where
 
 -- | Removes implicit arguments that are not needed, that is, that don't bind
 --   any variables that are actually used and doesn't do pattern matching.
+--   Doesn't strip any arguments that were written explicitly by the user.
 stripImplicits :: ([NamedArg A.Pattern], [A.Pattern]) ->
                   TCM ([NamedArg A.Pattern], [A.Pattern])
 stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the names
@@ -664,7 +665,8 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
           stripName False = id
 
           canStrip a as = and
-            [ varOrDot p
+            [ getOrigin a /= UserWritten
+            , varOrDot p
             , all (flip canStrip []) $ takeWhile isUnnamedHidden as
             ]
             where p = namedArg a
@@ -702,6 +704,7 @@ class DotVars a where
 
 instance DotVars a => DotVars (Arg a) where
   dotVars a = if notVisible a && not (isConPat a)   -- Hidden constructor patterns are visible!
+                              && getOrigin a /= UserWritten
               then Set.empty
               else dotVars (unArg a)
   isConPat = isConPat . unArg
