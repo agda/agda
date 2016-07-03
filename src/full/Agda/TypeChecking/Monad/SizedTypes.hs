@@ -130,11 +130,10 @@ sizeType = El sizeSort <$> primSize
 
 -- | The name of @SIZESUC@.
 sizeSucName :: TCM (Maybe QName)
-sizeSucName = liftTCM $
-  ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ do
+sizeSucName = do
+  ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ tryMaybe $ do
     Def x [] <- ignoreSharing <$> primSizeSuc
-    return $ Just x
-  `catchError` \_ -> return Nothing
+    return x
 
 sizeSuc :: Nat -> Term -> TCM Term
 sizeSuc n v | n < 0     = __IMPOSSIBLE__

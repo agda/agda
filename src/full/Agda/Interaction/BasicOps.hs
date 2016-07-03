@@ -29,6 +29,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Info (ExprInfo(..),MetaInfo(..),emptyMetaInfo,exprNoRange)
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
@@ -293,11 +294,19 @@ outputFormId (OutputForm _ _ o) = out o
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pids cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm (getRange c) (last pids) <$> reify c)
 
+reifyElimToExpr :: I.Elim -> TCM Expr
+reifyElimToExpr e = case e of
+    I.Apply v -> appl "apply" <$> reify v
+    I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
+  where
+    appl :: String -> Arg Expr -> Expr
+    appl s v = A.App exprNoRange (A.Lit (LitString noRange s)) $ fmap unnamed v
+
 instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (ElimCmp cmp t v es1 es2) =
-      CmpElim cmp <$> reify t <*> reify es1
-                              <*> reify es2
+      CmpElim cmp <$> reify t <*> mapM reifyElimToExpr es1
+                              <*> mapM reifyElimToExpr es2
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
     reify (TelCmp a b cmp t t')  = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')

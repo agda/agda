@@ -76,43 +76,31 @@ import Agda.Utils.Impossible
 -- Composition of reified applications ------------------------------------
 
 napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e args = do
-  dontShowImp <- not <$> showImplicitArguments
-  let apply1 e arg | notVisible arg && dontShowImp = e
-                   | otherwise = App exprInfo e arg
-  foldl' apply1 e <$> reify args
+napps e = nelims e . map I.Apply
 
 apps :: Expr -> [Arg Expr] -> TCM Expr
-apps e args = napps e $ map (fmap unnamed) args
-
-reifyApp :: Expr -> [Arg Term] -> TCM Expr
-reifyApp e vs = apps e =<< reifyIArgs vs
-
-reifyIArg :: Reify i a => Arg i -> TCM (Arg a)
-reifyIArg i = Arg (argInfo i) <$> reify (unArg i)
-
-reifyIArgs :: Reify i a => [Arg i] -> TCM [Arg a]
-reifyIArgs = mapM reifyIArg
+apps e = elims e . map I.Apply
 
 -- Composition of reified eliminations ------------------------------------
 
+nelims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
+nelims e [] = return e
+nelims e (I.Apply arg : es) = do
+  arg <- reify arg  -- This replaces the arg by _ if irrelevant
+  dontShowImp <- not <$> showImplicitArguments
+  let hd | notVisible arg && dontShowImp = e
+         | otherwise                     = A.App noExprInfo e arg
+  nelims hd es
+nelims e (I.Proj d    : es) =
+  nelims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
+
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
-elims e [] = return e
-elims e (I.Apply arg : es) =
-  elims (A.App exprInfo e $ fmap unnamed arg) es
-elims e (I.Proj d    : es) = elims (A.App exprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
-
-reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
-reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
-reifyIElim (I.Proj d)  = return $ I.Proj d
-
-reifyIElims :: Reify i a => [I.Elim' i] -> TCM [I.Elim' a]
-reifyIElims = mapM reifyIElim
+elims e = nelims e . map (fmap unnamed)
 
 -- Omitting information ---------------------------------------------------
 
-exprInfo :: ExprInfo
-exprInfo = ExprRange noRange
+noExprInfo :: ExprInfo
+noExprInfo = ExprRange noRange
 
 -- Conditional reification to omit terms that are not shown --------------
 
@@ -162,11 +150,11 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reifyIArgs vs
-    DDef f es -> elims (A.Def f) =<< reifyIElims es
+    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
+    DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
-      reifyApp (if null es then e else A.WithApp exprInfo e es) vs
+      apps (if null es then e else A.WithApp noExprInfo e es) =<< reify vs
 
 -- | @reifyDisplayForm f vs fallback@
 --   tries to rewrite @f vs@ with a display form for @f@.
@@ -339,9 +327,8 @@ reifyTerm expandAnonDefs0 v = do
   v <- unSpine <$> instantiate v
   case v of
     I.Var n es   -> do
-        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-        reifyApp (A.Var x) vs
+        elims (A.Var x) =<< reify es
     I.Def x es   -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
@@ -354,8 +341,8 @@ reifyTerm expandAnonDefs0 v = do
           let keep (a, v) = showImp || notHidden a
           r  <- getConstructorData x
           xs <- getRecordFieldNames r
-          vs <- map unArg <$> reifyIArgs vs
-          return $ A.Rec exprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
+          vs <- map unArg <$> reify vs
+          return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x vs $ do
           ci <- getConstInfo x
           let Constructor{conPars = np} = theDef ci
@@ -367,7 +354,7 @@ reifyTerm expandAnonDefs0 v = do
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (AmbQ [x])
           if null vs then return h else do
-            es <- reifyIArgs vs
+            es <- reify vs
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
@@ -394,27 +381,17 @@ reifyTerm expandAnonDefs0 v = do
                   apps h $ us ++ es
                 -- otherwise, we drop all parameters
                 _ -> apps h es
-{- CODE FROM 2012-04-xx
-              let doms = genericDrop np $ telToList tel
-              reportSLn "syntax.reify.con" 30 $ unlines
-                [ "calling nameFirstIfHidden"
-                , "doms = " ++ show doms
-                , "es   = " ++ show es
-                , "n    = " ++ show n
-                , "np   = " ++ show np
-                ]
-              napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
--}
---    I.Lam info b | isAbsurdBody b -> return $ A.AbsurdLam exprInfo $ getHiding info
+
+--    I.Lam info b | isAbsurdBody b -> return $ A. AbsurdLam noExprInfo $ getHiding info
     I.Lam info b    -> do
       (x,e) <- reify b
-      return $ A.Lam exprInfo (DomainFree info x) e
+      return $ A.Lam noExprInfo (DomainFree info x) e
       -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
     I.Lit l        -> reify l
     I.Level l      -> reify l
     I.Pi a b       -> case b of
         NoAbs _ b'
-          | notHidden a -> uncurry (A.Fun $ exprInfo) <$> reify (a, b')
+          | notHidden a -> uncurry (A.Fun $ noExprInfo) <$> reify (a, b')
             -- Andreas, 2013-11-11 Hidden/Instance I.Pi must be A.Pi
             -- since (a) the syntax {A} -> B or {{A}} -> B is not legal
             -- and (b) the name of the binder might matter.
@@ -427,7 +404,7 @@ reifyTerm expandAnonDefs0 v = do
       where
         mkPi b (Arg info a) = do
           (x, b) <- reify b
-          return $ A.Pi exprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure x] a)] b
+          return $ A.Pi noExprInfo [TypedBindings noRange $ Arg info (TBind noRange [pure x] a)] b
         -- We can omit the domain type if it doesn't have any free variables
         -- and it's mentioned in the target type.
         domainFree a b = do
@@ -436,9 +413,8 @@ reifyTerm expandAnonDefs0 v = do
 
     I.Sort s     -> reify s
     I.MetaV x es -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       x' <- reify x
-      apps x' =<< reifyIArgs vs
+      elims x' =<< reify es
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
@@ -471,7 +447,7 @@ reifyTerm expandAnonDefs0 v = do
     reifyDef' x@(QName _ name) vs = do
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
-      mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
+      mdefn <- tryMaybe $ getConstInfo x
       -- check if we have an absurd lambda
       let reifyAbsurdLambda cont =
             case theDef <$> mdefn of
@@ -479,7 +455,7 @@ reifyTerm expandAnonDefs0 v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last (clausePats cl)
-                  apps (A.AbsurdLam exprInfo h) =<< reifyIArgs vs
+                  apps (A.AbsurdLam noExprInfo h) =<< reify vs
               _ -> cont
       reifyAbsurdLambda $ do
         (pad, vs :: [NamedArg Term]) <- do
@@ -513,7 +489,7 @@ reifyTerm expandAnonDefs0 v = do
               showImp <- showImplicitArguments
               return (filter visible pad',
                 if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden [dom] vs'
+                   then nameFirstIfHidden dom vs'
                    else map (fmap unnamed) vs')
         df <- displayFormsEnabled
         let extLam = case mdefn of
@@ -526,8 +502,8 @@ reifyTerm expandAnonDefs0 v = do
             info <- getConstInfo x
             reifyExtLam x pars (defClauses info) vs
           _ -> do
-           let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
-           napps (A.Def x `apps` pad) =<< reifyIArgs vs
+           let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
+           napps hd =<< reify vs
 
     reifyExtLam :: QName -> Int -> [I.Clause] -> [NamedArg Term] -> TCM Expr
     reifyExtLam x n cls vs = do
@@ -536,16 +512,15 @@ reifyTerm expandAnonDefs0 v = do
       fv <- getDefFreeVars x
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      napps (A.ExtendedLam exprInfo dInfo x cls) =<< reifyIArgs (drop (fv + n) vs)
+      napps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify (drop (fv + n) vs)
 
--- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
-nameFirstIfHidden :: [Dom (ArgName, t)] -> [Arg a] -> [NamedArg a]
-nameFirstIfHidden _         []                    = []
-nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
-nameFirstIfHidden (dom : _) (Arg info e : es) | isHidden info =
+-- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
+nameFirstIfHidden :: Dom (ArgName, t) -> [Arg a] -> [NamedArg a]
+nameFirstIfHidden dom (Arg info e : es) | isHidden info =
   Arg info (Named (Just $ unranged $ fst $ unDom dom) e) :
   map (fmap unnamed) es
-nameFirstIfHidden _         es                    = map (fmap unnamed) es
+nameFirstIfHidden _ es =
+  map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
@@ -558,14 +533,6 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
               `and2M` (return (argInfoRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
   reifyWhen b i = traverse (reifyWhen b) i
 
-instance Reify Elim Expr where
-  reifyWhen = reifyWhenE
-  reify e = case e of
-    I.Apply v -> appl "apply" <$> reify v
-    I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
-    where
-      appl :: String -> Arg Expr -> Expr
-      appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 data NamedClause = NamedClause QName Nat I.Clause
   -- Also tracks how many patterns should be dropped.
@@ -872,12 +839,12 @@ instance Reify Sort Expr where
     reify s = do
       s <- instantiateFull s
       case s of
-        I.Type (I.Max [])                -> return $ A.Set exprInfo 0
-        I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set exprInfo n
+        I.Type (I.Max [])                -> return $ A.Set noExprInfo 0
+        I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set noExprInfo n
         I.Type a -> do
           a <- reify a
-          return $ A.App exprInfo (A.Set exprInfo 0) (defaultNamedArg a)
-        I.Prop       -> return $ A.Prop exprInfo
+          return $ A.App noExprInfo (A.Set noExprInfo 0) (defaultNamedArg a)
+        I.Prop       -> return $ A.Prop noExprInfo
         I.Inf       -> A.Var <$> freshName_ ("Setω" :: String)
         I.SizeUniv  -> do
           I.Def sizeU [] <- primSizeUniv
@@ -885,7 +852,7 @@ instance Reify Sort Expr where
         I.DLub s1 s2 -> do
           lub <- freshName_ ("dLub" :: String) -- TODO: hack
           (e1,e2) <- reify (s1, I.Lam defaultArgInfo $ fmap Sort s2)
-          let app x y = A.App exprInfo x (defaultNamedArg y)
+          let app x y = A.App noExprInfo x (defaultNamedArg y)
           return $ A.Var lub `app` e1 `app` e2
 
 instance Reify Level Expr where
@@ -916,8 +883,13 @@ instance Reify I.Telescope A.Telescope where
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom info i) = Arg info <$> reify i
 
+instance Reify i a => Reify (I.Elim' i) (I.Elim' a) where
+  reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
+
 instance Reify i a => Reify [i] [a] where
-    reify = traverse reify
+  reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
 
 instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
     reify (x,y) = (,) <$> reify x <*> reify y

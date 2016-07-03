@@ -36,6 +36,7 @@ import qualified Data.IntSet as IntSet
 import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
+import qualified Data.Traversable as Trav
 
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
@@ -651,8 +652,9 @@ dataStrategy k s = do
     -- Instantiate the meta with a constructor applied to fresh metas
     -- Returns the fresh metas if successful
     instMetaCon :: MetaId -> Elims -> QName -> Args -> ConHead -> TCM (Maybe Args)
-    instMetaCon m es d pars c = case allApplyElims es of
-      Just us -> ifNotM (asks envAssignMetas) (return Nothing) $ do
+    instMetaCon m es d pars c = do
+      caseMaybe (allApplyElims es) (return Nothing) $ \ us -> do
+        ifNotM (asks envAssignMetas) (return Nothing) $ {-else-} tryMaybe $ do
           reportSDoc "tc.lhs.unify" 60 $
             text "Trying to instantiate the meta" <+> prettyTCM (MetaV m es) <+>
             text "with the constructor" <+> prettyTCM c <+> text "applied to fresh metas"
@@ -670,9 +672,7 @@ dataStrategy k s = do
               newArgsMetaCtx ctype tel perm us
           reportSDoc "tc.lhs.unify" 80 $ text "Generated meta args: " <+> prettyTCM margs
           noConstraints $ assignV DirEq m us (Con c margs)
-          return $ Just margs
-        `catchError` \_ -> return Nothing
-      Nothing -> return Nothing
+          return margs
 
 checkEqualityStrategy :: Int -> UnifyStrategy
 checkEqualityStrategy k s = do
