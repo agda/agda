@@ -176,10 +176,10 @@ argument of the constructor.  (Note that the corresponding data type
 declaration of ``Bad`` is allowed in standard functional languages
 such as Haskell and ML.).
 
-Non strictly-positive declarations are rejected because one can write
-a non-terminating function using them.
+Non strictly-positive declarations are rejected because
+they admit non-terminating functions.
 
-If the positivity check is disabled so that the above declaration of
+If the positivity check is disabled, so that the above declaration of
 ``Bad`` is allowed, it is possible to construct a term of the empty
 type.
 
