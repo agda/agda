@@ -76,13 +76,10 @@ import Agda.Utils.Impossible
 -- Composition of reified applications ------------------------------------
 
 napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e args = elims e $ map I.Apply args
+napps e = nelims e . map I.Apply
 
 apps :: Expr -> [Arg Expr] -> TCM Expr
-apps e args = napps e $ map (fmap unnamed) args
-
-reifyApp :: Expr -> [Arg Term] -> TCM Expr
-reifyApp e vs = apps e =<< reify vs
+apps e = elims e . map I.Apply
 
 -- Composition of reified eliminations ------------------------------------
 
@@ -157,7 +154,7 @@ instance Reify DisplayTerm Expr where
     DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
-      reifyApp (if null es then e else A.WithApp noExprInfo e es) vs
+      apps (if null es then e else A.WithApp noExprInfo e es) =<< reify vs
 
 -- | @reifyDisplayForm f vs fallback@
 --   tries to rewrite @f vs@ with a display form for @f@.
@@ -332,7 +329,7 @@ reifyTerm expandAnonDefs0 v = do
     I.Var n es   -> do
         let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-        reifyApp (A.Var x) vs
+        apps (A.Var x) =<< reify vs
     I.Def x es   -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
