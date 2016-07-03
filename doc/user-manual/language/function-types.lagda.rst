@@ -62,6 +62,8 @@ Functions are constructed by lambda abstractions, which can be either typed or u
   example₁ = \ (A : Set)(x : A) → x
   example₂ = \ A x → x
 
+You can also use the Unicode symbol ``λ`` (type “\\lambda” in the Emacs Agda mode) instead of ``\\``.
+
 The application of a function ``f : (x : A) → B`` to an argument ``a : A`` is written ``f a`` and the type of this is ``B[x := a]``.
 
 Notational conventions
@@ -75,11 +77,11 @@ Function types:
 
 ::
 
-    prop₁ : ((x : A) (y : B) → C)   is-the-same-as   ((x : A) → (y : B) → C)
-    prop₂ : ((x y : A) → C)         is-the-same-as   ((x : A)(y : A) → C)
-    prop₃ : (forall (x : A) → C)    is-the-same-as   ((x : A) → C)
-    prop₄ : (forall x → C)          is-the-same-as   ((x : _) → C)
-    prop₅ : (forall x y → C)        is-the-same-as   (forall x → forall y → C)
+    prop₁ : ((x : A) (y : B) → C) is-the-same-as   ((x : A) → (y : B) → C)
+    prop₂ : ((x y : A) → C)       is-the-same-as   ((x : A)(y : A) → C)
+    prop₃ : (forall (x : A) → C)  is-the-same-as   ((x : A) → C)
+    prop₄ : (forall x → C)        is-the-same-as   ((x : _) → C)
+    prop₅ : (forall x y → C)      is-the-same-as   (forall x → forall y → C)
 
 ..
   ::
@@ -89,7 +91,7 @@ Function types:
     prop₄ = refl
     prop₅ = refl
 
-You can also use the Unicode symbol ``∀`` (type “\all” in the Emacs Agda mode) instead of ``forall``.
+You can also use the Unicode symbol ``∀`` (type “\\all” in the Emacs Agda mode) instead of ``forall``.
 
 Functional abstraction:
 
@@ -99,7 +101,7 @@ Functional abstraction:
 
 ::
 
-      (\x y → e)   is-the-same-as   (\x → (\y → e))
+    (\x y → e)                    is-the-same-as   (\x → (\y → e))
 
 ..
   ::
@@ -114,7 +116,7 @@ Functional application:
 
 ::
 
-     (f a b)    is-the-same-as    ((f a) b)
+    (f a b)                       is-the-same-as    ((f a) b)
 
 ..
   ::
