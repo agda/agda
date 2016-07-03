@@ -76,11 +76,7 @@ import Agda.Utils.Impossible
 -- Composition of reified applications ------------------------------------
 
 napps :: Expr -> [NamedArg Expr] -> TCM Expr
-napps e args = do
-  dontShowImp <- not <$> showImplicitArguments
-  let apply1 e arg | notVisible arg && dontShowImp = e
-                   | otherwise = App noExprInfo e arg
-  foldl' apply1 e <$> reify args
+napps e args = elims e $ map I.Apply args
 
 apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e args = napps e $ map (fmap unnamed) args
@@ -88,27 +84,25 @@ apps e args = napps e $ map (fmap unnamed) args
 reifyApp :: Expr -> [Arg Term] -> TCM Expr
 reifyApp e vs = apps e =<< reifyIArgs vs
 
-reifyIArg :: Reify i a => Arg i -> TCM (Arg a)
-reifyIArg i = Arg (argInfo i) <$> reify (unArg i)
-
 reifyIArgs :: Reify i a => [Arg i] -> TCM [Arg a]
-reifyIArgs = mapM reifyIArg
+reifyIArgs = mapM $ \ i -> Arg (argInfo i) <$> reify (unArg i)
 
 -- Composition of reified eliminations ------------------------------------
 
-elims :: Expr -> [I.Elim' Expr] -> TCM Expr
+elims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
 elims e [] = return e
-elims e (I.Apply arg : es) =
-  elims (A.App noExprInfo e $ fmap unnamed arg) es
+elims e (I.Apply arg : es) = do
+  arg <- reify arg  -- This replaces the arg by _ if irrelevant
+  dontShowImp <- not <$> showImplicitArguments
+  let hd | notVisible arg && dontShowImp = e
+         | otherwise                     = A.App noExprInfo e arg
+  elims hd es
 elims e (I.Proj d    : es) =
   elims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
 
-reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' a)
-reifyIElim (I.Apply i) = I.Apply <$> traverse reify i
+reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' (Named_ a))
+reifyIElim (I.Apply i) = I.Apply <$> traverse (unnamed <.> reify) i
 reifyIElim (I.Proj d)  = return $ I.Proj d
-
-reifyIElims :: Reify i a => [I.Elim' i] -> TCM [I.Elim' a]
-reifyIElims = mapM reifyIElim
 
 -- Omitting information ---------------------------------------------------
 
@@ -164,7 +158,7 @@ instance Reify DisplayTerm Expr where
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reifyIArgs vs
-    DDef f es -> elims (A.Def f) =<< reifyIElims es
+    DDef f es -> elims (A.Def f) =<< mapM reifyIElim es
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
       reifyApp (if null es then e else A.WithApp noExprInfo e es) vs
