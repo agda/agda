@@ -491,7 +491,7 @@ reifyTerm expandAnonDefs0 v = do
               showImp <- showImplicitArguments
               return (filter visible pad',
                 if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden [dom] vs'
+                   then nameFirstIfHidden dom vs'
                    else map (fmap unnamed) vs')
         df <- displayFormsEnabled
         let extLam = case mdefn of
@@ -516,14 +516,13 @@ reifyTerm expandAnonDefs0 v = do
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
       napps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify (drop (fv + n) vs)
 
--- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
-nameFirstIfHidden :: [Dom (ArgName, t)] -> [Arg a] -> [NamedArg a]
-nameFirstIfHidden _         []                    = []
-nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
-nameFirstIfHidden (dom : _) (Arg info e : es) | isHidden info =
+-- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
+nameFirstIfHidden :: Dom (ArgName, t) -> [Arg a] -> [NamedArg a]
+nameFirstIfHidden dom (Arg info e : es) | isHidden info =
   Arg info (Named (Just $ unranged $ fst $ unDom dom) e) :
   map (fmap unnamed) es
-nameFirstIfHidden _         es                    = map (fmap unnamed) es
+nameFirstIfHidden _ es =
+  map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
