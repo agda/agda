@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
@@ -32,7 +33,8 @@ import Data.Maybe
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Traversable as Trav
+import Data.Traversable (traverse, mapM)
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -447,22 +449,25 @@ reifyTerm expandAnonDefs0 v = do
     reifyDef' x@(QName _ name) vs = do
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
-      mdefn <- tryMaybe $ getConstInfo x
-      -- check if we have an absurd lambda
-      let reifyAbsurdLambda cont =
-            case theDef <$> mdefn of
-              Just Function{ funCompiled = Just Fail, funClauses = [cl] }
+      -- If the definition is not (yet) in the signature,
+      -- we just do the obvious.
+      let fallback = apps (A.Def x) =<< reify (drop n vs)
+      caseMaybeM (tryMaybe $ getConstInfo x) fallback $ \ defn -> do
+      let def = theDef defn
+
+      -- Check if we have an absurd lambda.
+      case def of
+       Function{ funCompiled = Just Fail, funClauses = [cl] }
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last (clausePats cl)
                   apps (A.AbsurdLam noExprInfo h) =<< reify vs
-              _ -> cont
-      reifyAbsurdLambda $ do
-        (pad, vs :: [NamedArg Term]) <- do
-          case mdefn of
-            Nothing   -> return ([], map (fmap unnamed) $ genericDrop n vs)
-            Just defn -> do
-              let def = theDef defn
+
+      -- Otherwise (no absurd lambda):
+       _ -> do
+        (pad, vs :: [NamedArg Term]) <- case def of
+
+            Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
               -- This is tricky:
               --  * getDefFreeVars x tells us how many arguments
               --    are part of the local context
@@ -471,19 +476,18 @@ reifyTerm expandAnonDefs0 v = do
               --  * when showImplicits is on we'd like to see the dropped
               --    projection arguments
 
+              TelV tel _ <- telViewUpTo np (defType defn)
+              let (as, rest) = splitAt (np - 1) $ telToList tel
+                  dom = fromMaybe __IMPOSSIBLE__ $ headMaybe rest
+
               -- These are the dropped projection arguments
-              (np, pad, dom) <-
-                  case def of
-                      Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
-                        TelV tel _ <- telView (defType defn)
-                        scope <- getScope
-                        let (as, dom:_) = splitAt (np - 1) $ telToList tel
-                            whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-                        return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
-                      _ -> return (0, [], __IMPOSSIBLE__)
+              scope <- getScope
+              let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
+              let pad = for as $ \ (Dom ai _) -> Arg ai underscore
+
               -- Now pad' ++ vs' = drop n (pad ++ vs)
-              let pad' = genericDrop n pad
-                  vs'  = genericDrop (max 0 (n - size pad)) vs
+              let pad' = drop n pad
+                  vs'  = drop (max 0 (n - size pad)) vs
               -- Andreas, 2012-04-21: get rid of hidden underscores {_}
               -- Keep non-hidden arguments of the padding
               showImp <- showImplicitArguments
@@ -491,16 +495,18 @@ reifyTerm expandAnonDefs0 v = do
                 if not (null pad) && showImp && notVisible (last pad)
                    then nameFirstIfHidden dom vs'
                    else map (fmap unnamed) vs')
+
+            -- If it is not a projection(-like) function, we need no padding.
+            _ -> return ([], map (fmap unnamed) $ drop n vs)
+
+        -- Check whether we have an extended lambda and display forms are on.
         df <- displayFormsEnabled
-        let extLam = case mdefn of
-                      Nothing -> Nothing
-                      Just defn -> case theDef defn of
-                                    Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (h + nh)
-                                    _                                    -> Nothing
+        let extLam = case def of
+             Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (h + nh)
+             _ -> Nothing
         case extLam of
-          Just pars | df -> do
-            info <- getConstInfo x
-            reifyExtLam x pars (defClauses info) vs
+          Just pars | df -> reifyExtLam x pars (defClauses defn) vs
+        -- Otherwise (ordinay function call):
           _ -> do
            let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
            napps hd =<< reify vs
@@ -508,7 +514,7 @@ reifyTerm expandAnonDefs0 v = do
     reifyExtLam :: QName -> Int -> [I.Clause] -> [NamedArg Term] -> TCM Expr
     reifyExtLam x n cls vs = do
       reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
-      cls <- mapM (reify . NamedClause x n) $ cls
+      cls <- mapM (reify . NamedClause x n) cls
       fv <- getDefFreeVars x
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
