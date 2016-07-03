@@ -86,16 +86,19 @@ reifyApp e vs = apps e =<< reify vs
 
 -- Composition of reified eliminations ------------------------------------
 
-elims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
-elims e [] = return e
-elims e (I.Apply arg : es) = do
+nelims :: Expr -> [I.Elim' (Named_ Expr)] -> TCM Expr
+nelims e [] = return e
+nelims e (I.Apply arg : es) = do
   arg <- reify arg  -- This replaces the arg by _ if irrelevant
   dontShowImp <- not <$> showImplicitArguments
   let hd | notVisible arg && dontShowImp = e
          | otherwise                     = A.App noExprInfo e arg
-  elims hd es
-elims e (I.Proj d    : es) =
-  elims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
+  nelims hd es
+nelims e (I.Proj d    : es) =
+  nelims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
+
+elims :: Expr -> [I.Elim' Expr] -> TCM Expr
+elims e = nelims e . map (fmap unnamed)
 
 -- Omitting information ---------------------------------------------------
 
@@ -151,7 +154,7 @@ instance Reify DisplayTerm Expr where
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
-    DDef f es -> elims (A.Def f) . map (fmap unnamed) =<< reify es
+    DDef f es -> elims (A.Def f) =<< reify es
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
       reifyApp (if null es then e else A.WithApp noExprInfo e es) vs
