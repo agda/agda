@@ -327,9 +327,8 @@ reifyTerm expandAnonDefs0 v = do
   v <- unSpine <$> instantiate v
   case v of
     I.Var n es   -> do
-        let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-        apps (A.Var x) =<< reify vs
+        elims (A.Var x) =<< reify es
     I.Def x es   -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
@@ -414,9 +413,8 @@ reifyTerm expandAnonDefs0 v = do
 
     I.Sort s     -> reify s
     I.MetaV x es -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       x' <- reify x
-      apps x' =<< reify vs
+      elims x' =<< reify es
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
