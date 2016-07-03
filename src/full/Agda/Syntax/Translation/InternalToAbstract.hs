@@ -82,10 +82,7 @@ apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e args = napps e $ map (fmap unnamed) args
 
 reifyApp :: Expr -> [Arg Term] -> TCM Expr
-reifyApp e vs = apps e =<< reifyIArgs vs
-
-reifyIArgs :: Reify i a => [Arg i] -> TCM [Arg a]
-reifyIArgs = mapM $ \ i -> Arg (argInfo i) <$> reify (unArg i)
+reifyApp e vs = apps e =<< reify vs
 
 -- Composition of reified eliminations ------------------------------------
 
@@ -157,8 +154,8 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reifyIArgs vs
     DDef f es -> elims (A.Def f) =<< mapM reifyIElim es
+    DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
       reifyApp (if null es then e else A.WithApp noExprInfo e es) vs
@@ -349,7 +346,7 @@ reifyTerm expandAnonDefs0 v = do
           let keep (a, v) = showImp || notHidden a
           r  <- getConstructorData x
           xs <- getRecordFieldNames r
-          vs <- map unArg <$> reifyIArgs vs
+          vs <- map unArg <$> reify vs
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
         False -> reifyDisplayForm x vs $ do
           ci <- getConstInfo x
@@ -362,7 +359,7 @@ reifyTerm expandAnonDefs0 v = do
           when (n > np) __IMPOSSIBLE__
           let h = A.Con (AmbQ [x])
           if null vs then return h else do
-            es <- reifyIArgs vs
+            es <- reify vs
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
@@ -423,7 +420,7 @@ reifyTerm expandAnonDefs0 v = do
     I.MetaV x es -> do
       let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
       x' <- reify x
-      apps x' =<< reifyIArgs vs
+      apps x' =<< reify vs
     I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
     I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
   where
@@ -464,7 +461,7 @@ reifyTerm expandAnonDefs0 v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last (clausePats cl)
-                  apps (A.AbsurdLam noExprInfo h) =<< reifyIArgs vs
+                  apps (A.AbsurdLam noExprInfo h) =<< reify vs
               _ -> cont
       reifyAbsurdLambda $ do
         (pad, vs :: [NamedArg Term]) <- do
@@ -512,7 +509,7 @@ reifyTerm expandAnonDefs0 v = do
             reifyExtLam x pars (defClauses info) vs
           _ -> do
            let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
-           napps hd =<< reifyIArgs vs
+           napps hd =<< reify vs
 
     reifyExtLam :: QName -> Int -> [I.Clause] -> [NamedArg Term] -> TCM Expr
     reifyExtLam x n cls vs = do
@@ -521,7 +518,7 @@ reifyTerm expandAnonDefs0 v = do
       fv <- getDefFreeVars x
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      napps (A.ExtendedLam noExprInfo dInfo x cls) =<< reifyIArgs (drop (fv + n) vs)
+      napps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify (drop (fv + n) vs)
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
 nameFirstIfHidden :: [Dom (ArgName, t)] -> [Arg a] -> [NamedArg a]
@@ -902,7 +899,8 @@ instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom info i) = Arg info <$> reify i
 
 instance Reify i a => Reify [i] [a] where
-    reify = traverse reify
+  reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
 
 instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
     reify (x,y) = (,) <$> reify x <*> reify y
