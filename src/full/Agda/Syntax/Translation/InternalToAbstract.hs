@@ -97,10 +97,6 @@ elims e (I.Apply arg : es) = do
 elims e (I.Proj d    : es) =
   elims (A.App noExprInfo (A.Proj $ AmbQ [d]) $ defaultNamedArg e) es
 
-reifyIElim :: Reify i a => I.Elim' i -> TCM (I.Elim' (Named_ a))
-reifyIElim (I.Apply i) = I.Apply <$> traverse (unnamed <.> reify) i
-reifyIElim (I.Proj d)  = return $ I.Proj d
-
 -- Omitting information ---------------------------------------------------
 
 noExprInfo :: ExprInfo
@@ -154,8 +150,8 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reifyTerm False v
     DDot  v -> reify v
-    DDef f es -> elims (A.Def f) =<< mapM reifyIElim es
     DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
+    DDef f es -> elims (A.Def f) . map (fmap unnamed) =<< reify es
     DWithApp u us vs -> do
       (e, es) <- reify (u, us)
       reifyApp (if null es then e else A.WithApp noExprInfo e es) vs
@@ -540,14 +536,6 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
               `and2M` (return (argInfoRelevance info /= Irrelevant) `or2M` showIrrelevantArguments)
   reifyWhen b i = traverse (reifyWhen b) i
 
-instance Reify Elim Expr where
-  reifyWhen = reifyWhenE
-  reify e = case e of
-    I.Apply v -> appl "apply" <$> reify v
-    I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
-    where
-      appl :: String -> Arg Expr -> Expr
-      appl s v = A.App noExprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
 
 data NamedClause = NamedClause QName Nat I.Clause
   -- Also tracks how many patterns should be dropped.
@@ -897,6 +885,10 @@ instance Reify I.Telescope A.Telescope where
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom info i) = Arg info <$> reify i
+
+instance Reify i a => Reify (I.Elim' i) (I.Elim' a) where
+  reify = traverse reify
+  reifyWhen b = traverse (reifyWhen b)
 
 instance Reify i a => Reify [i] [a] where
   reify = traverse reify
