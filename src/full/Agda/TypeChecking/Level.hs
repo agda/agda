@@ -15,6 +15,7 @@ import Agda.TypeChecking.Reduce.Monad ()
 import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Monad ( tryMaybe )
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -29,10 +30,6 @@ data LevelKit = LevelKit
   , maxName  :: QName
   , zeroName :: QName
   }
-
--- | Get the 'primLevel as a 'Term', if present.
-mlevel :: TCM (Maybe Term)
-mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 
 -- | Get the 'primLevel' as a 'Type'.
 levelType :: TCM Type
@@ -96,16 +93,14 @@ unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
 unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
 maybePrimCon :: TCM Term -> TCM (Maybe ConHead)
-maybePrimCon prim = liftTCM $ do
+maybePrimCon prim = tryMaybe $ do
     Con c [] <- prim
-    return (Just c)
-  `catchError` \_ -> return Nothing
+    return c
 
 maybePrimDef :: TCM Term -> TCM (Maybe QName)
-maybePrimDef prim = liftTCM $ do
+maybePrimDef prim = tryMaybe $ do
     Def f [] <- prim
-    return (Just f)
-  `catchError` \_ -> return Nothing
+    return f
 
 levelView :: Term -> TCM Level
 levelView a = do

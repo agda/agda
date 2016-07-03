@@ -447,7 +447,7 @@ reifyTerm expandAnonDefs0 v = do
     reifyDef' x@(QName _ name) vs = do
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
-      mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
+      mdefn <- tryMaybe $ getConstInfo x
       -- check if we have an absurd lambda
       let reifyAbsurdLambda cont =
             case theDef <$> mdefn of

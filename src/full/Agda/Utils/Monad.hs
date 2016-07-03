@@ -169,6 +169,11 @@ first `finally` after = do
     Left e  -> throwError e
     Right r -> return r
 
+-- | Try a computation, return 'Nothing' if an 'Error' occurs.
+
+tryMaybe :: (MonadError e m, Functor m) => m a -> m (Maybe a)
+tryMaybe m = (Just <$> m) `catchError` \ _ -> return Nothing
+
 -- State monad ------------------------------------------------------------
 
 -- | Bracket without failure.  Typically used to preserve state.

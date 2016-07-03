@@ -17,7 +17,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Lens
-import Agda.Utils.Monad (when_)
+import Agda.Utils.Monad
 import Agda.Utils.Maybe
 import Agda.Utils.Tuple
 
@@ -471,9 +471,7 @@ coinductionKit' = do
     }
 
 coinductionKit :: TCM (Maybe CoinductionKit)
-coinductionKit =
-  (Just <$> coinductionKit')
-  `catchError` \_ -> return Nothing
+coinductionKit = tryMaybe coinductionKit'
 
 ------------------------------------------------------------------------
 -- * Builtin equality
