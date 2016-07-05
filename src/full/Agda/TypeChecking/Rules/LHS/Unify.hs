@@ -7,6 +7,102 @@
 {-# LANGUAGE NondecreasingIndentation   #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+-- | Unification algorithm for specializing datatype indices, as described in
+--     \"Unifiers as Equivalences: Proof-Relevant Unification of Dependently
+--     Typed Data\" by Jesper Cockx, Dominique Devriese, and Frank Piessens
+--     (ICFP 2016).
+--
+--   This is the unification algorithm used for checking the left-hand side
+--   of clauses (see @Agda.TypeChecking.Rules.LHS@), coverage checking (see
+--   @Agda.TypeChecking.Coverage@) and indirectly also for interactive case
+--   splitting (see @Agda.Interaction.MakeCase@).
+--
+--   A unification problem (of type @UnifyState@) consists of:
+--   1. A telescope @varTel@ of free variables, some or all of which are
+--      flexible (as indicated by @flexVars@).
+--   2. A telescope @eqTel@ containing the types of the equations.
+--   3. Left- and right-hand sides for each equation:
+--      @varTel ⊢ eqLHS : eqTel@ and @varTel ⊢ eqRHS : eqTel@.
+--
+--   The unification algorithm can end in three different ways:
+--   (type @UnificationResult@):
+--   - A *positive success* @Unifies (tel, sigma)@ with @tel ⊢ sigma : varTel@
+--     and @tel ⊢ eqLHS [ varTel ↦ sigma ] ≡ eqRHS [ varTel ↦ sigma ] : eqTel@.
+--     In this case, @sigma@ is an *equivalence* between the telescopes @tel@
+--     and @varTel(eqLHS ≡ eqRHS)@.
+--   - A *negative success* @NoUnify err@ means that a conflicting equation
+--     was found (e.g an equation between two distinct constructors or a cycle).
+--   - A *failure* @DontKnow err@ means that the unifier got stuck.
+--
+--   The unification algorithm itself consists of two parts:
+--   1. A *unification strategy* takes a unification problem and produces a
+--      list of suggested unification rules (of type @UnifyStep@). Strategies
+--      can be constructed by composing simpler strategies (see for example the
+--      definition of @completeStrategyAt@).
+--   2. The *unification engine* @unifyStep@ takes a unification rule and tries
+--      to apply it to the given state, writing the result to the UnifyOutput
+--      on a success.
+--
+--   The unification steps (of type @UnifyStep@) are the following:
+--   - *Deletion* removes a reflexive equation @u =?= v : a@ if the left- and
+--     right-hand side @u@ and @v@ are (definitionally) equal. This rule results
+--     in a failure if --without-K is enabled (see \"Pattern Matching Without K\"
+--     by Jesper Cockx, Dominique Devriese, and Frank Piessens (ICFP 2014).
+--   - *Solution* solves an equation if one side is (eta-equivalent to) a
+--     flexible variable. In case both sides are flexible variables, the
+--     unification strategy makes a choice according to the @chooseFlex@
+--     function in @Agda.TypeChecking.Rules.LHS.Problem@.
+--   - *Injectivity* decomposes an equation of the form
+--     @c us =?= c vs : D pars is@ where @c : Δc → D pars js@ is a constructor
+--     of the inductive datatype @D@ into a sequence of equations
+--     @us =?= vs : delta@. In case @D@ is an indexed datatype,
+--     *higher-dimensional unification* is applied (see below).
+--   - *Conflict* detects absurd equations of the form
+--     @c₁ us =?= c₂ vs : D pars is@ where @c₁@ and @c₂@ are two distinct
+--     constructors of the datatype @D@.
+--   - *Cycle* detects absurd equations of the form @x =?= v : D pars is@ where
+--     @x@ is a variable of the datatype @D@ that occurs strongly rigid in @v@.
+--   - *EtaExpandVar* eta-expands a single flexible variable @x : R@ where @R@
+--     is a (eta-expandable) record type, replacing it by one variable for each
+--     field of @R@.
+--   - *EtaExpandEquation* eta-expands an equation @u =?= v : R@ where @R@ is a
+--     (eta-expandable) record type, replacing it by one equation for each field
+--     of @R@. The left- and right-hand sides of these equations are the
+--     projections of @u@ and @v@.
+--   - *LitConflict* detects absurd equations of the form @l₁ =?= l₂ : A@ where
+--     @l₁@ and @l₂@ are distinct literal terms.
+--   - *StripSizeSuc* simplifies an equation of the form
+--     @sizeSuc x =?= sizeSuc y : Size@ to @x =?= y : Size@.
+--   - *SkipIrrelevantEquation@ removes an equation between irrelevant terms.
+--   - *TypeConInjectivity* decomposes an equation of the form
+--     @D us =?= D vs : Set i@ where @D@ is a datatype. This rule is only used
+--     if --injective-type-constructors is enabled.
+--
+--   Higher-dimensional unification (new, does not yet appear in any paper):
+--   If an equation of the form @c us =?= c vs : D pars is@ is encountered where
+--   @c : Δc → D pars js@ is a constructor of an indexed datatype
+--   @D pars : Φ → Set ℓ@, it is in general unsound to just simplify this
+--   equation to @us =?= vs : Δc@. For this reason, the injectivity rule in the
+--   paper restricts the indices @is@ to be distinct variables that are bound in
+--   the telescope @eqTel@. But we can be more general by introducing new
+--   variables @ks@ to the telescope @eqTel@ and equating these to @is@:
+--   @
+--       Δ₁(x : D pars is)Δ₂
+--        ≃
+--       Δ₁(ks : Φ)(x : D pars ks)(ps : is ≡Φ ks)Δ₂
+--   @
+--   Since @ks@ are distinct variables, it's now possible to apply injectivity
+--   to the equation @x@, resulting in the following new equation telescope:
+--   @
+--     Δ₁(ys : Δc)(ps : is ≡Φ js[Δc ↦ ys])Δ₂
+--   @
+--   Now we can solve the equations @ps@ by recursively calling the unification
+--   algorithm with flexible variables @Δ₁(ys : Δc)@. This is called
+--   *higher-dimensional unification* since we are unifying equality proofs
+--   rather than terms. If the higher-dimensional unification succeeds, the
+--   resulting telescope serves as the new equation telescope for the original
+--   unification problem.
+
 module Agda.TypeChecking.Rules.LHS.Unify
   ( UnificationResult
   , UnificationResult'(..)
@@ -42,6 +138,7 @@ import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Pattern
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
@@ -55,6 +152,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.DropArgs
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
+import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
@@ -367,8 +465,6 @@ data UnifyStep
     , injectParameters   :: Args
     , injectIndices      :: Args
     , injectConstructor  :: ConHead
-    , injectArgsLeft     :: Args
-    , injectArgsRight    :: Args
     }
   | Conflict
     { conflictAt         :: Int
@@ -429,7 +525,7 @@ instance PrettyTCM UnifyStep where
       , text "variable:   " <+> text (show i)
       , text "term:       " <+> text (show u)
       ])
-    Injectivity k a d pars ixs c _ _ -> text "Injectivity" $$ nest 2 (vcat $
+    Injectivity k a d pars ixs c -> text "Injectivity" $$ nest 2 (vcat $
       [ text "position:   " <+> text (show k)
       , text "type:       " <+> text (show a)
       , text "datatype:   " <+> text (show d)
@@ -617,23 +713,23 @@ basicUnifyStrategy k s = do
 
 dataStrategy :: Int -> UnifyStrategy
 dataStrategy k s = do
-  Equal a u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEquality k s)
+  Equal a u v <- liftTCM $ eqConstructorForm =<< eqUnLevel (getEqualityUnraised k s)
   case a of
     El _ (Def d es) -> do
       npars <- mcatMaybes $ liftTCM $ getNumberOfParameters d
       let (pars,ixs) = splitAt npars $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      hpars <- mfromMaybe $ isHom (eqCount s) pars
+      hpars <- mfromMaybe $ isHom k pars
       liftTCM $ reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s `abstract` eqTel s) $
         text "Found equation at datatype " <+> prettyTCM d
          <+> text " with (homogeneous) parameters " <+> prettyTCM hpars
       case (u, v) of
-        (MetaV m es, Con c vs  ) -> do
+        (MetaV m es, Con c _   ) -> do
           us <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
-          return $ Injectivity k a d hpars ixs c us vs
-        (Con c us  , MetaV m es) -> do
+          return $ Injectivity k a d hpars ixs c
+        (Con c _   , MetaV m es) -> do
           vs <- mcatMaybes $ liftTCM $ addContext (varTel s) $ instMetaCon m es d hpars c
-          return $ Injectivity k a d hpars ixs c us vs
-        (Con c us  , Con c' vs ) | c == c' -> return $ Injectivity k a d hpars ixs c us vs
+          return $ Injectivity k a d hpars ixs c
+        (Con c _   , Con c' _  ) | c == c' -> return $ Injectivity k a d hpars ixs c
         (Con c _   , Con c' _  ) -> return $ Conflict k d hpars c c'
         (Var i []  , v         ) -> ifOccursStronglyRigid i v $ return $ Cycle k d hpars i v
         (u         , Var j []  ) -> ifOccursStronglyRigid j u $ return $ Cycle k d hpars j u
@@ -844,60 +940,82 @@ unifyStep s Solution{ solutionAt = k , solutionType = a , solutionVar = i , solu
         return $ solveVar i u s
     err = addContext (varTel s) $ typeError_ $ UnificationRecursiveEq a i u
 
-unifyStep s (Injectivity k a d pars ixs c lhs rhs) = do
+unifyStep s (Injectivity k a d pars ixs c) = do
   withoutK <- liftTCM $ optWithoutK <$> pragmaOptions
-  ctype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo $ conName c)
+  let n = eqCount s
+
+  -- Get constructor telescope and target indices
+  ctype <- (`piApply` pars) . defType <$> liftTCM (getConInfo c)
   reportSDoc "tc.lhs.unify" 40 $ text "Constructor type: " <+> prettyTCM ctype
   TelV ctel ctarget <- liftTCM $ telView ctype
-  (lhs, rhs) <- liftTCM $ reduce (lhs,rhs)
-  case ignoreSharing  $ unEl ctarget of
-    Def d' es | d == d' -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-          cixs = map unArg $ drop (length pars) args
-          ceq  = Con c $ teleArgs ctel
-      let mis  = mfilter fastDistinct $ forM ixs $ \ix ->
-                   case ignoreSharing $ unArg ix of
-                     Var i [] | i < eqCount s -> Just i
-                     _        -> Nothing
-      case mis of
-        Nothing | withoutK -> DontKnow <$> err
-        Nothing -> return $ Unifies $ addEqs ctel lhs rhs $ solveEq k ceq s
-        Just is -> do
-          let n  = eqCount s
-              js = is ++ [n-1-k]
-          caseMaybeM (trySplitTelescopeExact js (eqTel s)) (DontKnow <$> err) $
-            \(SplitTel tel1 tel2 perm) -> do
-            reportSDoc "tc.lhs.unify" 40 $ addContext (varTel s) $ sep $
-              [ text "split telescope" <+> prettyTCM (eqTel s) <+> text ("at " ++ show js)
-              , text "  into" <+> prettyTCM tel1
-              , text "  and " <+> addContext tel1 (prettyTCM tel2)
-              , text "  perm =" <+> text (show perm)
-              ]
-            let n1   = size tel1
-                n2   = size tel2
-                sub1 = renaming perm :: Substitution -- or renamingR?
-                sub2 = (ceq : reverse cixs) ++# raiseS (size ctel)
-            Unifies <$> liftTCM (reduceEqTel $ s
-              { eqTel    = ctel `abstract` (applySubst sub2 tel2)
-              , eqLHS    = lhs ++ drop n1 (permute perm $ eqLHS s)
-              , eqRHS    = rhs ++ drop n1 (permute perm $ eqRHS s)
-              })
-    _ -> __IMPOSSIBLE__
+  let cixs = case ignoreSharing $ unEl ctarget of
+               Def d' es | d == d' ->
+                 let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+                 in  drop (length pars) args
+               _ -> __IMPOSSIBLE__
+
+  -- Get index telescope of the datatype
+  dtype    <- (`piApply` pars) . defType <$> liftTCM (getConstInfo d)
+  reportSDoc "tc.lhs.unify" 40 $ text "Datatype type: " <+> prettyTCM dtype
+
+  -- Split equation telescope into parts before and after current equation
+  let (eqListTel1, _ : eqListTel2) = genericSplitAt k $ telToList $ eqTel s
+      (eqTel1, eqTel2) = (telFromList eqListTel1, telFromList eqListTel2)
+
+  -- This is where the magic of higher-dimensional unification happens
+  -- We need to generalize the indices `ixs` to the target indices of the
+  -- constructor `cixs`. This is done by calling the unification algorithm
+  -- recursively (this doesn't get stuck in a loop because a type should
+  -- never be indexed over itself). Note the similarity with the
+  -- computeNeighbourhood function in Agda.TypeChecking.Coverage.
+  res <- liftTCM $ addContext (varTel s) $ unifyIndices
+           (eqTel1 `abstract` ctel)
+           (allFlexVars $ eqTel1 `abstract` ctel)
+           dtype
+           (raise (size ctel) ixs)
+           cixs
+  case res of
+    -- Higher-dimensional unification can never end in a conflict,
+    -- because `cong c1 ...` and `cong c2 ...` don't even have the
+    -- same type for distinct constructors c1 and c2.
+    NoUnify _ -> __IMPOSSIBLE__
+
+    -- TODO: we could still make progress here if not --without-K,
+    -- but I'm not sure if it's necessary.
+    DontKnow _ -> liftTCM $ DontKnow <$> err
+
+    Unifies (eqTel1', rho0) -> do
+      -- Split ps0 into parts for eqTel1 and ctel
+      let (rho1, rho2) = splitS (size ctel) rho0
+
+      -- Compute new equation telescope context and substitution
+      let ceq     = ConP c noConPatternInfo $ applySubst rho2 $ teleNamedArgs ctel
+          rho3    = consS ceq rho1
+          eqTel2' = applyPatSubst rho3 eqTel2
+          eqTel'  = eqTel1' `abstract` eqTel2'
+          rho     = liftS (size eqTel2) rho3
+
+      eqTel' <- liftTCM $ reduce eqTel'
+
+      -- Compute new lhs and rhs by matching the old ones against rho
+      (lhs', rhs') <- liftTCM . reduce =<< do
+        let ps   = applySubst rho $ teleNamedArgs $ eqTel s
+            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+        (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
+        (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
+        case (lhsMatch, rhsMatch) of
+          (Match.Yes _ lhs', Match.Yes _ rhs') ->
+            return (permute perm lhs', permute perm rhs')
+          _ -> __IMPOSSIBLE__
+
+      return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
+
   where
-    n = eqCount s
-
-    err = addContext (varTel s `abstract` eqTel s) $ typeError_
-        (UnifyIndicesNotVars
-          a
-          (Con c $ raise n lhs)
-          (Con c $ raise n rhs)
-          ixs)
-
-    trySplitTelescopeExact js tel = case splitTelescopeExact js tel of
-      Just x  -> return $ Just x
-      Nothing -> do
-        tel <- liftTCM $ normalise tel
-        return $ splitTelescopeExact js tel
+    err :: TCM TCErr
+    err = let n           = eqCount s
+              Equal a u v = getEquality k s
+          in addContext (varTel s `abstract` eqTel s) $ typeError_
+               (UnifyIndicesNotVars a (raise n u) (raise n v) (raise (n-k) ixs))
 
 unifyStep s Conflict
   { conflictConLeft    = c
