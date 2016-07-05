@@ -317,10 +317,8 @@ Testing and documentation
 
         pip install --user -r doc/user-manual/requirements.txt
 
-      ** The installation of sphinx-rtd-theme also installs Sphinx.
-
-      ** Note that the `--user` option put the Sphinx binaries in
-         `$HOME/.local/bin`.
+      Note that the `--user` option puts the Sphinx binaries in
+      `$HOME/.local/bin`.
 
     - LaTeX
 
