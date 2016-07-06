@@ -636,21 +636,21 @@ stripImplicits (ps, wps) = do          -- v if show-implicit we don't need the n
         where
           stripArgs _ [] = []
           stripArgs fixedPos (a : as) =
-            case getHiding a of
-              Hidden   | canStrip a as -> stripArgs False as
-              Instance | canStrip a as -> stripArgs False as
-              _                        -> stripName fixedPos (stripArg a) :
-                                          stripArgs True as
+            if canStrip a
+            then if   all canStrip $ takeWhile isUnnamedHidden as
+                 then stripArgs False as
+                 else let a' = fmap ($> A.WildP (Info.PatRange $ getRange a)) a
+                      in  stripName fixedPos a' : stripArgs True as
+            else stripName fixedPos (stripArg a) : stripArgs True as
 
           stripName True  = fmap (unnamed . namedThing)
           stripName False = id
 
-          canStrip a as = and
-            [ getOrigin a /= UserWritten
-            , varOrDot p
-            , all (flip canStrip []) $ takeWhile isUnnamedHidden as
+          canStrip a = and
+            [ notVisible a
+            , getOrigin a /= UserWritten
+            , varOrDot (namedArg a)
             ]
-            where p = namedArg a
 
           isUnnamedHidden x = notVisible x && nameOf (unArg x) == Nothing
 
