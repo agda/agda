@@ -448,7 +448,9 @@ instance Flexs SizeMeta HypSizeConstraint where
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
     inTopContext $ modifyContext (const cxt) $ do
+      let cxtNames = reverse $ map (fst . unDom . ctxEntry) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
+      prettyList (map prettyTCM cxtNames) <+> do
       applyUnless (null hs)
        (((hcat $ punctuate (text ", ") $ map prettyTCM hs) <+> text "|-") <+>)
        (prettyTCM c)
