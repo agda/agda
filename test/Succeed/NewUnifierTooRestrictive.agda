@@ -2,6 +2,9 @@
 -- when --without-K is enabled because it doesn't do generalization of datatype
 -- indices. This should be fixed in the future.
 
+-- 2016-06-23, Jesper: Now fixed.
+
+
 {-# OPTIONS --without-K #-}
 
 data _≡_ {A : Set} (x : A) : A → Set where
