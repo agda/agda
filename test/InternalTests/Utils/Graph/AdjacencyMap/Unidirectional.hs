@@ -7,22 +7,7 @@
 
 -- | Properties for graph library.
 
-module Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests (tests) where
-
-import Prelude hiding (null)
-
-
-import Control.Monad
-
-import qualified Data.Foldable as Fold
-import Data.Function
-import qualified Data.Graph as Graph
-import qualified Data.List as List
-import Data.Maybe
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
-import Test.QuickCheck as QuickCheck
+module InternalTests.Utils.Graph.AdjacencyMap.Unidirectional ( tests ) where
 
 import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
 
@@ -34,10 +19,25 @@ import Agda.Utils.Null as Null
 import Agda.Utils.SemiRing
 import Agda.Utils.Singleton (Singleton)
 import qualified Agda.Utils.Singleton as Singleton
-import Agda.Utils.TestHelpers
+import Agda.Utils.Impossible
+
+import Control.Monad
+
+import qualified Data.Foldable as Fold
+import Data.Function
+import qualified Data.Graph as Graph
+import qualified Data.List as List
+import Data.Maybe
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+
+import InternalTests.Helpers
+
+import Prelude hiding (null)
+
+import Test.QuickCheck as QuickCheck
 
 #include "undefined.h"
-import Agda.Utils.Impossible
 
 ------------------------------------------------------------------------
 -- * Generating random graphs
@@ -330,7 +330,7 @@ return [] -- KEEP!
 
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.Utils.Graph.AdjacencyMap.Unidirectional"
+  putStrLn "InternalTests.Utils.Graph.AdjacencyMap.Unidirectional"
   $quickCheckAll
 
 

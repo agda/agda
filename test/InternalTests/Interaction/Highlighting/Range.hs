@@ -1,8 +1,13 @@
+{-# LANGUAGE CPP #-}
 
 module InternalTests.Interaction.Highlighting.Range ( tests ) where
 
 import Agda.Interaction.Highlighting.Range
 import Agda.Utils.List hiding ( tests )
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ( (<$>) )
+#endif
 
 import Data.List
 

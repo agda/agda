@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Agda.TypeChecking.Positivity.Tests where
-
-import Test.QuickCheck
+module InternalTests.TypeChecking.Positivity ( tests ) where
 
 import Agda.TypeChecking.Positivity
 
 import Agda.Utils.SemiRing
+
+import Test.QuickCheck
 
 -- | The 'oplus' method for 'Occurrence' matches that for 'Edge'.
 
@@ -23,5 +23,5 @@ return []
 
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.TypeChecking.Positivity"
+  putStrLn "InternalTests.TypeChecking.Positivity"
   $quickCheckAll

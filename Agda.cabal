@@ -387,7 +387,6 @@ library
                     Agda.TypeChecking.Polarity
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Positivity.Occurrence
-                    Agda.TypeChecking.Positivity.Tests
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.ProjectionLike
@@ -426,7 +425,6 @@ library
                     Agda.TypeChecking.SizedTypes
                     Agda.TypeChecking.SizedTypes.Solve
                     Agda.TypeChecking.SizedTypes.Syntax
-                    Agda.TypeChecking.SizedTypes.Tests
                     Agda.TypeChecking.SizedTypes.Utils
                     Agda.TypeChecking.SizedTypes.WarshallSolver
                     Agda.TypeChecking.Substitute
@@ -453,7 +451,6 @@ library
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph.AdjacencyMap.Unidirectional
-                    Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests
                     Agda.Utils.Hash
                     Agda.Utils.HashMap
                     Agda.Utils.Impossible
@@ -476,7 +473,6 @@ library
                     Agda.Utils.Parser.ReadP
                     Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
-                    Agda.Utils.Permutation.Tests
                     Agda.Utils.Pointer
                     Agda.Utils.Pretty
                     Agda.Utils.QuickCheck

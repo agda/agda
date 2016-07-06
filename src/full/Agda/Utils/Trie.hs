@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
@@ -11,7 +10,6 @@ module Agda.Utils.Trie
   , adjust, delete
   , toList, toAscList
   , lookup, member, lookupPath
-  , tests
   ) where
 
 import Prelude hiding (null, lookup)
@@ -19,12 +17,9 @@ import qualified Prelude
 
 import Data.Function
 import Data.Functor
-import Data.List (nubBy, sortBy, isPrefixOf, inits)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-
-import Test.QuickCheck
 
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
@@ -124,65 +119,3 @@ lookupPath xs (Trie v cs) = case xs of
     []     -> Strict.maybeToList v
     x : xs -> Strict.maybeToList v ++
               maybe [] (lookupPath xs) (Map.lookup x cs)
-
--- Tests ------------------------------------------------------------------
-
-newtype Key = Key Int
-  deriving (Eq, Ord)
-
-newtype Val = Val Int
-  deriving (Eq)
-
-newtype Model = Model [([Key], Val)]
-  deriving (Eq, Show)
-
-instance Show Key where
-  show (Key x) = show x
-
-instance Show Val where
-  show (Val x) = show x
-
-instance Arbitrary Key where
-  arbitrary = elements $ map Key [1..2]
-  shrink (Key x) = Key <$> shrink x
-
-instance Arbitrary Val where
-  arbitrary = elements $ map Val [1..3]
-  shrink (Val x) = Val <$> shrink x
-
-instance Arbitrary Model where
-  arbitrary = Model <$> arbitrary
-  shrink (Model xs) = Model <$> shrink xs
-
-modelToTrie :: Model -> Trie Key Val
-modelToTrie (Model xs) = foldr (uncurry insert) empty xs
-
-prop_lookup :: [Key] -> Model -> Bool
-prop_lookup ks m@(Model ksvs) =
-  lookup ks (modelToTrie m) == Prelude.lookup ks ksvs
-
-modelPath :: [Key] -> Model -> [Val]
-modelPath ks (Model xs) =
-  map snd
-  $ sortBy (compare `on` length . fst)
-  $ nubBy ((==) `on` fst)
-  $ filter (flip isPrefixOf ks . fst) xs
-
-prop_path :: [Key] -> Model -> Property
-prop_path ks m =
-  collect (length $ modelPath ks m) $
-  lookupPath ks (modelToTrie m) == modelPath ks m
-
-prop_everyPrefix :: [Integer] -> Integer -> Bool
-prop_everyPrefix ks v =
-  everyPrefix ks v ==
-  foldr union empty [ singleton ks' v | ks' <- inits ks ]
-
-return []
-
--- | All tests.
-
-tests :: IO Bool
-tests = do
-  putStrLn "Agda.Utils.Trie"
-  $quickCheckAll

@@ -10,32 +10,22 @@ import Agda.Termination.Order                 as TermOrd    (tests)
 import Agda.Termination.Semiring              as TermRing   (tests)
 import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.Termination.Termination           as TermTerm   (tests)
-import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
-import Agda.TypeChecking.Positivity.Tests     as Positivity (tests)
 import Agda.TypeChecking.Positivity.Occurrence as Occurrence (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
-import Agda.TypeChecking.SizedTypes.Tests     as SizedTypes (tests)
 import Agda.Utils.Bag                         as UtilBag    (tests)
 import Agda.Utils.BiMap                       as UtilBiMap  (tests)
 import Agda.Utils.Cluster                     as UtilClust  (tests)
 import Agda.Utils.Either                      as UtilEith   (tests)
 import Agda.Utils.Favorites                   as UtilFav    (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests as UtilGraphUni (tests)
 import Agda.Utils.List                        as UtilList   (tests)
 import Agda.Utils.ListT.Tests                 as UtilListT  (tests)
 import Agda.Utils.PartialOrd                  as UtilPOrd   (tests)
-import Agda.Utils.Permutation.Tests           as UtilPerm   (tests)
-import Agda.Utils.Trie                        as UtilTrie   (tests)
-import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
-  [ Irrel.tests
-  , SizedTypes.tests
-  , UtilFav.tests
+  [ UtilFav.tests
   , UtilListT.tests
-  , UtilPerm.tests
   , UtilPOrd.tests
   , SyntPosi.tests
   , TermCall.tests
@@ -44,7 +34,6 @@ testSuite = runTests "QuickCheck test suite:"
   , TermRing.tests
   , TermSparse.tests
   , TermTerm.tests
-  , Positivity.tests
   , Occurrence.tests
   , TypeChck.tests
   , UtilBag.tests
@@ -52,8 +41,5 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilClust.tests
   , UtilEith.tests
   , UtilFile.tests
-  , UtilGraphUni.tests
   , UtilList.tests
-  , UtilTrie.tests
-  , UtilWarsh.tests
   ]
