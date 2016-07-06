@@ -502,23 +502,55 @@ reifyTerm expandAnonDefs0 v = do
         -- Check whether we have an extended lambda and display forms are on.
         df <- displayFormsEnabled
         let extLam = case def of
-             Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (h + nh)
+             Function{ funExtLam = Just (ExtLamInfo h nh) } ->
+               let npars = h + nh
+               -- Andreas, 2016-07-06 Issue #2047
+               -- Check that we can actually drop the parameters
+               -- of the extended lambda.
+               -- This is only possible if the first @npars@ patterns
+               -- are variable patterns.
+               -- If we encounter a non-variable pattern, fall back
+               -- to printing without nice extended lambda syntax.
+                   ps = map namedArg $ take npars $ namedClausePats $
+                     fromMaybe __IMPOSSIBLE__ $ headMaybe (defClauses defn)
+                   isVarP I.VarP{} = True
+                   isVarP _ = False
+               in  if all isVarP ps then Just npars else Nothing
              _ -> Nothing
         case extLam of
-          Just pars | df -> reifyExtLam x pars (defClauses defn) vs
+          Just pars | df -> reifyExtLam x n pars (defClauses defn) vs
         -- Otherwise (ordinay function call):
           _ -> do
            let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
            napps hd =<< reify vs
 
-    reifyExtLam :: QName -> Int -> [I.Clause] -> [NamedArg Term] -> TCM Expr
-    reifyExtLam x n cls vs = do
+    -- Andreas, 2016-07-06 Issue #2047
+
+    -- With parameter refinement, the "parameter" patterns of an extended
+    -- lambda can now be different from variable patterns.  If we just drop
+    -- them (plus the associated arguments to the extended lambda), we produce
+    -- something
+
+    -- * that violates internal invariants.  In particular, the permutation
+    --   dbPatPerm from the patterns to the telescope can no longer be
+    --   computed.  (And in fact, dropping from the start of the telescope is
+    --   just plainly unsound then.)
+
+    -- * prints the wrong thing (old fix for #2047)
+
+    -- What we do now, is more sound, although not entirely satisfying:
+    -- When the "parameter" patterns of an external lambdas are not variable
+    -- patterns, we fall back to printing the internal function created for the
+    -- extended lambda, instead trying to construct the nice syntax.
+
+    reifyExtLam :: QName -> Int -> Int -> [I.Clause] -> [NamedArg Term] -> TCM Expr
+    reifyExtLam x n npars cls vs = do
       reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
-      cls <- mapM (reify . NamedClause x n) cls
-      fv <- getDefFreeVars x
+      let (pars, rest) = splitAt npars $ drop n vs
+      cls <- mapM (reify . NamedClause x 0 . (`apply` (map (fmap namedThing) pars))) cls
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      napps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify (drop (fv + n) vs)
+      napps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Arg a] -> [NamedArg a]
@@ -816,7 +848,8 @@ instance Reify (QNamed I.Clause) A.Clause where
   reify (QNamed f cl) = reify (NamedClause f 0 cl)
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f toDrop (I.Clause _ tel ps body _ catchall)) = addContext tel $ do
+  reify (NamedClause f toDrop cl@(I.Clause _ tel ps body _ catchall)) = addContext tel $ do
+    reportSLn "reify.clause" 60 $ "reifying NamedClause, cl = " ++ show cl
     ps  <- reifyPatterns ps
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f `catchError` \_ -> return 0
