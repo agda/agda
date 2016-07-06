@@ -39,6 +39,10 @@ Bug fixes
 
     test .(A ⇒ (B ⇒ A)) (K A B) = ?
 
+* In literate TeX files, `\begin{code}` and `\end{code}` can be
+  preceded (resp. followed) by TeX code on the same line.
+  This fixes issue #2077.
+
 * Other issues fixed ( see https://github.com/agda/agda/issues ):
   - #1951 (mixfix binders not working in 'syntax')
   - #1967 (too eager insteance search error)
