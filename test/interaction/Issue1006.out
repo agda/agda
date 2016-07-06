@@ -6,5 +6,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set " nil)
 ((last . 1) . (agda2-goals-action '(0)))
-((last . 2) . (agda2-make-case-action '("test {_ , foo} = ?")))
+((last . 2) . (agda2-make-case-action '("test {.(id _) , foo} = ?")))
 ((last . 1) . (agda2-goals-action '(0)))
