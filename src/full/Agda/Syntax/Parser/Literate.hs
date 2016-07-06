@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ViewPatterns #-}
 -- | Preprocessors for literate code formats
 module Agda.Syntax.Parser.Literate (
   literateProcessors,
@@ -43,6 +44,7 @@ instance HasRange Layer where
 -- | Annotates a tokenized string with position information.
 mkLayers :: Position -> [(LayerType, String)] -> [Layer]
 mkLayers pos [] = emptyLiterate pos
+mkLayers pos ((_,""):xs) = mkLayers pos xs
 mkLayers pos ((ty,s):xs) = let next = movePosByString pos s in
                            (Layer ty (Interval pos next) s):(mkLayers next xs)
 
@@ -139,22 +141,25 @@ literateTeX pos s = mkLayers pos$ tex s
   tex :: String -> [(LayerType, String)]
   tex [] = []
   tex s  = let (line, rest) = getLine s in
-    if r_begin `match` line then
-      (Markup,  line):code rest
-    else
-      (Comment, line):tex  rest
+    case r_begin `matchM` line of
+      Just (getAllTextSubmatches -> [_, pre, markup]) ->
+        (Comment, pre):(Markup, markup):code rest
+      Just _                 -> __IMPOSSIBLE__
+      Nothing                -> (Comment, line):tex rest
+
+  r_begin = rex "(.*)([[:space:]]*\\\\begin\\{code\\}[[:space:]]*)"
 
 
   code :: String -> [(LayerType, String)]
   code [] = []
   code s = let (line, rest) = getLine s in
-    if r_end `match` line then
-      (Markup, line):tex rest
-    else
-      (Code, line):code rest
+    case r_end `matchM` line of
+      Just (getAllTextSubmatches -> [_, markup, post]) ->
+        (Markup, markup):(Comment, post):tex rest
+      Just _ -> __IMPOSSIBLE__
+      Nothing             -> (Code, line):code rest
 
-  r_begin = rex "[[:space:]]*\\\\begin\\{code\\}[[:space:]]*"
-  r_end   = rex "[[:space:]]*\\\\end\\{code\\}[[:space:]]*"
+  r_end   = rex "([[:space:]]*\\\\end\\{code\\}[[:space:]]*)(.*)"
 
 
 -- | Preprocessor for reStructuredText
@@ -207,7 +212,8 @@ literateRsT pos s = mkLayers pos$ rst s
       else
         maybe_code s
 
-  -- | Describes the beginning of code
+  -- | Beginning of a code block
   r_code = rex "(.*)(::)([[:space:]]*)"
 
+  -- | Beginning of a comment block
   r_comment = rex "[[:space:]]*\\.\\.([[:space:]].*)?"

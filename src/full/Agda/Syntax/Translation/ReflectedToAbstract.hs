@@ -102,7 +102,7 @@ instance ToAbstract Term Expr where
     R.Def f es -> toAbstract (A.Def (killRange f), es)
     R.Lam h t  -> do
       (e, name) <- toAbstract t
-      let info  = setHiding h defaultArgInfo
+      let info  = setHiding h $ setOrigin Reflected defaultArgInfo
       return $ A.Lam exprNoRange (DomainFree info name) e
     R.ExtLam cs es -> do
       name <- freshName_ extendedLambdaName

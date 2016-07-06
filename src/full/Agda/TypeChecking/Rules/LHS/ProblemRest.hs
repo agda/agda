@@ -2,6 +2,8 @@
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
+import Data.Functor ((<$))
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Abstract as A
@@ -40,6 +42,9 @@ useNamesFromPattern ps = telFromList . zipWith ren (map namedArg ps ++ repeat du
     ren _ (Dom info (x, a)) | notHidden info && isNoName x =
       Dom info (stringToArgName "x", a)
     ren _ a = a
+
+useOriginFrom :: (LensOrigin a, LensOrigin b) => [a] -> [b] -> [a]
+useOriginFrom = zipWith $ \x y -> setOrigin (getOrigin y) x
 
 -- | Are there any untyped user patterns left?
 noProblemRest :: Problem -> Bool
@@ -91,7 +96,7 @@ problemFromPats ps a = do
       pr        = ProblemRest ps2 $ defaultArg b
 
       -- internal patterns start as all variables
-  let ips = teleNamedArgs gamma
+  let ips = teleNamedArgs gamma `useOriginFrom` ps
 
       -- the initial problem for starting the splitting
       problem  = Problem ps1 ips gamma pr :: Problem
@@ -122,7 +127,7 @@ updateProblemRest_ p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
           (ps1,ps2) = splitAt (size as) ps
           tel1      = telFromList $ telToList tel0 ++ as
           pr        = ProblemRest ps2 (a $> b)
-          qs1       = teleNamedArgs gamma
+          qs1       = teleNamedArgs gamma `useOriginFrom` ps
           n         = size as
       reportSDoc "tc.lhs.problem" 10 $ addContext tel0 $ vcat
         [ text "checking lhs -- updated split problem:"
