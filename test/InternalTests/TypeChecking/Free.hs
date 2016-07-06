@@ -11,7 +11,7 @@
 
 -- | Tests for free variable computations.
 
-module Internal.TypeChecking.Free ( tests ) where
+module InternalTests.TypeChecking.Free ( tests ) where
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -29,7 +29,7 @@ import Agda.TypeChecking.Test.Generators
 import qualified Data.IntMap as Map
 import Data.Monoid
 
-import Internal.TestHelpers
+import InternalTests.Helpers
 
 -- * Properties of 'FlexRig'
 
@@ -108,5 +108,5 @@ return [] -- KEEP!
 -- | All tests as collected by 'quickCheckAll'.
 tests :: IO Bool
 tests = do
-  putStrLn "Internal.TypeChecking.Free"
+  putStrLn "InternalTests.TypeChecking.Free"
   $quickCheckAll

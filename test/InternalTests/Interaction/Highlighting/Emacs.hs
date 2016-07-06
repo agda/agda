@@ -1,7 +1,7 @@
 
-module Internal.Interaction.Highlighting.Emacs ( tests ) where
+module InternalTests.Interaction.Highlighting.Emacs ( tests ) where
 
-import Internal.TestHelpers
+import InternalTests.Helpers
 
 ------------------------------------------------------------------------
 -- All tests
@@ -11,4 +11,4 @@ import Internal.TestHelpers
 -- | All the properties.
 
 tests :: IO Bool
-tests = runTests "Internal.Interaction.Highlighting.Emacs" []
+tests = runTests "InternalTests.Interaction.Highlighting.Emacs" []

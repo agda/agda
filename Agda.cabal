@@ -670,10 +670,10 @@ test-suite agda-tests
     ghc-options: -Wmissing-local-signatures
   default-language: Haskell2010
 
-test-suite internal
+test-suite internal-tests
   type:            exitcode-stdio-1.0
   hs-source-dirs:  test
-  main-is:         Internal.hs
+  main-is:         InternalTests.hs
 
   build-depends:  Agda == 2.5.2
                 , base >= 4.6.0.1 && < 4.10

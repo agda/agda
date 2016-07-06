@@ -3,8 +3,6 @@ module Agda.Tests (testSuite) where
 
 import Agda.Utils.TestHelpers
 
-import Agda.Interaction.Options               as InteOpti   (tests)
-import Agda.Syntax.Parser.Parser              as SyntPars   (tests)
 import Agda.Syntax.Position                   as SyntPosi   (tests)
 import Agda.Termination.CallGraph             as TermCall   (tests)
 import Agda.Termination.CallMatrix            as TermCM     (tests)
@@ -39,8 +37,6 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilListT.tests
   , UtilPerm.tests
   , UtilPOrd.tests
-  , InteOpti.tests
-  , SyntPars.tests
   , SyntPosi.tests
   , TermCall.tests
   , TermCM.tests

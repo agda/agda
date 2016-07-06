@@ -9,7 +9,7 @@ import Control.Monad.Reader
 
 import qualified Data.Map as Map
 
-import Agda.Interaction.Options hiding (tests)
+import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

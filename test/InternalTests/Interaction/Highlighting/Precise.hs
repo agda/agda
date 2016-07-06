@@ -1,5 +1,5 @@
 
-module Internal.Interaction.Highlighting.Precise ( tests ) where
+module InternalTests.Interaction.Highlighting.Precise ( tests ) where
 
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
@@ -9,8 +9,8 @@ import Control.Monad
 import qualified Data.IntMap as IntMap
 import Data.List
 
-import Internal.TestHelpers
-import Internal.Interaction.Highlighting.Range ()
+import InternalTests.Helpers
+import InternalTests.Interaction.Highlighting.Range ()
 
 ------------------------------------------------------------------------
 -- Compressed files
@@ -158,7 +158,7 @@ instance Arbitrary CompressedFile where
 -- | All the properties.
 
 tests :: IO Bool
-tests = runTests "Internal.Interaction.Highlighting.Precise"
+tests = runTests "InternalTests.Interaction.Highlighting.Precise"
   [ quickCheck' compressedFileInvariant
   , quickCheck' (all compressedFileInvariant . shrink)
   , quickCheck' (\r m -> compressedFileInvariant $ singletonC r m)

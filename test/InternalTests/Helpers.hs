@@ -1,7 +1,7 @@
 -- | Some functions and generators suitable for writing QuickCheck
 -- properties.
 
-module Internal.TestHelpers
+module InternalTests.Helpers
   ( -- * QuickCheck helpers
     quickCheck'
   , quickCheckWith'

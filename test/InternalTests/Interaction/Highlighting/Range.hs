@@ -1,12 +1,12 @@
 
-module Internal.Interaction.Highlighting.Range ( tests ) where
+module InternalTests.Interaction.Highlighting.Range ( tests ) where
 
 import Agda.Interaction.Highlighting.Range
 import Agda.Utils.List hiding ( tests )
 
 import Data.List
 
-import Internal.TestHelpers
+import InternalTests.Helpers
 
 ------------------------------------------------------------------------
 -- Generators
@@ -42,7 +42,7 @@ prop_minus xs ys =
 -- | All the properties.
 
 tests :: IO Bool
-tests = runTests "Internal.Interaction.Highlighting.Range"
+tests = runTests "InternalTests.Interaction.Highlighting.Range"
   [ quickCheck' rangeInvariant
   , quickCheck' rangesInvariant
   , quickCheck' (rangesInvariant . rToR)
