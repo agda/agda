@@ -3,11 +3,6 @@ module Agda.Tests (testSuite) where
 
 import Agda.Utils.TestHelpers
 
-import Agda.Compiler.MAlonzo.Encode           as CompEnco   (tests)
-import Agda.Interaction.Highlighting.Emacs    as InteEmac   (tests)
-import Agda.Interaction.Highlighting.Generate as InteGene   (tests)
-import Agda.Interaction.Highlighting.Precise  as IntePrec   (tests)
-import Agda.Interaction.Highlighting.Range    as InteRang   (tests)
 import Agda.Interaction.Options               as InteOpti   (tests)
 import Agda.Syntax.Parser.Parser              as SyntPars   (tests)
 import Agda.Syntax.Position                   as SyntPosi   (tests)
@@ -17,7 +12,6 @@ import Agda.Termination.Order                 as TermOrd    (tests)
 import Agda.Termination.Semiring              as TermRing   (tests)
 import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.Termination.Termination           as TermTerm   (tests)
-import Agda.TypeChecking.Free.Tests           as Free       (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Positivity.Tests     as Positivity (tests)
 import Agda.TypeChecking.Positivity.Occurrence as Occurrence (tests)
@@ -39,18 +33,12 @@ import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
-  [ Free.tests
-  , Irrel.tests
+  [ Irrel.tests
   , SizedTypes.tests
   , UtilFav.tests
   , UtilListT.tests
   , UtilPerm.tests
   , UtilPOrd.tests
-  , CompEnco.tests
-  , InteEmac.tests
-  , InteGene.tests
-  , IntePrec.tests
-  , InteRang.tests
   , InteOpti.tests
   , SyntPars.tests
   , SyntPosi.tests
