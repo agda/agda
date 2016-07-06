@@ -259,7 +259,8 @@ expandWithFunctionCall f es = do
       let pad = a - length vs
           vs' = raise pad vs ++ map (defaultArg . var) (downFrom pad)
       Just disp <- displayForm f vs'
-      return $ foldr (\_ -> Lam defaultArgInfo . Abs "") (dtermToTerm disp) (replicate pad ())
+      let info = setOrigin Inserted defaultArgInfo
+      return $ foldr (\_ -> Lam info . Abs "") (dtermToTerm disp) (replicate pad ())
     _ -> __IMPOSSIBLE__
   where
     (vs, es') = splitApplyElims es

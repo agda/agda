@@ -30,7 +30,7 @@ checkWithFunction
   as     = [P b]
   vs     = [f b]
   b      = Set
-  qs     = [r(trash1 = VarP (DBPatVar {dbPatVarName = "trash1", dbPatVarIndex = 4})),r(b = VarP (DBPatVar {dbPatVarName = "b", dbPatVarIndex = 3})),r(trash2 = VarP (DBPatVar {dbPatVarName = "trash2", dbPatVarIndex = 2})),r(f = VarP (DBPatVar {dbPatVarName = "f", dbPatVarIndex = 1})),r(trash3 = VarP (DBPatVar {dbPatVarName = "trash3", dbPatVarIndex = 0}))]
+  qs     = [ru(trash1 = VarP (DBPatVar {dbPatVarName = "trash1", dbPatVarIndex = 4})),ru(b = VarP (DBPatVar {dbPatVarName = "b", dbPatVarIndex = 3})),ru(trash2 = VarP (DBPatVar {dbPatVarName = "trash2", dbPatVarIndex = 2})),ru(f = VarP (DBPatVar {dbPatVarName = "f", dbPatVarIndex = 1})),ru(trash3 = VarP (DBPatVar {dbPatVarName = "trash3", dbPatVarIndex = 0}))]
   perm'  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4
   perm   = x0,x1,x2,x3,x4 -> x0,x1,x2,x3,x4
   fperm  = x0,x1,x2,x3,x4 -> x1,x3,x0,x2,x4

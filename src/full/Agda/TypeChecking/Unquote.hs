@@ -189,7 +189,7 @@ instance Unquote ArgInfo where
     case ignoreSharing t of
       Con c [h,r] -> do
         choice
-          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r)]
+          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> return Reflected)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "arg info" t
