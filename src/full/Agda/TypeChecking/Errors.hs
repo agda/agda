@@ -1058,12 +1058,14 @@ instance PrettyTCM TypeError where
       pwords "because K has been disabled."
 
     UnifyConflict c c' -> fsep $
-      pwords "There was a conflict between the constructors " ++
-      [prettyTCM c] ++ pwords " and " ++ [prettyTCM c']
+      pwords "This case is impossible because of a conflict between the constructors " ++
+      [prettyTCM c] ++ pwords " and " ++ [prettyTCM c' <> text "."] ++
+      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
 
     UnifyCycle i u -> fsep $
-      pwords "The variable " ++ [prettyTCM (var i)] ++
-      pwords "occurs strongly rigid in" ++ [prettyTCM u]
+      pwords "This case is impossible because the variable " ++ [prettyTCM (var i)] ++
+      pwords "occurs strongly rigid in" ++ [prettyTCM u <> text "."] ++
+      pwords "Possible solution: remove the clause, or use an absurd pattern ()."
 
     UnifyIndicesNotVars a u v ixs -> fsep $
       pwords "Cannot apply injectivity to the equation" ++ [prettyTCM u] ++
