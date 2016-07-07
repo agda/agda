@@ -21,6 +21,7 @@ import Agda.TypeChecking.Free.Tests           as Free       (tests)
 import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Positivity.Tests     as Positivity (tests)
 import Agda.TypeChecking.Positivity.Occurrence as Occurrence (tests)
+import Agda.TypeChecking.Test.Generators      as Generators (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.TypeChecking.SizedTypes.Tests     as SizedTypes (tests)
 import Agda.Utils.Bag                         as UtilBag    (tests)
@@ -72,4 +73,5 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilList.tests
   , UtilTrie.tests
   , UtilWarsh.tests
+  , Generators.tests
   ]

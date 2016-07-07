@@ -552,3 +552,7 @@ prop_wellScopedVars :: TermConfiguration -> Property
 prop_wellScopedVars conf =
   forAllShrink (genC conf) (shrinkC conf) $ \t ->
   isWellScoped conf (t :: Term)
+
+tests :: IO Bool
+tests = runTests "Agda.TypeChecking.Test.Generators"
+  [ quickCheck' prop_wellScopedVars ]
