@@ -14,12 +14,12 @@ module Agda.Interaction.Options
     , defaultInteractionOptions
     , defaultVerbosity
     , defaultCutOff
+    , defaultPragmaOptions  -- required by the internal test-suite
     , standardOptions_
     , unsafePragmaOptions
     , isLiterate
     , mapFlag
     , usage
-    , tests
     , defaultLibDir
     -- Reused by PandocAgda
     , inputFlag
@@ -56,8 +56,6 @@ import Agda.Utils.Except
   , runExceptT
   )
 
-import Agda.Utils.TestHelpers   ( runTests )
-import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.List          ( groupOn, wordsBy )
@@ -257,10 +255,6 @@ defaultLaTeXDir = "latex"
 defaultHTMLDir :: String
 defaultHTMLDir = "html"
 
-prop_defaultOptions :: IO Bool
-prop_defaultOptions =
-  either (const False) (const True) <$> runOptM (checkOpts defaultOptions)
-
 type OptM = ExceptT String IO
 
 runOptM :: OptM a -> IO (Either String a)
@@ -321,16 +315,6 @@ unsafePragmaOptions opts =
   [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
   [ "--rewriting"                                | optRewriting opts                 ] ++
   []
-
--- | The default pragma options should be considered safe.
-
-defaultPragmaOptionsSafe :: IO Bool
-defaultPragmaOptionsSafe
-    | null unsafe = return True
-    | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
-                                        ++ intercalate ", " unsafe
-                       return False
-  where unsafe = unsafePragmaOptions defaultPragmaOptions
 
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
@@ -814,12 +798,3 @@ defaultLibDir = do
   ifM (doesDirectoryExist libdir)
       (return libdir)
       (error $ "The lib directory " ++ libdir ++ " does not exist")
-
-------------------------------------------------------------------------
--- All tests
-
-tests :: IO Bool
-tests = runTests "Agda.Interaction.Options"
-  [ prop_defaultOptions
-  , defaultPragmaOptionsSafe
-  ]

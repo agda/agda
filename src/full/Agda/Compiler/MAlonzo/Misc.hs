@@ -3,6 +3,7 @@
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.State (gets)
+import Data.Char
 import Data.List as List
 import Data.Map as Map
 import Data.Set as Set
@@ -243,3 +244,15 @@ emptyBinds = Nothing
 emptyBinds :: HS.Binds
 emptyBinds = HS.BDecls []
 #endif
+
+--------------------------------------------------
+-- Utilities for Haskell modules names
+--------------------------------------------------
+
+-- | Can the character be used in a Haskell module name part
+-- (@conid@)? This function is more restrictive than what the Haskell
+-- report allows.
+
+isModChar :: Char -> Bool
+isModChar c =
+  isLower c || isUpper c || isDigit c || c == '_' || c == '\''

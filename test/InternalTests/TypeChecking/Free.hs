@@ -11,26 +11,25 @@
 
 -- | Tests for free variable computations.
 
-module Agda.TypeChecking.Free.Tests (tests) where
-
-import qualified Data.IntMap as Map
-import Data.Monoid
-
-import Test.QuickCheck
+module InternalTests.TypeChecking.Free ( tests ) where
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+
+import Agda.TypeChecking.Free (freeIn)
+import qualified Agda.TypeChecking.Free as New
 
 import Agda.TypeChecking.Free.Lazy hiding (FlexRig(..))
 import qualified Agda.TypeChecking.Free.Lazy as Free
 
 import qualified Agda.TypeChecking.Free.Old as Old
 
-import Agda.TypeChecking.Free (freeIn)
-import qualified Agda.TypeChecking.Free as New
-
 import Agda.TypeChecking.Test.Generators
-import Agda.Utils.TestHelpers
+
+import qualified Data.IntMap as Map
+import Data.Monoid
+
+import InternalTests.Helpers
 
 -- * Properties of 'FlexRig'
 
@@ -94,7 +93,6 @@ new_fv_ty = New.freeVars ty
 old_fv_ty :: Old.FreeVars
 old_fv_ty = Old.freeVars ty
 
-
 prop_old_freeVars_Term conf x = forAll (genC conf) $ \ (t :: Term) ->
    same_freeVars t
 
@@ -103,7 +101,6 @@ prop_old_freeIn_Term conf x = forAll (genC conf) $ \ (t :: Term) ->
 prop_old_freeIn_Type conf x = forAll (genC conf) $ \ (t :: Type) ->
    New.freeIn x t == Old.freeIn x t
 
-
 -- Template Haskell hack to make the following $quickCheckAll work
 -- under ghc-7.8.
 return [] -- KEEP!
@@ -111,5 +108,5 @@ return [] -- KEEP!
 -- | All tests as collected by 'quickCheckAll'.
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.TypeChecking.Free.Tests"
+  putStrLn "InternalTests.TypeChecking.Free"
   $quickCheckAll

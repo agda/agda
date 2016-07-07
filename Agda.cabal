@@ -350,7 +350,6 @@ library
                     Agda.TypeChecking.Free
                     Agda.TypeChecking.Free.Lazy
                     Agda.TypeChecking.Free.Old
-                    Agda.TypeChecking.Free.Tests
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
@@ -388,7 +387,6 @@ library
                     Agda.TypeChecking.Polarity
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Positivity.Occurrence
-                    Agda.TypeChecking.Positivity.Tests
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.ProjectionLike
@@ -427,7 +425,6 @@ library
                     Agda.TypeChecking.SizedTypes
                     Agda.TypeChecking.SizedTypes.Solve
                     Agda.TypeChecking.SizedTypes.Syntax
-                    Agda.TypeChecking.SizedTypes.Tests
                     Agda.TypeChecking.SizedTypes.Utils
                     Agda.TypeChecking.SizedTypes.WarshallSolver
                     Agda.TypeChecking.Substitute
@@ -454,7 +451,6 @@ library
                     Agda.Utils.Function
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph.AdjacencyMap.Unidirectional
-                    Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests
                     Agda.Utils.Hash
                     Agda.Utils.HashMap
                     Agda.Utils.Impossible
@@ -477,7 +473,6 @@ library
                     Agda.Utils.Parser.ReadP
                     Agda.Utils.PartialOrd
                     Agda.Utils.Permutation
-                    Agda.Utils.Permutation.Tests
                     Agda.Utils.Pointer
                     Agda.Utils.Pretty
                     Agda.Utils.QuickCheck
@@ -670,3 +665,89 @@ test-suite agda-tests
   else
     ghc-options: -Wmissing-local-signatures
   default-language: Haskell2010
+
+test-suite internal-tests
+  type:            exitcode-stdio-1.0
+  hs-source-dirs:  test
+  main-is:         InternalTests.hs
+
+  build-depends:  Agda == 2.5.2
+                , array >= 0.4.0.1 && < 0.6
+                , base >= 4.6.0.1 && < 4.10
+                , containers >= 0.5.0.0 && < 0.6
+                , haskell-src-exts >= 1.17 && < 1.18
+                , QuickCheck >= 2.8.2 && < 2.9
+
+  default-language:  Haskell2010
+
+  default-extensions:  ConstraintKinds
+                     , DataKinds
+                     , DefaultSignatures
+                     , ExistentialQuantification
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , FunctionalDependencies
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , NamedFieldPuns
+                     , RankNTypes
+                     , RecordWildCards
+                     , StandaloneDeriving
+                     , TupleSections
+                     , TypeSynonymInstances
+
+  if impl(ghc >= 7.6.3)
+    ghc-options: -w
+                 -Werror
+                 -fwarn-deprecated-flags
+                 -fwarn-dodgy-exports
+                 -fwarn-dodgy-foreign-imports
+                 -fwarn-dodgy-imports
+                 -fwarn-duplicate-exports
+                 -fwarn-hi-shadowing
+                 -fwarn-identities
+                 -fwarn-incomplete-patterns
+                 -fwarn-missing-fields
+                 -fwarn-missing-methods
+                 -fwarn-missing-signatures
+                 -fwarn-tabs
+                 -fwarn-overlapping-patterns
+                 -fwarn-unrecognised-pragmas
+                 -fwarn-unused-do-bind
+                 -fwarn-warnings-deprecations
+                 -fwarn-wrong-do-bind
+
+  if impl(ghc >= 7.8)
+    ghc-options: -fwarn-empty-enumerations
+                 -fwarn-inline-rule-shadowing
+                 -fwarn-typed-holes
+                 -fwarn-overflowed-literals
+
+  if impl(ghc >= 7.10)
+     ghc-options: -fwarn-unticked-promoted-constructors
+                  -- Enable after removing the support for GHC 7.8.
+                  -- -fwarn-deriving-typeable
+
+  -- This option is deprected in GHC 7.10.1.
+  if impl(ghc >= 7.8) && impl(ghc < 7.10)
+    ghc-options: -fwarn-amp
+
+  -- This option will be removed in GHC 8.0.1.
+  if impl(ghc >= 7.6) && impl(ghc < 8.0)
+    ghc-options: -fwarn-pointless-pragmas
+
+  -- This option will be deprected in GHC 8.0.1.
+  if impl(ghc >= 7.8) && impl(ghc < 8.0)
+    ghc-options: -fwarn-duplicate-constraints
+
+  -- This option will be deprected in GHC 8.0.1.
+  if impl(ghc >= 7.10) && impl(ghc < 8.0)
+    ghc-options: -fwarn-context-quantification
+
+  if impl(ghc >= 8.0)
+    ghc-options: -Wmissing-pattern-synonym-signatures
+                 -Wnoncanonical-monad-instances
+                 -Wnoncanonical-monoid-instances
+                 -Wunrecognised-warning-flags
+                 -Wsemigroup
+                 -Wunused-foralls

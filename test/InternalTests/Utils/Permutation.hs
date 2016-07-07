@@ -7,16 +7,16 @@
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-module Agda.Utils.Permutation.Tests (tests) where
+module InternalTests.Utils.Permutation ( tests ) where
+
+import Agda.Utils.List ( downFrom )
+import Agda.Utils.Permutation
 
 import Data.Functor
 import Data.List as List
 import Data.Maybe
 
 import Test.QuickCheck
-
-import Agda.Utils.List (downFrom)
-import Agda.Utils.Permutation
 
 ------------------------------------------------------------------------
 -- * Properties
@@ -113,5 +113,5 @@ return [] -- KEEP!
 -- | All tests as collected by 'quickCheckAll'.
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.Utils.Permutation"
+  putStrLn "InternalTests.Utils.Permutation"
   $quickCheckAll
