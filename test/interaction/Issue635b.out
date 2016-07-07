@@ -56,5 +56,5 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : update (.ρ , .a < .b ∣ .p) vz (max (↑ .a₁ - .n)) ≤V (.ξ , .a' < .b ∣ .q) ?1 : update (.ρ , .a < .b ∣ .p) (vs x) (max (↑ .a₁ - .n)) ≤V (.ξ , .a' < .b ∣ .q) " nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
-((last . 2) . (agda2-make-case-action '("lemma-str vz {a = .zero ⊕ n} (_,_ {a' = .zero ⊕ n₁} p₁ s) (leZZ p₂) = ?" "lemma-str vz {a = .zero ⊕ n} (_,_ {a' = .∞ ⊕ n₁} p₁ s) leZ∞ = ?" "lemma-str vz {a = .∞ ⊕ n} (_,_ {a' = .∞ ⊕ n₁} p₁ s) (le∞∞ p₂) = ?")))
+((last . 2) . (agda2-make-case-action '("lemma-str vz (p₁ , s) (leZZ p₂) = ?" "lemma-str vz (p₁ , s) leZ∞ = ?" "lemma-str vz (p₁ , s) (le∞∞ p₂) = ?")))
 ((last . 1) . (agda2-goals-action '(0 1)))

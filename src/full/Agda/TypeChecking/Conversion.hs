@@ -18,7 +18,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin -- (constructorForm,getPrimitive',pathView,primInterval,primPathAbs)
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
@@ -54,11 +54,6 @@ import Agda.Utils.Lens
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-{- MOVED to TypeChecking.Level
-mlevel :: TCM (Maybe Term)
-mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
--}
-
 -- | Try whether a computation runs without errors or new constraints
 --   (may create new metas, though).
 --   Restores state upon failure.
@@ -70,8 +65,7 @@ tryConversion = isJust <.> tryConversion'
 --   Return 'Just' the result upon success.
 --   Return 'Nothing' and restore state upon failure.
 tryConversion' :: TCM a -> TCM (Maybe a)
-tryConversion' m = (Just <$> do disableDestructiveUpdate $ noConstraints m)
-  `catchError` \ _ -> return Nothing
+tryConversion' m = tryMaybe $ disableDestructiveUpdate $ noConstraints m
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
@@ -242,7 +236,7 @@ compareTerm' cmp a m n =
     proofIrr <- proofIrrelevance
     isSize   <- isJust <$> isSizeType a'
     s        <- reduce $ getSort a'
-    mlvl     <- mlevel
+    mlvl     <- tryMaybe primLevel
     reportSDoc "tc.conv.level" 60 $ nest 2 $ sep
       [ text $ "a'   = " ++ show a'
       , text $ "mlvl = " ++ show mlvl
@@ -696,7 +690,7 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
       ifBlockedType a (\ m t -> patternViolation) $ \ a -> do
         case ignoreSharing . unEl $ a of
           (Pi (Dom{domInfo = info, unDom = b}) codom) -> do
-            mlvl <- mlevel
+            mlvl <- tryMaybe primLevel
             let freeInCoDom (Abs _ c) = 0 `freeInIgnoringSorts` c
                 freeInCoDom _         = False
                 dependent = (Just (unEl b) /= mlvl) && freeInCoDom codom

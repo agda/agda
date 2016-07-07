@@ -56,11 +56,11 @@ that matches the actual parameters is the one that is used.
 By default, Agda checks the following properties of a function definition:
 
 - The patterns in the left-hand side of each clause should consist only of
-  constructors and variables
+  constructors and variables.
 - No variable should occur more than once on the left-hand side of a single
   clause.
 - The patterns of all clauses should together cover all possible inputs of
-  the function
+  the function.
 - The function should be terminating on all possible inputs, see
   :ref:`termination-checking`.
 
@@ -75,9 +75,10 @@ supports two special kinds of patterns: dot patterns and absurd patterns.
 Dot patterns
 ------------
 
-Dot patterns (also called *inaccessible patterns*) can be used when there is
-only a single type-correct value for a certain argument. The syntax for a dot
-pattern is ``.t``.
+A dot pattern (also called *inaccessible pattern*) can be used when
+the only type-correct value of the argument is determined by the
+patterns given for the other arguments.
+The syntax for a dot pattern is ``.t``.
 
 As an example, consider the datatype ``Square`` defined as follows
 ::
@@ -101,10 +102,15 @@ In general, when matching on an argument of type ``D i₁ … iₙ`` with a cons
 ``i₁ … iₙ`` with ``j₁ … jₙ``. When the unification algorithm instantiates a
 variable ``x`` with value ``t``, the corresponding argument of the function
 can be replaced by a dot pattern ``.t``. Using a dot pattern is optional, but
-can help readability. The following are also legal definitions of ``root``::
+can help readability. The following are also legal definitions of
+``root``:
+
+Since Agda 2.4.2.4::
 
   root₁ : (n : Nat) → Square n → Nat
   root₁ _ (sq m) = m
+
+Since Agda 2.5.2::
 
   root₂ : (n : Nat) → Square n → Nat
   root₂ n (sq m) = m
@@ -140,13 +146,13 @@ pattern:
   one-not-even ()
 
 Note that if the left-hand side of a clause contains an absurd pattern, its
-right-hand side should be omitted.
+right-hand side must be omitted.
 
 In general, when matching on an argument of type ``D i₁ … iₙ`` with an absurd
 pattern, Agda will attempt for each constructor
 ``c : (x₁ : A₁) → … → (xₘ : Aₘ) → D j₁ … jₙ`` of the datatype ``D`` to unify
-``i₁ … iₙ`` with ``j₁ … jₙ``. The absurd pattern will only be accepted if each
-of these unifications ends in a conflict.
+``i₁ … iₙ`` with ``j₁ … jₙ``. The absurd pattern will only be accepted if all
+of these unifications end in a conflict.
 
 As-patterns
 -----------
@@ -162,6 +168,9 @@ and dot patterns). The name reduces to the value of the named pattern. For examp
     merge xs@(x ∷ xs₁) ys@(y ∷ ys₁) =
       if x < y then x ∷ merge xs₁ ys
                else y ∷ merge xs ys₁
+
+As-patterns are properly supported since Agda 2.5.2.
+
 
 Case trees
 ==========
@@ -187,5 +196,5 @@ will be represented internally as a case tree that looks like this:
 
 Note that because Agda uses this representation of the function ``max``
 the equation ``max m zero = m`` will not hold by definition, but must be
-proven instead. You can have Agda warn you when a situation like this
+proven instead. Since 2.5.1 you can have Agda warn you when a situation like this
 occurs by adding ``{-# OPTIONS --exact-split #-}`` at the top of your file.

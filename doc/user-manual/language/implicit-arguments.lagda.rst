@@ -14,7 +14,11 @@
 Implicit Arguments
 ******************
 
-It is possible to omit terms that the type checker can figure out for itself, replacing them by _. If the type checker cannot infer the value of an _ it will report an error. For instance, for the polymorphic identity function
+It is possible to omit terms that the type checker can figure out for
+itself, replacing them by ``_``.
+If the type checker cannot infer the value of an ``_`` it will report
+an error.
+For instance, for the polymorphic identity function
 
 ..
   ::
@@ -25,9 +29,11 @@ It is possible to omit terms that the type checker can figure out for itself, re
 
         id : (A : Set) → A → A
 
-the first argument can be inferred from the type of the second argument, so we might write id _ zero for the application of the identity function to zero.
+the first argument can be inferred from the type of the second argument,
+so we might write ``id _ zero`` for the application of the identity function to ``zero``.
 
-We can even write this function application without the first argument. In that case we declare an implicit function space:
+We can even write this function application without the first argument.
+In that case we declare an implicit function space:
 
 ..
   ::
@@ -38,7 +44,7 @@ We can even write this function application without the first argument. In that 
 
         id : {A : Set} → A → A
 
-and then we can use the notation id zero.
+and then we can use the notation ``id zero``.
 
 Another example:
 
@@ -49,13 +55,17 @@ Another example:
 ::
 
      _==_  : {A : Set} → A → A → Set
-     subst : {A : Set}(C : A → Set){x y : A} → x == y → C x → C y
+     subst : {A : Set} (C : A → Set) {x y : A} → x == y → C x → C y
 
-Note how the first argument to _==_ is left implicit. Similarly we may leave out the implicit arguments A, x, and y in an application of subst. To give an implicit argument explicitly, enclose in curly braces. The following two expressions are equivalent:
+Note how the first argument to ``_==_`` is left implicit.
+Similarly, we may leave out the implicit arguments ``A``, ``x``, and ``y`` in an
+application of ``subst``.
+To give an implicit argument explicitly, enclose in curly braces.
+The following two expressions are equivalent:
 
 ..
   ::
-  module example₄ (x y : A )  ( eq : x == y) ( cx : C x )  where
+  module example₄ (x y : A) (eq : x == y) (cx : C x)  where
 
 ::
 
@@ -68,7 +78,9 @@ Note how the first argument to _==_ is left implicit. Similarly we may leave out
     prop-hidden = refl
 
 
-It is worth noting that implicit arguments are also inserted at the end of an application, if it is required by the type. For example, in the following, y1 and y2 are equivalent.
+It is worth noting that implicit arguments are also inserted at the end of an application,
+if it is required by the type.
+For example, in the following, ``y1`` and ``y2`` are equivalent.
 
 ..
   ::
@@ -113,7 +125,7 @@ there only implicit is the ``A`` argument of ``subst``.
 
 
 It is also possible to write lambda abstractions with implicit arguments. For
-example, given id : (A : Set) → A → A, we can define the identity function with
+example, given ``id : (A : Set) → A → A``, we can define the identity function with
 implicit type argument as
 
 ..
@@ -124,18 +136,21 @@ implicit type argument as
 
   id’ = λ {A} → id A
 
-Implicit arguments can also be referred to by name, so if we want to give the expression e explicitly for y without giving a value for x we can write
+Implicit arguments can also be referred to by name,
+so if we want to give the expression ``e`` explicitly for ``y``
+without giving a value for ``x`` we can write
 
 ..
   ::
-  module example₆ (x : A ) (e : A)  ( eq : x == e) ( cx : C x )  where
+  module example₆ (x : A) (e : A) (eq : x == e) (cx : C x)  where
     y6 =
 
 ::
 
       subst C {y = e} eq cx
 
-When constructing implicit function spaces the implicit argument can be omitted, so both expressions below are valid expressions of type {A : Set} → A → A:
+When constructing implicit function spaces the implicit argument can be omitted,
+so both expressions below are valid expressions of type ``{A : Set} → A → A``:
 
 ::
 
@@ -162,7 +177,15 @@ The ``∀`` (or ``forall``) syntax for function types also has implicit variants
   ② = refl
   ③ = refl
 
-There are no restrictions on when a function space can be implicit. Internally, explicit and implicit function spaces are treated in the same way. This means that there are no guarantees that implicit arguments will be solved. When there are unsolved implicit arguments the type checker will give an error message indicating which application contains the unsolved arguments. The reason for this liberal approach to implicit arguments is that limiting the use of implicit argument to the cases where we guarantee that they are solved rules out many useful cases in practice.
+There are no restrictions on when a function space can be implicit.
+Internally, explicit and implicit function spaces are treated in the same way.
+This means that there are no guarantees that implicit arguments will be solved.
+When there are unsolved implicit arguments the type checker will give
+an error message indicating which application contains the unsolved
+arguments.
+The reason for this liberal approach to implicit arguments is that
+limiting the use of implicit argument to the cases where we guarantee
+that they are solved rules out many useful cases in practice.
 
 .. _metavariables:
 
@@ -173,4 +196,3 @@ Metavariables
 
 Unification
 -----------
-

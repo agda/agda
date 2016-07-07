@@ -647,7 +647,7 @@ introHiddenLambdas clause = liftTCM $ do
               ps'   = raise n ps ++ zipWith toPat (downFrom $ size axs) axs
           return $ Clause range ctel' ps' body' (Just (t $> t')) catchall
   where
-    toPat i (Arg (ArgInfo h r) x) = Arg (ArgInfo h r) $ namedDBVarP i x
+    toPat i (Arg info x) = Arg info $ namedDBVarP i x
     removeHiddenLambdas :: ClauseBody -> ([Arg ArgName], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds
 

@@ -72,7 +72,7 @@ expandImplicitPattern' a p
        -- if not (recNamedCon def) then return Nothing else do
        do
          -- generate one implicit pattern for each field
-         let qs = for (recFields def) $ \ f -> Arg (argInfo f) implicitP
+         let qs = for (recFields def) $ \ f -> implicitP $ argInfo f
          -- generate the pattern (c _ _ ... _)
          let q  = A.ConP (ConPatInfo ConPImplicit patNoRange) (A.AmbQ [recCon def]) qs
          -- equip it with the name/arginfo of the original implicit pattern
@@ -80,8 +80,8 @@ expandImplicitPattern' a p
          return $ Just p'
   | otherwise = return Nothing
 
-implicitP :: Named_ A.Pattern
-implicitP = unnamed $ A.WildP $ PatRange $ noRange
+implicitP :: ArgInfo -> NamedArg A.Pattern
+implicitP info = Arg (setOrigin Inserted info) $ unnamed $ A.WildP $ PatRange $ noRange
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
@@ -105,7 +105,7 @@ insertImplicitSizeLtPatterns t = do
   let ts = reverse $ takeWhile (not . visible) $ telToList tel
   keep <- reverse <$> dropWhileM (not <.> isSizeLt . snd . unDom) ts
   -- Insert implicit patterns upto (including) the last SizeLt type.
-  return [ Arg ai implicitP | Dom {domInfo = ai} <- keep ]
+  return [ implicitP ai | Dom {domInfo = ai} <- keep ]
 
 -- | Insert implicit patterns in a list of patterns.
 --   Even if 'DontExpandLast', trailing SIZELT patterns are inserted.
@@ -147,4 +147,4 @@ insertImplicitPatternsT exh            ps a = do
       ImpInsert n    -> return $ map implicitArg n
       NoInsertNeeded -> return []
 
-    implicitArg h = setHiding h $ defaultArg implicitP
+    implicitArg h = implicitP $ setHiding h $ defaultArgInfo

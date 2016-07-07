@@ -127,16 +127,16 @@ quotingKit = do
       quoteRelevance UnusedArg  = pure relevant
 
       quoteArgInfo :: ArgInfo -> ReduceM Term
-      quoteArgInfo (ArgInfo h r) = arginfo !@ quoteHiding h
-                                           @@ quoteRelevance r
+      quoteArgInfo (ArgInfo h r _) = arginfo !@ quoteHiding h
+                                             @@ quoteRelevance r
 
       quoteLit :: Literal -> ReduceM Term
-      quoteLit l@LitNat{}    = lit !@ (litNat    !@! Lit l)
-      quoteLit l@LitFloat{}  = lit !@ (litFloat  !@! Lit l)
-      quoteLit l@LitChar{}   = lit !@ (litChar   !@! Lit l)
-      quoteLit l@LitString{} = lit !@ (litString !@! Lit l)
-      quoteLit l@LitQName{}  = lit !@ (litQName  !@! Lit l)
-      quoteLit l@LitMeta {}  = lit !@ (litMeta   !@! Lit l)
+      quoteLit l@LitNat{}    = litNat    !@! Lit l
+      quoteLit l@LitFloat{}  = litFloat  !@! Lit l
+      quoteLit l@LitChar{}   = litChar   !@! Lit l
+      quoteLit l@LitString{} = litString !@! Lit l
+      quoteLit l@LitQName{}  = litQName  !@! Lit l
+      quoteLit l@LitMeta {}  = litMeta   !@! Lit l
 
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
@@ -166,7 +166,7 @@ quotingKit = do
       quotePat (VarP x)          = varP !@! quoteString (dbPatVarName x)
       quotePat (DotP _)          = pure dotP
       quotePat (ConP c _ ps)     = conP !@ quoteQName (conName c) @@ quotePats ps
-      quotePat (LitP l)          = litP !@! Lit l
+      quotePat (LitP l)          = litP !@ quoteLit l
       quotePat (ProjP x)         = projP !@ quoteQName x
 
       quoteBody :: I.ClauseBody -> Maybe (ReduceM Term)
@@ -230,7 +230,7 @@ quotingKit = do
           Pi t u     -> pi !@  quoteDom quoteType t
                             @@ quoteAbs quoteType u
           Level l    -> quoteTerm (unlevelWithKit lkit l)
-          Lit lit    -> quoteLit lit
+          Lit l      -> lit !@ quoteLit l
           Sort s     -> sort !@ quoteSort s
           Shared p   -> quoteTerm $ derefPtr p
           MetaV x es -> meta !@! quoteMeta currentFile x @@ quoteArgs vs

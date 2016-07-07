@@ -50,7 +50,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Def
 
 import Agda.Utils.Except
 import Agda.Utils.Impossible
-import Agda.Utils.Monad ( ifM )
+import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.Permutation ( Permutation(Perm), compactP )
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
@@ -188,7 +189,7 @@ instance Unquote ArgInfo where
     case ignoreSharing t of
       Con c [h,r] -> do
         choice
-          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r)]
+          [(c `isCon` primArgArgInfo, ArgInfo <$> unquoteN h <*> unquoteN r <*> return Reflected)]
           __IMPOSSIBLE__
       Con c _ -> __IMPOSSIBLE__
       _ -> throwException $ NonCanonical "arg info" t
@@ -637,7 +638,7 @@ evalTCM v = do
         reportSDoc "tc.unquote.decl" 10 $ sep [ text "declare" <+> prettyTCM x <+> text ":"
                                               , nest 2 $ prettyTCM a ]
         a <- isType_ =<< toAbstract_ a
-        alreadyDefined <- (True <$ getConstInfo x) `catchError` \ _ -> return False
+        alreadyDefined <- isJust <$> tryMaybe (getConstInfo x)
         when alreadyDefined $ genericError $ "Multiple declarations of " ++ show x
         addConstant x $ defaultDefn i x a emptyFunction
         when (h == Instance) $ addTypedInstance x a

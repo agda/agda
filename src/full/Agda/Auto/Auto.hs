@@ -122,7 +122,6 @@ auto ii rng argstr = do
     -- Get the meta variable for the interaction point we are trying to fill.
     -- Add the @autohints@ for that meta to the hints collection.
     mi <- lookupInteractionId ii
-    --thisdefinfo <- catchError (liftM Just $ findClause mi) (\_ -> return Nothing)
     thisdefinfo <- findClauseDeep ii
     ehints <- (ehints ++) <$> do autohints hintmode mi $ fmap fst3 thisdefinfo
 

@@ -209,6 +209,25 @@ instance Apply [Polarity] where
 #endif
   apply pol args = List.drop (length args) pol
 
+-- | Make sure we only drop variable patterns.
+#if __GLASGOW_HASKELL__ >= 710
+instance {-# OVERLAPPING #-} Apply [NamedArg (Pattern' a)] where
+#else
+instance Apply [NamedArg (Pattern' a)] where
+#endif
+  apply ps args = loop (length args) ps
+    where
+    loop 0 ps = ps
+    loop n [] = __IMPOSSIBLE__
+    loop n (p : ps) =
+      let recurse = loop (n - 1) ps
+      in  case namedArg p of
+            VarP{}  -> recurse
+            DotP{}  -> __IMPOSSIBLE__
+            LitP{}  -> __IMPOSSIBLE__
+            ConP{}  -> __IMPOSSIBLE__
+            ProjP{} -> __IMPOSSIBLE__
+
 instance Apply Projection where
   apply p args = p
     { projIndex = projIndex p - size args
@@ -287,7 +306,7 @@ instance Apply Clause where
     apply (Clause r tel ps b t catchall) args =
       Clause r
              (apply tel args)
-             (List.drop (size args) ps)
+             (apply ps args)
              (apply b args)
              (applySubst (parallelS (map unArg args)) t)
              catchall

@@ -295,7 +295,8 @@ expandTelescopeVar gamma k delta c = (tel', rho)
       { conPRecord = Just ConPImplicit
       , conPType   = Just $ snd <$> argFromDom a
       }
-    cdelta      = ConP c cpi $ teleNamedArgs delta    -- Γ₁Δ ⊢ c Δ : D pars
+    cargs       = map (setOrigin Inserted) $ teleNamedArgs delta
+    cdelta      = ConP c cpi cargs                    -- Γ₁Δ ⊢ c Δ : D pars
     rho0        = consS cdelta $ raiseS (size delta)  -- Γ₁Δ ⊢ ρ₀ : Γ₁(x : D pars)
     rho         = liftS (size ts2) rho0               -- Γ₁ΔΓ₂ρ₀ ⊢ ρ : Γ₁(x : D pars)Γ₂
 

@@ -537,7 +537,8 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
   -- context telescope.
   cxt <- reverse <$> getContext
   let tel = telFromList' show cxt
-      cps = [ unnamed . A.VarP . fst <$> argFromDom d | d <- cxt ]
+      cps = [ unnamed . A.VarP . fst <$> setOrigin Inserted (argFromDom d)
+            | d <- cxt ]
   problem0 <- problemFromPats (cps ++ ps) (telePi tel a)
   -- Andreas, 2013-03-15 deactivating the following test allows
   -- flexible arity
@@ -896,7 +897,8 @@ checkLHS f st@(LHSState problem sigma dpi) = do
           let cpi = ConPatternInfo (isRec $> porigin) (Just storedPatternType)
 
           -- compute final context and permutation
-          let crho2   = ConP c cpi $ applySubst rho2 $ teleNamedArgs gamma
+          let crho2   = ConP c cpi $ applySubst rho2 $
+                          teleNamedArgs gamma `useOriginFrom` qs'
               rho3    = consS crho2 rho1
               delta2' = applyPatSubst rho3 delta2
               delta'  = delta1' `abstract` delta2'

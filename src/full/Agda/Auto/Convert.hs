@@ -479,7 +479,9 @@ cnvh info = case Common.getHiding info of
     Common.Hidden    -> Hidden
 
 icnvh :: FMode -> Common.ArgInfo
-icnvh h = (Common.setHiding h' Common.defaultArgInfo)
+icnvh h = Common.setHiding h' $
+          Common.setOrigin Common.Inserted $
+          Common.defaultArgInfo
     where
     h' = case h of
         NotHidden -> Common.NotHidden

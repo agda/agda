@@ -176,29 +176,28 @@ argument of the constructor.  (Note that the corresponding data type
 declaration of ``Bad`` is allowed in standard functional languages
 such as Haskell and ML.).
 
-Non strictly-positive declarations are rejected because one can write
-a non-terminating function using them.
+Non strictly-positive declarations are rejected because
+they admit non-terminating functions.
 
-If the positivity check is disabled so that the above declaration of
+If the positivity check is disabled, so that a similar declaration of
 ``Bad`` is allowed, it is possible to construct a term of the empty
-type.
+type, even without recursion.
 
 .. code-block:: agda
 
   {-# OPTIONS --no-positivity-check #-}
-
 
 ::
 
   data ⊥ : Set where
 
   data Bad : Set where
-    bad : (Bad → Bad) → Bad
+    bad : (Bad → ⊥) → Bad
 
-  incon : ⊥
-  incon = loop (bad (λ b → b))
-    where
-      loop : (b : Bad) → ⊥
-      loop (bad f) = loop (f (bad f))
+  self-app : Bad → ⊥
+  self-app (bad f) = f (bad f)
+
+  absurd : ⊥
+  absurd = self-app (bad self-app)
 
 For more general information on termination see :ref:`termination-checking`.

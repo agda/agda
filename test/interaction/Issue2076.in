@@ -1,0 +1,10 @@
+top_command (cmd_load currentFile [])
+top_command (cmd_compute_toplevel False "test")
+top_command (cmd_compute_toplevel False "Test")
+top_command (cmd_compute_toplevel False "ptest")
+top_command (cmd_compute_toplevel False "PM.inside")
+top_command (cmd_compute_toplevel False "MM.extlam")
+top_command (cmd_compute_toplevel False "opentest")
+top_command (cmd_compute_toplevel False "Parent.Child.extlam2")
+goal_command 1 (cmd_compute False) "inside"
+goal_command 1 (cmd_compute False) "inside a"

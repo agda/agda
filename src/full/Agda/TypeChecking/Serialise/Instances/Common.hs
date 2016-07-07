@@ -368,11 +368,11 @@ instance EmbPrj a => EmbPrj (Ranged a) where
     valu _      = malformed
 
 instance EmbPrj ArgInfo where
-  icod_ (ArgInfo h r) = icode2' h r
+  icod_ (ArgInfo h r o) = icode3' h r o
 
   value = vcase valu where
-    valu [h, r] = valu2 ArgInfo h r
-    valu _      = malformed
+    valu [h, r, o] = valu3 ArgInfo h r o
+    valu _        = malformed
 
 instance EmbPrj NameId where
   icod_ (NameId a b) = icode2' a b
@@ -439,6 +439,16 @@ instance EmbPrj Relevance where
   value 3 = return (Forced Big)
   value 4 = return NonStrict
   value 5 = return UnusedArg
+  value _ = malformed
+
+instance EmbPrj Origin where
+  icod_ UserWritten = return 0
+  icod_ Inserted    = return 1
+  icod_ Reflected   = return 2
+
+  value 0 = return UserWritten
+  value 1 = return Inserted
+  value 2 = return Reflected
   value _ = malformed
 
 instance EmbPrj ConPOrigin where

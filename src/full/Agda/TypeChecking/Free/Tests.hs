@@ -29,7 +29,7 @@ import qualified Agda.TypeChecking.Free.Old as Old
 import Agda.TypeChecking.Free (freeIn)
 import qualified Agda.TypeChecking.Free as New
 
-import Agda.TypeChecking.Test.Generators
+import Agda.TypeChecking.Test.Generators hiding ( tests )
 import Agda.Utils.TestHelpers
 
 -- * Properties of 'FlexRig'
