@@ -30,6 +30,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import qualified Agda.TypeChecking.Monad as TCM
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
@@ -621,6 +622,7 @@ primComp = do
           IOne -> redReturn (unArg u `apply` [argN io, argN one])
           _    -> do
            sc <- reduceB' c
+           let fallback = return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
            case unArg $ ignoreBlocking sc of
              Lam _info t ->
                case unAbs t of
@@ -647,10 +649,18 @@ primComp = do
                                                                                <@> (lam "_" $ const (y <@> i))))
                                                 <@> (p0 <@@> (x <@> iz, y <@> iz, j))
 
-
-                 Def q es | False -> __IMPOSSIBLE__  -- Datatypes and primitives
-                 _ -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
-             _ -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
+                 Def q es -> do
+                   mr <- isRecord q
+                   let lam_i = Lam defaultArgInfo . Abs "i"
+                   case mr of
+                     Just def | Just compR <- recComp def
+                              , Just as    <- allApplyElims es
+                              -> redReturn $ (Def compR []) `apply`
+                                    (map (fmap lam_i) as ++ [ignoreBlocking sphi,u,a0])
+                     _        -> fallback
+--                 Def q es | False -> __IMPOSSIBLE__  -- Datatypes and primitives
+                 _ -> fallback
+             _ -> fallback
       _ -> __IMPOSSIBLE__
  where
   compPi :: (IntervalView -> Term) ->
@@ -1021,6 +1031,14 @@ nPi = gpi defaultArgInfo
 hPi', nPi' :: MonadTCM tcm => String -> NamesT tcm Type -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
 hPi' s a b = hPi s a (bind' s b)
 nPi' s a b = nPi s a (bind' s b)
+
+pPi' :: MonadTCM tcm => String -> NamesT tcm Term -> (NamesT tcm Term -> NamesT tcm Type) -> NamesT tcm Type
+pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
+ where
+   toFinitePi :: Type -> Type
+   toFinitePi (El _ (Pi d b)) = El Inf $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
+   toFinitePi _               = __IMPOSSIBLE__
+
 
 el' :: Monad m => m Term -> m Term -> m Type
 el' l a = El <$> (tmSort <$> l) <*> a

@@ -89,6 +89,7 @@ bindBuiltinSharp e =
                   , recEtaEquality'   = Inferred False
                   , recMutual         = []
                   , recAbstr          = ConcreteDef
+                  , recComp           = Nothing
                   }
               }
     addConstant sharp $

@@ -1434,6 +1434,7 @@ data Defn = Axiom
               --   for recursive records.
             , recRecursive      :: Bool                 -- ^ Recursive record.  Infers @recEtaEquality = False@.  Projections are not size-preserving.
             , recAbstr          :: IsAbstract
+            , recComp           :: Maybe QName
             }
           | Constructor
             { conPars   :: Nat         -- ^ Number of parameters.
@@ -2862,7 +2863,7 @@ instance KillRange Defn where
       Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop ->
         killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
-      Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
+      Record a b c d e f g h i j k l -> killRange12 Record a b c d e f g h i j k l
       Constructor a b c d e          -> killRange5 Constructor a b c d e
       Primitive a b c d              -> killRange4 Primitive a b c d
 
