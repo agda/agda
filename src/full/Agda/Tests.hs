@@ -4,11 +4,8 @@ module Agda.Tests (testSuite) where
 import Agda.Utils.TestHelpers
 
 import Agda.Syntax.Position                   as SyntPosi   (tests)
-import Agda.Termination.CallGraph             as TermCall   (tests)
-import Agda.Termination.CallMatrix            as TermCM     (tests)
 import Agda.Termination.Order                 as TermOrd    (tests)
 import Agda.Termination.Semiring              as TermRing   (tests)
-import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.Termination.Termination           as TermTerm   (tests)
 import Agda.TypeChecking.Positivity.Occurrence as Occurrence (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
@@ -28,11 +25,8 @@ testSuite = runTests "QuickCheck test suite:"
   , UtilListT.tests
   , UtilPOrd.tests
   , SyntPosi.tests
-  , TermCall.tests
-  , TermCM.tests
   , TermOrd.tests
   , TermRing.tests
-  , TermSparse.tests
   , TermTerm.tests
   , Occurrence.tests
   , TypeChck.tests

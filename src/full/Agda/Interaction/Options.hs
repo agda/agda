@@ -14,7 +14,7 @@ module Agda.Interaction.Options
     , defaultInteractionOptions
     , defaultVerbosity
     , defaultCutOff
-    , defaultPragmaOptions  -- only used by the internal test-suite
+    , defaultPragmaOptions  -- required by the internal test-suite
     , standardOptions_
     , unsafePragmaOptions
     , isLiterate

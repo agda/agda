@@ -14,7 +14,7 @@ module Agda.Interaction.Highlighting.Precise
   , singleton
   , several
     -- ** Merging
-  , merge  -- only used by the internal test-suite
+  , merge  -- required by the internal test-suite
     -- ** Inspection
   , smallestPos
   , toMap
@@ -32,7 +32,7 @@ module Agda.Interaction.Highlighting.Precise
     -- ** Inspection
   , smallestPosC
     -- ** Merge
-  , mergeC  -- only used by the internal test-suite
+  , mergeC  -- required by the internal test-suite
   ) where
 
 import Agda.Utils.String

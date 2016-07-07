@@ -22,7 +22,7 @@ import qualified Data.Foldable as Fold
 import Data.List as List hiding (union, insert)
 
 import Agda.Termination.CutOff
-import Agda.Termination.SparseMatrix as Matrix hiding (tests)
+import Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 

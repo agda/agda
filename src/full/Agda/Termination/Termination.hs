@@ -16,8 +16,8 @@ module Agda.Termination.Termination
   ) where
 
 import Agda.Termination.CutOff
-import Agda.Termination.CallGraph  hiding (tests)
-import Agda.Termination.CallMatrix hiding (tests, toList)
+import Agda.Termination.CallGraph
+import Agda.Termination.CallMatrix hiding (toList)
 import qualified Agda.Termination.CallMatrix as CMSet
 import Agda.Termination.Order      hiding (tests)
 import Agda.Termination.SparseMatrix
