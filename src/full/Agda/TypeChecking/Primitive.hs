@@ -499,7 +499,7 @@ primIdJ = do
           redReturn $ runNames [] $ do
              [lc,c,d,la,a,x,y,phi,p] <- mapM (open . unArg) [lc,c,d,la,a,x,y,phi,p]
              let w = pure papply <#> la <#> a <#> x <#> y <@> p
-             pure comp <#> lc
+             pure comp <#> (lam "i" $ \ _ -> lc)
                        <@> (lam "i" $ \ i ->
                               c <@> (w <@> i)
                                 <@> (pure conid <#> la <#> a <#> x <#> (w <@> i)
@@ -603,11 +603,11 @@ primPartialP' = do
 primComp :: TCM PrimitiveImpl
 primComp = do
   t    <- runNamesT [] $
-          hPi' "a" (el $ cl primLevel) $ \ a ->
-          nPi' "A" (elInf (cl primInterval) --> (sort . tmSort <$> a)) $ \ bA ->
+          hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
+          nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          (nPi' "i" (elInf $ cl primInterval) $ \ i -> elInf $ cl primPartial <#> a <@> (bA <@> i) <@> phi) -->
-          (el' a (bA <@> cl primIZero) --> el' a (bA <@> cl primIOne))
+          (nPi' "i" (elInf $ cl primInterval) $ \ i -> elInf $ cl primPartial <#> (a <@> i) <@> (bA <@> i) <@> phi) -->
+          (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   unview <- intervalUnview'
   one <- primItIsOne
   mpath <- primPathName'
@@ -668,17 +668,18 @@ primComp = do
     toLevel (Type l) = l
     toLevel _        = __IMPOSSIBLE__
     termComp = pure tComp
-    v' = termComp <#> sa <@> (pure $ lam_j  -- Γ , u1 : A[i1] , i : I , j : I
-                                           at)
+    v' = termComp         <#> pure (lam_j sa)
+                          <@> (pure $ lam_j  -- Γ , u1 : A[i1] , i : I , j : I
+                                            at)
                           <@> varM 0 -- Γ , u1 : A[i1] , i : I
-                          <@> (lam_j <$> (pure tFrom1 <#> sa' <#> (pure $ lam_i $ unEl $ unDom a')
+                          <@> (lam_j <$> (pure tFrom1 <#> (pure $ lam_i sa') <#> (pure $ lam_i $ unEl $ unDom a')
                                                      <@> pure (raise 2 u1) <@> varM 1 <@> (ineg <$> varM 0)))
                           <@> (pure $ raise 1 u1)
     u1 = var 0  -- Γ , u1 : A[i1]
     a' = applySubst (liftS 1 $ raiseS 3) a -- Γ , u1 : A[i1] , i : I , j : I , i' : I
-    sa' = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort a'
+    sa' = Level . toLevel $ getSort a'
     a'' = (applySubst (singletonS 0 iOrNj) a')
-    sa = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort a''
+    sa = Level . toLevel $ getSort a''
 
     at = unEl . unDom $ a''
 
@@ -693,11 +694,11 @@ primComp = do
     b'  = unAbs $ b -- Γ , i : I , x : A[i]
     b''' = applySubst (consS v $ liftS 1 $ raiseS 1) b' -- Γ , u1 : A[i1] , i : I
     b'' = unEl b'''
-    sb = pure $ applySubst (strengthenS __IMPOSSIBLE__ 1) $ Level . toLevel $ getSort b'''
+    sb = Level . toLevel $ getSort b'''
    (Lam (getArgInfo a) . mkAbs (absName b)) <$>
 
      -- Γ , u1 : A[i1]
-      (termComp <#> sb <@> pure (lam_i -- Γ , u1 : A[i1] , i : I
+      (termComp <#> pure (lam_i sb) <@> pure (lam_i -- Γ , u1 : A[i1] , i : I
                                       b'')
                       <@> pure (raise 1 (unArg phi))
                       <@> (lam_i <$> -- Γ , u1 : A[i1] , i : I

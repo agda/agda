@@ -1710,7 +1710,7 @@ checkHeadApplication e t hd args = do
           case vs of
             [l,a,phi,u,a0] -> do
               iz <- Arg defaultArgInfo <$> intervalUnview IZero
-              ty <- elInf $ primPartial <#> (pure $ unArg l) <@> (pure $ unArg a `apply` [iz]) <@> (pure $ unArg phi)
+              ty <- elInf $ primPartial <#> (pure $ unArg l `apply` [iz]) <@> (pure $ unArg a `apply` [iz]) <@> (pure $ unArg phi)
               equalTerm ty -- (El (getSort t1) (apply (unArg a) [iz]))
                   (Lam defaultArgInfo $ NoAbs "_" $ unArg a0)
                   (apply (unArg u) [iz])
