@@ -241,7 +241,7 @@ install:
 # `cabal build` (see Section 'cabal install ≠ Setup install' from
 # http://www.vex.net/~trebla/haskell/cabal-cabal.xhtml).
 
-  - export BUILD_DIR=$PWD/dist
+  - export BUILD_DIR=$HOME/dist
 
   - if [[ $TEST = "stack" ]]; then
        stack --no-terminal build --bench --no-run-benchmarks;
@@ -259,11 +259,11 @@ install:
        echo "======================================================================" &&
        echo "====================== Running cabal copy ============================" &&
        echo "======================================================================" &&
-       cabal copy &&
+       cabal copy --builddir=$BUILD_DIR &&
        echo "======================================================================" &&
        echo "==================== Running cabal register ==========================" &&
        echo "======================================================================" &&
-       cabal register;
+       cabal register --builddir=$BUILD_DIR;
     fi
 
 ##############################################################################
