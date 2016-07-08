@@ -4,7 +4,6 @@
 
 module Agda.Interaction.Highlighting.Emacs
   ( lispifyHighlightingInfo
-  , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
 import Agda.Interaction.Highlighting.Precise
@@ -16,7 +15,6 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
-import Agda.Utils.TestHelpers
 
 import Control.Applicative
 import qualified Control.Exception as E
@@ -110,13 +108,3 @@ lispifyHighlightingInfo h modFile = do
     return $ L [ A "agda2-highlight-load-and-delete-action"
                , A (quote f)
                ]
-
-------------------------------------------------------------------------
--- All tests
-
--- TODO: One could check that the show functions are invertible.
-
--- | All the properties.
-
-tests :: IO Bool
-tests = runTests "Agda.Interaction.Highlighting.Emacs" []

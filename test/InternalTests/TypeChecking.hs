@@ -1,20 +1,20 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.TypeChecking.Tests where
+module InternalTests.TypeChecking ( tests ) where
+
+import Agda.Utils.Impossible
+import Agda.Syntax.Internal
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
+import Agda.Utils.Permutation
+import Agda.Utils.Size
 
 import qualified Agda.Utils.VarSet as Set
-import Agda.Utils.QuickCheck
 
-import Agda.Syntax.Internal
-import Agda.TypeChecking.Test.Generators
-import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Substitute
-import Agda.Utils.Size
-import Agda.Utils.Permutation
-import Agda.Utils.TestHelpers
+import InternalTests.Helpers
+import InternalTests.TypeChecking.Generators hiding ( tests )
 
 #include "undefined.h"
-import Agda.Utils.Impossible
 
 ---------------------------------------------------------------------------
 -- * Tests for "Agda.Utils.Permutation"
@@ -88,7 +88,7 @@ prop_splitTelescopePermInv conf =
 -}
 
 tests :: IO Bool
-tests = runTests "Agda.TypeChecking.Tests"
+tests = runTests "InternalTests.TypeChecking"
   [ quickCheck' prop_telToListInv
   , quickCheck' prop_flattenTelScope
   , quickCheck' prop_flattenTelInv

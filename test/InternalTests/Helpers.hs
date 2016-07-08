@@ -1,9 +1,14 @@
 -- | Some functions and generators suitable for writing QuickCheck
 -- properties.
 
-module Agda.Utils.TestHelpers
-  ( -- * Algebraic properties
-    associative
+module InternalTests.Helpers
+  ( -- * QuickCheck helpers
+    quickCheck'
+  , quickCheckWith'
+    -- * QuickCheck module
+  , module Test.QuickCheck
+    -- * Algebraic properties
+  , associative
   , commutative
   , idempotent
   , isZero
@@ -28,6 +33,19 @@ module Agda.Utils.TestHelpers
 import Control.Monad
 import Data.Functor
 import Test.QuickCheck
+
+------------------------------------------------------------------------
+-- QuickCheck helpers
+
+isSuccess :: Result -> Bool
+isSuccess Success{} = True
+isSuccess _         = False
+
+quickCheck' :: Testable prop => prop -> IO Bool
+quickCheck' p = fmap isSuccess $ quickCheckResult p
+
+quickCheckWith' :: Testable prop => Args -> prop -> IO Bool
+quickCheckWith' args p = fmap isSuccess $ quickCheckWithResult args p
 
 ------------------------------------------------------------------------
 -- Algebraic properties

@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP                    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
-module Agda.TypeChecking.Test.Generators where
+module InternalTests.TypeChecking.Generators where
 
 import Control.Applicative
 import Control.Monad.State
@@ -17,12 +17,14 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 
-import Agda.Utils.QuickCheck hiding (Args)
-import Agda.Utils.TestHelpers
 import qualified Agda.Utils.VarSet as Set
 
 #include "undefined.h"
 import Agda.Utils.Impossible
+
+import InternalTests.Helpers hiding ( Args )
+
+------------------------------------------------------------------------------
 
 data TermConfiguration = TermConf
       { tcDefinedNames     :: [QName]
@@ -554,5 +556,5 @@ prop_wellScopedVars conf =
   isWellScoped conf (t :: Term)
 
 tests :: IO Bool
-tests = runTests "Agda.TypeChecking.Test.Generators"
+tests = runTests "InternalTests.TypeChecking.Generators"
   [ quickCheck' prop_wellScopedVars ]

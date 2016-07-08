@@ -14,7 +14,6 @@ each leaf of the split tree.
 module Agda.TypeChecking.Coverage.SplitTree where
 
 import Data.Tree
-import Test.QuickCheck
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -75,24 +74,3 @@ toTrees = map (\ (c,t) -> setCons c $ toTree t)
 
 instance Show a => Show (SplitTree' a) where
   show = drawTree . fmap show . toTree
-
--- * Generating random split trees for testing
-
-instance Arbitrary a => Arbitrary (SplitTree' a) where
-  arbitrary = frequency
-    [ (5, return $ SplittingDone 0)
-    , (3, (SplitAt . defaultArg) <$> choose (1,5) <*> (take 3 <$> listOf1 arbitrary))
-    ]
-
--- * Testing the printer
-
-newtype CName = CName String
-instance Show CName where
-  show (CName s) = s
-
-instance Arbitrary CName where
-  arbitrary = CName <$> elements
-    [ "zero", "suc", "nil", "cons", "left", "right", "just", "nothing" ]
-
-testSplitTreePrinting :: IO ()
-testSplitTreePrinting = sample (arbitrary :: Gen (SplitTree' CName))

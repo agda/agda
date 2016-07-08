@@ -7,7 +7,10 @@
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
-module Agda.Utils.Permutation.Tests (tests) where
+module InternalTests.Utils.Permutation ( tests ) where
+
+import Agda.Utils.List ( downFrom )
+import Agda.Utils.Permutation
 
 import Data.Functor
 import Data.List as List
@@ -15,8 +18,15 @@ import Data.Maybe
 
 import Test.QuickCheck
 
-import Agda.Utils.List (downFrom)
-import Agda.Utils.Permutation
+------------------------------------------------------------------------
+-- * Test data generator
+------------------------------------------------------------------------
+
+instance Arbitrary Permutation where
+  arbitrary = do
+    is <- nub . map getNonNegative <$> arbitrary
+    NonNegative n <- arbitrary
+    return $ Perm (if null is then n else maximum is + n + 1) is
 
 ------------------------------------------------------------------------
 -- * Properties
@@ -113,5 +123,5 @@ return [] -- KEEP!
 -- | All tests as collected by 'quickCheckAll'.
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.Utils.Permutation"
+  putStrLn "InternalTests.Utils.Permutation"
   $quickCheckAll

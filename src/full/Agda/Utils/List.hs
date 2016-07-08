@@ -1,7 +1,4 @@
-{-# LANGUAGE CPP             #-}
-{-# LANGUAGE TemplateHaskell #-}
-
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE CPP #-}
 
 {-| Utitlity functions on lists.
 -}
@@ -15,12 +12,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Text.Show.Functions ()
-import Test.QuickCheck
 
 import qualified Agda.Utils.Bag as Bag
-import Agda.Utils.TestHelpers
--- import Agda.Utils.QuickCheck -- Andreas, 2014-04-27 Inconvenient
--- because cabal-only CPP directive
+
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -86,17 +80,11 @@ updateHead :: (a -> a) -> [a] -> [a]
 updateHead f [] = []
 updateHead f (a : as) = f a : as
 
-spec_updateHead f as = let (bs, cs) = splitAt 1 as in map f bs ++ cs
-prop_updateHead f as = updateHead f as == spec_updateHead f as
-
 -- | Update the last element of a list, if it exists.
 updateLast :: (a -> a) -> [a] -> [a]
 updateLast f [] = []
 updateLast f [a] = [f a]
 updateLast f (a : as@(_ : _)) = a : updateLast f as
-
-spec_updateLast f as = let (bs, cs) = splitAt (length as - 1) as in bs ++ map f cs
-prop_updateLast f as = updateLast f as == spec_updateLast f as
 
 -- | Update nth element of a list, if it exists.
 --   Precondition: the index is >= 0.
@@ -104,9 +92,6 @@ updateAt :: Int -> (a -> a) -> [a] -> [a]
 updateAt _ f [] = []
 updateAt 0 f (a : as) = f a : as
 updateAt n f (a : as) = a : updateAt (n-1) f as
-
-spec_updateAt n f as = let (bs, cs) = splitAt n as in bs ++ updateHead f cs
-prop_updateAt (NonNegative n) f as = updateAt n f as == spec_updateAt n f as
 
 -- | A generalized version of @partition@.
 --   (Cf. @mapMaybe@ vs. @filter@).
@@ -217,12 +202,6 @@ chopWhen p xs =
     (w, [_])    -> [w, []]
     (w, _ : ys) -> w : chopWhen p ys
 
-prop_chop_intercalate :: Property
-prop_chop_intercalate =
-  forAllShrink (choose (0, 4 :: Int))          shrink $ \ d ->
-  forAllShrink (listOf (choose (0, 4 :: Int))) shrink $ \ xs ->
-  xs === intercalate [d] (chopWhen (== d) xs)
-
 -- | All ways of removing one element from a list.
 holes :: [a] -> [(a, [a])]
 holes []     = []
@@ -249,9 +228,6 @@ distinct (x:xs) = x `notElem` xs && distinct xs
 
 fastDistinct :: Ord a => [a] -> Bool
 fastDistinct xs = Set.size (Set.fromList xs) == length xs
-
-prop_distinct_fastDistinct :: [Integer] -> Bool
-prop_distinct_fastDistinct xs = distinct xs == fastDistinct xs
 
 -- | Checks if all the elements in the list are equal. Assumes that
 -- the 'Eq' instance stands for an equivalence relation.
@@ -280,19 +256,6 @@ groupBy' p xxs@(x : xs) = grp x $ zipWith (\x y -> (p x y, y)) xxs xs
                    []            -> []
                    ((_, z) : zs) -> grp z zs
 
-prop_groupBy' :: (Bool -> Bool -> Bool) -> [Bool] -> Property
-prop_groupBy' p xs =
-  classify (length xs - length gs >= 3) "interesting" $
-    concat gs == xs
-    &&
-    and [not (null zs) | zs <- gs]
-    &&
-    and [and (pairInitTail zs zs) | zs <- gs]
-    &&
-    (null gs || not (or (pairInitTail (map last gs) (map head gs))))
-  where gs = groupBy' p xs
-        pairInitTail xs ys = zipWith p (init xs) (tail ys)
-
 -- | @'groupOn' f = 'groupBy' (('==') \`on\` f) '.' 'sortBy' ('compare' \`on\` f)@.
 
 groupOn :: Ord b => (a -> b) -> [a] -> [[a]]
@@ -315,11 +278,6 @@ genericElemIndex x xs =
   zip [0..] $
   map (== x) xs
 
-prop_genericElemIndex :: Integer -> [Integer] -> Property
-prop_genericElemIndex x xs =
-  classify (x `elem` xs) "members" $
-    genericElemIndex x xs == elemIndex x xs
-
 -- | Requires both lists to have the same length.
 
 zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
@@ -327,12 +285,6 @@ zipWith' f []        []      = []
 zipWith' f (x : xs) (y : ys) = f x y : zipWith' f xs ys
 zipWith' f []       (_ : _)  = {- ' -} __IMPOSSIBLE__
 zipWith' f (_ : _)  []       = {- ' -} __IMPOSSIBLE__
-
-prop_zipWith' :: (Integer -> Integer -> Integer) -> Property
-prop_zipWith' f =
-  forAll natural $ \n ->
-    forAll (two $ vector n) $ \(xs, ys) ->
-      zipWith' f xs ys == zipWith f xs ys
 
 {- UNUSED; a better type would be
    zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], Either [a] [b])
@@ -360,9 +312,6 @@ nubOn tag =
   . map (\p@(_, x) -> (tag x, p))
   . zip [1..]
 
-prop_nubOn :: (Integer -> Integer) -> [Integer] -> Bool
-prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
-
 -- | Efficient variant of 'nubBy' for finite lists.
 --
 -- Specification: For each list @xs@ there is a list @ys@ which is a
@@ -376,26 +325,6 @@ prop_nubOn f xs = nubOn f xs == nubBy ((==) `on` f) xs
 uniqOn :: Ord b => (a -> b) -> [a] -> [a]
 uniqOn key = Map.elems . Map.fromList . map (\ a -> (key a, a))
 
-prop_uniqOn1 :: (Integer -> Integer) -> [Integer] -> Bool
-prop_uniqOn1 f xs' =
-  or [ uniqOn f xs == nubBy ((==) `on` f) ys
-     | ys <- permutations xs
-     ]
-  where
-  xs = take 5 xs'
-
-  permutations []       = [[]]
-  permutations (x : xs) =
-    [ ys1 ++ x : ys2
-    | ys <- permutations xs
-    , n  <- [0..length ys]
-    , let (ys1, ys2) = splitAt n ys
-    ]
-
-prop_uniqOn2 :: (Integer -> Integer) -> [Integer] -> Bool
-prop_uniqOn2 f xs =
-  sortBy (compare `on` f) (uniqOn f xs) == uniqOn f xs
-
 -- | Compute the common suffix of two lists.
 commonSuffix :: Eq a => [a] -> [a] -> [a]
 commonSuffix xs ys = reverse $ (commonPrefix `on` reverse) xs ys
@@ -407,22 +336,6 @@ commonPrefix _ [] = []
 commonPrefix (x:xs) (y:ys)
   | x == y    = x : commonPrefix xs ys
   | otherwise = []
-
-prop_commonPrefix :: [Integer] -> [Integer] -> [Integer] -> Bool
-prop_commonPrefix xs ys zs =
-  and [ isPrefixOf zs zs'
-      , isPrefixOf zs' (zs ++ xs)
-      , isPrefixOf zs' (zs ++ ys) ]
-  where
-    zs' = commonPrefix (zs ++ xs) (zs ++ ys)
-
-prop_commonSuffix :: [Integer] -> [Integer] -> [Integer] -> Bool
-prop_commonSuffix xs ys zs =
-  and [ isSuffixOf zs zs'
-      , isSuffixOf zs' (xs ++ zs)
-      , isSuffixOf zs' (ys ++ zs) ]
-  where
-    zs' = commonSuffix (xs ++ zs) (ys ++ zs)
 
 editDistanceSpec :: Eq a => [a] -> [a] -> Int
 editDistanceSpec [] ys = length ys
@@ -446,22 +359,3 @@ editDistance xs ys = editD 0 0
             (x : xs, y : ys)
               | x == y    -> editD (i + 1) (j + 1)
               | otherwise -> 1 + minimum [ editD (i + 1) j, editD i (j + 1), editD (i + 1) (j + 1) ]
-
-prop_editDistance :: Property
-prop_editDistance =
-  forAllShrink (choose (0, 10)) shrink $ \ n ->
-  forAllShrink (choose (0, 10)) shrink $ \ m ->
-  forAllShrink (vector n) shrink $ \ xs ->
-  forAllShrink (vector m) shrink $ \ ys ->
-  editDistanceSpec xs ys == editDistance xs (ys :: [Integer])
-
--- Hack to make $quickCheckAll work under ghc-7.8
-return []
-
-------------------------------------------------------------------------
--- All tests
-
-tests :: IO Bool
-tests = do
-  putStrLn "Agda.Utils.List"
-  $quickCheckAll

@@ -40,7 +40,6 @@ import Agda.Utils.Lens
 import Agda.Utils.Monad
 import Agda.Utils.String
 
-import Agda.Tests
 import Agda.Version
 
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
@@ -67,9 +66,6 @@ runAgdaWithOptions
 runAgdaWithOptions generateHTML progName opts
       | optShowHelp opts    = liftIO printUsage
       | optShowVersion opts = liftIO printVersion
-      | optRunTests opts    = liftIO $ do
-          ok <- testSuite
-          unless ok exitFailure
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
           && not (optGHCiInteraction opts)

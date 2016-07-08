@@ -14,7 +14,6 @@ module Agda.Interaction.Highlighting.Range
   , rToR
   , rangeToEndPoints
   , minus
-  , Agda.Interaction.Highlighting.Range.tests
   ) where
 
 import Control.Applicative ((<$>))
@@ -23,8 +22,6 @@ import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Position as P
 import Agda.Utils.List
-import Agda.Utils.TestHelpers
-import Agda.Utils.QuickCheck
 
 -- | Character ranges. The first character in the file has position 1.
 -- Note that the 'to' position is considered to be outside of the
@@ -81,9 +78,6 @@ rangeToPositions r = [from r .. to r - 1]
 rangesToPositions :: Ranges -> [Int]
 rangesToPositions (Ranges rs) = concatMap rangeToPositions rs
 
-prop_rangesToPositions :: Ranges -> Bool
-prop_rangesToPositions rs = sorted (rangesToPositions rs)
-
 -- | Converts a 'P.Range' to a 'Ranges'.
 
 rToR :: P.Range -> Ranges
@@ -123,37 +117,3 @@ minus (Ranges rs1) (Ranges rs2) = Ranges (m rs1 rs2)
                         m (Range { from = from y, to = to x } : xs) (y:ys)
     | to y < to x     = m (Range { from = to y, to = to x } : xs) ys
     | otherwise       = m xs (y:ys)
-
-prop_minus :: Ranges -> Ranges -> Bool
-prop_minus xs ys =
-  rangesToPositions (xs `minus` ys) ==
-  rangesToPositions xs \\ rangesToPositions ys
-
-------------------------------------------------------------------------
--- Generators
-
-instance Arbitrary Range where
-  arbitrary = do
-    [from, to] <- fmap sort $ vectorOf 2 positive
-    return $ Range { from = from, to = to }
-
-instance CoArbitrary Range where
-  coarbitrary (Range f t) = coarbitrary f . coarbitrary t
-
-instance Arbitrary Ranges where
-  arbitrary = rToR <$> arbitrary
-
-------------------------------------------------------------------------
--- All tests
-
--- | All the properties.
-
-tests :: IO Bool
-tests = runTests "Agda.Interaction.Highlighting.Range"
-  [ quickCheck' rangeInvariant
-  , quickCheck' rangesInvariant
-  , quickCheck' (rangesInvariant . rToR)
-  , quickCheck' (\r1 r2 -> rangesInvariant $ r1 `minus` r2)
-  , quickCheck' prop_rangesToPositions
-  , quickCheck' prop_minus
-  ]

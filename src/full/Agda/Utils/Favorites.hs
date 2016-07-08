@@ -1,7 +1,5 @@
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TemplateHaskell            #-}
 
 -- | Maintaining a list of favorites of some partially ordered type.
 --   Only the best elements are kept.
@@ -22,16 +20,14 @@ import Data.Semigroup
 import qualified Data.List as List
 import qualified Data.Set as Set
 
-import Test.QuickCheck
-
 import Agda.Utils.Null
-import Agda.Utils.PartialOrd hiding (tests)
+import Agda.Utils.PartialOrd
 import Agda.Utils.Singleton
 import Agda.Utils.Tuple
 
 -- | A list of incomparable favorites.
 newtype Favorites a = Favorites { toList :: [a] }
-  deriving (Foldable, Show, CoArbitrary, Null, Singleton a)
+  deriving (Foldable, Show, Null, Singleton a)
 
 -- | Equality checking is a bit expensive, since we need to sort!
 --   Maybe use a 'Set' of favorites in the first place?
@@ -120,56 +116,3 @@ instance PartialOrd a => Semigroup (Favorites a) where
 instance PartialOrd a => Monoid (Favorites a) where
   mempty  = empty
   mappend = (<>)
-
-------------------------------------------------------------------------
--- * Properties
-------------------------------------------------------------------------
-
-instance (PartialOrd a, Arbitrary a) => Arbitrary (Favorites a) where
-  arbitrary = fromList <$> arbitrary
-
-property_null_empty :: Bool
-property_null_empty = null (empty :: Favorites ())
-
-property_not_null_singleton :: forall a. a -> Bool
-property_not_null_singleton x = not $ null (singleton x :: Favorites a)
-
--- Remember: less is better!
-
-prop_compareWithFavorites :: ISet -> Favorites ISet -> Bool
-prop_compareWithFavorites a@ISet{} as =
-  case compareWithFavorites a as of
-    Dominates dominated notDominated ->
-      all (related a POLT) dominated &&
-      all (related a POAny) notDominated
-    IsDominated dominator ->
-      related a POGE dominator
-
-prop_fromList_after_toList :: Favorites ISet -> Bool
-prop_fromList_after_toList as =
-  fromList (toList as) == as
-
--- | A second way to compute the 'union' is to use 'compareFavorites'.
-prop_union_union2 :: Favorites ISet -> Favorites ISet -> Bool
-prop_union_union2 as bs =
-  union as bs == union2 as bs
-    where union2 as bs = unionCompared $ compareFavorites as bs
-
-------------------------------------------------------------------------
--- * All tests
-------------------------------------------------------------------------
-
--- Template Haskell hack to make the following $quickCheckAll work
--- under ghc-7.8.
-return [] -- KEEP!
-
--- | All tests as collected by 'quickCheckAll'.
---
---   Using 'quickCheckAll' is convenient and superior to the manual
---   enumeration of tests, since the name of the property is
---   added automatically.
-
-tests :: IO Bool
-tests = do
-  putStrLn "Agda.Utils.Favorites"
-  $quickCheckAll

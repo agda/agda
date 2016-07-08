@@ -14,7 +14,6 @@ module Agda.Interaction.FindFile
   , findInterfaceFile
   , checkModuleName
   , moduleName', moduleName
-  , tests
   , rootNameModule
   , replaceModuleExtension
   ) where
