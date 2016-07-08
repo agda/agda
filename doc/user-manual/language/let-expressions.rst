@@ -85,6 +85,58 @@ scope; in the previous example, these are ``A`` and ``xs``.  The
 variables bound by the type signature of the parent clause are not in
 scope.  This is why we added the hidden binder ``{A}``.
 
+Scope of the local declarations
+-------------------------------
+
+The ``where``-definitions are not visible outside of the clause that
+owns these definitions (the parent clause).  If the ``where``-block is
+given a name (form ``module M where``), then the definitions are
+available as qualified by ``M``, since module ``M`` is visible even
+outside of the parent clause.  The special form of an anonymous module
+(``module _ where``) makes the definitions visible outside of the
+parent clause without qualification.
+
+If the parent function of a named ``where``-block
+(form ``module M where``) is ``private``,
+then module ``M`` is also ``private``.
+However, the declarations inside ``M`` are not private unless declared
+so explicitly.  Thus, the following example scope checks fine::
+
+  module Parent where
+    private
+      parent = local
+        module Private where
+        local = Set
+    module Public = Private
+
+  test = Parent.Public.local
+
+Likewise, a ``private`` declaration for a parent function does not
+affect the privacy of local functions defined under a
+``module _ where``-block::
+
+  module Parent where
+    private
+      parent = local
+        module _ where
+        local = Set
+
+  test = Parent.local
+
+They can be declared ``private`` explicitly, though::
+
+  module Parent where
+    parent = local
+      module _ where
+      private
+        local = Set
+
+Now, ``Parent.local`` is not in scope.
+
+A ``private`` declaration for the parent of an ordinary
+``where``-block has no effect on the local definitions, of course.
+They are not even in scope.
+
 Proving properties
 ------------------
 
