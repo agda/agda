@@ -7,7 +7,7 @@
 
 module Agda.Termination.Order
   ( -- * Structural orderings
-    Order(Mat), decr
+    Order(..), decr
   , increase, decrease
   , (.*.)
   , supremum, infimum
@@ -15,21 +15,19 @@ module Agda.Termination.Order
   , le, lt, unknown, orderMat, collapseO
   , nonIncreasing, decreasing, isDecr
   , NotWorse(..)
-  , tests
+  , isOrder
   ) where
 
 import qualified Data.Foldable as Fold
 import Data.List as List hiding (union, insert)
 
 import Agda.Termination.CutOff
-import Agda.Termination.SparseMatrix as Matrix hiding (tests)
+import Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Semiring (HasZero(..), Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
-import Agda.Utils.PartialOrd hiding (tests)
+import Agda.Utils.PartialOrd
 import Agda.Utils.Pretty
-import Agda.Utils.QuickCheck
-import Agda.Utils.TestHelpers
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -199,38 +197,6 @@ instance Pretty Order where
 --instance Ord Order where
 --    max = maxO
 
-{- instances cannot have implicit arguments?! GHC manual says:
-
-7.8.3.1. Implicit-parameter type constraints
-
-You can't have an implicit parameter in the context of a class or instance declaration. For example, both these declarations are illegal:
-
-  class (?x::Int) => C a where ...
-  instance (?x::a) => Foo [a] where ...
-
-Reason: exactly which implicit parameter you pick up depends on
-exactly where you invoke a function. But the ``invocation'' of
-instance declarations is done behind the scenes by the compiler, so
-it's hard to figure out exactly where it is done. Easiest thing is to
-outlaw the offending types.
-
-instance (?cutoff :: CutOff) => Arbitrary Order where
-  arbitrary = frequency
-    [(20, return Unknown)
-    ,(80, elements [- ?cutoff .. ?cutoff + 1] >>= Decr)
-    ] -- no embedded matrices generated for now.
--}
-instance Arbitrary Order where
-  arbitrary = frequency
-    [(30, return Unknown)
-    ,(70, elements [0,1] >>= return . Decr)
-    ] -- no embedded matrices generated for now.
-
-instance CoArbitrary Order where
-  coarbitrary (Decr k) = variant 0
-  coarbitrary Unknown  = variant 1
-  coarbitrary (Mat m)  = variant 2
-
 -- | Multiplication of 'Order's. (Corresponds to sequential
 -- composition.)
 
@@ -335,16 +301,3 @@ orderSemiring =
                     , Semiring.zero = Unknown
 --                    , Semiring.one = Le
                     }
-
-prop_orderSemiring :: (?cutoff :: CutOff) => Order -> Order -> Order -> Bool
-prop_orderSemiring = Semiring.semiringInvariant orderSemiring
-
-------------------------------------------------------------------------
--- All tests
-
-tests :: IO Bool
-tests = runTests "Agda.Termination.Order"
-  [ quickCheck' prop_decr
-  , quickCheck' prop_orderSemiring
-  ]
-  where ?cutoff = DontCutOff -- CutOff 2  -- don't cut off in tests!

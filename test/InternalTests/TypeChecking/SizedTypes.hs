@@ -1,12 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Agda.TypeChecking.SizedTypes.Tests where
-
-import Test.QuickCheck
+module InternalTests.TypeChecking.SizedTypes ( tests ) where
 
 import Agda.TypeChecking.SizedTypes.Syntax
 import Agda.TypeChecking.SizedTypes.WarshallSolver
 import Agda.TypeChecking.SizedTypes.Utils
+
+import InternalTests.TypeChecking.SizedTypes.WarshallSolver ()
+
+import Test.QuickCheck
+
+------------------------------------------------------------------------------
 
 -- * Label interpretation
 
@@ -141,5 +145,5 @@ return [] -- KEEP!
 -- | Runs all tests starting with "prop_" in this file.
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.TypeChecking.SizedTypes.Tests"
+  putStrLn "InternalTests.TypeChecking.SizedTypes"
   $quickCheckAll

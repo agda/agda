@@ -4,13 +4,13 @@
 
 {-| Operations on file names. -}
 module Agda.Utils.FileName
-  ( AbsolutePath
+  ( AbsolutePath(AbsolutePath)
   , filePath
   , mkAbsolute
   , absolute
   , (===)
   , doesFileExistCaseSensitive
-  , tests
+  , rootPath
   ) where
 
 import Control.Applicative
@@ -29,8 +29,6 @@ import Data.Hashable
 import Data.Typeable (Typeable)
 
 import Agda.Utils.Pretty
-import Agda.Utils.TestHelpers
-import Agda.Utils.QuickCheck
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -57,17 +55,6 @@ instance Show AbsolutePath where
 instance Pretty AbsolutePath where
   pretty = text . filePath
 
--- | The paths have to be absolute, valid and normalised, without
--- trailing path separators.
-
-absolutePathInvariant :: AbsolutePath -> Bool
-absolutePathInvariant x =
-  isAbsolute f &&
-  isValid f &&
-  f == normalise f &&
-  f == dropTrailingPathSeparator f
-  where f = filePath x
-
 -- | Constructs 'AbsolutePath's.
 --
 -- Precondition: The path must be absolute and valid.
@@ -77,11 +64,6 @@ mkAbsolute f
   | isAbsolute f =
       AbsolutePath $ Text.pack $ dropTrailingPathSeparator $ normalise f
   | otherwise    = __IMPOSSIBLE__
-
-prop_mkAbsolute :: FilePath -> Property
-prop_mkAbsolute f =
-  let path = rootPath ++ f
-  in  isValid path ==> absolutePathInvariant $ mkAbsolute $ path
 
 rootPath :: FilePath
 #if mingw32_HOST_OS
@@ -137,23 +119,3 @@ doesFileExistCaseSensitive f = do
 #else
 doesFileExistCaseSensitive f = doesFileExist f
 #endif
-
-------------------------------------------------------------------------
--- Generators
-
-instance Arbitrary AbsolutePath where
-  arbitrary = mk . take 3 . map (take 2) <$>
-                listOf (listOf1 (elements "a1"))
-    where mk ps = mkAbsolute (joinPath $ rootPath : ps)
-
-instance CoArbitrary AbsolutePath where
-  coarbitrary (AbsolutePath t) = coarbitrary (Text.unpack t)
-
-------------------------------------------------------------------------
--- All tests
-
-tests :: IO Bool
-tests = runTests "Agda.Utils.FileName"
-  [ quickCheck' absolutePathInvariant
-  , quickCheck' prop_mkAbsolute
-  ]

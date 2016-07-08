@@ -1,10 +1,10 @@
-{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-
 {-# LANGUAGE TemplateHaskell #-}
+
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 -- | Quickcheck properties for 'Agda.Utils.ListT'.
 
-module Agda.Utils.ListT.Tests (tests) where
+module InternalTests.Utils.ListT ( tests ) where
 
 import Control.Applicative
 
@@ -16,6 +16,7 @@ import Text.Show.Functions
 
 import Agda.Utils.ListT
 
+------------------------------------------------------------------------------
 -- * Identity monad instance of ListT (simply lists)
 
 type List = ListT Identity
@@ -43,5 +44,5 @@ return [] -- KEEP!
 -- | All tests as collected by 'quickCheckAll'.
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.Utils.Permutation"
+  putStrLn "InternalTests.Utils.Permutation"
   $quickCheckAll

@@ -14,12 +14,12 @@ module Agda.Interaction.Options
     , defaultInteractionOptions
     , defaultVerbosity
     , defaultCutOff
+    , defaultPragmaOptions
     , standardOptions_
     , unsafePragmaOptions
     , isLiterate
     , mapFlag
     , usage
-    , tests
     , defaultLibDir
     -- Reused by PandocAgda
     , inputFlag
@@ -56,8 +56,6 @@ import Agda.Utils.Except
   , runExceptT
   )
 
-import Agda.Utils.TestHelpers   ( runTests )
-import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( absolute, AbsolutePath, filePath )
 import Agda.Utils.Monad         ( ifM, readM )
 import Agda.Utils.List          ( groupOn, wordsBy )
@@ -91,7 +89,6 @@ data CommandLineOptions = Options
   , optShowVersion      :: Bool
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
-  , optRunTests         :: Bool
   , optGHCiInteraction  :: Bool
   , optCompileNoMain    :: Bool
   , optGhcCompile       :: Bool
@@ -184,7 +181,6 @@ defaultOptions = Options
   , optShowVersion      = False
   , optShowHelp         = False
   , optInteractive      = False
-  , optRunTests         = False
   , optGHCiInteraction  = False
   , optCompileNoMain    = False
   , optGhcCompile       = False
@@ -257,10 +253,6 @@ defaultLaTeXDir = "latex"
 defaultHTMLDir :: String
 defaultHTMLDir = "html"
 
-prop_defaultOptions :: IO Bool
-prop_defaultOptions =
-  either (const False) (const True) <$> runOptM (checkOpts defaultOptions)
-
 type OptM = ExceptT String IO
 
 runOptM :: OptM a -> IO (Either String a)
@@ -322,16 +314,6 @@ unsafePragmaOptions opts =
   [ "--rewriting"                                | optRewriting opts                 ] ++
   []
 
--- | The default pragma options should be considered safe.
-
-defaultPragmaOptionsSafe :: IO Bool
-defaultPragmaOptionsSafe
-    | null unsafe = return True
-    | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
-                                        ++ intercalate ", " unsafe
-                       return False
-  where unsafe = unsafePragmaOptions defaultPragmaOptions
-
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
     case optInputFile o of
@@ -373,9 +355,6 @@ showImplicitFlag o = return $ o { optShowImplicit = True }
 
 showIrrelevantFlag :: Flag PragmaOptions
 showIrrelevantFlag o = return $ o { optShowIrrelevant = True }
-
-runTestsFlag :: Flag CommandLineOptions
-runTestsFlag o = return $ o { optRunTests = True }
 
 ghciInteractionFlag :: Flag CommandLineOptions
 ghciInteractionFlag o = return $ o { optGHCiInteraction = True }
@@ -598,8 +577,6 @@ standardOptions =
     --                "give the flag EPIC-FLAG to Epic when compiling using Epic"
                     "the Epic backend has been removed"
 
-    , Option []     ["test"] (NoArg runTestsFlag)
-                    "run internal test suite"
     , Option []     ["vim"] (NoArg vimFlag)
                     "generate Vim highlighting files"
     , Option []     ["latex"] (NoArg latexFlag)
@@ -814,12 +791,3 @@ defaultLibDir = do
   ifM (doesDirectoryExist libdir)
       (return libdir)
       (error $ "The lib directory " ++ libdir ++ " does not exist")
-
-------------------------------------------------------------------------
--- All tests
-
-tests :: IO Bool
-tests = runTests "Agda.Interaction.Options"
-  [ prop_defaultOptions
-  , defaultPragmaOptionsSafe
-  ]

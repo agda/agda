@@ -360,8 +360,11 @@ script:
        make BUILD_DIR=$BUILD_DIR user-manual-test;
     fi
 
+# ASR (2016-07-08) TODO: Travis is re-preprocessing various Agda
+# source files when running the internal test-suite.
+
   - if [[ $TEST = "main" ]]; then
-       make BUILD_DIR=$BUILD_DIR tests;
+       make BUILD_DIR=$BUILD_DIR PARALLEL_TESTS=${JOBS} internal-tests;
     fi
 
   - if [[ $TEST = "main" ]]; then

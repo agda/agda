@@ -19,8 +19,6 @@ import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import Data.Typeable (Typeable)
 
-import Test.QuickCheck
-
 import Agda.Syntax.Position (KillRange(..))
 import Agda.Utils.Functor
 import Agda.Utils.List ((!!!))
@@ -253,17 +251,3 @@ instance DoDrop Permutation where
     Perm (n + m) $ [0..m-1] ++ map (+ m) (List.drop k xs)
     where m = -k
   unDrop m = dropMore (-m) -- allow picking up more than dropped
-
-------------------------------------------------------------------------
--- * Test data generator
-------------------------------------------------------------------------
-
-instance Arbitrary Permutation where
-  arbitrary = do
-    is <- nub . map getNonNegative <$> arbitrary
-    NonNegative n <- arbitrary
-    return $ Perm (if null is then n else maximum is + n + 1) is
-
-------------------------------------------------------------------------
--- * Properties, see "Agda.Utils.Permutation.Tests".
-------------------------------------------------------------------------

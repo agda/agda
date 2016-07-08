@@ -24,8 +24,6 @@ import qualified Data.Set as Set
 
 import Debug.Trace
 
-import Test.QuickCheck
-
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
@@ -802,53 +800,3 @@ computeEdges muts q ob =
       Just IsData -> GuardPos  -- a datatype is guarding
       _           -> StrictPos
 
-------------------------------------------------------------------------
--- * Generators and tests
-------------------------------------------------------------------------
-
-instance Arbitrary OccursWhere where
-  arbitrary = oneof [return Unknown, Known <$> arbitrary]
-
-  shrink Unknown    = []
-  shrink (Known ws) = Unknown : [ Known ws | ws <- shrink ws ]
-
-instance Arbitrary Where where
-  arbitrary = oneof
-    [ return LeftOfArrow
-    , DefArg <$> arbitrary <*> arbitrary
-    , return UnderInf
-    , return VarArg
-    , return MetaArg
-    , ConArgType <$> arbitrary
-    , IndArgType <$> arbitrary
-    , InClause <$> arbitrary
-    , return Matched
-    , InDefOf <$> arbitrary
-    ]
-
-instance CoArbitrary OccursWhere where
-  coarbitrary (Known ws) = variant 0 . coarbitrary ws
-  coarbitrary Unknown    = variant 1
-
-instance CoArbitrary Where where
-  coarbitrary LeftOfArrow    = variant 0
-  coarbitrary (DefArg a b)   = variant 1 . coarbitrary (a, b)
-  coarbitrary UnderInf       = variant 2
-  coarbitrary VarArg         = variant 3
-  coarbitrary MetaArg        = variant 4
-  coarbitrary (ConArgType a) = variant 5 . coarbitrary a
-  coarbitrary (IndArgType a) = variant 6 . coarbitrary a
-  coarbitrary (InClause a)   = variant 7 . coarbitrary a
-  coarbitrary Matched        = variant 8
-  coarbitrary (InDefOf a)    = variant 9 . coarbitrary a
-
-instance Arbitrary Edge where
-  arbitrary = Edge <$> arbitrary <*> arbitrary
-
-  shrink (Edge o w) = [ Edge o w | o <- shrink o ] ++
-                      [ Edge o w | w <- shrink w ]
-
-instance CoArbitrary Edge where
-  coarbitrary (Edge o w) = coarbitrary (o, w)
-
--- properties moved to Agda.TypeChecking.Positivity.Tests

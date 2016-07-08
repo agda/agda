@@ -7,10 +7,23 @@
 
 -- | Properties for graph library.
 
-module Agda.Utils.Graph.AdjacencyMap.Unidirectional.Tests (tests) where
+module InternalTests.Utils.Graph.AdjacencyMap.Unidirectional ( tests ) where
 
-import Prelude hiding (null)
+import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.Function (iterateUntil)
+import Agda.Utils.Functor
+import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
+import Agda.Utils.List (distinct)
+import Agda.Utils.Null as Null
+import Agda.Utils.SemiRing
+import Agda.Utils.Singleton (Singleton)
+import qualified Agda.Utils.Singleton as Singleton
+import Agda.Utils.Impossible
+
+#if __GLASGOW_HASKELL__ <= 708
+import Control.Applicative ( (<$>), (<*>) )
+#endif
 
 import Control.Monad
 
@@ -22,22 +35,42 @@ import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import InternalTests.Helpers
+import InternalTests.TypeChecking.Positivity.Occurrence ()
+
+import Prelude hiding (null)
+
 import Test.QuickCheck as QuickCheck
 
-import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
-
-import Agda.Utils.Function (iterateUntil)
-import Agda.Utils.Functor
-import Agda.Utils.Graph.AdjacencyMap.Unidirectional as Graph
-import Agda.Utils.List (distinct)
-import Agda.Utils.Null as Null
-import Agda.Utils.SemiRing
-import Agda.Utils.Singleton (Singleton)
-import qualified Agda.Utils.Singleton as Singleton
-import Agda.Utils.TestHelpers
-
 #include "undefined.h"
-import Agda.Utils.Impossible
+
+------------------------------------------------------------------------
+-- Generators
+
+instance (Arbitrary s, Arbitrary t, Arbitrary e) => Arbitrary (Edge s t e) where
+  arbitrary = Edge <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance (CoArbitrary s, CoArbitrary t, CoArbitrary e) => CoArbitrary (Edge s t e) where
+  coarbitrary (Edge s t e) = coarbitrary s . coarbitrary t . coarbitrary e
+
+instance (Ord n, Arbitrary n, Arbitrary e) =>
+         Arbitrary (Graph n n e) where
+  arbitrary = do
+    nodes <- sized $ \ n -> resize (2 * isqrt n) arbitrary
+    edges <- mapM (\ (n1, n2) -> Edge n1 n2 <$> arbitrary) =<<
+                  listOfElements ((,) <$> nodes <*> nodes)
+    let g1 = fromList edges
+        g2 = g1 `union` fromNodes nodes
+    elements [ g1  -- Does not contain empty outermost node maps.
+             , g2  -- May contain empty outermost node maps.
+             ]
+    where
+    isqrt :: Int -> Int
+    isqrt = round . sqrt . fromIntegral
+
+  shrink g =
+    [ removeNode n g     | n <- Set.toList $ nodes g ] ++
+    [ removeEdge n1 n2 g | Edge n1 n2 _ <- edges g ]
 
 ------------------------------------------------------------------------
 -- * Generating random graphs
@@ -330,7 +363,7 @@ return [] -- KEEP!
 
 tests :: IO Bool
 tests = do
-  putStrLn "Agda.Utils.Graph.AdjacencyMap.Unidirectional"
+  putStrLn "InternalTests.Utils.Graph.AdjacencyMap.Unidirectional"
   $quickCheckAll
 
 
