@@ -1,0 +1,4 @@
+Issue2081.agda:24,13-21
+No such module M.Public
+when scope checking the declaration
+  module Pu = M.Public

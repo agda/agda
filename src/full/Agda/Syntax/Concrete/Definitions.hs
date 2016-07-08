@@ -1166,7 +1166,7 @@ niceDeclarations ds = do
     mkAbstractWhere :: Updater WhereClause
     mkAbstractWhere  NoWhere         = return $ NoWhere
     mkAbstractWhere (AnyWhere ds)    = dirty $ AnyWhere [Abstract noRange ds]
-    mkAbstractWhere (SomeWhere m ds) = dirty $SomeWhere m [Abstract noRange ds]
+    mkAbstractWhere (SomeWhere m a ds) = dirty $ SomeWhere m a [Abstract noRange ds]
 
     privateBlock _ [] = return []
     privateBlock r ds = do
@@ -1262,21 +1262,27 @@ instance MakePrivate NiceDeclaration where
       NicePragma _ _                           -> return $ d
       NiceOpen _ _ _                           -> return $ d
       NiceImport _ _ _ _ _                     -> return $ d
-      FunDef{}                                 -> return $ d
+      -- Andreas, 2016-07-08, issue #2089
+      -- we need to propagate 'private' to the named where modules
+      FunDef r ds f a tc x cls                 -> FunDef r ds f a tc x <$> mkPrivate cls
       DataDef{}                                -> return $ d
       RecDef{}                                 -> return $ d
       NicePatternSyn _ _ _ _ _                 -> return $ d
 
-    -- Andreas, 2012-11-22: Q: is this necessary?
-    -- Are @where@ clauses not always private?
 instance MakePrivate Clause where
   mkPrivate (Clause x catchall lhs rhs wh with) = do
     Clause x catchall lhs rhs <$> mkPrivate wh <*> mkPrivate with
 
 instance MakePrivate WhereClause where
   mkPrivate  NoWhere         = return $ NoWhere
-  mkPrivate (AnyWhere ds)    = dirty  $ AnyWhere [Private (getRange ds) ds]
-  mkPrivate (SomeWhere m ds) = dirty  $ SomeWhere m [Private (getRange ds) ds]
+  -- @where@-declarations are protected behind an anonymous module,
+  -- thus, they are effectively private by default.
+  mkPrivate (AnyWhere ds)    = return $ AnyWhere ds
+  -- Andreas, 2016-07-08
+  -- A @where@-module is private if the parent function is private.
+  -- The contents of this module are not private, unless declared so!
+  -- Thus, we do not recurse into the @ds@ (could not anyway).
+  mkPrivate (SomeWhere m a ds) = mkPrivate a <&> \ a' -> SomeWhere m a' ds
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.

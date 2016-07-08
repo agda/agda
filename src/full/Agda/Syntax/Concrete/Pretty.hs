@@ -20,6 +20,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Positivity.Occurrence
 
+import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Null
 import Agda.Utils.Pretty
@@ -256,8 +257,9 @@ instance Pretty WhereClause where
   pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
                        = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere ds) = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
-  pretty (SomeWhere m ds) =
-    vcat [ hsep [ text "module", pretty m, text "where" ]
+  pretty (SomeWhere m a ds) =
+    vcat [ hsep $ applyWhen (a == PrivateAccess) (text "private" :)
+             [ text "module", pretty m, text "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
 
