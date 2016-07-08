@@ -77,7 +77,8 @@ isLiterate file = any (`isSuffixOf` file) literateExts
 
 type Verbosity = Trie String Int
 
--- ignore or respect the flags --allow-unsolved-metas, --no-termination-check?
+-- ignore or respect the flags --allow-unsolved-metas,
+-- --no-termination-check, --no-positivity-check?
 data IgnoreFlags = IgnoreFlags | RespectFlags
 
 data CommandLineOptions = Options

@@ -55,6 +55,7 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
+import {-# SOURCE #-} Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
 
@@ -2148,6 +2149,7 @@ data Candidate  = Candidate { candidateTerm :: Term
 -- we can print it later
 data Warning =
     TerminationIssue         TCState (Closure [TerminationError])
+  | NotStrictlyPositive      TCState QName OccursWhere
   | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
   | UnsolvedConstraints      TCState Constraints
@@ -2384,7 +2386,6 @@ data TypeError
         | UnificationStuck Telescope [Term] [Term]
         | SplitError SplitError
     -- Positivity errors
-        | NotStrictlyPositive QName [Occ]
         | TooManyPolarities QName Integer
     -- Import errors
         | LocalVsImportedModuleClash ModuleName

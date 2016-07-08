@@ -10,6 +10,7 @@ import Prelude hiding (null)
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
 import Control.Monad.Reader
+import Control.Monad.State (get)
 
 import Data.Either
 import qualified Data.Foldable as Fold
@@ -117,15 +118,17 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
             -- which relates productOfEdgesInBoundedWalk to
             -- gaussJordanFloydWarshallMcNaughtonYamada.
 
-            how :: String -> Occurrence -> TCM Doc
-            how msg bound =
+            reason bound =
               case productOfEdgesInBoundedWalk
                      occ g (DefNode q) (DefNode q) bound of
-                Just (Edge _ how) -> fsep $
+                Just (Edge _ how) -> how
+                Nothing           -> __IMPOSSIBLE__
+
+            how :: String -> Occurrence -> TCM Doc
+            how msg bound = fsep $
                   [prettyTCM q] ++ pwords "is" ++
                   pwords (msg ++ ", because it occurs") ++
-                  [prettyTCM how]
-                Nothing -> __IMPOSSIBLE__
+                  [prettyTCM (reason bound)]
 
         -- if we have a negative loop, raise error
 
@@ -136,8 +139,8 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
           whenM positivityCheckEnabled $
             case loop of
             Just o | o <= JustPos -> do
-              err <- how "not strictly positive" JustPos
-              setCurrentRange q $ typeError $ GenericDocError err
+              tcst <- get
+              warning $ NotStrictlyPositive tcst q (reason JustPos)
             _ -> return ()
 
         -- if we find an unguarded record, mark it as such

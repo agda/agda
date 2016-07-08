@@ -117,6 +117,42 @@ instance PrettyTCM Warning where
               mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
               concatMap termErrCalls $ clValue tes)
 
+    NotStrictlyPositive tcst d ocs -> localState $ do
+      put tcst
+      sayWhen (getRange d) Nothing $
+        fsep $
+        [prettyTCM (dropTopLevelModule d)] ++
+        pwords "is not strictly positive, because it occurs"
+        ++ [prettyTCM ocs]
+{-
+      ++ prettyOcc "it" ocs
+      where
+        prettyOcc _ [] = []
+        prettyOcc it (OccCon d c r : ocs) = concat
+          [ pwords it, pwords "occurs", prettyR r
+          , pwords "in the constructor", [prettyTCM c], pwords "of"
+          , [prettyTCM d <> com ocs], prettyOcc "which" ocs
+          ]
+        prettyOcc it (OccClause f n r : ocs) = concat
+          [ pwords it, pwords "occurs", prettyR r
+          , pwords "in the", [th n], pwords "clause of"
+          , [prettyTCM f <> com ocs], prettyOcc "which" ocs
+          ]
+
+        prettyR NonPositively = pwords "negatively"
+        prettyR (ArgumentTo i q) =
+          pwords "as the" ++ [th i] ++
+          pwords "argument to" ++ [prettyTCM q]
+
+        th 0 = text "first"
+        th 1 = text "second"
+        th 2 = text "third"
+        th n = prettyTCM (n - 1) <> text "th"
+
+        com []    = empty
+        com (_:_) = comma
+-}
+
 prettyWarnings :: [Warning] -> TCM String
 prettyWarnings = fmap (unlines . intersperse " ") . prettyWarnings'
 
@@ -137,11 +173,13 @@ applyFlagsToWarnings :: IgnoreFlags -> [Warning] -> TCM [Warning]
 applyFlagsToWarnings ifs ws = do
 
   unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  negativeNotOK <- not . optDisablePositivity <$> pragmaOptions
   loopingNotOK  <- optTerminationCheck <$> pragmaOptions
   let ignore = case ifs of { IgnoreFlags -> True ; RespectFlags -> False }
 
   let cleanUp w = case w of
        TerminationIssue{}           -> ignore || loopingNotOK
+       NotStrictlyPositive{}        -> ignore || negativeNotOK
        UnsolvedMetaVariables ums    -> not (null ums) && (ignore || unsolvedNotOK)
        UnsolvedInteractionMetas uis -> not (null uis) && (ignore || unsolvedNotOK)
        UnsolvedConstraints tcst ucs -> not (null ucs) && (ignore || unsolvedNotOK)
@@ -258,7 +296,6 @@ errorString err = case err of
   NotSupported{}                           -> "NotSupported"
   NotInScope{}                             -> "NotInScope"
   NotLeqSort{}                             -> "NotLeqSort"
-  NotStrictlyPositive{}                    -> "NotStrictlyPositive"
   NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
   NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
   OverlappingProjects {}                   -> "OverlappingProjects"
@@ -1121,36 +1158,6 @@ instance PrettyTCM TypeError where
       pwords "I got stuck on unifying" ++ [prettyList (map prettyTCM us)] ++
       pwords "with" ++ [prettyList (map prettyTCM vs)] ++
       pwords "in the telescope" ++ [prettyTCM tel]
-
-    NotStrictlyPositive d ocs -> fsep $
-      pwords "The datatype" ++ [prettyTCM d] ++
-      pwords "is not strictly positive, because"
-      ++ prettyOcc "it" ocs
-      where
-        prettyOcc _ [] = []
-        prettyOcc it (OccCon d c r : ocs) = concat
-          [ pwords it, pwords "occurs", prettyR r
-          , pwords "in the constructor", [prettyTCM c], pwords "of"
-          , [prettyTCM d <> com ocs], prettyOcc "which" ocs
-          ]
-        prettyOcc it (OccClause f n r : ocs) = concat
-          [ pwords it, pwords "occurs", prettyR r
-          , pwords "in the", [th n], pwords "clause of"
-          , [prettyTCM f <> com ocs], prettyOcc "which" ocs
-          ]
-
-        prettyR NonPositively = pwords "negatively"
-        prettyR (ArgumentTo i q) =
-          pwords "as the" ++ [th i] ++
-          pwords "argument to" ++ [prettyTCM q]
-
-        th 0 = text "first"
-        th 1 = text "second"
-        th 2 = text "third"
-        th n = prettyTCM (n - 1) <> text "th"
-
-        com []    = empty
-        com (_:_) = comma
 
     TooManyPolarities x n -> fsep $
       pwords "Too many polarities given in the POLARITY pragma for" ++

@@ -69,6 +69,7 @@ instance EmbPrj HP.OtherAspect where
   icod_ HP.IncompletePattern  = icode0 4
   icod_ HP.TypeChecks         = icode0 5
   icod_ HP.UnsolvedConstraint = icode0 6
+  icod_ HP.PositivityProblem  = icode0 7
 
   value = vcase valu where
     valu [0] = valu0 HP.Error
@@ -78,6 +79,7 @@ instance EmbPrj HP.OtherAspect where
     valu [4] = valu0 HP.IncompletePattern
     valu [5] = valu0 HP.TypeChecks
     valu [6] = valu0 HP.UnsolvedConstraint
+    valu [7] = valu0 HP.PositivityProblem
     valu _   = malformed
 
 instance EmbPrj HP.Aspects where
