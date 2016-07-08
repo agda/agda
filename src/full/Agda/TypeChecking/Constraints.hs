@@ -86,7 +86,8 @@ noConstraints :: TCM a -> TCM a
 noConstraints problem = liftTCM $ do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
-  unless (List.null cs) $ typeError $ UnsolvedConstraints cs
+  tcst <- get
+  unless (List.null cs) $ typeError $ NonFatalErrors [ UnsolvedConstraints tcst cs ]
   return x
 
 -- | Create a fresh problem for the given action.

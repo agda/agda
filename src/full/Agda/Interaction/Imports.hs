@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP           #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 {-| This module deals with finding imported modules and loading their
     interface files.
@@ -144,11 +145,18 @@ scopeCheckImport x = do
     let s = iScope i
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, s)
 
-data MaybeWarnings = NoWarnings | SomeWarnings Warnings
+data MaybeWarnings' a = NoWarnings | SomeWarnings a
+  deriving (Functor)
+type MaybeWarnings = MaybeWarnings' [Warning]
+
+instance Null a => Null (MaybeWarnings' a) where
+  empty = NoWarnings
+  null mws = case mws of
+    NoWarnings      -> True
+    SomeWarnings ws -> null ws
 
 hasWarnings :: MaybeWarnings -> Bool
-hasWarnings NoWarnings     = False
-hasWarnings SomeWarnings{} = True
+hasWarnings = not . null
 
 -- | If the module has already been visited (without warnings), then
 -- its interface is returned directly. Otherwise the computation is
@@ -378,7 +386,9 @@ getInterface' x isMain = do
           unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
                 (chaseMsg "Checking" $ Just $ filePath file)
-                (const $ chaseMsg "Finished" Nothing)
+                (const $ do
+                   ws <- getAllWarnings RespectFlags
+                   unless (hasWarnings ws) $ chaseMsg "Finished" Nothing)
 
           -- Do the type checking.
 
@@ -659,23 +669,19 @@ createInterface file mname =
     unless (null openMetas) $ do
       reportSLn "import.metas" 10 "We have unsolved metas."
       reportSLn "import.metas" 10 . unlines =<< showOpenMetas
-    unsolvedMetas       <- List.nub <$> mapM getMetaRange openMetas
-    unsolvedConstraints <- getAllConstraints
-    interactionPoints   <- getInteractionPoints
+    mallWarnings <- getAllWarnings IgnoreFlags
 
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
     reportSLn "import.iface.create" 7 $ "Starting writing to interface file."
-    warn <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
-     then Bench.billTo [Bench.Serialization] $ do
-      -- The file was successfully type-checked (and no warnings were
-      -- encountered), so the interface should be written out.
-      let ifile = filePath $ toIFile file
-      writeInterface ifile i
-      return NoWarnings
-     else do
-      return $ SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints
+    case mallWarnings of
+      SomeWarnings allWarnings -> return ()
+      NoWarnings               -> Bench.billTo [Bench.Serialization] $ do
+        -- The file was successfully type-checked (and no warnings were
+        -- encountered), so the interface should be written out.
+        let ifile = filePath $ toIFile file
+        writeInterface ifile i
     reportSLn "import.iface.create" 7 $ "Finished writing to interface file."
 
     -- Profiling: Print statistics.
@@ -688,7 +694,34 @@ createInterface file mname =
     verboseS "profile" 1 $ do
       reportSLn "import.iface" 5 $ "Accumulated statistics."
 
-    return (constructIScope i, warn)
+    return $ first constructIScope (i, mallWarnings)
+
+-- | Collect all warnings that have accumulated in the state.
+-- Depending on the argument, we either respect the flags passed
+-- in by the user, or not (for instance when deciding if we are
+-- writing an interface file or not)
+
+getAllWarnings :: IgnoreFlags -> TCM MaybeWarnings
+getAllWarnings ifs = do
+  openMetas            <- getOpenMetas
+  interactionMetas     <- getInteractionMetas
+  unsolvedInteractions <- List.nub <$> mapM getMetaRange interactionMetas
+  unsolvedMetas        <- List.nub <$> mapM getMetaRange (openMetas List.\\ interactionMetas)
+  unsolvedConstraints  <- getAllConstraints
+  collectedWarnings    <- use stWarnings
+  interactionPoints    <- getInteractionPoints
+  tcst                 <- get
+
+  allWarnings <- applyFlagsToWarnings ifs $ reverse
+               $ UnsolvedInteractionMetas unsolvedInteractions
+               : UnsolvedMetaVariables    unsolvedMetas
+               : UnsolvedConstraints      tcst unsolvedConstraints
+               : collectedWarnings
+
+  return $ if and [ null allWarnings, null interactionPoints ]
+           then NoWarnings
+           else SomeWarnings allWarnings
+
 
 -- constructIScope :: ScopeInfo -> Map ModuleName Scope
 constructIScope :: Interface -> Interface

@@ -358,3 +358,11 @@ Emacs mode
 
     -- used to be:
     -- funField testFunRec x = {!!}
+
+* Non-fatal errors/warnings window.
+
+  Non-fatal errors and warnings are now displayed in their own emacs
+  window and does not interrupt the typechecking of the file.
+
+  Currently termination errors, unsolved metavariables and unsolved
+  constraints are non-fatal errors.

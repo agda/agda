@@ -233,16 +233,17 @@ handleCommand wrap onFail cmd = handleNastyErrors $ wrap $ do
     -- error. Because this function may switch the focus to another file
     -- the status information is also updated.
     handleErr e = do
+        unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
         meta    <- lift $ computeUnsolvedMetaWarnings
         constr  <- lift $ computeUnsolvedConstraints
         err     <- lift $ errorHighlighting e
         modFile <- lift $ use stModuleToSource
-        let info = compress $ mconcat
+        let info = compress $ mconcat $
                      -- Errors take precedence over unsolved things.
-                     [err, meta, constr]
+                     err : if unsolvedNotOK then [meta, constr] else []
         s <- lift $ prettyError e
         x <- lift $ optShowImplicit <$> use stPragmaOptions
-        mapM_ putResponse $
+        unless (null s) $ mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_HighlightingInfo info modFile ] ++
@@ -301,6 +302,9 @@ data Interaction' range
     -- | Show unsolved metas. If there are no unsolved metas but unsolved constraints
     -- show those instead.
   | Cmd_metas
+
+    -- | Display all warnings.
+  | Cmd_warnings
 
     -- | Shows all the top-level names in the given module, along with
     -- their types. Uses the top-level scope.
@@ -534,11 +538,23 @@ interpret Cmd_constraints =
     display_info . Info_Constraints . unlines . map show =<< lift B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
-  ms <- lift $ showOpenMetas
+  unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
+  ms <- lift showOpenMetas
   -- If we do not have open metas, but open constaints, display those.
   ifM (return (null ms) `and2M` do not . null <$> lift B.getConstraints)
-    {-then-} (interpret Cmd_constraints)
+    {-then-} (when unsolvedNotOK $ interpret Cmd_constraints)
     {-else-} (display_info $ Info_AllGoals $ unlines ms)
+  interpret Cmd_warnings
+
+
+interpret Cmd_warnings = do
+  mws <- lift $ Imp.getAllWarnings RespectFlags
+  case removeGoals <$> mws of
+    Imp.NoWarnings -> return ()
+    Imp.SomeWarnings ws -> unless (null ws) $ do
+      pws <- lift $ prettyWarnings ws
+      display_info $ Info_Warning pws
+   where removeGoals = filter $ \ w -> case w of { UnsolvedInteractionMetas{} -> False ; _ -> True }
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
@@ -770,7 +786,9 @@ showOpenMetas = do
     B.withInteractionId (B.outputFormId $ B.OutputForm noRange 0 i) $
       showATop i
   -- Show unsolved implicit arguments simplified.
-  dh <- mapM showA' =<< B.typesOfHiddenMetas B.Simplified
+  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  hms <- (guard unsolvedNotOK >>) <$> B.typesOfHiddenMetas B.Simplified
+  dh <- mapM showA' hms
   return $ di ++ dh
   where
     metaId (B.OfType i _) = i
@@ -818,8 +836,8 @@ cmd_load' file argv unsolvedOK cmd = do
     case z of
       Left err   -> lift $ typeError $ GenericError err
       Right opts -> do
-        lift $ TM.setCommandLineOptions' relativeTo $
-          mapPragmaOptions (\ o -> o { optAllowUnsolved = unsolvedOK }) opts
+        let update o = o { optAllowUnsolved = unsolvedOK && optAllowUnsolved o}
+        lift $ TM.setCommandLineOptions' relativeTo $ mapPragmaOptions update opts
         displayStatus
 
     -- Reset the state, preserving options and decoded modules. Note

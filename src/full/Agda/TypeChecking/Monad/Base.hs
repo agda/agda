@@ -181,6 +181,7 @@ data PostScopeState = PostScopeState
   , stPostStatistics          :: Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
+  , stPostWarnings            :: [Warning]
   , stPostMutualBlocks        :: Map MutualId (Set QName)
   , stPostLocalBuiltins       :: BuiltinThings PrimFun
   , stPostFreshMetaId         :: MetaId
@@ -291,6 +292,7 @@ initPostScopeState = PostScopeState
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , Set.empty)
   , stPostStatistics           = Map.empty
+  , stPostWarnings             = []
   , stPostMutualBlocks         = Map.empty
   , stPostLocalBuiltins        = Map.empty
   , stPostFreshMetaId          = 0
@@ -466,6 +468,11 @@ stStatistics :: Lens' Statistics TCState
 stStatistics f s =
   f (stPostStatistics (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostStatistics = x}}
+
+stWarnings :: Lens' [Warning] TCState
+stWarnings f s =
+  f (stPostWarnings (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostWarnings = x}}
 
 stMutualBlocks :: Lens' (Map MutualId (Set QName)) TCState
 stMutualBlocks f s =
@@ -706,7 +713,7 @@ data Closure a = Closure { clSignature        :: Signature
                          , clModuleParameters :: Map ModuleName ModuleParameters
                          , clValue            :: a
                          }
-    deriving (Typeable)
+    deriving (Typeable, Functor, Foldable)
 
 instance Show a => Show (Closure a) where
   show cl = "Closure " ++ show (clValue cl)
@@ -2129,6 +2136,23 @@ data Candidate  = Candidate { candidateTerm :: Term
                             }
   deriving (Show)
 
+---------------------------------------------------------------------------
+-- * Type checking warnings (aka non-fatal errors)
+---------------------------------------------------------------------------
+
+-- | A non-fatal error is an error which does not prevent us from
+-- checking the document further and interacting with the user.
+
+-- We keep the state for termination issues, positivity issues and
+-- unsolved constraints from when we encountered the warning so that
+-- we can print it later
+data Warning =
+    TerminationIssue         TCState (Closure [TerminationError])
+  | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
+  | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
+  | UnsolvedConstraints      TCState Constraints
+    -- ^ Do not use directly with 'warning'
+  deriving (Show)
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2364,10 +2388,8 @@ data TypeError
         | TooManyPolarities QName Integer
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
-        | UnsolvedMetas [Range]
-        | UnsolvedConstraints Constraints
         | SolvedButOpenHoles
-          -- ^ Some interaction points (holes) have not be filled by user.
+          -- ^ Some interaction points (holes) have not been filled by user.
           --   There are not 'UnsolvedMetas' since unification solved them.
           --   This is an error, since interaction points are never filled
           --   without user interaction.
@@ -2436,6 +2458,8 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting
+    -- Failure associated to warnings
+        | NonFatalErrors [Warning]
           deriving (Typeable, Show)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
@@ -2740,6 +2764,14 @@ typeError err = liftTCM $ throwError =<< typeError_ err
 {-# SPECIALIZE typeError_ :: TypeError -> TCM TCErr #-}
 typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
 typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
+
+{-# SPECIALIZE warning :: Warning -> TCM () #-}
+warnings :: MonadTCM tcm => [Warning] -> tcm ()
+warnings ws = stWarnings %= (ws ++)
+
+{-# SPECIALIZE warning :: Warning -> TCM () #-}
+warning :: MonadTCM tcm => Warning -> tcm ()
+warning = warnings . return
 
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}

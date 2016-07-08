@@ -5,8 +5,9 @@
 module Agda.TypeChecking.Errors
   ( prettyError
   , tcErrString
-  , Warnings(..)
+  , prettyWarnings
   , warningsToError
+  , applyFlagsToWarnings
   ) where
 
 import Prelude hiding (null)
@@ -21,6 +22,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Text.PrettyPrint.Boxes as Boxes
 
+import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
@@ -45,7 +47,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce (instantiate)
 
-import Agda.Utils.Except ( MonadError(catchError) )
+import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.List
@@ -79,24 +81,72 @@ prettyError err = liftTCM $ show <$> prettyError' err []
 -- * Warnings
 ---------------------------------------------------------------------------
 
--- | Warnings.
---
--- Invariant: The fields are never empty at the same time.
+instance PrettyTCM Warning where
+  prettyTCM wng = case wng of
 
-data Warnings = Warnings
-  { unsolvedMetaVariables :: [Range]
-    -- ^ Meta-variable problems are reported as type errors unless
-    -- 'optAllowUnsolved' is 'True'.
-  , unsolvedConstraints   :: Constraints
-    -- ^ Same as 'unsolvedMetaVariables'.
-  }
+    UnsolvedMetaVariables ms  ->
+      fsep ( pwords "Unsolved metas at the following locations:" )
+      $$ nest 2 (vcat $ map prettyTCM ms)
 
--- | Turns warnings into an error. Even if several errors are possible
---   only one is raised.
-warningsToError :: Warnings -> TCM a
-warningsToError (Warnings [] [])     = typeError $ SolvedButOpenHoles
-warningsToError (Warnings w@(_:_) _) = typeError $ UnsolvedMetas w
-warningsToError (Warnings _ w@(_:_)) = typeError $ UnsolvedConstraints w
+    UnsolvedInteractionMetas is ->
+      fsep ( pwords "Unsolved interaction metas at the following locations:" )
+      $$ nest 2 (vcat $ map prettyTCM is)
+
+    UnsolvedConstraints tcst cs -> localState $ do
+      put tcst
+      fsep ( pwords "Failed to solve the following constraints:" )
+      $$ nest 2 (vcat $ map prettyConstraint cs)
+
+      where prettyConstraint :: ProblemConstraint -> TCM Doc
+            prettyConstraint c = f (prettyTCM c)
+              where
+              r   = getRange c
+              f d = if null $ P.pretty r
+                    then d
+                    else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
+
+    TerminationIssue tcst tes -> localState $ do
+      put tcst
+      sayWhen (envRange $ clEnv tes) (envCall $ clEnv tes) $
+        fwords "Termination checking failed for the following functions:"
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevelModule) $
+               concatMap termErrFunctions $ clValue tes)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls $ clValue tes)
+
+prettyWarnings :: [Warning] -> TCM String
+prettyWarnings = fmap (unlines . intersperse " ") . prettyWarnings'
+
+prettyWarnings' :: [Warning] -> TCM [String]
+prettyWarnings' = mapM (fmap show . prettyTCM)
+
+-- | Turns all warnings into errors.
+warningsToError :: [Warning] -> TCM a
+warningsToError ws = typeError $ case ws of
+  [] -> SolvedButOpenHoles
+  _  -> NonFatalErrors ws
+
+
+-- | Depending which flags are set, one may happily ignore some
+-- warnings.
+
+applyFlagsToWarnings :: IgnoreFlags -> [Warning] -> TCM [Warning]
+applyFlagsToWarnings ifs ws = do
+
+  unsolvedNotOK <- not . optAllowUnsolved <$> pragmaOptions
+  loopingNotOK  <- optTerminationCheck <$> pragmaOptions
+  let ignore = case ifs of { IgnoreFlags -> True ; RespectFlags -> False }
+
+  let cleanUp w = case w of
+       TerminationIssue{}           -> ignore || loopingNotOK
+       UnsolvedMetaVariables ums    -> not (null ums) && (ignore || unsolvedNotOK)
+       UnsolvedInteractionMetas uis -> not (null uis) && (ignore || unsolvedNotOK)
+       UnsolvedConstraints tcst ucs -> not (null ucs) && (ignore || unsolvedNotOK)
+
+  return $ filter cleanUp ws
 
 ---------------------------------------------------------------------------
 -- * Helpers
@@ -262,8 +312,6 @@ errorString err = case err of
   UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
   UninstantiatedModule{}                   -> "UninstantiatedModule"
   UnreachableClauses{}                     -> "UnreachableClauses"
-  UnsolvedConstraints{}                    -> "UnsolvedConstraints"
-  UnsolvedMetas{}                          -> "UnsolvedMetas"
   SolvedButOpenHoles{}                     -> "SolvedButOpenHoles"
   UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
   UnquoteFailed{}                          -> "UnquoteFailed"
@@ -279,9 +327,14 @@ errorString err = case err of
   WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
   HidingMismatch{}                         -> "HidingMismatch"
   RelevanceMismatch{}                      -> "RelevanceMismatch"
+  NonFatalErrors{}                         -> "NonFatalErrors"
 
 instance PrettyTCM TCErr where
   prettyTCM err = case err of
+    -- Gallais, 2016-05-14
+    -- Given where `NonFatalErrors` are created, we know for a
+    -- fact that ̀ws` is non-empty.
+    TypeError _ (Closure _ _ _ _ (NonFatalErrors ws)) -> foldr1 ($$) $ fmap prettyTCM ws
     -- Andreas, 2014-03-23
     -- This use of localState seems ok since we do not collect
     -- Benchmark info during printing errors.
@@ -648,22 +701,6 @@ instance PrettyTCM TypeError where
 
     SolvedButOpenHoles ->
       text "Module cannot be imported since it has open interaction points"
-
-    UnsolvedMetas rs ->
-      fsep ( pwords "Unsolved metas at the following locations:" )
-      $$ nest 2 (vcat $ map prettyTCM rs)
-
-    UnsolvedConstraints cs ->
-      fsep ( pwords "Failed to solve the following constraints:" )
-      $$ nest 2 (vcat $ map prettyConstraint cs)
-
-      where prettyConstraint :: ProblemConstraint -> TCM Doc
-            prettyConstraint c = f (prettyTCM c)
-              where
-              r   = getRange c
-              f d = if null $ P.pretty r
-                    then d
-                    else d $$ nest 4 (text "[ at" <+> prettyTCM r <+> text "]")
 
     CyclicModuleDependency ms ->
       fsep (pwords "cyclic module dependency:")
@@ -1179,8 +1216,11 @@ instance PrettyTCM TypeError where
 
     NeedOptionCopatterns -> fsep $
       pwords "Option --copatterns needed to enable destructor patterns"
+
     NeedOptionRewriting  -> fsep $
       pwords "Option --rewriting needed to add and use rewrite rules"
+
+    NonFatalErrors ws -> foldr1 ($$) $ fmap prettyTCM ws
 
     where
     mpar n args

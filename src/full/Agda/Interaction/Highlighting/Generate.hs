@@ -163,6 +163,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
+    warnInfo <- fmap Fold.fold $ fmap warningHighlighting <$> use stWarnings
+
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
@@ -179,6 +181,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     let syntaxInfo = compress (mconcat [ constructorInfo
                                        , theRest modMap file
                                        , nameInfo
+                                       , warnInfo
                                        ])
                        `mappend`
                      curTokens
@@ -520,6 +523,14 @@ errorHighlighting e = do
                   , note         = Just s
                   }
   return $ mconcat [ erase, error ]
+
+-- | Generate syntax highlighting for warnings.
+
+warningHighlighting :: Warning -> File
+warningHighlighting w = case w of
+  TerminationIssue tcst terrs -> terminationErrorHighlighting $ clValue terrs
+  _ -> mempty
+
 
 -- | Generate syntax highlighting for termination errors.
 
