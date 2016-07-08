@@ -53,7 +53,7 @@ import Data.Maybe
 import Data.Semigroup ( Semigroup, Monoid, (<>), mempty, mappend )
 import Data.List as List hiding (null)
 import qualified Data.Set as Set
-import Data.Traversable (traverse)
+import Data.Traversable (Traversable, traverse)
 import Data.Typeable (Typeable)
 
 import Agda.Syntax.Concrete
@@ -1173,52 +1173,6 @@ niceDeclarations ds = do
       let (ds', anyChange) = runChange $ mapM mkPrivate ds
       if anyChange then return ds' else throwError $ UselessPrivate r
 
-    -- Make a declaration private.
-    -- Andreas, 2012-11-17:
-    -- Mark computation 'dirty' if there was a declaration that could be privatized.
-    -- If no privatization is taking place, we want to complain about 'UselessPrivate'.
-    -- Alternatively, we could only dirty if a non-private thing was privatized.
-    -- Then, nested 'private's would sometimes also be complained about.
-    mkPrivate :: Updater NiceDeclaration
-    mkPrivate d =
-      case d of
-        Axiom r f p i rel mp x e         -> (\ p -> Axiom r f p i rel mp x e) <$> setPrivate p
-        NiceField r i f p a x e          -> (\ p -> NiceField r i f p a x e) <$> setPrivate p
-        PrimitiveFunction r f p a x e    -> (\ p -> PrimitiveFunction r f p a x e) <$> setPrivate p
-        NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mapM mkPrivate ds
-        NiceModule r p a x tel ds        -> (\ p -> NiceModule r p a x tel ds) <$> setPrivate p
-        NiceModuleMacro r p x ma op is   -> (\ p -> NiceModuleMacro r p x ma op is) <$> setPrivate p
-        FunSig r f p i m rel tc x e      -> (\ p -> FunSig r f p i m rel tc x e) <$> setPrivate p
-        NiceRecSig r f p x ls t pc       -> (\ p -> NiceRecSig r f p x ls t pc) <$> setPrivate p
-        NiceDataSig r f p x ls t pc      -> (\ p -> NiceDataSig r f p x ls t pc) <$> setPrivate p
-        NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> setPrivate p
-        NiceUnquoteDecl r f p i a t x e  -> (\ p -> NiceUnquoteDecl r f p i a t x e) <$> setPrivate p
-        NiceUnquoteDef r f p a t x e     -> (\ p -> NiceUnquoteDef r f p a t x e) <$> setPrivate p
-        NicePragma _ _                   -> return $ d
-        NiceOpen _ _ _                   -> return $ d
-        NiceImport _ _ _ _ _             -> return $ d
-        FunDef{}                         -> return $ d
-        DataDef{}                        -> return $ d
-        RecDef{}                         -> return $ d
-        NicePatternSyn _ _ _ _ _         -> return $ d
-
-    setPrivate :: Updater Access
-    setPrivate p = case p of
-      PrivateAccess -> return p
-      _             -> dirty $ PrivateAccess
-
-    -- Andreas, 2012-11-22: Q: is this necessary?
-    -- Are where clauses not always private?
-    mkPrivateClause :: Updater Clause
-    mkPrivateClause (Clause x catchall lhs rhs wh with) = do
-        wh <- mkPrivateWhere wh
-        Clause x catchall lhs rhs wh <$> mapM mkPrivateClause with
-
-    mkPrivateWhere :: Updater WhereClause
-    mkPrivateWhere  NoWhere         = return $ NoWhere
-    mkPrivateWhere (AnyWhere ds)    = dirty  $ AnyWhere [Private (getRange ds) ds]
-    mkPrivateWhere (SomeWhere m ds) = dirty  $ SomeWhere m [Private (getRange ds) ds]
-
     instanceBlock _ [] = return []
     instanceBlock r ds = do
       let (ds', anyChange) = runChange $ mapM mkInstance ds
@@ -1261,6 +1215,68 @@ niceDeclarations ds = do
         FunSig r f p i _ rel tc x e -> return $ FunSig r f p i MacroDef rel tc x e
         FunDef{}                    -> return d
         _                           -> throwError (BadMacroDef d)
+
+-- | Make a declaration private.
+--
+-- Andreas, 2012-11-17:
+-- Mark computation as 'dirty' if there was a declaration that could be privatized.
+-- If no privatization is taking place, we want to complain about 'UselessPrivate'.
+--
+-- Alternatively, we could only flag 'dirty' if a non-private thing was privatized.
+-- Then, nested @private@s would sometimes also be complained about.
+
+class MakePrivate a where
+  mkPrivate :: Updater a
+  -- default mkPrivate :: (Traversable f, MakePrivate a) => Updater (f a)
+  default mkPrivate :: (Traversable f) => Updater (f a)
+  mkPrivate = traverse mkPrivate
+
+instance MakePrivate a => MakePrivate [a] where
+  -- Default definition kicks in here!
+  -- But note that we still have to declare the instance!
+
+-- Leads to overlap with 'WhereClause':
+-- instance (Traversable f, MakePrivate a) => MakePrivate (f a) where
+--   mkPrivate = traverse mkPrivate
+
+instance MakePrivate Access where
+  mkPrivate p = case p of
+    PrivateAccess -> return p
+    _             -> dirty $ PrivateAccess
+
+instance MakePrivate NiceDeclaration where
+  mkPrivate d =
+    case d of
+      Axiom r f p i rel mp x e                 -> (\ p -> Axiom r f p i rel mp x e)                 <$> mkPrivate p
+      NiceField r i f p a x e                  -> (\ p -> NiceField r i f p a x e)                  <$> mkPrivate p
+      PrimitiveFunction r f p a x e            -> (\ p -> PrimitiveFunction r f p a x e)            <$> mkPrivate p
+      NiceMutual r termCheck pc ds             -> (\ p -> NiceMutual r termCheck pc p)              <$> mkPrivate ds
+      NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)                <$> mkPrivate p
+      NiceModuleMacro r p x ma op is           -> (\ p -> NiceModuleMacro r p x ma op is)           <$> mkPrivate p
+      FunSig r f p i m rel tc x e              -> (\ p -> FunSig r f p i m rel tc x e)              <$> mkPrivate p
+      NiceRecSig r f p x ls t pc               -> (\ p -> NiceRecSig r f p x ls t pc)               <$> mkPrivate p
+      NiceDataSig r f p x ls t pc              -> (\ p -> NiceDataSig r f p x ls t pc)              <$> mkPrivate p
+      NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> mkPrivate p
+      NiceUnquoteDecl r f p i a t x e          -> (\ p -> NiceUnquoteDecl r f p i a t x e)          <$> mkPrivate p
+      NiceUnquoteDef r f p a t x e             -> (\ p -> NiceUnquoteDef r f p a t x e)             <$> mkPrivate p
+      NicePragma _ _                           -> return $ d
+      NiceOpen _ _ _                           -> return $ d
+      NiceImport _ _ _ _ _                     -> return $ d
+      FunDef{}                                 -> return $ d
+      DataDef{}                                -> return $ d
+      RecDef{}                                 -> return $ d
+      NicePatternSyn _ _ _ _ _                 -> return $ d
+
+    -- Andreas, 2012-11-22: Q: is this necessary?
+    -- Are @where@ clauses not always private?
+instance MakePrivate Clause where
+  mkPrivate (Clause x catchall lhs rhs wh with) = do
+    Clause x catchall lhs rhs <$> mkPrivate wh <*> mkPrivate with
+
+instance MakePrivate WhereClause where
+  mkPrivate  NoWhere         = return $ NoWhere
+  mkPrivate (AnyWhere ds)    = dirty  $ AnyWhere [Private (getRange ds) ds]
+  mkPrivate (SomeWhere m ds) = dirty  $ SomeWhere m [Private (getRange ds) ds]
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 --   OR:  Disjoint union of fixity maps.  Throws exception if not disjoint.
