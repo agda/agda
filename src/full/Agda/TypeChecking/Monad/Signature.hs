@@ -220,15 +220,27 @@ setDefaultModuleParameters :: ModuleName -> TCM ()
 setDefaultModuleParameters m =
   stModuleParameters %= Map.insert m defaultModuleParameters
 
--- | Lookup a section. If it doesn't exist that just means that the module
---   wasn't parameterised.
+-- | Get a section.
+--
+--   Why Maybe? The reason is that we look up all prefixes of a module to
+--   compute number of parameters, and for hierarchical top-level modules,
+--   A.B.C say, A and A.B do not exist.
+{-# SPECIALIZE getSection :: ModuleName -> TCM (Maybe Section) #-}
+{-# SPECIALIZE getSection :: ModuleName -> ReduceM (Maybe Section) #-}
+getSection :: (Functor m, ReadTCState m) => ModuleName -> m (Maybe Section)
+getSection m = do
+  sig  <- (^. stSignature . sigSections) <$> getTCState
+  isig <- (^. stImports   . sigSections) <$> getTCState
+  return $ Map.lookup m sig `mplus` Map.lookup m isig
+
+-- | Lookup a section telescope.
+--
+--   If it doesn't exist, like in hierarchical top-level modules,
+--   the section telescope is empty.
 {-# SPECIALIZE lookupSection :: ModuleName -> TCM Telescope #-}
 {-# SPECIALIZE lookupSection :: ModuleName -> ReduceM Telescope #-}
 lookupSection :: (Functor m, ReadTCState m) => ModuleName -> m Telescope
-lookupSection m = do
-  sig  <- (^. stSignature . sigSections) <$> getTCState
-  isig <- (^. stImports   . sigSections) <$> getTCState
-  return $ maybe EmptyTel (^. secTelescope) $ Map.lookup m sig `mplus` Map.lookup m isig
+lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 
 -- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
 addDisplayForms :: QName -> TCM ()
@@ -736,15 +748,6 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
 -- | Check whether two definitions are mutually recursive.
 mutuallyRecursive :: QName -> QName -> TCM Bool
 mutuallyRecursive d d' = (d `elem`) <$> getMutual d'
-
--- | Why Maybe? The reason is that we look up all prefixes of a module to
---   compute number of parameters, and for hierarchical top-level modules,
---   A.B.C say, A and A.B do not exist.
-getSection :: ModuleName -> TCM (Maybe Section)
-getSection m = do
-  sig  <- use $ stSignature . sigSections
-  isig <- use $ stImports   . sigSections
-  return $ Map.lookup m sig <|> Map.lookup m isig
 
 -- | Get the number of parameters to the current module.
 getCurrentModuleFreeVars :: TCM Nat

@@ -730,6 +730,15 @@ data Access = PrivateAccess | PublicAccess
                              --   Used for qualified constructors.
     deriving (Typeable, Show, Eq, Ord)
 
+instance NFData Access where
+  rnf _ = ()
+
+instance HasRange Access where
+  getRange _ = noRange
+
+instance KillRange Access where
+  killRange = id
+
 -- | Abstract or concrete
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Typeable, Show, Eq, Ord)

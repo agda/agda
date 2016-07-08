@@ -1028,8 +1028,8 @@ WhereClause :: { WhereClause }
 WhereClause
     : {- empty -}                      { NoWhere         }
     | 'where' Declarations0            { AnyWhere $2     }
-    | 'module' Id 'where' Declarations0 { SomeWhere $2 $4 }
-    | 'module' Underscore 'where' Declarations0 { SomeWhere $2 $4 }
+    | 'module' Id 'where' Declarations0 { SomeWhere $2 PublicAccess $4 }
+    | 'module' Underscore 'where' Declarations0 { SomeWhere $2 PublicAccess $4 }
 
 ExprWhere :: { ExprWhere }
 ExprWhere : Expr WhereClause { ExprWhere $1 $2 }

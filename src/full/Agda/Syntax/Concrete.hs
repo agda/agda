@@ -287,7 +287,10 @@ type WhereClause = WhereClause' [Declaration]
 data WhereClause' decls
   = NoWhere               -- ^ No @where@ clauses.
   | AnyWhere decls        -- ^ Ordinary @where@.
-  | SomeWhere Name decls  -- ^ Named where: @module M where@.
+  | SomeWhere Name Access decls
+    -- ^ Named where: @module M where@.
+    --   The 'Access' flag applies to the 'Name' (not the module contents!)
+    --   and is propagated from the parent function.
   deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | An expression followed by a where clause.
@@ -585,7 +588,7 @@ instance HasRange BoundName where
 instance HasRange WhereClause where
   getRange  NoWhere         = noRange
   getRange (AnyWhere ds)    = getRange ds
-  getRange (SomeWhere _ ds) = getRange ds
+  getRange (SomeWhere _ _ ds) = getRange ds
 
 instance HasRange ModuleApplication where
   getRange (SectionApp r _ _) = r
@@ -852,7 +855,7 @@ instance KillRange TypedBindings where
 instance KillRange WhereClause where
   killRange NoWhere         = NoWhere
   killRange (AnyWhere d)    = killRange1 AnyWhere d
-  killRange (SomeWhere n d) = killRange2 SomeWhere n d
+  killRange (SomeWhere n a d) = killRange3 SomeWhere n a d
 
 ------------------------------------------------------------------------
 -- NFData instances
@@ -1013,7 +1016,7 @@ instance NFData ModuleAssignment where
 instance NFData a => NFData (WhereClause' a) where
   rnf NoWhere         = ()
   rnf (AnyWhere a)    = rnf a
-  rnf (SomeWhere a b) = rnf a `seq` rnf b
+  rnf (SomeWhere a b c) = rnf a `seq` rnf b `seq` rnf c
 
 instance NFData a => NFData (LamBinding' a) where
   rnf (DomainFree a b) = rnf a `seq` rnf b

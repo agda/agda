@@ -1756,7 +1756,7 @@ instance ToAbstract C.Clause A.Clause where
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
           AnyWhere ds    -> (Nothing, ds)
-          SomeWhere m ds -> (Just m, ds)
+          SomeWhere m a ds -> (Just (m, a), ds)
 
     let isTerminationPragma :: C.Declaration -> Bool
         isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
@@ -1778,14 +1778,15 @@ instance ToAbstract C.Clause A.Clause where
         rhs <- toAbstract rhs
         return $ A.Clause lhs' [] rhs ds catchall
 
-whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
+whereToAbstract :: Range -> Maybe (C.Name, Access) -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
 whereToAbstract _ _      []   inner = (,[]) <$> inner
 whereToAbstract r whname whds inner = do
   -- Create a fresh concrete name if there isn't (a proper) one.
-  m <- case whname of
-         Just m | not (isNoName m) -> return m
-         _                         -> C.NoName (getRange whname) <$> fresh
-  let acc = maybe PrivateAccess (const PublicAccess) whname  -- unnamed where's are private
+  (m, acc) <- do
+    case whname of
+      Just (m, acc) | not (isNoName m) -> return (m, acc)
+      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess)
+           -- unnamed where's are private
   let tel = []
   old <- getCurrentModule
   am  <- toAbstract (NewModuleName m)
@@ -1795,8 +1796,8 @@ whereToAbstract r whname whds inner = do
   setCurrentModule old
   bindModule acc m am
   -- Issue 848: if the module was anonymous (module _ where) open it public
-  let anonymous = maybe False isNoName whname
-  when anonymous $
+  let anonymousSomeWhere = maybe False (isNoName . fst) whname
+  when anonymousSomeWhere $
    void $ -- We can ignore the returned default A.ImportDirective.
     openModule_ (C.QName m) $
       defaultImportDir { publicOpen = True }

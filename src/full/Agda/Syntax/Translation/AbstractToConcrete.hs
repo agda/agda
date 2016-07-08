@@ -593,7 +593,9 @@ instance ToConcrete AsWhereDecls WhereClause where
   bindToConcrete (AsWhereDecls ds@[Section _ am _ _]) ret = do
     ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
-    let wh' = (if isNoName cm then AnyWhere else SomeWhere cm) $ ds'
+    -- Andreas, 2016-07-08 I put PublicAccess in the following SomeWhere
+    -- Should not really matter for printing...
+    let wh' = (if isNoName cm then AnyWhere else SomeWhere cm PublicAccess) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
   bindToConcrete (AsWhereDecls ds) ret =
     ret . AnyWhere =<< declsToConcrete ds
