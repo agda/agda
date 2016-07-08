@@ -19,7 +19,7 @@ Language Reference
    instance-arguments
    irrelevance
    lambda-abstraction
-   let-expressions
+   let-and-where
    lexical-structure
    literal-overloading
    mixfix-operators
@@ -39,4 +39,3 @@ Language Reference
    universe-levels
    with-abstraction
    without-k
-
