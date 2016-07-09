@@ -24,8 +24,6 @@ import Data.Typeable (Typeable)
 
 import GHC.Generics (Generic)
 
-import Test.QuickCheck hiding (Small)
-
 import Agda.Syntax.Position
 
 import Agda.Utils.Functor
@@ -61,13 +59,6 @@ instance HasRange Induction where
 
 instance KillRange Induction where
   killRange = id
-
-instance Arbitrary Induction where
-  arbitrary = elements [Inductive, CoInductive]
-
-instance CoArbitrary Induction where
-  coarbitrary Inductive   = variant 0
-  coarbitrary CoInductive = variant 1
 
 instance NFData Induction where
   rnf Inductive   = ()
@@ -233,9 +224,6 @@ allRelevances =
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
-
-instance Arbitrary Relevance where
-  arbitrary = elements allRelevances
 
 instance Ord Relevance where
   (<=) = moreRelevant
@@ -733,6 +721,15 @@ data Access = PrivateAccess | PublicAccess
                              --   Used for qualified constructors.
     deriving (Typeable, Show, Eq, Ord)
 
+instance NFData Access where
+  rnf _ = ()
+
+instance HasRange Access where
+  getRange _ = noRange
+
+instance KillRange Access where
+  killRange = id
+
 -- | Abstract or concrete
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Typeable, Show, Eq, Ord)
@@ -791,11 +788,6 @@ instance NFData NameId where
 instance Hashable NameId where
   {-# INLINE hashWithSalt #-}
   hashWithSalt salt (NameId n m) = hashWithSalt salt (n, m)
-
-instance Arbitrary NameId where
-  arbitrary = elements [ NameId x y | x <- [-1, 1], y <- [-1, 1] ]
-
-instance CoArbitrary NameId
 
 ---------------------------------------------------------------------------
 -- * Meta variables

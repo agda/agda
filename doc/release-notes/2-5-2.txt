@@ -66,6 +66,11 @@ Installation and infrastructure
 
   For further motivation, see https://github.com/agda/agda/issues/2005.
 
+* Removed the `--test` command-line option
+
+  This option ran the internal test-suite. This test-suite was
+  implemented using Cabal supports for test-suites. [Issue #2083].
+
 Language
 ========
 

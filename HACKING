@@ -336,6 +336,26 @@ Testing and documentation
     export AGDA_TESTS_BIN=dist/dist-sandbox-12345/build/agda-tests/agda-tests
     make test
 
+Internal test-suite
+-------------------
+
+The internal test-suite is used for testing the Agda library (which
+after closing Issue #2083 doesn't use the QuickCheck library).
+
+The test-suite uses the same directory structure than the Agda
+library.
+
+A new internal test or a new QuickCheck instance, i.e. instances of
+`Arbitrary` or `CoArbitrary`, for a module
+
+  Agda.Foo.Bar
+
+should be added into the module
+
+  InternalTests.Foo.Bar
+
+in the internal test-suite.
+
 Some Agda Hacking Lore
 ----------------------
 

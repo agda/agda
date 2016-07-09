@@ -20,7 +20,7 @@ module Agda.Syntax.Parser.Parser (
     , exprParser
     , exprWhereParser
     , tokensParser
-    , tests
+    , splitOnDots  -- only used by the internal test-suite
     ) where
 
 import Control.Monad
@@ -52,9 +52,7 @@ import Agda.Utils.Hash
 import Agda.Utils.List (spanJust)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
-import Agda.Utils.QuickCheck
 import Agda.Utils.Singleton
-import Agda.Utils.TestHelpers
 import Agda.Utils.Tuple
 
 import Agda.Utils.Impossible
@@ -1028,8 +1026,8 @@ WhereClause :: { WhereClause }
 WhereClause
     : {- empty -}                      { NoWhere         }
     | 'where' Declarations0            { AnyWhere $2     }
-    | 'module' Id 'where' Declarations0 { SomeWhere $2 $4 }
-    | 'module' Underscore 'where' Declarations0 { SomeWhere $2 $4 }
+    | 'module' Id 'where' Declarations0 { SomeWhere $2 PublicAccess $4 }
+    | 'module' Underscore 'where' Declarations0 { SomeWhere $2 PublicAccess $4 }
 
 ExprWhere :: { ExprWhere }
 ExprWhere : Expr WhereClause { ExprWhere $1 $2 }
@@ -1843,13 +1841,6 @@ splitOnDots ('.' : s) = [] : splitOnDots s
 splitOnDots (c   : s) = case splitOnDots s of
   p : ps -> (c : p) : ps
 
-prop_splitOnDots = and
-  [ splitOnDots ""         == [""]
-  , splitOnDots "foo.bar"  == ["foo", "bar"]
-  , splitOnDots ".foo.bar" == ["", "foo", "bar"]
-  , splitOnDots "foo.bar." == ["foo", "bar", ""]
-  , splitOnDots "foo..bar" == ["foo", "", "bar"]
-  ]
 
 -- | Returns 'True' iff the name is a valid Haskell (hierarchical)
 -- module name.
@@ -1980,15 +1971,5 @@ parseDisplayPragma r pos s =
     ParseOk s [FunClause (LHS lhs [] [] []) (RHS rhs) NoWhere ca] | null (parseInp s) ->
       return $ DisplayPragma r lhs rhs
     _ -> parseError "Invalid DISPLAY pragma. Should have form {-# DISPLAY LHS = RHS #-}."
-
-{--------------------------------------------------------------------------
-    Tests
- --------------------------------------------------------------------------}
-
--- | Test suite.
-tests :: IO Bool
-tests = runTests "Agda.Syntax.Parser.Parser"
-  [ quickCheck' prop_splitOnDots
-  ]
 
 }

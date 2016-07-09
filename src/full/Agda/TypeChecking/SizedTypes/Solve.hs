@@ -113,6 +113,9 @@ solveSizeConstraints :: DefaultToInfty -> TCM ()
 solveSizeConstraints flag =  do
   -- Get the constraints.
   cs0 <- S.getSizeConstraints
+  unless (null cs0) $
+    reportSDoc "tc.size.solve" 40 $ vcat $
+      [ text "Solving constraints" ] ++ map prettyTCM cs0
   let -- Error for giving up
       cannotSolve = typeError . GenericDocError =<<
         vcat (text "Cannot solve size constraints" : map prettyTCM
@@ -278,9 +281,17 @@ solveCluster cs = do
     u <- if ok then return u else primSizeInf
     t <- getMetaType x
     reportSDoc "tc.size.solve" 20 $ inTopContext $ modifyContext (const gamma) $ do
-      text "solution " <+> prettyTCM (MetaV x []) <+> text " := " <+> prettyTCM u
+      let args = map (Apply . defaultArg . var) xs
+      text "solution " <+> prettyTCM (MetaV x args) <+> text " := " <+> prettyTCM u
+    reportSDoc "tc.size.solve" 60 $ vcat
+      [ text $ "  xs = " ++ show xs
+      , text $ "  u  = " ++ show u
+      ]
     assignMeta n x t xs u
-
+    -- WRONG:
+    -- let partialSubst = List.sort $ zip xs $ map var $ downFrom n
+    -- assignMeta' n x t (length xs) partialSubst u
+    -- WRONG: assign DirEq x (map (defaultArg . var) xs) u
 
 
 -- | Collect constraints from a typing context, looking for SIZELT hypotheses.
@@ -448,7 +459,9 @@ instance Flexs SizeMeta HypSizeConstraint where
 instance PrettyTCM HypSizeConstraint where
   prettyTCM (HypSizeConstraint cxt _ hs c) =
     inTopContext $ modifyContext (const cxt) $ do
+      let cxtNames = reverse $ map (fst . unDom . ctxEntry) cxt
       -- text ("[#cxt=" ++ show (size cxt) ++ "]") <+> do
+      prettyList (map prettyTCM cxtNames) <+> do
       applyUnless (null hs)
        (((hcat $ punctuate (text ", ") $ map prettyTCM hs) <+> text "|-") <+>)
        (prettyTCM c)

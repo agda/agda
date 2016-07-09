@@ -93,8 +93,8 @@ setup-emacs-mode : install-bin
 
 .PHONY : haddock
 haddock :
-	$(CABAL_CMD) configure --builddir=$(BUILD_DIR) --enable-tests
-	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR) --tests
+	$(CABAL_CMD) configure --builddir=$(BUILD_DIR)
+	$(CABAL_CMD) haddock --builddir=$(BUILD_DIR)
 
 .PHONY : doc
 doc :
@@ -132,17 +132,18 @@ quick : install-O0-bin quicktest
 .PHONY : test
 # We don't run the `epic-test` because the Epic backend has been
 # disabled. See Issue 1481.
-test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test
+test : check-whitespace succeed fail interaction interactive latex-html-test examples library-test api-test internal-tests benchmark-without-logs compiler-test lib-succeed lib-interaction user-manual-test
 
 .PHONY : quicktest
 quicktest : succeed fail
 
-.PHONY : tests
-tests :
+.PHONY : internal-tests
+internal-tests :
 	@echo "======================================================================"
 	@echo "======================== Internal test suite ========================="
 	@echo "======================================================================"
-	$(AGDA_BIN) --test +RTS -M1g
+#	$(AGDA_BIN) --test +RTS -M1g
+	$(CABAL_CMD) test internal-tests --builddir=$(BUILD_DIR) -j$(PARALLEL_TESTS)
 
 .PHONY : succeed
 succeed :

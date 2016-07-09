@@ -337,7 +337,7 @@ Verify the goal
 
 Find candidates
   In the second stage we compute a set of *candidates*. :ref:`Let-bound
-  <let-expressions>` variables and top-level definitions in scope are candidates if they
+  <let-and-where>` variables and top-level definitions in scope are candidates if they
   are defined in an ``instance`` block. Lambda-bound variables, i.e. variables
   bound in lambdas, function types, left-hand sides, or module parameters, are
   candidates if they are bound as instance arguments using ``{{ }}``.

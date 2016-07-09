@@ -14,7 +14,6 @@ module Agda.Interaction.Highlighting.Generate
   , computeUnsolvedMetaWarnings
   , computeUnsolvedConstraints
   , storeDisambiguatedName
-  , Agda.Interaction.Highlighting.Generate.tests
   ) where
 
 import Prelude hiding (null)
@@ -35,8 +34,8 @@ import qualified Data.IntMap as IntMap
 import Data.Void
 
 import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
-import Agda.Interaction.Highlighting.Precise hiding (tests)
-import Agda.Interaction.Highlighting.Range   hiding (tests)
+import Agda.Interaction.Highlighting.Precise
+import Agda.Interaction.Highlighting.Range
 
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
@@ -62,7 +61,6 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import qualified Agda.Utils.Maybe.Strict as Strict
 import Agda.Utils.Null
-import Agda.Utils.TestHelpers
 import Agda.Utils.HashMap (HashMap)
 import qualified Agda.Utils.HashMap as HMap
 
@@ -676,11 +674,3 @@ storeDisambiguatedName q = whenJust (start $ P.getRange q) $ \ i ->
   stDisambiguatedNames %= IntMap.insert i q
   where
   start r = fromIntegral . P.posPos <$> P.rStart' r
-
-------------------------------------------------------------------------
--- All tests
-
--- | All the properties.
-
-tests :: IO Bool
-tests = runTests "Agda.Interaction.Highlighting.Generate" []

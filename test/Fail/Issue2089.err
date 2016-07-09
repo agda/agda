@@ -1,0 +1,4 @@
+Issue2089.agda:9,21-30
+No such module M.Private
+when scope checking the declaration
+  module ShouldFail = M.Private

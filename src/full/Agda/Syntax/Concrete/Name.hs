@@ -18,8 +18,6 @@ import GHC.Generics (Generic)
 
 import System.FilePath
 
-import Test.QuickCheck
-
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Utils.FileName
@@ -294,37 +292,6 @@ instance Pretty QName where
 
 instance Pretty TopLevelModuleName where
   pretty (TopLevelModuleName ms) = text $ intercalate "." ms
-
-------------------------------------------------------------------------
--- * QuickCheck instances
-------------------------------------------------------------------------
-
-instance Arbitrary TopLevelModuleName where
-  arbitrary = TopLevelModuleName <$> listOf1 (listOf1 $ elements "AB")
-
-instance CoArbitrary TopLevelModuleName where
-  coarbitrary (TopLevelModuleName m) = coarbitrary m
-
-instance Arbitrary Name where
-  arbitrary = oneof
-    [ Name   <$> arbitrary <*> parts
-    , NoName <$> arbitrary <*> arbitrary
-    ]
-    where
-    parts = do
-      parts         <- listOf1 (elements ["x", "y", "z"])
-      startWithHole <- arbitrary
-      endWithHole   <- arbitrary
-      return $
-        (if startWithHole then (Hole :)    else id) $
-        (if endWithHole   then (++ [Hole]) else id) $
-        intersperse Hole (map Id parts)
-
-instance CoArbitrary NamePart
-
-instance CoArbitrary Name where
-  coarbitrary (Name _ ns)  = variant 0 . coarbitrary ns
-  coarbitrary (NoName _ i) = variant 1 . coarbitrary i
 
 ------------------------------------------------------------------------
 -- * Range instances

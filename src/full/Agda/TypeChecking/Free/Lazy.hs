@@ -36,8 +36,6 @@ import Data.IntMap (IntMap)
 import Data.Semigroup (Semigroup, Monoid, (<>), mempty, mappend, mconcat)
 import Data.Set (Set)
 
-import Test.QuickCheck
-
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
@@ -380,18 +378,3 @@ instance Free' Clause c where
 instance Free' EqualityView c where
   freeVars' (OtherType t) = freeVars' t
   freeVars' (EqualityType s _eq l t a b) = freeVars' s `mappend` freeVars' [l, t, a, b]
-
--- Generators
-
-instance Arbitrary FlexRig where
-  arbitrary = oneof
-    [ pure $ Flexible mempty -- TODO
-    , pure WeaklyRigid
-    , pure Unguarded
-    , pure StronglyRigid
-    ]
-
-instance Arbitrary VarOcc where
-  arbitrary = VarOcc <$> arbitrary <*> arbitrary
-
--- -}

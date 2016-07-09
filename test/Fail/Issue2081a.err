@@ -1,0 +1,5 @@
+Issue2081a.agda:17,8-12
+Not in scope:
+  priv at Issue2081a.agda:17,8-12
+    (did you mean 'priv0'?)
+when scope checking priv

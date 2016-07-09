@@ -10,11 +10,7 @@ module Agda.Utils.Either
   , fromLeft, fromRight
   , maybeLeft, maybeRight
   , allLeft, allRight
-  , tests
   ) where
-
-import Agda.Utils.QuickCheck
-import Agda.Utils.TestHelpers
 
 -- | Loop while we have an exception.
 
@@ -104,19 +100,3 @@ allLeft = mapM maybeLeft
 
 allRight :: [Either a b] -> Maybe [b]
 allRight = mapM maybeRight
-
-prop_allRight :: Eq b => [Either t b] -> Bool
-prop_allRight xs =
-  allRight xs ==
-    if all isRight xs then
-      Just $ map (\ (Right x) -> x) xs
-     else
-      Nothing
-
-------------------------------------------------------------------------
--- All tests
-
-tests :: IO Bool
-tests = runTests "Agda.Utils.Either"
-  [ quickCheck' (prop_allRight :: [Either Integer Bool] -> Bool)
-  ]
