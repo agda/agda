@@ -235,8 +235,13 @@ getInterface_ :: C.TopLevelModuleName -> TCM Interface
 getInterface_ x = do
   (i, wt) <- getInterface' x NotMainInterface
   case wt of
-    SomeWarnings w  -> warningsToError w
+    SomeWarnings w  -> warningsToError (filter notIM w)
     NoWarnings      -> return i
+   -- filter out unsolved interaction points for imported module so
+   -- that we get the right error message (see test case Fail/Issue1296)
+   where notIM UnsolvedInteractionMetas{} = False
+         notIM _                          = True
+
 
 -- | A more precise variant of 'getInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
