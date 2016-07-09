@@ -6,3 +6,11 @@ Problematic calls:
     (at TerminationWithInsufficientDepth.agda:25,21-22)
   f (suc n)
     (at TerminationWithInsufficientDepth.agda:27,11-12)
+TerminationWithInsufficientDepth.agda:39,3-47,24
+Termination checking failed for the following functions:
+  Depth3.f, Depth3.g
+Problematic calls:
+  g n
+    (at TerminationWithInsufficientDepth.agda:45,27-28)
+  f (suc (suc n))
+    (at TerminationWithInsufficientDepth.agda:47,9-10)

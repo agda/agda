@@ -1,3 +1,6 @@
+Failed to solve the following constraints:
+  [0] _11 := x [blocked on problem 13]
+  [13] A' =< [ _10 ] : Set
 Unsolved metas at the following locations:
   Issue796.agda:34,11-12
   Issue796.agda:34,13-14

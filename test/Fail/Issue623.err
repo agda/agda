@@ -1,7 +1,7 @@
-Issue623/B.agda:1,1-2,6
+Issue623/B.agda:3,1-4,6
 Termination checking failed for the following functions:
-  S
+  B.S
 Problematic calls:
-  S (at Issue623/B.agda:2,5-6)
+  S (at Issue623/B.agda:4,5-6)
 when scope checking the declaration
   open import Issue623.B

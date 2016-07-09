@@ -4,3 +4,7 @@ Termination checking failed for the following functions:
 Problematic calls:
   weakenType (?0 ty ty') type
     (at Issue1375-2.agda:24,26-36)
+Unsolved interaction metas at the following locations:
+  Issue1375-2.agda:23,13-17
+  Issue1375-2.agda:24,50-54
+  Issue1375-2.agda:25,21-25

@@ -1,2 +1,6 @@
+Failed to solve the following constraints:
+  [0] Find in scope _8 :
+        (n₁ : Nat) {{.x .y : NonZero n₁}} → NonZero n₁
+      .y :  NonZero n .x :  NonZero n
 Unsolved metas at the following locations:
   NonUniqueInstance1.agda:16,10-17
