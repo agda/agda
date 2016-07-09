@@ -397,14 +397,12 @@ primCoe = do
           nPi' "Q" (El <$> (sortSuc <$> a) <*> cl primPath <#> (lvlSuc <$> a) <#> seta <@> bA <@> bB) $ \ bQ ->
           nPi' "p" (elInf $ cl primInterval) $ \ p ->
           nPi' "q" (elInf $ cl primInterval) $ \ q ->
-          (el' a $ cl (getPrimitiveTerm "primPathApply") <#> (lvlSuc <$> a) <#> seta
-               <#> bA <#> bB <@> bQ <@> p) -->
-          (el' a $ cl (getPrimitiveTerm "primPathApply") <#> (lvlSuc <$> a) <#> seta
-               <#> bA <#> bB <@> bQ <@> q)
-  app <- getPrimitiveTerm "primPathApply"
+          (el' a $ bQ <@@> (bA,bB,p)) -->
+          (el' a $ bQ <@@> (bA,bB,q))
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ ts -> do
-    case ts of
-      [l,a,b,t,p,q,x] -> do
+    app <- getPrimitiveTerm' "primPathApply"
+    case (ts,app) of
+      ([l,a,b,t,p,q,x],Just app) -> do
         let
           u = apply app $ map (raise 1) [l,l{- Wrong -},setHiding Hidden a,setHiding Hidden b,t] ++ [defaultArg (var 0)]
         (p', q') <- normalise' (p, q)
@@ -452,19 +450,6 @@ primPathApply = do
                pure $ p `applyE` [IApply x y i]
       _ -> __IMPOSSIBLE__
 
-primOutPartial :: TCM PrimitiveImpl
-primOutPartial = do
-  t    <- runNamesT [] $
-          hPi' "a" (el $ cl primLevel) $ \ a ->
-          hPi' "A" (sort . tmSort <$> a) $ \ bA ->
-          (elInf $ cl primPartial <#> a <@> bA <@> intervalUnview IOne) -->
-          (el' a bA)
-  one <- primItIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ ts -> do
-    case ts of
-     [l,a,u] -> redReturn (unArg u `apply` [argN one])
-     _ -> __IMPOSSIBLE__
-
 -- ∀ {a}{c}{A : Set a}{x : A}(C : ∀ y → Id x y → Set c) → C x (conid i1 (\ i → x)) → ∀ {y} (p : Id x y) → C y p
 primIdJ :: TCM PrimitiveImpl
 primIdJ = do
@@ -477,23 +462,22 @@ primIdJ = do
                  (el' a $ cl primId <#> a <#> bA <@> x <@> y) --> (sort . tmSort <$> c)) $ \ bC ->
        (el' c $ bC <@> x <@>
             (cl primConId <#> a <#> bA <#> x <#> x <@> cl primIOne
-                       <@> (cl primPathAbs <#> a <#> bA <@> lam "i" (\ _ -> x)))) -->
+                       <@> lam "i" (\ _ -> x))) -->
        (hPi' "y" (el' a bA) $ \ y ->
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
         el' c $ bC <@> y <@> p)
   unview <- intervalUnview'
   conidn <- getBuiltinName builtinConId
   conid  <- primConId
-  comp   <- getPrimitiveTerm "primComp"
-  papply <- getPrimitiveTerm "primPathApply"
-  pabs   <- primPathAbs
   -- TODO make a kit
   let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
       imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
       ineg x = unview . INeg . argN <$> x
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
-    case ts of
-     [la,lc,a,x,c,d,y,eq] -> do
+    comp   <- getPrimitiveTerm' "primComp"
+    papply <- getPrimitiveTerm' "primPathApply"
+    case (ts,comp,papply) of
+     ([la,lc,a,x,c,d,y,eq], Just comp, Just papply) -> do
        seq    <- reduceB' eq
        case unArg $ ignoreBlocking $ seq of
          (Def q [Apply la,Apply a,Apply x,Apply y,Apply phi,Apply p]) | Just q == conidn -> do
@@ -505,7 +489,7 @@ primIdJ = do
                               c <@> (w <@> i)
                                 <@> (pure conid <#> la <#> a <#> x <#> (w <@> i)
                                                 <@> (phi `imax` ineg i)
-                                                <@> (pure pabs <#> la <#> a <@> (lam "j" $ \ j -> w <@> imin i j))))
+                                                <@> (lam "j" $ \ j -> w <@> imin i j)))
                        <@> phi
                        <@> (lam "i" $ \ _ -> nolam <$> d) -- TODO block
                        <@> d
@@ -520,9 +504,8 @@ primPFrom1 = do
           (el' a $ bA <@> cl primIOne) -->
           (nPi' "i" (elInf $ cl primInterval) $ \ i ->
            nPi' "j" (elInf $ cl primInterval) $ \ j ->
-          elInf $ cl primPartial <#> a
-                                 <@> (bA <@> (i `imax` j))
-                                 <@> i)
+          pPi' "o" i (\ _ -> el' a (bA <@> (i `imax` j)))
+          )
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,a,u,i,j] -> do
@@ -546,11 +529,10 @@ primPOr = do
           hPi' "a" (el $ cl primLevel)    $ \ a  ->
           nPi' "i" (elInf $ cl primInterval) $ \ i  ->
           nPi' "j" (elInf $ cl primInterval) $ \ j  ->
-          hPi' "A" (elInf $ cl primPartial <#> (cl primLevelSuc <@> a)
-                                        <@> (Sort . tmSort <$> a) <@> (imax i j)) $ \ bA ->
-          (elInf $ cl primPartialP <#> a <@> i <@> (lam "i1" $ \ i1 -> bA <@> (cl primIsOne1 <@> i <@> j <@> i1))) -->
-          (elInf $ cl primPartialP <#> a <@> j <@> (lam "j1" $ \ j1 -> bA <@> (cl primIsOne2 <@> i <@> j <@> j1))) -->
-          (elInf $ cl primPartialP <#> a <@> imax i j <@> bA)
+          hPi' "A" (pPi' "o" (imax i j) $ \o -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
+          ((pPi' "i1" i $ \ i1 -> el' a $ bA <@> (cl primIsOne1 <@> i <@> j <@> i1))) -->
+          ((pPi' "j1" j $ \ j1 -> el' a $ bA <@> (cl primIsOne2 <@> i <@> j <@> j1))) -->
+          (pPi' "o" (imax i j) $ \ o -> el' a $ bA <@> o)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ ts -> do
     case ts of
      [l,i,j,a,u,v] -> do
@@ -589,7 +571,7 @@ primPartialP' = do
   t <- runNamesT [] $
        (hPi' "a" (el $ cl primLevel) $ \ a ->
         nPi' "φ" (elInf (cl primInterval)) $ \ phi ->
-        nPi' "A" (elInf $ cl primPartial <#> (cl primLevelSuc <@> a) <@> (Sort . tmSort <$> a) <@> phi) $ \ bA ->
+        nPi' "A" (pPi' "o" phi $ \ _ -> el' (cl primLevelSuc <@> a) (Sort . tmSort <$> a)) $ \ bA ->
         return (sort $ Inf))
   let toFinitePi :: Type -> Term
       toFinitePi (El _ (Pi d b)) = Pi (setRelevance Irrelevant $ d { domFinite = True }) b
@@ -607,7 +589,7 @@ primComp = do
           hPi' "a" (elInf (cl primInterval) --> (el $ cl primLevel)) $ \ a ->
           nPi' "A" (nPi' "i" (elInf (cl primInterval)) $ \ i -> (sort . tmSort <$> (a <@> i))) $ \ bA ->
           nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
-          (nPi' "i" (elInf $ cl primInterval) $ \ i -> elInf $ cl primPartial <#> (a <@> i) <@> (bA <@> i) <@> phi) -->
+          (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
   unview <- intervalUnview'
   one <- primItIsOne
@@ -725,9 +707,9 @@ primGlue' = do
        (hPi' "l" (el $ cl primLevel) $ \ l ->
        nPi' "A" (sort . tmSort <$> l) $ \ a ->
        nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       nPi' "T" (elInf $ cl primPartial <#> (cl primLevelSuc <@> l) <@> (Sort . tmSort <$> l) <@> φ) $ \ t ->
-       nPi' "f" (elInf $ cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> unEl <$> (el' l (t <@> o) --> el' l a))) $ \ f ->
-       elInf (cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)))
+       nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ t ->
+       nPi' "f" (pPi' "o" φ $ \ o -> el' l (t <@> o) --> el' l a) $ \ f ->
+       (pPi' "o" φ $ \ o -> el' l $ cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o))
        --> (sort . tmSort <$> l))
   view <- intervalView'
   one <- primItIsOne
@@ -746,10 +728,10 @@ prim_glue' = do
        (hPi' "l" (el $ cl primLevel) $ \ l ->
        hPi' "A" (sort . tmSort <$> l) $ \ a ->
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       hPi' "T" (elInf $ cl primPartial <#> (cl primLevelSuc <@> l) <@> (Sort . tmSort <$> l) <@> φ) $ \ t ->
-       hPi' "f" (elInf $ cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> unEl <$> (el' l (t <@> o) --> el' l a))) $ \ f ->
-       hPi' "pf" (elInf (cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)))) $ \ pf ->
-       (elInf $ cl primPartialP <#> l <@> φ <@> t) --> (el' l a --> el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)))
+       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ t ->
+       hPi' "f" (pPi' "o" φ $ \ o -> el' l (t <@> o) --> el' l a) $ \ f ->
+       hPi' "pf" (pPi' "o" φ $ \ o -> el' l $ cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
+       (pPi' "o" φ $ \ o -> el' l (t <@> o)) --> (el' l a --> el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)))
   view <- intervalView'
   one <- primItIsOne
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
@@ -767,9 +749,9 @@ prim_unglue' = do
        (hPi' "l" (el $ cl primLevel) $ \ l ->
        hPi' "A" (sort . tmSort <$> l) $ \ a ->
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       hPi' "T" (elInf $ cl primPartial <#> (cl primLevelSuc <@> l) <@> (Sort . tmSort <$> l) <@> φ) $ \ t ->
-       hPi' "f" (elInf $ cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> unEl <$> (el' l (t <@> o) --> el' l a))) $ \ f ->
-       hPi' "pf" (elInf (cl primPartialP <#> l <@> φ <@> (lam "o" $ \ o -> cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)))) $ \ pf ->
+       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ t ->
+       hPi' "f" (pPi' "o" φ $ \ o -> el' l (t <@> o) --> el' l a) $ \ f ->
+       hPi' "pf" (pPi' "o" φ $ \ o -> el' l $ cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
        (el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)) --> el' l a)
   view <- intervalView'
   one <- primItIsOne
@@ -1225,7 +1207,6 @@ primitiveFunctions = Map.fromList
   , "primPOr"             |-> primPOr
   , "primComp"            |-> primComp
   , "primPFrom1"          |-> primPFrom1
-  , "primOutPartial"      |-> primOutPartial
   , "primIdJ"             |-> primIdJ
   , "primPartial"         |-> primPartial'
   , "primPartialP"         |-> primPartialP'
