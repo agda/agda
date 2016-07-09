@@ -475,10 +475,11 @@ reifyTerm expandAnonDefs0 v = do
 
         -- Check whether we have an extended lambda and display forms are on.
         df <- displayFormsEnabled
+        toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
              Function{ funExtLam = Just (ExtLamInfo h nh) } ->
-               let npars = h + nh
+               let npars = toppars + h + nh
                -- Andreas, 2016-07-06 Issue #2047
                -- Check that we can actually drop the parameters
                -- of the extended lambda.
@@ -558,8 +559,7 @@ reifyTerm expandAnonDefs0 v = do
       reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
-      toppars <- size <$> do lookupSection $ qnameModule x
-      let (pars, rest) = splitAt (toppars + npars) vs
+      let (pars, rest) = splitAt npars vs
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
       -- (this is taken care of by @apply@).
