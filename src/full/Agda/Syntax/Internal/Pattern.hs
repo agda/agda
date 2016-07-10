@@ -153,6 +153,9 @@ dbPatPerm ps = Perm (size ixs) <$> picks
 clausePerm :: Clause -> Maybe Permutation
 clausePerm = dbPatPerm . namedClausePats
 
+-- | Turn a pattern into a term.
+--   Projection patterns are turned into projection eliminations,
+--   other patterns into apply elimination.
 patternToElim :: Arg DeBruijnPattern -> Elim
 patternToElim (Arg ai (VarP x)) = Apply $ Arg ai $ var $ dbPatVarIndex x
 patternToElim (Arg ai (ConP c _ ps)) = Apply $ Arg ai $ Con c $
@@ -171,3 +174,18 @@ patternToTerm :: DeBruijnPattern -> Term
 patternToTerm p = case patternToElim (defaultArg p) of
   Apply x -> unArg x
   Proj  f -> __IMPOSSIBLE__
+
+class MapNamedArg f where
+  mapNamedArg :: (NamedArg a -> NamedArg b) -> NamedArg (f a) -> NamedArg (f b)
+
+instance MapNamedArg Pattern' where
+  mapNamedArg f np =
+    case namedArg np of
+      VarP  x     -> map2 VarP $ f $ map2 (const x) np
+      DotP  t     -> map2 (const $ DotP t) np  -- just Haskell type conversion
+      LitP  l     -> map2 (const $ LitP l) np  -- ditto
+      ProjP q     -> map2 (const $ ProjP q) np -- ditto
+      ConP c i ps -> map2 (const $ ConP c i $ map (mapNamedArg f) ps) np
+    where
+    map2 :: (a -> b) -> NamedArg a -> NamedArg b
+    map2 = fmap . fmap
