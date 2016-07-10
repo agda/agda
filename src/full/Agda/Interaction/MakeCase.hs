@@ -198,8 +198,13 @@ makeCase hole rng s = withInteractionId hole $ do
     (casectxt,) <$> mapM (makeAbstractClause f rhs) scs
   else do
     -- split on variables
-    vars <- parseVariables f hole rng vars
-    scs <- split f vars $ clauseToSplitClause clause
+    xs <- parseVariables f hole rng vars
+    -- Variables that are not in scope yet are brought into scope (@toShow@)
+    -- The other variables are split on (@toSplit@).
+    let (toShow, toSplit) = flip mapEither (zip xs vars) $ \ (x, s) ->
+          if take 1 s == "." then Left x else Right x
+    let sc = makePatternVarsVisible toShow $ clauseToSplitClause clause
+    scs <- split f toSplit sc
     -- filter out clauses that are already covered
     scs <- filterM (not <.> isCovered f prevClauses . fst) scs
     cs <- forM scs $ \(sc, isAbsurd) -> do
@@ -241,6 +246,22 @@ makeCase hole rng s = withInteractionId hole $ do
     sips <- Map.elems <$> use stSolvedInteractionPoints
     when (List.any ((== ipCl) . ipClause) sips) $
       typeError $ GenericError $ "Cannot split as clause rhs has been refined.  Please reload"
+
+-- | Mark the variables given by the list of deBruijn indices as 'UserWritten'
+--   in the 'SplitClause'.
+makePatternVarsVisible :: [Nat] -> SplitClause -> SplitClause
+makePatternVarsVisible [] sc = sc
+makePatternVarsVisible is sc@SClause{ scPats = ps } =
+  sc{ scPats = map (mapNamedArg mkVis) ps }
+  where
+  mkVis :: NamedArg DBPatVar -> NamedArg DBPatVar
+  mkVis nx@(Arg ai (Named n (DBPatVar x i)))
+    | i `elem` is =
+      -- We could introduce extra consistency checks, like
+      -- if visible ai then __IMPOSSIBLE__ else
+      -- or passing the parsed name along and comparing it with @x@
+      setOrigin UserWritten nx
+    | otherwise = nx
 
 -- | Make clause with no rhs (because of absurd match).
 

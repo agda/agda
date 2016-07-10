@@ -10,7 +10,7 @@
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 ((last . 2) . (agda2-make-case-action '("test₁ {A} tt = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
-((last . 2) . (agda2-make-case-action '("test₂ {tt} = ?")))
+((last . 2) . (agda2-make-case-action '("test₂ {x} = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
 ((last . 2) . (agda2-make-case-action '("test₃ .(f _) refl = ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2 3)))
