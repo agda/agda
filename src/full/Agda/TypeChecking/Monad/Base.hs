@@ -55,7 +55,6 @@ import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.CompiledClause
-import {-# SOURCE #-} Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Positivity.Occurrence
 import Agda.TypeChecking.Free.Lazy (Free'(freeVars'), bind', bind)
 

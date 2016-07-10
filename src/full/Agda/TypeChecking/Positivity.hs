@@ -229,32 +229,9 @@ getDefArity def = case theDef def of
   Record{ recPars = n }    -> return n
   _                        -> return 0
 
--- Specification of occurrences -------------------------------------------
+-- Operations on occurrences -------------------------------------------
 
 -- See also Agda.TypeChecking.Positivity.Occurrence.
-
--- | Description of an occurrence.
-data OccursWhere
-  = Unknown
-    -- ^ an unknown position (treated as negative)
-  | Known (DS.Seq Where)
-    -- ^ The elements of the sequence, from left to right, explain how
-    -- to get to the occurrence.
-  deriving (Show, Eq, Ord)
-
--- | One part of the description of an occurrence.
-data Where
-  = LeftOfArrow
-  | DefArg QName Nat -- ^ in the nth argument of a define constant
-  | UnderInf         -- ^ in the principal argument of built-in ∞
-  | VarArg           -- ^ as an argument to a bound variable
-  | MetaArg          -- ^ as an argument of a metavariable
-  | ConArgType QName -- ^ in the type of a constructor
-  | IndArgType QName -- ^ in a datatype index of a constructor
-  | InClause Nat     -- ^ in the nth clause of a defined function
-  | Matched          -- ^ matched against in a clause of a defined function
-  | InDefOf QName    -- ^ in the definition of a constant
-  deriving (Show, Eq, Ord)
 
 (>*<) :: OccursWhere -> OccursWhere -> OccursWhere
 Unknown   >*< _         = Unknown
