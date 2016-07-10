@@ -358,3 +358,19 @@ Emacs mode
 
     -- used to be:
     -- funField testFunRec x = {!!}
+
+* Changed feature: Split on hidden variables.
+
+  Make-case (C-c C-c) will no longer split on the given hidden variables,
+  but only make them visible.  (Splitting can then be performed in a second go.)
+
+    test : ∀{N M : Nat} → Nat → Nat → Nat
+    test N M = {!.N N .M!}
+
+  Invoking splitting will result in:
+
+    test {N} {M} zero M₁ = ?
+    test {N} {M} (suc N₁) M₁ = ?
+
+  The hidden .N and .M have been brought into scope, the visible N
+  has been split upon.

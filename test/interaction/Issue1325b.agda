@@ -10,4 +10,5 @@ f = Set
   where
   g : {n n : ℕ} → Set → Set
   g _ = {!.n!}
-
+  -- Andreas, 2016-07-10, issue 2088
+  -- The split makes n visible (splitting can be done in next go).
