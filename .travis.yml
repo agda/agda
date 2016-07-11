@@ -174,8 +174,6 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-  # || true allows for failure -- we don't expect ~/.cabal/bin to exist at that
-  # point.
   - if [[ $TEST != "doc" ]]; then
        cabal --version &&
        ghc --version &&
