@@ -14,6 +14,8 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
+AGDA_MODE=agda-mode-$(VERSION)
+
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
 
@@ -79,7 +81,10 @@ install-prof-bin :
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
-	agda-mode compile
+	@echo "======================================================================"
+	@echo "===================== Testing the Emacs mode ========================="
+	@echo "======================================================================"
+	$(AGDA_MODE) compile
 
 .PHONY : setup-emacs-mode
 setup-emacs-mode : install-bin
@@ -87,7 +92,7 @@ setup-emacs-mode : install-bin
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
 	@echo
-	agda-mode setup
+	$(AGDA_MODE) setup
 
 ## Making the documentation ###############################################
 
@@ -275,6 +280,13 @@ user-manual-test :
 	@echo "======================================================================"
 	@find doc/user-manual -type f -name '*.agdai' -delete
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual
+
+.PHONY : testing-emacs-mode
+testing-emacs-mode:
+	@echo "======================================================================"
+	@echo "===================== Testing the Emacs mode ========================="
+	@echo "======================================================================"
+	$(AGDA_MODE) compile
 
 ## Clean ##################################################################
 
