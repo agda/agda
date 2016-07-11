@@ -172,6 +172,8 @@ checkModuleName name file = do
 --
 --   Warning! Parses the whole file to get the module name out.
 --   Use wisely!
+--
+--   No side effects!  Only in 'TCM' to raise errors.
 
 moduleName' :: AbsolutePath -> TCM (Ranged TopLevelModuleName)
 moduleName' file = billTo [Bench.ModuleName] $ do

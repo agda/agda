@@ -213,11 +213,6 @@ setIncludeDirs incs relativeTo = do
   oldIncs <- gets Lens.getAbsoluteIncludePaths
 
   root <- getProjectRoot relativeTo
-  check <- case relativeTo of
-    CurrentDir -> return (return ())
-    ProjectRoot f -> do
-      Ranged _ m <- moduleName' f
-      return (checkModuleName m f)
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
@@ -246,7 +241,22 @@ setIncludeDirs incs relativeTo = do
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs
-  check
+
+  -- Andreas, 2016-07-11 (reconstructing semantics):
+  --
+  -- Check that the module name of the project root
+  -- is still correct wrt. to the changed include path.
+  --
+  -- E.g. if the include path was "/" and file "/A/B" was named "module A.B",
+  -- and then the include path changes to "/A/", the module name
+  -- becomes invalid; correct would then be "module B".
+
+  case relativeTo of
+    CurrentDir -> return ()
+    ProjectRoot f -> do
+      Ranged _ m <- moduleName' f
+      checkModuleName m f
+
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =
