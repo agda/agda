@@ -681,6 +681,7 @@ primComp = do
     lam = Lam defaultArgInfo
     lam_i m = lam (mkAbs (absName t) m)
     lam_j m = lam (mkAbs "j" m)
+    lam_o m = lam (mkAbs "o" m)
    v <- v'
    let
     b'  = unAbs $ b -- Γ , i : I , x : A[i]
@@ -693,8 +694,8 @@ primComp = do
       (termComp <#> pure (lam_i sb) <@> pure (lam_i -- Γ , u1 : A[i1] , i : I
                                       b'')
                       <@> pure (raise 1 (unArg phi))
-                      <@> (lam_i <$> -- Γ , u1 : A[i1] , i : I
-                                  (gApply (getHiding a) (pure (raise 2 (unArg u)) <@> varM 0) (pure v))) -- block until φ = 1?
+                      <@> (lam_i . lam_o <$> -- Γ , u1 : A[i1] , i : I, o : IsOne φ
+                                  (gApply (getHiding a) (pure (raise 3 (unArg u)) <@> varM 1 <@> varM 0) (pure (raise 1 v)))) -- block until φ = 1?
                       <@> (gApply (getHiding a) (pure $ raise 1 (unArg a0)) (subst 0 i0 <$> pure v))) -- Γ , u1 : A[i1]
 
 
