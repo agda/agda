@@ -281,10 +281,9 @@ checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lh
     v <- addContext' (xs, defaultDom interval) $ checkExpr body (raise 1 btyp)
     iZero <- primIZero
     iOne  <- primIOne
-    pathAbs <- primPathAbs
     let lhs' = subst 0 iZero v
         rhs' = subst 0 iOne  v
-    let t = apply pathAbs [level,typ,defaultArg (Lam info $ Abs (nameToArgName x) v)]
+    let t = Lam info $ Abs (nameToArgName x) v
     blockTerm ty $ do
       equalTerm btyp lhs' (unArg lhs)
       equalTerm btyp rhs' (unArg rhs)
@@ -1629,8 +1628,7 @@ checkConstructorApplication org t c args = do
 pathAbs :: PathView -> Abs Term -> TCM Term
 pathAbs (OType _) t = __IMPOSSIBLE__
 pathAbs (PathType s path l a x y) t = do
-  pabs <- primPathAbs
-  return $ pabs `apply` [l,a,defaultArg $ Lam defaultArgInfo t]
+  return $ Lam defaultArgInfo t
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
 

@@ -466,14 +466,14 @@ primIdJ = do
        (hPi' "y" (el' a bA) $ \ y ->
         nPi' "p" (el' a $ cl primId <#> a <#> bA <@> x <@> y) $ \ p ->
         el' c $ bC <@> y <@> p)
-  unview <- intervalUnview'
   conidn <- getBuiltinName builtinConId
   conid  <- primConId
   -- TODO make a kit
-  let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
-      imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
-      ineg x = unview . INeg . argN <$> x
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ ts -> do
+    unview <- intervalUnview'
+    let imax x y = do x' <- x; y' <- y; pure $ unview (IMax (argN x') (argN y'))
+        imin x y = do x' <- x; y' <- y; pure $ unview (IMin (argN x') (argN y'))
+        ineg x = unview . INeg . argN <$> x
     comp   <- getPrimitiveTerm' "primComp"
     papply <- getPrimitiveTerm' "primPathApply"
     case (ts,comp,papply) of
@@ -591,10 +591,10 @@ primComp = do
           nPi' "φ" (elInf $ cl primInterval) $ \ phi ->
           (nPi' "i" (elInf $ cl primInterval) $ \ i -> pPi' "o" phi $ \ _ -> el' (a <@> i) (bA <@> i)) -->
           (el' (a <@> cl primIZero) (bA <@> cl primIZero) --> el' (a <@> cl primIOne) (bA <@> cl primIOne))
-  unview <- intervalUnview'
   one <- primItIsOne
   mpath <- primPathName'
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
+    unview <- intervalUnview'
     case ts of
       [l,c,phi,u,a0] -> do
         sphi <- reduceB' phi
