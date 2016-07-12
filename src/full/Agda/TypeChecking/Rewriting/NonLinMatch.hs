@@ -51,7 +51,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel)
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (getBuiltin', builtinLevelSuc)
+import Agda.TypeChecking.Monad.Builtin (primLevelSuc)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
@@ -122,7 +122,7 @@ instance PatternFrom Term NLPat where
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
       Def f es -> do
-        Def lsuc [] <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
+        Def lsuc [] <- ignoreSharing <$> primLevelSuc
         if f == lsuc
         then case es of
                [Apply arg] -> pLevelSuc <$> patternFrom k (unArg arg)
