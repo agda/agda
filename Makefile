@@ -81,9 +81,6 @@ install-prof-bin :
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
-	@echo "======================================================================"
-	@echo "===================== Testing the Emacs mode ========================="
-	@echo "======================================================================"
 	$(AGDA_MODE) compile
 
 .PHONY : setup-emacs-mode
