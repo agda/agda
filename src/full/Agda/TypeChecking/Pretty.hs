@@ -408,7 +408,7 @@ raisePatVars k (PWild)     = PWild
 raisePatVars k (PDef f es) = PDef f $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PLam i u)  = PLam i $ fmap (raisePatVars k) u
 raisePatVars k (PPi a b)   = PPi ((fmap . fmap) (raisePatVars k) a) ((fmap . fmap) (raisePatVars k) b)
-raisePatVars k (PSet l)    = PSet $ raisePatVars k l
+raisePatVars k (PPlusLevel i u) = PPlusLevel i $ raisePatVars k u
 raisePatVars k (PBoundVar i es) = PBoundVar i $ (fmap . fmap) (raisePatVars k) es
 raisePatVars k (PTerm t)   = PTerm t
 
@@ -421,7 +421,7 @@ instance PrettyTCM NLPat where
                           (addContext (absName u) $ prettyTCM (raisePatVars 1 $ absBody u))
   prettyTCM (PPi a b)   = text "Π" <+> prettyTCM (unDom a) <+>
                           (addContext (absName b) $ prettyTCM (fmap (raisePatVars 1) $ unAbs b))
-  prettyTCM (PSet l)    = text "Set " <+> prettyTCM l
+  prettyTCM (PPlusLevel i u) = text (show i ++ " + ") <> prettyTCM u
   prettyTCM (PBoundVar i es) = parens $ prettyTCM (var i) <+> fsep (map prettyTCM es)
   prettyTCM (PTerm t)   = text "." <> parens (prettyTCM t)
 

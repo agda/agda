@@ -805,7 +805,7 @@ instance Subst Term NLPat where
     PDef f es -> PDef f $ applySubst rho es
     PLam i u -> PLam i $ applySubst rho u
     PPi a b -> PPi (applySubst rho a) (applySubst rho b)
-    PSet l -> PSet $ applySubst rho l
+    PPlusLevel i u -> PPlusLevel i $ applySubst rho u
     PBoundVar i es -> PBoundVar i $ applySubst rho es
     PTerm u -> PTerm $ applySubst rho u
 
