@@ -1,0 +1,7 @@
+Issue623/A.agda:3,1-4,6
+Termination checking failed for the following functions:
+  S
+Problematic calls:
+  S (at Issue623/A.agda:4,5-6)
+when scope checking the declaration
+  open import Issue623.A

@@ -16,12 +16,13 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Internal
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Benchmark
-import Agda.Interaction.FindFile
+import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Options.Lenses as Lens
 import Agda.Interaction.Response
@@ -193,7 +194,7 @@ data RelativeTo
 getProjectRoot :: RelativeTo -> TCM AbsolutePath
 getProjectRoot CurrentDir = liftIO (absolute =<< getCurrentDirectory)
 getProjectRoot (ProjectRoot f) = do
-  m <- moduleName' f
+  Ranged _ m <- moduleName' f
   return (projectRoot f m)
 
 -- | Makes the given directories absolute and stores them as include
@@ -212,11 +213,6 @@ setIncludeDirs incs relativeTo = do
   oldIncs <- gets Lens.getAbsoluteIncludePaths
 
   root <- getProjectRoot relativeTo
-  check <- case relativeTo of
-    CurrentDir -> return (return ())
-    ProjectRoot f -> do
-      m <- moduleName' f
-      return (checkModuleName m f)
 
   -- Add the current dir if no include path is given
   incs <- return $ if null incs then ["."] else incs
@@ -245,7 +241,24 @@ setIncludeDirs incs relativeTo = do
     setInteractionOutputCallback ho
 
   Lens.putAbsoluteIncludePaths incs
-  check
+
+  -- Andreas, 2016-07-11 (reconstructing semantics):
+  --
+  -- Check that the module name of the project root
+  -- is still correct wrt. to the changed include path.
+  --
+  -- E.g. if the include path was "/" and file "/A/B" was named "module A.B",
+  -- and then the include path changes to "/A/", the module name
+  -- becomes invalid; correct would then be "module B".
+
+  case relativeTo of
+    CurrentDir -> return ()
+    ProjectRoot f -> void $ moduleName f
+     -- Andreas, 2016-07-12 WAS:
+     -- do
+     --  Ranged _ m <- moduleName' f
+     --  checkModuleName m f Nothing
+
 
 setInputFile :: FilePath -> TCM ()
 setInputFile file =

@@ -1141,7 +1141,7 @@ status = do
       case t == t' of
         False -> return False
         True  -> do
-          mm <- Map.lookup f <$> sourceToModule
+          mm <- lookupModuleFromSource f
           case mm of
             Nothing -> return False -- work-around for Issue1007
             Just m  -> not . miWarnings . fromMaybe __IMPOSSIBLE__ <$> getVisitedModule m

@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -20,8 +21,10 @@ import System.FilePath
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -106,7 +109,7 @@ instance Underscore QName where
 
 newtype TopLevelModuleName
   = TopLevelModuleName { moduleNameParts :: [String] }
-  deriving (Show, Eq, Ord, Typeable)
+  deriving (Show, Eq, Ord, Typeable, Sized)
 
 ------------------------------------------------------------------------
 -- * Operations on 'Name' and 'NamePart'
@@ -196,6 +199,17 @@ qnameParts (QName x)  = [x]
 
 toTopLevelModuleName :: QName -> TopLevelModuleName
 toTopLevelModuleName = TopLevelModuleName . map prettyShow . qnameParts
+
+-- | Turns a top level module into a qualified name with 'noRange'.
+
+fromTopLevelModuleName :: TopLevelModuleName -> QName
+fromTopLevelModuleName (TopLevelModuleName [])     = __IMPOSSIBLE__
+fromTopLevelModuleName (TopLevelModuleName (x:xs)) = loop x xs
+  where
+  loop x []       = QName (mk x)
+  loop x (y : ys) = Qual  (mk x) $ loop y ys
+  mk :: String -> Name
+  mk x = Name noRange [Id x]
 
 -- | Turns a top-level module name into a file name with the given
 -- suffix.

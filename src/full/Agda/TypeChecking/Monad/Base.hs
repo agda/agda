@@ -609,6 +609,11 @@ type ModuleToSource = Map TopLevelModuleName AbsolutePath
 type SourceToModule = Map AbsolutePath TopLevelModuleName
 
 -- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
+--
+--   O(n log n).
+--
+--   For a single reverse lookup in 'stModuleToSource',
+--   rather use 'lookupModuleFromSourse'.
 
 sourceToModule :: TCM SourceToModule
 sourceToModule =
@@ -616,6 +621,14 @@ sourceToModule =
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
     <$> use stModuleToSource
+
+-- | Lookup an 'AbsolutePath' in 'sourceToModule'.
+--
+--   O(n).
+
+lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
+lookupModuleFromSource f =
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> use stModuleToSource
 
 ---------------------------------------------------------------------------
 -- ** Interface
@@ -1895,7 +1908,7 @@ data TCEnv =
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
           , envHighlightingMethod :: HighlightingMethod
-          , envModuleNestingLevel :: Integer
+          , envModuleNestingLevel :: !Int
                 -- ^ This number indicates how far away from the
                 --   top-level module Agda has come when chasing
                 --   modules. The level of a given module is not
@@ -2049,7 +2062,7 @@ eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlighti
 eHighlightingMethod :: Lens' HighlightingMethod TCEnv
 eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
 
-eModuleNestingLevel :: Lens' Integer TCEnv
+eModuleNestingLevel :: Lens' Int TCEnv
 eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
 
 eAllowDestructiveUpdate :: Lens' Bool TCEnv
@@ -2375,6 +2388,8 @@ data TypeError
         | FileNotFound C.TopLevelModuleName [AbsolutePath]
         | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
         | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
+        | ModuleNameUnexpected C.TopLevelModuleName C.TopLevelModuleName
+          -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
         | ClashingFileNamesFor ModuleName [AbsolutePath]
         | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath

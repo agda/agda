@@ -1033,6 +1033,9 @@ scopeCheckModule r x qm tel checkDs = do
 data TopLevel a = TopLevel
   { topLevelPath           :: AbsolutePath
     -- ^ The file path from which we loaded this module.
+  , topLevelExpectedName   :: C.TopLevelModuleName
+    -- ^ The expected module name
+    --   (coming from the import statement that triggered scope checking this file).
   , topLevelTheThing       :: a
     -- ^ The file content.
   }
@@ -1053,7 +1056,7 @@ topLevelModuleName topLevel = scopeCurrent (topLevelScope topLevel)
 --     module ThisModule ...  -- the top-level module of this file
 --   @
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
-    toAbstract (TopLevel file ds) =
+    toAbstract (TopLevel file expectedMName ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
       case C.spanAllowedBeforeModule ds of
@@ -1068,12 +1071,20 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
                 then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootNameModule file]
+                -- Andreas, 2016-07-12, ALTERNATIVE:
+                -- -- We assign an anonymous file module the name expected from
+                -- -- its import.  For flat file structures, this is the same.
+                -- -- For hierarchical file structures, this reverses the behavior:
+                -- -- Loading the file by itself will fail, but it can be imported.
+                -- -- The previous behavior is: it can be loaded by itself, but not
+                -- -- be imported
+                -- then return $ C.fromTopLevelModuleName expectedMName
                 else do
                 -- Andreas, 2014-03-28  Issue 1078
                 -- We need to check the module name against the file name here.
                 -- Otherwise one could sneak in a lie and confuse the scope
                 -- checker.
-                  checkModuleName (C.toTopLevelModuleName m0) file
+                  checkModuleName (C.toTopLevelModuleName m0) file $ Just expectedMName
                   return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)

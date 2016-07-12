@@ -1,0 +1,6 @@
+Issue2092.agda:1,8-34
+The name of the top level module does not match the file name. The
+module Imports.TheWrongName should probably be named
+Imports.WronglyNamedModule
+when scope checking the declaration
+  import Imports.WronglyNamedModule
