@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-| Names in the concrete syntax are just strings (or lists of strings for
     qualified names).
@@ -20,8 +21,10 @@ import System.FilePath
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
+
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
+import Agda.Utils.Size
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -106,7 +109,7 @@ instance Underscore QName where
 
 newtype TopLevelModuleName
   = TopLevelModuleName { moduleNameParts :: [String] }
-  deriving (Show, Eq, Ord, Typeable)
+  deriving (Show, Eq, Ord, Typeable, Sized)
 
 ------------------------------------------------------------------------
 -- * Operations on 'Name' and 'NamePart'

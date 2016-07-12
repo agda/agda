@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -11,6 +12,7 @@ module Agda.TypeChecking.Errors
 
 import Prelude hiding (null)
 
+import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Function
@@ -49,6 +51,7 @@ import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.FileName
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.Size
@@ -302,8 +305,8 @@ instance PrettyTCM CallInfo where
       else call $$ nest 2 (text "(at" <+> prettyTCM r <> text ")")
 
 -- | Drops the filename component of the qualified name.
-dropTopLevelModule :: QName -> QName
-dropTopLevelModule (QName (MName ns) n) = QName (MName (drop 1 ns)) n
+dropTopLevelModule' :: Int -> QName -> QName
+dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
 
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
@@ -319,15 +322,19 @@ instance PrettyTCM TypeError where
 
     GenericDocError d -> return d
 
-    TerminationCheckFailed because ->
+    TerminationCheckFailed because -> do
+      dropTopLevelModule <- do
+        caseMaybeM (asks envCurrentPath) (return id) $ \ f -> do
+        m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
+        return $ dropTopLevelModule' $ size m
       fwords "Termination checking failed for the following functions:"
-      $$ (nest 2 $ fsep $ punctuate comma $
-           map (pretty . dropTopLevelModule) $
-             concatMap termErrFunctions because)
-      $$ fwords "Problematic calls:"
-      $$ (nest 2 $ fmap (P.vcat . nub) $
-            mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
-            concatMap termErrCalls because)
+        $$ (nest 2 $ fsep $ punctuate comma $
+             map (pretty . dropTopLevelModule) $
+               concatMap termErrFunctions because)
+        $$ fwords "Problematic calls:"
+        $$ (nest 2 $ fmap (P.vcat . nub) $
+              mapM prettyTCM $ sortBy (compare `on` callInfoRange) $
+              concatMap termErrCalls because)
 
     PropMustBeSingleton -> fwords
       "Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"

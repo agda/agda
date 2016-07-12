@@ -609,6 +609,11 @@ type ModuleToSource = Map TopLevelModuleName AbsolutePath
 type SourceToModule = Map AbsolutePath TopLevelModuleName
 
 -- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
+--
+--   O(n log n).
+--
+--   For a single reverse lookup in 'stModuleToSource',
+--   rather use 'lookupModuleFromSourse'.
 
 sourceToModule :: TCM SourceToModule
 sourceToModule =
@@ -616,6 +621,14 @@ sourceToModule =
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
     <$> use stModuleToSource
+
+-- | Lookup an 'AbsolutePath' in 'sourceToModule'.
+--
+--   O(n).
+
+lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
+lookupModuleFromSource f =
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> use stModuleToSource
 
 ---------------------------------------------------------------------------
 -- ** Interface
