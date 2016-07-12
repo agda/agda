@@ -1157,6 +1157,8 @@ data NLPat
     -- ^ Matches @λ x → t@
   | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
     -- ^ Matches @(x : A) → B@
+  | PPlusLevel Integer NLPat
+    -- ^ Matches @lsuc $ lsuc $ ... lsuc t@
   | PBoundVar {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
@@ -2835,6 +2837,7 @@ instance KillRange NLPat where
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
+  killRange (PPlusLevel x y) = killRange2 PPlusLevel x y
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
 

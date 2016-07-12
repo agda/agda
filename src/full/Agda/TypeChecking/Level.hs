@@ -5,6 +5,7 @@ module Agda.TypeChecking.Level where
 import Control.Applicative
 import Data.Maybe
 import Data.List as List
+import Data.Traversable (Traversable,traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -146,3 +147,12 @@ levelView' a = do
 
 levelLub :: Level -> Level -> Level
 levelLub (Max as) (Max bs) = levelMax $ as ++ bs
+
+subLevel :: Integer -> Level -> Maybe Level
+subLevel n (Max ls) = Max <$> traverse sub ls
+  where
+    sub :: PlusLevel -> Maybe PlusLevel
+    sub (ClosedLevel j) | j >= n    = Just $ ClosedLevel $ j - n
+                        | otherwise = Nothing
+    sub (Plus j l)      | j >= n    = Just $ Plus (j - n) l
+                        | otherwise = Nothing
