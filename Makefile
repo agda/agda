@@ -14,7 +14,7 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-AGDA_MODE=agda-mode-$(VERSION)
+AGDA_MODE=agda-mode
 
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
