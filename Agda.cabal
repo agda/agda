@@ -485,10 +485,17 @@ library
 
   other-modules:    Paths_Agda
 
+  -- Initially, we disable all the warnings.
+  ghc-options: -w
+               -Werror
+
+  -- This option must be the first one after disabling the warnings. See
+  -- Issue #2094.
+  if impl(ghc >= 8.0)
+    ghc-options: -Wunrecognised-warning-flags
+
   if impl(ghc >= 7.6.3)
-    ghc-options: -w
-                 -Werror
-                 -fwarn-deprecated-flags
+    ghc-options: -fwarn-deprecated-flags
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
@@ -537,7 +544,6 @@ library
     ghc-options: -Wmissing-pattern-synonym-signatures
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
-                 -Wunrecognised-warning-flags
                  -Wsemigroup
                  -Wunused-foralls
 
@@ -745,10 +751,17 @@ test-suite internal-tests
                      , TupleSections
                      , TypeSynonymInstances
 
+  -- Initially, we disable all the warnings.
+  ghc-options: -w
+               -Werror
+
+  -- This option must be the first one after disabling the warnings. See
+  -- Issue #2094.
+  if impl(ghc >= 8.0)
+    ghc-options: -Wunrecognised-warning-flags
+
   if impl(ghc >= 7.6.3)
-    ghc-options: -w
-                 -Werror
-                 -fwarn-deprecated-flags
+    ghc-options: -fwarn-deprecated-flags
                  -fwarn-dodgy-exports
                  -fwarn-dodgy-foreign-imports
                  -fwarn-dodgy-imports
@@ -797,6 +810,5 @@ test-suite internal-tests
     ghc-options: -Wmissing-pattern-synonym-signatures
                  -Wnoncanonical-monad-instances
                  -Wnoncanonical-monoid-instances
-                 -Wunrecognised-warning-flags
                  -Wsemigroup
                  -Wunused-foralls
