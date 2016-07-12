@@ -192,7 +192,7 @@ moduleName' file = billTo [Bench.ModuleName] $ do
              `catchError` \_ ->
            typeError $
              GenericError $ "File name " ++ show file ++
-               " is invalid as it does not correpond to a valid module name."
+               " is invalid as it does not correspond to a valid module name."
       return $ Ranged (getRange q) $ TopLevelModuleName [defaultName]
     _ -> return $ Ranged (getRange q) name
   where
