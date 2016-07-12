@@ -1157,8 +1157,6 @@ data NLPat
     -- ^ Matches @λ x → t@
   | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
     -- ^ Matches @(x : A) → B@
-  | PSet NLPat
-    -- ^ Matches @Set l@
   | PBoundVar {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
@@ -2837,7 +2835,6 @@ instance KillRange NLPat where
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
-  killRange (PSet x)   = killRange1 PSet x
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
 
