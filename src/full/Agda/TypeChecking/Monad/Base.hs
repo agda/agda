@@ -1908,7 +1908,7 @@ data TCEnv =
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
           , envHighlightingMethod :: HighlightingMethod
-          , envModuleNestingLevel :: Integer
+          , envModuleNestingLevel :: !Int
                 -- ^ This number indicates how far away from the
                 --   top-level module Agda has come when chasing
                 --   modules. The level of a given module is not
@@ -2062,7 +2062,7 @@ eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlighti
 eHighlightingMethod :: Lens' HighlightingMethod TCEnv
 eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
 
-eModuleNestingLevel :: Lens' Integer TCEnv
+eModuleNestingLevel :: Lens' Int TCEnv
 eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
 
 eAllowDestructiveUpdate :: Lens' Bool TCEnv

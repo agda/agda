@@ -63,6 +63,7 @@ import Agda.Interaction.Highlighting.Vim
 import Agda.Utils.Except ( MonadError(catchError, throwError) )
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
 import Agda.Utils.IO.Binary
@@ -319,15 +320,6 @@ getInterface' x isMain = do
               Just mi | Just (iFullHash mi) == h -> Just mi
               _                                  -> Nothing
 
-      -- Formats the "Checking", "Finished" and "Skipping" messages.
-      chaseMsg kind file = do
-        nesting <- envModuleNestingLevel <$> ask
-        let s = genericReplicate nesting ' ' ++ kind ++
-                " " ++ prettyShow x ++
-                case file of
-                  Nothing -> "."
-                  Just f  -> " (" ++ f ++ ")."
-        reportSLn "import.chase" 1 s
 
       skip file = do
         -- Examine the hash of the interface file. If it is different from the
@@ -367,7 +359,7 @@ getInterface' x isMain = do
                 -- liftIO close -- Close the interface file. See above.
                 typeCheckThe file
               else do
-                unless cached $ chaseMsg "Skipping" (Just ifile)
+                unless cached $ chaseMsg "Skipping" x $ Just ifile
                 -- We set the pragma options of the skipped file here,
                 -- because if the top-level file is skipped we want the
                 -- pragmas to apply to interactive commands in the UI.
@@ -377,8 +369,8 @@ getInterface' x isMain = do
       typeCheckThe file = do
           unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
-                (chaseMsg "Checking" $ Just $ filePath file)
-                (const $ chaseMsg "Finished" Nothing)
+                (chaseMsg "Checking" x $ Just $ filePath file)
+                (const $ chaseMsg "Finished" x Nothing)
 
           -- Do the type checking.
 
@@ -457,8 +449,22 @@ getInterface' x isMain = do
                       skip file
                     _ -> return (False, r)
 
--- | Print the highlighting information contained in the given
--- interface.
+
+-- | Formats and outputs the "Checking", "Finished" and "Skipping" messages.
+
+chaseMsg
+  :: String               -- ^ The prefix, like @Checking@, @Finished@, @Skipping@.
+  -> C.TopLevelModuleName -- ^ The module name.
+  -> Maybe String         -- ^ Optionally: the file name.
+  -> TCM ()
+chaseMsg kind x file = do
+  indentation <- (`replicate` ' ') <$> asks envModuleNestingLevel
+  let maybeFile = caseMaybe file "." $ \ f -> " (" ++ f ++ ")."
+  reportSLn "import.chase" 1 $ concat $
+    [ indentation, kind, " ", prettyShow x, maybeFile ]
+
+
+-- | Print the highlighting information contained in the given interface.
 
 highlightFromInterface
   :: Interface
@@ -470,6 +476,7 @@ highlightFromInterface i file = do
     "Generating syntax info for " ++ filePath file ++
     " (read from interface)."
   printHighlightingInfo (iHighlighting i)
+
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
