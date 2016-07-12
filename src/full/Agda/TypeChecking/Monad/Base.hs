@@ -2388,6 +2388,8 @@ data TypeError
         | FileNotFound C.TopLevelModuleName [AbsolutePath]
         | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
         | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
+        | ModuleNameUnexpected C.TopLevelModuleName C.TopLevelModuleName
+          -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
         | ClashingFileNamesFor ModuleName [AbsolutePath]
         | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath

@@ -253,9 +253,11 @@ setIncludeDirs incs relativeTo = do
 
   case relativeTo of
     CurrentDir -> return ()
-    ProjectRoot f -> do
-      Ranged _ m <- moduleName' f
-      checkModuleName m f
+    ProjectRoot f -> void $ moduleName f
+     -- Andreas, 2016-07-12 WAS:
+     -- do
+     --  Ranged _ m <- moduleName' f
+     --  checkModuleName m f Nothing
 
 
 setInputFile :: FilePath -> TCM ()

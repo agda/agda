@@ -632,7 +632,7 @@ createInterface file mname =
     -- Scope checking.
     reportSLn "import.iface.create" 7 $ "Starting scope checking."
     topLevel <- Bench.billTo [Bench.Scoping] $
-      concreteToAbstract_ (TopLevel file top)
+      concreteToAbstract_ (TopLevel file mname top)
     reportSLn "import.iface.create" 7 $ "Finished scope checking."
 
     let ds    = topLevelDecls topLevel

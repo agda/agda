@@ -149,18 +149,25 @@ findInterfaceFile m = do
 -- corresponding to the module name (according to the include path)
 -- has to be the same as the given file name.
 
-checkModuleName :: TopLevelModuleName
-                   -- ^ The name of the module.
-                -> AbsolutePath
-                   -- ^ The file from which it was loaded.
-                -> TCM ()
-checkModuleName name file = do
-  moduleShouldBeIn <- findFile' name
-  case moduleShouldBeIn of
+checkModuleName
+  :: TopLevelModuleName
+     -- ^ The name of the module.
+  -> AbsolutePath
+     -- ^ The file from which it was loaded.
+  -> Maybe TopLevelModuleName
+     -- ^ The expected name, coming from an import statement.
+  -> TCM ()
+checkModuleName name file mexpected = do
+  findFile' name >>= \case
+
     Left (NotFound files)  -> typeError $
-                                ModuleNameDoesntMatchFileName name files
+      case mexpected of
+        Nothing       -> ModuleNameDoesntMatchFileName name files
+        Just expected -> ModuleNameUnexpected name expected
+
     Left (Ambiguous files) -> typeError $
-                                AmbiguousTopLevelModuleName name files
+      AmbiguousTopLevelModuleName name files
+
     Right file' -> do
       file <- liftIO $ absolute (filePath file)
       if file === file' then
@@ -222,5 +229,5 @@ moduleName file = do
   -- The error range should be set to the file with the wrong module name
   -- not the importing one (which would be the default).
   (if null r then id else traceCall (SetRange r)) $
-    checkModuleName m file
+    checkModuleName m file Nothing
   return m

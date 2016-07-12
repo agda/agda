@@ -186,6 +186,7 @@ errorString err = case err of
   ModuleArityMismatch{}                    -> "ModuleArityMismatch"
   ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
   ModuleDoesntExport{}                     -> "ModuleDoesntExport"
+  ModuleNameUnexpected{}                   -> "ModuleNameUnexpected"
   ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
   NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
   NeedOptionRewriting{}                    -> "NeedOptionRewriting"
@@ -704,6 +705,12 @@ instance PrettyTCM TypeError where
       pwords "which defines the module" ++ [pretty mod <> text "."] ++
       pwords "However, according to the include path this module should" ++
       pwords "be defined in" ++ [text (filePath file') <> text "."]
+
+    ModuleNameUnexpected given expected -> fsep $
+      pwords "The name of the top level module does not match the file name. The module" ++
+      [ pretty given ] ++
+      pwords "should probably be named" ++
+      [ pretty expected ]
 
     ModuleNameDoesntMatchFileName given files ->
       fsep (pwords "The name of the top level module does not match the file name. The module" ++
