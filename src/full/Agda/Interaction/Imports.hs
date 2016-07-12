@@ -240,6 +240,7 @@ getInterface'
   -> MainInterface
      -- ^ If type checking is necessary,
      --   should all state changes inflicted by 'createInterface' be preserved?
+     --   Yes, if we are the 'MainInterface'.  No, if we are 'NotMainInterface'.
   -> TCM (Interface, MaybeWarnings)
 getInterface' x isMain = do
   withIncreasedModuleNestingLevel $ do
@@ -257,8 +258,9 @@ getInterface' x isMain = do
 
       uptodate <- Bench.billTo [Bench.Import] $ do
         ignore <- ignoreInterfaces
-        cached <- isCached file -- if it's cached ignoreInterfaces has no effect
-                                -- to avoid typechecking a file more than once
+        cached <- isCached x file
+          -- If it's cached ignoreInterfaces has no effect;
+          -- to avoid typechecking a file more than once.
         sourceH <- liftIO $ hashFile file
         ifaceH  <-
           case cached of
@@ -278,7 +280,9 @@ getInterface' x isMain = do
         -- let maySkip = isMain == NotMainInterface
         -- Andreas, 2015-07-13: Serialize iInsideScope again.
         let maySkip = True
-        if uptodate && maySkip then skip file else typeCheckThe file
+        if uptodate && maySkip
+          then getStoredInterface x file includeStateChanges
+          else typeCheck          x file includeStateChanges
 
       -- Ensure that the given module name matches the one in the file.
       let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -308,7 +312,17 @@ getInterface' x isMain = do
     where
       includeStateChanges = isMain == MainInterface
 
-      isCached file = do
+-- | Check whether interface file exists and is in cache
+--   in the correct version (as testified by the interface file hash).
+
+isCached
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> AbsolutePath
+     -- ^ File we process.
+  -> TCM (Maybe Interface)
+
+isCached x file = do
         let ifile = filePath $ toIFile file
         exist <- liftIO $ doesFileExistCaseSensitive ifile
         if not exist
@@ -321,7 +335,24 @@ getInterface' x isMain = do
               _                                  -> Nothing
 
 
-      skip file = do
+-- | Try to get the interface from interface file or cache.
+
+getStoredInterface
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> AbsolutePath
+     -- ^ File we process.
+  -> Bool
+     -- ^ If type checking is necessary,
+     --   should all state changes inflicted by 'createInterface' be preserved?
+     --   @True@, if we are the 'MainInterface'.  @False@, if we are 'NotMainInterface'.
+  -> TCM (Bool, (Interface, MaybeWarnings))
+     -- ^ @Bool@ is: do we have to merge the interface?
+getStoredInterface x file includeStateChanges = do
+        -- If something goes wrong (interface outdated etc.)
+        -- we revert to fresh type checking.
+        let fallback = typeCheck x file includeStateChanges
+
         -- Examine the hash of the interface file. If it is different from the
         -- stored version (in stDecodedModules), or if there is no stored version,
         -- read and decode it. Otherwise use the stored version.
@@ -346,9 +377,8 @@ getInterface' x isMain = do
         case mi of
           Nothing       -> do
             reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
-            typeCheckThe file
+            fallback
           Just i        -> do
-
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
             hs <- map iFullHash <$> mapM getInterface (map fst $ iImportedModules i)
@@ -357,7 +387,7 @@ getInterface' x isMain = do
             if hs /= map snd (iImportedModules i)
               then do
                 -- liftIO close -- Close the interface file. See above.
-                typeCheckThe file
+                fallback
               else do
                 unless cached $ chaseMsg "Skipping" x $ Just ifile
                 -- We set the pragma options of the skipped file here,
@@ -366,7 +396,26 @@ getInterface' x isMain = do
                 mapM_ setOptionsFromPragma (iPragmaOptions i)
                 return (False, (i, NoWarnings))
 
-      typeCheckThe file = do
+-- | Run the type checker on a file and create an interface.
+--
+--   Mostly, this function calls 'createInterface'.
+--   But if it is not the main module we check,
+--   we do it in a fresh state, suitably initialize,
+--   in order to forget some state changes after successful type checking.
+
+typeCheck
+  :: C.TopLevelModuleName
+     -- ^ Module name of file we process.
+  -> AbsolutePath
+     -- ^ File we process.
+  -> Bool
+     -- ^ If type checking is necessary,
+     --   should all state changes inflicted by 'createInterface' be preserved?
+     --   @True@, if we are the 'MainInterface'.  @False@, if we are 'NotMainInterface'.
+  -> TCM (Bool, (Interface, MaybeWarnings))
+     -- ^ @Bool@ is: do we have to merge the interface?
+typeCheck x file includeStateChanges = do
+
           unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
                 (chaseMsg "Checking" x $ Just $ filePath file)
@@ -446,7 +495,7 @@ getInterface' x isMain = do
                       -- checking the module.
                       -- Note that this doesn't actually read the interface
                       -- file, only the cached interface.
-                      skip file
+                      getStoredInterface x file includeStateChanges
                     _ -> return (False, r)
 
 
