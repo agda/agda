@@ -11,6 +11,7 @@ import Control.Arrow
 import Control.DeepSeq
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
 import qualified Control.Exception as E
 
 import Data.Function (on)
@@ -258,7 +259,7 @@ getInterface' x isMain = do
 
       uptodate <- Bench.billTo [Bench.Import] $ do
         ignore <- ignoreInterfaces
-        cached <- isCached x file
+        cached <- runMaybeT $ isCached x file
           -- If it's cached ignoreInterfaces has no effect;
           -- to avoid typechecking a file more than once.
         sourceH <- liftIO $ hashFile file
@@ -320,19 +321,24 @@ isCached
      -- ^ Module name of file we process.
   -> AbsolutePath
      -- ^ File we process.
-  -> TCM (Maybe Interface)
+  -> MaybeT TCM Interface
 
 isCached x file = do
-        let ifile = filePath $ toIFile file
-        exist <- liftIO $ doesFileExistCaseSensitive ifile
-        if not exist
-          then return Nothing
-          else do
-            h  <- fmap snd <$> getInterfaceFileHashes ifile
-            mm <- getDecodedModule x
-            return $ case mm of
-              Just mi | Just (iFullHash mi) == h -> Just mi
-              _                                  -> Nothing
+  let ifile = filePath $ toIFile file
+
+  -- Make sure the file exists in the case sensitive spelling.
+  guardM $ liftIO $ doesFileExistCaseSensitive ifile
+
+  -- Check that we have cached the module.
+  mi <- MaybeT $ getDecodedModule x
+
+  -- Check that the interface file exists and return its hash.
+  h  <- MaybeT $ fmap snd <$> getInterfaceFileHashes ifile
+
+  -- Make sure the hashes match.
+  guard $ iFullHash mi == h
+
+  return mi
 
 
 -- | Try to get the interface from interface file or cache.
