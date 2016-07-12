@@ -111,29 +111,23 @@ levelView a = do
 
 levelView' :: Term -> ReduceM Level
 levelView' a = do
-  msuc <- (getCon =<<) <$> getBuiltin' builtinLevelSuc
-  mzer <- (getCon =<<) <$> getBuiltin' builtinLevelZero
-  mmax <- (getDef =<<) <$> getBuiltin' builtinLevelMax
+  Def lzero [] <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelZero
+  Def lsuc  [] <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelSuc
+  Def lmax  [] <- ignoreSharing . fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinLevelMax
   let view a = do
         a <- reduce' a
         case ignoreSharing a of
           Level l -> return l
-          Con s [arg]
-            | Just s == msuc -> inc <$> view (unArg arg)
-          Con z []
-            | Just z == mzer -> return $ closed 0
+          Def s [Apply arg]
+            | s == lsuc  -> inc <$> view (unArg arg)
+          Def z []
+            | z == lzero -> return $ closed 0
           Def m [Apply arg1, Apply arg2]
-            | Just m == mmax -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
-          _                  -> mkAtom a
+            | m == lmax  -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
+          _              -> mkAtom a
   v <- view a
   return v
   where
-    getCon (Con c []) = Just c
-    getCon _          = Nothing
-
-    getDef (Def f []) = Just f
-    getDef _          = Nothing
-
     mkAtom a = do
       b <- reduceB' a
       return $ case ignoreSharing <$> b of
