@@ -1071,6 +1071,14 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
                 then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootNameModule file]
+                -- Andreas, 2016-07-12, ALTERNATIVE:
+                -- -- We assign an anonymous file module the name expected from
+                -- -- its import.  For flat file structures, this is the same.
+                -- -- For hierarchical file structures, this reverses the behavior:
+                -- -- Loading the file by itself will fail, but it can be imported.
+                -- -- The previous behavior is: it can be loaded by itself, but not
+                -- -- be imported
+                -- then return $ C.fromTopLevelModuleName expectedMName
                 else do
                 -- Andreas, 2014-03-28  Issue 1078
                 -- We need to check the module name against the file name here.

@@ -200,6 +200,17 @@ qnameParts (QName x)  = [x]
 toTopLevelModuleName :: QName -> TopLevelModuleName
 toTopLevelModuleName = TopLevelModuleName . map prettyShow . qnameParts
 
+-- | Turns a top level module into a qualified name with 'noRange'.
+
+fromTopLevelModuleName :: TopLevelModuleName -> QName
+fromTopLevelModuleName (TopLevelModuleName [])     = __IMPOSSIBLE__
+fromTopLevelModuleName (TopLevelModuleName (x:xs)) = loop x xs
+  where
+  loop x []       = QName (mk x)
+  loop x (y : ys) = Qual  (mk x) $ loop y ys
+  mk :: String -> Name
+  mk x = Name noRange [Id x]
+
 -- | Turns a top-level module name into a file name with the given
 -- suffix.
 
