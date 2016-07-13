@@ -1,6 +1,8 @@
 -- Andreas, 2016-01-23, issue 1796
 -- Need to run size constraint solver before with-abstraction
 
+-- {-# OPTIONS -v tc.size:100 -v tc.meta.assign:30 #-}
+
 open import Common.Size
 
 postulate

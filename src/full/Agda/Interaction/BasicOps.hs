@@ -39,6 +39,7 @@ import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
@@ -52,6 +53,7 @@ import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
@@ -86,7 +88,7 @@ parseExprIn ii rng s = do
     e   <- parseExpr rng s
     concreteToAbstract (clScope mi) e
 
-giveExpr :: MetaId -> Expr -> TCM Expr
+giveExpr :: MetaId -> Expr -> TCM ()
 -- When translator from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
 giveExpr mi e = do
@@ -128,7 +130,8 @@ giveExpr mi e = do
               ]
             equalTerm t' v v'  -- Note: v' now lives in context of meta
           _ -> updateMeta mi v
-        reify v
+        wakeupConstraints mi
+        solveSizeConstraints DontDefaultToInfty
 
 -- | Try to fill hole by expression.
 --
@@ -146,11 +149,10 @@ give ii mr e = liftTCM $ do
   reportSDoc "interaction.give" 10 $ TP.text "giving expression" TP.<+> prettyTCM e
   reportSDoc "interaction.give" 50 $ TP.text $ show $ deepUnscope e
   -- Try to give mi := e
-  _ <- catchError (giveExpr mi e) $ \ err -> case err of
+  catchError (giveExpr mi e) $ \ err -> case err of
     -- Turn PatternErr into proper error:
-    PatternErr{} -> do
-      err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
-      typeError $ GenericError $ show err
+    PatternErr{} -> typeError . GenericDocError =<< do
+      withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
     _ -> throwError err
   removeInteractionPoint ii
   return e

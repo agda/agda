@@ -49,10 +49,14 @@ main = do
   -- Test:
   -- print $ lub' hg (NodeZero, 0) (NodeRigid "i", 0)
 
-  (xs, gs) <- abortOnError $ constraintGraphs cs hg
+  -- -- (xs, gs) <- abortOnError $ constraintGraphs cs hg
+  -- g <- abortOnError $ constraintGraph cs hg
 
-  let xsSol = Map.fromList $ map (,Infty) xs
-  sol <- (Map.union xsSol) <$> do abortOnError $ solveGraphs pols hg gs
+  -- -- let xsSol = Map.fromList $ map (,Infty) xs
+  -- -- sol <- Map.union xsSol <$> do abortOnError $ solveGraphs pols hg gs
+  -- sol <- abortOnError $ solveGraph pols hg g
+
+  sol <- abortOnError $ iterateSolver pols hg cs Map.empty
   putStrLn "Solution"
   print sol
 

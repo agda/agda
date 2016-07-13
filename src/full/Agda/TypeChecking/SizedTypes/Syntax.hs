@@ -135,6 +135,9 @@ instance Ord f => Substitute r f (Constraint' r f) where
 instance Substitute r f a => Substitute r f [a] where
   subst = map . subst
 
+instance Substitute r f a => Substitute r f (Map k a) where
+  subst = fmap . subst
+
 -- | Add offset to size expression.
 instance Plus (SizeExpr' r f) Offset (SizeExpr' r f) where
   plus e m =

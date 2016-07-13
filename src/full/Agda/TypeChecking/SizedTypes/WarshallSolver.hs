@@ -559,6 +559,7 @@ data Bounds r f = Bounds
   { lowerBounds :: Bound r f
   , upperBounds :: Bound r f
   , mustBeFinite :: Set f
+    -- ^ These metas are < ∞.
   }
 
 -- | Compute a lower bound for a flexible from an edge.
@@ -847,9 +848,9 @@ solveGraph pols hg g = do
           []     -> return $ Nothing
           (a:as) -> do
             case foldM (glb hg) a as of
-              Nothing -> Left $ "inconsistent upper bound for " ++ show x
-              Just l | validOffset l -> return $ Just l
-                     | otherwise     -> return $ findRigidBelow hg l
+              Just l | validOffset l                  -> return $ Just l
+                     | Just l' <- findRigidBelow hg l -> return $ Just l'
+              _ -> Left $ "inconsistent upper bound for " ++ show x
       case (lb, ub) of
         (Just l, Nothing) -> return $ Just (x, l)  -- solve x = lower bound
         (Nothing, Just u) -> return $ Just (x, u)  -- solve x = upper bound
@@ -889,6 +890,30 @@ verifySolution hg cs sol = do
     Just [] -> Right ()
     Just cs -> Left $ "solution leaves constraints " ++ show cs
 -}
+
+-- | Iterate solver until no more metas can be solved.
+--
+--   This might trigger a (wanted) error on the second iteration (see Issue 2096)
+--   which would otherwise go unnoticed.
+
+iterateSolver
+  :: (Ord r, Ord f, Show r, Show f)
+  => Polarities f
+     -- ^ Meta variable polarities (prefer lower or upper solution?).
+  -> HypGraph r f
+     -- ^ Hypotheses (assumed to have no metas, so, fixed during iteration).
+  -> [Constraint' r f]
+     -- ^ Constraints to solve.
+  -> Solution r f
+     -- ^ Previous substitution (already applied to constraints).
+  -> Either String (Solution r f)
+     -- ^ Accumulated substition.
+
+iterateSolver pols hg cs sol0 = do
+  g <- constraintGraph cs hg
+  sol <- solveGraph pols hg g
+  if Map.null sol then return sol0 else
+    iterateSolver pols hg (subst sol cs) (Map.unionWith __IMPOSSIBLE__ sol $ subst sol sol0)
 
 -- * Tests
 
