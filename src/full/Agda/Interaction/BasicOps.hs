@@ -39,6 +39,7 @@ import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
 import Agda.TheTypeChecker
+import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
@@ -52,6 +53,7 @@ import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.SizedTypes.Solve
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Except ( Error(strMsg), MonadError(catchError, throwError) )
@@ -128,6 +130,8 @@ giveExpr mi e = do
               ]
             equalTerm t' v v'  -- Note: v' now lives in context of meta
           _ -> updateMeta mi v
+        wakeupConstraints mi
+        solveSizeConstraints DontDefaultToInfty
 
 -- | Try to fill hole by expression.
 --

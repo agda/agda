@@ -10,5 +10,5 @@
 ((last . 1) . (agda2-goals-action '(0)))
 (agda2-give-action 0 "↑ (↑ (↑ (↑ m)))")
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "_m′_102 : Size< (↑ (↑ (↑ (↑ .m)))) [ at Issue2095.agda:31,8-11 ] _m′_106 : Size< _m′_102 [ at Issue2095.agda:31,13-16 ] _m′_110 : Size< _m′_106 [ at Issue2095.agda:31,18-21 ] _m″_111 : Size< _m′_106 [ at Issue2095.agda:31,18-21 ] _m′_115 : Size< _m′_110 [ at Issue2095.agda:31,23-26 ] _m″_116 : Size< _m′_110 [ at Issue2095.agda:31,23-26 ] " nil)
+(agda2-info-action "*All Goals*" "" nil)
 ((last . 1) . (agda2-goals-action '()))
