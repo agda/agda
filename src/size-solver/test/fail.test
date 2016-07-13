@@ -1,3 +1,15 @@
+#1. meta-hyp.txt
+dist/build/size-solver/size-solver < test/fail/meta-hyp.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Hypotheses
+j' < ∞
+j < X
+Error: flexible variables are not allowed in hypotheses
+>>>2
+>>>= 1
+
 #1. meta-hyp1.txt
 dist/build/size-solver/size-solver < test/fail/meta-hyp1.txt
 <<<
