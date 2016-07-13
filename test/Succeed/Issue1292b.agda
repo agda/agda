@@ -2,7 +2,7 @@
 
 {-# OPTIONS --without-K #-}
 
-module _ where
+-- {-# OPTIONS -v tc.size:20  #-}
 
 open import Common.Size
 
@@ -12,8 +12,8 @@ data Nat : {size : Size} -> Set where
 
 -- subtraction is non size increasing
 sub : {size : Size} -> Nat {size} -> Nat {∞} -> Nat {size}
-sub zero n = zero
-sub (suc m) zero = suc m
+sub zero    n       = zero
+sub (suc m) zero    = suc m
 sub (suc m) (suc n) = sub m n
 
 -- div' m n  computes  ceiling(m/(n+1))
