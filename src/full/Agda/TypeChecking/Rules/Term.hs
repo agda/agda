@@ -489,6 +489,9 @@ checkExtendedLambda i di qname cs e t = do
      j   <- currentOrFreshMutualBlock
      rel <- asks envRelevance
      let info = setRelevance rel defaultArgInfo
+     -- Andreas, 2016-07-13, issue 2028.
+     -- Save the state to rollback the changes to the signature.
+     st <- get
      -- Andreas, 2013-12-28: add extendedlambda as @Function@, not as @Axiom@;
      -- otherwise, @addClause@ in @checkFunDef'@ fails (see issue 1009).
      addConstant qname =<< do
@@ -519,10 +522,13 @@ checkExtendedLambda i di qname cs e t = do
        -- In this case, we want to postpone.
        Just (err, x) -> do
          -- Note that we messed up the state a bit.  We might want to unroll these state changes.
-         -- However, they are harmless:
+         -- However, they are mostly harmless:
          -- 1. We created a new mutual block id.
          -- 2. We added a constant without definition.
-         -- TODO: roll back the state.
+
+         -- In fact, they are not so harmless, see issue 2028!
+         -- Thus, reset the state!
+         put st
 
          -- The meta might not be known in the reset state, as it could have been created
          -- somewhere on the way to the type error.

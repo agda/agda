@@ -120,12 +120,12 @@ addImportedThings ::
   Set String -> -- UHC backend imports
   A.PatternSynDefns -> DisplayForms -> TCM ()
 addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns display = do
-  stImports %= \imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
-  stImportedBuiltins %= \imp -> Map.union imp ibuiltin
-  stHaskellImports %= \imp -> Set.union imp hsImports
-  stHaskellImportsUHC %= \imp -> Set.union imp hsImportsUHC
-  stPatternSynImports %= \imp -> Map.union imp patsyns
-  stImportedDisplayForms %= \imp -> HMap.unionWith (++) imp display
+  stImports              %= \ imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
+  stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
+  stHaskellImports       %= \ imp -> Set.union imp hsImports
+  stHaskellImportsUHC    %= \ imp -> Set.union imp hsImportsUHC
+  stPatternSynImports    %= \ imp -> Map.union imp patsyns
+  stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
   addSignatureInstances isig
 
 -- | Scope checks the given module. A proper version of the module
@@ -434,6 +434,7 @@ typeCheck x file includeStateChanges = do
 
             -- Merge the signature with the signature for imported
             -- things.
+            reportSLn "import.iface" 40 $ "Merging with state changes included."
             sig     <- getSignature
             patsyns <- getPatternSyns
             display <- use stImportsDisplayForms
@@ -728,7 +729,7 @@ createInterface file mname =
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
-    reportSLn "import.iface.create" 7 $ "Starting writing to interface file."
+    reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
     warn <- if and [ null unsolvedMetas, null unsolvedConstraints, null interactionPoints ]
      then Bench.billTo [Bench.Serialization] $ do
       -- The file was successfully type-checked (and no warnings were
@@ -738,7 +739,7 @@ createInterface file mname =
       return NoWarnings
      else do
       return $ SomeWarnings $ Warnings unsolvedMetas unsolvedConstraints
-    reportSLn "import.iface.create" 7 $ "Finished writing to interface file."
+    reportSLn "import.iface.create" 7 $ "Finished (or skipped) writing to interface file."
 
     -- Profiling: Print statistics.
     printStatistics 30 (Just mname) =<< getStatistics
