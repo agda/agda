@@ -331,7 +331,7 @@ solveCluster flag ccs = do
   ims <- Set.fromList <$> getInteractionMetas
 
   --  ms = unsolved size metas from cluster
-  let ms = Set.fromList (map sizeMetaId metas) Set.\\
+  let ms = Set.fromList (map sizeMetaId metas) Set.\\  -- Some CPP or ghc does not like trailing backslash, thus, this comment!
              Set.mapMonotonic MetaId (Map.keysSet sol)
   --  Make sure they do not contain an interaction point
   let noIP = Set.null $ Set.intersection ims ms
