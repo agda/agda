@@ -120,12 +120,12 @@ addImportedThings ::
   Set String -> -- UHC backend imports
   A.PatternSynDefns -> DisplayForms -> TCM ()
 addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns display = do
-  stImports %= \imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
-  stImportedBuiltins %= \imp -> Map.union imp ibuiltin
-  stHaskellImports %= \imp -> Set.union imp hsImports
-  stHaskellImportsUHC %= \imp -> Set.union imp hsImportsUHC
-  stPatternSynImports %= \imp -> Map.union imp patsyns
-  stImportedDisplayForms %= \imp -> HMap.unionWith (++) imp display
+  stImports              %= \ imp -> unionSignatures [imp, over sigRewriteRules killCtxId isig]
+  stImportedBuiltins     %= \ imp -> Map.union imp ibuiltin
+  stHaskellImports       %= \ imp -> Set.union imp hsImports
+  stHaskellImportsUHC    %= \ imp -> Set.union imp hsImportsUHC
+  stPatternSynImports    %= \ imp -> Map.union imp patsyns
+  stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
   addSignatureInstances isig
 
 -- | Scope checks the given module. A proper version of the module
