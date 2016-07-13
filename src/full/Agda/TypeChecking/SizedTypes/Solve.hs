@@ -282,16 +282,23 @@ solveCluster flag ccs = do
   -- There cannot be negative cycles in hypotheses graph due to scoping.
   let hg = fromRight __IMPOSSIBLE__ $ hypGraph (rigids csF) hyps
 
-  -- Construct the constraint graph.
-  --    g :: Size.Graph NamedRigid Int Label
-  g <- either err return $ constraintGraph csF hg
-  reportSDoc "tc.size.solve" 40 $ vcat $
-    [ text "Constraint graph"
-    , text (show g)
-    ]
+  -- -- Construct the constraint graph.
+  -- --    g :: Size.Graph NamedRigid Int Label
+  -- g <- either err return $ constraintGraph csF hg
+  -- reportSDoc "tc.size.solve" 40 $ vcat $
+  --   [ text "Constraint graph"
+  --   , text (show g)
+  --   ]
 
-  sol :: Solution NamedRigid Int <- either err return $ solveGraph Map.empty hg g
-  either err return $ verifySolution hg csF sol
+  -- sol :: Solution NamedRigid Int <- either err return $ solveGraph Map.empty hg g
+  -- either err return $ verifySolution hg csF sol
+
+  -- Andreas, 2016-07-13, issue 2096.
+  -- Running the solver once might result in unsolvable left-over constraints.
+  -- We need to iterate the solver to detect this.
+  sol :: Solution NamedRigid Int <- either err return $
+    iterateSolver Map.empty hg csF Map.empty
+
   -- Convert solution to meta instantiation.
   forM_ (Map.assocs sol) $ \ (m, a) -> do
     unless (validOffset a) __IMPOSSIBLE__
