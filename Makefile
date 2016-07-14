@@ -61,13 +61,23 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
-CABAL_INSTALL=$(CABAL_CMD) install --enable-tests \
-              --disable-documentation --builddir=$(BUILD_DIR)
+QUICK_CABAL_INSTALL= $(CABAL_CMD) install \
+                       --disable-documentation \
+                       --builddir=$(BUILD_DIR)
+
+CABAL_INSTALL=$(QUICK_CABAL_INSTALL) --enable-tests
+
+CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
+                         --program-suffix=-$(VERSION) \
+                         $(CABAL_OPTS)
+
+.PHONY : quick-install-bin
+quick-install-bin :
+	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : install-bin
 install-bin :
-	$(CABAL_INSTALL) --disable-library-profiling \
-          --program-suffix=-$(VERSION) $(CABAL_OPTS)
+	$(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : install-prof-bin
 install-prof-bin :
