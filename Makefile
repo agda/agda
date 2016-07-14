@@ -30,8 +30,6 @@ override CABAL_OPTS+=-fuhc
 endif
 endif
 
-override CABAL_OPTS+=--builddir=$(BUILD_DIR)
-
 # Run in interactive and parallel mode by default
 
 # You can use the $(PARALLEL_TESTS_FILE) file for setting the number of
