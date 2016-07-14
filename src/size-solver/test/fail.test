@@ -1,4 +1,4 @@
-#1. meta-hyp.txt
+# meta-hyp.txt
 dist/build/size-solver/size-solver < test/fail/meta-hyp.txt
 <<<
 >>>
@@ -10,7 +10,7 @@ Error: flexible variables are not allowed in hypotheses
 >>>2
 >>>= 1
 
-#1. meta-hyp1.txt
+# meta-hyp1.txt
 dist/build/size-solver/size-solver < test/fail/meta-hyp1.txt
 <<<
 >>>
@@ -23,7 +23,7 @@ Error: size constraint j' < ∞ not consistent with size hypotheses
 >>>2
 >>>= 1
 
-#1. meta-hyp2.txt
+# meta-hyp2.txt
 dist/build/size-solver/size-solver < test/fail/meta-hyp2.txt
 <<<
 >>>
@@ -38,7 +38,7 @@ Error: size constraint graph constrains size hypotheses
 >>>2
 >>>= 1
 
-#1. Issue2096.txt
+# Issue2096.txt
 dist/build/size-solver/size-solver < test/fail/Issue2096.txt
 <<<
 >>>

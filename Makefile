@@ -310,6 +310,8 @@ install-fix-agda-whitespace :
 
 ## size-solver standalone program ############################################
 
+# NB. It is necessary to install the Agda library (i.e run `make install-bin`)
+# before installing the `size-solver` program.
 .PHONY : install-size-solver
 install-size-solver :
 	@echo "======================================================================"
@@ -318,7 +320,7 @@ install-size-solver :
 	$(MAKE) -C src/size-solver install-bin
 
 .PHONY : test-size-solver
-test-size-solver :
+test-size-solver : install-size-solver
 	@echo "======================================================================"
 	@echo "=============== Testing the size-solver program ======================"
 	@echo "======================================================================"
