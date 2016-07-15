@@ -606,7 +606,8 @@ primComp = do
            sc <- reduceB' c
            let fallback = return $ NoReduction [notReduced l,reduced sc, reduced sphi, notReduced u, notReduced a0]
            case unArg $ ignoreBlocking sc of
-             Lam _info t ->
+             Lam _info t -> do
+               t <- reduce' t
                case unAbs t of
                  Pi a b   -> redReturn =<< compPi unview t a b (ignoreBlocking sphi) u a0 --  __IMPOSSIBLE__ -- Lam _ (comp (Lam
                  Sort s   | False -> __IMPOSSIBLE__ -- Glue guys
