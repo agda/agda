@@ -61,11 +61,16 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
-QUICK_CABAL_INSTALL= $(CABAL_CMD) install \
-                       --disable-documentation \
-                       --builddir=$(BUILD_DIR)
+CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
 
-CABAL_INSTALL=$(QUICK_CABAL_INSTALL) --enable-tests
+# 2016-07-15. We use a different `--builddir` in the quick
+# installation for avoiding recompilation (see Issue #2083). The fix
+# of https://github.com/haskell/cabal/issues/3545 should avoid the use
+# of a different directory.
+
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
+
+CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR) --enable-tests
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
                          $(CABAL_OPTS)
@@ -294,9 +299,13 @@ testing-emacs-mode:
 
 ## Clean ##################################################################
 
+clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) clean --builddir=$(1); fi;
+
+
 .PHONY : clean
 clean :
-	$(CABAL_CMD) clean --builddir=$(BUILD_DIR)
+	$(call clean_helper,$(BUILD_DIR))
+	$(call clean_helper,$(BUILD_DIR)-quick)
 
 ## Whitespace-related #####################################################
 
