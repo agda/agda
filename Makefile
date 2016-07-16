@@ -63,10 +63,9 @@ prof : install-prof-bin
 
 CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
 
-# 2016-07-15. We use a different `--builddir` in the quick
-# installation for avoiding recompilation (see Issue #2083). The fix
-# of https://github.com/haskell/cabal/issues/3545 should avoid the use
-# of a different directory.
+# 2016-07-15. We use a different build directory in the quick
+# installation for avoiding recompilation (see Issue #2083 and
+# https://github.com/haskell/cabal/issues/1893).
 
 QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
 
