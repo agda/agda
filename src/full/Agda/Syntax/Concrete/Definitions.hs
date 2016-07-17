@@ -1170,7 +1170,7 @@ niceDeclarations ds = do
 
     privateBlock _ [] = return []
     privateBlock r ds = do
-      let (ds', anyChange) = runChange $ mapM mkPrivate ds
+      let (ds', anyChange) = runChange $ mkPrivate ds
       if anyChange then return ds' else throwError $ UselessPrivate r
 
     instanceBlock _ [] = return []
