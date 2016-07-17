@@ -1215,8 +1215,10 @@ instance MakeAbstract NiceDeclaration where
       -- no effect on fields or primitives, the InAbstract field there is unused
       NiceField r i f p _ x e          -> return $ NiceField r i f p AbstractDef x e
       PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
-      NiceUnquoteDecl r f p i _ t x e  -> return $ NiceUnquoteDecl r f p i AbstractDef t x e
-      NiceUnquoteDef r f p _ t x e     -> return $ NiceUnquoteDef r f p AbstractDef t x e
+      -- Andreas, 2016-07-17 it does have effect on unquoted defs.
+      -- Need to set updater state to dirty!
+      NiceUnquoteDecl r f p i _ t x e  -> dirty $ NiceUnquoteDecl r f p i AbstractDef t x e
+      NiceUnquoteDef r f p _ t x e     -> dirty $ NiceUnquoteDef r f p AbstractDef t x e
       NiceModule{}                     -> return d
       NiceModuleMacro{}                -> return d
       Axiom{}                          -> return d
