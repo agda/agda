@@ -578,7 +578,7 @@ niceDeclarations ds = do
       PatternSyn _ x _ _   -> [x]
       Mutual    _ ds       -> concatMap declaredNames ds
       Abstract  _ ds       -> concatMap declaredNames ds
-      Private   _ ds       -> concatMap declaredNames ds
+      Private _ _ ds       -> concatMap declaredNames ds
       InstanceB _ ds       -> concatMap declaredNames ds
       Macro     _ ds       -> concatMap declaredNames ds
       Postulate _ ds       -> concatMap declaredNames ds
@@ -721,8 +721,8 @@ niceDeclarations ds = do
         Abstract r ds' ->
           (++) <$> (abstractBlock r =<< nice ds') <*> nice ds
 
-        Private r ds' ->
-          (++) <$> (privateBlock r =<< nice ds') <*> nice ds
+        Private r o ds' ->
+          (++) <$> (privateBlock r o =<< nice ds') <*> nice ds
 
         InstanceB r ds' ->
           (++) <$> (instanceBlock r =<< nice ds') <*> nice ds
@@ -1128,11 +1128,11 @@ niceDeclarations ds = do
           -- hack to avoid failing on inherited abstract blocks in where clauses
       if anyChange || inherited then return ds' else throwError $ UselessAbstract r
 
-
-    privateBlock _ [] = return []
-    privateBlock r ds = do
+    privateBlock _ _ [] = return []
+    privateBlock r o ds = do
       let (ds', anyChange) = runChange $ mkPrivate ds
-      if anyChange then return ds' else throwError $ UselessPrivate r
+      if anyChange then return ds' else
+        if o == UserWritten then throwError $ UselessPrivate r else return ds -- no change!
 
     instanceBlock _ [] = return []
     instanceBlock r ds = do
@@ -1376,7 +1376,7 @@ fixitiesAndPolarities = foldMap $ \ d -> case d of
   -- We look into these blocks:
   Mutual    _ ds' -> fixitiesAndPolarities ds'
   Abstract  _ ds' -> fixitiesAndPolarities ds'
-  Private   _ ds' -> fixitiesAndPolarities ds'
+  Private _ _ ds' -> fixitiesAndPolarities ds'
   InstanceB _ ds' -> fixitiesAndPolarities ds'
   Macro     _ ds' -> fixitiesAndPolarities ds'
   -- All other declarations are ignored.

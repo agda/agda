@@ -955,7 +955,7 @@ telHasOpenStmsOrModuleMacros = any yesBinds
       -- (Andreas, 2015-11-17)
     yes (C.Mutual   _ ds) = any yes ds
     yes (C.Abstract _ ds) = any yes ds
-    yes (C.Private  _ ds) = any yes ds
+    yes (C.Private _ _ ds) = any yes ds
     yes _                 = False
 
 {- UNUSED

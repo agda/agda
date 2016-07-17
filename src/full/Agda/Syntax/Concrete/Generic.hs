@@ -210,7 +210,7 @@ instance ExprLike Declaration where
      PatternSyn{}              -> e0
      Mutual    r ds            -> Mutual    r                          $ mapE ds
      Abstract  r ds            -> Abstract  r                          $ mapE ds
-     Private   r ds            -> Private   r                          $ mapE ds
+     Private   r o ds          -> Private   r o                        $ mapE ds
      InstanceB r ds            -> InstanceB r                          $ mapE ds
      Macro     r ds            -> Macro     r                          $ mapE ds
      Postulate r ds            -> Postulate r                          $ mapE ds

@@ -231,7 +231,7 @@ withAbstractPrivate i m =
             do  ds <- m
                 return $ abst a $ priv p $ ds
     where
-        priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
+        priv PrivateAccess ds = [ C.Private (getRange ds) Inserted ds ]
         priv _ ds             = ds
         abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
         abst _ ds             = ds

@@ -379,7 +379,7 @@ instance Pretty Declaration where
                                      <+> text "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds
             Abstract _ ds   -> namedBlock "abstract" ds
-            Private _ ds    -> namedBlock "private" ds
+            Private _ _ ds  -> namedBlock "private" ds
             InstanceB _ ds  -> namedBlock "instance" ds
             Macro _ ds      -> namedBlock "macro" ds
             Postulate _ ds  -> namedBlock "postulate" ds
