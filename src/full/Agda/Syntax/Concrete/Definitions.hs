@@ -1123,50 +1123,11 @@ niceDeclarations ds = do
 
     abstractBlock _ [] = return []
     abstractBlock r ds = do
-      let (ds', anyChange) = runChange $ mapM mkAbstract ds
+      let (ds', anyChange) = runChange $ mkAbstract ds
           inherited        = r == noRange
           -- hack to avoid failing on inherited abstract blocks in where clauses
       if anyChange || inherited then return ds' else throwError $ UselessAbstract r
 
-    -- Make a declaration abstract
-    mkAbstract :: Updater NiceDeclaration
-    mkAbstract d =
-      case d of
-        NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mapM mkAbstract ds
-        FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x) <$> setAbstract a <*> mapM mkAbstractClause cs
-        DataDef r f a x ps pc cs         -> (\ a -> DataDef r f a x ps pc) <$> setAbstract a <*> mapM mkAbstract cs
-        RecDef r f a x i e c ps pc cs    -> (\ a -> RecDef r f a x i e c ps pc) <$> setAbstract a <*> mapM mkAbstract cs
-        NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> setAbstract a
-        -- no effect on fields or primitives, the InAbstract field there is unused
-        NiceField r i f p _ x e          -> return $ NiceField r i f p AbstractDef x e
-        PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
-        NiceUnquoteDecl r f p i _ t x e  -> return $ NiceUnquoteDecl r f p i AbstractDef t x e
-        NiceUnquoteDef r f p _ t x e     -> return $ NiceUnquoteDef r f p AbstractDef t x e
-        NiceModule{}                     -> return d
-        NiceModuleMacro{}                -> return d
-        Axiom{}                          -> return d
-        NicePragma{}                     -> return d
-        NiceOpen{}                       -> return d
-        NiceImport{}                     -> return d
-        FunSig{}                         -> return d
-        NiceRecSig{}                     -> return d
-        NiceDataSig{}                    -> return d
-        NicePatternSyn{}                 -> return d
-
-    setAbstract :: Updater IsAbstract
-    setAbstract a = case a of
-      AbstractDef -> return a
-      ConcreteDef -> dirty $ AbstractDef
-
-    mkAbstractClause :: Updater Clause
-    mkAbstractClause (Clause x catchall lhs rhs wh with) = do
-        wh <- mkAbstractWhere wh
-        Clause x catchall lhs rhs wh <$> mapM mkAbstractClause with
-
-    mkAbstractWhere :: Updater WhereClause
-    mkAbstractWhere  NoWhere         = return $ NoWhere
-    mkAbstractWhere (AnyWhere ds)    = dirty $ AnyWhere [Abstract noRange ds]
-    mkAbstractWhere (SomeWhere m a ds) = dirty $ SomeWhere m a [Abstract noRange ds]
 
     privateBlock _ [] = return []
     privateBlock r ds = do
@@ -1215,6 +1176,67 @@ niceDeclarations ds = do
         FunSig r f p i _ rel tc x e -> return $ FunSig r f p i MacroDef rel tc x e
         FunDef{}                    -> return d
         _                           -> throwError (BadMacroDef d)
+
+-- | Make a declaration abstract.
+--
+-- Mark computation as 'dirty' if there was a declaration that could be made abstract.
+-- If no abstraction is taking place, we want to complain about 'UselessAbstract'.
+--
+-- Alternatively, we could only flag 'dirty' if a non-abstract thing was abstracted.
+-- Then, nested @abstract@s would sometimes also be complained about.
+
+class MakeAbstract a where
+  mkAbstract :: Updater a
+  -- default mkAbstract :: (Traversable f, MakeAbstract a) => Updater (f a)
+  default mkAbstract :: (Traversable f) => Updater (f a)
+  mkAbstract = traverse mkAbstract
+
+instance MakeAbstract a => MakeAbstract [a] where
+  -- Default definition kicks in here!
+  -- But note that we still have to declare the instance!
+
+-- Leads to overlap with 'WhereClause':
+-- instance (Traversable f, MakeAbstract a) => MakeAbstract (f a) where
+--   mkAbstract = traverse mkAbstract
+
+instance MakeAbstract IsAbstract where
+  mkAbstract a = case a of
+    AbstractDef -> return a
+    ConcreteDef -> dirty $ AbstractDef
+
+instance MakeAbstract NiceDeclaration where
+  mkAbstract d =
+    case d of
+      NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mkAbstract ds
+      FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x) <$> mkAbstract a <*> mkAbstract cs
+      DataDef r f a x ps pc cs         -> (\ a -> DataDef r f a x ps pc) <$> mkAbstract a <*> mkAbstract cs
+      RecDef r f a x i e c ps pc cs    -> (\ a -> RecDef r f a x i e c ps pc) <$> mkAbstract a <*> mkAbstract cs
+      NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> mkAbstract a
+      -- no effect on fields or primitives, the InAbstract field there is unused
+      NiceField r i f p _ x e          -> return $ NiceField r i f p AbstractDef x e
+      PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
+      NiceUnquoteDecl r f p i _ t x e  -> return $ NiceUnquoteDecl r f p i AbstractDef t x e
+      NiceUnquoteDef r f p _ t x e     -> return $ NiceUnquoteDef r f p AbstractDef t x e
+      NiceModule{}                     -> return d
+      NiceModuleMacro{}                -> return d
+      Axiom{}                          -> return d
+      NicePragma{}                     -> return d
+      NiceOpen{}                       -> return d
+      NiceImport{}                     -> return d
+      FunSig{}                         -> return d
+      NiceRecSig{}                     -> return d
+      NiceDataSig{}                    -> return d
+      NicePatternSyn{}                 -> return d
+
+instance MakeAbstract Clause where
+  mkAbstract (Clause x catchall lhs rhs wh with) = do
+    Clause x catchall lhs rhs <$> mkAbstract wh <*> mkAbstract with
+
+-- | Contents of a @where@ clause are abstract if the parent is.
+instance MakeAbstract WhereClause where
+  mkAbstract  NoWhere           = return $ NoWhere
+  mkAbstract (AnyWhere ds)      = dirty $ AnyWhere [Abstract noRange ds]
+  mkAbstract (SomeWhere m a ds) = dirty $ SomeWhere m a [Abstract noRange ds]
 
 -- | Make a declaration private.
 --
