@@ -4,8 +4,6 @@
 
   open import language.built-ins
 
-  data ⊥ : Set where
-
 .. _function-definitions:
 
 ********************

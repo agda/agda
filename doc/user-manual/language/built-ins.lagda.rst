@@ -10,6 +10,8 @@
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
+  data ⊥ : Set where
+
 .. _built-ins:
 
 *********
@@ -572,4 +574,3 @@ problems can be fixed with ``primForce``::
   pow : Nat → Nat → Nat
   pow zero    a = a
   pow (suc n) a =  pow n $! a + a
-
