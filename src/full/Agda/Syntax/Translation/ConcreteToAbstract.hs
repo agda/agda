@@ -1766,10 +1766,15 @@ instance ToAbstract C.Clause A.Clause where
     printLocals 10 "after lhs:"
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
-          AnyWhere ds    -> (Nothing, ds)
+          -- Andreas, 2016-07-17 issues #2081 and #2101
+          -- where-declarations are automatically private.
+          -- This allows their type signature to be checked InAbstractMode.
+          AnyWhere ds    -> (Nothing, [C.Private noRange Inserted ds])
+          -- Named where-modules do not default to private.
           SomeWhere m a ds -> (Just (m, a), ds)
 
     let isTerminationPragma :: C.Declaration -> Bool
+        isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds
         isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
         isTerminationPragma _                                       = False
 
