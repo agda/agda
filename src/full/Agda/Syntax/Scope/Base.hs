@@ -70,12 +70,12 @@ data NameSpaceId
 type ScopeNameSpaces = [(NameSpaceId, NameSpace)]
 
 localNameSpace :: Access -> NameSpaceId
-localNameSpace PublicAccess  = PublicNS
-localNameSpace PrivateAccess = PrivateNS
-localNameSpace OnlyQualified = OnlyQualifiedNS
+localNameSpace PublicAccess    = PublicNS
+localNameSpace PrivateAccess{} = PrivateNS
+localNameSpace OnlyQualified   = OnlyQualifiedNS
 
 nameSpaceAccess :: NameSpaceId -> Access
-nameSpaceAccess PrivateNS = PrivateAccess
+nameSpaceAccess PrivateNS = PrivateAccess Inserted
 nameSpaceAccess _         = PublicAccess
 
 -- | Get a 'NameSpace' from 'Scope'.
