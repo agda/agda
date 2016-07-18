@@ -46,12 +46,14 @@ instance EmbPrj NameSpaceId where
     valu _   = malformed
 
 instance EmbPrj Access where
-  icod_ PrivateAccess = icode0 0
+  icod_ (PrivateAccess UserWritten) = icode0 0
+  icod_ PrivateAccess{} = icode0 1
   icod_ PublicAccess  = icode0'
   icod_ OnlyQualified = icode0 2
 
   value = vcase valu where
-    valu [0] = valu0 PrivateAccess
+    valu [0] = valu0 $ PrivateAccess UserWritten
+    valu [1] = valu0 $ PrivateAccess Inserted
     valu []  = valu0 PublicAccess
     valu [2] = valu0 OnlyQualified
     valu _   = malformed

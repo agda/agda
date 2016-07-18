@@ -258,7 +258,7 @@ instance Pretty WhereClause where
                        = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere ds) = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (SomeWhere m a ds) =
-    vcat [ hsep $ applyWhen (a == PrivateAccess) (text "private" :)
+    vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) (text "private" :)
              [ text "module", pretty m, text "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]

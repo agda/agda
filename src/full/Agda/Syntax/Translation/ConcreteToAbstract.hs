@@ -669,7 +669,7 @@ scopeCheckExtendedLam r cs = do
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
   qname <- qualifyName_ name
-  bindName PrivateAccess DefName cname qname
+  bindName (PrivateAccess Inserted) DefName cname qname
 
   -- Compose a function definition an scope check it.
   a <- aModeToDef <$> asks envAbstractMode
@@ -924,7 +924,7 @@ scopeCheckNiceModule r p name tel checkDs
       (name, p, open) <- do
         if isNoName name then do
           (i :: NameId) <- fresh
-          return (C.NoName (getRange name) i, PrivateAccess, True)
+          return (C.NoName (getRange name) i, PrivateAccess Inserted, True)
          else return (name, p, False)
 
       -- Check and bind the module, using the supplied check for its contents.
@@ -1226,7 +1226,7 @@ instance ToAbstract LetDef [A.LetBinding] where
       NiceModuleMacro r p x modapp open dir | not (publicOpen dir) ->
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
-        checkModuleMacro LetApply r PrivateAccess x modapp open dir
+        checkModuleMacro LetApply r (PrivateAccess Inserted) x modapp open dir
 
       _   -> notAValidLetBinding d
     where
@@ -1478,8 +1478,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
       -- Bind the desired module name to the right abstract name.
       case as of
-        Nothing -> bindQModule PrivateAccess x m
-        Just y  -> bindModule PrivateAccess (asName y) m
+        Nothing -> bindQModule (PrivateAccess Inserted) x m
+        Just y  -> bindModule (PrivateAccess Inserted) (asName y) m
 
       printScope "import" 10 "merged imported sig:"
 
@@ -1565,10 +1565,10 @@ bindConstructorName m x f a p record = do
     -- An abstract constructor is private (abstract constructor means
     -- abstract datatype, so the constructor should not be exported).
     p' = case a of
-           AbstractDef -> PrivateAccess
+           AbstractDef -> PrivateAccess Inserted
            _           -> p
     p'' = case (a, record) of
-            (AbstractDef, _) -> PrivateAccess
+            (AbstractDef, _) -> PrivateAccess Inserted
             (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
             _                -> PublicAccess
 
@@ -1796,7 +1796,7 @@ whereToAbstract r whname whds inner = do
   (m, acc) <- do
     case whname of
       Just (m, acc) | not (isNoName m) -> return (m, acc)
-      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess)
+      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess Inserted)
            -- unnamed where's are private
   let tel = []
   old <- getCurrentModule
