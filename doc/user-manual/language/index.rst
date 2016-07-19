@@ -7,6 +7,7 @@ Language Reference
 .. toctree::
    :maxdepth: 2
 
+   abstract-definitions
    built-ins
    coinduction
    copatterns
