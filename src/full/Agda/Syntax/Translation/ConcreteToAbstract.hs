@@ -215,7 +215,7 @@ recordConstructorType fields = build fs
     build (NiceModuleMacro r p x modapp open dir@ImportDirective{ publicOpen = True } : fs) =
       build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
 
-    build (NiceField r _ f _ _ x (Arg info e) : fs) =
+    build (NiceField r f _ _ _ x (Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Arg info (C.TBind r [pure $ mkBoundName x f] e)] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let (getRange d) (notSoNiceDeclarations d) $
@@ -1150,7 +1150,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
   toAbstract (LetDef d) =
     case d of
-      NiceMutual _ _ _ d@[C.FunSig _ fx _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
+      NiceMutual _ _ _ d@[C.FunSig _ fx _ _ instanc macro info _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
           do  when (abstract == AbstractDef) $ do
                 genericError $ "abstract not allowed in let expressions"
               when (macro == MacroDef) $ do
@@ -1188,7 +1188,7 @@ instance ToAbstract LetDef [A.LetBinding] where
             case definedName p of
               Nothing -> throwError err
               Just x  -> toAbstract $ LetDef $ NiceMutual r termCheck True
-                [ C.FunSig r noFixity' PublicAccess NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
+                [ C.FunSig r noFixity' PublicAccess ConcreteDef NotInstanceDef NotMacroDef defaultArgInfo termCheck x (C.Underscore (getRange x) Nothing)
                 , C.FunDef r __IMPOSSIBLE__ __IMPOSSIBLE__ ConcreteDef __IMPOSSIBLE__ __IMPOSSIBLE__
                   [C.Clause x (ca || catchall) lhs (C.RHS rhs) NoWhere []]
                 ]
@@ -1287,7 +1287,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     case d of
 
   -- Axiom (actual postulate)
-    C.Axiom r f p i rel _ x t -> do
+    C.Axiom r f p a i rel _ x t -> do
       -- check that we do not postulate in --safe mode
       clo <- commandLineOptions
       when (optSafe clo) (typeError (SafeFlagPostulate x))
@@ -1295,7 +1295,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
   -- Fields
-    C.NiceField r i f p a x t -> do
+    C.NiceField r f p a i x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
@@ -1326,28 +1326,30 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo termCheck pc r) ds' ]
 
-    C.NiceRecSig r f a x ls t _ -> do
+    C.NiceRecSig r f p a _pc x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
         t'  <- toAbstract t
         x'  <- freshAbstractQName f x
-        bindName a DefName x x'
-        return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
+        bindName p DefName x x'
+        return [ A.RecSig (mkDefInfo x f p a r) x' ls' t' ]
 
-    C.NiceDataSig r f a x ls t _ -> withLocalVars $ do
+    C.NiceDataSig r f p a _pc x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
         t'  <- toAbstract t
         x'  <- freshAbstractQName f x
         {- -- Andreas, 2012-01-16: remember number of parameters
-        bindName a (DataName (length ls)) x x' -}
-        bindName a DefName x x'
-        return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
+        bindName p (DataName (length ls)) x x' -}
+        bindName p DefName x x'
+        return [ A.DataSig (mkDefInfo x f p a r) x' ls' t' ]
+
   -- Type signatures
-    C.FunSig r f p i m rel tc x t -> toAbstractNiceAxiom A.FunSig m
-                                       (C.Axiom r f p i rel Nothing x t)
+    C.FunSig r f p a i m rel tc x t ->
+        toAbstractNiceAxiom A.FunSig m (C.Axiom r f p a i rel Nothing x t)
+
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
@@ -1363,7 +1365,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r f a x pars _ cons -> withLocalVars $ do
+    C.DataDef r f a _ x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
         ensureNoLetStms pars
         -- Check for duplicate constructors
@@ -1388,11 +1390,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "data" 20 $ "Checked data " ++ show x
         return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
       where
-        conName (C.Axiom _ _ _ _ _ _ c _) = c
+        conName (C.Axiom _ _ _ _ _ _ _ c _) = c
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind eta cm pars _ fields -> do
+    C.RecDef r f a _ x ind eta cm pars fields -> do
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
@@ -1502,7 +1504,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
             }
       return [ A.Import minfo m adir ]
 
-    NiceUnquoteDecl r fxs p i a tc xs e -> do
+    NiceUnquoteDecl r fxs p a i tc xs e -> do
       ys <- zipWithM freshAbstractQName fxs xs
       zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
@@ -1539,13 +1541,13 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     where
       -- checking postulate or type sig. without checking safe flag
-      toAbstractNiceAxiom funSig isMacro (C.Axiom r f p i info mp x t) = do
+      toAbstractNiceAxiom funSig isMacro (C.Axiom r f p a i info mp x t) = do
         t' <- toAbstractCtx TopCtx t
         y  <- freshAbstractQName f x
         let kind | isMacro == MacroDef = MacroName
                  | otherwise           = DefName
         bindName p kind x y
-        return [ A.Axiom funSig (mkDefInfoInstance x f p ConcreteDef i isMacro r) info mp y t' ]
+        return [ A.Axiom funSig (mkDefInfoInstance x f p a i isMacro r) info mp y t' ]
       toAbstractNiceAxiom _ _ _ = __IMPOSSIBLE__
 
 
@@ -1575,15 +1577,17 @@ bindConstructorName m x f a p record = do
 instance ToAbstract ConstrDecl A.Declaration where
   toAbstract (ConstrDecl record m a p d) = do
     case d of
-      C.Axiom r f _ i info Nothing x t -> do -- rel==Relevant
+      C.Axiom r f p1 a1 i info Nothing x t -> do -- rel==Relevant
+        -- unless (p1 == p) __IMPOSSIBLE__  -- This invariant is currently violated by test/Succeed/Issue282.agda
+        unless (a1 == a) __IMPOSSIBLE__
         t' <- toAbstractCtx TopCtx t
         -- The abstract name is the qualified one
         -- Bind it twice, once unqualified and once qualified
         y <- bindConstructorName m x f a p record
         printScope "con" 15 "bound constructor"
-        return $ A.Axiom NoFunSig (mkDefInfoInstance x f p ConcreteDef i NotMacroDef r)
+        return $ A.Axiom NoFunSig (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
-      C.Axiom _ _ _ _ _ (Just _) _ _ -> __IMPOSSIBLE__
+      C.Axiom _ _ _ _ _ _ (Just _) _ _ -> __IMPOSSIBLE__
       _ -> typeError . GenericDocError $
         P.text "Illegal declaration in data type definition " P.$$
         P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))

@@ -7,7 +7,9 @@ import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Foldable as Fold
 
@@ -46,6 +48,14 @@ getMetaStore = use stMetaStore
 
 modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = stMetaStore %= f
+
+-- | Run a computation and record which new metas it created.
+metasCreatedBy :: TCM a -> TCM (a, Set MetaId)
+metasCreatedBy m = do
+  before <- Map.keysSet <$> use stMetaStore
+  a <- m
+  after  <- Map.keysSet <$> use stMetaStore
+  return (a, after Set.\\ before)
 
 -- | Lookup a meta variable
 lookupMeta :: MetaId -> TCM MetaVariable
@@ -345,14 +355,18 @@ withFreezeMetas cont = do
 
 -- | Freeze all meta variables and return the list of metas that got frozen.
 freezeMetas :: TCM [MetaId]
-freezeMetas = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
+freezeMetas = freezeMetas' $ const True
+
+-- | Freeze some meta variables and return the list of metas that got frozen.
+freezeMetas' :: (MetaId -> Bool) -> TCM [MetaId]
+freezeMetas' p = execWriterT $ stMetaStore %== Map.traverseWithKey freeze
   where
   freeze :: Monad m => MetaId -> MetaVariable -> WriterT [MetaId] m MetaVariable
   freeze m mvar
-    | mvFrozen mvar == Frozen = return mvar
-    | otherwise = do
+    | p m && mvFrozen mvar /= Frozen = do
         tell [m]
         return $ mvar { mvFrozen = Frozen }
+    | otherwise = return mvar
 
 -- | Thaw all meta variables.
 unfreezeMetas :: TCM ()
