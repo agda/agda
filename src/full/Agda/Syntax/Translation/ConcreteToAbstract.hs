@@ -1326,7 +1326,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       -- We only termination check blocks that do not have a measure.
       return [ A.Mutual (MutualInfo termCheck pc r) ds' ]
 
-    C.NiceRecSig r f a x ls t _ -> do
+    C.NiceRecSig r f a _ x ls t -> do
       ensureNoLetStms ls
       withLocalVars $ do
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1335,7 +1335,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindName a DefName x x'
         return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
 
-    C.NiceDataSig r f a x ls t _ -> withLocalVars $ do
+    C.NiceDataSig r f a _ x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         ensureNoLetStms ls
         ls' <- toAbstract (map makeDomainFull ls)
@@ -1363,7 +1363,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceFunClause{} -> __IMPOSSIBLE__
 
   -- Data definitions
-    C.DataDef r f a x pars _ cons -> withLocalVars $ do
+    C.DataDef r f a _ x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
         ensureNoLetStms pars
         -- Check for duplicate constructors
@@ -1392,7 +1392,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x ind eta cm pars _ fields -> do
+    C.RecDef r f a _ x ind eta cm pars fields -> do
       ensureNoLetStms pars
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously

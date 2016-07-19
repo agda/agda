@@ -96,6 +96,7 @@ import Agda.Utils.Impossible
       IsAbstract
       IsInstance
       TerminationCheck
+      PositivityCheck
 
       further attributes
 
@@ -117,8 +118,8 @@ data NiceDeclaration
   | NiceOpen Range QName ImportDirective
   | NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
   | NicePragma Range Pragma
-  | NiceRecSig Range Fixity' Access Name [LamBinding] Expr PositivityCheck
-  | NiceDataSig Range Fixity' Access Name [LamBinding] Expr PositivityCheck
+  | NiceRecSig Range Fixity' Access PositivityCheck Name [LamBinding] Expr
+  | NiceDataSig Range Fixity' Access PositivityCheck Name [LamBinding] Expr
   | NiceFunClause Range Access IsAbstract TerminationCheck Catchall Declaration
     -- ^ An uncategorized function clause, could be a function clause
     --   without type signature or a pattern lhs (e.g. for irrefutable let).
@@ -128,8 +129,8 @@ data NiceDeclaration
       -- ^ Block of function clauses (we have seen the type signature before).
       --   The 'Declaration's are the original declarations that were processed
       --   into this 'FunDef' and are only used in 'notSoNiceDeclaration'.
-  | DataDef Range Fixity' IsAbstract Name [LamBinding] PositivityCheck [NiceConstructor]
-  | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] PositivityCheck [NiceDeclaration]
+  | DataDef Range Fixity' IsAbstract PositivityCheck Name [LamBinding] [NiceConstructor]
+  | RecDef Range Fixity' IsAbstract PositivityCheck Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
   | NiceUnquoteDecl Range [Fixity'] Access IsAbstract IsInstance TerminationCheck [Name] Expr
   | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
@@ -517,11 +518,11 @@ data DeclKind
 
 declKind :: NiceDeclaration -> DeclKind
 declKind (FunSig _ _ _ _ _ _ tc x _)      = LoneSig (FunName tc) x
-declKind (NiceRecSig _ _ _ x pars _ pc)   = LoneSig (RecName pc $ parameters pars) x
-declKind (NiceDataSig _ _ _ x pars _ pc)  = LoneSig (DataName pc $ parameters pars) x
+declKind (NiceRecSig _ _ _ pc x pars _)   = LoneSig (RecName pc $ parameters pars) x
+declKind (NiceDataSig _ _ _ pc x pars _)  = LoneSig (DataName pc $ parameters pars) x
 declKind (FunDef _ _ _ _ tc x _)          = LoneDefs (FunName tc) [x]
-declKind (DataDef _ _ _ x pars pc _)      = LoneDefs (DataName pc $ parameters pars) [x]
-declKind (RecDef _ _ _ x _ _ _ pars pc _) = LoneDefs (RecName pc $ parameters pars) [x]
+declKind (DataDef _ _ _ pc x pars _)      = LoneDefs (DataName pc $ parameters pars) [x]
+declKind (RecDef _ _ _ pc x _ _ _ pars _) = LoneDefs (RecName pc $ parameters pars) [x]
 declKind (NiceUnquoteDef _ _ _ _ tc xs _) = LoneDefs (FunName tc) xs
 declKind Axiom{}                          = OtherDecl
 declKind NiceField{}                      = OtherDecl
@@ -625,7 +626,7 @@ niceDeclarations ds = do
           -- block. See Issue 1760.
           let prefix :: [NiceDeclaration] -> [NiceDeclaration]
               prefix = case (d, ds0) of
-                (NiceRecSig{}, [r@(RecDef _ _ _ _ _ _ _ _ True _)]) -> ([d, r] ++)
+                (NiceRecSig{}, [r@(RecDef _ _ _ True _ _ _ _ _ _)]) -> ([d, r] ++)
                 _                                                   ->
                   (NiceMutual (getRange (d : ds0)) tc (and pcs) (d : ds0) :)
 
@@ -873,7 +874,7 @@ niceDeclarations ds = do
     niceRecord pc (Record r x i e c tel t cs) ds = do
       t <- defaultTypeSig (RecName pc $ parameters tel) x t
       c <- traverse (\(cname, cinst) -> do fix <- getFixity cname; return (ThingWithFixity cname fix, cinst)) c
-      (++) <$> dataOrRec pc (\x1 x2 x3 x4 -> RecDef x1 x2 x3 x4 i e c) NiceRecSig
+      (++) <$> dataOrRec pc (\ r f a pc x tel cs -> RecDef r f a pc x i e c tel cs) NiceRecSig
                  niceDeclarations r x tel t (Just cs)
            <*> nice ds
     niceRecord _ _ _ = __IMPOSSIBLE__
@@ -883,7 +884,7 @@ niceDeclarations ds = do
     niceRecordSig pc (RecordSig r x tel t) ds = do
       addLoneSig x (RecName pc $ parameters tel)
       fx <- getFixity x
-      (NiceRecSig r fx PublicAccess x tel t pc :) <$> nice ds
+      (NiceRecSig r fx PublicAccess pc x tel t :) <$> nice ds
     niceRecordSig _ _ _ = __IMPOSSIBLE__
 
     -- We could add a default type signature here, but at the moment we can't
@@ -900,10 +901,10 @@ niceDeclarations ds = do
 
     dataOrRec :: forall a .
                  PositivityCheck ->
-                 (Range -> Fixity' -> IsAbstract -> Name -> [LamBinding] ->
-                   PositivityCheck -> [NiceConstructor] -> NiceDeclaration) ->
-                 (Range -> Fixity' -> Access -> Name -> [LamBinding] -> Expr ->
-                   PositivityCheck -> NiceDeclaration) ->
+                 (Range -> Fixity' -> IsAbstract -> PositivityCheck -> Name -> [LamBinding] ->
+                   [NiceConstructor] -> NiceDeclaration) ->
+                 (Range -> Fixity' -> Access -> PositivityCheck -> Name -> [LamBinding] -> Expr ->
+                   NiceDeclaration) ->
                  ([a] -> Nice [NiceDeclaration]) ->
                  Range ->
                  Name ->
@@ -915,8 +916,8 @@ niceDeclarations ds = do
       mds <- traverse niceD mcs
       f   <- getFixity x
       return $ catMaybes $
-        [ mt <&> \ t -> mkSig (fuseRange x t) f PublicAccess x tel t pc
-        , mkDef r f ConcreteDef x (concatMap dropType tel) pc <$> mds
+        [ mt <&> \ t -> mkSig (fuseRange x t) f PublicAccess pc x tel t
+        , mkDef r f ConcreteDef pc x (concatMap dropType tel) <$> mds
         ]
       where
         dropType :: LamBinding -> [LamBinding]
@@ -1126,11 +1127,11 @@ niceDeclarations ds = do
         -- block if any of its inner declarations comes with a
         -- NO_POSITIVITY_CHECK pragma. See Issue 1614.
         positivityCheckOldMutual :: NiceDeclaration -> PositivityCheck
-        positivityCheckOldMutual (DataDef _ _ _ _ _ pc _)      = pc
-        positivityCheckOldMutual (NiceDataSig _ _ _ _ _ _ pc)  = pc
+        positivityCheckOldMutual (DataDef _ _ _ pc _ _ _)      = pc
+        positivityCheckOldMutual (NiceDataSig _ _ _ pc _ _ _)  = pc
         positivityCheckOldMutual (NiceMutual _ _ pc _)         = __IMPOSSIBLE__
-        positivityCheckOldMutual (NiceRecSig _ _ _ _ _ _ pc)   = pc
-        positivityCheckOldMutual (RecDef _ _ _ _ _ _ _ _ pc _) = pc
+        positivityCheckOldMutual (NiceRecSig _ _ _ pc _ _ _)   = pc
+        positivityCheckOldMutual (RecDef _ _ _ pc _ _ _ _ _ _) = pc
         positivityCheckOldMutual _                             = True
 
         -- A mutual block cannot have a measure,
@@ -1224,8 +1225,8 @@ instance MakeAbstract NiceDeclaration where
     case d of
       NiceMutual r termCheck pc ds     -> NiceMutual r termCheck pc <$> mkAbstract ds
       FunDef r ds f a tc x cs          -> (\ a -> FunDef r ds f a tc x) <$> mkAbstract a <*> mkAbstract cs
-      DataDef r f a x ps pc cs         -> (\ a -> DataDef r f a x ps pc) <$> mkAbstract a <*> mkAbstract cs
-      RecDef r f a x i e c ps pc cs    -> (\ a -> RecDef r f a x i e c ps pc) <$> mkAbstract a <*> mkAbstract cs
+      DataDef r f a pc x ps cs         -> (\ a -> DataDef r f a pc x ps) <$> mkAbstract a <*> mkAbstract cs
+      RecDef r f a pc x i e c ps cs    -> (\ a -> RecDef r f a pc x i e c ps) <$> mkAbstract a <*> mkAbstract cs
       NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> mkAbstract a
       -- no effect on fields or primitives, the InAbstract field there is unused
       NiceField r f p _ i x e          -> return $ NiceField r f p AbstractDef i x e
@@ -1293,8 +1294,8 @@ instance MakePrivate NiceDeclaration where
       NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)                <$> mkPrivate o p
       NiceModuleMacro r p x ma op is           -> (\ p -> NiceModuleMacro r p x ma op is)           <$> mkPrivate o p
       FunSig r f p i m rel tc x e              -> (\ p -> FunSig r f p i m rel tc x e)              <$> mkPrivate o p
-      NiceRecSig r f p x ls t pc               -> (\ p -> NiceRecSig r f p x ls t pc)               <$> mkPrivate o p
-      NiceDataSig r f p x ls t pc              -> (\ p -> NiceDataSig r f p x ls t pc)              <$> mkPrivate o p
+      NiceRecSig r f p pc x ls t               -> (\ p -> NiceRecSig r f p pc x ls t)               <$> mkPrivate o p
+      NiceDataSig r f p pc x ls t              -> (\ p -> NiceDataSig r f p pc x ls t)              <$> mkPrivate o p
       NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> mkPrivate o p
       NiceUnquoteDecl r f p a i t x e          -> (\ p -> NiceUnquoteDecl r f p a i t x e)          <$> mkPrivate o p
       NiceUnquoteDef r f p a t x e             -> (\ p -> NiceUnquoteDef r f p a t x e)             <$> mkPrivate o p
@@ -1436,14 +1437,14 @@ notSoNiceDeclarations d =
     NiceOpen r x dir                 -> [Open r x dir]
     NiceImport r x as o dir          -> [Import r x as o dir]
     NicePragma _ p                   -> [Pragma p]
-    NiceRecSig r _ _ x bs e _        -> [RecordSig r x bs e]
-    NiceDataSig r _ _ x bs e _       -> [DataSig r Inductive x bs e]
+    NiceRecSig r _ _ _ x bs e        -> [RecordSig r x bs e]
+    NiceDataSig r _ _ _ x bs e       -> [DataSig r Inductive x bs e]
     NiceFunClause _ _ _ _ _ d        -> [d]
     FunSig _ _ _ _ _ rel tc x e      -> [TypeSig rel x e]
     FunDef r [d] _ _ _ _ _           -> [d]
     FunDef r ds _ _ _ _ _            -> [Mutual r ds] -- Andreas, 2012-04-07 Hack!
-    DataDef r _ _ x bs _ cs          -> [Data r Inductive x bs Nothing $ concatMap notSoNiceDeclarations cs]
-    RecDef r _ _ x i e c bs _ ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
+    DataDef r _ _ _ x bs cs          -> [Data r Inductive x bs Nothing $ concatMap notSoNiceDeclarations cs]
+    RecDef r _ _ _ x i e c bs ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
     NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
     NiceUnquoteDecl r _ _ _ _ _ x e  -> [UnquoteDecl r x e]
