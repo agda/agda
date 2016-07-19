@@ -87,6 +87,21 @@ import Agda.Utils.Impossible
     contained in a single constructor instead of spread out between type
     signatures and clauses. The @private@, @postulate@, @abstract@ and @instance@
     modifiers have been distributed to the individual declarations.
+
+    Observe the order of components:
+
+      Range
+      Fixity'
+      Access
+      IsAbstract
+      IsInstance
+      TerminationCheck
+
+      further attributes
+
+      (Q)Name
+
+      content (Expr, Declaration ...)
 -}
 data NiceDeclaration
   = Axiom Range Fixity' Access IsInstance ArgInfo (Maybe [Occurrence]) Name Expr
@@ -94,7 +109,7 @@ data NiceDeclaration
       -- irrelevant. ('Hiding' should be 'NotHidden'.)
       --
       -- Sixth argument: Polarities can be assigned to identifiers.
-  | NiceField Range IsInstance Fixity' Access IsAbstract Name (Arg Expr)
+  | NiceField Range Fixity' Access IsAbstract IsInstance Name (Arg Expr)
   | PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
   | NiceMutual Range TerminationCheck PositivityCheck [NiceDeclaration]
   | NiceModule Range Access IsAbstract QName Telescope [Declaration]
@@ -116,7 +131,7 @@ data NiceDeclaration
   | DataDef Range Fixity' IsAbstract Name [LamBinding] PositivityCheck [NiceConstructor]
   | RecDef Range Fixity' IsAbstract Name (Maybe (Ranged Induction)) (Maybe Bool) (Maybe (ThingWithFixity Name, IsInstance)) [LamBinding] PositivityCheck [NiceDeclaration]
   | NicePatternSyn Range Fixity' Name [Arg Name] Pattern
-  | NiceUnquoteDecl Range [Fixity'] Access IsInstance IsAbstract TerminationCheck [Name] Expr
+  | NiceUnquoteDecl Range [Fixity'] Access IsAbstract IsInstance TerminationCheck [Name] Expr
   | NiceUnquoteDef Range [Fixity'] Access IsAbstract TerminationCheck [Name] Expr
   deriving (Typeable, Show)
 
@@ -762,7 +777,7 @@ niceDeclarations ds = do
 
         UnquoteDecl r xs e -> do
           fxs <- mapM getFixity xs
-          (NiceUnquoteDecl r fxs PublicAccess NotInstanceDef ConcreteDef TerminationCheck xs e :) <$> nice ds
+          (NiceUnquoteDecl r fxs PublicAccess ConcreteDef NotInstanceDef TerminationCheck xs e :) <$> nice ds
 
         UnquoteDef r xs e -> do
           fxs  <- mapM getFixity xs
@@ -921,7 +936,7 @@ niceDeclarations ds = do
         return [ Axiom (getRange d) fx PublicAccess NotInstanceDef rel Nothing x t ]
       Field i x argt -> do
         fx <- getFixity x
-        return [ NiceField (getRange d) i fx PublicAccess ConcreteDef x argt ]
+        return [ NiceField (getRange d) fx PublicAccess ConcreteDef i x argt ]
       InstanceB r decls -> do
         instanceBlock r =<< niceAxioms InstanceBlock decls
       Pragma p@(RewritePragma r _) -> do
@@ -1145,7 +1160,7 @@ niceDeclarations ds = do
       case d of
         Axiom r f p i rel mp x e         -> (\ i -> Axiom r f p i rel mp x e) <$> setInstance i
         FunSig r f p i m rel tc x e      -> (\ i -> FunSig r f p i m rel tc x e) <$> setInstance i
-        NiceUnquoteDecl r f p i a tc x e -> (\ i -> NiceUnquoteDecl r f p i a tc x e) <$> setInstance i
+        NiceUnquoteDecl r f p a i tc x e -> (\ i -> NiceUnquoteDecl r f p a i tc x e) <$> setInstance i
         NiceMutual{}                     -> return d
         NiceFunClause{}                  -> return d
         FunDef{}                         -> return d
@@ -1213,11 +1228,11 @@ instance MakeAbstract NiceDeclaration where
       RecDef r f a x i e c ps pc cs    -> (\ a -> RecDef r f a x i e c ps pc) <$> mkAbstract a <*> mkAbstract cs
       NiceFunClause r p a termCheck catchall d  -> (\ a -> NiceFunClause r p a termCheck catchall d) <$> mkAbstract a
       -- no effect on fields or primitives, the InAbstract field there is unused
-      NiceField r i f p _ x e          -> return $ NiceField r i f p AbstractDef x e
+      NiceField r f p _ i x e          -> return $ NiceField r f p AbstractDef i x e
       PrimitiveFunction r f p _ x e    -> return $ PrimitiveFunction r f p AbstractDef x e
       -- Andreas, 2016-07-17 it does have effect on unquoted defs.
       -- Need to set updater state to dirty!
-      NiceUnquoteDecl r f p i _ t x e  -> dirty $ NiceUnquoteDecl r f p i AbstractDef t x e
+      NiceUnquoteDecl r f p _ i t x e  -> dirty $ NiceUnquoteDecl r f p AbstractDef i t x e
       NiceUnquoteDef r f p _ t x e     -> dirty $ NiceUnquoteDef r f p AbstractDef t x e
       NiceModule{}                     -> return d
       NiceModuleMacro{}                -> return d
@@ -1272,7 +1287,7 @@ instance MakePrivate NiceDeclaration where
   mkPrivate o d =
     case d of
       Axiom r f p i rel mp x e                 -> (\ p -> Axiom r f p i rel mp x e)                 <$> mkPrivate o p
-      NiceField r i f p a x e                  -> (\ p -> NiceField r i f p a x e)                  <$> mkPrivate o p
+      NiceField r f p a i x e                  -> (\ p -> NiceField r f p a i x e)                  <$> mkPrivate o p
       PrimitiveFunction r f p a x e            -> (\ p -> PrimitiveFunction r f p a x e)            <$> mkPrivate o p
       NiceMutual r termCheck pc ds             -> (\ p -> NiceMutual r termCheck pc p)              <$> mkPrivate o ds
       NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)                <$> mkPrivate o p
@@ -1281,7 +1296,7 @@ instance MakePrivate NiceDeclaration where
       NiceRecSig r f p x ls t pc               -> (\ p -> NiceRecSig r f p x ls t pc)               <$> mkPrivate o p
       NiceDataSig r f p x ls t pc              -> (\ p -> NiceDataSig r f p x ls t pc)              <$> mkPrivate o p
       NiceFunClause r p a termCheck catchall d -> (\ p -> NiceFunClause r p a termCheck catchall d) <$> mkPrivate o p
-      NiceUnquoteDecl r f p i a t x e          -> (\ p -> NiceUnquoteDecl r f p i a t x e)          <$> mkPrivate o p
+      NiceUnquoteDecl r f p a i t x e          -> (\ p -> NiceUnquoteDecl r f p a i t x e)          <$> mkPrivate o p
       NiceUnquoteDef r f p a t x e             -> (\ p -> NiceUnquoteDef r f p a t x e)             <$> mkPrivate o p
       NicePragma _ _                           -> return $ d
       NiceOpen _ _ _                           -> return $ d
@@ -1413,7 +1428,7 @@ notSoNiceDeclarations d =
                                            Nothing   -> []
                                            Just occs -> [Pragma (PolarityPragma noRange x occs)]) ++
                                         [TypeSig rel x e]
-    NiceField _ i _ _ _ x argt       -> [Field i x argt]
+    NiceField _ _ _ _ i x argt       -> [Field i x argt]
     PrimitiveFunction r _ _ _ x e    -> [Primitive r [TypeSig defaultArgInfo x e]]
     NiceMutual r _ _ ds              -> [Mutual r $ concatMap notSoNiceDeclarations ds]
     NiceModule r _ _ x tel ds        -> [Module r x tel ds]
@@ -1439,7 +1454,7 @@ niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
 niceHasAbstract d =
   case d of
     Axiom{}                         -> Nothing
-    NiceField _ _ _ _ a _ _         -> Just a
+    NiceField _ _ _ a _ _ _         -> Just a
     PrimitiveFunction _ _ _ a _ _   -> Just a
     NiceMutual{}                    -> Nothing
     NiceModule _ _ a _ _ _          -> Just a
@@ -1455,5 +1470,5 @@ niceHasAbstract d =
     DataDef _ _ a _ _ _ _           -> Just a
     RecDef _ _ a _ _ _ _ _ _ _      -> Just a
     NicePatternSyn{}                -> Nothing
-    NiceUnquoteDecl _ _ _ _ a _ _ _ -> Just a
+    NiceUnquoteDecl _ _ _ a _ _ _ _ -> Just a
     NiceUnquoteDef _ _ _ a _ _ _    -> Just a

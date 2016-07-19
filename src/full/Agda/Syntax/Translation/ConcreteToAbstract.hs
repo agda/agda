@@ -215,7 +215,7 @@ recordConstructorType fields = build fs
     build (NiceModuleMacro r p x modapp open dir@ImportDirective{ publicOpen = True } : fs) =
       build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
 
-    build (NiceField r _ f _ _ x (Arg info e) : fs) =
+    build (NiceField r f _ _ _ x (Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Arg info (C.TBind r [pure $ mkBoundName x f] e)] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let (getRange d) (notSoNiceDeclarations d) $
@@ -1295,7 +1295,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       toAbstractNiceAxiom A.NoFunSig NotMacroDef d
 
   -- Fields
-    C.NiceField r i f p a x t -> do
+    C.NiceField r f p a i x t -> do
       unless (p == PublicAccess) $ genericError "Record fields can not be private"
       -- Interaction points for record fields have already been introduced
       -- when checking the type of the record constructor.
@@ -1502,7 +1502,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
             }
       return [ A.Import minfo m adir ]
 
-    NiceUnquoteDecl r fxs p i a tc xs e -> do
+    NiceUnquoteDecl r fxs p a i tc xs e -> do
       ys <- zipWithM freshAbstractQName fxs xs
       zipWithM_ (bindName p QuotableName) xs ys
       e <- toAbstract e
