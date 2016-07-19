@@ -616,6 +616,11 @@ type ModuleToSource = Map TopLevelModuleName AbsolutePath
 type SourceToModule = Map AbsolutePath TopLevelModuleName
 
 -- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
+--
+--   O(n log n).
+--
+--   For a single reverse lookup in 'stModuleToSource',
+--   rather use 'lookupModuleFromSourse'.
 
 sourceToModule :: TCM SourceToModule
 sourceToModule =
@@ -623,6 +628,14 @@ sourceToModule =
      .  List.map (\(m, f) -> (f, m))
      .  Map.toList
     <$> use stModuleToSource
+
+-- | Lookup an 'AbsolutePath' in 'sourceToModule'.
+--
+--   O(n).
+
+lookupModuleFromSource :: AbsolutePath -> TCM (Maybe TopLevelModuleName)
+lookupModuleFromSource f =
+  fmap fst . List.find ((f ==) . snd) . Map.toList <$> use stModuleToSource
 
 ---------------------------------------------------------------------------
 -- ** Interface
@@ -1164,8 +1177,8 @@ data NLPat
     -- ^ Matches @λ x → t@
   | PPi (Dom (Type' NLPat)) (Abs (Type' NLPat))
     -- ^ Matches @(x : A) → B@
-  | PSet NLPat
-    -- ^ Matches @Set l@
+  | PPlusLevel Integer NLPat
+    -- ^ Matches @lsuc $ lsuc $ ... lsuc t@
   | PBoundVar {-# UNPACK #-} !Int PElims
     -- ^ Matches @x es@ where x is a lambda-bound variable
   | PTerm Term
@@ -1902,7 +1915,7 @@ data TCEnv =
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
           , envHighlightingMethod :: HighlightingMethod
-          , envModuleNestingLevel :: Integer
+          , envModuleNestingLevel :: !Int
                 -- ^ This number indicates how far away from the
                 --   top-level module Agda has come when chasing
                 --   modules. The level of a given module is not
@@ -2056,7 +2069,7 @@ eHighlightingLevel f e = f (envHighlightingLevel e) <&> \ x -> e { envHighlighti
 eHighlightingMethod :: Lens' HighlightingMethod TCEnv
 eHighlightingMethod f e = f (envHighlightingMethod e) <&> \ x -> e { envHighlightingMethod = x }
 
-eModuleNestingLevel :: Lens' Integer TCEnv
+eModuleNestingLevel :: Lens' Int TCEnv
 eModuleNestingLevel f e = f (envModuleNestingLevel e) <&> \ x -> e { envModuleNestingLevel = x }
 
 eAllowDestructiveUpdate :: Lens' Bool TCEnv
@@ -2397,6 +2410,8 @@ data TypeError
         | FileNotFound C.TopLevelModuleName [AbsolutePath]
         | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
         | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
+        | ModuleNameUnexpected C.TopLevelModuleName C.TopLevelModuleName
+          -- ^ Found module name, expected module name.
         | ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
         | ClashingFileNamesFor ModuleName [AbsolutePath]
         | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath
@@ -2869,7 +2884,7 @@ instance KillRange NLPat where
   killRange (PDef x y) = killRange2 PDef x y
   killRange (PLam x y) = killRange2 PLam x y
   killRange (PPi x y)  = killRange2 PPi x y
-  killRange (PSet x)   = killRange1 PSet x
+  killRange (PPlusLevel x y) = killRange2 PPlusLevel x y
   killRange (PBoundVar x y) = killRange2 PBoundVar x y
   killRange (PTerm x)  = killRange1 PTerm x
 

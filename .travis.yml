@@ -174,20 +174,24 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-  # || true allows for failure -- we don't expect ~/.cabal/bin to exist at that
-  # point.
+
+# The container environment reports a wrong number of cores. We use a
+# `sed` script (from https://github.com/hvr/multi-ghc-travis) for
+# commenting out `jobs: $ncpus` in the Cabal configuration file.
+
   - if [[ $TEST != "doc" ]]; then
        cabal --version &&
        ghc --version &&
        haddock --version &&
        emacs --version &&
-       export JOBS=2;
+       export PARALLEL_TESTS=2;
        case "$TEST" in
          stack)
            export PATH=$HOME/.local/bin:$PATH
            ;;
          *)
            cabal update &&
+           sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
            cat $HOME/.cabal/config &&
            cabal install cabal-install &&
            export PATH=$HOME/.cabal/bin:$PATH &&
@@ -221,26 +225,6 @@ install:
 ##############################################################################
 # Installing Agda
 
-# We are installing Agda using
-#
-#  cabal configure <options>
-#  cabal build
-#  cabal copy
-#  cabal register
-#
-# instead of
-#
-#  cabal install <options>
-#
-# due to the cabal-install issue https://github.com/haskell/cabal/issues/975.
-
-# Note: `cabal build` sets up the number of jobs to $ncpus by default.
-# (cabal-install 1.22.4.0). See https://github.com/haskell/cabal/issues/2628.
-
-# We don't run `cabal install` because we are using `cabal configure` and
-# `cabal build` (see Section 'cabal install ≠ Setup install' from
-# http://www.vex.net/~trebla/haskell/cabal-cabal.xhtml).
-
   - export BUILD_DIR=$HOME/dist
 
   - if [[ $TEST = "stack" ]]; then
@@ -248,22 +232,7 @@ install:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       echo "======================================================================" &&
-       echo "==================== Running cabal configure =========================" &&
-       echo "======================================================================" &&
-       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests &&
-       echo "======================================================================" &&
-       echo "====================== Running cabal build ===========================" &&
-       echo "======================================================================" &&
-       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS} &&
-       echo "======================================================================" &&
-       echo "====================== Running cabal copy ============================" &&
-       echo "======================================================================" &&
-       cabal copy --builddir=$BUILD_DIR &&
-       echo "======================================================================" &&
-       echo "==================== Running cabal register ==========================" &&
-       echo "======================================================================" &&
-       cabal register --builddir=$BUILD_DIR;
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS=-v2 install-bin;
     fi
 
 ##############################################################################
@@ -325,11 +294,11 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR succeed;
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR fail;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR fail;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -341,7 +310,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR DONT_RUN_LATEX="Y" latex-html-test;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -364,14 +333,14 @@ script:
 # source files when running the internal test-suite.
 
   - if [[ $TEST = "main" ]]; then
-       make BUILD_DIR=$BUILD_DIR PARALLEL_TESTS=${JOBS} internal-tests;
+       make BUILD_DIR=$BUILD_DIR PARALLEL_TESTS=$PARALLEL_TESTS internal-tests;
     fi
 
   - if [[ $TEST = "main" ]]; then
        make BUILD_DIR=$BUILD_DIR benchmark-without-logs;
     fi
 
-# 2016-04-15: The option `AGDA_TESTS_OPTIONS="-j${JOBS}"` doesn't work
+# 2016-04-15: The option `AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}"` doesn't work
 # with the `compiler-test`.
 
   - if [[ $TEST = "main" ]]; then
@@ -379,7 +348,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       make AGDA_TESTS_OPTIONS="-j${JOBS}" BUILD_DIR=$BUILD_DIR lib-succeed;
+       make AGDA_TESTS_OPTIONS="-j${PARALLEL_TESTS}" BUILD_DIR=$BUILD_DIR lib-succeed;
     fi
 
   - if [[ $TEST = "main" ]]; then
@@ -395,10 +364,7 @@ script:
     fi
 
   - if [[ $TEST = "main" ]]; then
-       echo "======================================================================" &&
-       echo "==================== Testing the Emacs mode ==========================" &&
-       echo "======================================================================" &&
-       agda-mode compile;
+       make testing-emacs-mode;
     fi
 
 ##############################################################################
@@ -408,8 +374,7 @@ script:
 # N.B. that this test is not include in the Makefile tests.
 
   - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
-       cabal configure -v2 --builddir=$BUILD_DIR --enable-tests --constraint=transformers==0.3.0.0 &&
-       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 --constraint=transformers==0.3.0.0" install-bin;
     fi
 
 ##############################################################################
@@ -418,8 +383,7 @@ script:
 # N.B. that this test is not include in the Makefile tests.
 
   - if [[ $TEST = "cpp-and-debug" ]]; then
-       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f -cpphs &&
-       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 -f -cpphs" install-bin;
     fi
 
 ##############################################################################
@@ -428,16 +392,14 @@ script:
 # N.B. that this test is not include in the Makefile tests.
 
   - if [[ $TEST = "cpp-and-debug" ]]; then
-       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f debug &&
-       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 -f debug" install-bin;
     fi
 
 ##############################################################################
 # Testing compilation using the `uhc` flag
 
   - if [[ $TEST = "uhc" ]]; then
-       cabal configure -v2 --enable-tests --builddir=$BUILD_DIR -f uhc &&
-       cabal build -v2 --builddir=$BUILD_DIR -j${JOBS};
+       make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 -f uhc" install-bin;
     fi
 
 ##############################################################################

@@ -1,4 +1,16 @@
-#1. meta-hyp1.txt
+# meta-hyp.txt
+dist/build/size-solver/size-solver < test/fail/meta-hyp.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Hypotheses
+j' < ∞
+j < X
+Error: flexible variables are not allowed in hypotheses
+>>>2
+>>>= 1
+
+# meta-hyp1.txt
 dist/build/size-solver/size-solver < test/fail/meta-hyp1.txt
 <<<
 >>>
@@ -11,7 +23,7 @@ Error: size constraint j' < ∞ not consistent with size hypotheses
 >>>2
 >>>= 1
 
-#1. meta-hyp2.txt
+# meta-hyp2.txt
 dist/build/size-solver/size-solver < test/fail/meta-hyp2.txt
 <<<
 >>>
@@ -23,5 +35,21 @@ Z ≤ i
 j ≤ Y
 Hypotheses graph hg = [Edge {source = 0, target = ∞, label = ≤0},Edge {source = 0, target = i, label = ≤0},Edge {source = 0, target = j, label = ≤0},Edge {source = i, target = ∞, label = ≤0},Edge {source = i, target = i, label = ≤0},Edge {source = j, target = ∞, label = ≤0},Edge {source = j, target = j, label = ≤0}]
 Error: size constraint graph constrains size hypotheses
+>>>2
+>>>= 1
+
+# Issue2096.txt
+dist/build/size-solver/size-solver < test/fail/Issue2096.txt
+<<<
+>>>
+Size constraint solver (C) 2013 Andreas Abel and Felix Reihl
+Constraints
+q < Xo
+Xo < Xl
+Xl < Xj
+Xj < X1
+Xm+5 ≤ Xj
+Hypotheses graph hg = [Edge {source = 0, target = ∞, label = ≤0},Edge {source = 0, target = q, label = ≤0},Edge {source = q, target = ∞, label = ≤0},Edge {source = q, target = q, label = ≤0}]
+Error: inconsistent upper bound for Xm
 >>>2
 >>>= 1

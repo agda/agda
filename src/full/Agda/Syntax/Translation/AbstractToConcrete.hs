@@ -145,6 +145,7 @@ lookupQName ambCon x = do
     [] -> do
       let y = qnameToConcrete x
       if isUnderscore y
+        -- -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
         then return y
         else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)
@@ -231,7 +232,7 @@ withAbstractPrivate i m =
             do  ds <- m
                 return $ abst a $ priv p $ ds
     where
-        priv PrivateAccess ds = [ C.Private (getRange ds) ds ]
+        priv (PrivateAccess UserWritten) ds = [ C.Private (getRange ds) UserWritten ds ]
         priv _ ds             = ds
         abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
         abst _ ds             = ds

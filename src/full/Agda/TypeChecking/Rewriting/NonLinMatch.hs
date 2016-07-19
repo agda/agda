@@ -49,8 +49,9 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Free
-import Agda.TypeChecking.Level (unLevel, reallyUnLevelView)
+import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (primLevelSuc)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
@@ -120,17 +121,25 @@ instance PatternFrom Term NLPat where
            Nothing -> done
       Lam i t  -> PLam i <$> patternFrom k t
       Lit{}    -> done
-      Def f es -> PDef f <$> patternFrom k es
+      Def f es -> do
+        Def lsuc [] <- ignoreSharing <$> primLevelSuc
+        if f == lsuc
+        then case es of
+               [Apply arg] -> pLevelSuc <$> patternFrom k (unArg arg)
+               _           -> done
+        else PDef f <$> patternFrom k es
       Con c vs -> PDef (conName c) <$> patternFrom k (Apply <$> vs)
       Pi a b   -> PPi <$> patternFrom k a <*> patternFrom k b
-      Sort s   ->
-        case s of
-          Type l -> PSet <$> (patternFrom k =<< reallyUnLevelView l)
-          _      -> done
+      Sort s   -> done
       Level l  -> __IMPOSSIBLE__
       DontCare{} -> return PWild
       MetaV{}    -> __IMPOSSIBLE__
       Shared{}   -> __IMPOSSIBLE__
+
+pLevelSuc :: NLPat -> NLPat
+pLevelSuc p = case p of
+  PPlusLevel n p -> PPlusLevel (n+1) p
+  _              -> PPlusLevel 1 p
 
 instance (PatternFrom a b) => PatternFrom (Abs a) (Abs b) where
   patternFrom k (Abs name x)   = Abs name   <$> patternFrom (k+1) x
@@ -242,6 +251,9 @@ instance (Match a b, Subst t1 a, Subst t2 b) => Match (Abs a) (Abs b) where
   match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raise 1 p) v
   match gamma k (NoAbs _ p) (NoAbs _ v) = match gamma k p v
 
+instance Match NLPat Level where
+  match gamma k p l = match gamma k p =<< liftRed (reallyUnLevelView l)
+
 instance Match NLPat Term where
   match gamma k p v = do
     vb <- liftRed $ reduceB' v
@@ -312,12 +324,13 @@ instance Match NLPat Term where
         Pi a b -> match gamma k pa a >> match gamma k pb b
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
-      PSet p -> case ignoreSharing v of
-        Sort (Type l) -> do
-          l <- liftRed $ reallyUnLevelView l
-          match gamma k p l
-        MetaV m es -> matchingBlocked $ Blocked m ()
-        _ -> no (text "")
+      PPlusLevel n p' -> do
+        l <- liftRed $ levelView' v
+        case subLevel n l of
+          Just l' -> match gamma k p' l'
+          Nothing -> case ignoreSharing v of
+            MetaV m es -> matchingBlocked $ Blocked m ()
+            _          -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> match gamma k ps es
         MetaV m es -> matchingBlocked $ Blocked m ()
@@ -434,7 +447,7 @@ instance RaiseNLP NLPat where
     PDef f ps -> PDef f $ raiseNLPFrom c k ps
     PLam i q -> PLam i $ raiseNLPFrom c k q
     PPi a b -> PPi (raiseNLPFrom c k a) (raiseNLPFrom c k b)
-    PSet l -> PSet $ raiseNLPFrom c k l
+    PPlusLevel i q -> PPlusLevel i (raiseNLPFrom c k q)
     PBoundVar i ps -> let j = if i < c then i else i + k
                       in PBoundVar j $ raiseNLPFrom c k ps
     PTerm u -> PTerm $ raiseFrom c k u

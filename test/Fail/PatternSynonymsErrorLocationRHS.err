@@ -1,3 +1,4 @@
 PatternSynonymsErrorLocationRHS.agda:68,34-36
-A != C of type Sigma TyTag _.T
-when checking that the expression refl has type _.T A Gamma C zero
+A != C of type Sigma TyTag .PatternSynonymsErrorLocationRHS._.T
+when checking that the expression refl has type
+.PatternSynonymsErrorLocationRHS._.T A Gamma C zero

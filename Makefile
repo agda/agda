@@ -61,13 +61,27 @@ install: install-bin compile-emacs-mode setup-emacs-mode
 .PHONY : prof
 prof : install-prof-bin
 
-CABAL_INSTALL=$(CABAL_CMD) install --enable-tests \
-              --disable-documentation --builddir=$(BUILD_DIR)
+CABAL_INSTALL_HELPER = $(CABAL_CMD) install --disable-documentation
+
+# 2016-07-15. We use a different build directory in the quick
+# installation for avoiding recompilation (see Issue #2083 and
+# https://github.com/haskell/cabal/issues/1893).
+
+QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
+
+CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR) --enable-tests
+
+CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
+                         --program-suffix=-$(VERSION) \
+                         $(CABAL_OPTS)
+
+.PHONY : quick-install-bin
+quick-install-bin :
+	$(QUICK_CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : install-bin
 install-bin :
-	$(CABAL_INSTALL) --disable-library-profiling \
-          --program-suffix=-$(VERSION) $(CABAL_OPTS)
+	$(CABAL_INSTALL) $(CABAL_INSTALL_BIN_OPTS)
 
 .PHONY : install-prof-bin
 install-prof-bin :
@@ -79,7 +93,7 @@ install-prof-bin :
 
 .PHONY : compile-emacs-mode
 compile-emacs-mode: install-bin
-	agda-mode compile
+	$(AGDA_MODE) compile
 
 .PHONY : setup-emacs-mode
 setup-emacs-mode : install-bin
@@ -87,7 +101,7 @@ setup-emacs-mode : install-bin
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
 	@echo
-	agda-mode setup
+	$(AGDA_MODE) setup
 
 ## Making the documentation ###############################################
 
@@ -276,11 +290,22 @@ user-manual-test :
 	@find doc/user-manual -type f -name '*.agdai' -delete
 	@AGDA_BIN=$(AGDA_BIN) $(AGDA_TESTS_BIN) $(AGDA_TESTS_OPTIONS) --regex-include all/UserManual
 
+.PHONY : testing-emacs-mode
+testing-emacs-mode:
+	@echo "======================================================================"
+	@echo "===================== Testing the Emacs mode ========================="
+	@echo "======================================================================"
+	$(AGDA_MODE) compile
+
 ## Clean ##################################################################
+
+clean_helper = if [ -d $(1) ]; then $(CABAL_CMD) clean --builddir=$(1); fi;
+
 
 .PHONY : clean
 clean :
-	$(CABAL_CMD) clean --builddir=$(BUILD_DIR)
+	$(call clean_helper,$(BUILD_DIR))
+	$(call clean_helper,$(BUILD_DIR)-quick)
 
 ## Whitespace-related #####################################################
 
@@ -301,6 +326,8 @@ install-fix-agda-whitespace :
 
 ## size-solver standalone program ############################################
 
+# NB. It is necessary to install the Agda library (i.e run `make install-bin`)
+# before installing the `size-solver` program.
 .PHONY : install-size-solver
 install-size-solver :
 	@echo "======================================================================"
@@ -309,7 +336,7 @@ install-size-solver :
 	$(MAKE) -C src/size-solver install-bin
 
 .PHONY : test-size-solver
-test-size-solver :
+test-size-solver : install-size-solver
 	@echo "======================================================================"
 	@echo "=============== Testing the size-solver program ======================"
 	@echo "======================================================================"

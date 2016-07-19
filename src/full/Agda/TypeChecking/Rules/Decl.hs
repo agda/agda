@@ -735,7 +735,7 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
 checkTypeSignature (A.Axiom funSig i info mp x e) =
     case Info.defAccess i of
         PublicAccess  -> inConcreteMode $ checkAxiom funSig i info mp x e
-        PrivateAccess -> inAbstractMode $ checkAxiom funSig i info mp x e
+        PrivateAccess{} -> inAbstractMode $ checkAxiom funSig i info mp x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__   -- type signatures are always axioms
 

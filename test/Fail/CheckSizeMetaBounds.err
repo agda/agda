@@ -1,4 +1,6 @@
-CheckSizeMetaBounds.agda:24,17-20
-∞ !=< .i of type Size
-when checking that (magic n) is a valid argument to a function of
-type {j : Size< .i} → Nat → Nat
+CheckSizeMetaBounds.agda:23,1-24,30
+Cannot solve size constraints
+[.i, .j, n] .j < ∞ |- _i_16 .i .j n ≤ _j_15 .i .j n
+[.i, .j, n] .j < ∞ |- ↑ _j_15 .i .j n ≤ .i
+Reason: inconsistent upper bound for 15
+when checking the definition of magic

@@ -713,8 +713,12 @@ data IsInfix = InfixDef | PrefixDef
     deriving (Typeable, Show, Eq, Ord)
 
 -- | Access modifier.
-data Access = PrivateAccess | PublicAccess
-            | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
+data Access
+  = PrivateAccess Origin
+      -- ^ Store the 'Origin' of the private block that lead to this qualifier.
+      --   This is needed for more faithful printing of declarations.
+  | PublicAccess
+  | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
                              --   Used for qualified constructors.
     deriving (Typeable, Show, Eq, Ord)
 

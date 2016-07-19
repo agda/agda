@@ -18,24 +18,32 @@ module Agda.Interaction.FindFile
   , replaceModuleExtension
   ) where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Trans
-import Data.List
+import Data.List hiding (null)
 import Data.Maybe (catMaybes)
 import qualified Data.Map as Map
 import System.FilePath
 
+import Agda.Syntax.Common
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser
 import Agda.Syntax.Parser.Literate (literateExts, literateExtsShortList)
+import Agda.Syntax.Position
+
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Benchmark (billTo)
 import qualified Agda.TypeChecking.Monad.Benchmark as Bench
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
+
 import Agda.Utils.Except
 import Agda.Utils.FileName
 import Agda.Utils.Lens
+import Agda.Utils.Null
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -141,18 +149,25 @@ findInterfaceFile m = do
 -- corresponding to the module name (according to the include path)
 -- has to be the same as the given file name.
 
-checkModuleName :: TopLevelModuleName
-                   -- ^ The name of the module.
-                -> AbsolutePath
-                   -- ^ The file from which it was loaded.
-                -> TCM ()
-checkModuleName name file = do
-  moduleShouldBeIn <- findFile' name
-  case moduleShouldBeIn of
+checkModuleName
+  :: TopLevelModuleName
+     -- ^ The name of the module.
+  -> AbsolutePath
+     -- ^ The file from which it was loaded.
+  -> Maybe TopLevelModuleName
+     -- ^ The expected name, coming from an import statement.
+  -> TCM ()
+checkModuleName name file mexpected = do
+  findFile' name >>= \case
+
     Left (NotFound files)  -> typeError $
-                                ModuleNameDoesntMatchFileName name files
+      case mexpected of
+        Nothing       -> ModuleNameDoesntMatchFileName name files
+        Just expected -> ModuleNameUnexpected name expected
+
     Left (Ambiguous files) -> typeError $
-                                AmbiguousTopLevelModuleName name files
+      AmbiguousTopLevelModuleName name files
+
     Right file' -> do
       file <- liftIO $ absolute (filePath file)
       if file === file' then
@@ -164,19 +179,22 @@ checkModuleName name file = do
 --
 --   Warning! Parses the whole file to get the module name out.
 --   Use wisely!
+--
+--   No side effects!  Only in 'TCM' to raise errors.
 
-moduleName' :: AbsolutePath -> TCM TopLevelModuleName
+moduleName' :: AbsolutePath -> TCM (Ranged TopLevelModuleName)
 moduleName' file = billTo [Bench.ModuleName] $ do
-  name <- topLevelModuleName <$> liftIO (parseFile' moduleParser file)
+  q <- liftIO (parseFile' moduleParser file)
+  let name = topLevelModuleName q
   case name of
     TopLevelModuleName ["_"] -> do
-      _ <- liftIO (parse moduleNameParser defaultName)
+      q <- liftIO (parse moduleNameParser defaultName)
              `catchError` \_ ->
            typeError $
              GenericError $ "File name " ++ show file ++
-               " is invalid as it does not correpond to a valid module name."
-      return $ TopLevelModuleName [defaultName]
-    _ -> return name
+               " is invalid as it does not correspond to a valid module name."
+      return $ Ranged (getRange q) $ TopLevelModuleName [defaultName]
+    _ -> return $ Ranged (getRange q) name
   where
     defaultName = rootNameModule file
 
@@ -206,6 +224,10 @@ rootNameModule = dropAgdaExtension . snd . splitFileName . filePath
 
 moduleName :: AbsolutePath -> TCM TopLevelModuleName
 moduleName file = do
-  m <- moduleName' file
-  checkModuleName m file
+  Ranged r m <- moduleName' file
+  -- Andreas, 2016-07-11, issue 2092
+  -- The error range should be set to the file with the wrong module name
+  -- not the importing one (which would be the default).
+  (if null r then id else traceCall (SetRange r)) $
+    checkModuleName m file Nothing
   return m

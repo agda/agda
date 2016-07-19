@@ -18,10 +18,10 @@ Building interface...
   instantiating all meta variables
   interface complete
 Finished serialization.
-Starting writing to interface file.
+Considering writing to interface file.
 Writing interface file agda-default-include-path/Agda/Primitive.agdai.
 Wrote interface file.
-Finished writing to interface file.
+Finished (or skipped) writing to interface file.
 Finished Agda.Primitive.
   using stored version of agda-default-include-path/Agda/Primitive.agdai
   imports: []

@@ -258,7 +258,7 @@ instance Pretty WhereClause where
                        = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere ds) = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (SomeWhere m a ds) =
-    vcat [ hsep $ applyWhen (a == PrivateAccess) (text "private" :)
+    vcat [ hsep $ applyWhen (a == PrivateAccess UserWritten) (text "private" :)
              [ text "module", pretty m, text "where" ]
          , nest 2 (vcat $ map pretty ds)
          ]
@@ -379,7 +379,7 @@ instance Pretty Declaration where
                                      <+> text "=" <+> pretty p
             Mutual _ ds     -> namedBlock "mutual" ds
             Abstract _ ds   -> namedBlock "abstract" ds
-            Private _ ds    -> namedBlock "private" ds
+            Private _ _ ds  -> namedBlock "private" ds
             InstanceB _ ds  -> namedBlock "instance" ds
             Macro _ ds      -> namedBlock "macro" ds
             Postulate _ ds  -> namedBlock "postulate" ds

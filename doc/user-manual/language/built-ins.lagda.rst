@@ -10,6 +10,14 @@
   postulate String : Set
   {-# BUILTIN STRING String #-}
 
+  data ⊥ : Set where
+
+  record _×_ (A B : Set) : Set where
+    constructor _,_
+    field proj₁ : A
+          proj₂ : B
+  open _×_ public
+
 .. _built-ins:
 
 *********
@@ -572,4 +580,3 @@ problems can be fixed with ``primForce``::
   pow : Nat → Nat → Nat
   pow zero    a = a
   pow (suc n) a =  pow n $! a + a
-

@@ -669,7 +669,7 @@ scopeCheckExtendedLam r cs = do
   name  <- freshAbstractName_ cname
   reportSLn "scope.extendedLambda" 10 $ "new extended lambda name: " ++ show name
   qname <- qualifyName_ name
-  bindName PrivateAccess DefName cname qname
+  bindName (PrivateAccess Inserted) DefName cname qname
 
   -- Compose a function definition an scope check it.
   a <- aModeToDef <$> asks envAbstractMode
@@ -924,7 +924,7 @@ scopeCheckNiceModule r p name tel checkDs
       (name, p, open) <- do
         if isNoName name then do
           (i :: NameId) <- fresh
-          return (C.NoName (getRange name) i, PrivateAccess, True)
+          return (C.NoName (getRange name) i, PrivateAccess Inserted, True)
          else return (name, p, False)
 
       -- Check and bind the module, using the supplied check for its contents.
@@ -955,7 +955,7 @@ telHasOpenStmsOrModuleMacros = any yesBinds
       -- (Andreas, 2015-11-17)
     yes (C.Mutual   _ ds) = any yes ds
     yes (C.Abstract _ ds) = any yes ds
-    yes (C.Private  _ ds) = any yes ds
+    yes (C.Private _ _ ds) = any yes ds
     yes _                 = False
 
 {- UNUSED
@@ -1033,6 +1033,9 @@ scopeCheckModule r x qm tel checkDs = do
 data TopLevel a = TopLevel
   { topLevelPath           :: AbsolutePath
     -- ^ The file path from which we loaded this module.
+  , topLevelExpectedName   :: C.TopLevelModuleName
+    -- ^ The expected module name
+    --   (coming from the import statement that triggered scope checking this file).
   , topLevelTheThing       :: a
     -- ^ The file content.
   }
@@ -1053,7 +1056,7 @@ topLevelModuleName topLevel = scopeCurrent (topLevelScope topLevel)
 --     module ThisModule ...  -- the top-level module of this file
 --   @
 instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
-    toAbstract (TopLevel file ds) =
+    toAbstract (TopLevel file expectedMName ds) =
       -- A file is a bunch of preliminary decls (imports etc.)
       -- plus a single module decl.
       case C.spanAllowedBeforeModule ds of
@@ -1068,12 +1071,20 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           -- If the module name is _ compute the name from the file path
           m <- if isNoName m0
                 then return $ C.QName $ C.Name noRange [Id $ stringToRawName $ rootNameModule file]
+                -- Andreas, 2016-07-12, ALTERNATIVE:
+                -- -- We assign an anonymous file module the name expected from
+                -- -- its import.  For flat file structures, this is the same.
+                -- -- For hierarchical file structures, this reverses the behavior:
+                -- -- Loading the file by itself will fail, but it can be imported.
+                -- -- The previous behavior is: it can be loaded by itself, but not
+                -- -- be imported
+                -- then return $ C.fromTopLevelModuleName expectedMName
                 else do
                 -- Andreas, 2014-03-28  Issue 1078
                 -- We need to check the module name against the file name here.
                 -- Otherwise one could sneak in a lie and confuse the scope
                 -- checker.
-                  checkModuleName (C.toTopLevelModuleName m0) file
+                  checkModuleName (C.toTopLevelModuleName m0) file $ Just expectedMName
                   return m0
           setTopLevelModule m
           am           <- toAbstract (NewModuleQName m)
@@ -1215,7 +1226,7 @@ instance ToAbstract LetDef [A.LetBinding] where
       NiceModuleMacro r p x modapp open dir | not (publicOpen dir) ->
         -- Andreas, 2014-10-09, Issue 1299: module macros in lets need
         -- to be private
-        checkModuleMacro LetApply r PrivateAccess x modapp open dir
+        checkModuleMacro LetApply r (PrivateAccess Inserted) x modapp open dir
 
       _   -> notAValidLetBinding d
     where
@@ -1467,8 +1478,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
       -- Bind the desired module name to the right abstract name.
       case as of
-        Nothing -> bindQModule PrivateAccess x m
-        Just y  -> bindModule PrivateAccess (asName y) m
+        Nothing -> bindQModule (PrivateAccess Inserted) x m
+        Just y  -> bindModule (PrivateAccess Inserted) (asName y) m
 
       printScope "import" 10 "merged imported sig:"
 
@@ -1554,10 +1565,10 @@ bindConstructorName m x f a p record = do
     -- An abstract constructor is private (abstract constructor means
     -- abstract datatype, so the constructor should not be exported).
     p' = case a of
-           AbstractDef -> PrivateAccess
+           AbstractDef -> PrivateAccess Inserted
            _           -> p
     p'' = case (a, record) of
-            (AbstractDef, _) -> PrivateAccess
+            (AbstractDef, _) -> PrivateAccess Inserted
             (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
             _                -> PublicAccess
 
@@ -1755,10 +1766,15 @@ instance ToAbstract C.Clause A.Clause where
     printLocals 10 "after lhs:"
     let (whname, whds) = case wh of
           NoWhere        -> (Nothing, [])
-          AnyWhere ds    -> (Nothing, ds)
+          -- Andreas, 2016-07-17 issues #2081 and #2101
+          -- where-declarations are automatically private.
+          -- This allows their type signature to be checked InAbstractMode.
+          AnyWhere ds    -> (Nothing, [C.Private noRange Inserted ds])
+          -- Named where-modules do not default to private.
           SomeWhere m a ds -> (Just (m, a), ds)
 
     let isTerminationPragma :: C.Declaration -> Bool
+        isTerminationPragma (C.Private _ _ ds) = any isTerminationPragma ds
         isTerminationPragma (C.Pragma (TerminationCheckPragma _ _)) = True
         isTerminationPragma _                                       = False
 
@@ -1785,7 +1801,7 @@ whereToAbstract r whname whds inner = do
   (m, acc) <- do
     case whname of
       Just (m, acc) | not (isNoName m) -> return (m, acc)
-      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess)
+      _ -> fresh <&> \ x -> (C.NoName (getRange whname) x, PrivateAccess Inserted)
            -- unnamed where's are private
   let tel = []
   old <- getCurrentModule

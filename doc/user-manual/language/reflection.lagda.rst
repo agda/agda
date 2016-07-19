@@ -4,8 +4,6 @@
 
   open import language.built-ins
 
-  data ⊥ : Set where
-
   ¬_ : ∀ {u} → Set u → Set u
   ¬ x  = x → ⊥
 
@@ -496,4 +494,3 @@ In ``m`` the ``xᵢ`` stand for the names of the functions being defined (i.e.
 One advantage of ``unquoteDef`` over ``unquoteDecl`` is that
 ``unquoteDef`` is allowed in mutual blocks, allowing mutually
 recursion between generated definitions and hand-written definitions.
-

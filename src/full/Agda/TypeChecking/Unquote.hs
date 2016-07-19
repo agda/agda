@@ -330,10 +330,10 @@ instance Unquote MetaId where
   unquote t = do
     t <- reduceQuotedTerm t
     case ignoreSharing t of
-      Lit (LitMeta r f x) -> do
-        live <- (== f) <$> liftU getCurrentPath
-        unless live $ liftU $ do
-            m <- fromMaybe __IMPOSSIBLE__ . Map.lookup f <$> sourceToModule
+      Lit (LitMeta r f x) -> liftU $ do
+        live <- (f ==) <$> getCurrentPath
+        unless live $ do
+            m <- fromMaybe __IMPOSSIBLE__ <$> lookupModuleFromSource f
             typeError . GenericDocError =<<
               sep [ text "Can't unquote stale metavariable"
                   , pretty m <> text "." <> pretty x ]

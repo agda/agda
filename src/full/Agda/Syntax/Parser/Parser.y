@@ -1163,7 +1163,7 @@ Abstract : 'abstract' Declarations  { Abstract (fuseRange $1 $2) $2 }
 
 -- Private can only appear on the top-level (or rather the module level).
 Private :: { Declaration }
-Private : 'private' Declarations        { Private (fuseRange $1 $2) $2 }
+Private : 'private' Declarations        { Private (fuseRange $1 $2) UserWritten $2 }
 
 
 -- Instance declarations.
@@ -1269,7 +1269,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     ; impStm asR = Import mr m (Just (AsName fresh asR)) DontOpen defaultImportDir
     ; appStm m' es =
         let r = getRange (m, es) in
-        Private r
+        Private r Inserted
           [ ModuleMacro r m'
              (SectionApp (getRange es) []
                (RawApp (getRange es) (Ident (QName fresh) : es)))
@@ -1307,18 +1307,19 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     } in
     [ case es of
       { []  -> Open r m dir
-      ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
+      ; _   -> Private r Inserted
+                 [ ModuleMacro r (noName $ beginningOf $ getRange m)
                              (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
                              DoOpen dir
-                         ]
+                 ]
       }
     ]
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange $2 in
-    [ Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
-                (RecordModuleIFS r $2) DoOpen $6
-                ]
+    [ Private r Inserted
+      [ ModuleMacro r (noName $ beginningOf $ getRange $2) (RecordModuleIFS r $2) DoOpen $6
+      ]
     ]
   }
 

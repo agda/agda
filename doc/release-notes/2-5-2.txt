@@ -30,7 +30,7 @@ Installation and infrastructure
   As a general rule, Agda will parse code following a line ending in `::`,
   as long as that line does not start with `..`. The module name must
   match the path of the file in the documentation, and must be given
-  explicitly.  Two files have been converted already:
+  explicitly.  Several files have been converted already, for instance:
 
   - `language/mixfix-operators.lagda.rst`
   - `tools/compilers.lagda.rst`
@@ -45,7 +45,7 @@ Installation and infrastructure
     of the code block.
   - Indentation must be consistent between code blocks. In other
     words, the file as a whole must be a valid Agda file if all the
-    literate test is replaced by white space.
+    literate text is replaced by white space.
 
 * Documentation testing
 
@@ -313,13 +313,80 @@ Language
     not-inhabited : D → ⊥
     not-inhabited (c f) = apply f (c f)
 
-    d : D
-    d = c (lambda not-inhabited)
+    inhabited : D
+    inhabited = c (lambda not-inhabited)
 
     bad : ⊥
-    bad = not-inhabited d
+    bad = not-inhabited inhabited
 
   Polarity pragmas are not allowed in safe mode.
+
+* Declarations in a `where`-block are now private. [Issue #2101]
+  This means that
+
+    f ps = body where
+      decls
+
+  is now equivalent to
+
+    f ps = body where
+      private
+        decls
+
+  This changes little, since the `decls` were anyway not in scope
+  outside `body`.  However, it makes a difference for abstract
+  definitions, because private type signatures can see through
+  abstract definitions.  Consider:
+
+    record Wrap (A : Set) : Set where
+      field unwrap : A
+
+    postulate
+      P : ∀{A : Set} → A → Set
+
+    abstract
+
+      unnamedWhere : (A : Set) → Set
+      unnamedWhere A = A
+        where  -- the following definitions are private!
+        B : Set
+        B = Wrap A
+
+        postulate
+          b : B
+          test : P (Wrap.unwrap b)  -- succeeds
+
+  The `abstract` is inherited in `where`-blocks from the parent (here:
+  function `unnamedWhere`).  Thus, the definition of `B` is opaque and
+  the type equation `B = Wrap A` cannot be used to check type
+  signatures, not even of abstract definitions.  Thus, checking the
+  type  `P (Wrap.unwrap b)` would fail.  However, if `test` is
+  private, abstract definitions are translucent in its type, and
+  checking succeeds.  With the implemented change, all
+  `where`-definitions are private, in this case `B`, `b`, and `test`,
+  and the example succeeds.
+
+  Nothing changes for the named forms of `where`,
+
+    module M where
+    module _ where
+
+  For instance, this still fails:
+
+    abstract
+
+      unnamedWhere : (A : Set) → Set
+      unnamedWhere A = A
+        module M where
+        B : Set
+        B = Wrap A
+
+        postulate
+          b : B
+          test : P (Wrap.unwrap b)  -- fails
+
+
+
 
 Emacs mode
 ==========

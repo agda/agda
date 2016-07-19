@@ -1,0 +1,3 @@
+Issue2101.agda:61,29-30
+B !=< (Wrap (_A_17 A)) of type Set
+when checking that the expression b has type Wrap (_A_17 A)
