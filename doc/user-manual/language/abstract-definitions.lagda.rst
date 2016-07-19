@@ -135,6 +135,19 @@ parent modules.  However, parent modules cannot see like this into
 child modules, nor can sibling modules see through each others abstract
 definitions.
 
+The reach of the ``abstract`` keyword does not extend into modules::
+
+  module Parent where
+    abstract
+      module Child where
+        y = 0
+      x = 0  -- to avoid "useless abstract" error
+
+    y-is-0 : Child.y ≡ 0
+    y-is-0 = refl
+
+The declarations in module ``Child`` are not abstract!
+
 Abstract definitions with where-blocks
 --------------------------------------
 
