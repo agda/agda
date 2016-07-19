@@ -441,7 +441,7 @@ typeCheck x file includeStateChanges = do
                 (const $ do
                    ws <- getAllWarnings RespectFlags
                    unless (hasWarnings ws) $ chaseMsg "Finished" x Nothing)
-                
+
           -- Do the type checking.
 
           if includeStateChanges then do

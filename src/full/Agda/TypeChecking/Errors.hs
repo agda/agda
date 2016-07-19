@@ -400,6 +400,9 @@ instance PrettyTCM CallInfo where
 dropTopLevelModule' :: Int -> QName -> QName
 dropTopLevelModule' k (QName (MName ns) n) = QName (MName (drop k ns)) n
 
+dropTopLevelModule :: QName -> QName
+dropTopLevelModule = dropTopLevelModule' 1
+
 instance PrettyTCM TypeError where
   prettyTCM err = case err of
     InternalError s -> panic s
