@@ -1,5 +1,6 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
+(agda2-close-warning)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue317 (Issue317.agda). " t)
 (agda2-info-action "*Type-checking*" "Finished Issue317. " t)

@@ -2,6 +2,7 @@
 
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
+    , IgnoreFlags(..)
     , PragmaOptions(..)
     , OptionsPragma
     , Flag, OptM, runOptM
@@ -75,6 +76,10 @@ isLiterate file = any (`isSuffixOf` file) literateExts
 -- OptDescr is a Functor --------------------------------------------------
 
 type Verbosity = Trie String Int
+
+-- ignore or respect the flags --allow-unsolved-metas,
+-- --no-termination-check, --no-positivity-check?
+data IgnoreFlags = IgnoreFlags | RespectFlags
 
 data CommandLineOptions = Options
   { optProgramName      :: String

@@ -1,3 +1,6 @@
+Failed to solve the following constraints:
+  [0] _13 := p _12 [blocked on problem 20]
+  [20] _12 = inn (out _12) : B
 Unsolved metas at the following locations:
   Issue585t.agda:24,9-10
   Issue585t.agda:24,7-10

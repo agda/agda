@@ -1,3 +1,8 @@
+Failed to solve the following constraints:
+  [0] _18 := (λ A a b → refl) [blocked on problem 27]
+  [27] _7 A false a b = b : A
+  [0] _16 := (λ A a b → refl) [blocked on problem 22]
+  [22] _7 A true a b = a : A
 Unsolved metas at the following locations:
   DontPrune.agda:12,12-13
   DontPrune.agda:15,14-18

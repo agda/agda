@@ -129,6 +129,9 @@ Also sets the default value of VARIABLE to GROUP."
             (agda2-highlight-termination-problem-face
              :foreground "black"
              :background "light salmon")
+            (agda2-highlight-positivity-problem-face
+             :foreground "black"
+             :background "peru")
             (agda2-highlight-incomplete-pattern-face
              :foreground "black"
              :background "purple")
@@ -340,6 +343,12 @@ If `agda2-highlight-face-groups' is nil."
   "The face used for termination problems."
   :group 'agda2-highlight-faces)
 
+(defface agda2-highlight-positivity-problem-face
+  '((t (:background "peru"
+        :foreground "black")))
+  "The face used for positivity problems."
+  :group 'agda2-highlight-faces)
+
 (defface agda2-highlight-incomplete-pattern-face
   '((t (:background "wheat"
         :foreground "black")))
@@ -376,6 +385,7 @@ If `agda2-highlight-face-groups' is nil."
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
+    (positivityproblem      . agda2-highlight-positivity-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
@@ -403,6 +413,7 @@ The aspects currently recognised are the following:
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
+`positivityproblem'      Positivity problems.
 `typechecks'             Code which is being type-checked.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.

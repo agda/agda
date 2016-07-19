@@ -1,3 +1,6 @@
+Failed to solve the following constraints:
+  [0] _5 := λ A → refl [blocked on problem 7]
+  [7] _1 A A = A : Set
 Unsolved metas at the following locations:
   NonLinearConstraint.agda:7,16-17
   NonLinearConstraint.agda:9,10-14
