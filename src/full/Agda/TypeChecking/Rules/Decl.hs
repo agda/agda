@@ -64,12 +64,12 @@ import Agda.TypeChecking.Rules.Display ( checkDisplayPragma )
 
 import Agda.Termination.TermCheck
 
-import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Except
+import Agda.Utils.Functor
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
-import Agda.Utils.Except
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -147,11 +147,11 @@ checkDecl d = setCurrentRange d $ do
 
     let -- What kind of final checks/computations should be performed
         -- if we're not inside a mutual block?
-        none        m = m >> return Nothing
-        meta        m = m >> return (Just (return ()))
-        mutual i ds m = m >>= return . Just . uncurry (mutualChecks i d ds)
-        impossible  m = m >> return __IMPOSSIBLE__
-                       -- We're definitely inside a mutual block.
+        none        m = m $>  Nothing           -- skip all checks
+        meta        m = m $>  Just (return ())  -- do the usual checks
+        mutual i ds m = m <&> Just . uncurry (mutualChecks i d ds)
+        impossible  m = m $>  __IMPOSSIBLE__
+                        -- We're definitely inside a mutual block.
 
     let mi = Info.MutualInfo TerminationCheck True noRange
 
