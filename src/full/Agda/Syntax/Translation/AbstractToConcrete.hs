@@ -145,7 +145,7 @@ lookupQName ambCon x = do
     [] -> do
       let y = qnameToConcrete x
       if isUnderscore y
-        -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
+        -- -- || any (isUnderscore . A.nameConcrete) (A.mnameToList $ A.qnameModule x)
         then return y
         else return $ C.Qual (C.Name noRange [Id empty]) y
         -- this is what happens for names that are not in scope (private names)
