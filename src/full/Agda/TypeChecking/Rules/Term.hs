@@ -268,29 +268,28 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
 
-ifPath :: QName -> TCM a -> TCM a -> TCM a
-ifPath d fallback work = do
-  pathname <- primPathName'
-  reportSLn "tc.term.lambda" 60 $ show (pathname,d)
-  if pathname == Just d then work else fallback
+ifPath :: Type -> TCM a -> TCM a -> TCM a
+ifPath ty fallback work = do
+  pv <- pathView ty
+  if isPathType pv then work else fallback
 
 checkPath :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
-checkPath b@(Arg info (A.TBind _ xs typ)) body ty | PathType s path level typ lhs rhs <- boldPathView ty = do
-    let btyp = El s (unArg typ)
+checkPath b@(Arg info (A.TBind _ xs typ)) body ty = do
+    PathType s path level typ lhs rhs <- pathView ty
     interval <- elInf primInterval
-    v <- addContext' (xs, defaultDom interval) $ checkExpr body (raise 1 btyp)
+    v <- addContext' (xs, defaultDom interval) $ checkExpr body (El (raise 1 s) (raise 1 (unArg typ) `apply` [argN $ var 0]))
     iZero <- primIZero
     iOne  <- primIOne
     let lhs' = subst 0 iZero v
         rhs' = subst 0 iOne  v
     let t = Lam info $ Abs (nameToArgName x) v
+    let btyp i = El s (unArg typ `apply` [argN i])
     blockTerm ty $ do
-      equalTerm btyp lhs' (unArg lhs)
-      equalTerm btyp rhs' (unArg rhs)
+      equalTerm (btyp iZero) lhs' (unArg lhs)
+      equalTerm (btyp iOne) rhs' (unArg rhs)
       return t
   where
     [WithHiding h x] = xs
-
 checkPath b body ty = __IMPOSSIBLE__
 ---------------------------------------------------------------------------
 -- * Lambda abstractions
@@ -321,9 +320,7 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
       ifBlockedType target postpone $ \tgt -> do
           let t = ignoreSharing <$> tgt
               fallback = dontUseTargetType
-          case unEl t of
-            Def d es -> ifPath d fallback $ checkPath b body t
-            _        -> fallback
+          ifPath t fallback $ checkPath b body t
     postpone = \ m tgt -> postponeTypeCheckingProblem_ $ CheckExpr (A.Lam A.exprNoRange (A.DomainFull (A.TypedBindings noRange b)) body) tgt
     dontUseTargetType = do
       -- Checking λ (xs : argsT) → body : target

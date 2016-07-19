@@ -440,7 +440,25 @@ primPathApply = do
            (el' a $ cl primPath <#> a <#> bA <@> x <@> y)
             --> elInf (cl primInterval) --> (el' a bA)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
-    pathAbs <- getBuiltinName' builtinPathAbs
+    case ts of
+      [l,a,x,y,p] -> do
+        redReturn $ runNames [] $ do
+          [p,x,y] <- mapM (open . unArg) [p,x,y]
+          lam "i" $ \ i -> do
+               [p,x,y,i] <- sequence [p,x,y,i]
+               pure $ p `applyE` [IApply x y i]
+      _ -> __IMPOSSIBLE__
+
+primPathPApply :: TCM PrimitiveImpl
+primPathPApply = do
+  t <- runNamesT [] $
+           hPi' "a" (el (cl primLevel)) $ \ a ->
+           hPi' "A" (elInf (cl primInterval) --> (sort . tmSort <$> a)) $ \ bA ->
+           hPi' "x" (el' a (bA <@> cl primIZero)) $ \ x ->
+           hPi' "y" (el' a (bA <@> cl primIOne)) $ \ y ->
+           (el' a $ cl primPathP <#> a <#> bA <@> x <@> y)
+            --> (nPi' "i" (elInf (cl primInterval)) $ \ i -> (el' a (bA <@> i)))
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     case ts of
       [l,a,x,y,p] -> do
         redReturn $ runNames [] $ do
@@ -1202,6 +1220,7 @@ primitiveFunctions = Map.fromList
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
   , "primPathApply"       |-> primPathApply
+  , "primPathPApply"      |-> primPathPApply
   , "primIMin"            |-> primIMin
   , "primIMax"            |-> primIMax
   , "primINeg"            |-> primINeg

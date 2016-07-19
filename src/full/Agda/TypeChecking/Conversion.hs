@@ -324,7 +324,7 @@ compareTerm' cmp a m n =
         name <- freshName_ $ "i"
         interval <- el primInterval
         let (m',n') = raise 1 (m, n) `applyE` [IApply (raise 1 $ unArg x) (raise 1 $ unArg y) (var 0)]
-        addContext (name, defaultDom interval) $ compareTerm cmp (El s $ raise 1 $ unArg a) m' n'
+        addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
     cmpDef a'@(El s ty) m n = do
        mIsOne <- getBuiltinName'   builtinIsOne
@@ -662,11 +662,12 @@ compareElims pols0 a v els01 els02 = catchConstraint (ElimCmp pols0 a v els01 el
           va <- pathView a
           case va of
             PathType s path l bA x y -> do
-              codom <- el' (pure . unArg $ l) (pure . unArg $ bA)
               b <- elInf primInterval
               compareWithPol pol (flip compareTerm b)
                                   r1 r2
               -- TODO: compare (x1,x2) and (y1,y2) ?
+              let r = r1 -- TODO Andrea:  do blocking
+              codom <- el' (pure . unArg $ l) ((pure . unArg $ bA) <@> pure r)
               compareElims pols codom -- Path non-dependent (codom `lazyAbsApp` unArg arg)
                                 (applyE v [e]) els1 els2
 

@@ -318,6 +318,7 @@ defineCompR' name params fsT fns rect = do
   reportSDoc "comp.rec" 20 $ text $ show deltaI
   reportSDoc "comp.rec" 10 $ text $ show fsT
   compName <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName name)
+  reportSLn "comp.rec" 5 $ ("Generated name: " ++ show compName ++ " " ++ showQNameId compName)
   compType <- (abstract deltaI <$>) $ runNamesT [] $ do
               rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
                                                              pure rect')

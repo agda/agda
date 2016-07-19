@@ -111,7 +111,7 @@ constructorForm' pZero pSuc v =
 primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
-    primPath, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
+    primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
     primIsOne, primItIsOne, primIsOne1, primIsOne2,
     primId, primConId,
     primIsEquiv, primGlue, prim_glue, prim_unglue,
@@ -166,6 +166,7 @@ primIO           = getBuiltin builtinIO
 primId           = getBuiltin builtinId
 primConId        = getBuiltin builtinConId
 primPath         = getBuiltin builtinPath
+primPathP        = getBuiltin builtinPathP
 primInterval     = getBuiltin builtinInterval
 primPathAbs      = getPrimitiveTerm "primPathAbs"
 primIZero        = getBuiltin builtinIZero
@@ -297,7 +298,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinFloat, builtinChar, builtinString, builtinUnit, builtinUnitUnit,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
-  builtinPath, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
+  builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2,
   builtinIsEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinId, builtinConId,
@@ -365,6 +366,7 @@ builtinIO                            = "IO"
 builtinId                            = "ID"
 builtinConId                         = "CONID"
 builtinPath                          = "PATH"
+builtinPathP                         = "PATHP"
 builtinInterval                      = "INTERVAL"
 builtinPathAbs                       = "PATHABS"
 builtinIZero                         = "IZERO"
@@ -630,13 +632,16 @@ primPathName' = do
 pathView :: Type -> TCM PathView
 pathView t0@(El s t) = do
   mpath <- primPathName'
-  case mpath of
-   Nothing -> return $ OType t0
-   Just path -> case ignoreSharing t of
+  mpathp <- getBuiltinName' builtinPathP
+  case ignoreSharing t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | path' == path -> return $ PathType s path level typ lhs rhs
+      | Just path' == mpath, Just path <- mpathp -> return $ PathType s path level (lam_i <$> typ) lhs rhs
+      where lam_i = Lam defaultArgInfo . NoAbs "_"
+    Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
+      | Just path' == mpathp, Just path <- mpathp -> return $ PathType s path level typ lhs rhs
     _ -> return $ OType t0
 
+-- | Non dependent Path
 idViewAsPath :: Type -> TCM PathView
 idViewAsPath t0@(El s t) = do
   mid <- fmap getPrimName <$> getBuiltin' builtinId
