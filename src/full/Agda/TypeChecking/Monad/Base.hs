@@ -2117,7 +2117,7 @@ data AbstractMode
   = AbstractMode        -- ^ Abstract things in the current module can be accessed.
   | ConcreteMode        -- ^ No abstract things can be accessed.
   | IgnoreAbstractMode  -- ^ All abstract things can be accessed.
-  deriving (Typeable, Show)
+  deriving (Typeable, Show, Eq)
 
 ---------------------------------------------------------------------------
 -- ** Insertion of implicit arguments
