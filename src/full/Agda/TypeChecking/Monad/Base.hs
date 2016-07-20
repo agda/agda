@@ -1131,12 +1131,13 @@ type LocalDisplayForm = Local DisplayForm
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
 data DisplayTerm
-  = DWithApp DisplayTerm [DisplayTerm] Args
-    -- ^ @(f vs | ws) us@.
+  = DWithApp DisplayTerm [DisplayTerm] Elims
+    -- ^ @(f vs | ws) es@.
     --   The first 'DisplayTerm' is the parent function @f@ with its args @vs@.
     --   The list of 'DisplayTerm's are the with expressions @ws@.
-    --   The 'Args' are additional arguments @us@
-    --   (possible in case the with-application is of function type).
+    --   The 'Elims' are additional arguments @es@
+    --   (possible in case the with-application is of function type)
+    --   or projections (if it is of record type).
   | DCon ConHead [Arg DisplayTerm]
     -- ^ @c vs@.
   | DDef QName [Elim' DisplayTerm]
@@ -1151,7 +1152,7 @@ instance Free' DisplayForm c where
   freeVars' (Display n ps t) = bind (freeVars' ps) `mappend` bind' n (freeVars' t)
 
 instance Free' DisplayTerm c where
-  freeVars' (DWithApp t ws vs) = freeVars' (t, (ws, vs))
+  freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
   freeVars' (DCon _ vs)        = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
   freeVars' (DDot v)           = freeVars' v
@@ -2947,7 +2948,7 @@ instance KillRange Polarity where
 instance KillRange DisplayTerm where
   killRange dt =
     case dt of
-      DWithApp dt dts args -> killRange3 DWithApp dt dts args
+      DWithApp dt dts es -> killRange3 DWithApp dt dts es
       DCon q dts        -> killRange2 DCon q dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v

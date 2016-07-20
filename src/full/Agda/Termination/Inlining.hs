@@ -200,7 +200,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
 
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
     dispToPats (DWithApp (DDef _ es) ws zs) = do
-      let es' = es ++ map Apply (map defaultArg ws ++ map (fmap DTerm) zs)
+      let es' = es ++ map (Apply . defaultArg) ws ++ map (fmap DTerm) zs
       (ps, (j, ren)) <- (`runStateT` (0, [])) $ mapM (traverse dtermToPat) es'
       let perm = Perm j (map snd $ List.sort ren)
       return (map ePatToPat ps, perm)

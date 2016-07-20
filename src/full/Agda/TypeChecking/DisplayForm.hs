@@ -31,7 +31,8 @@ import Agda.Utils.Impossible
 -- | Convert a 'DisplayTerm' into a 'Term'.
 dtermToTerm :: DisplayTerm -> Term
 dtermToTerm dt = case dt of
-  DWithApp d ds vs -> dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
+  DWithApp d ds es ->
+    dtermToTerm d `apply` map (defaultArg . dtermToTerm) ds `applyE` es
   DCon c args      -> Con c $ map (fmap dtermToTerm) args
   DDef f es        -> Def f $ map (fmap dtermToTerm) es
   DDot v           -> v

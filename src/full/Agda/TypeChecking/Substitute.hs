@@ -353,7 +353,14 @@ instance Apply DisplayTerm where
   apply (DDot v)           args = DDot  $ apply v args
   apply (DCon c vs)        args = DCon c $ vs ++ map (fmap DTerm) args
   apply (DDef c es)        args = DDef c $ es ++ map (Apply . fmap DTerm) args
-  apply (DWithApp v ws args') args = DWithApp v ws $ args' ++ args
+  apply (DWithApp v ws es) args = DWithApp v ws $ es ++ map Apply args
+
+  applyE (DTerm v)           es = DTerm $ applyE v es
+  applyE (DDot v)            es = DDot  $ applyE v es
+  applyE (DCon c vs)         es = DCon c $ vs ++ map (fmap DTerm) ws
+    where ws = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
+  applyE (DDef c es')        es = DDef c $ es' ++ map (fmap DTerm) es
+  applyE (DWithApp v ws es') es = DWithApp v ws $ es' ++ es
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Apply t => Apply [t] where
@@ -830,7 +837,7 @@ instance Subst Term DisplayTerm where
   applySubst rho (DDot v)         = DDot  $ applySubst rho v
   applySubst rho (DCon c vs)      = DCon c $ applySubst rho vs
   applySubst rho (DDef c es)      = DDef c $ applySubst rho es
-  applySubst rho (DWithApp v vs ws) = uncurry3 DWithApp $ applySubst rho (v, vs, ws)
+  applySubst rho (DWithApp v vs es) = uncurry3 DWithApp $ applySubst rho (v, vs, es)
 
 instance Subst t a => Subst t (Tele a) where
   applySubst rho  EmptyTel         = EmptyTel

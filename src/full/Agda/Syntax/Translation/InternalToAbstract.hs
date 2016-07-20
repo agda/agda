@@ -156,9 +156,9 @@ instance Reify DisplayTerm Expr where
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [conName c])) =<< reify vs
     DDef f es -> elims (A.Def f) =<< reify es
-    DWithApp u us vs -> do
+    DWithApp u us es0 -> do
       (e, es) <- reify (u, us)
-      apps (if null es then e else A.WithApp noExprInfo e es) =<< reify vs
+      elims (if null es then e else A.WithApp noExprInfo e es) =<< reify es0
 
 -- | @reifyDisplayForm f vs fallback@
 --   tries to rewrite @f vs@ with a display form for @f@.
@@ -214,8 +214,8 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- can serve as a valid left-hand side. That means checking that it is a
     -- defined name applied to valid lhs eliminators (projections or
     -- applications to constructor patterns).
-    okDisplayForm (DWithApp d ds args) =
-      okDisplayForm d && all okDisplayTerm ds  && all okToDrop args
+    okDisplayForm (DWithApp d ds es) =
+      okDisplayForm d && all okDisplayTerm ds  && all okToDropE es
       -- Andreas, 2016-05-03, issue #1950.
       -- We might drop trailing hidden trivial (=variable) patterns.
     okDisplayForm (DTerm (I.Def f vs)) = all okElim vs
@@ -232,6 +232,9 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
 
     okDElim (I.Apply v) = okDisplayTerm $ unArg v
     okDElim I.Proj{}    = True
+
+    okToDropE (I.Apply v) = okToDrop v
+    okToDropE I.Proj{}    = False
 
     okToDrop arg = notVisible arg && case ignoreSharing $ unArg arg of
       I.Var _ []   -> True
@@ -250,17 +253,18 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     okTerm _            = False
 
     -- Flatten a dt into (parentName, parentElims, withArgs).
-    flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [DisplayTerm])
-    flattenWith (DWithApp d ds1 ds2) = case flattenWith d of
-      (f, es, ds0) -> (f, es, ds0 ++ ds1 ++ map (DTerm . unArg) ds2)
+    flattenWith :: DisplayTerm -> (QName, [I.Elim' DisplayTerm], [I.Elim' DisplayTerm])
+    flattenWith (DWithApp d ds1 es2) =
+      let (f, es, ds0) = flattenWith d
+      in  (f, es, ds0 ++ map (I.Apply . defaultArg) ds1 ++ map (fmap DTerm) es2)
     flattenWith (DDef f es) = (f, es, [])     -- .^ hacky, but we should only hit this when printing debug info
     flattenWith (DTerm (I.Def f es)) = (f, map (fmap DTerm) es, [])
     flattenWith _ = __IMPOSSIBLE__
 
     displayLHS :: [A.Pattern] -> [A.Pattern] -> DisplayTerm -> TCM A.SpineLHS
     displayLHS ps wps d = case flattenWith d of
-      (f, vs, ds) -> do
-        ds <- mapM termToPat ds
+      (f, vs, es) -> do
+        ds <- mapM (namedArg <.> elimToPat) es
         vs <- mapM elimToPat vs
         return $ SpineLHS i f vs (ds ++ wps)
       where
