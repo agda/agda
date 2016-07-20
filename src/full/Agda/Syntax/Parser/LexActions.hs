@@ -72,6 +72,8 @@ postToken (TokId (r, "\x2026")) = TokSymbol SymEllipsis r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
 postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
 postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
+postToken (TokId (r, "\x2987")) = TokSymbol SymOpenIdiomBracket r
+postToken (TokId (r, "\x2988")) = TokSymbol SymCloseIdiomBracket r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
 postToken (TokId (r, s))
   | set == "Set" && all isSub n = TokSetN (r, readSubscript n)

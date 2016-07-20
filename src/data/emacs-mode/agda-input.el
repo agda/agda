@@ -512,6 +512,9 @@ order for the change to take effect."
   ("lbag" . ("⟅"))
   ("rbag" . ("⟆"))
 
+  ("(|" . ("⦇"))
+  ("|)" . ("⦈"))
+
   ;; Primes.
 
   ("'" . ,(agda-input-to-string-list "′″‴⁗"))
