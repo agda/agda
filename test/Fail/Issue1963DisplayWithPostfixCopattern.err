@@ -1,0 +1,3 @@
+Issue1963DisplayWithPostfixCopattern.agda:29,8-12
+.proj₁ (f 0) | p 0 != zero of type Nat
+when checking that the expression refl has type f 0 ≡ (0 , 1)
