@@ -1,3 +1,7 @@
+..
+  ::
+  module language.record-types where
+
 .. _record-types:
 
 ************

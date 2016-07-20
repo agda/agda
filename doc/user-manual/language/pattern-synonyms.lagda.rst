@@ -1,3 +1,7 @@
+..
+  ::
+  module language.pattern-synonyms where
+
 .. _pattern-synonyms:
 
 ****************

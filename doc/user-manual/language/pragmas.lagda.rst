@@ -1,3 +1,7 @@
+..
+  ::
+  module language.pragmas where
+
 .. _pragmas:
 
 *******

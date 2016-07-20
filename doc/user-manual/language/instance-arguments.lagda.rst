@@ -1,3 +1,15 @@
+..
+  ::
+  module language.instance-arguments where
+
+  open import language.built-ins
+    using (Bool; true; false; List; _∷_; []; Nat; _-_; zero; suc; _+_)
+    renaming (_==_ to natEquals)
+
+  open import Agda.Primitive
+
+  postulate undefined : ∀ {u} {A : Set u} → A
+
 .. _instance-arguments:
 
 ******************
@@ -24,27 +36,58 @@ unicode equivalent ``⦃ ⦄`` (``U+2983`` and ``U+2984``, which can be typed as
 ``\{{`` and ``\}}`` in the :ref:`Emacs mode <unicode-input>`). For instance,
 given a function ``_==_``
 
+..
+  ::
+
+  _||_ : Bool → Bool → Bool
+  true  || _ = true
+  false || y = y
+
+  _&&_ : Bool → Bool → Bool
+  false && _ = false
+  true  && y = y
+
+  infixl 10 _||_ _&&_
+
+  _++_ : ∀ {u} {A : Set u} → List A → List A → List A
+  [] ++ xs = xs
+  (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+  module eq-prototype (Eq : Set → Set) where
+
 ::
 
-  _==_ : {A : Set} {{eqA : Eq A}} → A → A → Bool
+    _==_ : {A : Set} {{eqA : Eq A}} → A → A → Bool
+
+..
+  ::
+    _==_ = undefined
 
 for some suitable type ``Eq``, you might define
 
+..
+  ::
+    module elem-one where
+
 ::
 
-  elem : {A : Set} {{eqA : Eq A}} → A → List A → Bool
-  elem x (y ∷ xs) = x == y || elem x xs
-  elem x []       = false
+      elem : {A : Set} {{eqA : Eq A}} → A → List A → Bool
+      elem x (y ∷ xs) = x == y || elem x xs
+      elem x []       = false
 
 Here the instance argument to ``_==_`` is solved by the corresponding argument
 to ``elem``. Just like ordinary implicit arguments, instance arguments can be
 given explicitly. The above definition is equivalent to
 
+..
+  ::
+    module elem-bis where
+
 ::
 
-  elem : {A : Set} {{eqA : Eq A}} → A → List A → Bool
-  elem {{eqA}} x (y ∷ xs) = _==_ {{eqA}} x y || elem {{eqA}} x xs
-  elem         x []       = false
+      elem : {A : Set} {{eqA : Eq A}} → A → List A → Bool
+      elem {{eqA}} x (y ∷ xs) = _==_ {{eqA}} x y || elem {{eqA}} x xs
+      elem         x []       = false
 
 A very useful function that exploits this is the function ``it`` which lets you
 apply instance resolution to solve an arbitrary goal::
@@ -52,10 +95,23 @@ apply instance resolution to solve an arbitrary goal::
   it : ∀ {a} {A : Set a} {{_ : A}} → A
   it {{x}} = x
 
-Note that instance arguments in types are always named, but the name can be ``_``::
+Note that instance arguments in types are always named, but the name can be ``_``:
+
+.. code-block:: agda
 
   _==_ : {A : Set} → {{Eq A}} → A → A → Bool    -- INVALID
-  _==_ : {A : Set} {{_ : Eq A}} → A → A → Bool  -- VALID
+
+..
+  ::
+  module example-underscore (Eq : Set → Set) where
+
+::
+
+     _==_ : {A : Set} {{_ : Eq A}} → A → A → Bool  -- VALID
+
+..
+  ::
+     _==_ = undefined
 
 Defining type classes
 ~~~~~~~~~~~~~~~~~~~~~
@@ -79,24 +135,42 @@ Haskell-style type classes are usually defined as :ref:`record types
 In order to make the fields of the record available as functions taking
 instance arguments you can use the special module application
 
+..
+  ::
+  module monoid-record-open where
+
 ::
 
-  open Monoid {{...}} public
+    open Monoid {{...}} public
 
 This will bring into scope
 
+..
+  ::
+  module open-prototypes where
+
 ::
 
-  mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
-  _<>_   : ∀ {a} {A : Set a} {{_ : Monoid A}} → A → A → A
+    mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
+    _<>_   : ∀ {a} {A : Set a} {{_ : Monoid A}} → A → A → A
+
+..
+  ::
+    mempty = undefined
+    _<>_   = undefined
 
 See :ref:`module-application` and :ref:`record-modules` for details about how
 the module application is desugared. If defined by hand, ``mempty`` would be
 
+..
+  ::
+  module mempty-by-hand where
+
 ::
 
-  mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
-  mempty {{mon}} = Monoid.mempty mon
+
+    mempty : ∀ {a} {A : Set a} {{_ : Monoid A}} → A
+    mempty {{mon}} = Monoid.mempty mon
 
 Although record types are a natural fit for Haskell-style type classes, you can
 use instance arguments with data types to good effect. See the `examples`_ below.
@@ -111,13 +185,23 @@ define top-level instances for concrete types. This is done using the
 which each definition is marked as an instance available for instance
 resolution. For example, an instance ``Monoid (List A)`` can be defined as
 
+..
+  ::
+  module list-monoid where
+
 ::
 
-  instance
-    ListMonoid : ∀ {a} {A : Set a} → Monoid (List A)
-    ListMonoid = record { mempty = []; _<>_ = _++_ }
+    instance
+      ListMonoid : ∀ {a} {A : Set a} → Monoid (List A)
+      ListMonoid = record { mempty = []; _<>_ = _++_ }
 
-Or equivalently, using :ref:`copatterns <copatterns>`::
+Or equivalently, using :ref:`copatterns <copatterns>`:
+
+..
+  ::
+  open Monoid {{...}} public
+
+::
 
   instance
     ListMonoid : ∀ {a} {A : Set a} → Monoid (List A)
@@ -131,6 +215,8 @@ You can define local instances in let-expressions in the same way as a
 top-level instance. For example::
 
   mconcat : ∀ {a} {A : Set a} {{_ : Monoid A}} → List A → A
+  mconcat [] = mempty
+  mconcat (x ∷ xs) = x <> mconcat xs
 
   sum : List Nat → Nat
   sum xs =
@@ -142,25 +228,29 @@ top-level instance. For example::
 Instances can have instance arguments themselves, which will be filled in
 recursively during instance resolution. For instance,
 
+..
+  ::
+  module eq-list where
+
 ::
 
-  record Eq {a} (A : Set a) : Set a where
-    field
-      _==_ : A → A → Bool
+    record Eq {a} (A : Set a) : Set a where
+      field
+        _==_ : A → A → Bool
 
-  open Eq {{...}} public
+    open Eq {{...}} public
 
-  instance
-    eqList : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq (List A)
-    _==_ {{eqList}} []       []       = true
-    _==_ {{eqList}} (x ∷ xs) (y ∷ ys) = x == y && xs == ys
-    _==_ {{eqList}} _        _        = false
+    instance
+      eqList : ∀ {a} {A : Set a} {{_ : Eq A}} → Eq (List A)
+      _==_ {{eqList}} []       []       = true
+      _==_ {{eqList}} (x ∷ xs) (y ∷ ys) = x == y && xs == ys
+      _==_ {{eqList}} _        _        = false
 
-    eqNat : Eq Nat
-    _==_ {{eqNat}} = natEquals
+      eqNat : Eq Nat
+      _==_ {{eqNat}} = natEquals
 
-  ex : Bool
-  ex = (1 ∷ 2 ∷ 3 ∷ []) == (1 ∷ 2 ∷ []) -- false
+    ex : Bool
+    ex = (1 ∷ 2 ∷ 3 ∷ []) == (1 ∷ 2 ∷ []) -- false
 
 Note the two calls to ``_==_`` in the right-hand side of the second clause. The
 first uses the ``Eq A`` instance and the second uses a recursive call to
@@ -190,6 +280,10 @@ reflexivity constructor of the equality type::
   data _≡_ {a} {A : Set a} (x : A) : A → Set a where
     instance refl : x ≡ x
 
+..
+  ::
+  infix 4 _≡_
+
 This allows trivial equality proofs to be inferred by instance resolution,
 which can make working with functions that have preconditions less of a burden.
 As an example, here is how one could use this to define a function that takes a
@@ -208,6 +302,7 @@ natural number and gives back a ``Fin n`` (the type of naturals smaller than
   five : Fin 6
   five = mkFin 5 -- OK
 
+.. code-block: agda
   badfive : Fin 5
   badfive = mkFin 5 -- Error: No instance of type 1 ≡ 0 was found in scope.
 
@@ -253,7 +348,7 @@ instance resolution to find proofs for concrete cases. For example,
 It will fail, however, if there are more than one solution, since instance
 arguments must be unique. For example,
 
-::
+.. code-block:: agda
 
   fail₁ : 1 ∈ 1 ∷ 2 ∷ 1 ∷ []
   fail₁ = it  -- ambiguous: zero or suc (suc zero)
@@ -264,22 +359,31 @@ arguments must be unique. For example,
 Dependent instances
 +++++++++++++++++++
 
+..
+  ::
+  data Maybe {a} (A : Set a) : Set a where
+    nothing : Maybe A
+    just    : A → Maybe A
+
+  module dependent-instances where
+    open Agda.Primitive
+
 Consider a variant on the ``Eq`` class where the equality function produces a
 proof in the case the arguments are equal::
 
-  record Eq {a} (A : Set a) : Set a where
-    field
-      _==_ : (x y : A) → Maybe (x ≡ y)
+    record Eq {a} (A : Set a) : Set a where
+      field
+        _==_ : (x y : A) → Maybe (x ≡ y)
 
-  open Eq {{...}} public
+    open Eq {{...}} public
 
 A simple boolean-valued equality function is problematic for types with
 dependencies, like the Σ-type
 
 ::
 
-  data Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
-    _,_ : (x : A) → B x → Σ A B
+    data Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+      _,_ : (x : A) → B x → Σ A B
 
 since given two pairs ``x , y`` and ``x₁ , y₁``, the types of the second
 components ``y`` and ``y₁`` can be completely different and not admit an
@@ -290,13 +394,13 @@ are equal, and comparing ``y`` and ``y₁`` makes sense.
 
 An ``Eq`` instance for ``Σ`` can be defined as follows::
 
-  instance
-    eqΣ : ∀ {a b} {A : Set a} {B : A → Set b} {{_ : Eq A}} {{_ : ∀ {x} → Eq (B x)}} → Eq (Σ A B)
-    _==_ {{eqΣ}} (x , y) (x₁ , y₁) with x == x₁
-    _==_ {{eqΣ}} (x , y) (x₁ , y₁)    | nothing = nothing
-    _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl with y == y₁
-    _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl    | nothing   = nothing
-    _==_ {{eqΣ}} (x , y) (.x , .y)    | just refl    | just refl = just refl
+    instance
+      eqΣ : ∀ {a b} {A : Set a} {B : A → Set b} {{_ : Eq A}} {{_ : ∀ {x} → Eq (B x)}} → Eq (Σ A B)
+      _==_ {{eqΣ}} (x , y) (x₁ , y₁) with x == x₁
+      _==_ {{eqΣ}} (x , y) (x₁ , y₁)    | nothing = nothing
+      _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl with y == y₁
+      _==_ {{eqΣ}} (x , y) (.x , y₁)    | just refl    | nothing   = nothing
+      _==_ {{eqΣ}} (x , y) (.x , .y)    | just refl    | just refl = just refl
 
 Note that the instance argument for ``B`` states that there should be an ``Eq``
 instance for ``B x``, for any ``x : A``. The argument ``x`` must be implicit,

@@ -1,3 +1,8 @@
+..
+  ::
+
+  module language.irrelevance where
+
 .. _irrelevance:
 
 ***********

@@ -1,3 +1,7 @@
+..
+  ::
+  module language.telescopes where
+
 .. _telescopes:
 
 **********

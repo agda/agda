@@ -1,3 +1,7 @@
+..
+  ::
+  module language.rewriting where
+
 .. _rewriting:
 
 *********

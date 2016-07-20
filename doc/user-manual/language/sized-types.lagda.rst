@@ -1,3 +1,7 @@
+..
+  ::
+  module language.sized-types where
+
 .. _sized-types:
 
 ***********

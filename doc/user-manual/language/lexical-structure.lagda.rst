@@ -1,3 +1,9 @@
+..
+  ::
+  module language.lexical-structure where
+
+  open import Data.String.Base
+
 .. _lexical-structure:
 
 *****************
@@ -231,7 +237,7 @@ files have the extension ``.lagda`` instead of ``.agda``. The main use case for
 literate Agda is to generate LaTeX documents from Agda code. See
 :any:`generating-latex` for more information.
 
-::
+.. code-block:: latex
 
   \documentclass{article}
   % some preable stuff
