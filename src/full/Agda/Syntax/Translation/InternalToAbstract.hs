@@ -501,8 +501,7 @@ reifyTerm expandAnonDefs0 v = do
 
         -- Otherwise (ordinary function call):
           _ -> do
-           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-           (pad, nvs :: [NamedArg Term]) <- case def of
+           (pad, nes :: [Elim' (Named_ Term)]) <- case def of
 
             Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
               -- This is tricky:
@@ -522,21 +521,21 @@ reifyTerm expandAnonDefs0 v = do
               let underscore = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
               let pad = for as $ \ (Dom ai _) -> Arg ai underscore
 
-              -- Now pad' ++ vs' = drop n (pad ++ vs)
+              -- Now pad' ++ es' = drop n (pad ++ es)
               let pad' = drop n pad
-                  vs'  = drop (max 0 (n - size pad)) vs
+                  es'  = drop (max 0 (n - size pad)) es
               -- Andreas, 2012-04-21: get rid of hidden underscores {_}
               -- Keep non-hidden arguments of the padding
               showImp <- showImplicitArguments
               return (filter visible pad',
                 if not (null pad) && showImp && notVisible (last pad)
-                   then nameFirstIfHidden dom vs'
-                   else map (fmap unnamed) vs')
+                   then nameFirstIfHidden dom es'
+                   else map (fmap unnamed) es')
 
             -- If it is not a projection(-like) function, we need no padding.
-            _ -> return ([], map (fmap unnamed) $ drop n vs)
+            _ -> return ([], map (fmap unnamed) $ drop n es)
            let hd = foldl' (\ e a -> A.App noExprInfo e (fmap unnamed a)) (A.Def x) pad
-           napps hd =<< reify nvs
+           nelims hd =<< reify nes
 
     -- Andreas, 2016-07-06 Issue #2047
 
@@ -572,9 +571,9 @@ reifyTerm expandAnonDefs0 v = do
       elims (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
-nameFirstIfHidden :: Dom (ArgName, t) -> [Arg a] -> [NamedArg a]
-nameFirstIfHidden dom (Arg info e : es) | isHidden info =
-  Arg info (Named (Just $ unranged $ fst $ unDom dom) e) :
+nameFirstIfHidden :: Dom (ArgName, t) -> [Elim' a] -> [Elim' (Named_ a)]
+nameFirstIfHidden dom (I.Apply (Arg info e) : es) | isHidden info =
+  I.Apply (Arg info (Named (Just $ unranged $ fst $ unDom dom) e)) :
   map (fmap unnamed) es
 nameFirstIfHidden _ es =
   map (fmap unnamed) es
