@@ -429,7 +429,7 @@ reifyTerm expandAnonDefs0 v = do
     reifyDef :: Bool -> QName -> I.Args -> TCM Expr
     reifyDef True x vs =
       ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x vs) $ do
-      r <- reduceDefCopy x vs
+      r <- reduceDefCopy x $ map I.Apply vs
       case r of
         YesReduction _ v -> do
           reportSLn "reify.anon" 60 $ unlines
