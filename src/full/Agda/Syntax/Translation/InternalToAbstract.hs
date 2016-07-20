@@ -164,10 +164,10 @@ instance Reify DisplayTerm Expr where
 --   tries to rewrite @f vs@ with a display form for @f@.
 --   If successful, reifies the resulting display term,
 --   otherwise, does @fallback@.
-reifyDisplayForm :: QName -> I.Args -> TCM A.Expr -> TCM A.Expr
-reifyDisplayForm f vs fallback = do
+reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr
+reifyDisplayForm f es fallback = do
   ifNotM displayFormsEnabled fallback $ {- else -} do
-    caseMaybeM (liftTCM $ displayForm f vs) fallback reify
+    caseMaybeM (liftTCM $ displayForm f es) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
 --   rewrite a lhs with a display form.
@@ -187,7 +187,7 @@ reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
     -- But apparently, it has no influence...
     -- Ulf, can you add an explanation?
     md <- liftTCM $ -- addContext (replicate (length ps) "x") $
-      displayForm f vs
+      displayForm f $ map I.Apply vs
     reportSLn "reify.display" 60 $
       "display form of " ++ show f ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
@@ -338,8 +338,7 @@ reifyTerm expandAnonDefs0 v = do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
         elims (A.Var x) =<< reify es
     I.Def x es   -> do
-      let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
+      reifyDisplayForm x es $ reifyDef expandAnonDefs x es
     I.Con c vs   -> do
       let x = conName c
       isR <- isGeneratedRecordConstructor x
@@ -351,7 +350,7 @@ reifyTerm expandAnonDefs0 v = do
           xs <- getRecordFieldNames r
           vs <- map unArg <$> reify vs
           return $ A.Rec noExprInfo $ map (Left . uncurry FieldAssignment . mapFst unArg) $ filter keep $ zip xs vs
-        False -> reifyDisplayForm x vs $ do
+        False -> reifyDisplayForm x (map I.Apply vs) $ do
           ci <- getConstInfo x
           let Constructor{conPars = np} = theDef ci
           -- if we are the the module that defines constructor x
@@ -430,10 +429,10 @@ reifyTerm expandAnonDefs0 v = do
     -- to improve error messages.
     -- Don't do this if we have just expanded into a display form,
     -- otherwise we loop!
-    reifyDef :: Bool -> QName -> I.Args -> TCM Expr
-    reifyDef True x vs =
-      ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x vs) $ do
-      r <- reduceDefCopy x $ map I.Apply vs
+    reifyDef :: Bool -> QName -> I.Elims -> TCM Expr
+    reifyDef True x es =
+      ifM (not . null . inverseScopeLookupName x <$> getScope) (reifyDef' x es) $ do
+      r <- reduceDefCopy x es
       case r of
         YesReduction _ v -> do
           reportSLn "reify.anon" 60 $ unlines
@@ -446,18 +445,18 @@ reifyTerm expandAnonDefs0 v = do
           reportSLn "reify.anon" 60 $ unlines
             [ "no reduction on defined ident. in anonymous module"
             , "x  = " ++ show x
-            , "vs = " ++ show vs
+            , "es = " ++ show es
             ]
-          reifyDef' x vs
-    reifyDef _ x vs = reifyDef' x vs
+          reifyDef' x es
+    reifyDef _ x es = reifyDef' x es
 
-    reifyDef' :: QName -> I.Args -> TCM Expr
-    reifyDef' x@(QName _ name) vs = do
+    reifyDef' :: QName -> I.Elims -> TCM Expr
+    reifyDef' x@(QName _ name) es = do
       -- We should drop this many arguments from the local context.
       n <- getDefFreeVars x
       -- If the definition is not (yet) in the signature,
       -- we just do the obvious.
-      let fallback = apps (A.Def x) =<< reify (drop n vs)
+      let fallback = elims (A.Def x) =<< reify (drop n es)
       caseMaybeM (tryMaybe $ getConstInfo x) fallback $ \ defn -> do
       let def = theDef defn
 
@@ -467,7 +466,7 @@ reifyTerm expandAnonDefs0 v = do
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
                   let h = getHiding $ last (clausePats cl)
-                  apps (A.AbsurdLam noExprInfo h) =<< reify vs
+                  elims (A.AbsurdLam noExprInfo h) =<< reify es
 
       -- Otherwise (no absurd lambda):
        _ -> do
@@ -498,11 +497,11 @@ reifyTerm expandAnonDefs0 v = do
                in  if all isVarP ps then Just npars else Nothing
              _ -> Nothing
         case extLam of
-          Just pars | df -> reifyExtLam x pars (defClauses defn) vs
+          Just pars | df -> reifyExtLam x pars (defClauses defn) es
 
-        -- Otherwise (ordinay function call):
+        -- Otherwise (ordinary function call):
           _ -> do
-
+           let vs = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
            (pad, nvs :: [NamedArg Term]) <- case def of
 
             Function{ funProjection = Just Projection{ projIndex = np } } | np > 0 -> do
@@ -558,19 +557,19 @@ reifyTerm expandAnonDefs0 v = do
     -- patterns, we fall back to printing the internal function created for the
     -- extended lambda, instead trying to construct the nice syntax.
 
-    reifyExtLam :: QName -> Int -> [I.Clause] -> [Arg Term] -> TCM Expr
-    reifyExtLam x npars cls vs = do
+    reifyExtLam :: QName -> Int -> [I.Clause] -> I.Elims -> TCM Expr
+    reifyExtLam x npars cls es = do
       reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
-      let (pars, rest) = splitAt npars vs
+      let (pars, rest) = splitAt npars es
       -- Since we applying the clauses to the parameters,
       -- we do not need to drop their initial "parameter" patterns
       -- (this is taken care of by @apply@).
-      cls <- mapM (reify . NamedClause x False . (`apply` pars)) cls
+      cls <- mapM (reify . NamedClause x False . (`applyE` pars)) cls
       let cx    = nameConcrete $ qnameName x
           dInfo = mkDefInfo cx noFixity' PublicAccess ConcreteDef (getRange x)
-      apps (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
+      elims (A.ExtendedLam noExprInfo dInfo x cls) =<< reify rest
 
 -- | @nameFirstIfHidden (x:a) ({e} es) = {x = e} es@
 nameFirstIfHidden :: Dom (ArgName, t) -> [Arg a] -> [NamedArg a]

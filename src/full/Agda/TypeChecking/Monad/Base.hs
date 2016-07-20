@@ -1117,10 +1117,11 @@ emptySignature = Sig Map.empty HMap.empty HMap.empty
 data DisplayForm = Display
   { dfFreeVars :: Nat
     -- ^ Number @n@ of free variables in 'dfRHS'.
-  , dfPats     :: [Term]
+  , dfPats     :: Elims
     -- ^ Left hand side patterns, where @var 0@ stands for a pattern
     --   variable.  There should be @n@ occurrences of @var0@ in
     --   'dfPats'.
+    --   The 'ArgInfo' is ignored in these patterns.
   , dfRHS      :: DisplayTerm
     -- ^ Right hand side, with @n@ free variables.
   }
@@ -2940,7 +2941,7 @@ instance KillRange a => KillRange (Local a) where
   killRange (Global a)  = killRange1 Global a
 
 instance KillRange DisplayForm where
-  killRange (Display n vs dt) = killRange3 Display n vs dt
+  killRange (Display n es dt) = killRange3 Display n es dt
 
 instance KillRange Polarity where
   killRange = id
