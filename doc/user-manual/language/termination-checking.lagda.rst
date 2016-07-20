@@ -1,3 +1,7 @@
+..
+  ::
+  module language.termination-checking where
+
 .. _termination-checking:
 
 ********************

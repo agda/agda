@@ -1,3 +1,7 @@
+..
+  ::
+  module language.universe-levels where
+
 .. _universe-levels:
 
 ***************

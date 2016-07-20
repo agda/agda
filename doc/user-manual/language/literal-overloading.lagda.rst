@@ -1,3 +1,16 @@
+..
+  ::
+  module language.literal-overloading where
+
+  open import Agda.Builtin.Nat
+  open import Agda.Primitive
+  open import Data.Bool
+  open import Data.String.Base
+
+  data Fin : Nat → Set where
+    zero : ∀ {n} → Fin (suc n)
+    suc  : ∀ {n} → Fin n → Fin (suc n)
+
 .. _literal-overloading:
 
 *******************
@@ -12,7 +25,9 @@ Natural numbers
 By default :ref:`natural number literals <lexical-structure-int-literals>` are
 mapped to the :ref:`built-in natural number type <built-in-nat>`. This can be
 changed with the ``FROMNAT`` built-in, which binds to a function accepting a
-natural number::
+natural number:
+
+.. code-block:: agda
 
   {-# BUILTIN FROMNAT fromNat #-}
 
@@ -21,14 +36,21 @@ Note that the desugaring happens before :ref:`implicit argument
 <implicit-arguments>` are inserted so ``fromNat`` can have any number of
 implicit or :ref:`instance arguments <instance-arguments>`. This can be
 exploited to support overloaded literals by defining a :ref:`type class
-<instance-arguments>` containing ``fromNat``::
+<instance-arguments>` containing ``fromNat``:
 
-  record Number {a} (A : Set a) : Set a where
-    field fromNat : Nat → A
+..
+  ::
 
-  open Number {{...}} public
+  module number-simple where
 
-  {-# BUILTIN FROMNAT fromNat #-}
+    record Number {a} (A : Set a) : Set a where
+      field fromNat : Nat → A
+
+    open Number {{...}} public
+
+.. code-block:: agda
+
+   {-# BUILTIN FROMNAT fromNat #-}
 
 This definition requires that any natural number can be mapped into the given
 type, so it won't work for types like ``Fin n``. This can be solved by refining
@@ -46,7 +68,24 @@ the ``Number`` class with an additional constraint::
 This is the definition used in ``Agda.Builtin.FromNat``. A ``Number`` instance
 for ``Fin n`` can then be defined as follows::
 
+  data IsTrue : Bool → Set where
+    itis : IsTrue true
+
+  instance
+    indeed : IsTrue true
+    indeed = itis
+
+  _<?_ : Nat → Nat → Bool
+  zero <? zero = false
+  zero <? suc y = true
+  suc x <? zero = false
+  suc x <? suc y = x <? y
+
   natToFin : ∀ {n} (m : Nat) {{_ : IsTrue (m <? n)}} → Fin n
+  natToFin {zero} zero {{()}}
+  natToFin {zero} (suc m) {{()}}
+  natToFin {suc n} zero {{itis}} = zero
+  natToFin {suc n} (suc m) {{t}} = suc (natToFin m)
 
   instance
     NumFin : ∀ {n} → Number (Fin n)
