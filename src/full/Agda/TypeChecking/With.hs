@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP           #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.With where
 
@@ -414,12 +415,14 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
                 "also be inaccessible in the with clause, when checking the " ++
                 "pattern " ++ show d ++ ","
       case namedArg q of
-        ProjP o d -> case A.isProjP p of
+        ProjP o d -> case A.maybePostfixProjP p of
           Just (o', AmbQ ds) -> do
             let d' = head ds
             when (length ds /= 1) __IMPOSSIBLE__
             d' <- liftTCM $ getOriginalProjection d'
-            if o /= o' || d /= d' then mismatch else do
+            -- We assume here that neither @o@ nor @o'@ can be @ProjSystem@.
+            if o /= o' then liftTCM $ mismatchOrigin o o' else do
+            if d /= d' then mismatch else do
               (self1, t1, ps) <- liftTCM $ do
                 t <- reduce t
                 (_, self1, t1) <- fromMaybe __IMPOSSIBLE__ <$> projectTyped self t o d
@@ -532,6 +535,18 @@ stripWithClausePatterns cxtNames parent f t qs npars perm ps = do
       where
         mismatch = typeError $
           WithClausePatternMismatch (namedArg p0) (dbPatVarName <$> namedArg q)
+        mismatchOrigin o o' = typeError . GenericDocError =<< fsep
+          [ text "With clause pattern"
+          , prettyA p0
+          , text "is not an instance of its parent pattern"
+          , prettyTCM $ dbPatVarName <$> namedArg q
+          , text $ "since the parent pattern is " ++ prettyProjOrigin o ++
+                   " and the with clause pattern is " ++ prettyProjOrigin o'
+          ]
+        prettyProjOrigin ProjPrefix  = "a prefix projection"
+        prettyProjOrigin ProjPostfix = "a postfix projection"
+        prettyProjOrigin ProjSystem  = __IMPOSSIBLE__
+
         -- | Make an ImplicitP, keeping arg. info.
         makeImplicitP :: NamedArg A.Pattern -> NamedArg A.Pattern
         makeImplicitP = updateNamedArg $ const $ A.WildP patNoRange
