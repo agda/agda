@@ -4,3 +4,9 @@ Termination checking failed for the following functions:
 Problematic calls:
   bad m
     (at Issue59.agda:13,15-18)
+Issue59.agda:16,1-18,12
+Termination checking failed for the following functions:
+  bad₂
+Problematic calls:
+  bad₂ n
+    (at Issue59.agda:17,13-17)

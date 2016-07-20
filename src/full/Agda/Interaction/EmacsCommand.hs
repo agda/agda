@@ -8,7 +8,9 @@ module Agda.Interaction.EmacsCommand
   , response
   , putResponse
   , display_info'
+  , display_warning
   , clearRunningInfo
+  , clearWarning
   , displayRunningInfo
   ) where
 
@@ -59,18 +61,24 @@ response = (++ "\n") . map replaceNewLines . show . pretty
 putResponse :: Lisp String -> IO ()
 putResponse = putStr . response
 
--- | @display_info' append header content@ displays @content@ (with
--- header @header@) in some suitable way. If @append@ is @True@, then
--- the content is appended to previous content (if any), otherwise any
--- previous content is deleted.
+-- | @displayInBuffer buffername append header content@ displays @content@
+-- (with header @header@) in some suitable way in the buffer @buffername@.
+-- If @append@ is @True@, then the content is appended to previous content
+-- (if any), otherwise any previous content is deleted.
 
-display_info' :: Bool -> String -> String -> Lisp String
-display_info' append bufname content =
-    L [ A "agda2-info-action"
-      , A (quote bufname)
+displayInBuffer :: String -> Bool -> String -> String -> Lisp String
+displayInBuffer buffername append header content =
+    L [ A buffername
+      , A (quote header)
       , A (quote content)
       , A (if append then "t" else "nil")
       ]
+
+display_info' :: Bool -> String -> String -> Lisp String
+display_info' = displayInBuffer "agda2-info-action"
+
+display_warning :: String -> String -> Lisp String
+display_warning = displayInBuffer "agda2-warning-action" False
 
 ------------------------------------------------------------------------
 -- Running info
@@ -85,6 +93,10 @@ runningInfoBufferName = "*Type-checking*"
 clearRunningInfo :: Lisp String
 clearRunningInfo =
     display_info' False runningInfoBufferName ""
+
+-- | Clear the warning buffer
+clearWarning :: Lisp String
+clearWarning = L [ A "agda2-close-warning" ]
 
 -- | Display running information about what the type-checker is up to.
 

@@ -1,0 +1,10 @@
+Issue2100.agda:14,1-18,27
+Termination checking failed for the following functions:
+  fails
+Problematic calls:
+  u (at Issue2100.agda:15,36-37)
+  v (at Issue2100.agda:15,38-39)
+  fails a (pair c d)
+    (at Issue2100.agda:17,8-13)
+  fails (pair a b) c
+    (at Issue2100.agda:18,8-13)

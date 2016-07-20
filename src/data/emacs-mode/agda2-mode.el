@@ -106,6 +106,13 @@ argument, and does not need to be listed here."
   "The name of the Agda toplevel module."
   :type 'string :group 'agda2)
 
+(defcustom agda2-warning-window-max-height
+  0.35
+  "The maximum height of the warning window.
+A multiple of the frame height."
+  :type 'number
+  :group 'agda2)
+
 (defcustom agda2-information-window-max-height
   0.35
   "The maximum height of the information window.
@@ -287,6 +294,9 @@ menus.")
 
 (defvar agda2-info-buffer nil
   "Agda information buffer.")
+
+(defvar agda2-warning-buffer nil
+  "Agda warnings buffer.")
 
 (defvar agda2-process-buffer nil
   "Agda subprocess buffer.
@@ -891,6 +901,33 @@ Assumes that <clause> = {!<variables>!} is on one line."
 major mode)."
   (setq agda2-buffer-external-status status))
 
+(defun agda2-warning-buffer nil
+  "Creates the Agda warning buffer, if it does not already exist.
+The buffer is returned."
+  (unless (buffer-live-p agda2-warning-buffer)
+    (setq agda2-warning-buffer
+          (generate-new-buffer "*Agda warnings*"))
+
+    (with-current-buffer agda2-warning-buffer
+      (compilation-mode "AgdaInfo")
+      ;; Support for jumping to positions mentioned in the text.
+      (set (make-local-variable 'compilation-error-regexp-alist)
+           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
+              1 (2 . 5) (3 . 6))))
+      ;; No support for recompilation. The key binding is removed, and
+      ;; attempts to run `recompile' will (hopefully) result in an
+      ;; error.
+      (let ((map (copy-keymap (current-local-map))))
+        (define-key map (kbd "g") 'undefined)
+        (use-local-map map))
+      (set (make-local-variable 'compile-command)
+           'agda2-does-not-support-compilation-via-the-compilation-mode)
+
+      (set-syntax-table agda2-mode-syntax-table)
+      (set-input-method "Agda")))
+
+  agda2-warning-buffer)
+
 (defun agda2-info-buffer nil
   "Creates the Agda info buffer, if it does not already exist.
 The buffer is returned."
@@ -985,6 +1022,90 @@ is inserted, and point is placed before this text."
                   (truncate
                     (* (frame-height)
                        agda2-information-window-max-height))))))))
+    ;; Move point in every window displaying the information buffer.
+    ;; Exception: If we are appending, don't move point in selected
+    ;; windows.
+    (dolist (window (get-buffer-window-list buf 'no-minibuffer t))
+      (unless (and append
+                   (equal window (selected-window)))
+        (with-selected-window window
+          (if append
+              (goto-char (point-max))
+            (goto-char (point-min))))))))
+
+(defun agda2-close-warning nil
+  (interactive)
+  (when (buffer-live-p agda2-warning-buffer)
+        (delete-windows-on agda2-warning-buffer))
+)
+
+(defun agda2-warning-action (name text &optional append)
+  "Insert TEXT into the Agda warning buffer and display it.
+NAME is displayed in the buffer's mode line.
+
+If APPEND is non-nil, then TEXT is appended at the end of the
+buffer, and point placed after this text.
+
+If APPEND is nil, then any previous text is removed before TEXT
+is inserted, and point is placed before this text."
+  (interactive)
+  (let ((buf (agda2-warning-buffer)))
+    (with-current-buffer buf
+      ;; In some cases the jump-to-position-mentioned-in-text
+      ;; functionality (see compilation-error-regexp-alist above)
+      ;; didn't work: Emacs jumped to the wrong position. However, it
+      ;; seems to work if compilation-forget-errors is used. This
+      ;; problem may be related to Emacs bug #9679
+      ;; (http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9679). The idea
+      ;; to use compilation-forget-errors comes from a comment due to
+      ;; Oleksandr Manzyuk
+      ;; (https://github.com/haskell/haskell-mode/issues/67).
+      (compilation-forget-errors)
+      (unless append (erase-buffer))
+      (save-excursion
+        (goto-char (point-max))
+        (insert text))
+      (put-text-property 0 (length name) 'face '(:weight bold) name)
+      (setq mode-line-buffer-identification name)
+      (force-mode-line-update))
+    ;; If the current window displays the information buffer, then the
+    ;; window configuration is left untouched.
+    (unless (equal (window-buffer) buf)
+      (let ((agda-info
+              (and agda2-info-buffer
+                   (car-safe
+                     ;; All windows, including minibuffers, on any
+                     ;; frame on the current terminal, displaying the
+                     ;; present Agda file buffer.
+                    (get-buffer-window-list agda2-info-buffer t 0)))))
+        (save-selected-window
+          ;; Select a window displaying the Agda file buffer (if such
+          ;; a window exists). With certain configurations of
+          ;; display-buffer this should increase the likelihood that
+          ;; the info buffer will be displayed on the same frame.
+          (when agda-info
+            (select-window agda-info 'no-record))
+          (let* (;; The warnings window should be displayed below the
+                 ;; Agda info one
+                 (split-width-threshold nil)
+                 (split-height-threshold 1)
+                 (window
+                   (display-buffer
+                     buf
+                     ;; Under Emacs 23 the effect of the following
+                     ;; argument is only that the current window
+                     ;; should not be used.
+                     '((display-buffer-below-selected)
+                       .
+                       (;; Do not use the same window
+                        (inhibit-same-window . t)
+                        ;; Do not raise or select another frame.
+                        (inhibit-switch-frame . t))))))
+            (if window
+                (fit-window-to-buffer window
+                  (truncate
+                    (* (frame-height)
+                       agda2-warning-window-max-height))))))))
     ;; Move point in every window displaying the information buffer.
     ;; Exception: If we are appending, don't move point in selected
     ;; windows.

@@ -10,11 +10,11 @@ data Rec (A : ∞ Set) : Set where
 D : Set
 D = Rec (♯ (D → D))
 
-_·_ : D → D → D
-fold f · x = f x
+-- _·_ : D → D → D
+-- fold f · x = f x
 
-ω : D
-ω = fold (λ x → x · x)
+-- ω : D
+-- ω = fold (λ x → x · x)
 
-Ω : D
-Ω = ω · ω
+-- Ω : D
+-- Ω = ω · ω

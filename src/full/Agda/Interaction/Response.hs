@@ -60,6 +60,7 @@ data DisplayInfo
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
+    | Info_Warning String
     | Info_Intro Doc
         -- ^ 'Info_Intro' denotes two different types of errors
         --   TODO: split these into separate constructors

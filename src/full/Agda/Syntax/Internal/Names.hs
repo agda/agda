@@ -147,7 +147,7 @@ instance NamesIn DisplayForm where
 
 instance NamesIn DisplayTerm where
   namesIn v = case v of
-    DWithApp v us vs -> namesIn (v, us, vs)
+    DWithApp v us es -> namesIn (v, us, es)
     DCon c vs        -> namesIn (c, vs)
     DDef f es        -> namesIn (f, es)
     DDot v           -> namesIn v

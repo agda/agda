@@ -31,7 +31,8 @@ import Agda.Utils.Impossible
 -- | Convert a 'DisplayTerm' into a 'Term'.
 dtermToTerm :: DisplayTerm -> Term
 dtermToTerm dt = case dt of
-  DWithApp d ds vs -> dtermToTerm d `apply` (map (defaultArg . dtermToTerm) ds ++ vs)
+  DWithApp d ds es ->
+    dtermToTerm d `apply` map (defaultArg . dtermToTerm) ds `applyE` es
   DCon c args      -> Con c $ map (fmap dtermToTerm) args
   DDef f es        -> Def f $ map (fmap dtermToTerm) es
   DDot v           -> v
@@ -41,12 +42,12 @@ dtermToTerm dt = case dt of
 displayFormArities :: QName -> TCM [Int]
 displayFormArities q = map (length . dfPats . dget) <$> getDisplayForms q
 
--- | Find a matching display form for @q vs@.
---   In essence this tries to reqwrite @q vs@ with any
+-- | Find a matching display form for @q es@.
+--   In essence this tries to reqwrite @q es@ with any
 --   display form @q ps --> dt@ and returns the instantiated
 --   @dt@ if successful.  First match wins.
-displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
-displayForm q vs = do
+displayForm :: QName -> Elims -> TCM (Maybe DisplayTerm)
+displayForm q es = do
     -- Get display forms for name q.
     odfs  <- getDisplayForms q `catchError` \_ -> return []
     -- Display debug info about the @Open@s.
@@ -58,16 +59,16 @@ displayForm q vs = do
     -- Use only the display forms that can be opened in the current context.
     dfs   <- catMaybes <$> mapM getLocal odfs
     scope <- getScope
-    -- Keep the display forms that match the application @c vs@.
+    -- Keep the display forms that match the application @q es@.
     ms <- do
-      ms <- mapM (runMaybeT . (`matchDisplayForm` vs)) dfs
+      ms <- mapM (runMaybeT . (`matchDisplayForm` es)) dfs
       return [ m | Just (d, m) <- ms, wellScoped scope d ]
     -- Not safe when printing non-terminating terms.
-    -- (nfdfs, us) <- normalise (dfs, vs)
+    -- (nfdfs, us) <- normalise (dfs, es)
     unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
       [ "name        : " ++ show q
       , "displayForms: " ++ show dfs
-      , "arguments   : " ++ show vs
+      , "arguments   : " ++ show es
       , "matches     : " ++ show ms
       , "result      : " ++ show (headMaybe ms)
       ]
@@ -92,16 +93,16 @@ displayForm q vs = do
     isWithDisplay DWithApp{} = True
     isWithDisplay _          = False
 
--- | Match a 'DisplayForm' @q ps = v@ against @q vs@.
+-- | Match a 'DisplayForm' @q ps = v@ against @q es@.
 --   Return the 'DisplayTerm' @v[us]@ if the match was successful,
---   i.e., @vs / ps = Just us@.
-matchDisplayForm :: DisplayForm -> Args -> MaybeT TCM (DisplayForm, DisplayTerm)
-matchDisplayForm d@(Display _ ps v) vs
-  | length ps > length vs = mzero
+--   i.e., @es / ps = Just us@.
+matchDisplayForm :: DisplayForm -> Elims -> MaybeT TCM (DisplayForm, DisplayTerm)
+matchDisplayForm d@(Display _ ps v) es
+  | length ps > length es = mzero
   | otherwise             = do
-      let (vs0, vs1) = splitAt (length ps) vs
-      us <- match ps $ raise 1 $ map unArg vs0
-      return (d, applySubst (parallelS $ reverse us) v `apply` vs1)
+      let (es0, es1) = splitAt (length ps) es
+      us <- match ps $ raise 1 es0
+      return (d, applySubst (parallelS $ reverse us) v `applyE` es1)
 
 -- | Class @Match@ for matching a term @p@ in the role of a pattern
 --   against a term @v@.

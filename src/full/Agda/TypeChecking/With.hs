@@ -642,7 +642,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) lhsPerm = do
 
   -- Build the lhs of the display form and finish.
   -- @var 0@ is the pattern variable (hole).
-  let display = Display arity (replicate arity $ var 0) dt
+  let display = Display arity (replicate arity $ Apply $ defaultArg $ var 0) dt
 
   -- Debug printing.
   let addFullCtx = addContext delta1

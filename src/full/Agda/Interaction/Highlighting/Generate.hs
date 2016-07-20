@@ -42,6 +42,7 @@ import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Positivity.Occurrence
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Concrete (FieldAssignment'(..))
@@ -163,6 +164,8 @@ generateAndPrintSyntaxInfo decl hlLevel = do
       Full{} -> generateConstructorInfo modMap file kinds decl
       _      -> return mempty
 
+    warnInfo <- fmap Fold.fold $ fmap warningHighlighting <$> use stWarnings
+
     let (from, to) = case P.rangeToInterval (P.getRange decl) of
           Nothing -> __IMPOSSIBLE__
           Just i  -> ( fromIntegral $ P.posPos $ P.iStart i
@@ -179,6 +182,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     let syntaxInfo = compress (mconcat [ constructorInfo
                                        , theRest modMap file
                                        , nameInfo
+                                       , warnInfo
                                        ])
                        `mappend`
                      curTokens
@@ -521,6 +525,15 @@ errorHighlighting e = do
                   }
   return $ mconcat [ erase, error ]
 
+-- | Generate syntax highlighting for warnings.
+
+warningHighlighting :: Warning -> File
+warningHighlighting w = case w of
+  TerminationIssue tcst terrs -> terminationErrorHighlighting $ clValue terrs
+  NotStrictlyPositive tcst d ocs -> positivityErrorHighlighting d ocs
+  _ -> mempty
+
+
 -- | Generate syntax highlighting for termination errors.
 
 terminationErrorHighlighting :: [TerminationError] -> File
@@ -531,6 +544,16 @@ terminationErrorHighlighting termErrs = functionDefs `mappend` callSites
                    concatMap M.termErrFunctions termErrs
     callSites    = Fold.foldMap (\r -> singleton (rToR r) m) $
                    concatMap (map M.callInfoRange . M.termErrCalls) termErrs
+
+-- | Generate syntax highlighting for not-strictly-positive inductive
+-- definitions.
+
+-- TODO: highlight also the problematic occurrences
+positivityErrorHighlighting :: I.QName -> OccursWhere -> File
+positivityErrorHighlighting q o = singleton (rToR (P.getRange q)) m
+  where
+    m     = mempty { otherAspects = [PositivityProblem] }
+
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.

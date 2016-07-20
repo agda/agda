@@ -89,7 +89,8 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_Constraints s -> f s "*Constraints*"
     Info_AllGoals s -> f s "*All Goals*"
     Info_Auto s -> f s "*Auto*"
-    Info_Error s -> f s "*Error*"
+    Info_Error s -> clearWarning : f s "*Error*"
+    Info_Warning s -> [ display_warning "*Errors*" s ]
     Info_Time s -> f (render s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
@@ -109,7 +110,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_Version -> f ("Agda version " ++ version) "*Agda Version*"
   where f content bufname = [ display_info' False bufname content ]
 lispifyResponse Resp_ClearHighlighting = return [ L [ A "agda2-highlight-clear" ] ]
-lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
+lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo, clearWarning ]
 lispifyResponse (Resp_RunningInfo n s)
   | n <= 1    = return [ displayRunningInfo s ]
   | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]

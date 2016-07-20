@@ -18,7 +18,7 @@ import Agda.TypeChecking.Pretty
 checkDisplayPragma :: QName -> [NamedArg A.Pattern] -> A.Expr -> TCM ()
 checkDisplayPragma f ps e = inTopContext $ do
   pappToTerm f id ps $ \n args -> do
-    let lhs = map unArg args
+    let lhs = map I.Apply args
     v <- exprToTerm e
     let df = Display n lhs (DTerm v)
     reportSLn "tc.display.pragma" 20 $ "Adding display form for " ++ show f ++ "\n  " ++ show df

@@ -477,24 +477,23 @@ unfoldDefinition' unfoldDelayed keepGoing v0 f es =
             vfull         = v0 `applyE` map ignoreReduced es
 
 -- | Reduce a non-primitive definition if it is a copy linking to another def.
-reduceDefCopy :: QName -> Args -> TCM (Reduced () Term)
-reduceDefCopy f vs = do
+reduceDefCopy :: QName -> Elims -> TCM (Reduced () Term)
+reduceDefCopy f es = do
   info <- TCM.getConstInfo f
-  if (defCopy info) then reduceDef_ info f vs else return $ NoReduction ()
+  if (defCopy info) then reduceDef_ info f es else return $ NoReduction ()
   where
-    reduceDef_ :: Definition -> QName -> Args -> TCM (Reduced () Term)
-    reduceDef_ info f vs = do
+    reduceDef_ :: Definition -> QName -> Elims -> TCM (Reduced () Term)
+    reduceDef_ info f es = do
       let v0   = Def f []
-          args = map notReduced vs
           cls  = (defClauses info)
           mcc  = (defCompiled info)
       if (defDelayed info == Delayed) || (defNonterminating info)
        then return $ NoReduction ()
        else do
-          ev <- runReduceM $ appDef_ f v0 cls mcc args
+          ev <- runReduceM $ appDefE_ f v0 cls mcc $ map notReduced es
           case ev of
             YesReduction simpl t -> return $ YesReduction simpl t
-            NoReduction args'    -> return $ NoReduction ()
+            NoReduction{}        -> return $ NoReduction ()
 
 -- | Reduce simple (single clause) definitions.
 reduceHead :: Term -> TCM (Blocked Term)

@@ -249,7 +249,7 @@ addDisplayForms x = do
   args <- getContextArgs
   add (drop (projectionArgs $ theDef def) args) x x []
   where
-    add args top x vs0 = do
+    add args top x es0 = do
       def <- getConstInfo x
       let cs = defClauses def
           isCopy = defCopy def
@@ -257,14 +257,12 @@ addDisplayForms x = do
         [ Clause{ namedClausePats = pats, clauseBody = b } ]
           | isCopy
           , all (isVar . namedArg) pats
-          , Just (m, Def y es) <- strip (b `apply` vs0)
-          , Just vs <- mapM isApplyElim es -> do
-              let ps = map unArg vs
-                  df = Display m ps $ DTerm $ Def top $ map Apply args
+          , Just (m, Def y es) <- strip (b `applyE` es0) -> do
+              let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
-              add args top y vs
+              add args top y es
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) []

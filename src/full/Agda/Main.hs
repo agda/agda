@@ -12,6 +12,7 @@ import Data.Maybe
 import System.Environment
 import System.Exit
 
+import Agda.Syntax.Position (Range)
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Abstract.Name (toTopLevelModuleName)
 
@@ -19,7 +20,7 @@ import Agda.Interaction.CommandLine
 import Agda.Interaction.Options
 import Agda.Interaction.Monad
 import Agda.Interaction.EmacsTop (mimicGHCi)
-import Agda.Interaction.Imports (MaybeWarnings(..))
+import Agda.Interaction.Imports (MaybeWarnings'(..))
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
 import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
@@ -122,22 +123,14 @@ runAgdaWithOptions generateHTML progName opts
           file    <- getInputFile
           (i, mw) <- Imp.typeCheckMain file
 
-          unsolvedOK <- optAllowUnsolved <$> pragmaOptions
-
-          -- Reported unsolved problems as error unless unsolvedOK.
           -- An interface is only generated if NoWarnings.
           result <- case mw of
-            -- Unsolved metas.
-            SomeWarnings (Warnings w@(_:_) _)
-              | not unsolvedOK                 -> typeError $ UnsolvedMetas w
-            -- Unsolved constraints.
-            SomeWarnings (Warnings _ w@(_:_))
-              | not unsolvedOK                 -> typeError $ UnsolvedConstraints w
-            -- Unsolved metas, unsolved constraints, or
-            -- interaction points left whose metas have been solved
-            -- automatically.  (See Issue 1296).
-            SomeWarnings (Warnings _ _)        -> return Nothing
-            NoWarnings                         -> return $ Just i
+            SomeWarnings ws -> do
+              ws' <- applyFlagsToWarnings RespectFlags ws
+              case ws' of
+                []   -> return Nothing
+                cuws -> warningsToError cuws
+            NoWarnings      -> return $ Just i
 
           reportSDoc "main" 50 $ pretty i
 
@@ -174,7 +167,7 @@ runTCMPrettyErrors :: TCM () -> IO ()
 runTCMPrettyErrors tcm = do
     r <- runTCMTop $ tcm `catchError` \err -> do
       s <- prettyError err
-      liftIO $ putStrLn s
+      unless (null s) (liftIO $ putStrLn s)
       throwError err
     case r of
       Right _ -> exitSuccess

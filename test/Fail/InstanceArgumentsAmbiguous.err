@@ -1,2 +1,4 @@
+Failed to solve the following constraints:
+  [0] Find in scope _5 : A a₁ :  A a₂ :  A
 Unsolved metas at the following locations:
   InstanceArgumentsAmbiguous.agda:8,8-9

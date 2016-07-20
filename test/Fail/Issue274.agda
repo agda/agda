@@ -3,6 +3,7 @@ module Issue274 where
 -- data ⊥ : Set where
 
 record U : Set where
+  inductive
   constructor roll
   field ap : U → U
 

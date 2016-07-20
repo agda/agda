@@ -163,8 +163,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   -- figured out how to turn an application of the with-function into an
   -- application of the parent function in the display form.
   reportSDoc "term.with.inline" 70 $ text "inlining (raw) =" <+> text (show wcl)
-  let vs = clauseArgs wcl
-  Just disp <- displayForm wf vs
+  Just disp <- displayForm wf $ clauseElims wcl
   reportSDoc "term.with.inline" 70 $ text "display form (raw) =" <+> text (show disp)
   reportSDoc "term.with.inline" 40 $ text "display form =" <+> prettyTCM disp
   (pats, perm) <- dispToPats disp
@@ -200,7 +199,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
 
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
     dispToPats (DWithApp (DDef _ es) ws zs) = do
-      let es' = es ++ map Apply (map defaultArg ws ++ map (fmap DTerm) zs)
+      let es' = es ++ map (Apply . defaultArg) ws ++ map (fmap DTerm) zs
       (ps, (j, ren)) <- (`runStateT` (0, [])) $ mapM (traverse dtermToPat) es'
       let perm = Perm j (map snd $ List.sort ren)
       return (map ePatToPat ps, perm)
@@ -248,19 +247,19 @@ expandWithFunctionCall :: QName -> Elims -> TCM Term
 expandWithFunctionCall f es = do
   as <- displayFormArities f
   case as of
-    [a] | length vs >= a -> do
-      Just disp <- displayForm f vs
-      return $ dtermToTerm disp `applyE` es'
+    [a] | length es >= a -> do
+      Just disp <- displayForm f es
+      return $ dtermToTerm disp
+
     -- We might get an underapplied with function application (issue1598), in
     -- which case we have to eta expand. The resulting term is only used for
     -- termination checking, so we don't have to worry about getting hiding
     -- information right.
-    [a] | null es' -> do
-      let pad = a - length vs
-          vs' = raise pad vs ++ map (defaultArg . var) (downFrom pad)
-      Just disp <- displayForm f vs'
+    -- Andreas, 2016-07-20 let's pray that there no copatterns needed...
+    [a] -> do
+      let pad = a - length es
+          es' = raise pad es ++ map (Apply . defaultArg . var) (downFrom pad)
+      Just disp <- displayForm f es'
       let info = setOrigin Inserted defaultArgInfo
       return $ foldr (\_ -> Lam info . Abs "") (dtermToTerm disp) (replicate pad ())
     _ -> __IMPOSSIBLE__
-  where
-    (vs, es') = splitApplyElims es

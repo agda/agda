@@ -1,3 +1,12 @@
+Failed to solve the following constraints:
+  [0] _107 := (λ {.Γ} {.Γ′} {.t} {.A} η j → j)
+        [blocked on problem 145]
+  [145] _98 = (suc _98) : Nat
+  [158] suc _98 = _98 : Nat
+  [158] suc _98 = _98 : Nat
+  [0] _113 :=
+        λ {.Γ} {.Γ′} {.t} {.A} η j → up (ren-true--fail η (_108 η j))
+        [blocked on problem 158]
 Unsolved metas at the following locations:
   Issue1982.agda:28,40-46
   Issue1982.agda:29,48-49

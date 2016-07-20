@@ -1,3 +1,5 @@
+Failed to solve the following constraints:
+  [0] Find in scope _11 : (C (Q _8)) CQ :  (C (Q Nat))
 Unsolved metas at the following locations:
   NonRigidlyConstrained.agda:15,14-15
   NonRigidlyConstrained.agda:16,18-22

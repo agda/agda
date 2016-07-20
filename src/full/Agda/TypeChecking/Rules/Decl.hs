@@ -5,13 +5,14 @@ module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State (modify, gets)
+import Control.Monad.State (modify, gets, get)
 import Control.Monad.Writer (tell)
 
 import qualified Data.Foldable as Fold
 import Data.List (genericLength)
 import Data.Maybe
 import Data.Map (Map)
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -362,8 +363,15 @@ checkTermination_ mid d = Bench.billTo [Bench.Termination] $ do
       A.RecDef {} -> return ()
       _ -> disableDestructiveUpdate $ do
         termErrs <- termDecl mid d
-        unless (null termErrs) $
-          typeError $ TerminationCheckFailed termErrs
+        -- If there are some termination errors, we collect them in
+        -- the state and mark the definition as non-terminating so
+        -- that it does not get unfolded
+        unless (null termErrs) $ do
+          termIssue <- TerminationIssue <$> get <*> buildClosure termErrs
+          warning termIssue
+          case Seq.viewl (A.allNames d) of
+            nm Seq.:< _ -> setTerminates nm False
+            _           -> return ()
 
 -- | Check a set of mutual names for positivity.
 checkPositivity_ :: Info.MutualInfo -> Set QName -> TCM ()

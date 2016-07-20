@@ -1,3 +1,6 @@
+Failed to solve the following constraints:
+  [0] _11 := refl [blocked on problem 14]
+  [14] _8 = suc zero : ℕ
 Unsolved metas at the following locations:
   FrozenMVar.agda:14,7-8
   FrozenMVar.agda:17,9-13

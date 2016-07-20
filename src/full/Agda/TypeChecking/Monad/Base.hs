@@ -181,6 +181,7 @@ data PostScopeState = PostScopeState
   , stPostStatistics          :: Statistics
     -- ^ Counters to collect various statistics about meta variables etc.
     --   Only for current file.
+  , stPostWarnings            :: [Warning]
   , stPostMutualBlocks        :: Map MutualId (Set QName)
   , stPostLocalBuiltins       :: BuiltinThings PrimFun
   , stPostFreshMetaId         :: MetaId
@@ -291,6 +292,7 @@ initPostScopeState = PostScopeState
   , stPostCurrentModule        = Nothing
   , stPostInstanceDefs         = (Map.empty , Set.empty)
   , stPostStatistics           = Map.empty
+  , stPostWarnings             = []
   , stPostMutualBlocks         = Map.empty
   , stPostLocalBuiltins        = Map.empty
   , stPostFreshMetaId          = 0
@@ -466,6 +468,11 @@ stStatistics :: Lens' Statistics TCState
 stStatistics f s =
   f (stPostStatistics (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostStatistics = x}}
+
+stWarnings :: Lens' [Warning] TCState
+stWarnings f s =
+  f (stPostWarnings (stPostScopeState s)) <&>
+  \x -> s {stPostScopeState = (stPostScopeState s) {stPostWarnings = x}}
 
 stMutualBlocks :: Lens' (Map MutualId (Set QName)) TCState
 stMutualBlocks f s =
@@ -719,7 +726,7 @@ data Closure a = Closure { clSignature        :: Signature
                          , clModuleParameters :: Map ModuleName ModuleParameters
                          , clValue            :: a
                          }
-    deriving (Typeable)
+    deriving (Typeable, Functor, Foldable)
 
 instance Show a => Show (Closure a) where
   show cl = "Closure " ++ show (clValue cl)
@@ -1110,10 +1117,11 @@ emptySignature = Sig Map.empty HMap.empty HMap.empty
 data DisplayForm = Display
   { dfFreeVars :: Nat
     -- ^ Number @n@ of free variables in 'dfRHS'.
-  , dfPats     :: [Term]
+  , dfPats     :: Elims
     -- ^ Left hand side patterns, where @var 0@ stands for a pattern
     --   variable.  There should be @n@ occurrences of @var0@ in
     --   'dfPats'.
+    --   The 'ArgInfo' is ignored in these patterns.
   , dfRHS      :: DisplayTerm
     -- ^ Right hand side, with @n@ free variables.
   }
@@ -1124,12 +1132,13 @@ type LocalDisplayForm = Local DisplayForm
 -- | A structured presentation of a 'Term' for reification into
 --   'Abstract.Syntax'.
 data DisplayTerm
-  = DWithApp DisplayTerm [DisplayTerm] Args
-    -- ^ @(f vs | ws) us@.
+  = DWithApp DisplayTerm [DisplayTerm] Elims
+    -- ^ @(f vs | ws) es@.
     --   The first 'DisplayTerm' is the parent function @f@ with its args @vs@.
     --   The list of 'DisplayTerm's are the with expressions @ws@.
-    --   The 'Args' are additional arguments @us@
-    --   (possible in case the with-application is of function type).
+    --   The 'Elims' are additional arguments @es@
+    --   (possible in case the with-application is of function type)
+    --   or projections (if it is of record type).
   | DCon ConHead [Arg DisplayTerm]
     -- ^ @c vs@.
   | DDef QName [Elim' DisplayTerm]
@@ -1144,7 +1153,7 @@ instance Free' DisplayForm c where
   freeVars' (Display n ps t) = bind (freeVars' ps) `mappend` bind' n (freeVars' t)
 
 instance Free' DisplayTerm c where
-  freeVars' (DWithApp t ws vs) = freeVars' (t, (ws, vs))
+  freeVars' (DWithApp t ws es) = freeVars' (t, (ws, es))
   freeVars' (DCon _ vs)        = freeVars' vs
   freeVars' (DDef _ es)        = freeVars' es
   freeVars' (DDot v)           = freeVars' v
@@ -2142,6 +2151,24 @@ data Candidate  = Candidate { candidateTerm :: Term
                             }
   deriving (Show)
 
+---------------------------------------------------------------------------
+-- * Type checking warnings (aka non-fatal errors)
+---------------------------------------------------------------------------
+
+-- | A non-fatal error is an error which does not prevent us from
+-- checking the document further and interacting with the user.
+
+-- We keep the state for termination issues, positivity issues and
+-- unsolved constraints from when we encountered the warning so that
+-- we can print it later
+data Warning =
+    TerminationIssue         TCState (Closure [TerminationError])
+  | NotStrictlyPositive      TCState QName OccursWhere
+  | UnsolvedMetaVariables    [Range]  -- ^ Do not use directly with 'warning'
+  | UnsolvedInteractionMetas [Range]  -- ^ Do not use directly with 'warning'
+  | UnsolvedConstraints      TCState Constraints
+    -- ^ Do not use directly with 'warning'
+  deriving (Show)
 
 ---------------------------------------------------------------------------
 -- * Type checking errors
@@ -2373,14 +2400,11 @@ data TypeError
         | UnificationStuck Telescope [Term] [Term]
         | SplitError SplitError
     -- Positivity errors
-        | NotStrictlyPositive QName [Occ]
         | TooManyPolarities QName Integer
     -- Import errors
         | LocalVsImportedModuleClash ModuleName
-        | UnsolvedMetas [Range]
-        | UnsolvedConstraints Constraints
         | SolvedButOpenHoles
-          -- ^ Some interaction points (holes) have not be filled by user.
+          -- ^ Some interaction points (holes) have not been filled by user.
           --   There are not 'UnsolvedMetas' since unification solved them.
           --   This is an error, since interaction points are never filled
           --   without user interaction.
@@ -2451,6 +2475,8 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
         | NeedOptionRewriting
+    -- Failure associated to warnings
+        | NonFatalErrors [Warning]
           deriving (Typeable, Show)
 
 -- | Distinguish error message when parsing lhs or pattern synonym, resp.
@@ -2756,6 +2782,14 @@ typeError err = liftTCM $ throwError =<< typeError_ err
 typeError_ :: MonadTCM tcm => TypeError -> tcm TCErr
 typeError_ err = liftTCM $ TypeError <$> get <*> buildClosure err
 
+{-# SPECIALIZE warning :: Warning -> TCM () #-}
+warnings :: MonadTCM tcm => [Warning] -> tcm ()
+warnings ws = stWarnings %= (ws ++)
+
+{-# SPECIALIZE warning :: Warning -> TCM () #-}
+warning :: MonadTCM tcm => Warning -> tcm ()
+warning = warnings . return
+
 -- | Running the type checking monad (most general form).
 {-# SPECIALIZE runTCM :: TCEnv -> TCState -> TCM a -> IO (a, TCState) #-}
 runTCM :: MonadIO m => TCEnv -> TCState -> TCMT m a -> m (a, TCState)
@@ -2907,7 +2941,7 @@ instance KillRange a => KillRange (Local a) where
   killRange (Global a)  = killRange1 Global a
 
 instance KillRange DisplayForm where
-  killRange (Display n vs dt) = killRange3 Display n vs dt
+  killRange (Display n es dt) = killRange3 Display n es dt
 
 instance KillRange Polarity where
   killRange = id
@@ -2915,7 +2949,7 @@ instance KillRange Polarity where
 instance KillRange DisplayTerm where
   killRange dt =
     case dt of
-      DWithApp dt dts args -> killRange3 DWithApp dt dts args
+      DWithApp dt dts es -> killRange3 DWithApp dt dts es
       DCon q dts        -> killRange2 DCon q dts
       DDef q dts        -> killRange2 DDef q dts
       DDot v            -> killRange1 DDot v
