@@ -1,6 +1,8 @@
 -- This file tests that record constructors are used in error
 -- messages, if possible.
 
+-- Andreas, 2016-07-20 Repaired this long disfunctional test case.
+
 module RecordConstructorsInErrorMessages where
 
 record R : Set₁ where
@@ -12,11 +14,13 @@ record R : Set₁ where
     g           : B → C → E
 
 postulate
-  A  : Set
-  r₁ : R
+  A : Set
+  r : R
 
-r₂ : R
-r₂ = record
+data _≡_ {A : Set₁} (x : A) : A → Set where
+  refl : x ≡ x
+
+foo : r ≡ record
   { A = A
   ; f = λ x → x
   ; B = A
@@ -24,9 +28,9 @@ r₂ = record
   ; D = A
   ; g = λ x _ → x
   }
-
-data _≡_ {A : Set₁} (x : A) : A → Set where
-  refl : x ≡ x
-
-foo : r₁ ≡ r₂
 foo = refl
+
+-- EXPECTED ERROR:
+-- .R.A r != A of type Set
+-- when checking that the expression refl has type
+-- r ≡ con (λ x → x) A (λ x _ → x)

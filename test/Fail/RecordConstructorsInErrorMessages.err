@@ -1,3 +1,4 @@
-RecordConstructorsInErrorMessages.agda:32,7-11
-R.A r₁ != A of type Set
-when checking that the expression refl has type r₁ ≡ r₂
+RecordConstructorsInErrorMessages.agda:31,7-11
+R.A r != A of type Set
+when checking that the expression refl has type
+r ≡ con (λ x → x) A (λ x _ → x)
