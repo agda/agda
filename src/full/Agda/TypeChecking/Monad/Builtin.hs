@@ -114,7 +114,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
     primIsOne, primItIsOne, primIsOne1, primIsOne2,
     primId, primConId,
-    primIsEquiv, primGlue, prim_glue, prim_unglue,
+    primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess,
     primSizeUniv, primSize, primSizeLt, primSizeSuc, primSizeInf, primSizeMax,
@@ -178,6 +178,7 @@ primPSingl       = getBuiltin builtinPSingl
 primIsOne        = getBuiltin builtinIsOne
 primItIsOne      = getBuiltin builtinItIsOne
 primIsEquiv      = getBuiltin builtinIsEquiv
+primPathToEquiv  = getBuiltin builtinPathToEquiv
 primGlue         = getPrimitiveTerm builtinGlue
 prim_glue        = getPrimitiveTerm builtin_glue
 prim_unglue      = getPrimitiveTerm builtin_unglue
@@ -300,7 +301,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2,
-  builtinIsEquiv, builtinGlue, builtin_glue, builtin_unglue,
+  builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinId, builtinConId,
   builtinSizeUniv, builtinSize, builtinSizeLt,
   builtinSizeSuc, builtinSizeInf, builtinSizeMax,
@@ -378,6 +379,7 @@ builtinPSingl                        = "PSINGL"
 builtinIsOne                         = "ISONE"
 builtinItIsOne                       = "ITISONE"
 builtinIsEquiv                       = "ISEQUIV"
+builtinPathToEquiv                   = "PATHTOEQUIV"
 builtinGlue                          = "primGlue"
 builtin_glue                         = "prim^glue"
 builtin_unglue                       = "prim^unglue"

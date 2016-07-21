@@ -613,6 +613,11 @@ primComp = do
   mpath <- primPathName'
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 5 $ \ ts -> do
     unview <- intervalUnview'
+    let
+                     ineg t = (unview . INeg . argN) <$> t
+                     imax u t = do u <- u; t <- t; return $ unview (IMax (argN u) (argN t))
+                     iz :: Monad m => m Term
+                     iz = pure $ unview IZero
     case ts of
       [l,c,phi,u,a0] -> do
         sphi <- reduceB' phi
@@ -628,15 +633,22 @@ primComp = do
                t <- reduce' t
                case unAbs t of
                  Pi a b   -> redReturn =<< compPi unview t a b (ignoreBlocking sphi) u a0 --  __IMPOSSIBLE__ -- Lam _ (comp (Lam
-                 Sort s   | False -> __IMPOSSIBLE__ -- Glue guys
+                 s@Sort{} -> (redReturn =<<) . runNamesT [] $ do
+                               p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
+                               tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
+                               tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
+
+                               l <- open $ runNames [] (lam "i" (\ _ -> pure $ Level $ lvlView s))
+                               [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
+                               pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
+                                           <@> a0 <@> phi <@> (e <@> pure io)
+                                           <@> lam "o" (\ o -> pure tComp <#> l <@> (lam "i" $ \ i -> e <@> ineg i <@> o)
+                                                          <@> iz
+                                                          <@> lam "o'" (\ _ -> pure (Sort Prop))) -- dummy
+                                           <@> lam "o" (\ o -> pure p2equiv <#> l <@> (lam "i" $ \ i -> e <@> ineg i <@> o))
                  Def q [ Apply _ , Apply bA , Apply x , Apply y ] | Just q == mpath -> do
                    tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
                    tOr   <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primPOr"
-
-                   let
-                     ineg t = (unview . INeg . argN) <$> t
-                     imax u t = do u <- u; t <- t; return $ unview (IMax (argN u) (argN t))
-                     iz = pure $ unview IZero
                    redReturn . runNames [] $ do
                       [l,p,p0] <- mapM (open . unArg) [l,u,a0]
                       phi      <- open . unArg . ignoreBlocking $ sphi
@@ -724,70 +736,73 @@ primGlue' = do
   -- Glue' : ∀ {l} (A : Set l) → ∀ φ → (T : Partial (Set a) φ) (f : (PartialP φ \ o → (T o) -> A))
   --            ([f] : PartialP φ \ o → isEquiv (T o) A (f o)) → Set l
   t <- runNamesT [] $
-       (hPi' "l" (el $ cl primLevel) $ \ l ->
-       nPi' "A" (sort . tmSort <$> l) $ \ a ->
+       (hPi' "la" (el $ cl primLevel) $ \ la ->
+       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       nPi' "A" (sort . tmSort <$> la) $ \ a ->
        nPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ t ->
-       nPi' "f" (pPi' "o" φ $ \ o -> el' l (t <@> o) --> el' l a) $ \ f ->
-       (pPi' "o" φ $ \ o -> el' l $ cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o))
-       --> (sort . tmSort <$> l))
+       nPi' "T" (pPi' "o" φ $ \ o -> el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       nPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o))
+       --> (sort . tmSort <$> lb))
   view <- intervalView'
   one <- primItIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 6 $ \ts ->
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ts ->
     case ts of
-     [l,a,phi,t,f,pf] -> do
+     [la,lb,a,phi,t,f,pf] -> do
        sphi <- reduceB' phi
        case view $ unArg $ ignoreBlocking $ sphi of
          IOne -> redReturn $ unArg t `apply` [argN one]
-         _    -> return (NoReduction $ map notReduced [l,a] ++ [reduced sphi] ++ map notReduced [t,f,pf])
+         _    -> return (NoReduction $ map notReduced [la,lb,a] ++ [reduced sphi] ++ map notReduced [t,f,pf])
      _ -> __IMPOSSIBLE__
 
 prim_glue' :: TCM PrimitiveImpl
 prim_glue' = do
   t <- runNamesT [] $
-       (hPi' "l" (el $ cl primLevel) $ \ l ->
-       hPi' "A" (sort . tmSort <$> l) $ \ a ->
+       (hPi' "la" (el $ cl primLevel) $ \ la ->
+       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       hPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ t ->
-       hPi' "f" (pPi' "o" φ $ \ o -> el' l (t <@> o) --> el' l a) $ \ f ->
-       hPi' "pf" (pPi' "o" φ $ \ o -> el' l $ cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
-       (pPi' "o" φ $ \ o -> el' l (t <@> o)) --> (el' l a --> el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)))
+       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
+       (pPi' "o" φ $ \ o -> el' lb (t <@> o)) --> (el' la a --> el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f <@> pf)))
   view <- intervalView'
   one <- primItIsOne
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 9 $ \ts ->
     case ts of
-      [l,bA,phi,bT,f,pf,t,a] -> do
+      [la,lb,bA,phi,bT,f,pf,t,a] -> do
        sphi <- reduceB' phi
        case view $ unArg $ ignoreBlocking $ sphi of
          IOne -> redReturn $ unArg t `apply` [argN one]
-         _    -> return (NoReduction $ map notReduced [l,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf,t,a])
+         _    -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf,t,a])
       _ -> __IMPOSSIBLE__
 
 prim_unglue' :: TCM PrimitiveImpl
 prim_unglue' = do
   t <- runNamesT [] $
-       (hPi' "l" (el $ cl primLevel) $ \ l ->
-       hPi' "A" (sort . tmSort <$> l) $ \ a ->
+       (hPi' "la" (el $ cl primLevel) $ \ la ->
+       hPi' "lb" (el $ cl primLevel) $ \ lb ->
+       hPi' "A" (sort . tmSort <$> la) $ \ a ->
        hPi' "φ" (elInf $ cl primInterval) $ \ φ ->
-       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ t ->
-       hPi' "f" (pPi' "o" φ $ \ o -> el' l (t <@> o) --> el' l a) $ \ f ->
-       hPi' "pf" (pPi' "o" φ $ \ o -> el' l $ cl primIsEquiv <#> l <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
-       (el' l (cl primGlue <#> l <@> a <@> φ <@> t <@> f <@> pf)) --> el' l a)
+       hPi' "T" (pPi' "o" φ $ \ o ->  el' (cl primLevelSuc <@> lb) (Sort . tmSort <$> lb)) $ \ t ->
+       hPi' "f" (pPi' "o" φ $ \ o -> el' lb (t <@> o) --> el' la a) $ \ f ->
+       hPi' "pf" (pPi' "o" φ $ \ o -> el' (cl primLevelMax <@> la <@> lb) $ cl primIsEquiv <#> lb <#> la <@> (t <@> o) <@> a <@> (f <@> o)) $ \ pf ->
+       (el' lb (cl primGlue <#> la <#> lb <@> a <@> φ <@> t <@> f <@> pf)) --> el' la a)
   view <- intervalView'
   one <- primItIsOne
   mglue <- getPrimitiveName' builtin_glue
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 7 $ \ts ->
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 8 $ \ts ->
     case ts of
-      [l,bA,phi,bT,f,pf,b] -> do
+      [la,lb,bA,phi,bT,f,pf,b] -> do
        sphi <- reduceB' phi
        case view $ unArg $ ignoreBlocking $ sphi of
          IOne -> redReturn $ unArg f `apply` [argN one,b]
          _    -> do
             sb <- reduceB' b
             case unArg $ ignoreBlocking $ sb of
-               Def q [Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply a]
+               Def q [Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply _,Apply a]
                      | Just q == mglue -> redReturn $ unArg a
-               _ -> return (NoReduction $ map notReduced [l,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf] ++ [reduced sb])
+               _ -> return (NoReduction $ map notReduced [la,lb,bA] ++ [reduced sphi] ++ map notReduced [bT,f,pf] ++ [reduced sb])
       _ -> __IMPOSSIBLE__
 
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
@@ -1038,7 +1053,7 @@ pPi' :: MonadTCM tcm => String -> NamesT tcm Term -> (NamesT tcm Term -> NamesT 
 pPi' n phi b = toFinitePi <$> nPi' n (elInf $ cl (liftTCM primIsOne) <@> phi) b
  where
    toFinitePi :: Type -> Type
-   toFinitePi (El _ (Pi d b)) = El Inf $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
+   toFinitePi (El s (Pi d b)) = El s $ Pi (setRelevance Irrelevant $ d { domFinite = True }) b
    toFinitePi _               = __IMPOSSIBLE__
 
 

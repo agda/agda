@@ -1753,13 +1753,13 @@ checkHeadApplication e t hd args = do
     (A.Def c) | Just c == mglue -> do
                     defaultResult' $ Just $ \ vs t1 -> do
                       case vs of
-                       [l,bA,phi,bT,f,pf,t,a] -> do
+                       [la,lb,bA,phi,bT,f,pf,t,a] -> do
                           v <- runNamesT [] $ do
                                 [f,t] <- mapM (open . unArg) [f,t]
                                 lam "o" $ \ o -> f <@> o <@> (t <@> o)
                           ty <- runNamesT [] $ do
-                                [l,phi,bT] <- mapM (open . unArg) [l,phi,bT]
-                                elInf $ cl primPartialP <#> l <@> phi <@> bT
+                                [lb,phi,bT] <- mapM (open . unArg) [lb,phi,bT]
+                                elInf $ cl primPartialP <#> lb <@> phi <@> bT
                           equalTermOnFace (unArg phi) ty (Lam defaultArgInfo (NoAbs "_" (unArg a))) v
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
