@@ -830,17 +830,23 @@ instance Suggest Name (Abs b) where
 
 -- | Convert top-level postfix projections into prefix projections.
 unSpine :: Term -> Term
-unSpine v =
+unSpine = unSpine' $ const True
+
+-- | Convert 'Proj' projection eliminations
+--   according to their 'ProjOrigin' into
+--   'Def' projection applications.
+unSpine' :: (ProjOrigin -> Bool) -> Term -> Term
+unSpine' p v =
   case hasElims v of
-    Just (h, es) -> unSpine' h [] es
+    Just (h, es) -> loop h [] es
     Nothing      -> v
   where
-    unSpine' :: (Elims -> Term) -> Elims -> Elims -> Term
-    unSpine' h res es =
+    loop :: (Elims -> Term) -> Elims -> Elims -> Term
+    loop h res es =
       case es of
-        []                -> v
-        e@(Apply a) : es' -> unSpine' h (e : res) es'
-        Proj _o f   : es' -> unSpine' (Def f) [Apply (defaultArg v)] es'
+        []                   -> v
+        Proj o f : es' | p o -> loop (Def f) [Apply (defaultArg v)] es'
+        e        : es'       -> loop h (e : res) es'
       where v = h $ reverse res
 
 -- | A view distinguishing the neutrals @Var@, @Def@, and @MetaV@ which

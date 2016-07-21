@@ -153,6 +153,9 @@ data PragmaOptions = PragmaOptions
   , optExactSplit                :: Bool
   , optEta                       :: Bool
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
+  , optPostfixProjections        :: Bool
+      -- ^ Should system generated projections 'ProjSystem' be printed
+      --   postfix (True) or prefix (False).
   }
   deriving (Show,Eq)
 
@@ -241,6 +244,7 @@ defaultPragmaOptions = PragmaOptions
   , optExactSplit                = False
   , optEta                       = True
   , optRewriting                 = False
+  , optPostfixProjections        = False
   }
 
 -- | The default termination depth.
@@ -437,6 +441,9 @@ noExactSplitFlag o = return $ o { optExactSplit = False }
 
 rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
+
+postfixProjectionsFlag :: Flag PragmaOptions
+postfixProjectionsFlag o = return $ o { optPostfixProjections = True }
 
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
@@ -683,6 +690,8 @@ pragmaOptions =
                     "disable eta rules for records"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
+    , Option []     ["postfix-projections"] (NoArg postfixProjectionsFlag)
+                    "make postfix projection notation the default"
     ]
 
 -- | Used for printing usage info.

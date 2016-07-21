@@ -61,6 +61,8 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.DropArgs
 
+import Agda.Interaction.Options ( optPostfixProjections )
+
 import Agda.Utils.Except ( MonadError(catchError) )
 import Agda.Utils.Functor
 import Agda.Utils.Lens
@@ -95,8 +97,10 @@ nelims e (I.Apply arg : es) = do
   let hd | notVisible arg && dontShowImp = e
          | otherwise                     = A.App noExprInfo e arg
   nelims hd es
-nelims e (I.Proj o d  : es) =
+nelims e (I.Proj o@ProjPrefix d  : es) =
   nelims (A.App noExprInfo (A.Proj o $ AmbQ [d]) $ defaultNamedArg e) es
+nelims e (I.Proj o d  : es) =
+  nelims (A.App noExprInfo e (defaultNamedArg $ A.Proj o $ AmbQ [d])) es
 
 elims :: Expr -> [I.Elim' Expr] -> TCM Expr
 elims e = nelims e . map (fmap unnamed)
@@ -332,7 +336,11 @@ reifyTerm expandAnonDefs0 v = do
   -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
   -- (i.e. when we don't care about nice printing)
   expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
-  v <- unSpine <$> instantiate v
+  -- Andreas, 2016-07-21 if --postfix-projections
+  -- then we print system-generated projections as postfix, else prefix.
+  havePfp <- optPostfixProjections <$> pragmaOptions
+  let pred = if havePfp then (== ProjPrefix) else (/= ProjPostfix)
+  v <- unSpine' pred <$> instantiate v
   case v of
     I.Var n es   -> do
         x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)

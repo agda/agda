@@ -30,11 +30,22 @@ data AppView = Application Expr [NamedArg Expr]
 appView :: Expr -> AppView
 appView e =
   case e of
-    App _ e1 e2 | Dot _ f <- unScope $ namedArg e2 -> Application f [defaultNamedArg e1]
-    App i e1 arg | Application hd es <- appView e1
+    App _ e1 e2
+      | Dot _ e2' <- unScope $ namedArg e2
+      , Just f <- maybeProjTurnPostfix e2'
+                   -> Application f [defaultNamedArg e1]
+    App i e1 arg
+      | Application hd es <- appView e1
                    -> Application hd $ es ++ [arg]
     ScopedExpr _ e -> appView e
     _              -> Application e []
+
+maybeProjTurnPostfix :: Expr -> Maybe Expr
+maybeProjTurnPostfix e =
+  case e of
+    ScopedExpr i e' -> ScopedExpr i <$> maybeProjTurnPostfix e'
+    Proj _ x        -> return $ Proj ProjPostfix x
+    _               -> Nothing
 
 unAppView :: AppView -> Expr
 unAppView (Application h es) =

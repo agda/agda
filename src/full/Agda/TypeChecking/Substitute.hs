@@ -41,6 +41,7 @@ import Agda.TypeChecking.Positivity.Occurrence as Occ
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -104,7 +105,7 @@ canProject f v =
 conApp :: ConHead -> Args -> Elims -> Term
 conApp ch                  args []             = Con ch args
 conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
-conApp ch@(ConHead c _ fs) args (Proj _ f: es) =
+conApp ch@(ConHead c _ fs) args (Proj o f : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
@@ -112,6 +113,24 @@ conApp ch@(ConHead c _ fs) args (Proj _ f: es) =
       i = maybe failure id            $ elemIndex f fs
       v = maybe failure argToDontCare $ headMaybe $ drop i args
   in  applyE v es
+
+  -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
+  --     fallback = v
+  -- in  if not $ null es then applyE v es else
+  --     -- If we have no more eliminations, we can return v
+  --     if o == ProjSystem then fallback else
+  --       -- If the result is a projected term with ProjSystem,
+  --       -- we can can restore it to ProjOrigin o.
+  --       -- Otherwise, we get unpleasant printing with eta-expanded record metas.
+  --     caseMaybe (hasElims v) fallback $ \ (hd, es0) ->
+  --       caseMaybe (initLast es0) fallback $ \ (es1, e2) ->
+  --         case e2 of
+  --           -- We want to replace this ProjSystem by o.
+  --           Proj ProjSystem q -> hd (es1 ++ [Proj o q])
+  --             -- Andreas, 2016-07-21 for the whole testsuite
+  --             -- this case was never triggered!
+  --           _ -> fallback
+
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
       v = maybe failure unArg $ headMaybe $ drop i args
