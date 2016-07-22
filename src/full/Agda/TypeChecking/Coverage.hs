@@ -764,13 +764,15 @@ splitResult f sc@(SClause tel ps _ target) = do
             -- See test/succeed/CopatternsAndDotPatterns.agda for a case with dot patterns
             -- and copatterns which fails for @n = size tel@ with a broken case tree.
 
+        -- Andreas, 2016-07-22 read the style of projections from the user's lips
+        projOrigin <- ifM (optPostfixProjections <$> pragmaOptions) (return ProjPostfix) (return ProjPrefix)
         Just . Covering n <$> do
           forM fs $ \ proj -> do
             -- compute the new target
             dType <- defType <$> do getConstInfo $ unArg proj -- WRONG: typeOfConst $ unArg proj
             let -- type of projection instantiated at self
                 target' = Just $ proj $> dType `piApply` pargs
-                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP ProjSystem) proj]
+                sc' = sc { scPats   = scPats sc ++ [fmap (Named Nothing . ProjP projOrigin) proj]
                          , scSubst  = idS
                          , scTarget = target'
                          }
