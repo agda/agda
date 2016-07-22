@@ -58,13 +58,26 @@ mkDerivation {
     tasty-silver temporary text
   ];
   configureFlags = if uhc-backend then [ "-fuhc" ] else [];
-  buildTools = [ alex cpphs emacs happy ]
+  buildTools = [ alex cpphs happy ]
     ++ stdenv.lib.optionals uhc-backend [ uhc ]
     ++ stdenv.lib.optionals user-manual [ sphinx sphinx_rtd_theme texLive ];
+
+  executableToolDepends = [ emacs ];
+
   postInstall = ''
-    $out/bin/agda -c --no-main $(find $out/share -name Primitive.agda)
-    $out/bin/agda-mode compile
-  '';
+     # Separate loops to avoid internal error
+     files=($out/share/*-ghc-*/Agda-*/lib/prim/Agda/{Primitive.agda,Builtin/*.agda})
+     for f in "''${files[@]}"
+     do
+       $out/bin/agda $f
+     done
+     for f in "''${files[@]}"
+     do
+       $out/bin/agda -c --no-main $f
+     done
+     $out/bin/agda-mode compile
+   '';
+
   homepage = "http://wiki.portal.chalmers.se/agda/";
   description = "A dependently typed functional programming language and proof assistant";
   license = "unknown";
