@@ -1,3 +1,7 @@
+..
+  ::
+  module language.postulates where
+
 .. _postulates:
 
 **********

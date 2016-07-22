@@ -1,3 +1,22 @@
+..
+  ::
+  {-# OPTIONS --allow-unsolved-metas #-}
+  module language.with-abstraction where
+
+  open import Agda.Builtin.Nat using (Nat; zero; suc; _<_)
+  open import Agda.Builtin.Bool using (Bool; true; false)
+
+  data Comparison : Set where
+    equal greater less : Comparison
+
+  data List (A : Set) : Set where
+    []  : List A
+    _∷_ : A → List A → List A
+
+  open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+
+  data ⊥ : Set where
+
 .. _with-abstraction:
 
 ****************
@@ -18,13 +37,17 @@ Usage
 In the simplest case the ``with`` construct can be used just to discriminate on
 the result of an intermediate computation. For instance
 
+..
+  ::
+  module verbose-usage where
+
 ::
 
-  filter : {A : Set} → (A → Bool) → List A → List A
-  filter p [] = []
-  filter p (x ∷ xs) with p x
-  filter p (x ∷ xs)    | true  = x ∷ filter p xs
-  filter p (x ∷ xs)    | false = filter p xs
+    filter : {A : Set} → (A → Bool) → List A → List A
+    filter p [] = []
+    filter p (x ∷ xs) with p x
+    filter p (x ∷ xs)    | true  = x ∷ filter p xs
+    filter p (x ∷ xs)    | false = filter p xs
 
 The clause containing the with-abstraction has no right-hand side. Instead it
 is followed by a number of clauses with an extra argument on the left,
@@ -33,13 +56,17 @@ separated from the original arguments by a vertical bar (``|``).
 When the original arguments are the same in the new clauses you can use the
 ``...`` syntax:
 
+..
+  ::
+  module ellipsis-usage where
+
 ::
 
-  filter : {A : Set} → (A → Bool) → List A → List A
-  filter p [] = []
-  filter p (x ∷ xs) with p x
-  ...                  | true  = x ∷ filter p xs
-  ...                  | false = filter p xs
+    filter : {A : Set} → (A → Bool) → List A → List A
+    filter p [] = []
+    filter p (x ∷ xs) with p x
+    ...                  | true  = x ∷ filter p xs
+    ...                  | false = filter p xs
 
 In this case ``...`` expands to ``filter p (x ∷ xs)``. There are three cases
 where you have to spell out the left-hand side:
@@ -48,6 +75,10 @@ where you have to spell out the left-hand side:
 - When the pattern matching on the intermediate result refines some of the
   other arguments (see :ref:`dot-patterns`).
 - To disambiguate the clauses of nested with abstractions (see `Nested with-abstractions`_ below).
+
+..
+  ::
+  module generalisation where
 
 Generalisation
 ~~~~~~~~~~~~~~
@@ -60,47 +91,66 @@ important when you have to prove properties about functions defined using
 above satisfies some property ``P``. Starting out by pattern matching of the
 list we get the following (with the goal types shown in the holes)
 
+..
+  ::
+    open ellipsis-usage
+
 ::
 
-  proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
-  proof p []       = {! P [] !}
-  proof p (x ∷ xs) = {! P (filter p xs | p x) !}
+    postulate P : ∀ {A} → List A → Set
+    postulate p-nil : P []
+    postulate Q : Set
+    postulate q-nil : Q
+
+..
+  ::
+    module verbose-proof where
+
+::
+
+      proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
+      proof p []       = {! P [] !}
+      proof p (x ∷ xs) = {! P (filter p xs | p x) !}
+
+..
+  ::
+    module ellipsis-proof where
 
 In the cons case we have to prove that ``P`` holds for ``filter p xs | p x``.
 This is the syntax for a stuck with-abstraction--\ ``filter`` cannot reduce
 since we don't know the value of ``p x``. This syntax is used for printing, but
 is not accepted as valid Agda code. Now if we with-abstract over ``p x``, but
-don't pattern match on the result we get
+don't pattern match on the result we get::
 
-::
+      proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
+      proof p [] = p-nil
+      proof p (x ∷ xs) with p x
+      ...                 | r   = {! P (filter p xs | r) !}
 
-  proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
-  proof p [] = p-nil
-  proof p (x ∷ xs) with p x
-  ...                 | r   = {! P (filter p xs | r) !}
+..
+  ::
+    module ellipsis-proof-step where
 
 Here the ``p x`` in the goal type has been replaced by the variable ``r``
 introduced for the result of ``p x``. If we pattern match on ``r`` the
-with-clauses can reduce, giving us
+with-clauses can reduce, giving us::
 
-::
-
-  proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
-  proof p [] = p-nil
-  proof p (x ∷ xs) with p x
-  ...                 | true  = {! P (x ∷ filter p xs) !}
-  ...                 | false = {! P (filter p xs) !}
+      proof : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs)
+      proof p [] = p-nil
+      proof p (x ∷ xs) with p x
+      ...                 | true  = {! P (x ∷ filter p xs) !}
+      ...                 | false = {! P (filter p xs) !}
 
 Both the goal type and the types of the other arguments are generalised, so it
 works just as well if we have an argument whose type contains ``filter p xs``.
 
 ::
 
-  proof₂ : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs) → Q
-  proof₂ p [] _ = q-nil
-  proof₂ p (x ∷ xs) H with p x
-  ...                    | true  = {! H : P (filter p xs) !}
-  ...                    | false = {! H : P (x ∷ filter p xs) !}
+      proof₂ : {A : Set} (p : A → Bool) (xs : List A) → P (filter p xs) → Q
+      proof₂ p [] _ = q-nil
+      proof₂ p (x ∷ xs) H with p x
+      ...                    | true  = {! H : P (filter p xs) !}
+      ...                    | false = {! H : P (x ∷ filter p xs) !}
 
 The generalisation is not limited to scrutinees in other with-abstractions. All
 occurrences of the term in the goal type and argument types will be
@@ -113,23 +163,27 @@ more details.
 Nested with-abstractions
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+..
+  ::
+  module compare-verbose where
+
 With-abstractions can be nested arbitrarily. The only thing to keep in mind in
 this case is that the ``...`` syntax applies to the closest with-abstraction.
 For example, suppose you want to use ``...`` in the definition below.
 
 ::
 
-  compare : Nat → Nat → Comparison
-  compare x y with x < y
-  compare x y    | false with y < x
-  compare x y    | false    | false = equal
-  compare x y    | false    | true  = greater
-  compare x y    | true = less
+     compare : Nat → Nat → Comparison
+     compare x y with x < y
+     compare x y    | false with y < x
+     compare x y    | false    | false = equal
+     compare x y    | false    | true  = greater
+     compare x y    | true = less
 
 You might be tempted to replace ``compare x y`` with ``...`` in all the
 with-clauses as follows.
 
-::
+.. code-block:: agda
 
   compare : Nat → Nat → Comparison
   compare x y with x < y
@@ -143,14 +197,25 @@ belonging to the inner with-abstraction (the whitespace is not taken into
 account) and thus expands to ``compare x y | false | true``. In this case you
 have to spell out the left-hand side and write
 
+..
+  ::
+  module compare-ellipsis where
+
 ::
 
-  compare : Nat → Nat → Comparison
-  compare x y with x < y
-  ...            | false with y < x
-  ...                       | false = equal
-  ...                       | true  = greater
-  compare x y    | true = less
+    compare : Nat → Nat → Comparison
+    compare x y with x < y
+    ...            | false with y < x
+    ...                       | false = equal
+    ...                       | true  = greater
+    compare x y    | true = less
+
+..
+  ::
+  module simultaneous-abstraction where
+
+    open import Agda.Builtin.Nat using (_+_)
+
 
 Simultaneous abstraction
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -160,11 +225,11 @@ you separate the terms with vertical bars (``|``).
 
 ::
 
-  compare : Nat → Nat → Comparison
-  compare x y with x < y | y < x
-  ...            | true  | _     = less
-  ...            | _     | true  = greater
-  ...            | false | false = equal
+    compare : Nat → Nat → Comparison
+    compare x y with x < y | y < x
+    ...            | true  | _     = less
+    ...            | _     | true  = greater
+    ...            | false | false = equal
 
 In this example the order of abstracted terms does not matter, but in general
 it does. Specifically, the types of later terms are generalised over the values
@@ -172,26 +237,41 @@ of earlier terms. For instance
 
 ::
 
-  plus-commute : (a b : Nat) → a + b ≡ b + a
+    postulate plus-commute : (a b : Nat) → a + b ≡ b + a
+    postulate P : Nat → Set
 
-  thm : (a b : Nat) → P (a + b) → P (b + a)
-  thm a b t with a + b | plus-commute a b
-  thm a b t    | ab    | eq = {! t : P ab, eq : ab ≡ b + a !}
+..
+  ::
+    module simultaneous-thm-unmatched where
+
+::
+
+      thm : (a b : Nat) → P (a + b) → P (b + a)
+      thm a b t with a + b | plus-commute a b
+      thm a b t    | ab    | eq = {! t : P ab, eq : ab ≡ b + a !}
 
 Note that both the type of ``t`` and the type of the result ``eq`` of
 ``plus-commute a b`` have been generalised over ``a + b``. If the terms in the
 with-abstraction were flipped around, this would not be the case.  If we now
 pattern match on ``eq`` we get
 
+..
+  ::
+    module simultaneous-thm-refl where
+
 ::
 
-  thm : (a b : Nat) → P (a + b) → P (b + a)
-  thm a b t with   a + b  | plus-commute a b
-  thm a b t    | .(b + a) | refl = {! t : P (b + a) !}
+      thm : (a b : Nat) → P (a + b) → P (b + a)
+      thm a b t with   a + b  | plus-commute a b
+      thm a b t    | .(b + a) | refl = {! t : P (b + a) !}
 
 and can thus fill the hole with ``t``. In effect we used the commutativity
 proof to rewrite ``a + b`` to ``b + a`` in the type of ``t``. This is such a
 useful thing to do that there is special syntax for it. See `Rewrite`_ below.
+
+..
+  ::
+  module with-on-lemma where
 
 .. _with-on-lemma:
 
@@ -202,34 +282,51 @@ further matching on the left. For instance, consider the following contrived
 example where we need to match on the value of ``f n`` for the type of ``q`` to
 reduce, but we then want to apply ``q`` to a lemma that talks about ``f n``::
 
-  R     : Set
-  P     : Nat → Set
-  f     : Nat → Nat
-  lemma : ∀ n → P (f n) → R
+    postulate
+      R     : Set
+      P     : Nat → Set
+      f     : Nat → Nat
+      lemma : ∀ n → P (f n) → R
 
-  Q : Nat → Set
-  Q zero    = ⊥
-  Q (suc n) = P (suc n)
+    Q : Nat → Set
+    Q zero    = ⊥
+    Q (suc n) = P (suc n)
 
-  proof : (n : Nat) → Q (f n) → R
-  proof n q with f n
-  proof n ()   | zero
-  proof n q    | suc fn = {! q : P (suc fn) !}
+..
+  ::
+    module proof-blocked where
+
+::
+
+      proof : (n : Nat) → Q (f n) → R
+      proof n q with f n
+      proof n ()   | zero
+      proof n q    | suc fn = {! q : P (suc fn) !}
+
+..
+  ::
+
+    module proof-lemma where
 
 Once we have generalised over ``f n`` we can no longer apply the lemma, which
 needs an argument of type ``P (f n)``. To solve this problem we can add the
 lemma to the with-abstraction::
 
-  proof : (n : Nat) → Q (f n) → R
-  proof n q with f n    | lemma n
-  proof n ()   | zero   | _
-  proof n q    | suc fn | lem = lem q
+      proof : (n : Nat) → Q (f n) → R
+      proof n q with f n    | lemma n
+      proof n ()   | zero   | _
+      proof n q    | suc fn | lem = lem q
 
 In this case the type of ``lemma n`` (``P (f n) → R``) is generalised over ``f
 n`` so in the right hand side of the last clause we have ``q : P (suc fn)`` and
 ``lem : P (suc fn) → R``.
 
 See `The Inspect idiom`_ below for an alternative approach.
+
+..
+  ::
+  module with-rewrite where
+    open import Agda.Builtin.Nat using (_+_)
 
 .. _with-rewrite:
 
@@ -239,24 +336,36 @@ Rewrite
 Remember example of `simultaneous abstraction <Simultaneous abstraction_>`_
 from above.
 
+..
+  ::
+    module remember-simultaneous-abstraction where
+      postulate P : Nat → Set
+
 ::
 
-  plus-commute : (a b : Nat) → a + b ≡ b + a
+      postulate plus-commute : (a b : Nat) → a + b ≡ b + a
 
-  thm : (a b : Nat) → P (a + b) → P (b + a)
-  thm a b t with   a + b  | plus-commute a b
-  thm a b t    | .(b + a) | refl = t
+      thm : (a b : Nat) → P (a + b) → P (b + a)
+      thm a b t with   a + b  | plus-commute a b
+      thm a b t    | .(b + a) | refl = t
+
+..
+  ::
+
+    open simultaneous-abstraction
 
 This pattern of rewriting by an equation by with-abstracting over it and its
 left-hand side is common enough that there is special syntax for it::
 
-  thm : (a b : Nat) → P (a + b) → P (b + a)
-  thm a b t rewrite plus-commute a b = t
+    thm : (a b : Nat) → P (a + b) → P (b + a)
+    thm a b t rewrite plus-commute a b = t
 
 The ``rewrite`` construction takes a term ``eq`` of type ``lhs ≡ rhs``, where ``_≡_``
 is the :ref:`built-in equality type <built-in-equality>`, and expands to a
 with-abstraction of ``lhs`` and ``eq`` followed by a match of the result of
-``eq`` against ``refl``::
+``eq`` against ``refl``:
+
+.. code-block:: agda
 
   f ps rewrite eq = v
 
@@ -272,13 +381,24 @@ instance,
 
 ::
 
-  thm₁ : (a b : Nat) → T (a + b) → T (b + a)
-  thm₁ a b t rewrite plus-commute a b with isEven a
-  thm₁ a b t | true  = t
-  thm₁ a b t | false = t
+    postulate T : Nat → Set
+
+    isEven : Nat → Bool
+    isEven zero = true
+    isEven (suc zero) = false
+    isEven (suc (suc n)) = isEven n
+
+    thm₁ : (a b : Nat) → T (a + b) → T (b + a)
+    thm₁ a b t rewrite plus-commute a b with isEven a
+    thm₁ a b t | true  = t
+    thm₁ a b t | false = t
 
 Note that the with-abstracted arguments introduced by the rewrite (``lhs`` and
 ``eq``) are not visible in the code.
+
+..
+  ::
+  module inspect-idiom where
 
 The inspect idiom
 ~~~~~~~~~~~~~~~~~
@@ -291,24 +411,28 @@ simultaneous abstraction to make sure that we did capture all the instances we
 needed. An alternative to that is to use the *inspect idiom*, which retains a
 proof that the original term is equal to its abstraction.
 
+..
+  ::
+    module inspect-idiom-simplest where
+
 In the simplest form, the inspect idiom uses a singleton type::
 
-  data Singleton {a} {A : Set a} (x : A) : Set a where
-    _with≡_ : (y : A) → x ≡ y → Singleton x
+      data Singleton {a} {A : Set a} (x : A) : Set a where
+        _with≡_ : (y : A) → x ≡ y → Singleton x
 
-  inspect : ∀ {a} {A : Set a} (x : A) → Singleton x
-  inspect x = x with≡ refl
+      inspect : ∀ {a} {A : Set a} (x : A) → Singleton x
+      inspect x = x with≡ refl
 
 Now instead of with-abstracting ``t``, you can abstract over ``inspect t``. For
 instance,
 
 ::
 
-  filter : {A : Set} → (A → Bool) → List A → List A
-  filter p [] = []
-  filter p (x ∷ xs) with inspect (p x)
-  ...                  | true  with≡ eq = {! eq : p x ≡ true !}
-  ...                  | false with≡ eq = {! eq : p x ≡ false !}
+      filter : {A : Set} → (A → Bool) → List A → List A
+      filter p [] = []
+      filter p (x ∷ xs) with inspect (p x)
+      ...                  | true  with≡ eq = {! eq : p x ≡ true !}
+      ...                  | false with≡ eq = {! eq : p x ≡ false !}
 
 Here we get proofs that ``p x ≡ true`` and ``p x ≡ false`` in the respective
 branches that we can on use the right.  Note that since the with-abstraction is
@@ -318,32 +442,33 @@ by a function graph type as follows (see :ref:`anonymous-modules` to learn
 about the use of a module to bind the type arguments to ``Graph`` and
 ``inspect``)::
 
-  module _ {a b} {A : Set a} {B : A → Set b} where
+    module _ {a b} {A : Set a} {B : A → Set b} where
 
-    data Graph (f : ∀ x → B x) (x : A) (y : B x) : Set b where
-      ingraph : f x ≡ y → Graph f x y
+      data Graph (f : ∀ x → B x) (x : A) (y : B x) : Set b where
+        ingraph : f x ≡ y → Graph f x y
 
-    inspect : (f : ∀ x → B x) (x : A) → Graph f x (f x)
-    inspect = ingraph refl
+      inspect : (f : ∀ x → B x) (x : A) → Graph f x (f x)
+      inspect _ _ = ingraph refl
 
 To use this on a term ``g v`` you with-abstract over both ``g v`` and ``inspect
 g v``. For instance, applying this to the example from above we get
 
 ::
 
-  R     : Set
-  P     : Nat → Set
-  f     : Nat → Nat
-  lemma : ∀ n → P (f n) → R
+    postulate
+      R     : Set
+      P     : Nat → Set
+      f     : Nat → Nat
+      lemma : ∀ n → P (f n) → R
 
-  Q : Nat → Set
-  Q zero    = ⊥
-  Q (suc n) = P (suc n)
+    Q : Nat → Set
+    Q zero    = ⊥
+    Q (suc n) = P (suc n)
 
-  proof : (n : Nat) → Q (f n) → R
-  proof n q with f n    | inspect f n
-  proof n ()   | zero   | _
-  proof n q    | suc fn | ingraph eq = {! q : P (suc fn), eq : f n ≡ suc fn !}
+    proof : (n : Nat) → Q (f n) → R
+    proof n q with f n    | inspect f n
+    proof n ()   | zero   | _
+    proof n q    | suc fn | ingraph eq = {! q : P (suc fn), eq : f n ≡ suc fn !}
 
 We could then use the proof that ``f n ≡ suc fn`` to apply ``lemma`` to ``q``.
 
@@ -512,6 +637,10 @@ variables bound in :math:`ps`), we
   :math:`\mathit{xs}_2` are the variables from :math:`\Delta` corresponding to
   :math:`\Delta_1` and :math:`\Delta_2` respectively.
 
+..
+  ::
+  module examples where
+
 Examples
 ~~~~~~~~
 
@@ -519,52 +648,56 @@ Below are some examples of with-abstractions and their translations.
 
 ::
 
-  postulate
-     A     : Set
-     _+_   : A → A → A
-     T     : A → Set
-     mkT   : ∀ x → T x
-     P     : ∀ x → T x → Set
+    postulate
+       A     : Set
+       _+_   : A → A → A
+       T     : A → Set
+       mkT   : ∀ x → T x
+       P     : ∀ x → T x → Set
 
-   -- the type A of the with argument has no free variables, so the with
-   -- argument will come first
-   f₁ : (x y : A) (t : T (x + y)) → T (x + y)
-   f₁ x y t with x + y
-   f₁ x y t    | w = {!!}
+    -- the type A of the with argument has no free variables, so the with
+    -- argument will come first
+    f₁ : (x y : A) (t : T (x + y)) → T (x + y)
+    f₁ x y t with x + y
+    f₁ x y t    | w = {!!}
 
-   -- Generated with function
-   f-aux₁ : (w : A) (x y : A) (t : T w) → T w
-   f-aux₁ w x y t = {!!}
+    -- Generated with function
+    f-aux₁ : (w : A) (x y : A) (t : T w) → T w
+    f-aux₁ w x y t = {!!}
 
-   -- x and p are not needed to type the with argument, so the context
-   -- is reordered with only y before the with argument
-   f₂ : (x y : A) (p : P y (mkT y)) → P y (mkT y)
-   f₂ x y p with mkT y
-   f₂ x y p    | w = {!!}
+    -- x and p are not needed to type the with argument, so the context
+    -- is reordered with only y before the with argument
+    f₂ : (x y : A) (p : P y (mkT y)) → P y (mkT y)
+    f₂ x y p with mkT y
+    f₂ x y p    | w = {!!}
 
-   f-aux₂ : (y : A) (w : T y) (x : A) (p : P y w) → P y w
-   f-aux₂ y w x p = {!!}
+    f-aux₂ : (y : A) (w : T y) (x : A) (p : P y w) → P y w
+    f-aux₂ y w x p = {!!}
 
-   postulate
-     H : ∀ x y → T (x + y) → Set
+    postulate
+      H : ∀ x y → T (x + y) → Set
 
-   -- Multiple with arguments are always inserted together, so in this case
-   -- t ends up on the left since it’s needed to type h and thus x + y isn’t
-   -- abstracted from the type of t
-   f₃ : (x y : A) (t : T (x + y)) (h : H x y t) → T (x + y)
-   f₃ x y t h with x + y | h
-   f₃ x y t h    | w₁    | w₂ = {! t : T (x + y), goal : T w₁ !}
+    -- Multiple with arguments are always inserted together, so in this case
+    -- t ends up on the left since it’s needed to type h and thus x + y isn’t
+    -- abstracted from the type of t
+    f₃ : (x y : A) (t : T (x + y)) (h : H x y t) → T (x + y)
+    f₃ x y t h with x + y | h
+    f₃ x y t h    | w₁    | w₂ = {! t : T (x + y), goal : T w₁ !}
 
-   f-aux₃ : (x y : A) (t : T (x + y)) (h : H x y t) (w₁ : A) (w₂ : H x y t) → T w₁
-   f-aux₃ x y t h w₁ w₂ = {!!}
+    f-aux₃ : (x y : A) (t : T (x + y)) (h : H x y t) (w₁ : A) (w₂ : H x y t) → T w₁
+    f-aux₃ x y t h w₁ w₂ = {!!}
 
-   -- But earlier with arguments are abstracted from the types of later ones
-   f₄ : (x y : A) (t : T (x + y)) → T (x + y)
-   f₄ x y t with x + y | t
-   f₄ x y t    | w₁    | w₂ = {! t : T (x + y), w₂ : T w₁, goal : T w₁ !}
+    -- But earlier with arguments are abstracted from the types of later ones
+    f₄ : (x y : A) (t : T (x + y)) → T (x + y)
+    f₄ x y t with x + y | t
+    f₄ x y t    | w₁    | w₂ = {! t : T (x + y), w₂ : T w₁, goal : T w₁ !}
 
-   f-aux₄ : (x y : A) (t : T (x + y)) (w₁ : A) (w₂ : T w₁) → T w₁
-   f-aux₄ x y t w₁ w₂ = {!!}
+    f-aux₄ : (x y : A) (t : T (x + y)) (w₁ : A) (w₂ : T w₁) → T w₁
+    f-aux₄ x y t w₁ w₂ = {!!}
+
+..
+  ::
+  module ill-typed where
 
 Ill-typed with-abstractions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -576,9 +709,12 @@ first component of a dependent pair. For instance,
 
 ::
 
-  A : Set
-  B : A → Set
-  H : (x : A) → B x → Set
+    postulate
+      A : Set
+      B : A → Set
+      H : (x : A) → B x → Set
+
+.. code-block:: agda
 
   bad-with : (p : Σ A B) → H (fst p) (snd p)
   bad-with p with fst p

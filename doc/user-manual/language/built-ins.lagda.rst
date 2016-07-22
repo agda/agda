@@ -431,15 +431,20 @@ Universe levels
 :ref:`Universe levels <universe-levels>` are also declared using ``BUILTIN``
 pragmas. In contrast to the ``Agda.Builtin`` modules, the ``Agda.Primitive`` module
 is auto-imported and thus it is not possible to change the level built-ins. For
-reference these are the bindings:
-
-.. code-block:: agda
+reference these are the bindings::
 
   postulate
     Level : Set
     lzero : Level
     lsuc  : Level → Level
     _⊔_   : Level → Level → Level
+
+..
+  This code cannot be typechecked because the identifiers are already bound
+  in Agda.Primitive and are auto-imported.
+
+.. code-block:: agda
+
   {-# BUILTIN LEVEL     Level #-}
   {-# BUILTIN LEVELZERO lzero #-}
   {-# BUILTIN LEVELSUC  lsuc  #-}

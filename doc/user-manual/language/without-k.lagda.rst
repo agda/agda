@@ -1,3 +1,7 @@
+..
+  ::
+  module language.without-k where
+
 .. _without-k:
 
 *********

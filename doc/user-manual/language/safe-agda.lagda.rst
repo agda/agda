@@ -1,3 +1,7 @@
+..
+  ::
+  module language.safe-agda where
+
 .. _safe-agda:
 
 *********

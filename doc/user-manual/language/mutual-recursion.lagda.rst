@@ -1,3 +1,9 @@
+..
+  ::
+  module language.mutual-recursion where
+
+  open import Agda.Builtin.Nat
+
 .. _mutual-recursion:
 
 ****************
@@ -5,7 +11,8 @@ Mutual Recursion
 ****************
 
 Mutual recursive functions can be written by placing the type signatures of all mutually recursive function before their definitions:
-::
+
+.. code-block:: agda
 
   f : A
   g : B[f]
@@ -17,7 +24,7 @@ For data types and records the following syntax is used to separate the declarat
 ::
 
   -- Declaration.
-  data Vec (A : Set) : Nat → Set  — Note the absence of ‘where’.
+  data Vec (A : Set) : Nat → Set  -- Note the absence of ‘where’.
 
   -- Definition.
   data Vec A where
@@ -34,12 +41,17 @@ For data types and records the following syntax is used to separate the declarat
           snd : B fst
 
 When making separated declarations/definitions private or abstract you should attach the ``private`` keyword to the declaration and the ``abstract`` keyword to the definition. For instance, a private, abstract function can be defined as
+
+..
+  ::
+  module private-abstract (A : Set) (e : A) where
+
 ::
 
-  private
-    f : A
-  abstract
-    f = e
+    private
+      f : A
+    abstract
+      f = e
 
 Old Syntax
 ----------
@@ -49,7 +61,8 @@ Old Syntax
    is still supported.
 
 Mutual recursive functions can be written by placing the type signatures of all mutually recursive function before their definitions:
-::
+
+.. code-block:: agda
 
   mutual
     f : A
