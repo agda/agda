@@ -18,6 +18,7 @@ import Data.Monoid
 import Data.List
 import System.IO.Temp
 import System.FilePath
+import System.Environment (setEnv)
 import System.Exit
 import System.Process.Text as PT
 
@@ -41,11 +42,11 @@ data ExecResult
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo | UHC
+data Compiler = MAlonzo | UHC | JS
   deriving (Show, Read, Eq)
 
 enabledCompilers :: [Compiler]
-enabledCompilers = [ MAlonzo, UHC ]
+enabledCompilers = [ MAlonzo, UHC, JS ]
 
 data CompilerOptions
   = CompilerOptions
@@ -115,6 +116,7 @@ simpleTests comp = do
   where compArgs :: Compiler -> AgdaArgs
         compArgs UHC = []
         compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/"]
+        compArgs JS = []
 
 -- The Compiler tests using the standard library are horribly
 -- slow at the moment (1min or more per test case).
@@ -157,6 +159,7 @@ specialTests MAlonzo = do
             -- ignore stderr, as there may be some GHC warnings in it
             return $ ExecutedProg (ret, out <> sout, err)
 specialTests UHC = return Nothing
+specialTests JS = return Nothing
 
 ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
 ghcArgsAsAgdaArgs = map f
@@ -175,8 +178,14 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
-          (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
-          return $ ExecutedProg (ret, out <> out', err <> err')
+          case comp of
+            JS -> do
+              setEnv "NODE_PATH" compDir
+              (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
+              return $ ExecutedProg (ret, out <> out', err <> err')
+            _ -> do
+              (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
+              return $ ExecutedProg (ret, out <> out', err <> err')
         else
           return CompileSucceeded
         )
@@ -218,6 +227,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
             let uhcBinArg = maybe [] (\x -> ["--uhc-bin", x]) uhc
             -- TODO remove the memory arg again, as soon as we fixed the memory leak
             return $ ["--uhc"] ++ uhcBinArg ++ ["+RTS", "-K50m", "-RTS"]
+        argsForComp JS = return ["--js"]
 
 readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
@@ -235,6 +245,7 @@ cleanUpOptions = filter clean
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
+getExecForComp JS compDir inpFile = compDir </> ("jAgda." ++ (takeFileName $ dropAgdaOrOtherExtension inpFile) ++ ".js")
 getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text
