@@ -9,6 +9,9 @@ Installation and infrastructure
 
 * Added support for GHC 8.0.1.
 
+* Documentation is now built with Python >=3.3, as done by
+  `readthedocs.org`.
+
 Bug fixes
 =========
 

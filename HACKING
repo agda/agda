@@ -313,6 +313,8 @@ Testing and documentation
 
 * To build the user manual locally, you need to install
   the following dependencies:
+    - Python >=3.3
+
     - Sphinx and sphinx-rtd-theme
 
         pip install --user -r doc/user-manual/requirements.txt
