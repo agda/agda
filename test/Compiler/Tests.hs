@@ -18,7 +18,7 @@ import Data.Monoid
 import Data.List
 import System.IO.Temp
 import System.FilePath
-import System.Environment (setEnv)
+import System.Environment
 import System.Exit
 import System.Process.Text as PT
 
@@ -27,6 +27,7 @@ import Control.Applicative ((<$>))
 #endif
 #if __GLASGOW_HASKELL__ <= 706
 import Control.Monad ( void )
+import System.SetEnv (setEnv)
 #endif
 
 import Control.Monad (forM)
