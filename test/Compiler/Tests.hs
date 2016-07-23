@@ -45,9 +45,6 @@ data ExecResult
 data Compiler = MAlonzo | UHC | JS
   deriving (Show, Read, Eq)
 
-enabledCompilers :: [Compiler]
-enabledCompilers = [ MAlonzo, UHC, JS ]
-
 data CompilerOptions
   = CompilerOptions
     { extraAgdaArgs :: AgdaArgs
@@ -60,9 +57,12 @@ data TestOptions
     , executeProg    :: Bool
     } deriving (Show, Read)
 
+allCompilers :: [Compiler]
+allCompilers = [MAlonzo, UHC, JS]
+
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
-  { forCompilers   = [ (c, co) | c <- enabledCompilers ]
+  { forCompilers   = [ (c, co) | c <- allCompilers ]
   , runtimeOptions = []
   , executeProg    = True
   }
@@ -93,13 +93,18 @@ disabledTests =
 
 tests :: IO TestTree
 tests = do
+  hasUHC <- doesCommandExist "uhc"
+  hasNode <- doesCommandExist "node"
+  let enabledCompilers = [MAlonzo] ++ [UHC | hasUHC] ++ [JS | hasNode]
+
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Compiler" ts
-  where forComp comp = testGroup (show comp) . catMaybes
-            <$> sequence
-                [ Just <$> simpleTests comp
-                , Just <$> stdlibTests comp
-                , specialTests comp]
+  where
+    forComp comp = testGroup (show comp) . catMaybes
+        <$> sequence
+            [ Just <$> simpleTests comp
+            , Just <$> stdlibTests comp
+            , specialTests comp]
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
