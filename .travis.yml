@@ -40,7 +40,7 @@ matrix:
             - cabal-install-1.24
             - ghc-8.0.1
             - happy-1.19.5
-            - nodejs-0.10.25
+            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -86,7 +86,7 @@ matrix:
             - cabal-install-1.22
             - ghc-7.10.3
             - happy-1.19.5
-            - nodejs-0.10.25
+            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -118,7 +118,7 @@ matrix:
             - cabal-install-1.18
             - ghc-7.8.4
             - happy-1.19.5
-            - nodejs-0.10.25
+            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -142,7 +142,7 @@ matrix:
             - cabal-install-1.18
             - ghc-7.6.3
             - happy-1.19.5
-            - nodejs-0.10.25
+            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
