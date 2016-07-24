@@ -71,6 +71,7 @@ data-files:         Agda.css
                     uhc-agda-base/uhc-agda-base.cabal
                     uhc-agda-base/src/UHC/Agda/*.hs
                     MAlonzo/src/MAlonzo/*.hs
+                    JS/agda-rts.js
                     JS/biginteger.js
 
 source-repository head

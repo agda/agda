@@ -211,7 +211,7 @@ defn q ls t (Just e) (Function {}) =
 defn q ls t Nothing (Function {}) = do
   reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
   caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
-    let funBody = eliminateLiteralPatterns $ convertGuards $ treeless
+    funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
     reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
     funBody' <- compileTerm funBody
     reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
