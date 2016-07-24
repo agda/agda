@@ -302,7 +302,7 @@ mapping :: [Pattern] -> (Nat,Nat,[Exp])
 mapping = foldr mapping' (0,0,[])
 
 mapping' :: Pattern -> (Nat,Nat,[Exp]) -> (Nat,Nat,[Exp])
-mapping' (ProjP _)     (av,bv,es) =
+mapping' ProjP{}       (av,bv,es) =
   __IMPOSSIBLE__
 mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
 mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
@@ -313,7 +313,7 @@ mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
 -- Not doing literal patterns yet
 
 pattern :: Pattern -> TCM Patt
-pattern (ProjP _)     = typeError $ NotImplemented $ "Compilation of copatterns"
+pattern (ProjP _ _)   = typeError $ NotImplemented $ "Compilation of copatterns"
 pattern (ConP c _ ps) = do
   l <- tag $ conName c
   ps <- mapM (pattern . namedArg) ps

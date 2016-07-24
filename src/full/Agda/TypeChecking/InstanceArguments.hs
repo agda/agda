@@ -93,7 +93,7 @@ initialIFSCandidates t = do
           args <- freeVarsToApply q
           let v = case theDef def of
                -- drop parameters if it's a projection function...
-               Function{ funProjection = Just p } -> projDropParsApply p args
+               Function{ funProjection = Just p } -> projDropParsApply p ProjSystem args
                -- Andreas, 2014-08-19: constructors cannot be declared as
                -- instances (at least as of now).
                -- I do not understand why the Constructor case is not impossible.
@@ -289,7 +289,7 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
   where
     areThereNonRigidMetaArgs :: Elims -> TCM (Maybe MetaId)
     areThereNonRigidMetaArgs []             = return Nothing
-    areThereNonRigidMetaArgs (Proj _ : xs)  = areThereNonRigidMetaArgs xs
+    areThereNonRigidMetaArgs (Proj{}  : xs) = areThereNonRigidMetaArgs xs
     areThereNonRigidMetaArgs (Apply x : xs) = do
       ifJustM (isNonRigidMeta $ unArg x) (return . Just) (areThereNonRigidMetaArgs xs)
 
@@ -486,6 +486,6 @@ applyDroppingParameters t vs = do
         Just Projection{projIndex = n} -> do
           case drop n vs of
             []     -> return t
-            u : us -> (`apply` us) <$> applyDef f u
+            u : us -> (`apply` us) <$> applyDef ProjPrefix f u
         _ -> fallback
     _ -> fallback

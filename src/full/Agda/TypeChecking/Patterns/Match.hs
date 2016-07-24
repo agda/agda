@@ -133,7 +133,7 @@ matchCopattern :: (Show a)
                => Pattern' a
                -> Elim
                -> ReduceM (Match Term, Elim)
-matchCopattern (ProjP p) elim@(Proj q)
+matchCopattern (ProjP _ p) elim@(Proj _ q)
   | p == q    = return (Yes YesSimplification [], elim)
   | otherwise = return (No                      , elim)
 matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
@@ -182,7 +182,7 @@ matchPattern p u = case (p, u) of
   (ConP con@(ConHead c _ ds) ConPatternInfo{conPRecord = Just{}} ps, arg@(Arg info v))
      -- precondition: con actually comes with the record fields
      | size ds == size ps -> mapSnd (Arg info . Con con) <$> do
-         matchPatterns ps $ for ds $ \ d -> Arg info $ v `applyE` [Proj d]
+         matchPatterns ps $ for ds $ \ d -> Arg info $ v `applyE` [Proj ProjSystem d]
            -- TODO: correct info for projected terms
      | otherwise -> __IMPOSSIBLE__
 

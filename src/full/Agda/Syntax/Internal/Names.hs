@@ -79,7 +79,7 @@ instance NamesIn (Pattern' a) where
     LitP l        -> namesIn l
     DotP v        -> namesIn v
     ConP c _ args -> namesIn (c, args)
-    ProjP f       -> namesIn f
+    ProjP _ f     -> namesIn f
 
 instance NamesIn a => NamesIn (Type' a) where
   namesIn (El s t) = namesIn (s, t)
@@ -132,7 +132,7 @@ instance NamesIn Literal where
 
 instance NamesIn a => NamesIn (Elim' a) where
   namesIn (Apply arg) = namesIn arg
-  namesIn (Proj f)    = namesIn f
+  namesIn (Proj _ f)  = namesIn f
 
 instance NamesIn QName   where namesIn x = Set.singleton x
 instance NamesIn ConHead where namesIn h = namesIn (conName h)
@@ -163,7 +163,7 @@ instance NamesIn (A.Pattern' a) where
   namesIn p = case p of
     A.VarP{}               -> Set.empty
     A.ConP _ c args        -> namesIn (c, args)
-    A.ProjP _ d            -> namesIn d
+    A.ProjP _ _ d          -> namesIn d
     A.DefP _ f args        -> namesIn (f, args)
     A.WildP{}              -> Set.empty
     A.AsP _ _ p            -> namesIn p

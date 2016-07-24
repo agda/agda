@@ -226,7 +226,7 @@ inferDef' f a es = do
     Just Projection{ projIndex = n } | n > 0 -> do
       let self = unArg a
       b <- infer self
-      snd <$> inferSpine b self (Proj f : es)
+      snd <$> inferSpine b self (Proj ProjSystem f : es)
     _ -> inferDef f (Apply a : es)
 
 
@@ -256,10 +256,10 @@ inferSpine' action t self self' (e : es) = do
       v' <- checkInternal' action v $ unDom a
       inferSpine' action (b `absApp` v) (self `applyE` [e]) (self' `applyE` [Apply (Arg ai v')]) es
     -- case: projection or projection-like
-    Proj f -> do
+    Proj o f -> do
       (a, b) <- shouldBePi =<< shouldBeProjectible t f
-      u  <- f `applyDef` (argFromDom a $> self)
-      u' <- f `applyDef` (argFromDom a $> self')
+      u  <- applyDef o f (argFromDom a $> self)
+      u' <- applyDef o f (argFromDom a $> self')
       inferSpine' action (b `absApp` self) u u' es
 
 -- | Type should either be a record type of a type eligible for

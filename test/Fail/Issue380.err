@@ -1,4 +1,4 @@
-Issue380.agda:19,16-27
+Issue380.agda:21,16-27
 Sigma (_a_29 y z == _a_29 y z) (_B_27 y z) !=<
 fst z == fst y → _25 y z == snd z
 when checking that the expression refl , refl has type

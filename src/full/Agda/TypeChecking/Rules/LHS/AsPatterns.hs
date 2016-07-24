@@ -23,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 
+import Agda.Utils.Maybe
 import Agda.Utils.Size
 import Agda.Utils.Impossible
 #include "undefined.h"
@@ -54,9 +55,9 @@ smashType a self (e : es) =
     Apply v -> do
       Pi a b <- ignoreSharing <$> reduce (unEl a)
       (ArgT (unDom a) :) <$> smashType (absApp b $ unArg v) (self `applyE` [e]) es
-    Proj f -> do
+    Proj o f -> do
       a <- reduce a
-      Just (_, self, a) <- projectTyped self a f
+      Just (_, self, a) <- projectTyped self a o f
       (ProjT a :) <$> smashType a self es
 
 smashTel :: Telescope -> [Term] -> [Type]
@@ -67,7 +68,7 @@ smashTel EmptyTel{} (_:_)           = __IMPOSSIBLE__
 asPatterns :: [ElimType] -> [NamedArg A.Pattern] -> [Elim] -> WriterT [AsBinding] TCM ()
 asPatterns _ [] _ = return ()
 asPatterns (ProjT a : as) (p : ps) (Proj{} : vs) = do
-  A.ProjP{} <- return $ namedArg p  -- sanity check
+  unless (isJust $ A.maybePostfixProjP p) __IMPOSSIBLE__  -- sanity check
   ps <- lift $ insertImplicitPatternsT DontExpandLast ps a
   asPatterns as ps vs
 asPatterns (ArgT a : as) (p : ps) (Apply v : vs)

@@ -41,6 +41,7 @@ import Agda.TypeChecking.Positivity.Occurrence as Occ
 import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -104,7 +105,7 @@ canProject f v =
 conApp :: ConHead -> Args -> Elims -> Term
 conApp ch                  args []             = Con ch args
 conApp ch                  args (Apply a : es) = conApp ch (args ++ [a]) es
-conApp ch@(ConHead c _ fs) args (Proj f  : es) =
+conApp ch@(ConHead c _ fs) args (Proj o f : es) =
   let failure = flip trace __IMPOSSIBLE__ $
         "conApp: constructor " ++ show c ++
         " with fields " ++ show fs ++
@@ -112,6 +113,24 @@ conApp ch@(ConHead c _ fs) args (Proj f  : es) =
       i = maybe failure id            $ elemIndex f fs
       v = maybe failure argToDontCare $ headMaybe $ drop i args
   in  applyE v es
+
+  -- -- Andreas, 2016-07-20 futile attempt to magically fix ProjOrigin
+  --     fallback = v
+  -- in  if not $ null es then applyE v es else
+  --     -- If we have no more eliminations, we can return v
+  --     if o == ProjSystem then fallback else
+  --       -- If the result is a projected term with ProjSystem,
+  --       -- we can can restore it to ProjOrigin o.
+  --       -- Otherwise, we get unpleasant printing with eta-expanded record metas.
+  --     caseMaybe (hasElims v) fallback $ \ (hd, es0) ->
+  --       caseMaybe (initLast es0) fallback $ \ (es1, e2) ->
+  --         case e2 of
+  --           -- We want to replace this ProjSystem by o.
+  --           Proj ProjSystem q -> hd (es1 ++ [Proj o q])
+  --             -- Andreas, 2016-07-21 for the whole testsuite
+  --             -- this case was never triggered!
+  --           _ -> fallback
+
 {-
       i = maybe failure id    $ elemIndex f $ map unArg fs
       v = maybe failure unArg $ headMaybe $ drop i args
@@ -803,7 +822,7 @@ instance Subst Term Pattern where
     DotP t       -> DotP $ applySubst rho t
     VarP s       -> p
     LitP l       -> p
-    ProjP _      -> p
+    ProjP{}      -> p
 
 instance Subst Term NLPat where
   applySubst rho p = case p of
@@ -921,18 +940,18 @@ instance Subst Term EqualityView where
 -- * Projections
 ---------------------------------------------------------------------------
 
--- | @projDropParsApply proj args = 'projDropPars' proj `'apply'` args@
+-- | @projDropParsApply proj o args = 'projDropPars' proj o `'apply'` args@
 --
 --   This function is an optimization, saving us from construction lambdas we
 --   immediately remove through application.
-projDropParsApply :: Projection -> Args -> Term
-projDropParsApply (Projection proper d _ _ lams) args =
+projDropParsApply :: Projection -> ProjOrigin -> Args -> Term
+projDropParsApply (Projection proper d _ _ lams) o args =
   case initLast $ getProjLams lams of
     -- If we have no more abstractions, we must be a record field
     -- (projection applied already to record value).
     Nothing -> if proper then Def d $ map Apply args else __IMPOSSIBLE__
     Just (pars, Arg i y) ->
-      let core = if proper then Lam i $ Abs y $ Var 0 [Proj d] else Def d []
+      let core = if proper then Lam i $ Abs y $ Var 0 [Proj o d] else Def d []
       -- Now drop pars many args
           (pars', args') = dropCommon pars args
       -- We only have to abstract over the parameters that exceed the arguments.
@@ -1180,8 +1199,6 @@ deriving instance Eq t => Eq (Blocked t)
 deriving instance Ord t => Ord (Blocked t)
 deriving instance Eq Candidate
 
-deriving instance (Subst t a, Eq a)  => Eq  (Elim' a)
-deriving instance (Subst t a, Ord a) => Ord (Elim' a)
 deriving instance (Subst t a, Eq a)  => Eq  (Tele a)
 deriving instance (Subst t a, Ord a) => Ord (Tele a)
 
@@ -1264,6 +1281,17 @@ instance (Subst t a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b
+
+instance (Subst t a, Eq a)  => Eq  (Elim' a) where
+  Apply  a == Apply  b = a == b
+  Proj _ x == Proj _ y = x == y
+  _ == _ = False
+
+instance (Subst t a, Ord a) => Ord (Elim' a) where
+  Apply  a `compare` Apply  b = a `compare` b
+  Proj _ x `compare` Proj _ y = x `compare` y
+  Apply{}  `compare` Proj{}   = LT
+  Proj{}   `compare` Apply{}  = GT
 
 ---------------------------------------------------------------------------
 -- * Level stuff

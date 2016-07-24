@@ -1,0 +1,17 @@
+withDisplayForm
+  f      = Issue1963DisplayWithPostfixCopattern.f
+  aux    = Issue1963DisplayWithPostfixCopattern.with-8
+  delta1 = (x : Nat)
+  delta2 =
+  n      = 1
+  perm   = x0 -> x0
+  top    = []
+  qs     = @0 .Common.Product.Σ.proj₁
+  qsToTm = [$ @0, .proj₁]
+  ys     = [Nothing,Just 0]
+  rho    = [@1 :# idS]
+  qs[rho]= [$ x, .proj₁]
+  dt     = f x .proj₁ | w1
+Issue1963DisplayWithPostfixCopattern.agda:30,8-12
+f 0 .proj₁ | p 0 != zero of type Nat
+when checking that the expression refl has type f 0 ≡ (0 , 1)

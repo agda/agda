@@ -36,7 +36,7 @@ instance Subst DeBruijnPattern DeBruijnPattern where
     DotP u       -> DotP $ applyPatSubst rho u
     ConP c ci ps -> ConP c ci $ applySubst rho ps
     LitP x       -> p
-    ProjP f      -> p
+    ProjP{}      -> p
     where
       useName :: PatVarName -> DeBruijnPattern -> DeBruijnPattern
       useName n (VarP x) | isUnderscore (dbPatVarName x) = debruijnNamedVar n (dbPatVarIndex x)

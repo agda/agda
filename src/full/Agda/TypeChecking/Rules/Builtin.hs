@@ -561,7 +561,7 @@ bindUntypedBuiltin :: String -> A.Expr -> TCM ()
 bindUntypedBuiltin b e =
   case A.unScope e of
     A.Def q  -> bindBuiltinName b (Def q [])
-    A.Proj (AmbQ [q]) -> bindBuiltinName b (Def q [])
+    A.Proj _ (AmbQ [q]) -> bindBuiltinName b (Def q [])
     e        -> genericError $ "The argument to BUILTIN " ++ b ++ " must be a defined unambiguous name"
 
 -- | Bind a builtin thing to a new name.

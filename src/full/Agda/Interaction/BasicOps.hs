@@ -299,7 +299,7 @@ instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
 reifyElimToExpr :: I.Elim -> TCM Expr
 reifyElimToExpr e = case e of
     I.Apply v -> appl "apply" <$> reify v
-    I.Proj f  -> appl "proj"  <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
+    I.Proj _o f -> appl "proj" <$> reify ((defaultArg $ I.Def f []) :: Arg Term)
   where
     appl :: String -> Arg Expr -> Expr
     appl s v = A.App exprNoRange (A.Lit (LitString noRange s)) $ fmap unnamed v

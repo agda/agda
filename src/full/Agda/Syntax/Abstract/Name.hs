@@ -28,6 +28,7 @@ import Agda.Syntax.Concrete.Name (IsNoName(..), NumHoles(..))
 import qualified Agda.Syntax.Concrete.Name as C
 
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Size
@@ -80,7 +81,7 @@ newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
 
 -- | Check whether we are a projection pattern.
 class IsProjP a where
-  isProjP :: a -> Maybe AmbiguousQName
+  isProjP :: a -> Maybe (ProjOrigin, AmbiguousQName)
 
 instance IsProjP a => IsProjP (Arg a) where
   isProjP = isProjP . unArg
@@ -266,6 +267,10 @@ instance NumHoles Name where
 
 instance NumHoles QName where
   numHoles = numHoles . qnameName
+
+-- | We can have an instance for ambiguous names as all share a common concrete name.
+instance NumHoles AmbiguousQName where
+  numHoles (AmbQ qs) = numHoles $ fromMaybe __IMPOSSIBLE__ $ headMaybe qs
 
 ------------------------------------------------------------------------
 -- * Show instances

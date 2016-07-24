@@ -72,7 +72,7 @@ recordPatternToProjections p =
       concat <$> zipWithM comb (map proj fields) (map namedArg ps)
     ProjP{}      -> __IMPOSSIBLE__ -- copattern cannot appear here
   where
-    proj p = (`applyE` [Proj $ unArg p])
+    proj p = (`applyE` [Proj ProjSystem $ unArg p])
     comb :: (Term -> Term) -> DeBruijnPattern -> TCM [Term -> Term]
     comb prj p = map (\ f -> f . prj) <$> recordPatternToProjections p
 
@@ -246,7 +246,7 @@ replaceByProjections (Arg ai i) projs cc =
                     | otherwise = map unArg xs1
               x                 = Arg ai $ foldr1 appendArgNames names
               xs'               = xs0 ++ x : xs2
-              us                = map (\ p -> Var 0 [Proj p]) (reverse projs)
+              us                = map (\ p -> Var 0 [Proj ProjSystem p]) (reverse projs)
               -- go from level (i + n - 1) to index (subtract from |xs|-1)
               index             = length xs - (i + n)
           in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
@@ -736,7 +736,7 @@ recordTree (ConP c ci ps) | Just ConPImplicit <- conPRecord ci = do
       t <- reduce t
       fields <- getRecordTypeFields (unArg t)
 --      let proj p = \x -> Def (unArg p) [defaultArg x]
-      let proj p = (`applyE` [Proj $ unArg p])
+      let proj p = (`applyE` [Proj ProjSystem $ unArg p])
       return $ Right $ RecCon t $ zip (map proj fields) ts
 recordTree p@(ConP _ ci _) = return $ Left $ translatePattern p
 recordTree p@VarP{} = return (Right (Leaf p))

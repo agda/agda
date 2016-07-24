@@ -1265,7 +1265,7 @@ instance PrettyTCM TypeError where
       mpar n args $
         prettyTCM c <+> fsep (map (prettyArg . fmap namedThing) args)
     prettyPat _ (I.LitP l) = prettyTCM l
-    prettyPat _ (I.ProjP p) = prettyTCM p
+    prettyPat _ (I.ProjP _ p) = text "." <> prettyTCM p
 
 notCmp :: Comparison -> TCM Doc
 notCmp cmp = text "!" <> prettyTCM cmp

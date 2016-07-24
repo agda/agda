@@ -216,7 +216,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
 
     ePatToPat :: Elim' Pattern -> NamedArg Pattern
     ePatToPat (Apply p) = fmap unnamed p
-    ePatToPat (Proj  d) = defaultNamedArg $ ProjP d
+    ePatToPat (Proj o d) = defaultNamedArg $ ProjP o d
 
     dtermToPat :: DisplayTerm -> StateT (Int, [(Int, Int)]) TCM Pattern
     dtermToPat v =
@@ -226,7 +226,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
                               <$> mapM (traverse dtermToPat) vs
         DDef d es        -> do
           ifM (return (null es) `and2M` do isJust <$> lift (isProjection d))
-            {-then-} (return $ ProjP d)
+            {-then-} (return $ ProjP ProjPrefix d)
             {-else-} (DotP (dtermToTerm v) <$ skip)
         DDot v           -> DotP v <$ skip
         DTerm (Var i []) ->

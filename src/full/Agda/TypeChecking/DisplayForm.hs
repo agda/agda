@@ -131,7 +131,7 @@ instance Match a => Match (Arg a) where
 instance Match a => Match (Elim' a) where
   match p v =
     case (p, v) of
-      (Proj f, Proj f') | f == f' -> return []
+      (Proj _ f, Proj _ f') | f == f' -> return []
       (Apply a, Apply a')         -> match a a'
       _                           -> mzero
 
