@@ -16,3 +16,4 @@ data Int : Set where
 {-# BUILTIN INTEGERNEGSUC negsuc #-}
 
 primitive primShowInteger : Int → String
+{-# COMPILED_JS primShowInteger function(x) { return agdaRTS.integerToString(x); } #-}

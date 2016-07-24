@@ -56,6 +56,7 @@ instance EmbPrj JS.Exp where
   icod_ (JS.BinOp e op f) = icode3 13 e op f
   icod_ (JS.PreOp op e)   = icode2 14 op e
   icod_ (JS.Const i)      = icode1 15 i
+  icod_ (JS.PlainJS a)    = icode1 16 a
 
   value = vcase valu where
     valu [0]           = valu0 JS.Self
@@ -74,6 +75,7 @@ instance EmbPrj JS.Exp where
     valu [13, a, b, c] = valu3 JS.BinOp a b c
     valu [14, a, b]    = valu2 JS.PreOp a b
     valu [15, a]       = valu1 JS.Const a
+    valu [16, a]       = valu1 JS.PlainJS a
     valu _             = malformed
 
 instance EmbPrj JS.LocalId where

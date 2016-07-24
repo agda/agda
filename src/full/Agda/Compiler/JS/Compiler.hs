@@ -25,7 +25,6 @@ import Agda.Syntax.Abstract.Name
     mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
-    Clause, Pattern, Pattern'(VarP,DotP,LitP,ConP,ProjP),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
     unSpine, allApplyElims,
     conName,
@@ -55,7 +54,7 @@ import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp),
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PlainJS),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
@@ -256,6 +255,8 @@ compileTerm term = do
         _ -> qname q
     T.TApp t xs -> curriedApply <$> compileTerm t <*> mapM compileTerm xs
     T.TLam t -> Lambda 1 <$> compileTerm t
+    -- TODO This is not a lazy let, but it should be...
+    T.TLet t e -> apply <$> (Lambda 1 <$> compileTerm e) <*> traverse compileTerm [t]
     T.TLit l -> return $ literal l
     T.TCon q -> do
       d <- getConstInfo q
@@ -284,7 +285,11 @@ compilePrim p =
   case p of
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
     T.PEq -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
-    _ -> __IMPOSSIBLE__
+    T.PAdd -> binOp "agdaRTS.integerAdd"
+    T.PSub -> binOp "agdaRTS.integerSubtract"
+    T.PMul -> binOp "agdaRTS.integerMultiply"
+    _ -> error $ show p
+  where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
 
 
 compileAlt :: T.TAlt -> TCM (MemberId, Exp)

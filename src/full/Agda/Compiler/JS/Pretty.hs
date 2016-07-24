@@ -7,10 +7,7 @@ import Data.Map ( Map, toAscList, empty, null )
 
 import Agda.Syntax.Common ( Nat )
 
-import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PreOp,Const),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module), Export(Export),
-    globals )
+import Agda.Compiler.JS.Syntax hiding (exports)
 
 -- Pretty-print a lambda-calculus expression as ECMAScript.
 
@@ -89,6 +86,7 @@ instance Pretty Exp where
   pretty n i (PreOp op e)           = "(" ++ op ++ " " ++ pretty n i e ++ ")"
   pretty n i (BinOp e op f)         = "(" ++ pretty n i e ++ " " ++ op ++ " " ++ pretty n i f ++ ")"
   pretty n i (Const c)              = c
+  pretty n i (PlainJS js)           = "(" ++ js ++ ")"
 
 block :: Nat -> Int -> Exp -> String
 block n i (If e f g) = "{" ++ br (i+1) ++ block' n (i+1) (If e f g) ++ br i ++ "}"
