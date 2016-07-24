@@ -18,6 +18,7 @@ import Data.Monoid
 import Data.List
 import System.IO.Temp
 import System.FilePath
+import System.Environment
 import System.Exit
 import System.Process.Text as PT
 
@@ -26,6 +27,7 @@ import Control.Applicative ((<$>))
 #endif
 #if __GLASGOW_HASKELL__ <= 706
 import Control.Monad ( void )
+import System.SetEnv (setEnv)
 #endif
 
 import Control.Monad (forM)
@@ -41,11 +43,8 @@ data ExecResult
     { result :: ProgramResult }
   deriving (Show, Read, Eq)
 
-data Compiler = MAlonzo | UHC
+data Compiler = MAlonzo | UHC | JS
   deriving (Show, Read, Eq)
-
-enabledCompilers :: [Compiler]
-enabledCompilers = [ MAlonzo, UHC ]
 
 data CompilerOptions
   = CompilerOptions
@@ -59,9 +58,12 @@ data TestOptions
     , executeProg    :: Bool
     } deriving (Show, Read)
 
+allCompilers :: [Compiler]
+allCompilers = [MAlonzo, UHC, JS]
+
 defaultOptions :: TestOptions
 defaultOptions = TestOptions
-  { forCompilers   = [ (c, co) | c <- enabledCompilers ]
+  { forCompilers   = [ (c, co) | c <- allCompilers ]
   , runtimeOptions = []
   , executeProg    = True
   }
@@ -77,17 +79,26 @@ disabledTests =
 #if !defined(UHC_BACKEND)
   , RFInclude "Compiler/UHC/"
 #endif
+  -- JS backend tests are whitelisted for now
+  , RFInclude "Compiler/JS/.*"
+  , RFExclude "Compiler/JS/simple/HelloWorld"
+  , RFExclude "Compiler/JS/simple/String$"
   ]
 
 tests :: IO TestTree
 tests = do
+  hasUHC <- doesCommandExist "uhc"
+  hasNode <- doesCommandExist "node"
+  let enabledCompilers = [MAlonzo] ++ [UHC | hasUHC] ++ [JS | hasNode]
+
   ts <- mapM forComp enabledCompilers
   return $ testGroup "Compiler" ts
-  where forComp comp = testGroup (show comp) . catMaybes
-            <$> sequence
-                [ Just <$> simpleTests comp
-                , Just <$> stdlibTests comp
-                , specialTests comp]
+  where
+    forComp comp = testGroup (show comp) . catMaybes
+        <$> sequence
+            [ Just <$> simpleTests comp
+            , Just <$> stdlibTests comp
+            , specialTests comp]
 
 simpleTests :: Compiler -> IO TestTree
 simpleTests comp = do
@@ -104,6 +115,7 @@ simpleTests comp = do
   where compArgs :: Compiler -> AgdaArgs
         compArgs UHC = []
         compArgs MAlonzo = ghcArgsAsAgdaArgs ["-itest/"]
+        compArgs JS = []
 
 -- The Compiler tests using the standard library are horribly
 -- slow at the moment (1min or more per test case).
@@ -146,6 +158,7 @@ specialTests MAlonzo = do
             -- ignore stderr, as there may be some GHC warnings in it
             return $ ExecutedProg (ret, out <> sout, err)
 specialTests UHC = return Nothing
+specialTests JS = return Nothing
 
 ghcArgsAsAgdaArgs :: GHCArgs -> AgdaArgs
 ghcArgsAsAgdaArgs = map f
@@ -164,8 +177,14 @@ agdaRunProgGoldenTest dir comp extraArgs inp opts =
           inp' <- maybe T.empty decodeUtf8 <$> readFileMaybe inpFile
           -- now run the new program
           let exec = getExecForComp comp compDir inpFile
-          (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
-          return $ ExecutedProg (ret, out <> out', err <> err')
+          case comp of
+            JS -> do
+              setEnv "NODE_PATH" compDir
+              (ret, out', err') <- PT.readProcessWithExitCode "node" [exec] inp'
+              return $ ExecutedProg (ret, out <> out', err <> err')
+            _ -> do
+              (ret, out', err') <- PT.readProcessWithExitCode exec (runtimeOptions opts) inp'
+              return $ ExecutedProg (ret, out <> out', err <> err')
         else
           return CompileSucceeded
         )
@@ -207,6 +226,7 @@ agdaRunProgGoldenTest1 dir comp extraArgs inp opts cont
             let uhcBinArg = maybe [] (\x -> ["--uhc-bin", x]) uhc
             -- TODO remove the memory arg again, as soon as we fixed the memory leak
             return $ ["--uhc"] ++ uhcBinArg ++ ["+RTS", "-K50m", "-RTS"]
+        argsForComp JS = return ["--js"]
 
 readOptions :: FilePath -- file name of the agda file
     -> IO TestOptions
@@ -224,6 +244,7 @@ cleanUpOptions = filter clean
 
 -- gets the generated executable path
 getExecForComp :: Compiler -> FilePath -> FilePath -> FilePath
+getExecForComp JS compDir inpFile = compDir </> ("jAgda." ++ (takeFileName $ dropAgdaOrOtherExtension inpFile) ++ ".js")
 getExecForComp _ compDir inpFile = compDir </> (takeFileName $ dropAgdaOrOtherExtension inpFile)
 
 printExecResult :: ExecResult -> T.Text

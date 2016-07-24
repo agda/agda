@@ -111,8 +111,6 @@ exports n i lss (Export ls e : es) | otherwise =
 
 instance Pretty Module where
   pretty n i (Module m es) =
-    "define([" ++ intercalate "," ("\"exports\"" : map modname js) ++ "]," ++
-    "function(" ++ intercalate "," ("exports" : pretties n i js) ++ ") {" ++ br (i+1) ++
-    exports n (i+1) (singleton []) es ++
-    "});" ++ br i
-      where js = toList (globals es)
+    unlines ["var " ++ pretty n (i+1) e ++ " = require(" ++ modname e ++ ");"
+            | e <- js] ++ br i ++ exports n i (singleton []) es
+    where js = toList (globals es)
