@@ -70,7 +70,7 @@ instance Pretty Exp where
   pretty n i (Undefined)            = "undefined"
   pretty n i (String s)             = "\"" ++ unescapes s ++ "\""
   pretty n i (Char c)               = "\"" ++ unescape c ++ "\""
-  pretty n i (Integer x)            = "agdaRTS.integerFromString(\"" ++ show x ++ "\")"
+  pretty n i (Integer x)            = "agdaRTS.primIntegerFromString(\"" ++ show x ++ "\")"
   pretty n i (Double x)             = show x
   pretty n i (Lambda x e)           =
     "function (" ++

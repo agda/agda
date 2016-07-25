@@ -215,6 +215,8 @@ defn q ls t Nothing (Function {}) = do
     funBody' <- compileTerm funBody
     reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
     return $ Just funBody'
+defn q ls t _ p@(Primitive {}) | primName p `Set.member` primitives =
+  return $ Just $ PlainJS $ "agdaRTS." ++ primName p
 defn q ls t (Just e) (Primitive {}) =
   return $ Just e
 defn q ls t _ (Primitive {}) =
@@ -285,9 +287,10 @@ compilePrim p =
   case p of
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
     T.PEq -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
-    T.PAdd -> binOp "agdaRTS.integerAdd"
-    T.PSub -> binOp "agdaRTS.integerSubtract"
-    T.PMul -> binOp "agdaRTS.integerMultiply"
+    T.PLt -> binOp "agdaRTS.primIntegerLessThan"
+    T.PAdd -> binOp "agdaRTS.primIntegerAdd"
+    T.PSub -> binOp "agdaRTS.primIntegerSubtract"
+    T.PMul -> binOp "agdaRTS.primIntegerMultiply"
     _ -> error $ show p
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
 
@@ -348,3 +351,10 @@ copyRTEModules = do
   dataDir <- lift getDataDir
   let srcDir = dataDir </> "JS"
   (lift . copyDirContent srcDir) =<< compileDir
+
+-- | Primitives implemented in the JS Agda RTS.
+primitives :: Set String
+primitives = Set.fromList
+  [ "primNatMinus"
+  , "primShowInteger"
+  ]

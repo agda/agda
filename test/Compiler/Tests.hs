@@ -84,7 +84,6 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/CaseOnCase"
   , RFInclude "Compiler/JS/simple/CatchAllVarArity"
   , RFInclude "Compiler/JS/simple/Coind"
-  , RFInclude "Compiler/JS/simple/CompareNat"
   , RFInclude "Compiler/JS/simple/CompileAsPattern"
   , RFInclude "Compiler/JS/simple/CompileNumbers"
   , RFInclude "Compiler/JS/simple/CompilingCoinduction"

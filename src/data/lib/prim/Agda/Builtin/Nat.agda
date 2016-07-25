@@ -26,8 +26,6 @@ zero  - suc m = zero
 suc n - suc m = n - m
 
 {-# BUILTIN NATMINUS _-_ #-}
--- TODO why is this necessary for the JS backend? Shouldn't NATMINUS be translated to the Treeless minus primitive?
-{-# COMPILED_JS _-_ function (x) { return function (y) { return agdaRTS.integerSubtract(x, y); }; } #-}
 
 _*_ : Nat → Nat → Nat
 zero  * m = zero
