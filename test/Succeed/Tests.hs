@@ -30,7 +30,8 @@ tests :: IO TestTree
 tests = do
   inpFiles <- getAgdaFilesInDir Rec testDir
 
-  let tests' = map (mkSucceedTest testDir) inpFiles
+  let extraOpts = [ "--ignore-interfaces" , "--vim" ]
+  let tests' = map (mkSucceedTest extraOpts testDir) inpFiles
 
   return $ testGroup "Succeed" tests'
 
@@ -39,11 +40,12 @@ data AgdaResult
   | AgdaUnexpectedFail ProgramResult
   | AgdaWrongDotOutput T.Text
 
-mkSucceedTest ::
-       FilePath -- test directory
-    -> FilePath -- inp file
-    -> TestTree
-mkSucceedTest dir inp =
+mkSucceedTest
+  :: [String] -- ^ Extra options to Agda.
+  -> FilePath -- ^ Test directory.
+  -> FilePath -- ^ Input file.
+  -> TestTree
+mkSucceedTest extraOpts dir inp =
   goldenTestIO1 testName readGolden (printAgdaResult <$> doRun) resDiff resShow Nothing
 --  goldenVsAction testName goldenFile doRun printAgdaResult
   where testName = asTestName dir inp
@@ -57,11 +59,10 @@ mkSucceedTest dir inp =
         doRun = do
           flags <- maybe [] (T.unpack . decodeUtf8) <$> readFileMaybe flagFile
           let agdaArgs = [ "-v0", "-i" ++ dir, "-itest/" , inp
-                         , "--ignore-interfaces", "--vim"
                          , "--no-default-libraries"
                          , "-v impossible:10"
                          ] ++
-                         words flags
+                         extraOpts ++ words flags
           let run = \extraArgs -> readAgdaProcessWithExitCode (agdaArgs ++ extraArgs) T.empty
 
           res@(ret, _, _) <-
