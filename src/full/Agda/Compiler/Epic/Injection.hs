@@ -102,7 +102,7 @@ patternToTerm n p = case p of
                                      (n , [])
                              $ map namedArg args
     LitP l          -> Lit l
-    ProjP d         -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
+    ProjP _ d       -> Def d [] -- Andreas, 2012-10-31 that might not be enought to get a term from list of patterns (TODO)
 
 nrBinds :: Num i => Pattern -> i
 nrBinds p = case p of
@@ -256,7 +256,7 @@ instance Injectible a => Injectible [a] where
 instance Injectible a => Injectible (Elim' a) where
   e1 <: e2 =
     case (e1, e2) of
-      (Proj f1 , Proj f2 ) | f1 == f2 -> return $ Just []
+      (Proj _ f1, Proj _ f2) | f1==f2 -> return $ Just []
       (Apply a1, Apply a2)            -> a1 <: a2
       _                               -> return Nothing
 

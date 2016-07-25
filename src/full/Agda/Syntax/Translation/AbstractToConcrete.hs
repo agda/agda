@@ -348,8 +348,10 @@ instance ToConcrete A.ModuleName C.QName where
 instance ToConcrete A.Expr C.Expr where
     toConcrete (Var x)            = Ident . C.QName <$> toConcrete x
     toConcrete (Def x)            = Ident <$> toConcrete x
-    toConcrete (Proj (AmbQ (x:_)))= Ident <$> toConcrete x
-    toConcrete (Proj (AmbQ []))   = __IMPOSSIBLE__
+    toConcrete (Proj ProjPrefix (AmbQ (x:_))) = Ident <$> toConcrete x
+    toConcrete (Proj _          (AmbQ (x:_))) =
+      C.Dot (getRange x) . Ident <$> toConcrete x
+    toConcrete Proj{}             = __IMPOSSIBLE__
     toConcrete (A.Macro x)        = Ident <$> toConcrete x
     toConcrete (Con (AmbQ (x:_))) = Ident <$> toConcrete x
     toConcrete (Con (AmbQ []))    = __IMPOSSIBLE__
@@ -371,6 +373,9 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
         prettyShow . NamedMeta (metaNameSuggestion i) . MetaId . metaId <$> metaNumber i
+
+    toConcrete (A.Dot i e) =
+      C.Dot (getRange i) <$> toConcrete e
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e
@@ -454,7 +459,7 @@ instance ToConcrete A.Expr C.Expr where
                            Irrelevant -> addDot a e
                            NonStrict  -> addDot a (addDot a e)
                            _          -> e
-            addDot a e = Dot (getRange a) e
+            addDot a e = C.Dot (getRange a) e
             mkArg (Arg info e) = case getHiding info of
                                           Hidden    -> HiddenArg   (getRange e) (unnamed e)
                                           Instance  -> InstanceArg (getRange e) (unnamed e)
@@ -861,13 +866,14 @@ instance ToConcrete A.Pattern C.Pattern where
         return $ C.WildP (getRange i)
 
       A.ConP i (AmbQ []) args        -> __IMPOSSIBLE__
-      p@(A.ConP i xs@(AmbQ (x:_)) args) -> tryOp x (A.ConP i xs) args
+      A.ConP i xs@(AmbQ (x:_)) args  -> tryOp x (A.ConP i xs) args
 
-      A.ProjP i (AmbQ []) -> __IMPOSSIBLE__
-      p@(A.ProjP i xs@(AmbQ (x:_))) -> C.IdentP <$> toConcrete x
+      A.ProjP _ _ (AmbQ []) -> __IMPOSSIBLE__
+      A.ProjP i ProjPrefix xs@(AmbQ (x:_)) -> C.IdentP <$> toConcrete x
+      A.ProjP i _ xs@(AmbQ (x:_)) -> C.DotP (getRange x) . C.Ident <$> toConcrete x
 
-      p@(A.DefP i (AmbQ []) _) -> __IMPOSSIBLE__
-      p@(A.DefP i xs@(AmbQ (x:_)) args) -> tryOp x (A.DefP i xs)  args
+      A.DefP i (AmbQ []) _ -> __IMPOSSIBLE__
+      A.DefP i xs@(AmbQ (x:_)) args -> tryOp x (A.DefP i xs)  args
 
       A.AsP i x p -> do
         (x, p) <- toConcreteCtx ArgumentCtx (x,p)
@@ -896,6 +902,7 @@ instance ToConcrete A.Pattern C.Pattern where
       A.RecP i as ->
         C.RecP (getRange i) <$> mapM (traverse toConcrete) as
     where
+    tryOp :: A.QName -> (A.Patterns -> A.Pattern) -> A.Patterns -> AbsToCon C.Pattern
     tryOp x f args = do
       -- Andreas, 2016-02-04, Issue #1792
       -- To prevent failing of tryToRecoverOpAppP for overapplied operators,
@@ -940,9 +947,10 @@ tryToRecoverOpAppP = recoverOpApp bracketP_ opApp view
 
     view p = case p of
       ConP _ (AmbQ (c:_)) ps -> Just (HdCon c, ps)
-      ProjP _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
       DefP _ (AmbQ (f:_)) ps -> Just (HdDef f, ps)
-      _                      -> Nothing
+      _ -> __IMPOSSIBLE__
+      -- ProjP _ _ (AmbQ (d:_))   -> Just (HdDef d, [])   -- ? Andreas, 2016-04-21
+      -- _                      -> Nothing
 
 recoverOpApp :: (ToConcrete a c, HasRange c)
   => ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c)

@@ -564,7 +564,7 @@ openClause perm ps body = do
     build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
     build (DotP t)        = termToDBP t
     build (LitP l)        = return $ LitDBP l
-    build (ProjP d)       = return $ ProjDBP d
+    build (ProjP o d)     = return $ ProjDBP o d
 
 -- | Extract recursive calls from one clause.
 termClause :: Clause -> TerM Calls
@@ -1019,9 +1019,9 @@ compareArgs es = do
   -- Count the number of coinductive projection(pattern)s in caller and callee.
   -- Only recursive coinductive projections are eligible (Issue 1209).
   projsCaller <- genericLength <$> do
-    filterM (isCoinductiveProjection True) $ mapMaybe (fmap (head . unAmbQ) . isProjP . getMasked) pats
+    filterM (isCoinductiveProjection True) $ mapMaybe (fmap (head . unAmbQ . snd) . isProjP . getMasked) pats
   projsCallee <- genericLength <$> do
-    filterM (isCoinductiveProjection True) $ mapMaybe isProjElim es
+    filterM (isCoinductiveProjection True) $ mapMaybe (fmap snd . isProjElim) es
   cutoff <- terGetCutOff
   let ?cutoff = cutoff
   let guardedness = decr $ projsCaller - projsCallee
@@ -1043,7 +1043,7 @@ compareArgs es = do
 annotatePatsWithUseSizeLt :: [DeBruijnPat] -> TerM [(Bool,DeBruijnPat)]
 annotatePatsWithUseSizeLt = loop where
   loop [] = return []
-  loop (p@(ProjDBP q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
+  loop (p@(ProjDBP _ q) : pats) = ((False,p) :) <$> do projUseSizeLt q $ loop pats
   loop (p : pats) = (\ b ps -> (b,p) : ps) <$> terGetUseSizeLt <*> loop pats
 
 
@@ -1062,7 +1062,7 @@ compareElim e p = do
       , nest 2 $ text $ "p = " ++ show p
       ]
   case (e, getMasked p) of
-    (Proj d, ProjDBP d')           -> compareProj d d'
+    (Proj _ d, ProjDBP _ d')       -> compareProj d d'
     (Proj{}, _         )           -> return Order.unknown
     (Apply{}, ProjDBP{})           -> return Order.unknown
     (Apply arg, _)                 -> compareTerm (unArg arg) p
@@ -1137,7 +1137,7 @@ subPatterns p = case p of
   VarDBP _    -> []
   LitDBP _    -> []
   TermDBP _   -> []
-  ProjDBP _   -> []
+  ProjDBP{}   -> []
 
 compareTerm :: Term -> Masked DeBruijnPat -> TerM Order
 compareTerm t p = do
@@ -1181,9 +1181,9 @@ instance StripAllProjections Elims where
       []             -> return []
       (Apply a : es) -> do
         (:) <$> (Apply <$> stripAllProjections a) <*> stripAllProjections es
-      (Proj p  : es) -> do
+      (Proj o p  : es) -> do
         isP <- isProjectionButNotCoinductive p
-        applyUnless isP (Proj p :) <$> stripAllProjections es
+        applyUnless isP (Proj o p :) <$> stripAllProjections es
 
 instance StripAllProjections Args where
   stripAllProjections = mapM stripAllProjections

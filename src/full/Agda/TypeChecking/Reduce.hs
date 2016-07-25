@@ -138,7 +138,7 @@ instance Instantiate Sort where
 
 instance Instantiate Elim where
   instantiate' (Apply v) = Apply <$> instantiate' v
-  instantiate' (Proj f)  = pure $ Proj f
+  instantiate' (Proj o f)= pure $ Proj o f
 
 instance Instantiate t => Instantiate (Abs t) where
   instantiate' = traverse instantiate'
@@ -251,7 +251,7 @@ instance Reduce Sort where
 
 instance Reduce Elim where
   reduce' (Apply v) = Apply <$> reduce' v
-  reduce' (Proj f)  = pure $ Proj f
+  reduce' (Proj o f)= pure $ Proj o f
 
 instance Reduce Level where
   reduce'  (Max as) = levelMax <$> mapM reduce' as
@@ -354,7 +354,7 @@ rewriteAfter f = trampolineM $ rewrite <=< f
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
 unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
-unfoldCorecursionE e@(Proj f)           = return $ notBlocked e
+unfoldCorecursionE e@Proj{}             = return $ notBlocked e
 unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
   unfoldCorecursion v
 
@@ -696,7 +696,7 @@ instance Simplify Type where
 
 instance Simplify Elim where
   simplify' (Apply v) = Apply <$> simplify' v
-  simplify' (Proj f)  = pure $ Proj f
+  simplify' (Proj o f)= pure $ Proj o f
 
 instance Simplify Sort where
     simplify' s = do
@@ -858,7 +858,7 @@ instance Normalise Term where
 
 instance Normalise Elim where
   normalise' (Apply v) = Apply <$> normalise' v
-  normalise' (Proj f)  = pure $ Proj f
+  normalise' (Proj o f)= pure $ Proj o f
 
 instance Normalise Level where
   normalise' (Max as) = levelMax <$> normalise' as
@@ -955,7 +955,7 @@ instance Normalise a => Normalise (Pattern' a) where
     LitP _       -> return p
     ConP c mt ps -> ConP c <$> normalise' mt <*> normalise' ps
     DotP v       -> DotP <$> normalise' v
-    ProjP _      -> return p
+    ProjP{}      -> return p
 
 instance Normalise DisplayForm where
   normalise' (Display n ps v) = Display n <$> normalise' ps <*> return v
@@ -1133,7 +1133,7 @@ instance InstantiateFull Constraint where
 
 instance (InstantiateFull a) => InstantiateFull (Elim' a) where
   instantiateFull' (Apply v) = Apply <$> instantiateFull' v
-  instantiateFull' (Proj f)  = pure $ Proj f
+  instantiateFull' (Proj o f)= pure $ Proj o f
 
 instance InstantiateFull e => InstantiateFull (Map k e) where
     instantiateFull' = traverse instantiateFull'

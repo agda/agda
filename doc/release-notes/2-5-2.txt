@@ -210,6 +210,60 @@ Language
     unapplied : R A -> A
     unapplied = f
 
+* Postfix projections [Issue #1963].
+
+  Agda now supports a postfix syntax for projection application.
+  This style is more in harmony with copatterns.  For example:
+
+    record Stream (A : Set) : Set where
+      coinductive
+      field head : A
+            tail : Stream A
+
+    open Stream
+
+    repeat : ∀{A} (a : A) → Stream A
+    repeat a .head = a
+    repeat a .tail = repeat a
+
+    zipWith : ∀{A B C} (f : A → B → C) (s : Stream A) (t : Stream B) → Stream C
+    zipWith f s t .head = f (s .head) (t .head)
+    zipWith f s t .tail = zipWith f (s .tail) (t .tail)
+
+    module Fib (Nat : Set) (zero one : Nat) (plus : Nat → Nat → Nat) where
+
+      {-# TERMINATING #-}
+      fib : Stream Nat
+      fib .head = zero
+      fib .tail .head = one
+      fib .tail .tail = zipWith plus fib (fib .tail)
+
+  The thing we eliminate with projection now is visibly the head,
+  i.e., the left-most expression of the sequence (e.g. `repeat` in
+  `repeat a .tail`).
+
+  The syntax overlaps with dot patterns, but for type correct left
+  hand sides there is no confusion: Dot patterns eliminate function
+  types, while (postfix) projection patterns eliminate record types.
+
+  By default, Agda prints system-generated projections (such as by
+  eta-expansion or case splitting) prefix.  This can be changed with
+  the new option:
+
+    {-# OPTIONS --postfix-projections #-}
+
+  Result splitting in extended lambdas (aka pattern lambdas) always
+  produces postfix projections, as prefix projection pattern do not
+  work here: a prefix projection needs to go left of the head, but the
+  head is omitted in extended lambdas.
+
+    dup : ∀{A : Set}(a : A) → A × A
+    dup = λ{ a → ? }
+
+  Result splitting (C-c C-c RET) here will yield:
+
+    dup = λ{ a .proj₁ → ? ; a .proj₂ → ? }
+
 * Projection parameters [Issue #1954].
 
   When copying a module, projection parameters will now stay hidden

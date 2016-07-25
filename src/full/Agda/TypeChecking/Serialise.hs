@@ -10,6 +10,9 @@
 -- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 -- NOTE: Every time the interface format is changed the interface
 -- version number should be bumped _in the same patch_.
+--
+-- See 'currentInterfaceVersion' below.
+--
 -- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 
 module Agda.TypeChecking.Serialise

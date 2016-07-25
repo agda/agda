@@ -340,12 +340,12 @@ checkRecordProjections m r con tel ftel fs = do
       -- where Δ = Γ, tel is the current context
       let finalt   = telePi (replaceEmptyName "r" tel) t
           projname = qualify m $ qnameName x
-          projcall = Var 0 [Proj projname]
+          projcall o = Var 0 [Proj o projname]
           rel      = getRelevance ai
           -- the recursive call
           recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom ai t)
                                  $ Abs (nameToArgName $ qnameName projname) EmptyTel)
-                                (ftel2 `absApp` projcall) fs
+                                (ftel2 `absApp` projcall ProjSystem) fs
 
       reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> do
         inTopContext $ prettyTCM finalt

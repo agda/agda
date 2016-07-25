@@ -461,6 +461,16 @@ instance EmbPrj ConPOrigin where
   value 2 = return ConPRec
   value _ = malformed
 
+instance EmbPrj ProjOrigin where
+  icod_ ProjPrefix  = return 0
+  icod_ ProjPostfix = return 1
+  icod_ ProjSystem  = return 2
+
+  value 0 = return ProjPrefix
+  value 1 = return ProjPostfix
+  value 2 = return ProjSystem
+  value _ = malformed
+
 instance EmbPrj Agda.Syntax.Literal.Literal where
   icod_ (LitNat    a b)   = icode2' a b
   icod_ (LitFloat  a b)   = icode2 1 a b

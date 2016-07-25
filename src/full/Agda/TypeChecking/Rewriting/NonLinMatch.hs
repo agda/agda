@@ -232,7 +232,7 @@ instance Match a b => Match (Elim' a) (Elim' b) where
   match gamma k p v =
    case (p, v) of
      (Apply p, Apply v) -> match gamma k p v
-     (Proj x , Proj y ) -> if x == y then return () else
+     (Proj _ x, Proj _ y) -> if x == y then return () else
                              traceSDocNLM "rewriting" 80 (sep
                                [ text "mismatch between projections " <+> prettyTCM x
                                , text " and " <+> prettyTCM y ]) mzero

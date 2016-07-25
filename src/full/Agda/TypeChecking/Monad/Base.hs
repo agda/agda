@@ -1357,17 +1357,17 @@ newtype ProjLams = ProjLams { getProjLams :: [Arg ArgName] }
   deriving (Typeable, Show, Null)
 
 -- | Building the projection function (which drops the parameters).
-projDropPars :: Projection -> Term
+projDropPars :: Projection -> ProjOrigin -> Term
 -- Proper projections:
-projDropPars (Projection True d _ _ lams) =
+projDropPars (Projection True d _ _ lams) o =
   case initLast $ getProjLams lams of
     Nothing -> Def d []
     Just (pars, Arg i y) ->
-      let core = Lam i $ Abs y $ Var 0 [Proj d] in
+      let core = Lam i $ Abs y $ Var 0 [Proj o d] in
       List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) core pars
 -- Projection-like functions:
-projDropPars (Projection False _ _ _ lams) | null lams = __IMPOSSIBLE__
-projDropPars (Projection False d _ _ lams) =
+projDropPars (Projection False _ _ _ lams) o | null lams = __IMPOSSIBLE__
+projDropPars (Projection False d _ _ lams) o =
   List.foldr (\ (Arg ai x) -> Lam ai . NoAbs x) (Def d []) $ init $ getProjLams lams
 
 -- | The info of the principal (record) argument.

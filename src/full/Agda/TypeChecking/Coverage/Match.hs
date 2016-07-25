@@ -238,9 +238,8 @@ matchPat _    (DotP _) q = Yes []
 -- guaranteed to match if the rest of the pattern does, so some extra splitting
 -- on them doesn't change the reduction behaviour.
 matchPat mlit (LitP l) q = mlit l q
-matchPat _    (ProjP d) (ProjP d') = if d == d' then Yes [] else No
-matchPat _    (ProjP d) _ = __IMPOSSIBLE__
--- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
+matchPat _    (ProjP _ d) (ProjP _ d') = if d == d' then Yes [] else No
+matchPat _    (ProjP _ d) _ = __IMPOSSIBLE__
 matchPat mlit p@(ConP c _ ps) q = case q of
   VarP x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
   ConP c' i qs
@@ -250,22 +249,4 @@ matchPat mlit p@(ConP c _ ps) q = case q of
     Just q  -> matchPat mlit p q
     Nothing -> No
   LitP _  -> __IMPOSSIBLE__
-  ProjP _ -> __IMPOSSIBLE__
-
-{- UNUSED
-class RecordPattern a where
-  recordPattern :: a -> Bool
-
-instance RecordPattern Pattern where
-  recordPattern VarP{} = True
-  recordPattern DotP{} = False
-  recordPattern LitP{} = False
-  recordPattern (ConP _ Nothing _) = False
-  recordPattern (ConP _ (Just _) ps) = recordPattern ps
-
-instance RecordPattern a => RecordPattern [a] where
-  recordPattern = all recordPattern
-
-instance RecordPattern a => RecordPattern (Arg a) where
-  recordPattern = recordPattern . unArg
--}
+  ProjP{} -> __IMPOSSIBLE__

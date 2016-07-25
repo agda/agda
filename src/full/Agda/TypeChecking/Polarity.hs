@@ -385,7 +385,7 @@ instance HasPolarity Type where
   polarities i (El _ v) = polarities i v
 
 instance HasPolarity a => HasPolarity (Elim' a) where
-  polarities i (Proj p)  = return []
+  polarities i Proj{}    = return []
   polarities i (Apply a) = polarities i a
 
 instance HasPolarity Term where

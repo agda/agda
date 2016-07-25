@@ -638,8 +638,9 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
           guard =<< do liftTCM $ isEtaRecord d
           fs <- liftTCM $ map unArg . recFields . theDef <$> getConstInfo d
           is <- forM fs $ \f -> do
-            (_, _, fa) <- MaybeT $ projectTyped u a f
-            isEtaVarG (u `applyE` [Proj f]) fa mi (es++[Proj f])
+            let o = ProjSystem
+            (_, _, fa) <- MaybeT $ projectTyped u a o f
+            isEtaVarG (u `applyE` [Proj o f]) fa mi (es ++ [Proj o f])
           case (mi, is) of
             (Just i, _)     -> return i
             (Nothing, [])   -> mzero
@@ -659,17 +660,17 @@ isEtaVar u a = runMaybeT $ isEtaVarG u a Nothing []
     areEtaVarElims u a []    []    = return ()
     areEtaVarElims u a []    (_:_) = mzero
     areEtaVarElims u a (_:_) []    = mzero
-    areEtaVarElims u a (Proj f : es) (Proj f' : es') = do
+    areEtaVarElims u a (Proj o f : es) (Proj _ f' : es') = do
       guard $ f == f'
       a       <- liftTCM $ reduce a
-      (_, _, fa) <- MaybeT $ projectTyped u a f
-      areEtaVarElims (u `applyE` [Proj f]) fa es es'
+      (_, _, fa) <- MaybeT $ projectTyped u a o f
+      areEtaVarElims (u `applyE` [Proj o f]) fa es es'
     -- These two cases can occur only when we're looking at two different
     -- variables (i.e. one of function type and the other of record type) so
     -- it's definitely not the variable we're looking for (or someone is playing
     -- Jedi mind tricks on us)
-    areEtaVarElims u a (Proj  _ : _ ) (Apply _ : _  ) = mzero
-    areEtaVarElims u a (Apply _ : _ ) (Proj  _ : _  ) = mzero
+    areEtaVarElims u a (Proj{}  : _ ) (Apply _ : _  ) = mzero
+    areEtaVarElims u a (Apply _ : _ ) (Proj{}  : _  ) = mzero
     areEtaVarElims u a (Apply v : es) (Apply i : es') = do
       ifNotPiType a (const mzero) $ \dom cod -> do
       _ <- isEtaVarG (unArg v) (unDom dom) (Just $ unArg i) []
@@ -800,7 +801,7 @@ etaExpandVarStrategy k s = do
       ps       <- mfromMaybe $ allProjElims es
       guard $ not $ null ps
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $
-        text "with projections " <+> prettyTCM ps
+        text "with projections " <+> prettyTCM (map snd ps)
       let b = getVarTypeUnraised (varCount s - 1 - i) s
       (d, pars) <- mcatMaybes $ liftTCM $ isEtaRecordType b
       liftTCM $ reportSDoc "tc.lhs.unify" 50 $

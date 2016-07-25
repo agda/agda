@@ -26,7 +26,7 @@ import Data.Semigroup (Semigroup)
 import Agda.Interaction.Options
 
 import Agda.Syntax.Abstract (IsProjP(..), AllNames)
-import Agda.Syntax.Common   (Delayed(..), Induction(..), Dom(..))
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position (noRange)
@@ -38,7 +38,7 @@ import Agda.Termination.RecCheck (anyDefs)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Benchmark
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Pretty as TCP
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -474,20 +474,20 @@ data DeBruijnPat' a
     -- ^ Literal.  Also abused to censor part of a pattern.
   | TermDBP Term
     -- ^ Part of dot pattern that cannot be converted into a pattern.
-  | ProjDBP QName
+  | ProjDBP ProjOrigin QName
     -- ^ Projection pattern.
   deriving (Functor, Show)
 
 instance IsProjP (DeBruijnPat' a) where
-  isProjP (ProjDBP d) = Just $ AmbQ [d]
-  isProjP _           = Nothing
+  isProjP (ProjDBP o d) = Just (o, AmbQ [d])
+  isProjP _ = Nothing
 
 instance PrettyTCM DeBruijnPat where
   prettyTCM (VarDBP i)    = prettyTCM $ var i
   prettyTCM (ConDBP c ps) = parens $ do prettyTCM c <+> hsep (map prettyTCM ps)
   prettyTCM (LitDBP l)    = prettyTCM l
   prettyTCM (TermDBP v)   = parens $ prettyTCM v
-  prettyTCM (ProjDBP d)   = prettyTCM d
+  prettyTCM (ProjDBP o d) = text "." TCP.<> prettyTCM d
 
 -- | How long is the path to the deepest variable?
 patternDepth :: DeBruijnPat' a -> Int
@@ -536,9 +536,9 @@ instance UsableSizeVars DeBruijnPat where
 instance UsableSizeVars DeBruijnPats where
   usableSizeVars ps =
     case ps of
-      []               -> return mempty
-      (ProjDBP q : ps) -> projUseSizeLt q $ usableSizeVars ps
-      (p         : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
+      []                 -> return mempty
+      (ProjDBP _ q : ps) -> projUseSizeLt q $ usableSizeVars ps
+      (p           : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
 instance UsableSizeVars (Masked DeBruijnPat) where
   usableSizeVars (Masked m p) = do
@@ -553,9 +553,9 @@ instance UsableSizeVars (Masked DeBruijnPat) where
 instance UsableSizeVars MaskedDeBruijnPats where
   usableSizeVars ps =
     case ps of
-      []                          -> return mempty
-      (Masked _ (ProjDBP q) : ps) -> projUseSizeLt q $ usableSizeVars ps
-      (p                    : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
+      []                            -> return mempty
+      (Masked _ (ProjDBP _ q) : ps) -> projUseSizeLt q $ usableSizeVars ps
+      (p                      : ps) -> mappend <$> usableSizeVars p <*> usableSizeVars ps
 
 -- * Masked patterns (which are not eligible for structural descent, only for size descent)
 

@@ -105,9 +105,9 @@ elimView loneProjToLambda v = do
   case pv of
     NoProjection{}        -> return v
     LoneProjectionLike f ai
-      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj f]
+      | loneProjToLambda  -> return $ Lam ai $ Abs "r" $ Var 0 [Proj ProjPrefix f]
       | otherwise         -> return v
-    ProjectionView f a es -> (`applyE` (Proj f : es)) <$> elimView loneProjToLambda (unArg a)
+    ProjectionView f a es -> (`applyE` (Proj ProjPrefix f : es)) <$> elimView loneProjToLambda (unArg a)
 
 -- | Which @Def@types are eligible for the principle argument
 --   of a projection-like function?

@@ -248,7 +248,7 @@ useInjectivity cmp a u v = do
       sub <- ask
       return $ applySubst sub v
 
-    metaElim (Arg _ (ProjP p)) = return $ Proj p
+    metaElim (Arg _ (ProjP o p))  = return $ Proj o p
     metaElim (Arg info p)         = Apply . Arg info <$> metaPat p
 
     metaArgs args = mapM (traverse $ metaPat . namedThing) args
