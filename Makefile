@@ -386,6 +386,7 @@ hlint : $(BUILD_DIR)/build/autogen/cabal_macros.h
 
 debug :
 	@echo "AGDA_BIN           = $(AGDA_BIN)"
+	@echo "AGDA_TESTS_BIN     = $(AGDA_TESTS_BIN)"
 	@echo "AGDA_TESTS_OPTIONS = $(AGDA_TESTS_OPTIONS)"
 	@echo "BUILD_DIR          = $(BUILD_DIR)"
 	@echo "CABAL_CMD          = $(CABAL_CMD)"
