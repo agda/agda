@@ -117,11 +117,7 @@ imports = (++) <$> hsImps <*> imps where
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
-#if MIN_VERSION_haskell_src_exts(1,17,0)
               (False, [HS.IVar $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
-#else
-              (False, [HS.IVar HS.NoNamespace $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
-#endif
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -301,13 +297,9 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
            fbs@(_:_)) =
           [HS.FunBind [m0, HS.Match dummy dn ps mt rhs bindsAux]]
     where
-#if MIN_VERSION_haskell_src_exts(1,17,0)
     bindsAux :: Maybe HS.Binds
     bindsAux = Just $ HS.BDecls fbs
-#else
-    bindsAux :: HS.Binds
-    bindsAux = HS.BDecls fbs
-#endif
+
   mkwhere fbs = fbs
 
   fbWithType :: HaskellType -> HS.Exp -> [HS.Decl]

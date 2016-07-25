@@ -237,13 +237,8 @@ dummy = error "MAlonzo : this dummy value should not have been eval'ed."
 -- Auxiliary definitions
 --------------------------------------------------
 
-#if MIN_VERSION_haskell_src_exts(1,17,0)
 emptyBinds :: Maybe HS.Binds
 emptyBinds = Nothing
-#else
-emptyBinds :: HS.Binds
-emptyBinds = HS.BDecls []
-#endif
 
 --------------------------------------------------
 -- Utilities for Haskell modules names
