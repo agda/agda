@@ -44,6 +44,7 @@ import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
+import qualified Agda.Utils.Pretty as P
 import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
@@ -211,7 +212,7 @@ defn q ls t Nothing (Function {}) = do
   reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
   caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
     funBody <- eliminateLiteralPatterns $ convertGuards $ treeless
-    reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
+    reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> pretty funBody
     funBody' <- compileTerm funBody
     reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
     return $ Just funBody'
@@ -287,6 +288,7 @@ compilePrim p =
   case p of
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
     T.PEq -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
+    T.PGeq -> binOp "agdaRTS.primIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.primIntegerLessThan"
     T.PAdd -> binOp "agdaRTS.primIntegerAdd"
     T.PSub -> binOp "agdaRTS.primIntegerSubtract"

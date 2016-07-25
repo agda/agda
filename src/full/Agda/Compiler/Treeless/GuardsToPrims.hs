@@ -25,7 +25,12 @@ convertGuards :: TTerm -> TTerm
 convertGuards = tr
   where
     tr t = case t of
-      TCase sc t def alts -> TCase sc t def' (fmap trAlt otherAlts)
+      TCase sc t def alts ->
+        if null otherAlts
+          then
+            def'
+          else
+            TCase sc t def' (fmap trAlt otherAlts)
         where
           (plusAlts, otherAlts) = splitAlts alts
 
