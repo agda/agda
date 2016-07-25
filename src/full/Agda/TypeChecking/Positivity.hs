@@ -487,7 +487,11 @@ instance ComputeOccurrences PlusLevel where
 
 instance ComputeOccurrences LevelAtom where
   occurrences l = case l of
-    MetaLevel _ vs   -> OccursAs MetaArg <$> occurrences vs
+    MetaLevel x es   -> occurrences $ MetaV x es
+      -- Andreas, 2016-07-25, issue 2108
+      -- NOT: OccursAs MetaArg <$> occurrences vs
+      -- since we need to unSpine!
+      -- (Otherwise, we run into __IMPOSSIBLE__ at Proj elims)
     BlockedLevel _ v -> occurrences v
     NeutralLevel _ v -> occurrences v
     UnreducedLevel v -> occurrences v
