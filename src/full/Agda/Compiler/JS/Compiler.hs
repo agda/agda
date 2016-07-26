@@ -192,7 +192,7 @@ curModule :: TCM Module
 curModule = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
-  es <- catMaybes <$> (mapM definition =<< (HMap.toList <$> curDefs))
+  es <- catMaybes <$> (mapM definition =<< (sortDefs <$> curDefs))
   return (Module m (reorder es))
 
 definition :: (QName,Definition) -> TCM (Maybe Export)
