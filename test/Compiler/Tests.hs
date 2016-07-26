@@ -90,8 +90,6 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/CopatternStreamSized"
   , RFInclude "Compiler/JS/simple/EraseRefl"
   , RFInclude "Compiler/JS/simple/Floats"
-  , RFInclude "Compiler/JS/simple/Forcing"
-  , RFInclude "Compiler/JS/simple/Forcing2"
   , RFInclude "Compiler/JS/simple/Forcing3"
   , RFInclude "Compiler/JS/simple/Issue1486"
   , RFInclude "Compiler/JS/simple/Issue1624"

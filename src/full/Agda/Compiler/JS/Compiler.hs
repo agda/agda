@@ -293,6 +293,7 @@ compilePrim p =
     T.PAdd -> binOp "agdaRTS.primIntegerAdd"
     T.PSub -> binOp "agdaRTS.primIntegerSubtract"
     T.PMul -> binOp "agdaRTS.primIntegerMultiply"
+    T.PSeq -> binOp "agdaRTS.primSeq"
     _ -> error $ show p
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
 

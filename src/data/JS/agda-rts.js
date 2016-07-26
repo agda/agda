@@ -33,4 +33,10 @@ exports.primNatMinus = function(x) {
       return z;
     }
   };
-}
+};
+
+// As Javascript is strict, this should be fine in general. Not sure
+// what PSeq (Axiom ...) (...) should do?
+exports.primSeq = function(x, y) {
+  return y;
+};
