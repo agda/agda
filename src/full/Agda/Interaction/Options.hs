@@ -101,6 +101,7 @@ data CommandLineOptions = Options
   , optGhcFlags         :: [String]
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
+  , optPythonCompile    :: Bool
   , optUHCCompile       :: Bool
   , optUHCBin           :: Maybe FilePath
   , optUHCTextualCore   :: Bool
@@ -196,6 +197,7 @@ defaultOptions = Options
   , optGhcFlags         = []
   , optEpicCompile      = False
   , optJSCompile        = False
+  , optPythonCompile    = False
   , optUHCCompile       = False
   , optUHCBin           = Nothing
   , optUHCTextualCore   = False

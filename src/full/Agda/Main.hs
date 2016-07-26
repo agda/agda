@@ -35,6 +35,7 @@ import Agda.Compiler.Common (IsMain (..))
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import Agda.Compiler.Epic.Compiler as Epic
 import Agda.Compiler.JS.Compiler as JS
+import Agda.Compiler.Python.Compiler as Python
 import Agda.Compiler.UHC.Compiler as UHC
 
 import Agda.Utils.Lens
@@ -89,6 +90,7 @@ runAgdaWithOptions generateHTML progName opts
           compileNoMain = optCompileNoMain   opts
           epic          = optEpicCompile     opts
           js            = optJSCompile       opts
+          python        = optPythonCompile   opts
           uhc           = optUHCCompile      opts
       when i $ liftIO $ putStr splashScreen
       let failIfNoInt (Just i) = return i
@@ -107,6 +109,7 @@ runAgdaWithOptions generateHTML progName opts
                       | ghc           = (MAlonzo.compilerMain IsMain =<<) . (failIfNoInt =<<)
                       | epic          = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js            = (JS.compilerMain      =<<) . (failIfNoInt =<<)
+                      | python        = (Python.compilerMain =<<) . (failIfNoInt =<<)
                       | uhc && compileNoMain
                                       = (UHC.compilerMain NotMain =<<) . (failIfNoInt =<<)
                       | uhc           = (UHC.compilerMain IsMain =<<)  . (failIfNoInt =<<)
