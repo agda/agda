@@ -723,6 +723,19 @@ lookupS rho i = case rho of
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
 
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming π) : Term Γ -> Term Δ@
+renaming :: forall a. DeBruijn a => Permutation -> Substitution' a
+renaming p = prependS __IMPOSSIBLE__ gamma $ raiseS $ size p
+  where
+    gamma :: [Maybe a]
+    gamma = inversePermute p (debruijnVar :: Int -> a)
+    -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
+
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
+renamingR :: DeBruijn a => Permutation -> Substitution' a
+renamingR p@(Perm n _) = permute (reverseP p) (map debruijnVar [0..]) ++# raiseS n
+
+
 ---------------------------------------------------------------------------
 -- * Substitution and raising/shifting/weakening
 ---------------------------------------------------------------------------
@@ -756,6 +769,10 @@ strengthen err = applySubst (compactS err [Nothing])
 --   @substUnder n u == subst n (raise n u)@.
 substUnder :: Subst t a => Nat -> t -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
+
+-- | The permutation should permute the corresponding context. (right-to-left list)
+renameP :: Subst t a => Permutation -> a -> a
+renameP p = applySubst (renaming p)
 
 instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm

@@ -56,7 +56,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Telescope (renameP, permuteTel)
+import Agda.TypeChecking.Telescope (permuteTel)
 
 import Agda.Utils.Either
 import Agda.Utils.Except
