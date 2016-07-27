@@ -1430,10 +1430,10 @@ fixitiesAndPolarities = foldMap $ \ d -> case d of
 notSoNiceDeclarations :: NiceDeclaration -> [Declaration]
 notSoNiceDeclarations d =
   case d of
-    Axiom _ _ _ _ _ rel mp x e       -> (case mp of
+    Axiom _ _ _ _ i rel mp x e       -> (case mp of
                                            Nothing   -> []
                                            Just occs -> [Pragma (PolarityPragma noRange x occs)]) ++
-                                        [TypeSig rel x e]
+                                        inst i [TypeSig rel x e]
     NiceField _ _ _ _ i x argt       -> [Field i x argt]
     PrimitiveFunction r _ _ _ x e    -> [Primitive r [TypeSig defaultArgInfo x e]]
     NiceMutual r _ _ ds              -> [Mutual r $ concatMap notSoNiceDeclarations ds]
@@ -1445,15 +1445,18 @@ notSoNiceDeclarations d =
     NiceRecSig r _ _ _ _ x bs e      -> [RecordSig r x bs e]
     NiceDataSig r _ _ _ _ x bs e     -> [DataSig r Inductive x bs e]
     NiceFunClause _ _ _ _ _ d        -> [d]
-    FunSig _ _ _ _ _ _ rel tc x e    -> [TypeSig rel x e]
+    FunSig _ _ _ _ i _ rel tc x e    -> inst i [TypeSig rel x e]
     FunDef r [d] _ _ _ _ _           -> [d]
     FunDef r ds _ _ _ _ _            -> [Mutual r ds] -- Andreas, 2012-04-07 Hack!
     DataDef r _ _ _ x bs cs          -> [Data r Inductive x bs Nothing $ concatMap notSoNiceDeclarations cs]
     RecDef r _ _ _ x i e c bs ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
     NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
-    NiceUnquoteDecl r _ _ _ _ _ x e  -> [UnquoteDecl r x e]
+    NiceUnquoteDecl r _ _ _ i _ x e  -> inst i [UnquoteDecl r x e]
     NiceUnquoteDef r _ _ _ _ x e     -> [UnquoteDef r x e]
+  where
+    inst InstanceDef    ds = [InstanceB (getRange ds) ds]
+    inst NotInstanceDef ds = ds
 
 -- | Has the 'NiceDeclaration' a field of type 'IsAbstract'?
 niceHasAbstract :: NiceDeclaration -> Maybe IsAbstract
