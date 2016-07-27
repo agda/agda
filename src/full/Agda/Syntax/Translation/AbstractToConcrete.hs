@@ -224,18 +224,23 @@ withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
 
 -- Dealing with private definitions ---------------------------------------
 
+-- | Add @abstract@, @private@, @instance@ modifiers.
 withAbstractPrivate :: DefInfo -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withAbstractPrivate i m =
-    case (defAccess i, defAbstract i) of
-        (PublicAccess, ConcreteDef) -> m
-        (p,a)                       ->
-            do  ds <- m
-                return $ abst a $ priv p $ ds
+    priv (defAccess i)
+      . abst (defAbstract i)
+      . addInstanceB (defInstance i == InstanceDef)
+      <$> m
     where
-        priv (PrivateAccess UserWritten) ds = [ C.Private (getRange ds) UserWritten ds ]
-        priv _ ds             = ds
-        abst AbstractDef ds   = [ C.Abstract (getRange ds) ds ]
-        abst _ ds             = ds
+        priv (PrivateAccess UserWritten)
+                         ds = [ C.Private  (getRange ds) UserWritten ds ]
+        priv _           ds = ds
+        abst AbstractDef ds = [ C.Abstract (getRange ds) ds ]
+        abst ConcreteDef ds = ds
+
+addInstanceB :: Bool -> [C.Declaration] -> [C.Declaration]
+addInstanceB True  ds = [ C.InstanceB (getRange ds) ds ]
+addInstanceB False ds = ds
 
 -- The To Concrete Class --------------------------------------------------
 
@@ -565,7 +570,8 @@ instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i info x t e) ret =
         bindToConcrete x $ \x ->
         do (t,(e, [], [], [])) <- toConcrete (t, A.RHS e)
-           ret [ C.TypeSig info x t
+           ret $ addInstanceB (getHiding info == Instance) $
+               [ C.TypeSig info x t
                , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                              e C.NoWhere False
                ]
