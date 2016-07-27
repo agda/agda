@@ -1409,7 +1409,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- the type of the constructor.
         contel <- toAbstract $ recordConstructorType fields
         m0     <- getCurrentModule
-        let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
+        let m = A.qualifyM m0 $ mnameFromList [ last $ qnameToList x' ]
         printScope "rec" 15 "before record"
         createModule False m
         -- We scope check the fields a second time, as actual fields.
