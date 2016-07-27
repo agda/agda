@@ -40,7 +40,9 @@ to do two things:
    (More on ``AGDA_DIR`` see below.)
 
    Remark: The ``libraries`` file informs Agda about the libraries you want it to know.
+
 |
+
 2. Create a file ``AGDA_DIR/defaults`` with the following content:
 
    .. code-block:: none
