@@ -382,7 +382,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs _perm) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
@@ -429,8 +429,9 @@ checkRHS
   -> A.RHS                   -- ^ Rhs to check.
   -> TCM (ClauseBody, WithFunctionProblem)
 
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
   where
+  perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
     case rhs of
@@ -565,8 +566,9 @@ checkWithRHS
   -> [A.Clause]              -- ^ With-clauses to check.
   -> TCM (ClauseBody, WithFunctionProblem)
 
-checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
+checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = do
         let withArgs = withArguments vs0 as
+            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
 
         -- Andreas, 2012-09-17: for printing delta,

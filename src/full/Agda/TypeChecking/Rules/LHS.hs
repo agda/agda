@@ -502,17 +502,13 @@ data LHSResult = LHSResult
   , lhsBodyType     :: Arg Type
     -- ^ The type of the body. Is @bσ@ if @Γ@ is defined.
     -- 'Irrelevant' to indicate the rhs must be checked in irrelevant mode.
-  , lhsPermutation  :: Permutation
-    -- ^ The permutation from pattern vars to @Δ@.
-    -- Corresponds to 'clausePerm'.
   }
 
 instance InstantiateFull LHSResult where
-  instantiateFull' (LHSResult n tel ps t perm) = LHSResult n
+  instantiateFull' (LHSResult n tel ps t) = LHSResult n
     <$> instantiateFull' tel
     <*> instantiateFull' ps
     <*> instantiateFull' t
-    <*> return perm
 
 -- | Check a LHS. Main function.
 --
@@ -602,14 +598,13 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
       reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
       reportSDoc "tc.lhs.top" 60 $ nest 2 $ text "type  = " <+> text (show b')
 
-      let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm qs
-          notProj ProjP{} = False
+      let notProj ProjP{} = False
           notProj _       = True
                       -- Note: This works because we can't change the number of
                       --       arguments in the lhs of a with-function relative to
                       --       the parent function.
           numPats   = length $ takeWhile (notProj . namedArg) qs
-          lhsResult = LHSResult (length cxt) delta qs b' perm
+          lhsResult = LHSResult (length cxt) delta qs b'
           -- In the case of a non-with function the pattern substitution
           -- should be weakened by the number of non-parameter patterns to
           -- get the paramSub.
@@ -618,7 +613,6 @@ checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.Chec
           -- parent modules.
           patSub   = (map (patternToTerm . namedArg) $ reverse $ take numPats qs) ++# EmptyS
           paramSub = composeS patSub withSub
-      reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "perm  = " <+> text (show perm)
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "patSub   = " <+> text (show patSub)
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "withSub  = " <+> text (show withSub)
       reportSDoc "tc.lhs.top" 20 $ nest 2 $ text "paramSub = " <+> text (show paramSub)
