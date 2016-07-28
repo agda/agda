@@ -1,0 +1,6 @@
+Issue779module.agda:4,3-19
+This declaration is illegal in a record before the last field
+when scope checking the declaration
+  record R where
+    module Bla where
+    field F : Set

@@ -2441,6 +2441,7 @@ data TypeError
             --   definition, but it wasn't of the form @m Delta@.
         | NotAnExpression C.Expr
         | NotAValidLetBinding D.NiceDeclaration
+        | NotValidBeforeField D.NiceDeclaration
         | NothingAppliedToHiddenArg C.Expr
         | NothingAppliedToInstanceArg C.Expr
     -- Pattern synonym errors
