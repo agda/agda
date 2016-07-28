@@ -448,7 +448,7 @@ checkAbsurdLambda i h e t = do
                     { clauseRange     = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ debruijnNamedVar "()" 0]
-                    , clauseBody      = Bind $ NoAbs "()" NoBody
+                    , newClauseBody   = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
                     }

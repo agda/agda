@@ -23,7 +23,7 @@ import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ct
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo, lookupInteractionPoint)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
-import Agda.TypeChecking.Substitute (piApply, applySubst, renamingR)
+import Agda.TypeChecking.Substitute (piApply, applySubst, renamingR, clauseBody)
 import Agda.TypeChecking.Telescope (piApplyM)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
@@ -295,8 +295,9 @@ tomyClauses (cl:cls) = do
   Nothing -> cls'
 
 tomyClause :: I.Clause -> TOM (Maybe ([Pat O], MExp O))
-tomyClause cl@(I.Clause {I.clauseBody = body}) = do
- let pats = I.clausePats cl
+tomyClause cl = do
+ let body = clauseBody cl
+     pats = I.clausePats cl
  pats' <- mapM tomyPat $ IP.unnumberPatVars pats
  body' <- tomyBody body
  return $ case body' of
@@ -681,19 +682,14 @@ frommyClause (ids, pats, mrhs) = do
       return $ Common.Arg (icnvh hid) $ Common.unnamed p'   -- TODO: recover names
  ps <- cnvps 0 pats
  body <- case mrhs of
-          Nothing -> return $ I.NoBody
-          Just e -> do
-           e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
-           let r 0 = I.Body e'
-               r n = I.Bind $ I.Abs "h" $ r (n - 1)
-               e'' = r nv
-           return e''
+          Nothing -> return $ Nothing
+          Just e -> Just <$> frommyExp e
  let cperm =  Perm nv perm
  return $ I.Clause
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
    , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
-   , I.clauseBody  = applySubst (renamingR cperm) <$> body
+   , I.newClauseBody   = body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False
    }
@@ -704,14 +700,6 @@ contains_constructor = any f
   f (HI _ p) = case p of
          CSPatConApp{} -> True
          _ -> False
-
-
-etaContractBody :: I.ClauseBody -> MB.TCM I.ClauseBody
-etaContractBody (I.NoBody) = return I.NoBody
-etaContractBody (I.Body b) = etaContract b >>= \b -> return (I.Body b)
-etaContractBody (I.Bind (I.Abs id b)) = etaContractBody b >>= \b -> return (I.Bind (I.Abs id b))
-etaContractBody (I.Bind (I.NoAbs x b))  = I.Bind . I.NoAbs x <$> etaContractBody b
-
 
 -- ---------------------------------
 
@@ -758,7 +746,7 @@ findClauseDeep ii = do
     MB.IPNoClause -> MB.typeError $ MB.GenericError $
       "Cannot apply the auto tactic here, we are not in a function clause"
   (_, c, _) <- getClauseForIP f clauseNo
-  return $ Just (f, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
+  return $ Just (f, c, peelbinds __IMPOSSIBLE__ toplevel $ clauseBody c)
   where
     peelbinds d f = r
      where r b = case b of

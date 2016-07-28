@@ -14,6 +14,7 @@ import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
+import Agda.Syntax.Internal.Pattern ( dbPatPerm )
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Translation.InternalToAbstract
@@ -175,10 +176,12 @@ quotingKit = do
       quoteBody NoBody   = Nothing
 
       quoteClause :: Clause -> ReduceM Term
-      quoteClause Clause{namedClausePats = ps, clauseBody = body} =
-        case quoteBody body of
+      quoteClause Clause{namedClausePats = ps, newClauseBody = body} =
+        case body of
           Nothing -> absurdClause !@ quotePats ps
-          Just b  -> normalClause !@ quotePats ps @@ b
+          Just b  -> let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+                         v    = renameP __IMPOSSIBLE__ perm b
+                     in normalClause !@ quotePats ps @@ quoteTerm v
 
       list :: [ReduceM Term] -> ReduceM Term
       list []       = pure nil

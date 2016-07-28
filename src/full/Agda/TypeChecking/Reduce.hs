@@ -575,8 +575,10 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         -- Andrea(s), 2014-12-05:  We return 'MissingClauses' here, since this
         -- is the most conservative reason.
         [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
-        Clause{ namedClausePats = pats, clauseBody = body } : cls -> do
-          let n = length pats
+        cl : cls -> do
+          let pats = namedClausePats cl
+              body = clauseBody cl
+              n = length pats
           -- if clause is underapplied, skip to next clause
           if length es < n then goCls cls es else do
             let (es0, es1) = splitAt n es

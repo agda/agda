@@ -254,10 +254,10 @@ addDisplayForms x = do
       let cs = defClauses def
           isCopy = defCopy def
       case cs of
-        [ Clause{ namedClausePats = pats, clauseBody = b } ]
+        [ cl ]
           | isCopy
-          , all (isVar . namedArg) pats
-          , Just (m, Def y es) <- strip (b `applyE` es0) -> do
+          , all (isVar . namedArg) $ namedClausePats cl
+          , Just (m, Def y es) <- strip (clauseBody cl `applyE` es0) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
@@ -274,7 +274,7 @@ addDisplayForms x = do
                   case cs of
                     []    -> "no clauses"
                     _:_:_ -> "many clauses"
-                    [ Clause{ clauseBody = b } ] -> case strip b of
+                    [ cl ] -> case strip (clauseBody cl) of
                       Nothing -> "bad body"
                       Just (m, Def y es)
                         | m < length args -> "too few args"
@@ -475,7 +475,7 @@ applySection' new ptel old ts rd rm = do
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
-                        , clauseBody      = Body $ case oldDef of
+                        , newClauseBody   = Just $ case oldDef of
                             Function{funProjection = Just p} -> projDropParsApply p ProjSystem ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
@@ -565,16 +565,15 @@ canonicalName :: QName -> TCM QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
-    Constructor{conSrcCon = c}                                -> return $ conName c
-    Record{recClause = Just (Clause{ clauseBody = body })}    -> canonicalName $ extract body
-    Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
-    _                                                         -> return x
+    Constructor{conSrcCon = c}                                   -> return $ conName c
+    Record{recClause = Just (Clause{ newClauseBody = body })}    -> canonicalName $ extract body
+    Datatype{dataClause = Just (Clause{ newClauseBody = body })} -> canonicalName $ extract body
+    _                                                            -> return x
   where
-    extract NoBody           = __IMPOSSIBLE__
-    extract (Body (Def x _)) = x
-    extract (Body (Shared p)) = extract (Body $ derefPtr p)
-    extract (Body _)         = __IMPOSSIBLE__
-    extract (Bind b)         = extract (unAbs b)
+    extract Nothing           = __IMPOSSIBLE__
+    extract (Just (Def x _))  = x
+    extract (Just (Shared p)) = extract (Just $ derefPtr p)
+    extract (Just _)          = __IMPOSSIBLE__
 
 sameDef :: QName -> QName -> TCM (Maybe QName)
 sameDef d1 d2 = do

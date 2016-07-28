@@ -130,10 +130,11 @@ withExprClauses cl t args = {- addContext (clauseTel cl) $ -} loop t args where
     case unArg a of
       Var i [] -> rest  -- TODO: smarter criterion when to skip withExprClause
       v        ->
-        (cl { clauseBody = v <$ clauseBody cl
+        (cl { newClauseBody = toNewClauseBody __IMPOSSIBLE__ perm $ v <$ clauseBody cl
             , clauseType = Just $ defaultArg dom
             } :) <$> rest
     where
+      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
       rest = loop (piApply t [a]) as
       dom  = case unEl t of   -- The type is the generated with-function type so we know it
         Pi a _  -> unDom a    -- doesn't contain anything funny
@@ -185,7 +186,7 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
              applySubst (renaming __IMPOSSIBLE__ $ reverseP $ fromMaybe __IMPOSSIBLE__ $ clausePerm wcl)
               <$> clauseBody wcl
   return wcl { namedClausePats = numberPatVars __IMPOSSIBLE__ perm pats
-             , clauseBody      = body
+             , newClauseBody   = toNewClauseBody __IMPOSSIBLE__ perm body
              , clauseType      = Nothing -- TODO: renaming of original clause type
              }
   where

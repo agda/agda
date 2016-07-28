@@ -42,7 +42,7 @@ class GetDefs a where
   getDefs :: MonadGetDefs m => a -> m ()
 
 instance GetDefs Clause where
-  getDefs = getDefs . clauseBody
+  getDefs = getDefs . newClauseBody
 
 instance GetDefs ClauseBody where
   getDefs b = case b of

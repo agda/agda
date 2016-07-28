@@ -324,7 +324,7 @@ instance Apply Clause where
       Clause r
              (apply tel args)
              (apply ps args)
-             (apply b args)
+             (applySubst rho b)
              (applySubst rho t)
              catchall
       where
@@ -548,7 +548,8 @@ instance Abstract PrimFun where
 instance Abstract Clause where
   abstract tel (Clause r tel' ps b t catchall) =
     Clause r (abstract tel tel')
-           (namedTelVars m tel ++ ps) (abstract tel b)
+           (namedTelVars m tel ++ ps)
+           b
            t -- nothing to do for t, since it lives under the telescope
            catchall
       where m = size tel + size tel'
@@ -1165,6 +1166,23 @@ underLambdas n cont a v = loop n a v where
   loop n a v = case ignoreSharing v of
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
+
+-- | Conversion from and to the new representation of ClauseBody.
+--   Temporary code until all old occurrances have been replaced.
+clauseBody :: Clause -> ClauseBody
+clauseBody cl = fromNewClauseBody perm $ newClauseBody cl
+  where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+
+toNewClauseBody :: Empty -> Permutation -> ClauseBody -> Maybe Term
+toNewClauseBody err perm (Body v) = Just $ renameP err (reverseP perm) v
+toNewClauseBody err perm (Bind x) = toNewClauseBody err perm $ unAbs x
+toNewClauseBody err perm NoBody   = Nothing
+
+fromNewClauseBody :: Permutation -> Maybe Term -> ClauseBody
+fromNewClauseBody perm mv = foldr (\ x t -> Bind $ Abs x t) b xs
+  where
+    b  = maybe NoBody (Body . applySubst (renamingR perm)) mv
+    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
 
 -- | Methods to retrieve the 'clauseBody'.
 class GetBody a where

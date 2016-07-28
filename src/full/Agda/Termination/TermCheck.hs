@@ -576,9 +576,10 @@ termClause clause = do
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
-  cl @ Clause { clauseTel  = tel
-              , clauseBody = body } <- introHiddenLambdas clause
-  let argPats' = clausePats cl
+  cl <- introHiddenLambdas clause
+  let tel      = clauseTel cl
+      argPats' = clausePats cl
+      body     = clauseBody cl
       perm     = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
@@ -631,7 +632,7 @@ introHiddenLambdas clause = liftTCM $ do
   case clause of
     Clause range ctel ps body Nothing catchall  -> return clause
     Clause range ctel ps body (Just t) catchall -> do
-      case removeHiddenLambdas body of
+      case removeHiddenLambdas (fromNewClauseBody perm body) of
         -- nobody or no hidden lambdas
         ([], _) -> return clause
         -- hidden lambdas
@@ -644,8 +645,10 @@ introHiddenLambdas clause = liftTCM $ do
           -- join with lhs telescope
           let ctel' = telFromList $ telToList ctel ++ telToList ttel
               ps'   = raise n ps ++ zipWith toPat (downFrom $ size axs) axs
-          return $ Clause range ctel' ps' body' (Just (t $> t')) catchall
+              perm' = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps'
+          return $ Clause range ctel' ps' (toNewClauseBody __IMPOSSIBLE__ perm' body') (Just (t $> t')) catchall
   where
+    perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
     toPat i (Arg info x) = Arg info $ namedDBVarP i x
     removeHiddenLambdas :: ClauseBody -> ([Arg ArgName], ClauseBody)
     removeHiddenLambdas = underBinds $ hlamsToBinds

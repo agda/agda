@@ -53,7 +53,7 @@ instance DropArgs Clause where
           -- worse: the module parameters we want to drop aren't necessarily
           -- the first things in the telescope.
           namedClausePats = drop n $ namedClausePats cl
-        , clauseBody = dropArgs n $ clauseBody cl -- BUG: need to drop also from recursive calls!!
+          -- BUG: need to drop also from recursive calls!!
         }
 
 instance DropArgs FunctionInverse where

@@ -30,9 +30,9 @@ import Agda.Syntax.Internal
     unSpine, allApplyElims,
     conName,
     derefPtr,
-    toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
+    toTopLevelModuleName, clausePats, arity, unEl, unAbs )
 import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
-import Agda.TypeChecking.Substitute ( absBody )
+import Agda.TypeChecking.Substitute ( absBody, clauseBody )
 import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad

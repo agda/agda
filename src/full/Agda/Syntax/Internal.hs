@@ -403,8 +403,9 @@ data Clause = Clause
       -- ^ @Δ@: The types of the pattern variables.
     , namedClausePats :: [NamedArg DeBruijnPattern]
       -- ^ @let Γ = patternVars namedClausePats@
-    , clauseBody      :: ClauseBody
-      -- ^ @λΓ.v@
+    , newClauseBody   :: Maybe Term
+      -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
+      --   absurd one.
     , clauseType      :: Maybe (Arg Type)
       -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.

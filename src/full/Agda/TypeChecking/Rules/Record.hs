@@ -393,7 +393,7 @@ checkRecordProjections m r con tel ftel fs = do
             clause = Clause { clauseRange = getRange info
                             , clauseTel       = killRange cltel
                             , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
-                            , clauseBody      = body
+                            , newClauseBody   = toNewClauseBody __IMPOSSIBLE__ (idP $ size ftel) body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
                             }

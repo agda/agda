@@ -582,27 +582,24 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ do
 --   This is used instead of special treatment of lambdas
 --   (which was unsound: issue 121)
 etaExpandClause :: Nat -> Clause -> Clause
-etaExpandClause n c@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b }
+etaExpandClause n c
   | m <= 0    = c
   | otherwise = c
-      { namedClausePats = raise m ps ++ map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
-      , clauseBody      = liftBody m b
+      { namedClausePats = raise m (namedClausePats c) ++
+                          map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
+      , newClauseBody   = liftBody m $ newClauseBody c
       , clauseTel       = telFromList $
-          telToList tel ++ (replicate m $ (underscore,) <$> dummyDom)
+          telToList (clauseTel c) ++ (replicate m $ (underscore,) <$> dummyDom)
           -- dummyDom, not __IMPOSSIBLE__, because of debug printing.
       }
   where
-    m = n - genericLength ps
-
-    bind 0 = id
-    bind n = Bind . Abs underscore . bind (n - 1)
+    m = n - genericLength (namedClausePats c)
 
     vars = map (defaultArg . var) $ downFrom m
 --    vars = reverse [ defaultArg $ var i | i <- [0..m - 1] ]
 
-    liftBody m (Bind b)   = Bind $ fmap (liftBody m) b
-    liftBody m NoBody     = bind m NoBody
-    liftBody m (Body v)   = bind m $ Body $ raise m v `apply` vars
+    liftBody m (Just v) = Just $ raise m v `apply` vars
+    liftBody m Nothing  = Nothing
 
 -- Building the occurrence graph ------------------------------------------
 

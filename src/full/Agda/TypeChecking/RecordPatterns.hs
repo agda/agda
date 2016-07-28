@@ -511,7 +511,7 @@ translateRecordPatterns clause = do
       c = clause
             { clauseTel       = newTel
             , namedClausePats = numberPatVars __IMPOSSIBLE__ newPerm $ applySubst lhsSubst ps
-            , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
+            , newClauseBody   = toNewClauseBody __IMPOSSIBLE__ newPerm $ translateBody cs rhsSubst $ clauseBody clause
             }
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
