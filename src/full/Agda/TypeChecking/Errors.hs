@@ -217,7 +217,6 @@ tcErrString err = show (getRange err) ++ " " ++ case err of
   Exception r s   -> show r ++ " " ++ show s
   IOException r e -> show r ++ " " ++ show e
   PatternErr{}    -> "PatternErr"
-  {- AbortAssign _   -> "AbortAssign" -- UNUSED -}
 
 errorString :: TypeError -> String
 errorString err = case err of
@@ -386,7 +385,6 @@ instance PrettyTCM TCErr where
     Exception r s   -> sayWhere r $ return s
     IOException r e -> sayWhere r $ fwords $ show e
     PatternErr{}    -> sayWhere err $ panic "uncaught pattern violation"
-    {- AbortAssign _   -> sayWhere err $ panic "uncaught aborted assignment" -- UNUSED -}
 
 instance PrettyTCM CallInfo where
   prettyTCM c = do
