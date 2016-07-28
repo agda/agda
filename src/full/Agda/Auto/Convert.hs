@@ -692,7 +692,7 @@ frommyClause (ids, pats, mrhs) = do
  return $ I.Clause
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
-   , I.namedClausePats = IP.numberPatVars cperm $ applySubst (renamingR $ compactP cperm) ps
+   , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
    , I.clauseBody  = applySubst (renamingR cperm) <$> body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False

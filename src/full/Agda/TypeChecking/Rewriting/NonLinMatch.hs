@@ -300,7 +300,7 @@ instance Match NLPat Term where
             case ok of
               Left b         -> block b
               Right Nothing  -> no (text "")
-              Right (Just v) -> tellSub i $ teleLam tel $ renameP perm v
+              Right (Just v) -> tellSub i $ teleLam tel $ renameP __IMPOSSIBLE__ perm v
       PDef f ps -> do
         v <- liftRed $ constructorForm =<< unLevel v
         case ignoreSharing v of

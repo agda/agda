@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -723,9 +724,9 @@ lookupS rho i = case rho of
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
 
--- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming π) : Term Γ -> Term Δ@
-renaming :: forall a. DeBruijn a => Permutation -> Substitution' a
-renaming p = prependS __IMPOSSIBLE__ gamma $ raiseS $ size p
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
+renaming :: forall a. DeBruijn a => Empty -> Permutation -> Substitution' a
+renaming err p = prependS err gamma $ raiseS $ size p
   where
     gamma :: [Maybe a]
     gamma = inversePermute p (debruijnVar :: Int -> a)
@@ -771,8 +772,8 @@ substUnder :: Subst t a => Nat -> t -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
 
 -- | The permutation should permute the corresponding context. (right-to-left list)
-renameP :: Subst t a => Permutation -> a -> a
-renameP p = applySubst (renaming p)
+renameP :: Subst t a => Empty -> Permutation -> a -> a
+renameP err p = applySubst (renaming err p)
 
 instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm

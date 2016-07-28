@@ -493,7 +493,7 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the new RHS's context
       -- to terms in the new telescope's context.
-      lhsSubst' = renaming (reverseP newPerm)
+      lhsSubst' = renaming __IMPOSSIBLE__ (reverseP newPerm)
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new telescope's context.
@@ -510,7 +510,7 @@ translateRecordPatterns clause = do
       -- New clause.
       c = clause
             { clauseTel       = newTel
-            , namedClausePats = numberPatVars newPerm $ applySubst lhsSubst ps
+            , namedClausePats = numberPatVars __IMPOSSIBLE__ newPerm $ applySubst lhsSubst ps
             , clauseBody      = translateBody cs rhsSubst $ clauseBody clause
             }
 

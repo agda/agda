@@ -926,7 +926,7 @@ instance Reify NamedClause A.Clause where
       return $ dropParams nfv lhs
     lhs <- stripImps lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
-    rhs <- reify $ renameP (reverseP perm) <$> body
+    rhs <- reify $ renameP __IMPOSSIBLE__ (reverseP perm) <$> body
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
     let result = A.Clause (spineToLhs lhs) [] rhs [] catchall
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
