@@ -1446,8 +1446,7 @@ notSoNiceDeclarations d =
     NiceDataSig r _ _ _ _ x bs e     -> [DataSig r Inductive x bs e]
     NiceFunClause _ _ _ _ _ d        -> [d]
     FunSig _ _ _ _ i _ rel tc x e    -> inst i [TypeSig rel x e]
-    FunDef r [d] _ _ _ _ _           -> [d]
-    FunDef r ds _ _ _ _ _            -> [Mutual r ds] -- Andreas, 2012-04-07 Hack!
+    FunDef _r ds _ _ _ _ _           -> ds
     DataDef r _ _ _ x bs cs          -> [Data r Inductive x bs Nothing $ concatMap notSoNiceDeclarations cs]
     RecDef r _ _ _ x i e c bs ds     -> [Record r x i e (unThing <$> c) bs Nothing $ concatMap notSoNiceDeclarations ds]
       where unThing (ThingWithFixity c _, inst) = (c, inst)
