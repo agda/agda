@@ -325,8 +325,11 @@ instance Apply Clause where
              (apply tel args)
              (apply ps args)
              (apply b args)
-             (applySubst (parallelS (map unArg args)) t)
+             (applySubst rho t)
              catchall
+      where
+        m = size tel - size args
+        rho = liftS m $ parallelS $ reverse $ map unArg args
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
