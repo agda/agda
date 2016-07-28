@@ -295,6 +295,7 @@ errorString err = case err of
   InvalidTypeSort{}                        -> "InvalidTypeSort"
   FunctionTypeInSizeUniv{}                 -> "FunctionTypeInSizeUniv"
   NotAValidLetBinding{}                    -> "NotAValidLetBinding"
+  NotValidBeforeField{}                    -> "NotValidBeforeField"
   NotAnExpression{}                        -> "NotAnExpression"
   NotImplemented{}                         -> "NotImplemented"
   NotSupported{}                           -> "NotSupported"
@@ -894,6 +895,9 @@ instance PrettyTCM TypeError where
 
     NotAValidLetBinding nd -> fwords $
       "Not a valid let-declaration"
+
+    NotValidBeforeField nd -> fwords $
+      "This declaration is illegal in a record before the last field"
 
     NothingAppliedToHiddenArg e -> fsep $
       [pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
