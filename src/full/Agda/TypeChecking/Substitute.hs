@@ -1184,6 +1184,12 @@ fromNewClauseBody perm mv = foldr (\ x t -> Bind $ Abs x t) b xs
     b  = maybe NoBody (Body . applySubst (renamingR perm)) mv
     xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
 
+-- | In compiled clauses, the variables in the clause body are relative to the
+--   pattern variables (including dot patterns) instead of the clause telescope.
+compiledClauseBody :: Clause -> Maybe Term
+compiledClauseBody cl = applySubst (renamingR perm) $ newClauseBody cl
+  where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
+
 -- | Methods to retrieve the 'clauseBody'.
 class GetBody a where
   getBody         :: a -> Maybe Term
