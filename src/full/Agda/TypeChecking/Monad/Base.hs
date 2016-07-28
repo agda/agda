@@ -2492,11 +2492,19 @@ instance Error TypeError where
 
 -- | Type-checking errors.
 
-data TCErr = TypeError TCState (Closure TypeError)
-           | Exception Range Doc
-           | IOException Range E.IOException
-           | PatternErr  -- TCState -- ^ for pattern violations
-           {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
+data TCErr
+  = TypeError
+    { tcErrState   :: TCState
+        -- ^ The state in which the error was raised.
+    , tcErrClosErr :: Closure TypeError
+        -- ^ The environment in which the error as raised plus the error.
+    }
+  | Exception Range Doc
+  | IOException Range E.IOException
+  | PatternErr
+      -- ^ The exception which is usually caught.
+      --   Raised for pattern violations during unification ('assignV')
+      --   but also in other situations where we want to backtrack.
   deriving (Typeable)
 
 instance Error TCErr where
@@ -2507,14 +2515,12 @@ instance Show TCErr where
     show (Exception r d) = show r ++ ": " ++ render d
     show (IOException r e) = show r ++ ": " ++ show e
     show PatternErr{}  = "Pattern violation (you shouldn't see this)"
-    {- show (AbortAssign _) = "Abort assignment (you shouldn't see this)" -- UNUSED -}
 
 instance HasRange TCErr where
     getRange (TypeError _ cl)  = envRange $ clEnv cl
     getRange (Exception r _)   = r
     getRange (IOException r _) = r
     getRange PatternErr{}      = noRange
-    {- getRange (AbortAssign s)   = noRange -- UNUSED -}
 
 instance E.Exception TCErr
 
