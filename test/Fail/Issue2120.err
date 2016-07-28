@@ -1,0 +1,3 @@
+Issue2120.agda:16,22-26
+Type mismatch
+when checking that the pattern refl has type _15 zero

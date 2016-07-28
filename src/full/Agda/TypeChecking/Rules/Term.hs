@@ -538,8 +538,8 @@ checkExtendedLambda i di qname cs e t = do
              -- TODO: mine for a meta in t
              -- For now, we fail.
              throwError err
-           -- Case: we know the meta here.  It cannot be instantiated yet.
-           Just InstV{} -> __IMPOSSIBLE__
+           -- Case: we know the meta here.
+           Just InstV{} -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
            Just InstS{} -> __IMPOSSIBLE__
            Just{} -> do
              -- It has to be blocked on some meta, so we can postpone,
@@ -562,12 +562,16 @@ checkExtendedLambda i di qname cs e t = do
 --   * If another error was thrown or the type @a@ is not blocked, reraise the error.
 --
 catchIlltypedPatternBlockedOnMeta :: TCM () -> TCM (Maybe (TCErr, MetaId))
-catchIlltypedPatternBlockedOnMeta m = (Nothing <$ m) `catchError` \ err -> do
+catchIlltypedPatternBlockedOnMeta m = (Nothing <$ do disableDestructiveUpdate m)
+  `catchError` \ err -> do
   let reraise = throwError err
   case err of
-    TypeError s cl@Closure{ clValue = IlltypedPattern p a } ->
-      enterClosure cl $ \ _ -> do
-        ifBlockedType a (\ x _ -> return $ Just (err, x)) $ {- else -} \ _ -> reraise
+    TypeError s cl@Closure{ clValue = IlltypedPattern p a } -> do
+      mx <- localState $ do
+        put s
+        enterClosure cl $ \ _ -> do
+          ifBlockedType a (\ x _ -> return $ Just x) $ {- else -} \ _ -> return Nothing
+      caseMaybe mx reraise $ \ x -> return $ Just (err, x)
     _ -> reraise
 
 ---------------------------------------------------------------------------
