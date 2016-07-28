@@ -560,6 +560,9 @@ getBuiltinName', getPrimitiveName' :: HasBuiltins m => String -> m (Maybe QName)
 getBuiltinName' n = fmap getPrimName <$> getBuiltin' n
 getPrimitiveName' n = fmap primFunName <$> getPrimitive' n
 
+isPrimitive :: HasBuiltins m => String -> QName -> m Bool
+isPrimitive n q = (Just q ==) <$> getPrimitiveName' n
+
 intervalView' :: HasBuiltins m => m (Term -> IntervalView)
 intervalView' = do
   iz <- getBuiltinName' builtinIZero

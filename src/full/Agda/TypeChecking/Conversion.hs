@@ -529,7 +529,7 @@ compareAtom cmp t m n =
                 -- Variables are invariant in their arguments
                 compareElims [] a (var i) es es'
             (Def f [], Def f' []) | f == f' -> return ()
-            (Def f es, Def f' es') | f == f' -> do
+            (Def f es, Def f' es') | f == f' -> ifM (compareUnglueApp f es es') (return ()) $ do
                 def <- getConstInfo f
                 -- To compute the type @a@ of a projection-like @f@,
                 -- we have to infer the type of its first argument.
@@ -566,6 +566,24 @@ compareAtom cmp t m n =
                     compareArgs (repeat $ polFromCmp cmp) a' (Con x []) xArgs yArgs
             _ -> etaInequal cmp t m n -- fixes issue 856 (unsound conversion error)
     where
+        compareUnglueApp :: QName -> Elims -> Elims -> TCM Bool
+        compareUnglueApp q es es' = ifM (not <$> isPrimitive builtin_unglue q) (return False) $ do
+          let (as,bs) = splitAt 8 es; (as',bs') = splitAt 8 es'
+          case (allApplyElims as, allApplyElims as') of
+            (Just [la,lb,bA,phi,bT,f,pf,b], Just [la',lb',bA',phi',bT',f',pf',b']) -> do
+              tGlue <- getPrimitiveTerm builtinGlue
+              -- Andrea, 28-07-16:
+              -- comparing the types is most probably wasteful,
+              -- since b and b' should be neutral terms, but it's a
+              -- precondition for the compareAtom call to make
+              -- sense.
+              equalType (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
+                        (El (tmSort (unArg lb')) $ apply tGlue $ [la',lb'] ++ map (setHiding NotHidden) [bA',phi',bT',f',pf'])
+              compareAtom cmp (El (tmSort (unArg lb)) $ apply tGlue $ [la,lb] ++ map (setHiding NotHidden) [bA,phi,bT,f,pf])
+                              (unArg b) (unArg b')
+              compareElims [] (El (tmSort (unArg la)) (unArg bA)) (Def q as) bs bs'
+              return True
+            _  -> return False
         -- Andreas, 2013-05-15 due to new postponement strategy, type can now be blocked
         conType c t = ifBlockedType t (\ _ _ -> patternViolation) $ \ t -> do
           let impossible = do
