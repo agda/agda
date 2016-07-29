@@ -41,6 +41,7 @@ import Agda.Utils.Function
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.HashMap (HashMap)
+import Agda.Utils.Size
 import Agda.Utils.Tuple
 
 #include "undefined.h"
@@ -577,42 +578,25 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
         cl : cls -> do
           let pats = namedClausePats cl
-              body = clauseBody cl
-              n = length pats
+              body = newClauseBody cl
+              npats = length pats
+              nvars = size $ clauseTel cl
           -- if clause is underapplied, skip to next clause
-          if length es < n then goCls cls es else do
-            let (es0, es1) = splitAt n es
+          if length es < npats then goCls cls es else do
+            let (es0, es1) = splitAt npats es
             (m, es0) <- matchCopatterns pats es0
             es <- return $ es0 ++ es1
             case m of
               No         -> goCls cls es
               DontKnow b -> return $ NoReduction $ b $> v `applyE` es
               Yes simpl vs -- vs is the subst. for the variables bound in body
-                | isJust (getBodyUnraised body)  -- clause has body?
-                                -> return $ YesReduction simpl $
+                | Just w <- body -> do -- clause has body?
                     -- TODO: let matchPatterns also return the reduced forms
                     -- of the original arguments!
                     -- Andreas, 2013-05-19 isn't this done now?
-                    app vs body EmptyS `applyE` es1
+                    let sigma = buildSubstitution __IMPOSSIBLE__ nvars vs
+                    return $ YesReduction simpl $ applySubst sigma w `applyE` es1
                 | otherwise     -> return $ NoReduction $ NotBlocked AbsurdMatch $ v `applyE` es
-
-    -- Build an explicit substitution from arguments
-    -- and execute it using parallel substitution.
-    -- Calculating the de Bruijn indices: ;-) for the Bind case
-    --   Simply-typed version
-    --   (we are not interested in types, only in de Bruijn indices here)
-    --   Γ ⊢ σ : Δ
-    --   Γ ⊢ v : A
-    --   Γ ⊢ (σ,v) : Δ.A
-    --   Δ ⊢ λ b : A → B
-    --   Δ.A ⊢ b : B
-    app :: Args -> ClauseBody -> Substitution -> Term
-    app []       (Body v)           sigma = applySubst sigma v
-    app (v : vs) (Bind (Abs   _ b)) sigma = app vs b $ consS (unArg v) sigma -- CBN
-    app (v : vs) (Bind (NoAbs _ b)) sigma = app vs b sigma
-    app  _        NoBody            sigma = __IMPOSSIBLE__
-    app (_ : _)  (Body _)           sigma = __IMPOSSIBLE__
-    app []       (Bind _)           sigma = __IMPOSSIBLE__
 
 instance Reduce a => Reduce (Closure a) where
     reduce' cl = do

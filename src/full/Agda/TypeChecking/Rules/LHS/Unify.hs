@@ -1000,13 +1000,13 @@ unifyStep s (Injectivity k a d pars ixs c) = do
 
       -- Compute new lhs and rhs by matching the old ones against rho
       (lhs', rhs') <- liftTCM . reduce =<< do
-        let ps   = applySubst rho $ teleNamedArgs $ eqTel s
-            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
+        let ps = applySubst rho $ teleNamedArgs $ eqTel s
         (lhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqLHS s
         (rhsMatch, _) <- liftTCM $ runReduceM $ Match.matchPatterns ps $ eqRHS s
         case (lhsMatch, rhsMatch) of
-          (Match.Yes _ lhs', Match.Yes _ rhs') ->
-            return (permute perm lhs', permute perm rhs')
+          (Match.Yes _ lhs', Match.Yes _ rhs') -> return
+            (reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') lhs',
+             reverse $ Match.matchedArgs __IMPOSSIBLE__ (size eqTel') rhs')
           _ -> __IMPOSSIBLE__
 
       return $ Unifies $ s { eqTel = eqTel' , eqLHS = lhs' , eqRHS = rhs' }
