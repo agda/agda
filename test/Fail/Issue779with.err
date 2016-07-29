@@ -1,0 +1,9 @@
+Issue779with.agda:5,3-7,16
+This declaration is illegal in a record before the last field
+when scope checking the declaration
+  record R where
+    mutual
+      Bla : Set₁
+      Bla with Set
+      ... | _ = Set
+    field F : Set

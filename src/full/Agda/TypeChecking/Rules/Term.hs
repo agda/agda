@@ -449,7 +449,7 @@ checkAbsurdLambda i h e t = do
                     { clauseRange     = getRange e
                     , clauseTel       = telFromList [fmap ("()",) dom]
                     , namedClausePats = [Arg info' $ Named (Just $ unranged $ absName b) $ debruijnNamedVar "()" 0]
-                    , clauseBody      = Bind $ NoAbs "()" NoBody
+                    , clauseBody      = Nothing
                     , clauseType      = Just $ setRelevance rel $ defaultArg $ absBody b
                     , clauseCatchall  = False
                     }
@@ -2003,7 +2003,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     fvs <- getContextSize
-    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t _perm) -> do
+    checkLeftHandSide (CheckPattern p EmptyTel t) Nothing [p0] t0 Nothing $ \ (LHSResult _ delta0 ps _t) -> do
           -- After dropping the free variable patterns there should be a single pattern left.
       let p = case drop fvs ps of [p] -> namedArg p; _ -> __IMPOSSIBLE__
           -- Also strip the context variables from the telescope

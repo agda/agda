@@ -197,8 +197,8 @@ noDotPattern err = dot
       A.RecP i fs            -> A.RecP i <$> (traverse $ traverse dot) fs
 
 -- | Compute the type of the record constructor (with bogus target type)
-recordConstructorType :: [NiceDeclaration] -> C.Expr
-recordConstructorType fields = build fs
+recordConstructorType :: [NiceDeclaration] -> ScopeM C.Expr
+recordConstructorType fields = build <$> mapM validForLet fs
   where
     -- drop all declarations after the last field declaration
     fs = reverse $ dropWhile notField $ reverse fields
@@ -206,22 +206,70 @@ recordConstructorType fields = build fs
     notField NiceField{} = False
     notField _           = True
 
-    -- Andreas, 2013-11-08
-    -- Turn @open public@ into just @open@, since we cannot have an
-    -- @open public@ in a @let@.  Fixes issue 532.
-    build (NiceOpen r m dir@ImportDirective{ publicOpen = True }  : fs) =
-      build (NiceOpen r m dir{ publicOpen = False } : fs)
+    -- | Check that declarations before last field can be handled
+    --   by current translation into let.
+    --
+    --   Sometimes a declaration is valid with minor modifications.
+    validForLet :: NiceDeclaration -> ScopeM NiceDeclaration
+    validForLet d = do
+      let failure = traceCall (SetRange $ getRange d) $
+            typeError $ NotValidBeforeField d
+      case d of
 
-    build (NiceModuleMacro r p x modapp open dir@ImportDirective{ publicOpen = True } : fs) =
-      build (NiceModuleMacro r p x modapp open dir{ publicOpen = False } : fs)
+        -- Andreas, 2013-11-08
+        -- Turn @open public@ into just @open@, since we cannot have an
+        -- @open public@ in a @let@.  Fixes issue #532.
+        C.NiceOpen r m dir ->
+          return $ C.NiceOpen r m dir{ publicOpen = False }
 
-    build (NiceField r f _ _ _ x (Arg info e) : fs) =
+        C.NiceModuleMacro r p x modapp open dir ->
+          return $ C.NiceModuleMacro r p x modapp open dir{ publicOpen = False }
+
+        C.NiceField{} ->
+          return d
+
+        C.NiceMutual _ _ _
+          [ C.FunSig _ _ _ _ _instanc macro _info _ _ _
+          , C.FunDef _ _ _ abstract _ _
+             [ C.Clause _top _catchall (C.LHS _p [] [] []) (C.RHS _rhs) NoWhere [] ]
+          ] | abstract /= AbstractDef && macro /= MacroDef ->
+          -- TODO: this is still too generous, we also need to check that _p
+          -- is only variable patterns.
+          return d
+
+        C.NiceMutual{}        -> failure
+        -- TODO: some of these cases might be __IMPOSSIBLE__
+        C.Axiom{}             -> failure
+        C.PrimitiveFunction{} -> failure
+        C.NiceModule{}        -> failure
+        C.NiceImport{}        -> failure
+        C.NicePragma{}        -> failure
+        C.NiceRecSig{}        -> failure
+        C.NiceDataSig{}       -> failure
+        C.NiceFunClause{}     -> failure
+        C.FunSig{}            -> failure  -- Note: these are bundled with FunDef in NiceMutual
+        C.FunDef{}            -> failure
+        C.DataDef{}           -> failure
+        C.RecDef{}            -> failure
+        C.NicePatternSyn{}    -> failure
+        C.NiceUnquoteDecl{}   -> failure
+        C.NiceUnquoteDef{}    -> failure
+
+    build fs =
+      let (ds1, ds2) = span notField fs
+      in  lets (concatMap notSoNiceDeclarations ds1) $ fld ds2
+
+    -- Turn a field declaration into a the domain of a Pi-type
+    fld [] = C.SetN noRange 0 -- todo: nicer
+    fld (NiceField r f _ _ _ x (Arg info e) : fs) =
         C.Pi [C.TypedBindings r $ Arg info (C.TBind r [pure $ mkBoundName x f] e)] $ build fs
       where r = getRange x
-    build (d : fs)                     = C.Let (getRange d) (notSoNiceDeclarations d) $
-                                           build fs
-    build []                           = C.SetN noRange 0 -- todo: nicer
+    fld _ = __IMPOSSIBLE__
 
+    -- Turn non-field declarations into a let binding.
+    -- Smart constructor for C.Let:
+    lets [] c = c
+    lets ds c = C.Let (getRange ds) ds c
 
 -- | @checkModuleApplication modapp m0 x dir = return (modapp', renD, renM)@
 --
@@ -1407,7 +1455,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         let x' = anameName ax
         -- We scope check the fields a first time when putting together
         -- the type of the constructor.
-        contel <- toAbstract $ recordConstructorType fields
+        contel <- toAbstract =<< recordConstructorType fields
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList [ last $ qnameToList x' ]
         printScope "rec" 15 "before record"

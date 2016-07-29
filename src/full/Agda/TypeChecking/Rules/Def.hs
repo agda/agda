@@ -137,7 +137,7 @@ checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
                           { clauseRange     = getRange i
                           , clauseTel       = EmptyTel
                           , namedClausePats = []
-                          , clauseBody      = Body $ bodyMod v
+                          , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
                           } ]
@@ -350,19 +350,6 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
--- | Create a clause body from a term.
---
---   As we have type checked the term in the clause telescope, but the final
---   body should have bindings in the order of the pattern variables,
---   we need to apply the permutation to the checked term.
-
-mkBody :: Permutation -> Term -> ClauseBody
-mkBody perm v = foldr (\ x t -> Bind $ Abs x t) b xs
-  where
-    b  = Body $ applySubst (renamingR perm) v
-    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
-
-
 -- | Type check a function clause.
 
 checkClause
@@ -382,7 +369,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         text "namedDots:" <+> vcat [ prettyTCM x <+> text "=" <+> prettyTCM v <+> text ":" <+> prettyTCM a | A.NamedDot x v a <- namedDots ]
       -- Not really an as-pattern, but this does the right thing.
       bindAsPatterns [ AsB x v a | A.NamedDot x v a <- namedDots ] $
-        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs _perm) -> do
+        checkLeftHandSide (CheckPatternShadowing c) (Just x) aps t withSub $ \ lhsResult@(LHSResult npars delta ps trhs) -> do
         -- Note that we might now be in irrelevant context,
         -- in case checkLeftHandSide walked over an irrelevant projection pattern.
         (body, with) <- checkWhere wh $ checkRHS i x aps t lhsResult rhs0
@@ -396,10 +383,9 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
           [ text "Clause before translation:"
           , nest 2 $ vcat
             [ text "delta =" <+> prettyTCM delta
-            -- , text "perm  =" <+> text (show perm)
             , text "ps    =" <+> text (show ps)
             , text "body  =" <+> text (show body)
-            , text "body  =" <+> prettyTCM body
+            , text "body  =" <+> maybe (text "_|_") prettyTCM body
             ]
           ]
 
@@ -427,10 +413,11 @@ checkRHS
   -> Type                    -- ^ Type of function.
   -> LHSResult               -- ^ Result of type-checking patterns
   -> A.RHS                   -- ^ Rhs to check.
-  -> TCM (ClauseBody, WithFunctionProblem)
+  -> TCM (Maybe Term, WithFunctionProblem)
 
-checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS rhs0
+checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
   where
+  perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
     case rhs of
@@ -439,12 +426,12 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs perm) rhs0 = handleRHS r
       A.RHS e -> do
         when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps
         v <- checkExpr e $ unArg trhs
-        return (mkBody perm v, NoWithFunction)
+        return (Just v, NoWithFunction)
 
       -- Case: no RHS
       A.AbsurdRHS -> do
         unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
-        return (NoBody, NoWithFunction)
+        return (Nothing, NoWithFunction)
 
       -- Case: @rewrite@
       -- Andreas, 2014-01-17, Issue 1402:
@@ -563,10 +550,11 @@ checkWithRHS
   -> [Term]                  -- ^ With-expressions.
   -> [EqualityView]          -- ^ Types of with-expressions.
   -> [A.Clause]              -- ^ With-clauses to check.
-  -> TCM (ClauseBody, WithFunctionProblem)
+  -> TCM (Maybe Term, WithFunctionProblem)
 
-checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
+checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = do
         let withArgs = withArguments vs0 as
+            perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
 
         -- Andreas, 2012-09-17: for printing delta,
@@ -611,7 +599,6 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
             (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
             v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
-            body = mkBody perm v
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           useTerPragma $ defaultDefn defaultArgInfo aux typeDontCare emptyFunction
@@ -632,9 +619,9 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs perm) vs0 as cs = do
         reportSDoc "tc.with.top" 20 $
           text "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
         reportSDoc "tc.with.top" 20 $
-          text "              body" <+> (addContext delta $ prettyTCM body)
+          text "              body" <+> prettyTCM v
 
-        return (body, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
+        return (Just v, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
 
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
 checkWithFunction _ NoWithFunction = return ()
@@ -642,7 +629,7 @@ checkWithFunction cxtNames (WithFunction f aux t delta1 delta2 vs as b qs npars 
 
   let -- Δ₁ ws Δ₂ ⊢ withSub : Δ′    (where Δ′ is the context of the parent lhs)
       withSub :: Substitution
-      withSub = liftS (size delta2) (wkS (countWithArgs as) idS) `composeS` renaming (reverseP perm')
+      withSub = liftS (size delta2) (wkS (countWithArgs as) idS) `composeS` renaming __IMPOSSIBLE__ (reverseP perm')
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"

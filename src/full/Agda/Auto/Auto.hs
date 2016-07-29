@@ -370,7 +370,7 @@ auto ii rng argstr = do
                 withCurrentModule (AN.qnameModule def) $ do
                  -- Normalise the dot patterns
                  ps <- addContext tel $ normalise ps
-                 body <- etaContractBody body
+                 body <- etaContract body
                  liftM modifyAbstractClause $ inContext [] $ reify $ AN.QNamed def $ I.Clause noRange tel ps body t catchall
               pcs <- withInteractionId ii $ mapM prettyA cls''
               ticks <- liftIO $ readIORef ticks

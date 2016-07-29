@@ -74,9 +74,8 @@ inlineWithClauses :: QName -> Clause -> TCM [Clause]
 inlineWithClauses f cl = inTopContext $ do
   -- Clauses are relative to the empty context, so we operate @inTopContext@.
   let noInline = return [cl]
-  -- Get the clause body as-is (unraised).
-  -- The de Bruijn indices are then relative to the @clauseTel cl@.
-  body <- traverse instantiate $ getBodyUnraised cl
+  -- The de Bruijn indices of @body@ are relative to the @clauseTel cl@.
+  body <- traverse instantiate $ clauseBody cl
   case body of
     Just (Def wf els) ->
       caseMaybeM (isWithFunction wf) noInline $ \ f' ->
@@ -130,7 +129,7 @@ withExprClauses cl t args = {- addContext (clauseTel cl) $ -} loop t args where
     case unArg a of
       Var i [] -> rest  -- TODO: smarter criterion when to skip withExprClause
       v        ->
-        (cl { clauseBody = v <$ clauseBody cl
+        (cl { clauseBody = Just v
             , clauseType = Just $ defaultArg dom
             } :) <$> rest
     where
@@ -168,34 +167,12 @@ inline f pcl t wf wcl = inTopContext $ addContext (clauseTel wcl) $ do
   reportSDoc "term.with.inline" 40 $ text "display form =" <+> prettyTCM disp
   (pats, perm) <- dispToPats disp
 
-  -- Now we need to sort out the right hand side. We have
-  --    Γ  - clause telescope (same for with-clause and inlined clause)
-  --    Δw - variables bound in the patterns of the with clause
-  --    Δi - variables bound in the patterns of the inlined clause
-  --    Δw ⊢ clauseBody wcl
-  -- and we want
-  --    Δi ⊢ body
-  -- We can use the clause permutations to get there (renaming is bugged and
-  -- shouldn't need the reverseP):
-  --    applySubst (renaming $ reverseP $ clausePerm wcl) : Term Δw -> Term Γ
-  --    applySubst (renamingR perm)                       : Term Γ -> Term Δi
-  -- Finally we need to add the right number of Bind's to the body.
-  let body = rebindBody (permRange perm) $
-             applySubst (renamingR perm) .
-             applySubst (renaming $ reverseP $ fromMaybe __IMPOSSIBLE__ $ clausePerm wcl)
-              <$> clauseBody wcl
-  return wcl { namedClausePats = numberPatVars perm pats
-             , clauseBody      = body
-             , clauseType      = Nothing -- TODO: renaming of original clause type
-             }
+  -- Jesper, 2016-07-28: Since the with-clause and the inlined clause both
+  -- have the same clause telescope and the clause body is now relative to the
+  -- clause telescope, there is no more need to change the clause body.
+  return wcl { namedClausePats = numberPatVars __IMPOSSIBLE__ perm pats }
   where
     numVars  = size (clauseTel wcl)
-
-    rebindBody n b = bind n $ maybe NoBody Body $ getBodyUnraised b
-      where
-        bind 0 = id
-        bind n = Bind . Abs (stringToArgName $ "h" ++ show n') . bind n'
-          where n' = n - 1
 
     dispToPats :: DisplayTerm -> TCM ([NamedArg Pattern], Permutation)
     dispToPats (DWithApp (DDef _ es) ws zs) = do

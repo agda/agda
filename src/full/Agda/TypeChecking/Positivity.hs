@@ -16,9 +16,12 @@ import Data.Either
 import qualified Data.Foldable as Fold
 import Data.Function
 import Data.Graph (SCC(..), flattenSCC)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.List as List hiding (null)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Monoid (mconcat)
 import qualified Data.Sequence as DS
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -47,6 +50,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Null
 import qualified Agda.Utils.Permutation as Perm
 import Agda.Utils.SemiRing
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 
 #include "undefined.h"
@@ -402,7 +406,10 @@ data OccEnv = OccEnv
 type OccM = Reader OccEnv
 
 withExtendedOccEnv :: Maybe Item -> OccM a -> OccM a
-withExtendedOccEnv i = local $ \ e -> e { vars = i : vars e }
+withExtendedOccEnv i = withExtendedOccEnv' [i]
+
+withExtendedOccEnv' :: [Maybe Item] -> OccM a -> OccM a
+withExtendedOccEnv' is = local $ \ e -> e { vars = is ++ vars e }
 
 -- | Running the monad
 getOccurrences
@@ -419,30 +426,26 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences cl = do
-    let ps = clausePats cl
+    let ps    = clausePats cl
+        items = IntMap.elems $ patItems ps -- sorted from low to high DBI
     (Concat (mapMaybe matching (zip [0..] ps)) >+<) <$>
-      walk (patItems ps) (clauseBody cl)
+      withExtendedOccEnv' items (occurrences $ clauseBody cl)
     where
       matching (i, p)
         | properlyMatching (unArg p) = Just $ OccursAs Matched $
                                                 OccursHere $ AnArg i
         | otherwise                  = Nothing
 
-      walk _         NoBody     = return emptyOB
-      walk []        (Body v)   = occurrences v
-      walk (i : pis) (Bind b)   = withExtendedOccEnv i $ walk pis $ absBody b
-      walk []        Bind{}     = __IMPOSSIBLE__
-      walk (_ : _)   Body{}     = __IMPOSSIBLE__
-
       -- @patItems ps@ creates a map from the pattern variables of @ps@
       -- to the index of the argument they are bound in.
-      -- This map is given as a list.
-      patItems ps = concat $ zipWith patItem [0..] ps
+      patItems ps = mconcat $ zipWith patItem [0..] ps
 
-      -- @patItem i p@ replicates index @i@ as often as there are
-      -- pattern variables in @p@ (dot patterns count as variable)
-      patItem :: Int -> Arg (Pattern' a) -> [Maybe Item]
-      patItem i p = map (const $ Just $ AnArg i) $ patternVars p
+      -- @patItem i p@ assigns index @i@ to each pattern variable in @p@
+      patItem :: Int -> Arg DeBruijnPattern -> IntMap (Maybe Item)
+      patItem i p = Fold.foldMap makeEntry ixs
+        where
+          ixs = map dbPatVarIndex $ lefts $ map unArg $ patternVars p
+          makeEntry x = singleton (x , Just (AnArg i))
 
 instance ComputeOccurrences Term where
   occurrences v = case unSpine v of
@@ -520,6 +523,10 @@ instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
 instance ComputeOccurrences a => ComputeOccurrences [a] where
   occurrences vs = Concat <$> mapM occurrences vs
 
+instance ComputeOccurrences a => ComputeOccurrences (Maybe a) where
+  occurrences (Just v) = occurrences v
+  occurrences Nothing  = return emptyOB
+
 instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, b) where
   occurrences (x, y) = do
     ox <- occurrences x
@@ -582,27 +589,24 @@ computeOccurrences' q = inConcreteOrAbstractMode q $ do
 --   This is used instead of special treatment of lambdas
 --   (which was unsound: issue 121)
 etaExpandClause :: Nat -> Clause -> Clause
-etaExpandClause n c@Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b }
+etaExpandClause n c
   | m <= 0    = c
   | otherwise = c
-      { namedClausePats = raise m ps ++ map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
-      , clauseBody      = liftBody m b
+      { namedClausePats = raise m (namedClausePats c) ++
+                          map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
+      , clauseBody      = liftBody m $ clauseBody c
       , clauseTel       = telFromList $
-          telToList tel ++ (replicate m $ (underscore,) <$> dummyDom)
+          telToList (clauseTel c) ++ (replicate m $ (underscore,) <$> dummyDom)
           -- dummyDom, not __IMPOSSIBLE__, because of debug printing.
       }
   where
-    m = n - genericLength ps
-
-    bind 0 = id
-    bind n = Bind . Abs underscore . bind (n - 1)
+    m = n - genericLength (namedClausePats c)
 
     vars = map (defaultArg . var) $ downFrom m
 --    vars = reverse [ defaultArg $ var i | i <- [0..m - 1] ]
 
-    liftBody m (Bind b)   = Bind $ fmap (liftBody m) b
-    liftBody m NoBody     = bind m NoBody
-    liftBody m (Body v)   = bind m $ Body $ raise m v `apply` vars
+    liftBody m (Just v) = Just $ raise m v `apply` vars
+    liftBody m Nothing  = Nothing
 
 -- Building the occurrence graph ------------------------------------------
 
@@ -783,4 +787,3 @@ computeEdges muts q ob =
     return $ case isDR of
       Just IsData -> GuardPos  -- a datatype is guarding
       _           -> StrictPos
-

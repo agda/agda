@@ -44,6 +44,7 @@ import Agda.Syntax.Internal
 import Agda.Utils.Functor
 import Agda.Utils.Monad
 import Agda.Utils.Singleton
+import Agda.Utils.Size
 
 type MetaSet = Set MetaId
 
@@ -356,23 +357,13 @@ instance Free' a c => Free' (Tele a) c where
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
-instance Free' ClauseBody c where
-  -- {-# SPECIALIZE instance Free' ClauseBody All #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM Any #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM All #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarSet #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarMap #-}
-  freeVars' (Body t)   = freeVars' t
-  freeVars' (Bind b)   = freeVars' b
-  freeVars'  NoBody    = mempty
-
 instance Free' Clause c where
   -- {-# SPECIALIZE instance Free' Clause All #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM Any #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM All #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarSet #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
-  freeVars' = freeVars' . clauseBody
+  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 instance Free' EqualityView c where
   freeVars' (OtherType t) = freeVars' t

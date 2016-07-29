@@ -601,11 +601,6 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
 data NamedClause = NamedClause QName Bool I.Clause
   -- ^ Also tracks whether module parameters should be dropped from the patterns.
 
-instance Reify ClauseBody RHS where
-  reify NoBody     = return AbsurdRHS
-  reify (Body v)   = RHS <$> reify v
-  reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
-
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
 newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }
@@ -915,9 +910,9 @@ instance Reify (QNamed I.Clause) A.Clause where
   reify (QNamed f cl) = reify (NamedClause f True cl)
 
 instance Reify NamedClause A.Clause where
-  reify (NamedClause f toDrop cl@(I.Clause _ tel ps body _ catchall)) = addContext tel $ do
+  reify (NamedClause f toDrop cl) = addContext (clauseTel cl) $ do
     reportSLn "reify.clause" 60 $ "reifying NamedClause, cl = " ++ show cl
-    ps  <- reifyPatterns ps
+    ps  <- reifyPatterns $ namedClausePats cl
     lhs <- liftTCM $ reifyDisplayFormP $ SpineLHS info f ps [] -- LHS info (LHSHead f ps) []
     -- Unless @toDrop@ we have already dropped the module patterns from the clauses
     -- (e.g. for extended lambdas).
@@ -926,14 +921,14 @@ instance Reify NamedClause A.Clause where
       return $ dropParams nfv lhs
     lhs <- stripImps lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
-    rhs <- reify $ renameP (reverseP perm) <$> body
+    rhs <- maybe (return AbsurdRHS) (RHS <.> reify) $ clauseBody cl
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
-    let result = A.Clause (spineToLhs lhs) [] rhs [] catchall
+    let result = A.Clause (spineToLhs lhs) [] rhs [] (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
     return result
     where
+      perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
       info = LHSRange noRange
-      perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
 
       dropParams n (SpineLHS i f ps wps) = SpineLHS i f (genericDrop n ps) wps
       stripImps (SpineLHS i f ps wps) = do

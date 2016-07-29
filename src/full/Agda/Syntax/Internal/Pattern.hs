@@ -19,6 +19,7 @@ import Agda.Syntax.Abstract (IsProjP(..))
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Internal as I
 
+import Agda.Utils.Empty
 import Agda.Utils.Functor
 import Agda.Utils.List
 import Agda.Utils.Permutation
@@ -103,7 +104,7 @@ instance LabelPatVars Pattern DeBruijnPattern Int where
   unlabelPatVars = fmap dbPatVarName
 
 -- | Augment pattern variables with their de Bruijn index.
-{-# SPECIALIZE numberPatVars :: Permutation -> [NamedArg Pattern] -> [NamedArg DeBruijnPattern] #-}
+{-# SPECIALIZE numberPatVars :: Int -> Permutation -> [NamedArg Pattern] -> [NamedArg DeBruijnPattern] #-}
 --
 --  Example:
 --  @
@@ -118,9 +119,9 @@ instance LabelPatVars Pattern DeBruijnPattern Int where
 --    dBpats    = 3 .(suc 2) (cons 2 1 0 )
 --  @
 --
-numberPatVars :: LabelPatVars a b Int => Permutation -> a -> b
-numberPatVars perm ps = evalState (labelPatVars ps) $
-  permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
+numberPatVars :: LabelPatVars a b Int => Int -> Permutation -> a -> b
+numberPatVars err perm ps = evalState (labelPatVars ps) $
+  permPicks $ flipP $ invertP err perm
 
 unnumberPatVars :: LabelPatVars a b i => b -> a
 unnumberPatVars = unlabelPatVars
