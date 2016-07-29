@@ -260,15 +260,19 @@ addDisplayForms x = do
             then noDispForm x "not a copy" else do
           if not $ all (isVar . namedArg) $ namedClausePats cl
             then noDispForm x "properly matching patterns" else do
-          case strip (clauseBody cl `applyE` es0) of
-            Just (m, Def y es) -> do
+          let n   = size $ namedClausePats cl
+              m   = n - size es0
+              vs0 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es0
+              sub = parallelS $ reverse $ vs0 ++ replicate m (var 0)
+          case unSpine <$> applySubst sub (compiledClauseBody cl) of
+            Just (Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
               add args top y es
-            Just (m, v) -> noDispForm x $ "not a def body, but " ++ show v
-            Nothing     -> noDispForm x $ "bad body"
+            Just v          -> noDispForm x $ "not a def body, but " ++ show v
+            Nothing         -> noDispForm x $ "bad body"
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) []
@@ -280,12 +284,6 @@ addDisplayForms x = do
 
     noDispForm x reason = reportSLn "tc.display.section" 30 $
       "no display form from " ++ show x ++ " because " ++ reason
-
-    strip (Body v)   = return (0, unSpine v)
-    strip  NoBody    = Nothing
-    strip (Bind b)   = do
-      (n, v) <- strip $ absApp b (Var 0 [])
-      return (n + 1, ignoreSharing v)
 
     isVar VarP{} = True
     isVar _      = False
