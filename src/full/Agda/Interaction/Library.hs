@@ -94,13 +94,14 @@ readDefaultsFile = do
   `catchIO` \e -> return (["."], [OtherError $ "Failed to read defaults file.\n" ++ show e])
 
 getLibrariesFile :: Maybe FilePath -> IO FilePath
-getLibrariesFile overrideLibFile = do
+getLibrariesFile (Just overrideLibFile) = return overrideLibFile
+getLibrariesFile Nothing = do
   agdaDir <- getAgdaAppDir
-  let override = maybe [] (:[]) overrideLibFile
-  files   <- (override ++) <$> filterM doesFileExist (map (agdaDir </>) defaultLibraryFiles)
+  let defaults = map (agdaDir </>) defaultLibraryFiles
+  files <- filterM doesFileExist defaults
   case files of
     file : _ -> return file
-    []       -> return (agdaDir </> last defaultLibraryFiles) -- doesn't exist, but that's ok
+    []       -> return (last defaults) -- doesn't exist, but that's ok
 
 getInstalledLibraries :: Maybe FilePath -> LibM [AgdaLibFile]
 getInstalledLibraries overrideLibFile = mkLibM [] $ do
@@ -195,4 +196,3 @@ versionView s =
             valid [] = False
             valid vs = not $ any null vs
     _ -> (s, [])
-

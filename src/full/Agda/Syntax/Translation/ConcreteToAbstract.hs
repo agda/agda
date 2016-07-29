@@ -781,7 +781,7 @@ instance ToAbstract C.Expr A.Expr where
       C.QuestionMark r n -> do
         scope <- getScope
         -- Andreas, 2014-04-06 create interaction point.
-        ii <- registerInteractionPoint r n
+        ii <- registerInteractionPoint True r n
         let info = MetaInfo
              { metaRange  = r
              , metaScope  = scope

@@ -43,7 +43,7 @@ import Data.List                ( isSuffixOf , intercalate )
 import System.Console.GetOpt    ( getOpt', usageInfo, ArgOrder(ReturnInOrder)
                                 , OptDescr(..), ArgDescr(..)
                                 )
-import System.Directory         ( doesDirectoryExist )
+import System.Directory         ( doesFileExist, doesDirectoryExist )
 
 import Text.EditDistance
 
@@ -522,7 +522,10 @@ libraryFlag :: String -> Flag CommandLineOptions
 libraryFlag s o = return $ o { optLibraries = optLibraries o ++ [s] }
 
 overrideLibrariesFileFlag :: String -> Flag CommandLineOptions
-overrideLibrariesFileFlag s o = return $ o { optOverrideLibrariesFile = Just s }
+overrideLibrariesFileFlag s o = do
+  ifM (liftIO $ doesFileExist s)
+    {-then-} (return $ o { optOverrideLibrariesFile = Just s })
+    {-else-} (throwError $ "Libraries file not found: " ++ s)
 
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }

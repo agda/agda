@@ -191,7 +191,7 @@ refine ii mr e = do
         appMeta e = do
           let rng = rightMargin r -- Andreas, 2013-05-01 conflate range to its right margin to ensure that appended metas are last in numbering.  This fixes issue 841.
           -- Make new interaction point
-          ii <- registerInteractionPoint rng Nothing
+          ii <- registerInteractionPoint False rng Nothing
           let info = Info.MetaInfo
                 { Info.metaRange = rng
                 , Info.metaScope = scope { scopePrecedence = ArgumentCtx }
