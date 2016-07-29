@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -254,35 +255,31 @@ addDisplayForms x = do
       let cs = defClauses def
           isCopy = defCopy def
       case cs of
-        [ cl ]
-          | isCopy
-          , all (isVar . namedArg) $ namedClausePats cl
-          , Just (m, Def y es) <- strip (clauseBody cl `applyE` es0) -> do
+        [ cl ] -> do
+          if not isCopy
+            then noDispForm x "not a copy" else do
+          if not $ all (isVar . namedArg) $ namedClausePats cl
+            then noDispForm x "properly matching patterns" else do
+          case strip (clauseBody cl `applyE` es0) of
+            Just (m, Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
               add args top y es
+            Just (m, v) -> noDispForm x $ "not a def body, but " ++ show v
+            Nothing     -> noDispForm x $ "bad body"
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) []
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
-        _ -> do
-          let reason = if not isCopy then "not a copy" else
-                  case cs of
-                    []    -> "no clauses"
-                    _:_:_ -> "many clauses"
-                    [ cl ] -> case strip (clauseBody cl) of
-                      Nothing -> "bad body"
-                      Just (m, Def y es)
-                        | m < length args -> "too few args"
-                        | m > length args -> "too many args"
-                        | otherwise       -> "args=" ++ show args ++ " es=" ++ show es
-                      Just (m, v) -> "not a def body, but " ++ show v
-          reportSLn "tc.display.section" 30 $
-            "no display form from " ++ show x ++ " because " ++ reason
+        [] -> noDispForm x "no clauses"
+        (_:_:_) -> noDispForm x "many clauses"
+
+    noDispForm x reason = reportSLn "tc.display.section" 30 $
+      "no display form from " ++ show x ++ " because " ++ reason
 
     strip (Body v)   = return (0, unSpine v)
     strip  NoBody    = Nothing
