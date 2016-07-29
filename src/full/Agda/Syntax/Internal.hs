@@ -384,12 +384,12 @@ stuckOn e r =
 -- * Definitions
 ---------------------------------------------------------------------------
 
--- | A clause is a list of patterns and the clause body should @Bind@.
+-- | A clause is a list of patterns and the clause body.
 --
 --  The telescope contains the types of the pattern variables and the
 --  de Bruijn indices say how to get from the order the variables occur in
 --  the patterns to the order they occur in the telescope. The body
---  binds the variables in the order they appear in the patterns.
+--  binds the variables in the order they appear in the telescope.
 --
 --  @clauseTel ~ permute clausePerm (patternVars namedClausePats)@
 --
@@ -400,9 +400,9 @@ stuckOn e r =
 data Clause = Clause
     { clauseRange     :: Range
     , clauseTel       :: Telescope
-      -- ^ @Δ@: The types of the pattern variables.
+      -- ^ @Δ@: The types of the pattern variables in dependency order.
     , namedClausePats :: [NamedArg DeBruijnPattern]
-      -- ^ @let Γ = patternVars namedClausePats@
+      -- ^ @Δ ⊢ ps@.  The de Bruijn indices refer to @Δ@.
     , clauseBody      :: Maybe Term
       -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
       --   absurd one.
@@ -412,6 +412,7 @@ data Clause = Clause
       --   Can be 'Irrelevant' if we encountered an irrelevant projection
       --   pattern on the lhs.
     , clauseCatchall  :: Bool
+      -- ^ Clause has been labelled as CATCHALL.
     }
   deriving (Typeable, Show)
 

@@ -561,14 +561,14 @@ canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
     Constructor{conSrcCon = c}                                -> return $ conName c
-    Record{recClause = Just (Clause{ clauseBody = body })}    -> canonicalName $ extract body
-    Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
+    Record{recClause = Just (Clause{ clauseBody = body })}    -> can body
+    Datatype{dataClause = Just (Clause{ clauseBody = body })} -> can body
     _                                                         -> return x
   where
-    extract Nothing           = __IMPOSSIBLE__
-    extract (Just (Def x _))  = x
-    extract (Just (Shared p)) = extract (Just $ derefPtr p)
-    extract (Just _)          = __IMPOSSIBLE__
+    can body = canonicalName $ extract $ fromMaybe __IMPOSSIBLE__ body
+    extract (Def x _)  = x
+    extract (Shared p) = extract $ derefPtr p
+    extract _          = __IMPOSSIBLE__
 
 sameDef :: QName -> QName -> TCM (Maybe QName)
 sameDef d1 d2 = do

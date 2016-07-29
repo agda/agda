@@ -34,6 +34,7 @@ import Agda.Syntax.Internal.Generic
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
+import Agda.Syntax.Translation.InternalToAbstract ( reifyPatterns )
 
 import Agda.Termination.CutOff
 import Agda.Termination.Monad
@@ -571,13 +572,12 @@ termClause' clause = do
   let tel      = clauseTel cl
       argPats' = clausePats cl
       body     = clauseBody cl
-      perm     = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
-    , nest 2 $ text ("perm     = " ++ show perm)
-    -- how to get the following right?
-    -- , nest 2 $ text "argPats' =" <+> do prettyA =<< reifyPatterns tel perm argPats'
+    , nest 2 $ text "argPats' =" <+> do
+       aps <- reifyPatterns (map (fmap unnamed) argPats')
+       fsep $ map prettyA aps
     ]
   addContext tel $ do
     ps <- liftTCM $ normalise $ map unArg argPats'
@@ -638,10 +638,8 @@ introHiddenLambdas clause = liftTCM $ do
           -- join with lhs telescope
           let ctel' = telFromList $ telToList ctel ++ telToList ttel
               ps'   = raise n ps ++ zipWith toPat (downFrom $ size axs) axs
-              perm' = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps'
           return $ Clause range ctel' ps' (Just body') (Just (t $> t')) catchall
   where
-    perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
     toPat i (Arg info x) = Arg info $ namedDBVarP i x
 
     removeHiddenLambdas :: Term -> ([Arg ArgName], Term)
