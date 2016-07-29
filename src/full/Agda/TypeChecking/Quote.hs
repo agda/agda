@@ -171,7 +171,7 @@ quotingKit = do
       quotePat (ProjP _ x)       = projP !@ quoteQName x
 
       quoteClause :: Clause -> ReduceM Term
-      quoteClause Clause{namedClausePats = ps, newClauseBody = body} =
+      quoteClause Clause{namedClausePats = ps, clauseBody = body} =
         case body of
           Nothing -> absurdClause !@ quotePats ps
           Just b  -> let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps

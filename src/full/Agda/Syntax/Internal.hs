@@ -403,7 +403,7 @@ data Clause = Clause
       -- ^ @Δ@: The types of the pattern variables.
     , namedClausePats :: [NamedArg DeBruijnPattern]
       -- ^ @let Γ = patternVars namedClausePats@
-    , newClauseBody   :: Maybe Term
+    , clauseBody      :: Maybe Term
       -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
       --   absurd one.
     , clauseType      :: Maybe (Arg Type)

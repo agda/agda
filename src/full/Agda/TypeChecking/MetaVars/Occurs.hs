@@ -363,7 +363,7 @@ instance Occurs Defn where
 instance Occurs Clause where
   occurs red ctx m xs cl = __IMPOSSIBLE__
 
-  metaOccurs m = metaOccurs m . newClauseBody
+  metaOccurs m = metaOccurs m . clauseBody
 
 instance Occurs Level where
   occurs red ctx m xs (Max as) = Max <$> occurs red ctx m xs as

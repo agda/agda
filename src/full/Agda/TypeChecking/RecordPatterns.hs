@@ -511,7 +511,7 @@ translateRecordPatterns clause = do
       c = clause
             { clauseTel       = newTel
             , namedClausePats = numberPatVars __IMPOSSIBLE__ newPerm $ applySubst lhsSubst ps
-            , newClauseBody   = applySubst lhsSubst $ newClauseBody clause
+            , clauseBody      = applySubst lhsSubst $ clauseBody clause
             }
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
@@ -543,8 +543,8 @@ translateRecordPatterns clause = do
       , nest 2 $ vcat
         [ text "delta =" <+> prettyTCM (clauseTel c)
         , text "ps    =" <+> text (show $ clausePats c)
-        , text "body  =" <+> text (show $ newClauseBody c)
-        , text "body  =" <+> addContext (clauseTel c) (maybe (text "_|_") prettyTCM (newClauseBody c))
+        , text "body  =" <+> text (show $ clauseBody c)
+        , text "body  =" <+> addContext (clauseTel c) (maybe (text "_|_") prettyTCM (clauseBody c))
         ]
       ]
 

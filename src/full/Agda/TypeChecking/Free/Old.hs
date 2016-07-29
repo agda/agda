@@ -337,7 +337,7 @@ instance Free a => Free (Tele a) where
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
 instance Free Clause where
-  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ newClauseBody cl
+  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` allVars (freeVars t)

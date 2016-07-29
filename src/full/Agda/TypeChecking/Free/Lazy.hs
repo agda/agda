@@ -363,7 +363,7 @@ instance Free' Clause c where
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM All #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarSet #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM VarMap #-}
-  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ newClauseBody cl
+  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 instance Free' EqualityView c where
   freeVars' (OtherType t) = freeVars' t

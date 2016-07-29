@@ -304,8 +304,8 @@ tomyClause cl = do
      -- have the impression it doesn't actually matter.
      -- ALTERNATIVE CODE:
      -- perm = fromMaybe __IMPOSSIBLE__ $ IP.clausePerm cl
-     -- body = applySubst (renamingR perm) $ I.newClauseBody cl
-     body = I.newClauseBody cl
+     -- body = applySubst (renamingR perm) $ I.clauseBody cl
+     body = I.clauseBody cl
      pats = I.clausePats cl
  pats' <- mapM tomyPat $ IP.unnumberPatVars pats
  body' <- traverse tomyExp =<< lift (norm body)
@@ -684,7 +684,7 @@ frommyClause (ids, pats, mrhs) = do
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
    , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
-   , I.newClauseBody   = body
+   , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False
    }
@@ -741,7 +741,7 @@ findClauseDeep ii = do
     MB.IPNoClause -> MB.typeError $ MB.GenericError $
       "Cannot apply the auto tactic here, we are not in a function clause"
   (_, c, _) <- getClauseForIP f clauseNo
-  return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.newClauseBody c)
+  return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
     toplevel e =
      case I.ignoreSharing e of

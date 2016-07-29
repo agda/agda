@@ -429,7 +429,7 @@ instance ComputeOccurrences Clause where
     let ps    = clausePats cl
         items = IntMap.elems $ patItems ps -- sorted from low to high DBI
     (Concat (mapMaybe matching (zip [0..] ps)) >+<) <$>
-      withExtendedOccEnv' items (occurrences $ newClauseBody cl)
+      withExtendedOccEnv' items (occurrences $ clauseBody cl)
     where
       matching (i, p)
         | properlyMatching (unArg p) = Just $ OccursAs Matched $
@@ -594,7 +594,7 @@ etaExpandClause n c
   | otherwise = c
       { namedClausePats = raise m (namedClausePats c) ++
                           map (\i -> defaultArg $ namedDBVarP i underscore) (downFrom m)
-      , newClauseBody   = liftBody m $ newClauseBody c
+      , clauseBody      = liftBody m $ clauseBody c
       , clauseTel       = telFromList $
           telToList (clauseTel c) ++ (replicate m $ (underscore,) <$> dummyDom)
           -- dummyDom, not __IMPOSSIBLE__, because of debug printing.

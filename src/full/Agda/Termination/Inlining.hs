@@ -75,7 +75,7 @@ inlineWithClauses f cl = inTopContext $ do
   -- Clauses are relative to the empty context, so we operate @inTopContext@.
   let noInline = return [cl]
   -- The de Bruijn indices of @body@ are relative to the @clauseTel cl@.
-  body <- traverse instantiate $ newClauseBody cl
+  body <- traverse instantiate $ clauseBody cl
   case body of
     Just (Def wf els) ->
       caseMaybeM (isWithFunction wf) noInline $ \ f' ->
@@ -129,7 +129,7 @@ withExprClauses cl t args = {- addContext (clauseTel cl) $ -} loop t args where
     case unArg a of
       Var i [] -> rest  -- TODO: smarter criterion when to skip withExprClause
       v        ->
-        (cl { newClauseBody = Just v
+        (cl { clauseBody = Just v
             , clauseType = Just $ defaultArg dom
             } :) <$> rest
     where

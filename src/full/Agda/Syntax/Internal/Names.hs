@@ -60,7 +60,7 @@ instance NamesIn Defn where
     Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
 
 instance NamesIn Clause where
-  namesIn Clause{ clauseTel = tel, namedClausePats = ps, newClauseBody = b, clauseType = t } =
+  namesIn Clause{ clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t } =
     namesIn ((tel, ps, b), t)
 
 instance NamesIn CompiledClauses where

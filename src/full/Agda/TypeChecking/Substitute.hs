@@ -1149,7 +1149,7 @@ underLambdas n cont a v = loop n a v where
 -- | In compiled clauses, the variables in the clause body are relative to the
 --   pattern variables (including dot patterns) instead of the clause telescope.
 compiledClauseBody :: Clause -> Maybe Term
-compiledClauseBody cl = applySubst (renamingR perm) $ newClauseBody cl
+compiledClauseBody cl = applySubst (renamingR perm) $ clauseBody cl
   where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
 
 ---------------------------------------------------------------------------

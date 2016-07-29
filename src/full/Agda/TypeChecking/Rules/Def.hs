@@ -137,7 +137,7 @@ checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
                           { clauseRange     = getRange i
                           , clauseTel       = EmptyTel
                           , namedClausePats = []
-                          , newClauseBody   = Just $ bodyMod v
+                          , clauseBody      = Just $ bodyMod v
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
                           } ]
@@ -399,7 +399,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
                  , namedClausePats = ps
-                 , newClauseBody   = bodyMod body
+                 , clauseBody      = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall
                  }

@@ -570,7 +570,7 @@ termClause' clause = do
   cl <- introHiddenLambdas clause
   let tel      = clauseTel cl
       argPats' = clausePats cl
-      body     = newClauseBody cl
+      body     = clauseBody cl
       perm     = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"

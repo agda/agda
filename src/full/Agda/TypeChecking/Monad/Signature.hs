@@ -470,7 +470,7 @@ applySection' new ptel old ts rd rm = do
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
-                        , newClauseBody   = Just $ case oldDef of
+                        , clauseBody      = Just $ case oldDef of
                             Function{funProjection = Just p} -> projDropParsApply p ProjSystem ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
@@ -560,10 +560,10 @@ canonicalName :: QName -> TCM QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
-    Constructor{conSrcCon = c}                                   -> return $ conName c
-    Record{recClause = Just (Clause{ newClauseBody = body })}    -> canonicalName $ extract body
-    Datatype{dataClause = Just (Clause{ newClauseBody = body })} -> canonicalName $ extract body
-    _                                                            -> return x
+    Constructor{conSrcCon = c}                                -> return $ conName c
+    Record{recClause = Just (Clause{ clauseBody = body })}    -> canonicalName $ extract body
+    Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
+    _                                                         -> return x
   where
     extract Nothing           = __IMPOSSIBLE__
     extract (Just (Def x _))  = x

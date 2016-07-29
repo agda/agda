@@ -578,7 +578,7 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
         [] -> return $ NoReduction $ NotBlocked MissingClauses $ v `applyE` es
         cl : cls -> do
           let pats = namedClausePats cl
-              body = newClauseBody cl
+              body = clauseBody cl
               npats = length pats
               nvars = size $ clauseTel cl
           -- if clause is underapplied, skip to next clause

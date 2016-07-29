@@ -388,7 +388,7 @@ checkRecordProjections m r con tel ftel fs = do
             clause = Clause { clauseRange = getRange info
                             , clauseTel       = killRange cltel
                             , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
-                            , newClauseBody   = body
+                            , clauseBody      = body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
                             }
@@ -411,7 +411,7 @@ checkRecordProjections m r con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ text "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                       inTopContext (addContext ftel (maybe (text "_|_") prettyTCM (newClauseBody clause)))
+                       inTopContext (addContext ftel (maybe (text "_|_") prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ text "adding projection"
