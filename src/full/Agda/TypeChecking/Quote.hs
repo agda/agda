@@ -170,11 +170,6 @@ quotingKit = do
       quotePat (LitP l)          = litP !@ quoteLit l
       quotePat (ProjP _ x)       = projP !@ quoteQName x
 
-      quoteBody :: I.ClauseBody -> Maybe (ReduceM Term)
-      quoteBody (Body a) = Just (quoteTerm a)
-      quoteBody (Bind b) = quoteBody (absBody b)
-      quoteBody NoBody   = Nothing
-
       quoteClause :: Clause -> ReduceM Term
       quoteClause Clause{namedClausePats = ps, newClauseBody = body} =
         case body of

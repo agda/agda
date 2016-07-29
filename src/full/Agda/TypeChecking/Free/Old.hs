@@ -336,11 +336,6 @@ instance Free a => Free (Tele a) where
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
-instance Free ClauseBody where
-  freeVars' (Body t)   = freeVars' t
-  freeVars' (Bind b)   = freeVars' b
-  freeVars'  NoBody    = mempty
-
 instance Free Clause where
   freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ newClauseBody cl
 

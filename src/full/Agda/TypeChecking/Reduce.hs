@@ -783,11 +783,6 @@ instance Simplify Bool where
 --     DotP v       -> DotP <$> simplify' v
 --     ProjP _      -> return p
 
-instance Simplify ClauseBody where
-    simplify' (Body   t) = Body   <$> simplify' t
-    simplify' (Bind   b) = Bind   <$> simplify' b
-    simplify'  NoBody   = return NoBody
-
 instance Simplify DisplayForm where
   simplify' (Display n ps v) = Display n <$> simplify' ps <*> return v
 
@@ -861,11 +856,6 @@ instance Normalise LevelAtom where
       BlockedLevel m v -> BlockedLevel m <$> normalise' v
       NeutralLevel r v -> NeutralLevel r <$> normalise' v
       UnreducedLevel{} -> __IMPOSSIBLE__    -- I hope
-
-instance Normalise ClauseBody where
-    normalise' (Body   t) = Body   <$> normalise' t
-    normalise' (Bind   b) = Bind   <$> normalise' b
-    normalise'  NoBody   = return NoBody
 
 instance (Subst t a, Normalise a) => Normalise (Abs a) where
     normalise' a@(Abs x _) = Abs x <$> underAbstraction_ a normalise'
@@ -1062,11 +1052,6 @@ instance InstantiateFull a => InstantiateFull (Pattern' a) where
     instantiateFull' (ConP n mt ps) = ConP n <$> instantiateFull' mt <*> instantiateFull' ps
     instantiateFull' l@LitP{}       = return l
     instantiateFull' p@ProjP{}      = return p
-
-instance InstantiateFull ClauseBody where
-    instantiateFull' (Body   t) = Body   <$> instantiateFull' t
-    instantiateFull' (Bind   b) = Bind   <$> instantiateFull' b
-    instantiateFull'  NoBody    = return NoBody
 
 instance (Subst t a, InstantiateFull a) => InstantiateFull (Abs a) where
     instantiateFull' a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull'

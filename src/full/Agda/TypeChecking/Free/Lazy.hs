@@ -357,16 +357,6 @@ instance Free' a c => Free' (Tele a) c where
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
-instance Free' ClauseBody c where
-  -- {-# SPECIALIZE instance Free' ClauseBody All #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM Any #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM All #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarSet #-}
-  -- {-# SPECIALIZE freeVars' :: ClauseBody -> FreeM VarMap #-}
-  freeVars' (Body t)   = freeVars' t
-  freeVars' (Bind b)   = freeVars' b
-  freeVars'  NoBody    = mempty
-
 instance Free' Clause c where
   -- {-# SPECIALIZE instance Free' Clause All #-}
   -- {-# SPECIALIZE freeVars' :: Clause -> FreeM Any #-}

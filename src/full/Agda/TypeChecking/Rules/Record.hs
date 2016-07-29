@@ -383,8 +383,6 @@ checkRecordProjections m r con tel ftel fs = do
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ varP "x" | Dom info _ <- telToList ftel ]
-            nobind 0 = id
-            nobind n = Bind . Abs "_" . nobind (n - 1)
             body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
             clause = Clause { clauseRange = getRange info

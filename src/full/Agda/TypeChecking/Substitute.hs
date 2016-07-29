@@ -359,18 +359,6 @@ instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
-instance Apply ClauseBody where
-  apply  b       []       = b
-  apply (Bind b) (a:args) = lazyAbsApp b (unArg a) `apply` args
-  apply (Body v) args     = Body $ v `apply` args
-  apply  NoBody   _       = NoBody
-  applyE  b       []             = b
-
-  applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
-  applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
-  applyE (Body v) es             = Body $ v `applyE` es
-  applyE  NoBody   _             = NoBody
-
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
   apply (DDot v)           args = DDot  $ apply v args
@@ -579,10 +567,6 @@ namedTelVars m (ExtendTel (Dom info a) tel) =
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
   abstract tel (Inverse inv) = Inverse $ abstract tel inv
-
-instance Abstract ClauseBody where
-  abstract EmptyTel          b = b
-  abstract (ExtendTel _ tel) b = Bind $ fmap (`abstract` b) tel
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
@@ -939,11 +923,6 @@ instance (Subst t a, Subst t b, Subst t c) => Subst t (a, b, c) where
 instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) where
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
 
-instance Subst Term ClauseBody where
-  applySubst rho (Body t) = Body $ applySubst rho t
-  applySubst rho (Bind b) = Bind $ applySubst rho b
-  applySubst _   NoBody   = NoBody
-
 instance Subst Term Candidate where
   applySubst rho (Candidate u t eti) = Candidate (applySubst rho u) (applySubst rho t) eti
 
@@ -1167,63 +1146,11 @@ underLambdas n cont a v = loop n a v where
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
 
--- | Conversion from and to the new representation of ClauseBody.
---   Temporary code until all old occurrances have been replaced.
-clauseBody :: Clause -> ClauseBody
-clauseBody cl = fromNewClauseBody perm $ newClauseBody cl
-  where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
-
-toNewClauseBody :: Empty -> Permutation -> ClauseBody -> Maybe Term
-toNewClauseBody err perm (Body v) = Just $ renameP err (reverseP perm) v
-toNewClauseBody err perm (Bind x) = toNewClauseBody err perm $ unAbs x
-toNewClauseBody err perm NoBody   = Nothing
-
-fromNewClauseBody :: Permutation -> Maybe Term -> ClauseBody
-fromNewClauseBody perm mv = foldr (\ x t -> Bind $ Abs x t) b xs
-  where
-    b  = maybe NoBody (Body . applySubst (renamingR perm)) mv
-    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
-
 -- | In compiled clauses, the variables in the clause body are relative to the
 --   pattern variables (including dot patterns) instead of the clause telescope.
 compiledClauseBody :: Clause -> Maybe Term
 compiledClauseBody cl = applySubst (renamingR perm) $ newClauseBody cl
   where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
-
--- | Methods to retrieve the 'clauseBody'.
-class GetBody a where
-  getBody         :: a -> Maybe Term
-  -- ^ Returns the properly raised clause 'Body',
-  --   and 'Nothing' if 'NoBody'.
-  getBodyUnraised :: a -> Maybe Term
-  -- ^ Just grabs the body, without raising the de Bruijn indices.
-  --   This is useful if you want to consider the body in context 'clauseTel'.
-
-instance GetBody ClauseBody where
-  getBody NoBody   = Nothing
-  getBody (Body v) = Just v
-  getBody (Bind b) = getBody $ absBody b
-
-  -- Andreas, 2014-08-25:  The following 'optimization' is WRONG,
-  -- since it does not respect the order of Abs and NoAbs.
-  -- (They do not commute w.r.t. raise!!)
-  --
-  -- getBody = body 0
-  --   where
-  --     -- collect all shiftings and do them in the end in one go
-  --     body :: Int -> ClauseBody -> Maybe Term
-  --     body _ NoBody             = Nothing
-  --     body n (Body v)           = Just $ raise n v
-  --     body n (Bind (NoAbs _ v)) = body (n + 1) v
-  --     body n (Bind (Abs   _ v)) = body n v
-
-  getBodyUnraised NoBody   = Nothing
-  getBodyUnraised (Body v) = Just v
-  getBodyUnraised (Bind b) = getBodyUnraised $ unAbs b  -- Does not raise!
-
-instance GetBody Clause where
-  getBody         = getBody         . clauseBody
-  getBodyUnraised = getBodyUnraised . clauseBody
 
 ---------------------------------------------------------------------------
 -- * Syntactic equality and order

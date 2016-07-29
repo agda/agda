@@ -601,11 +601,6 @@ instance (Reify i a) => Reify (Arg i) (Arg a) where
 data NamedClause = NamedClause QName Bool I.Clause
   -- ^ Also tracks whether module parameters should be dropped from the patterns.
 
-instance Reify ClauseBody RHS where
-  reify NoBody     = return AbsurdRHS
-  reify (Body v)   = RHS <$> reify v
-  reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
-
 -- The Monoid instance for Data.Map doesn't require that the values are a
 -- monoid.
 newtype MonoidMap k v = MonoidMap { unMonoidMap :: Map.Map k v }

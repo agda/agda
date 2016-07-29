@@ -371,17 +371,6 @@ instance EmbPrj I.Clause where
     valu [a, b, c, d, e, f] = valu6 Clause a b c d e f
     valu _                  = malformed
 
-instance EmbPrj a => EmbPrj (I.ClauseBodyF a) where
-  icod_ (Body   a) = icode1 0 a
-  icod_ (Bind   a) = icode1' a
-  icod_ NoBody     = icode0'
-
-  value = vcase valu where
-    valu [0, a] = valu1 Body   a
-    valu [a]    = valu1 Bind   a
-    valu []     = valu0 NoBody
-    valu _      = malformed
-
 instance EmbPrj I.ConPatternInfo where
   icod_ (ConPatternInfo a b) = icode2' a b
 

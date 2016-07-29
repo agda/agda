@@ -37,7 +37,6 @@ instance NamesIn a => NamesIn (Named n a)     where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Abs a)         where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (WithArity a)   where namesIn = namesInFoldable
 instance NamesIn a => NamesIn (Tele a)        where namesIn = namesInFoldable
-instance NamesIn a => NamesIn (ClauseBodyF a) where namesIn = namesInFoldable
 
 instance NamesIn a => NamesIn (C.FieldAssignment' a) where namesIn = namesInFoldable
 
