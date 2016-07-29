@@ -1,8 +1,11 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.MetaVars where
 
-import Control.Applicative
+import Prelude hiding (null)
+
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Writer
@@ -28,12 +31,15 @@ import {-# SOURCE #-} Agda.TypeChecking.Telescope
 
 import Agda.Utils.Functor ((<.>))
 import Agda.Utils.Lens
+import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Null
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Tuple
 import Agda.Utils.Size
+import qualified Agda.Utils.Maybe.Strict as Strict
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -193,12 +199,21 @@ modifyInteractionPoints f =
 
 -- | Register an interaction point during scope checking.
 --   If there is no interaction id yet, create one.
-registerInteractionPoint :: Range -> Maybe Nat -> TCM InteractionId
-registerInteractionPoint r maybeId = do
+registerInteractionPoint :: Bool -> Range -> Maybe Nat -> TCM InteractionId
+registerInteractionPoint preciseRange r maybeId = do
+  m <- use stInteractionPoints
+  if not preciseRange then continue m else do
+    -- If the range does not come from a file, it is not
+    -- precise, so ignore it.
+    Strict.caseMaybe (rangeFile r) (continue m) $ \ _ -> do
+    -- First, try to find the interaction point by Range.
+    caseMaybe (findInteractionPoint_ r m) (continue m) {-else-} return
+ where
+ continue m = do
+  -- We did not find an interaction id with the same Range, so let's create one!
   ii <- case maybeId of
     Just i  -> return $ InteractionId i
     Nothing -> fresh
-  m <- use stInteractionPoints
   let ip = InteractionPoint { ipRange = r, ipMeta = Nothing, ipClause = IPNoClause }
   case Map.insertLookupWithKey (\ key new old -> old) ii ip m of
     -- If the interaction point is already present, we keep the old ip.
@@ -209,6 +224,19 @@ registerInteractionPoint r maybeId = do
     (Nothing, m') -> do
       modifyInteractionPoints (const m')
       return ii
+
+-- | Find an interaction point by 'Range' by searching the whole map.
+--
+--   O(n): linear in the number of registered interaction points.
+
+findInteractionPoint_ :: Range -> InteractionPoints -> Maybe InteractionId
+findInteractionPoint_ r m = do
+  guard $ not $ null r
+  headMaybe $ mapMaybe sameRange $ Map.toList m
+  where
+    sameRange :: (InteractionId, InteractionPoint) -> Maybe InteractionId
+    sameRange (ii, InteractionPoint r' _ _) | r == r' = Just ii
+    sameRange _ = Nothing
 
 -- | Hook up meta variable to interaction point.
 connectInteractionPoint :: InteractionId -> MetaId -> TCM ()
@@ -262,6 +290,13 @@ lookupInteractionId :: InteractionId -> TCM MetaId
 lookupInteractionId ii = fromMaybeM err2 $ ipMeta <$> lookupInteractionPoint ii
   where
     err2 = typeError $ GenericError $ "No type nor action available for hole " ++ show ii ++ ". Possible cause: the hole has not been reached during type checking (do you see yellow?)"
+
+-- | Check whether an interaction id is already associated with a meta variable.
+lookupInteractionMeta :: InteractionId -> TCM (Maybe MetaId)
+lookupInteractionMeta ii = lookupInteractionMeta_ ii <$> use stInteractionPoints
+
+lookupInteractionMeta_ :: InteractionId -> InteractionPoints -> Maybe MetaId
+lookupInteractionMeta_ ii m = ipMeta =<< Map.lookup ii m
 
 -- | Generate new meta variable.
 newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement a -> TCM MetaId

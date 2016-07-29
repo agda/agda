@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.MetaVars where
 
@@ -296,6 +297,14 @@ newRecordMetaCtx r pars tel perm ctx = do
 
 newQuestionMark :: InteractionId -> Type -> TCM Term
 newQuestionMark ii t = do
+  -- Andreas, 2016-07-29, issue 1720-2
+  -- This is slightly risky, as the same interaction id
+  -- maybe be shared between different contexts.
+  -- Blame goes to the record processing hack, see issue #424
+  -- and @ConcreteToAbstract.recordConstructorType@.
+  let existing x = MetaV x . map Apply <$> getContextArgs
+  flip (caseMaybeM $ lookupInteractionMeta ii) existing $ {-else-} do
+
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
   m  <- newValueMeta' DontRunMetaOccursCheck t
