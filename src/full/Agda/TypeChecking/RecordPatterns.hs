@@ -511,7 +511,7 @@ translateRecordPatterns clause = do
       c = clause
             { clauseTel       = newTel
             , namedClausePats = numberPatVars __IMPOSSIBLE__ newPerm $ applySubst lhsSubst ps
-            , newClauseBody   = toNewClauseBody __IMPOSSIBLE__ newPerm $ translateBody cs rhsSubst $ clauseBody clause
+            , newClauseBody   = applySubst lhsSubst $ newClauseBody clause
             }
 
   reportSDoc "tc.lhs.recpat" 20 $ vcat
@@ -543,8 +543,8 @@ translateRecordPatterns clause = do
       , nest 2 $ vcat
         [ text "delta =" <+> prettyTCM (clauseTel c)
         , text "ps    =" <+> text (show $ clausePats c)
-        , text "body  =" <+> text (show $ clauseBody c)
-        , text "body  =" <+> prettyTCM (clauseBody c)
+        , text "body  =" <+> text (show $ newClauseBody c)
+        , text "body  =" <+> addContext (clauseTel c) (maybe (text "_|_") prettyTCM (newClauseBody c))
         ]
       ]
 
@@ -767,27 +767,3 @@ translateTel (Left _ : rest) (t : tel)    = Just t : translateTel rest tel
 translateTel []              []           = []
 translateTel (Left _ : _)    []           = __IMPOSSIBLE__
 translateTel []              (_ : _)      = __IMPOSSIBLE__
-
--- | Translates the clause body. The substitution should take things
--- in the context of the old RHS to the new RHS's context.
-
-translateBody :: Changes -> Substitution -> ClauseBody -> ClauseBody
-translateBody _                        s NoBody = NoBody
-translateBody (Right (n, x, _) : rest) s b      =
-  Bind $ Abs x $ translateBody rest s $ dropBinds n' b
-  where n' = sum $ map n [VarPat, DotPat]
-translateBody (Left _ : rest) s (Bind b)   = Bind $ fmap (translateBody rest s) b
-translateBody []              s (Body t)   = Body $ applySubst s t
-translateBody _               _ _          = __IMPOSSIBLE__
-
-------------------------------------------------------------------------
--- Helper functions
-
--- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' from @b@.
---
--- Precondition: @b@ has to start with @n@ occurrences of 'Bind'.
-
-dropBinds :: Nat -> ClauseBody -> ClauseBody
-dropBinds n b          | n == 0 = b
-dropBinds n (Bind b)   | n > 0  = dropBinds (pred n) (absBody b)
-dropBinds _ _                   = __IMPOSSIBLE__
