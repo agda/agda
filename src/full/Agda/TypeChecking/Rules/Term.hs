@@ -141,6 +141,22 @@ isType_ e =
           applyRelevanceToContext NonStrict $
             checkExpr (namedThing l) lvl
         return $ sort (Type n)
+
+    -- Issue #707: Check an existing interaction point
+    A.QuestionMark minfo ii -> caseMaybeM (lookupInteractionMeta ii) fallback $ \ x -> do
+      -- -- | Just x <- A.metaNumber minfo -> do
+      reportSDoc "tc.ip" 20 $ fsep
+        [ text "Rechecking meta "
+        , prettyTCM x
+        , text $ " for interaction point " ++ show ii
+        ]
+      s0 <- jMetaType . mvJudgement <$> lookupMeta x
+      vs <- getContextArgs
+      s1  <- piApplyM s0 vs
+      case ignoreSharing $ unEl s1 of
+        Sort s -> return $ El s $ MetaV x $ map Apply vs
+        _ -> __IMPOSSIBLE__
+
     _ -> fallback
 
 ptsRule :: (LensSort a, LensSort b) => a -> b -> TCM Sort
