@@ -44,12 +44,6 @@ class GetDefs a where
 instance GetDefs Clause where
   getDefs = getDefs . clauseBody
 
-instance GetDefs ClauseBody where
-  getDefs b = case b of
-    Body v -> getDefs v
-    Bind b -> getDefs b
-    NoBody -> return ()
-
 instance GetDefs Term where
   getDefs v = case v of
     Def d vs   -> doDef d >> getDefs vs

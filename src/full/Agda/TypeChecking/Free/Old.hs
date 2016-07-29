@@ -47,6 +47,7 @@ import Agda.Syntax.Internal
 
 import Agda.Utils.Functor
 import Agda.Utils.Monad
+import Agda.Utils.Size
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
 
@@ -241,7 +242,11 @@ variable n = do
 
 -- | Going under a binder.
 bind :: FreeT -> FreeT
-bind = local $ \ e -> e { fcContext = 1 + fcContext e }
+bind = bind' 1
+
+-- | Going under n binders.
+bind' :: Nat -> FreeT -> FreeT
+bind' n = local $ \ e -> e { fcContext = n + fcContext e }
 
 class Free a where
   freeVars'   :: a -> FreeT
@@ -331,13 +336,8 @@ instance Free a => Free (Tele a) where
   freeVars' EmptyTel          = mempty
   freeVars' (ExtendTel a tel) = freeVars' (a, tel)
 
-instance Free ClauseBody where
-  freeVars' (Body t)   = freeVars' t
-  freeVars' (Bind b)   = freeVars' b
-  freeVars'  NoBody    = mempty
-
 instance Free Clause where
-  freeVars' = freeVars' . clauseBody
+  freeVars' cl = bind' (size $ clauseTel cl) $ freeVars' $ clauseBody cl
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` allVars (freeVars t)

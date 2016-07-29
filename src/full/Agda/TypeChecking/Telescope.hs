@@ -63,22 +63,6 @@ getOutputTypeName t = do
       Shared{} -> __IMPOSSIBLE__
       DontCare{} -> __IMPOSSIBLE__
 
--- | The permutation should permute the corresponding context. (right-to-left list)
-renameP :: Subst t a => Permutation -> a -> a
-renameP p = applySubst (renaming p)
-
--- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming π) : Term Γ -> Term Δ@
-renaming :: forall a. DeBruijn a => Permutation -> Substitution' a
-renaming p = prependS __IMPOSSIBLE__ gamma $ raiseS $ size p
-  where
-    gamma :: [Maybe a]
-    gamma = inversePermute p (debruijnVar :: Int -> a)
-    -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
-
--- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
-renamingR :: DeBruijn a => Permutation -> Substitution' a
-renamingR p@(Perm n _) = permute (reverseP p) (map debruijnVar [0..]) ++# raiseS n
-
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Dom Type]
 flattenTel EmptyTel          = []
@@ -137,7 +121,7 @@ teleNamedArgs tel =
 permuteTel :: Permutation -> Telescope -> Telescope
 permuteTel perm tel =
   let names = permute perm $ teleNames tel
-      types = permute perm $ renameP perm $ flattenTel tel
+      types = permute perm $ renameP __IMPOSSIBLE__ perm $ flattenTel tel
   in  unflattenTel names types
 
 -- | Recursively computes dependencies of a set of variables in a given
@@ -186,7 +170,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ VarSet.toDescList is ++ VarSet.toDescList isC
 
-    ts1   = renameP (reverseP perm) (permute perm ts0)
+    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -220,7 +204,7 @@ splitTelescopeExact is tel = guard ok $> SplitTel tel1 tel2 perm
 
     perm  = Perm n $ map (n-1-) $ is ++ isC
 
-    ts1   = renameP (reverseP perm) (permute perm ts0)
+    ts1   = renameP __IMPOSSIBLE__ (reverseP perm) (permute perm ts0)
 
     tel'  = unflattenTel (permute perm names) ts1
 
@@ -259,7 +243,7 @@ instantiateTelescope tel k u = guard ok $> (tel', sigma, rho)
     perm  = Perm n $ is    -- works on de Bruijn indices
     rho   = reverseP perm  -- works on de Bruijn levels
 
-    u'    = renameP perm u -- Γ' ⊢ u' : A'
+    u'    = renameP __IMPOSSIBLE__ perm u -- Γ' ⊢ u' : A'
     us    = map (\i -> fromMaybe (DotP u') (debruijnVar <$> findIndex (i ==) is)) [ 0 .. n-1 ]
     sigma = us ++# raiseS (n-1)
 

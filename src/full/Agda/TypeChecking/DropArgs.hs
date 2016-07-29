@@ -36,13 +36,6 @@ instance DropArgs Telescope where
 instance DropArgs Permutation where
   dropArgs n (Perm m p) = Perm (m - n) $ map (subtract n) $ drop n p
 
--- | NOTE: does not go into the body, so does not work for recursive functions.
-instance DropArgs ClauseBody where
-  dropArgs 0 b        = b
-  dropArgs _ NoBody   = NoBody
-  dropArgs n (Bind b) = dropArgs (n - 1) (absBody b)
-  dropArgs n Body{}   = __IMPOSSIBLE__
-
 -- | NOTE: does not work for recursive functions.
 instance DropArgs Clause where
   dropArgs n cl =
@@ -53,7 +46,7 @@ instance DropArgs Clause where
           -- worse: the module parameters we want to drop aren't necessarily
           -- the first things in the telescope.
           namedClausePats = drop n $ namedClausePats cl
-        , clauseBody = dropArgs n $ clauseBody cl -- BUG: need to drop also from recursive calls!!
+          -- BUG: need to drop also from recursive calls!!
         }
 
 instance DropArgs FunctionInverse where

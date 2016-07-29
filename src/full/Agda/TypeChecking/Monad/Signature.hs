@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP               #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 
 module Agda.TypeChecking.Monad.Signature where
 
@@ -254,41 +255,35 @@ addDisplayForms x = do
       let cs = defClauses def
           isCopy = defCopy def
       case cs of
-        [ Clause{ namedClausePats = pats, clauseBody = b } ]
-          | isCopy
-          , all (isVar . namedArg) pats
-          , Just (m, Def y es) <- strip (b `applyE` es0) -> do
+        [ cl ] -> do
+          if not isCopy
+            then noDispForm x "not a copy" else do
+          if not $ all (isVar . namedArg) $ namedClausePats cl
+            then noDispForm x "properly matching patterns" else do
+          let n   = size $ namedClausePats cl
+              m   = n - size es0
+              vs0 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es0
+              sub = parallelS $ reverse $ vs0 ++ replicate m (var 0)
+          case unSpine <$> applySubst sub (compiledClauseBody cl) of
+            Just (Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
               add args top y es
+            Just v          -> noDispForm x $ "not a def body, but " ++ show v
+            Nothing         -> noDispForm x $ "bad body"
         [] | Constructor{ conSrcCon = h } <- theDef def -> do
               let y  = conName h
                   df = Display 0 [] $ DTerm $ Con (h {conName = top }) []
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
               addDisplayForm y df
-        _ -> do
-          let reason = if not isCopy then "not a copy" else
-                  case cs of
-                    []    -> "no clauses"
-                    _:_:_ -> "many clauses"
-                    [ Clause{ clauseBody = b } ] -> case strip b of
-                      Nothing -> "bad body"
-                      Just (m, Def y es)
-                        | m < length args -> "too few args"
-                        | m > length args -> "too many args"
-                        | otherwise       -> "args=" ++ show args ++ " es=" ++ show es
-                      Just (m, v) -> "not a def body, but " ++ show v
-          reportSLn "tc.display.section" 30 $
-            "no display form from " ++ show x ++ " because " ++ reason
+        [] -> noDispForm x "no clauses"
+        (_:_:_) -> noDispForm x "many clauses"
 
-    strip (Body v)   = return (0, unSpine v)
-    strip  NoBody    = Nothing
-    strip (Bind b)   = do
-      (n, v) <- strip $ absApp b (Var 0 [])
-      return (n + 1, ignoreSharing v)
+    noDispForm x reason = reportSLn "tc.display.section" 30 $
+      "no display form from " ++ show x ++ " because " ++ reason
 
     isVar VarP{} = True
     isVar _      = False
@@ -475,7 +470,7 @@ applySection' new ptel old ts rd rm = do
             cl = Clause { clauseRange     = getRange $ defClauses d
                         , clauseTel       = EmptyTel
                         , namedClausePats = []
-                        , clauseBody      = Body $ case oldDef of
+                        , clauseBody      = Just $ case oldDef of
                             Function{funProjection = Just p} -> projDropParsApply p ProjSystem ts'
                             _ -> Def x $ map Apply ts'
                         , clauseType      = Just $ defaultArg t
@@ -570,11 +565,10 @@ canonicalName x = do
     Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
     _                                                         -> return x
   where
-    extract NoBody           = __IMPOSSIBLE__
-    extract (Body (Def x _)) = x
-    extract (Body (Shared p)) = extract (Body $ derefPtr p)
-    extract (Body _)         = __IMPOSSIBLE__
-    extract (Bind b)         = extract (unAbs b)
+    extract Nothing           = __IMPOSSIBLE__
+    extract (Just (Def x _))  = x
+    extract (Just (Shared p)) = extract (Just $ derefPtr p)
+    extract (Just _)          = __IMPOSSIBLE__
 
 sameDef :: QName -> QName -> TCM (Maybe QName)
 sameDef d1 d2 = do

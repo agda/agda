@@ -71,7 +71,7 @@ instantiateTel s tel = liftTCM $ do
     ]
 
   -- s' : Substitution Γσ
-  let s' = renameP psR s
+  let s' = renameP __IMPOSSIBLE__ psR s
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $
     text "s'   =" <+> fsep (punctuate comma $ map (maybe (text "_") prettyTCM) s')
@@ -129,7 +129,7 @@ instantiateTel s tel = liftTCM $ do
   reportSLn "tc.lhs.inst" 10 $ "  p   = " ++ show p
 
   -- rho' : [Term Γσ~]Γσ
-  let rho' = renaming (reverseP p)
+  let rho' = renaming __IMPOSSIBLE__ (reverseP p)
 
   -- tel4 : [Type Γσ~]Γσ~
   let tel4   = applySubst rho' (permute p tel3)

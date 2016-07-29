@@ -383,16 +383,11 @@ checkRecordProjections m r con tel ftel fs = do
             cpi    = ConPatternInfo (Just ConPRec) (Just $ argFromDom $ fmap snd rt)
             conp   = defaultArg $ ConP con cpi $
                      [ Arg info $ unnamed $ varP "x" | Dom info _ <- telToList ftel ]
-            nobind 0 = id
-            nobind n = Bind . Abs "_" . nobind (n - 1)
-            body   = nobind (size ftel1)
-                   $ Bind . Abs "x"
-                   $ nobind (size ftel2)
-                   $ Body $ bodyMod $ var (size ftel2)
+            body   = Just $ bodyMod $ var (size ftel2)
             cltel  = ftel
             clause = Clause { clauseRange = getRange info
                             , clauseTel       = killRange cltel
-                            , namedClausePats = [Named Nothing <$> numberPatVars (idP $ size ftel) conp]
+                            , namedClausePats = [Named Nothing <$> numberPatVars __IMPOSSIBLE__ (idP $ size ftel) conp]
                             , clauseBody      = body
                             , clauseType      = Just $ Arg ai t
                             , clauseCatchall  = False
@@ -416,7 +411,7 @@ checkRecordProjections m r con tel ftel fs = do
         reportSDoc "tc.rec.proj" 70 $ sep
           [ text "adding projection"
           , nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
-                       inTopContext (addContext ftel (prettyTCM (clauseBody clause)))
+                       inTopContext (addContext ftel (maybe (text "_|_") prettyTCM (clauseBody clause)))
           ]
         reportSDoc "tc.rec.proj" 10 $ sep
           [ text "adding projection"

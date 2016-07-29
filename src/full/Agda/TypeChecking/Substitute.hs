@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE UndecidableInstances   #-}
 
 #if __GLASGOW_HASKELL__ <= 708
@@ -323,9 +324,12 @@ instance Apply Clause where
       Clause r
              (apply tel args)
              (apply ps args)
-             (apply b args)
-             (applySubst (parallelS (map unArg args)) t)
+             (applySubst rho b)
+             (applySubst rho t)
              catchall
+      where
+        m = size tel - size args
+        rho = liftS m $ parallelS $ reverse $ map unArg args
 
 instance Apply CompiledClauses where
   apply cc args = case cc of
@@ -354,18 +358,6 @@ instance Apply a => Apply (Case a) where
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
-
-instance Apply ClauseBody where
-  apply  b       []       = b
-  apply (Bind b) (a:args) = lazyAbsApp b (unArg a) `apply` args
-  apply (Body v) args     = Body $ v `apply` args
-  apply  NoBody   _       = NoBody
-  applyE  b       []             = b
-
-  applyE (Bind b) (Apply a : es) = lazyAbsApp b (unArg a) `applyE` es
-  applyE (Bind b) (Proj{}  : es) = __IMPOSSIBLE__
-  applyE (Body v) es             = Body $ v `applyE` es
-  applyE  NoBody   _             = NoBody
 
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
@@ -544,7 +536,8 @@ instance Abstract PrimFun where
 instance Abstract Clause where
   abstract tel (Clause r tel' ps b t catchall) =
     Clause r (abstract tel tel')
-           (namedTelVars m tel ++ ps) (abstract tel b)
+           (namedTelVars m tel ++ ps)
+           b
            t -- nothing to do for t, since it lives under the telescope
            catchall
       where m = size tel + size tel'
@@ -574,10 +567,6 @@ namedTelVars m (ExtendTel (Dom info a) tel) =
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
   abstract tel (Inverse inv) = Inverse $ abstract tel inv
-
-instance Abstract ClauseBody where
-  abstract EmptyTel          b = b
-  abstract (ExtendTel _ tel) b = Bind $ fmap (`abstract` b) tel
 
 #if __GLASGOW_HASKELL__ >= 710
 instance {-# OVERLAPPABLE #-} Abstract t => Abstract [t] where
@@ -723,6 +712,19 @@ lookupS rho i = case rho of
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
 
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming _ π) : Term Γ -> Term Δ@
+renaming :: forall a. DeBruijn a => Empty -> Permutation -> Substitution' a
+renaming err p = prependS err gamma $ raiseS $ size p
+  where
+    gamma :: [Maybe a]
+    gamma = inversePermute p (debruijnVar :: Int -> a)
+    -- gamma = safePermute (invertP (-1) p) $ map deBruijnVar [0..]
+
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renamingR π) : Term Δ -> Term Γ@
+renamingR :: DeBruijn a => Permutation -> Substitution' a
+renamingR p@(Perm n _) = permute (reverseP p) (map debruijnVar [0..]) ++# raiseS n
+
+
 ---------------------------------------------------------------------------
 -- * Substitution and raising/shifting/weakening
 ---------------------------------------------------------------------------
@@ -756,6 +758,10 @@ strengthen err = applySubst (compactS err [Nothing])
 --   @substUnder n u == subst n (raise n u)@.
 substUnder :: Subst t a => Nat -> t -> a -> a
 substUnder n u = applySubst (liftS n (singletonS 0 u))
+
+-- | The permutation should permute the corresponding context. (right-to-left list)
+renameP :: Subst t a => Empty -> Permutation -> a -> a
+renameP err p = applySubst (renaming err p)
 
 instance Subst a a => Subst a (Substitution' a) where
   applySubst rho sgm = composeS rho sgm
@@ -916,11 +922,6 @@ instance (Subst t a, Subst t b, Subst t c) => Subst t (a, b, c) where
 
 instance (Subst t a, Subst t b, Subst t c, Subst t d) => Subst t (a, b, c, d) where
   applySubst rho (x,y,z,u) = (applySubst rho x, applySubst rho y, applySubst rho z, applySubst rho u)
-
-instance Subst Term ClauseBody where
-  applySubst rho (Body t) = Body $ applySubst rho t
-  applySubst rho (Bind b) = Bind $ applySubst rho b
-  applySubst _   NoBody   = NoBody
 
 instance Subst Term Candidate where
   applySubst rho (Candidate u t eti) = Candidate (applySubst rho u) (applySubst rho t) eti
@@ -1145,40 +1146,11 @@ underLambdas n cont a v = loop n a v where
     Lam h b -> Lam h $ underAbs (loop $ n-1) a b
     _       -> __IMPOSSIBLE__
 
--- | Methods to retrieve the 'clauseBody'.
-class GetBody a where
-  getBody         :: a -> Maybe Term
-  -- ^ Returns the properly raised clause 'Body',
-  --   and 'Nothing' if 'NoBody'.
-  getBodyUnraised :: a -> Maybe Term
-  -- ^ Just grabs the body, without raising the de Bruijn indices.
-  --   This is useful if you want to consider the body in context 'clauseTel'.
-
-instance GetBody ClauseBody where
-  getBody NoBody   = Nothing
-  getBody (Body v) = Just v
-  getBody (Bind b) = getBody $ absBody b
-
-  -- Andreas, 2014-08-25:  The following 'optimization' is WRONG,
-  -- since it does not respect the order of Abs and NoAbs.
-  -- (They do not commute w.r.t. raise!!)
-  --
-  -- getBody = body 0
-  --   where
-  --     -- collect all shiftings and do them in the end in one go
-  --     body :: Int -> ClauseBody -> Maybe Term
-  --     body _ NoBody             = Nothing
-  --     body n (Body v)           = Just $ raise n v
-  --     body n (Bind (NoAbs _ v)) = body (n + 1) v
-  --     body n (Bind (Abs   _ v)) = body n v
-
-  getBodyUnraised NoBody   = Nothing
-  getBodyUnraised (Body v) = Just v
-  getBodyUnraised (Bind b) = getBodyUnraised $ unAbs b  -- Does not raise!
-
-instance GetBody Clause where
-  getBody         = getBody         . clauseBody
-  getBodyUnraised = getBodyUnraised . clauseBody
+-- | In compiled clauses, the variables in the clause body are relative to the
+--   pattern variables (including dot patterns) instead of the clause telescope.
+compiledClauseBody :: Clause -> Maybe Term
+compiledClauseBody cl = applySubst (renamingR perm) $ clauseBody cl
+  where perm = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
 
 ---------------------------------------------------------------------------
 -- * Syntactic equality and order

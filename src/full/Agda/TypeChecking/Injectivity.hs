@@ -94,7 +94,7 @@ checkInjectivity f cs = do
   -- Extract the head symbol of the rhs of each clause (skip absurd clauses)
   es <- catMaybes <$> do
     forM cs $ \ c -> do             -- produces a list ...
-      mapM ((,c) <.> headSymbol) $ getBodyUnraised c -- ... of maybes
+      mapM ((,c) <.> headSymbol) $ clauseBody c -- ... of maybes
   let (hs, ps) = unzip es
   reportSLn "tc.inj.check" 40 $ "  right hand sides: " ++ show hs
   if all isJust hs && distinct hs
