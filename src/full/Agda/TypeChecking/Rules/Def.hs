@@ -350,19 +350,6 @@ data WithFunctionProblem
     , wfClauses    :: [A.Clause]           -- ^ The given clauses for the with function
     }
 
--- | Create a clause body from a term.
---
---   As we have type checked the term in the clause telescope, but the final
---   body should have bindings in the order of the pattern variables,
---   we need to apply the permutation to the checked term.
-
-mkBody :: Permutation -> Term -> ClauseBody
-mkBody perm v = foldr (\ x t -> Bind $ Abs x t) b xs
-  where
-    b  = Body $ applySubst (renamingR perm) v
-    xs = [ stringToArgName $ "h" ++ show n | n <- [0 .. permRange perm - 1] ]
-
-
 -- | Type check a function clause.
 
 checkClause
@@ -396,10 +383,9 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
           [ text "Clause before translation:"
           , nest 2 $ vcat
             [ text "delta =" <+> prettyTCM delta
-            -- , text "perm  =" <+> text (show perm)
             , text "ps    =" <+> text (show ps)
             , text "body  =" <+> text (show body)
-            , text "body  =" <+> prettyTCM body
+            , text "body  =" <+> maybe (text "_|_") prettyTCM body
             ]
           ]
 
@@ -409,14 +395,11 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
               Irrelevant -> dontCare <$> body
               _          -> body
 
-        let perm    = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
-            newBody = toNewClauseBody __IMPOSSIBLE__ perm body
-
         return $
           Clause { clauseRange     = getRange i
                  , clauseTel       = killRange delta
                  , namedClausePats = ps
-                 , newClauseBody   = bodyMod newBody
+                 , newClauseBody   = bodyMod body
                  , clauseType      = Just trhs
                  , clauseCatchall  = catchall
                  }
@@ -430,7 +413,7 @@ checkRHS
   -> Type                    -- ^ Type of function.
   -> LHSResult               -- ^ Result of type-checking patterns
   -> A.RHS                   -- ^ Rhs to check.
-  -> TCM (ClauseBody, WithFunctionProblem)
+  -> TCM (Maybe Term, WithFunctionProblem)
 
 checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
   where
@@ -443,12 +426,12 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
       A.RHS e -> do
         when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps
         v <- checkExpr e $ unArg trhs
-        return (mkBody perm v, NoWithFunction)
+        return (Just v, NoWithFunction)
 
       -- Case: no RHS
       A.AbsurdRHS -> do
         unless absurdPat $ typeError $ NoRHSRequiresAbsurdPattern aps
-        return (NoBody, NoWithFunction)
+        return (Nothing, NoWithFunction)
 
       -- Case: @rewrite@
       -- Andreas, 2014-01-17, Issue 1402:
@@ -567,7 +550,7 @@ checkWithRHS
   -> [Term]                  -- ^ With-expressions.
   -> [EqualityView]          -- ^ Types of with-expressions.
   -> [A.Clause]              -- ^ With-clauses to check.
-  -> TCM (ClauseBody, WithFunctionProblem)
+  -> TCM (Maybe Term, WithFunctionProblem)
 
 checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = do
         let withArgs = withArguments vs0 as
@@ -616,7 +599,6 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = do
             (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
             -- Now stuff the with arguments in between and finish with the remaining variables
             v    = Def aux $ map Apply $ us0 ++ us1 ++ map defaultArg withArgs ++ us2
-            body = mkBody perm v
         -- Andreas, 2013-02-26 add with-name to signature for printing purposes
         addConstant aux =<< do
           useTerPragma $ defaultDefn defaultArgInfo aux typeDontCare emptyFunction
@@ -637,9 +619,9 @@ checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = do
         reportSDoc "tc.with.top" 20 $
           text "            delta2" <+> do escapeContext (size delta) $ addContext delta1 $ prettyTCM delta2
         reportSDoc "tc.with.top" 20 $
-          text "              body" <+> (addContext delta $ prettyTCM body)
+          text "              body" <+> prettyTCM v
 
-        return (body, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
+        return (Just v, WithFunction x aux t delta1 delta2 vs as t' ps npars perm' perm finalPerm cs)
 
 checkWithFunction :: [Name] -> WithFunctionProblem -> TCM ()
 checkWithFunction _ NoWithFunction = return ()
