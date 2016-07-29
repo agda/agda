@@ -403,8 +403,9 @@ data Clause = Clause
       -- ^ @Δ@: The types of the pattern variables.
     , namedClausePats :: [NamedArg DeBruijnPattern]
       -- ^ @let Γ = patternVars namedClausePats@
-    , clauseBody      :: ClauseBody
-      -- ^ @λΓ.v@
+    , clauseBody      :: Maybe Term
+      -- ^ @Just v@ with @Δ ⊢ v@ for a regular clause, or @Nothing@ for an
+      --   absurd one.
     , clauseType      :: Maybe (Arg Type)
       -- ^ @Δ ⊢ t@.  The type of the rhs under @clauseTel@.
       --   Used, e.g., by @TermCheck@.
@@ -416,20 +417,6 @@ data Clause = Clause
 
 clausePats :: Clause -> [Arg DeBruijnPattern]
 clausePats = map (fmap namedThing) . namedClausePats
-
-data ClauseBodyF a = Body a
-                   | Bind (Abs (ClauseBodyF a))
-                   | NoBody    -- ^ for absurd clauses.
-  deriving (Typeable, Show, Functor, Foldable, Traversable)
-
-type ClauseBody = ClauseBodyF Term
-
-imapClauseBody :: (Nat -> a -> b) -> ClauseBodyF a -> ClauseBodyF b
-imapClauseBody f b = go 0 b
-  where
-    go i  (Body x)  = Body (f i x)
-    go _   NoBody   = NoBody
-    go !i (Bind b)  = Bind $ go (i + 1) <$> b
 
 instance HasRange Clause where
   getRange = clauseRange
@@ -924,11 +911,6 @@ instance Null (Tele a) where
   null EmptyTel    = True
   null ExtendTel{} = False
 
-instance Null ClauseBody where
-  empty = NoBody
-  null NoBody = True
-  null _      = False
-
 -- | A 'null' clause is one with no patterns and no rhs.
 --   Should not exist in practice.
 instance Null Clause where
@@ -1103,9 +1085,6 @@ instance KillRange a => KillRange (Pattern' a) where
 instance KillRange Clause where
   killRange (Clause r tel ps body t catchall) = killRange6 Clause r tel ps body t catchall
 
-instance KillRange a => KillRange (ClauseBodyF a) where
-  killRange = fmap killRange
-
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
 
@@ -1238,10 +1217,3 @@ instance Pretty a => Pretty (Pattern' a) where
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
   prettyPrec _ (LitP l)      = text (show l)
   prettyPrec _ (ProjP _o q)  = text ("." ++ show q)
-
-instance Pretty a => Pretty (ClauseBodyF a) where
-  pretty b = case b of
-    Bind (NoAbs _ b) -> pretty b
-    Bind (Abs   x b) -> text (show x ++ ".") <+> pretty b
-    Body t           -> pretty t
-    NoBody           -> text "()"

@@ -120,7 +120,7 @@ splitTelForWith delta t as vs = let
     SplitTel delta1 delta2 perm = splitTelescope fv delta
 
     -- Δ₁Δ₂ ⊢ π : Δ
-    pi = renaming (reverseP perm)
+    pi = renaming __IMPOSSIBLE__ (reverseP perm)
     -- Δ₁ ⊢ ρ : Δ₁Δ₂  (We know that as does not depend on Δ₂.)
     rho = strengthenS __IMPOSSIBLE__ $ size delta2
     -- Δ₁ ⊢ ρ ∘ π : Δ

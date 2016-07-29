@@ -6,6 +6,8 @@ import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
+import Data.Traversable (traverse)
 import Control.Monad.State
 
 import Agda.Syntax.Concrete (exprFieldA)
@@ -23,8 +25,8 @@ import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ct
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo, lookupInteractionPoint)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
-import Agda.TypeChecking.Substitute (piApply, applySubst)
-import Agda.TypeChecking.Telescope (piApplyM, renamingR)
+import Agda.TypeChecking.Substitute (piApply, applySubst, renamingR)
+import Agda.TypeChecking.Telescope (piApplyM)
 import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
@@ -295,14 +297,21 @@ tomyClauses (cl:cls) = do
   Nothing -> cls'
 
 tomyClause :: I.Clause -> TOM (Maybe ([Pat O], MExp O))
-tomyClause cl@(I.Clause {I.clauseBody = body}) = do
- let pats = I.clausePats cl
+tomyClause cl = do
+ let -- Jesper, 2016-07-28: I can't figure out if this should be the old or new
+     -- clause body (i.e. relative to the positions of pattern variables or
+     -- relative to the clauseTel). Both options pass the test suite, so I
+     -- have the impression it doesn't actually matter.
+     -- ALTERNATIVE CODE:
+     -- perm = fromMaybe __IMPOSSIBLE__ $ IP.clausePerm cl
+     -- body = applySubst (renamingR perm) $ I.clauseBody cl
+     body = I.clauseBody cl
+     pats = I.clausePats cl
  pats' <- mapM tomyPat $ IP.unnumberPatVars pats
- body' <- tomyBody body
+ body' <- traverse tomyExp =<< lift (norm body)
  return $ case body' of
-           Just (body', _) -> Just (pats', body')
-           Nothing -> Nothing
-
+           Just body' -> Just (pats', body')
+           Nothing    -> Nothing
 
 tomyPat :: Common.Arg I.Pattern -> TOM (Pat O)
 tomyPat p = case Common.unArg p of
@@ -318,19 +327,6 @@ tomyPat p = case Common.unArg p of
   let Just npar = fst $ cdorigin cc
   return $ PatConApp c (replicate npar PatExp ++ pats')
  I.LitP _ -> throwError $ strMsg "Auto: Literals in patterns are not supported"
-
-tomyBody :: I.ClauseBodyF I.Term -> TOM (Maybe (MExp O, Int))
-tomyBody (I.Body t) = do
- t <- lift $ norm t
- t' <- tomyExp t
- return $ Just (t', 0)
-tomyBody (I.Bind (I.Abs _ b)) = do
- res <- tomyBody b
- return $ case res of
-  Nothing -> Nothing
-  Just (b', i) -> Just (b', i + 1)
-tomyBody (I.Bind (I.NoAbs _ b)) = tomyBody b
-tomyBody I.NoBody = return Nothing
 
 weaken :: Int -> MExp O -> MExp O
 weaken _ e@(Meta m) = e
@@ -681,19 +677,14 @@ frommyClause (ids, pats, mrhs) = do
       return $ Common.Arg (icnvh hid) $ Common.unnamed p'   -- TODO: recover names
  ps <- cnvps 0 pats
  body <- case mrhs of
-          Nothing -> return $ I.NoBody
-          Just e -> do
-           e' <- frommyExp e {- renm e -} -- renaming before adding to clause below
-           let r 0 = I.Body e'
-               r n = I.Bind $ I.Abs "h" $ r (n - 1)
-               e'' = r nv
-           return e''
+          Nothing -> return $ Nothing
+          Just e -> Just <$> frommyExp e
  let cperm =  Perm nv perm
  return $ I.Clause
    { I.clauseRange = SP.noRange
    , I.clauseTel   = tel
-   , I.namedClausePats = IP.numberPatVars cperm $ applySubst (renamingR $ compactP cperm) ps
-   , I.clauseBody  = applySubst (renamingR cperm) <$> body
+   , I.namedClausePats = IP.numberPatVars __IMPOSSIBLE__ cperm $ applySubst (renamingR $ compactP cperm) ps
+   , I.clauseBody  = body
    , I.clauseType  = Nothing -- TODO: compute clause type
    , I.clauseCatchall = False
    }
@@ -704,14 +695,6 @@ contains_constructor = any f
   f (HI _ p) = case p of
          CSPatConApp{} -> True
          _ -> False
-
-
-etaContractBody :: I.ClauseBody -> MB.TCM I.ClauseBody
-etaContractBody (I.NoBody) = return I.NoBody
-etaContractBody (I.Body b) = etaContract b >>= \b -> return (I.Body b)
-etaContractBody (I.Bind (I.Abs id b)) = etaContractBody b >>= \b -> return (I.Bind (I.Abs id b))
-etaContractBody (I.Bind (I.NoAbs x b))  = I.Bind . I.NoAbs x <$> etaContractBody b
-
 
 -- ---------------------------------
 
@@ -758,13 +741,8 @@ findClauseDeep ii = do
     MB.IPNoClause -> MB.typeError $ MB.GenericError $
       "Cannot apply the auto tactic here, we are not in a function clause"
   (_, c, _) <- getClauseForIP f clauseNo
-  return $ Just (f, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
+  return $ Just (f, c, maybe __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   where
-    peelbinds d f = r
-     where r b = case b of
-                  I.Bind b -> r $ I.absBody b
-                  I.NoBody -> d
-                  I.Body e -> f e
     toplevel e =
      case I.ignoreSharing e of
       I.MetaV{} -> True

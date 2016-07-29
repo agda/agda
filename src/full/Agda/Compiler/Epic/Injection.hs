@@ -138,7 +138,7 @@ isInjectiveHere nam idx clause = do
    , text ("argumentNo=" ++ show idx)
    -- , prettyTCM (clausePats clause)
    ]
- case getBody clause of
+ case compiledClauseBody clause of
   Nothing -> return emptyC
   Just body -> do
     let t    = patternToTerm idxR $ unArg $ fromMaybe __IMPOSSIBLE__ $

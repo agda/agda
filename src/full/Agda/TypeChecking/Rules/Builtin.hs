@@ -578,7 +578,7 @@ bindBuiltinNoDef b q = do
         -- Andreas, 2015-02-14
         -- Special treatment of SizeUniv, should maybe be a primitive.
         def | b == builtinSizeUniv = emptyFunction
-                { funClauses = [ (empty :: Clause) { clauseBody = Body $ Sort sSizeUniv } ]
+                { funClauses = [ (empty :: Clause) { clauseBody = Just $ Sort sSizeUniv } ]
                 , funCompiled = Just (CC.Done [] $ Sort sSizeUniv)
                 , funTerminates = Just True
                 }

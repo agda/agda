@@ -545,20 +545,11 @@ maskNonDataArgs ps = zipWith mask ps <$> terGetMaskArgs
     mask p@ProjDBP{} _ = Masked False p
     mask p           d = Masked d     p
 
--- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
-openClause :: Permutation -> [DeBruijnPattern] -> ClauseBody -> TerM ([DeBruijnPat], Maybe Term)
-openClause perm ps body = do
-  -- invariant: xs has enough variables for the body
-  unless (permRange perm == genericLength xs) __IMPOSSIBLE__
-  dbps <- mapM build ps
-  return . (dbps,) $ case body `applys` map var xs of
-    NoBody -> Nothing
-    Body v -> Just v
-    _      -> __IMPOSSIBLE__
+-- | Convert patterns to the format used by the termination checker
+--   TODO: refactor termination checking to use regular patterns
+convertPatterns :: [DeBruijnPattern] -> TerM [DeBruijnPat]
+convertPatterns ps = mapM build ps
   where
-    -- the variables as a map from the body variables to the clause telescope
-    xs   = permPicks $ flipP $ invertP __IMPOSSIBLE__ perm
-
     build :: DeBruijnPattern -> TerM DeBruijnPat
     build (VarP x)        = return $ VarDBP $ dbPatVarIndex x
     build (ConP con _ ps) = ConDBP (conName con) <$> mapM (build . namedArg) ps
@@ -576,9 +567,10 @@ termClause clause = do
 
 termClause' :: Clause -> TerM Calls
 termClause' clause = do
-  cl @ Clause { clauseTel  = tel
-              , clauseBody = body } <- introHiddenLambdas clause
-  let argPats' = clausePats cl
+  cl <- introHiddenLambdas clause
+  let tel      = clauseTel cl
+      argPats' = clausePats cl
+      body     = clauseBody cl
       perm     = fromMaybe __IMPOSSIBLE__ $ clausePerm cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
@@ -589,8 +581,8 @@ termClause' clause = do
     ]
   addContext tel $ do
     ps <- liftTCM $ normalise $ map unArg argPats'
-    (dbpats, res) <- openClause perm ps body
-    case res of
+    dbpats <- convertPatterns ps
+    case body of
       Nothing -> return empty
       Just v -> do
         dbpats <- mapM stripCoConstructors dbpats
@@ -629,8 +621,10 @@ termClause' clause = do
 introHiddenLambdas :: MonadTCM tcm => Clause -> tcm Clause
 introHiddenLambdas clause = liftTCM $ do
   case clause of
-    Clause range ctel ps body Nothing catchall  -> return clause
-    Clause range ctel ps body (Just t) catchall -> do
+    Clause range ctel ps body        Nothing  catchall -> return clause
+
+    Clause range ctel ps Nothing     (Just t) catchall -> return clause
+    Clause range ctel ps (Just body) (Just t) catchall -> do
       case removeHiddenLambdas body of
         -- nobody or no hidden lambdas
         ([], _) -> return clause
@@ -644,26 +638,19 @@ introHiddenLambdas clause = liftTCM $ do
           -- join with lhs telescope
           let ctel' = telFromList $ telToList ctel ++ telToList ttel
               ps'   = raise n ps ++ zipWith toPat (downFrom $ size axs) axs
-          return $ Clause range ctel' ps' body' (Just (t $> t')) catchall
+              perm' = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps'
+          return $ Clause range ctel' ps' (Just body') (Just (t $> t')) catchall
   where
+    perm = fromMaybe __IMPOSSIBLE__ $ clausePerm clause
     toPat i (Arg info x) = Arg info $ namedDBVarP i x
-    removeHiddenLambdas :: ClauseBody -> ([Arg ArgName], ClauseBody)
-    removeHiddenLambdas = underBinds $ hlamsToBinds
 
-    hlamsToBinds :: Term -> ([Arg ArgName], ClauseBody)
-    hlamsToBinds v =
+    removeHiddenLambdas :: Term -> ([Arg ArgName], Term)
+    removeHiddenLambdas v =
       case ignoreSharing v of
         Lam info b | getHiding info == Hidden ->
-          let (xs, b') = hlamsToBinds $ unAbs b
-          in  (Arg info (absName b) : xs, Bind $ b' <$ b)
-        _ -> ([], Body v)
-    underBinds :: (Term -> ([a], ClauseBody)) -> ClauseBody -> ([a], ClauseBody)
-    underBinds k body = loop body where
-      loop (Bind b) =
-        let (res, b') = loop $ unAbs b
-        in  (res, Bind $ b' <$ b)
-      loop NoBody = ([], NoBody)
-      loop (Body v) = k v
+          let (xs, b') = removeHiddenLambdas $ unAbs b
+          in  (Arg info (absName b) : xs, b')
+        _ -> ([], v)
 
 -- | Extract recursive calls from expressions.
 class ExtractCalls a where

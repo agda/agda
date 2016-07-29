@@ -24,6 +24,7 @@ import Data.Foldable (foldMap)
 import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Traversable (traverse)
 
 import qualified Agda.Benchmarking as Bench
 
@@ -362,10 +363,7 @@ instance Occurs Defn where
 instance Occurs Clause where
   occurs red ctx m xs cl = __IMPOSSIBLE__
 
-  metaOccurs m (Clause { clauseBody = body }) = walk body
-    where walk NoBody   = return ()
-          walk (Body v) = metaOccurs m v
-          walk (Bind b) = underAbstraction_ b walk
+  metaOccurs m = metaOccurs m . clauseBody
 
 instance Occurs Level where
   occurs red ctx m xs (Max as) = Max <$> occurs red ctx m xs as
@@ -463,6 +461,11 @@ instance Occurs a => Occurs [a] where
   occurs red ctx m xs ys = mapM (occurs red ctx m xs) ys
 
   metaOccurs m ys = mapM_ (metaOccurs m) ys
+
+instance Occurs a => Occurs (Maybe a) where
+  occurs red ctx m mx my = traverse (occurs red ctx m mx) my
+
+  metaOccurs m = maybe (return ()) (metaOccurs m)
 
 -- * Getting rid of flexible occurrences
 

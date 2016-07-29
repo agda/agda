@@ -9,6 +9,8 @@ module Agda.TypeChecking.Patterns.Match where
 
 import Prelude hiding (null)
 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.Monoid
 import Data.Traversable (traverse)
 
@@ -21,9 +23,13 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad hiding (reportSDoc)
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.Empty
 import Agda.Utils.Functor (for, ($>))
+import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Null
+import Agda.Utils.Singleton
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 
@@ -32,7 +38,7 @@ import Agda.Utils.Impossible
 
 -- | If matching is inconclusive (@DontKnow@) we want to know whether
 --   it is due to a particular meta variable.
-data Match a = Yes Simplification [Arg a]
+data Match a = Yes Simplification (IntMap (Arg a))
              | No
              | DontKnow (Blocked ())
   deriving Functor
@@ -41,6 +47,17 @@ instance Null (Match a) where
   empty = Yes empty empty
   null (Yes simpl as) = null simpl && null as
   null _              = False
+
+matchedArgs :: Empty -> Int -> IntMap (Arg a) -> [Arg a]
+matchedArgs err n vs = map get [0..n-1]
+  where
+    get k = fromMaybe (absurd err) $ IntMap.lookup k vs
+
+-- | Builds a proper substitution from an IntMap produced by match(Co)patterns
+buildSubstitution :: (DeBruijn a)
+                  => Empty -> Int -> IntMap (Arg a) -> Substitution' a
+buildSubstitution err n vs = parallelS $ map unArg $ matchedArgs err n vs
+
 
 -- 'mappend' is UNUSED.
 --
@@ -96,15 +113,15 @@ foldMatch match = loop where
             (r', vs') <- loop ps vs
             let vs1 = v' : vs'
             case r' of
-              Yes s' us' -> return (Yes (s `mappend` s') (us ++ us'), vs1)
-              No         -> return (No                              , vs1)
-              DontKnow m -> return (DontKnow m                      , vs1)
+              Yes s' us' -> return (Yes (s `mappend` s') (us `mappend` us'), vs1)
+              No         -> return (No                                     , vs1)
+              DontKnow m -> return (DontKnow m                             , vs1)
       _ -> __IMPOSSIBLE__
 
 -- | @matchCopatterns ps es@ matches spine @es@ against copattern spine @ps@.
 --
 --   Returns 'Yes' and a substitution for the pattern variables
---   (in form of [Term]) if matching was successful.
+--   (in form of IntMap Term) if matching was successful.
 --
 --   Returns 'No' if there was a constructor or projection mismatch.
 --
@@ -114,8 +131,7 @@ foldMatch match = loop where
 --   In any case, also returns spine @es@ in reduced form
 --   (with all the weak head reductions performed that were necessary
 --   to come to a decision).
-matchCopatterns :: (Show a, PrettyTCM a)
-                => [NamedArg (Pattern' a)]
+matchCopatterns :: [NamedArg DeBruijnPattern]
                 -> [Elim]
                 -> ReduceM (Match Term, [Elim])
 matchCopatterns ps vs = do
@@ -129,19 +145,17 @@ matchCopatterns ps vs = do
      foldMatch (matchCopattern . namedArg) ps vs
 
 -- | Match a single copattern.
-matchCopattern :: (Show a)
-               => Pattern' a
+matchCopattern :: DeBruijnPattern
                -> Elim
                -> ReduceM (Match Term, Elim)
 matchCopattern (ProjP _ p) elim@(Proj _ q)
-  | p == q    = return (Yes YesSimplification [], elim)
-  | otherwise = return (No                      , elim)
+  | p == q    = return (Yes YesSimplification empty, elim)
+  | otherwise = return (No                         , elim)
 matchCopattern ProjP{} Apply{}   = __IMPOSSIBLE__
 matchCopattern _       Proj{}    = __IMPOSSIBLE__
 matchCopattern p       (Apply v) = mapSnd Apply <$> matchPattern p v
 
-matchPatterns :: (Show a)
-              => [NamedArg (Pattern' a)]
+matchPatterns :: [NamedArg DeBruijnPattern]
               -> [Arg Term]
               -> ReduceM (Match Term, [Arg Term])
 matchPatterns ps vs = do
@@ -156,20 +170,20 @@ matchPatterns ps vs = do
      foldMatch (matchPattern . namedArg) ps vs
 
 -- | Match a single pattern.
-matchPattern :: (Show a)
-             => (Pattern' a)
+matchPattern :: DeBruijnPattern
              -> Arg Term
              -> ReduceM (Match Term, Arg Term)
 matchPattern p u = case (p, u) of
   (ProjP{}, _            ) -> __IMPOSSIBLE__
-  (VarP _ , arg          ) -> return (Yes NoSimplification [arg], arg)
-  (DotP _ , arg          ) -> return (Yes NoSimplification [arg], arg)
+  (VarP x , arg          ) -> return (Yes NoSimplification entry, arg)
+    where entry = singleton (dbPatVarIndex x, arg)
+  (DotP _ , arg@(Arg _ v)) -> return (Yes NoSimplification empty, arg)
   (LitP l , arg@(Arg _ v)) -> do
     w <- reduceB' v
     let arg' = arg $> ignoreBlocking w
     case ignoreSharing <$> w of
       NotBlocked _ (Lit l')
-          | l == l'            -> return (Yes YesSimplification []    , arg')
+          | l == l'            -> return (Yes YesSimplification empty , arg')
           | otherwise          -> return (No                          , arg')
       NotBlocked _ (MetaV x _) -> return (DontKnow $ Blocked x ()     , arg')
       Blocked x _              -> return (DontKnow $ Blocked x ()     , arg')
