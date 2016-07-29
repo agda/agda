@@ -417,7 +417,6 @@ checkRHS
 
 checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
   where
-  perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
   absurdPat = any (containsAbsurdPattern . namedArg) aps
   handleRHS rhs =
     case rhs of
