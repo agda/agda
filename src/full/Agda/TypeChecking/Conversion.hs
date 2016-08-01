@@ -22,6 +22,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.CompiledClause (CompiledClauses(Fail))
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import qualified Agda.TypeChecking.SyntacticEquality as SynEq
@@ -1383,30 +1384,36 @@ equalSort s1 s2 = do
             (_       , DLub{}  )             -> postpone
 
 
--- This should probably represent face maps with a more precise type
-toFaceMaps :: Term -> TCM [[(Int,Term)]]
-toFaceMaps t = do
-  view <- intervalView'
-  iz <- primIZero
-  io <- primIOne
-  ineg <- (\ q t -> Def q [Apply $ Arg defaultArgInfo t]) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
+-- -- This should probably represent face maps with a more precise type
+-- toFaceMaps :: Term -> TCM [[(Int,Term)]]
+-- toFaceMaps t = do
+--   view <- intervalView'
+--   iz <- primIZero
+--   io <- primIOne
+--   ineg <- (\ q t -> Def q [Apply $ Arg defaultArgInfo t]) <$> fromMaybe __IMPOSSIBLE__ <$> getPrimitiveName' "primINeg"
 
-  let f IZero = mzero
-      f IOne  = return []
-      f (IMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
-      f (IMax x y) = msum $ map (f . view . unArg) [x,y]
-      f (INeg x)   = map (id -*- not) <$> (f . view . unArg) x
-      f (OTerm (Var i [])) = return [(i,True)]
-      f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
-      isConsistent xs = all (\ xs -> length xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
-      as = map (map (id -*- head) . Map.toAscList) . filter isConsistent . map (Map.fromListWith (++) . map (id -*- (:[]))) $ (f (view t))
-  xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
-  return xs
+--   let f IZero = mzero
+--       f IOne  = return []
+--       f (IMin x y) = do xs <- (f . view . unArg) x; ys <- (f . view . unArg) y; return (xs ++ ys)
+--       f (IMax x y) = msum $ map (f . view . unArg) [x,y]
+--       f (INeg x)   = map (id -*- not) <$> (f . view . unArg) x
+--       f (OTerm (Var i [])) = return [(i,True)]
+--       f (OTerm _) = return [] -- what about metas? we should suspend? maybe no metas is a precondition?
+--       isConsistent xs = all (\ xs -> length xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
+--       as = map (map (id -*- head) . Map.toAscList) . filter isConsistent . map (Map.fromListWith (++) . map (id -*- (:[]))) $ (f (view t))
+--   xs <- mapM (mapM (\ (i,b) -> (,) i <$> intervalUnview (if b then IOne else IZero))) as
+--   return xs
 
-forallFaceMaps :: Term -> (Substitution -> TCM a) -> TCM [a]
-forallFaceMaps t k = do
-  as <- toFaceMaps t
-  forM as $ \ xs -> do
+forallFaceMaps :: Term -> (Map.Map Int Bool -> MetaId -> Term -> TCM a) -> (Substitution -> TCM a) -> TCM [a]
+forallFaceMaps t kb k = do
+  as <- decomposeInterval t
+  boolToI <- do
+    io <- primIOne
+    iz <- primIZero
+    return (\b -> if b then io else iz)
+  forM as $ \ (ms,ts) -> do
+   ifBlockeds ts (kb ms) $ \ _ -> do
+    let xs = map (id -*- boolToI) $ Map.toAscList ms
     cxt <- asks envContext
     (cxt',sigma) <- substContextN cxt xs
     resolved <- forM xs (\ (i,t) -> (,) <$> lookupBV i <*> return (applySubst sigma t))
@@ -1414,6 +1421,12 @@ forallFaceMaps t k = do
     modifyContext (const cxt') $ updateModuleParameters sigma $ do
       addBindings' (map (id -*- (applySubst sigma -*- applySubst sigma)) bs) $ addBindings resolved $ k sigma
   where
+    -- TODO Andrea: inefficient because we try to reduce the ts which we know are in whnf
+    ifBlockeds ts blocked unblocked = do
+      and <- getPrimitiveTerm "primIMin"
+      io  <- primIOne
+      let t = foldr (\ x r -> and `apply` [argN x,argN r]) io ts
+      ifBlocked t blocked unblocked
     addBindings' [] m = m
     addBindings' ((n,(v,t)):bs) m = addLetBinding' n v t (addBindings' bs m)
     addBindings [] m = m
@@ -1444,12 +1457,23 @@ equalTermOnFace = compareTermOnFace CmpEq
 
 compareTermOnFace :: Comparison -> Term -> Type -> Term -> Term -> TCM ()
 compareTermOnFace cmp phi ty u v = do
-  -- TODO postpone if phi contains metas
   phi <- reduce phi
-  _ <- forallFaceMaps phi $ \ alpha -> compareTerm cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
+  _ <- forallFaceMaps phi postponed
+         $ \ alpha -> compareTerm cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
-
-
+ where
+  postponed ms i psi = do
+    ty' <- runNamesT [] $ do
+             imin <- cl $ getPrimitiveTerm "primIMin"
+             ineg <- cl $ getPrimitiveTerm "primINeg"
+             ty <- open ty
+             psi <- open psi
+             let phi = foldr (\ (i,b) r -> do i <- open (var i); pure imin <@> (if b then i else pure ineg <@> i) <@> r)
+                          psi (Map.toList ms) -- TODO Andrea: make a view?
+             pPi' "o" phi $ const ty
+    let
+      lam_o = Lam (setRelevance Irrelevant defaultArgInfo) . NoAbs "_"
+    addConstraint (ValueCmp cmp ty' (lam_o u) (lam_o v))
 ---------------------------------------------------------------------------
 -- * Definitions
 ---------------------------------------------------------------------------

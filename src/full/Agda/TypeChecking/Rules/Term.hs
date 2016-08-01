@@ -810,7 +810,7 @@ checkExpr e t0 = do
           _ -> do
            gamma <- getContext
            gamma_tel <- getContextTelescope
-           ts <- forallFaceMaps phi' $ \ sigma -> do
+           ts <- forallFaceMaps phi' (\ _ _ _ -> __IMPOSSIBLE__) $ \ sigma -> do
              gamma' <- getContext
              let (l_sigma, a_sigma) = applySubst sigma (unArg l, unArg a)
              tel <- getContextTelescope
@@ -1761,7 +1761,7 @@ checkHeadApplication e t hd args = do
                           ty <- runNamesT [] $ do
                                 [lb,phi,bT] <- mapM (open . unArg) [lb,phi,bT]
                                 elInf $ cl primPartialP <#> lb <@> phi <@> bT
-                          equalTermOnFace (unArg phi) ty (Lam defaultArgInfo (NoAbs "_" (unArg a))) v
+                          equalTerm ty (Lam defaultArgInfo (NoAbs "_" (unArg a))) v
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do

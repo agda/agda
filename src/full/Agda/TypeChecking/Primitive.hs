@@ -920,7 +920,7 @@ primFaceForall' = do
          v       -> Just $ foldr (\ x r -> unview (IMax (argN x) (argN r))) (unview IZero)
                                  (map (foldr (\ x r -> unview (IMin (argN (either fm ffr x)) (argN r))) (unview IOne)) us)
 
-decomposeInterval :: Term -> ReduceM [(Map Int Bool,[Term])]
+decomposeInterval :: HasBuiltins m => Term -> m [(Map Int Bool,[Term])]
 decomposeInterval t = do
      view   <- intervalView'
      unview <- intervalUnview'
