@@ -49,7 +49,7 @@ import Agda.TypeChecking.Positivity.Occurrence hiding (tests)
 
 import Agda.Utils.Either hiding (tests)
 import Agda.Utils.Hash
-import Agda.Utils.List (spanJust)
+import Agda.Utils.List ( spanJust, chopWhen )
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Singleton
@@ -569,7 +569,7 @@ PragmaName :: { Name }
 PragmaName : string {% mkName $1 }
 
 PragmaQName :: { QName }
-PragmaQName : string {% fmap QName (mkName $1) }
+PragmaQName : string {% pragmaQName $1 }  -- Issue 2125. WAS: string {% fmap QName (mkName $1) }
 
 {--------------------------------------------------------------------------
     Expressions (terms and types)
@@ -1715,6 +1715,15 @@ mkQName :: [(Interval, String)] -> Parser QName
 mkQName ss = do
     xs <- mapM mkName ss
     return $ foldr Qual (QName $ last xs) (init xs)
+
+-- | Create a qualified name from a string (used in pragmas).
+--   Range of each name component is range of whole string.
+--   TODO: precise ranges!
+
+pragmaQName :: (Interval, String) -> Parser QName
+pragmaQName (r, s) = do
+  let ss = chopWhen (== '.') s
+  mkQName $ map (r,) ss
 
 -- | Polarity parser.
 

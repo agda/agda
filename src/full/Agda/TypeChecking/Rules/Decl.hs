@@ -902,7 +902,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       instFinal (ExtendTel (Dom info t) (Abs n EmptyTel)) =
                  ExtendTel (Dom ifo' t) (Abs n EmptyTel)
         where ifo' = setHiding Instance info
-      -- Otherwise, keep searchinf for last parameter:
+      -- Otherwise, keep searching for last parameter:
       instFinal (ExtendTel arg (Abs n tel)) =
                  ExtendTel arg (Abs n (instFinal tel))
       -- Before instFinal is invoked, we have checked that the @tel@ is not empty.
