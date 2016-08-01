@@ -1717,10 +1717,11 @@ checkHeadApplication e t hd args = do
                       case vs of
                        [_,_,_,_,phi,p] -> do
                           iv@(PathType s _ l a x y) <- idViewAsPath t1
-                          -- the following duplicates reduction of phi
-                          equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y) -- precondition for cx being well-typed at ty
-                          const_x <- pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
                           let ty = pathUnview iv
+                          -- the following duplicates reduction of phi
+                          const_x <- blockTerm ty $ do
+                              equalTermOnFace (unArg phi) (El s (unArg a)) (unArg x) (unArg y)
+                              pathAbs iv (NoAbs (stringToArgName "_") (unArg x))
                           equalTermOnFace (unArg phi) ty (unArg p) const_x   -- G,phi |- p = \ i . x
 
                           -- phi <- reduce phi
