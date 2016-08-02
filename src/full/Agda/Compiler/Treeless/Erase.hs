@@ -189,17 +189,18 @@ typeWithoutParams q = do
   first (drop d) <$> telListView (defType def)
 
 getTypeInfo :: Type -> E TypeInfo
-getTypeInfo t = do
-  (tel, t) <- lift $ telListView t
+getTypeInfo t0 = do
+  (tel, t) <- lift $ telListView t0
   et <- case ignoreSharing $ I.unEl t of
     I.Def d _ -> typeInfo d
     Sort{}    -> return Erasable
     _         -> return NotErasable
   is <- mapM (getTypeInfo . snd . dget) tel
-  let e | et == Empty       = Empty
-        | any (== Empty) is = Erasable
+  let e | any (== Empty) is = Erasable
+        | null is           = et        -- TODO: guard should really be "all inhabited is"
+        | et == Empty       = Erasable
         | otherwise         = et
-  lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t <+> text ("is " ++ show e)
+  lift $ reportSDoc "treeless.opt.erase.type" 50 $ prettyTCM t0 <+> text ("is " ++ show e)
   return e
   where
     typeInfo :: QName -> E TypeInfo
