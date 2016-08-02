@@ -563,7 +563,7 @@ standardOptions =
     , Option []     ["interaction"] (NoArg ghciInteractionFlag)
                     "for use with the Emacs mode"
     , Option ['c']  ["compile", "ghc"] (NoArg compileGhcFlag)
-                    "compile program using the GHC backend (experimental)"
+                    "compile program using the GHC backend"
     , Option []     ["ghc-dont-call-ghc"] (NoArg ghcDontCallGhcFlag) "Don't call ghc, just write the GHC Haskell files."
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling using the GHC backend"
