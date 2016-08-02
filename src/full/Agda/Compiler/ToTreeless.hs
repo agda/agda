@@ -352,5 +352,14 @@ substArgs :: [Arg I.Term] -> CC [C.TTerm]
 substArgs = traverse substArg
 
 substArg :: Arg I.Term -> CC C.TTerm
-substArg x | isIrrelevant x = return C.TErased
-           | otherwise      = substTerm (unArg x)
+substArg x | erasable x = return C.TErased
+           | otherwise  = substTerm (unArg x)
+  where
+    erasable x =
+      case getRelevance x of
+        Irrelevant -> True
+        NonStrict  -> True
+        UnusedArg  -> True
+        Forced{}   -> False -- TODO: would like this to be True
+        Relevant   -> False
+

@@ -73,10 +73,12 @@ disabledTests :: [RegexFilter]
 disabledTests =
   [ -- See Issue 1866
     RFInclude "Compiler/UHC/with-stdlib/.*"
--- See issue 1528
+    -- See issue 1528
   , RFInclude "Compiler/.*/simple/Sharing"
--- Disable UHC backend tests if the backend is also disabled.
+    -- This is quadratic under UHC even when the length index is erased
+  , RFInclude "Compiler/UHC/simple/VecReverseIrr"
 #if !defined(UHC_BACKEND)
+    -- Disable UHC backend tests if the backend is also disabled.
   , RFInclude "Compiler/UHC/"
 #endif
   -- JS backend tests are whitelisted for now
