@@ -1419,8 +1419,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
         ensureNoLetStms pars
         -- Check for duplicate constructors
-        do let cs   = map conName cons
-               dups = nub $ cs \\ nub cs
+        do cs <- mapM conName cons
+           let dups = nub $ cs \\ nub cs
                bad  = filter (`elem` dups) cs
            unless (distinct cs) $
              setCurrentRange bad $
@@ -1440,8 +1440,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "data" 20 $ "Checked data " ++ show x
         return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
       where
-        conName (C.Axiom _ _ _ _ _ _ _ c _) = c
-        conName _ = __IMPOSSIBLE__
+        conName (C.Axiom _ _ _ _ _ _ _ c _) = return c
+        conName d = errorNotConstrDecl d
 
   -- Record definitions (mucho interesting)
     C.RecDef r f a _ x ind eta cm pars fields -> do
@@ -1638,7 +1638,10 @@ instance ToAbstract ConstrDecl A.Declaration where
         return $ A.Axiom NoFunSig (mkDefInfoInstance x f p a i NotMacroDef r)
                          info Nothing y t'
       C.Axiom _ _ _ _ _ _ (Just _) _ _ -> __IMPOSSIBLE__
-      _ -> typeError . GenericDocError $
+      _ -> errorNotConstrDecl d
+
+errorNotConstrDecl :: C.NiceDeclaration -> ScopeM a
+errorNotConstrDecl d = typeError . GenericDocError $
         P.text "Illegal declaration in data type definition " P.$$
         P.nest 2 (P.vcat $ map pretty (notSoNiceDeclarations d))
 
