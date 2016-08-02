@@ -37,7 +37,7 @@ out >   λ a b c d e →
 out >     case e of
 out >       Agda.Builtin.List.List.[] → d
 out >       Agda.Builtin.List.List._∷_ f g →
-out >         c f (UnusedArguments.foldr a b c d g)
+out >         c f (UnusedArguments.foldr _ _ c d g)
 out > UnusedArguments.main =
 out >   Common.IO.then
 out >     () () _ _

@@ -11,15 +11,15 @@ out >           Agda.Builtin.List.List.[] → d
 out >           Agda.Builtin.List.List._∷_ h i →
 out >             Common.Bool.if_then_else_
 out >               _ _ (c f h)
-out >               (Agda.Builtin.List.List._∷_ f (CompileAsPattern._.merge a b c g e))
-out >               (Agda.Builtin.List.List._∷_ h (CompileAsPattern._.merge a b c d i))
+out >               (Agda.Builtin.List.List._∷_ f (CompileAsPattern._.merge a _ c g e))
+out >               (Agda.Builtin.List.List._∷_ h (CompileAsPattern._.merge a _ c d i))
 out > CompileAsPattern.mapM! =
 out >   λ a b c →
 out >     case c of
 out >       Agda.Builtin.List.List.[] → Common.IO.return () _ _
 out >       Agda.Builtin.List.List._∷_ d e →
 out >         Common.IO._>>=_
-out >           () () _ _ (b d) (λ f → CompileAsPattern.mapM! a b e)
+out >           () () _ _ (b d) (λ f → CompileAsPattern.mapM! _ b e)
 out > CompileAsPattern.xs =
 out >   Agda.Builtin.List.List._∷_
 out >     2
