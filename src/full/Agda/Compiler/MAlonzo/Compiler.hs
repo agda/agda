@@ -232,7 +232,7 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
         | Just (HsType ty) <- compiledHaskell compiled -> do
         ccscov <- ifM (noCheckCover q) (return []) $ do
             ccs <- List.concat <$> mapM checkConstructorType cs
-            cov <- checkCover q ty np cs
+            cov <- checkCover q ty (np + ni) cs
             return $ ccs ++ cov
         return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
