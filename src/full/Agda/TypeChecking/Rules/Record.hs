@@ -160,7 +160,11 @@ checkRecDef i name ind eta con ps contel fields =
       let npars = size tel
           telh  = fmap hideAndRelParams tel
       escapeContext npars $ do
-        compName <- defineCompR name tel ftel fs rect
+        compName <- do
+          cxt <- getContextTelescope
+          let sigma = IdS -- liftS (size tel) (raiseS (size cxt))
+          escapeContext (size cxt) $
+            defineCompR name (abstract cxt tel) (sigma `applySubst` ftel) fs (sigma `applySubst` rect)
         addConstant name $
           defaultDefn defaultArgInfo name t $
             Record
@@ -292,6 +296,9 @@ defineCompR name params fsT fns rect = do
   comp <- getPrimitiveTerm' "primComp"
   por <- getPrimitiveTerm' "primPOr"
   one <- getBuiltin' builtinItIsOne
+  reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
+  reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
+  reportSDoc "tc.rec.cxt" 30 $ prettyTCM rect
   if all isJust [i,iz,io,imin,imax,ineg,comp,por,one]
     then defineCompR' name params fsT fns rect
     else return Nothing
