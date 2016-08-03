@@ -266,9 +266,9 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     -- 2011-10-04 if flag --experimental-irrelevance is set
-    allowed <- optExperimentalIrrelevance <$> pragmaOptions
-    t <- modEnv lamOrPi allowed $ isType_ e
-    let info' = mapRelevance (modRel lamOrPi allowed) info
+    experimental <- optExperimentalIrrelevance <$> pragmaOptions
+    t <- modEnv lamOrPi $ isType_ e
+    let info' = mapRelevance (modRel lamOrPi experimental) info
     addContext' (xs, Dom info' t) $
       ret $ bindsWithHidingToTel xs (Dom info t)
     where
@@ -276,10 +276,10 @@ checkTypedBinding lamOrPi info (A.TBind i xs e) ret = do
         -- types, but do not modify the new context entries
         -- otherwise, if we are checking a pi, we do not resurrect, but
         -- modify the new context entries
-        modEnv LamNotPi True = doWorkOnTypes
-        modEnv _        _    = id
-        modRel PiNotLam True = irrToNonStrict
-        modRel _        _    = id
+        modEnv LamNotPi = workOnTypes
+        modEnv _        = id
+        modRel PiNotLam xp = if xp then irrToNonStrict else nonStrictToRel
+        modRel _        _  = id
 checkTypedBinding lamOrPi info (A.TLet _ lbs) ret = do
     checkLetBindings lbs (ret [])
 
