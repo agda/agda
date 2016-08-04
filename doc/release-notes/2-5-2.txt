@@ -447,6 +447,8 @@ Type checking
   This should make simultaneous interactive development on several modules
   more pleasant.
 
+  Requires option: --allow-unsolved-metas
+
   Internally, before serialization, open metas are turned into postulates named
 
     unsolved#meta.<nnn>
