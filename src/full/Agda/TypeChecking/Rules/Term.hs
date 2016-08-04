@@ -1650,7 +1650,7 @@ checkHeadApplication e t hd args = do
                                , A.lhsFocus      = defaultNamedArg $ A.LHSHead c' []
                                , A.lhsPatsRight  = [] }
             clause = A.Clause (A.LHS (A.LHSRange noRange) core []) []
-                              (A.RHS arg)
+                              (A.RHS arg Nothing)
                               [] False
 
         i <- currentOrFreshMutualBlock

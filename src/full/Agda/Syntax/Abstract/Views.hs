@@ -315,7 +315,7 @@ instance ExprLike a => ExprLike (Clause' a) where
 instance ExprLike RHS where
   recurseExpr f rhs =
     case rhs of
-      RHS e                   -> RHS <$> rec e
+      RHS e c                 -> RHS <$> rec e <*> pure c
       AbsurdRHS{}             -> pure rhs
       WithRHS x es cs         -> WithRHS x <$> rec es <*> rec cs
       RewriteRHS xes rhs ds   -> RewriteRHS <$> rec xes <*> rec rhs <*> rec ds

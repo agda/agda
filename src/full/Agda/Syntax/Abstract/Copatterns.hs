@@ -135,18 +135,12 @@ translateCopatternClauses cs = if all noCopats cs then return (NotDelayed, cs) e
   pcs :: [ProjPath Clause] <- mapM clauseToPath cs
   let cps :: [(Clause, [ProjPath Expr])]
       cps = groupClauses pcs
-{-
-      cps = map ((theContent . head) /\ map (fmap (rhsExpr . clauseRHS))) $
-              groupBy ((==) `on` clauseLHS . theContent) pcs
--}
   ces <- mapM (mapSndM pathToRecord) $
     map (mapSnd $ sortBy (compare `on` thePath)) cps
-  return $ map (\ (c, e) -> c { clauseRHS = RHS e }) ces
+  return $ map (\ (c, e) -> c { clauseRHS = RHS e Nothing }) ces  -- TODO: preserve C.Expr
   where
     noCopats Clause{ clauseLHS = LHS _ LHSHead{} _ } = True
     noCopats _                                       = False
-    rhsExpr (RHS e) = e
-    rhsExpr _       = __IMPOSSIBLE__
 
 -- | A sequence of decisions @b@ leading to a head @a@.
 data Path a b = Path
@@ -183,13 +177,13 @@ groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses re
     collect []         = ([], [])
 
     rhs             = rhsExpr . clauseRHS
-    rhsExpr (RHS e) = e
+    rhsExpr (RHS e _ ) = e  -- TODO: preserve C.Expr
     rhsExpr _       = __IMPOSSIBLE__
 
 clauseToPath :: Clause -> ScopeM (ProjPath Clause)
-clauseToPath (Clause (LHS i lhs wps) dots (RHS e) [] catchall) =
-  fmap (\ lhs -> Clause (LHS i lhs wps) dots (RHS e) [] catchall) <$> lhsToPath [] lhs
-clauseToPath (Clause lhs _ (RHS e) (_:_) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
+clauseToPath (Clause (LHS i lhs wps) dots (RHS e c) [] catchall) =
+  fmap (\ lhs -> Clause (LHS i lhs wps) dots (RHS e c) [] catchall) <$> lhsToPath [] lhs
+clauseToPath (Clause lhs _ (RHS e _) (_:_) _) = typeError $ NotImplemented $ "copattern clauses with where declarations"
 clauseToPath (Clause lhs _ _ wheredecls _) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
 
 lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
@@ -337,7 +331,7 @@ instance Rename NamedDotPattern where
 
 instance Rename RHS where
   rename rho e = case e of
-      RHS e                 -> RHS (rename rho e)
+      RHS e c               -> RHS (rename rho e) c
       AbsurdRHS             -> e
       WithRHS n es cs       -> WithRHS n (rename rho es) (rename rho cs)
       RewriteRHS nes r ds   -> RewriteRHS (rename rho nes) (rename rho r) (rename rho ds)

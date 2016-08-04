@@ -14,11 +14,12 @@ module Agda.Syntax.Abstract
     , module Agda.Syntax.Abstract.Name
     ) where
 
-import Prelude hiding (foldl, foldr)
+import Prelude
 import Control.Arrow (first)
 import Control.Applicative
 
-import Data.Foldable as Fold
+import Data.Foldable (Foldable)
+import qualified Data.Foldable as Fold
 import Data.Map (Map)
 import Data.Maybe
 import Data.Sequence (Seq, (<|), (><))
@@ -267,7 +268,13 @@ type Clause = Clause' LHS
 type SpineClause = Clause' SpineLHS
 
 data RHS
-  = RHS Expr
+  = RHS
+    { rhsExpr     :: Expr
+    , rhsConcrete :: Maybe C.Expr
+      -- ^ We store the original concrete expression in case
+      --   we have to reproduce it during interactive case splitting.
+      --   'Nothing' for internally generated rhss.
+    }
   | AbsurdRHS
   | WithRHS QName [Expr] [Clause]
       -- ^ The 'QName' is the name of the with function.
@@ -281,7 +288,14 @@ data RHS
       -- ^ The where clauses are attached to the @RewriteRHS@ by
       ---  the scope checker (instead of to the clause).
     }
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show)
+
+instance Eq RHS where
+  RHS e _          == RHS e' _            = e == e'
+  AbsurdRHS        == AbsurdRHS           = True
+  WithRHS a b c    == WithRHS a' b' c'    = and [ a == a', b == b', c == c' ]
+  RewriteRHS a b c == RewriteRHS a' b' c' = and [ a == a', b == b', c == c' ]
+  _                == _                   = False
 
 -- | The lhs of a clause in spine view (inside-out).
 --   Projection patterns are contained in @spLhsPats@,
@@ -619,7 +633,7 @@ instance HasRange a => HasRange (Clause' a) where
 
 instance HasRange RHS where
     getRange AbsurdRHS                = noRange
-    getRange (RHS e)                  = getRange e
+    getRange (RHS e _)                = getRange e
     getRange (WithRHS _ e cs)         = fuseRange e cs
     getRange (RewriteRHS xes rhs wh)  = getRange (map snd xes, rhs, wh)
 
@@ -745,7 +759,7 @@ instance KillRange NamedDotPattern where
 
 instance KillRange RHS where
   killRange AbsurdRHS                = AbsurdRHS
-  killRange (RHS e)                  = killRange1 RHS e
+  killRange (RHS e c)                = killRange2 RHS e c
   killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
   killRange (RewriteRHS xes rhs wh)  = killRange3 RewriteRHS xes rhs wh
 
@@ -827,7 +841,7 @@ instance AllNames Clause where
   allNames (Clause _ _ rhs decls _) = allNames rhs >< allNames decls
 
 instance AllNames RHS where
-  allNames (RHS e)                   = allNames e
+  allNames (RHS e _)                 = allNames e
   allNames AbsurdRHS{}               = Seq.empty
   allNames (WithRHS q _ cls)         = q <| allNames cls
   allNames (RewriteRHS qes rhs cls) = Seq.fromList (map fst qes) >< allNames rhs >< allNames cls
