@@ -22,6 +22,10 @@ Important changes since 0.12:
 * Added an `All` predicate and related properties for `Data.Vec` (see
   `Data.Vec.All` and `Data.Vec.All.Properties`).
 
+* Added symmetric and equivalence closures of binary relations in
+  Relation.Binary.SymmetricClosure and
+  Relation.Binary.EquivalenceClosure.
+
 Version 0.12
 ============
 
