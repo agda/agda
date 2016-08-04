@@ -44,6 +44,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.MetaVars ( openMetasToPostulates )
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Telescope
@@ -438,14 +439,13 @@ typeCheck x file includeStateChanges = do
           unless includeStateChanges cleanCachedLog
           let withMsgs = bracket_
                 (chaseMsg "Checking" x $ Just $ filePath file)
-                (const $ do
-                   ws <- getAllWarnings RespectFlags
-                   unless (hasWarnings ws) $ chaseMsg "Finished" x Nothing)
+                (const $ unlessM (hasWarnings <$> getAllWarnings RespectFlags) $
+                  chaseMsg "Finished" x Nothing)
 
           -- Do the type checking.
 
           if includeStateChanges then do
-            r <- withMsgs $ createInterface file x
+            r <- withMsgs $ createInterface file x includeStateChanges
 
             -- Merge the signature with the signature for imported
             -- things.
@@ -495,7 +495,7 @@ typeCheck x file includeStateChanges = do
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty Set.empty ipatsyns display
 
-                     r  <- withMsgs $ createInterface file x
+                     r  <- withMsgs $ createInterface file x includeStateChanges
                      mf <- use stModuleToSource
                      ds <- getDecodedModules
                      return (r, do
@@ -615,8 +615,9 @@ removePrivates si = si { scopeModules = restrictPrivate <$> scopeModules si }
 createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
+  -> Bool
   -> TCM (Interface, MaybeWarnings)
-createInterface file mname =
+createInterface file mname isMain =
   local (\e -> e { envCurrentPath = Just file }) $ do
     modFile       <- use stModuleToSource
     fileTokenInfo <- Bench.billTo [Bench.Highlighting] $
@@ -715,6 +716,31 @@ createInterface file mname =
     setScope scope
     reportSLn "scope.top" 50 $ "SCOPE " ++ show scope
 
+    -- TODO: It would be nice if unsolved things were highlighted
+    -- after every mutual block.
+
+    openMetas           <- getOpenMetas
+    unless (null openMetas) $ do
+      reportSLn "import.metas" 10 "We have unsolved metas."
+      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
+
+    ifTopLevelAndHighlightingLevelIs NonInteractive $
+      printUnsolvedInfo
+
+    -- Andreas, 2016-08-03, issue #964
+    -- When open metas are allowed,
+    -- permanently freeze them now by turning them into postulates.
+    -- This will enable serialization.
+    -- savedMetaStore <- use stMetaStore
+    unless isMain $
+      whenM (optAllowUnsolved <$> pragmaOptions) $ do
+        withCurrentModule (scopeCurrent scope) $
+          openMetasToPostulates
+        -- Clear constraints as they might refer to what
+        -- they think are open metas.
+        stAwakeConstraints    .= []
+        stSleepingConstraints .= []
+
     -- Serialization.
     reportSLn "import.iface.create" 7 $ "Starting serialization."
     syntaxInfo <- use stSyntaxInfo
@@ -730,17 +756,7 @@ createInterface file mname =
       ]
     reportSLn "import.iface.create" 7 $ "Finished serialization."
 
-    -- TODO: It would be nice if unsolved things were highlighted
-    -- after every mutual block.
-
-    openMetas           <- getOpenMetas
-    unless (null openMetas) $ do
-      reportSLn "import.metas" 10 "We have unsolved metas."
-      reportSLn "import.metas" 10 . unlines =<< showOpenMetas
-    mallWarnings <- getAllWarnings IgnoreFlags
-
-    ifTopLevelAndHighlightingLevelIs NonInteractive $
-      printUnsolvedInfo
+    mallWarnings <- getAllWarnings $ if isMain then IgnoreFlags else RespectFlags
 
     reportSLn "import.iface.create" 7 $ "Considering writing to interface file."
     case mallWarnings of
@@ -751,6 +767,10 @@ createInterface file mname =
         let ifile = filePath $ toIFile file
         writeInterface ifile i
     reportSLn "import.iface.create" 7 $ "Finished (or skipped) writing to interface file."
+
+    -- -- Restore the open metas, as we might continue in interaction mode.
+    -- Actually, we do not serialize the metas if checking the MainInterface
+    -- stMetaStore .= savedMetaStore
 
     -- Profiling: Print statistics.
     printStatistics 30 (Just mname) =<< getStatistics
@@ -786,7 +806,7 @@ getAllWarnings ifs = do
                : UnsolvedConstraints      tcst unsolvedConstraints
                : collectedWarnings
 
-  return $ if and [ null allWarnings, null interactionPoints ]
+  return $ if and [ null allWarnings ] -- , null interactionPoints ] -- Andreas, issue 964: we do want to serialize with open interaction points now!
            then NoWarnings
            else SomeWarnings allWarnings
 

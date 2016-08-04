@@ -11,6 +11,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Foldable as Fold
 
+import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
@@ -43,13 +44,14 @@ import Agda.Utils.Except
   , runExceptT
   )
 
+import Agda.Utils.Lens
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
-import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.Pretty ( prettyShow, render )
 import qualified Agda.Utils.VarSet as Set
 
 #include "undefined.h"
@@ -1169,3 +1171,47 @@ allMetas = foldTerm metas
   where
   metas (MetaV m _) = [m]
   metas _           = []
+
+
+-- | Turn open metas into postulates.
+--
+--   Preconditions:
+--
+--   1. We are 'inTopContext'.
+--
+--   2. 'envCurrentModule' is set to the top-level module.
+--
+openMetasToPostulates :: TCM ()
+openMetasToPostulates = do
+  m <- asks envCurrentModule
+
+  -- Go through all open metas.
+  ms <- Map.assocs <$> use stMetaStore
+  forM_ ms $ \ (x, mv) -> do
+    when (isOpenMeta $ mvInstantiation mv) $ do
+      let t = jMetaType $ mvJudgement mv
+
+      -- Create a name for the new postulate.
+      let r = clValue $ miClosRange $ mvInfo mv
+      -- s <- render <$> prettyTCM x -- Using _ is a bad idea, as it prints as prefix op
+      let s = "unsolved#meta." ++ show (metaId x)
+      n <- freshName r s
+      let q = A.QName m n
+
+      -- Debug.
+      reportSDoc "meta.postulate" 20 $ vcat
+        [ text ("Turning " ++ if isSortMeta_ mv then "sort" else "value" ++ " meta ")
+            <+> prettyTCM x <+> text " into postulate."
+        , nest 2 $ vcat
+          [ text "Name: " <+> prettyTCM q
+          , text "Type: " <+> prettyTCM t
+          ]
+        ]
+
+      -- Add the new postulate to the signature.
+      addConstant q $ defaultDefn defaultArgInfo q t Axiom
+
+      -- Solve the meta.
+      let inst = InstV [] $ Def q []
+      stMetaStore %= Map.adjust (\ mv0 -> mv0 { mvInstantiation = inst }) x
+      return ()
