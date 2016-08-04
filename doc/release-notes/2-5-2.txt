@@ -440,6 +440,18 @@ Language
           test : P (Wrap.unwrap b)  -- fails
 
 
+Type checking
+=============
+
+* Files with open metas can be imported now [Issue #964].
+  This should make simultaneous interactive development on several modules
+  more pleasant.
+
+  Internally, before serialization, open metas are turned into postulates named
+
+    unsolved#meta.<nnn>
+
+  where <nnn> is the internal meta variable number.
 
 
 Emacs mode

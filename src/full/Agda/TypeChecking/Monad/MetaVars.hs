@@ -348,14 +348,15 @@ getInstantiatedMetas = do
 getOpenMetas :: TCM [MetaId]
 getOpenMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpen mi ]
-    where
-        isOpen Open                           = True
-        isOpen OpenIFS                        = True
-        isOpen BlockedConst{}                 = True
-        isOpen PostponedTypeCheckingProblem{} = True
-        isOpen InstV{}                        = False
-        isOpen InstS{}                        = False
+    return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpenMeta mi ]
+
+isOpenMeta :: MetaInstantiation -> Bool
+isOpenMeta Open                           = True
+isOpenMeta OpenIFS                        = True
+isOpenMeta BlockedConst{}                 = True
+isOpenMeta PostponedTypeCheckingProblem{} = True
+isOpenMeta InstV{}                        = False
+isOpenMeta InstS{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.
