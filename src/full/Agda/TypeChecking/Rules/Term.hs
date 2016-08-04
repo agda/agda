@@ -556,7 +556,6 @@ checkExtendedLambda i di qname cs e t = do
              throwError err
            -- Case: we know the meta here.
            Just InstV{} -> __IMPOSSIBLE__  -- It cannot be instantiated yet.
-           Just InstS{} -> __IMPOSSIBLE__
            Just{} -> do
              -- It has to be blocked on some meta, so we can postpone,
              -- being sure it will be retired when a meta is solved

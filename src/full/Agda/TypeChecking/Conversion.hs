@@ -754,7 +754,6 @@ compareIrrelevant t v w = do
       let rel  = getMetaRelevance mv
           inst = case mvInstantiation mv of
                    InstV{} -> True
-                   InstS{} -> True
                    _       -> False
       reportSDoc "tc.conv.irr" 20 $ vcat
         [ nest 2 $ text $ "rel  = " ++ show rel

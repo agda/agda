@@ -195,7 +195,6 @@ solveConstraint_ (UnBlock m)                =
       -- already solved metavariables: should only happen for size
       -- metas (not sure why it does, Andreas?)
       InstV{} -> return ()
-      InstS{} -> return ()
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
@@ -216,4 +215,3 @@ debugConstraints = verboseS "tc.constr" 50 $ do
     [ text "Current constraints"
     , nest 2 $ vcat [ text "awake " <+> vcat (map prettyTCM awake)
                     , text "asleep" <+> vcat (map prettyTCM sleeping) ] ]
-

@@ -278,7 +278,6 @@ instance PrettyTCM Constraint where
                     , nest 2 $ prettyTCM p ]
               Open{}  -> __IMPOSSIBLE__
               OpenIFS{}  -> __IMPOSSIBLE__
-              InstS{} -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
         FindInScope m mb Nothing -> do
             t <- getMetaType m

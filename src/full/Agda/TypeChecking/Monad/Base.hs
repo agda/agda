@@ -923,7 +923,6 @@ data Frozen
 
 data MetaInstantiation
         = InstV [Arg String] Term -- ^ solved by term (abstracted over some free variables)
-        | InstS Term         -- ^ solved by @Lam .. Sort s@
         | Open               -- ^ unsolved
         | OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
         | BlockedConst Term  -- ^ solution blocked by unsolved constraints
@@ -946,7 +945,6 @@ data TypeCheckingProblem
 
 instance Show MetaInstantiation where
   show (InstV tel t) = "InstV " ++ show tel ++ " (" ++ show t ++ ")"
-  show (InstS s) = "InstS (" ++ show s ++ ")"
   show Open      = "Open"
   show OpenIFS   = "OpenIFS"
   show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"

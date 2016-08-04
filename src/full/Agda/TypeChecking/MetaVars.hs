@@ -74,7 +74,6 @@ isBlockedTerm x = do
             BlockedConst{}                 -> True
             PostponedTypeCheckingProblem{} -> True
             InstV{}                        -> False
-            InstS{}                        -> False
             Open{}                         -> False
             OpenIFS{}                      -> False
     reportSLn "tc.meta.blocked" 12 $
@@ -88,7 +87,6 @@ isEtaExpandable kinds x = do
       Open{}                         -> True
       OpenIFS{}                      -> notElem Records kinds
       InstV{}                        -> False
-      InstS{}                        -> False
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
 
@@ -96,7 +94,7 @@ isEtaExpandable kinds x = do
 
 -- | Performing the meta variable assignment.
 --
---   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
+--   The instantiation should not be an 'InstV' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
 assignTerm :: MetaId -> [Arg ArgName] -> Term -> TCM ()
