@@ -11,4 +11,4 @@ isEtaRecord :: HasConstInfo m => QName -> m Bool
 getRecordFieldNames :: QName -> TCM [Arg C.Name]
 etaContractRecord :: HasConstInfo m => QName -> ConHead -> Args -> m Term
 isGeneratedRecordConstructor :: QName -> TCM Bool
-isRecordConstructor :: MonadTCM tcm => QName -> tcm (Maybe (QName, Defn))
+isRecordConstructor :: HasConstInfo m => QName -> m (Maybe (QName, Defn))
