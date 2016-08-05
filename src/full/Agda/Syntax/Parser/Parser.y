@@ -411,8 +411,9 @@ DoubleCloseBrace
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
 MaybeDottedId
-  : '.' Id { setRelevance Irrelevant $ defaultArg $2 }
-  | Id     { defaultArg $1 }
+  : '..' Id { setRelevance NonStrict $ defaultArg $2 }
+  | '.'  Id { setRelevance Irrelevant $ defaultArg $2 }
+  | Id      { defaultArg $1 }
 
 -- Space separated list of one or more possibly dotted identifiers.
 MaybeDottedIds :: { [Arg Name] }

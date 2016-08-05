@@ -9,6 +9,7 @@ import Control.Arrow (first, second, (***))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Trans.Maybe
 
 import Data.List hiding (null)
 import Data.Set (Set)
@@ -648,6 +649,10 @@ instance HasConstInfo (TCMT IO) where
 
           dropLastModule q@QName{ qnameModule = m } =
             q{ qnameModule = mnameFromList $ ifNull (mnameToList m) __IMPOSSIBLE__ init }
+
+instance (HasConstInfo m) => HasConstInfo (MaybeT m) where
+  getConstInfo = lift . getConstInfo
+  getRewriteRulesFor = lift . getRewriteRulesFor
 
 instance (HasConstInfo m, Error err) => HasConstInfo (ExceptionT err m) where
   getConstInfo = lift . getConstInfo

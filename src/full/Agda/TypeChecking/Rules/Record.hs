@@ -372,6 +372,7 @@ checkRecordProjections m r con tel ftel fs = do
         -- compute body modification for irrelevant projections
         let bodyMod = case rel of
               Relevant   -> id
+              NonStrict  -> id
               Irrelevant -> DontCare
               _          -> __IMPOSSIBLE__
 

@@ -53,6 +53,7 @@ import Agda.TypeChecking.Level (levelView', unLevel, reallyUnLevelView, subLevel
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primLevelSuc)
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records (isRecordConstructor)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Reduce.Monad
 import Agda.TypeChecking.Substitute
@@ -245,10 +246,10 @@ instance Match a b => Match (Dom a) (Dom b) where
 instance Match a b => Match (Type' a) (Type' b) where
   match gamma k p v = match gamma k (unEl p) (unEl v)
 
-instance (Match a b, Subst t1 a, Subst t2 b) => Match (Abs a) (Abs b) where
+instance (Match a b, RaiseNLP a, Subst t2 b) => Match (Abs a) (Abs b) where
   match gamma k (Abs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p v
   match gamma k (Abs n p) (NoAbs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) p (raise 1 v)
-  match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raise 1 p) v
+  match gamma k (NoAbs n p) (Abs _ v) = match gamma (ExtendTel dummyDom (Abs n k)) (raiseNLP 1 p) v
   match gamma k (NoAbs _ p) (NoAbs _ v) = match gamma k p v
 
 instance Match NLPat Level where
@@ -306,17 +307,31 @@ instance Match NLPat Term where
         case ignoreSharing v of
           Def f' es
             | f == f'   -> match gamma k ps es
-            | otherwise -> no (text "")
           Con c vs
             | f == conName c -> match gamma k ps (Apply <$> vs)
-            | otherwise -> no (text "")
+            | otherwise -> do -- @c@ may be a record constructor
+                mr <- liftRed $ isRecordConstructor (conName c)
+                case mr of
+                  Just (r, def) | recEtaEquality def -> do
+                    let fs = recFields def
+                        qs = map (fmap $ \f -> PDef f (ps ++ [Proj ProjSystem f])) fs
+                    match gamma k qs vs
+                  _ -> no (text "")
           Lam i u -> do
-            let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PBoundVar 0 []])
+            let pbody = PDef f (raiseNLP 1 ps ++ [Apply $ Arg i $ PTerm (var 0)])
                 body  = absBody u
             match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
           MetaV m es -> do
             matchingBlocked $ Blocked m ()
-          _ -> no (text "")
+          v' -> do -- @f@ may be a record constructor as well
+            mr <- liftRed $ isRecordConstructor f
+            case mr of
+              Just (r, def) | recEtaEquality def -> do
+                let fs  = recFields def
+                    ws  = map (fmap $ \f -> v `applyE` [Proj ProjSystem f]) fs
+                    ps' = fromMaybe __IMPOSSIBLE__ $ allApplyElims ps
+                match gamma k ps' ws
+              _ -> no (text "")
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
         match gamma k p' body
@@ -333,6 +348,18 @@ instance Match NLPat Term where
             _          -> no (text "")
       PBoundVar i ps -> case ignoreSharing v of
         Var i' es | i == i' -> match gamma k ps es
+        Con c vs -> do -- @c@ may be a record constructor
+          mr <- liftRed $ isRecordConstructor (conName c)
+          case mr of
+            Just (r, def) | recEtaEquality def -> do
+              let fs = recFields def
+                  qs = map (fmap $ \f -> PBoundVar i (ps ++ [Proj ProjSystem f])) fs
+              match gamma k qs vs
+            _ -> no (text "")
+        Lam info u -> do
+          let pbody = PBoundVar i (raiseNLP 1 ps ++ [Apply $ Arg info $ PTerm (var 0)])
+              body  = absBody u
+          match gamma (ExtendTel dummyDom (Abs (absName u) k)) pbody body
         MetaV m es -> matchingBlocked $ Blocked m ()
         _ -> no (text "")
       PTerm u -> tellEq gamma k u v
