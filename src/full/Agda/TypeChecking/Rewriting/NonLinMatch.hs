@@ -329,8 +329,8 @@ instance Match NLPat Term where
               Just (r, def) | recEtaEquality def -> do
                 let fs  = recFields def
                     ws  = map (fmap $ \f -> v `applyE` [Proj ProjSystem f]) fs
-                    ps' = fromMaybe __IMPOSSIBLE__ $ allApplyElims ps
-                match gamma k ps' ws
+                    qs = fromMaybe __IMPOSSIBLE__ $ allApplyElims ps
+                match gamma k qs ws
               _ -> no (text "")
       PLam i p' -> do
         let body = Abs (absName p') $ raise 1 v `apply` [Arg i (var 0)]
