@@ -866,21 +866,21 @@ getElims v = maybe default id $ hasElims v
 -}
 
 -- | Drop 'Apply' constructor. (Unsafe!)
-argFromElim :: Elim -> Arg Term
+argFromElim :: Elim' a -> Arg a
 argFromElim (Apply u) = u
 argFromElim Proj{}    = __IMPOSSIBLE__
 
 -- | Drop 'Apply' constructor. (Safe)
-isApplyElim :: Elim -> Maybe (Arg Term)
+isApplyElim :: Elim' a -> Maybe (Arg a)
 isApplyElim (Apply u) = Just u
 isApplyElim Proj{}    = Nothing
 
 -- | Drop 'Apply' constructors. (Safe)
-allApplyElims :: Elims -> Maybe Args
+allApplyElims :: [Elim' a] -> Maybe [Arg a]
 allApplyElims = mapM isApplyElim
 
 -- | Split at first non-'Apply'
-splitApplyElims :: Elims -> (Args, Elims)
+splitApplyElims :: [Elim' a] -> ([Arg a], [Elim' a])
 splitApplyElims (Apply u : es) = mapFst (u :) $ splitApplyElims es
 splitApplyElims es             = ([], es)
 
