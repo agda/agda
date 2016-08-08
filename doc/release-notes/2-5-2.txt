@@ -439,6 +439,33 @@ Language
           b : B
           test : P (Wrap.unwrap b)  -- fails
 
+* Pattern synonyms are now expanded on left hand sides of DISPLAY pragmas
+  [Issue 2132].  Example:
+
+    data D : Set where
+      C c : D
+      g : D → D
+
+    pattern C′ = C
+
+    {-# DISPLAY C′ = C′ #-}
+    {-# DISPLAY g C′ = c #-}
+
+  This now behaves as:
+
+    {-# DISPLAY C = C′ #-}
+    {-# DISPLAY g C = c #-}
+
+  Expected error for
+
+    test : C ≡ g C
+    test = refl
+
+  is thus:
+
+    C′ != c of type D
+
+
 
 Type checking
 =============

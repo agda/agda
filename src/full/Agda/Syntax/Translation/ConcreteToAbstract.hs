@@ -71,6 +71,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env (insideDotPattern, isInsideDotPattern)
 import Agda.TypeChecking.Rules.Builtin (isUntypedBuiltin, bindUntypedBuiltin)
 
+import Agda.TypeChecking.Patterns.Abstract (expandPatternSynonyms)
 import Agda.TypeChecking.Pretty hiding (pretty, prettyA)
 
 import Agda.Interaction.FindFile (checkModuleName)
@@ -1783,22 +1784,35 @@ instance ToAbstract C.Pragma [A.Pragma] where
 
     top <- getHead lhs
 
-    hd <- do
+    (isPatSyn, hd) <- do
       qx <- resolveName' allKindsOfNames Nothing top
       case qx of
-        VarName x'          -> return $ A.qnameFromList [x']
-        DefinedName _ d     -> return $ anameName d
-        FieldName     [d]    -> return $ anameName d
+        VarName x'          -> return . (False,) $ A.qnameFromList [x']
+        DefinedName _ d     -> return . (False,) $ anameName d
+        FieldName     [d]    -> return . (False,) $ anameName d
         FieldName ds         -> genericError $ "Ambiguous projection " ++ show top ++ ": " ++ show (map anameName ds)
-        ConstructorName [d] -> return $ anameName d
+        ConstructorName [d] -> return . (False,) $ anameName d
         ConstructorName ds  -> genericError $ "Ambiguous constructor " ++ show top ++ ": " ++ show (map anameName ds)
         UnknownName         -> notInScope top
-        PatternSynResName d -> return $ anameName d
+        PatternSynResName d -> return . (True,) $ anameName d
 
     lhs <- toAbstract $ LeftHandSide top lhs []
     ps  <- case lhs of
              A.LHS _ (A.LHSHead _ ps) [] -> return ps
              _ -> err
+
+    -- Andreas, 2016-08-08, issue #2132
+    -- Remove pattern synonyms on lhs
+    (hd, ps) <- do
+      let mkP | isPatSyn =  A.PatternSynP (PatRange $ getRange lhs) hd
+              | otherwise = A.DefP (PatRange $ getRange lhs) (A.AmbQ [hd])
+      p <- expandPatternSynonyms $ mkP ps
+      case p of
+        A.DefP _ (A.AmbQ [hd]) ps -> return (hd, ps)
+        A.ConP _ (A.AmbQ [hd]) ps -> return (hd, ps)
+        A.PatternSynP{} -> __IMPOSSIBLE__
+        _ -> err
+
     rhs <- toAbstract rhs
     return [A.DisplayPragma hd ps rhs]
 
