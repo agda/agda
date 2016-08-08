@@ -761,7 +761,10 @@ compareIrrelevant t v w = do
         ]
       if not (irrelevantOrUnused rel) || inst
         then fallback
-        else assignE DirEq x es w $ compareIrrelevant t
+        -- Andreas, 2016-08-08, issue #2131:
+        -- Mining for solutions for irrelevant metas is not definite.
+        -- Thus, in case of error, leave meta unsolved.
+        else (assignE DirEq x es w $ compareIrrelevant t) `catchError` \ _ -> fallback
         -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
 
