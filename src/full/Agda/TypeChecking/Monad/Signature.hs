@@ -717,6 +717,27 @@ getCompiled q = do
     Function{ funTreeless = t } -> t
     _                           -> Nothing
 
+getErasedConArgs :: QName -> TCM [Bool]
+getErasedConArgs q = do
+  def <- getConstInfo q
+  case theDef def of
+    Constructor{ conData = d, conPars = np, conErased = es } -> do
+      ddef <- getConstInfo d
+      case compiledHaskell $ defCompiledRep ddef of
+        Nothing -> return es
+        Just _  -> do
+          -- Can't erase arguments of COMPILED_DATA constructors yet
+          TelV tel _ <- telView $ defType def
+          return $ replicate (size tel - np) False
+    _ -> __IMPOSSIBLE__
+
+setErasedConArgs :: QName -> [Bool] -> TCM ()
+setErasedConArgs q args = modifyGlobalDefinition q setArgs
+  where
+    setArgs def@Defn{theDef = con@Constructor{}} =
+      def{ theDef = con{ conErased = args } }
+    setArgs def = def   -- no-op for non-constructors
+
 getTreeless :: QName -> TCM (Maybe TTerm)
 getTreeless q = fmap cTreeless <$> getCompiled q
 

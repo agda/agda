@@ -1463,6 +1463,7 @@ data Defn = Axiom
             , conData   :: QName       -- ^ Name of datatype or record type.
             , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
+            , conErased :: [Bool]      -- ^ Which arguments are erased at runtime (computed during compilation to treeless)
             }
           | Primitive
             { primAbstr :: IsAbstract
@@ -2919,7 +2920,7 @@ instance KillRange Defn where
         killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
-      Constructor a b c d e          -> killRange5 Constructor a b c d e
+      Constructor a b c d e f        -> killRange6 Constructor a b c d e f
       Primitive a b c d              -> killRange4 Primitive a b c d
 
 instance KillRange MutualId where
