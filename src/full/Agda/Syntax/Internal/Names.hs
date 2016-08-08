@@ -57,7 +57,7 @@ instance NamesIn Defn where
     Datatype    { dataClause = cl, dataCons = cs, dataSort = s }   -> namesIn (cl, cs, s)
     Record      { recClause = cl, recConHead = c, recFields = fs, recComp = comp } -> namesIn (cl, c, (fs, comp))
       -- Don't need recTel since those will be reachable from the constructor
-    Constructor { conSrcCon = c, conData = d }                     -> namesIn (c, d)
+    Constructor { conSrcCon = c, conData = d, conComp = cn }       -> namesIn (c, d, cn)
     Primitive   { primClauses = cl, primCompiled = cc }            -> namesIn (cl, cc)
 
 instance NamesIn Clause where

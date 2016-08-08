@@ -28,7 +28,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
+import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn, defineCompForFields )
 import Agda.TypeChecking.Rules.Term ( isType_ )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
@@ -194,6 +194,7 @@ checkRecDef i name ind eta con ps contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
+              , conComp   = Nothing
               }
 
       -- Declare the constructor as eligible for instance search
@@ -298,137 +299,39 @@ defineCompR name params fsT fns rect = do
   one <- getBuiltin' builtinItIsOne
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM params
   reportSDoc "tc.rec.cxt" 30 $ prettyTCM fsT
-  reportSDoc "tc.rec.cxt" 30 $ prettyTCM rect
+  reportSDoc "tc.rec.cxt" 30 $ text $ show rect
   if all isJust [i,iz,io,imin,imax,ineg,comp,por,one]
     then defineCompR' name params fsT fns rect
     else return Nothing
 
 defineCompR , defineCompR' ::
-  QName          -- ^ record name
+  QName          -- ^ some name, e.g. record name
   -> Telescope   -- ^ param types Δ
   -> Telescope   -- ^ fields' types Δ ⊢ Φ
   -> [Arg QName] -- ^ fields' names
   -> Type        -- ^ record type Δ ⊢ T
   -> TCM (Maybe QName)
 defineCompR' name params fsT fns rect = do
-  interval <- elInf primInterval
-  let deltaI = expTelescope interval params
-  iz <- primIZero
-  io <- primIOne
-  imin <- getPrimitiveTerm "primIMin"
-  imax <- getPrimitiveTerm "primIMax"
-  ineg <- getPrimitiveTerm "primINeg"
-  comp <- getPrimitiveTerm "primComp"
-  por <- getPrimitiveTerm "primPOr"
-  one <- primItIsOne
-  reportSDoc "comp.rec" 20 $ text $ show params
-  reportSDoc "comp.rec" 20 $ text $ show deltaI
-  reportSDoc "comp.rec" 10 $ text $ show fsT
-  compName <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName name)
-  reportSLn "comp.rec" 5 $ ("Generated name: " ++ show compName ++ " " ++ showQNameId compName)
-  compType <- (abstract deltaI <$>) $ runNamesT [] $ do
-              rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
-                                                             pure rect')
-              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
-               (nPi' "i" (elInf $ cl primInterval) $ \ i ->
-                pPi' "o" phi $ \ _ -> absApp <$> rect' <*> i) -->
-               (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
-  reportSDoc "comp.rec" 20 $ prettyTCM compType
-
-  addConstant compName (defaultDefn defaultArgInfo compName compType emptyFunction)
-
-  TelV gamma rtype <- telView compType
-
-  let
-      -- Γ, i : I ⊢ Φ
-      fsT' = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst`
-              (sub params `applySubst` fsT) -- Δ^I, i : I ⊢ Φ
-
-      -- Γ ⊢ rect_gamma_lvl : I -> Level
-      -- Γ ⊢ rect_gamma     : (i : I) -> Set (rect_gamma_lvl i)  -- record type
-      (rect_gamma_lvl, rect_gamma) = (lam_i (Level . lvlView . Sort . getSort $ drect_gamma) , lam_i (unEl drect_gamma))
-        where
-          drect_gamma = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst` rect'
-          lam_i = Lam defaultArgInfo . Abs "i"
-
-      -- Γ ⊢ compR Γ : rtype
-      compTerm = Def compName [] `apply` teleArgs gamma
-
-      -- Γ ⊢ fillR Γ : ..
-      fillTerm = runNames [] $ do
-        params <- mapM open $ take (size deltaI) $ teleArgs gamma
-        [phi,w,w0] <- mapM (open . var) [2,1,0]
-        lvl  <- open rect_gamma_lvl
-        rect <- open rect_gamma
-        lam "i" $ \ i -> do
-          args <- mapM (underArg $ \ bA -> lam "j" $ \ j -> bA <@> (pure imin <@> i <@> j)) params
-          psi  <- pure imax <@> phi <@> (pure ineg <@> i)
-          u <- lam "j" (\ j -> pure por <#> (lvl <@> (pure imin <@> i <@> j))
-                                        <@> phi
-                                        <@> (pure ineg <@> i)
-                                        <#> (lam "_" $ \ o -> rect <@> (pure imin <@> i <@> j))
-                                        <@> (w <@> (pure imin <@> i <@> j))
-                                        <@> (lam "_" $ \ o -> w0) -- TODO wait for i = 0
-                       )
-          u0 <- w0
-          pure $ Def compName [] `apply` (args ++ [argN psi, argN u, argN u0])
-        where
-          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m))
-
-      -- Γ ⊢ Φ[n ↦ f_n (compR Γ)]
-      clause_types = parallelS [compTerm `applyE` [Proj (unArg fn)]
-                               | fn <- reverse fns] `applySubst`
-                       flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ ⊢ Φ
-
-      -- Γ, i : I ⊢ Φ[n ↦ f_n (fillR Γ i)]
-      filled_types = parallelS [raise 1 fillTerm `applyE` [Apply $ argN $ var 0, Proj (unArg fn)]
-                               | fn <- reverse fns] `applySubst`
-                       flattenTel fsT' -- Γ, i : I, Φ ⊢ Φ
-
-  cs <- flip mapM (zip3 fns clause_types filled_types) $ \ (fname,ty,filled_ty') -> do
+  (compName, gamma, _, clause_types, bodies) <-
+    defineCompForFields (\ t fn -> t `applyE` [Proj fn]) name params fsT fns rect
+  cs <- flip mapM (zip3 fns clause_types bodies) $ \ (fname, clause_ty, body) -> do
           let
-              fn = unArg fname
-              pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP fn]
-              proj t = (`applyE` [Proj fn]) <$> t
-              filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . unDom) filled_ty')
-              -- Γ ⊢ l : I -> Level of filled_ty
-              lvl = Lam defaultArgInfo (Abs "i" $ (Level . lvlView . Sort . getSort . unDom) filled_ty')
-              c = Clause { clauseTel = gamma
-                         , clauseType = Just $ argN (unDom ty)
+              pats = teleNamedArgs gamma ++ [defaultNamedArg $ ProjP $ unArg fname]
+              c = Clause { clauseTel       = gamma
+                         , clauseType      = Just $ argN (unDom clause_ty)
                          , namedClausePats = pats
-                         , clauseRange = noRange
-                         , clauseCatchall = False
-                         , clauseBody = abstract gamma $ Body $ runNames [] $ do
-                             lvl <- open lvl
-                             [phi,w,w0] <- mapM (open . var) [2,1,0]
-                             pure comp <#> lvl <@> pure filled_ty
-                                               <@> phi
-                                               <@> (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO block on o = itIsOne
-                                               <@> proj w0
+                         , clauseRange     = noRange
+                         , clauseCatchall  = False
+                         , clauseBody      = abstract gamma $ Body $ body
                          }
           reportSDoc "comp.rec" 17 $ text $ show c
 --          reportSDoc "comp.rec" 10 $ text $ show (clauseType c)
-          reportSDoc "comp.rec" 15 $ prettyTCM $ abstract gamma (unDom ty)
+          reportSDoc "comp.rec" 15 $ prettyTCM $ abstract gamma (unDom clause_ty)
           reportSDoc "comp.rec" 10 $ prettyTCM (clauseBody c)
           return c
   addClauses compName cs
   return $ Just compName
-  where
-    -- record type in 'exponentiated' context
-    -- (params : Δ^I), i : I |- T[params i]
-    rect' = sub params `applySubst` rect
-    -- Δ^I, i : I |- sub Δ : Δ
-    sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
-    -- given I type, and Δ telescope, build Δ^I such that
-    -- (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
-    expTelescope :: Type -> Telescope -> Telescope
-    expTelescope int tel = unflattenTel names ys
-      where
-        xs = flattenTel tel
-        names = teleNames tel
-        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
-        s = sub tel
-        ys = map (fmap (abstract t) . applySubst s) xs
+
 
 {-| @checkRecordProjections m r q tel ftel fs@.
 

@@ -99,6 +99,7 @@ bindBuiltinSharp e =
                     , conData   = defName infDefn
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
+                    , conComp   = Nothing
                     }
                 }
     return sharpE

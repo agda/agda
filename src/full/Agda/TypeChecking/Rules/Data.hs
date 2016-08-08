@@ -14,14 +14,18 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
+import Agda.Syntax.Scope.Monad
+import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Monad.Builtin (primLevel)
+import Agda.TypeChecking.Monad.Builtin -- (primLevel)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.Names
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
@@ -235,12 +239,32 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         t' `fitsIn` s
         debugAdd c t'
 
+        TelV fields tgt <- telView t'
         -- add parameters to constructor type and put into signature
         let con = ConHead c Inductive [] -- data constructors have no projectable fields and are always inductive
-        escapeContext (size tel) $
+        escapeContext (size tel) $ do
+
+          cnames <- if nofIxs /= 0 then return Nothing else do
+            cxt <- getContextTelescope
+            escapeContext (size cxt) $ do
+              names <- replicateM (size fields) (freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName c))
+              let params = abstract cxt tel
+                  fsT    = fields
+                  t   = applySubst (strengthenS __IMPOSSIBLE__ (size fields)) tgt
+              inTopContext $ do
+                reportSDoc "tc.con.cxt" 30 $ text $ "stuff for " ++ show c
+                reportSDoc "tc.con.cxt" 30 $ text $ show names
+                reportSDoc "tc.con.cxt" 30 $ prettyTCM params
+                reportSDoc "tc.con.cxt" 30 $ prettyTCM fsT
+                reportSDoc "tc.con.cxt" 30 $ prettyTCM t
+              noMutualBlock $ defineProjections d con params names fsT t
+              comp <- noMutualBlock $ defineCompData d con params names fsT t
+              return $ fmap (\ x -> (x,names)) comp
+
           addConstant c $
             defaultDefn defaultArgInfo c (telePi tel t') $
-              Constructor (size tel) con d (Info.defAbstract i) Inductive
+              Constructor (size tel) con d (Info.defAbstract i) Inductive cnames
+
 
         -- Add the constructor to the instance table, if needed
         when (Info.defInstance i == InstanceDef) $ do
@@ -272,6 +296,213 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
         [ text "adding constructor" <+> prettyTCM c <+> text ":" <+> prettyTCM t
         ]
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
+
+defineCompData :: QName      -- datatype name
+               -> ConHead
+               -> Telescope  -- Γ parameters
+               -> [QName]    -- projection names
+               -> Telescope  -- Γ ⊢ Φ field types
+               -> Type       -- Γ ⊢ T target type
+               -> TCM (Maybe QName)
+defineCompData d con params names fsT t = do
+  haveCubicalThings <- do
+    i  <- getBuiltin' builtinInterval
+    iz <- getBuiltin' builtinIZero
+    io <- getBuiltin' builtinIOne
+    imin <- getPrimitiveTerm' "primIMin"
+    imax <- getPrimitiveTerm' "primIMax"
+    ineg <- getPrimitiveTerm' "primINeg"
+    comp <- getPrimitiveTerm' "primComp"
+    por <- getPrimitiveTerm' "primPOr"
+    one <- getBuiltin' builtinItIsOne
+    return $ maybe False (const True) $ sequence [i,iz,io,imin,imax,ineg,comp,por,one]
+  if not haveCubicalThings then return Nothing else do
+    (compName, gamma , ty, _ , bodies) <-
+      defineCompForFields (\ t p -> apply (Def p []) [argN t]) d params fsT (map argN names) t
+    let clause = Clause
+            { clauseTel = gamma
+            , clauseType = Just . argN $ ty
+            , namedClausePats = teleNamedArgs gamma
+            , clauseRange = noRange
+            , clauseCatchall = False
+            , clauseBody = abstract gamma $ Body $ Con con (map argN bodies)
+            }
+    addClauses compName [clause]
+    setTerminates compName True
+    return $ Just compName
+
+defineProjections :: QName      -- datatype name
+                  -> ConHead
+                  -> Telescope  -- Γ parameters
+                  -> [QName]    -- projection names
+                  -> Telescope  -- Γ ⊢ Φ field types
+                  -> Type       -- Γ ⊢ T target type
+                  -> TCM ()
+defineProjections dataname con params names fsT t = do
+  let
+    -- Γ , (d : T) ⊢ Φ[n ↦ proj n d]
+    fieldTypes = ([ Def f [] `apply` [argN $ var 0] | f <- reverse names ] ++# raiseS 1) `applySubst`
+                    flattenTel fsT  -- Γ , Φ ⊢ Φ
+    -- ⊢ Γ , (d : T)
+    projTel = abstract params (ExtendTel (defaultDom t) (Abs "d" EmptyTel))
+  forM_ (zip3 (downFrom (size fieldTypes)) names fieldTypes) $ \ (i,projName,ty) -> do
+    let
+      projType = abstract projTel <$> ty
+
+    inTopContext $ do
+      reportSDoc "tc.data.proj" 20 $ sep [ text "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
+
+    let
+      ctel = abstract params fsT
+      cpi  = ConPatternInfo Nothing (Just $ argN $ raise (size fsT) t)
+      conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
+      clause = Clause
+          { clauseTel = ctel
+          , clauseType = Just . argN $ ([Con con (teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
+          , namedClausePats = [Named Nothing <$> conp]
+          , clauseRange = noRange
+          , clauseCatchall = False
+          , clauseBody = abstract fsT $ Body $ var i
+          }
+      proj = Projection
+        { projProper   = False
+        , projOrig     = projName
+        -- name of the data type:
+        , projFromType = dataname
+        -- index of the data argument (in the type),
+        -- start counting with 1:
+        , projIndex    = size projTel -- = size params + 1
+        , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
+        }
+      test = abstract ctel $ Def projName [] `apply` [argN $ Con con (teleArgs fsT)]
+    addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
+      emptyFunction
+        { funClauses = [clause]
+        , funProjection = Just proj
+        , funTerminates = Just True
+        }
+
+    -- test' <- normalise test
+    -- inTopContext $ do
+    --   reportSDoc "tc.data.proj.test" 20 $ sep [ text "test proj" <+> text (show i)
+    --                                           , nest 2 $ text . show $ test
+    --                                           , nest 2 $ text . show $ test' ]
+
+defineCompForFields
+  :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
+  -> QName       -- ^ some name, e.g. record name
+  -> Telescope   -- ^ param types Δ
+  -> Telescope   -- ^ fields' types Δ ⊢ Φ
+  -> [Arg QName] -- ^ fields' names
+  -> Type        -- ^ record type Δ ⊢ T
+  -> TCM (QName, Telescope, Type, [Dom Type], [Term])
+defineCompForFields applyProj name params fsT fns rect = do
+  interval <- elInf primInterval
+  let deltaI = expTelescope interval params
+  iz <- primIZero
+  io <- primIOne
+  imin <- getPrimitiveTerm "primIMin"
+  imax <- getPrimitiveTerm "primIMax"
+  ineg <- getPrimitiveTerm "primINeg"
+  comp <- getPrimitiveTerm "primComp"
+  por <- getPrimitiveTerm "primPOr"
+  one <- primItIsOne
+  reportSDoc "comp.rec" 20 $ text $ show params
+  reportSDoc "comp.rec" 20 $ text $ show deltaI
+  reportSDoc "comp.rec" 10 $ text $ show fsT
+  compName <- freshAbstractQName noFixity' (A.nameConcrete $ A.qnameName name)
+  reportSLn "comp.rec" 5 $ ("Generated name: " ++ show compName ++ " " ++ showQNameId compName)
+  compType <- (abstract deltaI <$>) $ runNamesT [] $ do
+              rect' <- open (runNames [] $ bind "i" $ \ x -> let _ = x `asTypeOf` pure (undefined :: Term) in
+                                                             pure rect')
+              nPi' "phi" (elInf $ cl primInterval) $ \ phi ->
+               (nPi' "i" (elInf $ cl primInterval) $ \ i ->
+                pPi' "o" phi $ \ _ -> absApp <$> rect' <*> i) -->
+               (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
+  reportSDoc "comp.rec" 20 $ prettyTCM compType
+
+  addConstant compName $ defaultDefn defaultArgInfo compName compType $
+    emptyFunction { funTerminates = Just True }
+
+  --   ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (_ : (i : I) -> Partial φ (R (δ i))) (_ : R (δ i0))
+  -- Γ ⊢     rtype = R (δ i1)
+  TelV gamma rtype <- telView compType
+
+  let
+      -- Γ, i : I ⊢ Φ
+      fsT' = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst`
+              (sub params `applySubst` fsT) -- Δ^I, i : I ⊢ Φ
+
+      -- Γ ⊢ rect_gamma_lvl : I -> Level
+      -- Γ ⊢ rect_gamma     : (i : I) -> Set (rect_gamma_lvl i)  -- record type
+      (rect_gamma_lvl, rect_gamma) = (lam_i (Level . lvlView . Sort . getSort $ drect_gamma) , lam_i (unEl drect_gamma))
+        where
+          drect_gamma = liftS 1 (raiseS (size gamma - size deltaI)) `applySubst` rect'
+          lam_i = Lam defaultArgInfo . Abs "i"
+
+      -- Γ ⊢ compR Γ : rtype
+      compTerm = Def compName [] `apply` teleArgs gamma
+
+      -- Γ ⊢ fillR Γ : ..
+      fillTerm = runNames [] $ do
+        params <- mapM open $ take (size deltaI) $ teleArgs gamma
+        [phi,w,w0] <- mapM (open . var) [2,1,0]
+        lvl  <- open rect_gamma_lvl
+        rect <- open rect_gamma
+        lam "i" $ \ i -> do
+          args <- mapM (underArg $ \ bA -> lam "j" $ \ j -> bA <@> (pure imin <@> i <@> j)) params
+          psi  <- pure imax <@> phi <@> (pure ineg <@> i)
+          u <- lam "j" (\ j -> pure por <#> (lvl <@> (pure imin <@> i <@> j))
+                                        <@> phi
+                                        <@> (pure ineg <@> i)
+                                        <#> (lam "_" $ \ o -> rect <@> (pure imin <@> i <@> j))
+                                        <@> (w <@> (pure imin <@> i <@> j))
+                                        <@> (lam "_" $ \ o -> w0) -- TODO wait for i = 0
+                       )
+          u0 <- w0
+          pure $ Def compName [] `apply` (args ++ [argN psi, argN u, argN u0])
+        where
+          underArg k m = Arg <$> (argInfo <$> m) <*> (k (unArg <$> m))
+
+      -- Γ ⊢ Φ[n ↦ f_n (compR Γ)]
+      clause_types = parallelS [compTerm `applyProj` (unArg fn)
+                               | fn <- reverse fns] `applySubst`
+                       flattenTel (singletonS 0 io `applySubst` fsT') -- Γ, Φ ⊢ Φ
+
+      -- Γ, i : I ⊢ Φ[n ↦ f_n (fillR Γ i)]
+      filled_types = parallelS [raise 1 fillTerm `apply` [argN $ var 0] `applyProj` (unArg fn)
+                               | fn <- reverse fns] `applySubst`
+                       flattenTel fsT' -- Γ, i : I, Φ ⊢ Φ
+
+      mkBody (fname, filled_ty') = let
+          proj t = (`applyProj` unArg fname) <$> t
+          filled_ty = Lam defaultArgInfo (Abs "i" $ (unEl . unDom) filled_ty')
+          -- Γ ⊢ l : I -> Level of filled_ty
+          lvl = Lam defaultArgInfo (Abs "i" $ (Level . lvlView . Sort . getSort . unDom) filled_ty')
+        in runNames [] $ do
+             lvl <- open lvl
+             [phi,w,w0] <- mapM (open . var) [2,1,0]
+             pure comp <#> lvl <@> pure filled_ty
+                               <@> phi
+                               <@> (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO block on o = itIsOne
+                               <@> proj w0
+  return $ (compName, gamma, rtype, clause_types, map mkBody (zip fns filled_types))
+  where
+    -- record type in 'exponentiated' context
+    -- (params : Δ^I), i : I |- T[params i]
+    rect' = sub params `applySubst` rect
+    -- Δ^I, i : I |- sub Δ : Δ
+    sub tel = parallelS [ var n `apply` [Arg defaultArgInfo $ var 0] | n <- [1..size tel] ]
+    -- given I type, and Δ telescope, build Δ^I such that
+    -- (x : A, y : B x, ...)^I = (x : I → A, y : (i : I) → B (x i), ...)
+    expTelescope :: Type -> Telescope -> Telescope
+    expTelescope int tel = unflattenTel names ys
+      where
+        xs = flattenTel tel
+        names = teleNames tel
+        t = ExtendTel (defaultDom $ raise (size tel) int) (Abs "i" EmptyTel)
+        s = sub tel
+        ys = map (fmap (abstract t) . applySubst s) xs
 
 
 -- | Bind the parameters of a datatype.

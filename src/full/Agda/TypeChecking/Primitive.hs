@@ -658,7 +658,7 @@ primComp = do
                      Record{recComp = Just compR} | Just as <- allApplyElims es
                                 -> redReturn $ (Def compR []) `apply`
                                                (map (fmap lam_i) as ++ [ignoreBlocking sphi,u,a0])
-                     Datatype{} -> compData l sc sphi u a0
+                     Datatype{} | Just as <- allApplyElims es -> compData l as sc sphi u a0
                      _          -> fallback
 
                  _ -> fallback
@@ -668,11 +668,11 @@ primComp = do
       _ -> __IMPOSSIBLE__
 
  where
-  compData l sc sphi u a0 = do
+  compData l as sc sphi u a0 = do
     su  <- reduceB' u
     sa0 <- reduceB' a0
     let f = unArg . ignoreBlocking
-    mt <- cheapDataComp (f sphi) (f su) (f sa0)
+    mt <- cheapDataComp as (f sphi) (f su) (f sa0)
     case mt of
       Just t  -> redReturn t
       Nothing -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su, reduced sa0]
@@ -719,24 +719,32 @@ primComp = do
 
   lam_i = Lam defaultArgInfo . Abs "i"
 
-  cheapDataComp :: Term -> Term -> Term -> ReduceM (Maybe Term)
-  cheapDataComp phi u a0 = do
+  cheapDataComp :: [Arg Term] -> Term -> Term -> Term -> ReduceM (Maybe Term)
+  cheapDataComp ps phi u a0 = do
     view   <- intervalView'
     unview <- intervalUnview'
     let boolToI b = if b then unview IOne else unview IZero
     case a0 of
-      Con h [] ->
+      Con h args ->
         case view phi of
           IZero -> return (Just a0)
           _     -> do
-           as <- decomposeInterval phi
-           b  <- (all isJust <$>) . forM as $ \ (bs,ts) -> do
+
+           sameCon <- do
+             as <- decomposeInterval phi
+             (all isJust <$>) . forM as $ \ (bs,ts) -> do
                   t <- reduce2Lam $ listS (Map.toList (Map.map boolToI bs)) `applySubst` u
                   return $ case t of
                              Con h' as | h == h'
                                        -> Just as
                              _         -> Nothing
-           return $ if b then Just a0 else Nothing
+           if not sameCon then return Nothing else
+             if null args then return (Just a0) else do
+               Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
+               case cm of
+                 Just (compD,_) -> return $ Just $ (Def compD []) `apply`
+                                               (map (fmap lam_i) ps ++ map argN [phi,u,a0])
+                 Nothing -> return Nothing
       _        -> return Nothing
     where
       reduce2Lam t = do
