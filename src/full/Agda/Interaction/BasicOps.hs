@@ -343,7 +343,6 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
               OfType tac <$> reify goal
           Open{}  -> __IMPOSSIBLE__
           OpenIFS{}  -> __IMPOSSIBLE__
-          InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
     reify (FindInScope m _b mcands) = FindInScopeOF
       <$> (reify $ MetaV m [])
@@ -474,7 +473,6 @@ getSolvedInteractionPoints all = concat <$> do
             unsol = return []
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m $ map Apply args)
-          InstS{}                        -> sol (Level $ Max [Plus 0 $ MetaLevel m $ map Apply args])
           Open{}                         -> unsol
           OpenIFS{}                      -> unsol
           BlockedConst{}                 -> unsol
@@ -529,7 +527,6 @@ typesOfHiddenMetas norm = liftTCM $ do
   openAndImplicit is x m =
     case mvInstantiation m of
       M.InstV{} -> False
-      M.InstS{} -> False
       M.Open    -> x `notElem` is
       M.OpenIFS -> x `notElem` is  -- OR: True !?
       M.BlockedConst{} -> True

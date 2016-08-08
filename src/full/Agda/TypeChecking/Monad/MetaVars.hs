@@ -152,7 +152,6 @@ isInstantiatedMeta' m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
     InstV tel v -> Just $ foldr mkLam v tel
-    InstS v     -> Just v
     _           -> Nothing
 
 -- | Create 'MetaInfo' in the current environment.
@@ -343,7 +342,6 @@ getInstantiatedMetas = do
         isInst BlockedConst{}                 = False
         isInst PostponedTypeCheckingProblem{} = False
         isInst InstV{}                        = True
-        isInst InstS{}                        = True
 
 getOpenMetas :: TCM [MetaId]
 getOpenMetas = do
@@ -356,7 +354,6 @@ isOpenMeta OpenIFS                        = True
 isOpenMeta BlockedConst{}                 = True
 isOpenMeta PostponedTypeCheckingProblem{} = True
 isOpenMeta InstV{}                        = False
-isOpenMeta InstS{}                        = False
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.

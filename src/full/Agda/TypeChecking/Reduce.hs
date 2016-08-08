@@ -93,7 +93,6 @@ instance Instantiate Term where
       OpenIFS                          -> return t
       BlockedConst _                   -> return t
       PostponedTypeCheckingProblem _ _ -> return t
-      InstS _                          -> __IMPOSSIBLE__
   instantiate' (Level l) = levelTm <$> instantiate' l
   instantiate' (Sort s) = sortTm <$> instantiate' s
   instantiate' v@Shared{} =
@@ -127,7 +126,6 @@ instance Instantiate a => Instantiate (Blocked a) where
       OpenIFS                        -> return v
       BlockedConst{}                 -> return v
       PostponedTypeCheckingProblem{} -> return v
-      InstS{}                        -> __IMPOSSIBLE__
 
 instance Instantiate Type where
     instantiate' (El s t) = El <$> instantiate' s <*> instantiate' t

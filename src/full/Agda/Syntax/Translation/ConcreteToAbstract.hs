@@ -1887,7 +1887,7 @@ data RightHandSide = RightHandSide
 data AbstractRHS
   = AbsurdRHS'
   | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
-  | RHS' A.Expr
+  | RHS' A.Expr C.Expr
   | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
 
 qualifyName_ :: A.Name -> ScopeM A.QName
@@ -1902,7 +1902,7 @@ withFunctionName s = do
 
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
-  toAbstract (RHS' e)              = return $ A.RHS e
+  toAbstract (RHS' e c)            = return $ A.RHS e $ Just c
   toAbstract (RewriteRHS' eqs rhs wh) = do
     auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
     rhs  <- toAbstract rhs
@@ -1931,7 +1931,7 @@ instance ToAbstract RightHandSide AbstractRHS where
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
-    toAbstract (C.RHS e)   = RHS' <$> toAbstract e
+    toAbstract (C.RHS e)   = RHS' <$> toAbstract e <*> pure e
 
 data LeftHandSide = LeftHandSide C.QName C.Pattern [C.Pattern]
 

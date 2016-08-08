@@ -223,7 +223,7 @@ buildWithFunction cxtNames f aux t qs npars withSub perm n1 n cs = mapM buildWit
         ]
       return result
 
-    buildRHS rhs@(A.RHS _)               = return rhs
+    buildRHS rhs@A.RHS{}                 = return rhs
     buildRHS rhs@A.AbsurdRHS             = return rhs
     buildRHS (A.WithRHS q es cs)         = A.WithRHS q es <$>
       mapM ((A.spineToLhs . permuteNamedDots) <.> buildWithClause . A.lhsToSpine) cs

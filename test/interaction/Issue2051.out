@@ -12,5 +12,5 @@
 ((last . 1) . (agda2-goals-action '(0 1 2)))
 ((last . 2) . (agda2-make-case-action '("app d = ? x" "app (c x) = ? x")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))
-((last . 2) . (agda2-make-case-action '("test d = let y₁ : _ y₁ = c in ?" "test (c x) = let y₁ : _ y₁ = c in ?")))
+((last . 2) . (agda2-make-case-action '("test d = let y = c in ?" "test (c x) = let y = c in ?")))
 ((last . 1) . (agda2-goals-action '(0 1 2)))

@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Traversable
 
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete (exprFieldA)
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Abstract as A
@@ -73,33 +74,33 @@ checkFunDef delayed i name cs = do
         t    <- typeOfConst name
         info  <- flip setRelevance defaultArgInfo <$> relOfConst name
         case isAlias cs t of
-          Just (e, x) ->
+          Just (e, mc, x) ->
             traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do
               -- Andreas, 2012-11-22: if the alias is in an abstract block
               -- it has been frozen.  We unfreeze it to enable type inference.
               -- See issue 729.
               whenM (isFrozen x) $ unfreezeMeta x
-              checkAlias t info delayed i name e
+              checkAlias t info delayed i name e mc
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
 
 -- | A single clause without arguments and without type signature is an alias.
-isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, MetaId)
+isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, Maybe C.Expr, MetaId)
 isAlias cs t =
         case trivialClause cs of
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just e | Just x <- isMeta (ignoreSharing $ unEl t) -> Just (e, x)
+          Just (e, mc) | Just x <- isMeta (ignoreSharing $ unEl t) -> Just (e, mc, x)
           _ -> Nothing
   where
     isMeta (MetaV x _) = Just x
     isMeta _           = Nothing
-    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) _ (A.RHS e) [] _] = Just e
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) _ (A.RHS e mc) [] _] = Just (e, mc)
     trivialClause _ = Nothing
 
 -- | Check a trivial definition of the form @f = e@
-checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAlias t' ai delayed i name e = atClause name 0 (A.RHS e) $ do
+checkAlias :: Type -> ArgInfo -> Delayed -> Info.DefInfo -> QName -> A.Expr -> Maybe C.Expr -> TCM ()
+checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
   reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
     [ text (show name) <+> colon  <+> prettyTCM t'
     , text (show name) <+> equals <+> prettyTCM e
@@ -422,7 +423,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
     case rhs of
 
       -- Case: ordinary RHS
-      A.RHS e -> do
+      A.RHS e _ -> do
         when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps
         v <- checkExpr e $ unArg trhs
         return (Just v, NoWithFunction)

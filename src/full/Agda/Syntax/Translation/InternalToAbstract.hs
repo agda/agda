@@ -780,7 +780,7 @@ instance BlankVars A.ModuleName where
   blank bound = id
 
 instance BlankVars RHS where
-  blank bound (RHS e)                = RHS $ blank bound e
+  blank bound (RHS e mc)             = RHS (blank bound e) mc
   blank bound AbsurdRHS              = AbsurdRHS
   blank bound (WithRHS _ es clauses) = __IMPOSSIBLE__ -- NZ
   blank bound (RewriteRHS xes rhs _) = __IMPOSSIBLE__ -- NZ
@@ -921,7 +921,8 @@ instance Reify NamedClause A.Clause where
       return $ dropParams nfv lhs
     lhs <- stripImps lhs
     reportSLn "reify.clause" 60 $ "reifying NamedClause, lhs = " ++ show lhs
-    rhs <- maybe (return AbsurdRHS) (RHS <.> reify) $ clauseBody cl
+    rhs <- caseMaybe (clauseBody cl) (return AbsurdRHS) $ \ e -> do
+       RHS <$> reify e <*> pure Nothing
     reportSLn "reify.clause" 60 $ "reifying NamedClause, rhs = " ++ show rhs
     let result = A.Clause (spineToLhs lhs) [] rhs [] (I.clauseCatchall cl)
     reportSLn "reify.clause" 60 $ "reified NamedClause, result = " ++ show result
