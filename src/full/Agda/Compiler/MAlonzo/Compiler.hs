@@ -396,8 +396,11 @@ term tm0 = case tm0 of
     return $ hsVarUQ x
   T.TApp (T.TDef f) ts -> do
     used <- lift $ getCompiledArgUse f
-    if any not used && length ts >= length used
-      then do
+    let given   = length ts
+        needed  = length used
+        missing = drop given used
+    if any not used
+      then if any not missing then term (etaExpand (needed - given) tm0) else do
         f <- lift $ HS.Var <$> xhqn "du" f  -- used stripped function
         f `apps` [ t | (t, True) <- zip ts $ used ++ repeat True ]
       else do
@@ -415,12 +418,7 @@ term tm0 = case tm0 of
         let missing = drop (length ts) erased
             notErased = not
         case all notErased missing of
-          False ->
-            -- eta expand
-            let n = length missing in
-            term $ foldr (const T.TLam)
-                         (T.TApp (T.TCon c) $ raise n ts ++ [T.TVar i | i <- [0..n - 1]])
-                         (replicate n ())
+          False -> term $ etaExpand (length missing) tm0
           True  -> do
             f <- lift $ HS.Con <$> conhqn c
             f `apps` [ t | (t, False) <- zip ts erased ]
@@ -456,6 +454,11 @@ term tm0 = case tm0 of
   T.TError e -> return $ case e of
     T.TUnreachable ->  rtmUnreachableError
   where apps =  foldM (\ h a -> HS.App h <$> term a)
+        etaExpand n t =
+          foldr (const T.TLam)
+                (T.mkTApp (raise n t) [T.TVar i | i <- [n - 1, n - 2..0]])
+                (replicate n ())
+
 
 compilePrim :: T.TPrim -> HS.Exp
 compilePrim s =
