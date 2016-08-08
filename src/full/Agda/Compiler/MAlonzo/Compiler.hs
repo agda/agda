@@ -12,7 +12,7 @@ import Control.Monad.Reader hiding (mapM_, forM_, mapM, forM, sequence)
 import Control.Monad.State  hiding (mapM_, forM_, mapM, forM, sequence)
 
 import Data.Generics.Geniplate
-import Data.Foldable hiding (any, foldr, sequence_)
+import Data.Foldable hiding (any, all, foldr, sequence_)
 import Data.Function
 import qualified Data.List as List
 import Data.Map (Map)
