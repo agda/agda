@@ -37,6 +37,7 @@ import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Compiler.ToTreeless
 import Agda.Compiler.Treeless.Unused
+import Agda.Compiler.Treeless.Erase
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
@@ -236,10 +237,12 @@ definition kit Defn{defName = q, defType = ty, defCompiledRep = compiled, theDef
             return $ ccs ++ cov
         return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccscov
       Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
+        computeErasedConstructorArgs q
         (ars, cds) <- unzip <$> mapM condecl cs
         return $ tvaldecl q (dataInduction d) (List.maximum (np:ars) - np) (np + ni) cds cl
       Constructor{} -> return []
       Record{ recClause = cl, recConHead = con, recFields = flds } -> do
+        computeErasedConstructorArgs q
         let c = conName con
         let noFields = length flds
         let ar = I.arity ty
@@ -365,7 +368,7 @@ checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
 checkCover q ty n cs = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c = do
-        (a, _) <- conArityAndPars c
+        a <- erasedArity c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ replicate a HS.PWildCard
         return $ HS.Alt dummy pat (HS.UnGuardedRhs $ HS.unit_con) emptyBinds
@@ -400,6 +403,27 @@ term tm0 = case tm0 of
       else do
         t' <- term (T.TDef f)
         t' `apps` ts
+  T.TApp (T.TCon c) ts -> do
+    kit <- lift coinductionKit
+    if Just c == (nameOfSharp <$> kit)
+      then do
+        t' <- HS.Var <$> lift (xhqn "d" c)
+        apps t' ts
+      else do
+        (ar, _) <- lift $ conArityAndPars c
+        erased  <- lift $ getErasedConArgs c
+        let missing = drop (length ts) erased
+            notErased = not
+        case all notErased missing of
+          False ->
+            -- eta expand
+            let n = length missing in
+            term $ foldr (const T.TLam)
+                         (T.TApp (T.TCon c) $ raise n ts ++ [T.TVar i | i <- [0..n - 1]])
+                         (replicate n ())
+          True  -> do
+            f <- lift $ HS.Con <$> conhqn c
+            f `apps` [ t | (t, False) <- zip ts erased ]
   T.TApp t ts -> do
     t' <- term t
     t' `apps` ts
@@ -424,11 +448,7 @@ term tm0 = case tm0 of
   T.TLit l -> lift $ literal l
   T.TDef q -> do
     HS.Var <$> (lift $ xhqn "d" q)
-  T.TCon q -> do
-    kit <- lift coinductionKit
-    if Just q == (nameOfSharp <$> kit)
-      then HS.Var <$> lift (xhqn "d" q)
-      else hsCast' . HS.Con <$> lift (conhqn q)
+  T.TCon q   -> term (T.TApp (T.TCon q) [])
   T.TPrim p  -> return $ compilePrim p
   T.TUnit    -> return HS.unit_con
   T.TSort    -> return HS.unit_con
@@ -455,10 +475,11 @@ compilePrim s =
 alt :: Int -> T.TAlt -> CC HS.Alt
 alt sc a = do
   case a of
-    T.TACon {} -> do
-      intros (T.aArity a) $ \xs -> do
-        hConNm <- lift $ conhqn $ T.aCon a
-        mkAlt (HS.PApp hConNm $ map HS.PVar xs)
+    T.TACon {T.aCon = c} -> do
+      intros (T.aArity a) $ \ xs -> do
+        erased <- lift $ getErasedConArgs c
+        hConNm <- lift $ conhqn c
+        mkAlt (HS.PApp hConNm $ map HS.PVar [ x | (x, False) <- zip xs erased ])
     T.TAGuard g b -> do
       g <- term g
       b <- term b
@@ -524,10 +545,18 @@ litqnamepat x =
   where
     NameId n m = nameId $ qnameName x
 
+erasedArity :: QName -> TCM Nat
+erasedArity q = do
+  (ar, _) <- conArityAndPars q
+  erased  <- length . filter id <$> getErasedConArgs q
+  return (ar - erased)
+
 condecl :: QName -> TCM (Nat, HS.ConDecl)
 condecl q = do
   (ar, np) <- conArityAndPars q
-  return $ (ar + np, cdecl q ar)
+  erased   <- length . filter id <$> getErasedConArgs q
+  let ar' = ar - erased
+  return $ (ar' + np, cdecl q ar')
 
 cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)

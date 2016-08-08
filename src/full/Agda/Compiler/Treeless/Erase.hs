@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module Agda.Compiler.Treeless.Erase (eraseTerms) where
+module Agda.Compiler.Treeless.Erase (eraseTerms, computeErasedConstructorArgs) where
 
 import Control.Arrow ((&&&), (***), first, second)
 import Control.Applicative
@@ -33,6 +33,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.Memo
+import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
 
@@ -49,6 +50,12 @@ type E = StateT ESt TCM
 
 runE :: E a -> TCM a
 runE m = evalStateT m (ESt Map.empty Map.empty)
+
+-- | Takes the name of the data/record type.
+computeErasedConstructorArgs :: QName -> TCM ()
+computeErasedConstructorArgs d = do
+  cs <- getConstructors d
+  runE $ mapM_ getFunInfo cs
 
 eraseTerms :: QName -> TTerm -> TCM TTerm
 eraseTerms q = runE . eraseTop q
@@ -135,7 +142,10 @@ eraseTerms q = runE . eraseTop q
 
     eraseAlt a = case a of
       TALit l b   -> TALit l   <$> erase b
-      TACon c a b -> TACon c a <$> erase b
+      TACon c a b -> do
+        rs <- map erasableR . fst <$> getFunInfo c
+        let sub = foldr (\ e -> if e then (TErased :#) . wkS 1 else liftS 1) idS $ reverse rs
+        TACon c a <$> erase (applySubst sub b)
       TAGuard g b -> TAGuard   <$> erase g <*> erase b
 
 -- | Doesn't have any type information (other than the name of the data type),
@@ -173,6 +183,7 @@ getFunInfo q = memo (funMap . key q) $ getInfo q
         return (zipWith (mkR . getRelevance) tel is, t)
       h <- if isAbsurdLambdaName q then pure Erasable else getTypeInfo t
       lift $ reportSLn "treeless.opt.erase.info" 50 $ "type info for " ++ show q ++ ": " ++ show rs ++ " -> " ++ show h
+      lift $ setErasedConArgs q $ map erasableR rs
       return (rs, h)
 
     -- Treat empty or erasable arguments as NonStrict (and thus erasable)

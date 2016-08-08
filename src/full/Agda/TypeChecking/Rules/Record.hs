@@ -183,6 +183,7 @@ checkRecDef i name ind eta con ps contel fields =
               , conData   = name
               , conAbstr  = Info.defAbstract conInfo
               , conInd    = conInduction
+              , conErased = []
               }
 
       -- Declare the constructor as eligible for instance search
