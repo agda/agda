@@ -159,6 +159,15 @@ isComplete _ _ = pure False
 data TypeInfo = Empty | Erasable | NotErasable
   deriving (Eq, Show)
 
+sumTypeInfo :: [TypeInfo] -> TypeInfo
+sumTypeInfo is = foldr plus Empty is
+  where
+    plus Empty       r           = r
+    plus r           Empty       = r
+    plus Erasable    r           = r
+    plus r           Erasable    = r
+    plus NotErasable NotErasable = NotErasable
+
 erasableR :: Relevance -> Bool
 erasableR Relevant   = False
 erasableR Forced{}   = False    -- TODO: should be True but need to transform clauses
@@ -236,6 +245,11 @@ getTypeInfo t0 = do
           is <- mapM (getTypeInfo . snd . dget) ts
           let er = and [ erasable i || erasableR r | (i, r) <- zip is rs ]
           return $ if er then Erasable else NotErasable
-        Just [] -> return Empty
-        _       -> return NotErasable
+        Just []      -> return Empty
+        Just (_:_:_) -> return NotErasable
+        Nothing ->
+          case I.theDef def of
+            I.Function{ funClauses = cs } ->
+              sumTypeInfo <$> mapM (maybe (return Empty) (getTypeInfo . El Prop) . clauseBody) cs
+            _ -> return NotErasable
 
