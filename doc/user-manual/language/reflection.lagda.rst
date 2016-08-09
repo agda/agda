@@ -395,8 +395,8 @@ For example, the macro application ``f u v w`` where
 
   unquote (f (quoteTerm u) (quote v) w)
 
-where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns its
-representation in the ``Term`` data type, and ``unquote m`` runs a computation
+where ``quoteTerm u`` takes a ``u`` of arbitrary type and returns the
+representation of its normal form in the ``Term`` data type, and ``unquote m`` runs a computation
 in the ``TC`` monad. Specifically, when checking ``unquote m : A`` for some
 type ``A`` the type checker proceeds as follows:
 
@@ -409,6 +409,11 @@ type ``A`` the type checker proceeds as follows:
 .. note::
    The ``quoteTerm`` and ``unquote`` primitives are available in the language,
    but it is recommended to avoid using them in favour of macros.
+
+.. note::
+   Since ``quoteTerm`` normalises the term before quoting some type information
+   may get lost. More specifically data constructor and projection parameters,
+   which are not stored by normalised terms.
 
 Limitations:
 
