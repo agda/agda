@@ -145,7 +145,10 @@ instance ToAbstract R.Pattern (Names, A.Pattern) where
       (names, args) <- toAbstractPats args
       return (names, A.ConP (ConPatInfo ConPCon patNoRange) (AmbQ [killRange c]) args)
     R.DotP    -> return ([], A.WildP patNoRange)
-    R.VarP s | isNoName s -> return ([], A.WildP patNoRange)
+    R.VarP s | isNoName s -> withName "z" $ \ name -> return ([name], A.VarP name)
+        -- Ulf, 2016-08-09: Also bind noNames (#2129). This to make the
+        -- behaviour consistent with lambda and pi.
+        -- return ([], A.WildP patNoRange)
     R.VarP s  -> withName s $ \ name -> return ([name], A.VarP name)
     R.LitP l  -> return ([], A.LitP l)
     R.AbsurdP -> return ([], A.AbsurdP patNoRange)
