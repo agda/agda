@@ -94,6 +94,7 @@ tNegPlusK k n = tOp PSub (tInt (-k)) n
 
 plusKView :: TTerm -> Maybe (Integer, TTerm)
 plusKView (TApp (TPrim PAdd) [k, n]) | Just k <- intView k = Just (k, n)
+plusKView (TApp (TPrim PSub) [n, k]) | Just k <- intView k = Just (-k, n)
 plusKView _ = Nothing
 
 negPlusKView :: TTerm -> Maybe (Integer, TTerm)

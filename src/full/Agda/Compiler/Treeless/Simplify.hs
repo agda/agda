@@ -108,7 +108,8 @@ simplify FunctionKit{..} = simpl
         v <- lookupVar x
         let (lets, u) = letView v
         case u of                          -- TODO: also for literals
-          _ | Just (c, as) <- conView u -> simpl $ matchCon lets c as d bs
+          _ | Just (c, as)     <- conView u   -> simpl $ matchCon lets c as d bs
+            | Just (k, TVar y) <- plusKView u -> simpl . mkLets lets . TCase y t d =<< mapM (matchPlusK y x k) bs
           TCase y t1 d1 bs1 -> simpl $ mkLets lets $ TCase y t1 (distrDef case1 d1) $
                                        map (distrCase case1) bs1
             where
@@ -155,6 +156,14 @@ simplify FunctionKit{..} = simpl
         mkLet _ []       b = b
         mkLet i (a : as) b = TLet (raise i a) $ mkLet (i + 1) as b
 
+    -- Simplify let y = x + k in case y of j     -> u; _ | g[y]     -> v
+    -- to       let y = x + k in case x of j - k -> u; _ | g[x + k] -> v
+    matchPlusK :: Int -> Int -> Integer -> TAlt -> S TAlt
+    matchPlusK x y k (TALit (LitNat r j) b) = return $ TALit (LitNat r (j - k)) b
+    matchPlusK x y k (TAGuard g b) = flip TAGuard b <$> simpl (applySubst (inplaceS y (tPlusK k (TVar x))) g)
+    matchPlusK x y k TACon{} = __IMPOSSIBLE__
+    matchPlusK x y k TALit{} = __IMPOSSIBLE__
+
     simplPrim (TApp f@TPrim{} args) = do
         args    <- mapM simpl args
         inlined <- mapM inline args
@@ -176,6 +185,10 @@ simplify FunctionKit{..} = simpl
       | Just (PAdd, k, u) <- constArithView u,
         Just (PAdd, j, v) <- constArithView v,
         k == j = tOp PLt u v
+    simplPrim' (TApp (TPrim op) [u, v])
+      | elem op [PGeq, PLt, PEq]
+      , Just (PAdd, k, u) <- constArithView u
+      , Just j <- intView v = TApp (TPrim op) [u, tInt (j - k)]
     simplPrim' (TApp (TPrim PEq) [u, v])
       | Just (op1, k, u) <- constArithView u,
         Just (op2, j, v) <- constArithView v,
@@ -262,13 +275,13 @@ simplify FunctionKit{..} = simpl
           [] -> pure d
           TALit _ b   : as  -> tCase x t b (reverse as)
           TAGuard _ b : as  -> tCase x t b (reverse as)
-          TACon c a b : _   -> pure $ tCase' x t d bs'
+          TACon c a b : _   -> tCase' x t d bs'
       | otherwise = do
         d' <- lookupIfVar d
         case d' of
           TCase y _ d bs'' | x == y ->
             tCase x t d (bs' ++ filter noOverlap bs'')
-          _ -> pure $ tCase' x t d bs'
+          _ -> tCase' x t d bs'
       where
         bs' = filter (not . isUnreachable) bs
 
@@ -280,7 +293,24 @@ simplify FunctionKit{..} = simpl
         overlapped (TALit l _)    (TALit l' _)   = l == l'
         overlapped _              _              = False
 
-    tCase' x t d [] = d
+    -- | Drop unreachable cases for Nat and Int cases.
+    pruneLitCases :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
+    pruneLitCases x CTNat d bs =
+      case complete bs [] Nothing of
+        Just bs' -> tCase x CTNat tUnreachable bs'
+        Nothing  -> return $ TCase x CTNat d bs
+      where
+        complete bs small (Just upper)
+          | null $ [0..upper - 1] \\ small = Just []
+        complete (b@(TALit (LitNat _ n) _) : bs) small upper =
+          (b :) <$> complete bs (n : small) upper
+        complete (b@(TAGuard (TApp (TPrim PGeq) [TVar y, TLit (LitNat _ j)]) _) : bs) small upper | x == y =
+          (b :) <$> complete bs small (Just $ maybe j (min j) upper)
+        complete _ _ _ = Nothing
+    pruneLitCases x CTInt d bs = return $ TCase x CTInt d bs -- TODO
+    pruneLitCases x t d bs = return $ TCase x t d bs
+
+    tCase' x t d [] = return d
     tCase' x t d bs = pruneLitCases x t d bs
 
     tApp :: TTerm -> [TTerm] -> S TTerm
@@ -314,23 +344,6 @@ simplify FunctionKit{..} = simpl
       TErased{} -> True
       TError{}  -> True
       _         -> False
-
--- | Drop unreachable cases for Nat and Int cases.
-pruneLitCases :: Int -> CaseType -> TTerm -> [TAlt] -> TTerm
-pruneLitCases x CTNat d bs =
-  case complete bs [] Nothing of
-    Just bs' -> TCase x CTNat tUnreachable bs'
-    Nothing  -> TCase x CTNat d bs
-  where
-    complete bs small (Just upper)
-      | null $ [0..upper - 1] \\ small = Just []
-    complete (b@(TALit (LitNat _ n) _) : bs) small upper =
-      (b :) <$> complete bs (n : small) upper
-    complete (b@(TAGuard (TApp (TPrim PGeq) [TVar y, TLit (LitNat _ j)]) _) : bs) small upper | x == y =
-      (b :) <$> complete bs small (Just $ maybe j (min j) upper)
-    complete _ _ _ = Nothing
-pruneLitCases x CTInt d bs = TCase x CTInt d bs -- TODO
-pruneLitCases x t d bs = TCase x t d bs
 
 type Arith = (Integer, [Atom])
 
