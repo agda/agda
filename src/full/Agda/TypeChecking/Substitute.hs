@@ -630,6 +630,14 @@ singletonS :: DeBruijn a => Int -> a -> Substitution' a
 singletonS n u = map debruijnVar [0..n-1] ++# consS u (raiseS n)
   -- ALT: foldl (\ s i -> debruijnVar i `consS` s) (consS u $ raiseS n) $ downFrom n
 
+-- | Single substitution without disturbing any deBruijn indices.
+--   @
+--             Γ, A, Δ ⊢ u : A
+--    ---------------------------------
+--   @Γ, A, Δ ⊢ inplace |Δ| u : Γ, A, Δ
+inplaceS :: Subst a a => Int -> a -> Substitution' a
+inplaceS k u = singletonS k u `composeS` liftS (k + 1) (raiseS 1)
+
 -- | Lift a substitution under k binders.
 liftS :: Int -> Substitution' a -> Substitution' a
 liftS 0 rho          = rho

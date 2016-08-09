@@ -277,8 +277,8 @@ compileTerm term = do
           C.CTChar -> mkVar $ primFunNm "primCharEquality"
           C.CTString -> mkVar $ primFunNm "primStringEquality"
           C.CTQName -> mkVar $ primFunNm "primQNameEquality"
-          C.CTData nm | isNat builtinKit' nm -> mkVar $ primFunNm "primIntegerEquality"
-          C.CTData nm | isInt builtinKit' nm -> mkVar $ primFunNm "primIntegerEquality"
+          C.CTNat -> mkVar $ primFunNm "primIntegerEquality"
+          C.CTInt -> mkVar $ primFunNm "primIntegerEquality"
           _ -> __IMPOSSIBLE__
 
     C.TUnit -> unit
