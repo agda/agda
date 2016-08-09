@@ -22,6 +22,7 @@ import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.Syntax.Scope.Monad (getCurrentModule)
 
 import Agda.Utils.Maybe
+import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.Functor
 import Agda.Utils.Size
@@ -99,7 +100,9 @@ instance ToAbstract Term Expr where
           lift $ withShowAllArguments' False $ typeError $ DeBruijnIndexOutOfScope i cxt names
         Just name -> toAbstract (A.Var name, es)
     R.Con c es -> toAbstract (A.Con (AmbQ [killRange c]), es)
-    R.Def f es -> toAbstract (A.Def (killRange f), es)
+    R.Def f es -> do
+      af <- lift $ mkDef (killRange f)
+      toAbstract (af, es)
     R.Lam h t  -> do
       (e, name) <- toAbstract t
       let info  = setHiding h $ setOrigin Reflected defaultArgInfo
@@ -121,6 +124,12 @@ instance ToAbstract Term Expr where
     R.Meta x es    -> toAbstract (A.Underscore info, es)
       where info = emptyMetaInfo{ metaNumber = Just x }
     R.Unknown      -> return $ Underscore emptyMetaInfo
+
+mkDef :: QName -> TCM A.Expr
+mkDef f =
+  ifM (isMacro . theDef <$> getConstInfo f)
+      (return $ A.Macro f)
+      (return $ A.Def f)
 
 mkSet :: Expr -> Expr
 mkSet e = App exprNoRange (A.Set exprNoRange 0) $ defaultNamedArg e

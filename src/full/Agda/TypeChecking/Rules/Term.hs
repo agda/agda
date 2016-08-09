@@ -480,6 +480,7 @@ checkAbsurdLambda i h e t = do
               , funSmashable      = False -- there is no body anyway, smashing doesn't make sense
               , funStatic         = False
               , funInline         = False
+              , funMacro          = False
               , funTerminates     = Just True
               , funExtLam         = Nothing
               , funWith           = Nothing
@@ -873,6 +874,7 @@ checkExpr e t0 =
         e0@(A.App i q (Arg ai e))
           | A.Quote _ <- unScope q, visible ai -> do
           let quoted (A.Def x) = return x
+              quoted (A.Macro x) = return x
               quoted (A.Proj o (AmbQ [x])) = return x
               quoted (A.Proj o (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
               quoted (A.Con (AmbQ [x])) = return x

@@ -465,7 +465,19 @@ Language
 
     C′ != c of type D
 
+Reflection
+----------
 
+* You can now use macros in reflected terms [Issue #2130].
+
+  For instance, given a macro
+
+    macro
+      some-tactic : Term → TC ⊤
+      some-tactic = ...
+
+  the term "def (quote some-tactic) []" represents a call to the macro. This
+  makes it a lot easier to compose tactics.
 
 Type checking
 =============

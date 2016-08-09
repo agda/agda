@@ -406,6 +406,10 @@ type ``A`` the type checker proceeds as follows:
   - Execute ``m qhole``.
   - Return (the now hopefully instantiated) ``hole``.
 
+Reflected macro calls are constructed using the ``def`` constructor, so given a
+macro ``g : Term → TC ⊤`` the term ``def (quote g) []`` unquotes to a macro
+call to ``g``.
+
 .. note::
    The ``quoteTerm`` and ``unquote`` primitives are available in the language,
    but it is recommended to avoid using them in favour of macros.

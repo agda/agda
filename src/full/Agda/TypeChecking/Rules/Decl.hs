@@ -489,7 +489,8 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     ]
 
   -- check macro type if necessary
-  when (Info.defMacro i == MacroDef) $ do
+  let isMacro = Info.defMacro i == MacroDef
+  when isMacro $ do
     t' <- normalise t
     TelV tel tr <- telView t'
 
@@ -527,7 +528,7 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     useTerPragma $
       (defaultDefn info x t $
          case funSig of
-           A.FunSig   -> emptyFunction
+           A.FunSig   -> emptyFunction{ funMacro = isMacro }
            A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
         { defArgOccurrences = occs
         , defPolarity       = pols

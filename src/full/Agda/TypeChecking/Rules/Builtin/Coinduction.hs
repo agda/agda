@@ -150,21 +150,12 @@ bindBuiltinFlat e =
     addConstant flat $
       flatDefn { defPolarity       = []
                , defArgOccurrences = [StrictPos]  -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
-               , theDef = Function
-                   { funClauses    = [clause]
-                   , funCompiled   = Just $ cc
-                   , funTreeless   = Nothing
-                   , funInv        = NotInjective
-                   , funMutual     = []
-                   , funAbstr      = ConcreteDef
-                   , funDelayed    = NotDelayed
-                   , funProjection = Just projection
-                   , funSmashable  = False
-                   , funStatic     = False
-                   , funInline     = False
-                   , funTerminates = Just True
-                   , funExtLam     = Nothing
-                   , funWith       = Nothing
+               , theDef = emptyFunction
+                   { funClauses      = [clause]
+                   , funCompiled     = Just $ cc
+                   , funProjection   = Just projection
+                   , funSmashable    = False
+                   , funTerminates   = Just True
                    , funCopatternLHS = isCopatternLHS [clause]
                    }
                 }
