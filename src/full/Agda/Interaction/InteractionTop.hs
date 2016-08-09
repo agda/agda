@@ -549,12 +549,15 @@ interpret Cmd_metas = do -- CL.showMetas []
 
 interpret Cmd_warnings = do
   mws <- lift $ Imp.getAllWarnings RespectFlags
-  case removeGoals <$> mws of
+  case removeMetas <$> mws of
     Imp.NoWarnings -> return ()
     Imp.SomeWarnings ws -> unless (null ws) $ do
       pws <- lift $ prettyWarnings ws
       display_info $ Info_Warning pws
-   where removeGoals = filter $ \ w -> case w of { UnsolvedInteractionMetas{} -> False ; _ -> True }
+   where removeMetas = filter $ \ w -> case w of
+                                        UnsolvedInteractionMetas{} -> False
+                                        UnsolvedMetaVariables{}    -> False
+                                        _                          -> True
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
