@@ -1414,6 +1414,8 @@ data Defn = Axiom
               -- ^ Should calls to this function be inlined by the compiler?
             , funSmashable      :: Bool
               -- ^ Are we allowed to smash this function?
+            , funMacro          :: Bool
+              -- ^ Is this function a macro?
             , funTerminates     :: Maybe Bool
               -- ^ Has this function been termination checked?  Did it pass?
             , funExtLam         :: Maybe ExtLamInfo
@@ -1492,11 +1494,16 @@ emptyFunction = Function
   , funStatic      = False
   , funInline      = False
   , funSmashable   = True
+  , funMacro       = False
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
   , funCopatternLHS = False
   }
+
+isMacro :: Defn -> Bool
+isMacro Function{ funMacro = m } = m
+isMacro _ = False
 
 -- | Checking whether we are dealing with a function yet to be defined.
 isEmptyFunction :: Defn -> Bool
@@ -2914,8 +2921,8 @@ instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop ->
-        killRange15 Function cls comp tt inv mut isAbs delayed proj static inline smash term extlam with cop
+      Function cls comp tt inv mut isAbs delayed proj static inline smash macro term extlam with cop ->
+        killRange16 Function cls comp tt inv mut isAbs delayed proj static inline smash macro term extlam with cop
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f        -> killRange6 Constructor a b c d e f

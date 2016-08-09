@@ -460,6 +460,7 @@ applySection' new ptel old ts rd rm = do
                         , funStatic         = False
                         , funInline         = False
                         , funSmashable      = True
+                        , funMacro          = isMacro oldDef
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with

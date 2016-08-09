@@ -2050,6 +2050,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         getHiding p == NotHidden = do
       e <- toAbstract (OldQName x Nothing)
       let quoted (A.Def x) = return x
+          quoted (A.Macro x) = return x
           quoted (A.Proj _ (AmbQ [x])) = return x
           quoted (A.Proj _ (AmbQ xs))  = genericError $ "quote: Ambigous name: " ++ show xs
           quoted (A.Con (AmbQ [x])) = return x

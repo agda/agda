@@ -152,6 +152,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                       , funSmashable      = True
                       , funStatic         = False
                       , funInline         = False
+                      , funMacro          = Info.defMacro i == MacroDef
                       , funTerminates     = Nothing
                       , funExtLam         = Nothing
                       , funWith           = Nothing
@@ -273,6 +274,9 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
               , nest 2 $ text (show cc)
               ]
 
+        -- The macro tag might be on the type signature
+        ismacro <- isMacro . theDef <$> getConstInfo name
+
         -- Add the definition
         inTopContext $ addConstant name =<< do
           -- If there was a pragma for this definition, we can set the
@@ -290,6 +294,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
              , funSmashable      = True
              , funStatic         = False
              , funInline         = False
+             , funMacro          = ismacro || Info.defMacro i == MacroDef
              , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with
