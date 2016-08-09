@@ -112,7 +112,7 @@ transform BuiltinKit{..} = tr
           e | Just (i, e) <- plusKView e -> tNegPlusK (i + 1) e
           e -> tNegPlusK 1 e
 
-      TCase e t d bs -> TCase e t (tr d) $ concatMap trAlt bs
+      TCase e t d bs -> TCase e (caseType t bs) (tr d) $ concatMap trAlt bs
         where
           trAlt b = case b of
             TACon c 0 b | isZero c -> [TALit (LitNat noRange 0) (tr b)]
@@ -178,6 +178,14 @@ transform BuiltinKit{..} = tr
       TLam b                  -> TLam (tr b)
       TApp a bs               -> TApp (tr a) (map tr bs)
       TLet e b                -> TLet (tr e) (tr b)
+
+    caseType t (TACon c _ _ : _)
+      | isZero c   = CTNat
+      | isSuc c    = CTNat
+      | isPos c    = CTInt
+      | isNegSuc c = CTInt
+    caseType t _ = t
+
     nPlusKView (TAGuard (TApp (TPrim PGeq) [TVar 0, (TLit (LitNat _ k))])
                         (TLet (TApp (TPrim PSub) [TVar 0, (TLit (LitNat _ j))]) b))
       | k == j = Just (k, b)

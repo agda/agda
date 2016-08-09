@@ -108,6 +108,8 @@ tUnreachable = TError TUnreachable
 
 data CaseType
   = CTData QName -- case on datatype
+  | CTNat
+  | CTInt
   | CTChar
   | CTString
   | CTQName
