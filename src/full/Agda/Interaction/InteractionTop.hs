@@ -540,21 +540,15 @@ interpret Cmd_constraints =
 interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
-  -- If we do not have open metas, but open constaints, display those.
-  ifM (return (null ms) `and2M` do not . null <$> lift B.getConstraints)
-    {-then-} (when unsolvedNotOK $ interpret Cmd_constraints)
-    {-else-} (display_info $ Info_AllGoals $ unlines ms)
-  interpret Cmd_warnings
-
+  pws <- interpretWarnings
+  display_info $ Info_AllGoals $ unlines ms ++ pws
 
 interpret Cmd_warnings = do
-  mws <- lift $ Imp.getAllWarnings RespectFlags
-  case removeGoals <$> mws of
-    Imp.NoWarnings -> return ()
-    Imp.SomeWarnings ws -> unless (null ws) $ do
-      pws <- lift $ prettyWarnings ws
-      display_info $ Info_Warning pws
-   where removeGoals = filter $ \ w -> case w of { UnsolvedInteractionMetas{} -> False ; _ -> True }
+  -- Ulf, 2016-08-09: Warnings are now printed in the info buffer by Cmd_metas.
+  -- pws <- interpretWarnings
+  -- unless (null pwd) $ display_info $ Info_Warning pws
+  return ()
+
 
 interpret (Cmd_show_module_contents_toplevel norm s) =
   liftCommandMT B.atTopLevel $ showModuleContents norm noRange s
@@ -777,6 +771,20 @@ interpret (Cmd_compute ignore ii rng s) = do
   display_info $ Info_NormalForm d
 
 interpret Cmd_show_version = display_info Info_Version
+
+-- | Show warnings
+interpretWarnings :: CommandM String
+interpretWarnings = do
+  mws <- lift $ Imp.getAllWarnings RespectFlags
+  case removeMetas <$> mws of
+    Imp.SomeWarnings ws@(_:_) -> do
+      pws <- lift $ prettyWarnings ws
+      return pws
+    _ -> return ""
+   where removeMetas = filter $ \ w -> case w of
+                                        UnsolvedInteractionMetas{} -> False
+                                        UnsolvedMetaVariables{}    -> False
+                                        _                          -> True
 
 -- | Print open metas nicely.
 showOpenMetas :: TCM [String]

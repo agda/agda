@@ -24,6 +24,4 @@
 (agda2-highlight-add-annotations '(405 406 (unsolvedmeta) nil))
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "Sort _4 [ at Highlighting.agda:23,15-16 ] _5 : Set _4 [ at Highlighting.agda:23,15-16 ] " nil)
-(agda2-status-action "")
-(agda2-warning-action "*Errors*" "Unsolved metas at the following locations: Highlighting.agda:23,15-16 " nil)
 ((last . 1) . (agda2-goals-action '()))
