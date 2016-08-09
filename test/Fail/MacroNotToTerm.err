@@ -1,2 +1,2 @@
-MacroNotToTerm.agda:10,3-18
+MacroNotToTerm.agda:11,3-10
 Result type of a macro must be Term → TC ⊤
