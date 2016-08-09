@@ -77,7 +77,7 @@ simplifyTTerm t = do
 simplify :: FunctionKit -> TTerm -> S TTerm
 simplify FunctionKit{..} = simpl
   where
-    simpl t = rewrite' t >>= \ t -> case t of
+    simpl = rewrite' >=> unchainCase >=> \ t -> case t of
 
       TDef{}         -> pure t
       TPrim{}        -> pure t
@@ -143,6 +143,19 @@ simplify FunctionKit{..} = simpl
 
     letView (TLet e b) = first (e :) $ letView b
     letView e          = ([], e)
+
+    -- Collapse chained cases (case x of bs -> vs; _ -> case x of bs' -> vs'  ==>
+    --                         case x of bs -> vs; bs' -> vs')
+    unchainCase :: TTerm -> S TTerm
+    unchainCase e@(TCase x t d bs) = do
+      let (lets, u) = letView d
+          k = length lets
+      return $ case u of
+        TCase y _ d' bs' | x + k == y ->
+          mkLets lets $ TCase y t d' $ raise k bs ++ bs'
+        _ -> e
+    unchainCase e = return e
+
 
     mkLets es b = foldr TLet b es
 

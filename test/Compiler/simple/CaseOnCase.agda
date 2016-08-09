@@ -34,6 +34,14 @@ cmp a b with a < b
 ... | true  = "less"
 ... | false = "not less"
 
+fancyCase : Nat → Cmp → Nat
+fancyCase 0 _ = 0
+fancyCase (suc (suc (suc n))) greater = n
+fancyCase (suc (suc (suc _))) equal = 4
+fancyCase 1 _ = 1
+fancyCase 2 _ = 2
+fancyCase (suc n) less = n
+
 main : IO Unit
 main = putStrLn (cmp (pos 31) (negsuc 5)) ,,
        putStrLn (cmp (pos 5) (pos 5)) ,,
