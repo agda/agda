@@ -268,7 +268,7 @@ simplify FunctionKit{..} = simpl
         case d' of
           TCase y _ d bs'' | x == y ->
             tCase x t d (bs' ++ filter noOverlap bs'')
-          _ -> pure $ TCase x t d bs'
+          _ -> pure $ tCase' x t d bs'
       where
         bs' = filter (not . isUnreachable) bs
 
@@ -276,12 +276,12 @@ simplify FunctionKit{..} = simpl
         lookupIfVar t = pure t
 
         noOverlap b = not $ any (overlapped b) bs'
-        overlapped (TACon c _ _) (TACon c' _ _) = c == c'
-        overlapped (TALit l _)   (TALit l' _)   = l == l'
-        overlapped _             _              = False
+        overlapped (TACon c _ _)  (TACon c' _ _) = c == c'
+        overlapped (TALit l _)    (TALit l' _)   = l == l'
+        overlapped _              _              = False
 
     tCase' x t d [] = d
-    tCase' x t d bs = TCase x t d bs
+    tCase' x t d bs = pruneLitCases x t d bs
 
     tApp :: TTerm -> [TTerm] -> S TTerm
     tApp (TLet e b) es = TLet e <$> underLet e (tApp b (raise 1 es))
@@ -314,6 +314,23 @@ simplify FunctionKit{..} = simpl
       TErased{} -> True
       TError{}  -> True
       _         -> False
+
+-- | Drop unreachable cases for Nat and Int cases.
+pruneLitCases :: Int -> CaseType -> TTerm -> [TAlt] -> TTerm
+pruneLitCases x CTNat d bs =
+  case complete bs [] Nothing of
+    Just bs' -> TCase x CTNat tUnreachable bs'
+    Nothing  -> TCase x CTNat d bs
+  where
+    complete bs small (Just upper)
+      | null $ [0..upper - 1] \\ small = Just []
+    complete (b@(TALit (LitNat _ n) _) : bs) small upper =
+      (b :) <$> complete bs (n : small) upper
+    complete (b@(TAGuard (TApp (TPrim PGeq) [TVar y, TLit (LitNat _ j)]) _) : bs) small upper | x == y =
+      (b :) <$> complete bs small (Just $ maybe j (min j) upper)
+    complete _ _ _ = Nothing
+pruneLitCases x CTInt d bs = TCase x CTInt d bs -- TODO
+pruneLitCases x t d bs = TCase x t d bs
 
 type Arith = (Integer, [Atom])
 
