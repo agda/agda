@@ -488,19 +488,6 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     , nest 2 $ text "of sort " <+> prettyTCM (getSort t)
     ]
 
-  -- check macro type if necessary
-  let isMacro = Info.defMacro i == MacroDef
-  when isMacro $ do
-    t' <- normalise t
-    TelV tel tr <- telView t'
-
-    let telList = telToList tel
-        resType = abstract (telFromList (drop (length telList - 1) telList)) tr
-    expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
-    equalType resType expectedType
-      `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
-                                                              , nest 2 $ prettyTCM expectedType ]
-
   -- Andreas, 2015-03-17 Issue 1428: Do not postulate sizes in parametrized
   -- modules!
   when (funSig == A.NoFunSig) $ do
@@ -528,7 +515,7 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     useTerPragma $
       (defaultDefn info x t $
          case funSig of
-           A.FunSig   -> emptyFunction{ funMacro = isMacro }
+           A.FunSig   -> emptyFunction{ funMacro = Info.defMacro i == MacroDef }
            A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
         { defArgOccurrences = occs
         , defPolarity       = pols

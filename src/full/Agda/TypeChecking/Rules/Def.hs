@@ -47,6 +47,7 @@ import Agda.TypeChecking.SizedTypes.Solve
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
+import Agda.TypeChecking.Primitive hiding (Nat)
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkDontExpandLast, checkTelescope )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide, LHSResult(..), bindAsPatterns )
@@ -82,6 +83,22 @@ checkFunDef delayed i name cs = do
               whenM (isFrozen x) $ unfreezeMeta x
               checkAlias t info delayed i name e mc
           _ -> checkFunDef' t info delayed Nothing Nothing i name cs
+
+        -- If it's a macro check that it ends in Term → TC ⊤
+        ismacro <- isMacro . theDef <$> getConstInfo name
+        when (ismacro || Info.defMacro i == MacroDef) $ checkMacroType t
+
+checkMacroType :: Type -> TCM ()
+checkMacroType t = do
+  t' <- normalise t
+  TelV tel tr <- telView t'
+
+  let telList = telToList tel
+      resType = abstract (telFromList (drop (length telList - 1) telList)) tr
+  expectedType <- el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit)
+  equalType resType expectedType
+    `catchError` \ _ -> typeError . GenericDocError =<< sep [ text "Result type of a macro must be"
+                                                            , nest 2 $ prettyTCM expectedType ]
 
 -- | A single clause without arguments and without type signature is an alias.
 isAlias :: [A.Clause] -> Type -> Maybe (A.Expr, Maybe C.Expr, MetaId)
