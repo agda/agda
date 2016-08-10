@@ -15,6 +15,7 @@ import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Treeless
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
@@ -62,6 +63,21 @@ checkTypeOfMain q ty ret
     mainAlias = HS.FunBind [HS.Match dummy mainLHS [] Nothing mainRHS emptyBinds ]
     mainLHS   = HS.Ident "main"
     mainRHS   = HS.UnGuardedRhs $ HS.Var $ HS.UnQual $ unqhname "d" q
+
+treelessPrimName :: TPrim -> String
+treelessPrimName p =
+  case p of
+    PQuot -> "quotInt"
+    PRem  -> "remInt"
+    PSub  -> "subInt"
+    PAdd  -> "addInt"
+    PMul  -> "mulInt"
+    PGeq  -> "geqInt"
+    PLt   -> "ltInt"
+    PEq   -> "eqInt"
+    PSeq  -> "seq"
+    -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
+    PIf   -> __IMPOSSIBLE__
 
 -- Haskell modules to be imported for BUILT-INs
 importsForPrim :: TCM [HS.ModuleName]

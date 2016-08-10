@@ -26,3 +26,27 @@ mazIncompleteMatch s = error ("Agda: incomplete pattern matching: " ++ s)
 mazUnreachableError :: a
 mazUnreachableError = error ("Agda: unreachable code reached.")
 
+addInt :: Integer -> Integer -> Integer
+addInt = (+)
+
+subInt :: Integer -> Integer -> Integer
+subInt = (-)
+
+mulInt :: Integer -> Integer -> Integer
+mulInt = (*)
+
+geqInt :: Integer -> Integer -> Bool
+geqInt = (>=)
+
+ltInt :: Integer -> Integer -> Bool
+ltInt = (<)
+
+eqInt :: Integer -> Integer -> Bool
+eqInt = (==)
+
+quotInt :: Integer -> Integer -> Integer
+quotInt = quot
+
+remInt :: Integer -> Integer -> Integer
+remInt = rem
+

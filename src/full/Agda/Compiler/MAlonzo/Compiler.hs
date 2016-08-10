@@ -118,7 +118,9 @@ imports = (++) <$> hsImps <*> imps where
 
   unqualRTE :: HS.ImportDecl
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
-              (False, [HS.IVar $ HS.Ident x | x <- [mazCoerceName, mazErasedName]])
+              (False, [ HS.IVar $ HS.Ident x
+                      | x <- [mazCoerceName, mazErasedName] ++
+                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEq] ])
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -461,19 +463,7 @@ term tm0 = case tm0 of
 
 
 compilePrim :: T.TPrim -> HS.Exp
-compilePrim s =
-  case s of
-    T.PQuot -> fakeExp "(Prelude.quot :: Integer -> Integer -> Integer)"
-    T.PRem -> fakeExp "(Prelude.rem :: Integer -> Integer -> Integer)"
-    T.PSub -> fakeExp "((Prelude.-) :: Integer -> Integer -> Integer)"
-    T.PAdd -> fakeExp "((Prelude.+) :: Integer -> Integer -> Integer)"
-    T.PMul -> fakeExp "((Prelude.*) :: Integer -> Integer -> Integer)"
-    T.PGeq -> fakeExp "((Prelude.>=) :: Integer -> Integer -> Bool)"
-    T.PLt  -> fakeExp "((Prelude.<) :: Integer -> Integer -> Bool)"
-    T.PEq  -> fakeExp "((Prelude.==) :: Integer -> Integer -> Bool)"
-    T.PSeq -> HS.Var (hsName "seq")
-    -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
-    T.PIf  -> __IMPOSSIBLE__
+compilePrim s = HS.Var $ hsName $ treelessPrimName s
 
 alt :: Int -> T.TAlt -> CC HS.Alt
 alt sc a = do
