@@ -156,7 +156,6 @@ import qualified Agda.TypeChecking.Patterns.Match as Match
 import Agda.TypeChecking.Pretty hiding ((<>))
 import Agda.TypeChecking.SizedTypes (compareSizes)
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records

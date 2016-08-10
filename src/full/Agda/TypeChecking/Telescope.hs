@@ -22,7 +22,6 @@ import Agda.Syntax.Position
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Free
 
 import Agda.Utils.Functor

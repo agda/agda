@@ -20,7 +20,6 @@ import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import qualified Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Pretty hiding ((<>))
 

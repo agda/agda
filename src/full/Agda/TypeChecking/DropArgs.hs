@@ -7,7 +7,6 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 
 import Agda.TypeChecking.CompiledClause
 
