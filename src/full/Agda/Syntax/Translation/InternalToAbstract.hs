@@ -489,20 +489,7 @@ reifyTerm expandAnonDefs0 v = do
         toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
-             Function{ funExtLam = Just (ExtLamInfo h nh) } ->
-               let npars = toppars + h + nh
-               -- Andreas, 2016-07-06 Issue #2047
-               -- Check that we can actually drop the parameters
-               -- of the extended lambda.
-               -- This is only possible if the first @npars@ patterns
-               -- are variable patterns.
-               -- If we encounter a non-variable pattern, fall back
-               -- to printing without nice extended lambda syntax.
-                   ps = map namedArg $ take npars $ namedClausePats $
-                     fromMaybe __IMPOSSIBLE__ $ headMaybe (defClauses defn)
-                   isVarP I.VarP{} = True
-                   isVarP _ = False
-               in  if all isVarP ps then Just npars else Nothing
+             Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
              _ -> Nothing
         case extLam of
           Just pars | df -> reifyExtLam x pars (defClauses defn) es
