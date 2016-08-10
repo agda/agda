@@ -3,6 +3,7 @@
 .*.sw[a-p]
 .*.vim
 .cabal-sandbox/
+.stack-work/
 .DS_Store
 .sw[a-p]
 *.agdai
