@@ -251,14 +251,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom _ i ai Nothing c e) =
               let params = abstract cxt tel
                   fsT    = fields
                   t   = applySubst (strengthenS __IMPOSSIBLE__ (size fields)) tgt
-              inTopContext $ do
-                reportSDoc "tc.con.cxt" 30 $ text $ "stuff for " ++ show c
-                reportSDoc "tc.con.cxt" 30 $ text $ show names
-                reportSDoc "tc.con.cxt" 30 $ prettyTCM params
-                reportSDoc "tc.con.cxt" 30 $ prettyTCM fsT
-                reportSDoc "tc.con.cxt" 30 $ prettyTCM t
-              noMutualBlock $ defineProjections d con params names fsT t
-              comp <- noMutualBlock $ defineCompData d con params names fsT t
+              defineProjections d con params names fsT t
+              comp <- defineCompData d con params names fsT t
               return $ fmap (\ x -> (x,names)) comp
 
           addConstant c $
@@ -331,6 +325,7 @@ defineCompData d con params names fsT t = do
     setTerminates compName True
     return $ Just compName
 
+-- Andrea: TODO handle Irrelevant fields somehow.
 defineProjections :: QName      -- datatype name
                   -> ConHead
                   -> Telescope  -- Γ parameters
@@ -353,11 +348,10 @@ defineProjections dataname con params names fsT t = do
       reportSDoc "tc.data.proj" 20 $ sep [ text "proj" <+> prettyTCM (i,ty) , nest 2 $ text . show $  projType ]
 
     let
-      ctel = abstract params fsT
       cpi  = ConPatternInfo Nothing (Just $ argN $ raise (size fsT) t)
       conp = defaultArg $ ConP con cpi $ teleNamedArgs fsT
       clause = Clause
-          { clauseTel = ctel
+          { clauseTel = abstract params fsT -- the clauseTel of a ProjectionLike still keeps the params
           , clauseType = Just . argN $ ([Con con (teleArgs fsT)] ++# raiseS (size fsT)) `applySubst` unDom ty
           , namedClausePats = [Named Nothing <$> conp]
           , clauseRange = noRange
@@ -374,19 +368,14 @@ defineProjections dataname con params names fsT t = do
         , projIndex    = size projTel -- = size params + 1
         , projLams     = ProjLams $ map (argFromDom . fmap fst) $ telToList projTel
         }
-      test = abstract ctel $ Def projName [] `apply` [argN $ Con con (teleArgs fsT)]
-    addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
+
+    noMutualBlock $ addConstant projName $ defaultDefn defaultArgInfo projName (unDom projType) $
       emptyFunction
         { funClauses = [clause]
         , funProjection = Just proj
         , funTerminates = Just True
         }
 
-    -- test' <- normalise test
-    -- inTopContext $ do
-    --   reportSDoc "tc.data.proj.test" 20 $ sep [ text "test proj" <+> text (show i)
-    --                                           , nest 2 $ text . show $ test
-    --                                           , nest 2 $ text . show $ test' ]
 
 defineCompForFields
   :: (Term -> QName -> Term) -- ^ how to apply a "projection" to a term
@@ -421,7 +410,7 @@ defineCompForFields applyProj name params fsT fns rect = do
                (absApp <$> rect' <*> pure iz) --> (absApp <$> rect' <*> pure io)
   reportSDoc "comp.rec" 20 $ prettyTCM compType
 
-  addConstant compName $ defaultDefn defaultArgInfo compName compType $
+  noMutualBlock $ addConstant compName $ defaultDefn defaultArgInfo compName compType $
     emptyFunction { funTerminates = Just True }
 
   --   ⊢ Γ = gamma = (δ : Δ^I) (φ : I) (_ : (i : I) -> Partial φ (R (δ i))) (_ : R (δ i0))
@@ -449,6 +438,8 @@ defineCompForFields applyProj name params fsT fns rect = do
         [phi,w,w0] <- mapM (open . var) [2,1,0]
         lvl  <- open rect_gamma_lvl
         rect <- open rect_gamma
+        -- (δ : Δ^I, φ : I, w : .., w0 : R (δ i0)) ⊢
+        -- fillR Γ = λ i → compR (\ j → δ (i ∧ j)) (φ ∨ ~ i) (\ j → [ φ ↦ w (i ∧ j) , ~ i ↦ w0 ]) w0
         lam "i" $ \ i -> do
           args <- mapM (underArg $ \ bA -> lam "j" $ \ j -> bA <@> (pure imin <@> i <@> j)) params
           psi  <- pure imax <@> phi <@> (pure ineg <@> i)
@@ -484,7 +475,7 @@ defineCompForFields applyProj name params fsT fns rect = do
              [phi,w,w0] <- mapM (open . var) [2,1,0]
              pure comp <#> lvl <@> pure filled_ty
                                <@> phi
-                               <@> (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO block on o = itIsOne
+                               <@> (lam "i" $ \ i -> lam "o" $ \ o -> proj $ w <@> i <@> o) -- TODO wait for phi = 1
                                <@> proj w0
   return $ (compName, gamma, rtype, clause_types, map mkBody (zip fns filled_types))
   where

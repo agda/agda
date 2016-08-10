@@ -668,14 +668,49 @@ primComp = do
       _ -> __IMPOSSIBLE__
 
  where
-  compData l as sc sphi u a0 = do
+  compData l ps sc sphi u a0 = do
     su  <- reduceB' u
     sa0 <- reduceB' a0
+    view   <- intervalView'
+    unview <- intervalUnview'
     let f = unArg . ignoreBlocking
-    mt <- cheapDataComp as (f sphi) (f su) (f sa0)
-    case mt of
-      Just t  -> redReturn t
-      Nothing -> return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su, reduced sa0]
+        phi = f sphi
+        u = f su
+        a0 = f sa0
+        noRed = return $ NoReduction [notReduced l,reduced sc, reduced sphi, reduced su', reduced sa0]
+          where
+            su' = case view phi of
+                   IZero -> notBlocked $ argN $ runNames [] $
+                               lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- dummy
+                   _     -> su
+        boolToI b = if b then unview IOne else unview IZero
+        sameConHead h u = do
+          as <- decomposeInterval phi
+          (and <$>) . forM as $ \ (bs,ts) -> do -- OPTIMIZE: stop at the first False
+               t <- reduce2Lam $ listS (Map.toList (Map.map boolToI bs)) `applySubst` u
+               return $! case t of
+                          Con h' _ -> h == h'
+                          _        -> False
+
+    case a0 of
+      Con h args -> do
+        ifM (not <$> sameConHead h u) noRed $ do
+          Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
+          case cm of
+            Just (compD,_) -> redReturn $ Def compD [] `apply`
+                                        (map (fmap lam_i) ps ++ map argN [phi,u,a0])
+            Nothing        -> noRed
+      _ -> noRed
+    where
+      reduce2Lam t = do
+        t <- reduce' t
+        case t of
+          Lam _ t -> Reduce.underAbstraction_ t $ \ t -> do
+             t <- reduce' t
+             case t of
+               Lam _ t -> Reduce.underAbstraction_ t reduce'
+               _       -> return t
+          _ -> return t
 
   compGlue phi u a0 la lb bA phi' bT f pf = do
     let xs = map (\ x -> runNames [] $ lam "i" (\ _ -> pure (unArg x))) [la,lb,bA,phi',bT,f,pf]
@@ -689,15 +724,14 @@ primComp = do
     p2equiv <- fromMaybe __IMPOSSIBLE__ <$> getBuiltin' builtinPathToEquiv
     tGlue <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' builtinGlue
     tComp <- fromMaybe __IMPOSSIBLE__ <$> getPrimitiveTerm' "primComp"
-
     l <- open $ runNames [] (lam "i" (\ _ -> pure $ Level $ lvlView s))
     [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
+    let transp p = pure tComp <#> l <@> p <@> iz
+                              <@> lam "i" (\ _ -> lam "o'" (\ _ ->
+                                                    pure (Sort Prop))) -- dummy
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
                <@> a0 <@> phi <@> (e <@> pure io)
-               <@> lam "o" (\ o -> pure tComp <#> l <@> (lam "i" $ \ i -> e <@> ineg i <@> o)
-                                               <@> iz
-                                               <@> lam "i" (\ _ -> lam "o'" (\ _ ->
-                                                              pure (Sort Prop)))) -- dummy
+               <@> lam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
                <@> lam "o" (\ o -> pure p2equiv <#> l <@> (lam "i" $ \ i -> e <@> ineg i <@> o))
 
   compPath iz ineg imax sphi u a0 l bA x y = do
@@ -706,7 +740,7 @@ primComp = do
     redReturn . runNames [] $ do
        [l,p,p0] <- mapM (open . unArg) [l,u,a0]
        phi      <- open . unArg . ignoreBlocking $ sphi
-       [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (inCxt ["i"] . unArg $ a))) [bA, x, y]
+       [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure a))) [bA, x, y]
        lam "j" $ \ j ->
          pure tComp <#> l <@> bA <@> (phi `imax` (ineg j `imax` j))
                     <@> (lam "i'" $ \ i ->
@@ -718,44 +752,6 @@ primComp = do
                     <@> (p0 <@@> (x <@> iz, y <@> iz, j))
 
   lam_i = Lam defaultArgInfo . Abs "i"
-
-  cheapDataComp :: [Arg Term] -> Term -> Term -> Term -> ReduceM (Maybe Term)
-  cheapDataComp ps phi u a0 = do
-    view   <- intervalView'
-    unview <- intervalUnview'
-    let boolToI b = if b then unview IOne else unview IZero
-    case a0 of
-      Con h args ->
-        case view phi of
-          IZero -> return (Just a0)
-          _     -> do
-
-           sameCon <- do
-             as <- decomposeInterval phi
-             (all isJust <$>) . forM as $ \ (bs,ts) -> do
-                  t <- reduce2Lam $ listS (Map.toList (Map.map boolToI bs)) `applySubst` u
-                  return $ case t of
-                             Con h' as | h == h'
-                                       -> Just as
-                             _         -> Nothing
-           if not sameCon then return Nothing else
-             if null args then return (Just a0) else do
-               Constructor{ conComp = cm } <- theDef <$> getConstInfo (conName h)
-               case cm of
-                 Just (compD,_) -> return $ Just $ (Def compD []) `apply`
-                                               (map (fmap lam_i) ps ++ map argN [phi,u,a0])
-                 Nothing -> return Nothing
-      _        -> return Nothing
-    where
-      reduce2Lam t = do
-        t <- reduce' t
-        case t of
-          Lam _ t -> Reduce.underAbstraction_ t $ \ t -> do
-             t <- reduce' t
-             case t of
-               Lam _ t -> Reduce.underAbstraction_ t reduce'
-               _       -> return t
-          _ -> return t
 
 
   compPi :: Abs Term -> Dom Type -> Abs Type -> -- Γ , i : I
