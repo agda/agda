@@ -1157,7 +1157,21 @@ inferOrCheckProjApp e o ds args mt = do
 --   and resolves pattern synonyms.
 checkApplication :: A.Expr -> A.Args -> A.Expr -> Type -> TCM Term
 checkApplication hd args e t = do
-  case hd of
+  reportSDoc "tc.check.app" 20 $ vcat
+    [ text "checkApplication"
+    , nest 2 $ text "hd   = " <+> prettyA hd
+    , nest 2 $ text "args = " <+> sep (map prettyA args)
+    , nest 2 $ text "e    = " <+> prettyA e
+    , nest 2 $ text "t    = " <+> prettyTCM t
+    ]
+  reportSDoc "tc.check.app" 70 $ vcat
+    [ text "checkApplication (raw)"
+    , nest 2 $ text $ "hd   = " ++ show hd
+    , nest 2 $ text $ "args = " ++ show args
+    , nest 2 $ text $ "e    = " ++ show e
+    , nest 2 $ text $ "t    = " ++ show t
+    ]
+  case unScope hd of
     A.Proj _ (AmbQ []) -> __IMPOSSIBLE__
 
     -- Subcase: unambiguous projection
