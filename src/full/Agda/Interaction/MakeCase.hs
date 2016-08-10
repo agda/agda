@@ -29,7 +29,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TheTypeChecker

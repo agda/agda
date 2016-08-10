@@ -426,7 +426,6 @@ library
                     Agda.TypeChecking.SizedTypes.Utils
                     Agda.TypeChecking.SizedTypes.WarshallSolver
                     Agda.TypeChecking.Substitute
-                    Agda.TypeChecking.Substitute.Pattern
                     Agda.TypeChecking.SyntacticEquality
                     Agda.TypeChecking.Telescope
                     Agda.TypeChecking.Unquote

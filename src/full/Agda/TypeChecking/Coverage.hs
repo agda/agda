@@ -48,7 +48,6 @@ import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes (getConForm)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Records (isRecordType)
 import Agda.TypeChecking.Telescope

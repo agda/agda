@@ -18,7 +18,6 @@ import Agda.Syntax.Internal.Pattern ()
 import Agda.Syntax.Literal
 
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Substitute.Pattern ()
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
