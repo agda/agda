@@ -1,6 +1,5 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
-(agda2-close-warning)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking HighlightCopattern (HighlightCopattern.agda). " t)
 (agda2-highlight-add-annotations '(1 4 (symbol) nil) '(5 12 (keyword) nil) '(26 29 (symbol) nil) '(31 37 (keyword) nil) '(57 62 (keyword) nil) '(64 70 (keyword) nil) '(79 80 (symbol) nil) '(81 85 (primitivetype) nil) '(86 91 (keyword) nil) '(94 99 (keyword) nil) '(112 113 (symbol) nil) '(114 118 (primitivetype) nil) '(119 123 (keyword) nil) '(136 137 (symbol) nil) '(157 158 (symbol) nil) '(159 162 (primitivetype) nil) '(166 220 (comment) nil) '(227 228 (symbol) nil) '(237 238 (symbol) nil) '(239 243 (primitivetype) nil) '(251 252 (symbol) nil) '(264 318 (comment) nil))

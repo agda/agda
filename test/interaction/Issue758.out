@@ -1,6 +1,5 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
-(agda2-close-warning)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue758 (Issue758.agda). " t)
 (agda2-highlight-add-annotations '(2 6 (keyword) nil) '(11 12 (symbol) nil) '(13 16 (primitivetype) nil) '(17 22 (keyword) nil) '(30 31 (symbol) nil) '(43 44 (symbol) nil) '(49 50 (symbol) nil) '(56 63 (keyword) nil) '(75 76 (symbol) nil) '(81 82 (symbol) nil) '(87 88 (symbol) nil) '(92 93 (symbol) nil) '(98 99 (symbol) nil) '(106 107 (symbol) nil) '(117 118 (symbol) nil) '(119 120 (symbol) nil) '(127 128 (symbol) nil) '(136 137 (symbol) nil) '(138 139 (symbol) nil) '(161 162 (symbol) nil))
