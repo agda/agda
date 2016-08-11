@@ -112,6 +112,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primFloat, primChar, primString, primUnit, primUnitUnit, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
+    primIMin, primIMax, primINeg,
     primIsOne, primItIsOne, primIsOne1, primIsOne2,
     primId, primConId,
     primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
@@ -172,6 +173,9 @@ primInterval     = getBuiltin builtinInterval
 primPathAbs      = getPrimitiveTerm "primPathAbs"
 primIZero        = getBuiltin builtinIZero
 primIOne         = getBuiltin builtinIOne
+primIMin         = getPrimitiveTerm builtinIMin
+primIMax         = getPrimitiveTerm builtinIMax
+primINeg         = getPrimitiveTerm builtinINeg
 primRestrict     = getBuiltin builtinRestrict
 primPartial      = getPrimitiveTerm "primPartial"
 primPartialP     = getPrimitiveTerm "primPartialP"
@@ -303,6 +307,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinBool, builtinTrue, builtinFalse,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
+  builtinIMin, builtinIMax, builtinINeg,
   builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2,
   builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
@@ -373,6 +378,9 @@ builtinConId                         = "CONID"
 builtinPath                          = "PATH"
 builtinPathP                         = "PATHP"
 builtinInterval                      = "INTERVAL"
+builtinIMin                          = "primIMin"
+builtinIMax                          = "primIMax"
+builtinINeg                          = "primINeg"
 builtinPathAbs                       = "PATHABS"
 builtinIZero                         = "IZERO"
 builtinIOne                          = "IONE"

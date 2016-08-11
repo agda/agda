@@ -329,8 +329,8 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     _       -> Nothing
 
 
-primINeg :: TCM PrimitiveImpl
-primINeg = do
+primINeg' :: TCM PrimitiveImpl
+primINeg' = do
   t <- elInf primInterval --> elInf primInterval
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ts -> do
     case ts of
@@ -379,11 +379,11 @@ primIBin unit absorber = do
     (==%) _ _ = False
 
 
-primIMin :: TCM PrimitiveImpl
-primIMin = primIBin IOne IZero
+primIMin' :: TCM PrimitiveImpl
+primIMin' = primIBin IOne IZero
 
-primIMax :: TCM PrimitiveImpl
-primIMax = primIBin IZero IOne
+primIMax' :: TCM PrimitiveImpl
+primIMax' = primIBin IZero IOne
 
 imax :: HasBuiltins m => m Term -> m Term -> m Term
 imax x y = do
@@ -740,7 +740,7 @@ primComp = do
     redReturn . runNames [] $ do
        [l,p,p0] <- mapM (open . unArg) [l,u,a0]
        phi      <- open . unArg . ignoreBlocking $ sphi
-       [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure a))) [bA, x, y]
+       [bA, x, y] <- mapM (\ a -> open . runNames [] $ (lam "i" $ const (pure $ unArg a))) [bA, x, y]
        lam "j" $ \ j ->
          pure tComp <#> l <@> bA <@> (phi `imax` (ineg j `imax` j))
                     <@> (lam "i'" $ \ i ->
@@ -1377,9 +1377,9 @@ primitiveFunctions = Map.fromList
   , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)
   , "primPathApply"       |-> primPathApply
   , "primPathPApply"      |-> primPathPApply
-  , "primIMin"            |-> primIMin
-  , "primIMax"            |-> primIMax
-  , "primINeg"            |-> primINeg
+  , "primIMin"            |-> primIMin'
+  , "primIMax"            |-> primIMax'
+  , "primINeg"            |-> primINeg'
   , "primCoe"             |-> primCoe
   , "primPOr"             |-> primPOr
   , "primComp"            |-> primComp

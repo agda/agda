@@ -10,6 +10,7 @@ import Control.Monad.State
 import Data.List hiding (sort)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Traversable hiding (mapM, sequence)
 
 import Agda.Syntax.Abstract.Views (isSet)
@@ -328,6 +329,7 @@ compareTerm' cmp a m n =
         addContext (name, defaultDom interval) $ compareTerm cmp (El (raise 1 s) $ (raise 1 $ unArg a) `apply` [argN $ var 0]) m' n'
     equalPath OType{} a' m n = cmpDef a' m n
     cmpDef a'@(El s ty) m n = do
+       mI     <- getBuiltinName'   builtinInterval
        mIsOne <- getBuiltinName'   builtinIsOne
        mGlue  <- getPrimitiveName' builtinGlue
        case ty of
@@ -338,6 +340,7 @@ compareTerm' cmp a m n =
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
+         Def q [] | Just q == mInterval -> compareInterval cmp a' m n
          _ -> compareAtom cmp a' m n
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
@@ -1451,15 +1454,26 @@ forallFaceMaps t kb k = do
                                   return (e:c, liftS 1 sigma)
     substContext i t (x:xs) = __IMPOSSIBLE__
 
+
+compareInterval :: Comparison -> Type -> Term -> Term -> TCM ()
+compareInterval cmp i t u = do
+  io <- primIOne
+  tmaxu <- primIMax <@> pure t <@> pure u
+  tminu <- primIMin <@> pure t <@> pure u
+  compareTermOnFace' compareAtom CmpEq tmaxu i io tminu
+
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: Term -> Type -> Term -> Term -> TCM ()
 equalTermOnFace = compareTermOnFace CmpEq
 
 compareTermOnFace :: Comparison -> Term -> Type -> Term -> Term -> TCM ()
-compareTermOnFace cmp phi ty u v = do
+compareTermOnFace = compareTermOnFace' compareTerm
+
+compareTermOnFace' :: (Comparison -> Type -> Term -> Term -> TCM ()) -> Comparison -> Term -> Type -> Term -> Term -> TCM ()
+compareTermOnFace' k cmp phi ty u v = do
   phi <- reduce phi
   _ <- forallFaceMaps phi postponed
-         $ \ alpha -> compareTerm cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
+         $ \ alpha -> k cmp (applySubst alpha ty) (applySubst alpha u) (applySubst alpha v)
   return ()
  where
   postponed ms i psi = do
