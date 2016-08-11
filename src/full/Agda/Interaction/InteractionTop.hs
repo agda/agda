@@ -541,7 +541,7 @@ interpret Cmd_metas = do -- CL.showMetas []
   unsolvedNotOK <- lift $ not . optAllowUnsolved <$> pragmaOptions
   ms <- lift showOpenMetas
   pws <- interpretWarnings
-  display_info $ Info_AllGoals $ unlines ms ++ pws
+  display_info $ Info_AllGoalsWarnings (unlines ms) pws
 
 interpret Cmd_warnings = do
   -- Ulf, 2016-08-09: Warnings are now printed in the info buffer by Cmd_metas.

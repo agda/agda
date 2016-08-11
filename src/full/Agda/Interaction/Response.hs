@@ -55,12 +55,13 @@ data MakeCaseVariant = Function | ExtendedLambda
 data DisplayInfo
     = Info_CompilationOk
     | Info_Constraints String
-    | Info_AllGoals String
+    | Info_AllGoalsWarnings String String
+        -- ^ First string is the goals, second the warnings
     | Info_Time Doc
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
-    | Info_Warning String
+--    | Info_Warning String --FNF: currently unused
     | Info_Intro Doc
         -- ^ 'Info_Intro' denotes two different types of errors
         --   TODO: split these into separate constructors

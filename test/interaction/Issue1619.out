@@ -1,6 +1,5 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
-(agda2-close-warning)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue1619 (Issue1619.agda). " t)
 (agda2-highlight-add-annotations '(1 51 (comment) nil) '(53 114 (comment) nil) '(115 178 (comment) nil) '(179 214 (comment) nil) '(215 278 (comment) nil) '(279 322 (comment) nil) '(324 330 (keyword) nil) '(336 337 (symbol) nil) '(339 340 (symbol) nil) '(341 344 (primitivetype) nil) '(344 345 (symbol) nil) '(346 347 (symbol) nil) '(348 351 (primitivetype) nil) '(352 357 (keyword) nil) '(360 365 (keyword) nil) '(372 373 (symbol) nil) '(377 383 (keyword) nil) '(391 392 (symbol) nil) '(394 395 (symbol) nil) '(396 399 (primitivetype) nil) '(399 400 (symbol) nil) '(401 402 (symbol) nil) '(404 405 (symbol) nil) '(412 413 (symbol) nil) '(414 415 (symbol) nil) '(416 419 (primitivetype) nil) '(420 425 (keyword) nil) '(428 434 (keyword) nil) '(438 439 (symbol) nil) '(448 454 (keyword) nil) '(468 469 (symbol) nil) '(471 472 (symbol) nil) '(473 476 (primitivetype) nil) '(476 477 (symbol) nil) '(478 479 (symbol) nil) '(481 482 (symbol) nil) '(489 490 (symbol) nil) '(491 492 (symbol) nil) '(496 497 (symbol) nil) '(506 507 (symbol) nil) '(508 513 (keyword) nil) '(516 522 (keyword) nil) '(525 526 (symbol) nil))

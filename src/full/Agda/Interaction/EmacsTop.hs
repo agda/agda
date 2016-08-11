@@ -87,10 +87,16 @@ lispifyResponse (Resp_HighlightingInfo info modFile) =
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk -> f "The module was successfully compiled." "*Compilation result*"
     Info_Constraints s -> f s "*Constraints*"
-    Info_AllGoals s -> f s "*All Goals*"
+    Info_AllGoalsWarnings g  [] -> f g "*All Goals*"
+    Info_AllGoalsWarnings [] w  -> f w "*Errors*"
+    Info_AllGoalsWarnings g  w  -> f (g ++ delimiter ++ w)
+                                     "*All Goals (with errors)*"
+      where delimiter = "\nErrors:\n" ++ (replicate 7 '\x2014') ++ "\n"
     Info_Auto s -> f s "*Auto*"
-    Info_Error s -> clearWarning : f s "*Error*"
-    Info_Warning s -> [ display_warning "*Errors*" s ]
+    Info_Error s -> f s "*Error*"
+    -- FNF: if Info_Warning comes back into use, the above should be
+    -- clearWarning : f s "*Error*"
+    --Info_Warning s -> [ display_warning "*Errors*" s ] -- FNF: currently unused
     Info_Time s -> f (render s) "*Time*"
     Info_NormalForm s -> f (render s) "*Normal Form*"   -- show?
     Info_InferredType s -> f (render s) "*Inferred Type*"
@@ -110,7 +116,9 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_Version -> f ("Agda version " ++ version) "*Agda Version*"
   where f content bufname = [ display_info' False bufname content ]
 lispifyResponse Resp_ClearHighlighting = return [ L [ A "agda2-highlight-clear" ] ]
-lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo, clearWarning ]
+lispifyResponse Resp_ClearRunningInfo = return [ clearRunningInfo ]
+-- FNF: if Info_Warning comes back into use, the above should be
+-- return [ clearRunningInfo, clearWarning ]
 lispifyResponse (Resp_RunningInfo n s)
   | n <= 1    = return [ displayRunningInfo s ]
   | otherwise = return [ L [A "agda2-verbose", A (quote s)] ]

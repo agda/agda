@@ -8,7 +8,6 @@ Finished Issue1232.List.
 Finished Issue1232.All.
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
-(agda2-close-warning)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue1232 (Issue1232.agda). " t)
 (agda2-info-action "*Type-checking*" " Skipping Issue1232.Nat (Issue1232/Nat.agdai). " t)
@@ -19,7 +18,6 @@ Finished Issue1232.All.
 ((last . 1) . (agda2-goals-action '()))
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
-(agda2-close-warning)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue1232 (Issue1232.agda). " t)
 (agda2-info-action "*Type-checking*" "Finished Issue1232. " t)
