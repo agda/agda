@@ -340,7 +340,7 @@ compareTerm' cmp a m n =
               let mkUnglue m = apply unglue $ map (setHiding Hidden) args ++ [argN m]
               reportSDoc "conv.glue" 20 $ prettyTCM (ty,mkUnglue m,mkUnglue n)
               compareTerm cmp ty (mkUnglue m) (mkUnglue n)
-         Def q [] | Just q == mInterval -> compareInterval cmp a' m n
+         Def q [] | Just q == mI -> compareInterval cmp a' m n
          _ -> compareAtom cmp a' m n
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise

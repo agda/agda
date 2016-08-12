@@ -113,7 +113,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primPath, primPathP, primInterval, primPathAbs, primIZero, primIOne, primPartial, primPartialP, primRestrict, primPSingl,
     primIMin, primIMax, primINeg,
-    primIsOne, primItIsOne, primIsOne1, primIsOne2,
+    primIsOne, primItIsOne, primIsOne1, primIsOne2, primIsOneEmpty,
     primId, primConId,
     primIsEquiv, primPathToEquiv, primGlue, prim_glue, prim_unglue,
     primCompGlue, primFaceForall,
@@ -191,6 +191,7 @@ primCompGlue     = getPrimitiveTerm builtinCompGlue
 primFaceForall   = getPrimitiveTerm builtinFaceForall
 primIsOne1       = getBuiltin builtinIsOne1
 primIsOne2       = getBuiltin builtinIsOne2
+primIsOneEmpty   = getBuiltin builtinIsOneEmpty
 primNat          = getBuiltin builtinNat
 primSuc          = getBuiltin builtinSuc
 primZero         = getBuiltin builtinZero
@@ -308,7 +309,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinList, builtinNil, builtinCons, builtinIO,
   builtinPath, builtinPathP, builtinInterval, builtinPathAbs, builtinIZero, builtinIOne, builtinPartial, builtinPartialP, builtinRestrict, builtinPSingl,
   builtinIMin, builtinIMax, builtinINeg,
-  builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2,
+  builtinIsOne,  builtinItIsOne, builtinIsOne1, builtinIsOne2, builtinIsOneEmpty,
   builtinIsEquiv, builtinPathToEquiv, builtinGlue, builtin_glue, builtin_unglue,
   builtinCompGlue, builtinFaceForall,
   builtinId, builtinConId,
@@ -399,6 +400,7 @@ builtinCompGlue                      = "COMPGLUE"
 builtinFaceForall                    = "primFaceForall"
 builtinIsOne1                        = "ISONE1"
 builtinIsOne2                        = "ISONE2"
+builtinIsOneEmpty                    = "ISONEEMPTY"
 builtinSizeUniv                      = "SIZEUNIV"
 builtinSize                          = "SIZE"
 builtinSizeLt                        = "SIZELT"

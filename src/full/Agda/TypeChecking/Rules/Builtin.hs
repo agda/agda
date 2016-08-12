@@ -123,6 +123,12 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                      nPi' "j" (cl tinterval) $ \ j ->
                                                      nPi' "j1" (elInf $ cl primIsOne <@> j) $ \ j1 ->
                                                      (elInf $ cl primIsOne <@> (cl (getPrimitiveTerm "primIMax") <@> i <@> j))))
+  , (builtinIsOneEmpty         |-> builtinPostulate (runNamesT [] $
+                                                     hPi' "l" (el $ cl primLevel) $ \ l ->
+                                                     hPi' "A" (pPi' "o" (cl primIZero) $ \ _ ->
+                                                                    el' (cl primLevelSuc <@> l) (Sort . tmSort <$> l)) $ \ bA ->
+                                                     pPi' "o" (cl primIZero) (\ o -> el' l $ gApply' (setRelevance Irrelevant defaultArgInfo) bA o)))
+
   , (builtinId                 |-> builtinPostulate (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
                                                 (El (varSort 1) <$> varM 0) -->

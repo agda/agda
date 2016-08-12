@@ -634,7 +634,7 @@ primComp = do
                  where
                    u' = case vphi of
                           IZero -> reduced $ notBlocked $ argN $ runNames [] $
-                                      lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- dummy
+                                      lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- TODO: primIsOneEmpty
                           _     -> notReduced u
 
            case unArg $ ignoreBlocking sc of
@@ -681,7 +681,7 @@ primComp = do
           where
             su' = case view phi of
                    IZero -> notBlocked $ argN $ runNames [] $
-                               lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- dummy
+                               lam "i" $ \ _ -> lam "o" $ \ _ -> pure $ Sort Prop -- TODO: primIsOneEmpty
                    _     -> su
         boolToI b = if b then unview IOne else unview IZero
         sameConHead h u = do
@@ -728,7 +728,7 @@ primComp = do
     [phi,e,a0] <- mapM (open . unArg) [phi,u,a0]
     let transp p = pure tComp <#> l <@> p <@> iz
                               <@> lam "i" (\ _ -> lam "o'" (\ _ ->
-                                                    pure (Sort Prop))) -- dummy
+                                                    pure (Sort Prop))) -- TODO: primIsOneEmpty
     pure tGlue <#> (l <@> iz) <#> (l <@> pure io)
                <@> a0 <@> phi <@> (e <@> pure io)
                <@> lam "o" (\ o -> transp (lam "i" $ \ i -> e <@> ineg i <@> o))
@@ -1213,10 +1213,13 @@ varM = return . var
 infixl 9 <@>, <#>
 
 gApply :: Monad tcm => Hiding -> tcm Term -> tcm Term -> tcm Term
-gApply h a b = do
+gApply h a b = gApply' (setHiding h defaultArgInfo) a b
+
+gApply' :: Monad tcm => ArgInfo -> tcm Term -> tcm Term -> tcm Term
+gApply' info a b = do
     x <- a
     y <- b
-    return $ x `apply` [Arg (setHiding h defaultArgInfo) y]
+    return $ x `apply` [Arg info y]
 
 (<@>),(<#>) :: Monad tcm => tcm Term -> tcm Term -> tcm Term
 (<@>) = gApply NotHidden
