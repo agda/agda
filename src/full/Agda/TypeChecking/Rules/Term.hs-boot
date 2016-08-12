@@ -14,10 +14,10 @@ checkExpr :: A.Expr -> Type -> TCM Term
 inferExpr :: A.Expr -> TCM (Term, Type)
 
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
+                  ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type)
 
 checkArguments' :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                   (Args -> Type -> TCM Term) -> TCM Term
+                   (Elims -> Type -> TCM Term) -> TCM Term
 
 checkPostponedLambda :: Arg ([WithHiding Name], Maybe Type) -> A.Expr -> Type -> TCM Term
 

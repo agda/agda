@@ -651,16 +651,22 @@ primPathName' = do
 --   Precondition: type is reduced.
 
 pathView :: Type -> TCM PathView
-pathView t0@(El s t) = do
-  mpath <- primPathName'
-  mpathp <- getBuiltinName' builtinPathP
+pathView t0 = do
+  view <- pathView'
+  return $ view t0
+
+pathView' :: TCM (Type -> PathView)
+pathView' = do
+ mpath <- primPathName'
+ mpathp <- getBuiltinName' builtinPathP
+ return $ \ t0@(El s t) ->
   case ignoreSharing t of
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | Just path' == mpath, Just path <- mpathp -> return $ PathType s path level (lam_i <$> typ) lhs rhs
+      | Just path' == mpath, Just path <- mpathp -> PathType s path level (lam_i <$> typ) lhs rhs
       where lam_i = Lam defaultArgInfo . NoAbs "_"
     Def path' [ Apply level , Apply typ , Apply lhs , Apply rhs ]
-      | Just path' == mpathp, Just path <- mpathp -> return $ PathType s path level typ lhs rhs
-    _ -> return $ OType t0
+      | Just path' == mpathp, Just path <- mpathp -> PathType s path level typ lhs rhs
+    _ -> OType t0
 
 -- | Non dependent Path
 idViewAsPath :: Type -> TCM PathView

@@ -675,7 +675,8 @@ checkRecordExpression mfs e t = do
       es <- insertMissingFields r meta fs axs
 
       args <- checkArguments_ ExpandLast re es (recTel def `apply` vs) >>= \case
-        (args, remainingTel) | null remainingTel -> return args
+        (elims, remainingTel) | null remainingTel
+                              , Just args <- allApplyElims elims -> return args
         _ -> __IMPOSSIBLE__
       -- Don't need to block here!
       reportSDoc "tc.term.rec" 20 $ text $ "finished record expression"
@@ -777,7 +778,7 @@ checkLiteral lit t = do
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-  (Args -> Type -> TCM Term) -> TCM Term
+  (Elims -> Type -> TCM Term) -> TCM Term
 checkArguments' exph r args t0 t k = do
   z <- runExceptT $ checkArguments exph r args t0 t
   case z of
@@ -1211,7 +1212,7 @@ inferOrCheckProjApp e ds args mt = do
               let r  = getRange e
               z <- runExceptT $ checkArguments ExpandLast r (drop (k+1) args) tb tc
               case z of
-                Right (us, trest) -> return (u `apply` us, trest)
+                Right (us, trest) -> return (u `applyE` us, trest)
                 -- We managed to check a part of es and got us1, but es2 remain.
                 Left (us1, es2, trest1) -> do
                   -- In the inference case:
@@ -1220,7 +1221,7 @@ inferOrCheckProjApp e ds args mt = do
                   tc <- caseMaybe mt newTypeMeta_ return
                   v <- postponeTypeCheckingProblem_ $
                     CheckArgs ExpandLast r es2 trest1 tc $ \ us2 trest ->
-                      coerce (u `apply` us1 `apply` us2) trest tc
+                      coerce (u `applyE` us1 `applyE` us2) trest tc
                   return (v, tc)
 
 
@@ -1353,7 +1354,7 @@ checkApplication hd args e t = do
           tel    <- metaTel args                    -- (x : X) (y : Y x)
           target <- addContext tel newTypeMeta_      -- Z x y
           let holeType = telePi_ tel target         -- (x : X) (y : Y x) → Z x y
-          (vs, EmptyTel) <- checkArguments_ ExpandLast (getRange args) args tel
+          (Just vs, EmptyTel) <- mapFst allApplyElims <$> checkArguments_ ExpandLast (getRange args) args tel
                                                     -- a b : (x : X) (y : Y x)
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
@@ -1416,8 +1417,8 @@ domainFree info x =
 checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
 checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
 
-inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
-inferMeta newMeta i = mapFst apply <$> checkOrInferMeta newMeta Nothing i
+inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Elims -> Term, Type)
+inferMeta newMeta i = mapFst applyE <$> checkOrInferMeta newMeta Nothing i
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.
@@ -1444,19 +1445,19 @@ checkOrInferMeta newMeta mt i = do
 -- * Applications
 ---------------------------------------------------------------------------
 
-inferHeadDef :: QName -> TCM (Args -> Term, Type)
+inferHeadDef :: QName -> TCM (Elims -> Term, Type)
 inferHeadDef x = do
   proj <- isProjection x
   let app =
         case proj of
           Nothing -> \ args -> Def x $ map Apply args
           Just p  -> \ args -> projDropParsApply p args
-  mapFst apply <$> inferDef app x
+  mapFst applyE <$> inferDef app x
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor).
 --   We return a function that applies the head to arguments.
 --   This is because in case of a constructor we want to drop the parameters.
-inferHead :: A.Expr -> TCM (Args -> Term, Type)
+inferHead :: A.Expr -> TCM (Elims -> Term, Type)
 inferHead e = do
   case e of
     (A.Var x) -> do -- traceCall (InferVar x) $ do
@@ -1468,7 +1469,7 @@ inferHead e = do
         ]
       when (unusableRelevance $ getRelevance a) $
         typeError $ VariableIsIrrelevant x
-      return (apply u, unDom a)
+      return (applyE u, unDom a)
     (A.Def x) -> inferHeadDef x
     (A.Proj (AmbQ [d])) -> inferHeadDef d
     (A.Proj _) -> __IMPOSSIBLE__ -- inferHead will only be called on unambiguous projections
@@ -1489,13 +1490,13 @@ inferHead e = do
       reportSLn "tc.term.con" 7 $ unwords [show c, "has", show n, "parameters."]
 
       -- So when applying the constructor throw away the parameters.
-      return (apply u . genericDrop n, a)
+      return (applyE u . genericDrop n, a)
     (A.Con _) -> __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
     (A.QuestionMark i ii) -> inferMeta (newQuestionMark ii) i
     (A.Underscore i)   -> inferMeta (newValueMeta RunMetaOccursCheck) i
     e -> do
       (term, t) <- inferExpr e
-      return (apply term, t)
+      return (applyE term, t)
 
 inferDef :: (Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
@@ -1577,7 +1578,8 @@ checkConstructorApplication org t c args = do
                args' = dropArgs pnames args
            -- check the non-parameter arguments
            expandLast <- asks envExpandLast
-           checkArguments' expandLast (getRange c) args' ctype' t $ \us t' -> do
+           checkArguments' expandLast (getRange c) args' ctype' t $ \es t' -> do
+             let us = fromMaybe __IMPOSSIBLE__ (allApplyElims es)
              reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
                [ text "us     =" <+> prettyTCM us
                , text "t'     =" <+> prettyTCM t' ]
@@ -1736,8 +1738,8 @@ checkHeadApplication e t hd args = do
        (f, t0) <- inferHead hd
        expandLast <- asks envExpandLast
        checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 ->
-                      case vs of
-                       [_,_,_,v] -> do
+                      case allApplyElims vs of
+                       Just [_,_,_,v] -> do
                           coerce (unArg v) t1 t
                        _ -> typeError $ GenericError $ show c ++ " must be fully applied"
     (A.Def c) | Just c == pOr -> do
@@ -1848,8 +1850,12 @@ checkHeadApplication e t hd args = do
   defaultResult' mk = do
     (f, t0) <- inferHead hd
     expandLast <- asks envExpandLast
-    checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 ->
-      maybe id (\ k m -> blockTerm t $ k vs t1 >> m) mk $ coerce (f vs) t1 t
+    checkArguments' expandLast (getRange hd) args t0 t $ \vs t1 -> do
+      let check = do
+           k <- mk
+           as <- allApplyElims vs
+           pure $ k as t1
+      maybe id (\ ck m -> blockTerm t $ ck >> m) check $ coerce (f vs) t1 t
 
 traceCallE ::
 #if !MIN_VERSION_transformers(0,4,1)
@@ -1915,7 +1921,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
 --   that have to be solved for everything to be well-formed.
 
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ExceptT (Args, [NamedArg A.Expr], Type) TCM (Args, Type)
+                  ExceptT (Elims, [NamedArg A.Expr], Type) TCM (Elims, Type)
 
 -- Case: no arguments, do not insert trailing hidden arguments: We are done.
 checkArguments DontExpandLast _ [] t0 t1 = return ([], t0)
@@ -1924,7 +1930,7 @@ checkArguments DontExpandLast _ [] t0 t1 = return ([], t0)
 checkArguments exh r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ lift $ do
       t1' <- unEl <$> reduce t1
-      implicitArgs (-1) (expand t1') t0
+      mapFst (map Apply) <$> implicitArgs (-1) (expand t1') t0
     where
       expand (Pi (Dom{domInfo = info}) _)   Hidden = getHiding info /= Hidden &&
                                             exh == ExpandLast
@@ -1955,7 +1961,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
           expand hy        y = hy /= hx || maybe False (y /=) mx
       (nargs, t) <- lift $ implicitNamedArgs (-1) expand t0
       -- Separate names from args.
-      let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Arg ai u)) nargs
+      let (mxs, us) = unzip $ map (\ (Arg ai (Named mx u)) -> (mx, Apply $ Arg ai u)) nargs
           xs        = catMaybes mxs
       -- We are done inserting implicit args.  Now, try to check @arg@.
       ifBlockedType t (\ m t -> throwError (us, args0, t)) $ \ t0' -> do
@@ -1982,6 +1988,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
               -- c) We inserted implicits, but did not find his one.
               | otherwise = lift $ typeError $ WrongNamedArgument arg
 
+        viewPath <- lift pathView'
         -- t0' <- lift $ forcePi (getHiding info) (maybe "_" rangedThing $ nameOf e) t0'
         case ignoreSharing $ unEl t0' of
           Pi (Dom{domInfo = info', unDom = a}) b
@@ -2003,7 +2010,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
                   checkExpr (namedThing e) a
                 -- save relevance info' from domain in argument
-                addCheckedArgs us (Arg info' u) $
+                addCheckedArgs us (Apply $ Arg info' u) $
                   checkArguments exh (fuseRange r e) args (absApp b u) t1
             | otherwise -> do
                 reportSDoc "error" 10 $ nest 2 $ vcat
@@ -2013,6 +2020,13 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                   , text $ "nameOf e  = " ++ show (nameOf e)
                   ]
                 wrongPi
+          _
+            | notHidden info
+            , PathType s _ _ bA x y <- viewPath $ ignoreSharingType t0' -> do
+                lift $ reportSDoc "tc.term.args" 30 $ text $ show bA
+                u <- lift $ checkExpr (namedThing e) =<< elInf primInterval
+                addCheckedArgs us (IApply (unArg x) (unArg y) u) $
+                  checkArguments exh (fuseRange r e) args (El s $ unArg bA `apply` [argN u]) t1
           _ -> shouldBePi
   where
     addCheckedArgs us u rec =
@@ -2028,7 +2042,7 @@ checkArguments_
   -> Range                -- ^ Range of application.
   -> [NamedArg A.Expr]    -- ^ Arguments to check.
   -> Telescope            -- ^ Telescope to check arguments against.
-  -> TCM (Args, Telescope)
+  -> TCM (Elims, Telescope)
      -- ^ Checked arguments and remaining telescope if successful.
 checkArguments_ exh r args tel = do
     z <- runExceptT $
