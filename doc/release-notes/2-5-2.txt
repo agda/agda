@@ -549,10 +549,10 @@ Emacs mode
   The hidden .N and .M have been brought into scope, the visible N
   has been split upon.
 
-* Non-fatal errors/warnings window.
+* Non-fatal errors/warnings.
 
-  Non-fatal errors and warnings are now displayed in their own emacs
-  window and does not interrupt the typechecking of the file.
+  Non-fatal errors and warnings are now displayed in the info buffer
+  and does not interrupt the typechecking of the file.
 
   Currently termination errors, unsolved metavariables, unsolved
   constraints and positivity errors are non-fatal errors.
