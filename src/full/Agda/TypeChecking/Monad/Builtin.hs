@@ -91,6 +91,13 @@ getPrimitiveTerm x = (`Def` []) <$> primFunName <$> getPrimitive x
 getPrimitiveTerm' :: HasBuiltins m => String -> m (Maybe Term)
 getPrimitiveTerm' x = fmap (`Def` []) <$> getPrimitiveName' x
 
+getTerm' :: HasBuiltins m => String -> m (Maybe Term)
+getTerm' x = mplus <$> getBuiltin' x <*> getPrimitiveTerm' x
+
+getName' :: HasBuiltins m => String -> m (Maybe QName)
+getName' x = mplus <$> getBuiltinName' x <*> getPrimitiveName' x
+
+
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term
 constructorForm v = constructorForm' primZero primSuc v
