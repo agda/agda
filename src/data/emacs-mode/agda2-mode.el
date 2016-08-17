@@ -1519,7 +1519,7 @@ modified."
                     'move-overlay ol (overlay-start ol) (overlay-end ol))
               buffer-undo-list))
       (goto-char (overlay-start ol))
-      (delete-char (- (overlay-end ol) (overlay-start ol)))
+      (delete-char (- (- (overlay-end ol) (overlay-start ol)) 1))
       (delete-overlay ol)))))
 
 (defun agda2-update (old-g new-txt)
