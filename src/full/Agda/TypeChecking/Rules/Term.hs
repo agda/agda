@@ -307,8 +307,8 @@ checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
       possiblePath = numbinds == 1 && (case unScope typ of
                                          A.Underscore{} -> True
                                          _              -> False)
-                     && not (any notVisible xs)
-  reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, typ)
+                     && isRelevant info && visible info
+  reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, typ, info)
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
     then (if possiblePath then trySeeingIfPath else dontUseTargetType)
