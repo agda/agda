@@ -148,6 +148,7 @@ data PragmaOptions = PragmaOptions
   , optExactSplit                :: Bool
   , optEta                       :: Bool
   , optRewriting                 :: Bool  -- ^ Can rewrite rules be added and used?
+  , optCubical                   :: Bool
   }
   deriving (Show,Eq)
 
@@ -236,6 +237,7 @@ defaultPragmaOptions = PragmaOptions
   , optExactSplit                = False
   , optEta                       = True
   , optRewriting                 = False
+  , optCubical                   = False
   }
 
 -- | The default termination depth.
@@ -432,6 +434,9 @@ noExactSplitFlag o = return $ o { optExactSplit = False }
 
 rewritingFlag :: Flag PragmaOptions
 rewritingFlag o = return $ o { optRewriting = True }
+
+cubicalFlag :: Flag PragmaOptions
+cubicalFlag o = return $ o { optCubical = True }
 
 interactiveFlag :: Flag CommandLineOptions
 interactiveFlag  o = return $ o { optInteractive    = True
@@ -678,6 +683,8 @@ pragmaOptions =
                     "disable eta rules for records"
     , Option []     ["rewriting"] (NoArg rewritingFlag)
                     "enable declaration and use of REWRITE rules"
+    , Option []     ["cubical"] (NoArg cubicalFlag)
+                    "enable cubical features (e.g. overloads lambdas for paths)"
     ]
 
 -- | Used for printing usage info.

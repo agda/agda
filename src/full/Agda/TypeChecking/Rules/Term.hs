@@ -302,12 +302,13 @@ checkLambda (Arg _ (A.TLet _ lbs)) body target =
   checkLetBindings lbs (checkExpr body target)
 checkLambda b@(Arg info (A.TBind _ xs typ)) body target = do
   reportSLn "tc.term.lambda" 60 $ "checkLambda   xs = " ++ show xs
-
+  cubical <- optCubical <$> pragmaOptions
   let numbinds = length xs
-      possiblePath = numbinds == 1 && (case unScope typ of
-                                         A.Underscore{} -> True
-                                         _              -> False)
-                     && isRelevant info && visible info
+      possiblePath = cubical && numbinds == 1
+                   && (case unScope typ of
+                         A.Underscore{} -> True
+                         _              -> False)
+                   && isRelevant info && visible info
   reportSLn "tc.term.lambda" 60 $ "possiblePath = " ++ show (possiblePath, numbinds, typ, info)
   TelV tel btyp <- telViewUpTo numbinds target
   if size tel < numbinds || numbinds /= 1
