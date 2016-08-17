@@ -70,6 +70,14 @@ toTreeless' q =
       -- functions, since that would risk inlining to fail.
     ccToTreeless q cc
 
+-- | Does not require the name to refer to a function.
+cacheTreeless :: QName -> TCM ()
+cacheTreeless q = do
+  def <- theDef <$> getConstInfo q
+  case def of
+    Function{} -> () <$ toTreeless' q
+    _          -> return ()
+
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   let pbody b = pbody' "" b
@@ -337,12 +345,12 @@ normaliseStatic v = pure v
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
   ifM (lift $ alwaysInline q) doinline $ do
+    lift $ cacheTreeless q
     def <- lift $ getConstInfo q
     case theDef def of
       fun@Function{}
         | fun ^. funInline -> doinline
         | otherwise -> do
-        _ <- lift $ toTreeless' q
         used <- lift $ getCompiledArgUse q
         let substUsed False _   = pure C.TErased
             substUsed True  arg = substArg arg
