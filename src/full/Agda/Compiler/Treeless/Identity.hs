@@ -100,4 +100,3 @@ trivialIdentity q t =
     goAlt k (TAGuard _ b) = go k b
     goAlt k (TACon _ n b) = go (k + n) b
 
-
