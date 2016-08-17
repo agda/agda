@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Record where
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -442,10 +443,7 @@ checkRecordProjections m r con tel ftel fs = do
                        , funAbstr          = ConcreteDef
                        , funMutual         = []
                        , funProjection     = Just projection
-                       , funSmashable      = True
-                       , funStatic         = False
-                       , funInline         = False
-                       , funMacro          = False
+                       , funFlags          = Set.singleton FunSmashable
                        , funTerminates     = Just True
                        , funExtLam         = Nothing
                        , funWith           = Nothing

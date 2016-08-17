@@ -164,26 +164,19 @@ addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep
   where
     addCr crep = crep { compiledCore = Just $ CrType crTy }
 
+setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()
+setFunctionFlag flag val q =
+  modifySignature $ updateDefinition q $
+  set (theDefLens . funFlag flag) val
+
 markNoSmashing :: QName -> TCM ()
-markNoSmashing q = modifySignature $ updateDefinition q $ mark
-  where
-    mark def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funSmashable = False}}
-    mark def = def
+markNoSmashing = setFunctionFlag FunSmashable False
 
 markStatic :: QName -> TCM ()
-markStatic q = modifySignature $ updateDefinition q $ mark
-  where
-    mark def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funStatic = True}}
-    mark def = def
+markStatic = setFunctionFlag FunStatic True
 
 markInline :: QName -> TCM ()
-markInline q = modifySignature $ updateDefinition q $ mark
-  where
-    mark def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funInline = True}}
-    mark def = def
+markInline = setFunctionFlag FunInline True
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
@@ -457,10 +450,9 @@ applySection' new ptel old ts rd rm = do
                         , funMutual         = mutual
                         , funAbstr          = ConcreteDef -- OR: abstr -- ?!
                         , funProjection     = proj
-                        , funStatic         = False
-                        , funInline         = False
-                        , funSmashable      = True
-                        , funMacro          = isMacro oldDef
+                        , funFlags          = Set.fromList $
+                                                [ FunSmashable ] ++
+                                                [ FunMacro | isMacro oldDef ]
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with
@@ -989,13 +981,11 @@ isProjection_ def =
 
 -- | Is it a function marked STATIC?
 isStaticFun :: Defn -> Bool
-isStaticFun Function{ funStatic = b } = b
-isStaticFun _ = False
+isStaticFun = (^. funStatic)
 
 -- | Is it a function marked INLINE?
 isInlineFun :: Defn -> Bool
-isInlineFun Function{ funInline = b } = b
-isInlineFun _ = False
+isInlineFun = (^. funInline)
 
 -- | Returns @True@ if we are dealing with a proper projection,
 --   i.e., not a projection-like function nor a record field value

@@ -13,6 +13,7 @@ import Data.Function
 import Data.List hiding (sort)
 import Data.Maybe
 import Data.Traversable
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
@@ -166,10 +167,8 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                       , funAbstr          = Info.defAbstract i
                       , funMutual         = []
                       , funProjection     = Nothing
-                      , funSmashable      = True
-                      , funStatic         = False
-                      , funInline         = False
-                      , funMacro          = Info.defMacro i == MacroDef
+                      , funFlags          = Set.fromList $ FunSmashable :
+                                              [ FunMacro | Info.defMacro i == MacroDef ]
                       , funTerminates     = Nothing
                       , funExtLam         = Nothing
                       , funWith           = Nothing
@@ -308,10 +307,8 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
              , funAbstr          = Info.defAbstract i
              , funMutual         = []
              , funProjection     = Nothing
-             , funSmashable      = True
-             , funStatic         = False
-             , funInline         = False
-             , funMacro          = ismacro || Info.defMacro i == MacroDef
+             , funFlags          = Set.fromList $ FunSmashable :
+                                    [ FunMacro | ismacro || Info.defMacro i == MacroDef ]
              , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with

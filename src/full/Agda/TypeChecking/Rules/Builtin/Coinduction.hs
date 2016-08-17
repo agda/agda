@@ -9,6 +9,7 @@ module Agda.TypeChecking.Rules.Builtin.Coinduction where
 import Control.Applicative
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -154,7 +155,7 @@ bindBuiltinFlat e =
                    { funClauses      = [clause]
                    , funCompiled     = Just $ cc
                    , funProjection   = Just projection
-                   , funSmashable    = False
+                   , funFlags        = Set.empty
                    , funTerminates   = Just True
                    , funCopatternLHS = isCopatternLHS [clause]
                    }
