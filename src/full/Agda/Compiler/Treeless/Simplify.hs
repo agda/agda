@@ -106,7 +106,7 @@ simplify FunctionKit{..} = simpl
 
       TCase x t d bs -> do
         v <- lookupVar x
-        let (lets, u) = letView v
+        let (lets, u) = tLetView v
         case u of                          -- TODO: also for literals
           _ | Just (c, as)     <- conView u   -> simpl $ matchCon lets c as d bs
             | Just (k, TVar y) <- plusKView u -> simpl . mkLets lets . TCase y t d =<< mapM (matchPlusK y x k) bs
@@ -141,14 +141,11 @@ simplify FunctionKit{..} = simpl
     conView (TApp (TCon c) as) = Just (c, as)
     conView e                  = Nothing
 
-    letView (TLet e b) = first (e :) $ letView b
-    letView e          = ([], e)
-
     -- Collapse chained cases (case x of bs -> vs; _ -> case x of bs' -> vs'  ==>
     --                         case x of bs -> vs; bs' -> vs')
     unchainCase :: TTerm -> S TTerm
     unchainCase e@(TCase x t d bs) = do
-      let (lets, u) = letView d
+      let (lets, u) = tLetView d
           k = length lets
       return $ case u of
         TCase y _ d' bs' | x + k == y ->
