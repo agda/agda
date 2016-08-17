@@ -435,20 +435,13 @@ checkRecordProjections m r con tel ftel fs = do
         escapeContext (size tel) $ do
           addConstant projname $
             (defaultDefn ai projname (killRange finalt)
-              Function { funClauses        = [clause]
-                       , funCompiled       = Just cc
-                       , funTreeless       = Nothing
-                       , funDelayed        = NotDelayed
-                       , funInv            = NotInjective
-                       , funAbstr          = ConcreteDef
-                       , funMutual         = []
-                       , funProjection     = Just projection
-                       , funFlags          = Set.empty
-                       , funTerminates     = Just True
-                       , funExtLam         = Nothing
-                       , funWith           = Nothing
-                       , funCopatternLHS   = isCopatternLHS [clause]
-                       })
+              emptyFunction
+                { funClauses        = [clause]
+                , funCompiled       = Just cc
+                , funProjection     = Just projection
+                , funTerminates     = Just True
+                , funCopatternLHS   = isCopatternLHS [clause]
+                })
               { defArgOccurrences = [StrictPos] }
           computePolarity projname
           when (Info.defInstance info == InstanceDef) $

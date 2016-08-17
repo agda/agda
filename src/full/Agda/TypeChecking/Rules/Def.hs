@@ -151,8 +151,9 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
 
   -- Add the definition
   addConstant name $ defaultDefn ai name t
-                   $ Function
-                      { funClauses        = [ Clause  -- trivial clause @name = v@
+                   $ set funMacro (Info.defMacro i == MacroDef) $
+                     emptyFunction
+                      { funClauses = [ Clause  -- trivial clause @name = v@
                           { clauseRange     = getRange i
                           , clauseTel       = EmptyTel
                           , namedClausePats = []
@@ -160,18 +161,9 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                           , clauseType      = Just $ Arg ai t
                           , clauseCatchall  = False
                           } ]
-                      , funCompiled       = Just $ Done [] $ bodyMod v
-                      , funTreeless       = Nothing
-                      , funDelayed        = delayed
-                      , funInv            = NotInjective
-                      , funAbstr          = Info.defAbstract i
-                      , funMutual         = []
-                      , funProjection     = Nothing
-                      , funFlags          = Set.fromList [ FunMacro | Info.defMacro i == MacroDef ]
-                      , funTerminates     = Nothing
-                      , funExtLam         = Nothing
-                      , funWith           = Nothing
-                      , funCopatternLHS   = False
+                      , funCompiled = Just $ Done [] $ bodyMod v
+                      , funDelayed  = delayed
+                      , funAbstr    = Info.defAbstract i
                       }
   reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
 
@@ -297,17 +289,13 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           -- If there was a pragma for this definition, we can set the
           -- funTerminates field directly.
           useTerPragma $ defaultDefn ai name fullType $
-             Function
+             set funMacro (ismacro || Info.defMacro i == MacroDef) $
+             emptyFunction
              { funClauses        = cs
              , funCompiled       = Just cc
-             , funTreeless       = Nothing
              , funDelayed        = delayed
              , funInv            = inv
              , funAbstr          = Info.defAbstract i
-             , funMutual         = []
-             , funProjection     = Nothing
-             , funFlags          = Set.fromList [ FunMacro | ismacro || Info.defMacro i == MacroDef ]
-             , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with
              , funCopatternLHS   = isCopatternLHS cs

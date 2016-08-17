@@ -438,16 +438,13 @@ applySection' new ptel old ts rd rm = do
                          }
                 _ -> do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
-                  let newDef = Function
+                  let newDef =
+                        set funMacro  (oldDef ^. funMacro) $
+                        emptyFunction
                         { funClauses        = [cl]
-                        , funCompiled       = Just $ cc
-                        , funTreeless       = Nothing
-                        , funDelayed        = NotDelayed
-                        , funInv            = NotInjective
+                        , funCompiled       = Just cc
                         , funMutual         = mutual
-                        , funAbstr          = ConcreteDef -- OR: abstr -- ?!
                         , funProjection     = proj
-                        , funFlags          = Set.fromList [ FunMacro | isMacro oldDef ]
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with
