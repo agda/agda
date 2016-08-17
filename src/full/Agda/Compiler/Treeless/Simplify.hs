@@ -275,6 +275,7 @@ simplify FunctionKit{..} = simpl
     maybeMinusToPrim f es = tApp f es
 
     tLet (TVar x) b = subst 0 (TVar x) b
+    tLet e (TVar 0) = e
     tLet e b        = TLet e b
 
     tCase :: Int -> CaseType -> TTerm -> [TAlt] -> S TTerm
