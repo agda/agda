@@ -155,7 +155,6 @@ bindBuiltinFlat e =
                    { funClauses      = [clause]
                    , funCompiled     = Just $ cc
                    , funProjection   = Just projection
-                   , funFlags        = Set.empty
                    , funTerminates   = Just True
                    , funCopatternLHS = isCopatternLHS [clause]
                    }
