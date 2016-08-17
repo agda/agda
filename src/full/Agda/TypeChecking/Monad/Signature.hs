@@ -440,6 +440,8 @@ applySection' new ptel old ts rd rm = do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef =
                         set funMacro  (oldDef ^. funMacro) $
+                        set funStatic (oldDef ^. funStatic) $
+                        set funInline True $
                         emptyFunction
                         { funClauses        = [cl]
                         , funCompiled       = Just cc
