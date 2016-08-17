@@ -344,7 +344,6 @@ instance ExprLike Pragma where
       CompiledJSPragma{}          -> pure p
       CompiledUHCPragma{}         -> pure p
       CompiledDataUHCPragma{}     -> pure p
-      NoSmashingPragma{}          -> pure p
       StaticPragma{}              -> pure p
       InlinePragma{}              -> pure p
       DisplayPragma f xs e        -> DisplayPragma f <$> rec xs <*> rec e

@@ -145,7 +145,6 @@ import Agda.Utils.Impossible
     'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $$ }
     'INLINE'                  { TokKeyword KwINLINE $$ }
     'MEASURE'                 { TokKeyword KwMEASURE $$ }
-    'NO_SMASHING'             { TokKeyword KwNO_SMASHING $$ }
     'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $$ }
     'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $$ }
@@ -275,7 +274,6 @@ Token
     | 'IMPOSSIBLE'              { TokKeyword KwIMPOSSIBLE $1 }
     | 'INLINE'                  { TokKeyword KwINLINE $1 }
     | 'MEASURE'                 { TokKeyword KwMEASURE $1 }
-    | 'NO_SMASHING'             { TokKeyword KwNO_SMASHING $1 }
     | 'NO_TERMINATION_CHECK'    { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'NO_POSITIVITY_CHECK'     { TokKeyword KwNO_POSITIVITY_CHECK $1 }
     | 'NON_TERMINATING'         { TokKeyword KwNON_TERMINATING $1 }
@@ -1376,7 +1374,6 @@ DeclarationPragma
   | CompiledUHCPragma        { $1 }
   | CompiledDataUHCPragma    { $1 }
   | HaskellPragma            { $1 }
-  | NoSmashingPragma         { $1 }
   | StaticPragma             { $1 }
   | InlinePragma             { $1 }
   | ImportPragma             { $1 }
@@ -1459,11 +1456,6 @@ CompiledDataUHCPragma
 HaskellPragma :: { Pragma }
 HaskellPragma
   : '{-#' 'HASKELL' Strings '#-}' { HaskellCodePragma (getRange ($1, $2, $4)) (recoverLayout $3) }
-
-NoSmashingPragma :: { Pragma }
-NoSmashingPragma
-  : '{-#' 'NO_SMASHING' PragmaQName '#-}'
-    { NoSmashingPragma (getRange ($1,$2,$3,$4)) $3 }
 
 StaticPragma :: { Pragma }
 StaticPragma

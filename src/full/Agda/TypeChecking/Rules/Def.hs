@@ -167,8 +167,7 @@ checkAlias t' ai delayed i name e mc = atClause name 0 (A.RHS e mc) $ do
                       , funAbstr          = Info.defAbstract i
                       , funMutual         = []
                       , funProjection     = Nothing
-                      , funFlags          = Set.fromList $ FunSmashable :
-                                              [ FunMacro | Info.defMacro i == MacroDef ]
+                      , funFlags          = Set.fromList [ FunMacro | Info.defMacro i == MacroDef ]
                       , funTerminates     = Nothing
                       , funExtLam         = Nothing
                       , funWith           = Nothing
@@ -307,8 +306,7 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
              , funAbstr          = Info.defAbstract i
              , funMutual         = []
              , funProjection     = Nothing
-             , funFlags          = Set.fromList $ FunSmashable :
-                                    [ FunMacro | ismacro || Info.defMacro i == MacroDef ]
+             , funFlags          = Set.fromList [ FunMacro | ismacro || Info.defMacro i == MacroDef ]
              , funTerminates     = Nothing
              , funExtLam         = extlam
              , funWith           = with

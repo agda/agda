@@ -322,14 +322,12 @@ instance EmbPrj Defn where
 instance EmbPrj FunctionFlag where
   icod_ FunStatic       = icode0 0
   icod_ FunInline       = icode0 1
-  icod_ FunSmashable    = icode0 2
-  icod_ FunMacro        = icode0 3
+  icod_ FunMacro        = icode0 2
 
   value = vcase valu where
     valu [0] = valu0 FunStatic
     valu [1] = valu0 FunInline
-    valu [2] = valu0 FunSmashable
-    valu [3] = valu0 FunMacro
+    valu [2] = valu0 FunMacro
     valu _   = malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
