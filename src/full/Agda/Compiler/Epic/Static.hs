@@ -116,7 +116,4 @@ instance Evaluate Term where
     isStatic :: QName -> Compile TCM Bool
     isStatic q = do
       defs <- lift $ use $ stImports . sigDefinitions
-      return $ case fmap theDef $ HM.lookup q defs of
-          Nothing -> False
-          Just (f@Function{}) -> funStatic f
-          Just _              -> False
+      return $ maybe False (^. theDefLens . funStatic) $ HM.lookup q defs

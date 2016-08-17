@@ -1264,6 +1264,9 @@ data Definition = Defn
   }
     deriving (Typeable, Show)
 
+theDefLens :: Lens' Defn Definition
+theDefLens f d = f (theDef d) <&> \ df -> d { theDef = df }
+
 -- | Create a definition with sensible defaults.
 defaultDefn :: ArgInfo -> QName -> Type -> Defn -> Definition
 defaultDefn info x t def = Defn
@@ -1384,6 +1387,12 @@ setEtaEquality :: EtaEquality -> Bool -> EtaEquality
 setEtaEquality e@Specified{} _ = e
 setEtaEquality _ b = Inferred b
 
+data FunctionFlag = FunStatic       -- ^ Should calls to this function be normalised at compile-time?
+                  | FunInline       -- ^ Should calls to this function be inlined by the compiler?
+                  | FunSmashable    -- ^ Are we allowed to smash this function?
+                  | FunMacro        -- ^ Is this function a macro?
+  deriving (Typeable, Eq, Ord, Enum, Show)
+
 data Defn = Axiom
             -- ^ Postulate.
           | Function
@@ -1408,14 +1417,7 @@ data Defn = Axiom
               --   it is already applied to the record. (Can happen in module
               --   instantiation.) This information is used in the termination
               --   checker.
-            , funStatic         :: Bool
-              -- ^ Should calls to this function be normalised at compile-time?
-            , funInline         :: Bool
-              -- ^ Should calls to this function be inlined by the compiler?
-            , funSmashable      :: Bool
-              -- ^ Are we allowed to smash this function?
-            , funMacro          :: Bool
-              -- ^ Is this function a macro?
+            , funFlags          :: Set FunctionFlag
             , funTerminates     :: Maybe Bool
               -- ^ Has this function been termination checked?  Did it pass?
             , funExtLam         :: Maybe ExtLamInfo
@@ -1491,19 +1493,27 @@ emptyFunction = Function
   , funAbstr       = ConcreteDef
   , funDelayed     = NotDelayed
   , funProjection  = Nothing
-  , funStatic      = False
-  , funInline      = False
-  , funSmashable   = True
-  , funMacro       = False
+  , funFlags       = Set.singleton FunSmashable
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
   , funCopatternLHS = False
   }
 
+funFlag :: FunctionFlag -> Lens' Bool Defn
+funFlag flag f def@Function{ funFlags = flags } =
+  f (Set.member flag flags) <&>
+  \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
+funFlag _ f def = f False <&> const def
+
+funStatic, funInline, funSmashable, funMacro :: Lens' Bool Defn
+funStatic       = funFlag FunStatic
+funInline       = funFlag FunInline
+funSmashable    = funFlag FunSmashable
+funMacro        = funFlag FunMacro
+
 isMacro :: Defn -> Bool
-isMacro Function{ funMacro = m } = m
-isMacro _ = False
+isMacro = (^. funMacro)
 
 -- | Checking whether we are dealing with a function yet to be defined.
 isEmptyFunction :: Defn -> Bool
@@ -2917,12 +2927,15 @@ instance KillRange EtaEquality where
 instance KillRange ExtLamInfo where
   killRange = id
 
+instance KillRange FunctionFlag where
+  killRange = id
+
 instance KillRange Defn where
   killRange def =
     case def of
       Axiom -> Axiom
-      Function cls comp tt inv mut isAbs delayed proj static inline smash macro term extlam with cop ->
-        killRange16 Function cls comp tt inv mut isAbs delayed proj static inline smash macro term extlam with cop
+      Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat ->
+        killRange13 Function cls comp tt inv mut isAbs delayed proj flags term extlam with copat
       Datatype a b c d e f g h i j   -> killRange10 Datatype a b c d e f g h i j
       Record a b c d e f g h i j k   -> killRange11 Record a b c d e f g h i j k
       Constructor a b c d e f        -> killRange6 Constructor a b c d e f

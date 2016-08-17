@@ -18,6 +18,7 @@ import Data.Either (partitionEithers)
 import Data.Monoid (mappend)
 import Data.List hiding (sort, null)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Traversable (sequenceA)
 import Data.Void
 
@@ -477,10 +478,7 @@ checkAbsurdLambda i h e t = do
               , funAbstr          = ConcreteDef
               , funMutual         = []
               , funProjection     = Nothing
-              , funSmashable      = False -- there is no body anyway, smashing doesn't make sense
-              , funStatic         = False
-              , funInline         = False
-              , funMacro          = False
+              , funFlags          = Set.empty
               , funTerminates     = Just True
               , funExtLam         = Nothing
               , funWith           = Nothing

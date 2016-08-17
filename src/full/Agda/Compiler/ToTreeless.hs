@@ -42,6 +42,7 @@ import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import Agda.Utils.Lens
 import qualified Agda.Utils.Pretty as P
 
 #include "undefined.h"
@@ -335,8 +336,8 @@ maybeInlineDef q vs =
   ifM (lift $ alwaysInline q) doinline $ do
     def <- lift $ getConstInfo q
     case theDef def of
-      Function{ funInline = inline }
-        | inline    -> doinline
+      fun@Function{}
+        | fun ^. funInline -> doinline
         | otherwise -> do
         _ <- lift $ toTreeless' q
         used <- lift $ getCompiledArgUse q

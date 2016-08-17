@@ -73,6 +73,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.Size
+import Agda.Utils.Lens
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -515,7 +516,7 @@ checkAxiom funSig i info0 mp x e = whenAbstractFreezeMetasAfter i $ do
     useTerPragma $
       (defaultDefn info x t $
          case funSig of
-           A.FunSig   -> emptyFunction{ funMacro = Info.defMacro i == MacroDef }
+           A.FunSig   -> set funMacro (Info.defMacro i == MacroDef) emptyFunction
            A.NoFunSig -> Axiom)   -- NB: used also for data and record type sigs
         { defArgOccurrences = occs
         , defPolarity       = pols

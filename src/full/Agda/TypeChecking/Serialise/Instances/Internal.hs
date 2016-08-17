@@ -303,21 +303,34 @@ instance EmbPrj EtaEquality where
     valu _     = malformed
 
 instance EmbPrj Defn where
-  icod_ Axiom                                         = icode0 0
-  icod_ (Function    a b _ c d e f g h i j k l m n o) = icode15 1 a b c d e f g h i j k l m n o
-  icod_ (Datatype    a b c d e f g h i j)             = icode10 2 a b c d e f g h i j
-  icod_ (Record      a b c d e f g h i j k)           = icode11 3 a b c d e f g h i j k
-  icod_ (Constructor a b c d e f)                     = icode6 4 a b c d e f
-  icod_ (Primitive   a b c d)                         = icode4 5 a b c d
+  icod_ Axiom                                   = icode0 0
+  icod_ (Function    a b _ c d e f g h i j k m) = icode12 1 a b c d e f g h i j k m
+  icod_ (Datatype    a b c d e f g h i j)       = icode10 2 a b c d e f g h i j
+  icod_ (Record      a b c d e f g h i j k)     = icode11 3 a b c d e f g h i j k
+  icod_ (Constructor a b c d e f)               = icode6 4 a b c d e f
+  icod_ (Primitive   a b c d)                   = icode4 5 a b c d
 
   value = vcase valu where
-    valu [0]                                              = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o] = valu15 (\ a b -> Function a b Nothing) a b c d e f g h i j k l m n o
-    valu [2, a, b, c, d, e, f, g, h, i, j]                = valu10 Datatype a b c d e f g h i j
-    valu [3, a, b, c, d, e, f, g, h, i, j, k]             = valu11 Record  a b c d e f g h i j k
-    valu [4, a, b, c, d, e, f]                            = valu6 Constructor a b c d e f
-    valu [5, a, b, c, d]                                  = valu4 Primitive   a b c d
-    valu _                                                = malformed
+    valu [0]                                     = valu0 Axiom
+    valu [1, a, b, c, d, e, f, g, h, i, j, k, m] = valu12 (\ a b -> Function a b Nothing) a b c d e f g h i j k m
+    valu [2, a, b, c, d, e, f, g, h, i, j]       = valu10 Datatype a b c d e f g h i j
+    valu [3, a, b, c, d, e, f, g, h, i, j, k]    = valu11 Record  a b c d e f g h i j k
+    valu [4, a, b, c, d, e, f]                   = valu6 Constructor a b c d e f
+    valu [5, a, b, c, d]                         = valu4 Primitive   a b c d
+    valu _                                       = malformed
+
+instance EmbPrj FunctionFlag where
+  icod_ FunStatic       = icode0 0
+  icod_ FunInline       = icode0 1
+  icod_ FunSmashable    = icode0 2
+  icod_ FunMacro        = icode0 3
+
+  value = vcase valu where
+    valu [0] = valu0 FunStatic
+    valu [1] = valu0 FunInline
+    valu [2] = valu0 FunSmashable
+    valu [3] = valu0 FunMacro
+    valu _   = malformed
 
 instance EmbPrj a => EmbPrj (WithArity a) where
   icod_ (WithArity a b) = icode2' a b
