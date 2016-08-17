@@ -98,7 +98,7 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
   body <- recoverAsPatterns body
   reportSDoc "treeless.opt.aspat" (30 + v) $ text "-- after @-pattern recovery"  $$ pbody body
-  body <- detectIdentityFunctions body
+  body <- detectIdentityFunctions q body
   reportSDoc "treeless.opt.id" (30 + v) $ text "-- after identity function detection"  $$ pbody body
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after third simplification"  $$ pbody body
