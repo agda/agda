@@ -169,9 +169,6 @@ setFunctionFlag flag val q =
   modifySignature $ updateDefinition q $
   set (theDefLens . funFlag flag) val
 
-markNoSmashing :: QName -> TCM ()
-markNoSmashing = setFunctionFlag FunSmashable False
-
 markStatic :: QName -> TCM ()
 markStatic = setFunctionFlag FunStatic True
 
@@ -450,9 +447,7 @@ applySection' new ptel old ts rd rm = do
                         , funMutual         = mutual
                         , funAbstr          = ConcreteDef -- OR: abstr -- ?!
                         , funProjection     = proj
-                        , funFlags          = Set.fromList $
-                                                [ FunSmashable ] ++
-                                                [ FunMacro | isMacro oldDef ]
+                        , funFlags          = Set.fromList [ FunMacro | isMacro oldDef ]
                         , funTerminates     = Just True
                         , funExtLam         = extlam
                         , funWith           = with

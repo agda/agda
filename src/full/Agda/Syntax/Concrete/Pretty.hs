@@ -449,8 +449,6 @@ instance Pretty Pragma where
       hsep $ [ text "COMPILED_DATA_UHC", pretty x] ++ map text (crd : crcs)
     pretty (HaskellCodePragma _ s) =
       vcat (text "HASKELL" : map text (lines s))
-    pretty (NoSmashingPragma _ i) =
-      hsep $ [text "NO_SMASHING", pretty i]
     pretty (StaticPragma _ i) =
       hsep $ [text "STATIC", pretty i]
     pretty (InlinePragma _ i) =

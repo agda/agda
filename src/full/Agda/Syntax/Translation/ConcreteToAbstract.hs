@@ -1718,15 +1718,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
     case e of
       A.Def x -> return [ A.CompiledDataUHCPragma x crd crcs ]
       _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
-  toAbstract (C.NoSmashingPragma _ x) = do
-      e <- toAbstract $ OldQName x Nothing
-      y <- case e of
-          A.Def  x -> return x
-          A.Proj _ (AmbQ [x]) -> return x
-          A.Proj _ x -> genericError $
-            "NO_SMASHING used on ambiguous name " ++ prettyShow x
-          _        -> genericError "Target of NO_SMASHING pragma should be a function"
-      return [ A.NoSmashingPragma y ]
   toAbstract (C.StaticPragma _ x) = do
       e <- toAbstract $ OldQName x Nothing
       y <- case e of

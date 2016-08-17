@@ -186,7 +186,6 @@ data Pragma
   | CompiledJSPragma QName String
   | CompiledUHCPragma QName String
   | CompiledDataUHCPragma QName String [String]
-  | NoSmashingPragma QName
   | StaticPragma QName
   | InlinePragma QName
   | DisplayPragma QName [NamedArg Pattern] Expr

@@ -95,7 +95,6 @@ tokens :-
 <pragma_>   "LINE"                     { keyword KwLINE }
 <pragma_>   "MEASURE"                  { keyword KwMEASURE }
 <pragma_>   "NO_POSITIVITY_CHECK"      { keyword KwNO_POSITIVITY_CHECK }
-<pragma_>   "NO_SMASHING"              { keyword KwNO_SMASHING }
 <pragma_>   "NO_TERMINATION_CHECK"     { keyword KwNO_TERMINATION_CHECK }
 <pragma_>   "NON_TERMINATING"          { keyword KwNON_TERMINATING }
 <pragma_>   "OPTIONS"                  { keyword KwOPTIONS }

@@ -700,11 +700,6 @@ checkPragma r p =
                 addCoreType x dt'
                 sequence_ $ zipWith addCoreConstr cs cons'
             _ -> typeError $ GenericError "COMPILED_DATA_UHC on non datatype"
-        A.NoSmashingPragma x -> do
-          def <- getConstInfo x
-          case theDef def of
-            Function{} -> markNoSmashing x
-            _          -> typeError $ GenericError "NO_SMASHING directive only works on functions"
         A.StaticPragma x -> do
           def <- getConstInfo x
           case theDef def of

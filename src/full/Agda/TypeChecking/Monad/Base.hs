@@ -1389,7 +1389,6 @@ setEtaEquality _ b = Inferred b
 
 data FunctionFlag = FunStatic       -- ^ Should calls to this function be normalised at compile-time?
                   | FunInline       -- ^ Should calls to this function be inlined by the compiler?
-                  | FunSmashable    -- ^ Are we allowed to smash this function?
                   | FunMacro        -- ^ Is this function a macro?
   deriving (Typeable, Eq, Ord, Enum, Show)
 
@@ -1493,7 +1492,7 @@ emptyFunction = Function
   , funAbstr       = ConcreteDef
   , funDelayed     = NotDelayed
   , funProjection  = Nothing
-  , funFlags       = Set.singleton FunSmashable
+  , funFlags       = Set.empty
   , funTerminates  = Nothing
   , funExtLam      = Nothing
   , funWith        = Nothing
@@ -1506,10 +1505,9 @@ funFlag flag f def@Function{ funFlags = flags } =
   \ b -> def{ funFlags = (if b then Set.insert else Set.delete) flag flags }
 funFlag _ f def = f False <&> const def
 
-funStatic, funInline, funSmashable, funMacro :: Lens' Bool Defn
+funStatic, funInline, funMacro :: Lens' Bool Defn
 funStatic       = funFlag FunStatic
 funInline       = funFlag FunInline
-funSmashable    = funFlag FunSmashable
 funMacro        = funFlag FunMacro
 
 isMacro :: Defn -> Bool
