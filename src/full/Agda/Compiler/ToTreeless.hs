@@ -31,6 +31,7 @@ import Agda.Compiler.Treeless.Uncase
 import Agda.Compiler.Treeless.Pretty
 import Agda.Compiler.Treeless.Unused
 import Agda.Compiler.Treeless.AsPatterns
+import Agda.Compiler.Treeless.Identity
 
 import Agda.Syntax.Common
 import Agda.TypeChecking.Monad as TCM
@@ -69,6 +70,14 @@ toTreeless' q =
       -- functions, since that would risk inlining to fail.
     ccToTreeless q cc
 
+-- | Does not require the name to refer to a function.
+cacheTreeless :: QName -> TCM ()
+cacheTreeless q = do
+  def <- theDef <$> getConstInfo q
+  case def of
+    Function{} -> () <$ toTreeless' q
+    _          -> return ()
+
 ccToTreeless :: QName -> CC.CompiledClauses -> TCM C.TTerm
 ccToTreeless q cc = do
   let pbody b = pbody' "" b
@@ -89,6 +98,8 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.uncase" (30 + v) $ text "-- after uncase"  $$ pbody body
   body <- recoverAsPatterns body
   reportSDoc "treeless.opt.aspat" (30 + v) $ text "-- after @-pattern recovery"  $$ pbody body
+  body <- detectIdentityFunctions q body
+  reportSDoc "treeless.opt.id" (30 + v) $ text "-- after identity function detection"  $$ pbody body
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" (30 + v) $ text "-- after third simplification"  $$ pbody body
   body <- eraseTerms q body
@@ -334,12 +345,12 @@ normaliseStatic v = pure v
 maybeInlineDef :: I.QName -> I.Args -> CC C.TTerm
 maybeInlineDef q vs =
   ifM (lift $ alwaysInline q) doinline $ do
+    lift $ cacheTreeless q
     def <- lift $ getConstInfo q
     case theDef def of
       fun@Function{}
         | fun ^. funInline -> doinline
         | otherwise -> do
-        _ <- lift $ toTreeless' q
         used <- lift $ getCompiledArgUse q
         let substUsed False _   = pure C.TErased
             substUsed True  arg = substArg arg

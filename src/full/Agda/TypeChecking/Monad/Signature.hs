@@ -165,9 +165,7 @@ addCoreType q crTy = modifySignature $ updateDefinition q $ updateDefCompiledRep
     addCr crep = crep { compiledCore = Just $ CrType crTy }
 
 setFunctionFlag :: FunctionFlag -> Bool -> QName -> TCM ()
-setFunctionFlag flag val q =
-  modifySignature $ updateDefinition q $
-  set (theDefLens . funFlag flag) val
+setFunctionFlag flag val q = modifyGlobalDefinition q $ set (theDefLens . funFlag flag) val
 
 markStatic :: QName -> TCM ()
 markStatic = setFunctionFlag FunStatic True

@@ -11,7 +11,7 @@ module Agda.Syntax.Treeless
     , module Agda.Syntax.Treeless
     ) where
 
-import Prelude
+import Control.Arrow (first, second)
 
 import Data.Map (Map)
 import Data.Typeable (Typeable)
@@ -71,6 +71,18 @@ tAppView = view
     view t = case t of
       TApp a bs -> view a ++ bs
       _         -> [t]
+
+tLetView :: TTerm -> ([TTerm], TTerm)
+tLetView (TLet e b) = first (e :) $ tLetView b
+tLetView e          = ([], e)
+
+tLamView :: TTerm -> (Int, TTerm)
+tLamView = go 0
+  where go n (TLam b) = go (n + 1) b
+        go n t        = (n, t)
+
+mkTLam :: Int -> TTerm -> TTerm
+mkTLam n b = foldr ($) b $ replicate n TLam
 
 -- | Introduces a new binding
 mkLet :: TTerm -> TTerm -> TTerm
