@@ -1454,14 +1454,31 @@ forallFaceMaps t kb k = do
                                   return (e:c, liftS 1 sigma)
     substContext i t (x:xs) = __IMPOSSIBLE__
 
-
 compareInterval :: Comparison -> Type -> Term -> Term -> TCM ()
 compareInterval cmp i t u = do
-  io <- primIOne
-  tmaxu <- primIMax <@> pure t <@> pure u
-  tminu <- primIMin <@> pure t <@> pure u
-  compareTermOnFace' compareAtom CmpEq tmaxu i io tminu
+  it <- decomposeInterval' =<< reduce t
+  iu <- decomposeInterval' =<< reduce u
+  x <- loop it iu
+  y <- loop iu it
+  if x && y then return () else typeError $ UnequalTerms cmp t u i
+ where
+   loop it iu = and <$> forM it (\ conjt ->
+                          or <$> forM iu (\ conju -> subsume conju conjt))  -- TODO shortcut
 
+type Conj = (Map.Map Int (Set.Set Bool),[Term])
+
+subsume :: Conj -> Conj -> TCM Bool
+subsume (mi,mit) (mj,mjt) = do
+  case toSet mi `Set.isSubsetOf` toSet mj of
+    False -> return False
+    True  -> do
+      interval <- elInf $ primInterval
+      let eqT t u = withFreezeMetas $ ifNoConstraints (compareAtom CmpEq interval t u) (\ _ -> return True) (\ _ _ -> return False)
+      let loop ts us = and <$> forM ts (\ conjt ->
+                          or <$> forM us (\ conju -> eqT conju conjt)) -- TODO shortcut
+      (&&) <$> loop mit mjt <*> loop mjt mit
+  where
+    toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: Term -> Type -> Term -> Term -> TCM ()
 equalTermOnFace = compareTermOnFace CmpEq

@@ -16,6 +16,8 @@ import Data.Either (partitionEithers)
 import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Maybe
 import Data.Traversable (traverse)
 import Data.Monoid (mempty)
@@ -1035,6 +1037,15 @@ primFaceForall' = do
 
 decomposeInterval :: HasBuiltins m => Term -> m [(Map Int Bool,[Term])]
 decomposeInterval t = do
+  xs <- decomposeInterval' t
+  let isConsistent xs = all (\ xs -> Set.size xs == 1) . Map.elems $ xs  -- optimize by not doing generate + filter
+  return [ (Map.map (head . Set.toList) bsm,ts)
+            | (bsm,ts) <- xs
+            , isConsistent bsm
+            ]
+
+decomposeInterval' :: HasBuiltins m => Term -> m [(Map Int (Set Bool),[Term])]
+decomposeInterval' t = do
      view   <- intervalView'
      unview <- intervalUnview'
      let f :: IntervalView -> [[Either (Int,Bool) Term]]
@@ -1045,13 +1056,11 @@ decomposeInterval t = do
          f (INeg x)   = map (either (\ (x,y) -> Left (x,not y)) (Right . unview . INeg . argN)) <$> (f . view . unArg) x
          f (OTerm (Var i [])) = return [Left (i,True)]
          f (OTerm t)          = return [Right t]
-         isConsistent xs = all (\ xs -> length xs == 1) . map nub . Map.elems $ xs  -- optimize by not doing generate + filter
          v = view t
-     return [ (Map.map head bsm,ts)
+     return [ (bsm,ts)
             | xs <- f v
             , let (bs,ts) = partitionEithers xs
-            , let bsm     = (Map.fromListWith (++) . map (id -*- (:[]))) bs
-            , isConsistent bsm
+            , let bsm     = (Map.fromListWith Set.union . map (id -*- Set.singleton)) bs
             ]
 
 
