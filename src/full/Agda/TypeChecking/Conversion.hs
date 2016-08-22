@@ -1458,27 +1458,40 @@ compareInterval :: Comparison -> Type -> Term -> Term -> TCM ()
 compareInterval cmp i t u = do
   it <- decomposeInterval' =<< reduce t
   iu <- decomposeInterval' =<< reduce u
-  x <- loop it iu
-  y <- loop iu it
+  x <- leqInterval it iu
+  y <- leqInterval iu it
   if x && y then return () else typeError $ UnequalTerms cmp t u i
- where
-   loop it iu = and <$> forM it (\ conjt ->
-                          or <$> forM iu (\ conju -> subsume conju conjt))  -- TODO shortcut
 
 type Conj = (Map.Map Int (Set.Set Bool),[Term])
 
-subsume :: Conj -> Conj -> TCM Bool
-subsume (mi,mit) (mj,mjt) = do
+-- | leqInterval r q = r ≤ q in the I lattice.
+-- (∨ r_i) ≤ (∨ q_j)  iff  ∀ i. ∃ j. r_i ≤ q_j
+leqInterval :: [Conj] -> [Conj] -> TCM Bool
+leqInterval r q =
+  and <$> forM r (\ r_i ->
+   or <$> forM q (\ q_j -> leqConj r_i q_j))  -- TODO shortcut
+
+-- | leqConj r q = r ≤ q in the I lattice, when r and q are conjuctions.
+-- (∧ r_i)   ≤ (∧ q_j)               iff
+-- (∧ r_i)   ∨ (∧ q_j)   = (∧ q_j)   iff
+-- {r_i | i} ∪ {q_j | j} = {q_j | j} iff
+-- {r_i | i} ⊆ {q_j | j}
+leqConj :: Conj -> Conj -> TCM Bool
+leqConj (mi,mit) (mj,mjt) = do
   case toSet mi `Set.isSubsetOf` toSet mj of
     False -> return False
     True  -> do
       interval <- elInf $ primInterval
-      let eqT t u = withFreezeMetas $ ifNoConstraints (compareAtom CmpEq interval t u) (\ _ -> return True) (\ _ _ -> return False)
-      let loop ts us = and <$> forM ts (\ conjt ->
-                          or <$> forM us (\ conju -> eqT conju conjt)) -- TODO shortcut
-      (&&) <$> loop mit mjt <*> loop mjt mit
+      let eqT t u = withFreezeMetas $ ifNoConstraints (compareAtom CmpEq interval t u)
+                                                      (\ _ -> return True)
+                    (\ _ _ -> return False)
+      let listSubset ts us = and <$> forM ts (\ t ->
+                              or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
+      listSubset mit mjt
   where
     toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
+
+
 -- | equalTermOnFace φ A u v = _ , φ ⊢ u = v : A
 equalTermOnFace :: Term -> Type -> Term -> Term -> TCM ()
 equalTermOnFace = compareTermOnFace CmpEq
