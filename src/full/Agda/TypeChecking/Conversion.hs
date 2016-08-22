@@ -1473,21 +1473,21 @@ leqInterval r q =
 
 -- | leqConj r q = r ≤ q in the I lattice, when r and q are conjuctions.
 -- (∧ r_i)   ≤ (∧ q_j)               iff
--- (∧ r_i)   ∨ (∧ q_j)   = (∧ q_j)   iff
--- {r_i | i} ∪ {q_j | j} = {q_j | j} iff
--- {r_i | i} ⊆ {q_j | j}
+-- (∧ r_i)   ∧ (∧ q_j)   = (∧ r_i)   iff
+-- {r_i | i} ∪ {q_j | j} = {r_i | i} iff
+-- {q_j | j} ⊆ {r_i | i}
 leqConj :: Conj -> Conj -> TCM Bool
-leqConj (mi,mit) (mj,mjt) = do
-  case toSet mi `Set.isSubsetOf` toSet mj of
+leqConj (rs,rst) (qs,qst) = do
+  case toSet qs `Set.isSubsetOf` toSet rs of
     False -> return False
     True  -> do
       interval <- elInf $ primInterval
       let eqT t u = withFreezeMetas $ ifNoConstraints (compareAtom CmpEq interval t u)
                                                       (\ _ -> return True)
-                    (\ _ _ -> return False)
+                                                      (\ _ _ -> return False)
       let listSubset ts us = and <$> forM ts (\ t ->
                               or <$> forM us (\ u -> eqT t u)) -- TODO shortcut
-      listSubset mit mjt
+      listSubset qst rst
   where
     toSet m = Set.fromList [ (i,b) | (i,bs) <- Map.toList m, b <- Set.toList bs]
 
