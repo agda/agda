@@ -349,6 +349,7 @@ instance Reduce Term where
               _                -> Con c [defaultArg w]
       reduceNat v = return v
 
+{-# INLINE rewriteAfter #-}
 rewriteAfter :: (Term -> ReduceM (Blocked Term)) -> Term -> ReduceM (Blocked Term)
 rewriteAfter f v =
   ifM (optRewriting <$> pragmaOptions)
