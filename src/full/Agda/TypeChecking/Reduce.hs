@@ -14,6 +14,8 @@ import Data.Map (Map)
 import Data.Traversable
 import Data.Hashable
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -348,7 +350,10 @@ instance Reduce Term where
       reduceNat v = return v
 
 rewriteAfter :: (Term -> ReduceM (Blocked Term)) -> Term -> ReduceM (Blocked Term)
-rewriteAfter f = trampolineM $ rewrite <=< f
+rewriteAfter f v =
+  ifM (optRewriting <$> pragmaOptions)
+      (trampolineM (rewrite <=< f) v)
+      (f v)
 
 -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
 -- need also to instantiate metas, see Issue 826.
@@ -556,7 +561,6 @@ appDefE' v cls es = goCls cls $ map ignoreReduced es
   where
     goCls :: [Clause] -> [Elim] -> ReduceM (Reduced (Blocked Term) Term)
     goCls cl es = do
-      traceSLn "tc.reduce'" 95 ("Reduce.goCls tries reduction, #clauses = " ++ show (length cl)) $ do
       case cl of
         -- Andreas, 2013-10-26  In case of an incomplete match,
         -- we just do not reduce.  This allows adding single function
