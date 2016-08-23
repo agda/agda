@@ -32,16 +32,17 @@ import Agda.Utils.Maybe
 #include "undefined.h"
 import Agda.Utils.Impossible
 
-fastReduce :: Term -> ReduceM (Blocked Term)
-fastReduce v = do
+-- | First argument: allow non-terminating reductions.
+fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
+fastReduce allowNonTerminating v = do
   let name (Con c _) = c
       name _         = __IMPOSSIBLE__
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
-  reduceTm z s v
+  reduceTm allowNonTerminating z s v
 
-reduceTm :: Maybe ConHead -> Maybe ConHead -> Term -> ReduceM (Blocked Term)
-reduceTm zero suc = reduceB'
+reduceTm :: Bool -> Maybe ConHead -> Maybe ConHead -> Term -> ReduceM (Blocked Term)
+reduceTm allowNonTerminating zero suc = reduceB'
   where
     reduceB' v =
       case v of
@@ -94,7 +95,6 @@ reduceTm zero suc = reduceB'
     unfoldDefinitionStep unfoldDelayed v0 f es =
       {-# SCC "reduceDef" #-} do
       info <- getConstInfo f
-      allowed <- asks envAllowedReductions
       let def = theDef info
           v   = v0 `applyE` es
           -- Non-terminating functions
@@ -102,31 +102,17 @@ reduceTm zero suc = reduceB'
           -- and delayed definitions
           -- are not unfolded unless explicitely permitted.
           dontUnfold =
-            (defNonterminating info && notElem NonTerminatingReductions allowed)
-            || (defDelayed info == Delayed && not unfoldDelayed)
-          copatterns =
-            case def of
-              Function{funCopatternLHS = b} -> b
-              _                             -> False
+               (not allowNonTerminating && defNonterminating info)
+            || (not unfoldDelayed       && defDelayed info == Delayed)
       case def of
         Constructor{conSrcCon = c} ->
           noReduction $ notBlocked $ Con (c `withRangeOf` f) [] `applyE` es
         Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
           pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
-          if FunctionReductions `elem` allowed
-            then reducePrimitive x v0 f es pf dontUnfold
-                                 cls (defCompiled info)
-            else noReduction $ notBlocked v
-        _  -> do
-          if FunctionReductions `elem` allowed ||
-             (isJust (isProjection_ def) && ProjectionReductions `elem` allowed) || -- includes projection-like
-             (isInlineFun def && InlineReductions `elem` allowed) ||
-             (copatterns && CopatternReductions `elem` allowed)
-            then
-              reduceNormalE v0 f (map notReduced es) dontUnfold
-                           (defClauses info) (defCompiled info)
-            else noReduction $ notBlocked v  -- Andrea(s), 2014-12-05 OK?
-
+          reducePrimitive x v0 f es pf dontUnfold
+                          cls (defCompiled info)
+        _  -> reduceNormalE v0 f (map notReduced es) dontUnfold
+                            (defClauses info) (defCompiled info)
       where
         noReduction    = return . NoReduction
         yesReduction s = return . YesReduction s
