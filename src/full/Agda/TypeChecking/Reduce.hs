@@ -38,6 +38,7 @@ import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 import {-# SOURCE #-} Agda.TypeChecking.Rewriting
+import {-# SOURCE #-} Agda.TypeChecking.Reduce.Fast
 
 import Agda.Utils.Function
 import Agda.Utils.Functor
@@ -306,7 +307,22 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce' (x,y,z) = (,,) <$> reduce' x <*> reduce' y <*> reduce' z
 
 instance Reduce Term where
-  reduceB' = {-# SCC "reduce'<Term>" #-} rewriteAfter $ \ v -> do
+  reduceB' = {-# SCC "reduce'<Term>" #-} maybeFastReduceTerm
+
+maybeFastReduceTerm :: Term -> ReduceM (Blocked Term)
+maybeFastReduceTerm v = do
+  let tryFast = case v of
+                  Def{} -> True
+                  Con{} -> True
+                  _     -> False
+  if not tryFast then slowReduceTerm v
+                 else do
+    r <- optRewriting <$> pragmaOptions
+    s <- optSharing   <$> commandLineOptions
+    if r || s then slowReduceTerm v else fastReduce v
+
+slowReduceTerm :: Term -> ReduceM (Blocked Term)
+slowReduceTerm = rewriteAfter $ \ v -> do
     v <- instantiate' v
     let done = return $ notBlocked v
     case v of
@@ -371,8 +387,8 @@ unfoldCorecursion = rewriteAfter $ \ v -> do
     v@(Shared p) ->
       case derefPtr p of
         Def{} -> updateSharedFM unfoldCorecursion v
-        _     -> reduceB' v
-    _ -> reduceB' v
+        _     -> slowReduceTerm v
+    _ -> slowReduceTerm v
 
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
