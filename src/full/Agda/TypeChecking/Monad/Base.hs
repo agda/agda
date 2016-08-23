@@ -2562,16 +2562,29 @@ mapRedEnvSt f g (ReduceEnv e s) = ReduceEnv (f e) (g s)
 newtype ReduceM a = ReduceM { unReduceM :: ReduceEnv -> a }
 --  deriving (Functor, Applicative, Monad)
 
+fmapReduce :: (a -> b) -> ReduceM a -> ReduceM b
+fmapReduce f (ReduceM m) = ReduceM $ \ e -> f $! m e
+{-# INLINE fmapReduce #-}
+
+apReduce :: ReduceM (a -> b) -> ReduceM a -> ReduceM b
+apReduce (ReduceM f) (ReduceM x) = ReduceM $ \ e -> f e $! x e
+{-# INLINE apReduce #-}
+
+bindReduce :: ReduceM a -> (a -> ReduceM b) -> ReduceM b
+bindReduce (ReduceM m) f = ReduceM $ \ e -> unReduceM (f $! m e) e
+{-# INLINE bindReduce #-}
+
 instance Functor ReduceM where
-  fmap f (ReduceM m) = ReduceM $ \ e -> f $! m e
+  fmap = fmapReduce
 
 instance Applicative ReduceM where
   pure x = ReduceM (const x)
-  ReduceM f <*> ReduceM x = ReduceM $ \ e -> f e $! x e
+  (<*>) = apReduce
 
 instance Monad ReduceM where
   return = pure
-  ReduceM m >>= f = ReduceM $ \ e -> unReduceM (f $! m e) e
+  (>>=) = bindReduce
+  (>>) = (*>)
 
 instance ReadTCState ReduceM where
   getTCState = ReduceM redSt
