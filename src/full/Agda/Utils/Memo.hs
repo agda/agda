@@ -4,6 +4,10 @@ module Agda.Utils.Memo where
 
 import Control.Applicative
 import Control.Monad.State
+import System.IO.Unsafe
+import Data.IORef
+import qualified Data.Map as Map
+
 import Agda.Utils.Lens
 
 -- Simple memoisation in a state monad
@@ -41,3 +45,19 @@ memoRec tbl ih compute = do
       tbl .= Just ih
       x <- compute
       x <$ (tbl .= Just x)
+
+{-# NOINLINE memoUnsafe #-}
+memoUnsafe :: Ord a => (a -> b) -> (a -> b)
+memoUnsafe f = unsafePerformIO $ do
+  tbl <- newIORef Map.empty
+  return (unsafePerformIO . f' tbl)
+  where
+    f' tbl x = do
+      m <- readIORef tbl
+      case Map.lookup x m of
+        Just y  -> return y
+        Nothing -> do
+          let y = f x
+          writeIORef tbl (Map.insert x y m)
+          return y
+
