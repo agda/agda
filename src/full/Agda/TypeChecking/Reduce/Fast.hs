@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PatternGuards       #-}
+{-# LANGUAGE BangPatterns        #-}
 
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce ) where
@@ -28,6 +29,7 @@ import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 import Agda.TypeChecking.CompiledClause.Match
 
 import Agda.Utils.Maybe
+import Agda.Utils.Memo
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -39,10 +41,14 @@ fastReduce allowNonTerminating v = do
       name _         = __IMPOSSIBLE__
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
-  reduceTm allowNonTerminating z s v
+  constInfo <- unKleisli getConstInfo
+  reduceTm (memoUnsafe constInfo) allowNonTerminating z s v
 
-reduceTm :: Bool -> Maybe ConHead -> Maybe ConHead -> Term -> ReduceM (Blocked Term)
-reduceTm allowNonTerminating zero suc = reduceB'
+unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
+unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
+
+reduceTm :: (QName -> Definition) -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> ReduceM (Blocked Term)
+reduceTm !constInfo allowNonTerminating zero suc = reduceB'
   where
     reduceB' v =
       case v of
@@ -90,14 +96,14 @@ reduceTm allowNonTerminating zero suc = reduceB'
       Bool -> (Term -> ReduceM (Blocked Term)) ->
       Term -> QName -> Elims -> ReduceM (Blocked Term)
     unfoldDefinitionE unfoldDelayed keepGoing v f es = do
-      r <- unfoldDefinitionStep unfoldDelayed v f es
+      let info = constInfo f
+      r <- unfoldDefinitionStep unfoldDelayed info v f es
       case r of
         NoReduction v    -> return v
         YesReduction _ v -> keepGoing v
 
-    unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-    unfoldDefinitionStep unfoldDelayed v0 f es = do
-      info <- getConstInfo f
+    unfoldDefinitionStep :: Bool -> Definition -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
+    unfoldDefinitionStep unfoldDelayed info v0 f es = do
       let def = theDef info
           v   = v0 `applyE` es
           -- Non-terminating functions
