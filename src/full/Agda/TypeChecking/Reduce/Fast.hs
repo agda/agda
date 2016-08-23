@@ -52,16 +52,20 @@ reduceTm allowNonTerminating zero suc = reduceB'
           -- instantiated module.
           v <- unfoldDefinition False reduceB' (Con c []) (conName c) vs
           traverse reduceNat v
-        _ -> slowReduceTerm v
-
-    reduceNat v@(Con c [])
-      | Just c == zero = return $ Lit $ LitNat (getRange c) 0
-    reduceNat v@(Con c [a])
-      | Just c == suc  = inc . ignoreBlocking <$> reduceB' (unArg a)
+        Lit{} -> done
+        Var{} -> done
+        _     -> slowReduceTerm v
       where
-        inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
-        inc w                  = Con c [defaultArg w]
-    reduceNat v = return v
+        done = return (notBlocked v)
+
+        reduceNat v@(Con c [])
+          | Just c == zero = return $ Lit $ LitNat (getRange c) 0
+        reduceNat v@(Con c [a])
+          | Just c == suc  = inc . ignoreBlocking <$> reduceB' (unArg a)
+          where
+            inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
+            inc w                  = Con c [defaultArg w]
+        reduceNat v = return v
 
     -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
     -- need also to instantiate metas, see Issue 826.
