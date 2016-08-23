@@ -21,7 +21,7 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Primitive
@@ -117,16 +117,16 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
       in case def of
         Constructor{conSrcCon = c} ->
           noReduction $ notBlocked $ Con c [] `applyE` es
-        Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} ->
+        Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls, primCompiled = Just cc} ->
           let Just pf = runReduce (getPrimitive' x) in
-          reducePrimitive x v0 f es pf dontUnfold
-                          cls (defCompiled info)
-        _  -> reduceNormalE v0 f (map notReduced es) dontUnfold
-                            (defClauses info) (defCompiled info)
+          reducePrimitive x v0 f es pf dontUnfold cls cc
+        Function{funCompiled = Just cc, funClauses = cls} ->
+          reduceNormalE v0 f (map notReduced es) dontUnfold cls cc
+        _ -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
       where
         noReduction    = NoReduction
         yesReduction s = YesReduction s
-        reducePrimitive x v0 f es pf dontUnfold cls mcc
+        reducePrimitive x v0 f es pf dontUnfold cls cc
           | len < ar  = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
           | otherwise = {-# SCC "reducePrimitive" #-}
               let (es1, es2) | len == ar = (es, [])
@@ -141,7 +141,7 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
                       traverse id $
                         map mredToBlocked es1' ++ map notBlocked es2
                    else
-                    reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls mcc
+                    reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls cc
                 YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
           where
               len = length es
@@ -150,28 +150,19 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
               mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
               mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> Reduced (Blocked Term) Term
-        reduceNormalE v0 f es dontUnfold def mcc = {-# SCC "reduceNormal" #-}
-          case def of
-            _ | dontUnfold -> defaultResult -- non-terminating or delayed
-            []             -> defaultResult -- no definition for head
-            cls            -> appDefE_ f v0 cls mcc es
+        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> CompiledClauses -> Reduced (Blocked Term) Term
+        reduceNormalE v0 f es dontUnfold cls cc
+          | dontUnfold = defaultResult  -- non-terminating or delayed
+          | null cls   = defaultResult  -- no definition for head
+          | otherwise  = appDefE f v0 cc es
           where defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
-        appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
-        appDefE_ f v0 cls mcc args =
-          maybe (runReduce (appDefE' v0 cls args))
-                (\cc -> appDefE f v0 cc args) mcc
-
         appDefE :: QName -> Term -> CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
         appDefE f v cc es =
-          case matchCompiledE f cc es of
+          case match' f [(cc, es, id)] of
             YesReduction s u -> YesReduction s u
             NoReduction es'  -> NoReduction $ applyE v <$> es'
-
-        matchCompiledE :: QName -> CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Elims) Term
-        matchCompiledE f c args = match' f [(c, args, id)]
 
         match' :: QName -> Stack -> Reduced (Blocked Elims) Term
         match' f ((c, es, patch) : stack) =
