@@ -42,68 +42,69 @@ fastReduce allowNonTerminating v = do
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
   constInfo <- unKleisli getConstInfo
-  reduceTm (memoUnsafe constInfo) allowNonTerminating z s v
+  ReduceM $ \ env -> reduceTm env (memoUnsafe constInfo) allowNonTerminating z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
 
-reduceTm :: (QName -> Definition) -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> ReduceM (Blocked Term)
-reduceTm !constInfo allowNonTerminating zero suc = reduceB'
+reduceTm :: ReduceEnv -> (QName -> Definition) -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> Blocked Term
+reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
   where
+    runReduce m = unReduceM m env
     reduceB' v =
       case v of
         Def f es -> unfoldDefinitionE False reduceB' (Def f []) f es
-        Con c vs -> do
+        Con c vs ->
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          v <- unfoldDefinition False reduceB' (Con c []) (conName c) vs
-          traverse reduceNat v
+          case unfoldDefinition False reduceB' (Con c []) (conName c) vs of
+            NotBlocked r v -> NotBlocked r $ reduceNat v
+            b              -> b
         Lit{} -> done
         Var{} -> done
-        _     -> slowReduceTerm v
+        _     -> runReduce (slowReduceTerm v)
       where
-        done = return (notBlocked v)
+        done = notBlocked v
 
         reduceNat v@(Con c [])
-          | Just c == zero = return $ Lit $ LitNat (getRange c) 0
+          | Just c == zero = Lit $ LitNat (getRange c) 0
         reduceNat v@(Con c [a])
-          | Just c == suc  = inc . ignoreBlocking <$> reduceB' (unArg a)
+          | Just c == suc  = inc . ignoreBlocking $ reduceB' (unArg a)
           where
             inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
             inc w                  = Con c [defaultArg w]
-        reduceNat v = return v
+        reduceNat v = v
 
     -- Andreas, 2013-03-20 recursive invokations of unfoldCorecursion
     -- need also to instantiate metas, see Issue 826.
-    unfoldCorecursionE :: Elim -> ReduceM (Blocked Elim)
-    unfoldCorecursionE e@Proj{}             = return $ notBlocked e
-    unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) <$>
+    unfoldCorecursionE :: Elim -> Blocked Elim
+    unfoldCorecursionE e@Proj{}             = notBlocked e
+    unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) $
       unfoldCorecursion v
 
-    unfoldCorecursion :: Term -> ReduceM (Blocked Term)
+    unfoldCorecursion :: Term -> Blocked Term
     unfoldCorecursion (Def f es) = unfoldDefinitionE True unfoldCorecursion (Def f []) f es
     unfoldCorecursion v          = reduceB' v
 
     -- | If the first argument is 'True', then a single delayed clause may
     -- be unfolded.
     unfoldDefinition ::
-      Bool -> (Term -> ReduceM (Blocked Term)) ->
-      Term -> QName -> Args -> ReduceM (Blocked Term)
+      Bool -> (Term -> Blocked Term) ->
+      Term -> QName -> Args -> Blocked Term
     unfoldDefinition unfoldDelayed keepGoing v f args =
       unfoldDefinitionE unfoldDelayed keepGoing v f (map Apply args)
 
     unfoldDefinitionE ::
-      Bool -> (Term -> ReduceM (Blocked Term)) ->
-      Term -> QName -> Elims -> ReduceM (Blocked Term)
-    unfoldDefinitionE unfoldDelayed keepGoing v f es = do
-      let info = constInfo f
-      r <- unfoldDefinitionStep unfoldDelayed info v f es
-      case r of
-        NoReduction v    -> return v
+      Bool -> (Term -> Blocked Term) ->
+      Term -> QName -> Elims -> Blocked Term
+    unfoldDefinitionE unfoldDelayed keepGoing v f es =
+      let info = constInfo f in
+      case unfoldDefinitionStep unfoldDelayed info v f es of
+        NoReduction v    -> v
         YesReduction _ v -> keepGoing v
 
-    unfoldDefinitionStep :: Bool -> Definition -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-    unfoldDefinitionStep unfoldDelayed info v0 f es = do
+    unfoldDefinitionStep :: Bool -> Definition -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
+    unfoldDefinitionStep unfoldDelayed info v0 f es =
       let def = theDef info
           v   = v0 `applyE` es
           -- Non-terminating functions
@@ -113,29 +114,29 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
           dontUnfold =
                (not allowNonTerminating && defNonterminating info)
             || (not unfoldDelayed       && defDelayed info == Delayed)
-      case def of
+      in case def of
         Constructor{conSrcCon = c} ->
           noReduction $ notBlocked $ Con c [] `applyE` es
-        Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
-          pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
+        Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} ->
+          let Just pf = runReduce (getPrimitive' x) in
           reducePrimitive x v0 f es pf dontUnfold
                           cls (defCompiled info)
         _  -> reduceNormalE v0 f (map notReduced es) dontUnfold
                             (defClauses info) (defCompiled info)
       where
-        noReduction    = return . NoReduction
-        yesReduction s = return . YesReduction s
+        noReduction    = NoReduction
+        yesReduction s = YesReduction s
         reducePrimitive x v0 f es pf dontUnfold cls mcc
           | len < ar  = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
-          | otherwise = {-# SCC "reducePrimitive" #-} do
+          | otherwise = {-# SCC "reducePrimitive" #-}
               let (es1, es2) | len == ar = (es, [])
                              | otherwise = splitAt ar es
                   args1      = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
-              r <- primFunImplementation pf args1
-              case r of
-                NoReduction args1' -> do
-                  let es1' = map (fmap Apply) args1'
-                  if null cls then do
+                  r = runReduce (primFunImplementation pf args1)
+              in case r of
+                NoReduction args1' ->
+                  let es1' = map (fmap Apply) args1' in
+                  if null cls then
                     noReduction $ applyE (Def f []) <$> do
                       traverse id $
                         map mredToBlocked es1' ++ map notBlocked es2
@@ -149,8 +150,8 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
               mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
               mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> ReduceM (Reduced (Blocked Term) Term)
-        reduceNormalE v0 f es dontUnfold def mcc = {-# SCC "reduceNormal" #-} do
+        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> Maybe CompiledClauses -> Reduced (Blocked Term) Term
+        reduceNormalE v0 f es dontUnfold def mcc = {-# SCC "reduceNormal" #-}
           case def of
             _ | dontUnfold -> defaultResult -- non-terminating or delayed
             []             -> defaultResult -- no definition for head
@@ -158,28 +159,26 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
           where defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
-        appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
+        appDefE_ :: QName -> Term -> [Clause] -> Maybe CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
         appDefE_ f v0 cls mcc args =
-          local (\ e -> e { envAppDef = Just f }) $
-          maybe (appDefE' v0 cls args)
-                (\cc -> appDefE v0 cc args) mcc
+          maybe (runReduce (appDefE' v0 cls args))
+                (\cc -> appDefE f v0 cc args) mcc
 
-        appDefE :: Term -> CompiledClauses -> MaybeReducedElims -> ReduceM (Reduced (Blocked Term) Term)
-        appDefE v cc es = do
-          r <- matchCompiledE cc es
-          case r of
-            YesReduction s u -> return $ YesReduction s u
-            NoReduction es'  -> return $ NoReduction $ applyE v <$> es'
+        appDefE :: QName -> Term -> CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
+        appDefE f v cc es =
+          case matchCompiledE f cc es of
+            YesReduction s u -> YesReduction s u
+            NoReduction es'  -> NoReduction $ applyE v <$> es'
 
-        matchCompiledE :: CompiledClauses -> MaybeReducedElims -> ReduceM (Reduced (Blocked Elims) Term)
-        matchCompiledE c args = match' [(c, args, id)]
+        matchCompiledE :: QName -> CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Elims) Term
+        matchCompiledE f c args = match' f [(c, args, id)]
 
-        match' :: Stack -> ReduceM (Reduced (Blocked Elims) Term)
-        match' ((c, es, patch) : stack) = do
-          let no blocking es = return $ NoReduction $ blocking $ patch $ map ignoreReduced es
-              yes t          = return $ YesReduction NoSimplification t
+        match' :: QName -> Stack -> Reduced (Blocked Elims) Term
+        match' f ((c, es, patch) : stack) =
+          let no blocking es = NoReduction $ blocking $ patch $ map ignoreReduced es
+              yes t          = YesReduction NoSimplification t
 
-          case c of
+          in case c of
 
             -- impossible case
             Fail -> no (NotBlocked AbsurdMatch) es
@@ -190,7 +189,7 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
               | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
               -- otherwise, just apply instantiation to body
               -- apply the result to any extra arguments
-              | m == n    -> yes $ applySubst (toSubst es) t
+              | m == n    -> {-# SCC match'Done #-} yes $ applySubst (toSubst es) t
               | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
               where
                 n          = length xs
@@ -202,18 +201,18 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
             -- splitting on the @n@th elimination
-            Case (Arg _ n) bs -> do
+            Case (Arg _ n) bs ->
               case splitAt n es of
                 -- if the @n@th elimination is not supplied, no match
                 (_, []) -> no (NotBlocked Underapplied) es
                 -- if the @n@th elimination is @e0@
-                (es0, MaybeRed red e0 : es1) -> do
+                (es0, MaybeRed red e0 : es1) ->
                   -- get the reduced form of @e0@
-                  eb :: Blocked Elim <- do
+                  let eb :: Blocked Elim =
                         case red of
-                          Reduced b  -> return $ e0 <$ b
+                          Reduced b  -> e0 <$ b
                           NotReduced -> unfoldCorecursionE e0
-                  let e = ignoreBlocking eb
+                      e = ignoreBlocking eb
                       -- replace the @n@th argument by its reduced form
                       es' = es0 ++ [MaybeRed red e] ++ es1
                       -- if a catch-all clause exists, put it on the stack
@@ -247,31 +246,30 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
                         where (es0, rest) = splitAt n es
                               (es1, es2)  = splitAt m rest
                               vs          = map argFromElim es1
-
                   -- Now do the matching on the @n@ths argument:
-                  id $
+                  in
                    case fmap ignoreSharing <$> eb of
                     Blocked x _            -> no (Blocked x) es'
                     NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
 
                     -- In case of a natural number literal, try also its constructor form
-                    NotBlocked _ (Apply (Arg info v@(Lit l@(LitNat r n)))) -> do
+                    NotBlocked _ (Apply (Arg info v@(Lit l@(LitNat r n)))) ->
                       let cFrame stack
                             | n == 0, Just z <- zero = conFrame z [] stack
                             | n > 0,  Just s <- suc  = conFrame s [Arg info (Lit (LitNat r (n - 1)))] stack
                             | otherwise              = stack
-                      match' $ litFrame l $ cFrame $ catchAllFrame stack
+                      in match' f $ litFrame l $ cFrame $ catchAllFrame stack
 
-                    NotBlocked _ (Apply (Arg info v@(Lit l))) -> do
-                      match' $ litFrame l $ catchAllFrame stack
+                    NotBlocked _ (Apply (Arg info v@(Lit l))) ->
+                      match' f $ litFrame l $ catchAllFrame stack
 
                     -- In case of a constructor, push the conFrame
                     NotBlocked _ (Apply (Arg info (Con c vs))) ->
-                      match' $ conFrame c vs $ catchAllFrame $ stack
+                      match' f $ conFrame c vs $ catchAllFrame $ stack
 
                     -- In case of a projection, push the projFrame
                     NotBlocked _ (Proj _ p) ->
-                      match' $ projFrame p $ stack -- catchAllFrame $ stack
+                      match' f $ projFrame p $ stack -- catchAllFrame $ stack
                       -- Issue #1986: no catch-all for copattern matching!
 
                     -- Otherwise, we are stuck.  If we were stuck before,
@@ -279,8 +277,8 @@ reduceTm !constInfo allowNonTerminating zero suc = reduceB'
                     NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
 
         -- If we reach the empty stack, then pattern matching was incomplete
-        match' [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
-          caseMaybeM (asks envAppDef) __IMPOSSIBLE__ $ \ f -> do
+        match' f [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
+          runReduce $
             traceSLn "impossible" 10
               ("Incomplete pattern matching when applying " ++ show f)
               __IMPOSSIBLE__
