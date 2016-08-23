@@ -92,8 +92,7 @@ reduceTm allowNonTerminating zero suc = reduceB'
         YesReduction _ v -> keepGoing v
 
     unfoldDefinitionStep :: Bool -> Term -> QName -> Elims -> ReduceM (Reduced (Blocked Term) Term)
-    unfoldDefinitionStep unfoldDelayed v0 f es =
-      {-# SCC "reduceDef" #-} do
+    unfoldDefinitionStep unfoldDelayed v0 f es = do
       info <- getConstInfo f
       let def = theDef info
           v   = v0 `applyE` es
@@ -117,11 +116,11 @@ reduceTm allowNonTerminating zero suc = reduceB'
         noReduction    = return . NoReduction
         yesReduction s = return . YesReduction s
         reducePrimitive x v0 f es pf dontUnfold cls mcc
-          | genericLength es < ar
-                      = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
+          | len < ar  = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
           | otherwise = {-# SCC "reducePrimitive" #-} do
-              let (es1,es2) = genericSplitAt ar es
-                  args1     = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
+              let (es1, es2) | len == ar = (es, [])
+                             | otherwise = splitAt ar es
+                  args1      = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
               r <- primFunImplementation pf args1
               case r of
                 NoReduction args1' -> do
@@ -134,6 +133,7 @@ reduceTm allowNonTerminating zero suc = reduceB'
                     reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls mcc
                 YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
           where
+              len = length es
               ar  = primFunArity pf
               mredToBlocked :: MaybeReduced a -> Blocked a
               mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
@@ -180,6 +180,7 @@ reduceTm allowNonTerminating zero suc = reduceB'
               | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
               -- otherwise, just apply instantiation to body
               -- apply the result to any extra arguments
+              | m == n    -> yes $ applySubst (toSubst es) t
               | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
               where
                 n          = length xs
@@ -192,7 +193,7 @@ reduceTm allowNonTerminating zero suc = reduceB'
 
             -- splitting on the @n@th elimination
             Case (Arg _ n) bs -> do
-              case genericSplitAt n es of
+              case splitAt n es of
                 -- if the @n@th elimination is not supplied, no match
                 (_, []) -> no (NotBlocked Underapplied) es
                 -- if the @n@th elimination is @e0@
