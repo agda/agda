@@ -106,7 +106,7 @@ reduceTm allowNonTerminating zero suc = reduceB'
             || (not unfoldDelayed       && defDelayed info == Delayed)
       case def of
         Constructor{conSrcCon = c} ->
-          noReduction $ notBlocked $ Con (c `withRangeOf` f) [] `applyE` es
+          noReduction $ notBlocked $ Con c [] `applyE` es
         Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
           pf <- fromMaybe __IMPOSSIBLE__ <$> getPrimitive' x
           reducePrimitive x v0 f es pf dontUnfold
