@@ -532,8 +532,8 @@ litqname x =
 litqnamepat :: QName -> HS.Pat
 litqnamepat x =
   HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
-          [ HS.PLit HS.Signless (HS.Int n)
-          , HS.PLit HS.Signless (HS.Int m)
+          [ HS.PLit HS.Signless (HS.Int $ fromIntegral n)
+          , HS.PLit HS.Signless (HS.Int $ fromIntegral m)
           , HS.PWildCard]
   where
     NameId n m = nameId $ qnameName x
