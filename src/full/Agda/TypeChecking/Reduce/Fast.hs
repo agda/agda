@@ -221,7 +221,7 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
                           NotReduced -> unfoldCorecursionE e0
                       e = ignoreBlocking eb
                       -- replace the @n@th argument by its reduced form
-                      es' = es0 ++ [MaybeRed red e] ++ es1
+                      es' = es0 ++ [MaybeRed (Reduced $ () <$ eb) e] ++ es1
                       -- if a catch-all clause exists, put it on the stack
                       catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
                       -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
