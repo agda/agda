@@ -10,6 +10,7 @@ import Control.Applicative
 import Control.Monad.Reader
 
 import Data.List
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
 
@@ -36,29 +37,87 @@ import Agda.Utils.Memo
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+-- Compact definitions ----------------------------------------------------
+
 data CompactDef =
   CompactDef { cdefDelayed        :: Bool
              , cdefNonterminating :: Bool
              , cdefDef            :: CompactDefn }
 
 data CompactDefn
-  = CFun  { cfunCompiled  :: CompiledClauses }
+  = CFun  { cfunCompiled  :: FastCompiledClauses }
   | CCon  { cconSrcCon    :: ConHead }
   | COther
 
-compactDef :: Definition -> ReduceM CompactDef
-compactDef def = do
+compactDef :: Maybe ConHead -> Maybe ConHead -> Definition -> ReduceM CompactDef
+compactDef z s def = do
   cdefn <-
     case theDef def of
       Constructor{conSrcCon = c} -> pure CCon{cconSrcCon = c}
       Function{funCompiled = Just cc, funClauses = _:_} ->
-        pure CFun{ cfunCompiled = cc }
+        pure CFun{ cfunCompiled = fastCompiledClauses z s cc }
       _ -> pure COther
   return $
     CompactDef { cdefDelayed        = defDelayed def == Delayed
                , cdefNonterminating = defNonterminating def
                , cdefDef            = cdefn
                }
+
+-- Faster case trees ------------------------------------------------------
+
+data FastCase c = FBranches
+  { fprojPatterns   :: Bool
+    -- ^ We are constructing a record here (copatterns).
+    --   'conBranches' lists projections.
+  , fconBranches    :: Map NameId c
+    -- ^ Map from constructor (or projection) names to their arity
+    --   and the case subtree.  (Projections have arity 0.)
+  , fsucBranch      :: Maybe c
+  , flitBranches    :: Map Literal c
+    -- ^ Map from literal to case subtree.
+  , fcatchAllBranch :: Maybe c
+    -- ^ (Possibly additional) catch-all clause.
+  }
+
+-- | Case tree with bodies.
+
+data FastCompiledClauses
+  = FCase Int (FastCase FastCompiledClauses)
+    -- ^ @Case n bs@ stands for a match on the @n@-th argument
+    -- (counting from zero) with @bs@ as the case branches.
+    -- If the @n@-th argument is a projection, we have only 'conBranches'
+    -- with arity 0.
+  | FDone [Arg ArgName] Term
+    -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
+    --   and name suggestions for the free variables. This is needed to build
+    --   lambdas on the right hand side for partial applications which can
+    --   still reduce.
+  | FFail
+    -- ^ Absurd case.
+
+type FastStack = [(FastCompiledClauses, MaybeReducedElims, Elims -> Elims)]
+
+fastCompiledClauses :: Maybe ConHead -> Maybe ConHead -> CompiledClauses -> FastCompiledClauses
+fastCompiledClauses z s cc =
+  case cc of
+    Fail              -> FFail
+    Done xs b         -> FDone xs b
+    Case (Arg _ n) bs -> FCase n (fastCase z s bs)
+
+fastCase :: Maybe ConHead -> Maybe ConHead -> Case CompiledClauses -> FastCase FastCompiledClauses
+fastCase z s (Branches proj con lit wild) =
+  FBranches
+    { fprojPatterns   = proj
+    , fconBranches    = Map.mapKeysMonotonic (nameId . qnameName) $ fmap (fastCompiledClauses z s . content) con
+    , fsucBranch      = fmap (fastCompiledClauses z s . content) $ flip Map.lookup con . conName =<< s
+    , flitBranches    = fmap (fastCompiledClauses z s) lit
+    , fcatchAllBranch = fmap (fastCompiledClauses z s) wild }
+
+{-# INLINE lookupCon #-}
+lookupCon :: QName -> FastCase c -> Maybe c
+lookupCon c (FBranches _ cons _ _ _) = Map.lookup (nameId $ qnameName c) cons
+
+-- QName memo -------------------------------------------------------------
 
 {-# NOINLINE memoQName #-}
 memoQName :: (QName -> a) -> (QName -> a)
@@ -76,6 +135,8 @@ memoQName f = unsafePerformIO $ do
           writeIORef tbl (Map.insert i y m)
           return y
 
+-- Fast reduction ---------------------------------------------------------
+
 -- | First argument: allow non-terminating reductions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
 fastReduce allowNonTerminating v = do
@@ -83,7 +144,7 @@ fastReduce allowNonTerminating v = do
       name _         = __IMPOSSIBLE__
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
-  constInfo <- unKleisli (compactDef <=< getConstInfo)
+  constInfo <- unKleisli (compactDef z s <=< getConstInfo)
   ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
@@ -175,20 +236,20 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
         noReduction    = NoReduction
         yesReduction s = YesReduction s
 
-        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> CompiledClauses -> Reduced (Blocked Term) Term
+        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> FastCompiledClauses -> Reduced (Blocked Term) Term
         reduceNormalE v0 f es dontUnfold cc
           | dontUnfold = defaultResult  -- non-terminating or delayed
           | otherwise  = appDefE f v0 cc es
           where defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
-        appDefE :: QName -> Term -> CompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
+        appDefE :: QName -> Term -> FastCompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
         appDefE f v cc es =
           case match' f [(cc, es, id)] of
             YesReduction s u -> YesReduction s u
             NoReduction es'  -> NoReduction $ applyE v <$> es'
 
-        match' :: QName -> Stack -> Reduced (Blocked Elims) Term
+        match' :: QName -> FastStack -> Reduced (Blocked Elims) Term
         match' f ((c, es, patch) : stack) =
           let no blocking es = NoReduction $ blocking $ patch $ map ignoreReduced es
               yes t          = YesReduction NoSimplification t
@@ -196,10 +257,10 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
           in case c of
 
             -- impossible case
-            Fail -> no (NotBlocked AbsurdMatch) es
+            FFail -> no (NotBlocked AbsurdMatch) es
 
             -- done matching
-            Done xs t
+            FDone xs t
               -- common case: exact number of arguments
               | m == n    -> {-# SCC match'Done #-} yes $ applySubst (toSubst es) t
               -- if the function was partially applied, return a lambda
@@ -208,8 +269,8 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
               -- apply the result to any extra arguments
               | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
               where
-                n          = length xs
-                m          = length es
+                n = length xs
+                m = length es
                 -- at least the first @n@ elims must be @Apply@s, so we can
                 -- turn them into a subsitution
                 -- toSubst    = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
@@ -219,41 +280,48 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
             -- splitting on the @n@th elimination
-            Case (Arg _ n) bs ->
+            FCase n bs -> {-# SCC "match'Case" #-}
               case splitAt n es of
                 -- if the @n@th elimination is not supplied, no match
                 (_, []) -> no (NotBlocked Underapplied) es
                 -- if the @n@th elimination is @e0@
                 (es0, MaybeRed red e0 : es1) ->
                   -- get the reduced form of @e0@
-                  let eb :: Blocked Elim =
-                        case red of
-                          Reduced b  -> e0 <$ b
-                          NotReduced -> unfoldCorecursionE e0
+                  let eb = case red of
+                             Reduced b  -> e0 <$ b
+                             NotReduced -> unfoldCorecursionE e0
                       e = ignoreBlocking eb
                       -- replace the @n@th argument by its reduced form
                       es' = es0 ++ [MaybeRed (Reduced $ () <$ eb) e] ++ es1
                       -- if a catch-all clause exists, put it on the stack
-                      catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
+                      catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (fcatchAllBranch bs)
                       -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
                       litFrame l stack =
-                        case Map.lookup l (litBranches bs) of
+                        case Map.lookup l (flitBranches bs) of
                           Nothing -> stack
                           Just cc -> (cc, es0 ++ es1, patchLit) : stack
                       -- If our argument (or its constructor form) is @Con c vs@
                       -- we push @conFrame c vs@ onto the stack.
                       conFrame c vs stack =
-                        case Map.lookup (conName c) (conBranches bs) of
+                        case lookupCon (conName c) bs of
                           Nothing -> stack
-                          Just cc -> ( content cc
+                          Just cc -> ( cc
                                      , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
                                      , patchCon c (length vs)
                                      ) : stack
+
+                      sucFrame n stack =
+                        case fsucBranch bs of
+                          Nothing -> stack
+                          Just cc -> (cc, es0 ++ [v] ++ es1, patchCon (fromJust suc) 1)
+                                     : stack
+                        where v = MaybeRed (Reduced $ notBlocked ()) $ Apply $ defaultArg $ Lit $ LitNat noRange n
+
                       -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
                       projFrame p stack =
-                        case Map.lookup p (conBranches bs) of
+                        case lookupCon p bs of
                           Nothing -> stack
-                          Just cc -> (content cc, es0 ++ es1, patchLit) : stack
+                          Just cc -> (cc, es0 ++ es1, patchLit) : stack
                       -- The new patch function restores the @n@th argument to @v@:
                       -- In case we matched a literal, just put @v@ back.
                       patchLit es = patch (es0 ++ [e] ++ es1)
@@ -276,8 +344,8 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
                             -- In case of a natural number literal, try also its constructor form
                             Lit l@(LitNat r n) ->
                               let cFrame stack
+                                    | n > 0                  = sucFrame (n - 1) stack
                                     | n == 0, Just z <- zero = conFrame z [] stack
-                                    | n > 0,  Just s <- suc  = conFrame s [Arg info (Lit (LitNat r (n - 1)))] stack
                                     | otherwise              = stack
                               in match' f $ litFrame l $ cFrame $ catchAllFrame stack
 
