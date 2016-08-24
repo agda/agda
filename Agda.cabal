@@ -393,6 +393,7 @@ library
                     Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
                     Agda.TypeChecking.Reduce
+                    Agda.TypeChecking.Reduce.Fast
                     Agda.TypeChecking.Reduce.Monad
                     Agda.TypeChecking.Rewriting
                     Agda.TypeChecking.Rewriting.NonLinMatch

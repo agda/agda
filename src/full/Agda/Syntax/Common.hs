@@ -21,6 +21,7 @@ import qualified Data.Strict.Maybe as Strict
 import Data.Semigroup hiding (Arg)
 import Data.Traversable
 import Data.Typeable (Typeable)
+import Data.Word
 
 import GHC.Generics (Generic)
 
@@ -783,7 +784,7 @@ type Arity  = Nat
 
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
-data NameId = NameId !Integer !Integer
+data NameId = NameId {-# UNPACK #-} !Word64 {-# UNPACK #-} !Word64
     deriving (Eq, Ord, Typeable, Generic)
 
 instance KillRange NameId where

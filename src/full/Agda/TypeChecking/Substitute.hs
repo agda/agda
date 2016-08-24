@@ -46,6 +46,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.HashMap (HashMap)
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -429,6 +430,10 @@ instance Apply v => Apply (Map k v) where
   apply  x args = fmap (`apply` args) x
   applyE x es   = fmap (`applyE` es) x
 
+instance Apply v => Apply (HashMap k v) where
+  apply  x args = fmap (`apply` args) x
+  applyE x es   = fmap (`applyE` es) x
+
 instance (Apply a, Apply b) => Apply (a,b) where
   apply  (x,y) args = (apply  x args, apply  y args)
   applyE (x,y) es   = (applyE x es  , applyE y es  )
@@ -615,6 +620,9 @@ instance Abstract t => Abstract (Maybe t) where
   abstract tel x = fmap (abstract tel) x
 
 instance Abstract v => Abstract (Map k v) where
+  abstract tel m = fmap (abstract tel) m
+
+instance Abstract v => Abstract (HashMap k v) where
   abstract tel m = fmap (abstract tel) m
 
 abstractArgs :: Abstract a => Args -> a -> a
