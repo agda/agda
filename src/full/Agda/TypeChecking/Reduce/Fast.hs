@@ -135,6 +135,26 @@ memoQName f = unsafePerformIO $ do
           writeIORef tbl (Map.insert i y m)
           return y
 
+-- Faster substitution ----------------------------------------------------
+
+-- Precondition: All free variables of the term are assigned values in the
+-- list.
+-- Reverts to normal substitution if it hits a binder or other icky stuff (like
+-- levels).
+fastSubst :: [Term] -> Term -> Term
+fastSubst us = go
+  where
+    rho = parallelS us
+    go v =
+      case v of
+        Var x es -> (us !! x) `applyE` map goE es
+        Def f es -> defApp f [] $ map goE es
+        Con c vs -> Con c $ map (fmap go) vs
+        Lit{}    -> v
+        _        -> applySubst rho v
+    goE (Apply v) = Apply (fmap go v)
+    goE p         = p
+
 -- Fast reduction ---------------------------------------------------------
 
 -- | First argument: allow non-terminating reductions.
@@ -262,20 +282,16 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
             -- done matching
             FDone xs t
               -- common case: exact number of arguments
-              | m == n    -> {-# SCC match'Done #-} yes $ applySubst (toSubst es) t
+              | m == n    -> {-# SCC match'Done #-} yes $ doSubst es t
               -- if the function was partially applied, return a lambda
-              | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
+              | m < n     -> yes $ doSubst es $ foldr lam t (drop m xs)
               -- otherwise, just apply instantiation to body
               -- apply the result to any extra arguments
-              | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
+              | otherwise -> yes $ doSubst es0 t `applyE` map ignoreReduced es1
               where
                 n = length xs
                 m = length es
-                -- at least the first @n@ elims must be @Apply@s, so we can
-                -- turn them into a subsitution
-                -- toSubst    = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
-                toSubst = foldl' (\ rho -> cons rho . unArg . argFromElim . ignoreReduced) IdS
-                  where cons rho !u = u :# rho
+                doSubst es t = fastSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
