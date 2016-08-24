@@ -265,34 +265,32 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
                               (es1, es2)  = splitAt m rest
                               vs          = map argFromElim es1
                   -- Now do the matching on the @n@ths argument:
-                  in
-                   case fmap ignoreSharing <$> eb of
-                    Blocked x _            -> no (Blocked x) es'
-                    NotBlocked _ (Apply (Arg info (MetaV x _))) -> no (Blocked x) es'
+                  in case eb of
+                    Blocked x _       -> no (Blocked x) es'
+                    NotBlocked blk elim ->
+                      case elim of
+                        Apply (Arg info v) ->
+                          case v of
+                            MetaV x _ -> no (Blocked x) es'
 
-                    -- In case of a natural number literal, try also its constructor form
-                    NotBlocked _ (Apply (Arg info v@(Lit l@(LitNat r n)))) ->
-                      let cFrame stack
-                            | n == 0, Just z <- zero = conFrame z [] stack
-                            | n > 0,  Just s <- suc  = conFrame s [Arg info (Lit (LitNat r (n - 1)))] stack
-                            | otherwise              = stack
-                      in match' f $ litFrame l $ cFrame $ catchAllFrame stack
+                            -- In case of a natural number literal, try also its constructor form
+                            Lit l@(LitNat r n) ->
+                              let cFrame stack
+                                    | n == 0, Just z <- zero = conFrame z [] stack
+                                    | n > 0,  Just s <- suc  = conFrame s [Arg info (Lit (LitNat r (n - 1)))] stack
+                                    | otherwise              = stack
+                              in match' f $ litFrame l $ cFrame $ catchAllFrame stack
 
-                    NotBlocked _ (Apply (Arg info v@(Lit l))) ->
-                      match' f $ litFrame l $ catchAllFrame stack
+                            Lit l    -> match' f $ litFrame l    $ catchAllFrame stack
+                            Con c vs -> match' f $ conFrame c vs $ catchAllFrame $ stack
 
-                    -- In case of a constructor, push the conFrame
-                    NotBlocked _ (Apply (Arg info (Con c vs))) ->
-                      match' f $ conFrame c vs $ catchAllFrame $ stack
+                            -- Otherwise, we are stuck.  If we were stuck before,
+                            -- we keep the old reason, otherwise we give reason StuckOn here.
+                            _ -> no (NotBlocked $ stuckOn elim blk) es'
 
-                    -- In case of a projection, push the projFrame
-                    NotBlocked _ (Proj _ p) ->
-                      match' f $ projFrame p $ stack -- catchAllFrame $ stack
-                      -- Issue #1986: no catch-all for copattern matching!
+                        -- In case of a projection, push the projFrame
+                        Proj _ p -> match' f $ projFrame p stack
 
-                    -- Otherwise, we are stuck.  If we were stuck before,
-                    -- we keep the old reason, otherwise we give reason StuckOn here.
-                    NotBlocked blocked e -> no (NotBlocked $ stuckOn e blocked) es'
 
         -- If we reach the empty stack, then pattern matching was incomplete
         match' f [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
