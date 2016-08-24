@@ -24,7 +24,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce as R
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 import Agda.TypeChecking.CompiledClause.Match
 
@@ -34,6 +33,30 @@ import Agda.Utils.Memo
 #include "undefined.h"
 import Agda.Utils.Impossible
 
+data CompactDef =
+  CompactDef { cdefDelayed        :: Bool
+             , cdefNonterminating :: Bool
+             , cdefDef            :: CompactDefn }
+
+data CompactDefn
+  = CFun  { cfunCompiled  :: CompiledClauses }
+  | CCon  { cconSrcCon    :: ConHead }
+  | COther
+
+compactDef :: Definition -> ReduceM CompactDef
+compactDef def = do
+  cdefn <-
+    case theDef def of
+      Constructor{conSrcCon = c} -> pure CCon{cconSrcCon = c}
+      Function{funCompiled = Just cc, funClauses = _:_} ->
+        pure CFun{ cfunCompiled = cc }
+      _ -> pure COther
+  return $
+    CompactDef { cdefDelayed        = defDelayed def == Delayed
+               , cdefNonterminating = defNonterminating def
+               , cdefDef            = cdefn
+               }
+
 -- | First argument: allow non-terminating reductions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
 fastReduce allowNonTerminating v = do
@@ -41,13 +64,13 @@ fastReduce allowNonTerminating v = do
       name _         = __IMPOSSIBLE__
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
-  constInfo <- unKleisli getConstInfo
+  constInfo <- unKleisli (compactDef <=< getConstInfo)
   ReduceM $ \ env -> reduceTm env (memoUnsafe constInfo) allowNonTerminating z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
 
-reduceTm :: ReduceEnv -> (QName -> Definition) -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> Blocked Term
+reduceTm :: ReduceEnv -> (QName -> CompactDef) -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> Blocked Term
 reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
   where
     runReduce m = unReduceM m env
@@ -98,62 +121,33 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
       Bool -> (Term -> Blocked Term) ->
       Term -> QName -> Elims -> Blocked Term
     unfoldDefinitionE unfoldDelayed keepGoing v f es =
-      let info = constInfo f in
-      case unfoldDefinitionStep unfoldDelayed info v f es of
+      case unfoldDefinitionStep unfoldDelayed (constInfo f) v f es of
         NoReduction v    -> v
         YesReduction _ v -> keepGoing v
 
-    unfoldDefinitionStep :: Bool -> Definition -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
-    unfoldDefinitionStep unfoldDelayed info v0 f es =
-      let def = theDef info
-          v   = v0 `applyE` es
+    unfoldDefinitionStep :: Bool -> CompactDef -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
+    unfoldDefinitionStep unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def} v0 f es =
+      let v = v0 `applyE` es
           -- Non-terminating functions
           -- (i.e., those that failed the termination check)
           -- and delayed definitions
           -- are not unfolded unless explicitely permitted.
           dontUnfold =
-               (not allowNonTerminating && defNonterminating info)
-            || (not unfoldDelayed       && defDelayed info == Delayed)
+               (not allowNonTerminating && nonterm)
+            || (not unfoldDelayed       && delayed)
       in case def of
-        Constructor{conSrcCon = c} ->
+        CCon{cconSrcCon = c} ->
           noReduction $ notBlocked $ Con c [] `applyE` es
-        Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls, primCompiled = Just cc} ->
-          let Just pf = runReduce (getPrimitive' x) in
-          reducePrimitive x v0 f es pf dontUnfold cls cc
-        Function{funCompiled = Just cc, funClauses = cls} ->
-          reduceNormalE v0 f (map notReduced es) dontUnfold cls cc
+        CFun{cfunCompiled = cc} ->
+          reduceNormalE v0 f (map notReduced es) dontUnfold cc
         _ -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
       where
         noReduction    = NoReduction
         yesReduction s = YesReduction s
-        reducePrimitive x v0 f es pf dontUnfold cls cc
-          | len < ar  = noReduction $ NotBlocked Underapplied $ v0 `applyE` es -- not fully applied
-          | otherwise = {-# SCC "reducePrimitive" #-}
-              let (es1, es2) | len == ar = (es, [])
-                             | otherwise = splitAt ar es
-                  args1      = fromMaybe __IMPOSSIBLE__ $ mapM isApplyElim es1
-                  r = runReduce (primFunImplementation pf args1)
-              in case r of
-                NoReduction args1' ->
-                  let es1' = map (fmap Apply) args1' in
-                  if null cls then
-                    noReduction $ applyE (Def f []) <$> do
-                      traverse id $
-                        map mredToBlocked es1' ++ map notBlocked es2
-                   else
-                    reduceNormalE v0 f (es1' ++ map notReduced es2) dontUnfold cls cc
-                YesReduction simpl v -> yesReduction simpl $ v `applyE` es2
-          where
-              len = length es
-              ar  = primFunArity pf
-              mredToBlocked :: MaybeReduced a -> Blocked a
-              mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
-              mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> [Clause] -> CompiledClauses -> Reduced (Blocked Term) Term
-        reduceNormalE v0 f es dontUnfold cls cc
+        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> CompiledClauses -> Reduced (Blocked Term) Term
+        reduceNormalE v0 f es dontUnfold cc
           | dontUnfold = defaultResult  -- non-terminating or delayed
-          | null cls   = defaultResult  -- no definition for head
           | otherwise  = appDefE f v0 cc es
           where defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
