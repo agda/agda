@@ -93,6 +93,17 @@ reduceTm :: ReduceEnv -> (QName -> CompactDef) -> Bool -> Maybe ConHead -> Maybe
 reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
   where
     runReduce m = unReduceM m env
+    conNameId = nameId . qnameName . conName
+    isZero =
+      case zero of
+        Nothing -> const False
+        Just z  -> (conNameId z ==) . conNameId
+
+    isSuc  =
+      case suc of
+        Nothing -> const False
+        Just s  -> (conNameId s ==) . conNameId
+
     reduceB' v =
       case v of
         Def f es -> unfoldDefinitionE False reduceB' (Def f []) f es
@@ -109,9 +120,9 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
         done = notBlocked v
 
         reduceNat v@(Con c [])
-          | Just c == zero = Lit $ LitNat (getRange c) 0
+          | isZero c = Lit $ LitNat (getRange c) 0
         reduceNat v@(Con c [a])
-          | Just c == suc  = inc . ignoreBlocking $ reduceB' (unArg a)
+          | isSuc c  = inc . ignoreBlocking $ reduceB' (unArg a)
           where
             inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
             inc w                  = Con c [defaultArg w]
