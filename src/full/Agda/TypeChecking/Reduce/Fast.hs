@@ -13,6 +13,9 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Traversable (traverse)
 
+import System.IO.Unsafe
+import Data.IORef
+
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -57,6 +60,22 @@ compactDef def = do
                , cdefDef            = cdefn
                }
 
+{-# NOINLINE memoQName #-}
+memoQName :: (QName -> a) -> (QName -> a)
+memoQName f = unsafePerformIO $ do
+  tbl <- newIORef Map.empty
+  return (unsafePerformIO . f' tbl)
+  where
+    f' tbl x = do
+      let i = nameId (qnameName x)
+      m <- readIORef tbl
+      case Map.lookup i m of
+        Just y  -> return y
+        Nothing -> do
+          let y = f x
+          writeIORef tbl (Map.insert i y m)
+          return y
+
 -- | First argument: allow non-terminating reductions.
 fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
 fastReduce allowNonTerminating v = do
@@ -65,7 +84,7 @@ fastReduce allowNonTerminating v = do
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
   constInfo <- unKleisli (compactDef <=< getConstInfo)
-  ReduceM $ \ env -> reduceTm env (memoUnsafe constInfo) allowNonTerminating z s v
+  ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
