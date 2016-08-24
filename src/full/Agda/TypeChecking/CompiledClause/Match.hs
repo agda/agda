@@ -109,7 +109,7 @@ match' ((c, es, patch) : stack) = do
                     NotReduced -> unfoldCorecursionE e0
             let e = ignoreBlocking eb
                 -- replace the @n@th argument by its reduced form
-                es' = es0 ++ [MaybeRed red e] ++ es1
+                es' = es0 ++ [MaybeRed (Reduced $ () <$ eb) e] ++ es1
                 -- if a catch-all clause exists, put it on the stack
                 catchAllFrame stack = maybe stack (\c -> (c, es', patch) : stack) (catchAllBranch bs)
                 -- If our argument is @Lit l@, we push @litFrame l@ onto the stack.
@@ -123,7 +123,7 @@ match' ((c, es, patch) : stack) = do
                   case Map.lookup (conName c) (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
-                               , es0 ++ map (MaybeRed red . Apply) vs ++ es1
+                               , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
                                , patchCon c (length vs)
                                ) : stack
                 -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.

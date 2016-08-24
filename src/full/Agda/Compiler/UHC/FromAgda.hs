@@ -342,7 +342,8 @@ litToCore (LitChar _ c)  = mkChar c
 -- we have the same semantics as MAlonzo.
 litToCore (LitFloat _ f) = mkApp (mkVar $ primFunNm "primMkFloat") [mkString opts (show f)]
 litToCore (LitQName _ q) = mkApp (mkVar $ primFunNm "primMkQName")
-                             [mkInteger opts n, mkInteger opts m, mkString opts $ P.prettyShow q]
+                             [mkInteger opts $ fromIntegral n, mkInteger opts $ fromIntegral m,
+                              mkString opts $ P.prettyShow q]
   where NameId n m = nameId $ qnameName q
 litToCore LitMeta{} = __IMPOSSIBLE__
 

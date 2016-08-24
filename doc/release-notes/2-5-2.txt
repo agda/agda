@@ -494,6 +494,12 @@ Type checking
 
   where <nnn> is the internal meta variable number.
 
+* The performance of the compile-time evaluator has been greatly improved.
+
+  - Fixed a memory leak in evaluator (Issue #2147).
+  - Reduction speed improved by an order of magnitude and is now
+    comparable to the performance of ghci. Still call-by-name though.
+
 
 Emacs mode
 ==========
