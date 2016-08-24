@@ -170,18 +170,21 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
 
             -- done matching
             Done xs t
+              -- common case: exact number of arguments
+              | m == n    -> {-# SCC match'Done #-} yes $ applySubst (toSubst es) t
               -- if the function was partially applied, return a lambda
               | m < n     -> yes $ applySubst (toSubst es) $ foldr lam t (drop m xs)
               -- otherwise, just apply instantiation to body
               -- apply the result to any extra arguments
-              | m == n    -> {-# SCC match'Done #-} yes $ applySubst (toSubst es) t
               | otherwise -> yes $ applySubst (toSubst es0) t `applyE` map ignoreReduced es1
               where
                 n          = length xs
                 m          = length es
                 -- at least the first @n@ elims must be @Apply@s, so we can
                 -- turn them into a subsitution
-                toSubst    = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
+                -- toSubst    = parallelS . reverse . map (unArg . argFromElim . ignoreReduced)
+                toSubst = foldl' (\ rho -> cons rho . unArg . argFromElim . ignoreReduced) IdS
+                  where cons rho !u = u :# rho
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
