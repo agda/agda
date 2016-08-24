@@ -123,7 +123,7 @@ match' ((c, es, patch) : stack) = do
                   case Map.lookup (conName c) (conBranches bs) of
                     Nothing -> stack
                     Just cc -> ( content cc
-                               , es0 ++ map (MaybeRed red . Apply) vs ++ es1
+                               , es0 ++ map (MaybeRed NotReduced . Apply) vs ++ es1
                                , patchCon c (length vs)
                                ) : stack
                 -- If our argument is @Proj p@, we push @projFrame p@ onto the stack.
