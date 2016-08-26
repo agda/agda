@@ -500,6 +500,9 @@ Type checking
   - Reduction speed improved by an order of magnitude and is now
     comparable to the performance of ghci. Still call-by-name though.
 
+* The detection of types that satisfy K added in Agda 2.5.1 has been rolled
+  back (see Issue #2003).
+
 
 Emacs mode
 ==========

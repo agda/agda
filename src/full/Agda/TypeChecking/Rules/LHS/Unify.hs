@@ -919,7 +919,7 @@ unifyStep :: UnifyState -> UnifyStep -> UnifyM (UnificationResult' UnifyState)
 unifyStep s Deletion{ deleteAt = k , deleteType = a , deleteLeft = u , deleteRight = v } =
   liftTCM $ do
     addContext (varTel s) $ noConstraints $ equalTerm a u v
-    ifM ((optWithoutK <$> pragmaOptions) `and2M` (not <$> addContext (varTel s) (isSet (unEl a))))
+    ifM (optWithoutK <$> pragmaOptions)
     {-then-} (DontKnow <$> withoutKErr)
     {-else-} (Unifies  <$> reduceEqTel (solveEq k u s))
   `catchError` \err -> return $ DontKnow err
@@ -1151,32 +1151,3 @@ unify s strategy = if isUnifyStateSolved s
       err <- addContext (varTel s) $ typeError_ $
                UnificationStuck (eqTel s) (map unArg $ eqLHS s) (map unArg $ eqRHS s)
       return $ DontKnow err
-
-isSet :: Term -> TCM Bool
-isSet a = do
-  a <- reduce a
-  case ignoreSharing a of
-    Def d es -> do
-      let args = fromMaybe __IMPOSSIBLE__ $ allApplyElims es
-      Defn{ defType = dtype, theDef = def } <- getConstInfo d
-      reportSDoc "tc.lhs.unify.isset" 50 $ text "Checking whether " <+> prettyTCM a <+> text " is a set..."
-      case def of
-        Datatype{ dataPars = npars, dataCons = cs, dataMutual = [], dataAbstr = ConcreteDef } -> do
-           let pars       = take npars args
-               TelV tel _ = telView' $ dtype `piApply` pars
-               ixtypes    = map (unEl . unDom) $ flattenTel tel
-           ifNotM (allM ixtypes isSet) (return False) $ allM cs $ \c -> do
-             ctype <- defType <$> getConstInfo c
-             checkConstructorType d $ ctype `piApply` pars
-        Record{ recConHead = c } -> do
-          ctype <- defType <$> getConstInfo (conName c)
-          checkConstructorType d $ ctype `piApply` args
-        _ -> return False
-    _ -> return False
-  where
-    checkConstructorType :: QName -> Type -> TCM Bool
-    checkConstructorType d a = do
-      let TelV tel _ = telView' a
-      allM (map (unEl . unDom) $ flattenTel tel) $ \b -> case ignoreSharing b of
-        Def d' _ | d == d' -> return True
-        _ -> isSet b

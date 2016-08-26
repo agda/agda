@@ -1,0 +1,4 @@
+SetDetection.agda:6,6-10
+Cannot eliminate reflexive equation x = x of type Nat because K has
+been disabled.
+when checking that the pattern refl has type x ≡ x
