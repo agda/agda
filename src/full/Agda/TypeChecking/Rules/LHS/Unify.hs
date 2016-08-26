@@ -973,7 +973,7 @@ unifyStep s (Injectivity k a d pars ixs c) = do
            (allFlexVars $ eqTel1 `abstract` ctel)
            dtype
            (raise (size ctel) ixs)
-           cixs
+           (raiseFrom (size ctel) (size eqTel1) cixs)
   case res of
     -- Higher-dimensional unification can never end in a conflict,
     -- because `cong c1 ...` and `cong c2 ...` don't even have the
