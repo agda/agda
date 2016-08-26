@@ -83,7 +83,7 @@ setCommandLineOptions' relativeTo opts = do
           getIncludeDirs
         incs -> return incs
       modify $ Lens.setCommandLineOptions opts{ optAbsoluteIncludePaths = incs }
-             . Lens.setPragmaOptions (optPragmaOptions opts)
+      setPragmaOptions (optPragmaOptions opts)
       updateBenchmarkingStatus
 
 libToTCM :: LibM a -> TCM a
