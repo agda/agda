@@ -593,8 +593,8 @@ completeStrategyAt :: Int -> UnifyStrategy
 completeStrategyAt k s = msum $ map (\strat -> strat k s) $
     [ skipIrrelevantStrategy
     , basicUnifyStrategy
-    , dataStrategy
     , literalStrategy
+    , dataStrategy
     , etaExpandVarStrategy
     , etaExpandEquationStrategy
     , injectiveTypeConStrategy
