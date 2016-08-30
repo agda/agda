@@ -1,6 +1,8 @@
 
 var biginteger = require("biginteger")
 
+// Integers
+
 exports.primIntegerFromString = function(x) {
   return biginteger.BigInteger(x);
 };
@@ -37,6 +39,13 @@ exports.primNatMinus = function(x) {
     }
   };
 };
+
+// Floats
+
+exports.primShowFloat = function(x) {
+  return x.toString();
+};
+
 
 // As Javascript is strict, this should be fine in general. Not sure
 // what PSeq (Axiom ...) (...) should do?

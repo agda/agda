@@ -361,4 +361,5 @@ primitives :: Set String
 primitives = Set.fromList
   [ "primNatMinus"
   , "primShowInteger"
+  , "primShowFloat"
   ]
