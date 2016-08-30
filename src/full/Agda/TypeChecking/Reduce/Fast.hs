@@ -11,8 +11,8 @@ It runs roughly an order of magnitude faster than the original implementation.
 
 The differences are the following:
 
-- Only applies when we don't have --rewriting or --sharing, and when all
-  reductions are allowed.
+- Only applies when we don't have --sharing and when all reductions are
+  allowed.
 
   This means we can skip a number of checks that would otherwise be performed
   at each reduction step.
@@ -84,13 +84,17 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce as R
+import Agda.TypeChecking.Rewriting (rewrite)
 import Agda.TypeChecking.Reduce.Monad as RedM
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Monad.Builtin hiding (constructorForm)
 import Agda.TypeChecking.CompiledClause.Match
 
+import Agda.Interaction.Options
+
 import Agda.Utils.Maybe
 import Agda.Utils.Memo
+import Agda.Utils.Function
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -225,14 +229,15 @@ fastReduce allowNonTerminating v = do
       name _         = __IMPOSSIBLE__
   z <- fmap name <$> getBuiltin' builtinZero
   s <- fmap name <$> getBuiltin' builtinSuc
+  rwr <- optRewriting <$> pragmaOptions
   constInfo <- unKleisli (compactDef z s <=< getConstInfo)
-  ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating z s v
+  ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating rwr z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
 
-reduceTm :: ReduceEnv -> (QName -> CompactDef) -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> Blocked Term
-reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
+reduceTm :: ReduceEnv -> (QName -> CompactDef) -> Bool -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> Blocked Term
+reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
   where
     runReduce m = unReduceM m env
     conNameId = nameId . qnameName . conName
@@ -246,7 +251,13 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
         Nothing -> const False
         Just s  -> (conNameId s ==) . conNameId
 
-    reduceB' v =
+    rewriteAfter f
+      | hasRewriting = trampoline (runReduce . rewrite . f)
+      | otherwise    = f
+
+    reduceB' = rewriteAfter reduceB''
+
+    reduceB'' v =
       case v of
         Def f es -> unfoldDefinitionE False reduceB' (Def f []) f es
         Con c vs ->
@@ -277,9 +288,11 @@ reduceTm env !constInfo allowNonTerminating zero suc = reduceB'
     unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) $
       unfoldCorecursion v
 
-    unfoldCorecursion :: Term -> Blocked Term
-    unfoldCorecursion (Def f es) = unfoldDefinitionE True unfoldCorecursion (Def f []) f es
-    unfoldCorecursion v          = reduceB' v
+    unfoldCorecursion = rewriteAfter unfoldCorecursion'
+
+    unfoldCorecursion' :: Term -> Blocked Term
+    unfoldCorecursion' (Def f es) = unfoldDefinitionE True unfoldCorecursion (Def f []) f es
+    unfoldCorecursion' v          = reduceB' v
 
     -- | If the first argument is 'True', then a single delayed clause may
     -- be unfolded.
