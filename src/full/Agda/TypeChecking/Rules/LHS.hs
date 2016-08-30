@@ -529,7 +529,7 @@ checkLeftHandSide
   -> (LHSResult -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c f ps a withSub' ret = Bench.billTo [Bench.Typing, Bench.CheckLHS] $ do
+checkLeftHandSide c f ps a withSub' = Bench.billToCPS [Bench.Typing, Bench.CheckLHS] $ \ ret -> do
 
   -- To allow module parameters to be refined by matching, we're adding the
   -- context arguments as wildcard patterns and extending the type with the
