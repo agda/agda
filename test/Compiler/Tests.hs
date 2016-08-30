@@ -88,7 +88,6 @@ disabledTests =
   -- Output does not match MAlonzo output exactly
   , RFInclude "Compiler/JS/simple/Floats"
   , RFInclude "Compiler/JS/simple/Issue1486"
-  , RFInclude "Compiler/JS/simple/Issue1624"
   , RFInclude "Compiler/JS/simple/Issue326"
   , RFInclude "Compiler/JS/simple/NoRecordConstructor"
   , RFInclude "Compiler/JS/simple/Records"
