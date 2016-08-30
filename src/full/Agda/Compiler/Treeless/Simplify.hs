@@ -196,14 +196,14 @@ simplify FunctionKit{..} = simpl
         Just (PAdd, j, v) <- constArithView v,
         k == j = tOp PLt u v
     simplPrim' (TApp (TPrim op) [u, v])
-      | elem op [PGeq, PLt, PEq]
+      | elem op [PGeq, PLt, PEqI]
       , Just (PAdd, k, u) <- constArithView u
       , Just j <- intView v = TApp (TPrim op) [u, tInt (j - k)]
-    simplPrim' (TApp (TPrim PEq) [u, v])
+    simplPrim' (TApp (TPrim PEqI) [u, v])
       | Just (op1, k, u) <- constArithView u,
         Just (op2, j, v) <- constArithView v,
         op1 == op2, k == j,
-        elem op1 [PAdd, PSub] = tOp PEq u v
+        elem op1 [PAdd, PSub] = tOp PEqI u v
     simplPrim' (TApp (TPrim PMul) [u, v])
       | Just 0 <- intView u = tInt 0
       | Just 0 <- intView v = tInt 0

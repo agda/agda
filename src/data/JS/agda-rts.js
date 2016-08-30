@@ -17,6 +17,9 @@ exports.primIntegerSubtract = function(x,y) {
 exports.primIntegerMultiply = function(x,y) {
   return x.multiply(y);
 };
+exports.primIntegerEqual = function(x,y) {
+  return x.compare(y) == 0;
+};
 exports.primIntegerGreaterOrEqualThan = function(x,y) {
   return x.compare(y) >= 0;
 };

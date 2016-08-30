@@ -287,7 +287,8 @@ compilePrim :: T.TPrim -> Exp
 compilePrim p =
   case p of
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
-    T.PEq -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
+    T.PEqI -> binOp "agdaRTS.primIntegerEqual"
+    p | T.isPrimEq p -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
     T.PGeq -> binOp "agdaRTS.primIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.primIntegerLessThan"
     T.PAdd -> binOp "agdaRTS.primIntegerAdd"

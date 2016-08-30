@@ -43,7 +43,7 @@ transform kit = tr
           litAlt :: TAlt -> TTerm -> TTerm
           litAlt (TALit l body) cont =
             tIfThenElse
-              (tOp PEq (TLit l) (TVar sc))
+              (tOp (eqFromLit l) (TLit l) (TVar sc))
               (tr body)
               cont
           litAlt _ _ = __IMPOSSIBLE__
@@ -69,4 +69,11 @@ transform kit = tr
     isCaseOn (CTData dt) xs = dt `elem` catMaybes (map ($ kit) xs)
     isCaseOn _ _ = False
 
-
+    eqFromLit :: Literal -> TPrim
+    eqFromLit x = case x of
+      LitNat _ _     -> PEqI
+      LitFloat _ _   -> PEqF
+      LitString _ _  -> PEqS
+      LitChar _ _    -> PEqC
+      LitQName _ _   -> PEqQ
+      _              -> __IMPOSSIBLE__
