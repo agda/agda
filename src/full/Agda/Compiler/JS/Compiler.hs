@@ -203,11 +203,11 @@ definition (q,d) = do
 
 defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM (Maybe Exp)
 defn q ls t (Just e) Axiom =
-  return $ Just e
+  return $ Just $ PlainJS e
 defn q ls t Nothing Axiom =
   return $ Just Undefined
 defn q ls t (Just e) (Function {}) =
-  return $ Just e
+  return $ Just $ PlainJS e
 defn q ls t Nothing (Function {}) = do
   reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
   caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
@@ -219,13 +219,13 @@ defn q ls t Nothing (Function {}) = do
 defn q ls t _ p@(Primitive {}) | primName p `Set.member` primitives =
   return $ Just $ PlainJS $ "agdaRTS." ++ primName p
 defn q ls t (Just e) (Primitive {}) =
-  return $ Just e
+  return $ Just $ PlainJS e
 defn q ls t _ (Primitive {}) =
   return $ Just Undefined
 defn q ls t _ (Datatype {}) =
   return $ Just emp
 defn q ls t (Just e) (Constructor {}) =
-  return $ Just e
+  return $ Just $ PlainJS e
 defn q ls t _ (Constructor { conData = p, conPars = nc }) = do
   np <- return (arity t - nc)
   d <- getConstInfo p
@@ -270,7 +270,7 @@ compileTerm term = do
       let obj = Object $ Map.fromList alts'
       case defJSDef dt of
         Just e -> do
-          return $ apply e [Local (LocalId sc), obj]
+          return $ apply (PlainJS e) [Local (LocalId sc), obj]
         Nothing -> do
           return $ curriedApply (Local (LocalId sc)) [obj]
 
