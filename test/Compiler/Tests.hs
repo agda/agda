@@ -81,7 +81,6 @@ disabledTests =
 #endif
   -- JS backend tests are whitelisted for now
   , RFInclude "Compiler/JS/simple/Coind"
-  , RFInclude "Compiler/JS/simple/CompileAsPattern"
   , RFInclude "Compiler/JS/simple/CompilingCoinduction"
   , RFInclude "Compiler/JS/simple/CopatternRecord"
   , RFInclude "Compiler/JS/simple/CopatternStreamSized"
@@ -91,8 +90,6 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/Issue326"
   , RFInclude "Compiler/JS/simple/NoRecordConstructor"
   , RFInclude "Compiler/JS/simple/Records"
-  , RFInclude "Compiler/JS/simple/Sort"
-  , RFInclude "Compiler/JS/simple/UnusedArguments"
   , RFInclude "Compiler/JS/simple/VecReverse"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   ]
