@@ -54,7 +54,7 @@ import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If),
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
@@ -277,7 +277,8 @@ compileTerm term = do
 compilePrim :: T.TPrim -> Exp
 compilePrim p =
   case p of
-    T.PIf -> Lambda 3 $ If (local 2) (local 1) (local 0)
+    T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
+    T.PEq -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
     _ -> __IMPOSSIBLE__
 
 
