@@ -5,7 +5,7 @@ module Agda.TypeChecking.Monad.Benchmark
   , B.MonadBench
   , B.getBenchmark
   , updateBenchmarkingStatus
-  , B.billTo, B.billPureTo
+  , B.billTo, B.billPureTo, B.billToCPS
   , B.reset
   , print
   ) where

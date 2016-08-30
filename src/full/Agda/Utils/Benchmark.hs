@@ -170,6 +170,15 @@ billTo account m = ifNotM (getsBenchmark benchmarkOn) m $ do
   -- Compute and switch back to old account.
   (liftIO . E.evaluate =<< m) `finally` switchBenchmarking old
 
+-- | Bill a CPS function to an account. Can't handle exceptions.
+billToCPS :: MonadBench a m => Account a -> ((b -> m c) -> m c) -> (b -> m c) -> m c
+billToCPS account f k = ifNotM (getsBenchmark benchmarkOn) (f k) $ do
+  -- Switch to new account.
+  old <- switchBenchmarking $ Strict.Just account
+  f $ \ x -> x `seq` do
+    _ <- switchBenchmarking old
+    k x
+
 -- | Bill a pure computation to a specific account.
 billPureTo :: MonadBench a m  => Account a -> c -> m c
 billPureTo account = billTo account . return
