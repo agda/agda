@@ -88,6 +88,8 @@ ccToTreeless q cc = do
   reportSDoc "treeless.opt.converted" (30 + v) $ text "-- converted" $$ pbody body
   body <- simplifyTTerm body
   reportSDoc "treeless.opt.simpl" (35 + v) $ text "-- after first simplification"  $$ pbody body
+  -- TODO FIX THIS BEFORE MERGING!!!!!!!!!!!!!!!
+  -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   --body <- translateBuiltins body
   reportSDoc "treeless.opt.builtin" (30 + v) $ text "-- after builtin translation" $$ pbody body
   body <- simplifyTTerm body
