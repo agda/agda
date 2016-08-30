@@ -317,11 +317,10 @@ maybeFastReduceTerm v = do
                   _     -> False
   if not tryFast then slowReduceTerm v
                  else do
-    r <- optRewriting <$> pragmaOptions
     s <- optSharing   <$> commandLineOptions
     allowed <- asks envAllowedReductions
     let notAll = delete NonTerminatingReductions allowed /= allReductions
-    if r || s || notAll then slowReduceTerm v else fastReduce (elem NonTerminatingReductions allowed) v
+    if s || notAll then slowReduceTerm v else fastReduce (elem NonTerminatingReductions allowed) v
 
 slowReduceTerm :: Term -> ReduceM (Blocked Term)
 slowReduceTerm = rewriteAfter $ \ v -> do
