@@ -10,10 +10,10 @@ exports.primShowInteger = function(x) {
   return x.toString();
 };
 
-exports.primIntegerAdd = function(x,y) {
+exports.primIntegerPlus = function(x,y) {
   return x.add(y);
 };
-exports.primIntegerSubtract = function(x,y) {
+exports.primIntegerMinus = function(x,y) {
   return x.subtract(y);
 };
 exports.primIntegerMultiply = function(x,y) {

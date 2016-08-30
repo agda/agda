@@ -291,8 +291,8 @@ compilePrim p =
     p | T.isPrimEq p -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
     T.PGeq -> binOp "agdaRTS.primIntegerGreaterOrEqualThan"
     T.PLt -> binOp "agdaRTS.primIntegerLessThan"
-    T.PAdd -> binOp "agdaRTS.primIntegerAdd"
-    T.PSub -> binOp "agdaRTS.primIntegerSubtract"
+    T.PAdd -> binOp "agdaRTS.primIntegerPlus"
+    T.PSub -> binOp "agdaRTS.primIntegerMinus"
     T.PMul -> binOp "agdaRTS.primIntegerMultiply"
     T.PSeq -> binOp "agdaRTS.primSeq"
     _ -> error $ show p

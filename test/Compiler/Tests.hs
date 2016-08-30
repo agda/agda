@@ -80,7 +80,6 @@ disabledTests =
   , RFInclude "Compiler/UHC/"
 #endif
   -- JS backend tests are whitelisted for now
-  , RFInclude "Compiler/JS/simple/CaseOnCase"
   , RFInclude "Compiler/JS/simple/Coind"
   , RFInclude "Compiler/JS/simple/CompileAsPattern"
   , RFInclude "Compiler/JS/simple/CompilingCoinduction"
