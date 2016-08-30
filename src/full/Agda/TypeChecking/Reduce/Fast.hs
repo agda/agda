@@ -3,6 +3,64 @@
 {-# LANGUAGE PatternGuards       #-}
 {-# LANGUAGE BangPatterns        #-}
 
+{-|
+
+This module contains an optimised implementation of the reduction algorithm
+from 'Agda.TypeChecking.Reduce' and 'Agda.TypeChecking.CompiledClause.Match'.
+It runs roughly an order of magnitude faster than the original implementation.
+
+The differences are the following:
+
+- Only applies when we don't have --rewriting or --sharing, and when all
+  reductions are allowed.
+
+  This means we can skip a number of checks that would otherwise be performed
+  at each reduction step.
+
+- Does not track whether simplifications were made.
+
+  This information is only used when trying to simplify terms, so the
+  simplifier runs the slow implementation.
+
+- Precomputes primZero and primSuc.
+
+  Since all the functions involved in reduction are implemented in this module
+  in a single where block, we can look up zero and suc once instead of once for
+  each reduction step.
+
+- Run outside ReduceM
+
+  ReduceM is already just a plain reader monad, but pulling out the environment
+  and doing all reduction non-monadically saves a significant amount of time.
+
+- Memoise getConstInfo.
+
+  A big chunk of the time during reduction is spent looking up definitions in
+  the signature. Any long-running reduction will use only a handful definitions
+  though, so memoising getConstInfo is a big win.
+
+- Optimised case trees.
+
+  Since we memoise getConstInfo we can do some preprocessing of the
+  definitions, returning a 'CompactDef' instead of a 'Definition'. In
+  particular we streamline the case trees used for matching in a few ways:
+
+    - Drop constructor arity information.
+    - Use NameId instead of QName as map keys.
+    - Special branch for natural number successor.
+
+  None of these changes would make sense to incorporate into the actual case
+  trees. The first two loses information that we need in other places and the
+  third would complicate a lot of code working with case trees.
+
+- Optimised parallel substitution.
+
+  When substituting arguments into function bodies we always have a complete
+  (a term for every free variable) parallel substitution. We run an specialised
+  substitution for this case that falls back to normal substitution when it
+  hits a binder.
+
+-}
 module Agda.TypeChecking.Reduce.Fast
   ( fastReduce ) where
 
@@ -39,6 +97,9 @@ import Agda.Utils.Impossible
 
 -- Compact definitions ----------------------------------------------------
 
+-- This is what the memoised getConstInfo returns. We essentially pick out only the
+-- information needed for fast reduction from the definition.
+
 data CompactDef =
   CompactDef { cdefDelayed        :: Bool
              , cdefNonterminating :: Bool
@@ -47,7 +108,7 @@ data CompactDef =
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses }
   | CCon  { cconSrcCon    :: ConHead }
-  | COther
+  | COther  -- ^ In this case we fall back to slow reduction
 
 compactDef :: Maybe ConHead -> Maybe ConHead -> Definition -> ReduceM CompactDef
 compactDef z s def = do
