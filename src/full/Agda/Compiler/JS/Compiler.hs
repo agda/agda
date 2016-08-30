@@ -4,6 +4,7 @@ module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
+import Control.Monad.Trans
 import Data.List ( intercalate, genericLength, partition )
 import Data.Maybe ( isJust )
 import Data.Set ( Set, null, insert, difference, delete )
@@ -31,42 +32,34 @@ import Agda.Syntax.Internal
     derefPtr,
     toTopLevelModuleName, clausePats, arity, unEl, unAbs )
 import Agda.Syntax.Internal.Pattern ( unnumberPatVars )
-import Agda.TypeChecking.Substitute ( absBody, compiledClauseBody )
+import qualified Agda.Syntax.Treeless as T
+import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitNat,LitFloat,LitString,LitChar,LitQName,LitMeta) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
-import Agda.TypeChecking.Monad
-  ( TCM, Definition(Defn), Interface,
-    JSCode, Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
-    Projection(Projection), projProper, projFromType, projIndex,
-    iModuleName, iImportedModules, theDef, getConstInfo,
-    ignoreAbstractMode, miInterface, getVisitedModules,
-    defName, defType, funClauses, funProjection, projectionArgs,
-    dataPars, dataCons,
-    conPars, conData,
-    recConHead, recFields, recNamedCon,
-    localTCState,
-    typeError, TypeError(NotImplemented),
-    defJSDef )
+import Agda.TypeChecking.Monad hiding (Global, Local)
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
+import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
+import Agda.Utils.Maybe
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
+
 import Agda.Compiler.Common
-  ( curDefs, curIF, curMName, setInterface, repl, inCompilerEnv,
-    IsMain (..), doCompile )
+import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.GuardsToPrims
 
 import Agda.Compiler.JS.Syntax
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, subst, apply )
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
-import Agda.Compiler.JS.Pretty ( pretty )
+import qualified Agda.Compiler.JS.Pretty as JSPretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
@@ -194,96 +187,104 @@ curModule :: TCM Module
 curModule = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (map fst . iImportedModules <$> curIF)
-  es <- mapM definition =<< (HMap.toList <$> curDefs)
+  es <- catMaybes <$> (mapM definition =<< (HMap.toList <$> curDefs))
   return (Module m (reorder es))
 
-definition :: (QName,Definition) -> TCM Export
+definition :: (QName,Definition) -> TCM (Maybe Export)
 definition (q,d) = do
   (_,ls) <- global q
   d <- instantiateFull d
-  e <- defn q ls (defType d) (defJSDef d) (theDef d)
-  return (Export ls e)
+  fmap (Export ls) <$> defn q ls (defType d) (defJSDef d) (theDef d)
 
-defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM Exp
+defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM (Maybe Exp)
 defn q ls t (Just e) Axiom =
-  return e
-defn q ls t Nothing Axiom = do
-  t <- normalise t
-  s <- isSingleton t
-  case s of
-    -- Inline and eta-expand postulates of singleton type
-    Just e ->
-      return (curriedLambda (arity t) e)
-    -- Everything else we leave undefined
-    Nothing ->
-      return Undefined
+  return $ Just e
+defn q ls t Nothing Axiom =
+  return $ Just Undefined
 defn q ls t (Just e) (Function {}) =
-  return e
-defn q ls t Nothing (Function { funProjection = proj, funClauses = cls }) = do
-  t <- normalise t
-  s <- isSingleton t
-  cs <- mapM clause cls
-  case s of
-    -- Inline and eta-expand expressions of singleton type
-    Just e ->
-      return (curriedLambda (arity t) e)
-    Nothing -> case proj of
-      Just Projection{ projProper, projFromType = p, projIndex = i } -> do
-        -- Andreas, 2013-05-20: whether a projection is proper is now stored.
-        if projProper then
-          -- For projections from records we use a field lookup
-            return (curriedLambda (numPars cls)
-              (Lookup (Local (LocalId 0)) (last ls)))
-         else
-            -- For anything else we generate code, after adding (i-1) dummy lambdas
-            return (dummyLambda (i-1) (lambda cs))
-{- OLD way of finding out whether a projection is proper (ie. from record)
-        d <- getConstInfo p
-        case theDef d of
-          -- For projections from records we use a field lookup
-          Record { recFields = flds } | q `elem` map unArg flds ->
-            return (curriedLambda (numPars cls)
-              (Lookup (Local (LocalId 0)) (last ls)))
-          _ ->
-            -- For anything else we generate code, after adding (i-1) dummy lambdas
-            return (dummyLambda (i-1) (lambda cs))
--}
-      Nothing ->
-        return (lambda cs)
+  return $ Just e
+defn q ls t Nothing (Function {}) = do
+  reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
+  caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
+    let funBody = convertGuards treeless
+    reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
+    funBody' <- compileTerm funBody
+    reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
+    return $ Just funBody'
 defn q ls t (Just e) (Primitive {}) =
-  return e
+  return $ Just e
 defn q ls t _ (Primitive {}) =
-  return Undefined
+  return $ Just Undefined
 defn q ls t _ (Datatype {}) =
-  return emp
+  return $ Just emp
 defn q ls t (Just e) (Constructor {}) =
-  return e
+  return $ Just e
 defn q ls t _ (Constructor { conData = p, conPars = nc }) = do
   np <- return (arity t - nc)
   d <- getConstInfo p
   case theDef d of
     Record { recFields = flds } ->
-      return (curriedLambda np (Object (fromList
+      return $ Just (curriedLambda np (Object (fromList
         ( (last ls , Lambda 1
              (Apply (Lookup (Local (LocalId 0)) (last ls))
                [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
         : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
              [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
     _ ->
-      return (curriedLambda (np + 1)
+      return $ Just (curriedLambda (np + 1)
         (Apply (Lookup (Local (LocalId 0)) (last ls))
           [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
 defn q ls t _ (Record {}) =
-  return emp
+  return $ Just emp
 
--- Number of params in a function declaration
 
-numPars :: [Clause] -> Nat
-numPars []      = 0
-numPars (c : _) = genericLength (clausePats c)
+compileTerm :: T.TTerm -> TCM Exp
+compileTerm term = do
+  case term of
+    T.TVar x -> return $ Local $ LocalId x
+    T.TDef q -> do
+      d <- getConstInfo q
+      case theDef d of
+        -- Datatypes and records are erased
+        Datatype {} -> return (String "*")
+        Record {} -> return (String "*")
+        _ -> qname q
+    T.TApp t xs -> curriedApply <$> compileTerm t <*> mapM compileTerm xs
+    T.TLam t -> Lambda 1 <$> compileTerm t
+    T.TLit l -> return $ literal l
+    T.TCon q -> do
+      d <- getConstInfo q
+      qname q
+    T.TCase sc (T.CTData _) def alts -> do
+      alts' <- traverse compileAlt alts
+      let obj = Object $ Map.fromList alts'
+      return $ curriedApply (Local (LocalId sc)) [obj]
+
+    T.TUnit -> unit
+    T.TSort -> unit
+    T.TErased -> unit
+    _ -> __IMPOSSIBLE__
+
+  where
+    unit = return $ Integer 0
+
+compilePrim :: T.TPrim -> Exp
+compilePrim p =
+  case p of
+    T.PIf -> Lambda 3 $ If (local 2) (local 1) (local 0)
+    _ -> __IMPOSSIBLE__
+
+
+compileAlt :: T.TAlt -> TCM (MemberId, Exp)
+compileAlt a = case a of
+  T.TACon con ar body -> do
+    memId <- visitorName con
+    body <- Lambda ar <$> compileTerm body
+    return (memId, body)
+  _ -> error (show a) --__IMPOSSIBLE__
 
 -- One clause in a function definition
-
+{-
 clause :: Clause -> TCM Case
 clause c = do
   let pats = unnumberPatVars $ clausePats c
@@ -291,12 +292,12 @@ clause c = do
   (av,bv,es) <- return (mapping (map unArg pats))
   e <- maybe (return Undefined) term $ compiledClauseBody c
   return (Case ps (subst av es e))
-
+-}
 -- Mapping from Agda variables to JS variables in a pattern.
 -- If mapping ps = (av,bv,es) then av is the number of Agda variables,
 -- bv is the number of JS variables, and es is a list of expressions,
 -- where es[i] is the JS variable corresponding to Agda variable i.
-
+{-
 mapping :: [Pattern] -> (Nat,Nat,[Exp])
 mapping = foldr mapping' (0,0,[])
 
@@ -318,7 +319,7 @@ pattern (ConP c _ ps) = do
   ps <- mapM (pattern . namedArg) ps
   return (Tagged l ps)
 pattern _             = return VarPatt
-
+-}
 tag :: QName -> TCM Tag
 tag q = do
   l <- visitorName q
@@ -343,18 +344,16 @@ tag q = do
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (last ls)
 
+<<<<<<< 3d50ce54fe8994b64e3b75531709400dacec297d
+=======
+local :: Nat -> Exp
+local = Local . LocalId
+
+{-
+>>>>>>> [ JS ] HelloWorld works!
 term :: Term -> TCM Exp
 term v = do
   case unSpine v of
-    (Var   i es)         -> do
-      let Just as = allApplyElims es
-      e <- return (Local (LocalId i))
-      es <- args 0 as
-      return (curriedApply e es)
-    (Lam   _ at)         -> Lambda 1 <$> term (absBody at)
-    (Lit   l)            -> return (literal l)
-    (Level l)            -> term =<< reallyUnLevelView l
-    (Shared p)           -> term $ derefPtr p
     (Def q es)           -> do
       let Just as = allApplyElims es
       d <- getConstInfo q
@@ -396,35 +395,7 @@ term v = do
     (Sort  _)            -> return (String "*")
     (MetaV _ _)          -> return (Undefined)
     (DontCare _)         -> return (Undefined)
-
--- Check to see if a type is a singleton, and if so, return its only
--- member.  Singleton types are of the form T1 -> ... -> Tn -> T where
--- T is either a record with no fields, a datatype with one
--- no-argument constructor, a datatype with no constructors,
--- or (since this is a type-erasing translation) Set.
-
-isSingleton :: Type -> TCM (Maybe Exp)
-isSingleton t = case unEl t of
-  Pi _ b         -> isSingleton (unAbs b)
-  Sort _         -> return (Just (String "*"))
-  Def q as       -> do
-    d <- getConstInfo q
-    case (theDef d) of
-      Datatype { dataPars = np, dataCons = [] } ->
-        return (Just Undefined)
-      Datatype { dataPars = np, dataCons = [p] } -> do
-        c <- getConstInfo p
-        case (arity (defType c) == np) of
-          True -> Just <$> qname p
-          False -> return (Nothing)
-      Record { recConHead = con, recFields = [] } ->
-        Just <$> qname (conName con)
-      _ -> return (Nothing)
-  _              -> return (Nothing)
-
-args :: Int -> Args -> TCM [Exp]
-args n as = (replicate n Undefined ++) <$>
-  mapM (term . unArg) as
+-}
 
 qname :: QName -> TCM Exp
 qname q = do
@@ -439,8 +410,10 @@ literal (LitChar   _ x) = Char    x
 literal (LitQName  _ x) = String  (show x)
 literal LitMeta{}       = __IMPOSSIBLE__
 
+{-
 dummyLambda :: Int -> Exp -> Exp
 dummyLambda n = iterate' n (Lambda 0)
+-}
 
 --------------------------------------------------
 -- Writing out an ECMAScript module
@@ -449,14 +422,7 @@ dummyLambda n = iterate' n (Lambda 0)
 writeModule :: Module -> TCM ()
 writeModule m = do
   out <- outFile (modName m)
-  liftIO (writeFile out (pretty 0 0 m))
-
-compileDir :: TCM FilePath
-compileDir = do
-  mdir <- optCompileDir <$> commandLineOptions
-  case mdir of
-    Just dir -> return dir
-    Nothing  -> __IMPOSSIBLE__
+  liftIO (writeFile out (JSPretty.pretty 0 0 m))
 
 outFile :: GlobalId -> TCM FilePath
 outFile m = do

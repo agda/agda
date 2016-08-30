@@ -119,6 +119,9 @@ tOp op a b = TApp (TPrim op) [a, b]
 tUnreachable :: TTerm
 tUnreachable = TError TUnreachable
 
+tIfThenElse :: TTerm -> TTerm -> TTerm -> TTerm
+tIfThenElse c i e = TApp (TPrim PIf) [c, i, e]
+
 data CaseType
   = CTData QName -- case on datatype
   | CTNat

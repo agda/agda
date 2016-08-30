@@ -30,8 +30,7 @@ convertGuards = tr
           (plusAlts, otherAlts) = splitAlts alts
 
           guardedAlt :: TAlt -> TTerm -> TTerm
-          guardedAlt (TAGuard g body) cont =
-            TApp (TPrim PIf) [tr g, tr body, cont]
+          guardedAlt (TAGuard g body) cont = tIfThenElse (tr g) (tr body) (tr cont)
           guardedAlt _ _ = __IMPOSSIBLE__
 
           def' = foldr guardedAlt (tr def) plusAlts
