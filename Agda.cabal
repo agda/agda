@@ -212,7 +212,6 @@ library
                     Agda.Compiler.Epic.Smashing
                     Agda.Compiler.Epic.Static
                     Agda.Compiler.HaskellTypes
-                    Agda.Compiler.JS.Case
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax
                     Agda.Compiler.JS.Substitution

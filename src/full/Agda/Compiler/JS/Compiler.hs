@@ -58,7 +58,6 @@ import Agda.Compiler.JS.Syntax
     modName, expName, uses )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, subst, apply )
-import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 
 #include "undefined.h"
@@ -288,119 +287,11 @@ compileAlt a = case a of
     return (memId, body)
   _ -> error (show a) --__IMPOSSIBLE__
 
--- One clause in a function definition
-{-
-clause :: Clause -> TCM Case
-clause c = do
-  let pats = unnumberPatVars $ clausePats c
-  ps <- mapM (pattern . unArg) pats
-  (av,bv,es) <- return (mapping (map unArg pats))
-  e <- maybe (return Undefined) term $ compiledClauseBody c
-  return (Case ps (subst av es e))
--}
--- Mapping from Agda variables to JS variables in a pattern.
--- If mapping ps = (av,bv,es) then av is the number of Agda variables,
--- bv is the number of JS variables, and es is a list of expressions,
--- where es[i] is the JS variable corresponding to Agda variable i.
-{-
-mapping :: [Pattern] -> (Nat,Nat,[Exp])
-mapping = foldr mapping' (0,0,[])
-
-mapping' :: Pattern -> (Nat,Nat,[Exp]) -> (Nat,Nat,[Exp])
-mapping' ProjP{}       (av,bv,es) =
-  __IMPOSSIBLE__
-mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
-mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
-mapping' (ConP _ _ ps) (av,bv,es) = (av',bv'+1,es') where
-  (av',bv',es') = foldr mapping' (av,bv,es) (map namedArg ps)
-mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
-
--- Not doing literal patterns yet
-
-pattern :: Pattern -> TCM Patt
-pattern (ProjP _ _)   = typeError $ NotImplemented $ "Compilation of copatterns"
-pattern (ConP c _ ps) = do
-  l <- tag $ conName c
-  ps <- mapM (pattern . namedArg) ps
-  return (Tagged l ps)
-pattern _             = return VarPatt
--}
-tag :: QName -> TCM Tag
-tag q = do
-  l <- visitorName q
-  c <- getConstInfo q
-  case theDef c of
-    (Constructor { conData = p }) -> do
-      d <- getConstInfo p
-      case (defJSDef d, theDef d) of
-        (Just e, Datatype { dataCons = qs }) -> do
-          ls <- mapM visitorName qs
-          return (Tag l ls (\ x xs -> apply e (x:xs)))
-        (Nothing, Datatype { dataCons = qs }) -> do
-          ls <- mapM visitorName qs
-          return (Tag l ls Apply)
-        (Just e, Record {}) -> do
-          return (Tag l [l] (\ x xs -> apply e (x:xs)))
-        (Nothing, Record {}) -> do
-          return (Tag l [l] Apply)
-        _ -> __IMPOSSIBLE__
-    _ -> __IMPOSSIBLE__
-
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (last ls)
 
-<<<<<<< 3d50ce54fe8994b64e3b75531709400dacec297d
-=======
 local :: Nat -> Exp
 local = Local . LocalId
-
-{-
->>>>>>> [ JS ] HelloWorld works!
-term :: Term -> TCM Exp
-term v = do
-  case unSpine v of
-    (Def q es)           -> do
-      let Just as = allApplyElims es
-      d <- getConstInfo q
-      case theDef d of
-        -- Datatypes and records are erased
-        Datatype {} -> return (String "*")
-        Record {} -> return (String "*")
-        _ -> case defJSDef d of
-          -- Inline functions with an FFI definition
-          Just e -> do
-            es <- args (projectionArgs $ theDef d) as
-            return (curriedApply e es)
-          Nothing -> do
-            t <- normalise (defType d)
-            s <- isSingleton t
-            case s of
-              -- Inline and eta-expand singleton types
-              Just e ->
-                return (curriedLambda (arity t) e)
-              -- Everything else we leave non-inline
-              Nothing -> do
-                e <- qname q
-                es <- args (projectionArgs $ theDef d) as
-                return (curriedApply e es)
-    (Con con as)         -> do
-      let q = conName con
-      d <- getConstInfo q
-      case defJSDef d of
-        -- Inline functions with an FFI definition
-        Just e -> do
-          es <- args 0 as
-          return (curriedApply e es)
-        -- Everything else we leave non-inline
-        Nothing -> do
-          e <- qname q
-          es <- args 0 as
-          return (curriedApply e es)
-    (Pi    _ _)          -> return (String "*")
-    (Sort  _)            -> return (String "*")
-    (MetaV _ _)          -> return (Undefined)
-    (DontCare _)         -> return (Undefined)
--}
 
 qname :: QName -> TCM Exp
 qname q = do
@@ -414,11 +305,6 @@ literal (LitString _ x) = String  x
 literal (LitChar   _ x) = Char    x
 literal (LitQName  _ x) = String  (show x)
 literal LitMeta{}       = __IMPOSSIBLE__
-
-{-
-dummyLambda :: Int -> Exp -> Exp
-dummyLambda n = iterate' n (Lambda 0)
--}
 
 --------------------------------------------------
 -- Writing out an ECMAScript module
