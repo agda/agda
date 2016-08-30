@@ -45,6 +45,7 @@ import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Maybe
 import Agda.Utils.Monad ( (<$>), (<*>), ifM )
 import Agda.Utils.Pretty (prettyShow)
+import Agda.Utils.IO.Directory
 import Agda.Utils.IO.UTF8 ( writeFile )
 import qualified Agda.Utils.HashMap as HMap
 
@@ -61,6 +62,8 @@ import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, subst, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
 
+import Paths_Agda
+
 #include "undefined.h"
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
@@ -70,7 +73,9 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 
 compilerMain :: Interface -> TCM ()
 compilerMain mainI = inCompilerEnv mainI $ do
-  doCompile IsMain mainI $ \_ -> compile
+  doCompile IsMain mainI $ \_ -> do
+    compile
+  copyRTEModules
 
 compile :: Interface -> TCM ()
 compile i = do
@@ -331,3 +336,10 @@ outFile_ :: TCM FilePath
 outFile_ = do
   m <- curMName
   outFile (jsMod m)
+
+
+copyRTEModules :: TCM ()
+copyRTEModules = do
+  dataDir <- lift getDataDir
+  let srcDir = dataDir </> "JS"
+  (lift . copyDirContent srcDir) =<< compileDir
