@@ -268,11 +268,15 @@ compileTerm term = do
       dt <- getConstInfo dt
       alts' <- traverse compileAlt alts
       let obj = Object $ Map.fromList alts'
-      case defJSDef dt of
-        Just e -> do
+      case (theDef dt, defJSDef dt) of
+        (_, Just e) -> do
           return $ apply (PlainJS e) [Local (LocalId sc), obj]
-        Nothing -> do
+        (Record{}, _) -> do
+          memId <- visitorName $ recCon $ theDef dt
+          return $ apply (Lookup (Local $ LocalId sc) memId) [obj]
+        (Datatype{}, _) -> do
           return $ curriedApply (Local (LocalId sc)) [obj]
+        _ -> __IMPOSSIBLE__
 
     T.TPrim p -> return $ compilePrim p
     T.TUnit -> unit
