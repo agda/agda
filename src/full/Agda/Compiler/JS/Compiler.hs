@@ -255,10 +255,15 @@ compileTerm term = do
     T.TCon q -> do
       d <- getConstInfo q
       qname q
-    T.TCase sc (T.CTData _) def alts -> do
+    T.TCase sc (T.CTData dt) def alts -> do
+      dt <- getConstInfo dt
       alts' <- traverse compileAlt alts
       let obj = Object $ Map.fromList alts'
-      return $ curriedApply (Local (LocalId sc)) [obj]
+      case defJSDef dt of
+        Just e -> do
+          return $ apply e [Local (LocalId sc), obj]
+        Nothing -> do
+          return $ curriedApply (Local (LocalId sc)) [obj]
 
     T.TUnit -> unit
     T.TSort -> unit
