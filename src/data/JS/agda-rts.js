@@ -1,3 +1,6 @@
+// TODO
+// Some of the primitives here are curried, some not. We probably should make this more consistent,
+// or maybe just introduce a clear naming convention.
 
 var biginteger = require("biginteger")
 
@@ -45,7 +48,39 @@ exports.primNatMinus = function(x) {
 exports.primShowFloat = function(x) {
   return x.toString();
 };
-
+exports.primFloatEquality = function(x) {
+  return function(y) {
+    return x==y;
+  };
+};
+exports.primFloatLess = function(x) {
+  return function(y) {
+    return x<y;
+  };
+};
+exports.primFloatPlus = function(x) {
+  return function(y) {
+    return x+y;
+  };
+};
+exports.primFloatMinus = function(x) {
+  return function(y) {
+    return x-y;
+  };
+};
+exports.primFloatTimes = function(x) {
+  return function(y) {
+    return x*y;
+  };
+};
+exports.primFloatDiv = function(x) {
+  return function(y) {
+    return x/y;
+  };
+};
+exports.primFloatSqrt = function(x) {
+  return sqrt(x);
+};
 
 // As Javascript is strict, this should be fine in general. Not sure
 // what PSeq (Axiom ...) (...) should do?

@@ -361,5 +361,12 @@ primitives :: Set String
 primitives = Set.fromList
   [ "primNatMinus"
   , "primShowInteger"
+  , "primFloatEquality"
+  , "primFloatLess"
+  , "primFloatPlus"
+  , "primFloatMinus"
+  , "primFloatTimes"
+  , "primFloatDiv"
+  , "primFloatSqrt"
   , "primShowFloat"
   ]
