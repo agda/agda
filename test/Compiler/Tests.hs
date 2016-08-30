@@ -79,6 +79,11 @@ disabledTests =
     -- Disable UHC backend tests if the backend is also disabled.
   , RFInclude "Compiler/UHC/"
 #endif
+  -- JS backend tests are whitelisted for now
+  , RFInclude "Compiler/JS/.*"
+  , RFExclude "Compiler/JS/simple/HelloWorld"
+  , RFExclude "Compiler/JS/simple/String$"
+  , RFExclude "Compiler/JS/simple/PrintBool"
   ]
 
 tests :: IO TestTree

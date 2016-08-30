@@ -50,6 +50,7 @@ import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
+import Agda.Compiler.Treeless.EliminateLiteralPatterns
 import Agda.Compiler.Treeless.GuardsToPrims
 
 import Agda.Compiler.JS.Syntax
@@ -205,7 +206,7 @@ defn q ls t (Just e) (Function {}) =
 defn q ls t Nothing (Function {}) = do
   reportSDoc "js.compile" 5 $ text "compiling fun:" <+> prettyTCM q
   caseMaybeM (toTreeless q) (pure Nothing) $ \ treeless -> do
-    let funBody = convertGuards treeless
+    let funBody = eliminateLiteralPatterns $ convertGuards $ treeless
     reportSDoc "js.compile" 30 $ text " compiled treeless fun:" <+> (text . show) funBody
     funBody' <- compileTerm funBody
     reportSDoc "js.compile" 30 $ text " compiled JS fun:" <+> (text . show) funBody'
@@ -264,10 +265,11 @@ compileTerm term = do
         Nothing -> do
           return $ curriedApply (Local (LocalId sc)) [obj]
 
+    T.TPrim p -> return $ compilePrim p
     T.TUnit -> unit
     T.TSort -> unit
     T.TErased -> unit
-    _ -> __IMPOSSIBLE__
+    _ -> error $ show term --__IMPOSSIBLE__
 
   where
     unit = return $ Integer 0
