@@ -99,84 +99,25 @@ Finding the commit that introduced a regression
        .cabal-sandbox/bin/agda --ignore-interfaces \
          Module-that-should-be-accepted.agda"
 
-  The recipe can be adapted to other situations as well. For instance,
-  the commit that introduced a performance regression can perhaps be
-  found using the timeout command.
+  An alternative is to use the program agda-bisect from
+  src/agda-bisect:
 
-  Here is an example of how git bisect can be used to track down a
-  problem introduced in Agda 2.3.2, using a module that should /not/
-  be accepted:
+    git clone <agda repository> agda-bug
+    cd agda-bug
+    cp <some path>/Module-that-should-be-accepted.agda .
+    agda-bisect <bad commit> <good commit> \
+      Module-that-should-be-accepted.agda
 
-    ⋮
-    git bisect start 2_3_2 2_3_0
-    cp <some path>/Module-that-should-be-rejected.agda .
-    git bisect run sh -c \
-      "(cabal install --with-alex=alex-2.3.5 \
-                      --with-compiler=ghc-7.0.4 \
-                      --force-reinstalls \
-                      --disable-library-profiling \
-                      --disable-documentation && \
-        ([ ! -e src/main/Agda-executable.cabal ] || \
-         cabal install --with-alex=alex-2.3.5 \
-                       --with-compiler=ghc-7.0.4 \
-                       --force-reinstalls \
-                       --disable-library-profiling \
-                       --disable-documentation \
-                       src/main/Agda-executable.cabal)) || exit 125; \
-       .cabal-sandbox/bin/agda --ignore-interfaces \
-                               --no-termination-check \
-          Module-that-should-be-rejected.agda && exit 1 || exit 0"
+  See agda-bisect --help for usage information.
 
-  Here is an example showing how one can track down an internal error:
+  The following command temporarily enables Bash completion for
+  agda-bisect:
 
-    ⋮
-    cp <some path>/Module.agda .
-    git bisect run sh -c \
-      "cabal install --force-reinstalls \
-                     --disable-library-profiling \
-                     --disable-documentation || exit 125; \
-       .cabal-sandbox/bin/agda --ignore-interfaces Module.agda | \
-         fgrep 'An internal error has occurred. Please report this as a bug.' \
-         && exit 1 || exit 0"
+    source < (agda-bisect --bash-completion-script `which agda-bisect`)
 
-  Here is an example showing how one can turn on a flag, but only if
-  Agda recognises this flag:
-
-    ⋮
-    git bisect run sh -c \
-      "cabal install --force-reinstalls \
-                     --disable-library-profiling \
-                     --disable-documentation || exit 125; \
-       .cabal-sandbox/bin/agda \
-         \$(if [ -n \"\$(.cabal-sandbox/bin/agda --help | \
-                         fgrep -- --no-default-libraries)\" ]; \
-            then echo --no-default-libraries; fi) \
-         --ignore-interfaces Module.agda"
-
-  And here is an example showing how one can modify the source code
-  (in this case by removing constraints on the version of cpphs)
-  before compilation starts:
-
-    git bisect run sh <script>
-
-  The script:
-
-    ## Remove cpphs upper bound
-    sed -ri -e 's/cpphs >=.*/cpphs/' Agda.cabal
-    ## Run the test
-    if cabal install --force-reinstalls \
-                     --disable-library-profiling \
-                     --disable-documentation
-    then
-        .cabal-sandbox/bin/agda --ignore-interfaces \
-          Module-that-should-be-accepted.agda
-        status=$?
-    else
-        status=125
-    fi
-    ## Clean up and exit
-    git reset --hard
-    exit $status
+  Bash completion can perhaps be enabled more permanently by storing
+  the output of the command above in a file in a suitable directory
+  (like /etc/bash_completion.d/).
 
 Cherry-picking a commit from master into stable
 ------------------------------------------------
