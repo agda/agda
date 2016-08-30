@@ -737,6 +737,7 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom funSig i info mp x e) =
+  Bench.billTo [Bench.Typing, Bench.TypeSig] $
     case Info.defAccess i of
         PublicAccess  -> inConcreteMode $ checkAxiom funSig i info mp x e
         PrivateAccess{} -> inAbstractMode $ checkAxiom funSig i info mp x e

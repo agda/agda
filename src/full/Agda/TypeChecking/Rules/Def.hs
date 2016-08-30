@@ -383,7 +383,7 @@ checkClause t withSub c@(A.Clause (A.SpineLHS i x aps withPats) namedDots rhs0 w
         -- Note that the with function doesn't necessarily share any part of
         -- the context with the parent (but withSub will take you from parent
         -- to child).
-        inTopContext $ checkWithFunction cxtNames with
+        inTopContext $ Bench.billTo [Bench.Typing, Bench.With] $ checkWithFunction cxtNames with
 
         reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
           [ text "Clause before translation:"
@@ -428,7 +428,7 @@ checkRHS i x aps t lhsResult@(LHSResult _ delta ps trhs) rhs0 = handleRHS rhs0
     case rhs of
 
       -- Case: ordinary RHS
-      A.RHS e _ -> do
+      A.RHS e _ -> Bench.billTo [Bench.Typing, Bench.CheckRHS] $ do
         when absurdPat $ typeError $ AbsurdPatternRequiresNoRHS aps
         v <- checkExpr e $ unArg trhs
         return (Just v, NoWithFunction)
@@ -557,7 +557,7 @@ checkWithRHS
   -> [A.Clause]              -- ^ With-clauses to check.
   -> TCM (Maybe Term, WithFunctionProblem)
 
-checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = do
+checkWithRHS x aux t (LHSResult npars delta ps trhs) vs0 as cs = Bench.billTo [Bench.Typing, Bench.With] $ do
         let withArgs = withArguments vs0 as
             perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
         (vs, as)  <- normalise (vs0, as)
