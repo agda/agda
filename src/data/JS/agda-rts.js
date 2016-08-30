@@ -1,6 +1,5 @@
-// TODO
-// Some of the primitives here are curried, some not. We probably should make this more consistent,
-// or maybe just introduce a clear naming convention.
+// NOTE:
+// Some of the primitives here are curried, some are not. All uncurried primitives are prefixed by 'u'.
 
 var biginteger = require("biginteger")
 
@@ -13,22 +12,22 @@ exports.primShowInteger = function(x) {
   return x.toString();
 };
 
-exports.primIntegerPlus = function(x,y) {
+exports.uprimIntegerPlus = function(x,y) {
   return x.add(y);
 };
-exports.primIntegerMinus = function(x,y) {
+exports.uprimIntegerMinus = function(x,y) {
   return x.subtract(y);
 };
-exports.primIntegerMultiply = function(x,y) {
+exports.uprimIntegerMultiply = function(x,y) {
   return x.multiply(y);
 };
-exports.primIntegerEqual = function(x,y) {
+exports.uprimIntegerEqual = function(x,y) {
   return x.compare(y) == 0;
 };
-exports.primIntegerGreaterOrEqualThan = function(x,y) {
+exports.uprimIntegerGreaterOrEqualThan = function(x,y) {
   return x.compare(y) >= 0;
 };
-exports.primIntegerLessThan = function(x,y) {
+exports.uprimIntegerLessThan = function(x,y) {
   return x.compare(y) == -1;
 };
 

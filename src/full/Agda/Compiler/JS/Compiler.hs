@@ -287,13 +287,13 @@ compilePrim :: T.TPrim -> Exp
 compilePrim p =
   case p of
     T.PIf -> curriedLambda 3 $ If (local 2) (local 1) (local 0)
-    T.PEqI -> binOp "agdaRTS.primIntegerEqual"
+    T.PEqI -> binOp "agdaRTS.uprimIntegerEqual"
     p | T.isPrimEq p -> curriedLambda 2 $ BinOp (local 1) "===" (local 0)
-    T.PGeq -> binOp "agdaRTS.primIntegerGreaterOrEqualThan"
-    T.PLt -> binOp "agdaRTS.primIntegerLessThan"
-    T.PAdd -> binOp "agdaRTS.primIntegerPlus"
-    T.PSub -> binOp "agdaRTS.primIntegerMinus"
-    T.PMul -> binOp "agdaRTS.primIntegerMultiply"
+    T.PGeq -> binOp "agdaRTS.uprimIntegerGreaterOrEqualThan"
+    T.PLt -> binOp "agdaRTS.uprimIntegerLessThan"
+    T.PAdd -> binOp "agdaRTS.uprimIntegerPlus"
+    T.PSub -> binOp "agdaRTS.uprimIntegerMinus"
+    T.PMul -> binOp "agdaRTS.uprimIntegerMultiply"
     T.PSeq -> binOp "agdaRTS.primSeq"
     _ -> error $ show p
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
