@@ -40,7 +40,7 @@ import Data.Typeable (Typeable)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
-import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
@@ -1150,7 +1150,7 @@ instance Pretty Term where
       Shared{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
-                   d <+> fsep (map (prettyPrec 10) els)
+                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
       pDom i =
         case getHiding i of
@@ -1200,7 +1200,9 @@ instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
 instance Pretty Elim where
-  prettyPrec p (Apply v) = prettyPrec p v
+  prettyPrec p (Apply v) = prettyHiding (argInfo v) id $ prettyPrec p' (unArg v)
+      where p' | getHiding v == NotHidden = p
+               | otherwise                = 0
   prettyPrec _ (Proj _o x)  = text ("." ++ show x)
 
 instance Pretty DBPatVar where
