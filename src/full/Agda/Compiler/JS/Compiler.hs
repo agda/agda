@@ -285,7 +285,7 @@ compileTerm term = do
     T.TUnit -> unit
     T.TSort -> unit
     T.TErased -> unit
-    T.TError T.TUnreachable -> Undefined
+    T.TError T.TUnreachable -> return Undefined
 
   where
     unit = return $ Integer 0
