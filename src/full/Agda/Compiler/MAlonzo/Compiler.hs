@@ -120,7 +120,7 @@ imports = (++) <$> hsImps <*> imps where
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
               (False, [ HS.IVar $ HS.Ident x
                       | x <- [mazCoerceName, mazErasedName] ++
-                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEq] ])
+                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI] ])
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
