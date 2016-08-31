@@ -279,12 +279,13 @@ compileTerm term = do
         (Datatype{}, _) -> do
           return $ curriedApply (Local (LocalId sc)) [obj]
         _ -> __IMPOSSIBLE__
+    T.TCase _ _ _ _ -> __IMPOSSIBLE__
 
     T.TPrim p -> return $ compilePrim p
     T.TUnit -> unit
     T.TSort -> unit
     T.TErased -> unit
-    _ -> error $ show term --__IMPOSSIBLE__
+    T.TError T.TUnreachable -> return Undefined
 
   where
     unit = return $ Integer 0
@@ -301,7 +302,7 @@ compilePrim p =
     T.PSub -> binOp "agdaRTS.uprimIntegerMinus"
     T.PMul -> binOp "agdaRTS.uprimIntegerMultiply"
     T.PSeq -> binOp "agdaRTS.primSeq"
-    _ -> error $ show p
+    _ -> __IMPOSSIBLE__
   where binOp js = curriedLambda 2 $ apply (PlainJS js) [local 1, local 0]
 
 
@@ -311,7 +312,7 @@ compileAlt a = case a of
     memId <- visitorName con
     body <- Lambda ar <$> compileTerm body
     return (memId, body)
-  _ -> error (show a) --__IMPOSSIBLE__
+  _ -> __IMPOSSIBLE__
 
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (last ls)
