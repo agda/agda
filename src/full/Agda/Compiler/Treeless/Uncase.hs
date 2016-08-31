@@ -64,5 +64,5 @@ uncase t = case t of
 
     -- Primitive operations are already strict
     tApp (TPrim PSeq) [_, b@(TApp (TPrim op) _)]
-      | op `elem` [PAdd, PSub, PMul, PLt, PEq, PGeq, PRem, PQuot] = b
+      | op `elem` [PAdd, PSub, PMul, PLt, PGeq, PRem, PQuot] || isPrimEq op = b
     tApp f es = TApp f es

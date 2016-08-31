@@ -58,7 +58,11 @@ opName PQuot = "quot"
 opName PRem = "rem"
 opName PGeq = ">="
 opName PLt  = "<"
-opName PEq  = "=="
+opName PEqI = "==I"
+opName PEqF = "==F"
+opName PEqS = "==S"
+opName PEqC = "==C"
+opName PEqQ = "==Q"
 opName PIf  = "if_then_else_"
 opName PSeq = "seq"
 
@@ -70,7 +74,7 @@ isInfix op =
     PSub -> l 6
     PGeq -> non 4
     PLt  -> non 4
-    PEq  -> non 4
+    p | isPrimEq p -> non 4
     _    -> Nothing
   where
     l n   = Just (n, n, n + 1)

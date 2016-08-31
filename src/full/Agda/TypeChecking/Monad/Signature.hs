@@ -27,7 +27,6 @@ import Agda.Syntax.Internal.Names
 import Agda.Syntax.Position
 import Agda.Syntax.Treeless (Compiled(..), TTerm)
 
-import qualified Agda.Compiler.JS.Parser as JS
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.TypeChecking.Monad.Base
@@ -139,14 +138,9 @@ addEpicCode q epDef = modifySignature $ updateDefinition q $ updateDefCompiledRe
     addEp crep = crep { compiledEpic = Just epDef }
 
 addJSCode :: QName -> String -> TCM ()
-addJSCode q jsDef =
-  case JS.parse jsDef of
-    Left e ->
-      modifySignature $ updateDefinition q $ updateDefCompiledRep $ addJS (Just e)
-    Right s ->
-      typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
+addJSCode q jsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addJS
   where
-    addJS e crep = crep { compiledJS = e }
+    addJS crep = crep { compiledJS = Just jsDef }
 
 addCoreCode :: QName -> CR.CoreExpr -> TCM ()
 addCoreCode q crDef =  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore crDef

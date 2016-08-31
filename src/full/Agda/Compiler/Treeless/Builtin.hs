@@ -90,7 +90,7 @@ transform BuiltinKit{..} = tr
       TDef f | isPlus f   -> TPrim PAdd
              | isTimes f  -> TPrim PMul
              | isLess f   -> TPrim PLt
-             | isEqual f  -> TPrim PEq
+             | isEqual f  -> TPrim PEqI
         -- Note: Don't do this for builtinNatMinus! PSub is integer minus and
         --       builtin minus is monus. The simplifier will do it if it can see
         --       that it won't underflow.

@@ -565,3 +565,11 @@ Emacs mode
 
   Currently termination errors, unsolved metavariables, unsolved
   constraints and positivity errors are non-fatal errors.
+
+Compiler backends
+=================
+
+* The JavaScript backend has been (partially) rewritten. The JavaScript backend now supports
+  most Agda features, notably copatterns can now be compiled to JavaScript. Furthermore,
+  the existing optimizations from the other backends now apply to the JavaScript backend
+  as well.

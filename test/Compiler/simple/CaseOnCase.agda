@@ -17,6 +17,7 @@ isLess greater = false
 postulate _-_ : Integer → Integer → Integer
 {-# COMPILED _-_ (-) #-}
 {-# COMPILED_UHC _-_ UHC.Agda.Builtins.primIntegerMinus #-}
+{-# COMPILED_JS _-_ function(x) { return function(y) { return agdaRTS.uprimIntegerMinus(x, y); }; } #-}
 
 compareInt : Integer → Integer → Cmp
 compareInt a b with a - b
