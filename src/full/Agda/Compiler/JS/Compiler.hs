@@ -3,11 +3,13 @@
 module Agda.Compiler.JS.Compiler where
 
 import Prelude hiding ( null, writeFile )
+import Control.Applicative
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.Trans
 import Data.List ( intercalate, genericLength, partition )
 import Data.Maybe ( isJust )
 import Data.Set ( Set, null, insert, difference, delete )
+import Data.Traversable (traverse)
 import Data.Map ( fromList, elems )
 import qualified Data.Set as Set
 import qualified Data.Map as Map
