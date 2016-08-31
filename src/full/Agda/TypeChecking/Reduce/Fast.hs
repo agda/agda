@@ -66,6 +66,7 @@ module Agda.TypeChecking.Reduce.Fast
 
 import Control.Applicative
 import Control.Monad.Reader
+import Control.DeepSeq
 
 import Data.List
 import Data.Map (Map)
@@ -205,20 +206,36 @@ memoQName f = unsafePerformIO $ do
 -- Precondition: All free variables of the term are assigned values in the
 -- list.
 -- Reverts to normal substitution if it hits a binder or other icky stuff (like
--- levels).
-fastSubst :: [Term] -> Term -> Term
-fastSubst us = go
+-- levels). It's strict in the shape of the result to avoid creating huge
+-- thunks for accumulator arguments.
+strictSubst :: QName -> [Term] -> Term -> Term
+strictSubst f us = go 0
   where
     rho = parallelS us
-    go v =
+    go k v =
       case v of
-        Var x es -> (us !! x) `applyE` map goE es
-        Def f es -> defApp f [] $ map goE es
-        Con c vs -> Con c $ map (fmap go) vs
+        Var x es
+          | x < k     -> Var x $! map' (goE k) es
+          | otherwise -> applyE (raise k $ us !! (x - k)) $! map' (goE k) es
+        Def f es -> defApp f [] $! map' (goE k) es
+        Con c vs -> Con c $! map' (mapArg' $ go k) vs
+        Lam i b  -> Lam i $! goAbs k b
         Lit{}    -> v
-        _        -> applySubst rho v
-    goE (Apply v) = Apply (fmap go v)
-    goE p         = p
+        _        -> applySubst (liftS k rho) v
+
+    goE k (Apply v) = Apply $! mapArg' (go k) v
+    goE _ p         = p
+
+    goAbs k (Abs   x v) = Abs   x $! go (k + 1) v
+    goAbs k (NoAbs x v) = NoAbs x $! go k v
+
+map' :: (a -> b) -> [a] -> [b]
+map' f []       = []
+map' f (x : xs) = ((:) $! f x) $! map' f xs
+
+mapArg' :: (a -> b) -> Arg a -> Arg b
+mapArg' f (Arg i x) = Arg i $! f x
+
 
 -- Fast reduction ---------------------------------------------------------
 
@@ -365,7 +382,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
               where
                 n = length xs
                 m = length es
-                doSubst es t = fastSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
+                doSubst es t = strictSubst f (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
