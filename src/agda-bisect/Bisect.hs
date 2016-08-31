@@ -3,6 +3,7 @@ import Control.Monad
 import Data.Char
 import Data.List
 import Data.Maybe
+import Data.Monoid
 import GHC.IO.Encoding
 import Options.Applicative
 import System.Directory
