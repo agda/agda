@@ -25,13 +25,17 @@ convertGuards :: TTerm -> TTerm
 convertGuards = tr
   where
     tr t = case t of
-      TCase sc t def alts -> TCase sc t def' (fmap trAlt otherAlts)
+      TCase sc t def alts ->
+        if null otherAlts
+          then
+            def'
+          else
+            TCase sc t def' (fmap trAlt otherAlts)
         where
           (plusAlts, otherAlts) = splitAlts alts
 
           guardedAlt :: TAlt -> TTerm -> TTerm
-          guardedAlt (TAGuard g body) cont =
-            TApp (TPrim PIf) [tr g, tr body, cont]
+          guardedAlt (TAGuard g body) cont = tIfThenElse (tr g) (tr body) (tr cont)
           guardedAlt _ _ = __IMPOSSIBLE__
 
           def' = foldr guardedAlt (tr def) plusAlts

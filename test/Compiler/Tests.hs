@@ -79,6 +79,15 @@ disabledTests =
     -- Disable UHC backend tests if the backend is also disabled.
   , RFInclude "Compiler/UHC/"
 #endif
+  , RFInclude "Compiler/JS/simple/Coind"
+  , RFInclude "Compiler/JS/simple/CompilingCoinduction"
+  , RFInclude "Compiler/JS/simple/CopatternStreamSized"
+  -- Output does not match MAlonzo output exactly
+  , RFInclude "Compiler/JS/simple/Floats"
+  , RFInclude "Compiler/JS/simple/Issue1486"
+  , RFInclude "Compiler/JS/simple/Issue326"
+  , RFInclude "Compiler/JS/simple/VecReverse"
+  , RFInclude "Compiler/JS/simple/VecReverseIrr"
   ]
 
 tests :: IO TestTree

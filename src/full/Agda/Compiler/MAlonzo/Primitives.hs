@@ -74,7 +74,12 @@ treelessPrimName p =
     PMul  -> "mulInt"
     PGeq  -> "geqInt"
     PLt   -> "ltInt"
-    PEq   -> "eqInt"
+    PEqI  -> "eqInt"
+    -- MAlonzo uses literal patterns, so we don't need equality for the other primitive types
+    PEqC  -> __IMPOSSIBLE__
+    PEqF  -> __IMPOSSIBLE__
+    PEqS  -> __IMPOSSIBLE__
+    PEqQ  -> __IMPOSSIBLE__
     PSeq  -> "seq"
     -- primitives only used by GuardsToPrims transformation, which MAlonzo doesn't use
     PIf   -> __IMPOSSIBLE__

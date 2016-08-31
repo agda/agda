@@ -66,7 +66,6 @@ import Agda.Interaction.Response
 import Agda.Interaction.Highlighting.Precise
   (CompressedFile, HighlightingInfo)
 
-import qualified Agda.Compiler.JS.Syntax as JS
 import qualified Agda.Compiler.UHC.Pragmas.Base as CR
 
 import Agda.Utils.Except
@@ -1287,7 +1286,7 @@ defaultDefn info x t def = Defn
 type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String
-type JSCode      = JS.Exp
+type JSCode      = String
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode

@@ -71,6 +71,8 @@ data-files:         Agda.css
                     uhc-agda-base/uhc-agda-base.cabal
                     uhc-agda-base/src/UHC/Agda/*.hs
                     MAlonzo/src/MAlonzo/*.hs
+                    JS/agda-rts.js
+                    JS/biginteger.js
 
 source-repository head
   type:     git
@@ -212,11 +214,9 @@ library
                     Agda.Compiler.Epic.Smashing
                     Agda.Compiler.Epic.Static
                     Agda.Compiler.HaskellTypes
-                    Agda.Compiler.JS.Case
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax
                     Agda.Compiler.JS.Substitution
-                    Agda.Compiler.JS.Parser
                     Agda.Compiler.JS.Pretty
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
@@ -227,6 +227,7 @@ library
                     Agda.Compiler.Treeless.AsPatterns
                     Agda.Compiler.Treeless.Builtin
                     Agda.Compiler.Treeless.Compare
+                    Agda.Compiler.Treeless.EliminateLiteralPatterns
                     Agda.Compiler.Treeless.Erase
                     Agda.Compiler.Treeless.GuardsToPrims
                     Agda.Compiler.Treeless.Identity

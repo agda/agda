@@ -364,8 +364,9 @@ compilePrim C.PMul = mkVar $ primFunNm "primIntegerTimes"
 compilePrim C.PIf  = mkVar $ primFunNm "primIfThenElse"
 compilePrim C.PGeq = mkVar $ primFunNm "primIntegerGreaterOrEqual"
 compilePrim C.PLt  = mkVar $ primFunNm "primIntegerLess"
-compilePrim C.PEq  = mkVar $ primFunNm "primIntegerEquality"
+compilePrim p | C.isPrimEq p = mkVar $ primFunNm "primIntegerEquality"
 compilePrim C.PSeq = mkVar $ primFunNm "primSeq"
+compilePrim _ = __IMPOSSIBLE__
 
 
 createMainModule :: ModuleName -> HsName -> CModule
