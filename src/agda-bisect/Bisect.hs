@@ -197,55 +197,61 @@ main = do
 
 bisect :: Options -> IO ()
 bisect opts =
-  (initialise >> run)
+  initialise
     `finally`
   callProcess "git" ["bisect", "reset"]
   where
   initialise :: IO ()
-  initialise = case start opts of
-    Left log          -> callProcess "git" ["bisect", "replay", log]
-    Right (bad, good) -> callProcess "git"
-                                     ["bisect", "start", bad, good]
+  initialise = do
+    case start opts of
+      Left log          -> callProcess "git" ["bisect", "replay", log]
+      Right (bad, good) -> callProcess "git"
+                                       ["bisect", "start", bad, good]
 
-  bisectionInProgress :: IO Bool
-  bisectionInProgress =
     -- It seems as if git bisect log returns successfully iff
     -- bisection is in progress.
-    callProcessWithResultSilently "git" ["bisect", "log"]
+    inProgress <- callProcessWithResultSilently "git" ["bisect", "log"]
+    when inProgress run
+
+  currentCommit :: IO String
+  currentCommit =
+    withEncoding char8 $
+      readProcess "git" ["rev-parse", "HEAD"] ""
 
   run :: IO ()
   run = do
-    moreToDo <- bisectionInProgress
-    when moreToDo $ do
+    before <- currentCommit
 
-      msg <- withUTF8Ignore $
-               readProcess "git" [ "show"
-                                 , "--no-patch"
-                                 , "--pretty=format:%B"
-                                 , "--encoding=UTF-8"
-                                 , "HEAD"
-                                 ] ""
-      let skip = any (`isInfixOf` msg) (skipStrings opts)
+    msg <- withUTF8Ignore $
+             readProcess "git" [ "show"
+                               , "--no-patch"
+                               , "--pretty=format:%B"
+                               , "--encoding=UTF-8"
+                               , "HEAD"
+                               ] ""
+    let skip = any (`isInfixOf` msg) (skipStrings opts)
 
-      r <- if skip then return "skip" else
-            uncurry bracket_ makeBuildEasier $ do
-              ok <- installAgda opts
-              if not ok then
-                return "skip"
-               else do
-                ok <- runAgda opts
-                return $ if ok then "good" else "bad"
+    r <- if skip then return "skip" else
+          uncurry bracket_ makeBuildEasier $ do
+            ok <- installAgda opts
+            if not ok then
+              return "skip"
+             else do
+              ok <- runAgda opts
+              return $ if ok then "good" else "bad"
 
-      ok <- callProcessWithResult "git" ["bisect", r]
+    ok <- callProcessWithResult "git" ["bisect", r]
 
-      case logFile opts of
-        Nothing -> return ()
-        Just f  -> do
-          s <- withEncoding char8 $
-                 readProcess "git" ["bisect", "log"] ""
-          withBinaryFile f WriteMode $ \h -> hPutStr h s
+    case logFile opts of
+      Nothing -> return ()
+      Just f  -> do
+        s <- withEncoding char8 $
+               readProcess "git" ["bisect", "log"] ""
+        withBinaryFile f WriteMode $ \h -> hPutStr h s
 
-      when ok run
+    when ok $ do
+      after <- currentCommit
+      when (before /= after) run
 
 -- | Runs Agda. Returns 'True' iff the result is satisfactory.
 
