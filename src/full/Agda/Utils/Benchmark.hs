@@ -12,8 +12,10 @@ import qualified Control.Exception as E (evaluate)
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Foldable (foldMap)
 import Data.Functor
 import qualified Data.List as List
+import Data.Monoid
 
 import qualified Text.PrettyPrint.Boxes as Boxes
 
@@ -73,14 +75,25 @@ mapTimings f b = b { timings = f (timings b) }
 addCPUTime :: Ord a => Account a -> CPUTime -> Benchmark a -> Benchmark a
 addCPUTime acc t = mapTimings (Trie.insertWith (+) acc t)
 
--- | Print benchmark as two-column table with totals.
+-- | Print benchmark as three-column table with totals.
 instance (Ord a, Pretty a) => Pretty (Benchmark a) where
   pretty b = text $ Boxes.render table
     where
-    (accounts, times) = unzip $ Trie.toList $ timings b
+    trie = timings b
+    (accounts, times) = unzip $ Trie.toList trie
+    aggrTimes         = do
+      a <- accounts
+      let t = Trie.lookupTrie a trie
+          hasChildren =
+            case foldMap (:[]) t of
+              _:_:_ -> True
+              _     -> False
+      return $ if not (null a) && hasChildren
+               then Boxes.text $ "(" ++ prettyShow (getSum $ foldMap Sum t) ++ ")"
+               else Boxes.text ""
 
     -- Generate a table.
-    table = Boxes.hsep 1 Boxes.left [col1, col2]
+    table = Boxes.hsep 1 Boxes.left [col1, col2, col3]
 
     -- First column: Accounts.
     col1 = Boxes.vcat Boxes.left $
@@ -90,6 +103,9 @@ instance (Ord a, Pretty a) => Pretty (Benchmark a) where
     col2 = Boxes.vcat Boxes.right $
            map (Boxes.text . prettyShow) $
            sum times : times
+    -- Thid column: Aggregate times.
+    col3 = Boxes.vcat Boxes.right $
+           Boxes.text "" : aggrTimes
 
     showAccount [] = "Miscellaneous"
     showAccount ks = List.intercalate "." $ map prettyShow ks

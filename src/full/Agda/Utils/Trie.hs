@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
 
 -- | Strict tries (based on "Data.Map.Strict" and "Agda.Utils.Maybe.Strict").
 
@@ -9,7 +11,7 @@ module Agda.Utils.Trie
   , empty, singleton, everyPrefix, insert, insertWith, union, unionWith
   , adjust, delete
   , toList, toAscList
-  , lookup, member, lookupPath
+  , lookup, member, lookupPath, lookupTrie
   ) where
 
 import Prelude hiding (null, lookup)
@@ -17,6 +19,7 @@ import qualified Prelude
 
 import Data.Function
 import Data.Functor
+import Data.Foldable (Foldable)
 import qualified Data.Maybe as Lazy
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -28,7 +31,7 @@ import Agda.Utils.Null
 --
 --   With the strict 'Maybe' type, 'Trie' is also strict in 'v'.
 data Trie k v = Trie !(Strict.Maybe v) !(Map k (Trie k v))
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor, Foldable)
 
 -- | Empty trie.
 instance Null (Trie k v) where
@@ -119,3 +122,9 @@ lookupPath xs (Trie v cs) = case xs of
     []     -> Strict.maybeToList v
     x : xs -> Strict.maybeToList v ++
               maybe [] (lookupPath xs) (Map.lookup x cs)
+
+-- | Get the subtrie rooted at the given key.
+lookupTrie :: Ord k => [k] -> Trie k v -> Trie k v
+lookupTrie []       t           = t
+lookupTrie (k : ks) (Trie _ cs) = maybe empty (lookupTrie ks) (Map.lookup k cs)
+

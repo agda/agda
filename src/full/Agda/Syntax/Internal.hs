@@ -21,6 +21,7 @@ import Prelude hiding (foldr, mapM, null)
 
 import Control.Applicative hiding (empty)
 import Control.Monad.Identity hiding (mapM)
+import Control.DeepSeq
 
 import Data.Foldable ( Foldable, foldMap )
 import Data.Function
@@ -39,7 +40,7 @@ import Data.Typeable (Typeable)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
-import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Concrete.Pretty (prettyHiding)
 import Agda.Syntax.Abstract.Name
 
 import Agda.Utils.Empty
@@ -1149,7 +1150,7 @@ instance Pretty Term where
       Shared{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
-                   d <+> fsep (map (prettyPrec 10) els)
+                   sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
       pDom i =
         case getHiding i of
@@ -1199,7 +1200,9 @@ instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
 instance Pretty Elim where
-  prettyPrec p (Apply v) = prettyPrec p v
+  prettyPrec p (Apply v) = prettyHiding (argInfo v) id $ prettyPrec p' (unArg v)
+      where p' | getHiding v == NotHidden = p
+               | otherwise                = 0
   prettyPrec _ (Proj _o x)  = text ("." ++ show x)
 
 instance Pretty DBPatVar where
@@ -1218,3 +1221,52 @@ instance Pretty a => Pretty (Pattern' a) where
   --     prTy d = caseMaybe (conPType i) d $ \ t -> d  <+> text ":" <+> pretty t
   prettyPrec _ (LitP l)      = text (show l)
   prettyPrec _ (ProjP _o q)  = text ("." ++ show q)
+
+-----------------------------------------------------------------------------
+-- * NFData instances
+-----------------------------------------------------------------------------
+
+-- Note: only strict in the shape of the terms.
+
+instance NFData Term where
+  rnf v = case v of
+    Var _ es   -> rnf es
+    Lam _ b    -> rnf (unAbs b)
+    Lit l      -> rnf l
+    Def q es   -> rnf es
+    Con c vs   -> rnf vs
+    Pi a b     -> rnf (unDom a, unAbs b)
+    Sort s     -> rnf s
+    Level l    -> rnf l
+    MetaV _ es -> rnf es
+    DontCare v -> rnf v
+    Shared{}   -> ()
+
+instance NFData Type where
+  rnf (El s v) = rnf (s, v)
+
+instance NFData Sort where
+  rnf s = case s of
+    Type l   -> rnf l
+    Prop     -> ()
+    Inf      -> ()
+    SizeUniv -> ()
+    DLub a b -> rnf (a, unAbs b)
+
+instance NFData Level where
+  rnf (Max as) = rnf as
+
+instance NFData PlusLevel where
+  rnf (ClosedLevel n) = rnf n
+  rnf (Plus n l) = rnf (n, l)
+
+instance NFData LevelAtom where
+  rnf (MetaLevel _ es)   = rnf es
+  rnf (BlockedLevel _ v) = rnf v
+  rnf (NeutralLevel _ v) = rnf v
+  rnf (UnreducedLevel v) = rnf v
+
+instance NFData a => NFData (Elim' a) where
+  rnf (Apply x) = rnf x
+  rnf Proj{}    = ()
+
