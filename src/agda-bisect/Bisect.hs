@@ -34,6 +34,11 @@ defaultFlags =
   , "--no-default-libraries"
   ]
 
+-- | The path to the Agda executable.
+
+agda :: FilePath
+agda = ".cabal-sandbox/bin/agda"
+
 -- | Options.
 
 data Options = Options
@@ -45,7 +50,7 @@ data Options = Options
   , skipStrings               :: [String]
   , logFile                   :: Maybe String
   , start                     :: Either FilePath (String, String)
-  , arguments                 :: [String]
+  , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
 
 -- | Parses command-line options. Prints usage information and aborts
@@ -122,8 +127,20 @@ options =
                      metavar "LOG" <>
                      help "Replay the git bisect log in LOG" <>
                      action "file")))
-    <*> many (strArgument (metavar "ARGUMENTS..." <>
-                           help "The arguments supplied to Agda"))
+    <*> ((Right <$>
+          many (strArgument (metavar "ARGUMENTS..." <>
+                             help "The arguments supplied to Agda")))
+           <|>
+         ((\prog args -> Left (prog, args)) <$>
+          strOption (long "script" <>
+                     metavar "PROGRAM" <>
+                     help ("Do not invoke Agda directly, run " ++
+                           "PROGRAM instead") <>
+                     action "command") <*>
+          many
+            (strArgument (metavar "PROGRAM ARGUMENTS..." <>
+                          help ("Extra arguments for the " ++
+                                "--script program")))))
 
   paragraph ss      = fillSep (map string $ words $ unlines ss)
   d1 `newline` d2   = d1 PP.<> hardline PP.<> d2
@@ -147,7 +164,22 @@ options =
 
     , paragraph
         [ "Use \"--\" to signal that the remaining arguments are"
-        , "not options to this script (but perhaps to Agda)."
+        , "not options to this script (but to Agda or the --script"
+        , "program)."
+        ]
+
+    , paragraph
+        [ "The script inserts the following flags before ARGUMENTS,"
+        , "unless --no-extra-arguments has been given (and only if"
+        , "agda --help indicates that they are available):"
+        ] `newline`
+      indent 2 (foldr1 newline $ map string defaultFlags)
+
+    , paragraph
+        [ "The --script program, if any, is called with the path to the"
+        , "Agda executable as the first argument. Note that usual"
+        , "platform conventions (like the PATH) are used to determine"
+        , "what program PROGRAM refers to."
         ]
 
     , paragraph
@@ -159,13 +191,6 @@ options =
 
     , paragraph
         [ "The script may not work on all platforms." ]
-
-    , paragraph
-        [ "The script inserts the following flags before ARGUMENTS,"
-        , "unless --no-extra-arguments has been given (and only if"
-        , "agda --help indicates that they are available):"
-        ] `newline`
-      indent 2 (foldr1 newline $ map string defaultFlags)
     ]
 
   commitCompleter = mkCompleter $ \prefix -> do
@@ -258,19 +283,23 @@ bisect opts =
 
 runAgda :: Options -> IO Bool
 runAgda opts = do
-  flags <- if extraArguments opts then do
-             help <- readProcess agda ["--help"] ""
-             return $ filter (`isInfixOf` help) defaultFlags
-            else
-             return []
-  let args = flags ++ arguments opts
+  (prog, args) <-
+    case scriptOrArguments opts of
+      Left (prog, args) -> return (prog, agda : args)
+      Right args        -> do
+        flags <- if extraArguments opts then do
+                   help <- readProcess agda ["--help"] ""
+                   return $ filter (`isInfixOf` help) defaultFlags
+                  else
+                   return []
+        return (agda, flags ++ args)
 
-  putStrLn $ "Command: " ++ showCommandForUser agda args
+  putStrLn $ "Command: " ++ showCommandForUser prog args
 
   let maybeTimeout = case mustFinishWithin opts of
         Nothing -> fmap Just
         Just n  -> timeout n
-  result <- maybeTimeout (readProcessWithExitCode agda args "")
+  result <- maybeTimeout (readProcessWithExitCode prog args "")
   case result of
     Nothing -> do
       putStrLn "Timeout"
@@ -296,7 +325,6 @@ runAgda opts = do
 
       return result
   where
-  agda   = ".cabal-sandbox/bin/agda"
   indent = unlines . map ("  " ++) . lines
 
 -- | Tries to install Agda.
