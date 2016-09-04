@@ -134,7 +134,13 @@ getClauseForIP f clauseNo = do
       let (cs1,cs2) = fromMaybe __IMPOSSIBLE__ $ splitExactlyAt clauseNo cs
           c         = fromMaybe __IMPOSSIBLE__ $ headMaybe cs2
       return (extlam, c, cs1)
-    _ -> __IMPOSSIBLE__
+    d -> do
+      reportSDoc "impossible" 10 $ vcat
+        [ text "getClauseForIP" <+> prettyTCM f <+> text (show clauseNo)
+          <+> text "received"
+        , text (show d)
+        ]
+      __IMPOSSIBLE__
 
 
 -- | Entry point for case splitting tactic.
