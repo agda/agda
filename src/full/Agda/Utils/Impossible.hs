@@ -32,3 +32,16 @@ throwImpossible = throw
 
 catchImpossible :: IO a -> (Impossible -> IO a) -> IO a
 catchImpossible = E.catch
+
+data UndefinedFun = UndefinedFun String Integer deriving Typeable
+
+instance Show UndefinedFun where
+  show (UndefinedFun file line) = unlines
+    [ "A part of a program the program is undefined"
+    , "Location: " ++ file ++ ":" ++ show line
+    ]
+
+instance Exception UndefinedFun
+
+throwUndefined :: UndefinedFun -> a
+throwUndefined = throw
