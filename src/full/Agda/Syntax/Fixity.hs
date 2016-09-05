@@ -207,7 +207,11 @@ noSection n = NotationSection
 
 -- | Precedence levels for operators.
 
-data PrecedenceLevel = Unrelated | Related !Integer
+data PrecedenceLevel
+  = Unrelated
+    -- ^ No fixity declared.
+  | Related !Integer
+    -- ^ Fixity level declared as the @Integer@.
   deriving (Eq, Ord, Show, Typeable)
 
 -- | Associativity.
@@ -217,11 +221,12 @@ data Associativity = NonAssoc | LeftAssoc | RightAssoc
 
 -- | Fixity of operators.
 
-data Fixity =
-  Fixity { fixityRange :: Range
-         , fixityLevel :: !PrecedenceLevel
-         , fixityAssoc :: !Associativity
-         }
+data Fixity = Fixity
+  { fixityRange :: Range
+    -- ^ Range of the whole fixity declaration.
+  , fixityLevel :: !PrecedenceLevel
+  , fixityAssoc :: !Associativity
+  }
   deriving (Typeable, Show)
 
 instance Eq Fixity where
