@@ -66,7 +66,6 @@ module Agda.TypeChecking.Reduce.Fast
 
 import Control.Applicative
 import Control.Monad.Reader
-import Control.DeepSeq
 
 import Data.List
 import Data.Map (Map)
@@ -208,8 +207,8 @@ memoQName f = unsafePerformIO $ do
 -- Reverts to normal substitution if it hits a binder or other icky stuff (like
 -- levels). It's strict in the shape of the result to avoid creating huge
 -- thunks for accumulator arguments.
-strictSubst :: QName -> [Term] -> Term -> Term
-strictSubst f us = go 0
+strictSubst :: [Term] -> Term -> Term
+strictSubst us = go 0
   where
     rho = parallelS us
     go k v =
@@ -382,7 +381,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
               where
                 n = length xs
                 m = length es
-                doSubst es t = strictSubst f (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
+                doSubst es t = strictSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
