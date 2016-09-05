@@ -342,6 +342,7 @@ instance ExprLike Pragma where
       CompiledDataPragma{}        -> pure p
       CompiledEpicPragma{}        -> pure p
       CompiledJSPragma{}          -> pure p
+      CompiledPythonPragma{}      -> pure p
       CompiledUHCPragma{}         -> pure p
       CompiledDataUHCPragma{}     -> pure p
       StaticPragma{}              -> pure p

@@ -101,6 +101,7 @@ data CommandLineOptions = Options
   , optGhcFlags         :: [String]
   , optEpicCompile      :: Bool
   , optJSCompile        :: Bool
+  , optPythonCompile    :: Bool
   , optUHCCompile       :: Bool
   , optUHCBin           :: Maybe FilePath
   , optUHCTextualCore   :: Bool
@@ -196,6 +197,7 @@ defaultOptions = Options
   , optGhcFlags         = []
   , optEpicCompile      = False
   , optJSCompile        = False
+  , optPythonCompile    = False
   , optUHCCompile       = False
   , optUHCBin           = Nothing
   , optUHCTextualCore   = False
@@ -472,6 +474,9 @@ compileEpicFlag o = throwError "the Epic backend has been disabled"
 compileJSFlag :: Flag CommandLineOptions
 compileJSFlag  o = return $ o { optJSCompile = True }
 
+compilePythonFlag :: Flag CommandLineOptions
+compilePythonFlag o = return $ o { optPythonCompile = True }
+
 compileUHCFlag :: Flag CommandLineOptions
 compileUHCFlag o = return $ o { optUHCCompile = True}
 
@@ -573,6 +578,7 @@ standardOptions =
                     "the Epic backend has been removed"
 
     , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
+    , Option []     ["python"] (NoArg compilePythonFlag) "compile program using the Python backend"
     , Option []     ["uhc"] (NoArg compileUHCFlag) "compile program using the UHC backend"
     , Option []     ["uhc-bin"] (ReqArg uhcBinFlag "UHC") "The uhc binary to use when compiling with the UHC backend."
     , Option []     ["uhc-textual-core"] (NoArg uhcTextualCoreFlag) "Use textual core as intermediate representation instead of binary core."

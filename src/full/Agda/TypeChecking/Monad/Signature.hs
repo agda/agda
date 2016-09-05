@@ -142,6 +142,11 @@ addJSCode q jsDef = modifySignature $ updateDefinition q $ updateDefCompiledRep 
   where
     addJS crep = crep { compiledJS = Just jsDef }
 
+addPythonCode :: QName -> String -> TCM ()
+addPythonCode q pyDef = modifySignature $ updateDefinition q $ updateDefCompiledRep $ addPython
+  where
+    addPython crep = crep { compiledPython = Just pyDef }
+
 addCoreCode :: QName -> CR.CoreExpr -> TCM ()
 addCoreCode q crDef =  modifySignature $ updateDefinition q $ updateDefCompiledRep $ addCore crDef
   where

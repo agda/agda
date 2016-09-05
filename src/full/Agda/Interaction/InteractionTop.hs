@@ -526,7 +526,7 @@ interpret (Cmd_compile b file argv) =
           MAlonzo -> MAlonzo.compilerMain IsMain i
           MAlonzoNoMain -> MAlonzo.compilerMain NotMain i
           Epic    -> Epic.compilerMain i
-          JS      -> JS.compilerMain i
+          JS      -> JS.compilerMain False i
         display_info $ Info_CompilationOk
       Imp.SomeWarnings w ->
         display_info $ Info_Error $ unlines

@@ -3,3 +3,6 @@ resolver: lts-6.2
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
+
+extra-deps:
+- language-python-0.5.3

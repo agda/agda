@@ -33,11 +33,11 @@ instance EmbPrj HaskellRepresentation where
     valu _      = malformed
 
 instance EmbPrj CompiledRepresentation where
-  icod_ (CompiledRep a b c d e) = icode5' a b c d e
+  icod_ (CompiledRep a b c d e f) = icode6' a b c d e f
 
   value = vcase valu where
-    valu [a, b, c, d, e] = valu5 CompiledRep a b c d e
-    valu _               = malformed
+    valu [a, b, c, d, e, f] = valu6 CompiledRep a b c d e f
+    valu _                  = malformed
 
 instance EmbPrj JS.Exp where
   icod_ (JS.Self)         = icode0 0

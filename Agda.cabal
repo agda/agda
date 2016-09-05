@@ -145,6 +145,7 @@ library
                 , hashtables >= 1.0.1.8 && < 1.2 || >= 1.2.0.2 && < 1.3
                 , haskeline >= 0.7.1.3 && < 0.8
                 , haskell-src-exts >= 1.17 && < 1.18
+                , language-python >= 0.5.4 && < 0.6
                 , monadplus >= 1.4 && < 1.5
                 -- mtl-2.1 contains a severe bug.
                 --
@@ -218,6 +219,9 @@ library
                     Agda.Compiler.JS.Syntax
                     Agda.Compiler.JS.Substitution
                     Agda.Compiler.JS.Pretty
+                    Agda.Compiler.JS.Python
+                    Agda.Compiler.Python.Compiler
+                    Agda.Compiler.Python.Lang
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
                     Agda.Compiler.MAlonzo.Misc
@@ -584,6 +588,7 @@ executable agda
     ghc-options:  -rtsopts
 
 executable agda-mode
+  buildable:        False
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
@@ -594,6 +599,7 @@ executable agda-mode
   default-language: Haskell2010
 
 executable agda-ghc-names
+  buildable:        False
   hs-source-dirs:   src/agda-ghc-names
   main-is:          agda-ghc-names.hs
   other-modules:    ExtractNames

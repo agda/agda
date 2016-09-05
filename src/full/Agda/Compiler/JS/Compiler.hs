@@ -63,8 +63,12 @@ import Agda.Compiler.JS.Syntax
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, emp, subst, apply )
 import qualified Agda.Compiler.JS.Pretty as JSPretty
+import qualified Agda.Compiler.JS.Python as PyPretty
 
 import Paths_Agda
+
+import System.Directory
+import System.FilePath
 
 #include "undefined.h"
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
@@ -73,17 +77,17 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 -- Entry point into the compiler
 --------------------------------------------------
 
-compilerMain :: Interface -> TCM ()
-compilerMain mainI = inCompilerEnv mainI $ do
+compilerMain :: Bool -> Interface -> TCM ()
+compilerMain python mainI = inCompilerEnv mainI $ do
   doCompile IsMain mainI $ \_ -> do
-    compile
+    compile python
   copyRTEModules
 
-compile :: Interface -> TCM ()
-compile i = do
+compile :: Bool -> Interface -> TCM ()
+compile p i = do
   ifM uptodate noComp $ do
     yesComp
-    writeModule =<< curModule
+    writeModule p =<< curModule
   where
   uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
@@ -337,10 +341,26 @@ literal LitMeta{}       = __IMPOSSIBLE__
 -- Writing out an ECMAScript module
 --------------------------------------------------
 
-writeModule :: Module -> TCM ()
-writeModule m = do
-  out <- outFile (modName m)
-  liftIO (writeFile out (JSPretty.pretty 0 0 m))
+writeModule :: Bool -> Module -> TCM ()
+writeModule p m = do
+  case p of
+    False -> do
+      out <- outFile (modName m)
+      liftIO (writeFile out (JSPretty.pretty 0 0 m))
+    True  -> do
+      let out = undefined
+      liftIO $ do
+        createPythonModule (modName m)
+        liftIO (writeFile (pythonModulePath (modName m)) (PyPretty.pretty 0 m))
+
+pythonModulePath :: GlobalId -> FilePath
+pythonModulePath (GlobalId names) = joinPath names <.> "py"
+
+createPythonModule :: GlobalId -> IO ()
+createPythonModule mname = do
+  let modulePath = pythonModulePath mname
+  createDirectoryIfMissing True $ dropFileName modulePath
+  writeFile (dropFileName modulePath </> "__init__.py") ""
 
 outFile :: GlobalId -> TCM FilePath
 outFile m = do

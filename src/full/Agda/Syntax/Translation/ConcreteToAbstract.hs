@@ -1707,6 +1707,18 @@ instance ToAbstract C.Pragma [A.Pragma] where
             "COMPILED_JS used on ambiguous name " ++ prettyShow x
           _       -> __IMPOSSIBLE__
     return [ A.CompiledJSPragma y ep ]
+  toAbstract (C.CompiledPythonPragma _ x ep) = do
+    e <- toAbstract $ OldQName x Nothing
+    y <- case e of
+          A.Def x -> return x
+          A.Proj _ (AmbQ [x]) -> return x
+          A.Proj _ x -> genericError $
+            "COMPILED_PYTHON used on ambiguous name " ++ prettyShow x
+          A.Con (AmbQ [x]) -> return x
+          A.Con x -> genericError $
+            "COMPILED_PYTHON used on ambiguous name " ++ prettyShow x
+          _       -> __IMPOSSIBLE__
+    return [ A.CompiledPythonPragma y ep ]
   toAbstract (C.CompiledUHCPragma _ x cr) = do
     e <- toAbstract $ OldQName x Nothing
     y <- case e of

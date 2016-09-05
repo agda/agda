@@ -663,6 +663,8 @@ checkPragma r p =
             _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates"
         A.CompiledJSPragma x ep ->
           addJSCode x ep
+        A.CompiledPythonPragma x ep ->
+          addPythonCode x ep
         A.CompiledUHCPragma x cr -> do
           def <- getConstInfo x
           case theDef def of
