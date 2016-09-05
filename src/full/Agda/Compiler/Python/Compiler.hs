@@ -17,7 +17,7 @@ import Agda.TypeChecking.Reduce (instantiateFull)
 import Agda.Utils.Monad
 import Agda.Utils.Maybe
 
-import Agda.Compiler.Python.Lang        as Py hiding ((<.>))
+import Agda.Compiler.Python.Lang        as Py hiding ((<.>), PythonCode)
 import Language.Python.Common.AST       as Py
 import Language.Python.Common.Pretty    as Py
 import Language.Python.Common.PrettyAST as Py

@@ -443,6 +443,8 @@ instance Pretty Pragma where
       hsep [ text "COMPILED_EPIC", pretty x, text e ]
     pretty (CompiledJSPragma _ x e) =
       hsep [ text "COMPILED_JS", pretty x, text e ]
+    pretty (CompiledPythonPragma _ x e) =
+      hsep [ text "COMPILED_PYTHON", pretty x, text e ]
     pretty (CompiledUHCPragma _ x e) =
       hsep [ text "COMPILED_UHC", pretty x, text e ]
     pretty (CompiledDataUHCPragma _ x crd crcs) =

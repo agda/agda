@@ -184,6 +184,7 @@ data Pragma
   | CompiledDataPragma QName String [String]
   | CompiledEpicPragma QName String
   | CompiledJSPragma QName String
+  | CompiledPythonPragma QName String
   | CompiledUHCPragma QName String
   | CompiledDataUHCPragma QName String [String]
   | StaticPragma QName

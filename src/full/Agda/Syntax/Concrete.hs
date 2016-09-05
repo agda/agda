@@ -383,6 +383,7 @@ data Pragma
   | CompiledExportPragma      Range QName String
   | CompiledEpicPragma        Range QName String
   | CompiledJSPragma          Range QName String
+  | CompiledPythonPragma      Range QName String
   | CompiledUHCPragma         Range QName String
   | CompiledDataUHCPragma     Range QName String [String]
   | HaskellCodePragma         Range String
@@ -651,6 +652,7 @@ instance HasRange Pragma where
   getRange (CompiledExportPragma r _ _)      = r
   getRange (CompiledEpicPragma r _ _)        = r
   getRange (CompiledJSPragma r _ _)          = r
+  getRange (CompiledPythonPragma r _ _)      = r
   getRange (CompiledUHCPragma r _ _)         = r
   getRange (CompiledDataUHCPragma r _ _ _)   = r
   getRange (HaskellCodePragma r _)           = r
@@ -827,6 +829,7 @@ instance KillRange Pragma where
   killRange (CompiledExportPragma _ q s)      = killRange1 (\q -> CompiledExportPragma noRange q s) q
   killRange (CompiledEpicPragma _ q s)        = killRange1 (\q -> CompiledEpicPragma noRange q s) q
   killRange (CompiledJSPragma _ q s)          = killRange1 (\q -> CompiledJSPragma noRange q s) q
+  killRange (CompiledPythonPragma _ q s)      = killRange1 (\q -> CompiledPythonPragma noRange q s) q
   killRange (CompiledUHCPragma _ q s)         = killRange1 (\q -> CompiledUHCPragma noRange q s) q
   killRange (CompiledDataUHCPragma _ q s ss)  = killRange1 (\q -> CompiledDataUHCPragma noRange q s ss) q
   killRange (HaskellCodePragma _ s)           = HaskellCodePragma noRange s
@@ -958,6 +961,7 @@ instance NFData Pragma where
   rnf (CompiledExportPragma _ a b)      = rnf a `seq` rnf b
   rnf (CompiledEpicPragma _ a b)        = rnf a `seq` rnf b
   rnf (CompiledJSPragma _ a b)          = rnf a `seq` rnf b
+  rnf (CompiledPythonPragma _ a b)      = rnf a `seq` rnf b
   rnf (CompiledUHCPragma _ a b)         = rnf a `seq` rnf b
   rnf (CompiledDataUHCPragma _ a b c)   = rnf a `seq` rnf b `seq` rnf c
   rnf (HaskellCodePragma _ s)           = rnf s

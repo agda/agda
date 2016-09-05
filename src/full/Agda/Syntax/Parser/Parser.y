@@ -136,6 +136,7 @@ import Agda.Utils.Impossible
     'COMPILED_EPIC'           { TokKeyword KwCOMPILED_EPIC $$ }
     'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $$ }
     'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $$ }
+    'COMPILED_PYTHON'         { TokKeyword KwCOMPILED_PYTHON $$ }
     'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $$ }
     'HASKELL'                 { TokKeyword KwHASKELL $$ }
@@ -265,6 +266,7 @@ Token
     | 'COMPILED_EPIC'           { TokKeyword KwCOMPILED_EPIC $1 }
     | 'COMPILED_EXPORT'         { TokKeyword KwCOMPILED_EXPORT $1 }
     | 'COMPILED_JS'             { TokKeyword KwCOMPILED_JS $1 }
+    | 'COMPILED_PYTHON'         { TokKeyword KwCOMPILED_PYTHON $1 }
     | 'COMPILED_TYPE'           { TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_UHC'            { TokKeyword KwCOMPILED_UHC $1 }
     | 'HASKELL'                 { TokKeyword KwHASKELL $1 }
@@ -1371,6 +1373,7 @@ DeclarationPragma
   | CompiledTypePragma       { $1 }
   | CompiledEpicPragma       { $1 }
   | CompiledJSPragma         { $1 }
+  | CompiledPythonPragma     { $1 }
   | CompiledUHCPragma        { $1 }
   | CompiledDataUHCPragma    { $1 }
   | HaskellPragma            { $1 }
@@ -1442,6 +1445,11 @@ CompiledJSPragma :: { Pragma }
 CompiledJSPragma
   : '{-#' 'COMPILED_JS' PragmaQName PragmaStrings '#-}'
     { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
+
+CompiledPythonPragma :: { Pragma }
+CompiledPythonPragma
+  : '{-#' 'COMPILED_PYTHON' PragmaQName PragmaStrings '#-}'
+    { CompiledPythonPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledUHCPragma :: { Pragma }
 CompiledUHCPragma

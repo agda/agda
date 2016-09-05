@@ -832,6 +832,9 @@ instance ToConcrete RangeAndPragma C.Pragma where
     A.CompiledJSPragma x e -> do
       x <- toConcrete x
       return $ C.CompiledJSPragma r x e
+    A.CompiledPythonPragma x e -> do
+      x <- toConcrete x
+      return $ C.CompiledPythonPragma r x e
     A.CompiledUHCPragma x cr -> do
       x <- toConcrete x
       return $ C.CompiledUHCPragma r x cr

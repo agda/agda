@@ -1287,6 +1287,7 @@ type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String
 type JSCode      = String
+type PythonCode  = String
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
@@ -1314,12 +1315,13 @@ data CompiledRepresentation = CompiledRep
   , exportHaskell   :: Maybe HaskellExport
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
+  , compiledPython  :: Maybe PythonCode
   , compiledCore    :: Maybe CoreRepresentation
   }
   deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
-noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing Nothing
+noCompiledRep = CompiledRep Nothing Nothing Nothing Nothing Nothing Nothing
 
 -- | Additional information for extended lambdas.
 data ExtLamInfo = ExtLamInfo
