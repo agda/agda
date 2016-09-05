@@ -66,7 +66,6 @@ module Agda.TypeChecking.Reduce.Fast
 
 import Control.Applicative
 import Control.Monad.Reader
-import Control.DeepSeq
 
 import Data.List
 import Data.Map (Map)
@@ -96,6 +95,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Maybe
 import Agda.Utils.Memo
 import Agda.Utils.Function
+import Agda.Utils.Functor
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -113,15 +113,20 @@ data CompactDef =
 data CompactDefn
   = CFun  { cfunCompiled  :: FastCompiledClauses }
   | CCon  { cconSrcCon    :: ConHead }
+  | CForce  -- ^ primForce
+  | CTyCon  -- ^ Datatype or record type. Need to know this for primForce.
   | COther  -- ^ In this case we fall back to slow reduction
 
-compactDef :: Maybe ConHead -> Maybe ConHead -> Definition -> ReduceM CompactDef
-compactDef z s def = do
+compactDef :: Maybe ConHead -> Maybe ConHead -> Maybe QName -> Definition -> ReduceM CompactDef
+compactDef z s pf def = do
   cdefn <-
     case theDef def of
+      _ | Just (defName def) == pf -> pure CForce
       Constructor{conSrcCon = c} -> pure CCon{cconSrcCon = c}
       Function{funCompiled = Just cc, funClauses = _:_} ->
         pure CFun{ cfunCompiled = fastCompiledClauses z s cc }
+      Datatype{dataClause = Nothing} -> pure CTyCon
+      Record{recClause = Nothing} -> pure CTyCon
       _ -> pure COther
   return $
     CompactDef { cdefDelayed        = defDelayed def == Delayed
@@ -208,8 +213,8 @@ memoQName f = unsafePerformIO $ do
 -- Reverts to normal substitution if it hits a binder or other icky stuff (like
 -- levels). It's strict in the shape of the result to avoid creating huge
 -- thunks for accumulator arguments.
-strictSubst :: QName -> [Term] -> Term -> Term
-strictSubst f us = go 0
+strictSubst :: [Term] -> Term -> Term
+strictSubst us = go 0
   where
     rho = parallelS us
     go k v =
@@ -244,10 +249,11 @@ fastReduce :: Bool -> Term -> ReduceM (Blocked Term)
 fastReduce allowNonTerminating v = do
   let name (Con c _) = c
       name _         = __IMPOSSIBLE__
-  z <- fmap name <$> getBuiltin' builtinZero
-  s <- fmap name <$> getBuiltin' builtinSuc
+  z  <- fmap name <$> getBuiltin' builtinZero
+  s  <- fmap name <$> getBuiltin' builtinSuc
+  pf <- fmap primFunName <$> getPrimitive' "primForce"
   rwr <- optRewriting <$> pragmaOptions
-  constInfo <- unKleisli (compactDef z s <=< getConstInfo)
+  constInfo <- unKleisli (compactDef z s pf <=< getConstInfo)
   ReduceM $ \ env -> reduceTm env (memoQName constInfo) allowNonTerminating rwr z s v
 
 unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
@@ -339,19 +345,51 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
             || (not unfoldDelayed       && delayed)
       in case def of
         CCon{cconSrcCon = c} ->
-          noReduction $ notBlocked $ Con c [] `applyE` es
+          NoReduction $ notBlocked $ Con c [] `applyE` es
         CFun{cfunCompiled = cc} ->
           reduceNormalE v0 f (map notReduced es) dontUnfold cc
-        _ -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
+        CForce -> reduceForce unfoldDelayed v0 f es
+        CTyCon -> NoReduction $ notBlocked v
+        COther -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
       where
-        noReduction    = NoReduction
-        yesReduction s = YesReduction s
+        yesReduction = YesReduction NoSimplification
+
+        reduceForce :: Bool -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
+        reduceForce unfoldDelayed v0 pf (Apply a : Apply b : Apply s : Apply t : Apply u : Apply f : es) =
+          case reduceB' (unArg u) of
+            ub@Blocked{}        -> noGo ub
+            ub@(NotBlocked _ u)
+              | isWHNF u  -> yesReduction $ unArg f `applyE` (Apply (defaultArg u) : es)
+              | otherwise -> noGo ub
+          where
+            noGo ub = NoReduction $ ub <&> \ u -> Def pf (Apply a : Apply b : Apply s : Apply t : Apply (defaultArg u) : Apply f : es)
+
+            isWHNF u = case u of
+              Lit{}      -> True
+              Con{}      -> True
+              Lam{}      -> True
+              Pi{}       -> True
+              Sort{}     -> True
+              Level{}    -> True
+              DontCare{} -> True
+              MetaV{}    -> False
+              Var{}      -> False
+              Def q _    -> isTyCon q
+              Shared{}   -> __IMPOSSIBLE__
+
+            isTyCon q =
+              case cdefDef $ constInfo q of
+                CTyCon -> True
+                _      -> False
+
+        -- TODO: partially applied to u
+        reduceForce unfoldDelayed v0 pf es = runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
 
         reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> FastCompiledClauses -> Reduced (Blocked Term) Term
         reduceNormalE v0 f es dontUnfold cc
           | dontUnfold = defaultResult  -- non-terminating or delayed
           | otherwise  = appDefE f v0 cc es
-          where defaultResult = noReduction $ NotBlocked AbsurdMatch vfull
+          where defaultResult = NoReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
         appDefE :: QName -> Term -> FastCompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
@@ -363,7 +401,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
         match' :: QName -> FastStack -> Reduced (Blocked Elims) Term
         match' f ((c, es, patch) : stack) =
           let no blocking es = NoReduction $ blocking $ patch $ map ignoreReduced es
-              yes t          = YesReduction NoSimplification t
+              yes t          = yesReduction t
 
           in case c of
 
@@ -382,7 +420,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
               where
                 n = length xs
                 m = length es
-                doSubst es t = strictSubst f (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
+                doSubst es t = strictSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
