@@ -162,6 +162,9 @@ matrix:
   allow_failures:
     - env: TEST=haddock GHC_VER=8.0.1 CABAL_VER=1.24
 
+    # See Issue #2164.
+    - env: TEST=stack GHC_VER=7.10.3
+
 ##############################################################################
 before_install:
   - if [[ $TEST != "doc" ]]; then
