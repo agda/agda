@@ -100,6 +100,8 @@ library
   include-dirs:     src/full
 
   if flag(cpphs)
+    -- We don't write an upper bound because the `build-tools` field
+    -- can not be modified in Hackage.
     build-tools: cpphs >= 1.19
     ghc-options: -pgmP cpphs -optP --cpp
 
