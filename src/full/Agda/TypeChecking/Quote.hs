@@ -36,7 +36,7 @@ import Agda.TypeChecking.Telescope
 import Agda.Utils.Except
 import Agda.Utils.Impossible
 import Agda.Utils.Monad ( ifM )
-import Agda.Utils.Permutation ( Permutation(Perm), compactP )
+import Agda.Utils.Permutation ( Permutation(Perm), compactP, reverseP )
 import Agda.Utils.String ( Str(Str), unStr )
 import Agda.Utils.VarSet (VarSet)
 import qualified Agda.Utils.VarSet as Set
@@ -175,7 +175,7 @@ quotingKit = do
         case body of
           Nothing -> absurdClause !@ quotePats ps
           Just b  -> let perm = fromMaybe __IMPOSSIBLE__ $ dbPatPerm ps
-                         v    = renameP __IMPOSSIBLE__ perm b
+                         v    = renameP __IMPOSSIBLE__ (reverseP perm) b
                      in normalClause !@ quotePats ps @@ quoteTerm v
 
       list :: [ReduceM Term] -> ReduceM Term
