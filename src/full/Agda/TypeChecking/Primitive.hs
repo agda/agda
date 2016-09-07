@@ -903,7 +903,7 @@ primComp = do
     lam_o m = lam (mkAbs "o" m)
    v <- v'
    let
-    b'  = unAbs $ b -- Γ , i : I , x : A[i]
+    b'  = absBody $ b -- Γ , i : I , x : A[i]
     b''' = applySubst (consS v $ liftS 1 $ raiseS 1) b' -- Γ , u1 : A[i1] , i : I
     b'' = unEl b'''
     sb = Level . toLevel $ getSort b'''
