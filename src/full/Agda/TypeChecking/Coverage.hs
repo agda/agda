@@ -495,7 +495,8 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       -- as the result of splitting is never used further down the pipeline.
       -- After splitting, Agda reloads the file.
       let conp    = ConP con noConPatternInfo $ applySubst rho2 $
-                      map (setOrigin Inserted) $ teleNamedArgs gamma
+                      map (setOrigin Inserted) $ tele2NamedArgs gamma0 gamma
+          -- Andreas, 2016-09-08, issue #2166: use gamma0 for correct argument names
 
       -- Compute final context and substitution
       let rho3    = consS conp rho1            -- Δ₁' ⊢ ρ₃ : Δ₁(x:D)
