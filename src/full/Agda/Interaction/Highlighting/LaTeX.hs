@@ -277,10 +277,15 @@ cmdIndent :: Show a => a -> Text
 cmdIndent i = cmdPrefix <+> T.pack "Indent" <+>
                   cmdArg (T.pack (show i)) <+> cmdArg T.empty
 
-infixl', infix', infixr' :: Text
-infixl' = T.pack "infixl"
-infix'  = T.pack "infix"
-infixr' = T.pack "infixr"
+
+-- Andreas, 2016-09-08, issue #2140:
+-- The following special treatment of infix declarations seems
+-- superfluous (and does the wrong thing with the fix for #2140):
+
+-- infixl', infix', infixr' :: Text
+-- infixl' = T.pack "infixl"
+-- infix'  = T.pack "infix"
+-- infixr' = T.pack "infixr"
 
 ------------------------------------------------------------------------
 -- * Automaton.
@@ -327,10 +332,14 @@ code = do
     unsetInCode
     nonCode
 
-  when (tok `elem` [ infixl', infix', infixr' ]) $ do
-    output $ cmdPrefix <+> T.pack "Keyword" <+> cmdArg tok
-    fixity
-    code
+  -- Andreas, 2016-09-08, issue #2140:
+  -- The following special treatment of infix declarations seems
+  -- superfluous (and does the wrong thing with the fix for #2140):
+
+  -- when (tok `elem` [ infixl', infix', infixr' ]) $ do
+  --   output $ cmdPrefix <+> T.pack "Keyword" <+> cmdArg tok
+  --   fixity
+  --   code
 
   when (isSpaces tok) $ do
     spaces $ T.group tok
@@ -391,34 +400,39 @@ escape (T.uncons -> Just (c, s)) = T.pack (replace c) <+> escape s
     _    -> [ c ]
 escape _                         = __IMPOSSIBLE__
 
--- | Fixity declarations need a special treatment. The operations in
--- declarations like:
---
---     infix num op1 op2 op3
---
--- are treated as comments and thus grouped together with the newlines
--- that follow, which results incorrect LaTeX output -- the following
--- state remedies the problem by breaking on newlines.
-fixity :: LaTeX ()
-fixity = do
-  tok <- nextToken
 
-  case T.breakOn (T.pack "\n") tok of
+-- Andreas, 2016-09-08, issue #2140:
+-- The following special treatment of infix declarations seems
+-- superfluous (and does the wrong thing with the fix for #2140):
 
-    -- Spaces.
-    (sps, nls) | nls == T.empty && isSpaces sps -> do
-        spaces $ T.group sps
-        fixity
+-- -- | Fixity declarations need a special treatment. The operations in
+-- -- declarations like:
+-- --
+-- --     infix num op1 op2 op3
+-- --
+-- -- are treated as comments and thus grouped together with the newlines
+-- -- that follow, which results incorrect LaTeX output -- the following
+-- -- state remedies the problem by breaking on newlines.
+-- fixity :: LaTeX ()
+-- fixity = do
+--   tok <- nextToken
 
-    -- Fixity level.
-    (num, nls) | nls == T.empty -> do
-        output $ cmdPrefix <+> T.pack "Number" <+> cmdArg num
-        fixity
+--   case T.breakOn (T.pack "\n") tok of
 
-    -- Operations followed by newlines.
-    (ops, nls) | otherwise      -> do
-        output $ (T.pack " " <+>) $ T.unwords $ map ((cmdPrefix <+> T.pack "FixityOp" <+>) . cmdArg . escape) $ T.words ops
-        spaces (T.group nls)
+--     -- Spaces.
+--     (sps, nls) | nls == T.empty && isSpaces sps -> do
+--         spaces $ T.group sps
+--         fixity
+
+--     -- Fixity level.
+--     (num, nls) | nls == T.empty -> do
+--         output $ cmdPrefix <+> T.pack "Number" <+> cmdArg num
+--         fixity
+
+--     -- Operations followed by newlines.
+--     (ops, nls) | otherwise      -> do
+--         output $ (T.pack " " <+>) $ T.unwords $ map ((cmdPrefix <+> T.pack "FixityOp" <+>) . cmdArg . escape) $ T.words ops
+--         spaces (T.group nls)
 
 
 -- | Spaces are grouped before processed, because multiple consecutive

@@ -26,3 +26,9 @@ open import Highlighting.M
 
 data D (A : Set) : Set-one where
   d : let X = D in X A
+
+postulate _+_ _×_ : Set → Set → Set
+
+infixl 4 _×_ _+_
+  -- Issue #2140: the operators should be highlighted also in the
+  -- fixity declaration.
