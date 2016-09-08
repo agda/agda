@@ -114,6 +114,18 @@ teleNamedArgs tel =
   | (i, Dom info (name,_)) <- zip (downFrom $ size l) l ]
   where l = telToList tel
 
+-- | A variant of `teleNamedArgs` which takes the argument names (and the argument info)
+--   from the first telescope and the variable names from the second telescope.
+--
+--   Precondition: the two telescopes have the same length.
+tele2NamedArgs :: (DeBruijn a) => Telescope -> Telescope -> [NamedArg a]
+tele2NamedArgs tel0 tel =
+  [ Arg info (Named (Just $ Ranged noRange $ argNameToString argName) (debruijnNamedVar varName i))
+  | (i, Dom info (argName,_), Dom _ (varName,_)) <- zip3 (downFrom $ size l) l0 l ]
+  where
+  l  = telToList tel
+  l0 = telToList tel0
+
 -- | Permute telescope: permutes or drops the types in the telescope according
 --   to the given permutation. Assumes that the permutation preserves the
 --   dependencies in the telescope.
