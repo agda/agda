@@ -966,6 +966,8 @@ checkExpr e t0 =
 
         A.ETel _   -> __IMPOSSIBLE__
 
+        A.Dot{} -> typeError $ GenericError $ "Invalid dotted expression"
+
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
 
