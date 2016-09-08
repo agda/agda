@@ -87,6 +87,8 @@ $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
 	@echo "=== End of output ==="
 	@rm -rf $(TMPDIR)
 
+#			diff -b $*.out $*.tmp;
+
 # Comparing output
 $(Tests) : %.cmp : %.out
 	@-mkdir $(TMPDIR)
@@ -102,7 +104,7 @@ $(Tests) : %.cmp : %.out
 			echo "=== New output ==="; \
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
-			diff -b $*.out $*.tmp; \
+			wdiff $*.out $*.tmp | colordiff; \
 			/bin/echo -n "Accept new error [y/N/q]? "; \
 			read -n 1; \
 			echo ""; \

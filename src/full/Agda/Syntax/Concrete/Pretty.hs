@@ -502,7 +502,7 @@ instance Pretty Notation where
     pretty = hcat . map pretty
 
 instance Pretty Fixity' where
-    pretty (Fixity' fix nota)
+    pretty (Fixity' fix nota _)
       | nota == noNotation = pretty fix
       | otherwise          = text "syntax" <+> pretty nota
 

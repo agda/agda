@@ -40,8 +40,14 @@ import Agda.Utils.Impossible
 data Fixity' = Fixity'
     { theFixity   :: !Fixity
     , theNotation :: Notation
+    , theNameRange :: Range
+      -- ^ Range of the name in the fixity declaration
+      --   (used for correct highlighting, see issue #2140).
     }
-  deriving (Typeable, Show, Eq)
+  deriving (Typeable, Show)
+
+instance Eq Fixity' where
+  Fixity' f n _ == Fixity' f' n' _ = f == f' && n == n'
 
 -- | Decorating something with @Fixity'@.
 data ThingWithFixity x = ThingWithFixity x Fixity'
@@ -74,7 +80,7 @@ namesToNotation q n = NewNotation
   , notation       = if null syn then syntaxOf (unqualify q) else syn
   , notaIsOperator = null syn
   }
-  where Fixity' f syn = A.nameFixity n
+  where Fixity' f syn _ = A.nameFixity n
 
 -- | Replace 'noFixity' by 'defaultFixity'.
 useDefaultFixity :: NewNotation -> NewNotation
@@ -113,7 +119,7 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
     mkSyn n (Id x : xs) = IdPart x : mkSyn n xs
 
 noFixity' :: Fixity'
-noFixity' = Fixity' noFixity noNotation
+noFixity' = Fixity' noFixity noNotation noRange
 
 -- | Merges 'NewNotation's that have the same precedence level and
 -- notation, with two exceptions:
@@ -322,7 +328,7 @@ instance KillRange Fixity where
   killRange f = f { fixityRange = noRange }
 
 instance KillRange Fixity' where
-  killRange (Fixity' f n) = killRange2 Fixity' f n
+  killRange (Fixity' f n r) = killRange3 Fixity' f n r
 
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
@@ -349,7 +355,7 @@ _fixityLevel f r = f (fixityLevel r) <&> \x -> r { fixityLevel = x }
 ------------------------------------------------------------------------
 
 instance NFData Fixity' where
-  rnf (Fixity' _ a) = rnf a
+  rnf (Fixity' _ a _) = rnf a
 
 -- | Ranges are not forced.
 

@@ -67,6 +67,7 @@ import Agda.Syntax.Concrete.Pretty ()
 import Agda.TypeChecking.Positivity.Occurrence
 
 import Agda.Utils.Except ( Error(strMsg), MonadError(throwError) )
+import Agda.Utils.Functor
 import Agda.Utils.Lens
 import Agda.Utils.List (headMaybe, isSublistOf)
 import Agda.Utils.Monad
@@ -1340,7 +1341,7 @@ plusFixities m1 m2
     | otherwise        = return $ Map.unionWithKey mergeFixites m1 m2
   where
     --  Merge two fixities, assuming there is no conflict
-    mergeFixites name (Fixity' f1 s1) (Fixity' f2 s2) = Fixity' f s
+    mergeFixites name (Fixity' f1 s1 r1) (Fixity' f2 s2 r2) = Fixity' f s $ fuseRange r1 r2
               where f | f1 == noFixity = f2
                       | f2 == noFixity = f1
                       | otherwise = __IMPOSSIBLE__
@@ -1353,8 +1354,9 @@ plusFixities m1 m2
             | (x, False) <- Map.assocs $ Map.intersectionWith compatible m1 m2 ]
 
     -- Check for no conflict.
-    compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
-                                                 (s1 == noNotation || s2 == noNotation)
+    compatible (Fixity' f1 s1 _) (Fixity' f2 s2 _) =
+      (f1 == noFixity   || f2 == noFixity  ) &&
+      (s1 == noNotation || s2 == noNotation)
 
 -- | While 'Fixities' and Polarities are not semigroups under disjoint
 --   union (which might fail), we get a semigroup instance for the
@@ -1388,10 +1390,10 @@ fixitiesAndPolarities = foldMap $ \ d -> case d of
   -- These declarations define polarities:
   Pragma (PolarityPragma _ x occs) -> return (Map.empty, Map.singleton x occs)
   -- These declarations define fixities:
-  Syntax x syn    -> return ( Map.singleton x (Fixity' noFixity syn)
+  Syntax x syn    -> return ( Map.singleton x (Fixity' noFixity syn $ getRange x)
                             , Map.empty
                             )
-  Infix  f xs     -> return ( Map.fromList (map (,Fixity' f noNotation) xs)
+  Infix  f xs     -> return ( Map.fromList $ for xs $ \ x -> (x, Fixity' f noNotation$ getRange x)
                             , Map.empty
                             )
   -- We look into these blocks:
