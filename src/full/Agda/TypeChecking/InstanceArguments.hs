@@ -163,7 +163,9 @@ findInScope' m cands = ifM (isFrozen m) (return (Just (cands, Nothing))) $ do
 
       -- If one of the arguments of the typeclass is a meta which is not rigidly
       -- constrained, then don’t do anything because it may loop.
-      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> return (Just (cands, Just m))) $ do
+      ifJustM (areThereNonRigidMetaArguments (unEl t)) (\ m -> do
+        reportSLn "tc.instance" 15 "aborting due to non-rigidly constrained metas"
+        return (Just (cands, Just m))) $ do
 
         mcands <- checkCandidates m t cands
         debugConstraints
@@ -266,7 +268,9 @@ areThereNonRigidMetaArguments t = case ignoreSharing t of
     Def n args -> do
       TelV tel _ <- telView . defType =<< getConstInfo n
       let varOccs EmptyTel           = []
-          varOccs (ExtendTel _ btel) = occurrence 0 tel : varOccs tel
+          varOccs (ExtendTel a btel)
+            | getRelevance a == Irrelevant = WeaklyRigid : varOccs tel  -- #2171: ignore irrelevant arguments
+            | otherwise                    = occurrence 0 tel : varOccs tel
             where tel = unAbs btel
           rigid StronglyRigid = True
           rigid Unguarded     = True
