@@ -221,13 +221,16 @@ expandCatchAlls single n cs =
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
     doExpand c@(Cl ps b)
-      | isVar $ unArg $ nth ps = map (expand ps b) expansions ++ [c]
-      | otherwise              = [c]
+      | exCatchAllNth ps = map (expand ps b) expansions ++ [c]
+      | otherwise = [c]
 
     -- True if nth pattern is variable or there are less than n patterns.
     isCatchAllNth ps = all (isVar . unArg) $ take 1 $ drop n ps
 
-    nth qs = headWithDefault __IMPOSSIBLE__ $ drop n qs
+    -- True if nth pattern exists and is variable.
+    exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
+
+    nth ps = headWithDefault __IMPOSSIBLE__ $ drop n ps
 
     classify (LitP l)     = Left l
     classify (ConP c _ _) = Right c
