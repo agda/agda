@@ -1200,19 +1200,18 @@ instance Pretty Type where
   prettyPrec p (El _ a) = prettyPrec p a
 
 instance Pretty Elim where
-  prettyPrec p (Apply v) = prettyHiding (argInfo v) id $ prettyPrec p' (unArg v)
-      where p' | getHiding v == NotHidden = p
-               | otherwise                = 0
+  prettyPrec p (Apply v)    = prettyPrec p v
   prettyPrec _ (Proj _o x)  = text ("." ++ show x)
 
 instance Pretty DBPatVar where
-  prettyPrec _ x = text $ show (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
+  prettyPrec _ x = text $ patVarNameToString (dbPatVarName x) ++ "@" ++ show (dbPatVarIndex x)
 
 instance Pretty a => Pretty (Pattern' a) where
   prettyPrec n (VarP x)      = prettyPrec n x
   prettyPrec _ (DotP t)      = text "." P.<> prettyPrec 10 t
-  prettyPrec n (ConP c i ps) = mparens (n > 0) $
-    text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
+  prettyPrec n (ConP c i nps)= mparens (n > 0) $
+    text (show $ conName c) <+> fsep (map pretty ps)
+    where ps = map (fmap namedThing) nps
   -- -- Version with printing record type:
   -- prettyPrec _ (ConP c i ps) = (if b then braces else parens) $ prTy $
   --   text (show $ conName c) <+> fsep (map (pretty . namedArg) ps)
@@ -1269,4 +1268,3 @@ instance NFData LevelAtom where
 instance NFData a => NFData (Elim' a) where
   rnf (Apply x) = rnf x
   rnf Proj{}    = ()
-
