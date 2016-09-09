@@ -756,7 +756,7 @@ An error is raised if no responses are received."
                   (or ask (string-match "\\`\\s *\\'" txt)))
              (setq txt (read-string (concat want ": ") nil nil txt t)))
             (t (setq input-from-goal t)))
-      (apply 'agda2-go t t t cmd
+      (apply 'agda2-go t input-from-goal t cmd
              (format "%d" g)
              (if input-from-goal (agda2-goal-Range o) (agda2-mkRange nil))
              (agda2-string-quote txt) args))))
