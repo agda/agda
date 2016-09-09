@@ -506,12 +506,12 @@ instance Pretty Fixity' where
       | nota == noNotation = pretty fix
       | otherwise          = text "syntax" <+> pretty nota
 
-instance Pretty e => Pretty (Arg e) where
  -- Andreas 2010-09-21: do not print relevance in general, only in function types!
  -- Andreas 2010-09-24: and in record fields
-    pretty a = -- pRelevance r $
-               -- TODO guilhem: print colors
-               prettyHiding (argInfo a) id $ pretty $ unArg a
+instance Pretty a => Pretty (Arg a) where
+  prettyPrec p (Arg ai e) = prettyHiding ai id $ prettyPrec p' e
+      where p' | getHiding ai == NotHidden = p
+               | otherwise                 = 0
 
 instance Pretty e => Pretty (Named_ e) where
     pretty (Named Nothing e) = pretty e
