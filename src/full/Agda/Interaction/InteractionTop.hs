@@ -141,6 +141,22 @@ initCommandState = CommandState
 
 type CommandM = StateT CommandState TCM
 
+-- | Restore both 'TCState' and 'CommandState'.
+
+localStateCommandM :: CommandM a -> CommandM a
+localStateCommandM m = do
+  cSt <- get
+  tcSt <- lift $ get
+  x <- m
+  lift $ put tcSt
+  put cSt
+  return x
+
+-- | Restore 'TCState', do not touch 'CommandState'.
+
+liftLocalState :: TCM a -> CommandM a
+liftLocalState = lift . localState
+
 -- | Build an opposite action to 'lift' for state monads.
 
 revLift
@@ -164,6 +180,11 @@ commandMToIO ci_i = revLift runStateT lift $ \ct -> revLift runSafeTCM liftIO $ 
 
 liftCommandMT :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
 liftCommandMT f m = revLift runStateT lift $ f . ($ m)
+
+-- | Ditto, but restore state.
+
+liftCommandMTLocalState :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
+liftCommandMTLocalState f = liftCommandMT f . localStateCommandM
 
 -- | Put a response by the callback function given by 'stInteractionOutputCallback'.
 
@@ -673,7 +694,7 @@ interpret (Cmd_auto ii rng s) = do
       -- For highlighting, Resp_GiveAction needs to access
       -- the @oldInteractionScope@s of the interaction points solved by Auto.
       -- We dig them out from the state before Auto was invoked.
-      insertOldInteractionScope ii =<< lift (localState (put st >> getInteractionScope ii))
+      insertOldInteractionScope ii =<< liftLocalState (put st >> getInteractionScope ii)
       -- Andreas, 2014-07-07: NOT TRUE:
       -- -- Andreas, 2014-07-05: The following should be obsolete,
       -- -- as Auto has removed the interaction points already:
@@ -692,19 +713,19 @@ interpret (Cmd_auto ii rng s) = do
    Right (Right s) -> give_gen ii rng s Refine
 
 interpret (Cmd_context norm ii _ _) =
-  display_info . Info_Context =<< lift (prettyContext norm False ii)
+  display_info . Info_Context =<< liftLocalState (prettyContext norm False ii)
 
 interpret (Cmd_helper_function norm ii rng s) =
-  display_info . Info_HelperFunction =<< lift (cmd_helper_function norm ii rng s)
+  display_info . Info_HelperFunction =<< liftLocalState (cmd_helper_function norm ii rng s)
 
 interpret (Cmd_infer norm ii rng s) =
   display_info . Info_InferredType
-    =<< lift (B.withInteractionId ii
+    =<< liftLocalState (B.withInteractionId ii
           (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
 
 interpret (Cmd_goal_type norm ii _ _) =
   display_info . Info_CurrentGoal
-    =<< lift (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
+    =<< liftLocalState (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
 
 interpret (Cmd_goal_type_context norm ii rng s) =
   cmd_goal_type_context_and empty norm ii rng s
@@ -713,8 +734,8 @@ interpret (Cmd_goal_type_context_infer norm ii rng s) = do
   -- In case of the empty expression to type, don't fail with
   -- a stupid parse error, but just fall back to
   -- Cmd_goal_type_context.
-  have <- if all Char.isSpace s then return empty else do
-    typ <- lift $ B.withInteractionId ii $
+  have <- if all Char.isSpace s then return empty else liftLocalState $ do
+    typ <- B.withInteractionId ii $
       prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
     return $ text "Have:" <+> typ
   cmd_goal_type_context_and have norm ii rng s
@@ -762,13 +783,12 @@ interpret (Cmd_make_case ii rng s) = do
         in
          (A.Clause (A.LHS info (A.LHSHead name (drop n nps)) ps) dots rhs decl catchall)
 
-interpret (Cmd_compute ignore ii rng s) = do
-  e <- lift $ B.parseExprIn ii rng s
-  d <- lift $ B.withInteractionId ii $ do
-         let c = B.evalInCurrent e
-         v <- if ignore then ignoreAbstractMode c else c
-         prettyATop v
-  display_info $ Info_NormalForm d
+interpret (Cmd_compute ignore ii rng s) = display_info . Info_NormalForm =<< do
+  liftLocalState $ do
+    e <- B.parseExprIn ii rng s
+    B.withInteractionId ii $ do
+      prettyATop =<< do applyWhen ignore ignoreAbstractMode $ B.evalInCurrent e
+
 
 interpret Cmd_show_version = display_info Info_Version
 
@@ -1040,16 +1060,18 @@ cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
 -- their types.
 
 showModuleContents :: B.Rewrite -> Range -> String -> CommandM ()
-showModuleContents norm rng s = do
-  (modules, types) <- lift $ B.moduleContents norm rng s
-  types' <- lift $ forM types $ \ (x, t) -> do
-     t <- TCP.prettyTCM t
-     return (show x, text ":" <+> t)
-  display_info $ Info_ModuleContents $
-    text "Modules" $$
-    nest 2 (vcat $ map (text . show) modules) $$
-    text "Names" $$
-    nest 2 (align 10 types')
+showModuleContents norm rng s = display_info . Info_ModuleContents =<< do
+  liftLocalState $ do
+    (modules, types) <- B.moduleContents norm rng s
+    types' <- forM types $ \ (x, t) -> do
+      t <- TCP.prettyTCM t
+      return (show x, text ":" <+> t)
+    return $ vcat
+      [ text "Modules"
+      , nest 2 $ vcat $ map (text . show) modules
+      , text "Names"
+      , nest 2 $ align 10 types'
+      ]
 
 -- | Shows all the top-level names in scope which mention all the given
 -- identifiers in their type.
@@ -1070,12 +1092,12 @@ searchAbout norm rg nm = do
 -- | Explain why something is in scope.
 
 whyInScope :: String -> CommandM ()
-whyInScope s = do
-  (v, xs, ms) <- lift $ B.whyInScope s
-  cwd <- do
-    Just (file, _) <- gets $ theCurrentFile
-    return $ takeDirectory $ filePath file
-  display_info . Info_WhyInScope =<< do lift $ explanation cwd v xs ms
+whyInScope s = display_info . Info_WhyInScope =<< do
+  Just (file, _) <- gets theCurrentFile
+  let cwd = takeDirectory $ filePath file
+  liftLocalState $ do
+    (v, xs, ms) <- B.whyInScope s
+    explanation cwd v xs ms
   where
     explanation _ Nothing [] [] = TCP.text (s ++ " is not in scope.")
     explanation cwd v xs ms = TCP.vcat
@@ -1240,8 +1262,8 @@ parseAndDoAtToplevel
      -- ^ The expression to parse.
   -> CommandM ()
 parseAndDoAtToplevel cmd title s = do
-  e   <- liftIO $ parse exprParser s
-  (time, res) <-
+  (time, res) <- localStateCommandM $ do
+    e <- liftIO $ parse exprParser s
     maybeTimed (lift $ B.atTopLevel $
                 prettyA =<< cmd =<< concreteToAbstract_ e)
   display_info (title $ fromMaybe empty time $$ res)
