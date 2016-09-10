@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 
 -- | Lenses for 'TCState' and more.
 
@@ -378,12 +379,12 @@ freshTCM m = do
 ---------------------------------------------------------------------------
 
 -- | Look through the signature and reconstruct the instance table.
-addSignatureInstances :: Signature -> TCM ()
-addSignatureInstances sig = do
+addImportedInstances :: Signature -> TCM ()
+addImportedInstances sig = do
   let itable = Map.fromListWith Set.union
                [ (c, Set.singleton i)
                | (i, Defn{ defInstance = Just c }) <- HMap.toList $ sig ^. sigDefinitions ]
-  modifyInstanceDefs $ first $ Map.unionWith Set.union itable
+  stImportedInstanceDefs %= Map.unionWith Set.union itable
 
 -- | Lens for 'stInstanceDefs'.
 updateInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> (TCState -> TCState)
@@ -393,7 +394,11 @@ modifyInstanceDefs :: (TempInstanceTable -> TempInstanceTable) -> TCM ()
 modifyInstanceDefs = modify . updateInstanceDefs
 
 getAllInstanceDefs :: TCM TempInstanceTable
-getAllInstanceDefs = use stInstanceDefs
+getAllInstanceDefs = do
+  (table,xs) <- use stInstanceDefs
+  itable <- use stImportedInstanceDefs
+  let !table' = Map.unionWith Set.union itable table
+  return (table', xs)
 
 getAnonInstanceDefs :: TCM (Set QName)
 getAnonInstanceDefs = snd <$> getAllInstanceDefs

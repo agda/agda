@@ -128,7 +128,7 @@ addImportedThings isig ibuiltin hsImports hsImportsUHC patsyns display = do
   stHaskellImportsUHC    %= \ imp -> Set.union imp hsImportsUHC
   stPatternSynImports    %= \ imp -> Map.union imp patsyns
   stImportedDisplayForms %= \ imp -> HMap.unionWith (++) imp display
-  addSignatureInstances isig
+  addImportedInstances isig
 
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
