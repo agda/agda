@@ -33,8 +33,8 @@ tokens s = case s of
     tokens' s =
       case s of
         '$' : '$' : s -> cons '$' $ tokens' s
-        '$' : s@(c : _) | isAlpha c -> Var x : tokens' s'
-          where (x, s') = span isAlphaNum s
+        '$' : s@(c : _) | c == '_' || isAlpha c -> Var x : tokens' s'
+          where (x, s') = span (\ c -> c == '_' || isAlphaNum c) s
         '$' : '{' : s ->
           case break (== '}') s of
             (x, '}' : s) -> Var x : tokens' s
