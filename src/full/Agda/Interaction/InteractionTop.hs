@@ -83,6 +83,7 @@ import Agda.Utils.Except
   )
 
 import Agda.Utils.FileName
+import Agda.Utils.Function
 import Agda.Utils.Hash
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Utils.Lens
@@ -569,12 +570,11 @@ interpret (Cmd_infer_toplevel norm s) =
   parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
 
 interpret (Cmd_compute_toplevel ignore s) =
-  parseAndDoAtToplevel (allowNonTerminatingReductions .
-                        if ignore then ignoreAbstractMode . c
-                                  else inConcreteMode . c)
-                       Info_NormalForm
-                       s
-  where c = B.evalInCurrent
+  parseAndDoAtToplevel action Info_NormalForm s
+  where
+  action = allowNonTerminatingReductions
+         . (if ignore then ignoreAbstractMode else inConcreteMode)
+         . B.evalInCurrent
 
 interpret (ShowImplicitArgs showImpl) = do
   opts <- lift commandLineOptions
@@ -1009,8 +1009,8 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   ctx <- B.contextOfMeta ii norm
   es  <- mapM (prettyATop . B.ofExpr) ctx
   ns  <- mapM (showATop   . B.ofName) ctx
-  let shuffle = if rev then reverse else id
-  return $ align 10 $ filter (not . null. fst) $ shuffle $ zip ns (map (text ":" <+>) es)
+  return $ align 10 $ applyWhen rev reverse $
+    filter (not . null . fst) $ zip ns $ map (text ":" <+>) es
 
 -- | Create type of application of new helper function that would solve the goal.
 
@@ -1019,18 +1019,22 @@ cmd_helper_function norm ii r s = B.withInteractionId ii $ inTopContext $
   prettyATop =<< B.metaHelperType norm ii r s
 
 -- | Displays the current goal, the given document, and the current
--- context.
+--   context.
+--
+--   Should not modify the state.
 
 cmd_goal_type_context_and :: Doc -> B.Rewrite -> InteractionId -> Range ->
                              String -> StateT CommandState (TCMT IO) ()
-cmd_goal_type_context_and doc norm ii _ _ = do
-  goal <- lift $ B.withInteractionId ii $ prettyTypeOfMeta norm ii
-  ctx  <- lift $ prettyContext norm True ii
-  display_info $ Info_GoalType
-                (text "Goal:" <+> goal $+$
-                 doc $+$
-                 text (replicate 60 '\x2014') $+$
-                 ctx)
+cmd_goal_type_context_and doc norm ii _ _ = display_info . Info_GoalType =<< do
+  lift $ do
+    goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
+    ctx  <- prettyContext norm True ii
+    return $ vcat
+      [ text "Goal:" <+> goal
+      , doc
+      , text (replicate 60 '\x2014')
+      , ctx
+      ]
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
@@ -1151,6 +1155,8 @@ setCommandLineOpts opts = do
 
 
 -- | Computes some status information.
+--
+--   Does not change the state.
 
 status :: CommandM Status
 status = do
@@ -1176,15 +1182,17 @@ status = do
                   , sChecked               = checked
                   }
 
--- | Displays\/updates status information.
+-- | Displays or updates status information.
+--
+--   Does not change the state.
 
 displayStatus :: CommandM ()
 displayStatus =
   putResponse . Resp_Status  =<< status
 
 -- | @display_info@ does what @'display_info'' False@ does, but
--- additionally displays some status information (see 'status' and
--- 'displayStatus').
+--   additionally displays some status information (see 'status' and
+--   'displayStatus').
 
 display_info :: DisplayInfo -> CommandM ()
 display_info info = do
