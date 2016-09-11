@@ -18,6 +18,8 @@ import Data.Maybe
 import Data.Traversable (traverse)
 import Data.Monoid (mempty)
 
+import Numeric.IEEE ( IEEE(identicalIEEE) )
+
 import Agda.Interaction.Options
 
 import Agda.Syntax.Position
@@ -669,20 +671,23 @@ primitiveFunctions = Map.fromList
   , "primLevelMax"        |-> mkPrimLevelMax
 
   -- Floating point functions
-  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral :: Nat -> Double)
-  , "primFloatPlus"       |-> mkPrimFun2 ((+)          :: Op Double)
-  , "primFloatMinus"      |-> mkPrimFun2 ((-)          :: Op Double)
-  , "primFloatTimes"      |-> mkPrimFun2 ((*)          :: Op Double)
-  , "primFloatDiv"        |-> mkPrimFun2 ((/)          :: Op Double)
-  , "primFloatEquality"   |-> mkPrimFun2 (floatEq      :: Rel Double)
-  , "primFloatLess"       |-> mkPrimFun2 (floatLt      :: Rel Double)
-  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt         :: Double -> Double)
-  , "primRound"           |-> mkPrimFun1 (round        :: Double -> Integer)
-  , "primFloor"           |-> mkPrimFun1 (floor        :: Double -> Integer)
-  , "primCeiling"         |-> mkPrimFun1 (ceiling      :: Double -> Integer)
-  , "primExp"             |-> mkPrimFun1 (exp          :: Fun Double)
-  , "primLog"             |-> mkPrimFun1 (log          :: Fun Double)
-  , "primSin"             |-> mkPrimFun1 (sin          :: Fun Double)
+  , "primNatToFloat"      |-> mkPrimFun1 (fromIntegral    :: Nat -> Double)
+  , "primFloatPlus"       |-> mkPrimFun2 ((+)             :: Op Double)
+  , "primFloatMinus"      |-> mkPrimFun2 ((-)             :: Op Double)
+  , "primFloatTimes"      |-> mkPrimFun2 ((*)             :: Op Double)
+  , "primFloatDiv"        |-> mkPrimFun2 ((/)             :: Op Double)
+  -- We use bitwise equality for comparing Double because
+  -- Haskell's Eq, which equates 0.0 and -0.0, allows to prove a
+  -- contradiction (see Issue #2169).
+  , "primFloatEquality"   |-> mkPrimFun2 (identicalIEEE   :: Rel Double)
+  , "primFloatLess"       |-> mkPrimFun2 (floatLt         :: Rel Double)
+  , "primFloatSqrt"       |-> mkPrimFun1 (sqrt            :: Double -> Double)
+  , "primRound"           |-> mkPrimFun1 (round           :: Double -> Integer)
+  , "primFloor"           |-> mkPrimFun1 (floor           :: Double -> Integer)
+  , "primCeiling"         |-> mkPrimFun1 (ceiling         :: Double -> Integer)
+  , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
+  , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
+  , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
   , "primShowFloat"       |-> mkPrimFun1 (Str . floatShow :: Double -> Str)
 
   -- Character functions
@@ -722,10 +727,6 @@ primitiveFunctions = Map.fromList
   ]
   where
     (|->) = (,)
-
-floatEq :: Double -> Double -> Bool
-floatEq x y | isNaN x && isNaN y = True
-            | otherwise          = x == y
 
 floatLt :: Double -> Double -> Bool
 floatLt x y
