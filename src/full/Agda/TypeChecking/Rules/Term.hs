@@ -991,17 +991,38 @@ quoteContext = do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
 
--- | Document ME!
+-- | Inferring the type of an overloaded projection application.
+--   See 'inferOrCheckProjApp'.
 
 inferProjApp :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> TCM (Term, Type)
 inferProjApp e o ds args0 = inferOrCheckProjApp e o ds args0 Nothing
+
+-- | Checking the type of an overloaded projection application.
+--   See 'inferOrCheckProjApp'.
 
 checkProjApp  :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> Type -> TCM Term
 checkProjApp e o ds args0 t = do
   (v, ti) <- inferOrCheckProjApp e o ds args0 (Just t)
   coerce v ti t
 
-inferOrCheckProjApp :: A.Expr -> ProjOrigin -> [QName] -> A.Args -> Maybe Type -> TCM (Term, Type)
+-- | Inferring or Checking an overloaded projection application.
+--
+--   The overloaded projection is disambiguated by inferring the type of its
+--   principal argument, which is the first visible argument.
+
+inferOrCheckProjApp
+  :: A.Expr
+     -- ^ The whole expression which constitutes the application.
+  -> ProjOrigin
+     -- ^ The origin of the projection involved in this projection application.
+  -> [QName]
+     -- ^ The projection name (potentially ambiguous).  List must not be empty.
+  -> A.Args
+     -- ^ The arguments to the projection.
+  -> Maybe Type
+     -- ^ The expected type of the expression (if 'Nothing', infer it).
+  -> TCM (Term, Type)
+     -- ^ The type-checked expression and its type (if successful).
 inferOrCheckProjApp e o ds args mt = do
   reportSDoc "tc.proj.amb" 20 $ vcat
     [ text "checking ambiguous projection"
