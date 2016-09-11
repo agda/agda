@@ -997,6 +997,32 @@ quoteContext = do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
 
+-- | Unquote a TCM computation in a given hole.
+unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
+unquoteM tac hole holeType k = do
+  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
+  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
+
+-- | DOCUMENT ME!
+unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
+unquoteTactic tac hole goal k = do
+  ok  <- runUnquoteM $ unquoteTCM tac hole
+  case ok of
+    Left (BlockedOnMeta oldState x) -> do
+      put oldState
+      mi <- Map.lookup x <$> getMetaStore
+      (r, unblock) <- case mi of
+        Nothing -> do -- fresh meta: need to block on something else!
+          otherMetas <- allMetas <$> instantiateFull goal
+          case otherMetas of
+            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
+            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
+        Just mi -> return (getRange mi, isInstantiatedMeta x)
+      setCurrentRange r $
+        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
+    Left err -> typeError $ UnquoteFailed err
+    Right _ -> k
+
 ---------------------------------------------------------------------------
 -- * Projections
 ---------------------------------------------------------------------------
@@ -1330,46 +1356,6 @@ checkApplication hd args e t = do
     -- Subcase: defined symbol or variable.
     _ -> checkHeadApplication e t hd args
 
--- | Unquote a TCM computation in a given hole.
-unquoteM :: A.Expr -> Term -> Type -> TCM Term -> TCM Term
-unquoteM tac hole holeType k = do
-  tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
-  inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
-
--- | DOCUMENT ME!
-unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
-unquoteTactic tac hole goal k = do
-  ok  <- runUnquoteM $ unquoteTCM tac hole
-  case ok of
-    Left (BlockedOnMeta oldState x) -> do
-      put oldState
-      mi <- Map.lookup x <$> getMetaStore
-      (r, unblock) <- case mi of
-        Nothing -> do -- fresh meta: need to block on something else!
-          otherMetas <- allMetas <$> instantiateFull goal
-          case otherMetas of
-            []  -> return (noRange,     return False) -- Nothing to block on, leave it yellow. Alternative: fail.
-            x:_ -> return (noRange,     isInstantiatedMeta x)  -- range?
-        Just mi -> return (getRange mi, isInstantiatedMeta x)
-      setCurrentRange r $
-        postponeTypeCheckingProblem (UnquoteTactic tac hole goal) unblock
-    Left err -> typeError $ UnquoteFailed err
-    Right _ -> k
-
--- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
---   by inserting an underscore for the missing type.
-domainFree :: ArgInfo -> A.Name -> A.LamBinding
-domainFree info x =
-  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure x] $ A.Underscore underscoreInfo
-  where
-    r = getRange x
-    underscoreInfo = A.MetaInfo
-      { A.metaRange          = r
-      , A.metaScope          = emptyScopeInfo
-      , A.metaNumber         = Nothing
-      , A.metaNameSuggestion = show $ A.nameConcrete x
-      }
-
 ---------------------------------------------------------------------------
 -- * Meta variables
 ---------------------------------------------------------------------------
@@ -1400,6 +1386,20 @@ checkOrInferMeta newMeta mt i = do
       case mt of
         Nothing -> return (v, t')
         Just t  -> (,t) <$> coerce v t' t
+
+-- | Turn a domain-free binding (e.g. lambda) into a domain-full one,
+--   by inserting an underscore for the missing type.
+domainFree :: ArgInfo -> A.Name -> A.LamBinding
+domainFree info x =
+  A.DomainFull $ A.TypedBindings r $ Arg info $ A.TBind r [pure x] $ A.Underscore underscoreInfo
+  where
+    r = getRange x
+    underscoreInfo = A.MetaInfo
+      { A.metaRange          = r
+      , A.metaScope          = emptyScopeInfo
+      , A.metaNumber         = Nothing
+      , A.metaNameSuggestion = show $ A.nameConcrete x
+      }
 
 ---------------------------------------------------------------------------
 -- * Applications
