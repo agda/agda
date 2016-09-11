@@ -24,18 +24,22 @@ import Agda.Utils.Impossible
 
 -- | @implicitArgs n expand eti t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
---   and @expand@ holds on the hiding info of its domain. If @eti@ is
---   @ExplicitToInstance@, then explicit arguments are considered as instance
---   arguments.
+--   and @expand@ holds on the hiding info of its domain.
+--
+--   If explicit arguments are to be inserted as well, they are
+--   inserted as instance arguments (used for recursive instance search).
+
 implicitArgs :: Int -> (Hiding -> Bool) -> Type -> TCM (Args, Type)
 implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
   implicitNamedArgs n (\ h x -> expand h) t
 
 -- | @implicitNamedArgs n expand eti t@ generates up to @n@ named implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
---   and @expand@ holds on the hiding and name info of its domain. If @eti@ is
---   @ExplicitToInstance@, then explicit arguments are considered as instance
---   arguments.
+--   and @expand@ holds on the hiding and name info of its domain.
+--
+--   If explicit arguments are to be inserted as well, they are
+--   inserted as instance arguments (used for recursive instance search).
+
 implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> Type -> TCM (NamedArgs, Type)
 implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
