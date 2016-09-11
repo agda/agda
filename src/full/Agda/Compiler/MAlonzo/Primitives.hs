@@ -91,17 +91,16 @@ importsForPrim =
   xForPrim $
   L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
   [ "CHAR"           |-> ["Data.Char"]
-  , "primIsDigit"    |-> ["Data.Char"]
-  , "primIsLower"    |-> ["Data.Char"]
-  , "primIsDigit"    |-> ["Data.Char"]
   , "primIsAlpha"    |-> ["Data.Char"]
-  , "primIsSpace"    |-> ["Data.Char"]
   , "primIsAscii"    |-> ["Data.Char"]
-  , "primIsLatin1"   |-> ["Data.Char"]
-  , "primIsPrint"    |-> ["Data.Char"]
+  , "primIsDigit"    |-> ["Data.Char"]
   , "primIsHexDigit" |-> ["Data.Char"]
-  , "primToUpper"    |-> ["Data.Char"]
+  , "primIsLatin1"   |-> ["Data.Char"]
+  , "primIsLower"    |-> ["Data.Char"]
+  , "primIsPrint"    |-> ["Data.Char"]
+  , "primIsSpace"    |-> ["Data.Char"]
   , "primToLower"    |-> ["Data.Char"]
+  , "primToUpper"    |-> ["Data.Char"]
   ]
   where (|->) = (,)
 
