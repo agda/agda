@@ -824,19 +824,8 @@ checkExpr e t0 =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> do
-          reportSDoc "tc.interaction" 20 $ sep
-            [ text "Found interaction point"
-            , text (show ii)
-            , text ":"
-            , prettyTCM t0
-            ]
-          reportSDoc "tc.interaction" 40 $ sep
-            [ text "Raw:"
-            , text (show t0)
-            ]
-          checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
-        A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t0 i
+        A.QuestionMark i ii -> checkQuestionMark i ii t0
+        A.Underscore i -> checkUnderscore i t0
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -1360,9 +1349,31 @@ checkApplication hd args e t = do
 -- * Meta variables
 ---------------------------------------------------------------------------
 
+-- | Check an interaction point without arguments.
+checkQuestionMark :: A.MetaInfo -> InteractionId -> Type -> TCM Term
+checkQuestionMark i ii t0 = do
+  reportSDoc "tc.interaction" 20 $ sep
+    [ text "Found interaction point"
+    , text (show ii)
+    , text ":"
+    , prettyTCM t0
+    ]
+  reportSDoc "tc.interaction" 60 $ sep
+    [ text "Raw:"
+    , text (show t0)
+    ]
+  checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+
+-- | Check an underscore without arguments.
+checkUnderscore :: A.MetaInfo -> Type -> TCM Term
+checkUnderscore i t0 = checkMeta (newValueMeta RunMetaOccursCheck) t0 i
+
+-- | Type check a meta variable.
 checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
 checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
 
+-- | Infer the type of a meta variable.
+--   If it is a new one, we create a new meta for its type.
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i = mapFst apply <$> checkOrInferMeta newMeta Nothing i
 
