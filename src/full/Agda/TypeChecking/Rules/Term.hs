@@ -970,6 +970,11 @@ checkExpr e t0 =
         -- Application
         _   | Application hd args <- appView e -> checkApplication hd args e t
 
+---------------------------------------------------------------------------
+-- * Reflection
+---------------------------------------------------------------------------
+
+-- | DOCUMENT ME!
 quoteGoal :: Type -> TCM (Either [MetaId] Term)
 quoteGoal t = do
   t' <- etaContract =<< normalise t
@@ -980,6 +985,7 @@ quoteGoal t = do
       quotedGoal <- quoteTerm (unEl t')
       return $ Right quotedGoal
 
+-- | DOCUMENT ME!
 quoteContext :: TCM (Either [MetaId] Term)
 quoteContext = do
   contextTypes  <- map (fmap snd) <$> getContext
@@ -1326,6 +1332,7 @@ unquoteM tac hole holeType k = do
   tac <- checkExpr tac =<< (el primAgdaTerm --> el (primAgdaTCM <#> primLevelZero <@> primUnit))
   inFreshModuleIfFreeParams $ unquoteTactic tac hole holeType k
 
+-- | DOCUMENT ME!
 unquoteTactic :: Term -> Term -> Type -> TCM Term -> TCM Term
 unquoteTactic tac hole goal k = do
   ok  <- runUnquoteM $ unquoteTCM tac hole
