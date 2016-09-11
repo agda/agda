@@ -130,7 +130,7 @@ isType_ e =
       return t'
     A.Set _ n    -> do
       return $ sort (mkType n)
-    A.App i s (Arg (ArgInfo NotHidden r o) l)
+    A.App i s arg@(Arg (ArgInfo NotHidden r o) l)
       | A.Set _ 0 <- unScope s ->
       ifNotM hasUniversePolymorphism
           (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -140,7 +140,7 @@ isType_ e =
         --   Set : (NonStrict) Level -> Set\omega
         n   <- levelView =<< do
           applyRelevanceToContext NonStrict $
-            checkExpr (namedThing l) lvl
+            checkNamedArg arg lvl
         return $ sort (Type n)
 
     -- Issue #707: Check an existing interaction point
@@ -830,7 +830,7 @@ checkExpr e t0 =
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         -- check |- Set l : t  (requires universe polymorphism)
-        A.App i s (Arg ai l)
+        A.App i s arg@(Arg ai l)
           | A.Set _ 0 <- unScope s, visible ai ->
           ifNotM hasUniversePolymorphism
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
@@ -840,7 +840,7 @@ checkExpr e t0 =
             --   Set : (NonStrict) Level -> Set\omega
             n   <- levelView =<< do
               applyRelevanceToContext NonStrict $
-                checkExpr (namedThing l) lvl
+                checkNamedArg arg lvl
             -- check that Set (l+1) <= t
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
@@ -1793,10 +1793,14 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
     then checkKnownArgument arg vs (b `absApp` v)
     -- Found the right argument
     else do
-      u <- checkExpr (namedThing e) a
+      u <- checkNamedArg arg a
       equalTerm a u v
       return (vs, b `absApp` v)
 
+-- | Check a single argument.
+
+checkNamedArg :: NamedArg A.Expr -> Type -> TCM Term
+checkNamedArg (Arg info e) a = checkExpr (namedThing e) a
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
@@ -1891,7 +1895,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                  -- Thus, the following naive use violates some invariant.
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
-                  checkExpr (namedThing e) a
+                  checkNamedArg arg a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Arg info' u) $
                   checkArguments exh (fuseRange r e) args (absApp b u) t1
