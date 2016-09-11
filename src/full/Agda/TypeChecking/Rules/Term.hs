@@ -184,8 +184,8 @@ noFunctionsIntoSize t tBlame = do
 
 -- | Check that an expression is a type which is equal to a given type.
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
-isTypeEqualTo e t = case e of
-  A.ScopedExpr _ e -> isTypeEqualTo e t
+isTypeEqualTo e0 t = scopedExpr e0 >>= \case
+  A.ScopedExpr{} -> __IMPOSSIBLE__
   A.Underscore i | A.metaNumber i == Nothing -> return t
   e -> workOnTypes $ do
     t' <- isType e (getSort t)
@@ -773,6 +773,14 @@ checkArguments' exph r args t0 t k = do
       postponeTypeCheckingProblem_ (CheckArgs exph r es t0 t $ \vs t -> k (us ++ vs) t)
       -- if unsuccessful, postpone checking until t0 unblocks
 
+
+-- | Remove top layers of scope info of expression and set the scope accordingly
+--   in the 'TCState'.
+
+scopedExpr :: A.Expr -> TCM A.Expr
+scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
+scopedExpr e                      = return e
+
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t0 =
@@ -788,9 +796,6 @@ checkExpr e t0 =
     t <- reduce t0
     reportSDoc "tc.term.expr.top" 15 $
         text "    --> " <+> prettyTCM t
-
-    let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
-        scopedExpr e                      = return e
 
     e <- scopedExpr e
 
