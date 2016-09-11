@@ -997,6 +997,10 @@ quoteContext = do
       quotedContext <- buildList <*> mapM quoteDom contextTypes
       return $ Right quotedContext
 
+---------------------------------------------------------------------------
+-- * Projections
+---------------------------------------------------------------------------
+
 -- | Inferring the type of an overloaded projection application.
 --   See 'inferOrCheckProjApp'.
 
@@ -1748,36 +1752,29 @@ traceCallE call m = do
 --   This function can be used to check user-supplied parameters
 --   we have already computed by inference.
 --
---   The type @t@ of the head has enough domains.
+--   Precondition: The type @t@ of the head has enough domains.
 
 checkKnownArguments
-  :: [NamedArg A.Expr]
-  -> Args
-  -> Type
-  -> TCM (Args, Type)
+  :: [NamedArg A.Expr]  -- ^ User-supplied arguments (hidden ones may be missing).
+  -> Args               -- ^ Inferred arguments (including hidden ones).
+  -> Type               -- ^ Type of the head (must be Pi-type with enough domains).
+  -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArguments []           vs t = return (vs, t)
 checkKnownArguments (arg : args) vs t = do
   (vs', t') <- traceCall (SetRange $ getRange arg) $ checkKnownArgument arg vs t
   checkKnownArguments args vs' t'
 
 -- | Check an argument whose value we already know.
+
 checkKnownArgument
-  :: NamedArg A.Expr
-  -> Args
-  -> Type
-  -> TCM (Args, Type)
+  :: NamedArg A.Expr    -- ^ User-supplied argument.
+  -> Args               -- ^ Inferred arguments (including hidden ones).
+  -> Type               -- ^ Type of the head (must be Pi-type with enough domains).
+  -> TCM (Args, Type)   -- ^ Remaining inferred arguments, remaining type.
 checkKnownArgument arg [] _ = genericDocError =<< do
   text "Invalid projection parameter " <+> prettyA arg
 checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
   (Dom info' a, b) <- mustBePi t
-  -- Bollocks:
-  -- unless (info' == infov) $ do
-  --    reportSDoc "impossible" 10 $ vcat
-  --      [ text "parameter " <+> prettyTCM (Arg infov v)
-  --      , text "has type  " <+> prettyTCM (Dom info' a)
-  --      ]
-  --    __IMPOSSIBLE__
-
   -- Skip the arguments from vs that do not correspond to e
   if not (getHiding info == getHiding info'
           && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)))
@@ -1788,6 +1785,7 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
       u <- checkExpr (namedThing e) a
       equalTerm a u v
       return (vs, b `absApp` v)
+
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
