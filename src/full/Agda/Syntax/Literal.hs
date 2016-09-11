@@ -5,6 +5,9 @@ module Agda.Syntax.Literal where
 import Control.DeepSeq
 import Data.Char
 import Data.Typeable (Typeable)
+
+import Numeric.IEEE ( IEEE(identicalIEEE) )
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Abstract.Name
@@ -53,7 +56,10 @@ showChar' c
 
 instance Eq Literal where
   LitNat _ n    == LitNat _ m    = n == m
-  LitFloat _ x  == LitFloat _ y  = x == y
+  -- We use bitwise equality for comparing Double because
+  -- Haskell's Eq, which equates 0.0 and -0.0, allows to prove a
+  -- contradiction (see Issue #2169).
+  LitFloat _ x  == LitFloat _ y  = identicalIEEE x y
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
   LitQName _ x  == LitQName _ y  = x == y

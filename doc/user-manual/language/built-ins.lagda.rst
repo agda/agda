@@ -270,6 +270,7 @@ These are implemented by the corresponding Haskell functions with a few
 exceptions:
 
 - ``primFloatEquality NaN NaN`` returns ``true``.
+- ``primFloatEquality 0.0 -0.0`` returns ``false``.
 - ``primFloatLess`` sorts ``NaN`` below everything but negative infinity.
 - ``primShowFloat`` returns ``"0.0"`` on negative zero.
 
