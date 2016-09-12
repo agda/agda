@@ -163,7 +163,7 @@ newSortMetaCtx vs =
     return $ Type $ Max [Plus 0 $ MetaLevel x $ map Apply vs]
 
 newTypeMeta :: Sort -> TCM Type
-newTypeMeta s = El s <$> newValueMeta RunMetaOccursCheck (sort s)
+newTypeMeta s = El s . snd <$> newValueMeta RunMetaOccursCheck (sort s)
 
 newTypeMeta_ ::  TCM Type
 newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
@@ -176,15 +176,15 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 --   of type the output type of @t@ with name suggestion @s@.
 --   If @t@ is a function type, then insert enough
 --   lambdas in front of it.
-newIFSMeta :: MetaNameSuggestion -> Type -> TCM Term
+newIFSMeta :: MetaNameSuggestion -> Type -> TCM (MetaId, Term)
 newIFSMeta s t = do
   TelV tel t' <- telView t
   addContext tel $ do
     vs  <- getContextArgs
     ctx <- getContextTelescope
-    teleLam tel <$> newIFSMetaCtx s (telePi_ ctx t') vs
+    mapSnd (teleLam tel) <$> newIFSMetaCtx s (telePi_ ctx t') vs
 
-newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM Term
+newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> TCM (MetaId, Term)
 newIFSMetaCtx s t vs = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new ifs meta:"
@@ -200,35 +200,42 @@ newIFSMetaCtx s t vs = do
     ]
   addConstraint $ FindInScope x Nothing Nothing
   etaExpandMetaSafe x
-  return $ MetaV x $ map Apply vs
+  return (x, MetaV x $ map Apply vs)
 
--- | Create a new value meta with specific dependencies.
-newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM Term
+-- | Create a new value meta with specific dependencies, possibly η-expanding in the process.
+newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
 newNamedValueMeta b s t = do
-  v <- newValueMeta b t
-  setValueMetaName v s
-  return v
+  (x, v) <- newValueMeta b t
+  setMetaNameSuggestion x s
+  return (x, v)
+
+-- | Create a new value meta with specific dependencies without η-expanding.
+newNamedValueMeta' :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newNamedValueMeta' b s t = do
+  (x, v) <- newValueMeta' b t
+  setMetaNameSuggestion x s
+  return (x, v)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta :: RunMetaOccursCheck -> Type -> TCM Term
+newValueMeta :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
 newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx b t tel (idP $ size tel) vs
 
-newValueMetaCtx :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM Term
+newValueMetaCtx :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM (MetaId, Term)
 newValueMetaCtx b t tel perm ctx =
-  instantiateFull =<< newValueMetaCtx' b t tel perm ctx
+  mapSndM instantiateFull =<< newValueMetaCtx' b t tel perm ctx
 
 -- | Create a new value meta without η-expanding.
-newValueMeta' :: RunMetaOccursCheck -> Type -> TCM Term
+newValueMeta' :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
 newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx' b t tel (idP $ size tel) vs
 
 -- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM Term
+newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Telescope -> Permutation -> Args -> TCM (MetaId, Term)
 newValueMetaCtx' b a tel perm vs = do
   i <- createMetaInfo' b
   let t     = telePi_ tel a
@@ -242,7 +249,7 @@ newValueMetaCtx' b a tel perm vs = do
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
   u <- shared $ MetaV x $ map Apply vs
   boundedSizeMetaHook u tel a
-  return u
+  return (x, u)
 
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ typeDontCare)
@@ -269,7 +276,7 @@ newArgsMetaCtx' condition (El s tm) tel perm ctx = do
   tm <- reduce tm
   case ignoreSharing tm of
     Pi dom@(Dom info a) codom | condition dom codom -> do
-      u <- applyRelevanceToContext (getRelevance info) $
+      (_, u) <- applyRelevanceToContext (getRelevance info) $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
@@ -295,22 +302,24 @@ newRecordMetaCtx r pars tel perm ctx = do
   con    <- getRecordConstructor r
   return $ Con con fields
 
-newQuestionMark :: InteractionId -> Type -> TCM Term
-newQuestionMark ii t = do
+newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck
+
+newQuestionMark' :: (Type -> TCM (MetaId, Term)) -> InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark' new ii t = do
   -- Andreas, 2016-07-29, issue 1720-2
   -- This is slightly risky, as the same interaction id
   -- maybe be shared between different contexts.
   -- Blame goes to the record processing hack, see issue #424
   -- and @ConcreteToAbstract.recordConstructorType@.
-  let existing x = MetaV x . map Apply <$> getContextArgs
+  let existing x = (x,) . MetaV x . map Apply <$> getContextArgs
   flip (caseMaybeM $ lookupInteractionMeta ii) existing $ {-else-} do
 
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
-  m  <- newValueMeta' DontRunMetaOccursCheck t
-  MetaV x _ <- return $ ignoreSharing m   -- needs to be strict!
+  (x, m) <- new t
   connectInteractionPoint ii x
-  return m
+  return (x, m)
 
 -- | Construct a blocked constant if there are constraints.
 blockTerm :: Type -> TCM Term -> TCM Term
@@ -342,7 +351,7 @@ blockTermOnProblem t v pid =
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
         -- Andreas, 2015-05-22: DontRunMetaOccursCheck to avoid Issue585-17.
-        v   <- newValueMeta DontRunMetaOccursCheck t
+        (_, v) <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x es))
@@ -391,7 +400,7 @@ postponeTypeCheckingProblem p unblock = do
   -- to run the extended occurs check (metaOccurs) to exclude
   -- non-terminating solutions.
   es  <- map Apply <$> getContextArgs
-  v   <- newValueMeta DontRunMetaOccursCheck t
+  (_, v) <- newValueMeta DontRunMetaOccursCheck t
   cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m es))
   i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m

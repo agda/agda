@@ -24,37 +24,68 @@ import Agda.Utils.Impossible
 
 -- | @implicitArgs n expand eti t@ generates up to @n@ implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
---   and @expand@ holds on the hiding info of its domain. If @eti@ is
---   @ExplicitToInstance@, then explicit arguments are considered as instance
---   arguments.
+--   and @expand@ holds on the hiding info of its domain.
+--
+--   If explicit arguments are to be inserted as well, they are
+--   inserted as instance arguments (used for recursive instance search).
+
 implicitArgs :: Int -> (Hiding -> Bool) -> Type -> TCM (Args, Type)
 implicitArgs n expand t = mapFst (map (fmap namedThing)) <$> do
   implicitNamedArgs n (\ h x -> expand h) t
 
 -- | @implicitNamedArgs n expand eti t@ generates up to @n@ named implicit arguments
 --   metas (unbounded if @n<0@), as long as @t@ is a function type
---   and @expand@ holds on the hiding and name info of its domain. If @eti@ is
---   @ExplicitToInstance@, then explicit arguments are considered as instance
---   arguments.
+--   and @expand@ holds on the hiding and name info of its domain.
+--
+--   If explicit arguments are to be inserted as well, they are
+--   inserted as instance arguments (used for recursive instance search).
+
 implicitNamedArgs :: Int -> (Hiding -> ArgName -> Bool) -> Type -> TCM (NamedArgs, Type)
 implicitNamedArgs 0 expand t0 = return ([], t0)
 implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
       Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
-          when (getHiding info /= Hidden) $
+          info' <- if getHiding info == Hidden then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
-            text "inserting instance meta for type" <+> prettyTCM a
-          v  <- applyRelevanceToContext (getRelevance info) $
-                newMeta (getHiding info) (argNameToString x) a
+              text "inserting instance meta for type" <+> prettyTCM a
+            return $ setHiding Instance info
+          (_, v) <- newMetaArg info' x a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
+
+-- | Create a metavariable according to the 'Hiding' info.
+
+newMetaArg
+  :: ArgInfo   -- ^ Kind/relevance of meta.
+  -> ArgName   -- ^ Name suggestion for meta.
+  -> Type      -- ^ Type of meta.
+  -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
+newMetaArg info x a = do
+  applyRelevanceToContext (getRelevance info) $
+    newMeta (getHiding info) (argNameToString x) a
   where
-    newMeta :: Hiding -> String -> Type -> TCM Term
-    newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck
-    newMeta Instance = newIFSMeta
-    newMeta NotHidden = newIFSMeta
+    newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
+    newMeta Instance  = newIFSMeta
+    newMeta Hidden    = newNamedValueMeta RunMetaOccursCheck
+    newMeta NotHidden = newNamedValueMeta RunMetaOccursCheck
+
+-- | Create a questionmark according to the 'Hiding' info.
+
+newInteractionMetaArg
+  :: ArgInfo   -- ^ Kind/relevance of meta.
+  -> ArgName   -- ^ Name suggestion for meta.
+  -> Type      -- ^ Type of meta.
+  -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
+newInteractionMetaArg info x a = do
+  applyRelevanceToContext (getRelevance info) $
+    newMeta (getHiding info) (argNameToString x) a
+  where
+    newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
+    newMeta Instance  = newIFSMeta
+    newMeta Hidden    = newNamedValueMeta' DontRunMetaOccursCheck
+    newMeta NotHidden = newNamedValueMeta' DontRunMetaOccursCheck
 
 ---------------------------------------------------------------------------
 

@@ -181,7 +181,7 @@ getMetaNameSuggestion :: MetaId -> TCM MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
 setMetaNameSuggestion :: MetaId -> MetaNameSuggestion -> TCM ()
-setMetaNameSuggestion mi s = do
+setMetaNameSuggestion mi s = unless (null s || isUnderscore s) $ do
   reportSLn "tc.meta.name" 20 $
     "setting name of meta " ++ prettyShow mi ++ " to " ++ s
   updateMetaVar mi $ \ mvar ->

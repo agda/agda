@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [17] _12 = resurrect _ : ⊥
+  [17] _x_12 = resurrect _ : ⊥
   [0] _13 := λ .y → refl [blocked on problem 17]
 Unsolved metas at the following locations:
   Issue483.agda:17,7-8

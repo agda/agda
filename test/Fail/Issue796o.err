@@ -1,5 +1,5 @@
 Failed to solve the following constraints:
-  [13] A' =< [ _10 ] : Set
+  [13] A' =< [ _u_10 ] : Set
   [0] _11 := x [blocked on problem 13]
 Unsolved metas at the following locations:
   Issue796o.agda:27,9-10
