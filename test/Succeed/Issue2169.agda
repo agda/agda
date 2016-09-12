@@ -18,9 +18,8 @@ primEqNegZero = refl
 -- primLtNegZero : primFloatLess -0.0 0.0 ≡ true
 -- primLtNegZero = refl
 
--- TODO
--- primShowNegZero : primShowFloat -0.0 ≡ "-0.0"
--- primShowNegZero = refl
+primShowNegZero : primShowFloat -0.0 ≡ "-0.0"
+primShowNegZero = refl
 
 defNaN : NaN ≡ NaN
 defNaN = refl
