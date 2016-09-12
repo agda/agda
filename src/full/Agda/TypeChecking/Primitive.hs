@@ -688,7 +688,7 @@ primitiveFunctions = Map.fromList
   , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
   , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
   , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
-  , "primShowFloat"       |-> mkPrimFun1 (Str . floatShow :: Double -> Str)
+  , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
 
   -- Character functions
   , "primCharEquality"    |-> mkPrimFun2 ((==) :: Rel Char)
@@ -736,10 +736,6 @@ floatLt x y
   | otherwise  = x < y
   where
     isNegInf z = z < 0 && isInfinite z
-
-floatShow :: Double -> String
-floatShow x | isNegativeZero x = "0.0"
-            | otherwise        = show x
 
 lookupPrimitiveFunction :: String -> TCM PrimitiveImpl
 lookupPrimitiveFunction x =

@@ -272,7 +272,6 @@ exceptions:
 - ``primFloatEquality NaN NaN`` returns ``true``.
 - ``primFloatEquality 0.0 -0.0`` returns ``false``.
 - ``primFloatLess`` sorts ``NaN`` below everything but negative infinity.
-- ``primShowFloat`` returns ``"0.0"`` on negative zero.
 
 This is to allow decidable equality and proof carrying comparisons on floating
 point numbers.
