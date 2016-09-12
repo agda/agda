@@ -1,7 +1,7 @@
 Failed to solve the following constraints:
   [0] _10 := λ x → x [blocked on problem 15]
-  [15] _9 =< List _9 : Set
-  [0] Is not empty type of sizes: _9
+  [15] _A_9 =< List _A_9 : Set
+  [0] Is not empty type of sizes: _A_9
 Unsolved metas at the following locations:
   MetaOccursInItself.agda:18,9-10
   MetaOccursInItself.agda:18,18-19

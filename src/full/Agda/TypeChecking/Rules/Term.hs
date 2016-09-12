@@ -1912,7 +1912,7 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
           Pi (Dom info' a) b
             | getHiding info == getHiding info'
               && (notHidden info || maybe True ((absName b ==) . rangedThing) (nameOf e)) -> do
-                u <- lift $ applyRelevanceToContext (getRelevance info') $
+                u <- lift $ applyRelevanceToContext (getRelevance info') $ do
                  -- Andreas, 2014-05-30 experiment to check non-dependent arguments
                  -- after the spine has been processed.  Allows to propagate type info
                  -- from ascribed type into extended-lambdas.  Would solve issue 1159.
@@ -1926,7 +1926,8 @@ checkArguments exh r args0@(arg@(Arg info e) : args) t0 t1 =
                  -- Thus, the following naive use violates some invariant.
                  -- if not $ isBinderUsed b
                  -- then postponeTypeCheckingProblem (CheckExpr (namedThing e) a) (return True) else
-                  checkNamedArg arg a
+                  let e' = e { nameOf = maybe (Just $ unranged $ absName b) Just (nameOf e) }
+                  checkNamedArg (Arg info' e') a
                 -- save relevance info' from domain in argument
                 addCheckedArgs us (Arg info' u) $
                   checkArguments exh (fuseRange r e) args (absApp b u) t1
