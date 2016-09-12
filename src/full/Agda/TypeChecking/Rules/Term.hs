@@ -1322,7 +1322,7 @@ checkApplication hd args e t = do
     -- Subcase: unquote
     A.Unquote _
       | [arg] <- args -> do
-          hole <- newValueMeta RunMetaOccursCheck t
+          (_, hole) <- newValueMeta RunMetaOccursCheck t
           unquoteM (namedArg arg) hole t $ return hole
       | arg : args <- args -> do
           -- Example: unquote v a b : A
@@ -1337,7 +1337,7 @@ checkApplication hd args e t = do
                                                     -- a b : (x : X) (y : Y x)
           let rho = reverse (map unArg vs) ++# IdS  -- [x := a, y := b]
           equalType (applySubst rho target) t       -- Z a b == A
-          hole <- newValueMeta RunMetaOccursCheck holeType
+          (_, hole) <- newValueMeta RunMetaOccursCheck holeType
           unquoteM (namedArg arg) hole holeType $ return $ apply hole vs
       where
         metaTel :: [Arg a] -> TCM Telescope
@@ -1374,26 +1374,26 @@ checkUnderscore :: A.MetaInfo -> Type -> TCM Term
 checkUnderscore i t0 = checkMeta (newValueMeta RunMetaOccursCheck) t0 i
 
 -- | Type check a meta variable.
-checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
+checkMeta :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> TCM Term
 checkMeta newMeta t i = fst <$> checkOrInferMeta newMeta (Just t) i
 
 -- | Infer the type of a meta variable.
 --   If it is a new one, we create a new meta for its type.
-inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
+inferMeta :: (Type -> TCM (MetaId, Term)) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i = mapFst apply <$> checkOrInferMeta newMeta Nothing i
 
 -- | Type check a meta variable.
 --   If its type is not given, we return its type, or a fresh one, if it is a new meta.
 --   If its type is given, we check that the meta has this type, and we return the same
 --   type.
-checkOrInferMeta :: (Type -> TCM Term) -> Maybe Type -> A.MetaInfo -> TCM (Term, Type)
+checkOrInferMeta :: (Type -> TCM (MetaId, Term)) -> Maybe Type -> A.MetaInfo -> TCM (Term, Type)
 checkOrInferMeta newMeta mt i = do
   case A.metaNumber i of
     Nothing -> do
       setScope (A.metaScope i)
       t <- maybe (workOnTypes $ newTypeMeta_) return mt
-      v <- newMeta t
-      setValueMetaName v (A.metaNameSuggestion i)
+      (x, v) <- newMeta t
+      setMetaNameSuggestion x (A.metaNameSuggestion i)
       return (v, t)
     -- Rechecking an existing metavariable
     Just x -> do
@@ -1686,9 +1686,9 @@ checkHeadApplication e t hd args = do
       -- postpone checking of patterns when we don't know their types (Issue480).
       forcedType <- do
         lvl <- levelType
-        l   <- newValueMeta RunMetaOccursCheck lvl
+        (_, l) <- newValueMeta RunMetaOccursCheck lvl
         lv  <- levelView l
-        a   <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
+        (_, a) <- newValueMeta RunMetaOccursCheck (sort $ Type lv)
         return $ El (Type lv) $ Def inf [Apply $ setHiding Hidden $ defaultArg l, Apply $ defaultArg a]
 
       wrapper <- inFreshModuleIfFreeParams $ do

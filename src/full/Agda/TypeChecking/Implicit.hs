@@ -49,7 +49,7 @@ implicitNamedArgs n expand t0 = do
           when (getHiding info /= Hidden) $
             reportSDoc "tc.term.args.ifs" 15 $
             text "inserting instance meta for type" <+> prettyTCM a
-          v  <- newMetaArg info x a
+          (_, v) <- newMetaArg info x a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
@@ -61,12 +61,12 @@ newMetaArg
   :: ArgInfo   -- ^ Kind/relevance of meta.
   -> ArgName   -- ^ Name suggestion for meta.
   -> Type      -- ^ Type of meta.
-  -> TCM Term  -- ^ The created meta as term.
+  -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
 newMetaArg info x a = do
   applyRelevanceToContext (getRelevance info) $
     newMeta (getHiding info) (argNameToString x) a
   where
-    newMeta :: Hiding -> String -> Type -> TCM Term
+    newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
     newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck
     newMeta Instance = newIFSMeta
     newMeta NotHidden = newIFSMeta
