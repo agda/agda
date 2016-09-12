@@ -829,8 +829,8 @@ checkExpr e t0 =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-        A.QuestionMark i ii -> checkQuestionMark i ii t0
-        A.Underscore i -> checkUnderscore i t0
+        A.QuestionMark i ii -> checkQuestionMark (newValueMeta' DontRunMetaOccursCheck) t0 i ii
+        A.Underscore i -> checkUnderscore t0 i
 
         A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -1355,8 +1355,8 @@ checkApplication hd args e t = do
 ---------------------------------------------------------------------------
 
 -- | Check an interaction point without arguments.
-checkQuestionMark :: A.MetaInfo -> InteractionId -> Type -> TCM Term
-checkQuestionMark i ii t0 = do
+checkQuestionMark :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> InteractionId -> TCM Term
+checkQuestionMark new t0 i ii = do
   reportSDoc "tc.interaction" 20 $ sep
     [ text "Found interaction point"
     , text (show ii)
@@ -1367,11 +1367,11 @@ checkQuestionMark i ii t0 = do
     [ text "Raw:"
     , text (show t0)
     ]
-  checkMeta (newQuestionMark ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
+  checkMeta (newQuestionMark' new ii) t0 i -- Andreas, 2013-05-22 use unreduced type t0!
 
 -- | Check an underscore without arguments.
-checkUnderscore :: A.MetaInfo -> Type -> TCM Term
-checkUnderscore i t0 = checkMeta (newValueMeta RunMetaOccursCheck) t0 i
+checkUnderscore :: Type -> A.MetaInfo -> TCM Term
+checkUnderscore = checkMeta (newValueMeta RunMetaOccursCheck)
 
 -- | Type check a meta variable.
 checkMeta :: (Type -> TCM (MetaId, Term)) -> Type -> A.MetaInfo -> TCM Term
@@ -1805,7 +1805,33 @@ checkKnownArgument arg@(Arg info e) (Arg _infov v : vs) t = do
 -- | Check a single argument.
 
 checkNamedArg :: NamedArg A.Expr -> Type -> TCM Term
-checkNamedArg (Arg info e) a = checkExpr (namedThing e) a
+checkNamedArg arg@(Arg info e0) t0 = do
+  let e = namedThing e0
+  let x = maybe "" rangedThing $ nameOf e0
+  traceCall (CheckExprCall e t0) $ do
+    reportSDoc "tc.term.args.named" 15 $ do
+        text "Checking named arg" <+> sep
+          [ fsep [ prettyTCM arg, text ":", prettyTCM t0 ]
+          ]
+    reportSLn "tc.term.args.named" 75 $ "  arg = " ++ show arg
+    let checkU = checkMeta (newMetaArg info x) t0
+    let checkQ = checkQuestionMark (newInteractionMetaArg info x) t0
+    if not $ isHole e then checkExpr e t0 else localScope $ do
+      -- Note: we need localScope here,
+      -- as scopedExpr manipulates the scope in the state.
+      -- However, we may not pull localScope over checkExpr!
+      -- This is why we first test for isHole, and only do
+      -- scope manipulations if we actually handle the checking
+      -- of e here (and not pass it to checkExpr).
+      scopedExpr e >>= \case
+        A.Underscore i ->  checkU i
+        A.QuestionMark i ii -> checkQ i ii
+        _ -> __IMPOSSIBLE__
+  where
+  isHole A.Underscore{} = True
+  isHole A.QuestionMark{} = True
+  isHole (A.ScopedExpr _ e) = isHole e
+  isHole _ = False
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to

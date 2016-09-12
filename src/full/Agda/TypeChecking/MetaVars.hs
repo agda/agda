@@ -209,6 +209,13 @@ newNamedValueMeta b s t = do
   setMetaNameSuggestion x s
   return (x, v)
 
+-- | Create a new value meta with specific dependencies without η-expanding.
+newNamedValueMeta' :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM (MetaId, Term)
+newNamedValueMeta' b s t = do
+  (x, v) <- newValueMeta' b t
+  setMetaNameSuggestion x s
+  return (x, v)
+
 -- | Create a new metavariable, possibly η-expanding in the process.
 newValueMeta :: RunMetaOccursCheck -> Type -> TCM (MetaId, Term)
 newValueMeta b t = do
@@ -296,7 +303,10 @@ newRecordMetaCtx r pars tel perm ctx = do
   return $ Con con fields
 
 newQuestionMark :: InteractionId -> Type -> TCM (MetaId, Term)
-newQuestionMark ii t = do
+newQuestionMark = newQuestionMark' $ newValueMeta' DontRunMetaOccursCheck
+
+newQuestionMark' :: (Type -> TCM (MetaId, Term)) -> InteractionId -> Type -> TCM (MetaId, Term)
+newQuestionMark' new ii t = do
   -- Andreas, 2016-07-29, issue 1720-2
   -- This is slightly risky, as the same interaction id
   -- maybe be shared between different contexts.
@@ -307,7 +317,7 @@ newQuestionMark ii t = do
 
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
-  (x, m) <- newValueMeta' DontRunMetaOccursCheck t
+  (x, m) <- new t
   connectInteractionPoint ii x
   return (x, m)
 

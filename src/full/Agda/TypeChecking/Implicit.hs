@@ -46,16 +46,16 @@ implicitNamedArgs n expand t0 = do
     t0' <- reduce t0
     case ignoreSharing $ unEl t0' of
       Pi (Dom info a) b | let x = absName b, expand (getHiding info) x -> do
-          when (getHiding info /= Hidden) $
+          info' <- if getHiding info == Hidden then return info else do
             reportSDoc "tc.term.args.ifs" 15 $
-            text "inserting instance meta for type" <+> prettyTCM a
-          (_, v) <- newMetaArg info x a
+              text "inserting instance meta for type" <+> prettyTCM a
+            return $ setHiding Instance info
+          (_, v) <- newMetaArg info' x a
           let narg = Arg info (Named (Just $ unranged x) v)
           mapFst (narg :) <$> implicitNamedArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
 
 -- | Create a metavariable according to the 'Hiding' info.
---   Visible metas are created instance metas.
 
 newMetaArg
   :: ArgInfo   -- ^ Kind/relevance of meta.
@@ -67,9 +67,25 @@ newMetaArg info x a = do
     newMeta (getHiding info) (argNameToString x) a
   where
     newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
-    newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck
-    newMeta Instance = newIFSMeta
-    newMeta NotHidden = newIFSMeta
+    newMeta Instance  = newIFSMeta
+    newMeta Hidden    = newNamedValueMeta RunMetaOccursCheck
+    newMeta NotHidden = newNamedValueMeta RunMetaOccursCheck
+
+-- | Create a questionmark according to the 'Hiding' info.
+
+newInteractionMetaArg
+  :: ArgInfo   -- ^ Kind/relevance of meta.
+  -> ArgName   -- ^ Name suggestion for meta.
+  -> Type      -- ^ Type of meta.
+  -> TCM (MetaId, Term)  -- ^ The created meta as id and as term.
+newInteractionMetaArg info x a = do
+  applyRelevanceToContext (getRelevance info) $
+    newMeta (getHiding info) (argNameToString x) a
+  where
+    newMeta :: Hiding -> String -> Type -> TCM (MetaId, Term)
+    newMeta Instance  = newIFSMeta
+    newMeta Hidden    = newNamedValueMeta' DontRunMetaOccursCheck
+    newMeta NotHidden = newNamedValueMeta' DontRunMetaOccursCheck
 
 ---------------------------------------------------------------------------
 
