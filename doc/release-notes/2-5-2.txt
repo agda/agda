@@ -479,6 +479,12 @@ Reflection
   the term "def (quote some-tactic) []" represents a call to the macro. This
   makes it a lot easier to compose tactics.
 
+* Added new TC primitive: isMacro [Issue #2182]
+
+    isMacro : Name → TC Bool
+
+  Returns true if the name refers to a macro, otherwise false.
+
 Type checking
 =============
 

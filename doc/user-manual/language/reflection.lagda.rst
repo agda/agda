@@ -352,6 +352,9 @@ following primitive operations::
     -- Get the definition of a defined name. Replaces 'primNameDefinition'.
     getDefinition : Name → TC Definition
 
+    -- Check if a name refers to a macro
+    isMacro : Name → TC Bool
+
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
@@ -370,6 +373,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMGETTYPE            getType            #-}
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
   {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
+  {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
 
 Metaprogramming
 ---------------

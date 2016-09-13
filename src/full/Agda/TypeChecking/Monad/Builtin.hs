@@ -135,7 +135,7 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaTCMFreshName, primAgdaTCMDeclareDef, primAgdaTCMDefineFun,
     primAgdaTCMGetType, primAgdaTCMGetDefinition,
     primAgdaTCMQuoteTerm, primAgdaTCMUnquoteTerm,
-    primAgdaTCMBlockOnMeta, primAgdaTCMCommit
+    primAgdaTCMBlockOnMeta, primAgdaTCMCommit, primAgdaTCMIsMacro
     :: TCM Term
 
 primInteger      = getBuiltin builtinInteger
@@ -261,6 +261,7 @@ primAgdaTCMQuoteTerm          = getBuiltin builtinAgdaTCMQuoteTerm
 primAgdaTCMUnquoteTerm        = getBuiltin builtinAgdaTCMUnquoteTerm
 primAgdaTCMBlockOnMeta        = getBuiltin builtinAgdaTCMBlockOnMeta
 primAgdaTCMCommit             = getBuiltin builtinAgdaTCMCommit
+primAgdaTCMIsMacro            = getBuiltin builtinAgdaTCMIsMacro
 
 builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinNatTimes, builtinNatDivSucAux, builtinNatModSucAux, builtinNatEquals,
@@ -301,7 +302,7 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaTCMFreshName, builtinAgdaTCMDeclareDef, builtinAgdaTCMDefineFun,
   builtinAgdaTCMGetType, builtinAgdaTCMGetDefinition,
   builtinAgdaTCMQuoteTerm, builtinAgdaTCMUnquoteTerm,
-  builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit
+  builtinAgdaTCMBlockOnMeta, builtinAgdaTCMCommit, builtinAgdaTCMIsMacro
   :: String
 
 builtinNat                           = "NATURAL"
@@ -427,6 +428,7 @@ builtinAgdaTCMBlockOnMeta   = "AGDATCMBLOCKONMETA"
 builtinAgdaTCMCommit        = "AGDATCMCOMMIT"
 builtinAgdaTCMQuoteTerm     = "AGDATCMQUOTETERM"
 builtinAgdaTCMUnquoteTerm   = "AGDATCMUNQUOTETERM"
+builtinAgdaTCMIsMacro       = "AGDATCMISMACRO"
 
 -- | Builtins that come without a definition in Agda syntax.
 --   These are giving names to Agda internal concepts which
