@@ -208,6 +208,7 @@ postulate
   getDefinition : Name → TC Definition
   blockOnMeta   : ∀ {a} {A : Set a} → Meta → TC A
   commitTC      : TC ⊤
+  isMacro       : Name → TC Bool
 
 {-# BUILTIN AGDATCM              TC            #-}
 {-# BUILTIN AGDATCMRETURN        returnTC      #-}
@@ -230,3 +231,4 @@ postulate
 {-# BUILTIN AGDATCMGETDEFINITION getDefinition #-}
 {-# BUILTIN AGDATCMBLOCKONMETA   blockOnMeta   #-}
 {-# BUILTIN AGDATCMCOMMIT        commitTC      #-}
+{-# BUILTIN AGDATCMISMACRO       isMacro       #-}

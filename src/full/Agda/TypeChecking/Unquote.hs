@@ -480,6 +480,7 @@ evalTCM v = do
              , (f `isDef` primAgdaTCMNormalise,          tcFun1 tcNormalise          u)
              , (f `isDef` primAgdaTCMGetType,            tcFun1 tcGetType            u)
              , (f `isDef` primAgdaTCMGetDefinition,      tcFun1 tcGetDefinition      u)
+             , (f `isDef` primAgdaTCMIsMacro,            tcFun1 tcIsMacro            u)
              , (f `isDef` primAgdaTCMFreshName,          tcFun1 tcFreshName          u) ]
              failEval
     I.Def f [u, v] ->
@@ -620,6 +621,14 @@ evalTCM v = do
 
     tcGetType :: QName -> TCM Term
     tcGetType x = quoteType . defType =<< constInfo x
+
+    tcIsMacro :: QName -> TCM Term
+    tcIsMacro x = do
+      true  <- primTrue
+      false <- primFalse
+      let qBool True  = true
+          qBool False = false
+      qBool . isMacro . theDef <$> constInfo x
 
     tcGetDefinition :: QName -> TCM Term
     tcGetDefinition x = quoteDefn =<< constInfo x

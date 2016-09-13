@@ -298,6 +298,10 @@ following primitive operations::
     -- metavariable is solved.
     blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
+    -- Prevent current solutions of metavariables from being rolled back in
+    -- case 'blockOnMeta' is called.
+    commitTC : TC ⊤
+
     -- Backtrack and try the second argument if the first argument throws a
     -- type error.
     catchTC : ∀ {a} {A : Set a} → TC A → TC A → TC A
@@ -348,6 +352,9 @@ following primitive operations::
     -- Get the definition of a defined name. Replaces 'primNameDefinition'.
     getDefinition : Name → TC Definition
 
+    -- Check if a name refers to a macro
+    isMacro : Name → TC Bool
+
   {-# BUILTIN AGDATCMUNIFY              unify              #-}
   {-# BUILTIN AGDATCMTYPEERROR          typeError          #-}
   {-# BUILTIN AGDATCMBLOCKONMETA        blockOnMeta        #-}
@@ -365,6 +372,8 @@ following primitive operations::
   {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
   {-# BUILTIN AGDATCMGETTYPE            getType            #-}
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
+  {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
+  {-# BUILTIN AGDATCMISMACRO            isMacro            #-}
 
 Metaprogramming
 ---------------
