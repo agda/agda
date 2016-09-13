@@ -298,6 +298,10 @@ following primitive operations::
     -- metavariable is solved.
     blockOnMeta : ∀ {a} {A : Set a} → Meta → TC A
 
+    -- Prevent current solutions of metavariables from being rolled back in
+    -- case 'blockOnMeta' is called.
+    commitTC : TC ⊤
+
     -- Backtrack and try the second argument if the first argument throws a
     -- type error.
     catchTC : ∀ {a} {A : Set a} → TC A → TC A → TC A
@@ -365,6 +369,7 @@ following primitive operations::
   {-# BUILTIN AGDATCMDEFINEFUN          defineFun          #-}
   {-# BUILTIN AGDATCMGETTYPE            getType            #-}
   {-# BUILTIN AGDATCMGETDEFINITION      getDefinition      #-}
+  {-# BUILTIN AGDATCMCOMMIT             commitTC           #-}
 
 Metaprogramming
 ---------------
