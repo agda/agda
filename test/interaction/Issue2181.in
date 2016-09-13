@@ -1,0 +1,9 @@
+top_command (cmd_load currentFile [])
+
+goal_command 0 cmd_make_case "q"
+
+-- This should fail (not a splittable var)
+goal_command 1 cmd_make_case "xs"
+
+goal_command 1 cmd_make_case "zs"
+

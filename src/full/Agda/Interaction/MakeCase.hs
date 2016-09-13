@@ -84,16 +84,19 @@ parseVariables f ii rng ss = do
        , text $ "function's fvs  = " ++ show fv
        ]
 
-    -- Get number of free variables.  These cannot be split on.
-    fv <- getDefFreeVars f
-    let numSplittableVars = n - fv
+    -- Compute which variables correspond to module parameters. These cannot be split on.
+    -- Note: these are not necessarily the outer-most bound variables, since
+    -- module parameter refinement may have instantiated them, or
+    -- with-abstraction might have reshuffled the variables (#2181).
+    pars <- freeVarsToApply f
+    let nonSplittableVars = [ i | Var i [] <- map unArg pars ]
 
     -- Resolve each string to a variable.
     forM ss $ \ s -> do
       let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
           done i
-            | i < numSplittableVars = return i
-            | otherwise             = failNotVar
+            | notElem i nonSplittableVars = return i
+            | otherwise                   = failNotVar
 
       -- Note: the range in the concrete name is only approximate.
       resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
