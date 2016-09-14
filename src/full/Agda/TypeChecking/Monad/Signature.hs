@@ -243,11 +243,13 @@ addDisplayForms x = do
             then noDispForm x "not a copy" else do
           if not $ all (isVar . namedArg) $ namedClausePats cl
             then noDispForm x "properly matching patterns" else do
-          let n   = size $ namedClausePats cl
-              m   = n - size es0
-              vs0 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es0
-              sub = parallelS $ reverse $ vs0 ++ replicate m (var 0)
-          case unSpine <$> applySubst sub (compiledClauseBody cl) of
+          let n          = size $ namedClausePats cl
+              (es1, es2) = splitAt n es0
+              m          = n - size es1
+              vs1 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
+              sub = parallelS $ reverse $ vs1 ++ replicate m (var 0)
+              body = applySubst sub (compiledClauseBody cl) `applyE` es2
+          case unSpine <$> body of
             Just (Def y es) -> do
               let df = Display m es $ DTerm $ Def top $ map Apply args
               reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
