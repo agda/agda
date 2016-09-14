@@ -8,6 +8,8 @@ import Data.List as L
 import Data.Map as M
 import qualified Language.Haskell.Exts.Syntax as HS
 
+import Numeric.IEEE ( IEEE(identicalIEEE) )
+
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
 import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (closedTerm)
@@ -90,17 +92,18 @@ importsForPrim =
   fmap (++ [HS.ModuleName "Data.Text"]) $
   xForPrim $
   L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
-  [ "CHAR"           |-> ["Data.Char"]
-  , "primIsAlpha"    |-> ["Data.Char"]
-  , "primIsAscii"    |-> ["Data.Char"]
-  , "primIsDigit"    |-> ["Data.Char"]
-  , "primIsHexDigit" |-> ["Data.Char"]
-  , "primIsLatin1"   |-> ["Data.Char"]
-  , "primIsLower"    |-> ["Data.Char"]
-  , "primIsPrint"    |-> ["Data.Char"]
-  , "primIsSpace"    |-> ["Data.Char"]
-  , "primToLower"    |-> ["Data.Char"]
-  , "primToUpper"    |-> ["Data.Char"]
+  [ "CHAR"              |-> ["Data.Char"]
+  , "primFloatEquality" |-> ["Numeric.IEEE"]
+  , "primIsAlpha"       |-> ["Data.Char"]
+  , "primIsAscii"       |-> ["Data.Char"]
+  , "primIsDigit"       |-> ["Data.Char"]
+  , "primIsHexDigit"    |-> ["Data.Char"]
+  , "primIsLatin1"      |-> ["Data.Char"]
+  , "primIsLower"       |-> ["Data.Char"]
+  , "primIsPrint"       |-> ["Data.Char"]
+  , "primIsSpace"       |-> ["Data.Char"]
+  , "primToLower"       |-> ["Data.Char"]
+  , "primToUpper"       |-> ["Data.Char"]
   ]
   where (|->) = (,)
 
@@ -157,7 +160,10 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primFloatMinus"        |-> return "((-) :: Double -> Double -> Double)"
   , "primFloatTimes"        |-> return "((*) :: Double -> Double -> Double)"
   , "primFloatDiv"          |-> return "((/) :: Double -> Double -> Double)"
-  , "primFloatEquality"     |-> return "((\\ x y -> if isNaN x && isNaN y then True else x == y) :: Double -> Double -> Bool)"
+  -- ASR (2016-09-14). We use bitwise equality for comparing Double
+  -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
+  -- a contradiction (see Issue #2169).
+  , "primFloatEquality"     |-> return "(Numeric.IEEE.identicalIEEE :: Double -> Double -> Bool)"
   , "primFloatLess"         |-> return (unwords
                                   [ "((\\ x y ->"
                                   , "let isNegInf z = z < 0 && isInfinite z in"
