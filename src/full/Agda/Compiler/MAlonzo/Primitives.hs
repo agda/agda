@@ -201,6 +201,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName"
   , "primQNameLess"       |-> rel "(<)" "MAlonzo.RTE.QName"
   , "primShowQName"       |-> return "Data.Text.pack . MAlonzo.RTE.qnameString"
+  , "primQNameFixity"     |-> return "MAlonzo.RTE.qnameFixity"
   , "primMetaEquality"    |-> rel "(==)" "Integer"
   , "primMetaLess"        |-> rel "(<)" "Integer"
   , "primShowMeta"        |-> return "\\ x -> Data.Text.pack (\"_\" ++ show (x :: Integer))"

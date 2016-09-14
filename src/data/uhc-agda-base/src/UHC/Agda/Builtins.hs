@@ -80,6 +80,7 @@ module UHC.Agda.Builtins
   , primQNameEquality
   , primQNameLess
   , primShowQName
+  , primQNameFixity
   , primMetaEquality
   , primMetaLess
   , primShowMeta
@@ -390,6 +391,9 @@ primQNameLess = (<)
 
 primShowQName :: QName -> String
 primShowQName = qnameString
+
+primQNameFixity :: QName -> a
+primQNameFixity = error "TODO: primQNameFixity"
 
 type Meta = Integer
 

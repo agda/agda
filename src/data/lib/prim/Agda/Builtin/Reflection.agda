@@ -47,6 +47,10 @@ data Fixity : Set where
 {-# BUILTIN FIXITY       Fixity #-}
 {-# BUILTIN FIXITYFIXITY fixity #-}
 
+{-# COMPILED_DATA Associativity MAlonzo.RTE.Assoc MAlonzo.RTE.LeftAssoc MAlonzo.RTE.RightAssoc MAlonzo.RTE.NonAssoc #-}
+{-# COMPILED_DATA Precedence MAlonzo.RTE.Precedence MAlonzo.RTE.Related MAlonzo.RTE.Unrelated #-}
+{-# COMPILED_DATA Fixity MAlonzo.RTE.Fixity MAlonzo.RTE.Fixity #-}
+
 primitive
   primQNameFixity : Name → Fixity
 
