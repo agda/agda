@@ -307,7 +307,6 @@ primToLower     = C.toLower
 
 primShowFloat :: Double -> String
 primShowFloat x
-  | isNegativeZero x = "0.0"
   | isNaN x          = "NaN"
   | isInfinite x     = if x < 0 then "-Infinity" else "Infinity"
   | otherwise        = reverse . dropZeroes . reverse $ show x
