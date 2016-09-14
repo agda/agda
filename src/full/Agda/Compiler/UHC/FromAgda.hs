@@ -36,7 +36,6 @@ import qualified Agda.Utils.Pretty as P
 import qualified Agda.Utils.HashMap as HMap
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
-import Agda.Syntax.Fixity
 
 import Agda.Compiler.Common
 import Agda.Compiler.ToTreeless
@@ -344,16 +343,8 @@ litToCore (LitChar _ c)  = mkChar c
 litToCore (LitFloat _ f) = mkApp (mkVar $ primFunNm "primMkFloat") [mkString opts (show f)]
 litToCore (LitQName _ q) = mkApp (mkVar $ primFunNm "primMkQName")
                              [mkInteger opts $ fromIntegral n, mkInteger opts $ fromIntegral m,
-                              mkString opts $ P.prettyShow q,
-                              mkAssoc $ fixityAssoc fx,
-                              mkPrec $ fixityLevel fx]
+                              mkString opts $ P.prettyShow q]
   where NameId n m = nameId $ qnameName q
-        fx = theFixity $ nameFixity $ qnameName q
-        mkAssoc NonAssoc   = mkVar $ primFunNm "NonAssoc"
-        mkAssoc LeftAssoc  = mkVar $ primFunNm "LeftAssoc"
-        mkAssoc RightAssoc = mkVar $ primFunNm "RightAssoc"
-        mkPrec Unrelated = mkVar $ primFunNm "Unrelated"
-        mkPrec (Related n) = mkVar (primFunNm "Related") `mkApp` [mkInteger opts n]
 litToCore LitMeta{} = __IMPOSSIBLE__
 
 getCTagArity :: CTag -> Int
