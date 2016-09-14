@@ -1,8 +1,8 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > infixr 5 Agda.Builtin.List.List._∷_
-out > infixl -1729 Issue1664._to_
-out > infix 4 Agda.Builtin.Equality._≡_
-out > (no fixity) Agda.Builtin.List.List
+out > infixr 5
+out > infixl -1729
+out > infix 4
+out > (no fixity)
 out >

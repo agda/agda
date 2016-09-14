@@ -81,8 +81,9 @@ disabledTests =
     -- Disable UHC backend tests if the backend is also disabled.
   , RFInclude "Compiler/UHC/"
 #endif
-    -- primQNameFixity not yet implemented for UHC and JS
+    -- primQNameFixity not quite working for UHC
   , RFInclude "Compiler/UHC/simple/Issue1664"
+    -- primQNameFixity not yet implemented for JS
   , RFInclude "Compiler/JS/simple/Issue1664"
 
   , RFInclude "Compiler/JS/simple/Coind"

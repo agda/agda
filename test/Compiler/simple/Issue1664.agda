@@ -31,7 +31,7 @@ showFixity (fixity a unrelated)   = "(no fixity)"
 showFixity (fixity a (related p)) = showAssoc a +S+ " " +S+ intToString p
 
 showFix : Name → String
-showFix x = showFixity (getFixity x) +S+ " " +S+ primShowQName x
+showFix x = showFixity (getFixity x)
 
 main : IO Unit
 main = putStrLn (showFix (quote _∷_))  >>= λ _ →
