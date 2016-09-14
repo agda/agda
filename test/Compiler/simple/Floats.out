@@ -2,6 +2,7 @@ EXECUTED_PROGRAM
 
 ret > ExitSuccess
 out > 123.0 = 123.0
+out > -42.0 = -42.0
 out > NaN   = NaN
 out > Inf   = Infinity
 out > -Inf  = -Infinity
