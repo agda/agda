@@ -122,7 +122,8 @@ There are three ways a library gets used:
   also added to the path.
 
   To disable default libraries, you can give the flag
-  ``--no-default-libraries``.
+  ``--no-default-libraries``. To disable using libraries altogether, use the
+  ``--no-libraries`` flag.
 
 Version numbers
 ---------------

@@ -71,6 +71,13 @@ Installation and infrastructure
   This option ran the internal test-suite. This test-suite was
   implemented using Cabal supports for test-suites. [Issue #2083].
 
+* The `--no-default-libraries` flag has been split into two flags [Issue #1937]
+
+  - `--no-default-libraries`: Ignore the defaults file but still look for local
+    `.agda-lib` files
+  - `--no-libraries`: Don't use any `.agda-lib` files (the previous behaviour
+    of `--no-default-libraries`).
+
 Language
 ========
 

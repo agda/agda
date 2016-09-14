@@ -90,7 +90,9 @@ data CommandLineOptions = Options
   , optOverrideLibrariesFile :: Maybe FilePath
   -- ^ Use this (if Just) instead of .agda/libraries
   , optDefaultLibs      :: Bool
-  -- ^ Use ~/.agda/defaults or look for .agda-lib file.
+  -- ^ Use ~/.agda/defaults
+  , optUseLibs          :: Bool
+  -- ^ look for .agda-lib files
   , optShowVersion      :: Bool
   , optShowHelp         :: Bool
   , optInteractive      :: Bool
@@ -186,6 +188,7 @@ defaultOptions = Options
   , optLibraries        = []
   , optOverrideLibrariesFile = Nothing
   , optDefaultLibs      = True
+  , optUseLibs          = True
   , optShowVersion      = False
   , optShowHelp         = False
   , optInteractive      = False
@@ -527,6 +530,9 @@ overrideLibrariesFileFlag s o = do
 noDefaultLibsFlag :: Flag CommandLineOptions
 noDefaultLibsFlag o = return $ o { optDefaultLibs = False }
 
+noLibsFlag :: Flag CommandLineOptions
+noLibsFlag o = return $ o { optUseLibs = False }
+
 verboseFlag :: String -> Flag PragmaOptions
 verboseFlag s o =
     do  (k,n) <- parseVerbose s
@@ -612,6 +618,8 @@ standardOptions =
                     "use library LIB"
     , Option []     ["library-file"] (ReqArg overrideLibrariesFileFlag "FILE")
                     "use FILE instead of the standard libraries file"
+    , Option []     ["no-libraries"] (NoArg noLibsFlag)
+                    "don't use any library files"
     , Option []     ["no-default-libraries"] (NoArg noDefaultLibsFlag)
                     "don't use default libraries"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
