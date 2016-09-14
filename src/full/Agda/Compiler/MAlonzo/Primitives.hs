@@ -172,7 +172,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
-  , "primShowFloat"         |-> return "(Data.Text.pack . (\\ x -> if isNegativeZero x then \"0.0\" else show x) :: Double -> Data.Text.Text)"
+  , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
 
   -- Character functions
   , "primCharEquality"   |-> rel "(==)" "Char"

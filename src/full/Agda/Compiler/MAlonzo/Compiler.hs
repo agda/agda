@@ -501,12 +501,19 @@ alt sc a = do
 literal :: Literal -> TCM HS.Exp
 literal l = case l of
   LitNat    _ _   -> return $ typed "Integer"
-  LitFloat  _ _   -> return $ typed "Double"
+  LitFloat  _ x   -> return $ floatExp x "Double"
   LitQName  _ x   -> return $ litqname x
   LitString _ s   -> return $ litString s
   _               -> return $ l'
-  where l'    = HS.Lit $ hslit l
-        typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
+  where
+    l'    = HS.Lit $ hslit l
+    typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
+
+    -- ASR (2016-09-14): See Issue #2169.
+    floatExp :: Double -> String -> HS.Exp
+    floatExp x s = if isNegativeZero x
+                   then HS.NegApp $ typed s
+                   else typed s
 
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitNat    _ x -> HS.Int    x
