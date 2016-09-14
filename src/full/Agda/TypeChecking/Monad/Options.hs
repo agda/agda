@@ -106,6 +106,7 @@ setLibraryIncludes o = do
 addDefaultLibraries :: RelativeTo -> CommandLineOptions -> TCM CommandLineOptions
 addDefaultLibraries rel o
   | or [ not $ null $ optLibraries o
+       , not $ optUseLibs o
        , optShowVersion o ] = pure o
   | otherwise = do
   root <- getProjectRoot rel
