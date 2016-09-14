@@ -514,8 +514,8 @@ instance Pretty a => Pretty (Arg a) where
                | otherwise                 = 0
 
 instance Pretty e => Pretty (Named_ e) where
-    pretty (Named Nothing e) = pretty e
-    pretty (Named (Just s) e) = sep [ text (rawNameToString $ rangedThing s) <+> text "=", pretty e ]
+    prettyPrec p (Named Nothing e) = prettyPrec p e
+    prettyPrec p (Named (Just s) e) = mparens (p > 0) $ sep [ text (rawNameToString $ rangedThing s) <+> text "=", pretty e ]
 
 instance Pretty [Pattern] where
     pretty = fsep . map pretty
