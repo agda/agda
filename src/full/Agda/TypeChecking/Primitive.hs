@@ -28,6 +28,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic (TermLike(..))
 import Agda.Syntax.Literal
 import Agda.Syntax.Concrete.Pretty ()
+import Agda.Syntax.Fixity
 
 import Agda.TypeChecking.Monad hiding (getConstInfo, typeOfConst)
 import qualified Agda.TypeChecking.Monad as TCM
@@ -103,6 +104,8 @@ instance PrimTerm QName   where primTerm _ = primQName
 instance PrimTerm MetaId  where primTerm _ = primAgdaMeta
 instance PrimTerm Type    where primTerm _ = primAgdaTerm
 
+instance PrimTerm Fixity' where primTerm _ = primFixity
+
 instance PrimTerm a => PrimTerm [a] where
   primTerm _ = list (primTerm (undefined :: a))
 
@@ -172,6 +175,38 @@ instance ToTerm ArgInfo where
           Forced{}   -> irr
           UnusedArg  -> irr
       ]
+
+instance ToTerm Fixity' where
+  toTerm = (. theFixity) <$> toTerm
+
+instance ToTerm Fixity where
+  toTerm = do
+    lToTm  <- toTerm
+    aToTm  <- toTerm
+    fixity <- primFixityFixity
+    return $ \ Fixity{fixityAssoc = a, fixityLevel = l} ->
+      fixity `apply` [defaultArg (aToTm a), defaultArg (lToTm l)]
+
+instance ToTerm Associativity where
+  toTerm = do
+    lassoc <- primAssocLeft
+    rassoc <- primAssocRight
+    nassoc <- primAssocNon
+    return $ \ a ->
+      case a of
+        NonAssoc   -> nassoc
+        LeftAssoc  -> lassoc
+        RightAssoc -> rassoc
+
+instance ToTerm PrecedenceLevel where
+  toTerm = do
+    (iToTm :: Integer -> Term) <- toTerm
+    related   <- primPrecRelated
+    unrelated <- primPrecUnrelated
+    return $ \ p ->
+      case p of
+        Unrelated -> unrelated
+        Related n -> related `apply` [defaultArg $ iToTm n]
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
@@ -721,6 +756,7 @@ primitiveFunctions = Map.fromList
   , "primQNameEquality"   |-> mkPrimFun2 ((==) :: Rel QName)
   , "primQNameLess"       |-> mkPrimFun2 ((<) :: Rel QName)
   , "primShowQName"       |-> mkPrimFun1 (Str . show :: QName -> Str)
+  , "primQNameFixity"     |-> mkPrimFun1 (nameFixity . qnameName)
   , "primMetaEquality"    |-> mkPrimFun2 ((==) :: Rel MetaId)
   , "primMetaLess"        |-> mkPrimFun2 ((<) :: Rel MetaId)
   , "primShowMeta"        |-> mkPrimFun1 (Str . show . pretty :: MetaId -> Str)

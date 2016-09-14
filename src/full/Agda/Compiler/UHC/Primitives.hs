@@ -91,6 +91,7 @@ primFunctions = M.fromList $
         , "primQNameEquality"
         , "primQNameLess"
         , "primShowQName"
+        , "primQNameFixity"
         , "primMetaEquality"
         , "primMetaLess"
         , "primShowMeta"

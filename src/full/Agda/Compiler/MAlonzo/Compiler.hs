@@ -44,6 +44,7 @@ import Agda.Interaction.Imports
 import Agda.Interaction.Options
 
 import Agda.Syntax.Common
+import Agda.Syntax.Fixity
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal as I
@@ -522,19 +523,32 @@ litString s =
 
 litqname :: QName -> HS.Exp
 litqname x =
-  HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
-  hsTypedInt n `HS.App`
-  hsTypedInt m `HS.App`
-  HS.Lit (HS.String $ show x )
+  rteCon "QName" `apps`
+  [ hsTypedInt n
+  , hsTypedInt m
+  , HS.Lit $ HS.String $ show x
+  , rteCon "Fixity" `apps`
+    [ litAssoc (fixityAssoc fx)
+    , litPrec  (fixityLevel fx) ] ]
   where
+    apps = foldl HS.App
+    rteCon name = HS.Con $ HS.Qual mazRTE $ HS.Ident name
     NameId n m = nameId $ qnameName x
+    fx = theFixity $ nameFixity $ qnameName x
+
+    litAssoc NonAssoc   = rteCon "NonAssoc"
+    litAssoc LeftAssoc  = rteCon "LeftAssoc"
+    litAssoc RightAssoc = rteCon "RightAssoc"
+
+    litPrec Unrelated   = rteCon "Unrelated"
+    litPrec (Related l) = rteCon "Related" `HS.App` hsTypedInt l
 
 litqnamepat :: QName -> HS.Pat
 litqnamepat x =
   HS.PApp (HS.Qual mazRTE $ HS.Ident "QName")
           [ HS.PLit HS.Signless (HS.Int $ fromIntegral n)
           , HS.PLit HS.Signless (HS.Int $ fromIntegral m)
-          , HS.PWildCard]
+          , HS.PWildCard, HS.PWildCard ]
   where
     NameId n m = nameId $ qnameName x
 

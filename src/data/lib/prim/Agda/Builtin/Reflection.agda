@@ -9,6 +9,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.String
 open import Agda.Builtin.Char
 open import Agda.Builtin.Float
+open import Agda.Builtin.Int
 
 -- Names --
 
@@ -19,6 +20,43 @@ primitive
   primQNameEquality : Name → Name → Bool
   primQNameLess     : Name → Name → Bool
   primShowQName     : Name → String
+
+-- Fixity --
+
+data Associativity : Set where
+  left-assoc  : Associativity
+  right-assoc : Associativity
+  non-assoc   : Associativity
+
+data Precedence : Set where
+  related   : Int → Precedence
+  unrelated : Precedence
+
+data Fixity : Set where
+  fixity : Associativity → Precedence → Fixity
+
+{-# BUILTIN ASSOC      Associativity #-}
+{-# BUILTIN ASSOCLEFT  left-assoc    #-}
+{-# BUILTIN ASSOCRIGHT right-assoc   #-}
+{-# BUILTIN ASSOCNON   non-assoc     #-}
+
+{-# BUILTIN PRECEDENCE    Precedence #-}
+{-# BUILTIN PRECRELATED   related    #-}
+{-# BUILTIN PRECUNRELATED unrelated  #-}
+
+{-# BUILTIN FIXITY       Fixity #-}
+{-# BUILTIN FIXITYFIXITY fixity #-}
+
+{-# COMPILED_DATA Associativity MAlonzo.RTE.Assoc MAlonzo.RTE.LeftAssoc MAlonzo.RTE.RightAssoc MAlonzo.RTE.NonAssoc #-}
+{-# COMPILED_DATA Precedence MAlonzo.RTE.Precedence MAlonzo.RTE.Related MAlonzo.RTE.Unrelated #-}
+{-# COMPILED_DATA Fixity MAlonzo.RTE.Fixity MAlonzo.RTE.Fixity #-}
+
+{-# COMPILED_DATA_UHC Associativity UHC.Agda.Builtins.Assoc LeftAssoc RightAssoc NonAssoc #-}
+{-# COMPILED_DATA_UHC Precedence UHC.Agda.Builtins.Precedence Related Unrelated #-}
+{-# COMPILED_DATA_UHC Fixity UHC.Agda.Builtins.Fixity Fixity #-}
+
+primitive
+  primQNameFixity : Name → Fixity
 
 -- Metavariables --
 

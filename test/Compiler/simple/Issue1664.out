@@ -1,0 +1,8 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > infixr 5
+out > infixl -1729
+out > infix 4
+out > (no fixity)
+out >
