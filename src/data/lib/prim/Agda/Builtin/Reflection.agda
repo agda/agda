@@ -9,6 +9,7 @@ open import Agda.Builtin.List
 open import Agda.Builtin.String
 open import Agda.Builtin.Char
 open import Agda.Builtin.Float
+open import Agda.Builtin.Int
 
 -- Names --
 
@@ -19,6 +20,35 @@ primitive
   primQNameEquality : Name → Name → Bool
   primQNameLess     : Name → Name → Bool
   primShowQName     : Name → String
+
+-- Fixity --
+
+data Associativity : Set where
+  left-assoc  : Associativity
+  right-assoc : Associativity
+  non-assoc   : Associativity
+
+data Precedence : Set where
+  related   : Int → Precedence
+  unrelated : Precedence
+
+data Fixity : Set where
+  fixity : Associativity → Precedence → Fixity
+
+{-# BUILTIN ASSOC      Associativity #-}
+{-# BUILTIN ASSOCLEFT  left-assoc    #-}
+{-# BUILTIN ASSOCRIGHT right-assoc   #-}
+{-# BUILTIN ASSOCNON   non-assoc     #-}
+
+{-# BUILTIN PRECEDENCE    Precedence #-}
+{-# BUILTIN PRECRELATED   related    #-}
+{-# BUILTIN PRECUNRELATED unrelated  #-}
+
+{-# BUILTIN FIXITY       Fixity #-}
+{-# BUILTIN FIXITYFIXITY fixity #-}
+
+primitive
+  primQNameFixity : Name → Fixity
 
 -- Metavariables --
 

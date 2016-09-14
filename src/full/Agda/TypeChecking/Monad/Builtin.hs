@@ -120,6 +120,9 @@ primInteger, primIntegerPos, primIntegerNegSuc,
     primAgdaErrorPart, primAgdaErrorPartString, primAgdaErrorPartTerm, primAgdaErrorPartName,
     primHiding, primHidden, primInstance, primVisible,
     primRelevance, primRelevant, primIrrelevant,
+    primAssoc, primAssocLeft, primAssocRight, primAssocNon,
+    primPrecedence, primPrecRelated, primPrecUnrelated,
+    primFixity, primFixityFixity,
     primAgdaLiteral, primAgdaLitNat, primAgdaLitFloat, primAgdaLitString, primAgdaLitChar, primAgdaLitQName, primAgdaLitMeta,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
@@ -195,6 +198,15 @@ primVisible      = getBuiltin builtinVisible
 primRelevance    = getBuiltin builtinRelevance
 primRelevant     = getBuiltin builtinRelevant
 primIrrelevant   = getBuiltin builtinIrrelevant
+primAssoc        = getBuiltin builtinAssoc
+primAssocLeft    = getBuiltin builtinAssocLeft
+primAssocRight   = getBuiltin builtinAssocRight
+primAssocNon     = getBuiltin builtinAssocNon
+primPrecedence    = getBuiltin builtinPrecedence
+primPrecRelated   = getBuiltin builtinPrecRelated
+primPrecUnrelated = getBuiltin builtinPrecUnrelated
+primFixity        = getBuiltin builtinFixity
+primFixityFixity  = getBuiltin builtinFixityFixity
 primArgInfo      = getBuiltin builtinArgInfo
 primArgArgInfo   = getBuiltin builtinArgArgInfo
 primAgdaSortSet  = getBuiltin builtinAgdaSortSet
@@ -279,6 +291,9 @@ builtinNat, builtinSuc, builtinZero, builtinNatPlus, builtinNatMinus,
   builtinAgdaSortUnsupported,
   builtinHiding, builtinHidden, builtinInstance, builtinVisible,
   builtinRelevance, builtinRelevant, builtinIrrelevant, builtinArg,
+  builtinAssoc, builtinAssocLeft, builtinAssocRight, builtinAssocNon,
+  builtinPrecedence, builtinPrecRelated, builtinPrecUnrelated,
+  builtinFixity, builtinFixityFixity,
   builtinArgInfo, builtinArgArgInfo, builtinArgArg,
   builtinAbs, builtinAbsAbs, builtinAgdaTerm,
   builtinAgdaTermVar, builtinAgdaTermLam, builtinAgdaTermExtLam,
@@ -361,6 +376,15 @@ builtinVisible                       = "VISIBLE"
 builtinRelevance                     = "RELEVANCE"
 builtinRelevant                      = "RELEVANT"
 builtinIrrelevant                    = "IRRELEVANT"
+builtinAssoc                         = "ASSOC"
+builtinAssocLeft                     = "ASSOCLEFT"
+builtinAssocRight                    = "ASSOCRIGHT"
+builtinAssocNon                      = "ASSOCNON"
+builtinPrecedence                    = "PRECEDENCE"
+builtinPrecRelated                   = "PRECRELATED"
+builtinPrecUnrelated                 = "PRECUNRELATED"
+builtinFixity                        = "FIXITY"
+builtinFixityFixity                  = "FIXITYFIXITY"
 builtinArg                           = "ARG"
 builtinArgInfo                       = "ARGINFO"
 builtinArgArgInfo                    = "ARGARGINFO"

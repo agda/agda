@@ -100,7 +100,22 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
                                                 return (sort $ varSort 1))
                                                [builtinRefl])
   , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinInstance, builtinVisible])
+    -- Relevance
   , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
+  , (builtinRelevant           |-> BuiltinDataCons trelevance)
+  , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
+    -- Associativity
+  , builtinAssoc               |-> BuiltinData tset [builtinAssocLeft, builtinAssocRight, builtinAssocNon]
+  , builtinAssocLeft           |-> BuiltinDataCons tassoc
+  , builtinAssocRight          |-> BuiltinDataCons tassoc
+  , builtinAssocNon            |-> BuiltinDataCons tassoc
+    -- Precedence
+  , builtinPrecedence          |-> BuiltinData tset [builtinPrecRelated, builtinPrecUnrelated]
+  , builtinPrecRelated         |-> BuiltinDataCons (tint --> tprec)
+  , builtinPrecUnrelated       |-> BuiltinDataCons tprec
+    -- Fixity
+  , builtinFixity              |-> BuiltinData tset [builtinFixityFixity]
+  , builtinFixityFixity        |-> BuiltinDataCons (tassoc --> tprec --> tfixity)
   , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $
                                                     hPi "A" (return $ sort $ varSort 0) $
                                                     hPi "x" (El (varSort 1) <$> varM 0) $
@@ -134,8 +149,6 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
   , (builtinHidden             |-> BuiltinDataCons thiding)
   , (builtinInstance           |-> BuiltinDataCons thiding)
   , (builtinVisible            |-> BuiltinDataCons thiding)
-  , (builtinRelevant           |-> BuiltinDataCons trelevance)
-  , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
   , (builtinSizeUniv           |-> builtinPostulate tSizeUniv) -- SizeUniv : SizeUniv
 -- See comment on tSizeUniv: the following does not work currently.
 --  , (builtinSizeUniv           |-> builtinPostulate tSetOmega) -- SizeUniv : Setω
@@ -229,6 +242,7 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tterm      = el primAgdaTerm
         terrorpart = el primAgdaErrorPart
         tnat       = el primNat
+        tint       = el primInteger
         tunit      = el primUnit
         tinteger   = el primInteger
         tfloat     = el primFloat
@@ -240,6 +254,9 @@ coreBuiltins = map (\ (x, z) -> BuiltinInfo x z)
         tbool      = el primBool
         thiding    = el primHiding
         trelevance = el primRelevance
+        tassoc     = el primAssoc
+        tprec      = el primPrecedence
+        tfixity    = el primFixity
 --        tcolors    = el (list primAgdaTerm) -- TODO guilhem
         targinfo   = el primArgInfo
         ttype      = el primAgdaTerm
