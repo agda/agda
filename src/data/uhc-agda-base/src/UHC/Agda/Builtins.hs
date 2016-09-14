@@ -76,9 +76,6 @@ module UHC.Agda.Builtins
   , primSin
     -- Reflection
   , QName (..)
-  , Associativity (..)
-  , Precedence (..)
-  , Fixity (..)
   , primMkQName
   , primQNameEquality
   , primQNameLess
@@ -376,19 +373,15 @@ primSin = sin
 -- ====================
 -- Reflection
 -- ====================
-data QName = QName { nameId, moduleId ::Integer, qnameString :: String, qnameFixity :: Fixity }
+data QName = QName { nameId, moduleId ::Integer, qnameString :: String }
 
-data Associativity = NonAssoc | LeftAssoc | RightAssoc
-data Precedence = Unrelated | Related Integer
-data Fixity = Fixity Associativity Precedence
-
-primMkQName :: Integer -> Integer -> String -> Associativity -> Precedence -> QName
-primMkQName n m s a l = QName n m s (Fixity a l)
+primMkQName :: Integer -> Integer -> String -> QName
+primMkQName = QName
 
 instance Eq QName where
-  (QName a b _ _) == (QName c d _ _) = (a, b) == (c, d)
+  (QName a b _) == (QName c d _) = (a, b) == (c, d)
 instance Ord QName where
-  compare (QName a b _ _) (QName c d _ _) = compare (a, b) (c, d)
+  compare (QName a b _) (QName c d _) = compare (a, b) (c, d)
 
 primQNameEquality :: QName -> QName -> Bool
 primQNameEquality = (==)
@@ -399,8 +392,8 @@ primQNameLess = (<)
 primShowQName :: QName -> String
 primShowQName = qnameString
 
-primQNameFixity :: QName -> Fixity
-primQNameFixity = qnameFixity
+primQNameFixity :: QName -> a
+primQNameFixity = error "TODO: primQNameFixity"
 
 type Meta = Integer
 

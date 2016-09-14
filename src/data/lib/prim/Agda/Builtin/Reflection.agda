@@ -51,10 +51,6 @@ data Fixity : Set where
 {-# COMPILED_DATA Precedence MAlonzo.RTE.Precedence MAlonzo.RTE.Related MAlonzo.RTE.Unrelated #-}
 {-# COMPILED_DATA Fixity MAlonzo.RTE.Fixity MAlonzo.RTE.Fixity #-}
 
-{-# COMPILED_DATA_UHC Associativity UHC.Agda.Builtins.Assoc LeftAssoc RightAssoc NonAssoc #-}
-{-# COMPILED_DATA_UHC Precedence UHC.Agda.Builtins.Precedence Related Unrelated #-}
-{-# COMPILED_DATA_UHC Fixity UHC.Agda.Builtins.Fixity Fixity #-}
-
 primitive
   primQNameFixity : Name → Fixity
 
