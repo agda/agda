@@ -94,6 +94,8 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/Issue326"
   , RFInclude "Compiler/JS/simple/VecReverse"
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
+  -- primQNameLess not implemented for JS
+  , RFInclude "Compiler/JS/simple/QNameOrder"
   ]
 
 tests :: IO TestTree
