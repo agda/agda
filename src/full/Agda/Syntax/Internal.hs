@@ -1143,20 +1143,37 @@ instance Pretty Term where
       Pi a b               -> mparens (p > 0) $
         sep [ pDom (domInfo a) (text (absName b) <+> text ":" <+> pretty (unDom a)) <+> text "->"
             , nest 2 $ pretty (unAbs b) ]
-      Sort s      -> pretty s
-      Level l     -> pretty l
+      Sort s      -> prettyPrec p s
+      Level l     -> prettyPrec p l
       MetaV x els -> pretty x `pApp` els
-      DontCare v  -> pretty v
+      DontCare v  -> prettyPrec p v
       Shared{}    -> __IMPOSSIBLE__
     where
       pApp d els = mparens (not (null els) && p > 9) $
                    sep [d, nest 2 $ fsep (map (prettyPrec 10) els)]
 
-      pDom i =
-        case getHiding i of
-          NotHidden -> parens
-          Hidden    -> braces
-          Instance  -> braces . braces
+pDom :: LensHiding a => a -> Doc -> Doc
+pDom i =
+  case getHiding i of
+    NotHidden -> parens
+    Hidden    -> braces
+    Instance  -> braces . braces
+
+instance Pretty Clause where
+  pretty Clause{clauseTel = tel, namedClausePats = ps, clauseBody = b, clauseType = t} =
+    sep [ pretty tel <+> text "|-"
+        , nest 2 $ sep [ fsep (map (prettyPrec 10) ps) <+> text "="
+                       , nest 2 $ pBody b t ] ]
+    where
+      pBody Nothing _ = text "(absurd)"
+      pBody (Just b) Nothing  = pretty b
+      pBody (Just b) (Just t) = sep [ pretty b <+> text ":", nest 2 $ pretty t ]
+
+instance Pretty a => Pretty (Tele (Dom a)) where
+  pretty tel = fsep [ pDom a (text x <+> text ":" <+> pretty (unDom a)) | (x, a) <- telToList tel ]
+    where
+      telToList EmptyTel = []
+      telToList (ExtendTel a tel) = (absName tel, a) : telToList (unAbs tel)
 
 instance Pretty Level where
   prettyPrec p (Max as) =
