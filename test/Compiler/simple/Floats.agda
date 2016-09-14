@@ -33,6 +33,7 @@ pi = 3.141592653589793
 main : IO Unit
 main =
   putStr "123.0 = " ,, print 123.0 ,,
+  putStr "-42.0 = " ,, print -42.0 ,,
   putStr "NaN   = " ,, print NaN   ,,
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
