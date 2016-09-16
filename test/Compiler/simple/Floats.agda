@@ -30,8 +30,6 @@ main =
   putStr "NaN   = " ,, print NaN   ,,
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
-  -- Disabled due to #1856
-  -- putStr "e     = " ,, print (primExp 1.0) ,,
   putStr "Inf == Inf  = " ,, printB (Inf == Inf) ,,
   putStr "NaN < -Inf  = " ,, printB (NaN < -Inf) ,,
   return unit

@@ -13,7 +13,10 @@ pi = 3.141592653589793
 
 main : IO Unit
 main =
-  -- See issues #1856 and #1857.
+  -- See Issues #1856 and #1857.
   putStr "√2 = " ,, print (primFloatSqrt 2.0) ,,
   putStr "√2 = " ,, print (primFloatTimes 2.0 (primSin (primFloatDiv pi 4.0))) ,,
+
+  -- See Issue #1856.
+  putStr "e = " ,, print (primExp 1.0) ,,
   return unit

@@ -85,6 +85,10 @@ exports.primSin = function(x) {
   return Math.sin(x);
 };
 
+exports.primExp = function(x) {
+  return Math.exp(x);
+};
+
 // As Javascript is strict, this should be fine in general. Not sure
 // what PSeq (Axiom ...) (...) should do?
 exports.primSeq = function(x, y) {

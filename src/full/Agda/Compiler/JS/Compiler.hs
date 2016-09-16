@@ -366,7 +366,8 @@ copyRTEModules = do
 -- | Primitives implemented in the JS Agda RTS.
 primitives :: Set String
 primitives = Set.fromList
-  [ "primFloatDiv"
+  [ "primExp"
+  , "primFloatDiv"
   , "primFloatEquality"
   , "primFloatLess"
   , "primFloatMinus"
