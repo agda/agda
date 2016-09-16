@@ -89,7 +89,7 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/CompilingCoinduction"
   , RFInclude "Compiler/JS/simple/CopatternStreamSized"
   -- Output does not match MAlonzo output exactly
-  , RFInclude "Compiler/JS/simple/Floats"
+  , RFInclude "Compiler/JS/simple/FloatsJSFails"
   , RFInclude "Compiler/JS/simple/Issue1486"
   , RFInclude "Compiler/JS/simple/Issue326"
   , RFInclude "Compiler/JS/simple/VecReverse"
