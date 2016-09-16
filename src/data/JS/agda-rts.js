@@ -78,7 +78,7 @@ exports.primFloatDiv = function(x) {
   };
 };
 exports.primFloatSqrt = function(x) {
-  return sqrt(x);
+  return Math.sqrt(x);
 };
 
 // As Javascript is strict, this should be fine in general. Not sure
