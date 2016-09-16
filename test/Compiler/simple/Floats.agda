@@ -1,8 +1,7 @@
 
 module _ where
 
-open import Agda.Builtin.Float
-open import Common.Prelude hiding (_+_; _*_)
+open import Common.Prelude
 
 print : Float → IO Unit
 print x = putStrLn (primShowFloat x)
@@ -11,8 +10,6 @@ printB : Bool → IO Unit
 printB true  = putStrLn "true"
 printB false = putStrLn "false"
 
-_+_ = primFloatPlus
-_*_ = primFloatTimes
 _/_ = primFloatDiv
 _==_ = primFloatEquality
 _<_ = primFloatLess
@@ -25,9 +22,6 @@ Inf = 1.0 / 0.0
 
 -Inf : Float
 -Inf = -1.0 / 0.0
-
-pi : Float
-pi = 3.141592653589793
 
 main : IO Unit
 main =
