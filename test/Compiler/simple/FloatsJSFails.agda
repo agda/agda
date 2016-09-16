@@ -27,9 +27,11 @@ Inf = 1.0 / 0.0
 
 main : IO Unit
 main =
-  putStr "123.0 = " ,, print 123.0 ,,
-  putStr "-42.0 = " ,, print -42.0 ,,
-  putStr "-0.0  = " ,, print -0.0  ,,
+  -- Issue #2192.
+  putStr "1.0  = " ,, print 1.0 ,,
+  -- Issues #2169 and #2192.
+  putStr "-0.0 = " ,, print -0.0  ,,
+
   putStr "NaN == NaN  = " ,, printB (NaN == NaN) ,,
   putStr "NaN < -5.0  = " ,, printB (NaN < -5.0) ,,
   putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
