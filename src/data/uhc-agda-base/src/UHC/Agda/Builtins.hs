@@ -322,7 +322,7 @@ primMkFloat = read
 -- ASR (2016-09-15). Since Haskell's Eq, which equates 0.0 and -0.0,
 -- allows to prove a contradiction, we should use a bitwise equality
 -- for comparing Double. Since the @identicalIEEE@ function from the
--- ieee746 package is not available in UHC, we use a function
+-- ieee754 package is not available in UHC, we use a function
 -- implemented by Ulf (see Issue #2169).
 primFloatEquality :: Double -> Double -> Bool
 primFloatEquality x y =
