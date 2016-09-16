@@ -77,6 +77,12 @@ After compiling the example
 
 you can run the HelloWorld program which prints ``Hello, World!``.
 
+Required libraries for the :ref:`built-ins`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- ``primFloatEquality`` requires the `ieee746
+  <http://hackage.haskell.org/package/ieee754>`_ library.
+
 
 UHC Backend
 ~~~~~~~~~~~

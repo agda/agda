@@ -96,10 +96,6 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/VecReverseIrr"
   -- primQNameLess not implemented for JS
   , RFInclude "Compiler/JS/simple/QNameOrder"
-  -- @primFloatEquality 0.0 -0.0@ doesn't return @false@ on JS and UHC (see
-  -- Issue #2169).
-  , RFInclude "Compiler/JS/simple/Issue2169"
-  , RFInclude "Compiler/UHC/simple/Issue2169"
   ]
 
 tests :: IO TestTree
