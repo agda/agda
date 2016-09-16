@@ -15,4 +15,5 @@ main : IO Unit
 main =
   -- See issues #1856 and #1857.
   putStr "√2 = " ,, print (primFloatSqrt 2.0) ,,
+  putStr "√2 = " ,, print (primFloatTimes 2.0 (primSin (primFloatDiv pi 4.0))) ,,
   return unit

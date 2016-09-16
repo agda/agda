@@ -376,4 +376,5 @@ primitives = Set.fromList
   , "primFloatDiv"
   , "primFloatSqrt"
   , "primShowFloat"
+  , "primSin"
   ]
