@@ -127,10 +127,15 @@ coverageCheck f t cs = do
       xs           = teleNamedArgs gamma
       -- construct the initial split clause
       sc           = SClause gamma xs idS $ Just $ defaultArg a
-  reportSDoc "tc.cover.top" 10 $ vcat
-    [ text $ "Coverage checking " ++ show f
-    , nest 2 $ vcat $ map (text . show . clausePats) cs
-    ]
+
+  reportSDoc "tc.cover.top" 10 $ do
+    let prCl cl = addContext (clauseTel cl) $
+                  prettyTCMPatternList $ namedClausePats cl
+    vcat
+      [ text $ "Coverage checking " ++ show f ++ " with patterns:"
+      , nest 2 $ vcat $ map prCl cs
+      ]
+
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
   (splitTree, used, pss) <- cover f cs sc
@@ -167,7 +172,7 @@ cover f cs sc@(SClause tel ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
-    , nest 2 $ text "ps   =" <+> text (show ps)
+    , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
   let ups = map (fmap namedThing) ps
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
@@ -356,8 +361,11 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
   caseMaybe target (return (empty, sc)) $ \ a -> do
     reportSDoc "tc.cover.target" 20 $ sep
       [ text "split clause telescope: " <+> prettyTCM sctel
-      , text "old patterns          : " <+> sep (map (prettyTCM . namedArg) ps)
-      , text "substitution          : " <+> text (show sigma)
+      , text "old patterns          : " <+> do
+          addContext sctel $ prettyTCMPatternList ps
+      ]
+    reportSDoc "tc.cover.target" 60 $ sep
+      [ text "substitution          : " <+> text (show sigma)
       ]
     reportSDoc "tc.cover.target" 30 $ sep
       [ text "target type before substitution (variables may be wrong): " <+> do
@@ -389,9 +397,10 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
       [ text "new split clause telescope   : " <+> prettyTCM sctel'
       ]
     reportSDoc "tc.cover.target" 30 $ sep
-      [ text "new split clause patterns    : " <+> sep (map (prettyTCM . namedArg) ps')
+      [ text "new split clause patterns    : " <+> do
+          addContext sctel' $ prettyTCMPatternList ps'
       ]
-    reportSDoc "tc.cover.target" 30 $ sep
+    reportSDoc "tc.cover.target" 60 $ sep
       [ text "new split clause substitution: " <+> text (show $ scSubst sc')
       ]
     reportSDoc "tc.cover.target" 30 $ sep
@@ -404,7 +413,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
       ]
     return $ if n == 0 then (empty, sc { scTarget = newTarget }) else (tel, sc')
 
--- | @computeNeighbourhood delta1 delta2 d pars ixs hix hps con@
+-- | @computeNeighbourhood delta1 delta2 d pars ixs hix tel ps con@
 --
 --   @
 --      delta1   Telescope before split point
@@ -414,6 +423,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
 --      pars     Data type parameters
 --      ixs      Data type indices
 --      hix      Index of split variable
+--      tel      Telescope for patterns ps
 --      ps       Patterns before doing the split
 --      con      Constructor to fit into hole
 --   @
@@ -426,10 +436,11 @@ computeNeighbourhood
   -> Args                         -- ^ Data type parameters.
   -> Args                         -- ^ Data type indices.
   -> Nat                          -- ^ Index of split variable.
-  -> [NamedArg DeBruijnPattern] -- ^ Patterns before doing the split.
+  -> Telescope                    -- ^ Telescope for the patterns.
+  -> [NamedArg DeBruijnPattern]   -- ^ Patterns before doing the split.
   -> QName                        -- ^ Constructor to fit into hole.
   -> CoverM (Maybe SplitClause)   -- ^ New split clause if successful.
-computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
+computeNeighbourhood delta1 n delta2 d pars ixs hix tel ps c = do
 
   -- Get the type of the datatype
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
@@ -463,7 +474,7 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
       gamma  = telFromList gammal
       delta1Gamma = delta1 `abstract` gamma
 
-  debugInit con ctype d pars ixs cixs delta1 delta2 gamma ps hix
+  debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix
 
   -- All variables are flexible
   let flex = allFlexVars delta1Gamma
@@ -506,22 +517,23 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
 
       debugTel "delta'" delta'
       debugSubst "rho" rho
+      addContext tel $ debugPs ps
 
       -- Apply the substitution
       let ps' = applySubst rho ps
-      debugPlugged ps ps'
+      addContext delta' $ debugPlugged ps'
 
       return $ Just $ SClause delta' ps' rho Nothing -- target fixed later
 
   where
-    debugInit con ctype d pars ixs cixs delta1 delta2 gamma hps hix =
+    debugInit con ctype d pars ixs cixs delta1 delta2 gamma tel ps hix =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
         , nest 2 $ vcat
           [ text "context=" <+> (inTopContext . prettyTCM =<< getContextTelescope)
           , text "con    =" <+> prettyTCM con
           , text "ctype  =" <+> prettyTCM ctype
-          , text "hps    =" <+> text (show hps)
+          , text "ps     =" <+> do addContext tel $ prettyTCMPatternList ps
           , text "d      =" <+> prettyTCM d
           , text "pars   =" <+> prettyList (map prettyTCM pars)
           , text "ixs    =" <+> addContext delta1 (prettyList (map prettyTCM ixs))
@@ -549,21 +561,14 @@ computeNeighbourhood delta1 n delta2 d pars ixs hix ps c = do
         [ text (s ++ " =") <+> prettyTCM tel
         ]
 
-    debugShow s x =
+    debugPs ps =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text (s ++ " =") <+> text (show x)
+        [ text "ps     =" <+> prettyTCMPatternList ps
         ]
 
-    debugPlugged ps ps' =
+    debugPlugged ps' =
       liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "ps     =" <+> text (show ps)
-        , text "ps'    =" <+> text (show ps')
-        ]
-
-    debugFinal tel ps =
-      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
-        [ text "rtel   =" <+> prettyTCM tel
-        , text "rps    =" <+> text (show ps)
+        [ text "ps'    =" <+> do prettyTCMPatternList ps'
         ]
 
 -- | Entry point from @Interaction.MakeCase@.
@@ -659,7 +664,7 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
   ns <- catMaybes <$> do
     forM cons $ \ con ->
       fmap (con,) <$> do
-        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x ps con
+        msc <- computeNeighbourhood delta1 n delta2 d pars ixs x tel ps con
         if not fixtarget then return msc else do
         Trav.forM msc $ \ sc -> lift $ snd <$> fixTarget sc{ scTarget = target }
 
@@ -709,13 +714,13 @@ split' ind fixtarget sc@(SClause tel ps _ target) (BlockingVar x mcons) = liftTC
     inContextOfDelta2 = addContext tel . escapeContext x
 
     -- Debug printing
-    debugInit tel x ps =
-      liftTCM $ reportSDoc "tc.cover.top" 10 $ vcat
+    debugInit tel x ps = liftTCM $ do
+      reportSDoc "tc.cover.top" 10 $ vcat
         [ text "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel     =" <+> prettyTCM tel
           , text "x       =" <+> text (show x)
-          , text "ps      =" <+> text (show ps)
+          , text "ps      =" <+> do addContext tel $ prettyTCMPatternList ps
           ]
         ]
 

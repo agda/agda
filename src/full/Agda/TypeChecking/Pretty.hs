@@ -386,6 +386,10 @@ instance PrettyTCM a => PrettyTCM (Pattern' a) where
   prettyTCM (LitP l)      = text (show l)
   prettyTCM (ProjP _ q)   = text ("." ++ show q)
 
+-- | Proper pretty printing of patterns:
+prettyTCMPatternList :: [NamedArg DeBruijnPattern] -> TCM Doc
+prettyTCMPatternList = prettyList . map prettyA <=< reifyPatterns
+
 instance PrettyTCM (Elim' DisplayTerm) where
   prettyTCM (Apply v) = text "$" <+> prettyTCM (unArg v)
   prettyTCM (Proj _ f)= text "." <> prettyTCM f
