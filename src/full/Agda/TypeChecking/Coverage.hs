@@ -174,15 +174,14 @@ cover f cs sc@(SClause tel ps _ target) = do
     , nest 2 $ text "tel  =" <+> prettyTCM tel
     , nest 2 $ text "ps   =" <+> do addContext tel $ prettyTCMPatternList ps
     ]
-  let ups = map (fmap namedThing) ps
   exactSplitEnabled <- optExactSplit <$> pragmaOptions
-  case match cs ups of
+  case match cs ps of
     Yes (i,mps)
      | not exactSplitEnabled || (clauseCatchall (cs !! i) || all isTrivialPattern mps)
      -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ups ]
+      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
 
@@ -234,10 +233,10 @@ cover f cs sc@(SClause tel ps _ target) = do
             , nest 2 $ vcat
               [ text "n   = " <+> text (show n)
               , text "scs = " <+> prettyTCM scs
-              , text "ups = " <+> text (show ups)
+              , text "ps  = " <+> text (show ps)
               ]
             ]
-          let trees' = zipWith (etaRecordSplits (unArg n) ups) scs trees
+          let trees' = zipWith (etaRecordSplits (unArg n) ps) scs trees
               tree   = SplitAt n trees'
           return (tree, Set.unions useds, concat psss)
 
@@ -264,41 +263,37 @@ cover f cs sc@(SClause tel ps _ target) = do
         return (tree, Set.unions useds, concat psss)
 
     gatherEtaSplits :: Int -> SplitClause
-                    -> [Arg DeBruijnPattern] -> [Arg DeBruijnPattern]
+                    -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
     gatherEtaSplits n sc []
        | n >= 0    = __IMPOSSIBLE__ -- we should have encountered the main
                                     -- split by now already
        | otherwise = []
-    gatherEtaSplits n sc (p:ps) = case unArg p of
+    gatherEtaSplits n sc (p:ps) = case namedArg p of
       VarP x
-       | n == 0    -> case lookupS (scSubst sc) i of -- this is the main split
+       | n == 0    -> case p' of -- this is the main split
            VarP  _      -> __IMPOSSIBLE__
            DotP  _      -> __IMPOSSIBLE__
-           ConP  _ _ qs ->
-             map (fmap namedThing) qs ++ gatherEtaSplits (-1) sc ps
+           ConP  _ _ qs -> qs ++ gatherEtaSplits (-1) sc ps
            LitP  _      -> __IMPOSSIBLE__
            ProjP{}      -> __IMPOSSIBLE__
        | otherwise ->
-           (p $> lookupS (scSubst sc) i) : gatherEtaSplits (n-1) sc ps
-        where i = dbPatVarIndex x
+           updateNamedArg (\ _ -> p') p : gatherEtaSplits (n-1) sc ps
+        where p' = lookupS (scSubst sc) $ dbPatVarIndex x
       DotP  _      -> p : gatherEtaSplits (n-1) sc ps -- count dot patterns
-      ConP  _ _ qs -> gatherEtaSplits n sc (map (fmap namedThing) qs ++ ps)
+      ConP  _ _ qs -> gatherEtaSplits n sc (qs ++ ps)
       LitP  _      -> gatherEtaSplits n sc ps
       ProjP{}      -> gatherEtaSplits n sc ps
 
-    addEtaSplits :: Int -> [Arg DeBruijnPattern] -> SplitTree -> SplitTree
+    addEtaSplits :: Int -> [NamedArg DeBruijnPattern] -> SplitTree -> SplitTree
     addEtaSplits k []     t = t
-    addEtaSplits k (p:ps) t = case unArg p of
+    addEtaSplits k (p:ps) t = case namedArg p of
       VarP  _       -> addEtaSplits (k+1) ps t
       DotP  _       -> addEtaSplits (k+1) ps t
-      ConP c cpi nqs ->
-        let qs = map (fmap namedThing) nqs
-            t' = [(conName c , addEtaSplits k (qs ++ ps) t)]
-        in  SplitAt (p $> k) t'
+      ConP c cpi qs -> SplitAt (p $> k) [(conName c , addEtaSplits k (qs ++ ps) t)]
       LitP  _       -> __IMPOSSIBLE__
       ProjP{}       -> __IMPOSSIBLE__
 
-    etaRecordSplits :: Int -> [Arg DeBruijnPattern] -> (QName,SplitClause)
+    etaRecordSplits :: Int -> [NamedArg DeBruijnPattern] -> (QName,SplitClause)
                     -> SplitTree -> (QName,SplitTree)
     etaRecordSplits n ps (q , sc) t =
       (q , addEtaSplits 0 (gatherEtaSplits n sc ps) t)
