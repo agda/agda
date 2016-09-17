@@ -164,12 +164,12 @@ matrix:
 
 ##############################################################################
 before_install:
-  - if [[ $TEST != "doc" ]]; then
+  - if [[ $TEST != "doc" && $TEST != "stack" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
-    fi
-  - if [[ $TEST == "stack" ]]; then
-       mkdir -p ~/.local/bin &&
-       travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';
+    elif [[ $TEST == "stack" ]]; then
+         export PATH=/opt/ghc/$GHC_VER/bin:$PATH &&
+         mkdir -p ~/.local/bin &&
+         travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';
     fi
 
 ##############################################################################
@@ -179,7 +179,6 @@ install:
 
   # Asking for the shell.
   - echo $SHELL
-
 
 # The container environment reports a wrong number of cores. We use a
 # `sed` script (from https://github.com/hvr/multi-ghc-travis) for
