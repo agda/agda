@@ -227,7 +227,7 @@ install:
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
     elif [[ $TEST = "stack" ]]; then
-         stack --no-terminal test --bench --only-dependencies;
+         stack build --no-terminal --only-dependencies;
     fi
 
 ##############################################################################
@@ -236,7 +236,7 @@ install:
   - export BUILD_DIR=$HOME/dist
 
   - if [[ $TEST = "stack" ]]; then
-       stack --no-terminal build --bench --no-run-benchmarks;
+       stack build --no-terminal;
     fi
 
   - if [[ $TEST = "main" ]]; then
