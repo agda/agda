@@ -177,32 +177,29 @@ install:
   # Asking for the shell.
   - echo $SHELL
 
-# The container environment reports a wrong number of cores. We use a
-# `sed` script (from https://github.com/hvr/multi-ghc-travis) for
-# commenting out `jobs: $ncpus` in the Cabal configuration file.
+  # The container environment reports a wrong number of cores. We use
+  # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for
+  # commenting out `jobs: $ncpus` in the Cabal configuration file.
 
   - if [[ $BUILD != "NOTHING" && $BUILD != "STACK" ]]; then
-       cabal --version;
-    fi
-
-  - if [[ $BUILD != "NOTHING" ]]; then
+       cabal --version &&
        ghc --version &&
        haddock --version &&
        emacs --version &&
-       export PARALLEL_TESTS=2;
-       case "$BUILD" in
-         STACK)
-           export PATH=$HOME/.local/bin:$PATH
-           ;;
-         *)
-           cabal update &&
-           sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
-           cat $HOME/.cabal/config &&
-           cabal install cabal-install &&
-           export PATH=$HOME/.cabal/bin:$PATH &&
-           cabal --version
-           ;;
-       esac
+       export PARALLEL_TESTS=2 &&
+       cabal update &&
+       sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config &&
+       cat $HOME/.cabal/config &&
+       cabal install cabal-install &&
+       export PATH=$HOME/.cabal/bin:$PATH &&
+       cabal --version;
+    fi
+
+  - if [[ $BUILD != "STACK" ]]; then
+       ghc --version &&
+       haddock --version &&
+       emacs --version &&
+       export PATH=$HOME/.local/bin:$PATH;
     fi
 
 ##############################################################################
