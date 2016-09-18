@@ -1527,7 +1527,7 @@ isEmptyFunction def =
     _ -> False
 
 isCopatternLHS :: [Clause] -> Bool
-isCopatternLHS = List.any (List.any (isJust . A.isProjP) . clausePats)
+isCopatternLHS = List.any (List.any (isJust . A.isProjP) . namedClausePats)
 
 recCon :: Defn -> QName
 recCon Record{ recConHead } = conName recConHead

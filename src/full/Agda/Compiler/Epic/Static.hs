@@ -56,7 +56,7 @@ etaExpand :: Term -> Compile TCM Term
 etaExpand def@(Def n ts) = do
     defs <- lift $ use $ stImports . sigDefinitions
     let f   = maybe __IMPOSSIBLE__ theDef (HM.lookup n defs)
-        len = length . clausePats . head .  funClauses $ f
+        len = length . namedClausePats . head .  funClauses $ f
         toEta :: Num a => a
         toEta = fromIntegral $ len - length ts
         term  = raise toEta def `applys` map var (downFrom toEta)

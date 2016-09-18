@@ -48,7 +48,7 @@ translateDefn msharp (n, defini) =
         let projArgs = projectionArgs f
             cc       = fromMaybe __IMPOSSIBLE__ $ funCompiled f
         ccs  <- reverseCCBody projArgs <$> normaliseStatic cc
-        let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
+        let len   = (+ projArgs) . length . namedClausePats . head .  funClauses $ f
             toEta = arity (defType defini) - len
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)
         lift $ reportSDoc "epic.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n

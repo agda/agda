@@ -473,7 +473,7 @@ reifyTerm expandAnonDefs0 v = do
        Function{ funCompiled = Just Fail, funClauses = [cl] }
                 | isAbsurdLambdaName x -> do
                   -- get hiding info from last pattern, which should be ()
-                  let h = getHiding $ last (clausePats cl)
+                  let h = getHiding $ last $ namedClausePats cl
                   elims (A.AbsurdLam noExprInfo h) =<< reify es
 
       -- Otherwise (no absurd lambda):

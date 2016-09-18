@@ -214,7 +214,7 @@ quotingKit = do
               qx Function{ funExtLam = Just (ExtLamInfo h nh), funClauses = cs } =
                     extlam !@ list (map (quoteClause . dropArgs (h + nh)) cs)
               qx Function{ funCompiled = Just Fail, funClauses = [cl] } =
-                    extlam !@ list [quoteClause $ dropArgs (length (clausePats cl) - 1) cl]
+                    extlam !@ list [quoteClause $ dropArgs (length (namedClausePats cl) - 1) cl]
               qx _ = def !@! quoteName x
           Con x ts   -> do
             cDef <- getConstInfo (conName x)

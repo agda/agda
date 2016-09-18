@@ -570,17 +570,17 @@ termClause' :: Clause -> TerM Calls
 termClause' clause = do
   cl <- introHiddenLambdas clause
   let tel      = clauseTel cl
-      argPats' = clausePats cl
+      argPats' = namedClausePats cl
       body     = clauseBody cl
   liftTCM $ reportSDoc "term.check.clause" 25 $ vcat
     [ text "termClause"
     , nest 2 $ text "tel      =" <+> prettyTCM tel
     , nest 2 $ text "argPats' =" <+> do
-       aps <- reifyPatterns (map (fmap unnamed) argPats')
+       aps <- reifyPatterns argPats'
        fsep $ map prettyA aps
     ]
   addContext tel $ do
-    ps <- liftTCM $ normalise $ map unArg argPats'
+    ps <- liftTCM $ normalise $ map namedArg argPats'
     dbpats <- convertPatterns ps
     case body of
       Nothing -> return empty
