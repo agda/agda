@@ -194,7 +194,7 @@ install:
        cabal --version;
     fi
 
-  - if [[ $BUILD != "STACK" ]]; then
+  - if [[ $BUILD = "STACK" ]]; then
        ghc --version &&
        haddock --version &&
        emacs --version &&
