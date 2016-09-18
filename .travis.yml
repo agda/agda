@@ -40,7 +40,6 @@ matrix:
             - cabal-install-1.24
             - ghc-8.0.1
             - happy-1.19.5
-            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -91,7 +90,6 @@ matrix:
             - cabal-install-1.22
             - ghc-7.10.3
             - happy-1.19.5
-            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -115,7 +113,6 @@ matrix:
             - cabal-install-1.18
             - ghc-7.8.4
             - happy-1.19.5
-            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -139,7 +136,6 @@ matrix:
             - cabal-install-1.18
             - ghc-7.6.3
             - happy-1.19.5
-            - nodejs
             - texlive-binaries
           sources:
             - hvr-ghc
@@ -176,6 +172,9 @@ install:
 
   # Asking for the shell.
   - echo $SHELL
+
+  # Node is pre-installed.
+  - node --version
 
   # The container environment reports a wrong number of cores. We use
   # a `sed` script (from https://github.com/hvr/multi-ghc-travis) for

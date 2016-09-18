@@ -32,9 +32,5 @@ main =
   -- Issues #2169 and #2192.
   putStr "-0.0 = " ,, print -0.0  ,,
 
-  -- Issue #2194.
-  putStr "NaN == NaN  = " ,, printB (NaN == NaN) ,,
-
   putStr "NaN < -5.0  = " ,, printB (NaN < -5.0) ,,
-  putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
   return unit

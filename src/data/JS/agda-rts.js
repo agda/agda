@@ -49,7 +49,7 @@ exports.primShowFloat = function(x) {
 };
 exports.primFloatEquality = function(x) {
   return function(y) {
-    return x==y;
+    return Object.is(x,y);
   };
 };
 exports.primFloatLess = function(x) {
