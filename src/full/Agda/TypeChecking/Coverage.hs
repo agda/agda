@@ -146,14 +146,14 @@ coverageCheck f t cs = do
   -- report an error if there are uncovered cases
   unless (null pss) $
       setCurrentRange cs $
-        typeError $ CoverageFailure f (map (map (fmap namedThing)) pss)
+        typeError $ CoverageFailure f pss
   -- is = indices of unreachable clauses
   let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
   -- report an error if there are unreachable clauses
   unless (null is) $ do
       let unreached = map (cs !!) is
       setCurrentRange unreached $
-        typeError $ UnreachableClauses f (map clausePats unreached)
+        typeError $ UnreachableClauses f $ map namedClausePats unreached
   return splitTree
 
 -- | Top-level function for eliminating redundant clauses in the interactive
