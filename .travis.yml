@@ -71,14 +71,11 @@ matrix:
     #       sources:
     #         - hvr-ghc
 
-    - env: TEST=UHC GHC_VER=8.0.1 BUILD=CABAL CABAL_VER=1.24
+    - env: TEST=UHC GHC_VER=8.0.1 BUILD=STACK ARGS="--stack-yaml stack-8.0.1.yaml"
       addons:
         apt:
           packages:
-            - happy-1.19.5
-            - cabal-install-1.24
             - ghc-8.0.1
-            - alex-3.1.7
           sources:
             - hvr-ghc
 
@@ -161,9 +158,9 @@ matrix:
 ##############################################################################
 before_install:
 
-  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" || TEST="UHC" ]]; then
+  - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        export PATH=/opt/ghc/$GHC_VER/bin:/opt/cabal/$CABAL_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
-    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACK" ]]; then
+    elif [[ $TEST = "CPP_AND_DEBUG" || $TEST = "STACK" || TEST="UHC" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:$PATH;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          export PATH=/opt/ghc/$GHC_VER/bin:/opt/alex/3.1.7/bin:/opt/happy/1.19.5/bin:$PATH;
@@ -227,7 +224,7 @@ install:
   - if [[ $TEST = "MAIN" || $TEST = "HADDOCK" ]]; then
        cabal install --enable-tests --only-dependencies --force-reinstalls;
     elif [[ $TEST = "UHC" ]]; then
-         cabal install --enable-tests --only-dependencies --force-reinstalls -f uhc;
+         stack build $ARGS --no-terminal --test --only-dependencies --flag Agda:uhc;
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          stack build $ARGS --no-terminal --test --only-dependencies;
     elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
@@ -333,6 +330,13 @@ install:
     fi
 
 ##############################################################################
+# Testing compilation using the `uhc` flag
+
+  - if [[ $TEST = "UHC" ]]; then
+       stack build $ARGS --no-terminal --test --no-run-tests --flag Agda:uhc;
+    fi
+
+##############################################################################
 script:
 
 ##############################################################################
@@ -417,13 +421,6 @@ script:
 
   - if [[ $TEST = "MAIN" ]]; then
        make testing-emacs-mode;
-    fi
-
-##############################################################################
-# Testing compilation using the `uhc` flag
-
-  - if [[ $TEST = "UHC" ]]; then
-       make BUILD_DIR=$BUILD_DIR CABAL_OPTS="-v2 -f uhc" install-bin;
     fi
 
 ##############################################################################
