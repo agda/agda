@@ -47,6 +47,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.HashMap (HashMap)
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -321,7 +322,11 @@ instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
 instance Apply Clause where
-    apply (Clause r tel ps b t catchall) args
+    -- This one is a little bit tricksy after the parameter refinement change.
+    -- It is assumed that we only apply a clause to "parameters", i.e.
+    -- arguments introduced by lambda lifting. The problem is that these aren't
+    -- necessarily the first elements of the clause telescope.
+    apply cls@(Clause r tel ps b t catchall) args
       | length args > length ps = __IMPOSSIBLE__
       | otherwise =
       Clause r
@@ -331,39 +336,69 @@ instance Apply Clause where
              (applySubst rho t)
              catchall
       where
+        -- We have
+        --  Γ ⊢ args, for some outer context Γ
+        --  Δ ⊢ ps,   where Δ is the clause telescope (tel)
         rargs = map unArg $ reverse args
         rps   = reverse $ take (length args) ps
+        n     = size tel
 
+        -- This is the new telescope. Created by substituting the args into the
+        -- appropriate places in the old telescope. We know where those are by
+        -- looking at the deBruijn indices of the patterns.
+        tel' = newTel n tel rps rargs
+
+        -- We then have to create a substitution from the old telescope to the
+        -- new telescope that we can apply to dot patterns and the clause body.
         rhoP :: PatternSubstitution
-        tel' = newTel tel rps rargs
-        rhoP = mkSub DotP rps rargs
-        rho  = mkSub id   rps rargs
+        rhoP = mkSub DotP n rps rargs
+        rho  = mkSub id   n rps rargs
 
         substP :: Nat -> Term -> [NamedArg DeBruijnPattern] -> [NamedArg DeBruijnPattern]
         substP i v = subst i (DotP v)
 
-        -- from tel to newTel
-        mkSub :: Subst a a => (Term -> a) -> [NamedArg DeBruijnPattern] -> [Term] -> Substitution' a
-        mkSub _ [] [] = idS
-        mkSub tm (p : ps) (v : vs) =
+        -- Building the substitution from the old telescope to the new. The
+        -- interesting case is when we have a variable pattern:
+        --  We need Δ′ ⊢ ρ : Δ
+        --  where Δ′ = newTel Δ (xⁱ : ps) (v : vs)
+        --           = newTel Δ[xⁱ:=v] ps[xⁱ:=v'] vs
+        --  Note that we need v' = raise (|Δ| - 1) v, to make Γ ⊢ v valid in
+        --  ΓΔ[xⁱ:=v].
+        --  A recursive call ρ′ = mkSub (substP i v' ps) vs gets us
+        --    Δ′ ⊢ ρ′ : Δ[xⁱ:=v]
+        --  so we just need Δ[xⁱ:=v] ⊢ σ : Δ and then ρ = ρ′ ∘ σ.
+        --  That's achieved by σ = singletonS i v'.
+        mkSub :: Subst a a => (Term -> a) -> Nat -> [NamedArg DeBruijnPattern] -> [Term] -> Substitution' a
+        mkSub _ _ [] [] = idS
+        mkSub tm n (p : ps) (v : vs) =
           case namedArg p of
-            VarP{}  -> tm v `consS` mkSub tm ps vs
-            DotP{}  -> mkSub tm ps vs
+            VarP (DBPatVar _ i) -> mkSub tm (n - 1) (substP i v' ps) vs `composeS` singletonS i (tm v')
+              where v' = raise (n - 1) v
+            DotP{}  -> mkSub tm n ps vs
             LitP{}  -> __IMPOSSIBLE__
             ConP{}  -> __IMPOSSIBLE__
             ProjP{} -> __IMPOSSIBLE__
-        mkSub _ _ _ = __IMPOSSIBLE__
+        mkSub _ _ _ _ = __IMPOSSIBLE__
 
-        newTel tel [] [] = tel
-        newTel tel (p : ps) (v : vs) =
+        -- The parameter patterns 'ps' are all variables or dot patterns. If they
+        -- are variables they can appear anywhere in the clause telescope. This
+        -- function constructs the new telescope with 'vs' substituted for 'ps'.
+        -- Example:
+        --    tel = (x : A) (y : B) (z : C) (w : D)
+        --    ps  = y@3 w@0
+        --    vs  = u v
+        --    newTel tel ps vs = (x : A) (z : C[u/y])
+        newTel n tel [] [] = tel
+        newTel n tel (p : ps) (v : vs) =
           case namedArg p of
-            VarP (DBPatVar _ i) -> newTel (subTel (size tel - 1 - i) v tel) (substP i v ps) vs
-            DotP{}              -> newTel tel ps vs
+            VarP (DBPatVar _ i) -> newTel (n - 1) (subTel (size tel - 1 - i) v tel) (substP i (raise (n - 1) v) ps) vs
+            DotP{}              -> newTel n tel ps vs
             LitP{}              -> __IMPOSSIBLE__
             ConP{}              -> __IMPOSSIBLE__
             ProjP{}             -> __IMPOSSIBLE__
-        newTel tel _ _ = __IMPOSSIBLE__
+        newTel _ tel _ _ = __IMPOSSIBLE__
 
+        -- subTel i v (Δ₁ (xᵢ : A) Δ₂) = Δ₁ Δ₂[xᵢ = v]
         subTel i v EmptyTel = __IMPOSSIBLE__
         subTel 0 v (ExtendTel _ tel) = absApp tel v
         subTel i v (ExtendTel a tel) = ExtendTel a $ subTel (i - 1) (raise 1 v) <$> tel

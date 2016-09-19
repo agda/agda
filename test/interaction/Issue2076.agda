@@ -123,3 +123,19 @@ module Parent (Y : Set) where
 
 -- Normalizing Parent.Child.extlam2 should yield
 -- λ Y X p q → λ { true → p , q }
+
+open import Agda.Builtin.Nat
+
+data Vec (A : Set) : Nat → Set where
+  [] : Vec A 0
+  _∷_ : ∀ {n} → A → Vec A n → Vec A (suc n)
+
+postulate
+  h : (∀ {n} → Vec Nat n → Nat) → Nat
+
+f : Nat → Nat
+f n = h λ where []       → 0
+                (x ∷ xs) → n
+
+-- Normalising f should yield
+-- λ n → h (λ { [] → 0 ; (x ∷ xs) → n })
