@@ -24,6 +24,10 @@ module Postulates where
   test₃ : F Nat → F Nat
   test₃ a = (| (_+ 5) a |)
 
+  -- Spaces are required! (Issue #2186)
+  test₄ : Nat → Nat
+  test₄ |n| = suc (|n| + |n|)
+
 module Params {F : Set → Set}
               (pure : ∀ {A} → A → F A)
               (_<*>_ : ∀ {A B} → F (A → B) → F A → F B) where
@@ -39,4 +43,3 @@ module Params {F : Set → Set}
 
   test₃ : F Nat → F Nat
   test₃ a = (| (_+ 5) a |)
-
