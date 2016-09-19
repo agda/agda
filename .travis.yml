@@ -222,7 +222,7 @@ install:
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
     elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
-       stack build --no-terminal --only-dependencies;
+         stack build --no-terminal --only-dependencies;
     elif [[ $TEST = "STACK" ]]; then
          stack build --no-terminal --test --only-dependencies;
     fi
