@@ -45,7 +45,10 @@ compileClauses ::
   -> [Clause] -> TCM CompiledClauses
 compileClauses mt cs = do
   -- Construct clauses with pattern variables bound in left-to-right order.
-  let cls = [ Cl (clausePats c) (compiledClauseBody c) | c <- cs ]
+  -- Discard de Bruijn indices in patterns.
+  let cls = [ Cl (map (fmap (fmap dbPatVarName . namedThing)) $ namedClausePats c)
+                 (compiledClauseBody c)
+            | c <- cs ]
   shared <- sharedFun
   case mt of
     Nothing -> return $ compile shared cls
@@ -70,9 +73,8 @@ compileClauses mt cs = do
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.
 data Cl = Cl
-  { clPats :: [Arg DeBruijnPattern]
-      -- ^ The de Bruijn indices are ignored,
-      --   pattern variables are considered in left-to-right order.
+  { clPats :: [Arg Pattern]
+      -- ^ Pattern variables are considered in left-to-right order.
   , clBody :: Maybe Term
   } deriving (Show)
 
@@ -117,7 +119,7 @@ compile shared cs = case nextSplit cs of
     Nothing : _ -> Fail
     []          -> __IMPOSSIBLE__
   where
-    name (VarP x) = dbPatVarName x
+    name (VarP x) = x
     name (DotP _) = underscore
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
@@ -267,7 +269,7 @@ expandCatchAlls single n cs =
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
-            conPArgs = map (fmap ($> debruijnNamedVar "_" 0)) qs' -- Note: de Bruijn indices are not correct!
+            conPArgs = map (fmap ($> VarP "_")) qs'
             conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
         LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
@@ -290,12 +292,12 @@ expandCatchAlls single n cs =
 ensureNPatterns :: Int -> Cl -> Cl
 ensureNPatterns n cl@(Cl ps b)
   | m <= 0    = cl
-  | otherwise = Cl (raise m ps ++ ps') (raise m b `apply` args)
+  | otherwise = Cl (ps ++ ps') (raise m b `apply` args)
   where
   -- Number of arguments to add
   m    = n - length ps
   is   = downFrom m
-  ps'  = for is $ \ i -> defaultArg $ debruijnNamedVar "_" i
+  ps'  = replicate m $ defaultArg $ VarP "_"
   args = for is $ \ i -> defaultArg $ var i
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
