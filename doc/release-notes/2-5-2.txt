@@ -125,6 +125,19 @@ Language
   Now this is no longer disallowed. Instead n is bound to the appropriate
   value in each clause.
 
+* With-abstraction now abstracts also in module parameters
+
+  The change that allows pattern matching to refine module parameters also
+  allows with-abstraction to abstract in them. For instance,
+
+    module _ (n : Nat) (xs : Vec Nat (n + n)) where
+      f : Nat
+      f with n + n
+      f    | nn = ? -- xs : Vec Nat nn
+
+  Note: Any function argument or lambda-bound variable bound outside a given
+  function counts as a module parameter.
+
 * As-patterns [Issue #78].
 
   As-patterns (@-patterns) are finally working and can be used to name a
