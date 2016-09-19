@@ -1027,13 +1027,15 @@ primFaceForall' = do
               | (bsm,ts) <- us'
               , 0 `Map.notMember` bsm
               ]
-         fm (i,b) = if b then var i else unview (INeg (argN (var i)))
+         fm (i,b) = if b then var (i-1) else unview (INeg (argN (var $ i-1)))
          ffr t = fr `apply` [argN $ Lam defaultArgInfo $ Abs "i" t]
-     return $
-       case v of
-         OTerm{} -> Nothing
-         v       -> Just $ foldr (\ x r -> unview (IMax (argN x) (argN r))) (unview IZero)
+         r = Just $ foldr (\ x r -> unview (IMax (argN x) (argN r))) (unview IZero)
                                  (map (foldr (\ x r -> unview (IMin (argN (either fm ffr x)) (argN r))) (unview IOne)) us)
+  --   traceSLn "cube.forall" 20 (unlines [show v, show us', show us, show r]) $
+     return $
+       case us' of
+         [(m,[_])] | Map.null m -> Nothing
+         v                      -> r
 
 decomposeInterval :: HasBuiltins m => Term -> m [(Map Int Bool,[Term])]
 decomposeInterval t = do
