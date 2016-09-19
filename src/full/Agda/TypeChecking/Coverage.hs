@@ -367,7 +367,7 @@ fixTarget sc@SClause{ scTel = sctel, scPats = ps, scSubst = sigma, scTarget = ta
           addContext sctel $ prettyTCM a
       ]
     TelV tel b <- telView $ applyPatSubst sigma $ unArg a
-    reportSDoc "tc.cover.target" 10 $ sep
+    reportSDoc "tc.cover.target" 15 $ sep
       [ text "target type telescope (after substitution): " <+> do
           addContext sctel $ prettyTCM tel
       , text "target type core      (after substitution): " <+> do

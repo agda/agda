@@ -44,6 +44,7 @@ compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
   -> [Clause] -> TCM CompiledClauses
 compileClauses mt cs = do
+  -- Construct clauses with pattern variables bound in left-to-right order.
   let cls = [ Cl (clausePats c) (compiledClauseBody c) | c <- cs ]
   shared <- sharedFun
   case mt of
@@ -70,6 +71,8 @@ compileClauses mt cs = do
 --   used in clause compiler.
 data Cl = Cl
   { clPats :: [Arg DeBruijnPattern]
+      -- ^ The de Bruijn indices are ignored,
+      --   pattern variables are considered in left-to-right order.
   , clBody :: Maybe Term
   } deriving (Show)
 
@@ -250,8 +253,8 @@ expandCatchAlls single n cs =
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
-            conPArgs = map (fmap ($> debruijnNamedVar "_" 0)) qs'
-            conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
+            conPArgs = map (fmap ($> debruijnNamedVar "_" 0)) qs' -- Note: de Bruijn indices are not correct!
+            conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
         LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
