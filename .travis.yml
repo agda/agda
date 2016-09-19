@@ -319,7 +319,7 @@ install:
 # Testing compilation using stack
 
   - if [[ $TEST = "STACK" ]]; then
-       stack build $ARGS --no-terminal --no-run-tests;
+       stack build $ARGS --no-terminal --test --no-run-tests;
     fi
 
 ##############################################################################
@@ -329,7 +329,7 @@ install:
 # N.B. that this test is not include in the Makefile tests.
 
   - if [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
-       stack build $ARGS --no-terminal --no-run-tests;
+       stack build $ARGS --no-terminal --test --no-run-tests;
     fi
 
 ##############################################################################
