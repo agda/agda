@@ -1460,9 +1460,16 @@ compareInterval cmp i t u = do
   iu <- decomposeInterval' =<< reduce u
   x <- leqInterval it iu
   y <- leqInterval iu it
-  if x && y then return () else typeError $ UnequalTerms cmp t u i
+  let final = isCanonical it && isCanonical iu
+  if x && y then return () else
+     if final then typeError $ UnequalTerms cmp t u i
+              else patternViolation
+
 
 type Conj = (Map.Map Int (Set.Set Bool),[Term])
+
+isCanonical :: [Conj] -> Bool
+isCanonical = all (null . snd)
 
 -- | leqInterval r q = r ≤ q in the I lattice.
 -- (∨ r_i) ≤ (∨ q_j)  iff  ∀ i. ∃ j. r_i ≤ q_j
