@@ -94,6 +94,10 @@ matrix:
           sources:
             - hvr-ghc
 
+    # Since `stack haddock` compiles Agda but `cabal haddock` does
+    # not, this test is faster using the `BUILD=CABAL` (see
+    # Issue #2188).
+
     - env: TEST=HADDOCK GHC_VER=7.10.3 BUILD=CABAL CABAL_VER=1.22
       addons:
         apt:
@@ -222,7 +226,7 @@ install:
     elif [[ $TEST = "ghc-7.8.4-transformers-0.3.0.0" ]]; then
          cabal install --enable-tests --only-dependencies --force-reinstalls --constraint=transformers==0.3.0.0;
     elif [[ $TEST = "CPP_AND_DEBUG" ]]; then
-       stack build --no-terminal --only-dependencies;
+         stack build --no-terminal --only-dependencies;
     elif [[ $TEST = "STACK" ]]; then
          stack build --no-terminal --test --only-dependencies;
     fi
