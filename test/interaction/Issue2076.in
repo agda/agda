@@ -8,3 +8,4 @@ top_command (cmd_compute_toplevel False "opentest")
 top_command (cmd_compute_toplevel False "Parent.Child.extlam2")
 goal_command 1 (cmd_compute False) "inside"
 goal_command 1 (cmd_compute False) "inside a"
+top_command (cmd_compute_toplevel False "f")

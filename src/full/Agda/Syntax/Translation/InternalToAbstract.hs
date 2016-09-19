@@ -553,7 +553,11 @@ reifyTerm expandAnonDefs0 v = do
 
     reifyExtLam :: QName -> Int -> [I.Clause] -> I.Elims -> TCM Expr
     reifyExtLam x npars cls es = do
-      reportSLn "reify.def" 10 $ "reifying extended lambda with definition: x = " ++ show x
+      reportSLn "reify.def" 10 $ "reifying extended lambda " ++ show x
+      reportSLn "reify.def" 50 $ show $ nest 2 $ vcat
+        [ text "npars =" <+> pretty npars
+        , text "es    =" <+> fsep (map (prettyPrec 10) es)
+        , text "def   =" <+> vcat (map pretty cls) ]
       -- As extended lambda clauses live in the top level, we add the whole
       -- section telescope to the number of parameters.
       let (pars, rest) = splitAt npars es
