@@ -257,13 +257,14 @@ expandCatchAlls single n cs =
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` (classify . unArg))
+    expansions = nubBy ((==) `on` (classify . unArg . snd))
                . mapMaybe (notVarNth . clPats)
                $ cs
-    notVarNth ps = caseMaybe (headMaybe $ drop n ps) Nothing $ \ p ->
-      if isVar (unArg p) then Nothing else Just p
+    notVarNth ps = caseMaybe (headMaybe ps2) Nothing $ \ p ->
+      if isVar (unArg p) then Nothing else Just (ps1, p)
+      where (ps1, ps2) = splitAt n ps
 
-    expand cl q =
+    expand cl (qs, q) =
       case unArg q of
         ConP c mt qs' -> Cl (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
                             (substBody n' m (Con c conArgs) b)
@@ -278,7 +279,7 @@ expandCatchAlls single n cs =
         -- Andreas, 2016-09-19 issue #2168
         -- Due to varying function arity, some clauses might be eta-contracted.
         -- Thus, we eta-expand them.
-        Cl ps b = ensureNPatterns (n + 1) cl
+        Cl ps b = ensureNPatterns (n + 1) (map getArgInfo $ qs ++ [q]) cl
         -- The following pattern match cannot fail (by construction of @ps@).
         (ps0, _:ps1) = splitAt n ps
 
@@ -289,17 +290,19 @@ expandCatchAlls single n cs =
         count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
         count _             = 0
 
--- | Make sure (by eta-expansion) that clause has arity at least @n@.
-ensureNPatterns :: Int -> Cl -> Cl
-ensureNPatterns n cl@(Cl ps b)
+-- | Make sure (by eta-expansion) that clause has arity at least @n@
+--   where @n@ is also the length of the provided list.
+ensureNPatterns :: Int -> [ArgInfo] -> Cl -> Cl
+ensureNPatterns n ais0 cl@(Cl ps b)
   | m <= 0    = cl
   | otherwise = Cl (ps ++ ps') (raise m b `apply` args)
   where
-  -- Number of arguments to add
-  m    = n - length ps
-  is   = downFrom m
-  ps'  = replicate m $ defaultArg $ VarP "_"
-  args = for is $ \ i -> defaultArg $ var i
+  k    = length ps
+  ais  = drop k ais0
+  -- m = Number of arguments to add
+  m    = n - k
+  ps'  = for ais $ \ ai -> Arg ai $ VarP "_"
+  args = zipWith (\ i ai -> Arg ai $ var i) (downFrom m) ais
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m
