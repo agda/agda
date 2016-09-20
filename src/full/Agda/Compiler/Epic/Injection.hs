@@ -141,16 +141,17 @@ isInjectiveHere nam idx clause = do
  case compiledClauseBody clause of
   Nothing -> return emptyC
   Just body -> do
-    let t    = patternToTerm idxR $ unArg $ fromMaybe __IMPOSSIBLE__ $
-                 unnumberPatVars (clausePats clause) !!! idx
+    let vars = unnumberPatVars $ namedClausePats clause
+    let t    = patternToTerm idxR $ namedArg $ fromMaybe __IMPOSSIBLE__ $
+                 vars !!! idx
         t'   = applySubst (substForDot $ namedClausePats clause) t
-        idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ unnumberPatVars $ clausePats clause
+        idxR = sum . map (nrBinds . namedArg) . drop (idx + 1) $ vars
     body' <- lift $ reduce body
     lift $ reportSLn "epic.injection" 40 "reduced body"
     injFs <- gets (injectiveFuns . importedModules)
     lift $ reportSLn "epic.injection" 40 "calculated injFs"
     res <- (t' <: body') `runReaderT` (Map.insert nam (InjectiveFun idx
-                                                      (length (clausePats clause))) injFs)
+                                                      (length (namedClausePats clause))) injFs)
     lift $ reportSDoc "epic.injection" 20 $ vcat
       [ text "isInjective:" <+> text (show nam)
       , text "at Index   :" <+> text (show idx)

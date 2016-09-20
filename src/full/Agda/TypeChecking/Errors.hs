@@ -1116,7 +1116,7 @@ instance PrettyTCM TypeError where
         where
           display ps = do
             ps <- nicify f ps
-            prettyTCM f <+> fsep (map prettyArg ps)
+            prettyTCM f <+> fsep (map (prettyArg . fmap namedThing) ps)
 
           nicify f ps = do
             showImp <- showImplicitArguments

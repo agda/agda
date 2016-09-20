@@ -58,7 +58,7 @@ instance IsProjP p => FunArity [p] where
 
 -- | Get the number of initial 'Apply' patterns in a clause.
 instance FunArity Clause where
-  funArity = funArity . clausePats
+  funArity = funArity . namedClausePats
 
 -- | Get the number of common initial 'Apply' patterns in a list of clauses.
 #if __GLASGOW_HASKELL__ >= 710

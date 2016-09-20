@@ -163,13 +163,13 @@ usagePolarity :: Defn -> [Polarity]
 usagePolarity def = case def of
     Axiom{}                                 -> []
     Function{ funClauses = [] }             -> []
-    Function{ funClauses = cs }             -> usage $ map clausePats cs
+    Function{ funClauses = cs }             -> usage $ map namedClausePats cs
     Datatype{ dataPars = np, dataIxs = ni } -> genericReplicate np Nonvariant
     Record{ recPars = n }                   -> genericReplicate n Nonvariant
     Constructor{}                           -> []
     Primitive{}                             -> []
   where
-    usage = foldr1 (zipWith (/\)) . map (map (usagePat . unArg))
+    usage = foldr1 (zipWith (/\)) . map (map (usagePat . namedArg))
     usagePat VarP{} = Nonvariant
     usagePat DotP{} = Nonvariant
     usagePat ConP{} = Invariant

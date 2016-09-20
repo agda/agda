@@ -1527,7 +1527,7 @@ isEmptyFunction def =
     _ -> False
 
 isCopatternLHS :: [Clause] -> Bool
-isCopatternLHS = List.any (List.any (isJust . A.isProjP) . clausePats)
+isCopatternLHS = List.any (List.any (isJust . A.isProjP) . namedClausePats)
 
 recCon :: Defn -> QName
 recCon Record{ recConHead } = conName recConHead
@@ -2406,8 +2406,8 @@ data TypeError
     -- TODO: Remove some of the constructors in this section, now that
     -- the SplitError constructor has been added?
         | IncompletePatternMatching Term [Elim] -- can only happen if coverage checking is switched off
-        | CoverageFailure QName [[Arg DeBruijnPattern]]
-        | UnreachableClauses QName [[Arg DeBruijnPattern]]
+        | CoverageFailure QName [[NamedArg DeBruijnPattern]]
+        | UnreachableClauses QName [[NamedArg DeBruijnPattern]]
         | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type

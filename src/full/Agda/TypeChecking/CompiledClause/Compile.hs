@@ -7,7 +7,7 @@ import Prelude hiding (null)
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
-import Data.List (genericReplicate, nubBy, findIndex)
+import Data.List (nubBy)
 import Data.Function
 
 import Debug.Trace
@@ -44,7 +44,11 @@ compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
   -> [Clause] -> TCM CompiledClauses
 compileClauses mt cs = do
-  let cls = [ Cl (clausePats c) (compiledClauseBody c) | c <- cs ]
+  -- Construct clauses with pattern variables bound in left-to-right order.
+  -- Discard de Bruijn indices in patterns.
+  let cls = [ Cl (map (fmap (fmap dbPatVarName . namedThing)) $ namedClausePats c)
+                 (compiledClauseBody c)
+            | c <- cs ]
   shared <- sharedFun
   case mt of
     Nothing -> return $ compile shared cls
@@ -69,7 +73,8 @@ compileClauses mt cs = do
 -- | Stripped-down version of 'Agda.Syntax.Internal.Clause'
 --   used in clause compiler.
 data Cl = Cl
-  { clPats :: [Arg DeBruijnPattern]
+  { clPats :: [Arg Pattern]
+      -- ^ Pattern variables are considered in left-to-right order.
   , clBody :: Maybe Term
   } deriving (Show)
 
@@ -107,14 +112,15 @@ compileWithSplitTree shared t cs = case t of
 compile :: (Term -> Term) -> Cls -> CompiledClauses
 compile shared cs = case nextSplit cs of
   Just (isRecP, n)-> Case n $ fmap (compile shared) $ splitOn isRecP (unArg n) cs
-  Nothing -> case map clBody cs of
+  Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just t : _  -> Done (map (fmap name) $ clPats $ head cs) (shared t)
-    Nothing : _ -> Fail
-    []          -> __IMPOSSIBLE__
+    Just t  -> Done (map (fmap name) $ clPats c) (shared t)
+    Nothing -> Fail
   where
-    name (VarP x) = dbPatVarName x
+    -- If there are more than one clauses, take the first one.
+    c = headWithDefault __IMPOSSIBLE__ cs
+    name (VarP x) = x
     name (DotP _) = underscore
     name ConP{}  = __IMPOSSIBLE__
     name LitP{}  = __IMPOSSIBLE__
@@ -204,6 +210,21 @@ splitC n (Cl ps b) = caseMaybe mp fallback $ \case
 --          _   -> case 3 of true  -> a; false -> b
 --   _          -> case 3 of true  -> a; false -> b
 -- @
+--
+-- Example from issue #2168:
+-- @
+--   f x     false = a
+--   f false       = \ _ -> b
+--   f x     true  = c
+-- @
+-- case tree:
+-- @
+--   f x y = case y of
+--     true  -> case x of
+--       true  -> c
+--       false -> b
+--     false -> a
+-- @
 expandCatchAlls :: Bool -> Int -> Cls -> Cls
 expandCatchAlls single n cs =
   -- Andreas, 2013-03-22
@@ -211,17 +232,17 @@ expandCatchAlls single n cs =
   -- we force expansion
   if single then doExpand =<< cs else
   case cs of
-  _            | all (isCatchAllNth . clPats) cs -> cs
-  Cl ps b : cs | not (isCatchAllNth ps) -> Cl ps b : expandCatchAlls False n cs
-               | otherwise -> map (expand ps b) expansions ++ Cl ps b : expandCatchAlls False n cs
+  _                | all (isCatchAllNth . clPats) cs -> cs
+  c@(Cl ps b) : cs | not (isCatchAllNth ps) -> c : expandCatchAlls False n cs
+                   | otherwise -> map (expand c) expansions ++ c : expandCatchAlls False n cs
   _ -> __IMPOSSIBLE__
   where
     -- In case there is only one branch in the split tree, we expand all
     -- catch-alls for this position
     -- The @expansions@ are collected from all the clauses @cs@ then.
     -- Note: @expansions@ could be empty, so we keep the orignal clause.
-    doExpand c@(Cl ps b)
-      | exCatchAllNth ps = map (expand ps b) expansions ++ [c]
+    doExpand c@(Cl ps _)
+      | exCatchAllNth ps = map (expand c) expansions ++ [c]
       | otherwise = [c]
 
     -- True if nth pattern is variable or there are less than n patterns.
@@ -230,33 +251,37 @@ expandCatchAlls single n cs =
     -- True if nth pattern exists and is variable.
     exCatchAllNth ps = any (isVar . unArg) $ take 1 $ drop n ps
 
-    nth ps = headWithDefault __IMPOSSIBLE__ $ drop n ps
-
     classify (LitP l)     = Left l
     classify (ConP c _ _) = Right c
     classify _            = __IMPOSSIBLE__
 
     -- All non-catch-all patterns following this one (at position n).
     -- These are the cases the wildcard needs to be expanded into.
-    expansions = nubBy ((==) `on` (classify . unArg))
-               . filter (not . isVar . unArg)
-               . map (nth . clPats)
+    expansions = nubBy ((==) `on` (classify . unArg . snd))
+               . mapMaybe (notVarNth . clPats)
                $ cs
+    notVarNth ps = caseMaybe (headMaybe ps2) Nothing $ \ p ->
+      if isVar (unArg p) then Nothing else Just (ps1, p)
+      where (ps1, ps2) = splitAt n ps
 
-    expand ps b q =
+    expand cl (qs, q) =
       case unArg q of
         ConP c mt qs' -> Cl (ps0 ++ [q $> ConP c mt conPArgs] ++ ps1)
                             (substBody n' m (Con c conArgs) b)
           where
             m        = length qs'
             -- replace all direct subpatterns of q by _
-            conPArgs = map (fmap ($> debruijnNamedVar "_" 0)) qs'
-            conArgs  = zipWith (\ q n -> q $> var n) qs' $ downFrom m
+            conPArgs = map (fmap ($> VarP "_")) qs'
+            conArgs  = zipWith (\ q' i -> q' $> var i) qs' $ downFrom m
         LitP l -> Cl (ps0 ++ [q $> LitP l] ++ ps1) (substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
-        (ps0, rest) = splitAt n ps
-        ps1         = maybe __IMPOSSIBLE__ snd $ uncons rest
+        -- Andreas, 2016-09-19 issue #2168
+        -- Due to varying function arity, some clauses might be eta-contracted.
+        -- Thus, we eta-expand them.
+        Cl ps b = ensureNPatterns (n + 1) (map getArgInfo $ qs ++ [q]) cl
+        -- The following pattern match cannot fail (by construction of @ps@).
+        (ps0, _:ps1) = splitAt n ps
 
         n' = countVars ps1
         countVars = sum . map (count . unArg)
@@ -264,6 +289,20 @@ expandCatchAlls single n cs =
         count (ConP _ _ ps) = countVars $ map (fmap namedThing) ps
         count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
         count _             = 0
+
+-- | Make sure (by eta-expansion) that clause has arity at least @n@
+--   where @n@ is also the length of the provided list.
+ensureNPatterns :: Int -> [ArgInfo] -> Cl -> Cl
+ensureNPatterns n ais0 cl@(Cl ps b)
+  | m <= 0    = cl
+  | otherwise = Cl (ps ++ ps') (raise m b `apply` args)
+  where
+  k    = length ps
+  ais  = drop k ais0
+  -- m = Number of arguments to add
+  m    = n - k
+  ps'  = for ais $ \ ai -> Arg ai $ VarP "_"
+  args = zipWith (\ i ai -> Arg ai $ var i) (downFrom m) ais
 
 substBody :: (Subst t a) => Int -> Int -> t -> a -> a
 substBody n m v = applySubst $ liftS n $ v :# raiseS m

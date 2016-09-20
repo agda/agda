@@ -1130,9 +1130,9 @@ instance Pretty Term where
   prettyPrec p v =
     case ignoreSharing v of
       Var x els -> text ("@" ++ show x) `pApp` els
-      Lam _ b   ->
+      Lam ai b   ->
         mparens (p > 0) $
-        sep [ text ("λ " ++ show (absName b) ++ " ->")
+        sep [ text "λ" <+> prettyHiding ai id (text . show . absName $ b) <+> text "->"
             , nest 2 $ pretty (unAbs b) ]
       Lit l                -> pretty l
       Def q els            -> text (show q) `pApp` els

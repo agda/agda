@@ -233,10 +233,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
         -- (Otherwise, @checkInjectivity@ loops for issue 801).
         modifyFunClauses name (const [])
 
-        -- Check that all clauses have the same number of arguments
-        -- unless (allEqual $ map npats cs) $ typeError DifferentArities
-        -- Andreas, 2013-03-15 disable this check to allow flexible arity (issue 727)
-
         reportSDoc "tc.cc" 25 $ do
           sep [ text "clauses before injectivity test"
               , nest 2 $ prettyTCM $ map (QNamed name) cs  -- broken, reify (QNamed n cl) expect cl to live at top level
@@ -308,8 +304,6 @@ checkFunDefS t ai delayed extlam with i name withSub cs =
           sep [ text "added " <+> prettyTCM name <+> text ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name
               ]
-    where
-        npats = size . clausePats
 
 -- | Set 'funTerminates' according to termination info in 'TCEnv',
 --   which comes from a possible termination pragma.

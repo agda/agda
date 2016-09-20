@@ -41,7 +41,7 @@ We try to split on this column first.
 -}
 
 -- | Match the given patterns against a list of clauses
-match :: [Clause] -> [Arg DeBruijnPattern] -> Match (Nat,[DeBruijnPattern])
+match :: [Clause] -> [NamedArg DeBruijnPattern] -> Match (Nat,[DeBruijnPattern])
 match cs ps = foldr choice No $ zipWith matchIt [0..] cs
   where
     -- If liberal matching on literals fails or blocks we go with that.
@@ -145,7 +145,7 @@ yesMatchLit l (DotP t) = case buildPattern t of
 yesMatchLit _ _          = No
 
 -- | Check if a clause could match given generously chosen literals
-matchLits :: Clause -> [Arg DeBruijnPattern] -> Bool
+matchLits :: Clause -> [NamedArg DeBruijnPattern] -> Bool
 matchLits c ps =
   case matchClause yesMatchLit ps 0 c of
     Yes _ -> True
@@ -153,9 +153,9 @@ matchLits c ps =
 
 -- | @matchClause mlit qs i c@ checks whether clause @c@ number @i@
 --   covers a split clause with patterns @qs@.
-matchClause :: MatchLit -> [Arg DeBruijnPattern] -> Nat -> Clause
+matchClause :: MatchLit -> [NamedArg DeBruijnPattern] -> Nat -> Clause
             -> Match (Nat,[DeBruijnPattern])
-matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
+matchClause mlit qs i c = (i,) <$> matchPats mlit (namedClausePats c) qs
 
 -- | @matchPats mlit ps qs@ checks whether a function clause with patterns
 --   @ps@ covers a split clause with patterns @qs@.
@@ -171,26 +171,29 @@ matchClause mlit qs i c = (\q -> (i,q)) <$> matchPats mlit (clausePats c) qs
 --   in the considered clause.  These additional patterns
 --   are simply dropped by @zipWith@.  This will result
 --   in @mconcat []@ which is @Yes []@.
-matchPats :: MatchLit -> [Arg (Pattern' a)] -> [Arg DeBruijnPattern]
+matchPats :: MatchLit -> [NamedArg (Pattern' a)] -> [NamedArg DeBruijnPattern]
           -> Match [DeBruijnPattern]
 matchPats mlit ps qs = mconcat $ [ projPatternsLeftInSplitClause ] ++
-    zipWith (matchPat mlit) (map unArg ps) (map unArg qs) ++
+    zipWith (matchPat mlit) (map namedArg ps) (map namedArg qs) ++
     [ projPatternsLeftInMatchedClause ]
   where
+    -- Patterns left in split clause:
+    qsrest = drop (length ps) qs
     -- Andreas, 2016-06-03, issue #1986:
     -- catch-all for copatterns is inconsistent as found by Ulf.
     -- Thus, if the split clause has copatterns left,
     -- the current (shorter) clause is not considered covering.
     projPatternsLeftInSplitClause =
-      let qsrest = map unArg $ drop (length ps) qs
-      in  case mapMaybe isProjP qsrest of
+        case mapMaybe isProjP qsrest of
             [] -> Yes [] -- no proj. patterns left
             _  -> No     -- proj. patterns left
+
+    -- Patterns left in candidate clause:
+    psrest = drop (length qs) ps
     -- If the current clause has additional copatterns in
     -- comparison to the split clause, we should split on them.
     projPatternsLeftInMatchedClause =
-      let psrest = map unArg $ drop (length qs) ps
-      in  case mapMaybe isProjP psrest of
+        case mapMaybe isProjP psrest of
             [] -> Yes []               -- no proj. patterns left
             ds -> Block (Any True) []  -- proj. patterns left
 
@@ -242,7 +245,7 @@ matchPat _    (ProjP _ d) _ = __IMPOSSIBLE__
 matchPat mlit p@(ConP c _ ps) q = case q of
   VarP x -> Block (Any False) [BlockingVar (dbPatVarIndex x) (Just [c])]
   ConP c' i qs
-    | c == c'   -> matchPats mlit (map (fmap namedThing) ps) (map (fmap namedThing) qs)
+    | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
   DotP t -> case buildPattern t of
     Just q  -> matchPat mlit p q
