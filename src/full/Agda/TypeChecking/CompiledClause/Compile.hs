@@ -7,7 +7,7 @@ import Prelude hiding (null)
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Map as Map
-import Data.List (genericReplicate, nubBy, findIndex)
+import Data.List (nubBy)
 import Data.Function
 
 import Debug.Trace
@@ -112,13 +112,14 @@ compileWithSplitTree shared t cs = case t of
 compile :: (Term -> Term) -> Cls -> CompiledClauses
 compile shared cs = case nextSplit cs of
   Just (isRecP, n)-> Case n $ fmap (compile shared) $ splitOn isRecP (unArg n) cs
-  Nothing -> case map clBody cs of
+  Nothing -> case clBody c of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just t : _  -> Done (map (fmap name) $ clPats $ head cs) (shared t)
-    Nothing : _ -> Fail
-    []          -> __IMPOSSIBLE__
+    Just t  -> Done (map (fmap name) $ clPats c) (shared t)
+    Nothing -> Fail
   where
+    -- If there are more than one clauses, take the first one.
+    c = headWithDefault __IMPOSSIBLE__ cs
     name (VarP x) = x
     name (DotP _) = underscore
     name ConP{}  = __IMPOSSIBLE__
