@@ -33,7 +33,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
-import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
@@ -159,6 +159,13 @@ checkStrictlyPositive mi qset = disableDestructiveUpdate $ do
               reportSDoc "tc.pos.record" 5 $ how "recursive" GuardPos
               recursiveRecord q
               checkInduction q
+            -- If the record is not recursive, switch on eta
+            -- unless it is coinductive or a no-eta-equality record.
+            Nothing -> do
+              reportSDoc "tc.pos.record" 10 $
+                text "record type " <+> prettyTCM q <+>
+                text "is not recursive"
+              nonRecursiveRecord q
             _ -> return ()
 
     checkInduction :: QName -> TCM ()

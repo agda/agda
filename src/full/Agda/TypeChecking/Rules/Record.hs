@@ -141,7 +141,11 @@ checkRecDef i name ind eta con ps contel fields =
           indCo = rangedThing <$> ind
           -- A constructor is inductive unless declared coinductive.
           conInduction = fromMaybe Inductive indCo
-          haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
+          -- Andreas, 2016-09-20, issue #2197.
+          -- Eta is inferred by the positivity checker.
+          -- We should turn it off until it is proven to be safe.
+          haveEta      = maybe (Inferred False) Specified eta
+          -- haveEta      = maybe (Inferred $ conInduction == Inductive && etaenabled) Specified eta
           con = ConHead conName conInduction $ map unArg fs
 
       reportSDoc "tc.rec" 30 $ text "record constructor is " <+> text (show con)
