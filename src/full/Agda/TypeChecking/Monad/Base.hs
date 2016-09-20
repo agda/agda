@@ -1397,9 +1397,10 @@ setEtaEquality :: EtaEquality -> Bool -> EtaEquality
 setEtaEquality e@Specified{} _ = e
 setEtaEquality _ b = Inferred b
 
-data FunctionFlag = FunStatic       -- ^ Should calls to this function be normalised at compile-time?
-                  | FunInline       -- ^ Should calls to this function be inlined by the compiler?
-                  | FunMacro        -- ^ Is this function a macro?
+data FunctionFlag
+  = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
+  | FunInline  -- ^ Should calls to this function be inlined by the compiler?
+  | FunMacro   -- ^ Is this function a macro?
   deriving (Typeable, Eq, Ord, Enum, Show)
 
 data Defn = Axiom
