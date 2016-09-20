@@ -417,7 +417,18 @@ checkLeftoverDotPatterns ps vs as dpi = do
 
     undotImplicitVar :: (Int,Projectns,Type) -> [(Int,Projectns)]
                      -> TCM (Maybe [(Int,Projectns)])
-    undotImplicitVar (i,fs,a) idv = case lookupImplicitDotVar (i,fs) idv of
+    undotImplicitVar (i,fs,a) idv = do
+     reportSDoc "tc.lhs.dot" 40 $ vcat
+       [ text "undotImplicitVar"
+       , nest 2 $ vcat
+         [ text $ "i  =  " ++ show i
+         , text   "fs = " <+> sep (map (prettyTCM . snd) fs)
+         , text   "a  = " <+> prettyTCM a
+         , text $ "raw=  "  ++ show a
+         , text $ "idv=  "  ++ show idv
+         ]
+       ]
+     case lookupImplicitDotVar (i,fs) idv of
       Nothing -> return Nothing
       Just [] -> return $ Just $ delete (i,fs) idv
       Just rs -> caseMaybeM (isEtaRecordType a) (return Nothing) $ \(d,pars) -> do
