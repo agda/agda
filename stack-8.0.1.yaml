@@ -3,16 +3,3 @@ resolver: lts-7.0
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-extra-deps:
-- logict-state-0.1.0.2
-- pqueue-1.3.1.1
-- shuffle-0.1.3.3
-- uhc-light-1.1.9.4
-- uhc-util-0.1.6.6
-- uuagc-0.9.52.1
-- uuagc-cabal-1.0.6.0
-- uulib-0.9.22
-
-# See http://stackoverflow.com/questions/39564607/error-installing-the-shuffle-library-with-stack
-explicit-setup-deps:
-  shuffle: true
