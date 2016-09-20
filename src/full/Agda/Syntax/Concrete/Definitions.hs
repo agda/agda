@@ -299,7 +299,7 @@ instance Pretty DeclarationException where
   pretty (PolarityPragmasButNotPostulates xs) = fsep $
     pwords "Polarity pragmas have been given for the following identifiers which are not postulates:" ++ map pretty xs
   pretty (UselessPrivate _)      = fsep $
-    pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and module declarations."
+    pwords "Using private here has no effect. Private applies only to declarations that introduce new identifiers into the module, like type signatures and data, record, and (non-anonymous) module declarations."
   pretty (UselessAbstract _)      = fsep $
     pwords "Using abstract here has no effect. Abstract applies only definitions like data definitions, record type definitions and function clauses."
   pretty (UselessInstance _)      = fsep $
@@ -1297,6 +1297,10 @@ instance MakePrivate NiceDeclaration where
       NiceField r f p a i x e                  -> (\ p -> NiceField r f p a i x e)                  <$> mkPrivate o p
       PrimitiveFunction r f p a x e            -> (\ p -> PrimitiveFunction r f p a x e)            <$> mkPrivate o p
       NiceMutual r termCheck pc ds             -> (\ p -> NiceMutual r termCheck pc p)              <$> mkPrivate o ds
+      -- Andreas, 2016-09-20, issue #2199
+      -- An anonymous module does not declare a new (module) identifier that could be
+      -- declared private.
+      NiceModule r p a x tel ds | isUnderscore x -> return d
       NiceModule r p a x tel ds                -> (\ p -> NiceModule r p a x tel ds)                <$> mkPrivate o p
       NiceModuleMacro r p x ma op is           -> (\ p -> NiceModuleMacro r p x ma op is)           <$> mkPrivate o p
       FunSig r f p a i m rel tc x e            -> (\ p -> FunSig r f p a i m rel tc x e)            <$> mkPrivate o p
