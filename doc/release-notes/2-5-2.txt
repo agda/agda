@@ -138,6 +138,18 @@ Language
   Note: Any function argument or lambda-bound variable bound outside a given
   function counts as a module parameter.
 
+  To prevent abstraction in a parameter you can hide it inside a definition. In
+  the above example,
+
+    module _ (n : Nat) (xs : Vec Nat (n + n)) where
+
+      ys : Vec Nat (n + n)
+      ys = xs
+
+      f : Nat
+      f with n + n
+      f    | nn = ? -- xs : Vec Nat nn, ys : Vec Nat (n + n)
+
 * As-patterns [Issue #78].
 
   As-patterns (@-patterns) are finally working and can be used to name a
