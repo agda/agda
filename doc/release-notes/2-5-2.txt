@@ -638,6 +638,14 @@ Emacs mode
   Currently termination errors, unsolved metavariables, unsolved
   constraints and positivity errors are non-fatal errors.
 
+* The abbrev for codata was replaced by an abbrev for code
+  environments.
+
+  If you type "c C-x '" (on a suitably standard setup), then Emacs
+  will insert the following text:
+
+    \begin{code}<newline>  <cursor><newline>\end{code}<newline>.
+
 Compiler backends
 =================
 
