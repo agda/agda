@@ -358,10 +358,35 @@
   \newdimen\mathindent\mathindent\leftmargini
 \fi
 
-\newenvironment{code}%
-{\noindent\ignorespaces\advance\leftskip\mathindent\AgdaCodeStyle\pboxed}%
-{\endpboxed\par\noindent%
-\ignorespacesafterend}
+% Adds the given amount of vertical space and starts a new line.
+%
+% The implementation comes from lhs2TeX's polycode.fmt, written by
+% Andres Löh.
+\newcommand{\AgdaNewlineWithVerticalSpace}[1]{%
+  {\parskip=0pt\parindent=0pt\par\vskip #1\noindent}}
+
+% Use this command to avoid extra space around code blocks.
+\newcommand{\AgdaNoSpaceAroundCode}{%
+  \renewcommand{\AgdaNewline}[1]{\AgdaNewlineWithVerticalSpace{0pt}}}
+% Use this command to include extra space around code blocks.
+\newcommand{\AgdaSpaceAroundCode}{%
+  \renewcommand{\AgdaNewline}[1]{\AgdaNewlineWithVerticalSpace{##1}}}
+
+\newcommand{\AgdaNewline}[1]{}
+\AgdaSpaceAroundCode{}
+
+% The code environment.
+%
+% The implementation is based on plainhscode in lhs2TeX's
+% polycode.fmt, written by Andres Löh.
+\newenvironment{code}{%
+  \AgdaNewline{\abovedisplayskip}%
+  \advance\leftskip\mathindent%
+  \AgdaCodeStyle%
+  \pboxed}{%
+  \endpboxed%
+  \AgdaNewline{\belowdisplayskip}%
+  \ignorespacesafterend}
 
 % Default column for polytable.
 \defaultcolumn{@{~}l@{~}}

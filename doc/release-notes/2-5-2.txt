@@ -653,3 +653,20 @@ Compiler backends
   most Agda features, notably copatterns can now be compiled to JavaScript. Furthermore,
   the existing optimizations from the other backends now apply to the JavaScript backend
   as well.
+
+LaTeX backend
+=============
+
+* Code blocks are now (by default) surrounded by vertical space.
+  [Issue #2198]
+
+  Use \AgdaNoSpaceAroundCode{} to avoid this vertical space, and
+  \AgdaSpaceAroundCode{} to reenable it.
+
+  Note that, if \AgdaNoSpaceAroundCode{} is used, then empty lines
+  before or after a code block will not necessarily lead to empty
+  lines in the generated document. However, empty lines /inside/ the
+  code block do (by default) lead to empty lines in the output.
+
+  If you prefer the previous behaviour, then you can use the agda.sty
+  file that came with the previous version of Agda.
