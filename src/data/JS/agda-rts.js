@@ -105,8 +105,10 @@ exports.primATan = function(x) {
   return Math.atan(x);
 };
 
-exports.primATan2 = function(x,y) {
-  return Math.atan2(x,y);
+exports.primATan2 = function(x) {
+  return function(y){
+    return Math.atan2(x,y);
+  }
 };
 
 exports.primExp = function(x) {
