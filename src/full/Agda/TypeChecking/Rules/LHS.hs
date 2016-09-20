@@ -410,7 +410,9 @@ checkLeftoverDotPatterns ps vs as dpi = do
     lookupImplicitDotVar :: (Int,Projectns) -> [(Int,Projectns)] -> Maybe Projectns
     lookupImplicitDotVar (i,fs) [] = Nothing
     lookupImplicitDotVar (i,fs) ((j,gs):js)
-     | i == j , Just hs <- stripPrefix fs gs = Just hs
+     -- Andreas, 2016-09-20, issue #2196
+     -- We need to ignore the ProjOrigin!
+     | i == j , Just hs <- stripPrefixBy ((==) `on` snd) fs gs = Just hs
      | otherwise = lookupImplicitDotVar (i,fs) js
 
     undotImplicitVar :: (Int,Projectns,Type) -> [(Int,Projectns)]

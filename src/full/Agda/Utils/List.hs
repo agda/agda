@@ -145,6 +145,17 @@ isSublistOf (x : xs) ys =
 type Prefix a = [a]
 type Suffix a = [a]
 
+-- | Check if a list has a given prefix. If so, return the list
+--   minus the prefix.
+stripPrefixBy :: (a -> a -> Bool) -> Prefix a -> [a] -> Maybe (Suffix a)
+stripPrefixBy eq = loop
+  where
+  loop []    rest = Just rest
+  loop (_:_) []   = Nothing
+  loop (p:pat) (r:rest)
+    | eq p r    = loop pat rest
+    | otherwise = Nothing
+
 -- | Result of 'preOrSuffix'.
 data PreOrSuffix a
   = IsPrefix a [a] -- ^ First list is prefix of second.
