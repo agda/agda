@@ -1,10 +1,6 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
-out > sin (asin 0.6) = 0.6
-out > cos (acos 0.6) = 0.6
-out > tan (atan 0.6) = 0.6
-out > tan (atan2 0.6 1.0) = 0.6
 out > 123.4 = 123.4
 out > -42.9 = -42.9
 out > NaN   = NaN
