@@ -1,6 +1,8 @@
 -- 2014-02-08 Andreas
 -- Eta-equality for records that are recursive via some data type
 
+-- {-# OPTIONS -v tc.pos.record:10 #-}
+
 module _ where
 
 open import Common.Equality
@@ -41,4 +43,3 @@ module Mutual where
 
   test : ∀ {A} (t : Tree A) → t ≡ tree (elem t) (subtrees t)
   test t = refl
-

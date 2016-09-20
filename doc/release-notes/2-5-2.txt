@@ -541,6 +541,40 @@ Type checking
 * The detection of types that satisfy K added in Agda 2.5.1 has been rolled
   back (see Issue #2003).
 
+* Eta-equality for record types is now only on after the positivity
+  checker has confirmed it is safe to have it.  Eta-equality for
+  unguarded inductive records previously lead to looping of the type
+  checker.  [See Issue #2197]
+
+    record R : Set where
+      inductive
+      field r : R
+
+      loops : R
+      loops = ?
+
+  As a consequence of this change, the following example does not
+  type-check any more:
+
+    mutual
+      record ⊤ : Set where
+
+      test : ∀ {x y : ⊤} → x ≡ y
+      test = refl
+
+  It fails because the positivity checker is only run after the mutual
+  block, thus, eta-equality for ⊤ is not available when checking test.
+
+  One can declare eta-equality explicitly, though, to make this
+  example work.
+
+    mutual
+      record ⊤ : Set where
+        eta-equality
+
+      test : ∀ {x y : ⊤} → x ≡ y
+      test = refl
+
 
 Emacs mode
 ==========

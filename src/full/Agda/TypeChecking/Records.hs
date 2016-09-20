@@ -330,16 +330,34 @@ isGeneratedRecordConstructor c = do
 -- | Mark record type as unguarded.
 --   No eta-expansion.  Projections do not preserve guardedness.
 unguardedRecord :: QName -> TCM ()
-unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ updateRecord
-  where updateRecord r@Record{} = r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False, recRecursive = True }
-        updateRecord _          = __IMPOSSIBLE__
+unguardedRecord q = modifySignature $ updateDefinition q $ updateTheDef $ \case
+  r@Record{} -> r { recEtaEquality' = setEtaEquality (recEtaEquality' r) False, recRecursive = True }
+  _ -> __IMPOSSIBLE__
 
 -- | Mark record type as recursive.
 --   Projections do not preserve guardedness.
 recursiveRecord :: QName -> TCM ()
-recursiveRecord q = modifySignature $ updateDefinition q $ updateTheDef $ updateRecord
-  where updateRecord r@Record{} = r { recRecursive = True }
-        updateRecord _          = __IMPOSSIBLE__
+recursiveRecord q = do
+  ok <- etaEnabled
+  modifySignature $ updateDefinition q $ updateTheDef $ \case
+    r@Record{ recInduction = ind, recEtaEquality' = eta } ->
+      r { recRecursive = True, recEtaEquality' = eta' }
+      where
+      eta' | ok, eta == Inferred False, ind /= Just CoInductive = Inferred True
+           | otherwise = eta
+    _ -> __IMPOSSIBLE__
+
+-- | Turn on eta for non-recursive record, unless user declared otherwise.
+nonRecursiveRecord :: QName -> TCM ()
+nonRecursiveRecord q = whenM etaEnabled $ do
+  -- Do nothing if eta is disabled by option.
+  modifySignature $ updateDefinition q $ updateTheDef $ \case
+    r@Record{ recInduction = ind, recEtaEquality' = Inferred False }
+      | ind /= Just CoInductive ->
+      r { recEtaEquality' = Inferred True }
+    r@Record{} -> r
+    _          -> __IMPOSSIBLE__
+
 
 -- | Check whether record type is marked as recursive.
 --

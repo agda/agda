@@ -1382,20 +1382,25 @@ projArgInfo :: Projection -> ArgInfo
 projArgInfo (Projection _ _ _ _ lams) =
   maybe __IMPOSSIBLE__ getArgInfo $ lastMaybe $ getProjLams lams
 
-
-data EtaEquality = Specified !Bool | Inferred !Bool deriving (Typeable,Show)
+-- | Should a record type admit eta-equality?
+data EtaEquality
+  = Specified !Bool  -- ^ User specifed 'eta-equality' or 'no-eta-equality'
+  | Inferred !Bool   -- ^ Positivity checker inferred whether eta is safe/
+  deriving (Typeable, Show, Eq)
 
 etaEqualityToBool :: EtaEquality -> Bool
 etaEqualityToBool (Specified b) = b
 etaEqualityToBool (Inferred b) = b
 
+-- | Make sure we do not overwrite a user specification.
 setEtaEquality :: EtaEquality -> Bool -> EtaEquality
 setEtaEquality e@Specified{} _ = e
 setEtaEquality _ b = Inferred b
 
-data FunctionFlag = FunStatic       -- ^ Should calls to this function be normalised at compile-time?
-                  | FunInline       -- ^ Should calls to this function be inlined by the compiler?
-                  | FunMacro        -- ^ Is this function a macro?
+data FunctionFlag
+  = FunStatic  -- ^ Should calls to this function be normalised at compile-time?
+  | FunInline  -- ^ Should calls to this function be inlined by the compiler?
+  | FunMacro   -- ^ Is this function a macro?
   deriving (Typeable, Eq, Ord, Enum, Show)
 
 data Defn = Axiom
