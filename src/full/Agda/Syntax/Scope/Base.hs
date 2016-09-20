@@ -659,7 +659,7 @@ flattenScope ms scope =
                [ qual c (build ms' exportedNamesInScope $ moduleScope a)
                | (c, a) <- Map.toList $ scopeImports root
                , let -- get the suffixes of c in ms
-                     ms' = mapMaybe (maybePrefixMatch $ C.qnameParts c) ms
+                     ms' = mapMaybe (List.stripPrefix $ C.qnameParts c) ms
                , not $ null ms' ]
     qual c = Map.mapKeys (q c)
       where

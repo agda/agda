@@ -147,12 +147,14 @@ type Suffix a = [a]
 
 -- | Check if a list has a given prefix. If so, return the list
 --   minus the prefix.
-maybePrefixMatch :: Eq a => Prefix a -> [a] -> Maybe (Suffix a)
-maybePrefixMatch []    rest = Just rest
-maybePrefixMatch (_:_) []   = Nothing
-maybePrefixMatch (p:pat) (r:rest)
-  | p == r    = maybePrefixMatch pat rest
-  | otherwise = Nothing
+stripPrefixBy :: (a -> a -> Bool) -> Prefix a -> [a] -> Maybe (Suffix a)
+stripPrefixBy eq = loop
+  where
+  loop []    rest = Just rest
+  loop (_:_) []   = Nothing
+  loop (p:pat) (r:rest)
+    | eq p r    = loop pat rest
+    | otherwise = Nothing
 
 -- | Result of 'preOrSuffix'.
 data PreOrSuffix a

@@ -429,7 +429,7 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
              -- If things are imported by open public they do not have the old qualifier
              -- as prefix.  Those need just to be linked, not copied.
              -- return $ A.mnameFromList $ (newL ++) $ drop (size old) $ A.mnameToList x
-             -- caseMaybe (maybePrefixMatch (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
+             -- caseMaybe (stripPrefix (A.mnameToList old) (A.mnameToList x)) (return x) $ \ suffix -> do
              --   return $ A.mnameFromList $ newL ++ suffix
              -- Ulf, 2016-02-22: #1726
              -- We still need to copy modules from 'open public'. Same as in renName.
