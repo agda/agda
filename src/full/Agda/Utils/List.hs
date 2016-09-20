@@ -145,15 +145,6 @@ isSublistOf (x : xs) ys =
 type Prefix a = [a]
 type Suffix a = [a]
 
--- | Check if a list has a given prefix. If so, return the list
---   minus the prefix.
-maybePrefixMatch :: Eq a => Prefix a -> [a] -> Maybe (Suffix a)
-maybePrefixMatch []    rest = Just rest
-maybePrefixMatch (_:_) []   = Nothing
-maybePrefixMatch (p:pat) (r:rest)
-  | p == r    = maybePrefixMatch pat rest
-  | otherwise = Nothing
-
 -- | Result of 'preOrSuffix'.
 data PreOrSuffix a
   = IsPrefix a [a] -- ^ First list is prefix of second.
