@@ -18,11 +18,6 @@
   nil
   "data " _ " : Set where\n")
 
-(define-skeleton agda2-abbrevs-codata
-  "Inserts a codata template."
-  nil
-  "codata " _ " : Set where\n")
-
 (define-skeleton agda2-abbrevs-record
   "Inserts a record type template."
   nil
@@ -54,13 +49,18 @@
   nil
   "∀ {" _ "} ")
 
+(define-skeleton agda2-abbrevs-code-block
+  "Inserts a code block."
+  nil
+  "\\begin{code}\n  " _ "\n\\end{code}\n")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Abbrevs
 
 (defvar agda2-abbrevs-defaults '(
   ("m"   "" agda2-abbrevs-module)
   ("d"   "" agda2-abbrevs-data)
-  ("c"   "" agda2-abbrevs-codata)
+  ("c"   "" agda2-abbrevs-code-block)
   ("re"  "" agda2-abbrevs-record)
   ("rec" "" agda2-abbrevs-record-value)
   ("u"   "" agda2-abbrevs-using)
