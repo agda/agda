@@ -85,6 +85,30 @@ exports.primSin = function(x) {
   return Math.sin(x);
 };
 
+exports.primCos = function(x) {
+  return Math.cos(x);
+};
+
+exports.primTan = function(x) {
+  return Math.tan(x);
+};
+
+exports.primASin = function(x) {
+  return Math.asin(x);
+};
+
+exports.primACos = function(x) {
+  return Math.acos(x);
+};
+
+exports.primATan = function(x) {
+  return Math.atan(x);
+};
+
+exports.primATan2 = function(x,y) {
+  return Math.atan2(x,y);
+};
+
 exports.primExp = function(x) {
   return Math.exp(x);
 };
