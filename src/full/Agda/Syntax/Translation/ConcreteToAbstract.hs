@@ -972,7 +972,7 @@ scopeCheckNiceModule r p name tel checkDs
 
       -- Check whether we are dealing with an anonymous module.
       -- This corresponds to a Coq/LEGO section.
-      (name, p, open) <- do
+      (name, p', open) <- do
         if isNoName name then do
           (i :: NameId) <- fresh
           return (C.NoName (getRange name) i, PrivateAccess Inserted, True)
@@ -982,13 +982,14 @@ scopeCheckNiceModule r p name tel checkDs
       aname <- toAbstract (NewModuleName name)
       ds <- snd <$> do
         scopeCheckModule r (C.QName name) aname tel checkDs
-      bindModule p name aname
+      bindModule p' name aname
 
-      -- If the module was anonymous open it public.
+      -- If the module was anonymous open it public
+      -- unless it's private, in which case we just open it (#2099)
       when open $
        void $ -- We can discard the returned default A.ImportDirective.
         openModule_ (C.QName name) $
-          defaultImportDir { publicOpen = True }
+          defaultImportDir { publicOpen = p == PublicAccess }
       return ds
 
 -- | Check whether a telescope has open declarations or module macros.

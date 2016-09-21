@@ -1,5 +1,4 @@
-Issue2199.agda:6,3-9,16
-Using private here has no effect. Private applies only to
-declarations that introduce new identifiers into the module, like
-type signatures and data, record, and (non-anonymous) module
-declarations.
+Issue2199.agda:16,9-11
+Not in scope:
+  Id at Issue2199.agda:16,9-11
+when scope checking Id

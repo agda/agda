@@ -1,11 +1,16 @@
--- Andreas, 2016-09-20, issue #2199, reported by Favonia
 
 module _ where
 
-module _ where
-  private  -- This private is useless!
-    module _ where
-      postulate
-        A : Set
+module M where
+  private
+    module _ (A : Set) where
+      Id : Set
+      Id = A
 
-test = A
+  foo : Set → Set
+  foo A = Id A
+
+open M
+
+bar : Set → Set
+bar A = Id A -- Id should not be in scope
