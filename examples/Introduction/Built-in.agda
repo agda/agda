@@ -135,6 +135,12 @@ primitive
   primExp            : Float -> Float
   primLog            : Float -> Float     -- partial
   primSin            : Float -> Float
+  primCos            : Float -> Float
+  primTan            : Float -> Float
+  primASin           : Float -> Float
+  primACos           : Float -> Float
+  primATan           : Float -> Float
+  primATan2          : Float -> Float -> Float
   primShowFloat      : Float -> String
 
     -- Character functions

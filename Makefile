@@ -14,7 +14,7 @@ include ./mk/paths.mk
 
 CABAL_CMD=cabal
 
-AGDA_MODE=agda-mode-$(VERSION)
+AGDA_MODE=agda-mode
 
 # GHC version removing the patchlevel number (e.g. in GHC 7.10.3, the
 # patchlevel number is 3).
@@ -72,7 +72,6 @@ QUICK_CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR)-quick
 CABAL_INSTALL = $(CABAL_INSTALL_HELPER) --builddir=$(BUILD_DIR) --enable-tests
 
 CABAL_INSTALL_BIN_OPTS = --disable-library-profiling \
-                         --program-suffix=-$(VERSION) \
                          $(CABAL_OPTS)
 
 .PHONY : quick-install-bin
@@ -86,7 +85,7 @@ install-bin :
 .PHONY : install-prof-bin
 install-prof-bin :
 	$(CABAL_INSTALL) --enable-library-profiling --enable-profiling \
-          --program-suffix=-$(VERSION)_p $(CABAL_OPTS)
+          --program-suffix=_p $(CABAL_OPTS)
 
 # --program-suffix is not for the executable name in
 # $(BUILD_DIR)/build/, only for installing it into .cabal/bin

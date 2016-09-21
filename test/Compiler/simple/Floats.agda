@@ -23,6 +23,7 @@ Inf = 1.0 / 0.0
 -Inf : Float
 -Inf = -1.0 / 0.0
 
+
 main : IO Unit
 main =
   putStr "123.4 = " ,, print 123.4 ,,
