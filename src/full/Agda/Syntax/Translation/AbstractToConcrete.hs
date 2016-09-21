@@ -580,7 +580,7 @@ instance ToConcrete LetBinding [C.Declaration] where
         p <- toConcrete p
         e <- toConcrete e
         ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere False ]
-    bindToConcrete (LetApply i x modapp _ _ _) ret = do
+    bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp
       let r = getRange modapp
@@ -763,7 +763,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       ds <- declsToConcrete ds
       return [ C.Module (getRange i) x (concat tel) ds ]
 
-  toConcrete (A.Apply i x modapp _ _ _) = do
+  toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
     modapp <- toConcrete modapp
     let r = getRange modapp

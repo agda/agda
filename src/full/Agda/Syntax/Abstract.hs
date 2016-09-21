@@ -46,6 +46,7 @@ import Agda.TypeChecking.Positivity.Occurrence
 import Agda.Utils.Functor
 import Agda.Utils.Geniplate
 import Agda.Utils.Lens
+import Agda.Utils.Pretty
 
 #include "undefined.h"
 import Agda.Utils.Impossible
@@ -111,6 +112,24 @@ data Axiom
 -- | Renaming (generic).
 type Ren a = [(a, a)]
 
+data ScopeCopyInfo = ScopeCopyInfo
+  { renModules :: Ren ModuleName
+  , renNames   :: Ren QName }
+  deriving (Eq, Show)
+
+initCopyInfo :: ScopeCopyInfo
+initCopyInfo = ScopeCopyInfo
+  { renModules = []
+  , renNames   = []
+  }
+
+instance Pretty ScopeCopyInfo where
+  pretty i = vcat [ prRen "renModules =" (renModules i)
+                  , prRen "renNames   =" (renNames i) ]
+    where
+      prRen s r = sep [ text s, nest 2 $ vcat (map pr r) ]
+      pr (x, y) = pretty x <+> text "->" <+> pretty y
+
 data Declaration
   = Axiom      Axiom DefInfo ArgInfo (Maybe [Occurrence]) QName Expr
     -- ^ Type signature (can be irrelevant, but not hidden).
@@ -121,7 +140,7 @@ data Declaration
   | Primitive  DefInfo QName Expr                    -- ^ primitive function
   | Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
   | Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-  | Apply      ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName) ImportDirective
+  | Apply      ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
   | Import     ModuleInfo ModuleName ImportDirective
     -- ^ The @ImportDirective@ is for highlighting purposes.
@@ -197,8 +216,8 @@ data LetBinding
     -- ^ @LetBind info rel name type defn@
   | LetPatBind LetInfo Pattern Expr
     -- ^ Irrefutable pattern binding.
-  | LetApply ModuleInfo ModuleName ModuleApplication (Ren QName) (Ren ModuleName) ImportDirective
-    -- ^ @LetApply mi newM (oldM args) renaming moduleRenaming dir@.
+  | LetApply ModuleInfo ModuleName ModuleApplication ScopeCopyInfo ImportDirective
+    -- ^ @LetApply mi newM (oldM args) renamings dir@.
     -- The @ImportDirective@ is for highlighting purposes.
   | LetOpen ModuleInfo ModuleName ImportDirective
     -- ^ only for highlighting and abstractToConcrete
@@ -511,7 +530,7 @@ instance Eq Declaration where
   Primitive a1 b1 c1             == Primitive a2 b2 c2             = (a1, b1, c1) == (a2, b2, c2)
   Mutual a1 b1                   == Mutual a2 b2                   = (a1, b1) == (a2, b2)
   Section a1 b1 c1 d1            == Section a2 b2 c2 d2            = (a1, b1, c1, d1) == (a2, b2, c2, d2)
-  Apply a1 b1 c1 d1 e1 f1        == Apply a2 b2 c2 d2 e2 f2        = (a1, b1, c1, d1, e1, f1) == (a2, b2, c2, d2, e2, f2)
+  Apply a1 b1 c1 d1 e1           == Apply a2 b2 c2 d2 e2           = (a1, b1, c1, d1, e1) == (a2, b2, c2, d2, e2)
   Import a1 b1 c1                == Import a2 b2 c2                = (a1, b1, c1) == (a2, b2, c2)
   Pragma a1 b1                   == Pragma a2 b2                   = (a1, b1) == (a2, b2)
   Open a1 b1 c1                  == Open a2 b2 c2                  = (a1, b1, c1) == (a2, b2, c2)
@@ -589,7 +608,7 @@ instance HasRange Declaration where
     getRange (Field      i _ _      ) = getRange i
     getRange (Mutual     i _        ) = getRange i
     getRange (Section    i _ _ _    ) = getRange i
-    getRange (Apply      i _ _ _ _ _) = getRange i
+    getRange (Apply      i _ _ _ _)   = getRange i
     getRange (Import     i _ _      ) = getRange i
     getRange (Primitive  i _ _      ) = getRange i
     getRange (Pragma     i _        ) = getRange i
@@ -639,7 +658,7 @@ instance HasRange RHS where
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
     getRange (LetPatBind  i _ _      ) = getRange i
-    getRange (LetApply i _ _ _ _ _   ) = getRange i
+    getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _ _         ) = getRange i
     getRange (LetDeclaredVariable x)   = getRange x
 
@@ -706,9 +725,7 @@ instance KillRange Declaration where
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
-  killRange (Apply      i a b c d e   ) = killRange3 Apply      i a b c d (killRange e)
-   -- the arguments c and d of Apply are name maps, so nothing to kill
-   -- Andreas, 2016-01-24 really?
+  killRange (Apply      i a b c d     ) = killRange5 Apply      i a b c d
   killRange (Import     i a b         ) = killRange3 Import     i a b
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
@@ -726,6 +743,9 @@ instance KillRange Declaration where
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
   killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
+
+instance KillRange ScopeCopyInfo where
+  killRange (ScopeCopyInfo a b) = killRange2 ScopeCopyInfo a b
 
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)            = killRange1 VarP x
@@ -765,7 +785,7 @@ instance KillRange RHS where
 instance KillRange LetBinding where
   killRange (LetBind    i info a b c) = killRange5 LetBind  i info a b c
   killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
-  killRange (LetApply   i a b c d e ) = killRange3 LetApply i a b c d (killRange e)
+  killRange (LetApply   i a b c d   ) = killRange5 LetApply i a b c d
   killRange (LetOpen    i x dir     ) = killRange3 LetOpen  i x dir
   killRange (LetDeclaredVariable x)   = killRange1 LetDeclaredVariable x
 
@@ -890,11 +910,11 @@ instance AllNames TypedBinding where
   allNames (TLet _ lbs)  = allNames lbs
 
 instance AllNames LetBinding where
-  allNames (LetBind _ _ _ e1 e2)    = allNames e1 >< allNames e2
-  allNames (LetPatBind _ _ e)       = allNames e
-  allNames (LetApply _ _ app _ _ _) = allNames app
-  allNames LetOpen{}                = Seq.empty
-  allNames (LetDeclaredVariable _)  = Seq.empty
+  allNames (LetBind _ _ _ e1 e2)   = allNames e1 >< allNames e2
+  allNames (LetPatBind _ _ e)      = allNames e
+  allNames (LetApply _ _ app _ _)  = allNames app
+  allNames LetOpen{}               = Seq.empty
+  allNames (LetDeclaredVariable _) = Seq.empty
 
 instance AllNames ModuleApplication where
   allNames (SectionApp bindss _ es) = allNames bindss >< allNames es

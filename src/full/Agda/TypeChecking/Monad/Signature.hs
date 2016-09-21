@@ -20,7 +20,7 @@ import Data.Maybe
 import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Abstract (Ren)
+import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
@@ -279,12 +279,11 @@ applySection
   -> Telescope      -- ^ Parameters of new module.
   -> ModuleName     -- ^ Name of old module applied to arguments.
   -> Args           -- ^ Arguments of module application.
-  -> Ren QName      -- ^ Imported names (given as renaming).
-  -> Ren ModuleName -- ^ Imported modules (given as renaming).
+  -> ScopeCopyInfo  -- ^ Imported names and modules
   -> TCM ()
-applySection new ptel old ts rd rm = do
+applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = do
   rd <- closeConstructors rd
-  applySection' new ptel old ts rd rm
+  applySection' new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd }
   where
     -- If a datatype is being copied, all its constructors need to be copied,
     -- and if a constructor is copied its datatype needs to be.
@@ -314,8 +313,8 @@ applySection new ptel old ts rd rm = do
             Record{ recConHead = h }      -> [conName h]
             _                         -> []
 
-applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> Ren QName -> Ren ModuleName -> TCM ()
-applySection' new ptel old ts rd rm = do
+applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo -> TCM ()
+applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = do
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
     , text "new  =" <+> text (show new)

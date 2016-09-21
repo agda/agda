@@ -272,16 +272,12 @@ recordConstructorType fields = build <$> mapM validForLet fs
     lets [] c = c
     lets ds c = C.Let (getRange ds) ds c
 
--- | @checkModuleApplication modapp m0 x dir = return (modapp', renD, renM)@
---
---   @m0@ is the new (abstract) module name and
---   @x@ its concrete form (used for error messages).
 checkModuleApplication
   :: C.ModuleApplication
   -> ModuleName
   -> C.Name
   -> C.ImportDirective
-  -> ScopeM (A.ModuleApplication, Ren A.QName, Ren ModuleName, A.ImportDirective)
+  -> ScopeM (A.ModuleApplication, ScopeCopyInfo, A.ImportDirective)
 
 checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
   reportSDoc "scope.decl" 70 $ vcat $
@@ -302,11 +298,11 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
                     | otherwise = removeOnlyQualified
     -- Copy the scope associated with m and take the parts actually imported.
     (adir, s) <- applyImportDirectiveM (C.QName x) dir' =<< getNamedScope m1
-    (s', (renM, renD)) <- copyScope m m0 (noRecConstr s)
+    (s', copyInfo) <- copyScope m m0 (noRecConstr s)
     -- Set the current scope to @s'@
     modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
-    reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
+    reportSLn "scope.mod.inst" 30 $ show (pretty copyInfo)
     let amodapp = A.SectionApp tel' m1 args'
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleApplication " ++ prettyShow x
@@ -314,18 +310,18 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' = do
     reportSDoc "scope.decl" 70 $ vcat $
       [ nest 2 $ prettyA amodapp
       ]
-    return (amodapp, renD, renM, adir)
+    return (amodapp, copyInfo, adir)
 
 checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (adir, s) <- applyImportDirectiveM recN dir' s
-    (s', (renM, renD)) <- copyScope recN m0 (removeOnlyQualified s)
+    (s', copyInfo) <- copyScope recN m0 (removeOnlyQualified s)
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
-    return (A.RecordModuleIFS m1, renD, renM, adir)
+    return (A.RecordModuleIFS m1, copyInfo, adir)
 
 -- | @checkModuleMacro mkApply range access concreteName modapp open dir@
 --
@@ -336,8 +332,7 @@ checkModuleMacro
   => (ModuleInfo
       -> ModuleName
       -> A.ModuleApplication
-      -> Ren A.QName
-      -> Ren ModuleName
+      -> ScopeCopyInfo
       -> A.ImportDirective
       -> a)
   -> Range
@@ -369,7 +364,7 @@ checkModuleMacro apply r p x modapp open dir = do
           (DontOpen, _)     -> (dir, defaultImportDir)
 
     -- Restore the locals after module application has been checked.
-    (modapp', renD, renM, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
+    (modapp', copyInfo, adir') <- withLocalVars $ checkModuleApplication modapp m0 x moduleDir
     printScope "mod.inst.app" 20 "checkModuleMacro, after checkModuleApplication"
 
     reportSDoc "scope.decl" 90 $ text "after mod app: trying to print m0 ..."
@@ -393,7 +388,7 @@ checkModuleMacro apply r p x modapp open dir = do
     reportSDoc "scope.decl" 90 $ text "after stripNo: m0 =" <+> prettyA m0
 
     let m      = m0 `withRangesOf` [x]
-        adecls = [ apply info m modapp' renD renM adir ]
+        adecls = [ apply info m modapp' copyInfo adir ]
 
     reportSDoc "scope.decl" 70 $ vcat $
       [ text $ "scope checked ModuleMacro " ++ prettyShow x
@@ -401,8 +396,7 @@ checkModuleMacro apply r p x modapp open dir = do
     reportSLn  "scope.decl" 90 $ "info    = " ++ show info
     reportSLn  "scope.decl" 90 $ "m       = " ++ show m
     reportSLn  "scope.decl" 90 $ "modapp' = " ++ show modapp'
-    reportSLn  "scope.decl" 90 $ "renD    = " ++ show renD
-    reportSLn  "scope.decl" 90 $ "renM    = " ++ show renM
+    reportSLn  "scope.decl" 90 $ show $ pretty copyInfo
     reportSDoc "scope.decl" 70 $ vcat $
       map (nest 2 . prettyA) adecls
     return adecls
@@ -916,7 +910,7 @@ instance ToAbstract C.ModuleAssignment (A.ModuleName, [A.LetBinding]) where
                           (C.SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
                           DontOpen i
         case r of
-          (LetApply _ m' _ _ _ _ : _) -> return (m', r)
+          (LetApply _ m' _ _ _ : _) -> return (m', r)
           _ -> __IMPOSSIBLE__
 
 instance ToAbstract c a => ToAbstract (FieldAssignment' c) (FieldAssignment' a) where

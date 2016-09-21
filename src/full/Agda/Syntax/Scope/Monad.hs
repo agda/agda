@@ -26,6 +26,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Fixity
 import Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract (ScopeCopyInfo(..), initCopyInfo)
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base
 
@@ -348,16 +349,15 @@ stripNoNames = modifyScopes $ Map.map $ mapScope_ stripN stripN id
   where
     stripN = Map.filterWithKey $ const . not . isNoName
 
-type Out = (A.Ren A.ModuleName, A.Ren A.QName)
-type WSM = StateT Out ScopeM
+type WSM = StateT ScopeCopyInfo ScopeM
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
-copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, (A.Ren A.ModuleName, A.Ren A.QName))
-copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) ([], [])
+copyScope :: C.QName -> A.ModuleName -> Scope -> ScopeM (Scope, ScopeCopyInfo)
+copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy new s) initCopyInfo
   where
-    copy :: A.ModuleName -> Scope -> StateT (A.Ren A.ModuleName, A.Ren A.QName) ScopeM Scope
+    copy :: A.ModuleName -> Scope -> WSM Scope
     copy new s = do
       lift $ reportSLn "scope.copy" 20 $ "Copying scope " ++ show old ++ " to " ++ show new
       lift $ reportSLn "scope.copy" 50 $ show s
@@ -388,12 +388,12 @@ copyScope oldc new s = first (inScopeBecause $ Applied oldc) <$> runStateT (copy
             _ -> lensAnameName f d
 
         -- Adding to memo structure.
-        addName x y = modify $ second $ ((x, y):)
-        addMod  x y = modify $ first  $ ((x, y):)
+        addName x y = modify $ \ i -> i { renNames   = (x, y) : renNames   i }
+        addMod  x y = modify $ \ i -> i { renModules = (x, y) : renModules i }
 
         -- Querying the memo structure.
-        findName x = lookup x <$> gets snd
-        findMod  x = lookup x <$> gets fst
+        findName x = lookup x <$> gets renNames
+        findMod  x = lookup x <$> gets renModules
 
         refresh :: A.Name -> WSM A.Name
         refresh x = do

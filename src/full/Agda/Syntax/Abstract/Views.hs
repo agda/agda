@@ -365,7 +365,7 @@ instance ExprLike Declaration where
       Primitive i x e           -> Primitive i x <$> rec e
       Mutual i ds               -> Mutual i <$> rec ds
       Section i m tel ds        -> Section i m <$> rec tel <*> rec ds
-      Apply i m a rd rm d       -> (\ a -> Apply i m a rd rm d) <$> rec a
+      Apply i m a ci d          -> (\ a -> Apply i m a ci d) <$> rec a
       Import{}                  -> pure d
       Pragma i p                -> Pragma i <$> rec p
       Open{}                    -> pure d
