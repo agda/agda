@@ -255,6 +255,7 @@ numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
     primFloatPlus     : Float → Float → Float
     primFloatMinus    : Float → Float → Float
     primFloatTimes    : Float → Float → Float
+    primFloatNegate   : Float → Float
     primFloatDiv      : Float → Float → Float
     primFloatEquality : Float → Float → Bool
     primFloatLess     : Float → Float → Bool

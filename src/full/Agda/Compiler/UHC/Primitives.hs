@@ -79,6 +79,7 @@ primFunctions = M.fromList $
         , "primFloatPlus"
         , "primFloatMinus"
         , "primFloatTimes"
+        , "primFloatNegate"
         , "primFloatDiv"
         , "primFloatSqrt"
         , "primRound"
