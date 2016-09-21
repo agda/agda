@@ -517,9 +517,20 @@ Language
 
     C′ != c of type D
 
-* Added new primitive `primFloatNegate : Float → Float` to the
-  built-in floats and the backends (JS, GHC and UHC) [Issue #2194].
+* Added new primitives to built-in floats:
 
+  - `primFloatNegate : Float → Float` [Issue #2194]
+
+  - Trigonometric primitives [Issue #2200]:
+
+    ```agda
+    primCos   : Float → Float
+    primTan   : Float → Float
+    primASin  : Float → Float
+    primACos  : Float → Float
+    primATan  : Float → Float
+    primATan2 : Float → Float → Float
+    ```
 
 Reflection
 ----------
@@ -673,10 +684,35 @@ Emacs mode
 Compiler backends
 =================
 
-* The JavaScript backend has been (partially) rewritten. The JavaScript backend now supports
-  most Agda features, notably copatterns can now be compiled to JavaScript. Furthermore,
-  the existing optimizations from the other backends now apply to the JavaScript backend
-  as well.
+* JS compiler backend
+
+  The JavaScript backend has been (partially) rewritten. The
+  JavaScript backend now supports most Agda features, notably
+  copatterns can now be compiled to JavaScript. Furthermore, the
+  existing optimizations from the other backends now apply to the
+  JavaScript backend as well.
+
+* GHC and JS compiler backends
+
+  Added new primitives to built-in floats [Issues #2194 and #2200]:
+
+  ```agda
+  primFloatNegate : Float → Float
+  primCos         : Float → Float
+  primTan         : Float → Float
+  primASin        : Float → Float
+  primACos        : Float → Float
+  primATan        : Float → Float
+  primATan2       : Float → Float → Float
+  ```
+
+* UHC compiler backend
+
+  Added new primitive to built-in floats [Issues #2194]:
+
+  ```agda
+  primFloatNegate : Float → Float
+  ```
 
 LaTeX backend
 =============
