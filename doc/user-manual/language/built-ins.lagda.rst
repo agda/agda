@@ -264,6 +264,12 @@ numbers_>`_, `Bool <Booleans_>`_, `String <Strings_>`_ and `Int
     primExp           : Float → Float
     primLog           : Float → Float
     primSin           : Float → Float
+    primCos           : Float → Float
+    primTan           : Float → Float
+    primASin          : Float → Float
+    primACos          : Float → Float
+    primATan          : Float → Float
+    primATan2         : Float → Float → Float
     primShowFloat     : Float → String
 
 These are implemented by the corresponding Haskell functions with a few
