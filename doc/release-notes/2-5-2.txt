@@ -517,6 +517,10 @@ Language
 
     C′ != c of type D
 
+* Added new primitive `primFloatNegate : Float → Float` to the
+  built-in floats and the backends (JS, GHC and UHC) [Issue #2194].
+
+
 Reflection
 ----------
 
