@@ -471,6 +471,26 @@ Language
           b : B
           test : P (Wrap.unwrap b)  -- fails
 
+* Private anonymous modules now work as expected [#2199]
+
+  Previously the 'private' was ignored for anonymous modules causing its
+  definitions to be visible outside the module containing the anonymous module.
+  This is no longer the case. For instance,
+
+    module M where
+      private
+        module _ (A : Set) where
+          Id : Set
+          Id = A
+
+      foo : Set → Set
+      foo = Id
+
+    open M
+
+    bar : Set → Set
+    bar = Id -- Id is no longer in scope here
+
 * Pattern synonyms are now expanded on left hand sides of DISPLAY pragmas
   [Issue 2132].  Example:
 
