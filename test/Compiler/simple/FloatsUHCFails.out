@@ -1,6 +1,10 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
+out > sin (asin 0.6) = 0.6
+out > cos (acos 0.6) = 0.6
+out > tan (atan 0.6) = 0.6
+out > tan (atan2 0.6 1.0) = 0.6
 out > √2 = 1.4142135623730951
 out > √2 = 1.414213562373095
 out > e = 2.718281828459045
