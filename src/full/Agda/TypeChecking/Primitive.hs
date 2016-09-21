@@ -724,6 +724,12 @@ primitiveFunctions = Map.fromList
   , "primExp"             |-> mkPrimFun1 (exp             :: Fun Double)
   , "primLog"             |-> mkPrimFun1 (log             :: Fun Double)
   , "primSin"             |-> mkPrimFun1 (sin             :: Fun Double)
+  , "primCos"             |-> mkPrimFun1 (cos             :: Fun Double)
+  , "primTan"             |-> mkPrimFun1 (tan             :: Fun Double)
+  , "primASin"            |-> mkPrimFun1 (asin            :: Fun Double)
+  , "primACos"            |-> mkPrimFun1 (acos            :: Fun Double)
+  , "primATan"            |-> mkPrimFun1 (atan            :: Fun Double)
+  , "primATan2"           |-> mkPrimFun2 (atan2           :: Double -> Double -> Double)
   , "primShowFloat"       |-> mkPrimFun1 (Str . show      :: Double -> Str)
 
   -- Character functions

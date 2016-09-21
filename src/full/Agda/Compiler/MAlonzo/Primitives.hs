@@ -179,6 +179,12 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primExp"               |-> return "(exp :: Double -> Double)"
   , "primLog"               |-> return "(log :: Double -> Double)"
   , "primSin"               |-> return "(sin :: Double -> Double)"
+  , "primCos"               |-> return "(cos :: Double -> Double)"
+  , "primTan"               |-> return "(tan :: Double -> Double)"
+  , "primASin"              |-> return "(asin :: Double -> Double)"
+  , "primACos"              |-> return "(acos :: Double -> Double)"
+  , "primATan"              |-> return "(atan :: Double -> Double)"
+  , "primATan2"             |-> return "(atan2 :: Double -> Double -> Double)"
   , "primShowFloat"         |-> return "(Data.Text.pack . show :: Double -> Data.Text.Text)"
 
   -- Character functions

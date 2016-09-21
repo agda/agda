@@ -379,4 +379,10 @@ primitives = Set.fromList
   , "primShowFloat"
   , "primShowInteger"
   , "primSin"
+  , "primCos"
+  , "primTan"
+  , "primASin"
+  , "primACos"
+  , "primATan"
+  , "primATan2"
   ]
