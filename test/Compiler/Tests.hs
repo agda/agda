@@ -96,7 +96,9 @@ disabledTests =
   , RFInclude "Compiler/JS/simple/QNameOrder"
   -- Floats
   , RFInclude "Compiler/JS/simple/FloatsJSFails"
+  , RFInclude "Compiler/JS/simple/Issue2194"
   , RFInclude "Compiler/UHC/simple/FloatsUHCFails"
+  , RFInclude "Compiler/UHC/simple/Issue2194"
   ]
 
 tests :: IO TestTree

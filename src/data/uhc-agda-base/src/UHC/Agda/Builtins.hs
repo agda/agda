@@ -66,6 +66,7 @@ module UHC.Agda.Builtins
   , primFloatPlus
   , primFloatMinus
   , primFloatTimes
+  , primFloatNegate
   , primFloatDiv
   , primFloatSqrt
   , primRound
@@ -349,6 +350,9 @@ primFloatMinus = (-)
 
 primFloatTimes :: Double -> Double -> Double
 primFloatTimes = (*)
+
+primFloatNegate :: Double -> Double
+primFloatNegate = negate
 
 primFloatDiv :: Double -> Double -> Double
 primFloatDiv = (/)

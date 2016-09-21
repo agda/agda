@@ -72,6 +72,11 @@ exports.primFloatTimes = function(x) {
     return x*y;
   };
 };
+
+exports.primFloatNegate = function(x) {
+  return -x;
+};
+
 exports.primFloatDiv = function(x) {
   return function(y) {
     return x/y;

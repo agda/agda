@@ -710,6 +710,7 @@ primitiveFunctions = Map.fromList
   , "primFloatPlus"       |-> mkPrimFun2 ((+)             :: Op Double)
   , "primFloatMinus"      |-> mkPrimFun2 ((-)             :: Op Double)
   , "primFloatTimes"      |-> mkPrimFun2 ((*)             :: Op Double)
+  , "primFloatNegate"     |-> mkPrimFun1 (negate          :: Fun Double)
   , "primFloatDiv"        |-> mkPrimFun2 ((/)             :: Op Double)
   -- We use bitwise equality for comparing Double because
   -- Haskell's Eq, which equates 0.0 and -0.0, allows to prove a

@@ -156,10 +156,11 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
 
   -- Floating point functions
   , "primNatToFloat"        |-> return "(fromIntegral :: Integer -> Double)"
-  , "primFloatPlus"         |-> return "((+) :: Double -> Double -> Double)"
-  , "primFloatMinus"        |-> return "((-) :: Double -> Double -> Double)"
-  , "primFloatTimes"        |-> return "((*) :: Double -> Double -> Double)"
-  , "primFloatDiv"          |-> return "((/) :: Double -> Double -> Double)"
+  , "primFloatPlus"         |-> return "((+)          :: Double -> Double -> Double)"
+  , "primFloatMinus"        |-> return "((-)          :: Double -> Double -> Double)"
+  , "primFloatTimes"        |-> return "((*)          :: Double -> Double -> Double)"
+  , "primFloatNegate"       |-> return "(negate       :: Double -> Double)"
+  , "primFloatDiv"          |-> return "((/)          :: Double -> Double -> Double)"
   -- ASR (2016-09-14). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).

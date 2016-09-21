@@ -370,6 +370,7 @@ primitives = Set.fromList
   , "primFloatDiv"
   , "primFloatEquality"
   , "primFloatLess"
+  , "primFloatNegate"
   , "primFloatMinus"
   , "primFloatPlus"
   , "primFloatSqrt"
