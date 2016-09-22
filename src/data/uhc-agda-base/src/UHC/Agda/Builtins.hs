@@ -325,10 +325,18 @@ primMkFloat = read
 -- for comparing Double. Since the @identicalIEEE@ function from the
 -- ieee754 package is not available in UHC, we use a function
 -- implemented by Ulf (see Issue #2169).
+-- PH (2016-09-22). It turns out that there are two kinds of NaN,
+-- NaN and -NaN. This two different NaNs should not be treated as equal.
+-- However, there is no straightforward way to distinguish those in
+-- UHC Haskell. For the time being, we will just disable this primitive for UHC.
+-- (see Issue #2194)
 primFloatEquality :: Double -> Double -> Bool
-primFloatEquality x y =
-  isNaN x && isNaN y ||
-  (x, isNegativeZero x) == (y, isNegativeZero y)
+-- As this primitive is often pulled in by imports but rarely used,
+-- we only fail at runtime.
+primFloatEquality = error "Not implemented - see Issue #2194"
+-- primFloatEquality x y =
+--   isNaN x && isNaN y ||
+--   (x, isNegativeZero x) == (y, isNegativeZero y)
 
 primFloatLess :: Double -> Double -> Bool
 primFloatLess x y

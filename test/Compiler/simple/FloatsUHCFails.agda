@@ -8,6 +8,19 @@ open import Common.Prelude
 print : Float → IO Unit
 print x = putStrLn (primShowFloat x)
 
+printB : Bool → IO Unit
+printB true  = putStrLn "true"
+printB false = putStrLn "false"
+
+_/_ = primFloatDiv
+_==_ = primFloatEquality
+
+NaN : Float
+NaN = 0.0 / 0.0
+
+Inf : Float
+Inf = 1.0 / 0.0
+
 pi : Float
 pi = 3.141592653589793
 
@@ -29,6 +42,12 @@ main =
   -- See Issues #1856 and #1857.
   putStr "√2 = " ,, print (primFloatSqrt 2.0) ,,
   putStr "√2 = " ,, print (primFloatTimes 2.0 (primSin (primFloatDiv pi 4.0))) ,,
+
+  putStr "Inf == Inf  = " ,, printB (Inf == Inf) ,,
+  -- Issues #2155 and #2194.
+  putStr "NaN == NaN  = " ,, printB (NaN == NaN) ,,
+  -- Issue #2169.
+  putStr "0.0 == -0.0 = " ,, printB (0.0 == -0.0) ,,
 
   -- See Issue #1856.
   putStr "e = " ,, print (primExp 1.0) ,,
