@@ -791,12 +791,13 @@ moduleParamsToApply m = do
   n   <- getModuleFreeVars m
   tel <- take n . telToList <$> lookupSection m
   sub <- getModuleParameterSub m
-  let args = applySubst sub $ zipWith (\ i a -> Var i [] <$ argFromDom a) (downFrom (length tel)) tel
   reportSLn "tc.sig.param" 60 $ unlines $
     [ "  n    = " ++ show n
     , "  cxt  = " ++ show cxt
     , "  sub  = " ++ show sub
     ]
+  unless (size tel == n) __IMPOSSIBLE__
+  let args = applySubst sub $ zipWith (\ i a -> var i <$ argFromDom a) (downFrom n) tel
   reportSLn "tc.sig.param" 60 $ "  args = " ++ show args
 
   -- Apply the original ArgInfo, as the hiding information in the current
