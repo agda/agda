@@ -132,6 +132,9 @@ giveExpr mi e = do
           _ -> updateMeta mi v
         wakeupConstraints mi
         solveSizeConstraints DontDefaultToInfty
+        -- Double check.
+        vfull <- instantiateFull v
+        checkInternal v t'
 
 -- | Try to fill hole by expression.
 --
