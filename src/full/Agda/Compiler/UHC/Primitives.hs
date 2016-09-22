@@ -88,6 +88,13 @@ primFunctions = M.fromList $
         , "primExp"
         , "primLog"
         , "primSin"
+        , "primCos"
+        , "primTan"
+        , "primASin"
+        , "primACos"
+        , "primATan"
+        , "primATan"
+        , "primATan2"
         -- Reflection
         , "primQNameEquality"
         , "primQNameLess"

@@ -7,5 +7,8 @@ out > tan (atan 0.6) = 0.6
 out > tan (atan2 0.6 1.0) = 0.6
 out > √2 = 1.4142135623730951
 out > √2 = 1.414213562373095
+out > Inf == Inf  = true
+out > NaN == NaN  = true
+out > 0.0 == -0.0 = false
 out > e = 2.718281828459045
 out >
