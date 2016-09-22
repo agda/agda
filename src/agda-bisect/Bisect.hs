@@ -46,7 +46,7 @@ data Options = Options
   , mustOutput, mustNotOutput :: [String]
   , mustFinishWithin          :: Maybe Int
   , extraArguments            :: Bool
-  , compiler                  :: String
+  , cabalOptions              :: [String]
   , skipStrings               :: [String]
   , logFile                   :: Maybe String
   , start                     :: Either FilePath (String, String)
@@ -97,11 +97,19 @@ options =
     <*> (not <$>
          switch (long "no-extra-arguments" <>
                  help "Do not give any extra arguments to Agda"))
-    <*> strOption (long "compiler" <>
-                   help "Use COMPILER to compile Agda" <>
-                   metavar "COMPILER" <>
-                   value "ghc" <> showDefault <>
-                   action "file")
+    <*> ((\mc opts ->
+             maybe [] (\c -> ["--with-compiler=" ++ c]) mc ++ opts) <$>
+         optional
+           (strOption (long "compiler" <>
+                       help "Use COMPILER to compile Agda" <>
+                       metavar "COMPILER" <>
+                       action "file")) <*>
+         many
+           (strOption (long "cabal-option" <>
+                       help "Additional option given to cabal install" <>
+                       metavar "OPTION" <>
+                       completer (commandCompleter "cabal"
+                                    ["install", "--list-options"]))))
     <*> ((\skip -> if skip then ciSkipStrings else []) <$>
          switch (long "skip-skipped" <>
                  help ("Skip commits with commit messages " ++
@@ -184,8 +192,8 @@ options =
 
     , paragraph
         [ "You should install suitable versions of the following"
-        , "commands before running the script (in addition to the"
-        , "COMPILER):"
+        , "commands before running the script (in addition to any"
+        , "programs invoked by cabal install):"
         ] PP.<$>
       indent 2 (fillSep $ map string ["cabal", "git", "sed"])
 
@@ -193,18 +201,22 @@ options =
         [ "The script may not work on all platforms." ]
     ]
 
-  commitCompleter = mkCompleter $ \prefix -> do
-    -- The man page for one version of git rev-parse states that
-    -- "While the ref name encoding is unspecified, UTF-8 is preferred
-    -- as some output processing may assume ref names in UTF-8".
+  -- Constructs completions by running a command. The command's output
+  -- is assumed to be encoded using UTF-8, and to contain one possible
+  -- completion per line.
+  commandCompleter prog args = mkCompleter $ \prefix -> do
     (code, out, _) <- withUTF8Ignore $
-                        readProcessWithExitCode
-                          "git" ["tag", "--list", "*"] ""
+                        readProcessWithExitCode prog args ""
     return $
       if code == ExitSuccess then
         filter (prefix `isPrefixOf`) $ lines out
        else
         []
+
+  -- The man page for one version of git rev-parse states that "While
+  -- the ref name encoding is unspecified, UTF-8 is preferred as some
+  -- output processing may assume ref names in UTF-8".
+  commitCompleter = commandCompleter "git" ["tag", "--list", "*"]
 
 -- | The top-level program.
 
@@ -346,13 +358,13 @@ installAgda opts = do
 
 cabalInstall :: Options -> FilePath -> IO Bool
 cabalInstall opts file =
-  callProcessWithResult "cabal"
+  callProcessWithResult "cabal" $
     [ "install"
     , "--force-reinstalls"
     , "--disable-library-profiling"
     , "--disable-documentation"
-    , "--with-compiler=" ++ compiler opts
-    , file
+    ] ++ cabalOptions opts ++
+    [ file
     ]
 
 -- | The first command tries to increase the chances that Agda will
