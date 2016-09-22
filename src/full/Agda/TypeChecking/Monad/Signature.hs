@@ -786,16 +786,18 @@ moduleParamsToApply :: ModuleName -> TCM Args
 moduleParamsToApply m = do
   -- Get the correct number of free variables (correctly raised) of @m@.
 
-  reportSLn "tc.sig.param" 90 $ "compupting module parameters of " ++ show m
+  reportSLn "tc.sig.param" 90 $ "computing module parameters of " ++ show m
   cxt <- getContext
   n   <- getModuleFreeVars m
   tel <- take n . telToList <$> lookupSection m
   sub <- getModuleParameterSub m
-  reportSLn "tc.sig.param" 20 $ "  n    = " ++ show n ++
-                                "\n  cxt  = " ++ show cxt ++
-                                "\n  sub  = " ++ show sub
   let args = applySubst sub $ zipWith (\ i a -> Var i [] <$ argFromDom a) (downFrom (length tel)) tel
-  reportSLn "tc.sig.param" 20 $ "  args = " ++ show args
+  reportSLn "tc.sig.param" 60 $ unlines $
+    [ "  n    = " ++ show n
+    , "  cxt  = " ++ show cxt
+    , "  sub  = " ++ show sub
+    ]
+  reportSLn "tc.sig.param" 60 $ "  args = " ++ show args
 
   -- Apply the original ArgInfo, as the hiding information in the current
   -- context might be different from the hiding information expected by @m@.
@@ -808,14 +810,14 @@ moduleParamsToApply m = do
       -- unless (null args) __IMPOSSIBLE__
       -- No, this invariant is violated by private modules, see Issue1701a.
       return args
-    Just (Section tel) -> do
+    Just (Section stel) -> do
       -- The section telescope of @m@ should be as least
       -- as long as the number of free vars @m@ is applied to.
       -- We still check here as in no case, we want @zipWith@ to silently
       -- drop some @args@.
       -- And there are also anonymous modules, thus, the invariant is not trivial.
-      when (size tel < size args) __IMPOSSIBLE__
-      return $ zipWith (\ (Dom ai _) (Arg _ v) -> Arg ai v) (telToList tel) args
+      when (size stel < size args) __IMPOSSIBLE__
+      return $ zipWith (\ (Dom ai _) (Arg _ v) -> Arg ai v) (telToList stel) args
 
 -- | Unless all variables in the context are module parameters, create a fresh
 --   module to capture the non-module parameters. Used when unquoting to make
