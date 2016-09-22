@@ -75,6 +75,12 @@ module UHC.Agda.Builtins
   , primExp
   , primLog
   , primSin
+  , primCos
+  , primTan
+  , primASin
+  , primACos
+  , primATan
+  , primATan2
     -- Reflection
   , QName (..)
   , primMkQName
@@ -385,6 +391,24 @@ primLog = log
 
 primSin :: Double -> Double
 primSin = sin
+
+primCos :: Double -> Double
+primCos = cos
+
+primTan :: Double -> Double
+primTan = tan
+
+primASin :: Double -> Double
+primASin = asin
+
+primACos :: Double -> Double
+primACos = acos
+
+primATan :: Double -> Double
+primATan = atan
+
+primATan2 :: Double -> Double -> Double
+primATan2 = atan2
 
 -- ====================
 -- Reflection
