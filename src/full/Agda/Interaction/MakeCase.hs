@@ -93,10 +93,12 @@ parseVariables f ii rng ss = do
 
     -- Resolve each string to a variable.
     forM ss $ \ s -> do
-      let failNotVar = typeError $ GenericError $ "Not a (splittable) variable: " ++ s
+      let failNotVar = typeError $ GenericError $ "Not a variable: " ++ s
           done i
             | notElem i nonSplittableVars = return i
-            | otherwise                   = failNotVar
+            | otherwise                   = typeError $ GenericError $
+               "Cannot split on variable " ++ s ++ ". It is either a module parameter " ++
+               "or already instantiated by a dot pattern"
 
       -- Note: the range in the concrete name is only approximate.
       resName <- resolveName $ C.QName $ C.Name r $ C.stringNameParts s
