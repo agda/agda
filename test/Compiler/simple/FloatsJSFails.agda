@@ -27,6 +27,8 @@ Inf = 1.0 / 0.0
 
 main : IO Unit
 main =
+  -- Issue #2192.
+  putStr "1.0  = " ,, print 1.0 ,,
   -- Issues #2169 and #2192.
   putStr "-0.0 = " ,, print -0.0  ,,
 
