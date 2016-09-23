@@ -1,6 +1,7 @@
 EXECUTED_PROGRAM
 
 ret > ExitSuccess
+out > 1.0  = 1.0
 out > -0.0 = -0.0
 out > NaN < -5.0  = true
 out >
