@@ -57,9 +57,9 @@ exports.primFloatEquality = function(x) {
 exports.primFloatLess = function(x) {
   return function(y) {
     if (Object.is(x,-0.0) && x == y) {
-      return true
+      return true;
     } else {
-      return x<y;
+        return x<y;
     }
   };
 };
