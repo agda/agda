@@ -30,5 +30,7 @@ main =
   putStr "NaN   = " ,, print NaN   ,,
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
-  putStr "NaN < -Inf  = " ,, printB (NaN < -Inf) ,,
+  putStr "NaN  < -Inf = " ,, printB (NaN < -Inf) ,,
+  putStr "0.0  < -0.0 = " ,, printB (0.0 < -0.0) ,,
+  putStr "-0.0 < 0.0  = " ,, printB (-0.0 < 0.0) ,,
   return unit

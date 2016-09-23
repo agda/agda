@@ -47,16 +47,23 @@ exports.primNatMinus = function(x) {
 exports.primShowFloat = function(x) {
   return x.toString();
 };
+
 exports.primFloatEquality = function(x) {
   return function(y) {
     return Object.is(x,y);
   };
 };
+
 exports.primFloatLess = function(x) {
   return function(y) {
-    return x<y;
+    if (Object.is(x,-0.0) && x == y) {
+      return true
+    } else {
+      return x<y;
+    }
   };
 };
+
 exports.primFloatPlus = function(x) {
   return function(y) {
     return x+y;

@@ -168,9 +168,10 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primFloatLess"         |-> return (unwords
                                   [ "((\\ x y ->"
                                   , "let isNegInf z = z < 0 && isInfinite z in"
-                                  , "if isNegInf y then False else"
-                                  , "if isNegInf x then True  else"
-                                  , "if isNaN x    then True  else"
+                                  , "if isNegInf y                 then False else"
+                                  , "if isNegInf x                 then True  else"
+                                  , "if isNaN x                    then True  else"
+                                  , "if isNegativeZero x && x == y then True else"
                                   , "x < y) :: Double -> Double -> Bool)" ])
   , "primFloatSqrt"         |-> return "(sqrt :: Double -> Double)"
   , "primRound"             |-> return "(round :: Double -> Integer)"

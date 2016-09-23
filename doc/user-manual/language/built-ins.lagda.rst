@@ -280,6 +280,7 @@ exceptions:
 - ``primFloatEquality NaN (primFloatNegate NaN)`` returns ``false``.
 - ``primFloatEquality 0.0 -0.0`` returns ``false``.
 - ``primFloatLess`` sorts ``NaN`` below everything but negative infinity.
+- ``primFloatLess -0.0 0.0`` returns ``true``.
 
 This is to allow decidable equality and proof carrying comparisons on floating
 point numbers.
