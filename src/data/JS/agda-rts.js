@@ -45,7 +45,13 @@ exports.primNatMinus = function(x) {
 // Floats
 
 exports.primShowFloat = function(x) {
-  return x.toString();
+  // See Issue #2192.
+  if (Number.isInteger(x)) {
+    var a = x.toString();
+    return (a + ".0");
+  } else {
+    return x.toString();
+  }
 };
 
 exports.primFloatEquality = function(x) {
@@ -57,9 +63,9 @@ exports.primFloatEquality = function(x) {
 exports.primFloatLess = function(x) {
   return function(y) {
     if (Object.is(x,-0.0) && x == y) {
-      return true
+      return true;
     } else {
-      return x<y;
+        return x<y;
     }
   };
 };
