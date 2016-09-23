@@ -27,6 +27,7 @@ main : IO Unit
 main =
   putStr "123.4 = " ,, print 123.4 ,,
   putStr "-42.9 = " ,, print -42.9 ,,
+  putStr "1.0   = " ,, print 1.0 ,,
   putStr "NaN   = " ,, print NaN   ,,
   putStr "Inf   = " ,, print Inf   ,,
   putStr "-Inf  = " ,, print -Inf  ,,
