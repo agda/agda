@@ -1,9 +1,13 @@
 
-open import Common.Equality
-open import Common.Prelude
+open import Agda.Builtin.Bool
+open import Agda.Builtin.Equality
+open import Agda.Builtin.Float
 
 NaN : Float
 NaN = primFloatDiv 0.0 0.0
 
-ok : primFloatEquality NaN NaN ≡ true
-ok = refl
+defNaN : NaN ≡ NaN
+defNaN = refl
+
+primEqNaN : primFloatEquality NaN NaN ≡ true
+primEqNaN = refl

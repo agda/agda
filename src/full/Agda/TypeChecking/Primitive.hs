@@ -773,10 +773,11 @@ primitiveFunctions = Map.fromList
 
 floatLt :: Double -> Double -> Bool
 floatLt x y
-  | isNegInf y = False
-  | isNegInf x = True
-  | isNaN x    = True
-  | otherwise  = x < y
+  | isNegInf y                 = False
+  | isNegInf x                 = True
+  | isNaN x                    = True
+  | isNegativeZero x && x == y = True
+  | otherwise                  = x < y
   where
     isNegInf z = z < 0 && isInfinite z
 

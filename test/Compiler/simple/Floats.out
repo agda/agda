@@ -6,5 +6,7 @@ out > -42.9 = -42.9
 out > NaN   = NaN
 out > Inf   = Infinity
 out > -Inf  = -Infinity
-out > NaN < -Inf  = false
+out > NaN  < -Inf = false
+out > 0.0  < -0.0 = false
+out > -0.0 < 0.0  = true
 out >
