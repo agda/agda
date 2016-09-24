@@ -692,7 +692,7 @@ Compiler backends
   existing optimizations from the other backends now apply to the
   JavaScript backend as well.
 
-* GHC and JS compiler backends
+* JS, GHC and UHC compiler backends
 
   Added new primitives to built-in floats [Issues #2194 and #2200]:
 
@@ -704,14 +704,6 @@ Compiler backends
   primACos        : Float → Float
   primATan        : Float → Float
   primATan2       : Float → Float → Float
-  ```
-
-* UHC compiler backend
-
-  Added new primitive to built-in floats [Issues #2194]:
-
-  ```agda
-  primFloatNegate : Float → Float
   ```
 
 LaTeX backend
