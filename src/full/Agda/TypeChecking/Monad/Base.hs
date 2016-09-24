@@ -1925,10 +1925,6 @@ data TCEnv =
           , envReifyInteractionPoints :: Bool
                 -- ^ should we try to recover interaction points when reifying?
                 --   disabled when generating types for with functions
-          , envEtaContractImplicit :: Bool
-                -- ^ it's safe to eta contract implicit lambdas as long as we're
-                --   not going to reify and retypecheck (like when doing with
-                --   abstraction)
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -2006,7 +2002,6 @@ initEnv = TCEnv { envContext             = []
                 , envRelevance           = Relevant
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
-                , envEtaContractImplicit    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2077,9 +2072,6 @@ eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDispla
 
 eReifyInteractionPoints :: Lens' Bool TCEnv
 eReifyInteractionPoints f e = f (envReifyInteractionPoints e) <&> \ x -> e { envReifyInteractionPoints = x }
-
-eEtaContractImplicit :: Lens' Bool TCEnv
-eEtaContractImplicit f e = f (envEtaContractImplicit e) <&> \ x -> e { envEtaContractImplicit = x }
 
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }

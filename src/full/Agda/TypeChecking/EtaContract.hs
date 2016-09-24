@@ -67,12 +67,11 @@ etaOnce v = case v of
   -- reportSDoc "tc.eta" 70 $ text "eta-contracting" <+> prettyTCM v
   Shared{} -> updateSharedTerm etaOnce v
   Lam i (Abs _ b) -> do  -- NoAbs can't be eta'd
-      imp <- shouldEtaContractImplicit
       tyty <- typeInType
       case binAppView b of
         App u (Arg info v)
           | (isIrrelevant info || isVar0 tyty v)
-                    && allowed imp info
+                    && getHiding i == getHiding info
                     && not (freeIn 0 u) ->
             return $ strengthen __IMPOSSIBLE__ u
         _ -> return v
@@ -87,7 +86,6 @@ etaOnce v = case v of
         BlockedLevel{}   -> False
         MetaLevel{}      -> False
       isVar0 _ _ = False
-      allowed imp i' = getHiding i == getHiding i' && (imp || notHidden i)
 
   -- Andreas, 2012-12-18:  Abstract definitions could contain
   -- abstract records whose constructors are not in scope.
