@@ -1922,9 +1922,6 @@ data TCEnv =
                 -- Other value: @Relevant@, then only relevant decls. are avail.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
-          , envReifyInteractionPoints :: Bool
-                -- ^ should we try to recover interaction points when reifying?
-                --   disabled when generating types for with functions
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -2001,7 +1998,6 @@ initEnv = TCEnv { envContext             = []
   -- definition (which sets 'AbstractMode').
                 , envRelevance           = Relevant
                 , envDisplayFormsEnabled = True
-                , envReifyInteractionPoints = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2069,9 +2065,6 @@ eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
 
 eDisplayFormsEnabled :: Lens' Bool TCEnv
 eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
-
-eReifyInteractionPoints :: Lens' Bool TCEnv
-eReifyInteractionPoints f e = f (envReifyInteractionPoints e) <&> \ x -> e { envReifyInteractionPoints = x }
 
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }

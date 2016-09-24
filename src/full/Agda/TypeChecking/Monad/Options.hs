@@ -149,14 +149,6 @@ disableDisplayForms =
 displayFormsEnabled :: TCM Bool
 displayFormsEnabled = asks envDisplayFormsEnabled
 
--- | Don't reify interaction points
-dontReifyInteractionPoints :: TCM a -> TCM a
-dontReifyInteractionPoints =
-  local $ \e -> e { envReifyInteractionPoints = False }
-
-shouldReifyInteractionPoints :: TCM Bool
-shouldReifyInteractionPoints = asks envReifyInteractionPoints
-
 -- | Gets the include directories.
 --
 -- Precondition: 'optAbsoluteIncludePaths' must be nonempty (i.e.
