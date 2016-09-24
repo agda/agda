@@ -74,7 +74,9 @@ inTopContext cont = do
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
 
--- Manipulating module parameters --
+-- * Manipulating module parameters --
+
+-- | Locally set module parameters for a computation.
 
 withModuleParameters :: Map ModuleName ModuleParameters -> TCM a -> TCM a
 withModuleParameters mp ret = do
@@ -84,17 +86,23 @@ withModuleParameters mp ret = do
   stModuleParameters .= old
   return x
 
--- Applies a substitution to all module parameters
+-- | Apply a substitution to all module parameters.
+
 updateModuleParameters :: MonadTCM tcm => Substitution -> tcm a -> tcm a
 updateModuleParameters sub ret = do
   pm <- use stModuleParameters
-  let showMP pref mps = intercalate "\n" $ [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
-                                           | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
-                                                                 (Map.toList mps) ]
+  let showMP pref mps = intercalate "\n" $
+        [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
+        | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
+                              (Map.toList mps)
+        ]
   cxt <- reverse <$> getContext
-  reportSLn "tc.cxt.param" 90 $ "updatingModuleParameters\n  sub = " ++ show sub ++
-                                "\n  cxt = " ++ unwords (map (show . fst . unDom) cxt) ++
-                                "\n" ++ showMP "  old = " pm
+  reportSLn "tc.cxt.param" 90 $ unlines $
+    [ "updatingModuleParameters"
+    , "  sub = " ++ show sub
+    , "  cxt = " ++ unwords (map (show . fst . unDom) cxt)
+    , showMP "  old = " pm
+    ]
   let pm' = Map.map f pm
   reportSLn "tc.cxt.param" 90 $ showMP "  new = " pm'
   stModuleParameters .= pm'
@@ -107,7 +115,7 @@ updateModuleParameters sub ret = do
   where
     f mp = mp { mpSubstitution = composeS sub (mpSubstitution mp) }
 
--- Should be called everytime the context is extended.
+-- | Should be called everytime the context is extended.
 weakenModuleParameters :: MonadTCM tcm => Nat -> tcm a -> tcm a
 weakenModuleParameters n = updateModuleParameters (Wk n IdS)
 
