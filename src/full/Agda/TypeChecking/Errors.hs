@@ -128,34 +128,6 @@ instance PrettyTCM Warning where
         [prettyTCM (dropTopLevelModule d)] ++
         pwords "is not strictly positive, because it occurs"
         ++ [prettyTCM ocs]
-{-
-      ++ prettyOcc "it" ocs
-      where
-        prettyOcc _ [] = []
-        prettyOcc it (OccCon d c r : ocs) = concat
-          [ pwords it, pwords "occurs", prettyR r
-          , pwords "in the constructor", [prettyTCM c], pwords "of"
-          , [prettyTCM d <> com ocs], prettyOcc "which" ocs
-          ]
-        prettyOcc it (OccClause f n r : ocs) = concat
-          [ pwords it, pwords "occurs", prettyR r
-          , pwords "in the", [th n], pwords "clause of"
-          , [prettyTCM f <> com ocs], prettyOcc "which" ocs
-          ]
-
-        prettyR NonPositively = pwords "negatively"
-        prettyR (ArgumentTo i q) =
-          pwords "as the" ++ [th i] ++
-          pwords "argument to" ++ [prettyTCM q]
-
-        th 0 = text "first"
-        th 1 = text "second"
-        th 2 = text "third"
-        th n = prettyTCM (n - 1) <> text "th"
-
-        com []    = empty
-        com (_:_) = comma
--}
 
 prettyWarnings :: [Warning] -> TCM String
 prettyWarnings = fmap (unlines . intersperse " ") . prettyWarnings'

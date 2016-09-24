@@ -2184,20 +2184,6 @@ data Warning =
 -- * Type checking errors
 ---------------------------------------------------------------------------
 
--- Occurence of a name in a datatype definition
-data Occ = OccCon { occDatatype :: QName
-                  , occConstructor :: QName
-                  , occPosition :: OccPos
-                  }
-         | OccClause { occFunction :: QName
-                     , occClause   :: Int
-                     , occPosition :: OccPos
-                     }
-  deriving (Show)
-
-data OccPos = NonPositively | ArgumentTo Nat QName
-  deriving (Show)
-
 -- | Information about a call.
 
 data CallInfo = CallInfo
