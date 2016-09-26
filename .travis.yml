@@ -301,7 +301,7 @@ install:
        cd $HOME &&
        wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL} &&
        tar xf ${NODE_TARBALL} &&
-       export PATH=${HOME}/${NODE_DIR}/bin:$PATH; &&
+       export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
        cd $AGDA_HOME &&
        node --version;
     fi
