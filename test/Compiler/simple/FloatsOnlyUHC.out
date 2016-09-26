@@ -1,0 +1,7 @@
+EXECUTED_PROGRAM
+
+ret > ExitSuccess
+out > sqrt 2 = 1.414214
+out > srqt 2 = 1.414214
+out > e =      2.718282
+out >
