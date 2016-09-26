@@ -291,6 +291,22 @@ install:
     fi
 
 ##############################################################################
+# Installing a recent version of Node (see Issue #2192)
+
+  - if [[ $TEST = "MAIN" ]]; then
+       export AGDA_HOME=`pwd` &&
+       export NODE_VERSION=v0.11.16 &&
+       export NODE_DIR=node-${NODE_VERSION}-linux-x64 &&
+       export NODE_TARBALL=${NODE_DIR}.tar.gz &&
+       cd $HOME &&
+       wget https://nodejs.org/download/release/${NODE_VERSION}/${NODE_TARBALL} &&
+       tar xf ${NODE_TARBALL} &&
+       export PATH=${HOME}/${NODE_DIR}/bin:$PATH &&
+       cd $AGDA_HOME &&
+       node --version;
+    fi
+
+##############################################################################
 # Some tests
 
 # ASR (2016-09-17). Running the following tests, which use stack, here
