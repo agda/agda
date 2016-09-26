@@ -38,7 +38,7 @@ tested-with:        GHC == 7.6.3
                     GHC == 8.0.1
 extra-source-files: src/full/undefined.h
                     README.md
-                    CHANGELOG
+                    CHANGELOG.md
                     stack-7.8.4.yaml
                     stack-8.0.1.yaml
 data-dir:           src/data
