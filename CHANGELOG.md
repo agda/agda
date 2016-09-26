@@ -2385,8 +2385,8 @@ Release notes for Agda version 2.4.2.1
 Pragmas and options
 -------------------
 
-* New pragma `{-# TERMINATING #-}` replacing `{-# NO_TERMINATION_CHECK
-  #-}`
+* New pragma `{-# TERMINATING #-}` replacing
+  `{-# NO_TERMINATION_CHECK #-}`
 
   Complements the existing pragma `{-# NON_TERMINATING #-}`.  Skips
   termination check for the associated definitions and marks them as
