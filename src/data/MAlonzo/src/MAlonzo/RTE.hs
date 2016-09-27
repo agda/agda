@@ -2,6 +2,7 @@ module MAlonzo.RTE where
 
 import Unsafe.Coerce
 import GHC.Prim
+import Numeric.IEEE
 
 -- Special version of coerce that plays well with rules.
 {-# INLINE [1] coe #-}
@@ -54,3 +55,5 @@ quotInt = quot
 remInt :: Integer -> Integer -> Integer
 remInt = rem
 
+eqFloat :: Double -> Double -> Bool
+eqFloat = identicalIEEE

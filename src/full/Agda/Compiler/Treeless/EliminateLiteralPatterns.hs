@@ -37,7 +37,7 @@ transform kit = tr
   where
     tr :: TTerm -> TTerm
     tr t = case t of
-      TCase sc t def alts | t `elem` [CTChar, CTString, CTQName, CTNat, CTInt] ->
+      TCase sc t def alts | t `elem` [CTChar, CTString, CTQName, CTNat, CTInt, CTFloat] ->
         foldr litAlt (tr def) alts
         where
           litAlt :: TAlt -> TTerm -> TTerm

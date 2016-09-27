@@ -190,6 +190,7 @@ casetree cc = do
                 return $ C.CTData dtNm
               ([], (LitChar _ _):_)  -> return C.CTChar
               ([], (LitString _ _):_) -> return C.CTString
+              ([], (LitFloat _ _):_) -> return C.CTFloat
               ([], (LitQName _ _):_) -> return C.CTQName
               _ -> __IMPOSSIBLE__
         updateCatchAll catchAll $ do
