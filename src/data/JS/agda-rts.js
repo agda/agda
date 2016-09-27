@@ -47,8 +47,12 @@ exports.primNatMinus = function(x) {
 exports.primShowFloat = function(x) {
   // See Issue #2192.
   if (Number.isInteger(x)) {
-    var a = x.toString();
-    return (a + ".0");
+    if (Object.is(x,-0.0)) {
+      return ("-0.0");
+    } else {
+        var a = x.toString();
+        return (a + ".0");
+    }
   } else {
     return x.toString();
   }
