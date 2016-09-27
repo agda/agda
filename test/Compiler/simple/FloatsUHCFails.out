@@ -6,5 +6,8 @@ out > √2 = 1.414213562373095
 out > Inf == Inf  = true
 out > NaN == NaN  = true
 out > 0.0 == -0.0 = false
+out > isZero  0.0 = pos
+out > isZero -0.0 = neg
+out > isZero  1.0 = nonzero
 out > e = 2.718281828459045
 out >

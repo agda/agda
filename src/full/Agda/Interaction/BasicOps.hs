@@ -134,7 +134,7 @@ giveExpr mi e = do
         solveSizeConstraints DontDefaultToInfty
         -- Double check.
         vfull <- instantiateFull v
-        checkInternal v t'
+        checkInternal vfull t'
 
 -- | Try to fill hole by expression.
 --

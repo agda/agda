@@ -153,6 +153,7 @@ data CaseType
   | CTInt
   | CTChar
   | CTString
+  | CTFloat
   | CTQName
   deriving (Typeable, Show, Eq, Ord)
 

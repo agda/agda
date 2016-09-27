@@ -223,7 +223,7 @@ checkRecDef i name ind eta con ps contel fields =
         , nest 2 $ do
            tel <- getContextTelescope
            text (show tel) $+$ do
-           inContext [] $ do
+           inTopContext $ do
              prettyTCM tel $+$ do
                telA <- reify tel
                text (show telA) $+$ do

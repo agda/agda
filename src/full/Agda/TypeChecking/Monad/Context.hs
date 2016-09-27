@@ -52,14 +52,9 @@ mkContextEntry x = do
   i <- fresh
   return $ Ctx i x
 
--- | Change the context.
-{-# SPECIALIZE inContext :: [Dom (Name, Type)] -> TCM a -> TCM a #-}
-inContext :: MonadTCM tcm => [Dom (Name, Type)] -> tcm a -> tcm a
-inContext xs ret = do
-  ctx <- mapM mkContextEntry xs
-  modifyContext (const ctx) ret
-
 -- | Change to top (=empty) context.
+--
+--   TODO: currently, this makes the @ModuleParamDict@ ill-formed!
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: MonadTCM tcm => tcm a -> tcm a
 inTopContext cont = do
@@ -70,13 +65,17 @@ inTopContext cont = do
   return a
 
 -- | Delete the last @n@ bindings from the context.
+--
+--   TODO: currently, this makes the @ModuleParamDict@ ill-formed!
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = modifyContext $ drop n
 
--- Manipulating module parameters --
+-- * Manipulating module parameters --
 
-withModuleParameters :: Map ModuleName ModuleParameters -> TCM a -> TCM a
+-- | Locally set module parameters for a computation.
+
+withModuleParameters :: ModuleParamDict -> TCM a -> TCM a
 withModuleParameters mp ret = do
   old <- use stModuleParameters
   stModuleParameters .= mp
@@ -84,17 +83,23 @@ withModuleParameters mp ret = do
   stModuleParameters .= old
   return x
 
--- Applies a substitution to all module parameters
+-- | Apply a substitution to all module parameters.
+
 updateModuleParameters :: MonadTCM tcm => Substitution -> tcm a -> tcm a
 updateModuleParameters sub ret = do
   pm <- use stModuleParameters
-  let showMP pref mps = intercalate "\n" $ [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
-                                           | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
-                                                                 (Map.toList mps) ]
+  let showMP pref mps = intercalate "\n" $
+        [ p ++ show m ++ " : " ++ show (mpSubstitution mp)
+        | (p, (m, mp)) <- zip (pref : repeat (map (const ' ') pref))
+                              (Map.toList mps)
+        ]
   cxt <- reverse <$> getContext
-  reportSLn "tc.cxt.param" 90 $ "updatingModuleParameters\n  sub = " ++ show sub ++
-                                "\n  cxt = " ++ unwords (map (show . fst . unDom) cxt) ++
-                                "\n" ++ showMP "  old = " pm
+  reportSLn "tc.cxt.param" 90 $ unlines $
+    [ "updatingModuleParameters"
+    , "  sub = " ++ show sub
+    , "  cxt = " ++ unwords (map (show . fst . unDom) cxt)
+    , showMP "  old = " pm
+    ]
   let pm' = Map.map f pm
   reportSLn "tc.cxt.param" 90 $ showMP "  new = " pm'
   stModuleParameters .= pm'
@@ -107,10 +112,20 @@ updateModuleParameters sub ret = do
   where
     f mp = mp { mpSubstitution = composeS sub (mpSubstitution mp) }
 
--- Should be called everytime the context is extended.
+-- | Since the @ModuleParamDict@ is relative to the current context,
+--   this function should be called everytime the context is extended.
+--
 weakenModuleParameters :: MonadTCM tcm => Nat -> tcm a -> tcm a
 weakenModuleParameters n = updateModuleParameters (Wk n IdS)
 
+-- | Get substitution @Γ ⊢ ρ : Γm@ where @Γ@ is the current context
+--   and @Γm@ is the module parameter telescope of module @m@.
+--
+--   In case the current 'ModuleParamDict' does not know @m@,
+--   we return the identity substitution.
+--   This is ok for instance if we are outside module @m@
+--   (in which case we have to supply all module parameters to any
+--   symbol defined within @m@ we want to refer).
 getModuleParameterSub :: MonadTCM tcm => ModuleName -> tcm Substitution
 getModuleParameterSub m = do
   r <- use stModuleParameters
@@ -118,11 +133,14 @@ getModuleParameterSub m = do
     Nothing -> return IdS
     Just mp -> return $ mpSubstitution mp
 
+
 -- * Adding to the context
 
 -- | @addCtx x arg cont@ add a variable to the context.
 --
 --   Chooses an unused 'Name'.
+--
+--   Warning: Does not update module parameter substitution!
 {-# SPECIALIZE addCtx :: Name -> Dom Type -> TCM a -> TCM a #-}
 addCtx :: MonadTCM tcm => Name -> Dom Type -> tcm a -> tcm a
 addCtx x a ret = do
@@ -140,7 +158,10 @@ class AddContext b where
   addContext  :: MonadTCM tcm => b -> tcm a -> tcm a
   contextSize :: b -> Nat
 
--- | Also weaken module parameter substitution.
+-- | Since the module parameter substitution is relative to
+--   the current context, we need to weaken it when we
+--   extend the context.  This function takes care of that.
+--
 addContext' :: (MonadTCM tcm, AddContext b) => b -> tcm a -> tcm a
 addContext' cxt = addContext cxt . weakenModuleParameters (contextSize cxt)
 
@@ -224,7 +245,7 @@ underAbstraction t a           k = do
 underAbstraction_ :: (Subst t a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction dummyDom
 
--- | Add a let bound variable
+-- | Add a let bound variable.
 {-# SPECIALIZE addLetBinding :: ArgInfo -> Name -> Term -> Type -> TCM a -> TCM a #-}
 addLetBinding :: MonadTCM tcm => ArgInfo -> Name -> Term -> Type -> tcm a -> tcm a
 addLetBinding info x v t0 ret = do
