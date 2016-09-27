@@ -166,7 +166,7 @@ checkDecl d = setCurrentRange d $ do
       A.Primitive i x e        -> meta $ checkPrimitive i x e
       A.Mutual i ds            -> mutual i ds $ checkMutual i ds
       A.Section i x tel ds     -> meta $ checkSection i x tel ds
-      A.Apply i x modapp rd rm _adir -> meta $ checkSectionApplication i x modapp rd rm
+      A.Apply i x modapp ci _adir -> meta $ checkSectionApplication i x modapp ci
       A.Import i x _adir       -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> mapM_ checkDeclCached ds
@@ -796,22 +796,20 @@ checkSectionApplication
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
   -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
-  -> A.Ren QName         -- ^ Imported names (given as renaming).
-  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
+  -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
-checkSectionApplication i m1 modapp rd rm =
+checkSectionApplication i m1 modapp copyInfo =
   traceCall (CheckSectionApplication (getRange i) m1 modapp) $
-  checkSectionApplication' i m1 modapp rd rm
+  checkSectionApplication' i m1 modapp copyInfo
 
 -- | Check an application of a section.
 checkSectionApplication'
   :: Info.ModuleInfo
   -> ModuleName          -- ^ Name @m1@ of module defined by the module macro.
   -> A.ModuleApplication -- ^ The module macro @λ tel → m2 args@.
-  -> A.Ren QName         -- ^ Imported names (given as renaming).
-  -> A.Ren ModuleName    -- ^ Imported modules (given as renaming).
+  -> A.ScopeCopyInfo     -- ^ Imported names and modules
   -> TCM ()
-checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
+checkSectionApplication' i m1 (A.SectionApp ptel m2 args) copyInfo = do
   -- Module applications can appear in lets, in which case we treat
   -- lambda-bound variables as additional parameters to the module.
   extraParams <- do
@@ -860,16 +858,15 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm = do
 
     reportSDoc "tc.mod.apply" 20 $ vcat
       [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
-      , nest 2 $ text "  defs:" <+> text (show rd)
-      , nest 2 $ text "  mods:" <+> text (show rm)
+      , nest 2 $ pretty copyInfo
       ]
     args <- instantiateFull $ vs ++ ts
     let n = size aTel
     etaArgs <- inTopContext $ addContext aTel getContextArgs
     addContext' aTel $
-      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) rd rm
+      applySection m1 (ptel `abstract` aTel) m2 (raise n args ++ etaArgs) copyInfo
 
-checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
+checkSectionApplication' i m1 (A.RecordModuleIFS x) copyInfo = do
   let name = mnameToQName x
   tel' <- lookupSection x
   vs   <- freeVarsToApply name
@@ -920,7 +917,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       , nest 2 $ text "args    =" <+> text (show args)
       ]
     addSection m1
-    applySection m1 telInst x (vs ++ args) rd rm
+    applySection m1 telInst x (vs ++ args) copyInfo
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.

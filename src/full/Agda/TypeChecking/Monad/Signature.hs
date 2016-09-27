@@ -20,7 +20,7 @@ import Data.Maybe
 import Data.Monoid
 
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Abstract (Ren)
+import Agda.Syntax.Abstract (Ren, ScopeCopyInfo(..))
 import Agda.Syntax.Common
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Internal.Names
@@ -230,8 +230,8 @@ lookupSection m = maybe EmptyTel (^. secTelescope) <$> getSection m
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   def  <- getConstInfo x
-  args <- getContextArgs
-  add (drop (projectionArgs $ theDef def) args) x x []
+  args <- drop (projectionArgs $ theDef def) <$> getContextArgs
+  add args x x $ map Apply args
   where
     add args top x es0 = do
       def <- getConstInfo x
@@ -243,11 +243,19 @@ addDisplayForms x = do
             then noDispForm x "not a copy" else do
           if not $ all (isVar . namedArg) $ namedClausePats cl
             then noDispForm x "properly matching patterns" else do
+          -- We have
+          --    x ps = e
+          -- and we're trying to generate a display form
+          --    x es0 <-- e[es0/ps]
+          -- Of course x es0 might be an over- or underapplication, hence the
+          -- n/m arithmetic.
           let n          = size $ namedClausePats cl
               (es1, es2) = splitAt n es0
               m          = n - size es1
               vs1 = map unArg $ fromMaybe __IMPOSSIBLE__ $ allApplyElims es1
-              sub = parallelS $ reverse $ vs1 ++ replicate m (var 0)
+                    -- Display patterns use a single var 0 for all pattern variables,
+                    -- so raise the terms that should match exactly by 1.
+              sub = parallelS $ reverse $ raise 1 vs1 ++ replicate m (var 0)
               body = applySubst sub (compiledClauseBody cl) `applyE` es2
           case unSpine <$> body of
             Just (Def y es) -> do
@@ -279,12 +287,11 @@ applySection
   -> Telescope      -- ^ Parameters of new module.
   -> ModuleName     -- ^ Name of old module applied to arguments.
   -> Args           -- ^ Arguments of module application.
-  -> Ren QName      -- ^ Imported names (given as renaming).
-  -> Ren ModuleName -- ^ Imported modules (given as renaming).
+  -> ScopeCopyInfo  -- ^ Imported names and modules
   -> TCM ()
-applySection new ptel old ts rd rm = do
+applySection new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd } = do
   rd <- closeConstructors rd
-  applySection' new ptel old ts rd rm
+  applySection' new ptel old ts ScopeCopyInfo{ renModules = rm, renNames = rd }
   where
     -- If a datatype is being copied, all its constructors need to be copied,
     -- and if a constructor is copied its datatype needs to be.
@@ -314,8 +321,8 @@ applySection new ptel old ts rd rm = do
             Record{ recConHead = h }      -> [conName h]
             _                         -> []
 
-applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> Ren QName -> Ren ModuleName -> TCM ()
-applySection' new ptel old ts rd rm = do
+applySection' :: ModuleName -> Telescope -> ModuleName -> Args -> ScopeCopyInfo -> TCM ()
+applySection' new ptel old ts ScopeCopyInfo{ renNames = rd, renModules = rm } = do
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
     , text "new  =" <+> text (show new)

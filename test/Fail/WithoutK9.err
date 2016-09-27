@@ -1,4 +1,5 @@
 WithoutK9.agda:17,26-30
 Cannot apply injectivity to the equation E.refl = E.refl of type
-E._≡_ x because I cannot generalize over the indices [x]
-when checking that the pattern refl has type E._≡_ E.refl
+_≡_ {A} x x because I cannot generalize over the indices [x]
+when checking that the pattern refl has type
+_≡_ {E._≡_ x} E.refl E.refl
