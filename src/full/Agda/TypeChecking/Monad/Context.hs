@@ -52,13 +52,6 @@ mkContextEntry x = do
   i <- fresh
   return $ Ctx i x
 
--- | Change the context.
-{-# SPECIALIZE inContext :: [Dom (Name, Type)] -> TCM a -> TCM a #-}
-inContext :: MonadTCM tcm => [Dom (Name, Type)] -> tcm a -> tcm a
-inContext xs ret = do
-  ctx <- mapM mkContextEntry xs
-  modifyContext (const ctx) ret
-
 -- | Change to top (=empty) context.
 {-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
 inTopContext :: MonadTCM tcm => tcm a -> tcm a
