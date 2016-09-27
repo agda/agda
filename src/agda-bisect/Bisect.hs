@@ -195,8 +195,8 @@ options =
 
     , paragraph
         [ "The script inserts the following flags before ARGUMENTS,"
-        , "unless --no-extra-arguments has been given (and only if"
-        , "agda --help indicates that they are available):"
+        , "unless --no-extra-arguments has been given (and only those"
+        , "options which agda --help indicates are available):"
         ] `newline`
       indent 2 (foldr1 newline $ map string defaultFlags)
 
