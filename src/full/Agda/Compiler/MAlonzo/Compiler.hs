@@ -121,7 +121,7 @@ imports = (++) <$> hsImps <*> imps where
   unqualRTE = HS.ImportDecl dummy mazRTE False False False Nothing Nothing $ Just $
               (False, [ HS.IVar $ HS.Ident x
                       | x <- [mazCoerceName, mazErasedName] ++
-                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI] ])
+                             map treelessPrimName [T.PAdd, T.PSub, T.PMul, T.PQuot, T.PRem, T.PGeq, T.PLt, T.PEqI, T.PEqF] ])
 
   imps :: TCM [HS.ImportDecl]
   imps = List.map decl . uniq <$>
@@ -446,7 +446,7 @@ term tm0 = case tm0 of
 
     return $ HS.Case (hsCast sc') (alts' ++ [defAlt])
 
-  T.TLit l -> lift $ literal l
+  T.TLit l -> return $ literal l
   T.TDef q -> do
     HS.Var <$> (lift $ xhqn "d" q)
   T.TCon q   -> term (T.TApp (T.TCon q) [])
@@ -480,31 +480,33 @@ alt sc a = do
       return $ HS.Alt dummy HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier g] b])
                       emptyBinds
-    T.TALit { T.aLit = (LitQName _ q) } -> mkAlt (litqnamepat q)
-    T.TALit { T.aLit = (LitString _ s) , T.aBody = b } -> do
-      b <- term b
+    T.TALit { T.aLit = LitQName _ q } -> mkAlt (litqnamepat q)
+    T.TALit { T.aLit = l@LitFloat{},   T.aBody = b } -> mkGuarded (treelessPrimName T.PEqF) (literal l) b
+    T.TALit { T.aLit = LitString _ s , T.aBody = b } -> mkGuarded "(==)" (litString s) b
+    T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
+  where
+    mkGuarded eq lit b = do
+      b  <- term b
       sc <- term (T.TVar sc)
       let guard =
-            HS.Var (HS.UnQual (HS.Ident "(==)")) `HS.App`
-              sc`HS.App`
-              litString s
+            HS.Var (HS.UnQual (HS.Ident eq)) `HS.App`
+              sc `HS.App` lit
       return $ HS.Alt dummy HS.PWildCard
                       (HS.GuardedRhss [HS.GuardedRhs dummy [HS.Qualifier guard] b])
                       emptyBinds
-    T.TALit {} -> mkAlt (HS.PLit HS.Signless $ hslit $ T.aLit a)
-  where
+
     mkAlt :: HS.Pat -> CC HS.Alt
     mkAlt pat = do
         body' <- term $ T.aBody a
         return $ HS.Alt dummy pat (HS.UnGuardedRhs $ hsCast body') emptyBinds
 
-literal :: Literal -> TCM HS.Exp
+literal :: Literal -> HS.Exp
 literal l = case l of
-  LitNat    _ _   -> return $ typed "Integer"
-  LitFloat  _ x   -> return $ floatExp x "Double"
-  LitQName  _ x   -> return $ litqname x
-  LitString _ s   -> return $ litString s
-  _               -> return $ l'
+  LitNat    _ _   -> typed "Integer"
+  LitFloat  _ x   -> floatExp x "Double"
+  LitQName  _ x   -> litqname x
+  LitString _ s   -> litString s
+  _               -> l'
   where
     l'    = HS.Lit $ hslit l
     typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual

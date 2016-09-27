@@ -77,9 +77,9 @@ treelessPrimName p =
     PGeq  -> "geqInt"
     PLt   -> "ltInt"
     PEqI  -> "eqInt"
+    PEqF  -> "eqFloat"
     -- MAlonzo uses literal patterns, so we don't need equality for the other primitive types
     PEqC  -> __IMPOSSIBLE__
-    PEqF  -> __IMPOSSIBLE__
     PEqS  -> __IMPOSSIBLE__
     PEqQ  -> __IMPOSSIBLE__
     PSeq  -> "seq"
@@ -93,7 +93,6 @@ importsForPrim =
   xForPrim $
   L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
   [ "CHAR"              |-> ["Data.Char"]
-  , "primFloatEquality" |-> ["Numeric.IEEE"]
   , "primIsAlpha"       |-> ["Data.Char"]
   , "primIsAscii"       |-> ["Data.Char"]
   , "primIsDigit"       |-> ["Data.Char"]
@@ -164,7 +163,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   -- ASR (2016-09-14). We use bitwise equality for comparing Double
   -- because Haskell's Eq, which equates 0.0 and -0.0, allows to prove
   -- a contradiction (see Issue #2169).
-  , "primFloatEquality"     |-> return "(Numeric.IEEE.identicalIEEE :: Double -> Double -> Bool)"
+  , "primFloatEquality"     |-> return "MAlonzo.RTE.eqFloat"
   , "primFloatLess"         |-> return (unwords
                                   [ "((\\ x y ->"
                                   , "let isNegInf z = z < 0 && isInfinite z in"
