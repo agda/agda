@@ -32,6 +32,7 @@ defaultFlags :: [String]
 defaultFlags =
   [ "--ignore-interfaces"
   , "--no-default-libraries"
+  , "--no-libraries"
   ]
 
 -- | The path to the Agda executable.
