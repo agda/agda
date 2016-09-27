@@ -213,8 +213,10 @@ memoQName f = unsafePerformIO $ do
 -- Reverts to normal substitution if it hits a binder or other icky stuff (like
 -- levels). It's strict in the shape of the result to avoid creating huge
 -- thunks for accumulator arguments.
-strictSubst :: [Term] -> Term -> Term
-strictSubst us = go 0
+strictSubst :: Bool -> [Term] -> Term -> Term
+strictSubst strict us
+  | not strict = applySubst rho
+  | otherwise  = go 0
   where
     rho = parallelS us
     go k v =
@@ -260,8 +262,12 @@ unKleisli :: (a -> ReduceM b) -> ReduceM (a -> b)
 unKleisli f = ReduceM $ \ env x -> unReduceM (f x) env
 
 reduceTm :: ReduceEnv -> (QName -> CompactDef) -> Bool -> Bool -> Maybe ConHead -> Maybe ConHead -> Term -> Blocked Term
-reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
+reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB' 0
   where
+    -- Force substitutions every nth step to avoid memory leaks. Doing it in
+    -- every is too expensive (issue 2215).
+    strictEveryNth = 1000
+
     runReduce m = unReduceM m env
     conNameId = nameId . qnameName . conName
     isZero =
@@ -274,19 +280,19 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
         Nothing -> const False
         Just s  -> (conNameId s ==) . conNameId
 
-    rewriteAfter f
-      | hasRewriting = trampoline (runReduce . rewrite . f)
-      | otherwise    = f
+    rewriteAfter f steps
+      | hasRewriting = trampoline (runReduce . rewrite . f steps)
+      | otherwise    = f steps
 
     reduceB' = rewriteAfter reduceB''
 
-    reduceB'' v =
+    reduceB'' steps v =
       case v of
-        Def f es -> unfoldDefinitionE False reduceB' (Def f []) f es
+        Def f es -> unfoldDefinitionE steps False reduceB' (Def f []) f es
         Con c vs ->
           -- Constructors can reduce' when they come from an
           -- instantiated module.
-          case unfoldDefinition False reduceB' (Con c []) (conName c) vs of
+          case unfoldDefinition steps False reduceB' (Con c []) (conName c) vs of
             NotBlocked r v -> NotBlocked r $ reduceNat v
             b              -> b
         Lit{} -> done
@@ -298,7 +304,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
         reduceNat v@(Con c [])
           | isZero c = Lit $ LitNat (getRange c) 0
         reduceNat v@(Con c [a])
-          | isSuc c  = inc . ignoreBlocking $ reduceB' (unArg a)
+          | isSuc c  = inc . ignoreBlocking $ reduceB' 0 (unArg a)
           where
             inc (Lit (LitNat r n)) = Lit (LitNat noRange $ n + 1)
             inc w                  = Con c [defaultArg w]
@@ -309,32 +315,32 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
     unfoldCorecursionE :: Elim -> Blocked Elim
     unfoldCorecursionE e@Proj{}             = notBlocked e
     unfoldCorecursionE (Apply (Arg info v)) = fmap (Apply . Arg info) $
-      unfoldCorecursion v
+      unfoldCorecursion 0 v
 
     unfoldCorecursion = rewriteAfter unfoldCorecursion'
 
-    unfoldCorecursion' :: Term -> Blocked Term
-    unfoldCorecursion' (Def f es) = unfoldDefinitionE True unfoldCorecursion (Def f []) f es
-    unfoldCorecursion' v          = reduceB' v
+    unfoldCorecursion' :: Int -> Term -> Blocked Term
+    unfoldCorecursion' steps (Def f es) = unfoldDefinitionE steps True unfoldCorecursion (Def f []) f es
+    unfoldCorecursion' steps v          = reduceB' steps v
 
     -- | If the first argument is 'True', then a single delayed clause may
     -- be unfolded.
     unfoldDefinition ::
-      Bool -> (Term -> Blocked Term) ->
+      Int -> Bool -> (Int -> Term -> Blocked Term) ->
       Term -> QName -> Args -> Blocked Term
-    unfoldDefinition unfoldDelayed keepGoing v f args =
-      unfoldDefinitionE unfoldDelayed keepGoing v f (map Apply args)
+    unfoldDefinition steps unfoldDelayed keepGoing v f args =
+      unfoldDefinitionE steps unfoldDelayed keepGoing v f (map Apply args)
 
     unfoldDefinitionE ::
-      Bool -> (Term -> Blocked Term) ->
+      Int -> Bool -> (Int -> Term -> Blocked Term) ->
       Term -> QName -> Elims -> Blocked Term
-    unfoldDefinitionE unfoldDelayed keepGoing v f es =
-      case unfoldDefinitionStep unfoldDelayed (constInfo f) v f es of
+    unfoldDefinitionE steps unfoldDelayed keepGoing v f es =
+      case unfoldDefinitionStep steps unfoldDelayed (constInfo f) v f es of
         NoReduction v    -> v
-        YesReduction _ v -> keepGoing v
+        YesReduction _ v -> (keepGoing $! steps + 1) v
 
-    unfoldDefinitionStep :: Bool -> CompactDef -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
-    unfoldDefinitionStep unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def} v0 f es =
+    unfoldDefinitionStep :: Int -> Bool -> CompactDef -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
+    unfoldDefinitionStep steps unfoldDelayed CompactDef{cdefDelayed = delayed, cdefNonterminating = nonterm, cdefDef = def} v0 f es =
       let v = v0 `applyE` es
           -- Non-terminating functions
           -- (i.e., those that failed the termination check)
@@ -347,7 +353,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
         CCon{cconSrcCon = c} ->
           NoReduction $ notBlocked $ Con c [] `applyE` es
         CFun{cfunCompiled = cc} ->
-          reduceNormalE v0 f (map notReduced es) dontUnfold cc
+          reduceNormalE steps v0 f (map notReduced es) dontUnfold cc
         CForce -> reduceForce unfoldDelayed v0 f es
         CTyCon -> NoReduction $ notBlocked v
         COther -> runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
@@ -356,7 +362,7 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
 
         reduceForce :: Bool -> Term -> QName -> Elims -> Reduced (Blocked Term) Term
         reduceForce unfoldDelayed v0 pf (Apply a : Apply b : Apply s : Apply t : Apply u : Apply f : es) =
-          case reduceB' (unArg u) of
+          case reduceB' 0 (unArg u) of
             ub@Blocked{}        -> noGo ub
             ub@(NotBlocked _ u)
               | isWHNF u  -> yesReduction $ unArg f `applyE` (Apply (defaultArg u) : es)
@@ -385,21 +391,18 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
         -- TODO: partially applied to u
         reduceForce unfoldDelayed v0 pf es = runReduce $ R.unfoldDefinitionStep unfoldDelayed v0 f es
 
-        reduceNormalE :: Term -> QName -> [MaybeReduced Elim] -> Bool -> FastCompiledClauses -> Reduced (Blocked Term) Term
-        reduceNormalE v0 f es dontUnfold cc
+        reduceNormalE :: Int -> Term -> QName -> [MaybeReduced Elim] -> Bool -> FastCompiledClauses -> Reduced (Blocked Term) Term
+        reduceNormalE steps v0 f es dontUnfold cc
           | dontUnfold = defaultResult  -- non-terminating or delayed
-          | otherwise  = appDefE f v0 cc es
+          | otherwise  =
+            case match' steps f [(cc, es, id)] of
+              YesReduction s u -> YesReduction s u
+              NoReduction es'  -> NoReduction $ applyE v0 <$> es'
           where defaultResult = NoReduction $ NotBlocked AbsurdMatch vfull
                 vfull         = v0 `applyE` map ignoreReduced es
 
-        appDefE :: QName -> Term -> FastCompiledClauses -> MaybeReducedElims -> Reduced (Blocked Term) Term
-        appDefE f v cc es =
-          case match' f [(cc, es, id)] of
-            YesReduction s u -> YesReduction s u
-            NoReduction es'  -> NoReduction $ applyE v <$> es'
-
-        match' :: QName -> FastStack -> Reduced (Blocked Elims) Term
-        match' f ((c, es, patch) : stack) =
+        match' :: Int -> QName -> FastStack -> Reduced (Blocked Elims) Term
+        match' steps f ((c, es, patch) : stack) =
           let no blocking es = NoReduction $ blocking $ patch $ map ignoreReduced es
               yes t          = yesReduction t
 
@@ -420,7 +423,8 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
               where
                 n = length xs
                 m = length es
-                doSubst es t = strictSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
+                useStrictSubst = rem steps strictEveryNth == 0
+                doSubst es t = strictSubst useStrictSubst (reverse $ map (unArg . argFromElim . ignoreReduced) es) t
                 (es0, es1) = splitAt n es
                 lam x t    = Lam (argInfo x) (Abs (unArg x) t)
 
@@ -492,21 +496,21 @@ reduceTm env !constInfo allowNonTerminating hasRewriting zero suc = reduceB'
                                     | n > 0                  = sucFrame (n - 1) stack
                                     | n == 0, Just z <- zero = conFrame z [] stack
                                     | otherwise              = stack
-                              in match' f $ litFrame l $ cFrame $ catchAllFrame stack
+                              in match' steps f $ litFrame l $ cFrame $ catchAllFrame stack
 
-                            Lit l    -> match' f $ litFrame l    $ catchAllFrame stack
-                            Con c vs -> match' f $ conFrame c vs $ catchAllFrame $ stack
+                            Lit l    -> match' steps f $ litFrame l    $ catchAllFrame stack
+                            Con c vs -> match' steps f $ conFrame c vs $ catchAllFrame $ stack
 
                             -- Otherwise, we are stuck.  If we were stuck before,
                             -- we keep the old reason, otherwise we give reason StuckOn here.
                             _ -> no (NotBlocked $ stuckOn elim blk) es'
 
                         -- In case of a projection, push the projFrame
-                        Proj _ p -> match' f $ projFrame p stack
+                        Proj _ p -> match' steps f $ projFrame p stack
 
 
         -- If we reach the empty stack, then pattern matching was incomplete
-        match' f [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
+        match' _ f [] = {- new line here since __IMPOSSIBLE__ does not like the ' in match' -}
           runReduce $
             traceSLn "impossible" 10
               ("Incomplete pattern matching when applying " ++ show f)
