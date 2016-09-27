@@ -35,10 +35,10 @@ defaultFlags =
   , "--no-libraries"
   ]
 
--- | The path to the Agda executable.
+-- | The path to the compiled Agda executable.
 
-agda :: FilePath
-agda = ".cabal-sandbox/bin/agda"
+compiledAgda :: FilePath
+compiledAgda = ".cabal-sandbox/bin/agda"
 
 -- | Options.
 
@@ -51,8 +51,16 @@ data Options = Options
   , skipStrings               :: [String]
   , logFile                   :: Maybe String
   , start                     :: Either FilePath (String, String)
+  , dryRun                    :: Maybe FilePath
   , scriptOrArguments         :: Either (FilePath, [String]) [String]
   }
+
+-- | The path to the Agda executable.
+
+agda :: Options -> FilePath
+agda opts = case dryRun opts of
+  Nothing   -> compiledAgda
+  Just agda -> agda
 
 -- | Parses command-line options. Prints usage information and aborts
 -- this program if the options are malformed (or the help flag is
@@ -136,6 +144,14 @@ options =
                      metavar "LOG" <>
                      help "Replay the git bisect log in LOG" <>
                      action "file")))
+    <*> optional
+          (strOption (long "dry-run" <>
+                      metavar "AGDA" <>
+                      value "agda" <>
+                      showDefaultWith id <>
+                      action "command" <>
+                      help ("Do not run git bisect, just run the " ++
+                            "test once using AGDA")))
     <*> ((Right <$>
           many (strArgument (metavar "ARGUMENTS..." <>
                              help "The arguments supplied to Agda")))
@@ -224,13 +240,15 @@ options =
 main :: IO ()
 main = do
   opts <- options
+  case dryRun opts of
+    Just _  -> runAgda opts >> return ()
+    Nothing -> do
+      sandboxExists <- callProcessWithResultSilently
+                         "cabal" ["sandbox", "list-sources"]
+      unless sandboxExists $
+        callProcess "cabal" ["sandbox", "init"]
 
-  sandboxExists <- callProcessWithResultSilently
-                     "cabal" ["sandbox", "list-sources"]
-  unless sandboxExists $
-    callProcess "cabal" ["sandbox", "init"]
-
-  bisect opts
+      bisect opts
 
 -- | Performs the bisection process.
 
@@ -298,14 +316,14 @@ runAgda :: Options -> IO Bool
 runAgda opts = do
   (prog, args) <-
     case scriptOrArguments opts of
-      Left (prog, args) -> return (prog, agda : args)
+      Left (prog, args) -> return (prog, agda opts : args)
       Right args        -> do
         flags <- if extraArguments opts then do
-                   help <- readProcess agda ["--help"] ""
+                   help <- readProcess (agda opts) ["--help"] ""
                    return $ filter (`isInfixOf` help) defaultFlags
                   else
                    return []
-        return (agda, flags ++ args)
+        return (agda opts, flags ++ args)
 
   putStrLn $ "Command: " ++ showCommandForUser prog args
 
