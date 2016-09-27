@@ -104,7 +104,7 @@ options =
            (strOption (long "compiler" <>
                        help "Use COMPILER to compile Agda" <>
                        metavar "COMPILER" <>
-                       action "file")) <*>
+                       action "command")) <*>
          many
            (strOption (long "cabal-option" <>
                        help "Additional option given to cabal install" <>
