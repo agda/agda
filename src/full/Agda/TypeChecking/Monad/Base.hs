@@ -171,7 +171,8 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
-  , stPostModuleParameters    :: Map ModuleName ModuleParameters
+  , stPostModuleParameters    :: ModuleParamDict
+    -- ^ TODO: can these be moved into the @TCEnv@?
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
   , stPostCurrentModule       :: Maybe ModuleName
@@ -440,7 +441,7 @@ stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
 
-stModuleParameters :: Lens' (Map ModuleName ModuleParameters) TCState
+stModuleParameters :: Lens' (ModuleParamDict) TCState
 stModuleParameters f s =
   f (stPostModuleParameters (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleParameters = x}}
@@ -726,12 +727,17 @@ iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 -- ** Closure
 ---------------------------------------------------------------------------
 
-data Closure a = Closure { clSignature        :: Signature
-                         , clEnv              :: TCEnv
-                         , clScope            :: ScopeInfo
-                         , clModuleParameters :: Map ModuleName ModuleParameters
-                         , clValue            :: a
-                         }
+data Closure a = Closure
+  { clSignature        :: Signature
+  , clEnv              :: TCEnv
+  , clScope            :: ScopeInfo
+  , clModuleParameters :: ModuleParamDict
+      -- ^ Since module parameters are currently stored in 'TCState'
+      --   not in 'TCEnv', we save them here.
+      --   The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
+      --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
+  , clValue            :: a
+  }
     deriving (Typeable, Functor, Foldable)
 
 instance Show a => Show (Closure a) where
@@ -1885,11 +1891,15 @@ ifTopLevelAndHighlightingLevelIs l m = do
 
 data ModuleParameters = ModuleParams
   { mpSubstitution :: Substitution
-      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context.
+      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context @envContext@.
   } deriving (Typeable, Show)
 
 defaultModuleParameters :: ModuleParameters
 defaultModuleParameters = ModuleParams IdS
+
+type ModuleParamDict = Map ModuleName ModuleParameters
+  -- ^ The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
+  --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
 
 data TCEnv =
     TCEnv { envContext             :: Context
