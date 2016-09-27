@@ -169,7 +169,6 @@ instance Reify DisplayTerm Expr where
 --   otherwise, does @fallback@.
 reifyDisplayForm :: QName -> I.Elims -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm f es fallback = do
-  ifNotM displayFormsEnabled fallback $ {- else -} do
     caseMaybeM (liftTCM $ displayForm f es) fallback reify
 
 -- | @reifyDisplayFormP@ tries to recursively
@@ -177,8 +176,7 @@ reifyDisplayForm f es fallback = do
 --
 --   Note: we are not necessarily in the empty context upon entry!
 reifyDisplayFormP :: A.SpineLHS -> TCM A.SpineLHS
-reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) =
-  ifNotM displayFormsEnabled (return lhs) $ {- else -} do
+reifyDisplayFormP lhs@(A.SpineLHS i f ps wps) = do
     let vs = [ setHiding h $ defaultArg $ I.var i
              | (i, h) <- zip [0..] $ map getHiding ps
              ]
@@ -331,10 +329,7 @@ instance Reify Term Expr where
   reify v = reifyTerm True v
 
 reifyTerm :: Bool -> Term -> TCM Expr
-reifyTerm expandAnonDefs0 v = do
-  -- Ulf 2014-07-10: Don't expand anonymous when display forms are disabled
-  -- (i.e. when we don't care about nice printing)
-  expandAnonDefs <- return expandAnonDefs0 `and2M` displayFormsEnabled
+reifyTerm expandAnonDefs v = do
   -- Andreas, 2016-07-21 if --postfix-projections
   -- then we print system-generated projections as postfix, else prefix.
   havePfp <- optPostfixProjections <$> pragmaOptions
@@ -483,15 +478,14 @@ reifyTerm expandAnonDefs0 v = do
         -- as they are mutually recursive with their parent.
         -- Thus we do not have to consider padding them.
 
-        -- Check whether we have an extended lambda and display forms are on.
-        df <- displayFormsEnabled
+        -- Check whether we have an extended lambda.
         toppars <- size <$> do lookupSection $ qnameModule x
         let extLam = case def of
              Function{ funExtLam = Just{}, funProjection = Just{} } -> __IMPOSSIBLE__
              Function{ funExtLam = Just (ExtLamInfo h nh) } -> Just (toppars + h + nh)
              _ -> Nothing
         case extLam of
-          Just pars | df -> reifyExtLam x pars (defClauses defn) es
+          Just pars -> reifyExtLam x pars (defClauses defn) es
 
         -- Otherwise (ordinary function call):
           _ -> do

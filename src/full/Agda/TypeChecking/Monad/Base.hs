@@ -1930,8 +1930,6 @@ data TCEnv =
                 -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are avail.
-          , envDisplayFormsEnabled :: Bool
-                -- ^ Sometimes we want to disable display forms.
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -2007,7 +2005,6 @@ initEnv = TCEnv { envContext             = []
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
                 , envRelevance           = Relevant
-                , envDisplayFormsEnabled = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2072,9 +2069,6 @@ eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
 eRelevance :: Lens' Relevance TCEnv
 eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
-
-eDisplayFormsEnabled :: Lens' Bool TCEnv
-eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
 
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
