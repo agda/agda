@@ -171,7 +171,8 @@ data PostScopeState = PostScopeState
   , stPostSignature           :: Signature
     -- ^ Declared identifiers of the current file.
     --   These will be serialized after successful type checking.
-  , stPostModuleParameters    :: Map ModuleName ModuleParameters
+  , stPostModuleParameters    :: ModuleParamDict
+    -- ^ TODO: can these be moved into the @TCEnv@?
   , stPostImportsDisplayForms :: !DisplayForms
     -- ^ Display forms we add for imported identifiers
   , stPostCurrentModule       :: Maybe ModuleName
@@ -440,7 +441,7 @@ stSignature f s =
   f (stPostSignature (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostSignature = x}}
 
-stModuleParameters :: Lens' (Map ModuleName ModuleParameters) TCState
+stModuleParameters :: Lens' (ModuleParamDict) TCState
 stModuleParameters f s =
   f (stPostModuleParameters (stPostScopeState s)) <&>
   \x -> s {stPostScopeState = (stPostScopeState s) {stPostModuleParameters = x}}
@@ -726,12 +727,17 @@ iFullHash i = combineHashes $ iSourceHash i : List.map snd (iImportedModules i)
 -- ** Closure
 ---------------------------------------------------------------------------
 
-data Closure a = Closure { clSignature        :: Signature
-                         , clEnv              :: TCEnv
-                         , clScope            :: ScopeInfo
-                         , clModuleParameters :: Map ModuleName ModuleParameters
-                         , clValue            :: a
-                         }
+data Closure a = Closure
+  { clSignature        :: Signature
+  , clEnv              :: TCEnv
+  , clScope            :: ScopeInfo
+  , clModuleParameters :: ModuleParamDict
+      -- ^ Since module parameters are currently stored in 'TCState'
+      --   not in 'TCEnv', we save them here.
+      --   The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
+      --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
+  , clValue            :: a
+  }
     deriving (Typeable, Functor, Foldable)
 
 instance Show a => Show (Closure a) where
@@ -1885,11 +1891,15 @@ ifTopLevelAndHighlightingLevelIs l m = do
 
 data ModuleParameters = ModuleParams
   { mpSubstitution :: Substitution
-      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context.
+      -- ^ @Δ ⊢ σ : Γ@ for a @module M Γ@ where @Δ@ is the current context @envContext@.
   } deriving (Typeable, Show)
 
 defaultModuleParameters :: ModuleParameters
 defaultModuleParameters = ModuleParams IdS
+
+type ModuleParamDict = Map ModuleName ModuleParameters
+  -- ^ The map contains for each 'ModuleName' @M@ with module telescope @Γ_M@
+  --   a substitution @Γ ⊢ ρ_M : Γ_M@ from the current context @Γ = envContext (clEnv)@.
 
 data TCEnv =
     TCEnv { envContext             :: Context
@@ -1920,15 +1930,6 @@ data TCEnv =
                 -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are avail.
-          , envDisplayFormsEnabled :: Bool
-                -- ^ Sometimes we want to disable display forms.
-          , envReifyInteractionPoints :: Bool
-                -- ^ should we try to recover interaction points when reifying?
-                --   disabled when generating types for with functions
-          , envEtaContractImplicit :: Bool
-                -- ^ it's safe to eta contract implicit lambdas as long as we're
-                --   not going to reify and retypecheck (like when doing with
-                --   abstraction)
           , envRange :: Range
           , envHighlightingRange :: Range
                 -- ^ Interactive highlighting uses this range rather
@@ -2004,9 +2005,6 @@ initEnv = TCEnv { envContext             = []
   -- can only look into abstract things in an abstract
   -- definition (which sets 'AbstractMode').
                 , envRelevance           = Relevant
-                , envDisplayFormsEnabled = True
-                , envReifyInteractionPoints = True
-                , envEtaContractImplicit    = True
                 , envRange                  = noRange
                 , envHighlightingRange      = noRange
                 , envClause                 = IPNoClause
@@ -2071,15 +2069,6 @@ eAbstractMode f e = f (envAbstractMode e) <&> \ x -> e { envAbstractMode = x }
 
 eRelevance :: Lens' Relevance TCEnv
 eRelevance f e = f (envRelevance e) <&> \ x -> e { envRelevance = x }
-
-eDisplayFormsEnabled :: Lens' Bool TCEnv
-eDisplayFormsEnabled f e = f (envDisplayFormsEnabled e) <&> \ x -> e { envDisplayFormsEnabled = x }
-
-eReifyInteractionPoints :: Lens' Bool TCEnv
-eReifyInteractionPoints f e = f (envReifyInteractionPoints e) <&> \ x -> e { envReifyInteractionPoints = x }
-
-eEtaContractImplicit :: Lens' Bool TCEnv
-eEtaContractImplicit f e = f (envEtaContractImplicit e) <&> \ x -> e { envEtaContractImplicit = x }
 
 eRange :: Lens' Range TCEnv
 eRange f e = f (envRange e) <&> \ x -> e { envRange = x }
@@ -2198,20 +2187,6 @@ data Warning =
 ---------------------------------------------------------------------------
 -- * Type checking errors
 ---------------------------------------------------------------------------
-
--- Occurence of a name in a datatype definition
-data Occ = OccCon { occDatatype :: QName
-                  , occConstructor :: QName
-                  , occPosition :: OccPos
-                  }
-         | OccClause { occFunction :: QName
-                     , occClause   :: Int
-                     , occPosition :: OccPos
-                     }
-  deriving (Show)
-
-data OccPos = NonPositively | ArgumentTo Nat QName
-  deriving (Show)
 
 -- | Information about a call.
 
