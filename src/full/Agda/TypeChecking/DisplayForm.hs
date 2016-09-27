@@ -7,6 +7,7 @@ module Agda.TypeChecking.DisplayForm where
 import Prelude hiding (all)
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe
 import Data.Foldable (all)
 import qualified Data.Set as Set
@@ -19,6 +20,7 @@ import Agda.Syntax.Scope.Base (inverseScopeLookupName)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Reduce (instantiate)
 
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -136,7 +138,7 @@ instance Match a => Match (Elim' a) where
       _                           -> mzero
 
 instance Match Term where
-  match p v = case (ignoreSharing p, ignoreSharing v) of
+  match p v = lift (instantiate v) >>= \ v -> case (ignoreSharing p, ignoreSharing v) of
     (Var 0 [], v)                  -> return [strengthen __IMPOSSIBLE__ v]
     (Var i ps, Var j vs) | i == j  -> match ps vs
     (Def c ps, Def d vs) | c == d  -> match ps vs
