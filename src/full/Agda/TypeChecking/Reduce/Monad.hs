@@ -9,7 +9,6 @@ module Agda.TypeChecking.Reduce.Monad
   , getConstInfo
   , isInstantiatedMeta
   , lookupMeta
-  , reportSDoc, reportSLn
   , traceSLn, traceSDoc
   , askR, applyWhenVerboseS
   ) where
@@ -133,12 +132,6 @@ isInstantiatedMeta i = do
 --   Precondition: The level must be non-negative.
 verboseS :: VerboseKey -> Int -> ReduceM () -> ReduceM ()
 verboseS k n action = whenM (hasVerbosity k n) action
-
-reportSDoc :: VerboseKey -> Int -> TCM Doc -> ReduceM ()
-reportSDoc k n doc = return () -- Cannot implement this!
-
-reportSLn :: VerboseKey -> Int -> String -> ReduceM ()
-reportSLn k n s = return () -- Cannot implement this!
 
 -- | Apply a function if a certain verbosity level is activated.
 --
