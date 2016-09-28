@@ -969,9 +969,11 @@ leqLevel a b = liftTCM $ do
   -- See case for `same term` below.
   a <- normalise a
   b <- normalise b
-  catchConstraint (LevelCmp CmpLeq a b) $ leqView a b
+  leqView a b
   where
-    leqView a@(Max as) b@(Max bs) = do
+    -- Andreas, 2016-09-28
+    -- If we have to postpone a constraint, then its simplified form!
+    leqView a@(Max as) b@(Max bs) = catchConstraint (LevelCmp CmpLeq a b) $ do
       reportSDoc "tc.conv.nat" 30 $
         text "compareLevelView" <+>
           sep [ text (show a) <+> text "=<"
@@ -985,7 +987,11 @@ leqLevel a b = liftTCM $ do
         ([], _) -> ok
 
         -- as ≤ 0
-        (as, [])  -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
+        (as, [])              -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
+        (as, [ClosedLevel 0]) -> sequence_ [ equalLevel' (Max [a]) (Max []) | a <- as ]
+           -- Andreas, 2016-09-28, @[ClosedLevel 0]@ is possible if we come from case
+           -- "reduce constants" where we run @subtr@ on both sides.
+           -- See test/Succeed/LevelMetaLeqZero.agda.
 
         -- as ≤ [b]
         (as@(_:_:_), [b]) -> sequence_ [ leqView (Max [a]) (Max [b]) | a <- as ]
@@ -1031,11 +1037,14 @@ leqLevel a b = liftTCM $ do
                         [n] -> n
                         _   -> __IMPOSSIBLE__
 
-        -- [a] ≤ [neutral]
-        ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
-          | m == n -> equalLevel' (Max [a]) (Max [b])
-          -- Andreas, 2014-04-07: This call to equalLevel is ok even if we removed
-          -- subsumed terms from the lhs.
+        -- Andreas, 2016-09-28: This simplification loses the solution lzero.
+        -- Thus, it is invalid.
+        -- See test/Succeed/LevelMetaLeqNeutralLevel.agda.
+        -- -- [a] ≤ [neutral]
+        -- ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
+        --   | m == n -> equalLevel' (Max [a]) (Max [b])
+        --   -- Andreas, 2014-04-07: This call to equalLevel is ok even if we removed
+        --   -- subsumed terms from the lhs.
 
         -- anything else
         _ -> postpone
