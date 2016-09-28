@@ -101,6 +101,8 @@ disabledTests =
   , RFInclude "Compiler/MAlonzo/simple/FloatsOnlyUHC"
   , RFInclude "Compiler/UHC/simple/FloatsUHCFails"
   , RFInclude "Compiler/UHC/simple/Issue2194"
+  , RFInclude "Compiler/UHC/simple/Issue2218"  -- primFloatEquality is disabled
+  , RFInclude "Compiler/JS/simple/Issue2218"   -- not printing newlines for some reason
   ]
 
 tests :: IO TestTree
